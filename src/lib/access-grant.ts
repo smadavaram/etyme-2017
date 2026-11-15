@@ -289,6 +289,13 @@ export interface HeldAccess {
   expiresAt: Date | null
   /** When this person last did anything needing this access. Null = never. */
   lastUsedAt: Date | null
+  /**
+   * Why a seat past its end date is still open, in the words of
+   * `seatDateLine` (lib/account-lifecycle): an Owner's seat, or the last
+   * one that may manage access. Absent for every other seat. A seat that
+   * is ended by its date is listed under "Access ended" and never reviewed.
+   */
+  keptSays?: string | null
 }
 
 export type AccessFinding =
@@ -317,7 +324,9 @@ export const EXPIRING_DAYS = 14
 
 /** A finding as a person reads it, never the enum ("dormant" was a system word). */
 export const FINDING_WORDS: Record<AccessFinding, string> = {
-  EXPIRED: 'ended',
+  // A seat past its date that is still under "with access" is one kept
+  // open on purpose (2026-11-15), so the finding never says "ended".
+  EXPIRED: 'past its end date',
   DORMANT: 'never used',
   IDLE: 'not used in a long while',
   EXPIRING: 'ending soon',
@@ -337,6 +346,17 @@ export function reviewAccess(held: HeldAccess[], now: Date): AccessReviewItem[] 
 
   for (const h of held) {
     const heldDays = days(now, h.grantedAt)
+
+    if (h.expiresAt && h.expiresAt <= now && h.keptSays) {
+      // Kept open past its date: say why, and what makes the date true again.
+      out.push({
+        contextId: h.contextId, personName: h.personName, roleName: h.roleName,
+        finding: 'EXPIRED',
+        detail: h.keptSays,
+        suggestion: 'Renew it with a new end date, or leave it open.',
+      })
+      continue
+    }
 
     if (h.expiresAt && h.expiresAt <= now) {
       out.push({
@@ -387,6 +407,24 @@ export function reviewAccess(held: HeldAccess[], now: Date): AccessReviewItem[] 
 }
 
 // ── Changing somebody's desk ───────────────────────────────
+
+// ── A seat past its end date, on Users & permissions (2026-11-15) ──
+//
+// A seat whose end date has come stops working (`seatByDate` in
+// lib/account-lifecycle), so it leaves "Everyone with access" for a group
+// of its own, one line per person, and is in no figure. Renewing is the
+// Change role act with the same role, which writes a new end date.
+
+/** The heading over the seats whose end date has come. */
+export const ENDED_HEADING = 'Access ended'
+/** The press on an ended seat: Change role, with the same role chosen. */
+export const RENEW_LABEL = 'Renew'
+/** What renewing is called in the sentence for a reader who may not. */
+export const RENEW_DOING = 'Renewing somebody’s access'
+/** The date column on a seat with no end date. */
+export const NO_END_DATE = 'No end date'
+/** The date column on a seat kept open past its end date; its line says why. */
+export const KEPT_OPEN_COLUMN = 'Kept open'
 
 /**
  * The seat everybody gets by arriving. Spelled here rather than imported
@@ -543,7 +581,7 @@ export function figureWords(key: FigureKey, n: number, parts?: DecisionParts, in
       if (p.neverUsed) named.push(`${p.neverUsed} never used in ${DORMANT_DAYS} days`)
       if (p.notUsedLately) named.push(`${p.notUsedLately} not used in ${IDLE_DAYS} days`)
       if (p.endingSoon) named.push(`${p.endingSoon} ending within ${EXPIRING_DAYS} days`)
-      if (p.ended) named.push(`${p.ended} ended`)
+      if (p.ended) named.push(`${p.ended} past ${p.ended === 1 ? 'its' : 'their'} end date`)
       const what = named.length ? `: ${andList(named)}` : ''
       return {
         key, label: 'Needs a decision', value: n,
@@ -592,6 +630,11 @@ export interface DeskChange {
   othersWhoCanGiveDesks: number
   /** The person's name, for the sentence. */
   personName: string
+  /**
+   * The seat is past its end date and is given a role again: a renewal,
+   * so the same role is the point, never a refusal (2026-11-15).
+   */
+  renewing?: boolean
 }
 
 export type DeskVerdict = { allowed: true } | { allowed: false; says: string }
@@ -601,7 +644,7 @@ export type DeskVerdict = { allowed: true } | { allowed: false; says: string }
  * other change goes through `assessGrant` like a first grant does.
  */
 export function assessDeskChange(c: DeskChange): DeskVerdict {
-  if (c.fromRole === c.toRole) {
+  if (c.fromRole === c.toRole && !c.renewing) {
     return { allowed: false, says: `${c.personName} already works as ${c.toRole}.` }
   }
   if (c.toRole === OWNER_DESK && !c.actorIsOwner) {

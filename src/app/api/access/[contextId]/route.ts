@@ -18,7 +18,7 @@ import { OWNER_ROLE, clause } from '@/lib/owner-rules'
 import { companyPolicy, endSessions } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { recordRefusal } from '@/lib/access-log'
-import { withdrawHistorySays, withdrawVerdict } from '../row-acts'
+import { withdrawHistorySays, withdrawVerdict, readOnTheirDates } from '../row-acts'
 import { renameSeat } from './rename'
 import { pausedReply } from './pause-words'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
@@ -87,7 +87,7 @@ export async function POST(
   // 2026-11-12). The rules and the write are in ./rename, refused in one
   // sentence each and logged before the reply.
   if (action === 'rename') {
-    const all = await loadAll(caller.company.id)
+    const all = await loadAll(caller.company.id, contextId)
     const live = all.filter((r) => !r.revokedAt)
     const target = live.find((r) => r.contextId === contextId)
     if (!target) return refuse(404, 'NOT_FOUND', 'Nobody here with that seat')
@@ -118,7 +118,7 @@ export async function POST(
 
   // Everybody's seat at this company, because the lockout check needs to
   // know who else could let people in.
-  const all = await loadAll(caller.company.id)
+  const all = await loadAll(caller.company.id, contextId)
   const target = all.find((r) => r.contextId === contextId)
   if (!target) return refuse(404, 'NOT_FOUND', 'Nobody here with that seat')
 
@@ -397,7 +397,7 @@ export async function DELETE(
 
   // The Owner rule and the self rule, with the reader as actor: the same
   // verdict the register drew the press from.
-  const all = await loadAll(caller.company.id)
+  const all = await loadAll(caller.company.id, contextId)
   const target = all.find((r) => r.contextId === contextId)!
   const actor = {
     isOwner: all.some((r) => r.personId === caller.person.id && r.isOwner && !r.revokedAt && !r.suspendedAt),
@@ -519,18 +519,24 @@ export async function DELETE(
   })
 }
 
-async function loadAll(companyId: string): Promise<AccessRow[]> {
+/**
+ * The company's seats, read on their end dates (2026-11-15): a seat whose
+ * date has come is read as ended (`readOnTheirDates`), so it never counts
+ * as somebody else who can still let people in. The seat being acted on,
+ * `keep`, is read as it is.
+ */
+async function loadAll(companyId: string, keep?: string): Promise<AccessRow[]> {
   const rows = await prisma.context.findMany({
     where: { companyId },
     select: {
       id: true, personId: true, roleId: true, lastUsedAt: true, invitedAt: true,
-      suspendedAt: true, revokedAt: true,
+      suspendedAt: true, revokedAt: true, expiresAt: true,
       role: { select: { permissions: true, name: true } },
       person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
     },
   })
 
-  return rows.map((r) => ({
+  return readOnTheirDates(rows.map((r) => ({
     contextId: r.id,
     personId: r.personId,
     // Somebody invited who has never done anything has never arrived.
@@ -544,5 +550,6 @@ async function loadAll(companyId: string): Promise<AccessRow[]> {
     revokedAt: r.revokedAt,
     // Only an Owner acts on an Owner (founder, 2026-11-11 and 11-12).
     isOwner: r.role?.name === OWNER_ROLE,
-  }))
+    expiresAt: r.expiresAt,
+  })), new Date(), keep)
 }

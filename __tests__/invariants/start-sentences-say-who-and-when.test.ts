@@ -51,7 +51,10 @@ describe('the start’s fix names who activates, to a reader who may not', () =>
   it('Compliance names who activates from the roles this firm has seated, read once for the page', () => {
     const route = read('src/app/api/compliance/route.ts')
     expect(route).toContain("startedBy: seatedWhoMay(desksHolding('assignments.write', caller.company?.kind), seatedRoles)")
-    expect(route.match(/prisma\.context\.findMany/g)?.length).toBe(1)
+    // Through the one seat reader, which leaves out a seat past its end
+    // date (2026-11-15), never a query of its own.
+    expect(route).toContain('liveRoleNames(await readCompanySeats(caller.company.id))')
+    expect(route.match(/prisma\.context\.findMany/g)).toBeNull()
   })
 
   it('a seat that may start a placement still reads "then activate"', () => {

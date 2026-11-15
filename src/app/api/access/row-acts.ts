@@ -12,7 +12,7 @@
  * Pure: no database. The route reads the seats and hands them here; the
  * page posts what `lifecycleBody` builds.
  */
-import { ownerVerdict, rowActs, stateOf, type AccessRow, type Actor, type AccessState, type Verdict } from '@/lib/account-lifecycle'
+import { ownerVerdict, rowActs, stateOf, seatByDate, type AccessRow, type Actor, type AccessState, type Verdict, type DatedSeat } from '@/lib/account-lifecycle'
 import { hasPermission } from '@/lib/permissions'
 
 export type LifecycleAction = 'suspend' | 'reinstate' | 'revoke'
@@ -122,10 +122,44 @@ export interface Withdrawer extends Actor {
  * listed: 4 consultants on your books, …" (walk, 2026-11-14: the two ran
  * together with no stop). Pure.
  */
-export function peopleHeadline(headline: string, consultantsListed: number): string {
-  if (!consultantsListed) return headline
-  const ended = /[.!?]$/.test(headline) ? headline : `${headline}.`
-  return `${ended} Also listed: ${consultantsListed} ${consultantsListed === 1 ? 'consultant' : 'consultants'} on your books, not counted among your people.`
+export function peopleHeadline(headline: string, consultantsListed: number, endedListed: number = 0): string {
+  if (!consultantsListed && !endedListed) return headline
+  const stop = /[.!?]$/.test(headline) ? headline : `${headline}.`
+  const consultants = `${consultantsListed} ${consultantsListed === 1 ? 'consultant' : 'consultants'} on your books`
+  // A seat past its end date is in no figure (2026-11-15), so the list
+  // under "Access ended" is said here, and the headline and the list agree.
+  const ended = `${endedListed} ${endedListed === 1 ? 'person' : 'people'} whose access ended`
+  if (!endedListed) return `${stop} Also listed: ${consultants}, not counted among your people.`
+  if (!consultantsListed) return `${stop} Also listed: ${ended}, not counted.`
+  return `${stop} Also listed: ${consultants} and ${ended}, none counted among your people.`
+}
+
+/**
+ * The company's seats as the lockout rules should read them on a date
+ * (2026-11-15): a seat whose end date has come and that `seatByDate` does
+ * not keep open is read as ended, so it never counts as somebody who can
+ * still let people in, and is never named as one to ask. In memory only:
+ * no row is rewritten when a date passes. The seat named by `keep` is
+ * left as it is, so an act on it reads its own state. Pure.
+ */
+export function readOnTheirDates<R extends AccessRow & { expiresAt: Date | null }>(rows: readonly R[], now: Date = new Date(), keep?: string): R[] {
+  const dated = (r: R): DatedSeat => ({
+    contextId: r.contextId,
+    // Every row is the one company's.
+    companyId: 'this company',
+    expiresAt: r.expiresAt,
+    isOwner: r.isOwner === true,
+    rolePermissions: r.rolePermissions,
+    revokedAt: r.revokedAt,
+    suspendedAt: r.suspendedAt,
+    hasSignedIn: r.hasSignedIn,
+  })
+  const all = rows.map(dated)
+  return rows.map((r) => {
+    if (r.revokedAt || r.contextId === keep) return r
+    const v = seatByDate(dated(r), all, now)
+    return v.open ? r : { ...r, revokedAt: v.endedOn }
+  })
 }
 
 /**

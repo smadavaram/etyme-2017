@@ -8,6 +8,8 @@ import { seatTrail } from '@/lib/program-seat'
 import { seatMayRead, seatScope, desksThatHold, complianceRefusal } from '@/lib/walls'
 import { hasPermission, desksHolding } from '@/lib/permissions'
 import { seatedWhoMay } from '@/lib/refusal-words'
+import { readCompanySeats } from '@/lib/company-seats'
+import { liveRoleNames } from '@/app/api/contracts/[id]/activate/gate'
 import { logBulkAccess, recordRefusal } from '@/lib/access-log'
 import { supplierCoverGate, standingOf, coverLabel, licenseGate, nameCredential, COVER_THAT_STOPS_WORK, type HeldCredential } from '@/lib/document-stages'
 import { ADVERSE_STEPS, credentialKeys, credentialDetail, contractClearance, fixForReader, lineExtrasForSellLines, requirementsForSellLines } from '@/lib/contract-clearance'
@@ -660,12 +662,11 @@ export async function GET(request: NextRequest) {
   // Owner or an Admin (Tapin walk, 2026-11-14: HR was sent to a resource
   // manager and a contract manager the firm had never seated). One read
   // of the firm's live seats, and only for a reader who may not start.
+  // Read through the one seat reader (2026-11-15), so a seat past its end
+  // date is never named as the one who activates; an Owner, or the last
+  // seat that may manage access, kept open past its date still is.
   const mayStart = hasPermission(caller.permissions, 'assignments.write')
-  const seatedRoles = mayStart || !caller.company?.id ? [] : await prisma.context.findMany({
-    where: { companyId: caller.company.id, revokedAt: null, suspendedAt: null, roleId: { not: null } },
-    select: { role: { select: { name: true } } },
-    distinct: ['roleId'],
-  }).then((rows) => rows.flatMap((r) => (r.role ? [r.role.name] : [])))
+  const seatedRoles = mayStart || !caller.company?.id ? [] : liveRoleNames(await readCompanySeats(caller.company.id))
   const reader = {
     mayStart,
     startedBy: seatedWhoMay(desksHolding('assignments.write', caller.company?.kind), seatedRoles),

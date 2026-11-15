@@ -250,8 +250,10 @@ describe('sign-up walk, round three: Users & permissions counts and says what is
 
   it('a desk’s end date is printed as a day a person reads, on the page and in the email', () => {
     const page = read('src/app/dashboard/access/page.tsx')
-    // The row says the end day itself (founder, 2026-11-12), never "12 days left".
-    expect(page).toContain('`ends ${formatDay(iso)}`')
+    // The row says the end day itself (founder, 2026-11-12), never "12 days left",
+    // in the words of the one rule (`seatDateLine`, 2026-11-15): "Ends on <date>".
+    expect(read('src/app/api/access/route.ts')).toContain('const dateLineOf = (c: (typeof contexts)[number]) => seatDateLine(byDate.get(c.id)!, c.expiresAt)')
+    expect(page).not.toContain('`ended ${formatDay(iso)}`')
     expect(page).not.toContain('days left')
     expect(page).not.toContain('iso.slice(0, 10)')
     const n = deskChangedNotice({ roleName: 'Recruiter', companyName: 'Walk Co', expiresAt: new Date('2027-07-05T00:00:00Z'), landing: '/dashboard' })
@@ -483,9 +485,9 @@ describe('Users & permissions as the founder read it, 2026-11-12', () => {
   // ── Fault 12: withdraw, and the end day ──
 
   it('a waiting row shows its end day, or says no end date', () => {
-    expect(register).toContain('expiresAt: c.expiresAt?.toISOString() ?? null,\n          acts: actsOf(c.id)')
-    expect(page).toContain('{w.said} · {until(w.expiresAt)}')
-    expect(page).toContain("if (!iso) return 'no end date'")
+    expect(register).toContain('expiresAt: c.expiresAt?.toISOString() ?? null,\n          // "Ends on <date>", or null for none (`seatDateLine`).\n          dateLine: dateLineOf(c),\n          acts: actsOf(c.id)')
+    expect(page).toContain('{w.said} · {until(w.dateLine)}')
+    expect(page).toContain('if (!line) return NO_END_DATE')
   })
 
   it('the Ends on field turns a calendar day into the days the route already takes', async () => {
@@ -1471,9 +1473,11 @@ describe('a link from Team structure lands on the row it names', () => {
     const { personAnchor } = await focus()
     expect(personAnchor('ctx_1')).toBe('access-person-ctx_1')
     const src = page()
-    expect(src.match(/id=\{personAnchor\(/g)?.length).toBe(2)
+    // Waiting, with access, and access ended (2026-11-15): each row has one.
+    expect(src.match(/id=\{personAnchor\(/g)?.length).toBe(3)
     expect(src).toMatch(/focus\.person === w\.contextId/)
     expect(src).toMatch(/focus\.person === p\.contextId/)
+    expect(src).toMatch(/focus\.person === e\.contextId/)
     expect(src).toMatch(/scrollIntoView/)
   })
 

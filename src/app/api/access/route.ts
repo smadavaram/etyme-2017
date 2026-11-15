@@ -11,15 +11,16 @@ import {
   assessGrant, reviewAccess, sensitivityOf, levelOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
   hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount, inviteFormWords,
-  decisionSeats, decisionParts, figuresFor, FINDING_WORDS, type FigureKey, type InvitedMail,
+  decisionSeats, decisionParts, figuresFor, FINDING_WORDS, RENEW_DOING, type FigureKey, type InvitedMail,
 } from '@/lib/access-grant'
+import { seatByDate, seatDateLine, pastEndDate, type ByDate, type DatedSeat } from '@/lib/account-lifecycle'
 import { companyPolicy } from '@/lib/identity/read'
 import { isSamplePerson } from '@/lib/sample-seat'
 import { consoleHome, type CompanyKind } from '@/lib/console-home'
 import { formatDay } from '@/lib/format-date'
 import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
 import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act'
-import { mayChangeRole, offersFor, peopleHeadline, renameVerdict, PAUSE_OR_END_DOING } from './row-acts'
+import { mayChangeRole, offersFor, peopleHeadline, renameVerdict, readOnTheirDates, PAUSE_OR_END_DOING } from './row-acts'
 import { seatedSays } from '@/lib/money/who-raises-bills'
 import { knownBeyond } from './[contextId]/rename'
 import { copyTextFor, latestInviteMails } from './invite/one'
@@ -144,11 +145,13 @@ export async function GET(request: NextRequest) {
     joinSentenceFor(caller.company.id),
   ])
   const seatOf = new Map(seats.map(s => [s.contextId, s]))
-  const isSample = (id: string) => seatOf.get(id)?.isSample === true
-  const isConsultant = (id: string) => seatOf.get(id)?.isPerson === false
+  const byCtx = new Map(contexts.map(c => [c.id, c]))
+  // A seat past its end date is not in the seat reader's answer, so these
+  // two fall back to the row itself, by the reader's own rules.
+  const isSample = (id: string) => seatOf.get(id)?.isSample ?? isSamplePerson(byCtx.get(id)?.person.primaryEmail ?? null)
+  const isConsultant = (id: string) => seatOf.has(id) ? seatOf.get(id)!.isPerson === false : byCtx.get(id)?.type === 'CONSULTANT'
   const counts = countSeats(peopleOf(seats))
   const consultantsListed = seats.filter(s => !s.isPerson && !s.isSample).length
-  const peopleSays = peopleHeadline(peopleWords(counts), consultantsListed)
 
   // An invitation is not access, whatever desk it carries. A seat with no
   // desk, or whose person has never signed in, waits; the rest have access.
@@ -157,9 +160,38 @@ export async function GET(request: NextRequest) {
     lastUsedAt: c.lastUsedAt,
     everSignedIn: c.person.credentials.length > 0,
   })
+
+  // ── A seat's end date (2026-11-15) ──
+  // Read through the one rule (`seatByDate`), as the caller check and the
+  // seat reader read it: a seat whose date has come stops working, unless
+  // it is an Owner's or the last one that may manage access. An ended
+  // seat leaves "with access" and "waiting" for "Access ended", and is in
+  // no figure, so the list and the figures agree. No row is rewritten.
+  const datedOf = (c: (typeof contexts)[number]): DatedSeat => ({
+    contextId: c.id,
+    companyId: c.companyId,
+    expiresAt: c.expiresAt,
+    isOwner: c.role?.name === OWNER_DESK,
+    rolePermissions: c.role?.permissions ?? [],
+    revokedAt: c.revokedAt,
+    suspendedAt: c.suspendedAt,
+    hasSignedIn: signedInOf(c),
+  })
+  const allDated = contexts.map(datedOf)
+  const byDate = new Map<string, ByDate>(contexts.map(c => [c.id, seatByDate(datedOf(c), allDated, now)]))
+  const isOpen = (id: string) => byDate.get(id)?.open !== false
+  const keptOf = (id: string) => { const v = byDate.get(id); return v && v.open ? v.kept : null }
+  const dateLineOf = (c: (typeof contexts)[number]) => seatDateLine(byDate.get(c.id)!, c.expiresAt)
+
   const listed = contexts.filter(c => !isSample(c.id))
-  const withAccess = listed.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WITH_ACCESS')
-  const waiting = listed.filter(c => seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WAITING')
+  const withAccess = listed.filter(c => isOpen(c.id) && seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WITH_ACCESS')
+  const waiting = listed.filter(c => isOpen(c.id) && seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WAITING')
+  const endedSeats = listed.filter(c => !isOpen(c.id))
+  const peopleSays = peopleHeadline(peopleWords(counts), consultantsListed, endedSeats.length)
+  // The seats that still work: a person at the firm, not the sample seat,
+  // not paused, signed in, and open on their end date. Only these are
+  // named as somebody to ask.
+  const liveSeats = contexts.filter(c => !c.suspendedAt && !c.revokedAt && !isSample(c.id) && !isConsultant(c.id) && signedInOf(c) && isOpen(c.id))
   // The address each person signs in with, under their name on every row
   // (founder, 2026-11-12: people with access hid it while people waiting
   // showed it). This register is read only on governance.read, the desks
@@ -187,6 +219,8 @@ export async function GET(request: NextRequest) {
         grantedAt: c.grantedAt,
         expiresAt: c.expiresAt,
         lastUsedAt: c.lastUsedAt,
+        // Kept open past its date: the finding says why, never "ended".
+        keptSays: keptOf(c.id) ? dateLineOf(c) : null,
       })),
     now
   )
@@ -221,7 +255,9 @@ export async function GET(request: NextRequest) {
   // Admin is never offered Pause or End on an Owner; the last Owner is
   // never offered either.
   const offers = offersFor(
-    contexts.map(c => ({
+    // Read on their end dates, so a seat whose date has come never counts
+    // as somebody else who could still let people in.
+    readOnTheirDates(contexts.map(c => ({
       contextId: c.id,
       personId: c.personId,
       hasSignedIn: signedInOf(c),
@@ -231,14 +267,14 @@ export async function GET(request: NextRequest) {
       revokedAt: c.revokedAt,
       isOwner: c.role?.name === OWNER_DESK,
       invited: c.invitedAt !== null,
-    })),
+      expiresAt: c.expiresAt,
+    })), now),
     { isOwner: actorIsOwner && !mine?.suspendedAt, personId: caller.person.id },
     hasPermission(caller.permissions, 'team.manage'),
     // For a reader who may not pause or end anybody, each row says who
     // here may, named from the live seats the firm has filled (fix list D5).
     seatedSays(PAUSE_OR_END_DOING, contexts
-      .filter(c => !c.suspendedAt && !c.revokedAt && !isSample(c.id) && !isConsultant(c.id) && signedInOf(c)
-        && hasPermission(c.role?.permissions ?? [], 'team.manage'))
+      .filter(c => liveSeats.includes(c) && hasPermission(c.role?.permissions ?? [], 'team.manage'))
       .map(c => c.role?.name ?? '')) ?? askTheDesk({
       doing: PAUSE_OR_END_DOING,
       needs: 'team.manage',
@@ -268,6 +304,25 @@ export async function GET(request: NextRequest) {
       actorIsOwner: actorIsOwner && !mine?.suspendedAt,
     }),
   })
+
+  // Renew on a seat whose date has come: the Change role act, on the same
+  // verdict (`mayChangeRole`). A reader who may not is told who here may,
+  // named from the live seats the firm has filled, else the role's name.
+  const mayRenew = (c: (typeof contexts)[number]) => mayChangeRole({
+    mayGrant: hasPermission(caller.permissions, 'settings.manage'),
+    targetIsOwner: c.role?.name === OWNER_DESK,
+    actorIsOwner: actorIsOwner && !mine?.suspendedAt,
+  })
+  const renewers = seatedSays(RENEW_DOING, liveSeats
+    .filter(c => hasPermission(c.role?.permissions ?? [], 'settings.manage'))
+    .map(c => c.role?.name ?? '')) ?? askTheDesk({
+    doing: RENEW_DOING,
+    needs: 'settings.manage',
+    kind: caller.company.kind,
+    companyName: caller.company.name,
+  })
+  const ownerRenews = seatedSays(RENEW_DOING, liveSeats.filter(c => c.role?.name === OWNER_DESK).map(() => OWNER_DESK)) ?? renewers
+  const whoRenews = (c: (typeof contexts)[number]) => c.role?.name === OWNER_DESK ? ownerRenews : renewers
 
   // The invitation form's words, from the company's own sign-in policy,
   // read by the one policy function. Sent only to a reader who may invite:
@@ -358,6 +413,8 @@ export async function GET(request: NextRequest) {
           said: waitingLine({ invited, signedIn, days: waitingDays, desk: c.role?.name ?? null }),
           // A seat may be given an end day before they come in.
           expiresAt: c.expiresAt?.toISOString() ?? null,
+          // "Ends on <date>", or null for none (`seatDateLine`).
+          dateLine: dateLineOf(c),
           acts: actsOf(c.id),
           ...inviteOf(c),
         }
@@ -382,11 +439,34 @@ export async function GET(request: NextRequest) {
         level: levelOf(c.role!.name, c.role!.permissions),
         grantedAt: c.grantedAt.toISOString(),
         expiresAt: c.expiresAt?.toISOString() ?? null,
+        // "Ends on <date>", null for none, or, for a seat kept open past
+        // its date, why it stays open (`seatDateLine`), never "ended".
+        dateLine: dateLineOf(c),
+        keptPastEndDate: keptOf(c.id),
         lastUsedAt: c.lastUsedAt?.toISOString() ?? null,
         reason: c.grantReason,
         // A paused seat says so on its row, with why.
         pausedReason: c.suspendedAt ? c.suspendReason ?? null : null,
         acts: actsOf(c.id),
+      })),
+      // Seats whose end date has come (2026-11-15): one line each, "Ended
+      // on <date>", in no figure. Renew is Change role with the same role,
+      // through POST /api/access, for a reader who may change roles; any
+      // other reader is told who here may, from the seats the firm has
+      // filled. An Owner's seat is never ended by a date, so is never here.
+      ended: endedSeats.map(c => ({
+        contextId: c.id,
+        person: personOf(c),
+        role: c.role?.name ?? null,
+        roleId: c.role?.id ?? null,
+        consultant: isConsultant(c.id),
+        shared: sharedOf(c.id),
+        dateLine: dateLineOf(c),
+        // Kept, so Renew can offer the same reason again.
+        reason: c.grantReason,
+        paused: c.suspendedAt !== null,
+        renew: mayRenew(c),
+        whyNoRenew: mayRenew(c) ? null : whoRenews(c),
       })),
       // Only what needs a decision. A review that lists everybody is a
       // review nobody reads.
@@ -569,15 +649,15 @@ export async function POST(request: NextRequest) {
       { status: 422 }
     )
   }
-  const othersWhoCanGiveDesks = await prisma.context.count({
-    where: {
-      companyId: caller.company.id,
-      revokedAt: null,
-      suspendedAt: null,
-      id: { not: target.id },
-      role: { permissions: { hasSome: ['*', 'settings.manage'] } },
-    },
-  })
+  // The company's live seats, read on their end dates (2026-11-15): a seat
+  // whose date has come is not somebody else who can give roles, so it is
+  // never counted as the one who keeps the company able to.
+  const onDates = await openSeatsHere(caller.company.id)
+  const givesDesks = (permissions: readonly string[]) => permissions.includes('*') || permissions.includes('settings.manage')
+  const othersWhoCanGiveDesks = onDates.filter(c => c.id !== target.id && !c.suspendedAt && givesDesks(c.permissions)).length
+  // A seat past its end date given a role again is a renewal: the same
+  // role is the point, and it writes a new end date (`renewing`).
+  const renewing = pastEndDate(target.expiresAt)
   const move = assessDeskChange({
     fromRole: target.role?.name ?? null,
     toRole: role.name,
@@ -586,6 +666,7 @@ export async function POST(request: NextRequest) {
     toCanGiveDesks: canGiveDesks(role.permissions),
     othersWhoCanGiveDesks,
     personName: target.person.name,
+    renewing,
   })
   if (!move.allowed) {
     await recordRefusal([target.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company.id, action: 'DESK_CHANGE', reason: move.says })
@@ -595,15 +676,9 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // How many other live accounts here could grant access, if this one went.
-  const otherCritical = await prisma.context.count({
-    where: {
-      companyId: caller.company.id,
-      revokedAt: null,
-      id: { not: target.id },
-      role: { permissions: { hasSome: ['*', 'settings.manage'] } },
-    },
-  })
+  // How many other live accounts here could grant access, if this one went,
+  // each open on its end date.
+  const otherCritical = onDates.filter(c => c.id !== target.id && givesDesks(c.permissions)).length
 
   const decision = assessGrant({
     roleName: role.name,
@@ -650,7 +725,9 @@ export async function POST(request: NextRequest) {
     data: {
       companyId: caller.company.id,
       action: 'ACCESS_GRANTED',
-      summary: `${caller.person.name} gave ${target.person.name} ${role.name}${target.role ? ` (was ${target.role.name})` : ''}${expiresAt ? ` until ${formatDay(expiresAt)}` : ''}`,
+      summary: renewing && target.role?.name === role.name
+        ? `${caller.person.name} renewed ${target.person.name}’s ${role.name} access${target.expiresAt ? `, which ended on ${formatDay(target.expiresAt)}` : ''}${expiresAt ? `, until ${formatDay(expiresAt)}` : ''}`
+        : `${caller.person.name} gave ${target.person.name} ${role.name}${target.role ? ` (was ${target.role.name})` : ''}${expiresAt ? ` until ${formatDay(expiresAt)}` : ''}`,
       reason: String(reason).trim(),
       payload: {
         contextId: target.id,
@@ -716,11 +793,46 @@ export async function POST(request: NextRequest) {
         sensitivity: decision.sensitivity,
         expiresAt: expiresAt?.toISOString().slice(0, 10) ?? null,
         notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
-        message: expiresAt
-          ? `${target.person.name} can now work as ${role.name}. This ends on ${formatDay(expiresAt)} unless renewed.`
-          : `${target.person.name} has read-only access with no end date.`,
+        message: renewing && target.role?.name === role.name
+          ? (expiresAt
+            ? `${target.person.name}’s access as ${role.name} is renewed. It ends on ${formatDay(expiresAt)} unless renewed again.`
+            : `${target.person.name}’s access as ${role.name} is renewed, read-only, with no end date.`)
+          : expiresAt
+            ? `${target.person.name} can now work as ${role.name}. This ends on ${formatDay(expiresAt)} unless renewed.`
+            : `${target.person.name} has read-only access with no end date.`,
       },
     },
     { status: 201 }
   )
+}
+
+/**
+ * The company's seats not revoked, each with its role's permissions, left
+ * out where its end date has come and `seatByDate` does not keep it open
+ * (2026-11-15). The counters on POST read this, never a count of their own.
+ */
+async function openSeatsHere(companyId: string): Promise<{ id: string; suspendedAt: Date | null; permissions: string[] }[]> {
+  const rows = await prisma.context.findMany({
+    where: { companyId, revokedAt: null },
+    select: {
+      id: true, companyId: true, expiresAt: true, suspendedAt: true, revokedAt: true, invitedAt: true, lastUsedAt: true,
+      role: { select: { name: true, permissions: true } },
+      person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
+    },
+  })
+  const now = new Date()
+  const dated = (r: (typeof rows)[number]): DatedSeat => ({
+    contextId: r.id,
+    companyId: r.companyId,
+    expiresAt: r.expiresAt,
+    isOwner: r.role?.name === OWNER_DESK,
+    rolePermissions: r.role?.permissions ?? [],
+    revokedAt: r.revokedAt,
+    suspendedAt: r.suspendedAt,
+    hasSignedIn: hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn: r.person.credentials.length > 0 }),
+  })
+  const all = rows.map(dated)
+  return rows
+    .filter(r => seatByDate(dated(r), all, now).open)
+    .map(r => ({ id: r.id, suspendedAt: r.suspendedAt, permissions: r.role?.permissions ?? [] }))
 }
