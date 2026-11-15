@@ -15,8 +15,13 @@
  *     "Record a placement"; any other seat is told who records one, by
  *     the contracts route's own sentence, with no link.
  *   - **People are placed and nobody has filed.** Up to three by name,
- *     each with what is true of them: not signed in yet, or not filed a
- *     week yet. Only the worker files, from their own page (founder,
+ *     each with what is true of them: the placement has not started yet,
+ *     not signed in yet, or not filed a week yet. A worker files only on a
+ *     started placement (`rungVerdict` in ./filing), so a placement that
+ *     has not started is the blocker, said in the words Bills uses for
+ *     the same state (`waitsOnSays` in lib/money/nothing-to-bill), and
+ *     sign-in is said only of a started one (fix list 2026-11-14, area E:
+ *     the page chased a worker who could not file yet). Only the worker files, from their own page (founder,
  *     2026-09-28), and a timesheet never comes by email (2026-11-14), so
  *     nothing here offers the firm a way to file for them or an email
  *     door. A firm's own hours-due day is said where it has one.
@@ -32,6 +37,20 @@
 export const RECORD_A_PLACEMENT_HREF = '/dashboard/contracts?new=1'
 /** Where a firm's people, and their invitations, are kept. */
 export const CANDIDATES_HREF = '/dashboard/consultants'
+/** Where a placement is started. Bills links the same page for the same state. */
+export const CONTRACTS_HREF = '/dashboard/contracts'
+
+/**
+ * The states of a recorded placement that has not started: terms agreed,
+ * papers being checked, or checked and not yet begun. The same three Bills
+ * reads as "not started yet" (`/api/invoices/generate`).
+ */
+export const NOT_STARTED_STATES: readonly string[] = ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED']
+
+/** Whether a line in this state has started: hours can be filed on it. */
+export function lineStarted(state: string): boolean {
+  return !NOT_STARTED_STATES.includes(state)
+}
 
 const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -47,6 +66,11 @@ export interface EmptyPerson {
   signedIn: boolean
   /** The person reading the page. */
   isReader: boolean
+  /**
+   * At least one of their open placements has started. False where every
+   * one is recorded and not started yet, so no week can be filed.
+   */
+  started: boolean
 }
 
 export interface EmptyWhy {
@@ -72,7 +96,7 @@ export interface EmptyFacts {
   anyLines: number
   /** The people on a line still open (not ended or cancelled), each once. */
   placed: EmptyPerson[]
-  /** This seat may record a placement and may open Contracts. */
+  /** This seat may record (and so start) a placement and may open Contracts. */
   mayRecord: boolean
   /** The contracts route's sentence naming who records one, for any other seat. */
   recordSays: string | null
@@ -130,21 +154,47 @@ export function emptyWhy(f: EmptyFacts): EmptyWhy {
   const named = sorted.slice(0, NAMED_AT_MOST)
   const more = sorted.length - named.length
 
+  const noneStarted = sorted.every((p) => !p.started)
+  const anyNamedWaiting = named.some((p) => !p.started)
+  const notStartedSays = (name: string) => `${name}’s placement has not started yet, so no week can be filed.`
+
   if (f.asClient) {
     return {
       why: 'NOBODY_FILED',
-      says: sorted.length === 1
-        ? `${sorted[0].name} is working at ${sites}, and no week has been filed yet.`
-        : `${sorted.length} people are working at ${sites}, and no week has been filed yet.`,
+      says: noneStarted
+        ? `Nobody has started at ${sites} yet, so there are no hours to approve.`
+        : sorted.length === 1
+          ? `${sorted[0].name} is working at ${sites}, and no week has been filed yet.`
+          : `${sorted.length} people are working at ${sites}, and no week has been filed yet.`,
       detail:
-        'Only the worker files hours, from their own page. Each week comes here to approve once it is filed.' +
+        'Only the worker files hours, from their own page, once the placement starts. Each week comes here to approve once it is filed.' +
         (more > 0 ? ` ${more} more ${more === 1 ? 'person has' : 'people have'} not filed either.` : ''),
       link: null,
-      people: named.map((p) => ({ personId: p.personId, name: p.name, says: `${p.name} has not filed a week yet.`, link: null })),
+      people: named.map((p) => ({
+        personId: p.personId,
+        name: p.name,
+        says: p.started ? `${p.name} has not filed a week yet.` : `${p.name} has not started at ${sites} yet.`,
+        link: null,
+      })),
     }
   }
 
+  // Where a placement starts, for the seat that may start it; else who does.
+  const startLink: EmptyLink | null = f.mayRecord ? { label: 'Open Contracts', href: CONTRACTS_HREF } : null
+  const startSays = anyNamedWaiting
+    ? ['A placement starts from Contracts.', f.mayRecord ? null : f.recordSays].filter(Boolean).join(' ')
+    : null
+
   // A one-person firm reading her own placement: she is the one who files.
+  if (sorted.length === 1 && sorted[0].isReader && !sorted[0].started) {
+    return {
+      why: 'NOBODY_FILED',
+      says: 'Your placement has not started yet, so no week can be filed.',
+      detail: startSays,
+      link: startLink,
+      people: [],
+    }
+  }
   if (sorted.length === 1 && sorted[0].isReader) {
     return {
       why: 'NOBODY_FILED',
@@ -157,19 +207,33 @@ export function emptyWhy(f: EmptyFacts): EmptyWhy {
 
   return {
     why: 'NOBODY_FILED',
-    says: sorted.length === 1
-      ? `${sorted[0].name} is placed, and no week has been filed yet.`
-      : `${sorted.length} people are placed, and no week has been filed yet.`,
+    says: noneStarted
+      ? sorted.length === 1
+        ? `${sorted[0].name} is placed, and no week can be filed yet.`
+        : `${sorted.length} people are placed, and no week can be filed yet.`
+      : sorted.length === 1
+        ? `${sorted[0].name} is placed, and no week has been filed yet.`
+        : `${sorted.length} people are placed, and no week has been filed yet.`,
     detail: [
+      startSays,
       'Only the worker files hours, from their own page. Nobody at the firm files for them.',
       due,
       more > 0 ? `${more} more ${more === 1 ? 'person has' : 'people have'} not filed either.` : null,
-      // Somebody named has not signed in, and this seat cannot send the
-      // invitation again: who can, once, with no link.
-      !f.mayOpenCandidates && named.some((p) => !p.isReader && !p.signedIn) ? f.inviteSays ?? null : null,
+      // Somebody named on a started placement has not signed in, and this
+      // seat cannot send the invitation again: who can, once, with no link.
+      !f.mayOpenCandidates && named.some((p) => p.started && !p.isReader && !p.signedIn) ? f.inviteSays ?? null : null,
     ].filter(Boolean).join(' '),
-    link: null,
+    // The act that unblocks a placement not started: the button the page draws.
+    link: anyNamedWaiting ? startLink : null,
     people: named.map((p) => {
+      if (!p.started) {
+        return {
+          personId: p.personId,
+          name: p.name,
+          says: p.isReader ? 'Your placement has not started yet, so no week can be filed.' : notStartedSays(p.name),
+          link: startLink,
+        }
+      }
       if (p.isReader) return { personId: p.personId, name: p.name, says: 'You have not filed a week yet.', link: null }
       if (!p.signedIn) {
         return {

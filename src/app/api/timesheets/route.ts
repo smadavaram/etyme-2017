@@ -36,7 +36,7 @@ import type { Carried } from '@/lib/money/client-overtime'
 import { clientDecidedFor, clientDecidedSentence } from './client-decided'
 import { topLegsOver } from '@/lib/money/client-overtime-read'
 import { acceptedWorth, acceptedRowSays, type WeekWorth } from './accepted-worth'
-import { emptyWhy, firmFilingSays, clientApprovalSays, CANDIDATES_HREF, type EmptyWhy, type EmptyPerson } from './empty-why'
+import { emptyWhy, firmFilingSays, clientApprovalSays, CANDIDATES_HREF, lineStarted, type EmptyWhy, type EmptyPerson } from './empty-why'
 import { hasPermission, desksHolding } from '@/lib/permissions'
 import { seatedWhoMay, notYourButton } from '@/lib/refusal-words'
 import { seatedRoles } from '@/app/api/contracts/[id]/activate/gate'
@@ -736,12 +736,21 @@ async function whyEmpty(
   })
   const placed = new Map<string, EmptyPerson>()
   for (const l of lines) {
-    if (l.state === 'ENDED' || l.state === 'CANCELLED' || placed.has(l.personId)) continue
+    if (l.state === 'ENDED' || l.state === 'CANCELLED') continue
+    // One person on two open lines has started where either has: a
+    // recorded placement not started yet cannot take a week, and that,
+    // not her sign-in, is what the page must say (`lineStarted`).
+    const seen = placed.get(l.personId)
+    if (seen) {
+      if (lineStarted(l.state)) seen.started = true
+      continue
+    }
     placed.set(l.personId, {
       personId: l.personId,
       name: l.person.name,
       signedIn: l.person._count.credentials > 0,
       isReader: l.personId === caller.person.id,
+      started: lineStarted(l.state),
     })
   }
 
@@ -769,7 +778,7 @@ async function whyEmpty(
     mayRecord,
     recordSays,
     mayOpenCandidates: mayInvite,
-    inviteSays: !mayInvite && !at.asClient && firm && [...placed.values()].some((p) => !p.signedIn && !p.isReader)
+    inviteSays: !mayInvite && !at.asClient && firm && [...placed.values()].some((p) => p.started && !p.signedIn && !p.isReader)
       ? notYourButton(
           'sending the invitation again',
           seatedWhoMay(desksHolding(ADDS_CONSULTANTS, firm.kind), (await seatedRoles(firm.id)) ?? [])

@@ -14,6 +14,9 @@ import { GET as list } from '@/app/api/timesheets/route'
  *   Harborline Tech     its client (harborline-tech.example)
  *   Dana Reyes          placed, never signed in
  *   Sam Ortiz           placed, signed in, nothing filed
+ *
+ * Both placements are first recorded and not started (DRAFT), then
+ * started, so the page is read in each state the firm meets.
  */
 
 type Seat = { id: string; email: string }
@@ -35,11 +38,11 @@ async function read(s: Seat, q = '') {
   return r.body.data
 }
 
-async function line(personId: string) {
+async function line(personId: string, state: 'DRAFT' | 'IN_PROGRESS' = 'IN_PROGRESS') {
   return prisma.sellContract.create({
     data: {
       companyId: co.northwind, clientCompanyId: co.harborline, personId,
-      billRate: 9_000, startDate: new Date('2026-03-01T00:00:00Z'), state: 'IN_PROGRESS',
+      billRate: 9_000, startDate: new Date('2026-03-01T00:00:00Z'), state,
     },
   })
 }
@@ -101,10 +104,50 @@ describe('an empty Timesheets page says why it is empty, before anybody is place
   })
 })
 
+describe('people placed, and no placement has started yet', () => {
+  beforeAll(async () => {
+    await line(people.dana, 'DRAFT')
+    await line(people.sam, 'DRAFT')
+  })
+
+  it('the AP & Payroll person reads that each placement has not started, never that Sam Ortiz signed in or Dana Reyes did not', async () => {
+    const d = await read(seats.ap)
+    expect(d.empty.why).toBe('NOBODY_FILED')
+    expect(d.empty.says).toBe('2 people are placed, and no week can be filed yet.')
+    expect(d.empty.people.map((p: any) => p.says)).toEqual([
+      'Dana Reyes’s placement has not started yet, so no week can be filed.',
+      'Sam Ortiz’s placement has not started yet, so no week can be filed.',
+    ])
+    expect(JSON.stringify(d.empty)).not.toMatch(/signed in|Sending the invitation again/)
+    expect(d.empty.detail).toMatch(/^A placement starts from Contracts\. Recording a placement is for the Owner or an Admin here\./)
+    expect(d.empty.link).toBeNull()
+  })
+
+  it('the Owner, who may start a placement, is handed Open Contracts', async () => {
+    const d = await read(seats.owner)
+    expect(d.empty.link).toEqual({ label: 'Open Contracts', href: '/dashboard/contracts' })
+    expect(d.empty.detail).toMatch(/^A placement starts from Contracts\. Only the worker files hours/)
+  })
+
+  it('HR, who adds people, is not sent to Candidates for a worker who cannot file yet', async () => {
+    const d = await read(seats.hr)
+    expect(d.empty.people.every((p: any) => p.link === null)).toBe(true)
+    expect(JSON.stringify(d.empty)).not.toContain('Open Candidates')
+  })
+
+  it('the client’s hiring manager reads that nobody has started at its sites, never that they are working there', async () => {
+    const d = await read(seats.hm)
+    expect(d.empty.says).toBe('Nobody has started at your sites yet, so there are no hours to approve.')
+    expect(d.empty.people.map((p: any) => p.says)).toEqual([
+      'Dana Reyes has not started at your sites yet.',
+      'Sam Ortiz has not started at your sites yet.',
+    ])
+  })
+})
+
 describe('people placed, and nobody has filed', () => {
   beforeAll(async () => {
-    await line(people.dana)
-    await line(people.sam)
+    await prisma.sellContract.updateMany({ where: { companyId: co.northwind }, data: { state: 'IN_PROGRESS' } })
   })
 
   it('the AP & Payroll person reads who is placed, that Dana Reyes has not signed in yet, and that only the worker files', async () => {
@@ -148,7 +191,7 @@ describe('people placed, and nobody has filed', () => {
     const d = await read(seats.hm)
     expect(d.empty.says).toBe('2 people are working at your sites, and no week has been filed yet.')
     expect(d.empty.people.map((p: any) => p.says)).toEqual(['Dana Reyes has not filed a week yet.', 'Sam Ortiz has not filed a week yet.'])
-    expect(d.empty.detail).toBe('Only the worker files hours, from their own page. Each week comes here to approve once it is filed.')
+    expect(d.empty.detail).toBe('Only the worker files hours, from their own page, once the placement starts. Each week comes here to approve once it is filed.')
   })
 })
 

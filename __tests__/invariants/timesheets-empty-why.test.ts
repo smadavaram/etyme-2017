@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  emptyWhy, emptyDrawn, firmFilingSays, clientApprovalSays, RECORD_A_PLACEMENT_HREF, type EmptyFacts, type EmptyPerson,
+  emptyWhy, emptyDrawn, firmFilingSays, clientApprovalSays, RECORD_A_PLACEMENT_HREF, lineStarted, NOT_STARTED_STATES,
+  type EmptyFacts, type EmptyPerson,
 } from '@/app/api/timesheets/empty-why'
 import { inTile, TILE_LABEL, TILE_EMPTY, waitingSub, tileShowing } from '@/app/dashboard/timesheets/tiles'
 import { pasteAnswerSays, supplierStandingSays, contactShown, companyOpenHref } from '@/lib/supplier-list'
@@ -18,7 +19,7 @@ const root = join(__dirname, '..', '..')
 const read = (p: string) => readFileSync(join(root, p), 'utf8')
 
 const person = (name: string, o: Partial<EmptyPerson> = {}): EmptyPerson => ({
-  personId: `id-${name}`, name, signedIn: true, isReader: false, ...o,
+  personId: `id-${name}`, name, signedIn: true, isReader: false, started: true, ...o,
 })
 const facts = (o: Partial<EmptyFacts> = {}): EmptyFacts => ({
   asClient: false, seatedFor: null, onePerson: false, anyLines: 0, placed: [],
@@ -115,6 +116,89 @@ describe('an empty Timesheets page says why it is empty', () => {
     const drawn = emptyDrawn(emptyWhy(facts({ anyLines: 1, placed: [person('Dana Reyes', { signedIn: false })], mayOpenCandidates: true })))
     expect(drawn.action).toEqual({ label: 'Open Candidates', href: '/dashboard/consultants' })
     expect(drawn.detail).toMatch(/^Dana Reyes has not signed in to Etyme yet/)
+  })
+})
+
+describe('a placement that has not started is the blocker, not the worker', () => {
+  const who = 'Recording a placement is for the Owner or an Admin here. Ask one of them.'
+
+  it('a placement recorded and not started yet reads not started, the same three states Bills reads', () => {
+    expect([...NOT_STARTED_STATES]).toEqual(['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'])
+    for (const s of ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED']) expect(lineStarted(s)).toBe(false)
+    for (const s of ['IN_PROGRESS', 'PAUSED']) expect(lineStarted(s)).toBe(true)
+    // Bills names the same three, so the two pages agree about one state.
+    expect(read('src/app/api/invoices/generate/route.ts')).toContain("['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED']")
+  })
+
+  it('a person whose placement has not started is told it has not started, never that she has not signed in or not filed', () => {
+    const w = emptyWhy(facts({
+      anyLines: 2, mayOpenCandidates: true,
+      placed: [person('Sam Ortiz', { started: false }), person('Dana Reyes', { signedIn: false, started: false })],
+    }))
+    expect(w.says).toBe('2 people are placed, and no week can be filed yet.')
+    expect(w.people.map((p) => p.says)).toEqual([
+      'Dana Reyes’s placement has not started yet, so no week can be filed.',
+      'Sam Ortiz’s placement has not started yet, so no week can be filed.',
+    ])
+    expect(JSON.stringify(w)).not.toMatch(/signed in|not filed a week|Open Candidates/)
+  })
+
+  it('a seat that may start a placement is handed Open Contracts, and the page draws it as its one button', () => {
+    const w = emptyWhy(facts({ anyLines: 1, mayRecord: true, placed: [person('Sam Ortiz', { started: false })] }))
+    expect(w.says).toBe('Sam Ortiz is placed, and no week can be filed yet.')
+    expect(w.link).toEqual({ label: 'Open Contracts', href: '/dashboard/contracts' })
+    expect(w.detail).toMatch(/^A placement starts from Contracts\./)
+    const drawn = emptyDrawn(w)
+    expect(drawn.action).toEqual({ label: 'Open Contracts', href: '/dashboard/contracts' })
+    expect(drawn.detail).toMatch(/^Sam Ortiz’s placement has not started yet, so no week can be filed\. A placement starts from Contracts\./)
+  })
+
+  it('a seat that may not start a placement is told which role does, with no link', () => {
+    const w = emptyWhy(facts({ anyLines: 1, recordSays: who, placed: [person('Sam Ortiz', { started: false })] }))
+    expect(w.link).toBeNull()
+    expect(w.people[0].link).toBeNull()
+    expect(w.detail).toContain(`A placement starts from Contracts. ${who}`)
+    expect(emptyDrawn(w).action).toBeNull()
+  })
+
+  it('sign-in is said only of a person whose placement has started', () => {
+    const w = emptyWhy(facts({
+      anyLines: 2, mayOpenCandidates: true,
+      placed: [person('Dana Reyes', { signedIn: false }), person('Sam Ortiz', { signedIn: false, started: false })],
+    }))
+    expect(w.says).toBe('2 people are placed, and no week has been filed yet.')
+    expect(w.people.map((p) => p.says)).toEqual([
+      'Dana Reyes has not signed in to Etyme yet, so no week can be filed.',
+      'Sam Ortiz’s placement has not started yet, so no week can be filed.',
+    ])
+  })
+
+  it('who sends an invitation again is not said where the only person not signed in has not started', () => {
+    const w = emptyWhy(facts({
+      anyLines: 1, recordSays: who, inviteSays: 'Sending the invitation again is for the HR here. Ask them.',
+      placed: [person('Dana Reyes', { signedIn: false, started: false })],
+    }))
+    expect(w.detail).not.toContain('Sending the invitation again')
+  })
+
+  it('a one-person firm whose own placement has not started is told so, and handed Contracts', () => {
+    const w = emptyWhy(facts({ onePerson: true, anyLines: 1, mayRecord: true, placed: [person('Ivy Chen', { isReader: true, started: false })] }))
+    expect(w.says).toBe('Your placement has not started yet, so no week can be filed.')
+    expect(w.link).toEqual({ label: 'Open Contracts', href: '/dashboard/contracts' })
+  })
+
+  it('a client whose people have not started reads that nobody has started at its sites, never that they are working', () => {
+    const w = emptyWhy(facts({ asClient: true, anyLines: 1, placed: [person('Dana Reyes', { signedIn: false, started: false })] }))
+    expect(w.says).toBe('Nobody has started at your sites yet, so there are no hours to approve.')
+    expect(w.people[0].says).toBe('Dana Reyes has not started at your sites yet.')
+    expect(w.link).toBeNull()
+    expect(JSON.stringify(w)).not.toMatch(/is working|signed in/)
+  })
+
+  it('the Timesheets route reads each line’s state, so a person on a started line and a recorded one counts as started', () => {
+    const route = read('src/app/api/timesheets/route.ts')
+    expect(route).toContain('started: lineStarted(l.state)')
+    expect(route).toContain('if (lineStarted(l.state)) seen.started = true')
   })
 })
 
