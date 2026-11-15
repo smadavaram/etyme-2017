@@ -243,7 +243,12 @@ for (const S of SUNDAYS) {
       const data = await rows(S)
       expect(rowOf(data, l).payStatus).toBe('PENDING')
       expect(data.payFileWaits).toMatch(/^Pay for .+ is not worked out yet, so there is no pay file yet\. Press Calculate first\.$/)
-      expect(data.payFileWaits).toContain(l.name)
+      // The sentence names the first two people waiting and counts the
+      // rest, so this line is named or counted: never left out.
+      const waiting = data.payItems.filter((p: any) => p.payStatus === 'PENDING' && p.totalApprovedHours > 0).map((p: any) => p.person.name)
+      expect(waiting).toContain(l.name)
+      const said = waiting.length <= 2 ? waiting.join(' and ') : `${waiting[0]}, ${waiting[1]} and ${waiting.length - 2} more`
+      expect(data.payFileWaits).toBe(`Pay for ${said} is not worked out yet, so there is no pay file yet. Press Calculate first.`)
       as(BRIGHTMOOR)
       const r = await json(await payroll(req('GET', `/api/payroll?period=${S}&format=csv`)))
       expect(r.status).toBe(409)

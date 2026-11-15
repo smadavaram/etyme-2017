@@ -233,7 +233,11 @@ export async function GET(request: NextRequest) {
         orderBy: { dueOn: 'desc' },
       },
     },
-    orderBy: { startDate: 'desc' },
+    // Lines that started on one day keep one order from load to load: the
+    // rows of the table, and the first two names in "not worked out yet",
+    // read the same each time (found 2026-11-15: three lines starting the
+    // same day changed places between two loads).
+    orderBy: [{ startDate: 'desc' }, { id: 'asc' }],
   })
 
   // One pay item PER CANDIDATE, not per contract. A buy contract may cover
