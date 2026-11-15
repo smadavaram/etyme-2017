@@ -151,7 +151,7 @@ describe('how many were worth reading', () => {
   })
 })
 
-describe('how fast the first CV arrives', () => {
+describe('how fast the first resume arrives', () => {
   it('reads in hours when they are quick', () => {
     const roles = Array.from({ length: 6 }, (_, i) =>
       sent({ requirementId: `r${i}`, invitedAt: hoursAgo(100) })
@@ -160,7 +160,7 @@ describe('how fast the first CV arrives', () => {
       put({ requirementId: `r${i}`, submittedAt: hoursAgo(94) })
     )
     const c = scorecard('Techpeple', roles, subs, NOW)
-    expect(c.firstReplyHours.says).toBe('First CV usually inside a day — about 6 hours.')
+    expect(c.firstReplyHours.says).toBe('First resume usually inside a day — about 6 hours.')
   })
 
   it('reads in days when they are slow, because that is how it is felt', () => {
@@ -171,7 +171,7 @@ describe('how fast the first CV arrives', () => {
       put({ requirementId: `r${i}`, submittedAt: daysAgo(26) })
     )
     expect(scorecard('Vertex', roles, subs, NOW).firstReplyHours.says).toBe(
-      'First CV usually takes about 4 days.'
+      'First resume usually takes about 4 days.'
     )
   })
 
@@ -308,7 +308,7 @@ describe('what a supplier is told to fix', () => {
       put({ requirementId: `r${i}`, submittedAt: daysAgo(25) })
     )
     expect(whatToFix(scorecard('Vertex', roles, subs, NOW))).toContain(
-      'Your first CV takes about 5 days. Most jobs are decided in the first week.'
+      'Your first resume takes about 5 days. Most jobs are decided in the first week.'
     )
   })
 

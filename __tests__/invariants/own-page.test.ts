@@ -275,8 +275,10 @@ const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 describe('education, from the résumé, on the person’s page and the firm’s', () => {
   it('a firm reads the person’s education lines and never edits them', () => {
     // The firm reads them, from both of its views of the person.
-    expect(src('src/app/api/consultants/route.ts')).toContain("education: educationShown(p.education, 'FIRM')")
-    expect(src('src/app/api/consultants/[id]/route.ts')).toContain("education: educationShown(profile.education, 'FIRM')")
+    // Before her yes, on a record whose words are not the firm's, it reads
+    // none of them (lib/consultant-portfolio/before-her-yes).
+    expect(src('src/app/api/consultants/route.ts')).toContain("education: typed ? typed.education : educationShown(p.education, 'FIRM')")
+    expect(src('src/app/api/consultants/[id]/route.ts')).toContain("education: typed ? typed.education : educationShown(profile.education, 'FIRM')")
     expect(educationShown(FROM_RESUME, 'FIRM')![0]).toMatchObject({
       says: 'B.S. in Nursing, University of Texas at Austin, 2012',
       from: 'From the résumé',
@@ -286,7 +288,7 @@ describe('education, from the résumé, on the person’s page and the firm’s'
     expect(mayCorrectEducation({ callerPersonId: 'recruiter', profilePersonId: 'priya' }).ok).toBe(false)
     expect(mayCorrectEducation({ callerPersonId: 'priya', profilePersonId: 'priya' }).ok).toBe(true)
     for (const f of ['src/app/api/consultants/[id]/route.ts', 'src/lib/consultant-portfolio/forms.ts', 'src/lib/consultant-portfolio/firm-view.ts']) {
-      expect(src(f)).not.toMatch(/\beducation\s*[:=](?!\s*educationShown)/)
+      expect(src(f)).not.toMatch(/\beducation\s*[:=](?!\s*(typed \? typed\.education : )?educationShown)/)
     }
     // The one door that corrects them is the person's own session.
     expect(src('src/app/api/me/portfolio/route.ts')).toContain('correctEducation(p.education, read.correction, new Date())')

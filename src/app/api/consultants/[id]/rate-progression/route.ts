@@ -8,6 +8,7 @@ import { writePayTrail } from '@/lib/money/pay-trail'
 import { progressionFigures } from '@/lib/consultant-portfolio'
 import { ownPayLineWhere } from '@/lib/money/paid-through'
 import { ownCompanyIdsOf } from '@/lib/money/own-companies'
+import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
  * GET /api/consultants/:id/rate-progression
@@ -259,11 +260,16 @@ export async function GET(
     ? Math.round(((currentRate - firstRate) / firstRate) * 100)
     : null
 
+  // Before her yes, the firm reads the name it typed (`firmReadsAt`).
+  const typed = !isSelf && companyId
+    ? (await firmReadsAt({ companyId, callerPersonId: caller.person.id, consultantIds: [consultant.id] })).get(consultant.id)?.typed ?? null
+    : null
+
   return NextResponse.json({
     data: {
       consultant: {
         id: consultant.id,
-        name: consultant.person.name,
+        name: typed ? typed.name : consultant.person.name,
       },
       progression,
       // Said where the pay on these points was withheld, so a blank reads

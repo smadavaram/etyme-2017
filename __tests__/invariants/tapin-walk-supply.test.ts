@@ -158,7 +158,7 @@ describe('Consultants, Today and Ask Etyme count the bench from one list', () =>
       termsEngagementType: null, termsPayRateCents: null, termsAgreedAt: null,
       firmHeadline: null, firmSkills: [], firmLocation: null, firmNotes: null,
     }]
-    const person = (id: string, name: string) => ({ id, name, primaryEmail: `${id}@example.test`, passwordHash: null, _count: { credentials: 0, contexts: 0 } })
+    const person = (id: string, name: string) => ({ id, name, primaryEmail: `${id}@example.test`, passwordHash: null, _count: { credentials: 0, contexts: 0 }, contexts: [] })
     const profile = (id: string, name: string, state: string) => ({
       id: `p-${id}`, personId: id, headline: null, skills: [], location: null, workAuth: null, rateFloor: null,
       availableFrom: null, visibility: 'INTERNAL', person: person(id, name), listings: listing(state), _count: { listings: 0 },

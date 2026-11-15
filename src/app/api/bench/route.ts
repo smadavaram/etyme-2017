@@ -21,6 +21,7 @@ import { NETWORK_VISIBLE, whoSees } from '@/lib/shared-consultant'
 import { stayEndedRow, stayRow } from '@/lib/bench-stay'
 import { benchAt } from '@/app/api/today/reads'
 import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, alreadyOursSays, type FreeLine, notAtACompany, onTheBench } from '@/lib/bench-filter'
+import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
  * GET /api/bench
@@ -227,7 +228,14 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
-  // Who is on the firm's bench today is one list, `benchAt`
+  // Before her yes, on a record whose words are not this firm's, the row
+  // holds only what the firm typed (`firmReadsAt`, lib/consultant-portfolio/
+  // before-her-yes). Only the firm's own bench holds rows it has not been
+  // granted; a partner's and a person's own are granted or hers.
+  const typedReads = scope === 'company' && companyId
+    ? await firmReadsAt({ companyId, callerPersonId: caller.person.id })
+    : new Map()
+
   // (app/api/today/reads), read by Consultants, Today and Ask Etyme. The
   // tile here reads the same list, so four screens cannot give four
   // numbers (the second Tapin walk, 2026-10-30). Only the count and each
@@ -315,6 +323,15 @@ export async function GET(request: NextRequest) {
   for (const l of listings) {
     const isSubject = l.consultant.personId === caller.person.id
     const showRate = isSubject || showCost
+    const typed = typedReads.get(l.consultant.id)?.typed ?? null
+    // What this row may read of her: her record, or only what was typed.
+    const her = typed
+      ? { name: typed.name, headline: typed.headline, skills: typed.skills, location: typed.location, workAuth: null, rateFloor: null, availableFrom: null, visibility: null, confirmedAt: null, ownCompanyId: null, resumes: 0 }
+      : {
+          name: l.consultant.person.name, headline: l.consultant.headline, skills: l.consultant.skills, location: l.consultant.location,
+          workAuth: l.consultant.workAuth, rateFloor: l.consultant.rateFloor, availableFrom: l.consultant.availableFrom, visibility: l.consultant.visibility,
+          confirmedAt: l.consultant.confirmedAt, ownCompanyId: l.consultant.ownCompanyId, resumes: resumeCounts.get(l.consultant.personId) ?? 0,
+        }
 
     const item = {
       id: l.id,
@@ -334,7 +351,10 @@ export async function GET(request: NextRequest) {
       invitedAt: l.invitedAt?.toISOString() ?? null,
       // When they are free, from the work (`whenFree`), and how long they
       // chose to stay on this bench (`stayRow`).
-      free: freeOf(l.consultant.personId, l.consultant.availableFrom, l.state === 'GRANTED' ? l.grantedAt : null),
+      // Her work at other firms is hers too: before her yes, not on record.
+      free: typed
+        ? whenFree({ lines: [], lastEnded: null, availableFrom: null, onBenchSince: null, now })
+        : freeOf(l.consultant.personId, l.consultant.availableFrom, l.state === 'GRANTED' ? l.grantedAt : null),
       stay: stayRow({ state: l.state, stayDays: l.stayDays, staysUntil: l.staysUntil }, now),
       oursSays: oursOf.get(l.consultant.personId) ?? null,
       // Whether `benchAt` names them today; null where this scope does not read it.
@@ -352,18 +372,18 @@ export async function GET(request: NextRequest) {
         personId: l.consultant.personId,
         person: {
           id: l.consultant.person.id,
-          name: l.consultant.person.name,
+          name: her.name,
           // Another firm's person's address is never sent: on a partner's
           // bench it is a way round the firm that marketed them.
           email: scope === 'network' ? null : l.consultant.person.primaryEmail,
         },
-        headline: l.consultant.headline,
-        skills: l.consultant.skills,
-        location: l.consultant.location,
-        workAuth: l.consultant.workAuth,
-        rateFloor: showRate ? l.consultant.rateFloor : undefined,
-        availableFrom: l.consultant.availableFrom?.toISOString() ?? null,
-        visibility: l.consultant.visibility,
+        headline: her.headline,
+        skills: her.skills,
+        location: her.location,
+        workAuth: her.workAuth,
+        rateFloor: showRate ? her.rateFloor : undefined,
+        availableFrom: her.availableFrom?.toISOString() ?? null,
+        visibility: her.visibility,
       },
       // Whether this record is finished enough to sell.
       //
@@ -376,17 +396,17 @@ export async function GET(request: NextRequest) {
       ready: (() => {
         const r = readiness(
           {
-            name: l.consultant.person.name,
+            name: her.name,
             email: l.consultant.person.primaryEmail,
-            headline: l.consultant.headline,
-            skills: l.consultant.skills,
-            location: l.consultant.location,
-            workAuth: l.consultant.workAuth,
-            rateFloorCents: l.consultant.rateFloor,
-            availableFrom: l.consultant.availableFrom,
-            resumeCount: resumeCounts.get(l.consultant.personId) ?? 0,
-            confirmedAt: l.consultant.confirmedAt,
-            ownCompanyId: l.consultant.ownCompanyId,
+            headline: her.headline,
+            skills: her.skills,
+            location: her.location,
+            workAuth: her.workAuth,
+            rateFloorCents: her.rateFloor,
+            availableFrom: her.availableFrom,
+            resumeCount: her.resumes,
+            confirmedAt: her.confirmedAt,
+            ownCompanyId: her.ownCompanyId,
           },
           now
         )
@@ -396,7 +416,7 @@ export async function GET(request: NextRequest) {
           weakening: r.weakening,
           // The consultant reads their own coaching on their own page;
           // a recruiter reads whether they can send this person.
-          says: isSubject ? r.says : saysToVendor(r, l.consultant.person.name),
+          says: isSubject ? r.says : saysToVendor(r, her.name),
           next: r.next?.label ?? null,
         }
       })(),

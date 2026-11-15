@@ -7,6 +7,7 @@ import { educationShown } from '@/lib/consultant-portfolio/education'
 import { accessActor, logAccess, recordRefusal } from '@/lib/access-log'
 import { firmViewPatch, hasOwnAccount, profileEditPlan, readAsTheFirm } from '@/lib/consultant-portfolio/firm-view'
 import { readProfileEdit } from '@/lib/consultant-portfolio/forms'
+import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
 import { getCallerContext } from '@/lib/api-context'
 import {
@@ -137,6 +138,11 @@ export async function GET(
   }
   const showPayRate = canReadPayRate(fieldCtx)
   const showCost = canReadCostAggregates(fieldCtx)
+  // Before her yes, on a record whose words are not this firm's, only what
+  // it typed (`firmReadsAt`, lib/consultant-portfolio/before-her-yes).
+  const typed = companyId && !isSubject
+    ? (await firmReadsAt({ companyId, callerPersonId: caller.person.id, consultantIds: [profile.id] })).get(profile.id)?.typed ?? null
+    : null
 
   // Filter listings to only those visible to the caller's company
   // (their own company's listings, or listings from the consultant themselves)
@@ -200,20 +206,21 @@ export async function GET(
         personId: profile.personId,
         person: {
           id: profile.person.id,
-          name: profile.person.name,
+          name: typed ? typed.name : profile.person.name,
           email: profile.person.primaryEmail,
-          createdAt: profile.person.createdAt.toISOString(),
+          // When her own record was made is hers too.
+          createdAt: typed ? null : profile.person.createdAt.toISOString(),
         },
-        headline: profile.headline,
-        skills: profile.skills,
-        location: profile.location,
-        workAuth: profile.workAuth,
+        headline: typed ? typed.headline : profile.headline,
+        skills: typed ? typed.skills : profile.skills,
+        location: typed ? typed.location : profile.location,
+        workAuth: typed ? typed.workAuth : profile.workAuth,
         // The résumé's education lines, read only: the person corrects them
         // on their own page, and this firm has no door to change them.
-        education: educationShown(profile.education, 'FIRM'),
-        rateFloor: showCost ? profile.rateFloor : undefined,
-        availableFrom: profile.availableFrom?.toISOString() ?? null,
-        visibility: profile.visibility,
+        education: typed ? typed.education : educationShown(profile.education, 'FIRM'),
+        rateFloor: showCost ? (typed ? typed.rateFloor : profile.rateFloor) : undefined,
+        availableFrom: typed ? typed.availableFrom : profile.availableFrom?.toISOString() ?? null,
+        visibility: typed ? typed.visibility : profile.visibility,
         listings: visibleListings.map((l) => ({
           id: l.id,
           companyId: l.companyId,
@@ -324,6 +331,12 @@ export async function PATCH(
 
   const isSubject = profile.personId === caller.person.id
   const listing = profile.listings[0] ?? null
+  // Before her yes, on a record whose words are not this firm's, every
+  // sentence and the reply read only what it typed (`firmReadsAt`).
+  const typed = companyId && !isSubject
+    ? (await firmReadsAt({ companyId, callerPersonId: caller.person.id, consultantIds: [profile.id] })).get(profile.id)?.typed ?? null
+    : null
+  const shownName = typed ? typed.name : profile.person.name
 
   // The firm must know them: a seat here, or a listing not taken back.
   if (!isSubject) {
@@ -340,7 +353,7 @@ export async function PATCH(
         reason: 'Refused a change to their record: the firm neither employs this person nor lists them.',
       })
       return NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: `${profile.person.name} is not one of ${caller.company?.name ?? 'your company'}’s people, so there is nothing here for you to change.` } },
+        { error: { code: 'FORBIDDEN', message: `${shownName} is not one of ${caller.company?.name ?? 'your company'}’s people, so there is nothing here for you to change.` } },
         { status: 403 }
       )
     }
@@ -376,7 +389,7 @@ export async function PATCH(
     }),
     otherFirms: profile._count.listings,
     hasListing: listing != null,
-    name: profile.person.name,
+    name: shownName,
     firm: caller.company?.name ?? 'your company',
     fields,
   })
@@ -432,6 +445,11 @@ export async function PATCH(
         : { headline: profile.headline, skills: profile.skills, location: profile.location }
       if (plan.profile && personUpdate) {
         await tx.person.update({ where: { id: profile.personId }, data: personUpdate })
+        // The firm renamed a record it keeps: its listing keeps the name
+        // too, so it still reads it if she later takes an account.
+        if (listing && !isSubject && personUpdate.name) {
+          await tx.benchListing.update({ where: { id: listing.id }, data: { firmName: personUpdate.name } })
+        }
       }
       const view = plan.listing && listing
         ? await tx.benchListing.update({
@@ -454,18 +472,19 @@ export async function PATCH(
     }
 
     // What this firm now reads about them: its own view first, theirs beside.
-    const read = readAsTheFirm(written.own, isSubject ? null : written.view)
+    const read = readAsTheFirm(typed ? typed.own : written.own, isSubject ? null : written.view)
     return NextResponse.json({
       data: {
         consultant: {
           id: profile.id,
           personId: profile.personId,
-          name: personUpdate && plan.profile ? personUpdate.name : profile.person.name,
+          name: personUpdate && plan.profile ? personUpdate.name : shownName,
           headline: read.headline,
           skills: read.skills,
           location: read.location,
           notes: read.notes,
-          own: read.own,
+          // Her own words are not in the reply before her yes.
+          own: typed ? typed.own : read.own,
         },
         kept: plan.profile && plan.listing ? 'BOTH' : plan.profile ? 'PROFILE' : 'LISTING',
         message: plan.says,

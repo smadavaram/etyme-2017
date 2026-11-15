@@ -7,6 +7,7 @@ import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { termsShown } from '@/lib/bench-filter'
 import { renewAskText } from '@/lib/bench-stay'
 import { possessive } from '@/lib/requisition-approval'
+import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
  * POST /api/bench/listings/:id/nudge   { copyOnly? }
@@ -39,21 +40,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       id: true, companyId: true, state: true, revokedAt: true, lapsedAt: true, staysUntil: true, stayDays: true,
       termsEngagementType: true, termsPayRateCents: true, termsPayCurrency: true, termsAgreedAt: true,
       company: { select: { name: true, homeCurrency: true } },
-      consultant: { select: { person: { select: { id: true, name: true, primaryEmail: true } } } },
+      consultant: { select: { id: true, person: { select: { id: true, name: true, primaryEmail: true } } } },
     },
   })
   if (!listing || listing.companyId !== caller.company?.id) {
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That listing is not on your bench.' } }, { status: 404 })
   }
   const person = listing.consultant.person
+  // What the firm reads her as: the name it typed, before her yes, on a
+  // record whose words are not its own (lib/consultant-portfolio/before-her-yes).
+  // Her own name stays in the letter, which only she reads.
+  const typed = (await firmReadsAt({ companyId: listing.companyId, callerPersonId: caller.person.id, consultantIds: [listing.consultant.id] })).get(listing.consultant.id)?.typed ?? null
+  const shown = typed ? typed.name : person.name
   const waiting = listing.state === 'INVITED' && !listing.revokedAt
   const ended = listing.state === 'GRANTED' && listing.lapsedAt != null
   if (!waiting && !ended) {
     const why = listing.revokedAt && !listing.lapsedAt
-      ? `${person.name} took this listing back. Ask them afresh from Consultants if they might say yes again.`
+      ? `${shown} took this listing back. Ask them afresh from Consultants if they might say yes again.`
       : listing.state === 'DECLINED'
-        ? `${person.name} said no. Asking again is theirs to invite, not the firm's to repeat.`
-        : `${person.name} said yes and is on your bench. There is nothing to send.`
+        ? `${shown} said no. Asking again is theirs to invite, not the firm's to repeat.`
+        : `${shown} said yes and is on your bench. There is nothing to send.`
     return NextResponse.json({ error: { code: 'NOTHING_TO_SEND', message: why } }, { status: 409 })
   }
 
@@ -65,7 +71,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     )
   }
   if (body?.copyOnly === true) {
-    return NextResponse.json({ data: { url, sent: false, says: `The link for ${person.name} is copied. It asks; only their yes grants anything.` } })
+    return NextResponse.json({ data: { url, sent: false, says: `The link for ${shown} is copied. It asks; only their yes grants anything.` } })
   }
 
   const letter = waiting
@@ -80,8 +86,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: {
         companyId: listing.companyId,
         action: 'BENCH_INVITATION_RESENT',
-        summary: `${caller.person.name} sent ${person.name} the bench invitation again.`,
-        reason: `${person.name} has not answered. A person at the firm pressed Resend.`,
+        summary: `${caller.person.name} sent ${shown} the bench invitation again.`,
+        reason: `${shown} has not answered. A person at the firm pressed Resend.`,
         payload: { listingId: listing.id, messageId: sent.id, status: sent.status },
         reversible: false,
       },
@@ -91,15 +97,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: {
         companyId: listing.companyId,
         action: 'BENCH_STAY_RENEW_ASKED',
-        summary: `${caller.person.name} asked ${person.name} to renew their stay on the bench.`,
-        reason: `${person.name}'s chosen stay ended. A person at the firm pressed Ask to renew; renewing is still theirs to do.`,
+        summary: `${caller.person.name} asked ${shown} to renew their stay on the bench.`,
+        reason: `${shown}'s chosen stay ended. A person at the firm pressed Ask to renew; renewing is still theirs to do.`,
         payload: { listingId: listing.id, messageId: sent.id, status: sent.status },
         reversible: false,
       },
     })
   }
   const says = sent.status === 'SENT'
-    ? `Sent to ${person.name}.`
-    : `Recorded for ${person.name} and not sent: ${sent.reason} Copy the link and send it yourself.`
+    ? `Sent to ${shown}.`
+    : `Recorded for ${shown} and not sent: ${sent.reason} Copy the link and send it yourself.`
   return NextResponse.json({ data: { url, sent: sent.status === 'SENT', status: sent.status, says } })
 }

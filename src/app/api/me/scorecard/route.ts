@@ -5,7 +5,7 @@ import { notYoursToRead } from '@/lib/releasing-soon'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import {
-  scorecard, whatToFix, WINDOW_DAYS, type Sent, type Put,
+  scorecard, whatToFix, ownCardFills, OWN_CARD_EMPTY_SAYS, WINDOW_DAYS, type Sent, type Put,
 } from '@/lib/scorecard'
 import type { Reason } from '@/lib/outcomes'
 
@@ -143,7 +143,8 @@ export async function GET(request: NextRequest) {
     // The client's card is named for the supplier. This one is the other
     // way round — a supplier reading their own card wants to know which
     // client it is about.
-    return { ...card, clientName: name, fix: whatToFix(card) }
+    // And what fills each figure still empty, in a sentence (fix list A6).
+    return { ...card, clientName: name, fix: whatToFix(card), fills: ownCardFills(card) }
   })
 
   const worst = cards
@@ -155,7 +156,7 @@ export async function GET(request: NextRequest) {
       clients: cards,
       summary:
         cards.length === 0
-          ? 'No client has sent you a job yet.'
+          ? OWN_CARD_EMPTY_SAYS
           : `${cards.length} ${cards.length === 1 ? 'client' : 'clients'}.` +
             (worst?.holdsThemUp ? ` ${worst.holdsThemUp.says}` : ''),
       windowDays: WINDOW_DAYS,

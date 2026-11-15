@@ -9,6 +9,7 @@ import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
 import { readAddConsultant } from '@/lib/consultant-portfolio/forms'
 import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
 import { readAsTheFirm, hasOwnAccount, recordKeptBy } from '@/lib/consultant-portfolio/firm-view'
+import { firmReadsAt, typedOnlyIds } from '@/lib/consultant-portfolio/before-her-yes'
 import { benchAt } from '@/app/api/today/reads'
 import { todayReads } from '@/lib/today-page'
 import { logBulkAccess } from '@/lib/access-log'
@@ -109,17 +110,27 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // Who this firm reads only its own words about: somebody asked on her
+  // own record who has not said yes (`firmReadsAt`, lib/consultant-portfolio/
+  // before-her-yes). A filter never matches her on a field of hers, or a
+  // firm could find her by searching for it.
+  const reads = companyId ? await firmReadsAt({ companyId, callerPersonId: caller.person.id }) : new Map()
+  const typedOnlyRows = typedOnlyIds(reads)
+  const hers = typedOnlyRows.length > 0 ? { id: { notIn: typedOnlyRows } } : {}
+
   // Free text search
   if (q) {
     andClauses.push({
       OR: [
-        { person: { name: { contains: q, mode: 'insensitive' } } },
-        { headline: { contains: q, mode: 'insensitive' } },
-        { skills: { hasSome: [q] } },
+        { ...hers, person: { name: { contains: q, mode: 'insensitive' } } },
+        { ...hers, headline: { contains: q, mode: 'insensitive' } },
+        { ...hers, skills: { hasSome: [q] } },
         // And this firm's own words about them, on its listing.
         ...(companyId
-          ? [{ listings: { some: { companyId, revokedAt: null, OR: [{ firmHeadline: { contains: q, mode: 'insensitive' } }, { firmSkills: { hasSome: [q] } }] } } }]
+          ? [{ listings: { some: { companyId, revokedAt: null, OR: [{ firmName: { contains: q, mode: 'insensitive' } }, { firmHeadline: { contains: q, mode: 'insensitive' } }, { firmSkills: { hasSome: [q] } }] } } }]
           : []),
+        // The address it asked at, which it typed, where it read nothing else.
+        ...(typedOnlyRows.length > 0 ? [{ id: { in: typedOnlyRows }, person: { primaryEmail: { contains: q, mode: 'insensitive' } } }] : []),
       ],
     })
   }
@@ -128,13 +139,14 @@ export async function GET(request: NextRequest) {
   if (skills && skills.length > 0) {
     andClauses.push({
       OR: [
-        { skills: { hasEvery: skills } },
+        { ...hers, skills: { hasEvery: skills } },
         ...(companyId ? [{ listings: { some: { companyId, revokedAt: null, firmSkills: { hasEvery: skills } } } }] : []),
       ],
     })
   }
 
-  // Availability filter
+  // Availability filter: her own free date is hers, so a row read only
+  // by its listing has none on record and is never filtered out by it.
   if (availability) {
     const availDate = new Date(availability)
     if (!isNaN(availDate.getTime())) {
@@ -142,14 +154,15 @@ export async function GET(request: NextRequest) {
         OR: [
           { availableFrom: null },
           { availableFrom: { lte: availDate } },
+          ...(typedOnlyRows.length > 0 ? [{ id: { in: typedOnlyRows } }] : []),
         ],
       })
     }
   }
 
-  // Work authorization filter
+  // Work authorization filter: hers, never matched before her yes.
   if (workAuth) {
-    andClauses.push({ workAuth })
+    andClauses.push({ ...hers, workAuth })
   }
 
   if (andClauses.length > 0) {
@@ -188,6 +201,7 @@ export async function GET(request: NextRequest) {
                 termsPayCurrency: true,
                 termsAgreedAt: true,
                 // The firm's own view of the person, read before her own words.
+                firmName: true,
                 firmHeadline: true,
                 firmSkills: true,
                 firmLocation: true,
@@ -246,6 +260,9 @@ export async function GET(request: NextRequest) {
       { headline: p.headline, skills: p.skills, location: p.location },
       listing
     )
+    // Before her yes, on a record whose words are not this firm's, only
+    // what it typed (`firmReadsAt`): nothing of hers leaves this route.
+    const typed = reads.get(p.id)?.typed ?? null
     // Whose record this is to change from this firm (`recordKeptBy`):
     // the firm's to keep, or theirs, in which case the firm's words go
     // on its listing. The reason is never sent.
@@ -265,25 +282,25 @@ export async function GET(request: NextRequest) {
       personId: p.personId,
       person: {
         id: p.person.id,
-        name: p.person.name,
+        name: typed ? typed.name : p.person.name,
         email: p.person.primaryEmail,
       },
-      headline: read.headline,
-      skills: read.skills,
-      location: read.location,
-      notes: read.notes,
-      own: read.own,
+      headline: typed ? typed.headline : read.headline,
+      skills: typed ? typed.skills : read.skills,
+      location: typed ? typed.location : read.location,
+      notes: typed ? typed.notes : read.notes,
+      own: typed ? typed.own : read.own,
       // The résumé's education lines, read only: the person corrects them
       // on their own page, and this firm has no door to change them.
-      education: educationShown(p.education, 'FIRM'),
+      education: typed ? typed.education : educationShown(p.education, 'FIRM'),
       // Where they stand against the one bench list, and who changes their record.
       standing: benchStanding({ onBench: onBench ? onBench.has(p.personId) : null, listingState: listing?.state ?? null }),
       keptBy,
       listed: listing != null,
-      workAuth: p.workAuth,
-      rateFloor: showRate ? p.rateFloor : undefined,
-      availableFrom: p.availableFrom?.toISOString() ?? null,
-      visibility: p.visibility,
+      workAuth: typed ? typed.workAuth : p.workAuth,
+      rateFloor: showRate ? (typed ? typed.rateFloor : p.rateFloor) : undefined,
+      availableFrom: typed ? typed.availableFrom : p.availableFrom?.toISOString() ?? null,
+      visibility: typed ? typed.visibility : p.visibility,
       listings: Array.isArray(p.listings)
         ? p.listings.map((l) => ({
             id: l.id,
@@ -421,7 +438,7 @@ export async function POST(request: NextRequest) {
 
     if (out.kind === 'NOTHING') {
       return NextResponse.json(
-        { error: { code: out.path, message: addRefusalSays(out.path, out.person.name, firm.name), field: 'email' } },
+        { error: { code: out.path, message: addRefusalSays(out.path, out.named, firm.name), field: 'email' } },
         { status: 409 }
       )
     }

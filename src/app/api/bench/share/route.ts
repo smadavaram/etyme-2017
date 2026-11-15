@@ -209,6 +209,9 @@ export async function POST(request: NextRequest) {
               ...invitation(now),
               declinedNote: null,
               revokedAt: null,
+              // The name the sharing firm sold her by, so the firm it was
+              // shared to reads it until she says yes (before-her-yes).
+              firmName: source.consultant.person.name,
               // A share states no pay terms: what this firm would pay is its
               // own to state, never the sharing firm's. Terms stated or
               // agreed on the listing they took back went with it.
@@ -228,6 +231,7 @@ export async function POST(request: NextRequest) {
               // by the column default, so a firm the consultant had never
               // heard of could submit them the moment it was shared.
               ...invitation(now),
+              firmName: source.consultant.person.name,
             },
           })
         }

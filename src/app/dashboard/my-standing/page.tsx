@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { RefusedState, LoadingState, EmptyState, ErrorState } from '@/components/ui'
 import { usePageSection } from '@/components/page-section'
+import { OWN_CARD_EMPTY_SAYS } from '@/lib/scorecard'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -39,6 +40,8 @@ interface Card {
   hired: Figure
   holdsThemUp: { code: string; count: number; says: string } | null
   asks: Figure
+  /** What fills each figure while it is empty, in a sentence; null where it has a number. */
+  fills?: Partial<Record<'answered' | 'firstReplyHours' | 'worthReading' | 'hired', string | null>>
   enough: boolean
   summary: string
   unknowns: string[]
@@ -87,14 +90,14 @@ export default function MyStandingPage() {
         </p>
       </header>
 
-      <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
+      {cards.length > 0 && <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>}
 
       {loading && <LoadingState says="Reading how your clients see you…" compact />}
 
       {error && <ErrorState says={error} />}
 
       {!loading && cards.length === 0 && !error && (
-        <EmptyState says="No client has sent you a job yet. Nothing to show." />
+        <EmptyState says={summary || OWN_CARD_EMPTY_SAYS} />
       )}
 
       {cards.map((c) => (
@@ -107,12 +110,12 @@ export default function MyStandingPage() {
 
           <div className="mt-4 flex flex-wrap gap-x-9 gap-y-3 border-t border-etyme-rule pt-4">
             {[
-              { label: 'You answered', f: c.answered, suffix: '%' },
-              { label: 'Your first CV', f: c.firstReplyHours, suffix: 'h' },
-              { label: 'Worth reading', f: c.worthReading, suffix: '%' },
-              { label: 'Hired', f: c.hired, suffix: '%' },
-            ].map(({ label, f, suffix }) => (
-              <div key={label}>
+              { label: 'You answered', f: c.answered, suffix: '%', fills: c.fills?.answered },
+              { label: 'Your first resume', f: c.firstReplyHours, suffix: 'h', fills: c.fills?.firstReplyHours },
+              { label: 'Worth reading', f: c.worthReading, suffix: '%', fills: c.fills?.worthReading },
+              { label: 'Hired', f: c.hired, suffix: '%', fills: c.fills?.hired },
+            ].map(({ label, f, suffix, fills }) => (
+              <div key={label} className="max-w-[22ch]">
                 <p className="stat-label">{label}</p>
                 <p className="stat-value tabular-nums">
                   {f.value == null ? (
@@ -124,6 +127,7 @@ export default function MyStandingPage() {
                     </>
                   )}
                 </p>
+                {f.value == null && fills && <p className="mt-1 text-[12px] text-etyme-muted">{fills}</p>}
               </div>
             ))}
           </div>

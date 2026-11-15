@@ -143,7 +143,16 @@ export type BenchAskOutcome =
       mail: InviteMail
     }
   /** Nothing written and nothing sent: already on, already asked, or said no. */
-  | { kind: 'NOTHING'; path: 'ALREADY_ON' | 'ALREADY_ASKED' | 'SAID_NO'; person: AskedPerson }
+  | {
+      kind: 'NOTHING'
+      path: 'ALREADY_ON' | 'ALREADY_ASKED' | 'SAID_NO'
+      person: AskedPerson
+      /**
+       * The name the firm reads in the sentence: hers once she said yes,
+       * otherwise the one it typed (`nothingNamed`).
+       */
+      named: string
+    }
   /** Refused before anything was written, in a sentence for the recruiter. */
   | { kind: 'REFUSED'; code: string; says: string; field: string }
   /** Two asks for one address in the same moment: the first stands. */
@@ -168,6 +177,16 @@ export function firmReadsName(o: { path: 'NEW' | 'ASK_EXISTING' | 'ASK_AGAIN'; t
 export function termsSaysForFirm(says: string | null, ownCompanyName: string | null | undefined): string | null {
   if (!says || !ownCompanyName) return says
   return says.split(`${ownCompanyName}, `).join('').split(ownCompanyName).join('their own company')
+}
+
+/**
+ * The name in the sentence where nothing was asked: an ask still waiting,
+ * or a no, has no yes behind it, so the firm reads the name it typed on
+ * its listing, or the one it typed now. Only a yes shows her own name.
+ */
+export function nothingNamed(o: { path: 'ALREADY_ON' | 'ALREADY_ASKED' | 'SAID_NO'; own: string; listed: string | null; typed: string }): string {
+  if (o.path === 'ALREADY_ON') return o.own
+  return o.listed?.trim() || o.typed
 }
 
 /** What each door is called in the log's words. */
@@ -248,7 +267,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
           visibility: true,
           rateFloor: true,
           ownCompany: { select: { id: true, name: true } },
-          listings: { where: { companyId: firm.id }, select: { id: true, state: true, revokedAt: true } },
+          listings: { where: { companyId: firm.id }, select: { id: true, state: true, revokedAt: true, firmName: true } },
         },
       },
     },
@@ -274,7 +293,12 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
   }
 
   if (path === 'ALREADY_ON' || path === 'ALREADY_ASKED' || path === 'SAID_NO') {
-    return { kind: 'NOTHING', path, person: { id: existing!.id, name: existing!.name, primaryEmail: existing!.primaryEmail } }
+    return {
+      kind: 'NOTHING',
+      path,
+      person: { id: existing!.id, name: existing!.name, primaryEmail: existing!.primaryEmail },
+      named: nothingNamed({ path, own: existing!.name, listed: listing?.firmName ?? null, typed: name }),
+    }
   }
 
   // The floor is the person's own; no ask goes out below it.
@@ -337,7 +361,9 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
 
       // The firm's own view goes on its listing, never on her profile. Only
       // a recruiter states one; the page leaves whatever the firm said.
-      const data = { tier, rateMin: min, rateMax: max, ...invitation(new Date()), ...terms.fields, ...(o.by ? view : {}) }
+      // The name typed is the firm's at every ask, from either door, so it
+      // reads it until she says yes (`firmReadsAt`, ./before-her-yes).
+      const data = { tier, rateMin: min, rateMax: max, ...invitation(new Date()), ...terms.fields, ...(o.by ? view : {}), firmName: name || null }
       const row =
         path === 'ASK_AGAIN'
           ? await tx.benchListing.update({

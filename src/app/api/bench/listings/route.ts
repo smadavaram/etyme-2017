@@ -153,6 +153,9 @@ export async function POST(request: NextRequest) {
             ...invitation(new Date()),
             revokedAt: null,
             declinedNote: null,
+            // The name the firm read when it asked, kept so it reads it
+            // until she says yes (lib/consultant-portfolio/before-her-yes).
+            firmName: consultant.person.name,
             // Stated afresh or not at all. Terms agreed on the listing
             // they took back went with it.
             ...terms.fields,
@@ -173,6 +176,7 @@ export async function POST(request: NextRequest) {
             // right and there was no mechanism behind it. grantedAt
             // defaulted to now() and nobody was ever asked.
             ...invitation(new Date()),
+            firmName: consultant.person.name,
             ...terms.fields,
           },
         })

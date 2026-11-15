@@ -119,6 +119,28 @@ export interface Scorecard {
  * the numbers that make this useful are exactly the numbers that must
  * never be shown to a rival.
  */
+/**
+ * What fills each figure on a firm's own scorecard while it is empty, in
+ * one sentence each (fix list A6, 2026-11-15). Each matches the rule that
+ * leaves the figure blank in `scorecard` below.
+ */
+export const OWN_CARD_FILLS = {
+  answered: 'Fills when this client sends you a job on Etyme.',
+  firstReplyHours: 'Fills when you put your first resume forward on a job this client sent you.',
+  worthReading: `Fills once this client has screened ${ENOUGH} of your submissions.`,
+  hired: `Fills once you have put ${ENOUGH} people forward to this client.`,
+} as const
+
+/** What a figure on a firm's own card says while it is empty, or null where it has a number. */
+export function ownCardFills(card: Pick<Scorecard, 'answered' | 'firstReplyHours' | 'worthReading' | 'hired'>) {
+  const empty = (k: keyof typeof OWN_CARD_FILLS) => (card[k].value == null ? OWN_CARD_FILLS[k] : null)
+  return { answered: empty('answered'), firstReplyHours: empty('firstReplyHours'), worthReading: empty('worthReading'), hired: empty('hired') }
+}
+
+/** The firm's own scorecard with no client on it yet. */
+export const OWN_CARD_EMPTY_SAYS =
+  'This page fills from clients on Etyme as they send you jobs. Work for clients who are not on Etyme is not on it.'
+
 export function scorecard(
   vendorName: string,
   sent: Sent[],
@@ -161,8 +183,8 @@ export function scorecard(
       median == null
         ? 'They have not sent anything yet.'
         : median < 24
-          ? `First CV usually inside a day — about ${Math.round(median)} hours.`
-          : `First CV usually takes about ${Math.round(median / 24)} days.`,
+          ? `First resume usually inside a day — about ${Math.round(median)} hours.`
+          : `First resume usually takes about ${Math.round(median / 24)} days.`,
   }
 
   // ── How many were worth reading ─────────────────────────────────────
@@ -352,7 +374,7 @@ export function whatToFix(card: Scorecard): string[] {
 
   if (card.firstReplyHours.value != null && card.firstReplyHours.value > 48) {
     out.push(
-      `Your first CV takes about ${Math.round(card.firstReplyHours.value / 24)} days. Most jobs are decided in the first week.`
+      `Your first resume takes about ${Math.round(card.firstReplyHours.value / 24)} days. Most jobs are decided in the first week.`
     )
   }
 

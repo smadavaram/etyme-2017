@@ -188,6 +188,8 @@ export async function POST(
               ...invitation(new Date()),
               revokedAt: null,
               declinedNote: null,
+              // The name the firm placed her under, read until she says yes.
+              firmName: personName,
               // Stated afresh or not at all, as on the Bench page: terms
               // stated or agreed on the listing they took back went with it.
               termsEngagementType: null, termsPayRateCents: null, termsPayCurrency: null, termsStatedAt: null,
@@ -209,6 +211,7 @@ export async function POST(
               // that listings from before asking kept their meaning; a
               // new one must be born asking.
               ...invitation(new Date()),
+              firmName: personName,
             },
             select: { id: true, termsEngagementType: true, termsPayRateCents: true, termsPayCurrency: true, termsAgreedAt: true },
           })

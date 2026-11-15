@@ -6,6 +6,7 @@ import { recordAccess } from '@/lib/access-log'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { mayChangeTier, whoSees } from '@/lib/shared-consultant'
+import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
  * PATCH /api/bench/listings/:id
@@ -119,7 +120,8 @@ export async function PATCH(
     return NextResponse.json({ error: { code: verdict.code, message: verdict.says, field: 'tier' } }, { status })
   }
 
-  const name = listing.consultant.person.name
+  // The name the firm typed, before her yes (lib/consultant-portfolio/before-her-yes).
+  const name = await shownName(companyId, caller.person.id, listing.consultantId, listing.consultant.person.name)
   if (verdict.unchanged) {
     return NextResponse.json({
       data: { listing: { id, tier: listing.tier, reach: whoSees(listing).reach }, message: verdict.says },
@@ -186,7 +188,7 @@ async function setRates(
   const listing = await prisma.benchListing.findUnique({
     where: { id },
     select: {
-      id: true, companyId: true, rateMin: true, rateMax: true,
+      id: true, companyId: true, consultantId: true, rateMin: true, rateMax: true,
       consultant: { select: { personId: true, rateFloor: true, person: { select: { name: true } } } },
     },
   })
@@ -205,7 +207,7 @@ async function setRates(
     return NextResponse.json({ error: { code: 'VALIDATION', message: 'The lowest rate is above the highest. Swap them.', field: 'rateMin' } }, { status: 422 })
   }
   const floor = listing.consultant.rateFloor
-  const name = listing.consultant.person.name
+  const name = await shownName(companyId, caller.person.id, listing.consultantId, listing.consultant.person.name)
   if (floor != null && max != null && max < floor) {
     return NextResponse.json(
       { error: { code: 'BELOW_FLOOR', message: `The highest rate is under the least ${name} said they take an hour.`, field: 'rateMax' } },
@@ -223,3 +225,9 @@ async function setRates(
   })
 }
 
+
+/** Her name as this firm reads it: the one it typed, before her yes, on a record whose words are not its own. */
+async function shownName(companyId: string, callerPersonId: string, consultantId: string, own: string): Promise<string> {
+  const read = (await firmReadsAt({ companyId, callerPersonId, consultantIds: [consultantId] })).get(consultantId)
+  return read?.typed ? read.typed.name : own
+}
