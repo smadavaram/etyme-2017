@@ -221,7 +221,12 @@ describe('an integrator and an MSP are headed by the same links a supplier reads
   it('a client’s AP tab is headed by its Payables link, and the title says the tab', () => {
     const f = pageFraming('CLIENT', 'ap', null, OWNER)
     expect(f.eyebrow).toBe('Payables')
-    expect(f.title).toBe('Accounts payable')
+    expect(f.title).toBe('Accounts payable (AP)')
+  })
+
+  it('the aged-bills page glosses its AR tab once in its heading, so the tab and the heading read as one name', () => {
+    const src = require('node:fs').readFileSync('src/app/dashboard/ar/page.tsx', 'utf8') as string
+    expect(src).toContain('title="Accounts receivable (AR)"')
   })
 
   it('the people a supplier keeps are headed Network · Candidates, never Consultants', () => {

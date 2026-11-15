@@ -130,7 +130,7 @@ export default function ArPage() {
           word on every reader's page. */}
       <PageHead
         eyebrow={section}
-        title="Accounts receivable"
+        title="Accounts receivable (AR)"
         subtitle={<>
           Aged from the day each bill fell due, so a client on sixty-day terms is
           not shown as late on day forty-five. A part payment is chased for the

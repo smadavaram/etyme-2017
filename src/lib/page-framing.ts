@@ -324,7 +324,9 @@ const CLIENT: Record<PageKey, Words> = {
     // A client's AP is a tab under its Invoice receipts link, beside the
     // list of receipts itself, so the title says the tab and the eyebrow
     // says the link.
-    title: 'Accounts payable',
+    // The tab says AP; the title glosses it once, so the two read as one
+    // name (fix list C3, founder 2026-11-15).
+    title: 'Accounts payable (AP)',
     subtitle: 'What you owe your suppliers, to whom, and when each one is due.',
     create: null,
   },
