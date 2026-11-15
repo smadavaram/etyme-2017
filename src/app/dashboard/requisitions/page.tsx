@@ -362,7 +362,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
           <label className="block">
             <Lbl>Job</Lbl>
             <input autoFocus value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-              placeholder="SAP MM Consultant" className={`${field} mt-1`} />
+              placeholder="Purchasing Analyst" className={`${field} mt-1`} />
           </label>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -528,7 +528,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
           <label className="block">
             <Lbl>Skills it needs (comma separated)</Lbl>
             <input value={form.skills} onChange={e => setForm({ ...form, skills: e.target.value })}
-              placeholder="SAP MM, S/4HANA" className={`${field} mt-1`} />
+              placeholder="Purchasing, Inventory planning" className={`${field} mt-1`} />
           </label>
 
           {siteRead && siteRead.sites.length > 0 ? (

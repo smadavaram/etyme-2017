@@ -213,7 +213,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
                 onChange={(e) => setPasteText(e.target.value)}
                 rows={8}
                 className="resize-y"
-                placeholder={"Job title: Senior SAP BRIM Consultant\nLocation: Remote\nSkills: SAP BRIM, Revenue Accounting, S/4HANA\nRate: $85-$120/hr\nDuration: 12 months\n\nLooking for a consultant with 5+ years of SAP BRIM experience..."}
+                placeholder={"Job title: Senior Billing Systems Analyst\nLocation: Remote\nSkills: Subscription billing, Revenue accounting, Month-end close\nRate: $85-$120/hr\nDuration: 12 months\n\nLooking for an analyst with 5+ years of subscription billing experience..."}
               />
             </Field>
             <div className="flex justify-end gap-3">
@@ -251,7 +251,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="Senior SAP BRIM Consultant — Remote"
+              placeholder="Senior Billing Systems Analyst — Remote"
             />
           </Field>
 
@@ -260,7 +260,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
               type="text"
               value={form.skills}
               onChange={(e) => setForm({ ...form, skills: e.target.value })}
-              placeholder="SAP BRIM, Revenue Accounting, S/4HANA"
+              placeholder="Subscription billing, Revenue accounting, Month-end close"
             />
           </Field>
 

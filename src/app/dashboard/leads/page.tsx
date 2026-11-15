@@ -113,7 +113,7 @@ function PasteBox({ onRead }: { onRead: (summary: string) => void }) {
         onChange={(e) => setText(e.target.value)}
         rows={8}
         spellCheck={false}
-        placeholder={`Senior SAP FICO Consultant\nLocation: Denver, CO (Hybrid)\nRate: $62 - $68/hr C2C\nSkills: SAP FICO, S/4HANA\nPosted by: Harborline Tech`}
+        placeholder={`Senior Cost Accountant\nLocation: Denver, CO (Hybrid)\nRate: $62 - $68/hr C2C\nSkills: Cost accounting, General ledger\nPosted by: Harborline Tech`}
         className="w-full rounded-md border border-etyme-rule bg-etyme-raised p-3 font-mono text-[12px] leading-relaxed text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
       />
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -66,5 +67,78 @@ describe('an example in a box on the hiring screens names nobody', () => {
     for (const was of ['Dana Whitfield', 'Marcus Oyelaran', 'Lucía Fernández', 'Vertex', 'SAP Program']) {
       expect(all).not.toContain(was)
     }
+  })
+})
+
+/** Every .tsx and .ts file under a folder. */
+const walk = (d: string): string[] =>
+  readdirSync(join(process.cwd(), d)).flatMap((n) => {
+    const p = `${d}/${n}`
+    return statSync(join(process.cwd(), p)).isDirectory() ? walk(p) : /\.tsx?$/.test(n) ? [p] : []
+  })
+
+/**
+ * Every literal a placeholder can show, wherever it sits in the
+ * expression: `placeholder={firm ? 'a' : 'b'}` gives both. Comments and
+ * the `${…}` parts of a template are not text a person reads in the box.
+ */
+function everyPlaceholderLiteral(text: string): string[] {
+  const out: string[] = []
+  const re = /placeholder[=:]\s*(?:"([^"]*)"|'([^']*)'|\{)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    if (m[1] != null || m[2] != null) { out.push((m[1] ?? m[2] ?? '').replace(/\$\{[^}]*\}/g, ' ')); continue }
+    let depth = 1
+    let i = re.lastIndex
+    while (i < text.length && depth) { if (text[i] === '{') depth++; else if (text[i] === '}') depth--; i++ }
+    const expr = text.slice(re.lastIndex, i - 1).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+    for (const lit of expr.match(/`[^`]*`|'[^']*'|"[^"]*"/g) ?? []) out.push(lit.slice(1, -1).replace(/\$\{[^}]*\}/g, ' '))
+  }
+  return out
+}
+
+/** RFC 2606 keeps example.com, example.org and example.net too. */
+const RESERVED_ANYWHERE = /\.(example|invalid|local|test)$|(^|\.)example\.(com|org|net)$/i
+
+/**
+ * The boxes outside this domain still waiting on their owner, named here
+ * so a new one fails at once. This list may only shrink.
+ *  - site/ask.tsx is etyme-market's public ask form (handed off 2026-11-15).
+ *  - the Teams webhook box shows the shape of the address the customer's
+ *    own Teams gives them: an integration target, named as a setting.
+ */
+const WAITING_OR_ALLOWED = new Set([
+  'src/app/site/ask.tsx: yourcompany.com',
+  'src/app/site/ask.tsx: yourfirm.com',
+  'src/app/dashboard/settings/page.tsx: logic.azure.com',
+])
+
+describe('an example in a box anywhere in the app names nobody', () => {
+  it('every domain an example in a box shows anywhere in the app is a reserved one, apart from the boxes named as waiting on their owner', () => {
+    const bad: string[] = []
+    for (const p of walk('src/app')) for (const ph of everyPlaceholderLiteral(src(p))) for (const d of domainsIn(ph)) {
+      const key = `${p}: ${d}`
+      if (!RESERVED_ANYWHERE.test(d) && !WAITING_OR_ALLOWED.has(key)) bad.push(key)
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('the sign-up and sign-in boxes ask for an email at company.example', () => {
+    expect(everyPlaceholderLiteral(src('src/app/(auth)/signup/form.tsx'))).toContain('you@company.example')
+    expect(everyPlaceholderLiteral(src('src/app/(auth)/login/page.tsx'))).toContain('you@company.example')
+  })
+
+  it('no example in a box on the job, lead or invitation screens names a software maker or one of its products', () => {
+    const all = PAGES.flatMap((p) => everyPlaceholderLiteral(src(p))).join('\n')
+    for (const maker of [/\bSAP\b/, /S\/4\s?HANA/i, /\bOracle\b/, /\bSalesforce\b/, /\bWorkday\b/, /\bServiceNow\b/, /\bSnowflake\b/, /\bDatabricks\b/]) {
+      expect(all).not.toMatch(maker)
+    }
+  })
+
+  it('the job, requisition, lead and invitation boxes show a made-up job and plain skills', () => {
+    expect(everyPlaceholderLiteral(src('src/app/dashboard/requirements/page.tsx'))).toContain('Senior Billing Systems Analyst — Remote')
+    expect(everyPlaceholderLiteral(src('src/app/dashboard/requisitions/page.tsx'))).toContain('Purchasing, Inventory planning')
+    expect(everyPlaceholderLiteral(src('src/app/dashboard/leads/page.tsx')).join('\n')).toContain('Skills: Cost accounting, General ledger')
+    expect(everyPlaceholderLiteral(src('src/app/dashboard/invitations/page.tsx'))).toContain('No available purchasing analysts at this rate')
   })
 })

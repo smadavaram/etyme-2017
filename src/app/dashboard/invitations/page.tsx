@@ -360,7 +360,7 @@ function InvitationCard({ inv, onRespond, onSent }: {
               autoFocus
               value={reason}
               onChange={e => setReason(e.target.value)}
-              placeholder="No available SAP MM consultants at this rate"
+              placeholder="No available purchasing analysts at this rate"
             />
           </Field>
           <div className="mt-3 flex items-center gap-3">
