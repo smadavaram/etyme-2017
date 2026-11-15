@@ -62,7 +62,10 @@ export type BenchAskDoor = 'ADD_CONSULTANT' | 'PUBLIC_PAGE'
 export interface BenchAskInput {
   /** The firm asking; its currency is read here where a caller does not pass it. */
   firm: { id: string; name: string; homeCurrency?: string | null }
-  /** The name typed. Used only where a new person is made; an existing one keeps hers. */
+  /**
+   * The name typed. A new person is made with it; an existing one keeps
+   * hers, and the firm still reads the name it typed (`firmReadsName`).
+   */
   name: string
   email: string
   /** The recruiter asking, or null where the person asked from the firm's page. */
@@ -103,6 +106,15 @@ export type BenchAskOutcome =
       kind: 'ASKED'
       path: 'NEW' | 'ASK_EXISTING' | 'ASK_AGAIN'
       person: AskedPerson
+      /**
+       * The name the asking firm reads in every sentence (`firmReadsName`):
+       * the one it typed, unless the firm listed her before.
+       */
+      named: string
+      /**
+       * What the asking firm may read back about her. On her own record
+       * (ASK_EXISTING) it is only what the firm typed, never her own words.
+       */
       profile: {
         id: string
         headline: string | null
@@ -110,7 +122,7 @@ export type BenchAskOutcome =
         location: string | null
         workAuth: string | null
         availableFrom: Date | null
-        visibility: string
+        visibility: string | null
       }
       listing: {
         id: string
@@ -136,6 +148,27 @@ export type BenchAskOutcome =
   | { kind: 'REFUSED'; code: string; says: string; field: string }
   /** Two asks for one address in the same moment: the first stands. */
   | { kind: 'RACED' }
+
+/**
+ * The name a firm reads back after asking somebody (fix list A4,
+ * 2026-11-15). "The page never says whether an address has an account":
+ * where the address belongs to somebody the firm has never listed, every
+ * sentence the firm reads uses the name it typed, never her own. Only a
+ * firm that listed her before (ASK_AGAIN) already knows her name.
+ */
+export function firmReadsName(o: { path: 'NEW' | 'ASK_EXISTING' | 'ASK_AGAIN'; typed: string; own: string | null }): string {
+  return o.path === 'ASK_AGAIN' && o.own ? o.own : o.typed
+}
+
+/**
+ * The terms sentence with her own company's name taken out, where the
+ * firm has never listed her: it names "their own company" and nothing
+ * the firm did not type.
+ */
+export function termsSaysForFirm(says: string | null, ownCompanyName: string | null | undefined): string | null {
+  if (!says || !ownCompanyName) return says
+  return says.split(`${ownCompanyName}, `).join('').split(ownCompanyName).join('their own company')
+}
 
 /** What each door is called in the log's words. */
 export function doorOf(by: BenchAskInput['by']): BenchAskDoor {
@@ -163,7 +196,10 @@ export function lookupReason(o: { door: BenchAskDoor; firm: string; path: AddPat
  * (`INVITE_LINK_KEPT_SAYS`), never "from the letter" (2026-11-01).
  */
 export function askSummary(o: { door: BenchAskDoor; personName: string; firm: string; path: AddPath; tier: string; mailOn: boolean }): string {
-  const who = o.path === 'NEW' ? `"${o.personName}"` : `"${o.personName}", who already has a record,`
+  // The firm reads its own activity log, so a first ask on somebody's own
+  // record reads like any first ask (fix list A4). Only a listing taken
+  // back and asked again says it was there before.
+  const who = o.path === 'ASK_AGAIN' ? `"${o.personName}", who already has a record,` : `"${o.personName}"`
   const where = o.door === 'PUBLIC_PAGE' ? ` from ${o.firm}’s public page` : ''
   const again = o.path === 'ASK_AGAIN' ? ' again' : ''
   const waits = o.mailOn ? 'Pending their yes from the letter.' : `Waiting on their yes. ${INVITE_LINK_KEPT_SAYS}`
@@ -220,6 +256,12 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
   const profile = existing?.consultant ?? null
   const listing = profile?.listings?.[0] ?? null
   const path = addPath({ profileExists: Boolean(profile), listing })
+  // The name the firm reads in every sentence from here on.
+  const named =
+    path === 'NEW' || path === 'ASK_EXISTING' || path === 'ASK_AGAIN'
+      ? firmReadsName({ path, typed: name, own: existing?.name ?? null })
+      : name
+  const firstAskOnHerRecord = path === 'ASK_EXISTING' || (path === 'NEW' && Boolean(existing))
 
   // Her record was read by her address: logged before anything is said.
   if (existing) {
@@ -242,14 +284,14 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
     return {
       kind: 'REFUSED',
       code: 'BELOW_RATE_FLOOR',
-      says: `The top of that range is below the lowest rate ${existing!.name} has said they will take.`,
+      says: `The top of that range is below the lowest rate ${named} has said they will take.`,
       field: 'rateMax',
     }
   }
 
   // Terms are stated only by a recruiter, checked against the person's own
   // company where she has one; the page states none.
-  const personName = existing?.name ?? name
+  const personName = named
   // Nothing typed writes all five terms columns as null, which is also
   // what clears an old agreement on a listing asked again.
   const terms = listingTermsFrom(
@@ -309,7 +351,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
         data: {
           companyId: firm.id,
           action: 'BENCH_LISTING_REQUESTED',
-          summary: askSummary({ door, personName: person.name, firm: firm.name, path, tier, mailOn: mailLeaves() }),
+          summary: askSummary({ door, personName: named, firm: firm.name, path, tier, mailOn: mailLeaves() }),
           reason:
             door === 'PUBLIC_PAGE'
               ? 'Join the bench on the public page: the bench’s own invitation, sent to the address the person gave, answered only from its link.'
@@ -339,7 +381,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
           data: {
             companyId: firm.id,
             action: 'CONSULTANT_CREATED',
-            summary: `A consultant record was made for "${person.name}" so ${firm.name} could ask them onto its bench. Nothing reaches past the firm until they say yes.`,
+            summary: `A consultant record was made for "${named}" so ${firm.name} could ask them onto its bench. Nothing reaches past the firm until they say yes.`,
             reason:
               door === 'PUBLIC_PAGE'
                 ? 'Join the bench on the public page, for an address with no consultant record on Etyme.'
@@ -386,15 +428,27 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
     kind: 'ASKED',
     path,
     person: asked.person,
-    profile: {
-      id: asked.prof.id,
-      headline: asked.prof.headline,
-      skills: asked.prof.skills,
-      location: asked.prof.location,
-      workAuth: asked.prof.workAuth,
-      availableFrom: asked.prof.availableFrom,
-      visibility: asked.prof.visibility,
-    },
+    named,
+    // On her own record the firm reads back only what it typed.
+    profile: firstAskOnHerRecord
+      ? {
+          id: asked.prof.id,
+          headline: asked.row.firmHeadline,
+          skills: asked.row.firmSkills,
+          location: asked.row.firmLocation,
+          workAuth: null,
+          availableFrom: null,
+          visibility: null,
+        }
+      : {
+          id: asked.prof.id,
+          headline: asked.prof.headline,
+          skills: asked.prof.skills,
+          location: asked.prof.location,
+          workAuth: asked.prof.workAuth,
+          availableFrom: asked.prof.availableFrom,
+          visibility: asked.prof.visibility,
+        },
     listing: {
       id: asked.row.id,
       tier: asked.row.tier,
@@ -412,7 +466,7 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
     },
     typed: o.by ? firmTypedAnything(view) : false,
     terms: shown,
-    termsSays: terms.says,
+    termsSays: firstAskOnHerRecord ? termsSaysForFirm(terms.says, profile?.ownCompany?.name) : terms.says,
     mail,
   }
 }

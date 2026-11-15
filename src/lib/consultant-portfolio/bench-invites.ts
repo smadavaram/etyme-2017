@@ -94,10 +94,13 @@ export function nameFor(item: { email: string; name: string | null }): string {
   return typed.length >= 2 ? typed : item.email.split('@')[0]
 }
 
-/** What happened to one address. */
+/**
+ * What happened to one address. A first ask on somebody's own record is
+ * ASKED, like anybody new: the line never says an address is already on
+ * Etyme (fix list A4, 2026-11-15).
+ */
 export type InviteLineState =
   | 'ASKED'
-  | 'ASKED_ON_OWN_RECORD'
   | 'ASKED_AGAIN'
   | 'ALREADY_ON'
   | 'ALREADY_ASKED'
@@ -128,8 +131,6 @@ export function inviteLineSays(o: { state: InviteLineState; mail?: InviteMail | 
   switch (o.state) {
     case 'ASKED':
       return `Asked to join your bench. ${mailSays(o.mail)}`
-    case 'ASKED_ON_OWN_RECORD':
-      return `Already on Etyme, so asked on the record they have. ${mailSays(o.mail)}`
     case 'ASKED_AGAIN':
       return `Asked again to join your bench. ${mailSays(o.mail)}`
     case 'ALREADY_ON':

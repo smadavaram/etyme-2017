@@ -1000,22 +1000,24 @@ export function addRefusalSays(path: AddPath, name: string, firm: string): strin
   }
 }
 
-/** What adding somebody who already has a record did, in a sentence. */
-export function askedExistingSays(o: { name: string; firm: string; emailed: boolean; again: boolean; kept?: boolean; typed?: boolean }): string {
-  // The Tapin walk, 2026-10-29: what the firm typed was dropped without a
-  // word. It is kept on the firm's listing now, and the first line says
-  // whose is whose.
-  const whose = o.again
-    ? ''
-    : `${o.name} already has an account. Their own name and papers stay theirs${o.typed ? '; what you typed is kept on your bench listing' : ''}. `
-  const first = o.again ? `${o.firm} asked ${o.name} onto its bench again` : `${whose}${o.firm} asked them onto its bench`
+/**
+ * What asking somebody again did, in a sentence: a listing this firm had
+ * and she took back. The firm listed her before, so her name is not news.
+ *
+ * A first ask on somebody's own record has no sentence of its own any
+ * more (fix list A4, 2026-11-15). It read "<her name> already has an
+ * account", which told a firm that an address had an account elsewhere
+ * and whose it was. It now reads exactly like adding a new person
+ * (`addedSays`), with the name the firm typed.
+ */
+export function askedAgainSays(o: { name: string; firm: string; emailed: boolean; kept?: boolean }): string {
   // "Went by email" only where an email could leave (second onboarding walk).
   const sent = o.emailed
     ? ' The invitation went by email.'
     : o.kept
       ? ` ${INVITE_LINK_KEPT_SAYS}`
       : ' The invitation is recorded; it can be sent from Bench.'
-  return `${first}, on the record they already have.${sent} Nothing reaches past ${o.firm} until ${o.name} says yes.`
+  return `${o.firm} asked ${o.name} onto its bench again.${sent} Nothing reaches past ${o.firm} until ${o.name} says yes.`
 }
 
 // ── After a yes (onboarding walk) ────────────────────────────────────

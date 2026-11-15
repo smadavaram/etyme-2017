@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
-  addPath, addRefusalSays, askedExistingSays, afterYes, isStaffSeat,
+  addPath, addRefusalSays, askedAgainSays, afterYes, isStaffSeat,
   firmsToOffer, keptNameSays, notSentToRow, rosterSummary, type RosterPerson,
 } from '@/lib/consultant-portfolio'
 import { checkFlagWithoutLine, releaseFrom, noLineSays, ourBenchRow, hrNotice, personNotice } from '@/lib/internal-moves'
@@ -56,13 +56,13 @@ describe('1 · a firm asks somebody who already has an account, never makes a se
 
   it('a person who took a listing back is asked afresh, never quietly restored', () => {
     expect(addPath({ profileExists: true, listing: { state: 'GRANTED', revokedAt: day('2026-10-01') } })).toBe('ASK_AGAIN')
-    expect(askedExistingSays({ name: 'Maya Brooks', firm: 'Brightmoor Staffing', emailed: true, again: true }))
-      .toBe('Brightmoor Staffing asked Maya Brooks onto its bench again, on the record they already have. The invitation went by email. Nothing reaches past Brightmoor Staffing until Maya Brooks says yes.')
+    expect(askedAgainSays({ name: 'Maya Brooks', firm: 'Brightmoor Staffing', emailed: true }))
+      .toBe('Brightmoor Staffing asked Maya Brooks onto its bench again. The invitation went by email. Nothing reaches past Brightmoor Staffing until Maya Brooks says yes.')
   })
 
-  it('the firm reads what adding them did, in a sentence with no pronoun the record does not hold', () => {
-    const says = askedExistingSays({ name: 'Maya Brooks', firm: 'Brightmoor Staffing', emailed: false, again: false })
-    expect(says).toBe('Maya Brooks already has an account. Their own name and papers stay theirs. Brightmoor Staffing asked them onto its bench, on the record they already have. The invitation is recorded; it can be sent from Bench. Nothing reaches past Brightmoor Staffing until Maya Brooks says yes.')
+  it('the firm reads what asking them again did, in a sentence with no pronoun the record does not hold', () => {
+    const says = askedAgainSays({ name: 'Maya Brooks', firm: 'Brightmoor Staffing', emailed: false })
+    expect(says).toBe('Brightmoor Staffing asked Maya Brooks onto its bench again. The invitation is recorded; it can be sent from Bench. Nothing reaches past Brightmoor Staffing until Maya Brooks says yes.')
     expect(says).not.toMatch(/\b(she|her|he|his)\b/)
   })
 })
@@ -300,7 +300,7 @@ describe('8 · second walk: refusals shown, pay never a bill rate, mail said as 
     expect(inviteMail({ url: '', email: 'ike@example.com', mailOn: true })).toBe('NO_LINK')
     expect(addedSays({ name: 'Ike Danso', firm: 'Benchwarm Labs', tier: 'MARKETING', emailed: false, kept: true }))
       .toBe(`Ike Danso is added. Benchwarm Labs asked them to join its bench. ${INVITE_LINK_KEPT_SAYS} Once they say yes they are shown to your partners. Nobody is put forward until they say yes.`)
-    const existing = askedExistingSays({ name: 'Maya Okafor', firm: 'Benchwarm Labs', emailed: false, kept: true, again: false })
+    const existing = askedAgainSays({ name: 'Maya Okafor', firm: 'Benchwarm Labs', emailed: false, kept: true })
     expect(existing).toContain(INVITE_LINK_KEPT_SAYS)
     expect(existing).not.toContain('went by email')
     const sender = read('src/app/api/consultants/ask-by-email.ts')

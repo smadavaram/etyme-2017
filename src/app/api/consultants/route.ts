@@ -4,7 +4,7 @@ import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { educationShown } from '@/lib/consultant-portfolio/education'
 import { addedSays, benchClosedSays, notAtACompany, benchStanding, consultantsReadBench } from '@/lib/bench-filter'
-import { addRefusalSays, askedExistingSays } from '@/lib/consultant-portfolio'
+import { addRefusalSays, askedAgainSays } from '@/lib/consultant-portfolio'
 import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
 import { readAddConsultant } from '@/lib/consultant-portfolio/forms'
 import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
@@ -450,23 +450,30 @@ export async function POST(request: NextRequest) {
       termsStatedAt: out.listing.termsStatedAt?.toISOString() ?? null,
       termsAgreedAt: null,
     }
-    const person = { id: out.person.id, name: out.person.name, email: out.person.primaryEmail }
+    // The name the firm typed, never the one on somebody's own record
+    // (`firmReadsName`): the page never says whether an address has an
+    // account (fix list A4).
+    const person = { id: out.person.id, name: out.named, email: out.person.primaryEmail }
     const termsSays = out.termsSays ? ` ${out.termsSays}` : ''
 
-    if (out.path !== 'NEW') {
-      const again = out.path === 'ASK_AGAIN'
+    // Only a listing this firm had and she took back is "asked again":
+    // the firm listed her before, so nothing new is said about her.
+    if (out.path === 'ASK_AGAIN') {
       return NextResponse.json(
         {
           data: {
             asked: true,
             consultant: { id: out.profile.id, personId: out.person.id, person },
             listing,
-            message: askedExistingSays({ name: out.person.name, firm: firm.name, emailed: out.mail === 'EMAILED', kept: out.mail === 'KEPT', again, typed: out.typed }) + termsSays,
+            message: askedAgainSays({ name: out.named, firm: firm.name, emailed: out.mail === 'EMAILED', kept: out.mail === 'KEPT' }) + termsSays,
           },
         },
-        { status: again ? 200 : 201 }
+        { status: 200 }
       )
     }
+
+    // A new person and a first ask on somebody's own record answer the
+    // same, in the same words, with the same status.
 
     return NextResponse.json(
       {
@@ -486,7 +493,7 @@ export async function POST(request: NextRequest) {
           // What adding them did, in a sentence: the ask went, and nothing
           // reaches past the firm until they say yes.
           message: addedSays({
-            name: out.person.name,
+            name: out.named,
             firm: firm.name,
             tier: out.listing.tier,
             emailed: out.mail === 'EMAILED',

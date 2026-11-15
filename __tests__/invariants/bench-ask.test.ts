@@ -55,7 +55,7 @@ vi.mock('@/lib/db', () => {
         return {
           ...p,
           consultant: prof
-            ? { ...prof, ownCompany: null, listings: h.listings.filter((l) => l.consultantId === prof.id && l.companyId === firmId) }
+            ? { ...prof, ownCompany: prof.ownCompany ?? null, listings: h.listings.filter((l) => l.consultantId === prof.id && l.companyId === firmId) }
             : null,
         }
       },
@@ -73,7 +73,7 @@ vi.mock('@/lib/db', () => {
   return { prisma }
 })
 
-import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
+import { askOntoBench, firmReadsName, termsSaysForFirm } from '@/lib/consultant-portfolio/bench-ask'
 import { POST as addConsultant } from '@/app/api/consultants/route'
 import { readAsTheFirm, firmViewOf } from '@/lib/consultant-portfolio/firm-view'
 
@@ -154,7 +154,7 @@ describe('one bench ask for the page and the recruiter', () => {
     expect(page.kind === 'ASKED' && page.path).toBe('ASK_EXISTING')
     const r = await fromRecruiter('M Brooks', 'maya@example.test')
     expect(r.status).toBe(201)
-    expect((await r.json()).data.asked).toBe(true)
+    expect((await r.json()).data.asked).toBeUndefined()
 
     // No second person and no second profile; her own name kept; one listing per firm.
     expect(h.people).toHaveLength(1)
@@ -250,14 +250,46 @@ describe('one bench ask for the page and the recruiter', () => {
       .toMatchObject({ headline: 'Payroll analyst', skills: ['Excel'], location: 'Toledo, OH', notes: null })
   })
 
-  it('the firm is told in one line that the person already has an account', async () => {
+  it('adding an address that already has an account reads exactly like adding somebody new, with the name the firm typed', async () => {
     maya()
     const r = await addConsultant(new NextRequest('http://x/api/consultants', {
       method: 'POST',
       body: JSON.stringify({ name: 'M Brooks', email: 'maya@example.test', skills: ['Workday HCM'] }),
     }))
-    const says: string = (await r.json()).data.message
-    expect(says.startsWith('Maya Brooks already has an account. Their own name and papers stay theirs; what you typed is kept on your bench listing.')).toBe(true)
+    const existing = await r.json()
+    const fresh = await addConsultant(new NextRequest('http://x/api/consultants', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Ada Obi', email: 'ada@example.test', skills: ['Workday HCM'] }),
+    }))
+    const added = await fresh.json()
+    expect(r.status).toBe(fresh.status)
+    expect(existing.data.message).toBe(added.data.message.split('Ada Obi').join('M Brooks'))
+    expect(Object.keys(existing.data).sort()).toEqual(Object.keys(added.data).sort())
+    expect(Object.keys(existing.data.consultant).sort()).toEqual(Object.keys(added.data.consultant).sort())
+  })
+
+  it('a firm that adds an address with an account never reads her own name, her own words or that she has an account', async () => {
+    maya()
+    h.profiles[0] = { ...h.profiles[0], headline: 'Payroll analyst', skills: ['Excel'], location: 'Toledo, OH' }
+    const r = await addConsultant(new NextRequest('http://x/api/consultants', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'M Brooks', email: 'maya@example.test', headline: 'HR systems lead' }),
+    }))
+    const body = await r.json()
+    const text = JSON.stringify(body)
+    expect(text).not.toMatch(/Maya Brooks|already has an account|Payroll analyst|Excel|Toledo/)
+    expect(body.data.consultant.person.name).toBe('M Brooks')
+    expect(body.data.consultant.headline).toBe('HR systems lead')
+    // Her own record is untouched by what the firm typed.
+    expect(h.people[0].name).toBe('Maya Brooks')
+  })
+
+  it('the firm’s own activity log reads a first ask on somebody’s own record like any first ask', async () => {
+    maya()
+    await fromRecruiter('M Brooks', 'maya@example.test')
+    const row = h.logs.find((l) => l.action === 'BENCH_LISTING_REQUESTED')!
+    expect(row.summary.startsWith('"M Brooks" asked onto')).toBe(true)
+    expect(row.summary).not.toMatch(/Maya Brooks|already has a record/)
   })
 
   it('the public page never writes a firm’s view of the person, and never clears one', async () => {
@@ -265,5 +297,45 @@ describe('one bench ask for the page and the recruiter', () => {
     h.listings.push({ id: 'back', consultantId: 'maya-profile', companyId: 'firm-p', state: 'GRANTED', revokedAt: new Date('2026-10-01'), firmNotes: 'Strong on payroll.' })
     await fromPage('Maya Brooks', 'maya@example.test')
     expect(h.listings[0].firmNotes).toBe('Strong on payroll.')
+  })
+})
+
+describe('a firm never learns from Add consultant that an address has an account (fix list A4)', () => {
+  it('the firm reads the name it typed, unless it listed her before and she took it back', () => {
+    expect(firmReadsName({ path: 'NEW', typed: 'M Brooks', own: null })).toBe('M Brooks')
+    expect(firmReadsName({ path: 'ASK_EXISTING', typed: 'M Brooks', own: 'Maya Brooks' })).toBe('M Brooks')
+    expect(firmReadsName({ path: 'ASK_AGAIN', typed: 'M Brooks', own: 'Maya Brooks' })).toBe('Maya Brooks')
+  })
+
+  it('the terms sentence names no company of her own that the firm did not type', () => {
+    expect(termsSaysForFirm('Brightmoor Staffing offers Brooks Consulting LLC, M Brooks\'s own company, $90.00 an hour.', 'Brooks Consulting LLC'))
+      .toBe('Brightmoor Staffing offers M Brooks\'s own company, $90.00 an hour.')
+    expect(termsSaysForFirm('Brightmoor Staffing pays them $90.00 an hour.', null)).toBe('Brightmoor Staffing pays them $90.00 an hour.')
+    expect(termsSaysForFirm(null, 'Brooks Consulting LLC')).toBeNull()
+  })
+
+  it('pay terms stated for an address with an account never read back her own name or her company’s name', async () => {
+    maya()
+    h.profiles[0].ownCompany = { id: 'maya-co', name: 'Brooks Consulting LLC' }
+    const r = await addConsultant(new NextRequest('http://x/api/consultants', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'M Brooks', email: 'maya@example.test', termsEngagementType: 'OWN_COMPANY', termsPayRateCents: 9000 }),
+    }))
+    const text = JSON.stringify(await r.json())
+    expect(r.status, text).toBe(201)
+    expect(text).not.toMatch(/Maya Brooks|Brooks Consulting/)
+    expect(text).toContain('M Brooks')
+  })
+
+  it('a range below her own lowest rate is refused with the name the firm typed, never hers', async () => {
+    maya()
+    h.profiles[0].rateFloor = 9000
+    const r = await addConsultant(new NextRequest('http://x/api/consultants', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'M Brooks', email: 'maya@example.test', rateMin: 5000, rateMax: 6000 }),
+    }))
+    const body = await r.json()
+    expect(r.status).toBe(422)
+    expect(body.error.message).toBe('The top of that range is below the lowest rate M Brooks has said they will take.')
   })
 })

@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
         tier: 'MARKETING',
       })
       if (out.kind === 'ASKED') {
-        const state = out.path === 'NEW' ? 'ASKED' : out.path === 'ASK_AGAIN' ? 'ASKED_AGAIN' : 'ASKED_ON_OWN_RECORD'
+        // A first ask on somebody's own record reads like any first ask.
+        const state = out.path === 'ASK_AGAIN' ? 'ASKED_AGAIN' : 'ASKED'
         lines.push({ email: item.email, asked: true, state, says: inviteLineSays({ state, mail: out.mail }) })
       } else if (out.kind === 'NOTHING') {
         lines.push({ email: item.email, asked: false, state: out.path, says: inviteLineSays({ state: out.path }) })

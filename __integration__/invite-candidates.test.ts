@@ -69,11 +69,12 @@ describe('a recruiter invites candidates in one press', () => {
     expect(JSON.stringify(r.body)).not.toMatch(/bench-invite\//)
   })
 
-  it('a candidate who already has an account is asked on her own record, never a second one', async () => {
+  it('a candidate who already has an account is asked on her own record, never a second one, and her line reads like anybody new', async () => {
     as(OWNER)
     const r = await json(await invite(req('POST', '/api/consultants/invite', { list: `M. Brooks <${MAYA}>` })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.results[0].state).toBe('ASKED_ON_OWN_RECORD')
+    expect(r.body.data.results[0].state).toBe('ASKED')
+    expect(r.body.data.results[0].says).not.toMatch(/Already on Etyme|already has an account|Maya Brooks/)
     expect(await prisma.person.count({ where: { primaryEmail: MAYA } })).toBe(1)
     expect((await prisma.person.findUniqueOrThrow({ where: { id: mayaId } })).name).toBe('Maya Brooks')
   })

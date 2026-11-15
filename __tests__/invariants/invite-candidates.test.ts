@@ -58,7 +58,6 @@ describe('a recruiter invites several candidates in one box', () => {
 
   it('each address is answered in its own sentence: asked, already on your bench, already asked, or said no', () => {
     expect(inviteLineSays({ state: 'ASKED', mail: 'EMAILED' })).toBe('Asked to join your bench. The invitation went by email.')
-    expect(inviteLineSays({ state: 'ASKED_ON_OWN_RECORD', mail: 'EMAILED' })).toBe('Already on Etyme, so asked on the record they have. The invitation went by email.')
     expect(inviteLineSays({ state: 'ALREADY_ON' })).toBe('Already on your bench. Nothing was sent.')
     expect(inviteLineSays({ state: 'ALREADY_ASKED' })).toBe('Already asked, and not answered yet. Nothing new was sent. Use Resend on their row.')
     expect(inviteLineSays({ state: 'SAID_NO' })).toBe('Said no to your bench. Nothing was sent; only they can change that.')
