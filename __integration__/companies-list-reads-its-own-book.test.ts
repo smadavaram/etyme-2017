@@ -211,6 +211,14 @@ describe('a company is known by its domain among the companies you recorded', ()
     expect(r.body.error.companyId).toBe(first)
   })
 
+  it('a subdomain typed on Add a company is kept as the company’s own domain, and the reply says so', async () => {
+    const r = await record('Harrowgate Mills', { domain: 'eu.harrowgate-mills.example' })
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.message).toContain('The company\'s domain is kept as harrowgate-mills.example, read from eu.harrowgate-mills.example.')
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: r.body.data.company.id }, select: { website: true } })
+    expect(c.website).toBe('harrowgate-mills.example')
+  })
+
   it('the same domain is refused whatever Kind is chosen, before any firm on Etyme is looked up', async () => {
     const r = await json(await companies.POST(req('POST', '/api/companies', { name: 'Northwind Again', kind: 'VENDOR', relationship: 'SUPPLIER', domain: 'northwind-staffing.example' })))
     expect(r.status).toBe(409)

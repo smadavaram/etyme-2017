@@ -10,7 +10,7 @@ import {
 import { recordRefusal } from '@/lib/access-log'
 import { worksAtBook } from './works-at'
 import { dealingsWithSides } from '../companies/dealings'
-import { notLinkedYet, mayRecordCompany, sameDomainRefused, sameNameRefused } from '@/lib/counterparty'
+import { notLinkedYet, mayRecordCompany, sameDomainRefused, sameNameRefused, readTypedDomain } from '@/lib/counterparty'
 import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
 import { lookBeforeRecording, writeRecord, refusedFound, uniqueSlug, slugify, RESERVED_SLUGS, EITHER_SIDE, reservedNameSays, SLUG_RACE_SAYS, ownCompanySays, onYourListAlreadySays } from '../companies/record'
 
@@ -291,8 +291,11 @@ export async function POST(request: NextRequest) {
     const { contact, company } = await prisma.$transaction(async (tx) => {
       // The company first, by the one writer Add a company runs, then the
       // contact at it: one transaction, so a failure writes neither.
+      // Stored under the domain somebody registered, by the rule the
+      // domain box on Add a company reads (fix list A2).
+      const box = adding ? readTypedDomain(emailDomain(body?.email)) : null
       const company = adding
-        ? (await writeRecord(tx, caller, { name: newName, slug, domain: emailDomain(body?.email) })).company
+        ? (await writeRecord(tx, caller, { name: newName, slug, domain: box?.ok ? box.domain : null })).company
         : null
       const at = company ? company.id : atCompanyId
       const made = await tx.companyContact.create({

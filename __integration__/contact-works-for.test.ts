@@ -77,6 +77,14 @@ describe('a contact at a company not on the list yet', () => {
     expect(await prisma.company.count()).toBe(companiesBefore)
   })
 
+  it('a work email on a subdomain adds the company under the domain its name is read from, never the subdomain', async () => {
+    as(OWNER)
+    const r = await add({ name: 'Lee Zhou', email: 'lee@mail.zephyr-foods.example', newCompany: { name: 'Zephyr Foods' } })
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: r.body.data.company.id }, select: { website: true, domain: true } })
+    expect(c).toEqual({ website: 'zephyr-foods.example', domain: null })
+  })
+
   it('a personal email never adds a company or names one', async () => {
     const companiesBefore = await prisma.company.count()
     const r = await add({ name: 'Ana Ruiz', email: 'ana.ruiz@gmail.com', newCompany: { name: 'Gmail' } })

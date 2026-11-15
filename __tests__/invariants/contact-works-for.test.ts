@@ -176,7 +176,9 @@ describe('Add contact adds the company through the one writer Add a company runs
     expect(companiesRoute).toContain('await lookBeforeRecording(seatedCaller, {')
     expect(route).toContain('await lookBeforeRecording(caller, { name: newName, domain: read.domain })')
     expect(companiesRoute).toContain('writeRecord(tx, caller, {')
-    expect(route).toContain('await writeRecord(tx, caller, { name: newName, slug, domain: emailDomain(body?.email) })')
+    expect(route).toContain('await writeRecord(tx, caller, { name: newName, slug, domain: box?.ok ? box.domain : null })')
+    // The domain stored is read by the rule the Domain box on Add a company reads.
+    expect(route).toContain('readTypedDomain(emailDomain(body?.email))')
     expect(record).toContain("action: 'COMPANY_CREATED'")
     expect(record).toContain("kind: 'UNCLASSIFIED'")
     expect(record).toContain('const read = await twinFor(mine.id, { name: typed.name, domain: typed.domain })')

@@ -547,10 +547,24 @@ export function readTypedDomain(typed: unknown):
     const local = t.slice(0, at)
     const d = local && !/\s/.test(local) ? notedDomain(t.slice(at + 1)) : null
     if (!d) return { ok: false, says: unreadableDomainSays(t) }
-    return { ok: true, domain: d, says: `The domain was taken from the email address you typed: ${d}.` }
+    const own = companyDomainOf(d)
+    return { ok: true, domain: own, says: `The domain was taken from the email address you typed: ${own}.` }
   }
   const d = notedDomain(t)
-  return d ? { ok: true, domain: d, says: null } : { ok: false, says: unreadableDomainSays(t) }
+  if (!d) return { ok: false, says: unreadableDomainSays(t) }
+  const own = companyDomainOf(d)
+  return { ok: true, domain: own, says: own === d ? null : `The company's domain is kept as ${own}, read from ${d}.` }
+}
+
+/**
+ * The domain a company is stored under: the one somebody registered, so
+ * mail.zephyr-foods.example is kept as zephyr-foods.example, the same
+ * domain its name is read from and twins are matched by (fix list A2,
+ * 2026-11-15). Where no registered domain can be read, what was typed.
+ * Pure.
+ */
+export function companyDomainOf(d: string): string {
+  return registrableDomain(d) ?? d
 }
 
 /**

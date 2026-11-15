@@ -30,6 +30,20 @@ describe('the domain box keeps what was typed, or says why not', () => {
     })
   })
 
+  it('a subdomain typed in the Domain box is kept as the company’s own domain, and the reply says so', () => {
+    expect(readTypedDomain('mail.zephyr-foods.example')).toEqual({
+      ok: true, domain: 'zephyr-foods.example',
+      says: 'The company\'s domain is kept as zephyr-foods.example, read from mail.zephyr-foods.example.',
+    })
+  })
+
+  it('an email on a subdomain gives the company’s own domain, the one its name is read from', () => {
+    expect(readTypedDomain('lee@mail.zephyr-foods.example')).toEqual({
+      ok: true, domain: 'zephyr-foods.example',
+      says: 'The domain was taken from the email address you typed: zephyr-foods.example.',
+    })
+  })
+
   it('a port, a trailing dot, plain words or a bare @ are refused in a sentence that says how to type it', () => {
     for (const typed of ['harborline-tech.example:8080', 'harborline-tech.example.', 'not a domain!!', '@harborline-tech.example', 'jobs@']) {
       expect(readTypedDomain(typed)).toEqual({ ok: false, says: unreadableDomainSays(typed) })
