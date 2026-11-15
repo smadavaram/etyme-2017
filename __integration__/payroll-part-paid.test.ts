@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as payroll } from '@/app/api/payroll/route'
@@ -184,7 +184,18 @@ for (const S of SUNDAYS) {
       const owed = data.payItems.filter((x: any) => ['PENDING', 'CALCULATED'].includes(x.payStatus) && owedOnRow(x) > 0 && x.payCurrency === 'USD')
       expect(owedOnRow(rowOf(data, rhea))).toBe(80_000)
       as(BRIGHTMOOR)
-      const r = await json(await ap(req('GET', '/api/ap?view=cash-flow&period=quarter&grain=week')))
+      // The cash flow looks ahead from today, so today is fixed here at a
+      // day before every pay day this file names: by Jan 4, 2027 the
+      // December pay days had left the forecast and this went red (tried
+      // with the clock set forward, 2026-11-15).
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-11-15T12:00:00Z'))
+      let r: Awaited<ReturnType<typeof json>>
+      try {
+        r = await json(await ap(req('GET', '/api/ap?view=cash-flow&period=quarter&grain=week')))
+      } finally {
+        vi.useRealTimers()
+      }
       expect(r.status, JSON.stringify(r.body)).toBe(200)
       const usd = r.body.data.currencies.find((c: any) => c.currency === 'USD')
       const slot = usd.rows.find((x: any) => x.start.slice(0, 10) <= want.payOn && x.end.slice(0, 10) >= want.payOn)
