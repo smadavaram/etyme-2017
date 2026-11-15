@@ -289,8 +289,9 @@ export async function POST(request: NextRequest) {
         // The name the person typed, and nothing more: no address, no id
         // of a firm the caller does not work with (review, 2026-11-13).
         const says =
-          `A company called ${namesake.name} is on Etyme already. If that is them, give their domain or their ` +
-          `Etyme address and ask them to link, as your ${asWord}. If it is a different company, give their domain so the two are told apart.`
+          `A company called ${namesake.name} is on Etyme already. If that is them, ask them for their web domain, ` +
+          `or the address their Etyme page opens at, and type it below. Then you can ask them to link, as your ${asWord}. ` +
+          `If it is a different company, type its web domain below so the two are told apart.`
         await refusedFound(seatedCaller, namesake.id, says)
         return NextResponse.json({ error: { code: 'SAME_NAME', field: 'domain', message: says } }, { status: 409 })
       }

@@ -5,13 +5,15 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import Link from 'next/link'
 import type { Route } from 'next'
-import { worksAtChoices, rolesOffered, OWN_FIRM_KIND, type WorksAtChoice } from '@/lib/contacts'
+import { worksAtChoices, rolesOffered, OWN_FIRM_KIND, ADD_ANYWAY, type WorksAtChoice } from '@/lib/contacts'
+import { mayAddConsultant, ADDS_CONSULTANTS } from '@/lib/consultant-portfolio/who-adds'
+import { desksHolding } from '@/lib/permissions'
 import { mayOpen } from '@/lib/nav-table'
 import { usePageSection } from '@/components/page-section'
 import { useSession } from '@/components/session-provider'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { refusalSentence } from '@/lib/refusal-words'
-import { Chip, EmptyState, ErrorState, FilterChips, LoadingState, PageHead, RefusedState } from '@/components/ui'
+import { Chip, EmptyState, ErrorState, FilterChips, FormMessage, LoadingState, PageHead, RefusedState } from '@/components/ui'
 
 /**
  * Contacts: the people you know, at the companies on your list and at
@@ -49,6 +51,8 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  // The sentence after Add contact saves: who, where, and that nothing was sent.
+  const [saved, setSaved] = useState<string | null>(null)
   // A refusal is the page: its sentence alone, with no tabs, search or
   // "Add contact" around it (sign-up walk, round six, problem 12).
   const [refused, setRefused] = useState<string | null>(null)
@@ -113,11 +117,12 @@ export default function ContactsPage() {
           placeholder="Search names, companies, titles"
           className="ml-auto w-full rounded-lg border border-etyme-rule px-3 py-1.5 text-[13px] sm:w-64"
         />
-        <button onClick={() => setAdding(true)} className="btn-primary text-[13px]">
+        <button onClick={() => { setSaved(null); setAdding(true) }} className="btn-primary text-[13px]">
           Add contact
         </button>
       </div>
 
+      {saved && <FormMessage tone="ok">{saved}</FormMessage>}
       {loading && <LoadingState compact says="Opening contacts…" />}
       {error && <ErrorState says={error} action={{ label: 'Try again', onClick: () => load() }} />}
 
@@ -186,8 +191,9 @@ export default function ContactsPage() {
           permissions={permissions}
           readerKind={readerKind}
           onClose={() => setAdding(false)}
-          onCreated={() => {
+          onCreated={(says) => {
             setAdding(false)
+            setSaved(says)
             load()
           }}
         />
@@ -207,7 +213,7 @@ function AddContactModal({
   permissions: readonly string[] | null
   readerKind: string | null
   onClose: () => void
-  onCreated: () => void
+  onCreated: (says: string) => void
 }) {
   const [form, setForm] = useState({ name: '', email: '', phone: '', title: '', atCompanyId: '', kind: 'OTHER' })
   const [submitting, setSubmitting] = useState(false)
@@ -221,7 +227,13 @@ function AddContactModal({
   // or an MSP's menu has no such page.
   const paysPeople = readerKind === 'VENDOR' || readerKind === 'GSI'
   const mayInvite = mayOpen(USERS_HREF, permissions)
-  const mayAddCandidate = paysPeople && mayOpen(ADD_CANDIDATE_HREF, permissions)
+  // The link only where the seat's own route would take the add; anybody
+  // else reads which role adds a person the firm pays (walk, 2026-11-15).
+  const mayAddCandidate = paysPeople && mayOpen(ADD_CANDIDATE_HREF, permissions) && mayAddConsultant(permissions ?? [])
+  const addsPeople = desksHolding(ADDS_CONSULTANTS, readerKind).slice(0, 3)
+  // The same name at this company with no email or phone in common: asked,
+  // with one press that saves anyway (2026-11-15).
+  const [namesake, setNamesake] = useState(false)
 
   function chooseCompany(id: string) {
     const own = companies.some((c) => c.own && c.id === id)
@@ -248,8 +260,9 @@ function AddContactModal({
     return p
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent, addAnyway = false) {
     e.preventDefault()
+    setNamesake(false)
     const found = problems()
     setFieldErrors(found)
     if (Object.keys(found).length > 0) {
@@ -263,7 +276,7 @@ function AddContactModal({
       const res = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(addAnyway ? { ...form, addAnyway: true } : form),
       })
       const body = await res.json()
       if (!res.ok) {
@@ -271,9 +284,11 @@ function AddContactModal({
         // Drawn only where the page will take the reader.
         if (body.error?.href && mayOpen(body.error.href, permissions)) setErrorLink({ href: body.error.href, label: body.error.hrefLabel ?? 'Open it' })
         if (body.error?.field) setFieldErrors({ [body.error.field]: body.error.message })
+        if (body.error?.code === 'SAME_NAME') setNamesake(true)
         return
       }
-      onCreated()
+      const at = companies.find((c) => c.id === form.atCompanyId)
+      onCreated(`${form.name.trim()} is in your Contacts at ${at?.name.replace(/ \(your own firm\)$/, '') ?? 'that company'}. Nothing was sent to them.`)
     } catch {
       setError('Network error. Try again.')
     } finally {
@@ -314,6 +329,13 @@ function AddContactModal({
                 <Link href={errorLink.href as Route} className="font-semibold underline">{errorLink.label}</Link>
               </>
             )}
+            {namesake && (
+              <div className="mt-3">
+                <button type="button" className="btn-secondary text-[13px]" disabled={submitting} onClick={(e) => handleSubmit(e, true)}>
+                  {ADD_ANYWAY}
+                </button>
+              </div>
+            )}
           </div>
         )}
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -343,12 +365,13 @@ function AddContactModal({
                   Saving a colleague here gives them no login and sends them nothing.
                   {mayInvite && <> A colleague who needs a login is invited under <Link href={USERS_HREF} className="text-etyme-action">Users &amp; permissions</Link>.</>}
                   {mayAddCandidate && <> A person you pay is added under <Link href={ADD_CANDIDATE_HREF} className="text-etyme-action">Candidates</Link>.</>}
+                  {paysPeople && !mayAddCandidate && addsPeople.length > 0 && <> A person you pay is added under Candidates, by {addsPeople.length === 1 ? addsPeople[0] : `${addsPeople.slice(0, -1).join(', ')} or ${addsPeople[addsPeople.length - 1]}`}.</>}
                 </p>
               )}
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {field('email', 'Email', 'dana@client.com', 'email')}
+            {field('email', 'Email', 'dana@client.example', 'email')}
             {field('phone', 'Phone', '(303) 555-0100', 'tel')}
           </div>
           <p className="-mt-2 text-[12px] text-etyme-muted">An email address or a phone number. Either one is enough.</p>

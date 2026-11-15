@@ -231,6 +231,10 @@ describe('one firm, one tenant', () => {
     const sameName = await call(addCompany, 'POST', '/api/companies', undefined, { name: 'Quarrybrook Staffing', kind: 'VENDOR', relationship: 'PRIME' })
     expect(sameName.status).toBe(409)
     expect(sameName.body.error.code).toBe('SAME_NAME')
+    // Said so she knows what to ask them for, and drawn at the Domain box (walk, 2026-11-15).
+    expect(sameName.body.error.field).toBe('domain')
+    expect(sameName.body.error.message).toContain('ask them for their web domain, or the address their Etyme page opens at, and type it below')
+    expect(sameName.body.error.companyId).toBeUndefined()
     expect(await prisma.company.count({ where: { name: { contains: 'Quarrybrook' } } })).toBe(before)
 
     // Once Quarrybrook has put Teleworld on its own register, adding it links.
@@ -425,6 +429,9 @@ describe('two firms already on Etyme link by one ask and one yes', () => {
     expect(await prisma.counterparty.count({ where: { OR: [{ companyId: co.ostrander, otherCompanyId: co.quarrybrook }, { companyId: co.quarrybrook, otherCompanyId: co.ostrander }] } })).toBe(0)
     expect(await workTogether(co.ostrander, co.quarrybrook)).toBe(false)
     expect((await call(askToLink, 'POST', '/api/trade-links', undefined, { companyId: co.quarrybrook, relationship: 'PRIME' })).body.error.code).toBe('ALREADY_ASKED')
+    // The asker reads her own ask, waiting, on her own Companies page, and no register row (walk, 2026-11-15).
+    const made = (await call(linkAsks, 'GET', '/api/trade-links')).body.data.made.filter((m: any) => m.state === 'WAITING')
+    expect(made.map((m: any) => m.says)).toEqual([expect.stringMatching(/^Asked Quarrybrook Staffing on .+ to link as your prime\. Waiting on them\.$/)])
     expect(await eventually(() => prisma.notification.count({ where: { personId: who.quarryOwner, title: 'Ostrander Talent asks to link as your sub-vendor' } }), 1)).toBe(1)
 
     // Quarrybrook says yes in one click.

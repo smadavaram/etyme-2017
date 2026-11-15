@@ -29,6 +29,12 @@ export interface ListSurfaceProps<T> extends DataTableProps<T> {
   name?: string
   defaultView?: View
   /**
+   * The view a phone starts on where the reader has not chosen one on this
+   * device: a wide table on a phone loses its first column to a sideways
+   * swipe (walk, 2026-11-15).
+   */
+  phoneView?: View
+  /**
    * Drive the view from the page, for a list whose two views are not
    * interchangeable for acting — a table row that starts something the
    * card finishes has to be able to move the reader to the card.
@@ -43,7 +49,7 @@ export interface ListSurfaceProps<T> extends DataTableProps<T> {
 }
 
 export function ListSurface<T extends Record<string, any>>(props: ListSurfaceProps<T>) {
-  const { name, defaultView = 'table', card, feedOmit = [], view: given, onView, ...table } = props
+  const { name, defaultView = 'table', phoneView, card, feedOmit = [], view: given, onView, ...table } = props
   const key = `etyme.view.${name ?? table.exportName ?? 'list'}`
   const [own, setOwn] = useState<View>(defaultView)
   const view = given ?? own
@@ -51,6 +57,7 @@ export function ListSurface<T extends Record<string, any>>(props: ListSurfacePro
     try {
       const saved = window.localStorage.getItem(key)
       if (saved === 'feed' || saved === 'table') { setOwn(saved); onView?.(saved) }
+      else if (phoneView && window.matchMedia?.('(max-width: 767px)').matches) { setOwn(phoneView); onView?.(phoneView) }
     } catch {}
     // The remembered choice is read once, on mount, for this list.
     // eslint-disable-next-line react-hooks/exhaustive-deps

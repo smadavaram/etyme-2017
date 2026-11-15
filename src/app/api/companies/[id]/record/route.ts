@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { recordRefusal } from '@/lib/access-log'
-import { mayEditRecord, identityDomain, readTypedDomain, sameDomainRefused, sameNameRefused, namesakeSays, NEVER_EMAILS } from '@/lib/counterparty'
+import { mayEditRecord, identityDomain, readTypedDomain, sameDomainRefused, sameNameRefused, namesakeSays, recordEditedSummary, NEVER_EMAILS } from '@/lib/counterparty'
 import { dealsWith, NOT_ON_YOUR_LIST } from '../../dealing'
 import { ownDomainsFor, twinFor, CLEARED_NOTE } from '../../twins'
 
@@ -92,8 +92,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ data: { companyId: other.id, changed: false, message: `Nothing changed on ${other.name}.` } })
   }
 
-  const said = (v: string | null) => (v == null ? 'nothing' : v)
-  const what = changes.map((c) => `the ${c.box} from ${said(c.from)} to ${said(c.to)}`).join(', ')
   const message = [`${name} is corrected on your Companies list. ${NEVER_EMAILS}`, read.namesake ? namesakeSays(read.namesake) : null].filter(Boolean).join(' ')
   const written = await prisma.$transaction(async (tx) => {
     // Guarded again inside the write: only the caller's own record nobody has claimed.
@@ -118,7 +116,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       data: {
         companyId: me.id,
         action: 'COMPANY_RECORD_EDITED',
-        summary: `${caller.person.name} changed ${what}`,
+        summary: recordEditedSummary(caller.person.name, name, changes),
         reason: 'Corrected on the Companies list by a person who manages who the firm trades with. Nothing was sent.',
         payload: { otherCompanyId: other.id, byName: caller.person.name, personId: caller.person.id, position: null, changes },
         reversible: true,

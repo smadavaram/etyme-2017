@@ -64,8 +64,8 @@ export const KINDS: Record<ContactKind, { label: string; callAbout: string }> = 
   // A colleague seated on arrival with the Member role: they read their
   // own work and nothing else, so they are somebody you know, not a desk
   // you call about anything (lib/company-defaults MEMBER_ROLE).
-  MEMBER: { label: 'Team member', callAbout: 'their own work only — they hold no role yet' },
-  OTHER: { label: 'Other', callAbout: 'whatever they were saved for — add a note' },
+  MEMBER: { label: 'Team member', callAbout: 'the work they do at your firm' },
+  OTHER: { label: 'Other', callAbout: 'whatever you saved them for' },
 }
 
 export interface ContactInput {
@@ -187,7 +187,7 @@ export function alreadyOnFile(
       return {
         duplicate: true,
         of: hit,
-        says: `${hit.name} is already on file at this company with that email. Update them rather than adding a twin.`,
+        says: duplicateSays(hit.name, 'email'),
       }
     }
   }
@@ -198,13 +198,46 @@ export function alreadyOnFile(
       return {
         duplicate: true,
         of: hit,
-        says: `${hit.name} is already on file with that phone number.`,
+        says: duplicateSays(hit.name, 'phone number'),
       }
     }
   }
 
   return { duplicate: false, says: 'New.' }
 }
+
+/**
+ * The refusal for the same email or phone at the same company. It says
+ * only what is true and what she can do: no contact can be edited yet,
+ * so it never tells her to update one (walk of 2026-11-15).
+ */
+export function duplicateSays(name: string, by: 'email' | 'phone number'): string {
+  return `${name} is already in your Contacts at this company with that ${by}, so nothing was saved. If this is somebody else, give their own ${by}.`
+}
+
+/** A name compared without case or extra spaces. */
+function sameName(a: string | null | undefined, b: string | null | undefined): boolean {
+  const n = (v: string | null | undefined) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+  return n(a) !== '' && n(a) === n(b)
+}
+
+/**
+ * Somebody of the same name already on file at the same company, where no
+ * email or phone matched (walk of 2026-11-15: one person saved twice, once
+ * with an email and once with a phone). Never a refusal and never a merge:
+ * two people can share a name, so the screen asks, and one press adds anyway.
+ */
+export function sameNameOnFile(
+  c: { name: string; atCompanyId: string },
+  existing: Existing[]
+): { of: Existing; says: string } | null {
+  const hit = existing.find((e) => e.atCompanyId === c.atCompanyId && sameName(e.name, c.name))
+  if (!hit) return null
+  return { of: hit, says: `A ${hit.name} is already on file at this company. Is this the same person?` }
+}
+
+/** The one press that saves anyway, where two people share a name. */
+export const ADD_ANYWAY = 'Add anyway, this is somebody else'
 
 export interface ClaimMatch {
   contactId: string

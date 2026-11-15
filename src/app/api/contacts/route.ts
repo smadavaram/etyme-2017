@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import {
-  problems, alreadyOnFile, KINDS, kindOfRole, writableEmail, kindsHeld, rolesOffered, mayWorkAt,
+  problems, alreadyOnFile, sameNameOnFile, KINDS, kindOfRole, writableEmail, kindsHeld, rolesOffered, mayWorkAt,
   memberElsewhereSays, contactRecordedLog, NOT_ON_YOUR_LIST_SAYS, ADD_A_COMPANY_HREF, type ContactKind,
 } from '@/lib/contacts'
 import { recordRefusal } from '@/lib/access-log'
@@ -250,6 +250,16 @@ export async function POST(request: NextRequest) {
   if (dup.duplicate) {
     return NextResponse.json(
       { error: { code: 'DUPLICATE', message: dup.says, existingId: dup.of!.id } },
+      { status: 409 }
+    )
+  }
+  // The same name at the same company with no email or phone in common is
+  // asked about, never refused and never merged: two people may share a
+  // name, so the screen offers one press that saves anyway (2026-11-15).
+  const namesake = body?.addAnyway === true ? null : sameNameOnFile({ name: String(body.name), atCompanyId }, existing)
+  if (namesake) {
+    return NextResponse.json(
+      { error: { code: 'SAME_NAME', message: namesake.says, field: 'name', existingId: namesake.of.id } },
       { status: 409 }
     )
   }

@@ -671,6 +671,17 @@ export const sameDomainRefused = (existing: { name: string; domain: string | nul
   `${existing.name} (${existing.domain}) is on your Companies list already on that domain. Open it there rather than record it twice.`
 
 /** The line a reply carries where another company on the list shares the name. */
+/**
+ * The activity-log line for a corrected company. It always names the
+ * company: a change that left the name alone read "changed the entity type
+ * from nothing to LLP" with no company in it (walk, 2026-11-15).
+ */
+export function recordEditedSummary(byName: string, name: string, changes: readonly { box: string; from: string | null; to: string | null }[]): string {
+  const said = (v: string | null) => (v == null ? 'nothing' : v)
+  const what = changes.map((c) => `the ${c.box} from ${said(c.from)} to ${said(c.to)}`).join(', ')
+  return changes.some((c) => c.box === 'name') ? `${byName} changed ${what}` : `${byName} changed ${what} on ${name}`
+}
+
 export const namesakeSays = (namesake: { name: string; domain: string | null }) =>
   namesake.domain
     ? `Another company on your list is also called ${namesake.name}, on ${namesake.domain}.`

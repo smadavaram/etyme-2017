@@ -9,6 +9,7 @@ import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
 import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, countedTwiceSays, noPositionTile, relationshipForKind, type Position } from '@/lib/counterparty'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
+import { ADD_ANYWAY } from '@/lib/contacts'
 import { Chip, Field, FilterChips, FormMessage, Input, LoadingState, PageHead, RefusedState, Select, Stat, SubmitButton, type ChipTone } from '@/components/ui'
 
 /**
@@ -99,12 +100,19 @@ function PositionChips({ row }: { row: Pick<Company, 'positions' | 'notClassifie
   return (
     <span className="inline-flex flex-wrap gap-1">
       {row.positions.map((p) => (
-        <Chip key={p} tone={p === 'CUSTOMER' ? 'verified' : 'action'}>
-          {POSITION_WORDS[p]}{p === 'CUSTOMER' && row.customerAgreement === 'UNSIGNED' ? ' · no agreement signed yet' : p === 'CUSTOMER' && row.customerAgreement === 'NONE' ? ' · no agreement on file' : ''}
-        </Chip>
+        <Chip key={p} tone={p === 'CUSTOMER' ? 'verified' : 'action'}>{POSITION_WORDS[p]}</Chip>
       ))}
+      {/* Beside the chip, not inside it: a chip never wraps, and this one ran
+          the table past its box at desktop width (walk, 2026-11-15). */}
+      {agreementWords(row) && <span className="basis-full text-[11px] leading-snug text-etyme-muted">{agreementWords(row)}</span>}
     </span>
   )
+}
+
+/** The customer agreement's words under the Customer chip, or null. */
+function agreementWords(row: Pick<Company, 'positions' | 'customerAgreement'>): string | null {
+  if (!row.positions.includes('CUSTOMER')) return null
+  return row.customerAgreement === 'UNSIGNED' ? 'No agreement signed yet' : row.customerAgreement === 'NONE' ? 'No agreement on file' : null
 }
 
 /** The words under "To you", for sorting, search and the export. */
@@ -138,7 +146,7 @@ async function extendCompany(id: string, as: 'SUPPLIER' | 'CUSTOMER'): Promise<{
  * does not work with is offered "Ask them to link" there (review,
  * 2026-11-13: a refusal read as a success for four seconds and was gone).
  */
-function ExtendButtons({ row, onDone, withLines = false }: { row: Company; onDone: (says: string, ok: boolean) => void; withLines?: boolean }) {
+function ExtendButtons({ row, onDone, onAsked, withLines = false }: { row: Company; onDone: (says: string, ok: boolean) => void; onAsked?: () => void; withLines?: boolean }) {
   const [busy, setBusy] = useState(false)
   const [refused, setRefused] = useState<{ as: 'SUPPLIER' | 'CUSTOMER'; says: string; askToLink: boolean } | null>(null)
   const [asked, setAsked] = useState<string | null>(null)
@@ -159,6 +167,7 @@ function ExtendButtons({ row, onDone, withLines = false }: { row: Company; onDon
       }
       setRefused(null)
       setAsked(body.data?.says ?? 'Asked. Nothing is on either list until they say yes.')
+      onAsked?.()
     } catch {
       setRefused({ as, says: 'Network error. Please try again.', askToLink: false })
     } finally {
@@ -218,7 +227,7 @@ function ExtendButtons({ row, onDone, withLines = false }: { row: Company; onDon
  * that has not linked with you (record 61). The one act on its row: nothing
  * is on either list until they say yes.
  */
-function AskToLink({ row }: { row: Company }) {
+function AskToLink({ row, onAsked }: { row: Company; onAsked?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<{ tone: 'ok' | 'error'; says: string } | null>(null)
   async function ask() {
@@ -231,6 +240,7 @@ function AskToLink({ row }: { row: Company }) {
       const body = await res.json().catch(() => ({}) as any)
       if (!res.ok) { setSaid({ tone: 'error', says: refusalSentence(body.error?.message, { what: 'Asking a firm to link' }) || 'The ask could not be sent. Try again in a minute.' }); return }
       setSaid({ tone: 'ok', says: body.data?.says ?? 'Asked. Nothing is on either list until they say yes.' })
+      onAsked?.()
     } catch {
       setSaid({ tone: 'error', says: 'Network error. Please try again.' })
     } finally {
@@ -350,7 +360,11 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
   const [error, setError] = useState<string | null>(null)
   // The same name on this firm's own list: said beside the name, with the
   // one already there to open (founder, 2026-11-12).
-  const [twin, setTwin] = useState<{ id: string; says: string } | null>(null)
+  const [twin, setTwin] = useState<{ id: string; says: string; field: 'name' | 'domain' } | null>(null)
+  // A refusal about the domain is drawn at the Domain box, beside the
+  // Etyme address box, so the next box to fill is the one in front of her
+  // (walk, 2026-11-15).
+  const [domainSays, setDomainSays] = useState<string | null>(null)
   // A firm already on Etyme: no copy, one click to ask them to link
   // (lib/trade-link, 2026-10-27). A company asked about as not classified
   // yet carries no relationship, so the person says which before asking.
@@ -388,6 +402,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
     e.preventDefault()
     setLinkable(null)
     setTwin(null)
+    setDomainSays(null)
     setError(null)
     // Said here rather than by a greyed button or a browser bubble.
     if (form.name.trim().length < 2) {
@@ -432,7 +447,11 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
         const body = await res.json().catch(() => ({}) as any)
         const e = body.error ?? {}
         if ((e.code === 'SAME_NAME_ON_YOUR_LIST' || e.code === 'SAME_DOMAIN_ON_YOUR_LIST') && e.companyId) {
-          setTwin({ id: e.companyId, says: e.message })
+          setTwin({ id: e.companyId, says: e.message, field: e.field === 'domain' ? 'domain' : 'name' })
+          return
+        }
+        if (e.field === 'domain' && e.code !== 'ALREADY_ON_ETYME' && e.code !== 'ALREADY_HERE') {
+          setDomainSays(refusalSentence(e.message, { what: 'Adding a company' }) || 'That domain could not be used.')
           return
         }
         setError(refusalSentence(body.error?.message, { what: 'Adding a company' }) || 'The company could not be added.')
@@ -510,7 +529,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="Techpeple Inc."
             />
-            {twin && (
+            {twin?.field === 'name' && (
               <p className="mt-1 text-[12px] text-etyme-attention">
                 {twin.says}{' '}
                 <button type="button" className="underline text-etyme-action" onClick={() => { onOpenExisting(twin.id); onClose() }}>
@@ -622,11 +641,21 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
               <input
                 type="text"
                 value={form.domain}
-                onChange={(e) => setForm({ ...form, domain: e.target.value })}
+                aria-invalid={domainSays || twin?.field === 'domain' ? true : undefined}
+                onChange={(e) => { setDomainSays(null); if (twin?.field === 'domain') setTwin(null); setForm({ ...form, domain: e.target.value }) }}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="techpeple.example"
               />
+              {domainSays && <p className="mt-1 text-[12px] text-etyme-attention">{domainSays}</p>}
+              {twin?.field === 'domain' && (
+                <p className="mt-1 text-[12px] text-etyme-attention">
+                  {twin.says}{' '}
+                  <button type="button" className="underline text-etyme-action" onClick={() => { onOpenExisting(twin.id); onClose() }}>
+                    Open it
+                  </button>
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Their Etyme address, if they have one</label>
@@ -641,8 +670,10 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                   placeholder="techpeple"
                 />
               </div>
-              {form.slug && (
+              {form.slug ? (
                 <p className="text-[10px] text-etyme-faint mt-1">{form.slug}.etyme.com</p>
+              ) : (
+                <p className="text-[11px] text-etyme-faint mt-1">The first part of the address their Etyme page opens at, before .etyme.com.</p>
               )}
             </div>
           </div>
@@ -1034,6 +1065,8 @@ function CompanyContacts({ company }: { company: Company }) {
   const [form, setForm] = useState({ name: '', email: '', phone: '', title: '' })
   const [pending, setPending] = useState(false)
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; says: string } | null>(null)
+  // The same name here with no email or phone in common: asked, with one press that saves anyway.
+  const [namesake, setNamesake] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -1047,19 +1080,24 @@ function CompanyContacts({ company }: { company: Company }) {
   }, [company.id])
   useEffect(() => { void load() }, [load])
 
-  async function save(e: React.FormEvent) {
+  async function save(e: React.FormEvent, addAnyway = false) {
     e.preventDefault()
     setMessage(null)
+    setNamesake(false)
     if (form.name.trim().length < 2) { setMessage({ tone: 'error', says: 'A name, so somebody knows who they are calling.' }); return }
     if (!form.email.trim() && !form.phone.trim()) { setMessage({ tone: 'error', says: NO_WAY_TO_REACH }); return }
     setPending(true)
     try {
       const res = await fetch('/api/contacts', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, atCompanyId: company.id, kind: 'OTHER' }),
+        body: JSON.stringify({ ...form, atCompanyId: company.id, kind: 'OTHER', ...(addAnyway ? { addAnyway: true } : {}) }),
       })
       const body = await res.json().catch(() => ({}) as any)
-      if (!res.ok) { setMessage({ tone: 'error', says: refusalSentence(body.error?.message) || 'The contact was not saved. Try again.' }); return }
+      if (!res.ok) {
+        setMessage({ tone: 'error', says: refusalSentence(body.error?.message) || 'The contact was not saved. Try again.' })
+        if (body.error?.code === 'SAME_NAME') setNamesake(true)
+        return
+      }
       setMessage({ tone: 'ok', says: `${form.name.trim()} is saved under Contacts. Nothing was sent to them.` })
       setForm({ name: '', email: '', phone: '', title: '' })
       setAdding(false)
@@ -1103,11 +1141,20 @@ function CompanyContacts({ company }: { company: Company }) {
         <button type="button" className="btn-secondary text-[13px] mt-3" onClick={() => { setMessage(null); setAdding(true) }}>Add a contact</button>
       )}
       {message && <div className="mt-2"><FormMessage tone={message.tone}>{message.says}</FormMessage></div>}
+      {namesake && adding && (
+        <button type="button" className="btn-secondary text-[13px] mt-2" disabled={pending} onClick={(e) => save(e, true)}>{ADD_ANYWAY}</button>
+      )}
     </div>
   )
 }
 
-function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onClose: () => void; onChanged: (says: string) => void }) {
+function CompanyDrawer({ company, onClose, onChanged, onAsked }: { company: Company; onClose: () => void; onChanged: (says: string) => void; onAsked?: () => void }) {
+  // Escape closes the drawer, as it closes every dialog (walk, 2026-11-15).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
   const [locations, setLocations] = useState<Location[]>([])
   const [loadingLocations, setLoadingLocations] = useState(true)
   const [trustSignals, setTrustSignals] = useState<TrustSignals | null>(null)
@@ -1162,8 +1209,8 @@ function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onCl
             <h2 className="text-lg font-semibold">{company.name}</h2>
             {addressLine(company) && <p className="text-[13px] text-etyme-muted mt-0.5">{addressLine(company)}</p>}
           </div>
-          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <button onClick={onClose} aria-label={`Close ${company.name}`} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
@@ -1176,13 +1223,14 @@ function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onCl
               <p className="text-sm text-etyme-ink">
                 {company.name} is on Etyme and has not linked with you. What it says about itself stays with it until it says yes.
               </p>
-              <AskToLink row={company} />
+              <AskToLink row={company} onAsked={onAsked} />
             </div>
           ) : (
             <PositionsPanel company={company} onChanged={onChanged} onClose={onClose} />
           )}
 
-          {!company.notLinked && <AccountManagerPanel clientId={company.id} />}
+          {/* Asked only of a customer: the route answers for a client on the register and nothing else. */}
+          {!company.notLinked && company.positions.includes('CUSTOMER') && <AccountManagerPanel clientId={company.id} />}
 
           <CompanyContacts company={company} />
 
@@ -1355,6 +1403,29 @@ function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onCl
 
 // ── Page ───────────────────────────────────────────────────
 
+/**
+ * The tiles over the list, each keyed by the filter its chip sets, so a
+ * tile and its chip are one filter. Drawn only above zero where the chip is.
+ */
+function companyTilesShown(t: ReturnType<typeof companyTiles>): { key: PositionFilter; label: string; count: number; sub: string }[] {
+  return [
+    { key: 'ALL' as const, label: 'Total', count: t.total, sub: 'on your list' },
+    { key: 'CUSTOMER' as const, label: 'Customers', count: t.customers, sub: 'above you' },
+    { key: 'SUPPLIER' as const, label: 'Suppliers', count: t.suppliers, sub: 'below you' },
+    ...(t.primes > 0 ? [{ key: 'PRIME' as const, label: 'Primes', count: t.primes, sub: 'your work flows through them' }] : []),
+    ...(t.msps > 0 ? [{ key: 'MSP' as const, label: 'MSPs', count: t.msps, sub: 'run a program you work in' }] : []),
+    { key: 'NOT_CLASSIFIED' as const, label: 'Not classified', count: t.notClassified, sub: 'no position yet' },
+    ...(t.worksWithYou > 0 ? [{ key: 'WORKS_WITH_YOU' as const, label: 'Works with you', count: t.worksWithYou, sub: 'through work, no position yet' }] : []),
+    ...(t.notLinked > 0 ? [{ key: 'NOT_LINKED' as const, label: NO_POSITION_WORDS.NOT_LINKED, count: t.notLinked, sub: 'on Etyme, not linked with you' }] : []),
+  ]
+}
+
+/** What the list says when the chosen filter holds nobody, while the firm has companies. */
+function emptyUnder(filter: PositionFilter, word: string, total: number): string {
+  if (filter === 'ALL' || total === 0) return 'No companies yet.'
+  return `None of your companies is under ${word}. Press All to see every company on your list.`
+}
+
 export default function CompaniesPage() {
   const section = usePageSection('/dashboard/companies')
   const router = useRouter()
@@ -1418,6 +1489,17 @@ export default function CompaniesPage() {
   useEffect(() => {
     fetchCompanies()
   }, [fetchCompanies])
+
+  // The open drawer reads the row the list now holds, so a correction
+  // shows in the drawer the moment it is saved (walk, 2026-11-15: it kept
+  // the old name under "is corrected").
+  useEffect(() => {
+    setSelected((prev) => (prev ? companies.find((c) => c.id === prev.id) ?? prev : prev))
+  }, [companies])
+
+  // Bumped after an ask to link is sent, so "Asked, waiting on them" shows at once.
+  const [asksRead, setAsksRead] = useState(0)
+  const askSent = useCallback(() => setAsksRead((n) => n + 1), [])
 
   // ── Filtered by position, never by Kind ───────────
   //
@@ -1538,7 +1620,7 @@ export default function CompaniesPage() {
       key: 'actions',
       label: 'Actions',
       sortable: false,
-      render: (row) => (row.notLinked ? <AskToLink row={row} /> : <ExtendButtons row={row} onDone={afterAct} />),
+      render: (row) => (row.notLinked ? <AskToLink row={row} onAsked={askSent} /> : <ExtendButtons row={row} onDone={afterAct} onAsked={askSent} />),
       exportValue: () => null,
     },
   ]
@@ -1570,6 +1652,7 @@ export default function CompaniesPage() {
   function handleCreated(msg: string) {
     setToast(msg)
     fetchCompanies()
+    askSent()
   }
 
   if (refused) return <RefusedState says={refused} />
@@ -1591,18 +1674,22 @@ export default function CompaniesPage() {
         }
       />
 
-      <LinkAsks onAnswered={handleCreated} />
+      <LinkAsks onAnswered={handleCreated} reread={asksRead} />
 
       {/* Stats row, by position: what each is to you, never its Kind. */}
       <div className={`${tiles.countedTwice > 0 ? 'mb-2' : 'mb-6'} grid grid-cols-2 gap-3 lg:grid-cols-4`}>
-        <Stat label="Total" value={tiles.total} sub="on your list" />
-        <Stat label="Customers" value={customerCount} sub="above you" />
-        <Stat label="Suppliers" value={supplierCount} sub="below you" />
-        {primeCount > 0 && <Stat label="Primes" value={primeCount} sub="your work flows through them" />}
-        {mspCount > 0 && <Stat label="MSPs" value={mspCount} sub="run a program you work in" />}
-        <Stat label="Not classified" value={notClassifiedCount} sub="no position yet" />
-        {tiles.worksWithYou > 0 && <Stat label="Works with you" value={tiles.worksWithYou} sub="through work, no position yet" />}
-        {tiles.notLinked > 0 && <Stat label={NO_POSITION_WORDS.NOT_LINKED} value={tiles.notLinked} sub="on Etyme, not linked with you" />}
+        {/* Each tile filters the list as its chip does: one filter, two doors (walk, 2026-11-15). */}
+        {companyTilesShown(tiles).map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            aria-pressed={positionFilter === t.key}
+            onClick={() => setPositionFilter(t.key)}
+            className={`rounded-panel text-left transition-shadow hover:shadow-lift ${positionFilter === t.key ? 'ring-2 ring-etyme-ink' : ''}`}
+          >
+            <Stat label={t.label} value={t.count} sub={t.sub} />
+          </button>
+        ))}
       </div>
       {tiles.countedTwice > 0 && <p className="mb-6 text-[12px] text-etyme-muted">{countedTwiceSays(tiles.countedTwice)}</p>}
 
@@ -1615,8 +1702,8 @@ export default function CompaniesPage() {
         error={error}
         searchFilter={searchFilter}
         searchPlaceholder="Search by name, Etyme address, or domain…"
-        emptyMessage="No companies yet."
-        emptyDetail="A firm appears here once you trade with it, or once you add it with Add company. Saving a company never emails them."
+        emptyMessage={emptyUnder(positionFilter, filterWord, companies.length)}
+        emptyDetail={positionFilter === 'ALL' || companies.length === 0 ? 'A firm appears here once you trade with it, or once you add it with Add company. Saving a company never emails them.' : undefined}
         onRowClick={(row) => setSelected(row)}
         card={(row) => (
           <div>
@@ -1631,16 +1718,17 @@ export default function CompaniesPage() {
               </div>
             </div>
             <p className="mt-1 text-[12px] text-etyme-muted">{domainCell(row).domain ? `${domainCell(row).domain}${domainCell(row).note ? ` · ${domainCell(row).note}` : ''}` : domainCell(row).note}</p>
-            {row.notLinked && <div className="mt-3"><AskToLink row={row} /></div>}
+            {row.notLinked && <div className="mt-3"><AskToLink row={row} onAsked={askSent} /></div>}
             {(row.may.extendToSupplier || row.may.extendToCustomer) && (
               <div className="mt-3">
-                <ExtendButtons row={row} onDone={afterAct} />
+                <ExtendButtons row={row} onDone={afterAct} onAsked={askSent} />
                 <p className="mt-1 text-[12px] text-etyme-muted">Extending does not email them and does not change what kind of company they are.</p>
               </div>
             )}
           </div>
         )}
         exportName="companies"
+        phoneView="feed"
         defaultPageSize={20}
         filters={
           <FilterChips label="What they are to you" options={filterTabs} value={positionFilter} onChange={setPositionFilter} />
@@ -1663,7 +1751,7 @@ export default function CompaniesPage() {
           onOpenExisting={(id) => { const c = companies.find((x) => x.id === id); if (c) setSelected(c) }}
         />
       )}
-      {selected && <CompanyDrawer company={selected} onClose={() => setSelected(null)} onChanged={(says) => { setToast(says); void fetchCompanies() }} />}
+      {selected && <CompanyDrawer company={selected} onClose={() => setSelected(null)} onChanged={(says) => { setToast(says); void fetchCompanies() }} onAsked={askSent} />}
 
       {/* Toast */}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
@@ -1679,15 +1767,18 @@ export default function CompaniesPage() {
  * Nothing is on either list until the yes. Draws nothing where there is
  * no open ask.
  */
-function LinkAsks({ onAnswered }: { onAnswered: (msg: string) => void }) {
+function LinkAsks({ onAnswered, reread = 0 }: { onAnswered: (msg: string) => void; reread?: number }) {
   const [asks, setAsks] = useState<{ id: string; says: string }[]>([])
+  // The asks this firm made that are still open: their sentence only, no buttons (walk, 2026-11-15).
+  const [waiting, setWaiting] = useState<{ id: string; says: string }[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const load = useCallback(async () => {
     const body = await fetch('/api/trade-links').then((r) => r.json()).catch(() => null)
     setAsks(Array.isArray(body?.data?.received) ? body.data.received : [])
+    setWaiting(waitingAsks(body?.data?.made))
   }, [])
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load() }, [load, reread])
   async function answer(id: string, action: 'accept' | 'not-now') {
     setBusy(true); setError(null)
     try {
@@ -1702,12 +1793,12 @@ function LinkAsks({ onAnswered }: { onAnswered: (msg: string) => void }) {
       setBusy(false)
     }
   }
-  if (asks.length === 0) return null
+  if (asks.length === 0 && waiting.length === 0) return null
   return (
     <div className="panel p-5 mb-6">
-      <h2 className="font-serif text-[17px] text-etyme-ink">Asks to link</h2>
+      {asks.length > 0 && <h2 className="font-serif text-[17px] text-etyme-ink">Asks to link</h2>}
       {error && <p className="mt-2 text-sm text-etyme-danger">{error}</p>}
-      <ul className="mt-3 space-y-2">
+      {asks.length > 0 && <ul className="mt-3 space-y-2">
         {asks.map((a) => (
           <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 text-[14px] text-etyme-ink">
             <span>{a.says}</span>
@@ -1717,7 +1808,21 @@ function LinkAsks({ onAnswered }: { onAnswered: (msg: string) => void }) {
             </span>
           </li>
         ))}
-      </ul>
+      </ul>}
+      {waiting.length > 0 && (
+        <>
+          <h2 className={`font-serif text-[17px] text-etyme-ink ${asks.length > 0 ? 'mt-5' : ''}`}>Asked, waiting on them</h2>
+          <ul className="mt-3 space-y-2">
+            {waiting.map((w) => <li key={w.id} className="text-[14px] text-etyme-ink">{w.says}</li>)}
+          </ul>
+        </>
+      )}
     </div>
   )
+}
+
+/** The asks this firm made that nobody has answered, as the route words them. Nothing else of the other firm is kept. */
+function waitingAsks(made: unknown): { id: string; says: string }[] {
+  if (!Array.isArray(made)) return []
+  return made.filter((m: any) => m?.state === 'WAITING' && typeof m.says === 'string').map((m: any) => ({ id: String(m.id), says: m.says }))
 }

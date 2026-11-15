@@ -64,7 +64,9 @@ describe('Two Rajesh Kumars at Infosys is Tuesday, not a duplicate', () => {
   it('the same email at the same company is the same person', () => {
     const v = alreadyOnFile({ name: 'R Kumar', email: 'RAJESH.K@Infosys.com ', atCompanyId: 'infosys' }, existing)
     expect(v.duplicate).toBe(true)
-    expect(v.says).toContain('Update them rather than adding a twin')
+    // No contact can be edited, so the refusal never says to update one (walk, 2026-11-15).
+    expect(v.says).toBe('Rajesh Kumar is already in your Contacts at this company with that email, so nothing was saved. If this is somebody else, give their own email.')
+    expect(v.says).not.toMatch(/update|twin/i)
   })
 
   it('the same phone written differently still collides', () => {

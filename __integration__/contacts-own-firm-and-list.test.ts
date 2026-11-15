@@ -211,3 +211,29 @@ describe('adding a contact is on the activity log', () => {
     expect(await logRows(brightmoor.id)).toBe(before)
   })
 })
+
+describe('the same person is never saved twice without a word, and two people may share a name', () => {
+  it('the same email twice is refused in a sentence that says nothing was saved, and never tells her to update a contact', async () => {
+    as(OWNER)
+    const r = await add({ name: 'Sam Ortiz', email: 'sam.ortiz@northwind-staffing.example', atCompanyId: brightmoor.id })
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).toBe('Sam Ortiz is already in your Contacts at this company with that email, so nothing was saved. If this is somebody else, give their own email.')
+  })
+
+  it('the same name at the same company with a phone where the first had an email is asked about before anything is saved', async () => {
+    as(OWNER)
+    const before = await prisma.companyContact.count({ where: { companyId: brightmoor.id, atCompanyId: brightmoor.id, name: 'Sam Ortiz' } })
+    const r = await add({ name: 'sam  ortiz', phone: '(720) 555-0163', atCompanyId: brightmoor.id })
+    expect(r.status).toBe(409)
+    expect(r.body.error.code).toBe('SAME_NAME')
+    expect(r.body.error.message).toBe('A Sam Ortiz is already on file at this company. Is this the same person?')
+    expect(await prisma.companyContact.count({ where: { companyId: brightmoor.id, atCompanyId: brightmoor.id, name: 'Sam Ortiz' } })).toBe(before)
+  })
+
+  it('one press of Add anyway saves the second person who shares the name', async () => {
+    as(OWNER)
+    const r = await add({ name: 'Sam Ortiz', phone: '(720) 555-0163', atCompanyId: brightmoor.id, addAnyway: true })
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect((await list()).contacts.filter((c: any) => c.name === 'Sam Ortiz' && c.at.id === brightmoor.id)).toHaveLength(2)
+  })
+})
