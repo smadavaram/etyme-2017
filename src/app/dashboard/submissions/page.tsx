@@ -911,7 +911,7 @@ function SendOnModal({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="hiring.manager@client.com"
+                placeholder="hiring.manager@company.example"
                 className="w-full rounded-md border border-etyme-rule px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
               />
               <p className="mt-1 text-[11px] text-etyme-faint">

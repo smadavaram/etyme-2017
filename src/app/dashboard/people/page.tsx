@@ -619,10 +619,10 @@ function AskForm({ busy, mail, onSubmit }: {
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Their name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Lucía Fernández" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="First and last name" />
         </Field>
         <Field label="Their email">
-          <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="lucia@example.com" />
+          <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="name@company.example" />
         </Field>
       </div>
       <Field label="What they do">

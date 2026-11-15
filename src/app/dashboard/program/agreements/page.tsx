@@ -818,7 +818,7 @@ function SignForm({
 
   return (
     <div className="mt-3 space-y-3">
-      <Field label="Who signed" value={name} onChange={setName} placeholder="Dana Whitfield" />
+      <Field label="Who signed" value={name} onChange={setName} placeholder="First and last name" />
       <Field
         label="Their title"
         value={title}
@@ -1704,7 +1704,7 @@ function NewEngagement({
 
   return (
     <div className="mb-4 rounded-lg border border-etyme-rule bg-etyme-canvas/40 p-4">
-      <Field label="Title" value={title} onChange={setTitle} placeholder="SAP Program — phase two" />
+      <Field label="Title" value={title} onChange={setTitle} placeholder="Data platform — phase two" />
       <label className="mt-3 block">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
           Scope (optional now, chased later)

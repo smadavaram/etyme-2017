@@ -66,7 +66,7 @@ describe('a supplier walks four desks', () => {
   it('the hiring manager recommends a firm, says what it supplies; his department lead is emailed and the firm gets its link', async () => {
     as(HIRING)
     const r = await json(await recommend(req('POST', '/api/supplier-requests', {
-      name: 'Harbor Staffing', contactEmail: 'ops@harborstaffing.com', contactName: 'Lena Ortiz',
+      name: 'Harbor Staffing', contactEmail: 'ops@harborstaffing.example', contactName: 'Lena Ortiz',
       skills: 'Supply chain planners, S&OP', reason: 'Met at SIA; strong on supply chain planners.',
     })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
@@ -348,13 +348,15 @@ describe('a supplier walks four desks', () => {
 
   it('an approved supplier is told, with a link, that it can take its account', async () => {
     // Finance's yes wrote a claim and the firm's contact was emailed it.
-    const invite = await prisma.supplierInvite.findFirstOrThrow({ where: { email: 'ops@harborstaffing.com' }, select: { token: true, state: true } })
-    expect(it_.claim?.to).toBe('ops@harborstaffing.com')
+    const invite = await prisma.supplierInvite.findFirstOrThrow({ where: { email: 'ops@harborstaffing.example' }, select: { token: true, state: true } })
+    expect(it_.claim?.to).toBe('ops@harborstaffing.example')
     // The client that approved reads who was written to, never the link:
     // it would seat the client's own person at the supplier.
     expect(it_.claim?.url).toBeUndefined()
     expect(JSON.stringify(it_.claim)).not.toContain(invite.token)
-    expect(['SENT', 'NOT_CONFIGURED']).toContain(it_.claim?.state)
+    // The contact sits at a reserved domain (fix list A7, 2026-11-15), so the
+    // mailer says it is a demo address and sends nothing, which is the truth.
+    expect(['SENT', 'NOT_CONFIGURED', 'DEMO_SKIPPED']).toContain(it_.claim?.state)
     // The apply link, opened again, says the same sentence with the same link.
     const page = await viaToken(applyGet, 'GET', it_.token)
     expect(page.body.data.decided).toBe(true)
@@ -581,7 +583,7 @@ describe('a desk that verifies somebody else\u2019s verdict is told nothing was 
     expect(asked.count).toBe(1)
     as(HIRING)
     const r = await json(await recommend(req('POST', '/api/supplier-requests', {
-      name: 'Ridgeline Staffing', contactEmail: 'ops@ridgelinestaffing.com', contactName: 'Dana Voss',
+      name: 'Ridgeline Staffing', contactEmail: 'ops@ridgelinestaffing.example', contactName: 'Dana Voss',
       skills: 'Warehouse supervisors', reason: 'Strong on warehouse supervisors at short notice.',
     })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
@@ -808,9 +810,9 @@ describe('a firm already on Etyme, approved by a client', () => {
   // client's word alone. The firm now takes part by answering its link
   // signed in at the firm, and is then attached at the last yes.
   it('a supplier that signed up and answered the client\u2019s link signed in at its own firm is one company, not two, and is on the list at the last yes', async () => {
-    const firm = await signedUp('Pellucid Staffing', 'pellucid-staffing-walk', 'pellucidstaffing.com', 'nadia@pellucidstaffing.com')
-    const w = await toFinance('Pellucid Staffing', 'ops@pellucidstaffing.com')
-    as('nadia@pellucidstaffing.com')
+    const firm = await signedUp('Pellucid Staffing', 'pellucid-staffing-walk', 'pellucidstaffing.example', 'nadia@pellucidstaffing.example')
+    const w = await toFinance('Pellucid Staffing', 'ops@pellucidstaffing.example')
+    as('nadia@pellucidstaffing.example')
     const answered = await viaToken(applyPost, 'POST', w.token, { experience: 'Merchandising teams in three states.' })
     expect(answered.status, JSON.stringify(answered.body)).toBe(201)
     as(AP)
@@ -822,9 +824,9 @@ describe('a firm already on Etyme, approved by a client', () => {
   })
 
   it('a firm on Etyme a client approves without the firm taking part is sent nothing, nothing is written on it, the approver presses Ask them to link, and it is a supplier on its yes', async () => {
-    const owner = 'ilse@quillmarkstaffing.com'
-    const firm = await signedUp('Quillmark Staffing', 'quillmark-staffing-walk', 'quillmarkstaffing.com', owner)
-    const w = await toFinance('Quillmark Staffing', 'ops@quillmarkstaffing.com')
+    const owner = 'ilse@quillmarkstaffing.example'
+    const firm = await signedUp('Quillmark Staffing', 'quillmark-staffing-walk', 'quillmarkstaffing.example', owner)
+    const w = await toFinance('Quillmark Staffing', 'ops@quillmarkstaffing.example')
     const client = await northbend()
     as(AP)
     const yes = await call(review, 'PATCH', `/api/supplier-requests/${w.id}`, w.id, { action: 'approve', note: 'Asked, not tied.' })
@@ -870,7 +872,7 @@ describe('what stands behind a vendor screening on the walk screen', () => {
   it('a vendor screening cannot be put on file from the walk screen without the provider, reference, date and verdict', async () => {
     as(HIRING)
     const r = await json(await recommend(req('POST', '/api/supplier-requests', {
-      name: 'Tallis Workforce', contactEmail: 'ops@tallisworkforce.com', skills: 'Forklift operators', reason: 'Cover for peak season.',
+      name: 'Tallis Workforce', contactEmail: 'ops@tallisworkforce.example', skills: 'Forklift operators', reason: 'Cover for peak season.',
     })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     const id = r.body.data.request.id
@@ -902,7 +904,7 @@ describe('a client with one person, and a firm applying to its second client', (
   const RUTH = 'ruth@brackenridge-tools.example'
   const IAN = 'ian@brackenridge-tools.example'
   const AMARA = 'amara@brackenridge-tools.example'
-  const HARBOR_OPS = 'ops@harborstaffing.com'
+  const HARBOR_OPS = 'ops@harborstaffing.example'
   const b: Record<string, any> = {}
   const seat = async (email: string, name: string, companyId: string, role: string) => {
     const person = await prisma.person.upsert({ where: { primaryEmail: email }, update: {}, create: { primaryEmail: email, name } })

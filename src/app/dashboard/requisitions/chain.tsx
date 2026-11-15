@@ -376,7 +376,7 @@ export function PanelField({ names, onChange }: {
         <input
           id="panel-name"
           className={field}
-          placeholder="Marcus Oyelaran, People Technology"
+          placeholder="First and last name, and their team"
           value={typed}
           onChange={e => setTyped(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
