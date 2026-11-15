@@ -1650,7 +1650,7 @@ describe('the Member role reads as No role yet wherever a person is described', 
     // Give them access, Change role and Renew: no option prints a bare role name.
     expect(page).not.toMatch(/<option key=\{r\.id\} value=\{r\.id\}>\{r\.name\}<\/option>/)
     expect(page.match(/<option key=\{r\.id\} value=\{r\.id\}>\{roleWords\(r\.name\)\}<\/option>/g)?.length).toBe(3)
-    expect(page).toContain('{pickable.map((r) => <option key={r.id} value={r.id}>{roleOptionText(r)}</option>)}')
+    expect(page).toContain('{pickable.filter((r) => !holdsNoRole(r.name)).map((r) => <option key={r.id} value={r.id}>{roleOptionText(r)}</option>)}')
     // The chosen role's line is said under Give them access and Change role.
     expect(page.match(/help=\{roleChoiceSays\(form\.roleId, pickable\)\}/g)?.length).toBe(2)
     // The ended list and Worth a look describe a person, so they read the same.

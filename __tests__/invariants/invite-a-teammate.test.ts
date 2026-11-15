@@ -99,7 +99,7 @@ describe('the role picker', () => {
   })
 
   it('an Admin is never offered Owner in the invite picker', () => {
-    expect(panel).toContain('{pickable.map((r) => <option key={r.id} value={r.id}>{roleOptionText(r)}</option>)}')
+    expect(panel).toContain('{pickable.filter((r) => !holdsNoRole(r.name)).map((r) => <option key={r.id} value={r.id}>{roleOptionText(r)}</option>)}')
     expect(panel).not.toContain('roles.map(')
   })
 
@@ -112,6 +112,11 @@ describe('the role picker', () => {
 })
 
 describe('Decide later', () => {
+  it('the Invite picker offers one choice that leaves somebody with no role, Decide later, never the Member role beside it', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/access/page.tsx'), 'utf8')
+    expect(page).toContain("{pickable.filter((r) => !holdsNoRole(r.name)).map((r) => <option key={r.id} value={r.id}>{roleOptionText(r)}</option>)}")
+  })
+
   it('the invite form, its route and the legend say the same thing about a person invited with no role, and it is what she sees', () => {
     const route = read('src/app/api/access/invite/route.ts')
     // One sentence, said by every place that says it.

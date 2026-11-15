@@ -1146,7 +1146,9 @@ export default function AccessPage() {
             error={roleError}>
             <Select value={invite.roleId} onChange={(e) => { setInvite({ ...invite, roleId: e.target.value }); setRoleError(null) }}>
               <option value="">{PICK_A_ROLE}</option>
-              {pickable.map((r) => <option key={r.id} value={r.id}>{roleOptionText(r)}</option>)}
+              {/* The Member role holds nothing: on Invite it is "Decide later", one
+                  choice, never two that do the same (walk l4a, 2026-11-15). */}
+              {pickable.filter((r) => !holdsNoRole(r.name)).map((r) => <option key={r.id} value={r.id}>{roleOptionText(r)}</option>)}
               <option value={DECIDE_LATER}>{DECIDE_LATER_LABEL}</option>
             </Select>
           </Field>
