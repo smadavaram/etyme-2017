@@ -345,6 +345,10 @@ Not the UI. The database.
   shrink.
 - Anything the system does unprompted writes an `AutomationLog` row with a plain-English
   reason and an honest `reversible` flag.
+  **The activity log offers an undo only for an act the log itself
+  undoes** (2026-11-15 → 74): one reader, `UNDONE_BY_THE_LOG` in
+  `lib/autonomy`, empty today. Every other row says where the act is
+  undone, or that it cannot be.
 - Match scores always carry `factors`, `basis`, `confidence` and `unknowns`.
   A bare number is a bug.
 
@@ -545,7 +549,7 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73.
 
 ## Money
 
-Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71.
+Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
 
 - **Bill, invoice receipt, payroll.** What a firm issues upward is a
   bill. What it receives from below is an invoice receipt. Its own
@@ -619,6 +623,10 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71.
   never more.
 - **No "approved for payment" status exists or is added.** The match is
   the approval.
+- **An empty money page says what it waits on** (2026-11-15 → 74).
+  Timesheets, Bills and Payables read the missing step from the route,
+  for the seat reading it, with a link where that seat may do it. A
+  sentence that says whom to ask names a seat the firm has filled.
 - **An expense is accepted like a week.** The worker's employer approves
   it, and each firm above accepts it before paying, the client first.
   Nobody accepts their own. Whether a kind of expense is billable comes
@@ -924,7 +932,7 @@ Full text → 28, 22, 23, 68, 69, 71.
 
 ## How this project tests and ships
 
-Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73.
+Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73, 74.
 
 - **The simulation drives the real routes as real seats**
   (`npm run simulate`), never rows written into tables, and never on
