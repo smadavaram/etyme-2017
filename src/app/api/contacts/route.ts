@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import {
-  problems, alreadyOnFile, sameNameOnFile, KINDS, kindOfRole, writableEmail, kindsHeld, rolesOffered, mayWorkAt,
+  problems, alreadyOnFile, sameNameOnFile, contactKindOf, KINDS, kindOfRole, writableEmail, kindsHeld, rolesOffered, mayWorkAt,
   memberElsewhereSays, contactRecordedLog, NOT_ON_YOUR_LIST_SAYS, ADD_A_COMPANY_HREF, type ContactKind,
 } from '@/lib/contacts'
 import { recordRefusal } from '@/lib/access-log'
@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
   }
   // Team member is a colleague at the firm's own firm, never somebody at
   // another company (fix list of 2026-11-14, B4).
-  if (body?.kind === 'MEMBER' && !atOwnFirm) {
+  if (contactKindOf(body?.kind) === 'MEMBER' && !atOwnFirm) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: memberElsewhereSays(atName), field: 'kind' } },
       { status: 422 }
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
         phone: body?.phone ? String(body.phone).trim() : null,
         title: body?.title ? String(body.title).trim() : null,
         // No role, or a blank one, is saved as Other: the role is optional.
-        kind: body?.kind && Object.hasOwn(KINDS, body.kind) ? body.kind : 'OTHER',
+        kind: (() => { const k = contactKindOf(body?.kind); return k && Object.hasOwn(KINDS, k) ? k : 'OTHER' })(),
         notes: body?.notes ? String(body.notes).trim() : null,
         createdById: caller.person.id,
       },

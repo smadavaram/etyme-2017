@@ -62,14 +62,22 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (name.length < 2) return refuse(422, 'VALIDATION', 'Give the company’s name, at least two letters.', { field: 'name' })
   if (name.length > 120) return refuse(422, 'VALIDATION', 'Keep the name under 120 letters.', { field: 'name' })
 
+  // A box that was not sent is left as it is: only an explicit empty box
+  // clears (2026-11-15: a body with no entity type cleared the stored one,
+  // and the log said "from LLC to nothing").
+  const sentDomain = body?.domain !== undefined
+  const sentEntityType = body?.entityType !== undefined
+
   // The same reader Add a company asks, so the two doors take the same box.
-  const box = readTypedDomain(body?.domain)
+  const box = readTypedDomain(body?.domain ?? null)
   if (!box.ok) return refuse(422, 'VALIDATION', box.says, { field: 'domain' })
   const domain = box.domain ? identityDomain(box.domain) : null
   if (box.domain && !domain) {
     return refuse(422, 'VALIDATION', `${box.domain} is a personal email domain, so it cannot be their company's domain. Leave the box empty instead.`, { field: 'domain' })
   }
-  const entityType = typeof body?.entityType === 'string' && body.entityType.trim() ? body.entityType.trim().slice(0, 60) : null
+  const entityType = !sentEntityType
+    ? (other.entityType ?? null)
+    : typeof body?.entityType === 'string' && body.entityType.trim() ? body.entityType.trim().slice(0, 60) : null
 
   const read = await twinFor(me.id, { name, domain }, prisma, other.id)
   if (read.twin) {
@@ -86,7 +94,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const fromInvitation = (await ownDomainsFor(me.id, [{ ...other, website: null }])).get(other.id)?.from === 'INVITATION'
   const changes: { box: string; from: string | null; to: string | null }[] = []
   if (name !== other.name) changes.push({ box: 'name', from: other.name, to: name })
-  if (domain !== wasDomain) changes.push({ box: 'domain', from: wasDomain, to: domain })
+  if (sentDomain && domain !== wasDomain) changes.push({ box: 'domain', from: wasDomain, to: domain })
   if (entityType !== (other.entityType ?? null)) changes.push({ box: 'entity type', from: other.entityType ?? null, to: entityType })
   if (changes.length === 0) {
     return NextResponse.json({ data: { companyId: other.id, changed: false, message: `Nothing changed on ${other.name}.` } })
@@ -119,7 +127,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         summary: recordEditedSummary(caller.person.name, name, changes),
         reason: 'Corrected on the Companies list by a person who manages who the firm trades with. Nothing was sent.',
         payload: { otherCompanyId: other.id, byName: caller.person.name, personId: caller.person.id, position: null, changes },
-        reversible: true,
+        // No control takes a correction back; another correction is a new act.
+        reversible: false,
       },
     })
     return true

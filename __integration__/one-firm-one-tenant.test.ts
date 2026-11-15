@@ -233,7 +233,7 @@ describe('one firm, one tenant', () => {
     expect(sameName.body.error.code).toBe('SAME_NAME')
     // Said so she knows what to ask them for, and drawn at the Domain box (walk, 2026-11-15).
     expect(sameName.body.error.field).toBe('domain')
-    expect(sameName.body.error.message).toContain('ask them for their web domain, or the address their Etyme page opens at, and type it below')
+    expect(sameName.body.error.message).toContain('ask them for their web domain, or the address their Etyme page opens at, and type it in the Domain box or the Etyme address box')
     expect(sameName.body.error.companyId).toBeUndefined()
     expect(await prisma.company.count({ where: { name: { contains: 'Quarrybrook' } } })).toBe(before)
 
@@ -423,7 +423,7 @@ describe('two firms already on Etyme link by one ask and one yes', () => {
     expect(add.body.error.message).toContain('Ask them to link, as your prime')
     const asked = await call(askToLink, 'POST', '/api/trade-links', undefined, { name: 'Quarrybrook Staffing', address: 'quarrybrook', relationship: add.body.error.relationship })
     expect(asked.status, JSON.stringify(asked.body)).toBe(201)
-    expect(asked.body.data.says).toContain('Nothing is on either register until they say yes')
+    expect(asked.body.data.says).toContain('Nothing is on either Companies list until they say yes')
 
     // Nothing recorded yet, either way, and asking again is one ask.
     expect(await prisma.counterparty.count({ where: { OR: [{ companyId: co.ostrander, otherCompanyId: co.quarrybrook }, { companyId: co.quarrybrook, otherCompanyId: co.ostrander }] } })).toBe(0)
@@ -432,7 +432,7 @@ describe('two firms already on Etyme link by one ask and one yes', () => {
     // The asker reads her own ask, waiting, on her own Companies page, and no register row (walk, 2026-11-15).
     const made = (await call(linkAsks, 'GET', '/api/trade-links')).body.data.made.filter((m: any) => m.state === 'WAITING')
     expect(made.map((m: any) => m.says)).toEqual([expect.stringMatching(/^Asked Quarrybrook Staffing on .+ to link as your prime\. Waiting on them\.$/)])
-    expect(await eventually(() => prisma.notification.count({ where: { personId: who.quarryOwner, title: 'Ostrander Talent asks to link as your sub-vendor' } }), 1)).toBe(1)
+    expect(await eventually(() => prisma.notification.count({ where: { personId: who.quarryOwner, title: 'Ostrander Talent asks to link as your supplier' } }), 1)).toBe(1)
 
     // Quarrybrook says yes in one click.
     as(QUARRY_OWNER)
@@ -440,7 +440,7 @@ describe('two firms already on Etyme link by one ask and one yes', () => {
     const mine = open.body.data.received.find((r: any) => r.company.id === co.ostrander)
     const yes = await call(answerLink, 'POST', `/api/trade-links/${mine.id}`, mine.id, { action: 'accept' })
     expect(yes.status).toBe(200)
-    expect(yes.body.data.says).toBe('Ostrander Talent is on your companies as your sub-vendor, and you are on theirs.')
+    expect(yes.body.data.says).toBe('Ostrander Talent is on your Companies list as your supplier, and you are on theirs.')
 
     // Each side has its own row, in its own words, and they work together.
     expect(await prisma.counterparty.count({ where: { companyId: co.ostrander, otherCompanyId: co.quarrybrook, relationship: 'PRIME' } })).toBe(1)
@@ -460,7 +460,7 @@ describe('two firms already on Etyme link by one ask and one yes', () => {
     const seen = await call(linkAsks, 'GET', '/api/trade-links')
     const ask = seen.body.data.received.find((x: any) => x.company.id === co.quarrybrook)
     expect(ask.relationship).toBe('SUPPLIER')
-    expect(ask.says).toContain('asks to link as your sub-vendor')
+    expect(ask.says).toContain('asks to link as your supplier')
     const no = await call(answerLink, 'POST', `/api/trade-links/${ask.id}`, ask.id, { action: 'not-now' })
     expect(no.body.data.says).toContain('Nothing was recorded')
     expect(await workTogether(co.quarrybrook, co.palliser)).toBe(false)

@@ -96,7 +96,7 @@ export function alreadyOnEtyme(them: { name: string; slug?: string | null }, as:
   const where = them.slug ? `, at ${them.slug}.etyme.com` : ''
   return (
     `${them.name} is already on Etyme${where}, so no copy of them was made. ` +
-    `Ask them to link, as your ${as}: once they say yes, each of you has the other on your companies.`
+    `Ask them to link, as your ${as}: once they say yes, each of you has the other on your Companies list.`
   )
 }
 
@@ -135,7 +135,7 @@ export function mayList(input: {
       reuse: null,
       create: false,
       says:
-        alreadyOnEtyme(them, 'client'),
+        alreadyOnEtyme(them, 'customer'),
     }
   }
   if (input.alreadyListed) {

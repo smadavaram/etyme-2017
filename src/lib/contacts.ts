@@ -142,11 +142,19 @@ export function problems(c: ContactInput): Problem[] {
     })
   }
 
-  if (c.kind && !Object.hasOwn(KINDS, c.kind)) {
-    out.push({ field: 'kind', says: `"${c.kind}" is not a kind of contact this keeps.` })
+  // A role made only of spaces is no role, saved as Other like an empty one.
+  const kind = contactKindOf(c.kind)
+  if (kind && !Object.hasOwn(KINDS, kind)) {
+    out.push({ field: 'kind', says: `"${kind}" is not a kind of contact this keeps.` })
   }
 
   return out
+}
+
+/** The role as sent, trimmed; null where it is empty or only spaces. */
+export function contactKindOf(kind: unknown): string | null {
+  const k = typeof kind === 'string' ? kind.trim() : ''
+  return k.length > 0 ? k : null
 }
 
 export interface Existing {
@@ -233,7 +241,8 @@ export function sameNameOnFile(
 ): { of: Existing; says: string } | null {
   const hit = existing.find((e) => e.atCompanyId === c.atCompanyId && sameName(e.name, c.name))
   if (!hit) return null
-  return { of: hit, says: `A ${hit.name} is already on file at this company. Is this the same person?` }
+  // Reads with any name: never "A Imogen …" (press of 2026-11-15).
+  return { of: hit, says: `Somebody named ${hit.name.trim()} is already in your Contacts at this company. Is this the same person?` }
 }
 
 /** The one press that saves anyway, where two people share a name. */

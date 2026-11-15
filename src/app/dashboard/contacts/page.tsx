@@ -283,8 +283,10 @@ function AddContactModal({
         setError(body.error?.message ?? 'Could not save the contact.')
         // Drawn only where the page will take the reader.
         if (body.error?.href && mayOpen(body.error.href, permissions)) setErrorLink({ href: body.error.href, label: body.error.hrefLabel ?? 'Open it' })
-        if (body.error?.field) setFieldErrors({ [body.error.field]: body.error.message })
+        // The same-person question is asked once, in the banner with its
+        // button, never again under Name (press of 2026-11-15).
         if (body.error?.code === 'SAME_NAME') setNamesake(true)
+        else if (body.error?.field) setFieldErrors({ [body.error.field]: body.error.message })
         return
       }
       const at = companies.find((c) => c.id === form.atCompanyId)

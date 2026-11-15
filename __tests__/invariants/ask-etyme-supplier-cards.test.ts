@@ -315,18 +315,18 @@ describe('Ask Etyme for both ends of a chain: the Tapin walk, 2026-10-29', () =>
     const owner = { company: { id: 'c-brightmoor', kind: 'VENDOR' }, permissions: ['*'] }
     const asks = await linkAsksFor(owner)
     expect(asks).toHaveLength(1)
-    // Named as the reader would name the asker on its own register: a sub-vendor.
-    expect(linkAskTitle(asks[0], 'VENDOR')).toBe('Tapin asks to link as your sub-vendor')
+    // Named as the reader's own Companies list names the asker: a supplier.
+    expect(linkAskTitle(asks[0], 'VENDOR')).toBe('Tapin asks to link as your supplier')
     // A client reads a supplier that asks as its supplier.
     expect(linkAskTitle({ fromName: 'Tapin', fromKind: 'VENDOR', relationship: 'CLIENT' }, 'CLIENT')).toBe('Tapin asks to link as your supplier')
 
     // A decision, so it is in the one queue: counted, and named in the headline.
     const queue = withFirmAsks({ total: 0, items: [] }, firmAskItems(asks, [], 'VENDOR'))!
     expect(queue.total).toBe(1)
-    expect(namedNeedsSays(queue, [])!.says).toMatch(/^One thing needs you: Tapin asks to link as your sub-vendor\./)
+    expect(namedNeedsSays(queue, [])!.says).toMatch(/^One thing needs you: Tapin asks to link as your supplier\./)
     // The card: Yes through the one route Companies presses; Not now is drawn on every card and changes nothing.
     const [card] = queueCards(queue, [])
-    expect(card.title).toBe('Tapin asks to link as your sub-vendor.')
+    expect(card.title).toBe('Tapin asks to link as your supplier.')
     expect(card.fact).toMatch(/^Sharath Madavaram at Tapin asked\. Say yes and each of you can name the other on agreements and orders\./)
     expect(card.act).toMatchObject({ label: 'Yes, link', url: '/api/trade-links/tl-1', body: { action: 'accept' } })
     // Counted once even when the queue already carries the same row.

@@ -142,7 +142,7 @@ describe('a firm already on Etyme', () => {
   it('adding a counterparty that is already on Etyme says who they are and how the two records link', () => {
     expect(alreadyOnEtyme({ name: 'Quarrybrook Staffing', slug: 'quarrybrook' }, 'prime')).toBe(
       'Quarrybrook Staffing is already on Etyme, at quarrybrook.etyme.com, so no copy of them was made. ' +
-      'Ask them to link, as your prime: once they say yes, each of you has the other on your companies.',
+      'Ask them to link, as your prime: once they say yes, each of you has the other on your Companies list.',
     )
     expect(src('app/dashboard/companies/page.tsx')).toContain('Ask them to link</button>')
   })
@@ -157,16 +157,17 @@ describe('a firm already on Etyme', () => {
 
 describe('two firms already on Etyme link', () => {
   it('a link request names the relationship from the asker\u2019s side and the other side reads it from theirs', () => {
-    // Teleworld says Quarrybrook is its prime; Quarrybrook reads Teleworld as its sub-vendor.
+    // Teleworld says Quarrybrook is its prime; Quarrybrook reads Teleworld as its supplier, the Companies list's word.
     const sides = { asker: { name: 'Teleworld Solutions', kind: 'GSI' }, other: { name: 'Quarrybrook Staffing', kind: 'VENDOR' }, relationship: 'PRIME' as const }
-    expect(askerReads(sides)).toBe('You asked Quarrybrook Staffing to link as your prime. Nothing is on either register until they say yes.')
-    expect(readerReads({ ...sides, askedBy: 'Ravi Kalathil' }).title).toBe('Teleworld Solutions asks to link as your sub-vendor')
+    expect(askerReads(sides)).toBe('You asked Quarrybrook Staffing to link as your prime. Nothing is on either Companies list until they say yes.')
+    expect(readerReads({ ...sides, askedBy: 'Ravi Kalathil' }).title).toBe('Teleworld Solutions asks to link as your supplier')
     // A client asking a supplier is that supplier's client; a prime asking its sub is its prime.
     expect(mirrorOf('SUPPLIER', 'CLIENT')).toBe('CLIENT')
     expect(mirrorOf('SUPPLIER', 'VENDOR')).toBe('PRIME')
     expect(mirrorOf('CLIENT', 'VENDOR')).toBe('SUPPLIER')
     expect(wordFor('SUPPLIER', 'CLIENT')).toBe('supplier')
-    expect(wordFor('SUPPLIER', 'VENDOR')).toBe('sub-vendor')
+    expect(wordFor('SUPPLIER', 'VENDOR')).toBe('supplier')
+    expect(wordFor('CLIENT', 'VENDOR')).toBe('customer')
   })
 
   it('a link is asked once per pair, never of oneself, and only by whoever keeps the list of companies', () => {

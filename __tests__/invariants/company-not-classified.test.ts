@@ -231,7 +231,7 @@ describe('extending a company', () => {
   it('asking a firm on Etyme to link never says its Etyme address', () => {
     const v = ask('SUPPLIER', { other: { ...rivermark, claimedAt: new Date(), listedById: null, slug: 'rivermark' } })
     expect(!v.ok && v.says).not.toContain('etyme.com')
-    expect(!v.ok && v.says).toBe('Rivermark Partners is already on Etyme, so no copy of them was made. Ask them to link, as your supplier: once they say yes, each of you has the other on your companies.')
+    expect(!v.ok && v.says).toBe('Rivermark Partners is already on Etyme, so no copy of them was made. Ask them to link, as your supplier: once they say yes, each of you has the other on your Companies list.')
   })
 
   it('extending a firm on Etyme you work with to Customer says no agreement is on file and where to record one', () => {
@@ -444,7 +444,7 @@ describe('the Companies and Contacts screens draw the two facts apart', () => {
   })
 
   it('Add a company offers "Company — not classified yet" first, and it is the choice already made', () => {
-    const select = page.slice(page.indexOf('<label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>'))
+    const select = page.slice(page.indexOf('className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>'))
     const options = [...select.matchAll(/<option value="([A-Z_]+)"/g)].map((m) => m[1])
     expect(options[0]).toBe('UNCLASSIFIED')
     expect(page).toContain("kind: 'UNCLASSIFIED' as Kind")

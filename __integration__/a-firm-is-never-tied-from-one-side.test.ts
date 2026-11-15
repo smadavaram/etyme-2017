@@ -122,7 +122,7 @@ describe('a company door answers a stranger as it answers an id that does not ex
     await prisma.counterparty.create({ data: { companyId: brightmoor, otherCompanyId: stranger, relationship: 'SUPPLIER', status: 'ACTIVE' } })
     const r = await call(extend.POST as any, 'POST', `/api/companies/${stranger}/extend`, stranger, { as: 'CUSTOMER' })
     expect(r.status).toBe(409)
-    expect(r.body.error.message).toBe('Corvid Bay Partners is already on Etyme, so no copy of them was made. Ask them to link, as your customer: once they say yes, each of you has the other on your companies.')
+    expect(r.body.error.message).toBe('Corvid Bay Partners is already on Etyme, so no copy of them was made. Ask them to link, as your customer: once they say yes, each of you has the other on your Companies list.')
     expect(r.body.error.message).not.toContain('etyme.com')
     await prisma.counterparty.deleteMany({ where: { companyId: brightmoor, otherCompanyId: stranger } })
   })

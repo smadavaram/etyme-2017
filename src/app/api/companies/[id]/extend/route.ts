@@ -120,7 +120,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     })
     return v.ok && !v.already
   }
-  const remove: Partial<Record<ExtendAs, { ok: boolean; says: string }>> = {}
+  const remove: Partial<Record<ExtendAs, { ok: boolean; says: string; code?: string }>> = {}
   for (const as of ['CUSTOMER', 'SUPPLIER'] as const) {
     if (!read.positions.includes(as)) continue
     const v = mayRemovePosition({
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       work: await workOnPosition(me, other.id, as),
       heldByAgreement: await agreementKeepsPosition(me, other, as),
     })
-    remove[as] = { ok: v.ok, says: v.says }
+    remove[as] = v.ok ? { ok: true, says: v.says } : { ok: false, says: v.says, code: v.code }
   }
   const kindVerdict = maySetRecordedKind({
     to: other.kind === 'VENDOR' ? 'CLIENT' : 'VENDOR',
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       companyId: other.id,
       kind: other.kind,
       ...read,
-      history: await historyOf(me, other.id),
+      history: await historyOf(me, other.id, { positions: read.positions, removable: remove }),
       may: {
         edit: editVerdict.ok,
         extend: { SUPPLIER: extend('SUPPLIER'), CUSTOMER: extend('CUSTOMER') },

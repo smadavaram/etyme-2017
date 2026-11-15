@@ -31,11 +31,18 @@ export function mirrorOf(relationship: Relationship, askerKind: string): Relatio
   }
 }
 
-/** The word a firm uses for a firm in this place on its own register. */
-export function wordFor(relationship: Relationship, readerKind: string): string {
+/**
+ * The word a firm uses for a firm in this place on its own register: the
+ * Companies list's own words (Customer, Supplier, Prime, MSP), so the ask,
+ * the box it is chosen in, the answer and the waiting line call one
+ * relationship one thing (press of 2026-11-15: "partner", "supplier" and
+ * "sub-vendor" for one ask). `readerKind` is kept for the callers; the
+ * word no longer turns on it.
+ */
+export function wordFor(relationship: Relationship, _readerKind: string): string {
   switch (relationship) {
-    case 'CLIENT': return 'client'
-    case 'SUPPLIER': return readerKind === 'CLIENT' ? 'supplier' : 'sub-vendor'
+    case 'CLIENT': return 'customer'
+    case 'SUPPLIER': return 'supplier'
     case 'PRIME': return 'prime'
     case 'MSP': return 'MSP'
   }
@@ -50,7 +57,7 @@ export interface LinkSides {
 
 /** What the asker reads: the other firm, named as the asker names it. */
 export function askerReads(o: LinkSides): string {
-  return `You asked ${o.other.name} to link as your ${wordFor(o.relationship, o.asker.kind)}. Nothing is on either register until they say yes.`
+  return `You asked ${o.other.name} to link as your ${wordFor(o.relationship, o.asker.kind)}. Nothing is on either Companies list until they say yes.`
 }
 
 /** What the other side reads: the asker, named as the reader would name it. */

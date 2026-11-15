@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     personId: row.askedById, companyId: row.fromCompanyId, type: 'SYSTEM', entityId: id,
     title: action === 'accept' ? `${me.name} said yes to linking` : `${me.name} answered Not now`,
     body: action === 'accept'
-      ? `${caller.person.name} at ${me.name} said yes. ${me.name} is on your companies as your ${wordFor(theirs, row.fromCompany.kind)}.`
+      ? `${caller.person.name} at ${me.name} said yes. ${me.name} is on your Companies list as your ${wordFor(theirs, row.fromCompany.kind)}.`
       : `${caller.person.name} at ${me.name} answered Not now to your ask to link.`,
     data: { href: '/dashboard/companies' },
   })
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       id,
       linked: action === 'accept',
       says: action === 'accept'
-        ? `${row.fromCompany.name} is on your companies as your ${wordFor(mine, me.kind)}, and you are on theirs.`
+        ? `${row.fromCompany.name} is on your Companies list as your ${wordFor(mine, me.kind)}, and you are on theirs.`
         : `${row.fromCompany.name} is told Not now. Nothing was recorded.`,
     },
   })

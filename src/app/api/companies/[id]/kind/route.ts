@@ -95,7 +95,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
             otherCompanyId: other.id, from: other.kind, to: verdict.to, byName: caller.person.name, personId: caller.person.id, position: null,
             invitationsWithdrawn: open.map((i) => i.id),
           },
-          reversible: true,
+          // Nothing takes a Kind back: setting another one rebuilds its
+          // roles from scratch and never returns a withdrawn invitation.
+          reversible: false,
         },
       })
     })

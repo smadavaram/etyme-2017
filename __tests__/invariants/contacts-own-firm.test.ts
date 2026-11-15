@@ -109,7 +109,7 @@ describe('Contacts is people', () => {
 
   it('a Team member at another company is refused in a sentence that says what to pick instead', () => {
     expect(memberElsewhereSays('Harborline Tech')).toBe('Team member is for somebody at your own firm. Pick their role at Harborline Tech, or leave it on Other.')
-    expect(route).toContain("if (body?.kind === 'MEMBER' && !atOwnFirm) {")
+    expect(route).toContain("if (contactKindOf(body?.kind) === 'MEMBER' && !atOwnFirm) {")
   })
 })
 

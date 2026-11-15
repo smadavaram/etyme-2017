@@ -226,7 +226,7 @@ describe('the same person is never saved twice without a word, and two people ma
     const r = await add({ name: 'sam  ortiz', phone: '(720) 555-0163', atCompanyId: brightmoor.id })
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('SAME_NAME')
-    expect(r.body.error.message).toBe('A Sam Ortiz is already on file at this company. Is this the same person?')
+    expect(r.body.error.message).toBe('Somebody named Sam Ortiz is already in your Contacts at this company. Is this the same person?')
     expect(await prisma.companyContact.count({ where: { companyId: brightmoor.id, atCompanyId: brightmoor.id, name: 'Sam Ortiz' } })).toBe(before)
   })
 

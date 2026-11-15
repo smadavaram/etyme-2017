@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { register, positionsOf, isMine, isNotClassified, lacksPosition, type Position, type PositionWork, type ExtendAs } from '@/lib/counterparty'
+import { register, positionsOf, isMine, isNotClassified, lacksPosition, historyUndoSays, CAN_BE_UNDONE, type Position, type PositionWork, type ExtendAs } from '@/lib/counterparty'
 
 export { lacksPosition }
 
@@ -238,18 +238,33 @@ export interface HistoryRow {
   at: string
   byName: string | null
   position: Position | null
+  /** Whether it can be taken back now, read now (`historyUndoSays`), never the flag stored when it was written. */
   reversible: boolean
+  /** "Can be undone", why it cannot, or null where the row says nothing about it. */
+  undoSays: string | null
 }
 
-/** What was done to one company on the caller's own list, newest first. Never another firm's rows. */
-export async function historyOf(me: string, otherId: string, db: Db = prisma): Promise<HistoryRow[]> {
+/**
+ * What was done to one company on the caller's own list, newest first.
+ * Never another firm's rows. Whether a row can be undone is read now,
+ * against where the company sits with the caller and whether Remove would
+ * be taken (fix list of 2026-11-14, E3), so rows written before the rule
+ * read right with no backfill.
+ */
+export async function historyOf(
+  me: string,
+  otherId: string,
+  now: { positions: readonly Position[]; removable: Partial<Record<ExtendAs, { ok: boolean; code?: string }>> },
+  db: Db = prisma,
+): Promise<HistoryRow[]> {
   const rows = await db.automationLog.findMany({
     where: { companyId: me, action: { in: HISTORY_ACTIONS }, payload: { path: ['otherCompanyId'], equals: otherId } },
-    orderBy: { at: 'desc' },
+    // Two rows written in one moment keep one order (a tie-break by id).
+    orderBy: [{ at: 'desc' }, { id: 'desc' }],
     take: 50,
-    select: { action: true, summary: true, reason: true, at: true, payload: true, reversible: true },
+    select: { action: true, summary: true, reason: true, at: true, payload: true },
   })
-  return rows.map((r) => {
+  const read = rows.map((r) => {
     const p = (r.payload ?? {}) as { byName?: unknown; position?: unknown }
     return {
       action: r.action,
@@ -257,10 +272,11 @@ export async function historyOf(me: string, otherId: string, db: Db = prisma): P
       reason: r.reason,
       at: r.at.toISOString(),
       byName: typeof p.byName === 'string' ? p.byName : null,
-      position: p.position === 'CUSTOMER' || p.position === 'SUPPLIER' ? p.position : null,
-      reversible: r.reversible,
+      position: p.position === 'CUSTOMER' || p.position === 'SUPPLIER' ? (p.position as Position) : null,
     }
   })
+  const says = historyUndoSays(read, now)
+  return read.map((r, i) => ({ ...r, reversible: says[i] === CAN_BE_UNDONE, undoSays: says[i] }))
 }
 
 /**

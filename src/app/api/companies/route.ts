@@ -18,6 +18,10 @@ import { positionsFor } from './positions'
 import { speaksForItself } from '@/lib/public-site/speaks'
 import { roleCanDo } from '@/lib/company-roles'
 
+
+/** A company not classified yet is asked to link as either one: the two choices the box offers. */
+const EITHER_SIDE = 'supplier or your customer'
+
 /**
  * POST /api/companies
  *
@@ -200,8 +204,11 @@ export async function POST(request: NextRequest) {
     // A company not classified yet is stored with no relationship: never
     // defaulted to a supplier.
     const as = recording ? '' : String(body?.relationship ?? 'SUPPLIER')
-    // What they are to the caller, in the caller's own register words.
-    const asWord = (LINK_RELATIONSHIPS as string[]).includes(as) ? wordFor(as as Relationship, mine.kind) : 'partner'
+    // What they are to the caller, in the Companies list's own words. A
+    // company not classified yet is asked about as either one, the two
+    // choices the Ask them to link box offers (press of 2026-11-15: it
+    // said "partner" here and "supplier" in the box).
+    const asWord = (LINK_RELATIONSHIPS as string[]).includes(as) ? wordFor(as as Relationship, mine.kind) : EITHER_SIDE
 
     // One company once on the caller's own list, known by its domain
     // (founder, 2026-11-15: "The email is the identifier"). The same
@@ -245,7 +252,7 @@ export async function POST(request: NextRequest) {
       // Already on Etyme: today's reply, and nothing written. Nothing is
       // sent unless the person presses "Ask them to link".
       if (!(await workTogether(mine.id, firm.id))) {
-        const says = onEtymeAskToLinkSays('partner')
+        const says = onEtymeAskToLinkSays(EITHER_SIDE)
         await refusedFound(seatedCaller, firm.id, says)
         return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: null } }, { status: 409 })
       }
@@ -274,7 +281,7 @@ export async function POST(request: NextRequest) {
           company: { id: firm.id, name: firm.name, slug: firm.slug, kind: firm.kind },
           linked: true,
           says: `${firm.name} is on Etyme and already works with you, so your register points at their own record. No copy was made.`,
-          message: `${firm.name} is on your register.`,
+          message: `${firm.name} is on your Companies list.`,
         },
       })
     }
@@ -290,8 +297,8 @@ export async function POST(request: NextRequest) {
         // of a firm the caller does not work with (review, 2026-11-13).
         const says =
           `A company called ${namesake.name} is on Etyme already. If that is them, ask them for their web domain, ` +
-          `or the address their Etyme page opens at, and type it below. Then you can ask them to link, as your ${asWord}. ` +
-          `If it is a different company, type its web domain below so the two are told apart.`
+          `or the address their Etyme page opens at, and type it in the Domain box or the Etyme address box. Then you can ask them to link, as your ${asWord}. ` +
+          `If it is a different company, type its web domain in the Domain box so the two are told apart.`
         await refusedFound(seatedCaller, namesake.id, says)
         return NextResponse.json({ error: { code: 'SAME_NAME', field: 'domain', message: says } }, { status: 409 })
       }
@@ -400,21 +407,30 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // AutomationLog — what was created, honestly counted
+      // AutomationLog — what was created, honestly counted. A company
+      // written down from inside a seat is the adding firm's act, so its
+      // row is on the adding firm's own log, where its Activity log and
+      // the company's History read it (fix list of 2026-11-14, E3: it
+      // landed on the new company's log, which nobody reads).
+      const recorder = !adding.ownsIt && seatedCaller?.company ? seatedCaller.company : null
       await tx.automationLog.create({
         data: {
-          companyId: company.id,
+          companyId: recorder ? recorder.id : company.id,
           action: 'COMPANY_CREATED',
-          summary: `Company "${company.name}" created at ${slug}.etyme.com with ${roles.length} role${roles.length === 1 ? '' : 's'}`,
+          summary: recorder
+            ? `${seatedCaller!.person.name} recorded ${company.name} on ${recorder.name}'s Companies list`
+            : `Company "${company.name}" created at ${slug}.etyme.com with ${roles.length} role${roles.length === 1 ? '' : 's'}`,
           reason: adding.ownsIt
             ? 'User registered a new company of their own and was seated as its owner'
-            : `Recorded on ${seatedCaller?.company?.name ?? 'the caller'}'s register as a counterparty; nobody was seated there`,
+            : `Recorded on ${seatedCaller?.company?.name ?? 'the caller'}'s Companies list; nobody was seated there and nothing was sent.`,
           payload: {
             personId: person.id,
             email,
             roleCount: roles.length,
             kind: company.kind,
+            ...(recorder ? { otherCompanyId: company.id, byName: seatedCaller!.person.name, position: null } : {}),
           },
+          // No control deletes a company.
           reversible: false,
         },
       })
@@ -485,7 +501,7 @@ export async function POST(request: NextRequest) {
         says: after ? `${adding.says} ${after}` : adding.says,
         message: adding.ownsIt
           ? `${result.company.name} created at ${result.company.slug}.etyme.com`
-          : `${result.company.name} is on your register.${after ? ` ${after}` : ''}`,
+          : `${result.company.name} is on your Companies list.${after ? ` ${after}` : ''}`,
       },
     })
   } catch (err: any) {
@@ -835,7 +851,8 @@ async function recordCompany(
           summary: `${caller.person.name} recorded ${created.company.name} on ${mine.name}'s Companies list, not classified yet`,
           reason: 'Recorded, not classified: no position, no agreement, nobody seated and nothing sent.',
           payload: { otherCompanyId: created.company.id, byName: caller.person.name, personId: caller.person.id, position: null, kind: 'UNCLASSIFIED' },
-          reversible: true,
+          // No control deletes a recorded company, so the flag says so.
+          reversible: false,
         },
       })
       return { ...created.company, noted: kept.domain }

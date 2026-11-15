@@ -331,7 +331,7 @@ describe('a firm on Etyme is never tied to you from your side alone', () => {
     const r = await record('Corriban Logistics', { address: 'corriban-walk' })
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('ALREADY_ON_ETYME')
-    expect(r.body.error.message).toBe('That company is on Etyme already, so no copy of it was made. Ask them to link, as your partner: they are asked, and nothing is on either list until they say yes.')
+    expect(r.body.error.message).toBe('That company is on Etyme already, so no copy of it was made. Ask them to link, as your supplier or your customer: they are asked, and nothing is on either list until they say yes.')
     expect(r.body.error).not.toHaveProperty('companyId')
     expect(r.body.error).not.toHaveProperty('address')
     expect(r.body.error).not.toHaveProperty('company')
@@ -371,7 +371,7 @@ describe('a Kind given to a recorded company changes no position and catches no 
     await prisma.masterAgreement.create({ data: { vendorId: shell.id, clientId: brightmoor, paymentTerms: 30 } })
     const g = await call(extend.GET as any, 'GET', `/api/companies/${shell.id}/extend`, shell.id)
     expect(g.body.data.positions).toContain('SUPPLIER')
-    expect(g.body.data.may.remove.SUPPLIER).toEqual({ ok: false, says: 'Dunmore Contract Labs is your supplier through the agreement between you, not by a choice made here, so it cannot be taken off. The agreement stays as it is.' })
+    expect(g.body.data.may.remove.SUPPLIER).toEqual({ ok: false, code: 'HELD_BY_AGREEMENT', says: 'Dunmore Contract Labs is your supplier through the agreement between you, not by a choice made here, so it cannot be taken off. The agreement stays as it is.' })
     const d = await call(extend.DELETE as any, 'DELETE', `/api/companies/${shell.id}/extend?as=SUPPLIER`, shell.id)
     expect(d.status).toBe(409)
     expect(d.body.error.code).toBe('HELD_BY_AGREEMENT')
@@ -506,7 +506,7 @@ describe('the founder’s acceptance walk', () => {
     // Rivermark, above, holds Customer with an order hanging off it.
     const rm = (await prisma.company.findFirstOrThrow({ where: { listedById: brightmoor, name: 'Rivermark Partners' }, select: { id: true } })).id
     const held = await call(extend.GET as any, 'GET', `/api/companies/${rm}/extend`, rm)
-    expect(held.body.data.may.remove.CUSTOMER).toEqual({ ok: false, says: 'Rivermark Partners stays your customer while 1 order hangs off it. End or move that work first.' })
+    expect(held.body.data.may.remove.CUSTOMER).toEqual({ ok: false, code: 'STILL_IN_USE', says: 'Rivermark Partners stays your customer while 1 order hangs off it. End or move that work first.' })
   })
 
   it('a seat that does not manage who the firm trades with is drawn no Extend, no Remove and no Change', async () => {

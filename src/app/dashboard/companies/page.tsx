@@ -84,6 +84,9 @@ function kindOnList(kind: Company['kind']): string {
   }
 }
 
+/** The quiet line under Positions, where the Kind box is offered below it. */
+const KIND_IS_SET_BELOW = 'Kind is set below. It does not make them your supplier or customer.'
+
 /** What extending does, said once beside each button. */
 function extendLine(name: string, as: 'SUPPLIER' | 'CUSTOMER'): string {
   return as === 'SUPPLIER'
@@ -141,12 +144,13 @@ async function extendCompany(id: string, as: 'SUPPLIER' | 'CUSTOMER'): Promise<{
 
 /**
  * The two Extend buttons, drawn only where the route would take the press.
- * A success goes to the page's toast; a refusal stays beside the button,
+ * A success stays on the row, in the route's own sentence with Undo beside
+ * it (`AfterExtend`); a refusal stays beside the button,
  * in the error tone, until it is closed, and a firm on Etyme the reader
  * does not work with is offered "Ask them to link" there (review,
  * 2026-11-13: a refusal read as a success for four seconds and was gone).
  */
-function ExtendButtons({ row, onDone, onAsked, withLines = false }: { row: Company; onDone: (says: string, ok: boolean) => void; onAsked?: () => void; withLines?: boolean }) {
+function ExtendButtons({ row, onDone, onAsked, withLines = false }: { row: Company; onDone: (as: 'SUPPLIER' | 'CUSTOMER', says: string) => void; onAsked?: () => void; withLines?: boolean }) {
   const [busy, setBusy] = useState(false)
   const [refused, setRefused] = useState<{ as: 'SUPPLIER' | 'CUSTOMER'; says: string; askToLink: boolean } | null>(null)
   const [asked, setAsked] = useState<string | null>(null)
@@ -191,7 +195,7 @@ function ExtendButtons({ row, onDone, onAsked, withLines = false }: { row: Compa
               setBusy(false)
               if (r.ok) {
                 setRefused(null)
-                onDone(r.says, true)
+                onDone(as, r.says)
               } else {
                 setRefused({ as, says: r.says, askToLink: r.askToLink })
               }
@@ -218,6 +222,64 @@ function ExtendButtons({ row, onDone, onAsked, withLines = false }: { row: Compa
         </div>
       ))}
       {asked && <div className="max-w-xs"><FormMessage tone="ok">{asked}</FormMessage></div>}
+    </div>
+  )
+}
+
+/** What a press of Extend left on its row: the route's sentence, and Undo while it can be taken back. */
+interface Pressed {
+  as: 'SUPPLIER' | 'CUSTOMER'
+  says: string
+  tone: 'ok' | 'error'
+  /** Undo is offered until it is pressed. */
+  undo: boolean
+}
+
+/**
+ * The sentence an Extend left on its row, with Undo beside it (fix list of
+ * 2026-11-14, E3: the only word was a toast that faded, and the only way
+ * back was Remove inside the drawer). No confirm step: extending writes
+ * one row and emails nobody. Undo calls the same DELETE the drawer's
+ * Remove calls, so a position with work hanging off it is refused in the
+ * route's own sentence and stays. Drawn only after this seat's own press,
+ * which the same permission takes back.
+ */
+function AfterExtend({ row, pressed, onUndone, onClose }: {
+  row: Pick<Company, 'id' | 'name'>
+  pressed: Pressed
+  onUndone: (next: Pressed) => void
+  onClose: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  async function undo() {
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/companies/${encodeURIComponent(row.id)}/extend?as=${pressed.as}`, { method: 'DELETE' })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) {
+        onUndone({ ...pressed, tone: 'error', undo: false, says: refusalSentence(body.error?.message, { what: 'Undoing an extension' }) || 'That did not go through. Try again in a minute.' })
+        return
+      }
+      onUndone({ ...pressed, tone: 'ok', undo: false, says: body.data?.message ?? 'Undone.' })
+    } catch {
+      onUndone({ ...pressed, tone: 'error', says: 'Network error. Please try again.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="max-w-xs space-y-1" onClick={(e) => e.stopPropagation()} data-after-extend={row.id}>
+      <FormMessage tone={pressed.tone}>{pressed.says}</FormMessage>
+      <div className="flex flex-wrap items-center gap-2">
+        {pressed.undo && (
+          <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={undo}>
+            {busy ? 'Undoing…' : 'Undo'}
+          </button>
+        )}
+        <button type="button" className="text-[12px] text-etyme-muted underline" onClick={onClose}>
+          Close
+        </button>
+      </div>
     </div>
   )
 }
@@ -517,8 +579,9 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Company name *</label>
+            <label htmlFor="add-company-name" className="block text-xs font-semibold text-etyme-muted mb-1">Company name *</label>
             <input
+                id="add-company-name"
               type="text"
               required
               aria-required="true"
@@ -542,8 +605,9 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {!isClient && (
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>
+              <label htmlFor="add-company-kind" className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>
               <select
+                id="add-company-kind"
                 value={form.kind}
                 onChange={(e) => setForm({ ...form, kind: e.target.value as Kind, relationship: relationshipForKind(e.target.value) })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
@@ -560,8 +624,9 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
             )}
             {!recording && (
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">What are they to you? *</label>
+              <label htmlFor="add-company-relationship" className="block text-xs font-semibold text-etyme-muted mb-1">What are they to you? *</label>
               <select
+                id="add-company-relationship"
                 value={form.relationship}
                 onChange={(e) => setForm({ ...form, relationship: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
@@ -576,8 +641,9 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
             )}
             {/* Kept on every door, a client's too (2026-11-15): never a box whose answer is thrown away. */}
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Entity type</label>
+              <label htmlFor="add-company-entity-type" className="block text-xs font-semibold text-etyme-muted mb-1">Entity type</label>
               <input
+                id="add-company-entity-type"
                 type="text"
                 value={form.entityType}
                 onChange={(e) => setForm({ ...form, entityType: e.target.value })}
@@ -597,8 +663,9 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
           {isClient && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-etyme-muted mb-1">Their contact</label>
+                <label htmlFor="add-company-contact" className="block text-xs font-semibold text-etyme-muted mb-1">Their contact</label>
                 <input
+                id="add-company-contact"
                   type="text"
                   value={form.contactName}
                   onChange={(e) => setForm({ ...form, contactName: e.target.value })}
@@ -608,8 +675,9 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-etyme-muted mb-1">Their email</label>
+                <label htmlFor="add-company-email" className="block text-xs font-semibold text-etyme-muted mb-1">Their email</label>
                 <input
+                id="add-company-email"
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -637,8 +705,9 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Domain</label>
+              <label htmlFor="add-company-domain" className="block text-xs font-semibold text-etyme-muted mb-1">Domain</label>
               <input
+                id="add-company-domain"
                 type="text"
                 value={form.domain}
                 aria-invalid={domainSays || twin?.field === 'domain' ? true : undefined}
@@ -658,9 +727,10 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
               )}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Their Etyme address, if they have one</label>
+              <label htmlFor="add-company-address" className="block text-xs font-semibold text-etyme-muted mb-1">Their Etyme address, if they have one</label>
               <div className="flex items-center">
                 <input
+                id="add-company-address"
                   type="text"
                   value={form.slug}
                   onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
@@ -810,7 +880,7 @@ interface DrawerRead {
   mine: boolean
   notClassified: boolean
   customerAgreement: 'SIGNED' | 'UNSIGNED' | 'NONE' | null
-  history: { action: string; summary: string; reason: string; at: string; byName: string | null; position: string | null; reversible: boolean }[]
+  history: { action: string; summary: string; reason: string; at: string; byName: string | null; position: string | null; reversible: boolean; undoSays: string | null }[]
   may: {
     /** Correct the name, the typed domain and the entity type (PATCH /api/companies/:id/record). */
     edit?: boolean
@@ -1003,6 +1073,8 @@ function PositionsPanel({ company, onChanged, onClose }: { company: Company; onC
           </div>
         )}
         {message && <div className="mt-2"><FormMessage tone={message.tone}>{message.says}</FormMessage></div>}
+        {/* Two facts set in two places (E3): said only where the Kind box below is offered. */}
+        {read.may.setKind && <p className="mt-2 text-[12px] text-etyme-muted">{KIND_IS_SET_BELOW}</p>}
       </div>
 
       <div>
@@ -1043,7 +1115,8 @@ function PositionsPanel({ company, onChanged, onClose }: { company: Company; onC
               <li key={`${h.at}:${i}`} className="text-[13px]">
                 <p className="text-etyme-ink">{h.summary}</p>
                 <p className="text-[12px] text-etyme-faint">
-                  {[h.byName, dayOfMomentFor(new Date(h.at), readerZone()), h.reversible ? 'Can be undone' : 'Cannot be undone'].filter(Boolean).join(' · ')}
+                  {/* Whether it can be taken back is read now by the route (`historyUndoSays`), never the flag stored when it was written. */}
+                  {[h.byName, dayOfMomentFor(new Date(h.at), readerZone()), h.undoSays].filter(Boolean).join(' · ')}
                 </p>
               </li>
             ))}
@@ -1134,7 +1207,8 @@ function CompanyContacts({ company }: { company: Company }) {
           <p className="text-[12px] text-etyme-muted">An email address or a phone number. Either one is enough. Saving a contact sends them nothing.</p>
           <div className="flex flex-wrap gap-2">
             <SubmitButton pending={pending} pendingLabel="Saving…">Save contact</SubmitButton>
-            <button type="button" className="btn-secondary" onClick={() => setAdding(false)}>Cancel</button>
+            {/* Cancel clears what was typed, so the next try never carries a stale email (press of 2026-11-15). */}
+            <button type="button" className="btn-secondary" onClick={() => { setAdding(false); setForm({ name: '', email: '', phone: '', title: '' }); setNamesake(false); setMessage(null) }}>Cancel</button>
           </div>
         </form>
       ) : (
@@ -1497,6 +1571,18 @@ export default function CompaniesPage() {
     setSelected((prev) => (prev ? companies.find((c) => c.id === prev.id) ?? prev : prev))
   }, [companies])
 
+  // ?open=<company id> opens that company's drawer, for a company on the
+  // reader's own list only; any other id opens nothing and says nothing, so
+  // the address never tells a stranger's id from one that does not exist
+  // (a refusal elsewhere links here, 2026-11-15). Read once the list is in.
+  const openId = searchParams.get('open')
+  useEffect(() => {
+    if (!answered || !openId) return
+    const c = companies.find((x) => x.id === openId)
+    if (c) setSelected(c)
+    router.replace('/dashboard/companies', { scroll: false })
+  }, [answered, openId, companies, router])
+
   // Bumped after an ask to link is sent, so "Asked, waiting on them" shows at once.
   const [asksRead, setAsksRead] = useState(0)
   const askSent = useCallback(() => setAsksRead((n) => n + 1), [])
@@ -1526,10 +1612,28 @@ export default function CompaniesPage() {
   const mspCount = tiles.msps
   const notClassifiedCount = tiles.notClassified
 
-  function afterAct(says: string) {
-    setToast(says)
-    void fetchCompanies()
+  // What a press of Extend left on each row, kept on the row after the
+  // list is read again (the buttons go once the position is held).
+  const [pressed, setPressed] = useState<Record<string, Pressed>>({})
+  function afterExtend(id: string) {
+    return (as: 'SUPPLIER' | 'CUSTOMER', says: string) => {
+      setPressed((p) => ({ ...p, [id]: { as, says, tone: 'ok', undo: true } }))
+      void fetchCompanies()
+    }
   }
+  function afterUndo(id: string) {
+    return (next: Pressed) => {
+      setPressed((p) => ({ ...p, [id]: next }))
+      if (next.tone === 'ok') void fetchCompanies()
+    }
+  }
+  const closePressed = (id: string) => () => setPressed((p) => { const { [id]: _gone, ...rest } = p; return rest })
+  const rowActs = (row: Company) => (
+    <div className="flex flex-col gap-2">
+      {pressed[row.id] && <AfterExtend row={row} pressed={pressed[row.id]} onUndone={afterUndo(row.id)} onClose={closePressed(row.id)} />}
+      <ExtendButtons row={row} onDone={afterExtend(row.id)} onAsked={askSent} />
+    </div>
+  )
 
   // ── Column definitions ────────────────────────────
   const columns: Column<Company>[] = [
@@ -1620,7 +1724,7 @@ export default function CompaniesPage() {
       key: 'actions',
       label: 'Actions',
       sortable: false,
-      render: (row) => (row.notLinked ? <AskToLink row={row} onAsked={askSent} /> : <ExtendButtons row={row} onDone={afterAct} onAsked={askSent} />),
+      render: (row) => (row.notLinked ? <AskToLink row={row} onAsked={askSent} /> : rowActs(row)),
       exportValue: () => null,
     },
   ]
@@ -1719,9 +1823,14 @@ export default function CompaniesPage() {
             </div>
             <p className="mt-1 text-[12px] text-etyme-muted">{domainCell(row).domain ? `${domainCell(row).domain}${domainCell(row).note ? ` · ${domainCell(row).note}` : ''}` : domainCell(row).note}</p>
             {row.notLinked && <div className="mt-3"><AskToLink row={row} onAsked={askSent} /></div>}
+            {!row.notLinked && pressed[row.id] && (
+              <div className="mt-3">
+                <AfterExtend row={row} pressed={pressed[row.id]} onUndone={afterUndo(row.id)} onClose={closePressed(row.id)} />
+              </div>
+            )}
             {(row.may.extendToSupplier || row.may.extendToCustomer) && (
               <div className="mt-3">
-                <ExtendButtons row={row} onDone={afterAct} onAsked={askSent} />
+                <ExtendButtons row={row} onDone={afterExtend(row.id)} onAsked={askSent} />
                 <p className="mt-1 text-[12px] text-etyme-muted">Extending does not email them and does not change what kind of company they are.</p>
               </div>
             )}

@@ -255,7 +255,7 @@ export function mayAddCompany(ask: AddAsk): AddVerdict {
       ok: false,
       ownsIt: false,
       says:
-        `Adding a firm to ${ask.seatedAt.name}'s register is for whoever manages who you ` +
+        `Adding a firm to ${ask.seatedAt.name}'s Companies list is for whoever manages who you ` +
         `trade with. Ask whoever runs your suppliers and clients to add it, or ask them for ` +
         `that access.`,
     }
@@ -277,7 +277,7 @@ export function mayAddCompany(ask: AddAsk): AddVerdict {
     ok: true,
     ownsIt: false,
     says:
-      `Recorded on ${ask.seatedAt.name}'s register as a ${RELATIONSHIPS[relationship as Relationship].label.toLowerCase()}. ` +
+      `Recorded on ${ask.seatedAt.name}'s Companies list as a ${RELATIONSHIPS[relationship as Relationship].label.toLowerCase()}. ` +
       `You are not seated there: a firm you trade with is not a firm you own.`,
   }
 }
@@ -877,7 +877,7 @@ export function mayExtend(ask: {
 function alreadyOnEtymeSays(them: { name: string }, as: string): string {
   return (
     `${them.name} is already on Etyme, so no copy of them was made. ` +
-    `Ask them to link, as your ${as}: once they say yes, each of you has the other on your companies.`
+    `Ask them to link, as your ${as}: once they say yes, each of you has the other on your Companies list.`
   )
 }
 
@@ -966,6 +966,44 @@ export function mayRemovePosition(ask: {
       `${ask.other.name} is no longer your ${word}. What kind of company it is did not change.` +
       (left.length === 0 ? ` It stays on your Companies list, not classified.` : ` It is still your ${left.map((p) => POSITION_WORDS[p].toLowerCase()).join(' and ')}.`),
   }
+}
+
+/** What a history row says about taking it back, read now. */
+export const CAN_BE_UNDONE = 'Can be undone'
+export const CANNOT_BE_UNDONE_NOW = 'Cannot be undone while work hangs off it'
+export const CANNOT_BE_UNDONE = 'Cannot be undone'
+
+/**
+ * Whether each row of a company's history can still be taken back, read
+ * now and never from the flag stored when the row was written (fix list
+ * of 2026-11-14, E3: every row said "Can be undone" for good). Pure.
+ *
+ * Only an extension is ever said to be undoable: the newest row for its
+ * position, while the position is held and Remove would be taken. An
+ * extension with work hanging off it says so, and one an agreement holds
+ * cannot be undone at all. Where the reader may not remove positions, the
+ * row says nothing: somebody else may. Every other row says nothing: no
+ * control deletes a recorded company, puts a withdrawn invitation back, or
+ * undoes a correction. Rows are newest first.
+ */
+export function historyUndoSays(
+  rows: readonly { action: string; position: Position | null }[],
+  now: { positions: readonly Position[]; removable: Partial<Record<ExtendAs, { ok: boolean; code?: string }>> },
+): (string | null)[] {
+  const seen = new Set<string>()
+  return rows.map((r) => {
+    if (r.action !== 'COMPANY_EXTENDED' && r.action !== 'COMPANY_POSITION_REMOVED') return null
+    if (r.position !== 'SUPPLIER' && r.position !== 'CUSTOMER') return null
+    const newest = !seen.has(r.position)
+    seen.add(r.position)
+    if (!newest || r.action !== 'COMPANY_EXTENDED' || !now.positions.includes(r.position)) return null
+    const v = now.removable[r.position]
+    if (!v) return null
+    if (v.ok) return CAN_BE_UNDONE
+    if (v.code === 'STILL_IN_USE') return CANNOT_BE_UNDONE_NOW
+    if (v.code === 'HELD_BY_AGREEMENT') return CANNOT_BE_UNDONE
+    return null
+  })
 }
 
 /** The Kinds a person may set on a company they recorded. */
