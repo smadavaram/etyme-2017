@@ -285,7 +285,12 @@ describe('what the client desk is told', () => {
     expect(list).toContain("import { maySign, type Sheet } from '@/lib/timesheet-signatures'")
     expect(list).toContain('function waitingSentence(')
     expect(list).toContain('waitingOnYou: entitled.ok && signable.ok')
-    expect(screen).toContain('t.signature ? t.signature.waitingOnYou : t.status === \'SUBMITTED\'')
+    // The count and the narrowed list read one rule, in the page's own tile
+    // reader (2026-11-15: the tile also narrows the list, so the rule moved
+    // out of the page into tiles.ts, which the page imports).
+    const tiles = read('src/app/dashboard/timesheets/tiles.ts')
+    expect(tiles).toContain('t.signature ? t.signature.waitingOnYou : t.status === \'SUBMITTED\'')
+    expect(screen).toContain("from './tiles'")
     expect(screen).not.toContain("const pendingApproval = timesheets.filter((t) => t.status === 'SUBMITTED').length")
   })
 

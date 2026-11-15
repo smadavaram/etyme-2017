@@ -191,7 +191,10 @@ describe('a money page is framed by the same block that chose its rows', () => {
     // book from a seat. `create` is null in both cases, and a control
     // the route would refuse is a control that lies. The framing is null
     // until the reader is known, so the guard reads it optionally.
-    expect(read(MONEY_PAGES.Invoices)).toContain('{framing?.create && (')
+    // Bills also waits to know that something can be billed (2026-11-15):
+    // the framing still gates the button, and the sentence that stands in its place.
+    expect(read(MONEY_PAGES.Invoices)).toContain('{framing?.create && billWaits?.canBill && (')
+    expect(read(MONEY_PAGES.Invoices)).toContain('{framing?.create && billWaits && !billWaits.canBill && billWaits.says && (')
     expect(read(MONEY_PAGES.Expenses)).toContain('{framing?.create && (')
   })
 

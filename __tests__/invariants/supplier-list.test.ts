@@ -310,7 +310,8 @@ describe('what the supplier paste and the Suppliers list say are true (walk, 202
 
   it('the refusal for a company not classified yet links to Companies, where its kind is set', () => {
     expect(page).toContain("r?.code === 'NOT_CLASSIFIED'")
-    expect(page).toContain("<Link href={'/dashboard/companies' as Route}")
+    // To the company's own row where it is on the paster's list, else to the list (2026-11-15).
+    expect(page).toContain("<Link href={(k.companyId ? companyOpenHref(k.companyId) : '/dashboard/companies') as Route}")
   })
 
   it('the Activity log row for a paste names who pasted how many suppliers and contacts, and that the invitations were emailed', () => {

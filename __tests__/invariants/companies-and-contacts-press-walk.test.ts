@@ -88,7 +88,10 @@ describe('Add a company', () => {
 
 describe('The Companies list', () => {
   it('each tile filters the list as its chip does, and says which one is chosen', () => {
-    expect(companies).toContain('onClick={() => setPositionFilter(t.key)}')
+    // One function sets the filter for a tile and for a chip; it also clears
+    // the sentence a press left on a row (2026-11-15).
+    expect(companies).toContain('onClick={() => chooseFilter(t.key)}')
+    expect(companies).toContain('const chooseFilter = (f: PositionFilter) => { setPressed({}); setPositionFilter(f) }')
     expect(companies).toContain('aria-pressed={positionFilter === t.key}')
     expect(companies).toContain('{companyTilesShown(tiles).map((t) => (')
     // Every tile's filter is one a chip also offers.

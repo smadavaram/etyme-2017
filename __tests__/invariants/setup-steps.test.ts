@@ -179,7 +179,9 @@ describe('setup asks five things, then stops', () => {
     const setup = src('src/app/(auth)/start/page.tsx')
     for (const page of [settings, setup]) {
       expect(page).toContain("import { WeekPanel } from '@/components/settings/week-panel'")
-      expect(page).toContain("import { PayrollPanel } from '@/components/settings/payroll-panel'")
+      // The settings page also takes the helper that opens the first-pay-day
+      // box from the same file (2026-11-15); the panel is still the one component.
+      expect(page).toMatch(/import \{ PayrollPanel(, goToFirstPayDay)? \} from '@\/components\/settings\/payroll-panel'/)
     }
     expect(settings).not.toContain('function WeekPanel(')
     expect(settings).not.toContain('function PayrollPanel(')

@@ -179,7 +179,14 @@ describe('a day off is never a reason to refuse hours', () => {
   it('a day off never stops a worker filing hours on it', () => {
     const offenders = filingPaths
       .flatMap(files)
-      .filter((f) => /from '@\/lib\/days-off'|isDayOff\(|isWorkingDay\(/.test(readFileSync(f, 'utf8')))
+      .filter((f) => {
+        const text = readFileSync(f, 'utf8')
+        // The one thing a filing path may read from days off is the day the
+        // week's hours are due, to SAY it on an empty Timesheets page
+        // (2026-11-15). Whether a day is off is never read here.
+        const imports = [...text.matchAll(/import \{([^}]*)\} from '@\/lib\/days-off'/g)].flatMap((m) => m[1].split(',').map((x) => x.trim()).filter(Boolean))
+        return imports.some((name) => name !== 'weekDueFor') || /isDayOff\(|isWorkingDay\(/.test(text)
+      })
     expect(offenders, 'The filing path reads days off; a day off decides what is expected, never what may be filed').toEqual([])
   })
 })
