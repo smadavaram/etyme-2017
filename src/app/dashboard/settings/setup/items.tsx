@@ -11,6 +11,8 @@ import { PayrollPanel } from '@/components/settings/payroll-panel'
 import { InviteTeammate } from '@/components/invite-teammate'
 import { ConnectDomain } from '../domain/connect-domain'
 import { ENTITY_TYPES, W9_LINE, type ItemKey, type ItemWords, type ChecklistRow } from '@/lib/setup-checklist'
+import { COUNTRIES, COUNTRY_BOX_SAYS } from '@/lib/setup-steps'
+import { SETUP_TIME_ZONE_SAYS } from '@/lib/site-rules'
 
 /**
  * Each checklist item's screen: one column, a short heading, plain fields
@@ -196,7 +198,7 @@ function CompanyItem(p: Props) {
         <Field label="Phone"><Input value={f.phone} onChange={set('phone')} /></Field>
         <Field label="EIN" help={<From says={from('taxId')} />}><Input value={f.taxId} onChange={set('taxId')} placeholder="12-3456789" /></Field>
         <Field label="Currency" help={<From says={from('currency')} />}><Input value={f.currency} onChange={set('currency')} maxLength={3} /></Field>
-        <Field label="Time zone" help="Your primary site’s. Each site may have its own."><Input value={f.timeZone} onChange={set('timeZone')} placeholder="America/Chicago" /></Field>
+        <Field label="Time zone" help={SETUP_TIME_ZONE_SAYS}><Input value={f.timeZone} onChange={set('timeZone')} placeholder="America/Chicago" /></Field>
       </div>
       <div className="space-y-1.5 border-t border-etyme-rule pt-3">
         <p className="text-[13.5px] text-etyme-ink">
@@ -295,8 +297,8 @@ function AddressFields({ a, onChange, from }: { a: any; onChange: (next: any) =>
       <Field label="Street" className="sm:col-span-3" help={<From says={from?.('street')} />}><Input value={a.street} onChange={set('street')} placeholder="Street and number" /></Field>
       <Field label="City"><Input value={a.city} onChange={set('city')} /></Field>
       <Field label="State"><Input value={a.state} onChange={set('state')} /></Field>
-      <Field label="ZIP code"><Input value={a.postalCode} onChange={set('postalCode')} /></Field>
-      <Field label="Country (two letters)"><Input value={a.country} onChange={set('country')} maxLength={2} /></Field>
+      <Field label="ZIP or postal code"><Input value={a.postalCode} onChange={set('postalCode')} autoComplete="postal-code" /></Field>
+      <Field label="Country" help={COUNTRY_BOX_SAYS}><Input value={a.country} onChange={set('country')} list="setup-countries" autoComplete="country" /></Field>
     </div>
   )
 }
@@ -316,13 +318,16 @@ function AddressesItem(p: Props) {
         <Lbl>Billing address</Lbl>
         <Check checked={same} onChange={() => setSame(!same)} label="Same as the legal address" />
         {!same && <AddressFields a={billing} onChange={setBilling} />}
+        {/* The names both Country boxes offer as they are typed in (fix list A5). */}
+        <datalist id="setup-countries">{COUNTRIES.map((c) => <option key={c.code} value={c.name} />)}</datalist>
       </div>
       <div className="space-y-1.5">
         <Lbl>Where people work</Lbl>
         {d.sites.map((s: any) => (
           <p key={s.id} className="border-b border-etyme-rule py-1.5 text-[13.5px] text-etyme-ink">
             {s.name}{s.isPrimary && <span className="text-etyme-faint"> · primary</span>}
-            <span className="block text-[12px] text-etyme-muted">{s.place}</span>
+            {s.street && <span className="block text-[12px] text-etyme-muted">{s.street}</span>}
+            {s.place && <span className="block text-[12px] text-etyme-muted">{s.place}</span>}
           </p>
         ))}
         <Link href={'/dashboard/settings/sites' as any} className="text-[13px] text-etyme-action-press">Sites: add one, or change one</Link>

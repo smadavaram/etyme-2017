@@ -1,4 +1,6 @@
 import type { Permission } from '@/lib/permissions'
+import { countryFromTyped } from '@/lib/setup-steps'
+import { postalFromTyped } from '@/lib/site-rules'
 
 /**
  * What can be loaded, and who owns it.
@@ -34,7 +36,7 @@ export interface FieldSpec {
   /** Column headings people actually use, lowercased. */
   aliases: string[]
   required: boolean
-  kind: 'string' | 'number' | 'money' | 'date' | 'email' | 'boolean' | 'list'
+  kind: 'string' | 'number' | 'money' | 'date' | 'email' | 'boolean' | 'list' | 'country' | 'postal'
   /** What it means, for the mapping screen. */
   hint?: string
 }
@@ -83,8 +85,9 @@ export const IMPORTABLE: EntitySpec[] = [
       { key: 'name', label: 'Name', aliases: ['name', 'site', 'location', 'office', 'site name'], required: true, kind: 'string' },
       { key: 'city', label: 'City', aliases: ['city', 'town'], required: false, kind: 'string' },
       { key: 'state', label: 'State', aliases: ['state', 'province', 'region'], required: false, kind: 'string' },
-      { key: 'country', label: 'Country', aliases: ['country', 'country code'], required: false, kind: 'string' },
+      { key: 'country', label: 'Country', aliases: ['country', 'country code'], required: false, kind: 'country', hint: 'Two letters, such as US, or the country’s name.' },
       { key: 'address', label: 'Address', aliases: ['address', 'street', 'address line 1'], required: false, kind: 'string' },
+      { key: 'postalCode', label: 'ZIP or postal code', aliases: ['zip', 'zip code', 'zipcode', 'postal code', 'postcode', 'post code'], required: false, kind: 'postal' },
     ],
   },
   {
@@ -276,6 +279,15 @@ export function parseCell(kind: FieldSpec['kind'], raw: string, label: string): 
       if (['true', 'yes', 'y', '1', 'active'].includes(t)) return { value: true, problem: null }
       if (['false', 'no', 'n', '0', 'inactive'].includes(t)) return { value: false, problem: null }
       return { value: null, problem: `${label}: "${v}" should be yes or no` }
+    }
+    case 'country': {
+      // Read as its two-letter code, or refused for the row: never cut (fix list A5).
+      const c = countryFromTyped(v)
+      return c.ok ? { value: c.code, problem: null } : { value: null, problem: `${label}: ${c.says}` }
+    }
+    case 'postal': {
+      const z = postalFromTyped(v)
+      return z.ok ? { value: z.code, problem: null } : { value: null, problem: `${label}: ${z.says}` }
     }
     case 'list':
       return { value: v.split(/[,;|]/).map((x) => x.trim()).filter(Boolean), problem: null }

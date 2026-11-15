@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { appUrl } from '@/lib/app-url'
+import { fixedAppUrl } from '@/lib/app-url'
 import { companyPolicy } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { newScimToken } from '@/lib/identity/scim'
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       says: `${caller.person.name} issued a SCIM token ending ${t.last4} for ${company.name}; any earlier token stopped working.`,
     }, tx)
   })
-  return NextResponse.json({ data: { token: t.token, last4: t.last4, base: `${appUrl()}/scim/v2`, says: 'Copy this token now. It is shown once and never again.' } }, { headers: { 'Cache-Control': 'no-store' } })
+  return NextResponse.json({ data: { token: t.token, last4: t.last4, base: fixedAppUrl() ? `${fixedAppUrl()}/scim/v2` : null, says: 'Copy this token now. It is shown once and never again.' } }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function DELETE(request: NextRequest) {

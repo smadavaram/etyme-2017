@@ -1,13 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { usePageSection } from '@/components/page-section'
 import { Check, ErrorState, Field, Input, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea, Chip } from '@/components/ui'
 import { momentFor, readerZone } from '@/lib/when'
 import { OwnerGateLine } from '@/components/owner-gate-line'
 import { refusalLine, type OwnerLine } from '@/lib/owner-gate'
 import { SIGN_IN_SCREEN_MODES, modeOptionSays, eventWords, sourceWords, eventSays, setLine } from '@/lib/identity/screen-words'
-import { ASSURANCE_SAYS, RESIDENCY_SAYS, SAY_WHY_FIRST } from '@/components/settings/settings-says'
+import { ASSURANCE_SAYS, RESIDENCY_SAYS, SAY_WHY_FIRST, NO_VERIFIED_DOMAIN, PROVE_DOMAIN_HREF, PROVE_DOMAIN_LINK, SAML_NOT_AVAILABLE, scimSays, noScimTokenSays } from '@/components/settings/settings-says'
 
 /**
  * Settings → Sign-in (founder, 2026-11-11, "Enterprise identity"): how the
@@ -48,7 +50,8 @@ type Overview = {
     entityId: string | null; hasCertificate: boolean; secret: string
     subjectClaim: string | null; emailClaim: string | null; groupsClaim: string | null; enabled: boolean; isMock: boolean
   }
-  scimBase: string
+  /** Null where this deployment has no lasting public address (lib/app-url fixedAppUrl). */
+  scimBase: string | null
   scimToken: null | { last4: string; createdAt: string; lastUsedAt: string | null }
   groups: { id: string; groupId: string; groupName: string | null; role: string }[]
   roles: { id: string; name: string }[]
@@ -149,6 +152,9 @@ export default function SignInSettings() {
   if (!o) return <LoadingState says="Reading how your people sign in…" />
   const can = o.mayChange
   const isSaml = d.type === 'SAML'
+  // SAML is offered only to read back a directory already saved as SAML:
+  // it cannot be turned on, so a new one is never offered (fix list G2).
+  const savedSaml = o.directory?.type === 'SAML'
 
   return (
     <div className="space-y-6">
@@ -196,13 +202,19 @@ export default function SignInSettings() {
 
       <Panel title="Verified domains" subtitle="An address on one of these is governed by this page at every sign-in door.">
         {o.domains.length ? <ul className="flex flex-wrap gap-2">{o.domains.map((x) => <li key={x}><Chip tone="verified">{x}</Chip></li>)}</ul>
-          : <p className="text-[13px] text-etyme-muted">No verified domain yet. Verify one in Setup; directory only needs it.</p>}
+          : (
+            <p className="text-[13px] text-etyme-muted">
+              {/* Every seat that reads this page holds settings.manage, which is what Your domain asks (its route goes through the setup door). */}
+              {NO_VERIFIED_DOMAIN}{' '}
+              <Link href={PROVE_DOMAIN_HREF as Route} className="text-etyme-action-press underline-offset-2 hover:underline">{PROVE_DOMAIN_LINK}</Link>
+            </p>
+          )}
       </Panel>
 
       <Panel title="Your company's directory" subtitle={o.directory ? `${o.directory.enabled ? 'On' : 'Off'}${o.directory.isMock ? ' · the demo’s mock directory' : ''} · secret ${o.directory.secret}` : 'Not connected.'}
         action={o.directory ? <SubmitButton tone="secondary" type="button" pending={busy === 'test'} onClick={() => void send('test', '/api/settings/sign-in/directory/test', 'POST')}>Test</SubmitButton> : null}>
         {test && <p role="status" className="mb-3 text-[13px] text-etyme-ink">{test}</p>}
-        {isSaml && <p className="mb-3 text-[13px] text-etyme-attention">SAML is stored and not built yet in this pass. Nobody can sign in through it until it is.</p>}
+        {isSaml && <p className="mb-3 text-[13px] text-etyme-attention">{SAML_NOT_AVAILABLE}</p>}
         <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void send('dir', '/api/settings/sign-in/directory', 'PUT', d) }}>
           <fieldset disabled={!can} className="grid gap-3 sm:grid-cols-2">
             <Field label="Kind" error={fieldError.type}>
@@ -210,7 +222,7 @@ export default function SignInSettings() {
                 <option value="OIDC">OpenID Connect</option>
                 <option value="ENTRA">Microsoft Entra ID</option>
                 <option value="GOOGLE_WORKSPACE">Google Workspace</option>
-                <option value="SAML">SAML 2.0 (stored, not built)</option>
+                {savedSaml && <option value="SAML">SAML 2.0 (not available yet)</option>}
               </Select>
             </Field>
             <Field label="Name on this page"><Input value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} /></Field>
@@ -260,7 +272,7 @@ export default function SignInSettings() {
         </Panel>
       )}
 
-      <Panel title="SCIM" subtitle={`Your directory adds and removes people at ${o.scimBase}. ${o.scim ? 'On.' : 'Off: turn it on above.'}`}>
+      <Panel title="SCIM" subtitle={scimSays({ base: o.scimBase, hasToken: Boolean(o.scimToken), on: o.scim })}>
         {token && (
           <div className="mb-3 rounded-box border border-etyme-attention/40 bg-etyme-canvas p-3">
             <p className="text-[12px] text-etyme-attention">Copy this token now. It is shown once and never again.</p>
@@ -268,9 +280,9 @@ export default function SignInSettings() {
           </div>
         )}
         <p className="text-[13px] text-etyme-muted">
-          {o.scimToken ? `Token ending ${o.scimToken.last4}, issued ${when(o.scimToken.createdAt)}${o.scimToken.lastUsedAt ? `, last used ${when(o.scimToken.lastUsedAt)}` : ', never used yet'}.` : 'No token issued.'}
+          {o.scimToken ? `Token ending ${o.scimToken.last4}, issued ${when(o.scimToken.createdAt)}${o.scimToken.lastUsedAt ? `, last used ${when(o.scimToken.lastUsedAt)}` : ', never used yet'}.` : noScimTokenSays(can, Boolean(o.scimBase))}
         </p>
-        {can && (
+        {can && (o.scimBase || o.scimToken) && (
           <div className="mt-3 flex flex-wrap gap-2">
             <SubmitButton type="button" pending={busy === 'scim'} onClick={() => void send('scim', '/api/settings/sign-in/scim', 'POST')}>{o.scimToken ? 'Replace the token' : 'Issue a token'}</SubmitButton>
             {o.scimToken && <SubmitButton tone="secondary" type="button" pending={busy === 'scim-off'} onClick={() => void send('scim-off', '/api/settings/sign-in/scim', 'DELETE')}>Revoke</SubmitButton>}

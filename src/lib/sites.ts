@@ -134,6 +134,8 @@ export interface SiteView {
   address: string | null
   city: string | null
   state: string | null
+  /** The site's ZIP or postal code, null on a site saved before the box (fix list A5). */
+  postalCode: string | null
   country: string
   timeZone: string | null
   region: string | null
@@ -170,7 +172,7 @@ export async function sitesOf(companyId: string, siteIds?: readonly string[]): P
     where,
     orderBy: [{ region: 'asc' }, { isPrimary: 'desc' }, { name: 'asc' }],
     select: {
-      id: true, name: true, address: true, city: true, state: true, country: true, timeZone: true, region: true,
+      id: true, name: true, address: true, city: true, state: true, postalCode: true, country: true, timeZone: true, region: true,
       isPrimary: true, isRemote: true, source: true, recordedAt: true, recordedBy: { select: { name: true } },
       suppliers: { select: { supplierCompanyId: true, source: true, supplierCompany: { select: { name: true } } } },
       hiringManagers: { select: { personId: true, person: { select: { name: true } } } },
@@ -214,7 +216,7 @@ export async function sitesOf(companyId: string, siteIds?: readonly string[]): P
     })
     const verdict = siteSuppliersFrom({ named: r.suppliers.map((s) => s.supplierCompanyId), approved: approvedIds })
     return {
-      id: r.id, name: r.name, address: r.address, city: r.city, state: r.state, country: r.country,
+      id: r.id, name: r.name, address: r.address, city: r.city, state: r.state, postalCode: r.postalCode, country: r.country,
       timeZone: r.timeZone, region: r.region, isPrimary: r.isPrimary, isRemote: r.isRemote,
       source: r.source as SiteSource, recordedBy: r.recordedBy?.name ?? null, recordedAt: r.recordedAt,
       contractors: onSite.length, placements: myLines.length, managers,

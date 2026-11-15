@@ -5,6 +5,8 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { dealingsWithSides } from '../../dealings'
 import { isMine } from '@/lib/counterparty'
 import { recordRefusal } from '@/lib/access-log'
+import { countryFromTyped } from '@/lib/setup-steps'
+import { postalFromTyped } from '@/lib/site-rules'
 
 /**
  * GET /api/companies/:id/locations
@@ -83,6 +85,7 @@ export async function GET(
         address: loc.address,
         city: loc.city,
         state: loc.state,
+        postalCode: loc.postalCode,
         country: loc.country,
         isRemote: loc.isRemote,
         isPrimary: loc.isPrimary,
@@ -97,7 +100,8 @@ export async function GET(
  * Add a work location — to the caller's own company only, by a seat that
  * manages its settings. Settings uses /api/settings/locations; this is
  * the same act by another address, so it asks the same desk.
- * Body: { name, address?, city?, state?, country?, isRemote?, isPrimary? }
+ * Body: { name, address?, city?, state?, postalCode?, country?, isRemote?, isPrimary? }
+ * Country and ZIP are read the way Settings → Sites reads them (fix list A5).
  */
 export async function POST(
   request: NextRequest,
@@ -127,13 +131,22 @@ export async function POST(
   }
 
   const body = await request.json().catch(() => ({}))
-  const { name, address, city, state, country, isRemote, isPrimary } = body ?? {}
+  const { name, address, city, state, country, postalCode, isRemote, isPrimary } = body ?? {}
 
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'Give the site a name, like "Head office" or "Tualatin plant".', field: 'name' } },
       { status: 422 }
     )
+  }
+
+  const typedCountry = countryFromTyped(country)
+  if (!typedCountry.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: typedCountry.says, field: 'country' } }, { status: 422 })
+  }
+  const typedPostal = postalFromTyped(postalCode)
+  if (!typedPostal.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: typedPostal.says, field: 'postalCode' } }, { status: 422 })
   }
 
   // If setting isPrimary, unset any existing primary location
@@ -153,9 +166,10 @@ export async function POST(
       address: text(address),
       city: text(city),
       state: text(state),
+      postalCode: typedPostal.code,
       // The column has a default and is not nullable; an empty country
       // was passed as null, which is the 500 round five saw.
-      ...(text(country) ? { country: text(country)! } : {}),
+      ...(typedCountry.code ? { country: typedCountry.code } : {}),
       isRemote: isRemote === true,
       isPrimary: isPrimary === true,
     },
@@ -169,6 +183,7 @@ export async function POST(
         address: location.address,
         city: location.city,
         state: location.state,
+        postalCode: location.postalCode,
         country: location.country,
         isRemote: location.isRemote,
         isPrimary: location.isPrimary,

@@ -5,7 +5,8 @@ import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Check, ErrorState, Field, FormMessage, Input, LoadingState, PageHead, RefusedState, SubmitButton } from '@/components/ui'
-import { sourceWords, savedByWords, managerFromWords, managerLoadWords, siteShort, type SiteManager, type SiteSource } from '@/lib/site-rules'
+import { sourceWords, savedByWords, managerFromWords, managerLoadWords, siteShort, siteTimeZoneSays, NO_SITE_TIME_ZONE, type SiteManager, type SiteSource } from '@/lib/site-rules'
+import { COUNTRIES, COUNTRY_BOX_SAYS } from '@/lib/setup-steps'
 
 /**
  * Settings → Sites: where people work, who hires there, and which
@@ -30,6 +31,7 @@ interface Site {
   address: string | null
   city: string | null
   state: string | null
+  postalCode: string | null
   country: string
   timeZone: string | null
   region: string | null
@@ -59,6 +61,28 @@ const DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', '
 const NO_REGION = 'No region'
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 const listWords = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+
+/**
+ * The names a Country box offers as it is typed in. The box still takes
+ * any two-letter code; the route reads a name as its code (fix list A5).
+ */
+function CountryNames() {
+  return (
+    <datalist id="site-countries">
+      {COUNTRIES.map((c) => <option key={c.code} value={c.name} />)}
+    </datalist>
+  )
+}
+
+/** A refusal from the route, kept with the box it names so it lands beside that box. */
+async function sendSite(url: string, method: string, body: unknown): Promise<void> {
+  const res = await fetch(url, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  if (res.ok) return
+  const j = await res.json().catch(() => null)
+  const e: any = new Error(j?.error?.message ?? `That did not go through (${res.status}).`)
+  e.field = j?.error?.field ?? null
+  throw e
+}
 
 export default function SitesPage() {
   const eyebrow = usePageSection('/dashboard/settings/sites')
@@ -106,7 +130,7 @@ export default function SitesPage() {
   const columns: Column<Site>[] = useMemo(() => [
     { key: 'name', label: 'Site', render: (s) => <span className="text-etyme-ink">{s.name}{s.isPrimary && <span className="ml-2 text-[11px] text-etyme-faint">primary</span>}</span>, sortValue: (s) => s.name },
     { key: 'country', label: 'Country', render: (s) => <span className="text-etyme-muted">{s.country}</span> },
-    { key: 'timeZone', label: 'Time zone', render: (s) => <span className="text-etyme-muted">{s.timeZone ?? 'The company’s'}</span>, hideOnMobile: true },
+    { key: 'timeZone', label: 'Time zone', render: (s) => <span className="text-etyme-muted">{s.timeZone ?? NO_SITE_TIME_ZONE}</span>, hideOnMobile: true },
     { key: 'managers', label: 'Hiring managers', render: (s) => <span>{s.managers.map((m) => m.name).join(', ') || <span className="text-etyme-faint">Nobody yet</span>}</span>, sortValue: (s) => s.managers[0]?.name ?? '', exportValue: (s) => s.managers.map((m) => m.name).join('; ') },
     {
       key: 'suppliers', label: 'Suppliers who may fill jobs here',
@@ -135,7 +159,7 @@ export default function SitesPage() {
       <PageHead
         eyebrow={eyebrow}
         title="Sites"
-        subtitle="Where people work. A job is posted at a site, a placement is at a site, and days off and the time zone follow the site."
+        subtitle="Where people work. A job is posted at a site, a placement is at a site, and days off follow the site."
       />
       <p className="text-[12.5px] text-etyme-muted tabular-nums">
         {plural(total, 'site')}{groups.length > 1 ? `, ${plural(groups.length, 'region')}` : ''}
@@ -199,26 +223,33 @@ export default function SitesPage() {
 }
 
 function AddSite({ region, onDone }: { region: string | null; onDone: () => void }) {
-  const [f, setF] = useState({ name: '', city: '', state: '', country: 'US', timeZone: '', region: region ?? '' })
+  const [f, setF] = useState({ name: '', address: '', city: '', state: '', postalCode: '', country: 'US', timeZone: '', region: region ?? '' })
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<string | null>(null)
+  const [fieldError, setFieldError] = useState<Record<string, string>>({})
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value })
   async function save() {
-    setBusy(true); setSaid(null)
+    setBusy(true); setSaid(null); setFieldError({})
     try {
-      await readJson(await fetch('/api/settings/locations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(f) }))
+      await sendSite('/api/settings/locations', 'POST', f)
       onDone()
-    } catch (e: any) { setSaid(e.message) } finally { setBusy(false) }
+    } catch (e: any) {
+      if (e.field) setFieldError({ [e.field]: e.message })
+      else setSaid(e.message)
+    } finally { setBusy(false) }
   }
   return (
     <form className="panel grid gap-3 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); save() }}>
-      <Field label="Name"><Input value={f.name} onChange={set('name')} placeholder="Dayton, Ohio" /></Field>
+      <Field label="Name"><Input value={f.name} onChange={set('name')} placeholder="Head office" /></Field>
+      <Field label="Street" className="sm:col-span-2"><Input value={f.address} onChange={set('address')} placeholder="Street and number" /></Field>
       <Field label="City"><Input value={f.city} onChange={set('city')} /></Field>
       <Field label="State or province"><Input value={f.state} onChange={set('state')} /></Field>
-      <Field label="Country (two letters)"><Input value={f.country} onChange={set('country')} maxLength={2} /></Field>
-      <Field label="Time zone"><Input value={f.timeZone} onChange={set('timeZone')} placeholder="America/New_York" /></Field>
+      <Field label="ZIP or postal code" error={fieldError.postalCode}><Input value={f.postalCode} onChange={set('postalCode')} autoComplete="postal-code" /></Field>
+      <Field label="Country" help={COUNTRY_BOX_SAYS} error={fieldError.country}><Input value={f.country} onChange={set('country')} list="site-countries" autoComplete="country" /></Field>
+      <Field label="Time zone" help={siteTimeZoneSays(false)} error={fieldError.timeZone}><Input value={f.timeZone} onChange={set('timeZone')} placeholder="America/New_York" /></Field>
       <Field label="Region"><Input value={f.region} onChange={set('region')} disabled={Boolean(region)} /></Field>
-      <div className="sm:col-span-3 flex items-center gap-3">
+      <CountryNames />
+      <div className="sm:col-span-3 flex flex-wrap items-center gap-3">
         <SubmitButton pending={busy} pendingLabel="Saving…" disabled={!f.name.trim()} whyDisabled="Name the site first.">Add the site</SubmitButton>
         {said && <p className="text-[12.5px] text-etyme-attention">{said}</p>}
       </div>
@@ -235,9 +266,10 @@ function OneSite({ site, read, onBack, onSaved, onNext, eyebrow }: {
   eyebrow: string | null
 }) {
   const [f, setF] = useState({
-    address: site.address ?? '', city: site.city ?? '', state: site.state ?? '',
+    address: site.address ?? '', city: site.city ?? '', state: site.state ?? '', postalCode: site.postalCode ?? '',
     country: site.country, timeZone: site.timeZone ?? '', region: site.region ?? '',
   })
+  const [fieldError, setFieldError] = useState<Record<string, string>>({})
   const [ticked, setTicked] = useState<string[]>(site.everyApproved ? [] : site.suppliers.filter((s) => !s.lapsed).map((s) => s.id))
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<string | null>(null)
@@ -251,12 +283,18 @@ function OneSite({ site, read, onBack, onSaved, onNext, eyebrow }: {
   const daysOff = read.daysOff.map((d) => DAY[d])
 
   async function save() {
-    setBusy(true); setSaid(null); setRefusal(null)
+    setBusy(true); setSaid(null); setRefusal(null); setFieldError({})
     try {
       if (read.mayEdit) {
-        await readJson(await fetch('/api/settings/locations', {
-          method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: site.id, ...f }),
-        }))
+        // The country, ZIP and time zone go only where they changed, so a
+        // site saved before these were checked reads and saves as it did.
+        const { country, postalCode, timeZone, ...rest } = f
+        await sendSite('/api/settings/locations', 'PATCH', {
+          id: site.id, ...rest,
+          ...(country !== site.country ? { country } : {}),
+          ...(postalCode !== (site.postalCode ?? '') ? { postalCode } : {}),
+          ...(timeZone !== (site.timeZone ?? '') ? { timeZone } : {}),
+        })
       }
       const res = await fetch(`/api/settings/locations/${site.id}/suppliers`, {
         method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ supplierIds: ticked }),
@@ -268,7 +306,10 @@ function OneSite({ site, read, onBack, onSaved, onNext, eyebrow }: {
       }
       setSaid('Saved.')
       onSaved()
-    } catch (e: any) { setRefusal(e.message) } finally { setBusy(false) }
+    } catch (e: any) {
+      if (e.field) setFieldError({ [e.field]: e.message })
+      else setRefusal(e.message)
+    } finally { setBusy(false) }
   }
 
   // Make primary and Remove, which the Locations tab carried until it
@@ -313,9 +354,11 @@ function OneSite({ site, read, onBack, onSaved, onNext, eyebrow }: {
           <Field label="Street"><Input value={f.address} onChange={set('address')} disabled={!read.mayEdit} placeholder="Not found. Type it." /></Field>
           <Field label="City"><Input value={f.city} onChange={set('city')} disabled={!read.mayEdit} /></Field>
           <Field label="State or province"><Input value={f.state} onChange={set('state')} disabled={!read.mayEdit} /></Field>
-          <Field label="Country"><Input value={f.country} onChange={set('country')} disabled={!read.mayEdit} maxLength={2} /></Field>
-          <Field label="Time zone"><Input value={f.timeZone} onChange={set('timeZone')} disabled={!read.mayEdit} placeholder="The company’s" /></Field>
+          <Field label="ZIP or postal code" error={fieldError.postalCode}><Input value={f.postalCode} onChange={set('postalCode')} disabled={!read.mayEdit} autoComplete="postal-code" /></Field>
+          <Field label="Country" help={COUNTRY_BOX_SAYS} error={fieldError.country}><Input value={f.country} onChange={set('country')} disabled={!read.mayEdit} list="site-countries" autoComplete="country" /></Field>
+          <Field label="Time zone" help={siteTimeZoneSays(site.isPrimary)} error={fieldError.timeZone}><Input value={f.timeZone} onChange={set('timeZone')} disabled={!read.mayEdit} placeholder={NO_SITE_TIME_ZONE} /></Field>
           <Field label="Region"><Input value={f.region} onChange={set('region')} disabled={!read.mayEdit || Boolean(read.region)} /></Field>
+          <CountryNames />
         </div>
         <p className="text-[11.5px] text-etyme-faint">
           {sourceWords(site.source)}.{f.region && read.regionalManagers[f.region] ? ` ${read.regionalManagers[f.region]} reads this site.` : ''}

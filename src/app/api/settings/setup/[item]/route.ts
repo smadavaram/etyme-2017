@@ -14,7 +14,8 @@ import {
   ENTITY_TYPES, DUTIES, plainYear, plainWebsite, plainEin, plainEmail, lastFour, checkItemAnswer,
   type ItemKey, type AnswerSource, type Duty,
 } from '@/lib/setup-checklist'
-import { knownCurrency } from '@/lib/setup-steps'
+import { knownCurrency, countryFromTyped } from '@/lib/setup-steps'
+import { timeZoneFromTyped, postalFromTyped } from '@/lib/site-rules'
 import { defaultRequiredSets, PARTIES_OF } from '@/lib/document-stages/required-sets'
 import { CANNOT_BE_WAIVED, mayWaive, owedByFor, PARTY_OF_SHAPE, type LineShape } from '@/lib/document-requirements'
 import { builtInType } from '@/lib/document-type'
@@ -84,7 +85,7 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
     const year = str(body.establishedYear) ? plainYear(body.establishedYear) : null
     if (str(body.establishedYear) && !year) return { ok: false, says: 'Type the year the company was established, as four digits.' }
     const website = str(body.website) ? plainWebsite(body.website) : null
-    if (str(body.website) && !website) return { ok: false, says: 'Type the website as an address, like tapin.com.' }
+    if (str(body.website) && !website) return { ok: false, says: 'Type the website as an address, like company.example.' }
     const taxId = str(body.taxId) ? (plainEin(body.taxId) ?? str(body.taxId, 40)) : null
     const currency = str(body.currency) ? knownCurrency(body.currency) : null
     if (str(body.currency) && !currency) return { ok: false, says: 'Type the currency as three letters, like USD.' }
@@ -92,7 +93,15 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
       where: { id: c.id },
       select: { legalName: true, dba: true, entityType: true, establishedYear: true, website: true, phone: true, taxId: true, currency: true },
     })
-    const primaryBefore = await prisma.companyLocation.findFirst({ where: { companyId: c.id, isPrimary: true }, select: { timeZone: true } })
+    // The Time zone box is the primary site's: read and written on the
+    // same site the screen read it from (fix list G5). A zone nothing
+    // knows is refused in a sentence; an empty box clears it; a company
+    // with no site at all is told where to add one, never dropped silently.
+    const tzSite = await prisma.companyLocation.findFirst({ where: { companyId: c.id }, orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }], select: { id: true, timeZone: true } })
+    const typedZone = 'timeZone' in body ? timeZoneFromTyped(body.timeZone) : null
+    if (typedZone && !typedZone.ok) return { ok: false, says: typedZone.says }
+    const tz = typedZone?.ok ? typedZone.zone : null
+    if (tz && !tzSite) return { ok: false, says: 'A time zone belongs to a site, and this company has none yet. Add one under Settings → Sites first.', href: '/dashboard/settings/sites' }
     await prisma.company.update({
       where: { id: c.id },
       data: {
@@ -100,13 +109,11 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
         website, phone: str(body.phone, 40) || null, taxId, ...(currency ? { currency } : {}),
       },
     })
-    const tz = str(body.timeZone, 60)
-    if (tz) {
-      const primary = await prisma.companyLocation.findFirst({ where: { companyId: c.id, isPrimary: true }, select: { id: true } })
-      if (primary) await prisma.companyLocation.update({ where: { id: primary.id }, data: { timeZone: tz } })
+    if (typedZone && tzSite && (tzSite.timeZone ?? null) !== tz) {
+      await prisma.companyLocation.update({ where: { id: tzSite.id }, data: { timeZone: tz } })
     }
     const after: Record<string, unknown> = { legalName, dba: str(body.dba) || null, entityType: entityType || null, establishedYear: year, website, phone: str(body.phone, 40) || null, taxId, currency: currency ?? before.currency, timeZone: tz || null }
-    const was: Record<string, unknown> = { ...before, timeZone: primaryBefore?.timeZone ?? null }
+    const was: Record<string, unknown> = { ...before, timeZone: tzSite?.timeZone ?? null }
     const fields = ['legalName', 'dba', 'entityType', 'establishedYear', 'website', 'phone', 'taxId', 'currency', 'timeZone']
       .filter((f) => str(body[f]))
     return { ok: true, answers: await keepWhereUnchanged(c.id, fields.map((f) => sourceOf(body, f)), (f) => String(was[f] ?? '') === String(after[f] ?? '')) }
@@ -114,11 +121,15 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
 
   // ── Addresses ──────────────────────────────────────────────────────
   async ADDRESSES(c, by, body) {
-    const legal = address(body.legal)
+    const legalRead = address(body.legal)
+    if (!legalRead.ok) return { ok: false, says: `Legal address: ${legalRead.says}` }
+    const legal = legalRead.address
     if (!legal.street || !legal.city) return { ok: false, says: 'Type the street and the city of your legal address, or press Skip for now.' }
     const same = body.billingSameAsLegal !== false
-    const billing = address(body.billing)
-    if (!same && (!billing.street || !billing.city)) return { ok: false, says: 'Type the street and the city of your billing address, or tick “Same as the legal address”.' }
+    const billingRead = same ? null : address(body.billing)
+    if (billingRead && !billingRead.ok) return { ok: false, says: `Billing address: ${billingRead.says}` }
+    const billing = billingRead?.ok ? billingRead.address : null
+    if (!same && (!billing?.street || !billing?.city)) return { ok: false, says: 'Type the street and the city of your billing address, or tick “Same as the legal address”.' }
     const at = new Date()
     await prisma.companyAddress.upsert({
       where: { companyId_kind: { companyId: c.id, kind: 'LEGAL' } },
@@ -128,8 +139,8 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
     if (!same) {
       await prisma.companyAddress.upsert({
         where: { companyId_kind: { companyId: c.id, kind: 'BILLING' } },
-        create: { companyId: c.id, kind: 'BILLING', ...billing, recordedById: by, recordedAt: at },
-        update: { ...billing, recordedById: by, recordedAt: at },
+        create: { companyId: c.id, kind: 'BILLING', ...billing!, recordedById: by, recordedAt: at },
+        update: { ...billing!, recordedById: by, recordedAt: at },
       })
     }
     await prisma.company.update({ where: { id: c.id }, data: { billingSameAsLegal: same } })
@@ -163,7 +174,7 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
       rows.push({ duty: d.duty, personId: invited?.personId ?? null, name, email, invitedAt: invited ? new Date() : null })
     }
     const accounts = str(body.accountsEmail) ? plainEmail(body.accountsEmail) : null
-    if (str(body.accountsEmail) && !accounts) return { ok: false, says: 'Type the accounts email as an address, like accounts@tapin.com.' }
+    if (str(body.accountsEmail) && !accounts) return { ok: false, says: 'Type the accounts email as an address, like accounts@company.example.' }
     const at = new Date()
     for (const r of rows) {
       await prisma.companyInCharge.upsert({
@@ -337,12 +348,26 @@ async function keepWhereUnchanged(companyId: string, answers: AnswerToRecord[], 
   })
 }
 
-function address(a: any) {
+/**
+ * A legal or billing address as typed. The country is a code or a name and
+ * the ZIP is kept as typed, each refused in a sentence rather than cut
+ * (fix list A5, 2026-11-15); an empty country is the United States, as before.
+ */
+function address(a: any):
+  | { ok: true; address: { street: string | null; city: string | null; state: string | null; postalCode: string | null; country: string } }
+  | { ok: false; says: string } {
+  const country = countryFromTyped(a?.country)
+  if (!country.ok) return { ok: false, says: country.says }
+  const postal = postalFromTyped(a?.postalCode)
+  if (!postal.ok) return { ok: false, says: postal.says }
   return {
-    street: str(a?.street) || null,
-    city: str(a?.city, 120) || null,
-    state: str(a?.state, 60) || null,
-    postalCode: str(a?.postalCode, 20) || null,
-    country: (str(a?.country, 2) || 'US').toUpperCase(),
+    ok: true,
+    address: {
+      street: str(a?.street) || null,
+      city: str(a?.city, 120) || null,
+      state: str(a?.state, 60) || null,
+      postalCode: postal.code,
+      country: country.code ?? 'US',
+    },
   }
 }

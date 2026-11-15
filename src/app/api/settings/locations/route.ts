@@ -5,7 +5,8 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { regionScopeFor, type RegionScope } from '@/lib/region-scope'
 import { sitesOf, placementsAt } from '@/lib/sites'
 import { daysOffFor } from '@/lib/days-off'
-import { notYourSites, outsideYourRegion, placementsStillAt, pastPlacementsAt } from '@/lib/site-rules'
+import { notYourSites, outsideYourRegion, placementsStillAt, pastPlacementsAt, postalFromTyped, timeZoneFromTyped } from '@/lib/site-rules'
+import { countryFromTyped } from '@/lib/setup-steps'
 
 /**
  * GET    /api/settings/locations      — every site, with its managers, suppliers and contractors
@@ -70,6 +71,38 @@ async function writer(request: NextRequest) {
 
 const text = (v: unknown) => (v == null || String(v).trim() === '' ? null : String(v).trim())
 
+const invalid = (field: string, message: string) =>
+  NextResponse.json({ error: { code: 'VALIDATION', message, field } }, { status: 422 })
+
+/**
+ * The address boxes a site's form sends, read before anything is written
+ * (fix list A5, 2026-11-15). Country is a code or a name, never cut; a
+ * ZIP is kept as typed; a time zone is a name the clock knows. Each
+ * refusal is one sentence naming its box. A box the body does not carry
+ * is left as it stands.
+ */
+function addressOf(body: any):
+  | { ok: true; country?: string | null; postalCode?: string | null; timeZone?: string | null }
+  | { ok: false; error: NextResponse } {
+  const out: { country?: string | null; postalCode?: string | null; timeZone?: string | null } = {}
+  if ('country' in body) {
+    const c = countryFromTyped(body.country)
+    if (!c.ok) return { ok: false, error: invalid('country', c.says) }
+    out.country = c.code
+  }
+  if ('postalCode' in body) {
+    const z = postalFromTyped(body.postalCode)
+    if (!z.ok) return { ok: false, error: invalid('postalCode', z.says) }
+    out.postalCode = z.code
+  }
+  if ('timeZone' in body) {
+    const t = timeZoneFromTyped(body.timeZone)
+    if (!t.ok) return { ok: false, error: invalid('timeZone', t.says) }
+    out.timeZone = t.zone
+  }
+  return { ok: true, ...out }
+}
+
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
   if (error) return error
@@ -122,6 +155,9 @@ export async function POST(request: NextRequest) {
     return refuse('OUTSIDE_YOUR_REGION', outsideYourRegion(name, text(body.region), scope.label))
   }
 
+  const typed = addressOf(body)
+  if (!typed.ok) return typed.error
+
   const makePrimary = Boolean(body.isPrimary)
   // Exactly one primary. Two would make "the default site" a question
   // with two answers, which every caller would resolve differently.
@@ -136,8 +172,10 @@ export async function POST(request: NextRequest) {
       address: text(body.address),
       city: text(body.city),
       state: text(body.state),
-      country: String(body.country ?? 'US').toUpperCase().slice(0, 2),
-      timeZone: text(body.timeZone),
+      postalCode: typed.postalCode ?? null,
+      // A country left empty is the United States, as it always was.
+      country: typed.country ?? 'US',
+      timeZone: typed.timeZone ?? null,
       region,
       isRemote: Boolean(body.isRemote),
       isPrimary: makePrimary,
@@ -164,6 +202,9 @@ export async function PATCH(request: NextRequest) {
     return refuse('OUTSIDE_YOUR_REGION', outsideYourRegion(site!.name, text(body.region), scope.label))
   }
 
+  const typed = addressOf(body)
+  if (!typed.ok) return typed.error
+
   if (body.isPrimary === true) {
     await prisma.companyLocation.updateMany({ where: { companyId: caller!.company!.id, isPrimary: true }, data: { isPrimary: false } })
   }
@@ -175,8 +216,10 @@ export async function PATCH(request: NextRequest) {
       ...('address' in body ? { address: text(body.address) } : {}),
       ...('city' in body ? { city: text(body.city) } : {}),
       ...('state' in body ? { state: text(body.state) } : {}),
-      ...(typeof body.country === 'string' ? { country: body.country.toUpperCase().slice(0, 2) } : {}),
-      ...('timeZone' in body ? { timeZone: text(body.timeZone) } : {}),
+      // An empty country keeps the one on the record: the column always holds one.
+      ...(typed.country ? { country: typed.country } : {}),
+      ...('postalCode' in typed ? { postalCode: typed.postalCode } : {}),
+      ...('timeZone' in typed ? { timeZone: typed.timeZone } : {}),
       ...('region' in body ? { region: text(body.region) } : {}),
       ...('isRemote' in body ? { isRemote: Boolean(body.isRemote) } : {}),
       ...('isPrimary' in body ? { isPrimary: Boolean(body.isPrimary) } : {}),

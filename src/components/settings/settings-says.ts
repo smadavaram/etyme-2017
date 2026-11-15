@@ -107,3 +107,35 @@ export const PASTE_SUPPLIERS_LINK = 'pasting them on Suppliers'
 /** Said whole where the reader may not paste them: the role, with no link. */
 export const PASTE_SUPPLIERS_WHO = 'by whoever manages who you trade with'
 export const NO_COMPANIES_IMPORT = 'A Companies import is not built yet.'
+
+// ── Settings → Sign-in (fix list G2, 2026-11-15) ─────────────────────
+
+/** Where a domain is proved: the Your domain screen, under Settings → Company. */
+export const PROVE_DOMAIN_HREF = '/dashboard/settings/domain'
+export const NO_VERIFIED_DOMAIN = 'No verified domain yet. “Your company’s directory only” needs one.'
+export const PROVE_DOMAIN_LINK = 'Prove your domain'
+
+/** Said where a SAML directory was saved before SAML was taken off the list. */
+export const SAML_NOT_AVAILABLE =
+  'SAML sign-in is not available yet, so nobody can sign in through this directory. Choose OpenID Connect, Microsoft Entra ID or Google Workspace instead.'
+
+/**
+ * The SCIM panel's line. The address is given only where it can be used:
+ * once a token exists, and only on a deployment with a lasting public
+ * address (`fixedAppUrl`). Otherwise the line says what to do first, or
+ * that nothing can be done here yet.
+ */
+export function scimSays({ base, hasToken, on }: { base: string | null; hasToken: boolean; on: boolean }): string {
+  const state = on ? 'On.' : 'Off: turn it on above.'
+  if (!base) return `This deployment has no lasting public address yet, so no SCIM address can be given here. ${state}`
+  if (!hasToken) return `Your directory adds and removes people by SCIM. Issue a token to get the address to give it. ${state}`
+  return `Your directory adds and removes people at ${base}. ${state}`
+}
+
+/** Under the SCIM panel where no token is issued, for the Owner who issues one, and for an Admin who reads. */
+export function noScimTokenSays(mayIssue: boolean, hasBase: boolean): string {
+  if (!hasBase) return 'No token issued. A token can be issued once this deployment has a lasting public address.'
+  return mayIssue
+    ? 'No token issued. Press Issue a token, then give the token and the address to your directory.'
+    : 'No token issued. An Owner issues one on this page.'
+}

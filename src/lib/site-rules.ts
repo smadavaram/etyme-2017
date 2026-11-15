@@ -29,6 +29,7 @@
 
 import { rank } from '@/lib/supplier-tier'
 import { formatDay } from '@/lib/format-date'
+import { isTimeZone } from '@/lib/when'
 
 // ── Where an answer came from ────────────────────────────────────────
 
@@ -78,6 +79,61 @@ export function approvedFrom(input: {
 export function siteShort(site: { name: string; city?: string | null }): string {
   return site.city?.trim() || site.name
 }
+
+// ── A site's address and time zone (fix list A5, G5, 2026-11-15) ──────
+
+/** The longest ZIP or postal code kept. Longer is refused, never cut. */
+export const POSTAL_CODE_MAX = 20
+
+export const POSTAL_CODE_TOO_LONG = `A ZIP or postal code is at most ${POSTAL_CODE_MAX} characters. Check what was typed.`
+
+/** A typed postal code: null where empty, refused where too long. */
+export function postalFromTyped(typed: unknown): { ok: true; code: string | null } | { ok: false; says: string } {
+  const t = String(typed ?? '').trim()
+  if (!t) return { ok: true, code: null }
+  if (t.length > POSTAL_CODE_MAX) return { ok: false, says: POSTAL_CODE_TOO_LONG }
+  return { ok: true, code: t }
+}
+
+/**
+ * Where a site is, in one line, the way an address is said: "Dayton,
+ * OH 45402, US". The street, where it is wanted, is the caller's own
+ * line above it. A site saved before the ZIP box reads as it did.
+ */
+export function sitePlace(site: { city?: string | null; state?: string | null; postalCode?: string | null; country?: string | null }): string {
+  const stateZip = [site.state, site.postalCode].map((x) => x?.trim()).filter(Boolean).join(' ')
+  return [site.city?.trim(), stateZip, site.country?.trim()].filter(Boolean).join(', ')
+}
+
+/**
+ * A time zone as a person types it, checked against the names the
+ * browser and the server both know ("America/Chicago"). Team structure
+ * draws a site's local time from it, and a name nothing knows would
+ * break that page, so it is refused in a sentence. Empty is null.
+ */
+export function timeZoneFromTyped(typed: unknown): { ok: true; zone: string | null } | { ok: false; says: string } {
+  const t = String(typed ?? '').trim()
+  if (!t) return { ok: true, zone: null }
+  if (isTimeZone(t)) return { ok: true, zone: t }
+  return { ok: false, says: `“${t.slice(0, 60)}” is not a time zone name. Type one like America/Chicago or Europe/London.` }
+}
+
+/** What a site with no time zone of its own reads. There is no company time zone to fall back to. */
+export const NO_SITE_TIME_ZONE = 'Not set'
+
+/**
+ * The line under a site's Time zone box: what reads it, what does not,
+ * and where else it is typed. True for every kind of company: only Team
+ * structure reads a site's zone, to show its local time; hours due,
+ * approval days and pay dates are counted in whole days and do not
+ * follow it (cycle-generator, pay-hours).
+ */
+export function siteTimeZoneSays(isPrimary: boolean): string {
+  return `Team structure shows this site’s local time from it. It does not change when hours are due or when pay runs.${isPrimary ? ' This is your primary site, so Setup → Your company changes the same box.' : ''}`
+}
+
+/** The line under Setup → Your company's Time zone box, which is the primary site's. */
+export const SETUP_TIME_ZONE_SAYS = 'Your primary site’s. Each site can have its own, under Settings → Sites. Team structure shows local time from it. It does not change when hours are due or when pay runs.'
 
 /** The refusal under the supplier ticks when a firm is not approved for the company. */
 export function notApprovedForCompany(firm: string, client: string): string {

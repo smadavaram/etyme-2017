@@ -15,7 +15,7 @@ import { checklistOf, setupReminderFor } from '@/lib/setup-checklist-state'
 import { fromWorkEmail } from '@/lib/setup-fill'
 import { defaultRequiredSets, type Party } from '@/lib/document-stages/required-sets'
 import { asksPayroll, noPayrollLine, countryName } from '@/lib/setup-steps'
-import { skipStops as siteSkipStops, confirmAllWords } from '@/lib/site-rules'
+import { skipStops as siteSkipStops, confirmAllWords, sitePlace } from '@/lib/site-rules'
 import { verificationRecord } from '@/lib/domains-owned'
 import { teamsLinkStanding } from '@/lib/notify/teams-link'
 import { intakeLive } from '@/lib/email-intake/live'
@@ -44,7 +44,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
     prisma.companyAddress.findMany({ where: { companyId } }),
     prisma.companyLocation.findMany({
       where: { companyId }, orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
-      select: { id: true, name: true, address: true, city: true, state: true, country: true, timeZone: true, isPrimary: true },
+      select: { id: true, name: true, address: true, city: true, state: true, postalCode: true, country: true, timeZone: true, isPrimary: true },
     }),
     prisma.companyInCharge.findMany({ where: { companyId } }),
     prisma.context.findMany({
@@ -92,6 +92,10 @@ export async function readSetup(companyId: string, reader: { personId: string; e
   for (const a of answers) {
     sources[a.field] = sourceWords({ source: a.source as AnswerSource, quote: a.quote, by: nameOf(a.answeredById), at: a.answeredAt, paper: 'W-9', field: a.field })
   }
+  // The site Setup → Your company's Time zone box reads and writes: the
+  // primary, or the first in this order where none is primary. The save
+  // route picks the same one (timeZoneSiteOf), so the box never reads one
+  // site and writes another (fix list G5).
   const primary = sites.find((s) => s.isPrimary) ?? sites[0] ?? null
   const legal = addresses.find((a) => a.kind === 'LEGAL') ?? null
   const billing = addresses.find((a) => a.kind === 'BILLING') ?? null
@@ -159,7 +163,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
         legal: plain(legal) ?? { street: '', city: '', state: primary?.state ?? '', postalCode: '', country: c.country ?? 'US' },
         billing: plain(billing) ?? { street: '', city: '', state: '', postalCode: '', country: c.country ?? 'US' },
         billingSameAsLegal: c.billingSameAsLegal,
-        sites: sites.map((s) => ({ id: s.id, name: s.name, place: [s.city, s.state, s.country].filter(Boolean).join(', '), isPrimary: s.isPrimary })),
+        sites: sites.map((s) => ({ id: s.id, name: s.name, place: sitePlace(s), street: s.address ?? null, isPrimary: s.isPrimary })),
         sources,
       },
       SITES: {

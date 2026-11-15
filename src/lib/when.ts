@@ -60,6 +60,20 @@ export function momentFor(at: Date, timezone: string | null | undefined): string
   }
 }
 
+/**
+ * Whether a typed name is a time zone the clock knows ("America/Chicago").
+ * A site's box is checked with it before it is kept, because a name
+ * nothing knows would stop a local time being drawn (fix list G5).
+ */
+export function isTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone })
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Whether we actually know, so a caller can offer to ask. */
 export function knowsWhere(timezone: string | null | undefined): boolean {
   return Boolean(timezone && timezone.trim())

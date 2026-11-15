@@ -12,6 +12,7 @@ import { kindWord } from '@/lib/parties'
 import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, kindChoice, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, countedTwiceSays, noPositionTile, rowsUnderFilter, relationshipForKind, type Position } from '@/lib/counterparty'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import { ADD_ANYWAY } from '@/lib/contacts'
+import { sitePlace } from '@/lib/site-rules'
 import { Chip, Field, FilterChips, FormMessage, Input, LoadingState, PageHead, RefusedState, Select, Stat, SubmitButton, type ChipTone } from '@/components/ui'
 
 /**
@@ -352,6 +353,7 @@ interface Location {
   address: string | null
   city: string | null
   state: string | null
+  postalCode?: string | null
   country: string
   isRemote: boolean
   isPrimary: boolean
@@ -1415,10 +1417,8 @@ function CompanyDrawer({ company, onClose, onChanged, onAsked }: { company: Comp
                         )}
                       </div>
                     </div>
-                    {(loc.city || loc.state || loc.country) && (
-                      <p className="text-[11px] text-etyme-muted mt-1">
-                        {[loc.city, loc.state, loc.country].filter(Boolean).join(', ')}
-                      </p>
+                    {sitePlace(loc) && (
+                      <p className="text-[11px] text-etyme-muted mt-1">{sitePlace(loc)}</p>
                     )}
                     {loc.address && (
                       <p className="text-[11px] text-etyme-faint mt-0.5">{loc.address}</p>

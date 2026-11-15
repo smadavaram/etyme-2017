@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { ownerOnlyLineAt } from '@/lib/owner-proof'
-import { appUrl } from '@/lib/app-url'
+import { fixedAppUrl } from '@/lib/app-url'
 import { companyPolicy } from '@/lib/identity/read'
 import { modeSays } from '@/lib/identity/policy'
 import { joinSentenceFor } from '@/lib/join-words'
@@ -77,7 +77,9 @@ export async function GET(request: NextRequest) {
         subjectClaim: provider.subjectClaim, emailClaim: provider.emailClaim, groupsClaim: provider.groupsClaim,
         enabled: provider.enabled, isMock: isMockIssuer(provider.issuer), updatedAt: provider.updatedAt,
       } : null,
-      scimBase: `${appUrl()}/scim/v2`,
+      // Only a lasting address: a preview's one-off host stops answering at
+      // the next deploy (fix list G2). The page gives it once a token exists.
+      scimBase: fixedAppUrl() ? `${fixedAppUrl()}/scim/v2` : null,
       scimToken: token,
       groups: groups.map((g) => ({ id: g.id, groupId: g.groupId, groupName: g.groupName, role: g.role.name, roleId: g.role.id, setAt: g.setAt })),
       roles,

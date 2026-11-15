@@ -404,8 +404,12 @@ async function writeRows(
           const data = {
             city: v.city ?? null,
             state: v.state ?? null,
-            country: String(v.country ?? 'US').toUpperCase().slice(0, 2),
+            // Read as its code when the sheet was parsed; a row it could not read was refused there.
+            country: v.country ?? 'US',
             address: v.address ?? null,
+            // A ZIP is written only where the row has one, so a sheet with
+            // no ZIP column never clears one a person typed on Sites.
+            ...(v.postalCode ? { postalCode: v.postalCode } : {}),
             // Where the site came from, said on Settings → Sites (2026-10-28).
             source: 'IMPORT' as const,
             recordedById: byId,

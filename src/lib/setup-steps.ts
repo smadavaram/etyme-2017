@@ -325,6 +325,40 @@ export function knownCountry(code: unknown): string | null {
   return COUNTRIES.some((x) => x.code === c) ? c : null
 }
 
+/**
+ * A country as a person types it into an address box, read as the
+ * two-letter code the record keeps (fix list A5, 2026-11-15). The box
+ * used to cut what was typed to two letters with no word, so "United
+ * States" was saved as "UN". Now a name on the list above is read as its
+ * code, any two letters are taken as a code (a site may be in a country
+ * the list does not hold), and anything else is refused in a sentence.
+ * Nothing is cut. Empty is null: the caller keeps its own default.
+ */
+const COUNTRY_ALSO_CALLED: Readonly<Record<string, string>> = {
+  'usa': 'US', 'u.s.': 'US', 'u.s.a.': 'US', 'united states of america': 'US', 'uk': 'GB', 'u.k.': 'GB',
+}
+
+export type TypedCountry = { ok: true; code: string | null } | { ok: false; says: string }
+
+export function countryFromTyped(typed: unknown): TypedCountry {
+  const t = String(typed ?? '').trim()
+  if (!t) return { ok: true, code: null }
+  // A name first, so "UK", which is two letters and no country's code, reads as GB.
+  const lower = t.toLowerCase()
+  const named = COUNTRIES.find((c) => c.name.toLowerCase() === lower)?.code ?? COUNTRY_ALSO_CALLED[lower]
+  if (named) return { ok: true, code: named }
+  if (/^[A-Za-z]{2}$/.test(t)) return { ok: true, code: t.toUpperCase() }
+  return { ok: false, says: countryNotReadSays(t) }
+}
+
+/** The refusal for a country that is neither two letters nor a name Etyme knows. */
+export function countryNotReadSays(typed: string): string {
+  return `Type the country as two letters, such as US, or as its name. “${typed.slice(0, 40)}” is neither.`
+}
+
+/** The line under every Country box, so it says what it takes. */
+export const COUNTRY_BOX_SAYS = 'Two letters, such as US, or the country’s name.'
+
 /** A three-letter currency, or null. */
 export function knownCurrency(code: unknown): string | null {
   const c = String(code ?? '').trim().toUpperCase()
