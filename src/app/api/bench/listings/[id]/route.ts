@@ -6,7 +6,7 @@ import { recordAccess } from '@/lib/access-log'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { mayChangeTier, whoSees } from '@/lib/shared-consultant'
-import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
+import { firmReadsAt, floorRefuses } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
  * PATCH /api/bench/listings/:id
@@ -206,9 +206,12 @@ async function setRates(
   if (min != null && max != null && min > max) {
     return NextResponse.json({ error: { code: 'VALIDATION', message: 'The lowest rate is above the highest. Swap them.', field: 'rateMin' } }, { status: 422 })
   }
-  const floor = listing.consultant.rateFloor
-  const name = await shownName(companyId, caller.person.id, listing.consultantId, listing.consultant.person.name)
-  if (floor != null && max != null && max < floor) {
+  // Her floor refuses a range only where this firm reads it (`floorRefuses`):
+  // before her yes it reads only what it typed, and a refusal that moved
+  // with her floor would tell it her lowest rate.
+  const read = (await firmReadsAt({ companyId, callerPersonId: caller.person.id, consultantIds: [listing.consultantId] })).get(listing.consultantId)
+  const name = read?.typed ? read.typed.name : listing.consultant.person.name
+  if (floorRefuses({ readsHerFloor: read?.onlyTyped === false, floor: listing.consultant.rateFloor, max })) {
     return NextResponse.json(
       { error: { code: 'BELOW_FLOOR', message: `The highest rate is under the least ${name} said they take an hour.`, field: 'rateMax' } },
       { status: 422 }

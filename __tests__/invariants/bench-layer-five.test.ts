@@ -3,9 +3,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   rateBoxLabel, tierShown, TIER_BEFORE_YES, alreadyAskedSays, tierBoxHiddenSays, NOBODY_FOUND_SAYS,
-  saysNobodyFound, askedOntoBenchSays, freeOnTheBench, ON_A_PLACEMENT_TODAY, readBench, type Free,
+  saysNobodyFound, askedOntoBenchSays, freeOnTheBench, NOT_COUNTED_TODAY, readBench, type Free,
 } from '@/lib/bench-filter'
-import { firmKnowsForBench, nameAskedUnder, askedLastWindow } from '@/lib/consultant-portfolio/before-her-yes'
+import { firmKnowsForBench, nameAskedUnder, askedLastWindow, floorRefuses, belowFloorSays, readsOnlyWhatItTyped } from '@/lib/consultant-portfolio/before-her-yes'
+import { resendNotSentSays } from '@/lib/consultant-portfolio/nudge-words'
+import { whyNotSent } from '@/lib/notify/check-in-rows'
 import { recordKeptBy } from '@/lib/consultant-portfolio/firm-view'
 import { whoAsksOntoBenchSays, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
 import { rolesFor } from '@/lib/company-defaults'
@@ -115,7 +117,20 @@ describe('Resend and Copy link are drawn only where the seat may send (b)', () =
     const says = whoAsksOntoBenchSays({ kind: 'VENDOR', companyName: 'Northwind Staffing' })
     expect(says).toMatch(/^Asking somebody onto the bench or sending their invitation again is done by /)
     expect(says).toContain('Recruiter')
+    expect(says).toContain(' at Northwind Staffing.')
     expect(BENCH_PAGE).toContain('{whoAsks}')
+  })
+
+  it('every sentence that says who may ask somebody onto the bench stays under twenty-five words, even at a firm with a long name', () => {
+    const longName = 'Northwind Harborline Regional Technical and Clinical Staffing Partners of the Greater Lakes Group'
+    for (const kind of ['VENDOR', 'CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP', null]) {
+      const says = whoAsksOntoBenchSays({ kind, companyName: longName })
+      expect(says).toContain(longName)
+      const sentences = says.split(/(?<=\.)\s+/).filter(Boolean)
+      for (const sentence of sentences) {
+        expect(sentence.split(/\s+/).length, sentence).toBeLessThan(25)
+      }
+    }
   })
 })
 
@@ -153,9 +168,20 @@ describe('Copy link stays the answer where no email can leave (d)', () => {
 describe('Bench’s rows read the list its tile counts (e)', () => {
   const free: Free = { state: 'NOW', on: '2026-11-15', says: 'Free now' }
 
-  it('a person the one bench list does not name reads under the placement words, so the tile and the rows agree', () => {
-    expect(freeOnTheBench(free, false)).toEqual({ state: 'PLACED', on: null, says: ON_A_PLACEMENT_TODAY })
-    expect(ON_A_PLACEMENT_TODAY).toBe('On a placement')
+  it('a person the one bench list does not name, with a placement today, reads that placement’s own words', () => {
+    const placed: Free = { state: 'PLACED', on: '2026-12-01', says: 'On a placement until Nov 30, 2026' }
+    expect(freeOnTheBench(placed, false)).toEqual(placed)
+    const open: Free = { state: 'PLACED', on: null, says: 'On a placement with no end date on record' }
+    expect(freeOnTheBench(open, false)).toEqual(open)
+  })
+
+  it('a person who said yes and is not placed anywhere never reads “On a placement” when the tile leaves her out for another reason', () => {
+    const says = freeOnTheBench(free, false)
+    expect(says?.state).toBe('NOW')
+    expect(says?.says).toBe('Free now · not counted on the bench today')
+    expect(says?.says).not.toMatch(/placement/i)
+    expect(freeOnTheBench(null, false)).toEqual({ state: 'UNKNOWN', on: null, says: NOT_COUNTED_TODAY })
+    expect(NOT_COUNTED_TODAY).toBe('Not counted on the bench today')
   })
 
   it('a person it names, or a reading that did not say, keeps the free date read off the work', () => {
@@ -253,8 +279,8 @@ describe('On the bench today with a placement to come, the row says both (13)', 
   it('a person the tile counts, with a line that starts later, reads on the bench and the day it starts', () => {
     const starts: Free = { state: 'PLACED', on: null, says: 'Starts a placement on Dec 1, 2026', startsOn: '2026-12-01' }
     expect(freeOnTheBench(starts, true)?.says).toBe('On the bench · starts a placement on Dec 1, 2026')
-    // Not counted on the bench: the row keeps the placement words alone.
-    expect(freeOnTheBench(starts, false)?.says).toBe('Starts a placement on Dec 1, 2026')
+    // Not counted on the bench, and not placed today: the day it starts, and that the tile leaves her out.
+    expect(freeOnTheBench(starts, false)?.says).toBe('Starts a placement on Dec 1, 2026 · not counted on the bench today')
   })
 })
 
@@ -262,5 +288,64 @@ describe('Candidates and Today count the people asked the same way (14)', () => 
   it('the Candidates list reads Today’s own count of who was asked and has not answered', () => {
     expect(LIST_ROUTE).toContain('askedAt(companyId!)')
     expect(LIST_ROUTE).not.toContain("prisma.benchListing.count({ where: { companyId: companyId!, revokedAt: null, state: 'INVITED' } })")
+  })
+})
+
+describe('A firm that has only asked her reads nothing of her lowest rate (the reader of a626b0b18)', () => {
+  const ROW_ROUTE = read('src/app/api/bench/listings/[id]/route.ts')
+  const BENCH_ASK = read('src/lib/consultant-portfolio/bench-ask.ts')
+
+  it('a firm that has only asked her cannot learn her lowest rate by trying rates', () => {
+    // Before her yes every range is answered alike, below her floor or above it.
+    const answers = [100, 4_999, 5_000, 5_001, 90_000].map((max) => floorRefuses({ readsHerFloor: false, floor: 5_000, max }))
+    expect(new Set(answers)).toEqual(new Set([false]))
+    // An asked listing on a record other firms list is read only as typed: no floor.
+    expect(readsOnlyWhatItTyped({ isSubject: false, seatHere: false, listingState: 'INVITED', ownAccount: true, madeHere: false, otherFirmsEver: 1 })).toBe(true)
+  })
+
+  it('where the firm reads her lowest rate, a range under it is still refused, in a sentence with no figure', () => {
+    expect(floorRefuses({ readsHerFloor: true, floor: 5_000, max: 4_999 })).toBe(true)
+    expect(floorRefuses({ readsHerFloor: true, floor: 5_000, max: 5_000 })).toBe(false)
+    expect(floorRefuses({ readsHerFloor: true, floor: null, max: 1 })).toBe(false)
+    expect(floorRefuses({ readsHerFloor: true, floor: 5_000, max: null })).toBe(false)
+    const says = belowFloorSays('Zora Vance')
+    expect(says).toBe('The top of that range is below the lowest rate Zora Vance has said they will take.')
+    expect(says).not.toMatch(/\d/)
+  })
+
+  it('Add to bench, the rate box on Bench and Add consultant read the floor through the one rule, as the firm will read her once asked', () => {
+    expect(LISTINGS_ROUTE).not.toContain("rate floor (${consultant.rateFloor})")
+    expect(LISTINGS_ROUTE).toContain('consultantIds: [consultantId], asAsked: true')
+    expect(LISTINGS_ROUTE).toContain('floorRefuses({ readsHerFloor, floor: consultant.rateFloor, max })')
+    expect(ROW_ROUTE).toContain('floorRefuses({ readsHerFloor: read?.onlyTyped === false, floor: listing.consultant.rateFloor, max })')
+    expect(BENCH_ASK).toContain('consultantIds: [profile.id], asAsked: true')
+    expect(BENCH_ASK).toContain('floorRefuses({ readsHerFloor, floor: profile.rateFloor, max })')
+    for (const src of [LISTINGS_ROUTE, ROW_ROUTE, BENCH_ASK]) expect(src).not.toMatch(/max < (consultant|profile|listing\.consultant)\.rateFloor/)
+  })
+})
+
+describe('A person a partner shows keeps the name the firm was shown (the reader of a626b0b18, item 4)', () => {
+  it('asked from a partner’s bench, the listing keeps the name the partner showed with her yes, never her address', () => {
+    const asked = nameAskedUnder({ existing: null, email: 'pia.brandt@example.invalid', shownName: 'Pia Brandt' })
+    expect(asked).toEqual({ firmName: 'Pia Brandt', says: 'Pia Brandt' })
+    expect(asked.firmName).not.toContain('@')
+  })
+})
+
+describe('Resend that did not go says why in plain words (the conversation builder’s find)', () => {
+  const NUDGE = read('src/app/api/bench/listings/[id]/nudge/route.ts')
+
+  it('a resend that did not go says why in plain words, never the sender’s own words or a status code', () => {
+    const raw = 'Resend answered 422: The to address is invalid (validation_error)'
+    const says = resendNotSentSays('W. Abernathy', whyNotSent('FAILED', raw))
+    expect(says).toBe('Recorded for W. Abernathy. Etyme’s email sender refused it, so nothing was sent. Etyme has been told. Copy the link and send it yourself.')
+    expect(says).toMatch(/Copy the link and send it yourself\.$/)
+    expect(says).not.toMatch(/\d/)
+    expect(says).not.toContain('answered')
+    expect(says).not.toContain('validation_error')
+    expect(resendNotSentSays('W. Abernathy', whyNotSent('NOT_CONFIGURED', 'No email provider set up, so this was recorded and not sent.')))
+      .toBe('Recorded for W. Abernathy. No email can be sent from here yet. Copy the link and send it yourself.')
+    expect(NUDGE).toContain('resendNotSentSays(shown, whyNotSent(sent.status, sent.reason))')
+    expect(NUDGE).not.toContain('${sent.reason}')
   })
 })

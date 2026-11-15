@@ -8,7 +8,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { listingTermsFrom, termsShown, notAtACompany, INVITE_LINK_KEPT_SAYS, tierInWords, askedOntoBenchSays } from '@/lib/bench-filter'
 import { readAddToBench } from '@/lib/consultant-portfolio/forms'
-import { firmKnowsForBench, nameAskedUnder, firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
+import { firmKnowsForBench, nameAskedUnder, firmReadsAt, floorRefuses, belowFloorSays } from '@/lib/consultant-portfolio/before-her-yes'
 import { recordRefusal, accessActor } from '@/lib/access-log'
 import { maySeeOutside } from '@/lib/walls'
 import { NETWORK_VISIBLE } from '@/lib/shared-consultant'
@@ -120,18 +120,19 @@ export async function POST(request: NextRequest) {
     shownName: consultant.person.name,
   })
 
-  // Check rate floor — the consultant sets this; no listing may go below it
+  // Her lowest rate is hers. A range under it is refused only where this
+  // firm reads her floor once it has asked (`floorRefuses`): before her
+  // yes, on a record whose words are not its own, it reads only what it
+  // typed, so the floor refuses nothing and every range is saved alike.
+  // A refusal there, figure or no figure, would let a firm read her floor
+  // by trying rates (the reader of a626b0b18, item 1).
   if (consultant.rateFloor != null && rateMax != null) {
     const max = parseInt(String(rateMax), 10)
-    if (max < consultant.rateFloor) {
+    const readsHerFloor =
+      (await firmReadsAt({ companyId, callerPersonId: caller.person.id, consultantIds: [consultantId], asAsked: true })).get(consultantId)?.onlyTyped === false
+    if (floorRefuses({ readsHerFloor, floor: consultant.rateFloor, max })) {
       return NextResponse.json(
-        {
-          error: {
-            code: 'BELOW_RATE_FLOOR',
-            message: `rateMax (${max}) is below the consultant's rate floor (${consultant.rateFloor})`,
-            field: 'rateMax',
-          },
-        },
+        { error: { code: 'BELOW_RATE_FLOOR', message: belowFloorSays(asked.says), field: 'rateMax' } },
         { status: 422 }
       )
     }

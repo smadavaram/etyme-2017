@@ -673,11 +673,16 @@ function benchRowOf(l: any, tier: 'RETAINED' | 'MARKETING'): BenchRow | null {
  * When a row on the firm's own bench is free, read against the one bench
  * list the tile counts (fix list, layer five, e). The tile counted
  * `benchAt` while each row read `whenFree` alone, so somebody placed
- * today read "Free now" under a tile that did not count them. Where
- * `benchAt` does not name a person who said yes, she is on a placement
- * today, and the row says so in the placement words. Where it names her
- * and a placement is papered to start, the row says both. Otherwise it
- * keeps what `whenFree` read. Pure.
+ * today read "Free now" under a tile that did not count them.
+ *
+ *  - Named by `benchAt`, with a placement papered to start: both, in one
+ *    line.
+ *  - Not named by `benchAt`, and `whenFree` reads a placement running
+ *    today (at any firm): the placement words `whenFree` wrote.
+ *  - Not named by `benchAt` for any other reason: what `whenFree` read,
+ *    and that the tile does not count her today. Never "On a placement"
+ *    over somebody with no placement (the reader of a626b0b18, item 2).
+ *  - Otherwise what `whenFree` read. Pure.
  */
 export function freeOnTheBench(free: Free | null, onBenchToday: boolean | null): Free | null {
   // On the bench today with a placement papered to start: both, in one
@@ -687,12 +692,19 @@ export function freeOnTheBench(free: Free | null, onBenchToday: boolean | null):
     return { ...free, says: `On the bench · ${free.says.charAt(0).toLowerCase()}${free.says.slice(1)}` }
   }
   if (onBenchToday !== false) return free
-  if (free && free.state === 'PLACED') return free
-  return { state: 'PLACED', on: null, says: ON_A_PLACEMENT_TODAY }
+  // A placement running today: `whenFree`'s own words.
+  if (free && placedToday(free)) return free
+  if (!free) return { state: 'UNKNOWN', on: null, says: NOT_COUNTED_TODAY }
+  return { ...free, says: `${free.says} · ${NOT_COUNTED_TODAY.charAt(0).toLowerCase()}${NOT_COUNTED_TODAY.slice(1)}` }
 }
 
-/** The row's words where `benchAt` says she is on a placement today and no date is on this reading. */
-export const ON_A_PLACEMENT_TODAY = 'On a placement'
+/** Whether `whenFree` read a placement running today: placed, and not one still to start. Pure. */
+export function placedToday(free: Free): boolean {
+  return free.state === 'PLACED' && !free.startsOn
+}
+
+/** The row's words where `benchAt` leaves out somebody `whenFree` reads no placement for today. */
+export const NOT_COUNTED_TODAY = 'Not counted on the bench today'
 
 /**
  * Where the bench's Submit takes the reader, for the people chosen.

@@ -8,7 +8,8 @@ import { termsShown } from '@/lib/bench-filter'
 import { renewAskText } from '@/lib/bench-stay'
 import { possessive } from '@/lib/requisition-approval'
 import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
-import { nudgeLogSummary } from '@/lib/consultant-portfolio/nudge-words'
+import { nudgeLogSummary, resendNotSentSays } from '@/lib/consultant-portfolio/nudge-words'
+import { whyNotSent } from '@/lib/notify/check-in-rows'
 
 /**
  * POST /api/bench/listings/:id/nudge   { copyOnly? }
@@ -108,8 +109,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       },
     })
   }
+  // Why it did not go, in the plain sentence Bench check-ins reads
+  // (`whyNotSent`), never the email sender's own words or a status code.
   const says = sent.status === 'SENT'
     ? `Sent to ${shown}.`
-    : `Recorded for ${shown} and not sent: ${sent.reason} Copy the link and send it yourself.`
+    : resendNotSentSays(shown, whyNotSent(sent.status, sent.reason))
   return NextResponse.json({ data: { url, sent: sent.status === 'SENT', status: sent.status, says } })
 }

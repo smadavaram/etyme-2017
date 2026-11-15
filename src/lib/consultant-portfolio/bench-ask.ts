@@ -56,6 +56,7 @@ import { addPath, type AddPath } from '@/lib/consultant-portfolio'
 import { logAccess, recordRefusal } from '@/lib/access-log'
 import { askByEmail } from '@/app/api/consultants/ask-by-email'
 import { firmViewOf, firmTypedAnything, type FirmView } from './firm-view'
+import { firmReadsAt, floorRefuses, belowFloorSays } from './before-her-yes'
 
 export type BenchAskDoor = 'ADD_CONSULTANT' | 'PUBLIC_PAGE'
 
@@ -303,15 +304,17 @@ export async function askOntoBench(o: BenchAskInput): Promise<BenchAskOutcome> {
     }
   }
 
-  // The floor is the person's own; no ask goes out below it.
+  // The floor is the person's own; no ask goes out below it where the firm
+  // reads it. Before her yes, on a record whose words are not the firm's,
+  // it does not, and a refusal that moved with her floor would tell it her
+  // lowest rate (`floorRefuses`, the reader of a626b0b18, item 1).
   const min = o.rateMin ?? null
   const max = o.rateMax ?? null
-  if (profile?.rateFloor != null && max != null && max < profile.rateFloor) {
-    return {
-      kind: 'REFUSED',
-      code: 'BELOW_RATE_FLOOR',
-      says: `The top of that range is below the lowest rate ${named} has said they will take.`,
-      field: 'rateMax',
+  if (profile?.rateFloor != null && max != null) {
+    const readsHerFloor =
+      (await firmReadsAt({ companyId: firm.id, callerPersonId: o.by?.personId ?? '', consultantIds: [profile.id], asAsked: true })).get(profile.id)?.onlyTyped === false
+    if (floorRefuses({ readsHerFloor, floor: profile.rateFloor, max })) {
+      return { kind: 'REFUSED', code: 'BELOW_RATE_FLOOR', says: belowFloorSays(named), field: 'rateMax' }
     }
   }
 

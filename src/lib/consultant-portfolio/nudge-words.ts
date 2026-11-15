@@ -30,3 +30,14 @@ export function nudgeLogSummary(o: {
     ? `${o.actor} asked ${o.shown} to renew their stay on the bench.`
     : `${o.actor} tried to ask ${o.shown} to renew their stay on the bench; the email did not go.`
 }
+
+/**
+ * What the firm reads when Resend or Ask to renew did not go (the
+ * conversation builder's find, 2026-11-15). It read the email sender's
+ * own note, its name and status code included. Now it reads the plain
+ * sentence Bench check-ins reads for the same try (`whyNotSent` in
+ * lib/notify/check-in-rows), and the way round it. Pure.
+ */
+export function resendNotSentSays(shown: string, why: string | null): string {
+  return `Recorded for ${shown}. ${why ?? 'The email did not go.'} Copy the link and send it yourself.`
+}

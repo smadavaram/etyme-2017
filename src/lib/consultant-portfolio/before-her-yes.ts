@@ -19,9 +19,11 @@
  *    ever listed her), it reads the record as before: every word on it is
  *    one this firm typed.
  *  - Otherwise it reads only what it typed on its own listing: the name
- *    (`firmName`; the address it asked at where the listing predates the
- *    column), the headline, skills, place and note, and the listing's own
- *    tier, terms and consent. Nothing else of hers.
+ *    (`firmName`, the name it asked her under, see `nameAskedUnder`; the
+ *    address it asked at where the listing predates the column), the
+ *    headline, skills, place and note, and the listing's own tier, terms
+ *    and consent. Nothing else of hers: not her lowest rate either, and
+ *    no refusal may say or hint at it (`floorRefuses`).
  *
  * Every reader of a person by a firm in supply's files goes through
  * `firmReadsAt` and `typedOnly`, and the list's search filters go through
@@ -119,7 +121,13 @@ export function firmKnowsForBench(f: { seatHere: boolean; listedHereEver: boolea
  *  - Asked again on a listing it holds: the name it typed then, kept; on a
  *    listing from before the column, the address it asked at.
  *  - Otherwise she is somebody it employs, or a partner shows her by name
- *    on its bench with her yes: the name it reads there.
+ *    on its bench with her yes: the name it reads there, written as the
+ *    listing's `firmName`, the way Share to a partner's bench writes it
+ *    (`/api/bench/share`). So `firmName` is the name this firm asked her
+ *    under: one it typed, or one it was already shown with her yes. It is
+ *    never a name the firm was not shown. Left empty, the listing would
+ *    read her by her address (`nameItTyped`), which a partner's bench
+ *    never shows; that would be the new thing shown.
  *
  * Never her own record's name on a record the firm has only an id for.
  * Pure.
@@ -135,6 +143,28 @@ export function nameAskedUnder(o: {
     return { firmName: kept, says: nameItTyped(o.existing, o.email) }
   }
   return { firmName: o.shownName, says: o.shownName }
+}
+
+/**
+ * Whether her lowest rate refuses a firm's rate range (the reader of
+ * a626b0b18, item 1). Add to bench refused a range under her floor and
+ * named the floor, so a firm that reads only what it typed could post
+ * lower and lower ranges and read her floor off the answers. A refusal
+ * with no figure still moves with her floor: refused below it, saved
+ * above it. So before her yes, where the firm does not read her floor,
+ * the floor refuses nothing and every range is saved alike; the answer
+ * never moves with it. Where the firm reads her floor (she works here,
+ * she said yes, or every word on the record is the firm's own), a range
+ * under it is refused, as before. Pure.
+ */
+export function floorRefuses(o: { readsHerFloor: boolean; floor: number | null; max: number | null }): boolean {
+  if (!o.readsHerFloor) return false
+  return o.floor != null && o.max != null && o.max < o.floor
+}
+
+/** The refusal where the firm reads her floor: no figure, her name as the firm reads it. Pure. */
+export function belowFloorSays(name: string): string {
+  return `The top of that range is below the lowest rate ${name} has said they will take.`
 }
 
 /**
@@ -175,7 +205,18 @@ export interface FirmRead {
  * leaves here.
  */
 export async function firmReadsAt(
-  o: { companyId: string; callerPersonId: string; consultantIds?: string[] }
+  o: {
+    companyId: string
+    callerPersonId: string
+    consultantIds?: string[]
+    /**
+     * Read as the firm will read her once its ask is written: a record with
+     * no live listing here is read as asked. Add to bench and the public
+     * ask read this before they write the listing, so no answer they give
+     * says more than the firm will read afterwards.
+     */
+    asAsked?: boolean
+  }
 ): Promise<Map<string, FirmRead>> {
   const { companyId } = o
   const rows = await prisma.consultantProfile.findMany({
@@ -228,7 +269,7 @@ export async function firmReadsAt(
     const onlyTyped = readsOnlyWhatItTyped({
       isSubject: r.personId === o.callerPersonId,
       seatHere: r.person.contexts.length > 0,
-      listingState: listing?.state ?? null,
+      listingState: listing?.state ?? (o.asAsked ? 'INVITED' : null),
       ownAccount: accountOf(r.person),
       madeHere: made.has(r.id),
       otherFirmsEver: r._count.listings,
