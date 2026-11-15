@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  waitsOnSays, noEngagementSays, RAISE_A_BILL, RECORD_A_PLACEMENT_HREF,
+  waitsOnSays, noEngagementSays, runsProgramsSays, RAISE_A_BILL, RECORD_A_PLACEMENT_HREF,
   type BillWaitsInput, type WeekNotBillable,
 } from '@/lib/money/nothing-to-bill'
 import { receiptsEmpty, NO_RECEIPTS, OWN_EMPLOYEES_PAID_BY_PAYROLL } from '@/lib/money/receipts-empty'
@@ -105,6 +105,42 @@ describe('the Bills page and its dialog name the one step a bill waits on', () =
     expect(w.link).toBeNull()
   })
 
+  it('a week at a client off Etyme with nobody there who approves hours recorded says to add that person under Contacts first, then attach, and links to Contacts', () => {
+    const w = waitsOnSays({
+      ...base, mayAddContact: true,
+      engagements: [{ people: ['Priya Rao'], noHours: { weeks: [week()], waitingWeek: { id: 'wk-1', clientOnEtyme: false, noApproverAt: 'Harborline Tech' } } }],
+    })
+    expect(w.says).toBe(
+      'Nothing can be billed until the client signs the week. Priya Rao’s week of Sep 20 is waiting for Harborline Tech to sign it. ' +
+        'Harborline Tech is not on Etyme, and nobody there who approves hours is recorded yet. ' +
+        'Add the person at Harborline Tech who approves hours, under Contacts. Then attach the client’s approval on the week.'
+    )
+    expect(w.link).toEqual({ href: '/dashboard/contacts', label: 'Open Contacts' })
+  })
+
+  it('a seat that may not open Contacts reads the same two steps and is shown no link to a week that would refuse it', () => {
+    const w = waitsOnSays({
+      ...base, mayAddContact: false,
+      engagements: [{ people: ['Priya Rao'], noHours: { weeks: [week()], waitingWeek: { id: 'wk-1', clientOnEtyme: false, noApproverAt: 'Harborline Tech' } } }],
+    })
+    expect(w.says).toContain('Add the person at Harborline Tech who approves hours, under Contacts.')
+    expect(w.link).toBeNull()
+  })
+
+  it('a placement that is paused is named, with where it is resumed, and never read as no engagement', () => {
+    const w = waitsOnSays({ ...base, placed: [{ personName: 'Priya Rao', started: true, paused: true }] })
+    expect(w.says).toBe('Priya Rao’s placement is paused, so no week can be filed or billed. A paused placement is resumed from Contracts.')
+    expect(w.link).toEqual({ href: '/dashboard/contracts', label: 'Open Contracts' })
+  })
+
+  it('an MSP is told it is the supplier on no placement and that Etyme raises no bill for its own fee', () => {
+    const w = waitsOnSays({ ...base, billsPlacements: false, runsPrograms: true })
+    expect(w.says).toBe(runsProgramsSays(FIRM))
+    expect(w.says).toBe('Northwind Staffing is not the supplier on any placement, so it has nothing to bill. Etyme does not raise a bill for an MSP’s own fee.')
+    expect(w.says).not.toContain('no engagement')
+    expect(w.link).toBeNull()
+  })
+
   it('every week already on a bill is said by its bill number', () => {
     const w = waitsOnSays({
       ...base,
@@ -130,6 +166,9 @@ describe('the Bills page and its dialog name the one step a bill waits on', () =
       waitsOnSays(base).says!,
       waitsOnSays({ ...base, placed: [{ personName: 'Priya Rao', started: false }] }).says!,
       waitsOnSays({ ...base, engagements: [{ people: ['Priya Rao'], noHours: { weeks: [], waitingWeek: null } }] }).says!,
+      waitsOnSays({ ...base, placed: [{ personName: 'Priya Rao', started: true, paused: true }] }).says!,
+      waitsOnSays({ ...base, billsPlacements: false, runsPrograms: true }).says!,
+      waitsOnSays({ ...base, engagements: [{ people: ['Priya Rao'], noHours: { weeks: [week()], waitingWeek: { id: 'wk-1', clientOnEtyme: false, noApproverAt: 'Harborline Tech' } } }] }).says!,
     ]
     for (const s of all) for (const n of words(s)) expect(n).toBeLessThanOrEqual(25)
   })
@@ -153,15 +192,23 @@ describe('the Bills page and its dialog name the one step a bill waits on', () =
 })
 
 describe('an empty list of invoice receipts says where one comes from', () => {
-  it('a supplier with W-2 people reads where a receipt comes from, that its employees are paid by payroll, and is linked to Payroll', () => {
+  it('a supplier with W-2 people reads where a receipt comes from and how a receipt is paid, then that its employees are paid by payroll, and is linked to Payroll', () => {
     const e = receiptsEmpty({ kind: 'VENDOR', employs: true, mayOpenPayroll: true })
     expect(e.message).toBe(NO_RECEIPTS)
     expect(e.detail).toBe(
       'An invoice receipt is a supplier’s invoice for a person you buy from another firm. It is typed in here when it arrives. ' +
-        'Your own employees are paid by payroll, not from here. ' +
-        'Each one is paid from its own page once it matches the order and the hours accepted.'
+        'Each invoice receipt is paid from its own page once it matches the order and the hours accepted. ' +
+        'Your own employees are paid by payroll, not from here.'
     )
     expect(e.link).toEqual({ href: '/dashboard/payroll', label: 'Open Payroll' })
+  })
+
+  it('the order match is said only of an invoice receipt, never of an employee, because a W-2 line has no order', () => {
+    const e = receiptsEmpty({ kind: 'VENDOR', employs: true, mayOpenPayroll: true })
+    expect(e.detail).not.toContain('Each one')
+    const payroll = e.detail.indexOf(OWN_EMPLOYEES_PAID_BY_PAYROLL)
+    expect(payroll).toBeGreaterThan(e.detail.indexOf('matches the order'))
+    expect(e.detail.endsWith(OWN_EMPLOYEES_PAID_BY_PAYROLL)).toBe(true)
   })
 
   it('a seat that may not open Payroll reads the same sentence with no link', () => {

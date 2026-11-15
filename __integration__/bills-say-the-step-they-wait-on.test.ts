@@ -95,6 +95,15 @@ describe('the Bills page says which step the next bill waits on', () => {
     expect(data.says).toBe(`${adminName}’s placement has not started yet, so no week can be filed or billed. A placement starts from Contracts.`)
   })
 
+  it('a firm whose only placement is paused is told the placement is paused and where it is resumed, never that it has none', async () => {
+    await prisma.sellContract.update({ where: { id: lineId }, data: { state: 'PAUSED' } })
+    const data = await waits(ADMIN)
+    expect(data.canBill).toBe(false)
+    expect(data.says).toBe(`${adminName}’s placement is paused, so no week can be filed or billed. A paused placement is resumed from Contracts.`)
+    expect(data.says).not.toContain('no engagement')
+    expect(data.link).toEqual({ href: '/dashboard/contracts', label: 'Open Contracts' })
+  })
+
   it('a started placement with no week filed says the person has not filed, and that only the person who worked files hours', async () => {
     await prisma.sellContract.update({ where: { id: lineId }, data: { state: 'IN_PROGRESS' } })
     const data = await waits(ADMIN)
@@ -103,8 +112,8 @@ describe('the Bills page says which step the next bill waits on', () => {
     expect(data.engagements.length).toBe(1)
   })
 
-  it('a filed week the client has not approved names the client it waits on and links to the week, where the approval is attached', async () => {
-    const ts = await prisma.timesheet.create({
+  it('a filed week at a client off Etyme with nobody there who approves hours recorded says to add that person under Contacts first, then attach', async () => {
+    await prisma.timesheet.create({
       data: {
         sellContractId: lineId, personId: adminId,
         periodStart: new Date('2026-09-20T00:00:00Z'), periodEnd: new Date('2026-09-26T00:00:00Z'),
@@ -112,6 +121,20 @@ describe('the Bills page says which step the next bill waits on', () => {
         totalHours: 40, status: 'SUBMITTED', submittedAt: new Date('2026-09-26T00:00:00Z'),
       },
     })
+    const data = await waits(ADMIN)
+    expect(data.canBill).toBe(false)
+    expect(data.says).toBe(
+      `Nothing can be billed until the client signs the week. ${adminName}’s week of Sep 20 is waiting for Harborline Tech to sign it. ` +
+        'Harborline Tech is not on Etyme, and nobody there who approves hours is recorded yet. ' +
+        'Add the person at Harborline Tech who approves hours, under Contacts. Then attach the client’s approval on the week.'
+    )
+    expect(data.link).toEqual({ href: '/dashboard/contacts', label: 'Open Contacts' })
+  })
+
+  it('a filed week the client has not approved names the client it waits on and links to the week, where the approval is attached', async () => {
+    // The person at the client who approves hours, recorded in the firm's own address book.
+    await prisma.companyContact.create({ data: { companyId: firmId, atCompanyId: clientId, name: 'Hana Brooks', email: 'hana.brooks@harborline.example' } })
+    const ts = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: lineId, periodStart: new Date('2026-09-20T00:00:00Z') } })
     const data = await waits(ADMIN)
     expect(data.canBill).toBe(false)
     expect(data.says).toBe(`Nothing can be billed until the client signs the week. ${adminName}’s week of Sep 20 is waiting for Harborline Tech to sign it.`)
@@ -125,6 +148,21 @@ describe('the Bills page says which step the next bill waits on', () => {
   })
 })
 
+describe('an MSP reads on Bills what is true for a firm that supplies nobody', () => {
+  it('an MSP is told it is the supplier on no placement and that Etyme raises no bill for its own fee', async () => {
+    const MSP_ADMIN = 'mara@keelpoint-programs.example'
+    as(MSP_ADMIN)
+    const r = await json(await registerCompany(req('POST', '/api/companies', { name: 'Keelpoint Programs', kind: 'MSP' })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const data = await waits(MSP_ADMIN)
+    expect(data.canBill).toBe(false)
+    expect(data.says).toBe(
+      'Keelpoint Programs is not the supplier on any placement, so it has nothing to bill. Etyme does not raise a bill for an MSP’s own fee.'
+    )
+    expect(data.link).toBeNull()
+  })
+})
+
 describe('an empty Payables page says where an invoice receipt comes from', () => {
   it('a supplier with W-2 people reads that its own employees are paid by payroll, with a link to Payroll', async () => {
     as(ADMIN)
@@ -133,7 +171,12 @@ describe('an empty Payables page says where an invoice receipt comes from', () =
     expect(r.body.data.receipts).toEqual([])
     expect(r.body.data.empty.detail).toContain('An invoice receipt is a supplier’s invoice for a person you buy from another firm.')
     expect(r.body.data.empty.detail).toContain('Your own employees are paid by payroll, not from here.')
-    expect(r.body.data.empty.detail).toContain('Each one is paid from its own page once it matches')
+    // The order match is said of the invoice receipt, before the payroll sentence: a W-2 line has no order.
+    expect(r.body.data.empty.detail).toBe(
+      'An invoice receipt is a supplier’s invoice for a person you buy from another firm. It is typed in here when it arrives. ' +
+        'Each invoice receipt is paid from its own page once it matches the order and the hours accepted. ' +
+        'Your own employees are paid by payroll, not from here.'
+    )
     expect(r.body.data.empty.link).toEqual({ href: '/dashboard/payroll', label: 'Open Payroll' })
   })
 })

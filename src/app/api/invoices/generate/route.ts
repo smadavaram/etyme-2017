@@ -10,6 +10,7 @@ import { desksHolding } from '@/lib/permissions'
 import { seatedWhoMay, notYourButton } from '@/lib/refusal-words'
 import { seatedRoles } from '@/app/api/contracts/[id]/activate/gate'
 import { mayOpen } from '@/lib/nav-table'
+import { recordedContactsFor } from '@/lib/week-approval'
 
 /**
  * GET /api/invoices/generate — the engagements this firm may bill.
@@ -236,6 +237,33 @@ async function whatTheBillWaitsOn(
     engagements.push({ people: [], noHours: null })
   }
 
+  // The week its approval would be attached on, for a client not on Etyme:
+  // where nobody there who approves hours is recorded, the attach is
+  // refused (the week page's own rule, `approverIsKnownAtClient`), so the
+  // sentence says to add that person first. The same record the week reads.
+  const attachOn = engagements.map((e) => e.noHours?.waitingWeek).find((w) => w && !w.clientOnEtyme) ?? null
+  if (attachOn) {
+    const sheet = await prisma.timesheet.findUnique({
+      where: { id: attachOn.id },
+      select: {
+        person: { select: { primaryEmail: true } },
+        sellContract: {
+          select: {
+            clientCompany: { select: { id: true, name: true, listedById: true } },
+            endClientCompany: { select: { id: true, name: true, listedById: true } },
+          },
+        },
+      },
+    })
+    const top = sheet?.sellContract?.endClientCompany ?? sheet?.sellContract?.clientCompany ?? null
+    if (top) {
+      const recorded = top.listedById
+        ? await recordedContactsFor(top.id, top.listedById, { excludeEmails: [sheet?.person?.primaryEmail] })
+        : []
+      if (recorded.length === 0) attachOn.noApproverAt = top.name
+    }
+  }
+
   const placed = engagements.length === 0 && billsPlacements
     ? await prisma.sellContract.findMany({
         where: { companyId: company.id, state: { not: 'CANCELLED' } },
@@ -254,12 +282,16 @@ async function whatTheBillWaitsOn(
     placed: placed.map((l) => ({
       personName: l.person?.name ?? 'Somebody',
       started: !['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'].includes(l.state),
+      paused: l.state === 'PAUSED',
     })),
+    runsPrograms: kind === 'MSP',
     engagements,
     mayRecord,
     whoRecords: mayRecord ? null : notYourButton('recording a placement', seatedWhoMay(desksHolding('assignments.write', kind), seated)),
     mayAttach,
     whoAttaches: mayAttach ? null : notYourButton('attaching the client’s approval', seatedWhoMay(desksHolding('timesheets.approve', kind), seated)),
+    // Contacts asks for no permission; a seat that sees only its own work is refused it.
+    mayAddContact: caller.context.type !== 'CONSULTANT' && mayOpen('/dashboard/contacts', caller.permissions),
   })
 }
 

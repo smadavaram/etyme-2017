@@ -22,9 +22,13 @@ export const NO_RECEIPTS = 'No invoice receipts yet.'
 export const RECEIPT_COMES_FROM =
   'An invoice receipt is a supplier’s invoice for a person you buy from another firm. It is typed in here when it arrives.'
 
-/** Where it is paid, said once beside the list. */
+/**
+ * Where it is paid, said once beside the list. Said of the invoice receipt
+ * by name and before the payroll sentence, so the order match never reads
+ * as said of an employee: a W-2 line has no order.
+ */
 export const PAID_FROM_ITS_OWN_PAGE =
-  'Each one is paid from its own page once it matches the order and the hours accepted.'
+  'Each invoice receipt is paid from its own page once it matches the order and the hours accepted.'
 
 /** Said to a client: its suppliers send them. */
 export const CLIENT_RECEIPTS_SAY =
@@ -54,7 +58,7 @@ export function receiptsEmpty(a: {
   // table): an MSP pays nobody, and a one-person firm bills for herself.
   const payrollKind = a.kind === 'VENDOR' || a.kind === 'GSI'
   const employs = payrollKind && a.employs
-  const detail = [RECEIPT_COMES_FROM, ...(employs ? [OWN_EMPLOYEES_PAID_BY_PAYROLL] : []), PAID_FROM_ITS_OWN_PAGE].join(' ')
+  const detail = [RECEIPT_COMES_FROM, PAID_FROM_ITS_OWN_PAGE, ...(employs ? [OWN_EMPLOYEES_PAID_BY_PAYROLL] : [])].join(' ')
   return {
     message: NO_RECEIPTS,
     detail,
