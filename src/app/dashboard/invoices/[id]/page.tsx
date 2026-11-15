@@ -18,16 +18,7 @@ import { payDesk, payDeskPermissions, waiveDesk } from '@/lib/money/pay-desk'
 import { booksFrom, booksHref, withBooks, BOOKS_PARAM } from '@/lib/money/books-view'
 import { offersSendAgain } from '@/lib/money/bill-resend'
 import { offersSend, offersSubmit, sentInPlace } from '@/lib/money/bill-sent-view'
-
-/** The status in words a clerk says, never the enum. */
-const STATUS_WORDS: Record<string, string> = {
-  DRAFT: 'Draft',
-  ISSUED: 'Raised, not yet submitted',
-  SUBMITTED: 'Submitted for payment',
-  PARTIALLY_PAID: 'Partly paid',
-  PAID: 'Paid',
-  CANCELLED: 'Cancelled',
-}
+import { billStateWord } from '@/lib/money/bill-state'
 
 /** This endpoint returns whole currency units, not minor ones. */
 const amountFromUnits = (n: number) => amount(Math.round(n * 100))
@@ -437,7 +428,7 @@ export default function InvoiceDetail() {
             {daySpan(inv.periodStart, inv.periodEnd)} ·{' '}
             {inv.terms?.clockStarted === false
               ? 'not payable yet'
-              : <>due {plainDate(inv.dueAt)}</>} · {STATUS_WORDS[inv.status] ?? inv.status}
+              : <>due {plainDate(inv.dueAt)}</>} · {billStateWord(inv.status, inv.direction === 'PAYABLE' ? 'PAYER' : 'SENDER')}
           </span>
         </>}
         actions={
@@ -487,6 +478,7 @@ export default function InvoiceDetail() {
             {m && !m.matched && (
               <p className="text-xs text-etyme-attention mt-1">It does not match yet, so it cannot be sent. See the checks below.</p>
             )}
+            {inv.beforeSend && <p className="text-xs text-etyme-muted mt-1">{inv.beforeSend}</p>}
           </div>
           <div className="flex gap-2 shrink-0">
             <button onClick={() => setWithdrawingDraft(true)} disabled={withdrawingDraft}
@@ -607,6 +599,10 @@ export default function InvoiceDetail() {
               {((m.notes ?? []) as string[]).map((n) => (
                 <p key={n} className="text-sm text-etyme-muted mt-1">{n}</p>
               ))}
+              {/* Before Send: where the bill goes, and whether an email can leave. */}
+              {m.matched && inv.status === 'ISSUED' && inv.direction === 'RECEIVABLE' && inv.beforeSend && (
+                <p className="text-sm text-etyme-muted mt-1">{inv.beforeSend}</p>
+              )}
               {/* What is left on the order is said once, under Purchase
                   order in the money section, from the one reader. */}
             </div>
@@ -616,7 +612,7 @@ export default function InvoiceDetail() {
             }) && (
               <button onClick={submit}
                 className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 shrink-0">
-                Submit for payment
+                {sending ? 'Sending…' : 'Send'}
               </button>
             )}
           </div>

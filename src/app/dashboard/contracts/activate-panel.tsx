@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { Field, FormMessage, SubmitButton, Textarea } from '@/components/ui/form'
 import { activateBody } from './activate-body'
 import { viewBefore, viewAfterRefusal, startedSays, startedKey, keptStarted, type PanelView, type StartPreflight } from './activate-view'
@@ -69,7 +71,7 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        refuse(viewAfterRefusal(body.error, res.status))
+        refuse(viewAfterRefusal(body.error, res.status, view))
         return
       }
       try { window.sessionStorage.removeItem(refusalKey(contractId)) } catch { /* nothing kept */ }
@@ -100,6 +102,9 @@ export function ActivatePanel({ contractId, onDone }: { contractId: string; onDo
     <div className="card mt-3 space-y-3">
       {view.says && (
         <p className={`text-[13px] leading-relaxed ${view.box ? 'text-etyme-ink' : 'text-etyme-attention'}`}>{view.says}</p>
+      )}
+      {view.door && (
+        <Link href={view.door.href as Route} className="block text-[13px] text-etyme-action hover:underline">{view.door.says}</Link>
       )}
       {view.box && (
         <Field label="Why start anyway" help="Recorded with your name on the start.">

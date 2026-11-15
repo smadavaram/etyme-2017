@@ -905,12 +905,12 @@ export async function POST(request: NextRequest) {
           : null,
         message: result.header
           ? (pinned
-              ? `Recorded as a line on ${result.header.number}, from ${clientCompany.name}. `
-              : `Recorded on ${result.header.number}, the order already open with ${clientCompany.name}. `) +
-            `${result.sellCyclesCreated} cycles${result.rolloff ? ' and a rolloff' : ''}.`
+              ? `Recorded as a line on ${result.header.number}, from ${clientCompany.name}.`
+              : `Recorded on ${result.header.number}, the order already open with ${clientCompany.name}.`) +
+            (result.rolloff ? ' Its rolloff is recorded.' : '')
           : `Recorded. No order between you and ${clientCompany.name} yet — record the purchase ` +
-            `order they gave you and this line attaches to it. ` +
-            `${result.sellCyclesCreated} cycles${result.rolloff ? ' and a rolloff' : ''}.`,
+            `order they gave you and this line attaches to it.` +
+            (result.rolloff ? ' Its rolloff is recorded.' : ''),
       },
     }, { status: 201 })
   } catch (err: any) {

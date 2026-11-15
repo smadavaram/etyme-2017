@@ -7,6 +7,13 @@
 
 import { prisma } from '@/lib/db'
 import { contractClearance, lineExtras, ADVERSE_STEPS } from '@/lib/contract-clearance'
+import { recordDoorFor } from '@/app/api/packets/examination'
+import { employerOfRecord } from '@/app/api/compliance/verifications/record'
+import { employedElsewhere } from '@/lib/document-stages/employer'
+import { mayRecordCheck } from '@/lib/attestation'
+import { desksHolding } from '@/lib/permissions'
+import { seatedWhoMay, notYourButton } from '@/lib/refusal-words'
+import { seatedRoles } from './gate'
 
 /** The facts of the placement the papers are read against. */
 export interface StartPapersFor {
@@ -117,4 +124,39 @@ export async function startPapers(contract: StartPapersFor): Promise<ReturnType<
     // it was never offered.
     ...(await lineExtras({ sellContractId: contract.id })),
   })
+}
+
+/**
+ * Where the missing I-9 is recorded, for the panel's sentence (the
+ * founder's walk, 2026-11-15, stop 7: "Get it on file, then activate"
+ * had no link). The link to Record the I-9 on Compliance, opened for the
+ * person, only for a seat that may record it there (`mayRecordCheck`,
+ * the rule Compliance's own record asks); any other seat reads who does,
+ * from the seats this firm has filled. Null where the I-9 is not what
+ * holds the start.
+ */
+export async function i9DoorAtStart(
+  caller: { companyId: string; companyName: string; kind: string | null; holds: (p: string) => boolean },
+  contract: { id: string; personId: string; companyId: string; person: { name: string }; clientCompany: { name: string } },
+  blocking: ReadonlyArray<{ key: string }>,
+): Promise<{ door: { says: string; href: string } | null; whoRecords: string | null } | null> {
+  if (!blocking.some((b) => b.key === 'I9_EVERIFY')) return null
+  const door = recordDoorFor('I9_EVERIFY', contract.personId)
+  if (!door) return null
+  const employer = await employerOfRecord(contract.personId, contract.id)
+  const may = mayRecordCheck({
+    about: 'PERSON',
+    side: contract.companyId === caller.companyId ? 'EMPLOYER' : 'BUYER',
+    holds: caller.holds,
+    callerFirm: caller.companyName,
+    subjectName: contract.person.name,
+    employerName: contract.companyId === caller.companyId ? caller.companyName : 'the firm that employs or places them',
+    buyerName: contract.clientCompany.name,
+    type: 'I9_EVERIFY',
+    employedBy: employedElsewhere(employer, caller.companyId) ? employer!.name : null,
+  })
+  if (may.ok) return { door, whoRecords: null }
+  if (may.code !== 'FORBIDDEN') return { door: null, whoRecords: may.message }
+  const names = seatedWhoMay(desksHolding(['consultants.write', 'privacy.manage'], caller.kind), (await seatedRoles(caller.companyId)) ?? [])
+  return { door: null, whoRecords: notYourButton('recording the I-9', names) }
 }

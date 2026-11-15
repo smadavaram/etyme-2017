@@ -87,7 +87,7 @@ describe('the Activate button on a placement', () => {
     const panel = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/activate-panel.tsx'), 'utf8')
     expect(panel).toMatch(/fetch\(`\/api\/contracts\/\$\{contractId\}\/activate`\)/)
     expect(panel).toMatch(/const payload = activateBody\(/)
-    expect(panel).toMatch(/viewAfterRefusal\(body\.error, res\.status\)/)
+    expect(panel).toMatch(/viewAfterRefusal\(body\.error, res\.status, view\)/)
     expect(panel).toMatch(/viewAfterRefusal\(null, null\)/)
     expect(panel).toMatch(/keptRefusal\(/)
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')

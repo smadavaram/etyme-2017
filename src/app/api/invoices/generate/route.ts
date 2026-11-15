@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext, refusalFor, type CallerContext } from '@/lib/api-context'
+import { getCallerContext, type CallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { partiesOf, mayBillUnder } from '@/lib/money/invoice-parties'
@@ -11,6 +11,7 @@ import { seatedWhoMay, notYourButton } from '@/lib/refusal-words'
 import { seatedRoles } from '@/app/api/contracts/[id]/activate/gate'
 import { mayOpen } from '@/lib/nav-table'
 import { recordedContactsFor } from '@/lib/week-approval'
+import { whoRaisesBillsSays } from '@/lib/money/who-raises-bills'
 
 /**
  * GET /api/invoices/generate — the engagements this firm may bill.
@@ -50,10 +51,7 @@ export async function GET(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: refusalFor(caller, {
-            doing: 'Raising a bill',
-            needs: 'invoices.issue',
-          }),
+          message: await whoRaisesBillsSays(caller),
         },
       },
       { status: 403 }
@@ -318,10 +316,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: refusalFor(caller, {
-            doing: 'Raising a bill',
-            needs: 'invoices.issue',
-          }),
+          message: await whoRaisesBillsSays(caller),
         },
       },
       { status: 403 }

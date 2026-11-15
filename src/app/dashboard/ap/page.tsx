@@ -187,7 +187,12 @@ export default function ApPage() {
         </div>
       )}
 
-      {!loading && !error && !denied && data?.source === 'NONE' && (
+      {/* Nothing recorded at all: the list above already says, for this
+          kind of firm, where a receipt comes from (lib/money/receipts-empty).
+          These two older lines spoke of sub-vendors and signed hours, untrue
+          for a firm that buys from nobody (the founder's walk, 2026-11-15),
+          so they are printed only where that list is not drawn. */}
+      {!loading && !error && !denied && data?.source === 'NONE' && book && (
         <div className="panel">
           <p className="text-[13px] text-etyme-ink">
             {data.supplierInvoices?.says ?? data.note}

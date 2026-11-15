@@ -289,7 +289,7 @@ describe('one due day on every money screen', () => {
 describe('a bill raised and not sent is owed by nobody, and only its sender is offered Send (walk 9)', () => {
   const sendsBills = ['invoices.issue']
 
-  it('Submit for payment is drawn only for a seat at the firm that raised the bill, that sends bills, on a bill not yet sent', () => {
+  it('Send on a raised bill is drawn only for a seat at the firm that raised the bill, that sends bills, on a bill not yet sent', () => {
     expect(offersSubmit({ status: 'ISSUED', direction: 'RECEIVABLE', permissions: sendsBills })).toBe(true)
     expect(offersSubmit({ status: 'ISSUED', direction: 'PAYABLE', permissions: ['*'] })).toBe(false)
     expect(offersSubmit({ status: 'ISSUED', direction: 'RECEIVABLE', permissions: ['invoices.read'] })).toBe(false)
@@ -307,7 +307,7 @@ describe('a bill raised and not sent is owed by nobody, and only its sender is o
     expect(notYoursToSendSays({ vendor: null, client: null }, 'nb')).toBeNull()
   })
 
-  it('the bill’s page draws both Send and Submit for payment through the one rule', () => {
+  it('the bill’s page draws Send on a draft and on a raised bill through the one rule', () => {
     const src = read('src/app/dashboard/invoices/[id]/page.tsx')
     expect(src.match(/offersSubmit\(\{/g)?.length).toBe(2)
     expect(src).not.toMatch(/m\.matched && inv\.status === 'ISSUED' && \(/)

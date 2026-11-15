@@ -7,7 +7,8 @@ import { contractSide } from '@/lib/resolve-client-company'
 import { notify } from '@/lib/notify'
 import { termsGate } from '@/lib/award/terms-on-record'
 import { siteSay, startSays } from './words'
-import { startPapers } from './papers'
+import { startPapers, i9DoorAtStart } from './papers'
+import { hasPermission } from '@/lib/permissions'
 import { gateRefusal, whoMay, seatedRoles, TRANSITIONS, VALID_ACTIONS, type Action } from './gate'
 import { startWarningVerdict, startIdentityWarning, type StartWarning } from '@/lib/money/start-warnings'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
@@ -108,6 +109,14 @@ export async function GET(
     subjectId: contract.personId, ...accessActor(caller), action: 'COMPLIANCE_CHECK',
     reason: 'Read the papers a start needs, to draw the Activate button.',
   })
+  // A missing I-9 names where it is recorded: the link for a seat that may
+  // record it, who does for any other (`i9DoorAtStart`).
+  const i9 = papers.outcome === 'BLOCK' && caller.company
+    ? await i9DoorAtStart(
+        { companyId: caller.company.id, companyName: caller.company.name, kind: caller.company.kind, holds: (p) => hasPermission(caller.permissions, p as never) },
+        contract, papers.blocking,
+      )
+    : null
   return NextResponse.json({
     data: {
       id,
@@ -117,7 +126,7 @@ export async function GET(
       says: null,
       who,
       terms: terms.blocks ? { blocks: true, says: terms.says } : null,
-      papers: { outcome: papers.outcome, says: papers.says, fix: papers.fix },
+      papers: { outcome: papers.outcome, says: papers.says, fix: papers.fix, door: i9?.door ?? null, whoRecords: i9?.whoRecords ?? null },
     },
   })
 }

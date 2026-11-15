@@ -106,6 +106,17 @@ describe('activating a contract on paperwork', () => {
     expect(view.says).toMatch(/cannot start without/)
   })
 
+  it('a missing I-9 links the Owner who may record it to Record the I-9 on Compliance, opened for that person', async () => {
+    as(seat)
+    const r = await ask()
+    expect(r.body.data.papers.door).toEqual({
+      says: 'Record the I-9 on Compliance',
+      href: `/dashboard/compliance?record=I9&person=${encodeURIComponent(personId)}`,
+    })
+    expect(r.body.data.papers.whoRecords).toBeNull()
+    expect(viewBefore(r.body.data).door?.href).toBe(`/dashboard/compliance?record=I9&person=${encodeURIComponent(personId)}`)
+  })
+
   it('a firm not party to the placement is refused the panel in the start’s own words, and the refusal is logged', async () => {
     as('world-brightmoor@demo.etyme.local')
     const r = await ask()

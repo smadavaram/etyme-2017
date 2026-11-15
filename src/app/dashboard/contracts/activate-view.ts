@@ -26,7 +26,13 @@ export interface StartPreflight {
   /** The roles that start a placement at this kind of firm. */
   who?: string[]
   terms: { blocks: boolean; says: string | null } | null
-  papers: { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null } | null
+  papers: {
+    outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null
+    /** Where the missing I-9 is recorded, for a seat that may record it. */
+    door?: { says: string; href: string } | null
+    /** Who records the missing I-9, for a seat that may not. */
+    whoRecords?: string | null
+  } | null
 }
 
 /** What the panel draws. Nothing at all where both `button` and `says` are null. */
@@ -37,9 +43,14 @@ export interface PanelView {
   says: string | null
   /** The reason box, where a reason clears what was said; the warnings it answers. */
   box: { answering: string[] } | null
+  /** The link to the act that clears the block, where this seat may do it. */
+  door?: { says: string; href: string } | null
 }
 
 const NOTHING: PanelView = { button: null, says: null, box: null }
+
+/** Said first after a press the route refused again, so a repeat reads as an answer. */
+export const STILL_BLOCKED = 'Still blocked:'
 
 /** Before a press: the route's own verdict on this seat and these papers. */
 export function viewBefore(pre: StartPreflight | null): PanelView {
@@ -54,7 +65,7 @@ export function viewBefore(pre: StartPreflight | null): PanelView {
   if (pre.terms?.blocks) return { button: 'Activate', says: pre.terms.says, box: null }
   const p = pre.papers
   if (p?.outcome === 'BLOCK') {
-    return { button: 'Activate', says: [p.says, p.fix].filter(Boolean).join(' '), box: null }
+    return { button: 'Activate', says: [p.says, p.fix, p.whoRecords].filter(Boolean).join(' '), box: null, door: p.door ?? null }
   }
   if (p?.outcome === 'WARN') {
     return { button: 'Activate with a reason', says: [p.says, p.fix].filter(Boolean).join(' '), box: { answering: ['DOCUMENTS_WARN'] } }
@@ -74,7 +85,7 @@ export function viewBefore(pre: StartPreflight | null): PanelView {
  * could not be checked. Try again." (`startRefusalSays`, demand's rule).
  * Omitted, the error is read as a refusal the route wrote.
  */
-export function viewAfterRefusal(error: unknown, status: number | null = 400): PanelView {
+export function viewAfterRefusal(error: unknown, status: number | null = 400, before?: PanelView | null): PanelView {
   const q = status !== null && status < 500 ? reasonAsked(error) : null
   if (q && q.field === 'overrideReason') {
     const e = error as { warnings?: unknown; code?: unknown }
@@ -83,7 +94,15 @@ export function viewAfterRefusal(error: unknown, status: number | null = 400): P
       : typeof e.code === 'string' ? [e.code] : []
     return { button: 'Activate with a reason', says: q.says, box: { answering } }
   }
-  return { button: 'Activate', says: startRefusalSays(status, error), box: null }
+  const says = startRefusalSays(status, error)
+  // Pressed on a block the panel had already said, and refused again:
+  // "Still blocked:" first, and the link to what clears it kept (the
+  // founder's walk, 2026-11-15, stop 7: the same sentence twice read as
+  // if nothing happened). A server that did not answer is not a block.
+  if (before?.button === 'Activate' && before.says && status !== null && status < 500) {
+    return { button: 'Activate', says: `${STILL_BLOCKED} ${says}`, box: null, door: before.door ?? null }
+  }
+  return { button: 'Activate', says, box: null }
 }
 
 /**

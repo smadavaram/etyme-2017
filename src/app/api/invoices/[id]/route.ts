@@ -18,6 +18,8 @@ import { payToSays } from '@/lib/money/pay-to-words'
 import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
 import { payWaitsAt } from '@/lib/money/pay-waits'
 import { billDeliverySays } from '@/lib/notify/bill-delivery'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { beforeSendSays } from '@/lib/money/bill-before-send'
 import { bankHoldAt, checkPayeeBank } from '@/lib/money/bank-check-read'
 import { receiptParties } from '@/lib/money/payee-bank'
 
@@ -283,6 +285,18 @@ export async function GET(
   // Etyme never sent anywhere, where the page says nothing rather than guess.
   const deliverySays = direction === 'RECEIVABLE' ? await billDeliverySays(invoice.id) : null
 
+  // Before Send, where it goes and whether an email can leave
+  // (lib/money/bill-before-send). The payer is the bill-to where the bill
+  // names one, as the sending reads it; otherwise the client.
+  let beforeSend: string | null = null
+  if (direction === 'RECEIVABLE' && BILL_NOT_SENT.includes(invoice.status)) {
+    const payerId = invoice.billToId ?? parties.client?.id ?? null
+    const payer = payerId
+      ? await prisma.company.findUnique({ where: { id: payerId }, select: { name: true, claimedAt: true } })
+      : null
+    if (payer) beforeSend = beforeSendSays({ payerName: payer.name, payerOnEtyme: payer.claimedAt != null, mailLeaves: mailLeaves() })
+  }
+
   // Whether the payer may pay it now, by the gate the payment route asks
   // (`payGate`, the core of `mayPayInvoiceReceipt`), over the match just
   // run. The page draws Pay only on a yes; a held receipt reads what holds
@@ -331,6 +345,7 @@ export async function GET(
         status: invoice.status,
         direction,
         deliverySays,
+        beforeSend,
         payToSays: payToSays(invoice.remitTo),
         // Minor units, beside the whole-currency figures older readers use.
         totalMinor,

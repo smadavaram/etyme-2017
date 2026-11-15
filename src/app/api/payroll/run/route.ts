@@ -725,6 +725,10 @@ export async function POST(request: NextRequest) {
         // Weeks whose postings were restated so the premium this run paid
         // is in the books, and any that could not be, each with why.
         books,
+        // The pay day of the company's own period this run was for, the
+        // day the Payroll row and the pay file name; null for a calendar
+        // month, which has no one pay day of the company's.
+        payOn: askedIsOwn && askedKey && co ? periodHolding(askedKey, co.rhythm, co.rule)?.payOn ?? null : null,
         message:
           `Payroll ${action} complete: ${result.length} contracts, ${grossSays} gross` +
           (refused.length > 0 ? `. ${refused.length} left out, each with a reason on the row.` : '') +

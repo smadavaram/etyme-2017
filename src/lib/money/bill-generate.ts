@@ -1950,7 +1950,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
             }
           : null,
         taxNote,
-        message: `Bill ${result.number} ${draft ? 'drafted' : 'generated'}: ${fromUnits(Number(result.total), result.currency)} total`,
+        message: `Bill ${result.number} ${draft ? 'drafted' : 'raised'}: ${fromUnits(Number(result.total), result.currency)} total`,
       },
       },
     }
