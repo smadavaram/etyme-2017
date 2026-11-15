@@ -72,6 +72,18 @@ describe('Add consultant is offered only to the seats its route takes', () => {
     expect(page).toMatch(/if \(mayAdd\) \(asked === 'add' \? setShowAdd : setShowInvite\)\(true\)\s*else setAddRefused\(whoAddsSays\(/)
   })
 
+  it('a link to the Add consultant form waits for the seat to load before it says who adds, so an Owner opening it in a new tab gets the form', () => {
+    const page = read('src/app/dashboard/consultants/page.tsx')
+    const at = page.indexOf("searchParams.get('new') === '1'")
+    expect(at).toBeGreaterThan(-1)
+    const effect = page.slice(page.lastIndexOf('useEffect(() => {', at), page.indexOf('])', at))
+    // Nothing is decided, and ?new=1 is not dropped, while the seat is unread.
+    expect(effect.indexOf('if (session.loading) return')).toBeGreaterThan(-1)
+    expect(effect.indexOf('if (session.loading) return')).toBeLessThan(effect.indexOf('setAddRefused'))
+    expect(effect.indexOf('if (session.loading) return')).toBeLessThan(effect.indexOf('router.replace'))
+    expect(effect).toContain('session.loading,')
+  })
+
   it('a delivery manager is not offered Add consultant', () => {
     expect(mayAddConsultant(role('Delivery Manager'))).toBe(false)
   })

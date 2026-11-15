@@ -1068,14 +1068,21 @@ export default function ConsultantsPage() {
 
   // Open the add modal when navigated with ?new=1, Invite candidates with
   // ?invite=1, or say who adds: both ask what Add consultant asks.
+  //
+  // It waits for the seat to load. Opened as a fresh page (a new tab, a
+  // pasted link), the seat's permissions are not read yet, and it used to
+  // tell an Owner who may add that only a Recruiter adds, beside a working
+  // Add consultant button, then drop ?new=1 so a reload did not help
+  // (found on a screen, 2026-11-15).
   useEffect(() => {
+    if (session.loading) return
     const asked = searchParams.get('new') === '1' ? 'add' : searchParams.get('invite') === '1' ? 'invite' : null
     if (asked) {
       if (mayAdd) (asked === 'add' ? setShowAdd : setShowInvite)(true)
       else setAddRefused(whoAddsSays({ kind: session.company?.kind ?? null, companyName: session.company?.name ?? null }))
       router.replace('/dashboard/consultants', { scroll: false })
     }
-  }, [searchParams, router, mayAdd, session.company?.kind, session.company?.name])
+  }, [searchParams, router, mayAdd, session.loading, session.company?.kind, session.company?.name])
 
   // Resend, on a row that reads "Asked, not answered": the one door the
   // Bench tab's Resend uses (POST /api/bench/listings/:id/nudge). Only
