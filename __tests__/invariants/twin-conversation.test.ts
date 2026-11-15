@@ -403,8 +403,8 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(seatSays({ role: 'Validation Engineer', company: 'Teleworld Solutions', sample: true }))
       .toBe('You are signed in at Teleworld Solutions as Validation Engineer, a sample company.')
     expect(seatSays({ role: 'Data Engineer', company: 'Teleworld Solutions', sample: false })).not.toMatch(/You are in /)
-    // A seat with no role is a Member, as the foot of the menu says.
-    expect(seatSays({ role: '  ', company: 'Teleworld Solutions', sample: false })).toBe('You are signed in at Teleworld Solutions as Member.')
+    // A seat with no role reads "No role yet", as every screen says of the same person.
+    expect(seatSays({ role: '  ', company: 'Teleworld Solutions', sample: false })).toBe('You are signed in at Teleworld Solutions, with no role yet.')
     // A team keeps "in": Accounts Receivable, AP & Payroll.
     expect(seatSays({ role: 'Accounts Receivable', company: 'Brightmoor', sample: false })).toBe('You are in accounts receivable at Brightmoor.')
     expect(seatSays({ role: 'AP & Payroll', company: 'Brightmoor', sample: false })).toBe('You are in AP & payroll at Brightmoor.')
@@ -418,7 +418,8 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(seatSays({ role: 'Finance', company: 'Brightmoor', sample: false })).toBe('You are in finance at Brightmoor.')
     expect(seatSays({ role: 'HR', company: 'Brightmoor', sample: false })).toBe('You are in HR at Brightmoor.')
     // No role: where, without a role it does not have. No company: nothing said.
-    expect(seatSays({ role: null, company: 'Brightmoor', sample: false })).toBe('You are signed in at Brightmoor as Member.')
+    expect(seatSays({ role: null, company: 'Brightmoor', sample: false })).toBe('You are signed in at Brightmoor, with no role yet.')
+    expect(seatSays({ role: 'Member', company: 'Brightmoor', sample: false })).toBe('You are signed in at Brightmoor, with no role yet.')
     expect(seatSays({ role: 'Owner', company: null, sample: true })).toBeNull()
     // An MSP seated in a client's program says where it sits (founder, 2026-10-19).
     expect(seatSays({ role: 'Owner', company: 'Aptiva Workforce', sample: true, party: 'MSP', seatedAt: 'Cavanaugh Glassworks' }))

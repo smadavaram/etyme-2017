@@ -2095,8 +2095,9 @@ export function seatSays(seat: { role: string | null; company: string | null; sa
   const sample = seat.sample ? ', a sample company' : ''
   const at = `${company}${sample}.`
   const role = seat.role?.trim()
-  // No role: the seat is a Member, as the foot of the menu says (`footerRole`).
-  if (!role) return `You are signed in at ${company} as Member${sample}.`
+  // No role, or only the Member role: "No role yet", as every screen says
+  // of the same person (fix list layer 4, 2026-11-15).
+  if (!role || role.toLowerCase() === 'member') return `You are signed in at ${company}${sample}, with no role yet.`
   const words = roleWords(role)
   if (namesAPerson(words)) return `You are the ${words} at ${at}`
   if (TEAM_ROLES.has(words.toLowerCase())) return `You are in ${words} at ${at}`
