@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { reversibleHere, undoneHere } from '@/lib/autonomy'
 
 /**
  * Automation log module invariant tests.
@@ -147,16 +148,18 @@ describe('Reversibility rules', () => {
     reversedAt: string | null
   }
 
+  // The log's own reader decides, not the stored flag (UNDONE_BY_THE_LOG, 2026-11-15).
   function canReverse(entry: LogEntry): boolean {
-    return entry.reversible && entry.reversedAt === null
+    return reversibleHere(entry) && entry.reversedAt === null
   }
 
   function isReversed(entry: LogEntry): boolean {
     return entry.reversedAt !== null
   }
 
-  it('a reversible entry that has not been reversed can be reversed', () => {
-    expect(canReverse({ action: 'ROLLOFF_CLAIMED', reversible: true, reversedAt: null })).toBe(true)
+  it('an entry written reversible is offered Reverse only where the log really undoes its act', () => {
+    expect(canReverse({ action: 'ROLLOFF_CLAIMED', reversible: true, reversedAt: null })).toBe(false)
+    expect(canReverse({ action: 'REQUISITION_DISTRIBUTED', reversible: true, reversedAt: null })).toBe(false)
   })
 
   it('a non-reversible entry cannot be reversed', () => {
@@ -319,7 +322,10 @@ describe('Reversal state transitions', () => {
     reversedAt: string | null
   }
 
-  function applyReversal(entry: LogEntry): { entry: LogEntry; reversalLog: LogEntry } {
+  // `undoes` is the log's reader; the marking cases below pass an act whose
+  // real undo the route would perform, since no act is in the reader yet.
+  function applyReversal(entry: LogEntry, undoes: (action: string) => boolean = undoneHere): { entry: LogEntry; reversalLog: LogEntry } {
+    if (!undoes(entry.action)) throw new Error('NOT_UNDONE_HERE')
     if (!entry.reversible) throw new Error('NOT_REVERSIBLE')
     if (entry.reversedAt) throw new Error('ALREADY_REVERSED')
 
@@ -336,14 +342,14 @@ describe('Reversal state transitions', () => {
     }
   }
 
-  it('reversing a reversible entry marks it with reversedAt', () => {
+  it('reversing an entry whose act the log really undoes marks it with reversedAt', () => {
     const result = applyReversal({
       id: '1',
       action: 'ROLLOFF_CLAIMED',
       summary: 'John claimed rolloff',
       reversible: true,
       reversedAt: null,
-    })
+    }, () => true)
     expect(result.entry.reversedAt).not.toBeNull()
   })
 
@@ -354,10 +360,22 @@ describe('Reversal state transitions', () => {
       summary: 'John claimed rolloff',
       reversible: true,
       reversedAt: null,
-    })
+    }, () => true)
     expect(result.reversalLog.action).toBe('REVERSAL')
     expect(result.reversalLog.reversible).toBe(false)
     expect(result.reversalLog.summary).toBe('Reversed: John claimed rolloff')
+  })
+
+  it('reversing an entry written reversible whose act the log does not undo marks nothing', () => {
+    expect(() =>
+      applyReversal({
+        id: '1',
+        action: 'REQUISITION_DISTRIBUTED',
+        summary: 'HCM integration lead sent to 1 supplier',
+        reversible: true,
+        reversedAt: null,
+      })
+    ).toThrow('NOT_UNDONE_HERE')
   })
 
   it('reversing a non-reversible entry throws NOT_REVERSIBLE', () => {
@@ -368,7 +386,7 @@ describe('Reversal state transitions', () => {
         summary: 'Generated invoice',
         reversible: false,
         reversedAt: null,
-      })
+      }, () => true)
     ).toThrow('NOT_REVERSIBLE')
   })
 
@@ -380,7 +398,7 @@ describe('Reversal state transitions', () => {
         summary: 'John claimed rolloff',
         reversible: true,
         reversedAt: '2026-01-01',
-      })
+      }, () => true)
     ).toThrow('ALREADY_REVERSED')
   })
 })

@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { LADDER, RUNGS, readRow, KIND_SAYS, ACTIONS, UNDONE_ON_COMPANIES, undoneElsewhere, reversibleHere } from '@/lib/autonomy'
+import { LADDER, RUNGS, readRow, KIND_SAYS, ACTIONS, UNDONE_BY_THE_LOG, UNDONE_ON_COMPANIES, UNDONE_ON_JOBS, undoneElsewhere, reversibleHere } from '@/lib/autonomy'
 import { mayOpen } from '@/lib/nav-table'
 
 /**
@@ -89,8 +89,9 @@ export async function GET(request: NextRequest) {
   if (reversibleOnly) {
     where.reversible = true
     where.reversedAt = null
-    // Never an act undone on Companies, whatever an old row's flag says.
-    where.AND = [{ action: { notIn: Object.keys(UNDONE_ON_COMPANIES) } }]
+    // Only an act the log really undoes, whatever an old row's flag says
+    // (UNDONE_BY_THE_LOG, 2026-11-15).
+    where.AND = [{ action: { in: [...UNDONE_BY_THE_LOG] } }]
   }
 
   if (reversedOnly) {
@@ -129,8 +130,26 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // A mark the log's own Reverse made undid nothing, so it is not said.
+  // A mark another route made, where it undid the thing, stands.
+  const oldest = entries.length ? entries[entries.length - 1].at : null
+  const markedByTheLog = new Set<string>()
+  if (oldest && entries.some((e) => e.reversedAt)) {
+    const reversals = await prisma.automationLog.findMany({
+      where: { companyId, action: 'REVERSAL', at: { gte: oldest } },
+      select: { payload: true },
+    })
+    for (const r of reversals) {
+      const of = (r.payload as Record<string, unknown> | null)?.reversedEntryId
+      if (typeof of === 'string') markedByTheLog.add(of)
+    }
+  }
+  const markOf = (e: { id: string; action: string; reversedAt: Date | null }) =>
+    undoneElsewhere(e.action) || (markedByTheLog.has(e.id) && !UNDONE_BY_THE_LOG.has(e.action)) ? null : e.reversedAt
+
   // Filtering on a derived value happens here, not in the query.
   const shown = entries.filter((e) => {
+    if (reversedOnly && !markOf(e)) return false
     const act = ACTIONS[e.action]
     if (levelFilter && !(act && act.kind === 'UNPROMPTED' && act.rung === levelFilter)) return false
     if (kindFilter && act?.kind !== kindFilter) return false
@@ -140,8 +159,9 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       entries: shown.map((e) => {
-        const read = readRow(e)
-        // An act undone on Companies is never offered or counted here, and
+        const reversedAt = markOf(e)
+        const read = readRow({ ...e, reversedAt })
+        // An act the log does not undo is never offered or counted here, and
         // the log's own mark on an old row undid nothing, so it is not said.
         const elsewhere = undoneElsewhere(e.action)
         const other = (e.payload as Record<string, unknown> | null)?.otherCompanyId
@@ -152,11 +172,15 @@ export async function GET(request: NextRequest) {
           reason: e.reason,
           payload: e.payload,
           reversible: reversibleHere(e),
-          reversedAt: elsewhere ? null : e.reversedAt?.toISOString() ?? null,
+          reversedAt: reversedAt?.toISOString() ?? null,
           // Where the undo is, for a seat that may open Companies and change a position.
-          undoHref: elsewhere && typeof other === 'string' && hasPermission(caller.permissions, 'vendors.manage') && mayOpen('/dashboard/companies', caller.permissions)
+          undoHref: elsewhere && e.action in UNDONE_ON_COMPANIES && typeof other === 'string' && hasPermission(caller.permissions, 'vendors.manage') && mayOpen('/dashboard/companies', caller.permissions)
             ? `/dashboard/companies?open=${encodeURIComponent(other)}`
-            : null,
+            // A job sent to suppliers is cancelled on Jobs, by a seat that may cancel it.
+            : e.action in UNDONE_ON_JOBS && hasPermission(caller.permissions, 'requirements.write') && mayOpen('/dashboard/requisitions', caller.permissions)
+              ? '/dashboard/requisitions'
+              : null,
+          undoLinkSays: e.action in UNDONE_ON_JOBS ? 'Open Jobs to cancel the job' : 'Open it on Companies',
           at: e.at.toISOString(),
           // What kind of row this is, what level it acted at if any, and
           // whether a rule or a model decided it.

@@ -1378,14 +1378,46 @@ export const UNDONE_ON_COMPANIES: Readonly<Record<string, string>> = Object.free
   COMPANY_POSITION_REMOVED: 'To put this back, extend the company again on Companies.',
 })
 
-/** Where this act is undone instead of here, as a sentence; null where the log's own Reverse is the door. */
-export function undoneElsewhere(action: string): string | null {
-  return UNDONE_ON_COMPANIES[action] ?? null
+/**
+ * Acts on a job undone on Jobs, never from the activity log (the press
+ * walk l2b, 2026-11-15). Reverse on "sent to 1 supplier" crossed the row
+ * out and the supplier still held the job.
+ */
+export const UNDONE_ON_JOBS: Readonly<Record<string, string>> = Object.freeze({
+  REQUISITION_DISTRIBUTED: 'Suppliers are stood down on Jobs, by cancelling the job, not from this log.',
+})
+
+/**
+ * The one reader of what the activity log's own Reverse really undoes
+ * (2026-11-15). The reverse route changes no record: it marks the row and
+ * writes a REVERSAL row. So no act is in here yet, and an act is offered
+ * Reverse on the log only once its real undo is written into that route
+ * and the act is named here. Whatever a row's stored flag says.
+ */
+export const UNDONE_BY_THE_LOG: ReadonlySet<string> = new Set<string>([])
+
+/** What the log says, and the reverse route refuses in, for an act it cannot undo and nobody named a place for. */
+export const LOG_CANNOT_UNDO = 'The activity log only records this. It cannot undo it.'
+
+/** Whether the log's own Reverse really undoes this act. */
+export function undoneHere(action: string): boolean {
+  return UNDONE_BY_THE_LOG.has(action)
 }
 
-/** Whether the log may offer Reverse on this row: the stored flag, and never an act undone elsewhere. */
+/** Where this act is undone instead of here, as a sentence; null where no place is named. */
+export function undoneElsewhere(action: string): string | null {
+  return UNDONE_ON_COMPANIES[action] ?? UNDONE_ON_JOBS[action] ?? null
+}
+
+/** Whether the log may offer Reverse on this row: the stored flag, and only for an act the log really undoes. */
 export function reversibleHere(row: { action: string; reversible: boolean }): boolean {
-  return row.reversible && !undoneElsewhere(row.action)
+  return row.reversible && undoneHere(row.action)
+}
+
+/** The sentence the reverse route refuses in, for an act the log does not undo; null where it does. */
+export function notUndoneHereSays(action: string): string | null {
+  if (undoneHere(action)) return null
+  return undoneElsewhere(action) ?? LOG_CANNOT_UNDO
 }
 
 /** Can this still be put back? The row already knows; this says it in words. */
@@ -1425,7 +1457,12 @@ export function readRow(row: {
     outcome: act && act.kind === 'ENFORCEMENT' ? act.outcome : null,
     actSays: act && act.kind !== 'ATTRIBUTED' ? act.says : null,
     decided: decidedBy(row.action, row.payload),
-    undo: undoneElsewhere(row.action) ?? undoSays(row.reversible, row.reversedAt ?? null),
+    // A row written reversible whose act the log does not undo says so,
+    // never "This can still be undone" (UNDONE_BY_THE_LOG, 2026-11-15).
+    undo: undoneElsewhere(row.action)
+      ?? (row.reversible && !row.reversedAt && !undoneHere(row.action)
+        ? LOG_CANNOT_UNDO
+        : undoSays(row.reversible, row.reversedAt ?? null)),
   }
 }
 

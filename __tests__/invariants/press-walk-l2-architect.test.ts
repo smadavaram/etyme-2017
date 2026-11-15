@@ -51,7 +51,8 @@ describe('Settings > Activity log, an extension of a company', () => {
       expect(reversibleHere({ action, reversible: true })).toBe(false)
       expect(undoneElsewhere(action)).not.toBeNull()
     }
-    expect(reversibleHere({ action: 'ROLLOFF_CLAIMED', reversible: true })).toBe(true)
+    // The log undoes no act today (UNDONE_BY_THE_LOG, 2026-11-15), so a claimed roll-off is not offered either.
+    expect(reversibleHere({ action: 'ROLLOFF_CLAIMED', reversible: true })).toBe(false)
   })
 
   it('the opened row says where the undo is, never "Already undone" for a company whose position did not change', () => {
@@ -63,7 +64,7 @@ describe('Settings > Activity log, an extension of a company', () => {
 
   it('the reverse route refuses an act on a company position in that sentence before it marks anything undone', () => {
     const route = src('src/app/api/automation/[id]/reverse/route.ts')
-    const refusedAt = route.indexOf('const elsewhere = undoneElsewhere(entry.action)')
+    const refusedAt = route.indexOf('const notHere = notUndoneHereSays(entry.action)')
     expect(refusedAt).toBeGreaterThan(0)
     expect(refusedAt).toBeLessThan(route.indexOf('data: { reversedAt: now }'))
   })
@@ -78,7 +79,7 @@ describe('Settings > Activity log, an extension of a company', () => {
   it('the "can be undone" tile and the Reversible chip read the route’s verdict, which never counts an act undone on Companies', () => {
     const route = src('src/app/api/automation/route.ts')
     expect(route).toContain('reversible: reversibleHere(e),')
-    expect(route).toContain("where.AND = [{ action: { notIn: Object.keys(UNDONE_ON_COMPANIES) } }]")
+    expect(route).toContain('where.AND = [{ action: { in: [...UNDONE_BY_THE_LOG] } }]')
   })
 
   it('on the activity log a person’s own press never reads "By a rule", and no machine name or raw payload is drawn', () => {

@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
-import { undoneElsewhere } from '@/lib/autonomy'
+import { notUndoneHereSays, undoneElsewhere } from '@/lib/autonomy'
 
 /**
  * POST /api/automation/:id/reverse
@@ -15,6 +15,10 @@ import { undoneElsewhere } from '@/lib/autonomy'
  * returns the entry. Domain-specific undo logic (e.g. unclaiming a
  * rolloff, revoking a bench listing) lives in the respective endpoints;
  * this serves as the audit trail.
+ *
+ * So it marks only an act whose real undo it performs, named in
+ * UNDONE_BY_THE_LOG (lib/autonomy), and refuses every other act in the
+ * sentence the log shows, whatever the row's flag says (2026-11-15).
  */
 export async function POST(
   request: NextRequest,
@@ -61,13 +65,14 @@ export async function POST(
     )
   }
 
-  // A company's position is undone on Companies; marking the row here
-  // would say it was undone while nothing changed (the press walk l2b,
-  // 2026-11-15). Old rows were written reversible, so the action decides.
-  const elsewhere = undoneElsewhere(entry.action)
-  if (elsewhere) {
+  // An act this route does not really undo is refused, never marked:
+  // marking it said "Reversed" while the supplier still held the job (the
+  // press walk l2b, 2026-11-15). Old rows were written reversible, so the
+  // action decides, not the flag.
+  const notHere = notUndoneHereSays(entry.action)
+  if (notHere) {
     return NextResponse.json(
-      { error: { code: 'UNDONE_ELSEWHERE', message: elsewhere } },
+      { error: { code: undoneElsewhere(entry.action) ? 'UNDONE_ELSEWHERE' : 'NOT_REVERSIBLE', message: notHere } },
       { status: 422 }
     )
   }

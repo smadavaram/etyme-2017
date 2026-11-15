@@ -57,6 +57,7 @@ interface AutomationEntry {
   undo: string
   /** Where an act undone on Companies is undone, for a seat that may do it; null elsewhere. */
   undoHref?: string | null
+  undoLinkSays?: string
 }
 
 // ── Helpers ──────────────────────────────────────────
@@ -461,7 +462,7 @@ export default function AutomationPage() {
                         {entry.undoHref && (
                           <>
                             {' '}
-                            <Link href={entry.undoHref as Route} className="text-etyme-action underline">Open it on Companies</Link>
+                            <Link href={entry.undoHref as Route} className="text-etyme-action underline">{entry.undoLinkSays ?? 'Open it on Companies'}</Link>
                           </>
                         )}
                       </p>

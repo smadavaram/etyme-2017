@@ -147,7 +147,7 @@ const PLUS_MENU: PlusMenuSection[] = [
         // (Tapin's first week, 2026-11-14). POST /api/consultants/invite
         // asks what Add consultant asks (`mayAddConsultant`).
         label: 'Invite candidates',
-        description: 'Email several people at once to join your bench',
+        description: 'Ask several people at once to join your bench',
         href: '/dashboard/consultants?invite=1',
         icon: '✉',
         writes: ['consultants.write'],

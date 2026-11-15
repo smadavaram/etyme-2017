@@ -65,6 +65,53 @@ describe('the activity log and a company made a supplier', () => {
   })
 })
 
+describe('the activity log and a job sent to a supplier', () => {
+  const said = 'Suppliers are stood down on Jobs, by cancelling the job, not from this log.'
+  let sentId = ''
+  let markedId = ''
+
+  it('pressing reverse on such a row by a direct call marks nothing', async () => {
+    // A row as the send writes it today, reversible: true.
+    const job = await prisma.requirement.findFirstOrThrow({ select: { id: true } })
+    sentId = (await prisma.automationLog.create({ data: {
+      companyId: brightmoor, action: 'REQUISITION_DISTRIBUTED', summary: 'Data engineer sent to 1 supplier',
+      reason: 'Distributed by the Owner', payload: { requirementId: job.id }, reversible: true,
+    } })).id
+    const before = await prisma.automationLog.count({ where: { companyId: brightmoor, action: 'REVERSAL' } })
+    const r = await json(await reverse.POST(req('POST', `/api/automation/${sentId}/reverse`), { params: Promise.resolve({ id: sentId }) } as any))
+    expect(r.status).toBe(422)
+    expect(r.body.error.message).toBe(said)
+    expect((await prisma.automationLog.findUniqueOrThrow({ where: { id: sentId } })).reversedAt).toBeNull()
+    expect(await prisma.automationLog.count({ where: { companyId: brightmoor, action: 'REVERSAL' } })).toBe(before)
+  })
+
+  it('a job sent to suppliers is not undone from the log, and the row says where it is stood down, with a link to Jobs', async () => {
+    // A row the old Reverse crossed out, and its REVERSAL row: the mark undid nothing.
+    markedId = (await prisma.automationLog.create({ data: {
+      companyId: brightmoor, action: 'ROLLOFF_CLAIMED', summary: 'A roll-off claimed', reason: 'Claimed by the Owner',
+      payload: {}, reversible: true, reversedAt: new Date(),
+    } })).id
+    await prisma.automationLog.create({ data: {
+      companyId: brightmoor, action: 'REVERSAL', summary: 'Reversed: A roll-off claimed', reason: 'The Owner reversed it',
+      payload: { reversedEntryId: markedId, originalAction: 'ROLLOFF_CLAIMED' }, reversible: false,
+    } })
+    const log = await json(await automation.GET(req('GET', '/api/automation?limit=200')))
+    const sent = log.body.data.entries.find((e: any) => e.id === sentId)
+    expect(sent).toMatchObject({ reversible: false, reversedAt: null, undo: said, undoHref: '/dashboard/requisitions', undoLinkSays: 'Open Jobs to cancel the job' })
+    const marked = log.body.data.entries.find((e: any) => e.id === markedId)
+    expect(marked).toMatchObject({ reversible: false, reversedAt: null, undo: 'The activity log only records this. It cannot undo it.' })
+  })
+
+  it('the can-be-undone tile counts only what the log can undo', async () => {
+    const log = await json(await automation.GET(req('GET', '/api/automation?limit=200')))
+    expect(log.body.data.entries.filter((e: any) => e.reversible && !e.reversedAt)).toEqual([])
+    const onlyReversible = await json(await automation.GET(req('GET', '/api/automation?limit=200&reversible')))
+    expect(onlyReversible.body.data.entries).toEqual([])
+    const reversed = await json(await automation.GET(req('GET', '/api/automation?limit=200&reversed')))
+    expect(reversed.body.data.entries.some((e: any) => e.id === markedId)).toBe(false)
+  })
+})
+
 describe('Settings > Cycles, payroll defaults never saved', () => {
   it('every other week with no Sunday saves as it stands, and the answer says a W-2 placement waits for the Sunday', async () => {
     await prisma.company.update({
