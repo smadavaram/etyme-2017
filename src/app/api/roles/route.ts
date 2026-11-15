@@ -4,6 +4,7 @@ import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { sensitivityOf } from '@/lib/access-grant'
 import { ensureDefaultRoles, roleCanDo } from '@/lib/company-roles'
+import { shippedLineFor } from './blurb'
 import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
 
 /**
@@ -73,6 +74,9 @@ export async function GET(request: NextRequest) {
         // role and invitation pickers agree with the Roles tab.
         permissionCount: roleCanDo(r).count,
         canDo: roleCanDo(r).words,
+        // The one line the invite picker shows beside the name, where the
+        // role is still the shipped one (fix list 2026-11-14, A3).
+        blurb: shippedLineFor(caller.company!.kind, { name: r.name, permissions: r.permissions as string[] }),
         sensitivity: sensitivityOf(r.permissions),
       })),
     },

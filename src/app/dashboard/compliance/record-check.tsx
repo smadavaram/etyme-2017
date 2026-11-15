@@ -189,7 +189,7 @@ export function RecordCheck({ kind, who, onDone, onClose }: { kind: RecordKind; 
             </label>
             <label className="block">
               <span className={label}>Screening company</span>
-              <input value={provider} onChange={(e) => setProvider(e.target.value)} required placeholder="Sterling" className={field} />
+              <input value={provider} onChange={(e) => setProvider(e.target.value)} required placeholder="The screening company’s name" className={field} />
             </label>
             <label className="block">
               <span className={label}>Their reference</span>

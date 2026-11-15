@@ -172,7 +172,7 @@ function PutOnFile({ needs, canKeepCopy, onClose, onDone }: {
         )}
         {shows.has('issuer') && (
           <label className="block"><span className={lbl}>Issued by</span>
-            <input value={f.issuer} onChange={(e) => setF({ ...f, issuer: e.target.value })} required placeholder={needs.key === 'DEGREE' ? 'University of Wisconsin' : 'Wisconsin Board of Nursing'} className={box} /></label>
+            <input value={f.issuer} onChange={(e) => setF({ ...f, issuer: e.target.value })} required placeholder={needs.key === 'DEGREE' ? 'The school’s name' : 'The board that issued it'} className={box} /></label>
         )}
         {/* What the degree is, as printed: the job's rule reads it (walk 8). */}
         {shows.has('qualification') && (

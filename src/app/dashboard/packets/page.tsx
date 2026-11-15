@@ -256,7 +256,7 @@ export default function PacketsPage() {
             </Field>
             <Field label="Send to">
               <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email"
-                placeholder="office@supplier.com" />
+                placeholder="office@supplier.example" />
             </Field>
             {spec?.subject === 'PERSON' && (
               <Field label="About which person" className="sm:col-span-2"

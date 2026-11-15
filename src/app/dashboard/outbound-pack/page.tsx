@@ -376,7 +376,7 @@ export default function OutboundPackPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="procurement@client.com"
+                      placeholder="procurement@client.example"
                     />
                   </Field>
                   {/* A button the route will refuse is a button that

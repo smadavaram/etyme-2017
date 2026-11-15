@@ -1140,6 +1140,124 @@ export function looksLikeAddress(raw: string): boolean {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw.trim())
 }
 
+// ── Invite a teammate: the role picker and the checks before Invite ───
+//
+// Fix list 2026-11-14, A3. The email came second, the role had no words,
+// and an empty press flagged only the email, so an invitation left with
+// no role and the Owner never knew what that meant. Now the email is
+// first and checked as it is typed, each role says in one line what it
+// does (the line the company's default roles already carry), and a choice
+// must be made before Invite sends. "Decide later" is one of the choices,
+// and it says what a seat with no role really sees: the menu of a seat
+// with no permission (`isDeskless` in lib/nav-table) is Ask Etyme and the
+// person's own pages, and nothing of the firm's.
+
+/** The picker's value for "Decide later". It sends no role, which the route takes. */
+export const DECIDE_LATER = 'later'
+
+/** The first line of the picker: nothing is chosen yet. */
+export const PICK_A_ROLE = 'Pick a role'
+
+export const DECIDE_LATER_LABEL = 'Decide later'
+
+/** What a seat with no role sees, said under the picker when "Decide later" is chosen. */
+export const DECIDE_LATER_SAYS =
+  'Until somebody gives them a role, they see Ask Etyme and their own pages, and nothing of the firm’s.'
+
+/** Beside the role box when Invite is pressed with no choice made. */
+export const INVITE_ROLE_MISSING = 'Pick what they do here, or choose Decide later.'
+
+/** Beside the addresses box when Invite is pressed with it empty. */
+export const INVITE_ADDRESSES_MISSING = 'Type the addresses, one per line or separated by commas.'
+
+/** One role as the picker reads it: its name and its one line. */
+export interface PickerRole {
+  id: string
+  name: string
+  /** The company's own line for this role, where it is still the shipped role. */
+  blurb?: string | null
+  /** "5 of 34", "Everything (34)" or "none yet" (lib/company-roles `roleCanDo`). */
+  canDo?: string | null
+}
+
+/**
+ * The one line a role carries in the picker. The shipped line where the
+ * role is still the one the company started with; for a role somebody
+ * wrote or changed, how much it can do, so no option is a bare name.
+ */
+export function roleLine(r: PickerRole): string {
+  const blurb = r.blurb?.trim()
+  if (blurb) return blurb
+  return r.canDo?.trim() ? `A role your company set up. It can do ${r.canDo.trim()}.` : 'A role your company set up.'
+}
+
+/** The option text: "Recruiter: Finds and submits people. Cannot see what anyone costs." */
+export function roleOptionText(r: PickerRole): string {
+  return `${r.name}: ${roleLine(r)}`
+}
+
+/** What is said under the picker for the choice made, or null where nothing is chosen. */
+export function roleChoiceSays(choice: string, roles: readonly PickerRole[]): string | null {
+  if (choice === DECIDE_LATER) return DECIDE_LATER_SAYS
+  const r = roles.find((x) => x.id === choice)
+  return r ? roleLine(r) : null
+}
+
+/** The role id the route is sent: none for "Decide later" or no choice. */
+export function inviteRoleId(choice: string): string | undefined {
+  return choice && choice !== DECIDE_LATER ? choice : undefined
+}
+
+/**
+ * The address box, checked as it is typed. Nothing is said while the box
+ * is empty and not yet pressed for, or while she is still typing it the
+ * first time; once she has left the box, or pressed Invite, a half
+ * address is said at every keystroke until it is whole.
+ */
+export function addressAsTyped(raw: string, checked: boolean): string | null {
+  if (!checked) return null
+  if (!raw.trim()) return null
+  return looksLikeAddress(raw) ? null : INVITE_ADDRESS_MISSING
+}
+
+/**
+ * The same for the several-addresses box: the first piece that is not a
+ * whole address, said as a note. It does not stop the others being sent.
+ */
+export function addressesAsTyped(raw: string, checked: boolean): string | null {
+  if (!checked || !raw.trim()) return null
+  const { addresses, notAddresses } = parseAddresses(raw)
+  if (!notAddresses.length) return null
+  return addresses.length
+    ? `${notAddresses[0]} is not a whole address, so it will not be invited. ${INVITE_ADDRESS_MISSING}`
+    : `${notAddresses[0]} is not a whole address. ${INVITE_ADDRESS_MISSING}`
+}
+
+/**
+ * What a press on Invite finds wrong, box by box. Empty means it sends.
+ * An empty press flags the address and the role together.
+ */
+export function inviteProblems(form: { several: boolean; email: string; emails: string; choice: string }): {
+  email?: string
+  role?: string
+} {
+  const out: { email?: string; role?: string } = {}
+  if (form.several) {
+    const { addresses, notAddresses } = parseAddresses(form.emails)
+    // A piece that is not an address never stops the rest: it gets its own
+    // line after the press, as the route has always answered it.
+    if (addresses.length === 0) {
+      out.email = notAddresses.length ? `${notAddresses[0]} is not a whole address. ${INVITE_ADDRESS_MISSING}` : INVITE_ADDRESSES_MISSING
+    } else if (addresses.length > MAX_ADDRESSES_AT_ONCE) {
+      out.email = `That is ${addresses.length} addresses. Invite at most ${MAX_ADDRESSES_AT_ONCE} at a time, then the rest.`
+    }
+  } else if (!looksLikeAddress(form.email)) {
+    out.email = INVITE_ADDRESS_MISSING
+  }
+  if (!form.choice) out.role = INVITE_ROLE_MISSING
+  return out
+}
+
 
 // ── A paused seat, said to the person ─────────────────────────────────
 

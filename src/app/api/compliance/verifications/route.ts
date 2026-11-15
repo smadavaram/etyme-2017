@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authorizationOnRecord } from '@/lib/document-stages/paper-record'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { hasPermission, desksHolding, type Permission } from '@/lib/permissions'
+import { seatedWhoMay, notYourButton } from '@/lib/refusal-words'
 import { contractSide } from '@/lib/resolve-client-company'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
 import { emit } from '@/lib/events'
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
         reason: `Refused recording ${withArticle(recordLabel(type))}: ${REFUSED_BECAUSE[may.code]}`,
       })
     }
-    return refuse(403, may.code, may.message)
+    return refuse(403, may.code, may.code === 'FORBIDDEN' ? await whoAtThisFirm(caller.company.id, caller.company.kind, about, recordLabel(type), subjectName) : may.message)
   }
 
   // ── The person's authorization, where one is named ──
@@ -195,6 +196,32 @@ const REFUSED_BECAUSE: Record<'NOT_A_PARTY' | 'NOT_YOURS_TO_RECORD' | 'FORBIDDEN
   NOT_A_PARTY: 'the firm is not a party to the placement',
   NOT_YOURS_TO_RECORD: 'it is the other firm’s to record',
   FORBIDDEN: 'the seat does not record checks',
+}
+
+/**
+ * The refusal for a seat that does not record checks, naming who at this
+ * firm does, from the roles it has seated (the last batch's press: the
+ * I-9 door named HR and a compliance officer the firm may never have
+ * seated). Who may is unchanged: the roles holding the permissions
+ * `mayRecordCheck` asks, of which `seatedWhoMay` names the ones somebody
+ * holds here, else the Owner and an Admin.
+ */
+async function whoAtThisFirm(
+  companyId: string, kind: string | null | undefined, about: 'PERSON' | 'FIRM', what: string, subjectName: string,
+): Promise<string> {
+  const seats = await prisma.context.findMany({
+    where: { companyId, revokedAt: null, suspendedAt: null, roleId: { not: null } },
+    select: { role: { select: { name: true } } },
+  })
+  const seated = Array.from(new Set(seats.map((s) => s.role?.name).filter((n): n is string => !!n)))
+  const names = seatedWhoMay(desksHolding(RECORDS_CHECKS[about], kind), seated)
+  return notYourButton(`recording the ${what} for ${subjectName}`, names)
+}
+
+/** The permissions `mayRecordCheck` asks, by what the check is about. */
+const RECORDS_CHECKS: Record<'PERSON' | 'FIRM', Permission[]> = {
+  PERSON: ['consultants.write', 'privacy.manage'],
+  FIRM: ['vendors.manage', 'privacy.manage', 'governance.write'],
 }
 
 function refuse(status: number, code: string, message: string, field?: string) {

@@ -3,7 +3,9 @@
 import { readJson, statusMeans } from '@/lib/read-response'
 import { pauseReasonHelp } from '@/app/api/access/[contextId]/pause-words'
 import {
-  desksOffered, INVITE_ADDRESS_MISSING, looksLikeAddress, mailLine, capRefusalSays, parseAddresses, MAX_ADDRESSES_AT_ONCE,
+  desksOffered, mailLine, capRefusalSays, MAX_ADDRESSES_AT_ONCE,
+  DECIDE_LATER, DECIDE_LATER_LABEL, PICK_A_ROLE, roleOptionText, roleChoiceSays, inviteRoleId, inviteProblems,
+  addressAsTyped, addressesAsTyped, type PickerRole,
   COPY_LABEL, SEND_AGAIN_LABEL, levelLegend, LEVEL_LABEL, figureFromQuery, type FigureKey, type FigureWords, type InviteForm, type InviteMail, type GrantSensitivity,
 } from '@/lib/access-grant'
 import { readerZone } from '@/lib/when'
@@ -546,7 +548,7 @@ function ActForm({ action, acts, name, email, reason, setReason, pending, onSubm
       {action === 'rename' && (
         <Field label={`The name of the person who uses ${email ?? 'this seat'}`}
           help="It changes on every screen here. The old name is kept in the log, so it can be put back.">
-          <Input value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Their name" placeholder="Rosa Delgado" />
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Their name" placeholder="First and last name" />
         </Field>
       )}
       {action !== 'withdraw' && action !== 'rename' && ASKS[action].includes('reason') && (
@@ -571,7 +573,7 @@ export default function AccessPage() {
   // round seven, problem 4). Nothing while the menu is not known.
   const section = usePageSection('/dashboard/access')
   const [data, setData] = useState<any>(null)
-  const [roles, setRoles] = useState<{ id: string; name: string }[]>([])
+  const [roles, setRoles] = useState<PickerRole[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // A refusal is not an error. It has no "Try again" — trying again
@@ -584,8 +586,13 @@ export default function AccessPage() {
   const [invite, setInvite] = useState({ name: '', email: '', roleId: '' })
   const [inviting, setInviting] = useState(false)
   const [invited, setInvited] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null)
-  // What is wrong with the address, beside its box, after Invite is pressed.
+  // What is wrong with the address, beside its box: from the route, or
+  // from a press on Invite. As she types, `addressAsTyped` says it too,
+  // once she has left the box once.
   const [addressError, setAddressError] = useState<string | null>(null)
+  const [addressChecked, setAddressChecked] = useState(false)
+  // Beside the role box: no choice made on a press, or the route's refusal of the role.
+  const [roleError, setRoleError] = useState<string | null>(null)
   // The invitation just made: whether its email left, and its Copy.
   const [lastInvite, setLastInvite] = useState<{ contextId: string; mail: InviteMail | null; copyText: string | null } | null>(null)
   // Several addresses at once, one role, and one line per address after.
@@ -642,24 +649,30 @@ export default function AccessPage() {
   // they sign in, so the client's Contacts page fills with the people
   // who work its account.
   async function sendInvite() {
+    // Never a greyed button with no words: the press says what is missing,
+    // each beside its own box, the address and the role together.
+    const wrong = inviteProblems({ several, email: invite.email, emails: batchText, choice: invite.roleId })
+    setAddressChecked(true)
+    setAddressError(wrong.email ?? null)
+    setRoleError(wrong.role ?? null)
+    if (wrong.email || wrong.role) { setInvited(null); return }
     if (several) return sendSeveral()
-    // Never a greyed button with no words: the press says what is missing, beside the box.
-    if (!looksLikeAddress(invite.email)) { setAddressError(INVITE_ADDRESS_MISSING); setInvited(null); return }
-    setAddressError(null)
     setInviting(true); setInvited(null); setLastInvite(null)
     try {
       const r = await sendAndRead('/api/access/invite', 'POST', {
-        name: invite.name.trim(), email: invite.email.trim(), roleId: invite.roleId || undefined,
+        name: invite.name.trim(), email: invite.email.trim(), roleId: inviteRoleId(invite.roleId),
       })
       if (!r.ok) {
-        // A refusal about the address is said beside the address box.
+        // A refusal about the address or the role is said beside its box.
         if (r.field === 'email') setAddressError(r.text)
+        else if (r.field === 'roleId') setRoleError(r.text)
         else setInvited({ text: r.text, tone: 'error' })
         return
       }
       setInvited({ text: r.data?.says ?? `${invite.email.trim()} has been invited.`, tone: r.data?.mail && r.data.mail.state !== 'SENT' ? 'error' : 'ok' })
       setLastInvite(r.data?.contextId ? { contextId: r.data.contextId, mail: r.data.mail ?? null, copyText: r.data.copyText ?? null } : null)
       setInvite({ name: '', email: '', roleId: '' })
+      setAddressChecked(false)
       await load()
     } finally {
       setInviting(false)
@@ -667,27 +680,21 @@ export default function AccessPage() {
   }
 
   // Several at once: one role for all, one line per address, a refusal on one never stopping the rest.
+  // Checked by `inviteProblems` in sendInvite first: the same role rule as one person.
   async function sendSeveral() {
-    const { addresses, notAddresses } = parseAddresses(batchText)
-    if (addresses.length === 0) {
-      setAddressError(notAddresses.length ? `${notAddresses[0]} is not a whole address. ${INVITE_ADDRESS_MISSING}` : 'Type the addresses, one per line or separated by commas.')
-      return
-    }
-    if (addresses.length > MAX_ADDRESSES_AT_ONCE) {
-      setAddressError(`That is ${addresses.length} addresses. Invite at most ${MAX_ADDRESSES_AT_ONCE} at a time, then the rest.`)
-      return
-    }
-    setAddressError(null); setInviting(true); setInvited(null); setBatch(null)
+    setInviting(true); setInvited(null); setBatch(null)
     try {
-      const r = await sendAndRead('/api/access/invite', 'POST', { emails: batchText, roleId: invite.roleId || undefined })
+      const r = await sendAndRead('/api/access/invite', 'POST', { emails: batchText, roleId: inviteRoleId(invite.roleId) })
       if (!r.ok) {
         if (r.field === 'emails') setAddressError(r.text)
+        else if (r.field === 'roleId') setRoleError(r.text)
         else setInvited({ text: r.text, tone: 'error' })
         return
       }
       setBatch(r.data?.results ?? [])
       setInvited({ text: r.data?.says ?? 'Done.', tone: 'ok' })
       setBatchText('')
+      setAddressChecked(false)
       await load()
     } finally {
       setInviting(false)
@@ -862,7 +869,7 @@ export default function AccessPage() {
               long, is etyme-regulatory's and is unchanged. */}
           <Field label="Why do they need it?" help="Whoever reviews this in six months is probably not you.">
             <Input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })}
-              placeholder="Joining the Talvern Medical delivery team" />
+              placeholder="Joining a client’s delivery team" />
           </Field>
           <Field label="Ends on" help="Leave it empty for the usual length. Renewing takes a click." error={endsOnError}>
             <Input value={form.endsOn} onChange={e => { setForm({ ...form, endsOn: e.target.value }); setEndsOnError(null) }}
@@ -995,42 +1002,53 @@ export default function AccessPage() {
           {inviteHelp(data.joins)}
         </p>
         <div className="mb-3">
-          <button type="button" onClick={() => { setSeveral(!several); setAddressError(null); setBatch(null) }}
+          <button type="button" onClick={() => { setSeveral(!several); setAddressError(null); setAddressChecked(false); setBatch(null) }}
             className="text-[13px] text-etyme-action underline">
             {several ? 'Invite one person' : 'Invite several at once'}
           </button>
         </div>
-        <div className={`grid grid-cols-1 gap-3 items-start ${several ? 'sm:grid-cols-[1.6fr_1fr_auto]' : 'sm:grid-cols-[1fr_1.3fr_1fr_auto]'}`}>
-          {!several && (
-            <Field label="Name (optional)">
-              <Input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name (optional)" />
-            </Field>
-          )}
+        {/* Fix list 2026-11-14, A3: the email first, because the email is
+            the identifier, checked as it is typed once she has left the
+            box; the name after it and optional; a role chosen, with its
+            one line, before Invite sends. On a phone the boxes stack in
+            this order, and the chosen role's line is printed under the
+            picker, where a phone's option list would cut it short. */}
+        <div className={`grid grid-cols-1 gap-3 items-start ${several ? 'sm:grid-cols-[1.6fr_1fr_auto]' : 'sm:grid-cols-[1.3fr_1fr_1fr_auto]'}`}>
           {several ? (
             <Field label={`Addresses, at most ${MAX_ADDRESSES_AT_ONCE}`}
               help={`One per line, or separated by commas. ${(data.invite as InviteForm | undefined)?.hint ?? ''}`.trim()}
-              error={addressError}>
+              error={addressError ?? addressesAsTyped(batchText, addressChecked)}>
               <textarea value={batchText} rows={4} aria-label="Addresses"
                 onChange={(e) => { setBatchText(e.target.value); if (addressError) setAddressError(null) }}
-                placeholder={'name@example.com\nother@example.com'}
+                onBlur={() => setAddressChecked(true)}
+                placeholder={'name@company.example\nother@company.example'}
                 className="w-full max-w-full text-sm p-2 border border-etyme-rule rounded bg-etyme-raised text-etyme-ink" />
             </Field>
           ) : (
           <Field label={(data.invite as InviteForm | undefined)?.emailLabel ?? 'Email address'}
             help={(data.invite as InviteForm | undefined)?.hint}
-            error={addressError}>
+            error={addressError ?? addressAsTyped(invite.email, addressChecked)}>
             <Input value={invite.email} type="email" autoComplete="off"
               onChange={(e) => { setInvite({ ...invite, email: e.target.value }); if (addressError) setAddressError(null) }}
-              placeholder="name@example.com" />
+              onBlur={() => setAddressChecked(true)}
+              placeholder="name@company.example" />
           </Field>
           )}
-          <Field label="What they do here">
-            <Select value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })}>
-              <option value="">Pick a role…</option>
-              {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          {!several && (
+            <Field label="Name (optional)">
+              <Input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="First and last name" />
+            </Field>
+          )}
+          <Field label="What they do here"
+            help={roleChoiceSays(invite.roleId, pickable)}
+            error={roleError}>
+            <Select value={invite.roleId} onChange={(e) => { setInvite({ ...invite, roleId: e.target.value }); setRoleError(null) }}>
+              <option value="">{PICK_A_ROLE}</option>
+              {pickable.map((r) => <option key={r.id} value={r.id}>{roleOptionText(r)}</option>)}
+              <option value={DECIDE_LATER}>{DECIDE_LATER_LABEL}</option>
             </Select>
           </Field>
-          {/* Always pressable: a missing or half address is said beside the box. */}
+          {/* Always pressable: a missing address or role is said beside its box. */}
           <SubmitButton type="button" onClick={sendInvite} pending={inviting} pendingLabel="Inviting…" className="sm:mt-[22px] self-start">
             Invite
           </SubmitButton>

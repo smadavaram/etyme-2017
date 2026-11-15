@@ -69,11 +69,11 @@ describe('a staffing firm’s team, in its own words', () => {
 })
 
 describe('inviting the team', () => {
-  it('Users & permissions has the form: name, work email, what they do here', () => {
+  it('Users & permissions has the form: work email, name, what they do here', () => {
     const page = read('src/app/dashboard/access/page.tsx')
     expect(page).toContain('Invite a teammate')
     expect(page).toContain("sendAndRead('/api/access/invite'")
-    expect(page).toContain('<Field label="What they do here">')
+    expect(page).toContain('<Field label="What they do here"')
   })
   it('the invitation is emailed and says when the seat becomes theirs', () => {
     const route = read('src/app/api/access/invite/route.ts') + read('src/app/api/access/invite/one.ts')

@@ -195,7 +195,7 @@ export function ExaminePaper({ row, onDone, onClose }: { row: ExamineRow; onDone
             {shows.has('issuer') && (
               <label className="block">
                 <span className={label}>{needs.license ? 'The board that issued it' : 'Who issued it: the insurer, or the state'}</span>
-                <input value={v.issuer ?? ''} onChange={set('issuer')} required placeholder={needs.license ? 'Oregon State Board of Nursing' : 'The Hartford'} className={field} />
+                <input value={v.issuer ?? ''} onChange={set('issuer')} required placeholder={needs.license ? 'The board that issued it' : 'The insurer’s name'} className={field} />
               </label>
             )}
             {/* A background check or a drug screen is the screening

@@ -541,8 +541,10 @@ describe('Users & permissions as the founder read it, 2026-11-12', () => {
     expect(looksLikeAddress('meera')).toBe(false)
     expect(looksLikeAddress(' meera@brightmoor.example ')).toBe(true)
     expect(INVITE_ADDRESS_MISSING).toBe('Type the full address, like name@example.com.')
-    expect(page).toContain('if (!looksLikeAddress(invite.email)) { setAddressError(INVITE_ADDRESS_MISSING)')
-    expect(page).toContain('error={addressError}')
+    // The press reads the form through one check (`inviteProblems`), the address and the role together.
+    expect(page).toContain('const wrong = inviteProblems({ several, email: invite.email, emails: batchText, choice: invite.roleId })')
+    expect(page).toContain('setAddressError(wrong.email ?? null)')
+    expect(page).toContain('error={addressError ?? addressAsTyped(invite.email, addressChecked)}')
     expect(page).toContain("if (r.field === 'email') setAddressError(r.text)")
   })
 
