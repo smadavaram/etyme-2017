@@ -350,13 +350,16 @@ describe('a supplier walks four desks', () => {
     // Finance's yes wrote a claim and the firm's contact was emailed it.
     const invite = await prisma.supplierInvite.findFirstOrThrow({ where: { email: 'ops@harborstaffing.com' }, select: { token: true, state: true } })
     expect(it_.claim?.to).toBe('ops@harborstaffing.com')
-    expect(it_.claim?.url).toMatch(new RegExp(`/claim/${invite.token}$`))
+    // The client that approved reads who was written to, never the link:
+    // it would seat the client's own person at the supplier.
+    expect(it_.claim?.url).toBeUndefined()
+    expect(JSON.stringify(it_.claim)).not.toContain(invite.token)
     expect(['SENT', 'NOT_CONFIGURED']).toContain(it_.claim?.state)
     // The apply link, opened again, says the same sentence with the same link.
     const page = await viaToken(applyGet, 'GET', it_.token)
     expect(page.body.data.decided).toBe(true)
     expect(page.body.data.claim.says).toBe('Northbend Athletic approved Harbor Staffing as a supplier. Take your account:')
-    expect(page.body.data.claim.url).toBe(it_.claim.url)
+    expect(page.body.data.claim.url).toMatch(new RegExp(`/claim/${invite.token}$`))
   })
 })
 

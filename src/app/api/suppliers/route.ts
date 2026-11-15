@@ -660,7 +660,10 @@ export async function POST(request: NextRequest) {
       email: row.email,
       alreadyHere: existing != null && existing.claimedAt != null,
       ...(namesake ? { says: namesake } : {}),
-      claimUrl,
+      // The link that takes the supplier's account is in the letter to the
+      // supplier and nowhere else. It was also handed back here, to the
+      // firm that pasted them, which no screen read (found 2026-11-15): a
+      // link or token that seats somebody is never returned in a reply.
       state: invite.state,
       // Said out loud. NOT_CONFIGURED is a true answer and it points at
       // the fix; pretending it was sent is the failure worth avoiding.

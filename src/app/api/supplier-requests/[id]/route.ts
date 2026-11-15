@@ -561,7 +561,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: {
         request: updated,
         supplier: { id: supplier.id, name: supplier.name },
-        claim,
+        // Who was written to and whether it left: never the link itself.
+        // The link seats somebody at the supplier, and this reply goes to
+        // the client that approved them (found 2026-11-15).
+        claim: claim ? { to: claim.to, state: claim.state, note: claim.note } : null,
         inviteHeld,
         evidence: {
           recorded,

@@ -124,3 +124,18 @@ describe('the client’s screens use the client’s words', () => {
     expect(sheets).not.toContain('logging hours against sell contracts')
   })
 })
+
+describe('the link that takes a supplier’s account goes to the supplier and to nobody else', () => {
+  it('the supplier paste’s reply carries no link that takes an account', () => {
+    const src = read('src/app/api/suppliers/route.ts')
+    const at = src.indexOf('made.push({')
+    expect(at).toBeGreaterThan(-1)
+    const row = src.slice(at, src.indexOf('\n    })', at))
+    expect(row).not.toMatch(/claimUrl|claimLinkFor|invite\.token/)
+  })
+  it('the client that approves a supplier reads who was written to, never the link', () => {
+    const src = read('src/app/api/supplier-requests/[id]/route.ts')
+    expect(src).toContain('claim: claim ? { to: claim.to, state: claim.state, note: claim.note } : null')
+    expect(src).not.toMatch(/\n\s+claim,\n/)
+  })
+})
