@@ -1803,18 +1803,22 @@ enum CompanyKind {
 // the consultant physically works — required for compliance (LCA amendments, state tax,
 // work-rights checks on cross-border moves per BRD Addendum C §C2.2 step 5).
 model CompanyLocation {
-  id        String  @id @default(cuid())
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name      String // "Lakewood HQ", "Tokyo R&D", "Remote"
-  address   String?
-  city      String?
-  state     String? // US state or region
-  country   String  @default("US")
+  id         String  @id @default(cuid())
+  companyId  String
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String // "Lakewood HQ", "Tokyo R&D", "Remote"
+  address    String?
+  city       String?
+  state      String? // US state or region
+  /// The site's ZIP or postal code. Added 2026-11-15 (fix list A5): a
+  /// firm's own head office could not be given its ZIP. Null on every site
+  /// recorded before, which the Sites screen leaves blank.
+  postalCode String?
+  country    String  @default("US")
   /// The site's time zone, IANA ("America/Chicago", "Asia/Kolkata").
   /// Null reads as the company's. Added 2026-10-20 ("A site has a country
   /// and a time zone"); nothing reads it yet.
-  timeZone  String?
+  timeZone   String?
   /// The region this site is grouped in, as a plain label a person reads
   /// ("United States", "Latin America", "Vietnam"). Added 2026-10-27 for
   /// the founder's region map. Null is a site in no region, which is every
@@ -1822,9 +1826,9 @@ model CompanyLocation {
   /// REGION reads the sites whose label is that unit's name and nothing
   /// else (`regionScopeFor` in lib/region-scope). A label, not a key: a
   /// renamed unit then reads no site rather than every site.
-  region    String?
-  isRemote  Boolean @default(false) // virtual location for remote-first work
-  isPrimary Boolean @default(false) // the default location for this company
+  region     String?
+  isRemote   Boolean @default(false) // virtual location for remote-first work
+  isPrimary  Boolean @default(false) // the default location for this company
 
   /// Where this site came from, said on the Sites screen under it
   /// (founder, 2026-10-28, "Build it, sites sounds good"): the contractor
