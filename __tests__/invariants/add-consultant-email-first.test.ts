@@ -158,6 +158,17 @@ describe('the form asks for what the route requires', () => {
 })
 
 describe('Add consultant at phone width', () => {
+  it('somebody the firm already keeps greys Add and ask them, with the reason said right above the button', () => {
+    // A press that did nothing and said nothing new (press walk l3a, 2026-11-15).
+    expect(MODAL).toContain('disabled={submitting || !!match?.blocks}')
+    const says = MODAL.indexOf('<p id="add-blocked-says"')
+    const button = MODAL.indexOf("{submitting ? 'Adding…' : 'Add and ask them'}")
+    expect(says).toBeGreaterThan(-1)
+    expect(says).toBeLessThan(button)
+    expect(MODAL.slice(says, says + 120)).toContain('{match.says}')
+    expect(MODAL).toContain("aria-describedby={match?.blocks ? 'add-blocked-says' : undefined}")
+  })
+
   it('the form scrolls inside its box, so the pay boxes and Add and ask them are reachable on a phone', () => {
     expect(MODAL).toContain('card w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto')
   })

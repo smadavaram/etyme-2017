@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   DECIDE_LATER, DECIDE_LATER_LABEL, DECIDE_LATER_SAYS, NO_ROLE_SEES, levelLegend, levelOf, INVITE_ADDRESS_MISSING, INVITE_ROLE_MISSING, INVITE_ADDRESSES_MISSING,
-  addressAsTyped, addressesAsTyped, inviteProblems, inviteRoleId, roleChoiceSays, roleLine, roleOptionText,
+  addressAsTyped, addressesAsTyped, inviteProblems, inviteRoleId, inviteSays, roleChoiceSays, roleLine, roleOptionText,
 } from '@/lib/access-grant'
 import { shippedLineFor } from '@/app/api/roles/blurb'
 import { rolesFor } from '@/lib/company-defaults'
@@ -129,6 +129,17 @@ describe('Decide later', () => {
       expect(nav[0].items.map((i) => i.href).every((h) => h.startsWith('/dashboard/conversations')), kind).toBe(true)
       expect(nav[1].items.map((i) => i.label), kind).toEqual(['Your work', 'Your page', 'Who has you', 'Your data', 'Your paperwork'])
     }
+  })
+
+  it('the answer after inviting with Decide later says the same sentence as the form and the legend, whether or not an email could leave', () => {
+    // The screen shows this answer and nothing else (components/invite-teammate reads data.says).
+    for (const mail of ['SENT', 'FAILED', 'DEMO_SKIPPED', 'NOT_CONFIGURED'] as const) {
+      const says = inviteSays({ personName: 'Sam Ito', email: 'sam.ito@example.test', roleName: null, mail })
+      expect(says, mail).toContain(NO_ROLE_SEES)
+      expect(says, mail).not.toContain('Give them a role when they arrive')
+    }
+    // With a role chosen the answer is about the seat, and says nothing about a person with no role.
+    expect(inviteSays({ personName: 'Kim Oduya', email: 'kim.oduya@example.test', roleName: 'Recruiter', mail: 'SENT' })).not.toContain(NO_ROLE_SEES)
   })
 
   it('Decide later is one of the choices in the picker, and it sends no role', () => {

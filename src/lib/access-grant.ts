@@ -809,7 +809,8 @@ export function inviteSays(i: {
   const head = i.roleName ? `${i.personName} has been invited as ${i.roleName}` : `${i.personName} has been invited`
   const seat = i.roleName
     ? ` The seat is theirs when they sign in with ${i.email}.`
-    : ' Give them a role when they arrive.'
+    // The one sentence the form and the legend say (press walk, 2026-11-15).
+    : ` ${NO_ROLE_SEES}`
 
   if (i.mail === 'SENT') {
     return `${head} and emailed.${seat} The email tells them how to sign in.`

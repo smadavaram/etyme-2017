@@ -206,6 +206,16 @@ describe('inviting somebody', () => {
     expect(v.reason).toMatch(/only get in because you asked them/i)
   })
 
+  it('at a firm with no domain of its own the invitation\u2019s reason is a whole sentence and names no domain', () => {
+    // A firm that runs on invitation alone has nothing to be outside of.
+    for (const none of [null, '', '   ']) {
+      const v = checkInvite('sam.ito@example.test', none, false)
+      expect(v.ok).toBe(true)
+      expect(v.reason).toBe('sam.ito@example.test can only get in because you asked them.')
+      expect(v.reason).not.toMatch(/outside\s*,|outside your domain/)
+    }
+  })
+
   it('refuses somebody who already has a seat', () => {
     expect(checkInvite('ravi@techpeple.example', 'other.com', true).ok).toBe(false)
   })

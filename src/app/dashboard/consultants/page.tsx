@@ -504,13 +504,19 @@ function AddConsultantModal({
           {/* Said plainly, right above the one button, because saving
               sends an email (outside review, 2026-10-05), or, where none
               can leave, keeps the link for staff (walk l2a, 2026-11-15). */}
-          <p className="text-sm text-etyme-ink pt-2">{savingSays(form.name, mailOn)}</p>
+          {/* Somebody the firm already keeps is not added twice: the button
+              is greyed and the reason is said right above it, where it was
+              a press that did nothing (press walk l3a, 2026-11-15). */}
+          {match?.blocks
+            ? <p id="add-blocked-says" className="text-sm text-etyme-attention pt-2">{match.says}</p>
+            : <p className="text-sm text-etyme-ink pt-2">{savingSays(form.name, mailOn)}</p>}
 
           <div className="flex justify-end gap-3">
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+            <button type="submit" disabled={submitting || !!match?.blocks} aria-describedby={match?.blocks ? 'add-blocked-says' : undefined}
+              className="btn-primary disabled:opacity-50">
               {submitting ? 'Adding…' : 'Add and ask them'}
             </button>
           </div>

@@ -326,7 +326,12 @@ export function checkInvite(
     ok: true,
     // Said out loud because it is the whole risk of the feature: an
     // invitation is a hole in the domain rule, deliberately punched.
-    reason: `${clean} is outside ${companyDomain ?? 'your domain'}, so they can only get in because you asked them.`,
+    // A firm with no domain of its own has nothing to be outside of: every
+    // seat there is by invitation, and the row says only that (2026-11-15;
+    // an empty domain used to leave "is outside , so").
+    reason: companyDomain?.trim()
+      ? `${clean} is outside ${companyDomain.trim()}, so they can only get in because you asked them.`
+      : `${clean} can only get in because you asked them.`,
     outsider: true,
   }
 }
