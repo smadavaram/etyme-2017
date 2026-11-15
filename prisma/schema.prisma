@@ -2724,6 +2724,11 @@ model BenchListing {
   // (etyme-supply); null is "the firm said nothing", and a reader falls
   // back to the person's own profile.
 
+  /// The name the asking firm typed for the person, added 2026-11-15
+  /// (fix list A4). Read by this firm until she says yes, never written to
+  /// her own record. Null is "the firm typed none", and every listing made
+  /// before 2026-11-15.
+  firmName     String?
   /// The title the firm sells the person as: "Workday HCM consultant".
   firmHeadline String?
   /// The skills the firm lists them for, in the firm's words.
