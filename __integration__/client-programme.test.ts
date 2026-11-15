@@ -262,8 +262,8 @@ describe('4 · nobody starts without paperwork', () => {
     as(NIKE.ap)
     const r = await call(activate, 'POST', `/api/contracts/${it_.contract}/activate`, it_.contract, { action: 'activate' })
     expect(r.status).toBe(403)
-    // The refusal names the desks that do this, never the permission key.
-    expect(r.body.error.message).toMatch(/^Starting a placement is done by .*Program Manager/)
+    // The refusal names the roles this firm has seated that do this, never the permission key.
+    expect(r.body.error.message).toMatch(/^Starting a placement is for .*Program Manager.* here\. Ask /)
     expect(r.body.error.message).not.toMatch(/assignments\.write|\b[a-z]+\.(read|write)\b/)
   })
 
