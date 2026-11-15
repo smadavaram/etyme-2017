@@ -92,4 +92,28 @@ describe('the Suppliers list says only what is true of a pasted supplier', () =>
     expect(rows.find((s) => s.companyId === larkspur).shownAs).toBe('Larkspur Staffing (larkspur-staffing.example)')
     expect(rows.find((s) => s.companyId === twin).shownAs).toBe('Larkspur Staffing (larkspur-group.example)')
   })
+
+  it('a pasted supplier’s card names a contact by her name where the invitation carried only her address', async () => {
+    as(OWNER)
+    const r = await paste([{ company: 'Harborline Tech', email: 'ops@harborline-tech.example', domain: 'harborline-tech.example' }])
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const harborline = r.body.data.added[0].companyId
+    // The contact the paste wrote is named from the address; give her a real name, as Contacts would.
+    await prisma.companyContact.updateMany({ where: { companyId: brightmoor, atCompanyId: harborline }, data: { name: 'Teresa Lind' } })
+    const row = (await list()).find((s) => s.companyId === harborline)
+    expect(row.contacts.find((c: any) => c.email === 'ops@harborline-tech.example')?.name).toBe('Teresa Lind')
+  })
+
+  it('the answer after a paste and the pasted card say an email went only where email can leave', async () => {
+    as(OWNER)
+    const r = await paste([{ company: 'Quillmark Partners', contactName: 'Ada Voss', email: 'ada@quillmark-partners.example', domain: 'quillmark-partners.example' }])
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.summary).not.toContain('they will find out when one arrives')
+    const card = (await list()).find((s) => s.companyId === r.body.data.added[0].companyId)
+    const { mailLeaves } = await import('@/lib/notify/mail-leaves')
+    if (!mailLeaves()) {
+      expect(r.body.data.summary).toContain('No email can be sent from here yet, so nobody was emailed.')
+      expect(card.where).not.toMatch(/^Invited/)
+    }
+  })
 })

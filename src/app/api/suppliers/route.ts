@@ -10,6 +10,7 @@ import {
   type SupplierRow, pastedName, supplierDomain, NEEDS_A_NAME_SAYS, READ_IT_FIRST_SAYS,
   CANNOT_SEE_SUPPLIERS, CANNOT_ADD_SUPPLIER, onEtymeAskToLinkSays,
   PASTED_CONTACT_KIND, lastEngagementOf, namesTold, pasteLogSays,
+  pasteAnswerSays, supplierStandingSays,
 } from '@/lib/supplier-list'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { workTogether } from '@/lib/company-create'
@@ -282,7 +283,14 @@ export async function GET(request: NextRequest) {
     const row = byCompany.get(c.atCompanyId)
     if (!row) continue
     const email = c.email?.toLowerCase() ?? null
-    if (email && row.contacts.some((x: any) => x.email?.toLowerCase() === email)) continue
+    // The invitation and the contact are one person: the card names her
+    // by the contact's name where the invitation carried none (walk,
+    // 2026-11-15: a contact shown by her address alone).
+    const same = email ? row.contacts.find((x: any) => x.email?.toLowerCase() === email) : null
+    if (same) {
+      if (!same.name && c.name) same.name = c.name
+      continue
+    }
     row.contacts.push({ email, name: c.name, state: 'CONTACT' })
   }
   const lastSubmitted = new Map(submitted.map((s) => [s.fromCompanyId, s._max.submittedAt]))
@@ -312,11 +320,9 @@ export async function GET(request: NextRequest) {
     blocked: blockedBy.has(r.companyId),
     blockedReason: blockedBy.get(r.companyId) ?? null,
     location: placeOf.get(r.companyId) ?? null,
-    where: r.joined
-      ? 'Signed in. Can be sent a job.'
-      : r.invitedAt
-        ? 'Invited. Can still be sent a job — they will find out when one arrives.'
-        : 'Listed by you. Not invited yet.',
+    // Never "Invited" as a letter that went where no email can leave
+    // (`mailLeaves`; walk, 2026-11-15).
+    where: supplierStandingSays({ joined: r.joined, invited: !!r.invitedAt, mailCanLeave: mailLeaves() }),
   }))
 
   const joined = rows.filter((r) => r.joined).length
@@ -397,6 +403,8 @@ export async function POST(request: NextRequest) {
     email: string
     says: string
     code: 'NOT_CLASSIFIED' | 'ALREADY_ON_ETYME' | 'OWN_COMPANY' | 'NEEDS_A_NAME'
+    /** A company on the paster's own Companies list, which the page opens by id. */
+    onYourList?: boolean
     askToLink?: { name: string; domain: string | null }
   }[] = []
 
@@ -507,7 +515,12 @@ export async function POST(request: NextRequest) {
           action: 'CONTRACT_VIEW',
           reason: `Refused to list and invite ${existing.name} as a supplier: ${may.says}`,
         })
-        refused.push({ companyId: existing.id, name: existing.name, email: row.email, says: may.says, code: 'NOT_CLASSIFIED' })
+        // On the paster's own list (an earlier invitation or its own
+        // record): the page links to that one company on Companies.
+        refused.push({
+          companyId: existing.id, name: existing.name, email: row.email, says: may.says, code: 'NOT_CLASSIFIED',
+          onYourList: existing.id !== claimed?.id,
+        })
         continue
       }
     }
@@ -709,7 +722,8 @@ export async function POST(request: NextRequest) {
       added: made,
       refused,
       summary:
-        `${firms} ${firms === 1 ? 'supplier' : 'suppliers'} on your list. You can send them a job now — they will find out when one arrives.` +
+        // What happened, never a letter that cannot leave (walk, 2026-11-15).
+        pasteAnswerSays({ suppliers: firms, invitations: invitationsMade, emailed, mailCanLeave: mailLeaves() }) +
         [...new Set(made.map((m) => m.says).filter(Boolean))].map((l) => ` ${l}`).join('') +
         (refused.length > 0 ? ` ${[...new Set(refused.map((r) => r.says))].join(' ')}` : ''),
     },

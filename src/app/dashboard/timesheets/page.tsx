@@ -21,6 +21,8 @@ import { RATE_WITHHELD_CELL } from '@/app/api/timesheets/own-weeks'
 import { TIMESHEETS_NOT_AT_A_COMPANY } from '@/app/api/people/not-at-a-company'
 import { DEFAULT_DAYS_OFF, daysOffFromAnswer, isOffDay, expectedHours } from './days-off'
 import { BillThisWeek } from '@/app/dashboard/invoices/bill-this-week'
+import { inTile, TILE_LABEL, TILE_EMPTY, waitingSub, tileShowing, type Tile } from './tiles'
+import { emptyDrawn, type EmptyWhy } from '@/app/api/timesheets/empty-why'
 
 /**
  * Timesheets working surface — the Operate section.
@@ -127,6 +129,8 @@ interface Timesheet {
   leaveDays?: Record<string, number>
   /** The hours a week the role runs, where the job request says. */
   hoursPerWeek?: number | null
+  /** Filed, and the client's approval is not on it yet (a firm below the client reads this). */
+  waitsOnClient?: boolean
 }
 
 /**
@@ -555,7 +559,7 @@ export default function TimesheetsPage() {
   const [readOnce, setReadOnce] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // The door's own sentence when it refused this reader. A refused page
-  // draws that sentence and nothing else — "Pending approval 0 all clear"
+  // draws that sentence and nothing else — a tile reading 0 "all clear"
   // above "not part of your seat" is a zero nobody can stand behind
   // (sign-up walk, round four, problem 3).
   const [refused, setRefused] = useState<string | null>(null)
@@ -599,6 +603,12 @@ export default function TimesheetsPage() {
   const [opened, setOpened] = useState<Timesheet | null>(null)
   // How many weeks matched in all, so a tile can say when the list is cut.
   const [onServer, setOnServer] = useState(0)
+  // Why the list is empty and the step that is missing, as the route read it.
+  const [empty, setEmpty] = useState<EmptyWhy | null>(null)
+  // How many weeks wait for the client's approval, said once.
+  const [clientApproval, setClientApproval] = useState<{ count: number; says: string | null } | null>(null)
+  // The tile pressed: the list narrowed to exactly the weeks it counts.
+  const [tile, setTile] = useState<Tile | null>(null)
 
   /**
    * One week, because somebody was sent here about one week.
@@ -659,6 +669,8 @@ export default function TimesheetsPage() {
       setFiling(body.data?.filing ?? null)
       setAtDesk(body.data?.desk?.seated ? body.data.desk : null)
       setOwnSays(body.data?.desk?.ownOnly ? body.data.desk.ownSays ?? null : null)
+      setEmpty(body.data?.empty ?? null)
+      setClientApproval(body.data?.clientApproval ?? null)
     } catch (err: any) {
       setError(err.message)
       setTimesheets([])
@@ -691,9 +703,8 @@ export default function TimesheetsPage() {
   )
   // Waiting on this reader — not "submitted", which counts the weeks
   // they have already signed and are waiting on the other firm for.
-  const pendingApproval = timesheets.filter((t) =>
-    t.signature ? t.signature.waitingOnYou : t.status === 'SUBMITTED'
-  ).length
+  // One rule for the count and for the list the tile opens (`./tiles`).
+  const pendingApproval = timesheets.filter((t) => inTile('WAITING_ON_YOU', t)).length
   // What has been approved, valued at the rate this reader is billed —
   // which in a chain is the client's own contract and not its
   // supplier's. Rows nobody can price are left out of the number and
@@ -711,7 +722,7 @@ export default function TimesheetsPage() {
 
   // Hours over the weekly limit that nobody has answered for yet. Not a
   // failure and not an anomaly — a question waiting on a person.
-  const toDecide = timesheets.filter((t) => (t.overtime?.weeks?.length ?? 0) > 0).length
+  const toDecide = timesheets.filter((t) => inTile('OVERTIME', t)).length
 
   // ── Approve handler ────────────────────────────────
   async function handleBulkApprove(selectedIds: Set<string>) {
@@ -900,7 +911,12 @@ export default function TimesheetsPage() {
   // not on this reader's list at all — another company's, or a page
   // further back — the list is not silently emptied; it says so.
   const named = onlyId ? timesheets.find((t) => t.id === onlyId) ?? null : null
-  const filtered = onlyId && named ? [named] : byStatus
+  // A pressed tile narrows to the weeks it counted, inside the tab.
+  const byTile = tile ? byStatus.filter((t) => inTile(tile, t)) : byStatus
+  const filtered = onlyId && named ? [named] : byTile
+  // The weeks on this list that wait for the client's approval, each a
+  // link to its own page, where the client's approval is attached.
+  const waitingClient = timesheets.filter((t) => t.waitsOnClient && t.href)
 
   // ── Column definitions ─────────────────────────────
   const columns: Column<Timesheet>[] = [
@@ -1174,11 +1190,19 @@ export default function TimesheetsPage() {
       {company?.kind && readOnce && !error && (
       <div className="grid grid-cols-1 gap-3 mb-6 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Hours listed" value={totals.hours.toFixed(0)} sub={totals.hoursSays} />
-        <Stat label="Pending approval" value={pendingApproval} sub={pendingApproval > 0 ? 'need review' : 'all clear'}
-          tone={pendingApproval > 0 ? 'attention' : 'default'} />
-        <Stat label="Flagged" value={totals.flagged} sub={totals.flaggedSays} tone={totals.flagged > 0 ? 'attention' : 'default'} />
-        <Stat label="Overtime to decide" value={toDecide} sub={toDecide > 0 ? 'weeks over the hours' : 'nothing waiting'}
-          tone={toDecide > 0 ? 'attention' : 'default'} />
+        {/* A tile that counts weeks is a button: pressed, the list shows
+            exactly those weeks, and pressed again, every week (./tiles). */}
+        <TileButton tile="WAITING_ON_YOU" on={tile} set={setTile}>
+          <Stat label={TILE_LABEL.WAITING_ON_YOU} value={pendingApproval} sub={waitingSub(pendingApproval)}
+            tone={pendingApproval > 0 ? 'attention' : 'default'} />
+        </TileButton>
+        <TileButton tile="FLAGGED" on={tile} set={setTile}>
+          <Stat label={TILE_LABEL.FLAGGED} value={totals.flagged} sub={totals.flaggedSays} tone={totals.flagged > 0 ? 'attention' : 'default'} />
+        </TileButton>
+        <TileButton tile="OVERTIME" on={tile} set={setTile}>
+          <Stat label={TILE_LABEL.OVERTIME} value={toDecide} sub={toDecide > 0 ? 'weeks over the hours' : 'nothing waiting'}
+            tone={toDecide > 0 ? 'attention' : 'default'} />
+        </TileButton>
         <Stat
           label="Approved value"
           tone="verified"
@@ -1190,6 +1214,34 @@ export default function TimesheetsPage() {
           <Stat label="What you pay" value={paidValueSays(totals) ?? '—'} sub={totals.paidSays} />
         )}
       </div>
+      )}
+
+      {/* Filed weeks that wait for the client's approval: how many, and
+          each week's own page, where its approval is attached. */}
+      {readOnce && !error && clientApproval?.says && waitingClient.length > 0 && (
+        <div className="mb-4 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3 text-[13px] text-etyme-ink">
+          <p>{clientApproval.says}</p>
+          <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+            {waitingClient.slice(0, 5).map((t) => (
+              <li key={t.id}>
+                <Link href={t.href as Route} className="text-etyme-action hover:underline">
+                  {t.person.name}, {formatPeriod(t.periodStart, t.periodEnd)}
+                </Link>
+              </li>
+            ))}
+            {waitingClient.length > 5 && <li className="text-etyme-muted">and {waitingClient.length - 5} more on the list</li>}
+          </ul>
+        </div>
+      )}
+
+      {/* A tile was pressed: say what the list is narrowed to, with the way back. */}
+      {tile && !onlyId && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3">
+          <p className="flex-1 text-[13px] text-etyme-ink">{tileShowing(tile, byTile.length)}</p>
+          <button onClick={() => setTile(null)} className="text-[12px] text-etyme-action hover:underline">
+            Show every week
+          </button>
+        </div>
       )}
 
       {/* Somebody was sent here about one week. */}
@@ -1239,14 +1291,23 @@ export default function TimesheetsPage() {
             )}
           </div>
         }
-        emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} timesheets.` : 'No timesheets yet.'}
-        emptyDetail={
-          // A client reads its own sites, never the supplier's contract
-          // word; a seated program office reads the client's book.
-          company?.kind === 'CLIENT' || atDesk
-            ? 'Hours worked at your sites, waiting for your approval, will appear here.'
-            : 'Timesheets will appear here once your consultants file their hours.'
+        emptyMessage={
+          tile ? TILE_EMPTY[tile]
+            : statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} timesheets.`
+            // Why nothing is listed, as the route read it (fix list E1).
+            : empty?.says ?? 'No timesheets yet.'
         }
+        emptyDetail={
+          tile || statusFilter !== 'ALL' ? undefined
+            : empty ? emptyDrawn(empty).detail ?? undefined
+            // A client reads its own sites, never the supplier's contract
+            // word; a seated firm reads the client's book.
+            : company?.kind === 'CLIENT' || atDesk
+              ? 'Hours worked at your sites, waiting for your approval, will appear here.'
+              : 'Timesheets will appear here once your consultants file their hours.'
+        }
+        // The one act that unblocks an empty list, for a seat that may do it.
+        emptyAction={!tile && statusFilter === 'ALL' && empty ? emptyDrawn(empty).action ?? undefined : undefined}
         name="timesheets"
         selectable
         bulkActions={(selected) => (
@@ -1481,6 +1542,25 @@ export default function TimesheetsPage() {
  * him; the row did not open and "Look" on the dashboard led back to the
  * list. The days are the fact under the total, so they are what opens.
  */
+/**
+ * A tile that counts weeks, drawn as a button that narrows the list to
+ * them. Pressed again, it shows every week.
+ */
+function TileButton({ tile, on, set, children }: { tile: Tile; on: Tile | null; set: (t: Tile | null) => void; children: React.ReactNode }) {
+  const pressed = on === tile
+  return (
+    <button
+      type="button"
+      onClick={() => set(pressed ? null : tile)}
+      aria-pressed={pressed}
+      title={pressed ? 'Show every week' : `Show only these weeks`}
+      className={`block w-full text-left rounded-panel transition-shadow hover:shadow-lift ${pressed ? 'ring-2 ring-etyme-action' : ''}`}
+    >
+      {children}
+    </button>
+  )
+}
+
 function WeekPanel({ row, onClose, onSign, onFewer }: { row: Timesheet; onClose: () => void; onSign: () => void; onFewer: () => void }) {
   const days = Object.entries(row.days ?? {})
     .filter(([, h]) => Number(h) > 0)

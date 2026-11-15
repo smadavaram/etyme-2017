@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import type { Route } from 'next'
 import { readJson } from '@/lib/read-response'
-import { addButtonSays, NO_WORK_YET_SAYS } from '@/lib/supplier-list'
+import { addButtonSays, NO_WORK_YET_SAYS, contactShown, companyOpenHref } from '@/lib/supplier-list'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
@@ -172,7 +172,7 @@ export default function SuppliersPage() {
   const section = usePageSection('/dashboard/suppliers')
   const [done, setDone] = useState<string | null>(null)
   /** The paste's own answer, drawn under the paste box, and the companies to set the kind of. */
-  const [pasteSaid, setPasteSaid] = useState<{ tone: 'ok' | 'error'; says: string; setKind: string[] } | null>(null)
+  const [pasteSaid, setPasteSaid] = useState<{ tone: 'ok' | 'error'; says: string; setKind: { name: string; companyId: string | null }[] } | null>(null)
   /**
    * What a desk is told when its click recorded nothing.
    *
@@ -430,7 +430,13 @@ export default function SuppliersPage() {
           .filter((r) => r?.askToLink)
           .map((r) => ({ name: String(r.askToLink.name), domain: r.askToLink.domain ?? null, email: String(r.email ?? ''), says: String(r.says) })),
       )
-      const setKind = [...new Set(refusedRows.filter((r) => r?.code === 'NOT_CLASSIFIED').map((r) => String(r.name)))]
+      // Each company nobody classified, once, with its id where it is on
+      // this firm's own Companies list, so the link opens that one company.
+      const setKind = [...new Map(
+        refusedRows
+          .filter((r) => r?.code === 'NOT_CLASSIFIED')
+          .map((r) => [String(r.name), { name: String(r.name), companyId: r.onYourList && r.companyId ? String(r.companyId) : null }] as const)
+      ).values()]
       if (!res.ok) {
         const others = refusedRows.filter((r) => !r?.askToLink)
         if (others.length > 0 || refusedRows.length === 0) {
@@ -513,9 +519,9 @@ export default function SuppliersPage() {
   const signed = (s: Supplier): boolean => s.agreement && !!s.signedAt
   /** The name as the list shows it: with its domain where another supplier shares it. */
   const named = (s: Supplier): string => s.shownAs ?? s.name
-  /** Who the firm knows there, by address, else by name. */
+  /** Who the firm knows there: her name first, with her address beside it (`contactShown`). */
   const contactLine = (s: Supplier): string =>
-    s.contacts.map((c) => c.email ?? c.name).filter(Boolean).join(' · ') || 'No contact on file'
+    s.contacts.map((c) => contactShown(c)).filter(Boolean).join(' · ') || 'No contact on file'
 
   /**
    * What "no agreement" means to the person reading it.
@@ -1062,7 +1068,7 @@ export default function SuppliersPage() {
             data={shown}
             rowKey={(s) => s.companyId}
             searchPlaceholder="Search by firm, contact or place…"
-            searchFilter={(s, q) => `${named(s)} ${s.contacts.map((c) => c.email ?? c.name ?? '').join(' ')} ${s.location ?? ''}`.toLowerCase().includes(q.toLowerCase())}
+            searchFilter={(s, q) => `${named(s)} ${s.contacts.map((c) => `${c.name ?? ''} ${c.email ?? ''}`).join(' ')} ${s.location ?? ''}`.toLowerCase().includes(q.toLowerCase())}
             exportName="suppliers"
             defaultPageSize={50}
             emptyMessage={emptyWord(filter, place).replace(/^Nobody/, 'No supplier')}
@@ -1246,8 +1252,16 @@ export default function SuppliersPage() {
               <FormMessage tone={pasteSaid.tone}>{pasteSaid.says}</FormMessage>
               {pasteSaid.setKind.length > 0 && (
                 <p className="text-[12px] text-etyme-muted">
-                  To set the kind, open <Link href={'/dashboard/companies' as Route} className="text-etyme-action underline">Companies</Link>,
-                  press {pasteSaid.setKind.join(', ')} and choose its Kind. Then paste again.
+                  {/* Straight to the one company on Companies, where its Kind is set
+                      (`?open=<id>`); the whole list only where no id is known. */}
+                  To set the kind, open{' '}
+                  {pasteSaid.setKind.map((k, i) => (
+                    <span key={k.name}>
+                      {i > 0 && ', '}
+                      <Link href={(k.companyId ? companyOpenHref(k.companyId) : '/dashboard/companies') as Route} className="text-etyme-action underline">{k.name}</Link>
+                    </span>
+                  ))}
+                  {' '}on Companies and choose its Kind. Then paste again.
                 </p>
               )}
             </div>

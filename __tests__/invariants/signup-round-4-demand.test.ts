@@ -39,11 +39,11 @@ describe('3: a page the door refused draws the refusal sentence and nothing else
     expect(missing).toEqual([])
   })
 
-  it('a refused Timesheets page never shows "Pending approval 0 all clear" or "$0" above the refusal', () => {
+  it('a refused Timesheets page never shows "Waiting on you 0" or "$0" above the refusal', () => {
     const src = read('timesheets')
     const gate = src.search(REFUSED_ALONE)
     expect(gate).toBeGreaterThan(-1)
-    expect(gate).toBeLessThan(src.indexOf('label="Pending approval"'))
+    expect(gate).toBeLessThan(src.indexOf('label={TILE_LABEL.WAITING_ON_YOU}'))
     expect(gate).toBeLessThan(src.indexOf('label="Approved value"'))
   })
 

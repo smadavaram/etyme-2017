@@ -599,3 +599,58 @@ export function pasteLogSays(p: {
 export function offeredToSendOn(c: { notClassified?: boolean | null }): boolean {
   return c.notClassified !== true
 }
+
+/**
+ * What the paste's answer says, beside the box (walk, 2026-11-15, item 8).
+ *
+ * It read "You can send them a job now — they will find out when one
+ * arrives." on a deployment where no email can leave, so nobody would
+ * find out of anything. No screen says an email went, or will go, unless
+ * email can leave (`mailLeaves`). It says what happened. Pure.
+ */
+export function pasteAnswerSays(p: { suppliers: number; invitations: number; emailed: number; mailCanLeave: boolean }): string {
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  const listed = `${n(p.suppliers, 'supplier', 'suppliers')} on your list.`
+  if (!p.mailCanLeave) {
+    return `${listed} No email can be sent from here yet, so nobody was emailed. You can still send them a job, but they will not hear of it by email.`
+  }
+  const sent =
+    p.invitations === 0
+      ? 'Nobody was emailed again: each address had an invitation already.'
+      : p.emailed === p.invitations
+        ? `${n(p.emailed, 'invitation was', 'invitations were')} emailed.`
+        : p.emailed === 0
+          ? 'The invitation email could not be sent.'
+          : `${p.emailed} of ${p.invitations} invitations were emailed; the others could not be sent.`
+  return `${listed} ${sent} You can send them a job now.`
+}
+
+/**
+ * Where a supplier on the list stands, on its card. "Invited." read as a
+ * letter that went, where none could (walk, 2026-11-15). An invitation is
+ * a row made when the supplier was listed; whether its email left is said
+ * only where email can leave. Pure.
+ */
+export function supplierStandingSays(s: { joined: boolean; invited: boolean; mailCanLeave: boolean }): string {
+  if (s.joined) return 'Signed in. Can be sent a job.'
+  if (!s.invited) return 'Listed by you. Not invited yet.'
+  return s.mailCanLeave
+    ? 'Invitation made, not answered yet. Can still be sent a job.'
+    : 'Listed by you, not signed in. No email can be sent from here yet, so they have not been told. Can still be sent a job.'
+}
+
+/**
+ * A contact on a supplier's card: her name first, with her address beside
+ * it, else whichever of the two is on file (walk, 2026-11-15). Pure.
+ */
+export function contactShown(c: { name: string | null; email: string | null }): string | null {
+  const name = c.name?.trim() || null
+  const email = c.email?.trim() || null
+  if (name && email && name.toLowerCase() !== email.toLowerCase()) return `${name} (${email})`
+  return name ?? email
+}
+
+/** The address that opens one company on Companies (etyme-architect's `?open=`). */
+export function companyOpenHref(companyId: string): string {
+  return `/dashboard/companies?open=${encodeURIComponent(companyId)}`
+}
