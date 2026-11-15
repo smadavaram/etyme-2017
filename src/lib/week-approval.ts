@@ -528,7 +528,13 @@ export function checkOffEtymeSignOff(
 export function clientSaysOn(note: string | null | undefined, words: string | null): string | null {
   if (!note || !words) return null
   const lead = `${words}. `
-  return note.startsWith(lead) && note.length > lead.length ? note.slice(lead.length) : null
+  if (note.startsWith(lead)) return note.length > lead.length ? note.slice(lead.length) : null
+  // A signature written before an attached file said "evidence attached"
+  // (2026-11-15) leads with the older words; what the client said follows
+  // the same clause.
+  const clause = ' was not on Etyme. '
+  const at = note.indexOf(clause)
+  return at >= 0 && note.length > at + clause.length ? note.slice(at + clause.length) : null
 }
 
 /** Whether the week is still waiting for the client, in a sentence where it is not. */
@@ -842,6 +848,14 @@ export function approvalWords(i: {
   how: 'LINK' | 'EVIDENCE'
   now: Date
 }): string {
+  // An attached file says the record's words, "Approved by email: <name>,
+  // <day> — evidence attached" (docs/decisions/46), wherever the client
+  // was; off Etyme, the clause that says so follows (the press walk l2a,
+  // 2026-11-15: it read as a bare approval by email).
+  if (i.how === 'EVIDENCE') {
+    const words = approvedByWords({ approverName: i.approverName, on: i.on, how: 'EVIDENCE', now: i.now })
+    return i.clientOffPlatform ? `${words} — ${i.clientName.trim() || 'The client'} was not on Etyme` : words
+  }
   if (i.clientOffPlatform) {
     return offPlatformApprovalWords({ approverName: i.approverName, approverEmail: i.approverEmail, clientName: i.clientName })
   }
@@ -1609,6 +1623,8 @@ export interface SignatureRow {
   note: string | null
   /** The approver named on an approval given by email, where this signature came from one. */
   emailApprover: string | null
+  /** How that approval came: a link answered, or a file attached. An attached file never reads "by email" alone. */
+  emailHow?: 'LINK' | 'EVIDENCE' | string | null
 }
 
 /**
@@ -1646,7 +1662,7 @@ export function signaturesSeen(
     const verb = row.role === 'CLIENT_APPROVAL' ? 'Approved' : 'Accepted'
     const says = row.auto
       ? `${verb} automatically — nobody looked · ${firm}, ${on}`
-      : `${verb} by ${signedBy ? `${signedBy}, ` : ''}${firm}, ${on}${row.emailApprover ? ' — by email' : ''}${reason ? ` — reason: ${reason}` : ''}`
+      : `${verb} by ${signedBy ? `${signedBy}, ` : ''}${firm}, ${on}${row.emailApprover ? (row.emailHow === 'EVIDENCE' ? ' — evidence attached' : ' — by email') : ''}${reason ? ` — reason: ${reason}` : ''}`
     shown.push({ role: row.role, firm, signedBy, on, auto: row.auto, reason, says })
   }
   return { shown, logged }
@@ -1667,6 +1683,8 @@ export interface WeekSeen {
     id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean
     /** The client is a record its supplier listed and nobody claimed (`isShell` in lib/off-system). */
     clientOffPlatform: boolean
+    /** Who accepts the week after the client approves it, in words (`afterClientSays`). */
+    afterClient: string
   }
   /** Who signed the week, top first, as this reader may read it. */
   signatures: SignatureSeen[]
@@ -1678,8 +1696,26 @@ export interface WeekSeen {
    * says why the link cannot be sent, and attaching is still open.
    */
   act:
-    | { ok: true; as: string; contracts: { id: string; label: string; mine: boolean }[]; refused: string | null; linkRefused: string | null; asks: OffEtymeAsks | null }
+    | {
+        ok: true; as: string; contracts: { id: string; label: string; mine: boolean }[]; refused: string | null; linkRefused: string | null; asks: OffEtymeAsks | null
+        /** The people this reader's firm recorded under Contacts at the client, offered as a pick for the approver. */
+        contacts?: { name: string; email: string }[]
+      }
     | { ok: false; says: string }
+}
+
+/**
+ * Who accepts a week once the client has approved it (the press walk l2a,
+ * 2026-11-15: a direct W-2 placement read "the firms below accept it in
+ * turn" where there are none). One rung: the firm the client pays, by
+ * name. More: the firms below, in turn. Pure.
+ */
+export function afterClientSays(c: Pick<WeekChain, 'ladder' | 'employerId' | 'names' | 'clientName'>): string {
+  if (c.ladder.length <= 1) {
+    const firm = c.names.get(c.ladder[0]?.companyId ?? c.employerId) ?? 'the firm the client pays'
+    return `approved by ${c.clientName}; ${firm} accepts it next`
+  }
+  return `approved by ${c.clientName}; the firms below accept it in turn`
 }
 
 /** Whether a reader is on this week at all: the worker, or a firm on the chain. */
@@ -1805,7 +1841,7 @@ function approvalRowsFor(ids: readonly string[]) {
     prisma.workAssertion.findMany({
       where: { timesheetId: { in: wanted }, state: 'LIVE' },
       orderBy: { at: 'asc' },
-      select: { id: true, timesheetId: true, role: true, companyId: true, at: true, byId: true, auto: true, note: true, weekApproval: { select: { approverName: true } } },
+      select: { id: true, timesheetId: true, role: true, companyId: true, at: true, byId: true, auto: true, note: true, weekApproval: { select: { approverName: true, how: true } } },
     }),
   ])
 }
@@ -1883,6 +1919,7 @@ async function weekSeen(
       role: a.role, companyId: a.companyId, at: a.at, auto: a.auto, note: a.note,
       byName: a.byId ? people.get(a.byId) ?? null : null,
       emailApprover: a.weekApproval?.approverName ?? null,
+      emailHow: a.weekApproval?.how ?? null,
     }))
     .sort((a, b) => order(a.companyId) - order(b.companyId) || a.at.getTime() - b.at.getTime())
   const sigs = signaturesSeen(r, c, sigRows, now)
@@ -1903,6 +1940,16 @@ async function weekSeen(
         refused: notWaiting(c) ?? (asks ? null : needsSigningInEtyme(c)),
         linkRefused: asks ? needsSigningInEtyme(c) : null,
         asks: notWaiting(c) ? null : asks,
+        // A firm's own record of who it knows at the client, so the approver
+        // is picked rather than typed twice. Never offered to the worker.
+        contacts: who.as !== 'WORKER' && r.companyId
+          ? (await prisma.companyContact.findMany({
+              where: { companyId: r.companyId, atCompanyId: c.clientId, email: { not: null } },
+              select: { name: true, email: true },
+              orderBy: { name: 'asc' },
+              take: 25,
+            })).map((x) => ({ name: x.name, email: x.email! }))
+          : [],
       }
     : { ok: false, says: who.says }
 
@@ -1918,6 +1965,7 @@ async function weekSeen(
         clientName: c.clientName,
         clientApproved: !!c.week.clientApprovedAt,
         clientOffPlatform: c.clientOffPlatform,
+        afterClient: afterClientSays(c),
       },
       signatures: sigs.shown,
       approvals,

@@ -2,6 +2,8 @@
 
 import { usePageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { ACTIONS, LADDER, RUNGS, type Rung } from '@/lib/autonomy'
 import { dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 import { ACTIVITY_LOG_SUBTITLE, ACTIVITY_LOG_TITLE, UNPROMPTED_PANEL_HEADING } from './words'
@@ -53,6 +55,8 @@ interface AutomationEntry {
   decidedBy: 'RULE' | 'MODEL' | 'UNRECORDED'
   decidedSays: string
   undo: string
+  /** Where an act undone on Companies is undone, for a seat that may do it; null elsewhere. */
+  undoHref?: string | null
 }
 
 // ── Helpers ──────────────────────────────────────────
@@ -247,7 +251,8 @@ export default function AutomationPage() {
   for (const [action, count] of Object.entries(counts)) {
     const act = ACTIONS[action]
     if (!act) continue
-    if (act.basis === 'RULE') ruleCount += count
+    // A person's own press is never counted as decided by a rule (the press walk l2b, 2026-11-15).
+    if (act.basis === 'RULE' && act.kind !== 'ATTRIBUTED') ruleCount += count
     if (act.kind !== 'UNPROMPTED') continue
     unpromptedCount += count
     levelCounts[act.rung] = (levelCounts[act.rung] ?? 0) + count
@@ -404,9 +409,12 @@ export default function AutomationPage() {
                     {entry.kind === 'ATTRIBUTED' && (
                       <Chip>A person did this</Chip>
                     )}
-                    <Chip title={entry.decidedSays}>
-                      {decidedLabel(entry.decidedBy)}
-                    </Chip>
+                    {/* A person's own press reads "A person did this", never "By a rule". */}
+                    {entry.kind !== 'ATTRIBUTED' && (
+                      <Chip title={entry.decidedSays}>
+                        {decidedLabel(entry.decidedBy)}
+                      </Chip>
+                    )}
                     <Chip>
                       {actionCategory(entry.action)}
                     </Chip>
@@ -445,15 +453,22 @@ export default function AutomationPage() {
                       {entry.actSays && (
                         <p className="text-[12px] text-etyme-muted">{entry.actSays}</p>
                       )}
-                      <p className="text-[12px] text-etyme-muted">{entry.decidedSays}</p>
-                      <p className="text-[12px] text-etyme-muted">{entry.undo}</p>
+                      {entry.kind !== 'ATTRIBUTED' && (
+                        <p className="text-[12px] text-etyme-muted">{entry.decidedSays}</p>
+                      )}
+                      <p className="text-[12px] text-etyme-muted">
+                        {entry.undo}
+                        {entry.undoHref && (
+                          <>
+                            {' '}
+                            <Link href={entry.undoHref as Route} className="text-etyme-action underline">Open it on Companies</Link>
+                          </>
+                        )}
+                      </p>
                     </div>
 
+                    {/* No machine name and no raw payload: a person reads the sentences above (the press walk l2b, 2026-11-15). */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-                      <div>
-                        <p className="stat-label mb-1">Action</p>
-                        <p className="text-[12px] text-etyme-ink font-mono">{entry.action}</p>
-                      </div>
                       <div>
                         <p className="stat-label mb-1">Timestamp</p>
                         <p className="text-[12px] text-etyme-ink tabular-nums">
@@ -464,14 +479,6 @@ export default function AutomationPage() {
                         <p className="stat-label mb-1">Reason</p>
                         <p className="text-[12px] text-etyme-ink">{entry.reason}</p>
                       </div>
-                      {entry.payload && Object.keys(entry.payload).length > 0 && (
-                        <div className="col-span-2">
-                          <p className="stat-label mb-1">Payload</p>
-                          <pre className="text-[11px] text-etyme-muted bg-etyme-canvas rounded-md p-3 overflow-x-auto font-mono">
-                            {JSON.stringify(entry.payload, null, 2)}
-                          </pre>
-                        </div>
-                      )}
                       {isReversed && (
                         <div className="col-span-2">
                           <p className="stat-label mb-1">Reversed At</p>

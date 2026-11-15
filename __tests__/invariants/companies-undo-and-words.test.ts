@@ -77,7 +77,8 @@ describe('Extend on a Companies row', () => {
   it('Undo calls the same remove the drawer uses, and shows its refusal in a sentence', () => {
     expect(page).toContain('fetch(`/api/companies/${encodeURIComponent(row.id)}/extend?as=${pressed.as}`, { method: \'DELETE\' })')
     expect(positionsPanel).toContain("act({ url: `${base}/extend?as=${p}`, method: 'DELETE' })")
-    expect(page).toContain("onUndone({ ...pressed, tone: 'error', undo: false, says: refusalSentence(body.error?.message, { what: 'Undoing an extension' })")
+    // With the link to where the work is ended, where the route gives one (the press walk l2b, 2026-11-15).
+    expect(page).toContain("onUndone({ ...pressed, tone: 'error', undo: false, link: body.error?.link ?? null, says: refusalSentence(body.error?.message, { what: 'Undoing an extension' })")
   })
 
   it('under the Not classified filter, a company just extended to Supplier stays on the list with its sentence and Undo until the sentence is closed', () => {

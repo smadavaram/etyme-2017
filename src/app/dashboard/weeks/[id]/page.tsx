@@ -54,13 +54,13 @@ interface Asks {
 }
 interface Signature { role: string; firm: string; signedBy: string | null; on: string; auto: boolean; reason: string | null; says: string }
 interface Seen {
-  week: { id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean; clientOffPlatform: boolean }
+  week: { id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean; clientOffPlatform: boolean; afterClient?: string }
   /** Whether an email can leave this deployment (lib/notify/mail-leaves). */
   emailLeaves: boolean
   signatures: Signature[]
   approvals: Approval[]
   act:
-    | { ok: true; as: string; contracts: Contract[]; refused: string | null; linkRefused: string | null; asks: Asks | null }
+    | { ok: true; as: string; contracts: Contract[]; refused: string | null; linkRefused: string | null; asks: Asks | null; contacts?: { name: string; email: string }[] }
     | { ok: false; says: string }
 }
 
@@ -90,6 +90,8 @@ export default function WeekPage() {
   const [said, setSaid] = useState<string | null>(null)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Bumped after an approval is recorded, so the bill line reads the week again without a reload.
+  const [billRead, setBillRead] = useState(0)
   // Headed by the section the week's list sits under on the reader's own
   // menu, never by the client's name (sign-up walk, round six, problem
   // 6): a worker with no desk opens a week from Your work, everybody
@@ -147,6 +149,7 @@ export default function WeekPage() {
       const body = await readJson(res)
       setSaid(body.data.says)
       await load()
+      setBillRead((n) => n + 1)
     } catch (err: any) {
       setRefusal(err.message)
     } finally {
@@ -168,7 +171,7 @@ export default function WeekPage() {
         subtitle={
           <>
             <span className="tabular-nums">{w.totalHours}</span> hours at {w.clientName} ·{' '}
-            {w.status === 'APPROVED' ? 'approved by every firm' : w.clientApproved ? `approved by ${w.clientName}; the firms below accept it in turn` : w.status === 'SUBMITTED' ? `waiting on ${w.clientName}` : 'not sent in yet'}
+            {w.status === 'APPROVED' ? 'approved by every firm' : w.clientApproved ? (w.afterClient ?? `approved by ${w.clientName}`) : w.status === 'SUBMITTED' ? `waiting on ${w.clientName}` : 'not sent in yet'}
           </>
         }
       />
@@ -224,7 +227,7 @@ export default function WeekPage() {
       {/* The money part: the bill this reader's firm raises on the week,
           from money's one component. It draws nothing where the reader's
           firm bills nothing on this week. */}
-      <BillThisWeek timesheetId={id} />
+      <BillThisWeek key={billRead} timesheetId={id} />
 
       {seen.act.ok && (
         <section className="panel space-y-3">
@@ -252,6 +255,24 @@ export default function WeekPage() {
                   ? `The approver gets a link with Approve and Send back. No account needed. It works once and runs out in seven days.`
                   : `The approval ${w.clientName} already gave: the email, a PDF, or an export from its own system. Name the person who gave it.`}
               </p>
+              {/* The people recorded under Contacts at the client fill both boxes; typing stays open. */}
+              {(seen.act.contacts?.length ?? 0) > 0 && (
+                <label className="block space-y-1 text-[13px]">
+                  <span className="lbl">Recorded at {w.clientName}</span>
+                  <select
+                    aria-label={`Pick the approver from your contacts at ${w.clientName}`}
+                    value={seen.act.contacts!.some((c) => c.email === form.approverEmail && c.name === form.approverName) ? form.approverEmail : ''}
+                    onChange={(e) => {
+                      const c = seen.act.ok ? seen.act.contacts?.find((x) => x.email === e.target.value) : null
+                      if (c) setForm({ ...form, approverName: c.name, approverEmail: c.email })
+                    }}
+                    className="w-full rounded border border-etyme-rule px-3 py-2 text-[13px]"
+                  >
+                    <option value="">Pick from your contacts, or type below</option>
+                    {seen.act.contacts!.map((c) => <option key={c.email} value={c.email}>{c.name} · {c.email}</option>)}
+                  </select>
+                </label>
+              )}
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <input value={form.approverName} onChange={(e) => setForm({ ...form, approverName: e.target.value })} placeholder={`Approver at ${w.clientName}`} className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
                 <input value={form.approverEmail} onChange={(e) => setForm({ ...form, approverEmail: e.target.value })} placeholder="Their email address" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />

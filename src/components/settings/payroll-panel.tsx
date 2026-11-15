@@ -166,9 +166,14 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
   // Why Save is greyed, in words: never a greyed button without them (E5).
   // A week-based company with no Sunday chosen is asked for one; otherwise
   // nothing has changed. No Sunday is suggested: which one is the firm's.
-  const saveWhy = !firstCheck.ok || (!changed && byWeek && !draft.payFirstPeriodStart)
+  // Defaults never saved may be saved as they stand: saving "every other
+  // week" with nothing else changed answers the setup checklist (the press
+  // walk l2a, 2026-11-15). The route takes every answer the panel sends.
+  const neverSaved = !saved?.setAt
+  const mayPress = (changed || neverSaved) && firstCheck.ok
+  const saveWhy = !firstCheck.ok || (!changed && !neverSaved && byWeek && !draft.payFirstPeriodStart)
     ? CHOOSE_A_SUNDAY
-    : !changed ? NOTHING_CHANGED : null
+    : !mayPress ? NOTHING_CHANGED : null
 
   return (
     <Panel
@@ -292,7 +297,7 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
       )}
       {canEdit && !asking && (
         <>
-          <SubmitButton type="button" onClick={() => save()} pending={busy} pendingLabel="Saving…" disabled={!changed || !firstCheck.ok} aria-describedby={saveWhy ? 'payroll-save-why' : undefined}>
+          <SubmitButton type="button" onClick={() => save()} pending={busy} pendingLabel="Saving…" disabled={!mayPress} aria-describedby={saveWhy ? 'payroll-save-why' : undefined}>
             Save payroll
           </SubmitButton>
           <SaveWhy id="payroll-save-why" says={busy ? null : saveWhy} />

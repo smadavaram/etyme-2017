@@ -161,7 +161,8 @@ describe('The first-pay-day box has one address', () => {
     expect(CHOOSE_A_SUNDAY).toBe('Choose a Sunday to save.')
     expect(NOTHING_CHANGED).toBe('Nothing has changed.')
     expect(panel).toContain('? CHOOSE_A_SUNDAY')
-    expect(panel).toContain(': !changed ? NOTHING_CHANGED : null')
+    // Defaults never saved may be saved as they stand (the press walk l2a, 2026-11-15).
+    expect(panel).toContain(': !mayPress ? NOTHING_CHANGED : null')
     expect(panel).toContain('<SaveWhy id="payroll-save-why" says={busy ? null : saveWhy} />')
     expect(panel).not.toMatch(/December (6|13|27)/)
   })

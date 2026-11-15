@@ -15,7 +15,8 @@ describe("the week's own page and its bill", () => {
   it("the week's own page draws Bill this week where the reader bills the week, from money's one component", () => {
     const page = read('src/app/dashboard/weeks/[id]/page.tsx')
     expect(page).toContain("import { BillThisWeek } from '@/app/dashboard/invoices/bill-this-week'")
-    expect(page).toContain('<BillThisWeek timesheetId={id} />')
+    // Keyed so it reads the week again after an approval is attached (the press walk l2a, 2026-11-15).
+    expect(page).toContain('<BillThisWeek key={billRead} timesheetId={id} />')
     // No second computation of the bill on the week's page.
     expect(page).not.toMatch(/fetch\(`\/api\/contracts\/weeks\//)
     const part = read('src/app/dashboard/invoices/bill-this-week.tsx')

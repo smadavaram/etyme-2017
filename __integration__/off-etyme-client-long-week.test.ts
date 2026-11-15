@@ -125,7 +125,9 @@ describe('a 46-hour week at a client that is not on Etyme', () => {
     expect(Number(decision.overtimeHours)).toBe(6)
     expect(decision.reason).toBe('Ruth Abara at Lakeshore Mills approved it by email: The line changeover ran long.')
     const signature = await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: it_.week, role: 'CLIENT_APPROVAL', state: 'LIVE' } })
-    expect(signature.note).toBe(`Approved by email: Ruth Abara, ${RUTH} — Lakeshore Mills was not on Etyme. ${said}`)
+    // An attached file says the record's words, then that the client was not on Etyme (2026-11-15).
+    expect(signature.note).toMatch(/^Approved by email: Ruth Abara, .+ — evidence attached — Lakeshore Mills was not on Etyme\. /)
+    expect(signature.note!.endsWith(said)).toBe(true)
     expect(decision.workAssertionId).toBe(signature.id)
 
     // On reload, the approval carries what the client said.

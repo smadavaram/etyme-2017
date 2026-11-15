@@ -17,14 +17,26 @@
  */
 
 import { paysByPeriod, type PayRhythm } from '@/lib/money/pay-periods'
+import { FIRST_PERIOD_LABEL } from '@/lib/pay-dates'
 
 /** Said of the dates nothing rewrites. */
 export const WRITTEN_KEEP = 'Pay days already written on a placement’s “What is due” list keep their dates.'
 
+/**
+ * Said after a weekly or two-week save with no Sunday set (the press walk
+ * l2a, 2026-11-15). Saying placements "take these pay dates" was untrue:
+ * a W-2 placement is refused until the Sunday is set (no-calendar.ts).
+ */
+export const NO_SUNDAY_SAVED =
+  `Saved. A W-2 placement cannot be recorded by hand until “${FIRST_PERIOD_LABEL}” is set. ` +
+  'Until then, the Payroll page lists pay by calendar month.'
+
 /** After Save payroll. */
 export function paySavedSays(r: PayRhythm): string {
-  return paysByPeriod(r)
-    ? `Saved. The Payroll page and each worker’s own page use these pay periods now. ${WRITTEN_KEEP}`
+  if (paysByPeriod(r)) return `Saved. The Payroll page and each worker’s own page use these pay periods now. ${WRITTEN_KEEP}`
+  const byWeek = r.payPeriod === 'WEEKLY' || r.payPeriod === 'BIWEEKLY'
+  return byWeek && !r.payFirstPeriodStart
+    ? NO_SUNDAY_SAVED
     : `Saved. Placements recorded from now on take these pay dates. ${WRITTEN_KEEP}`
 }
 

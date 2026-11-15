@@ -40,6 +40,31 @@ export function scopedSays(scoped: number): string {
     : ` ${scoped} rules are set for one department each. Each applies only to job requests for its department.`
 }
 
+/**
+ * What one rule row on Settings > Approvals says it applies to (the press
+ * walk l2b, 2026-11-15): a rule set for one department read "applies to
+ * everything" under the sentence saying it applies only there. The row
+ * names its kind and its department. Pure.
+ */
+export function ruleRowSays(r: { kind?: string | null; thresholdDollars: number | null; orgUnit?: { name: string } | null }): string {
+  const unit = r.orgUnit?.name ?? null
+  if (r.kind === 'HR' || r.kind === 'PROCUREMENT') {
+    const who = r.kind === 'HR' ? 'HR contact' : 'Procurement contact'
+    return unit ? `${who} · job requests for ${unit} only` : `${who} · job requests for the whole company`
+  }
+  if (r.thresholdDollars === null) return unit ? `every job request for ${unit}` : 'applies to everything'
+  const above = `above $${r.thresholdDollars.toLocaleString('en-US')}`
+  return unit ? `${above} · ${unit} only` : above
+}
+
+/** Said once on Approvals to a firm that is not a client: what its rules apply to. */
+export const NOT_A_CLIENT_RULES =
+  'For a firm like yours, these apply to job requests you raise yourself, such as one you send on to your own suppliers.'
+
+/** The page where rules are added and changed, and its link words. */
+export const RULES_ARE_MADE_AT = '/dashboard/program/team'
+export const RULES_LINK_WORDS = 'Add or change rules under Program team'
+
 export interface ApprovalCount {
   /** Active approval rules of every kind, wherever they are scoped. */
   rules: number

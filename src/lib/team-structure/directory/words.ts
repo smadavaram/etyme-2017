@@ -91,3 +91,14 @@ export const TEAMS_LINK_HREF = '/dashboard/settings?tab=company'
 export const TEAMS_LINK_SAYS = 'To post notices to a Microsoft Teams channel, paste the channel’s Workflows link'
 export const TEAMS_LINK_WHERE = 'under Settings, on the Company tab.'
 export const TEAMS_LINK_ASK = 'under Settings, which your Owner or an Admin opens.'
+
+/**
+ * Where the Teams link is pasted, said to a seat that may not open
+ * Settings here. An Owner or an Admin is never told to ask "your Owner or
+ * an Admin" (the press walk l2b, 2026-11-15): she is one, so she is told
+ * where it is. Pure.
+ */
+export function teamsLinkAsk(roleName: string | null | undefined): string {
+  const role = (roleName ?? '').trim().toLowerCase()
+  return role === 'owner' || role === 'admin' ? TEAMS_LINK_WHERE : TEAMS_LINK_ASK
+}

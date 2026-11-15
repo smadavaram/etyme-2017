@@ -192,7 +192,8 @@ describe('a supplier whose client is not on Etyme gets its weeks approved by ema
     const { NextRequest } = await import('next/server')
     const r = await json(await sendOrAttach(new NextRequest('http://localhost:3000/api/week-approvals', { method: 'POST', body: fd })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect(r.body.data.words).toBe(`Approved by email: Raj Patel, ${COLLEAGUE} — Larkspur Freight was not on Etyme`)
+    // An attached file says the record's words, then that the client was not on Etyme (2026-11-15).
+    expect(r.body.data.words).toMatch(/^Approved by email: Raj Patel, .+ — evidence attached — Larkspur Freight was not on Etyme$/)
   })
 
   it('once the client claims its record, its own domain and seats decide, as before, and the approvals it gave off the platform still say so', async () => {

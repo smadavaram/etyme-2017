@@ -1,6 +1,8 @@
 'use client'
 
 import { usePageSection } from '@/components/page-section'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
@@ -233,6 +235,17 @@ interface Pressed {
   tone: 'ok' | 'error'
   /** Undo is offered until it is pressed. */
   undo: boolean
+  /** Where the work keeping the position is ended, beside a refused Undo. */
+  link?: WorkLink | null
+}
+
+/** Where the work that keeps a position is ended, from the route (workEndsAt). */
+interface WorkLink { href: string; words: string }
+
+/** The link beside a refusal, where the route gave one. */
+function WorkEndsAt({ link }: { link?: WorkLink | null }) {
+  if (!link) return null
+  return <Link href={link.href as Route} className="text-[13px] text-etyme-action underline">{link.words}</Link>
 }
 
 /**
@@ -257,7 +270,7 @@ function AfterExtend({ row, pressed, onUndone, onClose }: {
       const res = await fetch(`/api/companies/${encodeURIComponent(row.id)}/extend?as=${pressed.as}`, { method: 'DELETE' })
       const body = await res.json().catch(() => ({}) as any)
       if (!res.ok) {
-        onUndone({ ...pressed, tone: 'error', undo: false, says: refusalSentence(body.error?.message, { what: 'Undoing an extension' }) || 'That did not go through. Try again in a minute.' })
+        onUndone({ ...pressed, tone: 'error', undo: false, link: body.error?.link ?? null, says: refusalSentence(body.error?.message, { what: 'Undoing an extension' }) || 'That did not go through. Try again in a minute.' })
         return
       }
       onUndone({ ...pressed, tone: 'ok', undo: false, says: body.data?.message ?? 'Undone.' })
@@ -270,6 +283,7 @@ function AfterExtend({ row, pressed, onUndone, onClose }: {
   return (
     <div className="max-w-xs space-y-1" onClick={(e) => e.stopPropagation()} data-after-extend={row.id}>
       <FormMessage tone={pressed.tone}>{pressed.says}</FormMessage>
+      <WorkEndsAt link={pressed.link} />
       <div className="flex flex-wrap items-center gap-2">
         {pressed.undo && (
           <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={undo}>
@@ -885,7 +899,7 @@ interface DrawerRead {
     /** Correct the name, the typed domain and the entity type (PATCH /api/companies/:id/record). */
     edit?: boolean
     extend: { SUPPLIER: boolean; CUSTOMER: boolean }
-    remove: Partial<Record<'SUPPLIER' | 'CUSTOMER', { ok: boolean; says: string }>>
+    remove: Partial<Record<'SUPPLIER' | 'CUSTOMER', { ok: boolean; says: string; link?: WorkLink | null }>>
     setKind: boolean
     setKindSays: string | null
     kinds: string[]
@@ -1052,6 +1066,7 @@ function PositionsPanel({ company, onChanged, onClose }: { company: Company; onC
                   )}
                 </div>
                 {r && !r.ok && <p className="mt-1 text-[12px] text-etyme-muted">{r.says}</p>}
+                {r && !r.ok && <div className="mt-1"><WorkEndsAt link={r.link} /></div>}
               </li>
             )
           })}
@@ -1080,7 +1095,8 @@ function PositionsPanel({ company, onChanged, onClose }: { company: Company; onC
       <div>
         <p className="eyebrow mb-2">Kind</p>
         <Chip tone={kindTone(read.kind)}>{kindOnList(read.kind)}</Chip>
-        <p className="mt-1 text-[12px] text-etyme-muted">What kind of company it is. It never decides whether it is your supplier or your customer.</p>
+        {/* Said once: where the Kind box is offered, the line under Positions says it (the press walk l2b, 2026-11-15). */}
+        {!read.may.setKind && <p className="mt-1 text-[12px] text-etyme-muted">What kind of company it is. It never decides whether it is your supplier or your customer.</p>}
         {read.may.setKind ? (
           <form
             className="mt-2 flex flex-wrap items-end gap-2"

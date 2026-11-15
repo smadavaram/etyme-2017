@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { undoneElsewhere } from '@/lib/autonomy'
 
 /**
  * POST /api/automation/:id/reverse
@@ -57,6 +58,17 @@ export async function POST(
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Automation log entry not found' } },
       { status: 404 }
+    )
+  }
+
+  // A company's position is undone on Companies; marking the row here
+  // would say it was undone while nothing changed (the press walk l2b,
+  // 2026-11-15). Old rows were written reversible, so the action decides.
+  const elsewhere = undoneElsewhere(entry.action)
+  if (elsewhere) {
+    return NextResponse.json(
+      { error: { code: 'UNDONE_ELSEWHERE', message: elsewhere } },
+      { status: 422 }
     )
   }
 

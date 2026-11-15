@@ -805,13 +805,19 @@ export function domainCell(row: { domain: string | null; notedDomain?: string | 
   return { domain: null, note: 'No domain yet' }
 }
 
+/** The Etyme address column for a firm on Etyme with no page of its own. */
+export const ON_ETYME_NO_PAGE = 'On Etyme, no page'
+
 /**
  * What the Etyme address column says. "Not on Etyme" for a company nobody
  * there has joined: no seat and no claim (a seat with no claim is on
  * Etyme). Never a bare dash. Pure.
  */
-export function addressCell(row: { slug: string; onEtyme: boolean; notLinked?: boolean }): { slug: string | null; note: string | null } {
+export function addressCell(row: { slug: string; onEtyme: boolean; notLinked?: boolean; hasPage?: boolean }): { slug: string | null; note: string | null } {
   if (row.notLinked) return { slug: null, note: 'Not linked yet' }
+  // A firm on Etyme with no page has no address to show: its slug is a
+  // machine name (the press walk l2b, 2026-11-15, read "world-nike").
+  if (row.onEtyme && row.hasPage === false) return { slug: null, note: ON_ETYME_NO_PAGE }
   if (row.onEtyme) return { slug: row.slug, note: null }
   return { slug: null, note: 'Not on Etyme' }
 }
@@ -989,6 +995,23 @@ export function mayRemovePosition(ask: {
       `${ask.other.name} is no longer your ${word}. What kind of company it is did not change.` +
       (left.length === 0 ? ` It stays on your Companies list, not classified.` : ` It is still your ${left.map((p) => POSITION_WORDS[p].toLowerCase()).join(' and ')}.`),
   }
+}
+
+/**
+ * Where the work that keeps a position is ended, as a link beside the
+ * refusal (the press walk l2b, 2026-11-15: "End or move that work first"
+ * linked nowhere). An open job invitation is ended by cancelling the job
+ * on Jobs (PATCH /api/requisitions/:id, action cancel), which stands every
+ * supplier asked down. Drawn only for a seat that may cancel a job, and
+ * only where invitations are what hangs; other work has no one page. Pure.
+ */
+export const END_INVITATIONS_HREF = '/dashboard/requisitions'
+export const END_INVITATIONS_WORDS = 'Open Jobs to cancel the job you sent them'
+
+export function workEndsAt(work: PositionWork, permissions: readonly string[]): { href: string; words: string } | null {
+  if (!work.openInvitations) return null
+  if (!hasPermission(permissions, 'requirements.write')) return null
+  return { href: END_INVITATIONS_HREF, words: END_INVITATIONS_WORDS }
 }
 
 /** What a history row says about taking it back, read now. */

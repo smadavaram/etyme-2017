@@ -150,9 +150,9 @@ describe('the payroll panel in Settings', () => {
     expect(payrollLineSays(biweekly('2026-10-11'), today)).not.toContain('Nov 14')
   })
 
-  it('keeps the example line only where the Sunday is not set', () => {
+  it('where the Sunday is not set, says only the rule in words and no date, so no Sunday is suggested', () => {
     expect(payrollLineSays(biweekly(null), new Date('2026-11-14T15:00:00Z'))).toBe(
-      'A period ending Sat, Nov 14 is worked out Wed, Nov 18 and paid Fri, Nov 20.'
+      'Pay is worked out 4 days after a period ends and paid 6 days after a period ends.'
     )
   })
 

@@ -3,7 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { LADDER, RUNGS, readRow, KIND_SAYS, ACTIONS } from '@/lib/autonomy'
+import { LADDER, RUNGS, readRow, KIND_SAYS, ACTIONS, UNDONE_ON_COMPANIES, undoneElsewhere, reversibleHere } from '@/lib/autonomy'
+import { mayOpen } from '@/lib/nav-table'
 
 /**
  * GET /api/automation
@@ -88,6 +89,8 @@ export async function GET(request: NextRequest) {
   if (reversibleOnly) {
     where.reversible = true
     where.reversedAt = null
+    // Never an act undone on Companies, whatever an old row's flag says.
+    where.AND = [{ action: { notIn: Object.keys(UNDONE_ON_COMPANIES) } }]
   }
 
   if (reversedOnly) {
@@ -138,14 +141,22 @@ export async function GET(request: NextRequest) {
     data: {
       entries: shown.map((e) => {
         const read = readRow(e)
+        // An act undone on Companies is never offered or counted here, and
+        // the log's own mark on an old row undid nothing, so it is not said.
+        const elsewhere = undoneElsewhere(e.action)
+        const other = (e.payload as Record<string, unknown> | null)?.otherCompanyId
         return {
           id: e.id,
           action: e.action,
           summary: e.summary,
           reason: e.reason,
           payload: e.payload,
-          reversible: e.reversible,
-          reversedAt: e.reversedAt?.toISOString() ?? null,
+          reversible: reversibleHere(e),
+          reversedAt: elsewhere ? null : e.reversedAt?.toISOString() ?? null,
+          // Where the undo is, for a seat that may open Companies and change a position.
+          undoHref: elsewhere && typeof other === 'string' && hasPermission(caller.permissions, 'vendors.manage') && mayOpen('/dashboard/companies', caller.permissions)
+            ? `/dashboard/companies?open=${encodeURIComponent(other)}`
+            : null,
           at: e.at.toISOString(),
           // What kind of row this is, what level it acted at if any, and
           // whether a rule or a model decided it.

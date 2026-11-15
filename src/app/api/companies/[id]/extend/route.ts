@@ -6,7 +6,8 @@ import { recordRefusal } from '@/lib/access-log'
 import { workTogether } from '@/lib/company-create'
 import { dealsWith, NOT_ON_YOUR_LIST } from '../../dealing'
 import { dealingsWithSides } from '../../dealings'
-import { notLinkedYet, isMine, mayEditRecord, mayExtend, mayRemovePosition, maySetRecordedKind, readExtendAs, POSITION_WORDS, KINDS_TO_SET, type ExtendAs } from '@/lib/counterparty'
+import { notLinkedYet, isMine, mayEditRecord, mayExtend, mayRemovePosition, maySetRecordedKind, readExtendAs, workEndsAt, POSITION_WORDS, KINDS_TO_SET, type ExtendAs } from '@/lib/counterparty'
+import { mayOpen } from '@/lib/nav-table'
 import { positionsFor, writeCustomerPosition, writeSupplierPosition, workOnPosition, removePosition, historyOf, agreementKeepsPosition } from '../../positions'
 
 /**
@@ -82,14 +83,20 @@ async function drawnNotLinked(
   return notLinkedYet({ ownSideOnly: true, onEtyme: other.claimedAt != null || seats > 0, mine: isMine(other, caller.company!.id) })
 }
 
-async function refuse(caller: CallerContext, otherId: string, status: number, code: string, says: string, field?: string): Promise<NextResponse> {
+/** Where the work keeping a position is ended, for this seat: a page it may open and an act it may do, or null. */
+function endsAt(caller: CallerContext, work: Parameters<typeof workEndsAt>[0]) {
+  const at = workEndsAt(work, caller.permissions)
+  return at && mayOpen(at.href, caller.permissions) ? at : null
+}
+
+async function refuse(caller: CallerContext, otherId: string, status: number, code: string, says: string, field?: string, link?: { href: string; words: string } | null): Promise<NextResponse> {
   await recordRefusal([{ companyId: otherId }], {
     actorPersonId: caller.isService ? undefined : caller.person.id,
     actorCompanyId: caller.company?.id,
     action: 'CONTRACT_VIEW',
     reason: `Refused a change to what ${otherId} is to ${caller.company?.name ?? 'the caller'}: ${says}`,
   })
-  return NextResponse.json({ error: { code, message: says, ...(field ? { field } : {}) } }, { status })
+  return NextResponse.json({ error: { code, message: says, ...(field ? { field } : {}), ...(link ? { link } : {}) } }, { status })
 }
 
 async function readOne(me: string, other: { id: string; kind: string; claimedAt: Date | null; listedById: string | null }) {
@@ -120,16 +127,20 @@ export async function GET(request: NextRequest, { params }: Params) {
     })
     return v.ok && !v.already
   }
-  const remove: Partial<Record<ExtendAs, { ok: boolean; says: string; code?: string }>> = {}
+  const remove: Partial<Record<ExtendAs, { ok: boolean; says: string; code?: string; link?: { href: string; words: string } | null }>> = {}
   for (const as of ['CUSTOMER', 'SUPPLIER'] as const) {
     if (!read.positions.includes(as)) continue
+    const work = await workOnPosition(me, other.id, as)
     const v = mayRemovePosition({
       as, me: meAt, permissions: caller.permissions, positions: read.positions,
       other: { id: other.id, name: other.name },
-      work: await workOnPosition(me, other.id, as),
+      work,
       heldByAgreement: await agreementKeepsPosition(me, other, as),
     })
-    remove[as] = v.ok ? { ok: true, says: v.says } : { ok: false, says: v.says, code: v.code }
+    const link = !v.ok && v.code === 'STILL_IN_USE' ? endsAt(caller, work) : null
+    remove[as] = v.ok
+      ? { ok: true, says: v.says }
+      : { ok: false, says: v.says, code: v.code, ...(link ? { link } : {}) }
   }
   const kindVerdict = maySetRecordedKind({
     to: other.kind === 'VENDOR' ? 'CLIENT' : 'VENDOR',
@@ -197,7 +208,9 @@ export async function POST(request: NextRequest, { params }: Params) {
             byName: caller.person.name, personId: caller.person.id,
             msaId: msa?.msaId ?? null, madeAgreement: msa?.madeAgreement ?? false,
           },
-          reversible: true,
+          // Undone from the company's History on Companies, never from the
+          // activity log, whose Reverse changes no position (UNDONE_ON_COMPANIES).
+          reversible: false,
         },
       })
     })
@@ -214,16 +227,18 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const asked = request.nextUrl.searchParams.get('as') ?? (await request.json().catch(() => ({})))?.as
   const as = readExtendAs(asked)
   const before = await readOne(me.id, other)
+  const work = as ? await workOnPosition(me.id, other.id, as) : { orders: 0, lines: 0, bills: 0, signedAgreement: false, submissions: 0, openInvitations: 0, supplierRequests: 0 }
   const verdict = mayRemovePosition({
     as: asked,
     me: { id: me.id, name: me.name },
     permissions: caller.permissions,
     other: { id: other.id, name: other.name },
     positions: before.positions,
-    work: as ? await workOnPosition(me.id, other.id, as) : { orders: 0, lines: 0, bills: 0, signedAgreement: false, submissions: 0, openInvitations: 0, supplierRequests: 0 },
+    work,
     heldByAgreement: as ? await agreementKeepsPosition(me.id, other, as) : false,
   })
-  if (!verdict.ok) return refuse(caller, other.id, verdict.status, verdict.code, verdict.says, verdict.field)
+  // Work keeping the position: the refusal carries where it is ended.
+  if (!verdict.ok) return refuse(caller, other.id, verdict.status, verdict.code, verdict.says, verdict.field, verdict.code === 'STILL_IN_USE' ? endsAt(caller, work) : null)
 
   await prisma.$transaction(async (tx) => {
     const gone = await removePosition(tx, { me: me.id, otherId: other.id, as: verdict.as })
@@ -237,7 +252,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
           otherCompanyId: other.id, position: verdict.as, relationship: verdict.relationship,
           byName: caller.person.name, personId: caller.person.id, agreementRemoved: gone.agreementRemoved,
         },
-        reversible: true,
+        // Put back by extending again on Companies, never from the activity log.
+        reversible: false,
       },
     })
   })

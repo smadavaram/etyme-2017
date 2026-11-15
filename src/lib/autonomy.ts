@@ -547,7 +547,8 @@ const RULE_ATTRIBUTED = [
   // A person said what a company on their own list is to them (founder,
   // 2026-11-12): extended it to Supplier or Customer, took one of those
   // off, or said what kind of company a firm they recorded is. Their own
-  // act; the row says the position or the kind, and each can be undone.
+  // act; the row says the position or the kind. A position is undone on
+  // Companies, never from the log (UNDONE_ON_COMPANIES, 2026-11-15).
   'COMPANY_EXTENDED', 'COMPANY_POSITION_REMOVED', 'COMPANY_KIND_SET',
   // A person corrected the name, the typed domain or the entity type of a
   // company they recorded and nobody has claimed (2026-11-15). Their own
@@ -1364,6 +1365,29 @@ export function decidedBy(action: string, payload?: unknown): Decided {
   }
 }
 
+/**
+ * Acts on a company's position that are undone on Companies, never from
+ * the activity log (the press walk l2b, 2026-11-15). The log's Reverse
+ * crossed the row out and the company stayed a supplier: an undo that
+ * undoes nothing. These rows are written `reversible: false`, old rows
+ * written `true` are read as false here, and the reverse route refuses
+ * them with the sentence below, which says where the undo is.
+ */
+export const UNDONE_ON_COMPANIES: Readonly<Record<string, string>> = Object.freeze({
+  COMPANY_EXTENDED: 'Undo this from the company’s History on Companies, not from this log.',
+  COMPANY_POSITION_REMOVED: 'To put this back, extend the company again on Companies.',
+})
+
+/** Where this act is undone instead of here, as a sentence; null where the log's own Reverse is the door. */
+export function undoneElsewhere(action: string): string | null {
+  return UNDONE_ON_COMPANIES[action] ?? null
+}
+
+/** Whether the log may offer Reverse on this row: the stored flag, and never an act undone elsewhere. */
+export function reversibleHere(row: { action: string; reversible: boolean }): boolean {
+  return row.reversible && !undoneElsewhere(row.action)
+}
+
 /** Can this still be put back? The row already knows; this says it in words. */
 export function undoSays(reversible: boolean, reversedAt: Date | string | null): string {
   if (reversedAt) return 'Already undone.'
@@ -1401,7 +1425,7 @@ export function readRow(row: {
     outcome: act && act.kind === 'ENFORCEMENT' ? act.outcome : null,
     actSays: act && act.kind !== 'ATTRIBUTED' ? act.says : null,
     decided: decidedBy(row.action, row.payload),
-    undo: undoSays(row.reversible, row.reversedAt ?? null),
+    undo: undoneElsewhere(row.action) ?? undoSays(row.reversible, row.reversedAt ?? null),
   }
 }
 

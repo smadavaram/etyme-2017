@@ -3,6 +3,7 @@
 import { OwnerGateLine } from '@/components/owner-gate-line'
 import type { OwnerLine } from '@/lib/owner-gate'
 import Link from 'next/link'
+import type { Route } from 'next'
 import { readJson } from '@/lib/read-response'
 import { usePageSection } from '@/components/page-section'
 import { kindWord, postureWord } from '@/lib/parties'
@@ -834,7 +835,7 @@ function CyclesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: b
     <>
     <Panel
       title="Your cycle calendar"
-      subtitle="Chosen at sign-up from where you are and what you do. It decides when timesheets are due, when bills generate, and when payroll runs — every date a contract produces comes from here."
+      subtitle="Chosen at sign-up from where you are and what you do. It decides when timesheets are due, when bills can be raised, and when payroll runs — every date a contract produces comes from here."
     >
       {!pack ? (
         <div className="space-y-2">
@@ -958,6 +959,10 @@ interface Rule {
   id: string
   name: string
   thresholdDollars: number | null
+  kind?: string
+  orgUnit?: { id: string; name: string } | null
+  /** What the row applies to, from the route (ruleRowSays): its kind and its department. */
+  says?: string
   rank: number
   isActive: boolean
   approver: { id: string; name: string; primaryEmail: string }
@@ -990,6 +995,7 @@ function ApprovalsTab({ send, busy, openTab }: { send: SendFn; busy: boolean; op
   const [rules, setRules] = useState<Rule[] | null>(null)
   const [summary, setSummary] = useState('')
   const [canEdit, setCanEdit] = useState(false)
+  const [addHref, setAddHref] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [open, setOpen] = useState<string | null>(null)
 
@@ -1000,6 +1006,7 @@ function ApprovalsTab({ send, busy, openTab }: { send: SendFn; busy: boolean; op
       setRules(body.data.rules)
       setSummary(body.data.summary)
       setCanEdit(body.data.canEdit)
+      setAddHref(body.data.addHref ?? null)
     } catch (e: any) {
       setErr(e.message)
     }
@@ -1027,6 +1034,13 @@ function ApprovalsTab({ send, busy, openTab }: { send: SendFn; busy: boolean; op
       <p className="text-[13px] text-etyme-ink mb-4">
         {summary}{' '}
         <TabLink to="Cost centers" openTab={openTab}>See Cost centers</TabLink>
+        {/* Rules are added on Program team: one link, for a seat that may open it and write one. */}
+        {addHref && (
+          <>
+            {' · '}
+            <Link href={addHref as Route} className="text-etyme-action-press underline">Add or change rules under Program team</Link>
+          </>
+        )}
       </p>
 
       {active.length === 0 ? null : (
@@ -1037,9 +1051,7 @@ function ApprovalsTab({ send, busy, openTab }: { send: SendFn; busy: boolean; op
                 <div>
                   <span className="text-[14px] text-etyme-ink">{r.name}</span>
                   <p className="text-[12px] text-etyme-muted">
-                    {r.thresholdDollars === null
-                      ? 'applies to everything'
-                      : `above $${r.thresholdDollars.toLocaleString()}`}{' '}
+                    {r.says ?? ''}{' '}
                     · goes to {r.approver.name}
                     {r.authoredBy ? ` · written by ${r.authoredBy.name}` : ''}
                   </p>

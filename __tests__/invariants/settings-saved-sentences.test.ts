@@ -30,13 +30,19 @@ describe('saving the payroll setting says what is true', () => {
     )
   })
 
-  it('on a company listed by calendar month, it says placements recorded from now on take the new pay dates', () => {
-    for (const r of [MONTHLY, BIWEEKLY_NO_SUNDAY]) {
-      expect(paySavedSays(r)).toBe(
-        'Saved. Placements recorded from now on take these pay dates. ' +
-        'Pay days already written on a placement’s “What is due” list keep their dates.'
-      )
-    }
+  it('on a company paid by the month, it says placements recorded from now on take the new pay dates', () => {
+    expect(paySavedSays(MONTHLY)).toBe(
+      'Saved. Placements recorded from now on take these pay dates. ' +
+      'Pay days already written on a placement’s “What is due” list keep their dates.'
+    )
+  })
+
+  it('on a company paid every other week with no Sunday set, it says a W-2 placement cannot be recorded until the Sunday is set, never that placements take these dates', () => {
+    expect(paySavedSays(BIWEEKLY_NO_SUNDAY)).toBe(
+      'Saved. A W-2 placement cannot be recorded by hand until “The Sunday your pay periods are counted from” is set. ' +
+      'Until then, the Payroll page lists pay by calendar month.'
+    )
+    expect(paySavedSays(BIWEEKLY_NO_SUNDAY)).not.toContain('take these pay dates')
   })
 
   it('it never says the change applies only from the next contract', () => {

@@ -348,8 +348,17 @@ export function dayOfMonthWords(d: number): string {
   return d >= MEANS_MONTH_END ? `${d}${suffix} (month end)` : `${d}${suffix}`
 }
 
+/** An offset after a period ends, said in days: "3 days after a period ends". */
+function daysAfterEnd(n: number): string {
+  if (n === 0) return 'the day a period ends'
+  return `${n} ${n === 1 ? 'day' : 'days'} after a period ends`
+}
+
 /**
- * One line saying when the next pay is worked out and paid, from `today`:
+ * One line saying when the next pay is worked out and paid, from `today`.
+ * Weekly and every other week (reached only with no Sunday set): the rule
+ * in words, with no date, "Pay is worked out 3 days after a period ends
+ * and paid 6 days after a period ends." Formerly a dated example:
  * "A period ending Sat, Oct 10 is worked out Wed, Oct 14 and paid Fri,
  * Oct 16." For the monthly shapes, the next pay day on or after today.
  * Computed with `payDatesFor`, so the screen promises what the generator
@@ -359,9 +368,9 @@ export function payPreview(s: PayRhythm, today: Date): string {
   const day = new Date(utcDay(today))
   const short = (d: Date) => formatDay(d, { weekday: true, year: false })
   if (isWeekShape(s.payPeriod)) {
-    const saturday = new Date(day.getTime() + ((6 - day.getUTCDay() + 7) % 7) * DAY)
-    const { calcOn, payOn } = payDatesFor(saturday, s)
-    return `A period ending ${short(saturday)} is worked out ${short(calcOn)} and paid ${short(payOn)}.`
+    // No dated example: a dated period suggests a Sunday, and which Sunday
+    // is the firm's alone (the press walk l2a, 2026-11-15). The rule only.
+    return `Pay is worked out ${daysAfterEnd(s.payCalcOffsetDays)} and paid ${daysAfterEnd(s.payDayOffsetDays)}.`
   }
   const { calcOn, payOn } = payDatesFor(day, s)
   return `The next pay day, ${short(payOn)}, is worked out ${short(calcOn)}.`

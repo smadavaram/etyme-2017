@@ -144,7 +144,7 @@ describe('payroll is the company’s choice', () => {
     expect(offsetWords(6)).toBe('Friday after the period ends')
     expect(offsetWords(11)).toBe('Wednesday, a week later')
     expect(payPreview(DEFAULT_PAY_RHYTHM, utc(2026, 10, 7)))
-      .toBe('A period ending Sat, Oct 10 is worked out Wed, Oct 14 and paid Fri, Oct 16.')
+      .toBe('Pay is worked out 4 days after a period ends and paid 6 days after a period ends.')
     expect(payPreview(ok(checkPaySettings({ payPeriod: 'MONTHLY' })), utc(2026, 10, 7)))
       .toBe('The next pay day, Sat, Oct 31, is worked out Sun, Oct 25.')
   })
