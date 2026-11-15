@@ -3,7 +3,7 @@ import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import {
-  hourlyCapSays, INVITES_PER_HOUR, MAX_ADDRESSES_AT_ONCE, OWNER_DESK, parseAddresses, tooManyAtOnceSays,
+  hourlyCapSays, INVITES_PER_HOUR, MAX_ADDRESSES_AT_ONCE, NO_ROLE_SEES, OWNER_DESK, parseAddresses, tooManyAtOnceSays,
 } from '@/lib/access-grant'
 import { checkInviteRole, invitationsThisHour, inviteOne, modeOf, underInviteLock, type Inviter } from './one'
 
@@ -75,9 +75,10 @@ export async function POST(request: NextRequest) {
     company: { id: caller.company.id, name: caller.company.name },
   }
 
-  // A role is optional. Without one they arrive able to see nothing, which
-  // is the same as somebody joining on the domain — and is the safe
-  // default, because an invitation is already an exception.
+  // A role is optional. Without one they arrive as somebody joining on the
+  // domain does: Ask Etyme and their own pages, nothing of the firm's
+  // (`NO_ROLE_SEES`) — the safe default, because an invitation is already
+  // an exception.
   const roleCheck = await checkInviteRole(who, body.roleId)
   if (!roleCheck.ok) {
     return NextResponse.json(
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
         copyText: r.copyText,
         message: r.role
           ? `${r.email} can sign in as ${r.role}. Until they do, they show as invited rather than active.`
-          : `${r.email} can sign in. They will see nothing until somebody gives them a role.`,
+          : `${r.email} can sign in. ${NO_ROLE_SEES}`,
       },
     },
     { status: 201 }

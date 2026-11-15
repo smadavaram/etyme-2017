@@ -6,7 +6,7 @@ import {
   desksOffered, mailLine, capRefusalSays, MAX_ADDRESSES_AT_ONCE,
   DECIDE_LATER, DECIDE_LATER_LABEL, PICK_A_ROLE, roleOptionText, roleChoiceSays, inviteRoleId, inviteProblems,
   addressAsTyped, addressesAsTyped, type PickerRole,
-  COPY_LABEL, SEND_AGAIN_LABEL, levelLegend, LEVEL_LABEL, figureFromQuery, type FigureKey, type FigureWords, type InviteForm, type InviteMail, type GrantSensitivity,
+  COPY_LABEL, SEND_AGAIN_LABEL, levelLegend, LEVEL_LABEL, NO_ROLE_SEES, figureFromQuery, type FigureKey, type FigureWords, type InviteForm, type InviteMail, type GrantSensitivity,
 } from '@/lib/access-grant'
 import { readerZone } from '@/lib/when'
 import { formatDay } from '@/lib/format-date'
@@ -132,8 +132,7 @@ const CONSULTANTS_LINE = 'People placed through the company, not its staff. They
  * and gets no join sentence.
  */
 function memberLine(joins: string | null | undefined): string {
-  const member = 'A Member sees their own pages and what is sent to them, and none of the firm’s pages, until somebody here gives them a role.'
-  return joins ? `${joins} ${member}` : member
+  return joins ? `${joins} ${NO_ROLE_SEES}` : NO_ROLE_SEES
 }
 
 /**

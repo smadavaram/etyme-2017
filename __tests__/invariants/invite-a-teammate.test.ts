@@ -2,12 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  DECIDE_LATER, DECIDE_LATER_LABEL, DECIDE_LATER_SAYS, INVITE_ADDRESS_MISSING, INVITE_ROLE_MISSING, INVITE_ADDRESSES_MISSING,
+  DECIDE_LATER, DECIDE_LATER_LABEL, DECIDE_LATER_SAYS, NO_ROLE_SEES, levelLegend, levelOf, INVITE_ADDRESS_MISSING, INVITE_ROLE_MISSING, INVITE_ADDRESSES_MISSING,
   addressAsTyped, addressesAsTyped, inviteProblems, inviteRoleId, roleChoiceSays, roleLine, roleOptionText,
 } from '@/lib/access-grant'
 import { shippedLineFor } from '@/app/api/roles/blurb'
 import { rolesFor } from '@/lib/company-defaults'
-import { menuFor } from '@/lib/nav-table'
+import { menuFor, getNavForKind } from '@/lib/nav-table'
 
 /**
  * Invite a teammate, Settings > Users & permissions (fix list 2026-11-14,
@@ -110,6 +110,27 @@ describe('the role picker', () => {
 })
 
 describe('Decide later', () => {
+  it('the invite form, its route and the legend say the same thing about a person invited with no role, and it is what she sees', () => {
+    const route = read('src/app/api/access/invite/route.ts')
+    // One sentence, said by every place that says it.
+    expect(roleChoiceSays(DECIDE_LATER, [])).toBe(NO_ROLE_SEES)
+    expect(route).toContain('`${r.email} can sign in. ${NO_ROLE_SEES}`')
+    expect(route).not.toContain('They will see nothing')
+    expect(levelLegend().find((l) => l.key === 'NO_ROLE')?.says).toBe(NO_ROLE_SEES)
+    expect(levelOf(null, []).why).toBe(NO_ROLE_SEES)
+    expect(levelOf('Member', []).why).toBe(NO_ROLE_SEES)
+    expect(page).toContain('return joins ? `${joins} ${NO_ROLE_SEES}` : NO_ROLE_SEES')
+    expect(NO_ROLE_SEES.split(/\s+/).length).toBeLessThanOrEqual(25)
+    // And it is what she sees: the menu for a seat holding no permission
+    // is Ask Etyme and her own five pages, and no page of the firm's.
+    for (const kind of ['VENDOR', 'CLIENT', 'MSP', 'GSI'] as const) {
+      const nav = getNavForKind(kind, false, { permissions: [] })
+      expect(nav.map((s) => s.label), kind).toEqual(['Ask Etyme', 'You'])
+      expect(nav[0].items.map((i) => i.href).every((h) => h.startsWith('/dashboard/conversations')), kind).toBe(true)
+      expect(nav[1].items.map((i) => i.label), kind).toEqual(['Your work', 'Your page', 'Who has you', 'Your data', 'Your paperwork'])
+    }
+  })
+
   it('Decide later is one of the choices in the picker, and it sends no role', () => {
     expect(DECIDE_LATER_LABEL).toBe('Decide later')
     expect(panel).toContain('<option value={DECIDE_LATER}>{DECIDE_LATER_LABEL}</option>')
@@ -120,7 +141,7 @@ describe('Decide later', () => {
 
   it('Decide later says what a seat with no role really sees: Ask Etyme and their own pages, and nothing of the firm’s', () => {
     expect(roleChoiceSays(DECIDE_LATER, [])).toBe(DECIDE_LATER_SAYS)
-    expect(DECIDE_LATER_SAYS).toBe('Until somebody gives them a role, they see Ask Etyme and their own pages, and nothing of the firm’s.')
+    expect(DECIDE_LATER_SAYS).toBe('A person with no role sees Ask Etyme and their own pages, and nothing of the firm’s.')
     // What the menu draws for a seat holding no permission, at every kind of firm that invites colleagues.
     for (const kind of ['VENDOR', 'CLIENT', 'MSP', 'GSI'] as const) {
       const menu = menuFor(kind, false, { permissions: [] })

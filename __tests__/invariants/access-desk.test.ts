@@ -230,10 +230,10 @@ describe('sign-up walk, round three: Users & permissions counts and says what is
     expect(route).not.toContain('needsAttention: review.length')
   })
 
-  it('the page says a domain colleague sees their own pages and what is sent to them, and none of the firm’s, never that they see nothing', () => {
+  it('the page says a domain colleague sees Ask Etyme and their own pages and nothing of the firm’s, in the one sentence the invite form says, never that they see nothing', () => {
     const page = read('src/app/dashboard/access/page.tsx')
     expect(page).not.toContain('can see nothing')
-    expect(page).toContain('A Member sees their own pages and what is sent to them, and none of')
+    expect(page).toContain('return joins ? `${joins} ${NO_ROLE_SEES}` : NO_ROLE_SEES')
   })
 
   it('a desk’s end date is printed as a day a person reads, on the page and in the email', () => {

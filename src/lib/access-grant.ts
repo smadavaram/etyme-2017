@@ -105,7 +105,7 @@ export function levelLegend(): { key: GrantSensitivity | 'NO_ROLE'; label: strin
     { key: 'HIGH', label: LEVEL_LABEL.HIGH, says: `A role that can ${orList(said(HIGH_PERMISSIONS))}.` },
     { key: 'STANDARD', label: LEVEL_LABEL.STANDARD, says: 'A role for everyday work that can do none of that.' },
     { key: 'READ_ONLY', label: LEVEL_LABEL.READ_ONLY, says: 'A role that can look and change nothing.' },
-    { key: 'NO_ROLE', label: NO_ROLE_LABEL, says: 'Signed in with no role: they see their own pages and what is sent to them, until somebody gives them one.' },
+    { key: 'NO_ROLE', label: NO_ROLE_LABEL, says: NO_ROLE_SEES },
   ]
 }
 
@@ -117,7 +117,7 @@ export function levelLegend(): { key: GrantSensitivity | 'NO_ROLE'; label: strin
  */
 export function levelOf(roleName: string | null, permissions: readonly string[]): { key: GrantSensitivity | 'NO_ROLE'; label: string; why: string } {
   if (!roleName || roleName === 'Member') {
-    return { key: 'NO_ROLE', label: NO_ROLE_LABEL, why: `${NO_ROLE_LABEL}: they see their own pages and what is sent to them, until somebody gives them a role.` }
+    return { key: 'NO_ROLE', label: NO_ROLE_LABEL, why: NO_ROLE_SEES }
   }
   const key = sensitivityOf([...permissions])
   if (key === 'CRITICAL') {
@@ -1160,9 +1160,18 @@ export const PICK_A_ROLE = 'Pick a role'
 
 export const DECIDE_LATER_LABEL = 'Decide later'
 
-/** What a seat with no role sees, said under the picker when "Decide later" is chosen. */
-export const DECIDE_LATER_SAYS =
-  'Until somebody gives them a role, they see Ask Etyme and their own pages, and nothing of the firm’s.'
+/**
+ * What a seat with no role sees, in the one sentence every place says it:
+ * the invite route's answer, "Decide later" in the picker, the level
+ * legend and chip, and the line under Users & permissions. It is what the
+ * menu draws for a seat holding no permission (`isDeskless` in
+ * lib/nav-table): Ask Etyme and the person's own five pages, no firm page.
+ */
+export const NO_ROLE_SEES =
+  'A person with no role sees Ask Etyme and their own pages, and nothing of the firm’s.'
+
+/** Said under the picker when "Decide later" is chosen: the one sentence above. */
+export const DECIDE_LATER_SAYS = NO_ROLE_SEES
 
 /** Beside the role box when Invite is pressed with no choice made. */
 export const INVITE_ROLE_MISSING = 'Pick what they do here, or choose Decide later.'
