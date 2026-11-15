@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * PATCH /api/requirements/:id/status
@@ -41,10 +42,22 @@ export async function PATCH(
     select: { id: true, title: true, status: true, companyId: true },
   })
 
-  if (!requirement) {
+  // A job is its own company's to move. This door had no check at all: any
+  // signed-in person could close or reopen any firm's job by its id (found
+  // 2026-11-15; no screen calls it). Another firm's job is answered exactly
+  // as an id that does not exist, so nothing is learned about it
+  // (docs/decisions/61), and inside the firm it takes the right to change
+  // job requests.
+  if (!requirement || !caller.company || requirement.companyId !== caller.company.id) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Requirement not found' } },
       { status: 404 }
+    )
+  }
+  if (!hasPermission(caller.permissions, 'requirements.write')) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Your role cannot open or close a job request. Ask whoever raises job requests at your company.' } },
+      { status: 403 }
     )
   }
 
