@@ -66,7 +66,7 @@ interface Person {
   person: { id: string; name: string; primaryEmail: string | null }
   role: string
   roleId: string
-  /** The role, or "Member · give them a role". */
+  /** The role, or "No role yet · give them a role". */
   line: string
   sensitivity: string
   /** The level in words, and the sentence that says why (`levelOf`). */
@@ -939,6 +939,12 @@ export default function AccessPage() {
             open={acting?.contextId === p.contextId ? acting.action : null} onOpen={openAct} />
         </div>
       </div>
+
+      {/* Why this row offers no Pause, Reinstate or End, from the verdict
+          the route gives (fix list D5): never a row with no button and no word. */}
+      {p.acts?.whyNoActs && (
+        <p className="text-xs text-etyme-muted mt-2 break-words">{p.acts.whyNoActs}</p>
+      )}
 
       {levelOpen === p.contextId && p.level?.why && (
         <p className="text-xs text-etyme-muted mt-2 break-words">{p.level.why}</p>

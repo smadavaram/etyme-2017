@@ -401,10 +401,13 @@ export const OWNER_DESK = 'Owner'
  * What a row on "Everyone with access" says under the person's name.
  *
  * A Member can see their own work and nothing else, so the row says what
- * to do about it. Every other desk is just its name.
+ * to do about it, in the chip's own words (fix list D4a, 2026-11-15: the
+ * same person read "Member · give them a role" on the row and "No role
+ * yet" on the chip and on Team structure; one state, one word). Every
+ * other role is just its name. Settings → Roles keeps the role's real name.
  */
-export function deskLine(roleName: string): string {
-  return roleName === MEMBER_DESK ? `${MEMBER_DESK} · give them a role` : roleName
+export function deskLine(roleName: string | null): string {
+  return !roleName || roleName === MEMBER_DESK ? `${NO_ROLE_LABEL} · give them a role` : roleName
 }
 
 /**
@@ -495,10 +498,29 @@ export interface FigureWords {
 }
 
 /**
+ * What the Invited figure knows about the invitation emails (fix list D1,
+ * 2026-11-15): how many invited seats' newest email did not go, and
+ * whether an email can leave this deployment at all (`mailLeaves`).
+ */
+export interface InvitedMail { notGone: number; leaves: boolean }
+
+/** The Invited figure's line, from how many emails did not go. Pure. */
+function invitedSays(n: number, mail?: InvitedMail): string {
+  const head = `${n} invited, never signed in.`
+  if (!mail) return `${head} Send the invitation again or withdraw it.`
+  // Nothing can leave here, so no single invitation is to blame.
+  if (!mail.leaves) return `${head} No email can be sent from here yet: copy the invitation and send it yourself, or withdraw it.`
+  const k = Math.min(Math.max(0, mail.notGone), n)
+  if (k === 0) return `${head} Send the invitation again or withdraw it.`
+  if (k === 1) return `${head} The email to ${n === 1 ? 'them' : '1 of them'} did not go: send it again, or copy the invitation.`
+  return `${head} The emails to ${k === n ? `all ${n}` : `${k} of them`} did not go: send them again, or copy the invitations.`
+}
+
+/**
  * One figure's words, or null for a figure of zero, which is not drawn,
  * except "With access", the baseline. Pure.
  */
-export function figureWords(key: FigureKey, n: number, parts?: DecisionParts): FigureWords | null {
+export function figureWords(key: FigureKey, n: number, parts?: DecisionParts, invitedMail?: InvitedMail): FigureWords | null {
   if (n <= 0 && key !== 'with-access') return null
   const one = n === 1
   switch (key) {
@@ -509,7 +531,7 @@ export function figureWords(key: FigureKey, n: number, parts?: DecisionParts): F
         showing: `${n} with access`,
       }
     case 'invited':
-      return { key, label: 'Invited', value: n, says: `${n} invited, never signed in. Send the invitation again or withdraw it.`, showing: `${n} invited` }
+      return { key, label: 'Invited', value: n, says: invitedSays(n, invitedMail), showing: `${n} invited` }
     case 'waiting-for-role':
       return { key, label: 'Waiting for a role', value: n, says: `${n} signed in with no role. Give ${one ? 'them' : 'each'} a role.`, showing: `${n} waiting for a role` }
     case 'paused':
@@ -533,10 +555,10 @@ export function figureWords(key: FigureKey, n: number, parts?: DecisionParts): F
 }
 
 /** The figures to draw, in order, zeros left out except With access. Pure. */
-export function figuresFor(c: { withAccess: number; invited: number; waitingForRole: number; paused: number }, decisions: number, parts: DecisionParts): FigureWords[] {
+export function figuresFor(c: { withAccess: number; invited: number; waitingForRole: number; paused: number }, decisions: number, parts: DecisionParts, invitedMail?: InvitedMail): FigureWords[] {
   return [
     figureWords('with-access', c.withAccess),
-    figureWords('invited', c.invited),
+    figureWords('invited', c.invited, undefined, invitedMail),
     figureWords('waiting-for-role', c.waitingForRole),
     figureWords('paused', c.paused),
     figureWords('decision', decisions, parts),
@@ -920,6 +942,23 @@ export const INVITES_PER_HOUR = 60
 /** The most invitation emails one seat is sent in an hour, the first included. */
 export const SENDS_PER_SEAT_PER_HOUR = 3
 
+/** The email states of an invitation that did not leave. Never counted against a cap. */
+export const MAIL_NOT_GONE: readonly InviteMailState[] = ['FAILED', 'NOT_CONFIGURED', 'DEMO_SKIPPED']
+
+/**
+ * Whether one invitation log row counts against the hourly cap (founder,
+ * 2026-11-15, fix list D1: only a try whose email left counts). A copied
+ * invitation sends nothing; a row that says its email did not leave is a
+ * try, not a send. A row with no mail state, written before the state was
+ * kept or by a send that never returned, still counts: the cap stays safe
+ * where the record cannot say. Pure.
+ */
+export function countsAgainstCap(payload: unknown): boolean {
+  const p = (payload ?? null) as { act?: unknown; mail?: unknown } | null
+  if (p?.act === 'COPIED') return false
+  return !(MAIL_NOT_GONE as readonly unknown[]).includes(p?.mail)
+}
+
 /**
  * The addresses in a pasted list: one per line, or separated by commas or
  * semicolons, lowercased, each once, in the order typed. What is not a
@@ -977,6 +1016,17 @@ export function capRefusalSays(err: CapRefusal | null | undefined, zone: string 
 }
 
 /** What Send the invitation again says once it has run. */
+/**
+ * The activity log's summary for Send the invitation again, from what the
+ * send returned (fix list D1, 2026-11-15: the row said "sent ... again"
+ * when the email had not gone). Rows already written are not changed. Pure.
+ */
+export function sentAgainLogged(actorName: string, email: string, mail: InviteMailState): string {
+  return mail === 'SENT'
+    ? `${actorName} sent the invitation to ${email} again`
+    : `${actorName} tried to send the invitation to ${email} again; the email did not go`
+}
+
 export function sentAgainSays(email: string, mail: InviteMailState, why: string | null): string {
   if (mail === 'SENT') return `Sent again to ${email}. It is the same seat; nothing was duplicated.`
   return `Not sent to ${email}: ${why ?? 'it did not leave.'} It is the same seat; nothing was duplicated. ${COPY_LABEL} and send it to them yourself.`

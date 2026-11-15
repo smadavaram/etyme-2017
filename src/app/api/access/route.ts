@@ -11,7 +11,7 @@ import {
   assessGrant, reviewAccess, sensitivityOf, levelOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
   hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount, inviteFormWords,
-  decisionSeats, decisionParts, figuresFor, FINDING_WORDS, type FigureKey,
+  decisionSeats, decisionParts, figuresFor, FINDING_WORDS, type FigureKey, type InvitedMail,
 } from '@/lib/access-grant'
 import { companyPolicy } from '@/lib/identity/read'
 import { isSamplePerson } from '@/lib/sample-seat'
@@ -19,12 +19,16 @@ import { consoleHome, type CompanyKind } from '@/lib/console-home'
 import { formatDay } from '@/lib/format-date'
 import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
 import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act'
-import { mayChangeRole, offersFor, peopleHeadline, renameVerdict } from './row-acts'
+import { mayChangeRole, offersFor, peopleHeadline, renameVerdict, PAUSE_OR_END_DOING } from './row-acts'
+import { seatedSays } from '@/lib/money/who-raises-bills'
 import { knownBeyond } from './[contextId]/rename'
 import { copyTextFor, latestInviteMails } from './invite/one'
 import type { EffectiveMode } from '@/lib/identity/policy'
 import { readCompanySeats, peopleOf, countSeats, peopleWords, personNameFor, type SeatState } from '@/lib/company-seats'
 import { joinSentenceFor } from '@/lib/join-words'
+
+/** An invitation's newest email that did not leave: refused, not set up, or a demo address. Never one on its way, and never a seat with no email. */
+const didNotGo = (m: { state: string } | undefined): boolean => Boolean(m) && m!.state !== 'SENT' && m!.state !== 'PENDING'
 
 /**
  * Who may read the access register.
@@ -230,6 +234,17 @@ export async function GET(request: NextRequest) {
     })),
     { isOwner: actorIsOwner && !mine?.suspendedAt, personId: caller.person.id },
     hasPermission(caller.permissions, 'team.manage'),
+    // For a reader who may not pause or end anybody, each row says who
+    // here may, named from the live seats the firm has filled (fix list D5).
+    seatedSays(PAUSE_OR_END_DOING, contexts
+      .filter(c => !c.suspendedAt && !c.revokedAt && !isSample(c.id) && !isConsultant(c.id) && signedInOf(c)
+        && hasPermission(c.role?.permissions ?? [], 'team.manage'))
+      .map(c => c.role?.name ?? '')) ?? askTheDesk({
+      doing: PAUSE_OR_END_DOING,
+      needs: 'team.manage',
+      kind: caller.company.kind,
+      companyName: caller.company.name,
+    }),
   )
   // Rename, on the same verdict the route gives (row-acts `renameVerdict`),
   // so the button is drawn only where the route will take it.
@@ -280,7 +295,15 @@ export async function GET(request: NextRequest) {
   // clipboard, which holds no link that takes the seat. Both only for a
   // reader who may act on the row.
   const invitedWaiting = waiting.filter(c => c.invitedAt !== null && actsOf(c.id).copy)
-  const mails = await latestInviteMails(invitedWaiting.map(c => c.id))
+  // Read for every invited seat, so the Invited figure can say how many
+  // emails did not go (fix list D1); a row still carries its own only for
+  // a reader who may act on it (`inviteOf`).
+  const mails = await latestInviteMails(waiting.filter(c => c.invitedAt !== null).map(c => c.id))
+  const invitedMail: InvitedMail | undefined = mayInvite ? {
+    notGone: waiting.filter(c => c.invitedAt !== null && !isConsultant(c.id) && figureOf(c.id) === 'invited'
+      && didNotGo(mails.get(c.id))).length,
+    leaves: mailLeaves(),
+  } : undefined
   const inviterIds = [...new Set(invitedWaiting.map(c => c.invitedById).filter((id): id is string => Boolean(id)))]
   const inviters = inviterIds.length
     ? new Map((await prisma.person.findMany({ where: { id: { in: inviterIds } }, select: { id: true, name: true } })).map(p => [p.id, p.name]))
@@ -344,7 +367,7 @@ export async function GET(request: NextRequest) {
         person: personOf(c),
         role: c.role!.name,
         roleId: c.role!.id,
-        // "Member · give them a role" for the seat everybody arrives on.
+        // "No role yet · give them a role" for the seat everybody arrives on.
         line: deskLine(c.role!.name),
         consultant: isConsultant(c.id),
         shared: sharedOf(c.id),
@@ -427,7 +450,7 @@ export async function GET(request: NextRequest) {
         // Each figure with the line under it, zeros left out except With
         // access (lib/access-grant `figureWords`). A figure's number is
         // the number of rows whose `figure` (or `decision`) it names.
-        figures: figuresFor(counts, decisions.size, parts),
+        figures: figuresFor(counts, decisions.size, parts, invitedMail),
         expired: review.filter(r => r.finding === 'EXPIRED').length,
         dormant: review.filter(r => r.finding === 'DORMANT').length,
       },

@@ -403,6 +403,63 @@ describe('what Users & permissions draws on each row, from the register', () => 
     }
   })
 
+  it('an Admin reading an Owner’s row is told in one line that only an Owner pauses an Owner, and where an Owner is removed', async () => {
+    const { offersFor, OWNER_ONLY_SAYS } = await import('@/app/api/access/row-acts')
+    const owner = row('Nadia', true)
+    const other = row('Tomas', true)
+    const admin = row('Ines', false)
+    const offer = offersFor([owner, other, admin], { isOwner: false, personId: admin.personId }, true).get(owner.contextId)!
+    expect(offer.whyNoActs).toBe('Only an Owner pauses an Owner, and removing one needs another Owner’s yes in Settings → Owners.')
+    expect(offer.whyNoActs).toBe(OWNER_ONLY_SAYS)
+    const paused = { ...other, suspendedAt: new Date('2026-11-10') }
+    expect(offersFor([owner, paused, admin], { isOwner: false }, true).get(paused.contextId)!.whyNoActs)
+      .toBe('Only an Owner lifts an Owner’s pause, and removing one needs another Owner’s yes in Settings → Owners.')
+  })
+
+  it('a seat that may not manage people reads on every person row who here pauses or ends access, and nothing on a waiting row', async () => {
+    const { offersFor, NOT_MANAGER_SAYS } = await import('@/app/api/access/row-acts')
+    const owner = row('Nadia', true)
+    const admin = row('Ines', false)
+    const waiting = { ...row('Kofi', false, []), hasSignedIn: false }
+    const named = 'Pausing or ending somebody’s access is for the Owner or Admin here. Ask one of them.'
+    const offers = offersFor([owner, admin, waiting], { isOwner: false }, false, named)
+    expect(offers.get(owner.contextId)!.whyNoActs).toBe(named)
+    expect(offers.get(admin.contextId)!.whyNoActs).toBe(named)
+    expect(offers.get(waiting.contextId)!.whyNoActs).toBeNull()
+    expect(offersFor([owner, admin], { isOwner: false }, false).get(admin.contextId)!.whyNoActs).toBe(NOT_MANAGER_SAYS)
+    const route = readFileSync('src/app/api/access/route.ts', 'utf8')
+    expect(route).toContain('seatedSays(PAUSE_OR_END_DOING, contexts')
+  })
+
+  it('the last Owner’s row says it is never paused or removed while it is the last, to every reader who manages people', async () => {
+    const { offersFor, LAST_OWNER_SAYS } = await import('@/app/api/access/row-acts')
+    const owner = row('Nadia', true)
+    const admin = row('Ines', false)
+    expect(LAST_OWNER_SAYS).toBe('The only Owner here, so never paused or removed while they are the last. They can pass ownership in Settings → Owners.')
+    expect(offersFor([owner, admin], { isOwner: true, personId: owner.personId }, true).get(owner.contextId)!.whyNoActs).toBe(LAST_OWNER_SAYS)
+    expect(offersFor([owner, admin], { isOwner: false, personId: admin.personId }, true).get(owner.contextId)!.whyNoActs).toBe(LAST_OWNER_SAYS)
+  })
+
+  it('the one person who can manage access is told in words, never by a permission key, why their row offers no Pause or End', async () => {
+    const { offersFor, ONLY_MANAGER_SAYS } = await import('@/app/api/access/row-acts')
+    const owner = row('Nadia', true, [])
+    const other = row('Tomas', true, [])
+    const admin = row('Ines', false)
+    const offer = offersFor([owner, other, admin], { isOwner: true }, true).get(admin.contextId)!
+    expect([offer.pause, offer.end]).toEqual([false, false])
+    expect(offer.whyNoActs).toBe(ONLY_MANAGER_SAYS)
+    expect(offer.whyNoActs).not.toContain('team.manage')
+  })
+
+  it('a row that offers Pause or End carries no line saying why it does not', async () => {
+    const { offersFor } = await import('@/app/api/access/row-acts')
+    const owner = row('Nadia', true)
+    const admin = row('Ines', false)
+    expect(offersFor([owner, admin], { isOwner: true }, true).get(admin.contextId)!.whyNoActs).toBeNull()
+    const page = readFileSync('src/app/dashboard/access/page.tsx', 'utf8')
+    expect(page).toContain('{p.acts?.whyNoActs && (')
+  })
+
   it('the access route reads the same verdict for Reinstate as the register, with the reader as actor', () => {
     const src = readFileSync('src/app/api/access/[contextId]/route.ts', 'utf8')
     expect(src).toContain("canReinstate(target, actor)")

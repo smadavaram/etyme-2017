@@ -29,6 +29,7 @@ import type { EffectiveMode } from '@/lib/identity/policy'
 import {
   alreadyInvitedSays, copyInvitation, hasSignedIn, invitedAs, inviteLetter, inviteSays, INVITE_LINK_HOURS, OWNER_DESK,
   type InviteDoor, type InviteMail, type InviteMailState,
+  countsAgainstCap, MAIL_NOT_GONE,
 } from '@/lib/access-grant'
 
 /** Whether Microsoft or Google sign-in is set up here, read the way lib/auth reads it. */
@@ -142,10 +143,16 @@ export async function latestInviteMails(contextIds: string[]): Promise<Map<strin
   return out
 }
 
-/** How many invitation emails a seat was sent since a moment, and the oldest of them. */
+/**
+ * How many invitation emails a seat was sent since a moment, and the
+ * oldest of them. Only emails that left are counted (founder, 2026-11-15):
+ * a try that did not go is no email, and where no email can leave this
+ * deployment at all, nothing counts.
+ */
 export async function invitationEmailsSince(contextId: string, since: Date): Promise<{ count: number; oldest: Date | null }> {
+  if (!mailLeaves()) return { count: 0, oldest: null }
   const rows = await prisma.notification.findMany({
-    where: { entityId: contextId, channel: 'EMAIL', title: { contains: INVITE_TITLE_MARK }, createdAt: { gte: since } },
+    where: { entityId: contextId, channel: 'EMAIL', title: { contains: INVITE_TITLE_MARK }, createdAt: { gte: since }, deliveryState: { notIn: [...MAIL_NOT_GONE] } },
     orderBy: { createdAt: 'asc' },
     select: { createdAt: true },
   })
@@ -161,12 +168,16 @@ export async function invitationEmailsSince(contextId: string, since: Date): Pro
  * the hour back. A copied invitation sends nothing and is not counted.
  */
 export async function invitationsThisHour(companyId: string, now: Date = new Date()): Promise<{ count: number; oldest: Date | null }> {
+  // Only a try whose email left counts (founder, 2026-11-15): where no
+  // email can leave this deployment at all, nothing counts.
+  if (!mailLeaves()) return { count: 0, oldest: null }
   const rows = await prisma.automationLog.findMany({
     where: { companyId, action: { in: [...INVITATION_SEND_ACTIONS] }, at: { gte: new Date(now.getTime() - 3_600_000) } },
     orderBy: { at: 'asc' },
     select: { at: true, payload: true },
   })
-  const sends = rows.filter((r) => (r.payload as { act?: unknown } | null)?.act !== 'COPIED')
+  // A copied invitation sends nothing, and an email that did not go is no send (`countsAgainstCap`).
+  const sends = rows.filter((r) => countsAgainstCap(r.payload))
   return { count: sends.length, oldest: sends[0]?.at ?? null }
 }
 
@@ -340,22 +351,6 @@ export async function inviteOne(inviter: Inviter, input: { email: string; name?:
     return seat
   })
 
-  await prisma.automationLog.create({
-    data: {
-      companyId,
-      action: 'PERSON_INVITED',
-      summary: `${inviter.name} invited ${email}${role ? ` as ${role.name}` : ' with no role yet'}`,
-      // The reason this is worth logging: it is an exception to the rule
-      // everything else depends on.
-      reason: check.reason,
-      // createdPerson: whether this invitation made the person row. Withdrawing
-      // the invitation deletes the person only where it did (security
-      // review, 2026-11-12), never somebody who was on Etyme before.
-      payload: { contextId: context.id, email, roleId: role?.id ?? null, outsider: check.outsider, act: 'INVITED', createdPerson: !existing },
-      reversible: true,
-    },
-  })
-
   void emit({
     type: 'company.member_joined',
     companyId,
@@ -374,6 +369,27 @@ export async function inviteOne(inviter: Inviter, input: { email: string; name?:
     roleName: role?.name ?? null,
     mode,
   })
+  const logPayload = { contextId: context.id, email, roleId: role?.id ?? null, outsider: check.outsider, act: 'INVITED', createdPerson: !existing }
+  await prisma.automationLog.create({
+    data: {
+      companyId,
+      action: 'PERSON_INVITED',
+      summary: `${inviter.name} invited ${email}${role ? ` as ${role.name}` : ' with no role yet'}`,
+      // The reason this is worth logging: it is an exception to the rule
+      // everything else depends on.
+      reason: check.reason,
+      // createdPerson: whether this invitation made the person row. Withdrawing
+      // the invitation deletes the person only where it did (security
+      // review, 2026-11-12), never somebody who was on Etyme before.
+      // mail: how the email went, so the hourly cap counts only an email
+      // that left (`countsAgainstCap`; founder, 2026-11-15). Written after
+      // the send and inside the company's invite lock, before the next
+      // press reads the count.
+      payload: { ...logPayload, mail: sent.mail.state },
+      reversible: true,
+    },
+  })
+
   // The reply and its sentence are the same for an address Etyme has never
   // seen and one it knows: no door, no record's name, nothing that says
   // whether the address already holds a password (security review,

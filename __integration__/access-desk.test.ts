@@ -8,6 +8,7 @@ import { POST as copied } from '@/app/api/access/[contextId]/copied/route'
 import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { resetPassword } from '@/lib/password-door'
+import { countsAgainstCap } from '@/lib/access-grant'
 
 /**
  * Users & permissions, walked as Brightmoor's owner after round one of
@@ -47,12 +48,13 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     }
   })
 
-  it('a Member reads "Member · give them a role" on Everyone with access', async () => {
+  it('a Member reads "No role yet · give them a role" on Everyone with access, the same words as the chip beside it', async () => {
     as(OWNER)
     const r = await json(await access(req('GET', '/api/access')))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const row = r.body.data.people.find((p: any) => p.contextId === it_.memberContext)
-    expect(row.line).toBe('Member · give them a role')
+    expect(row.line).toBe('No role yet · give them a role')
+    expect(row.level.label).toBe('No role yet')
     expect(r.body.data.actorIsOwner).toBe(true)
   })
 
@@ -546,11 +548,14 @@ describe('an invitation that did not go says why, and can be copied or sent agai
     expect((await waitingRow(it_.vik)).mail.state).toBe('SENT')
   })
 
-  it('a third Send again in one hour is refused in one sentence that points to Copy invitation, and is logged before it is sent', async () => {
+  it('once three invitation emails to one seat have gone in an hour, the next Send again is refused in one sentence that points to Copy invitation, and is logged before it is sent', async () => {
+    // Vik's first email was refused and does not count; the press above sent one.
     mailOn(ok)
     as(OWNER)
-    const third = await json(await sendAgain(req('POST', `/api/access/${it_.vik}/resend`), seatParams(it_.vik)))
-    expect(third.status, JSON.stringify(third.body)).toBe(200)
+    for (let i = 0; i < 2; i++) {
+      const more = await json(await sendAgain(req('POST', `/api/access/${it_.vik}/resend`), seatParams(it_.vik)))
+      expect(more.status, JSON.stringify(more.body)).toBe(200)
+    }
     const fourth = await json(await sendAgain(req('POST', `/api/access/${it_.vik}/resend`), seatParams(it_.vik)))
     expect(fourth.status, JSON.stringify(fourth.body)).toBe(429)
     expect(fourth.body.error.message).toMatch(/^vik@partner-works-fixture\.com was emailed 3 times in the last hour\. Copy invitation and send it yourself, or send it again after /)
@@ -581,6 +586,15 @@ describe('an invitation that did not go says why, and can be copied or sent agai
     expect(r.status, JSON.stringify(r.body)).toBe(422)
     expect(r.body.error.message).toBe('They are invited as an Owner. Only an Owner sends an Owner’s invitation. An Admin never can.')
     it_.raeEmail = 'rae.admin@brightmoor.demo.etyme.local'
+  })
+
+  it('an Admin reading the last Owner’s row sees no Pause or End and one line saying why', async () => {
+    as(it_.raeEmail)
+    const r = await json(await access(req('GET', '/api/access')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const ownerRow = r.body.data.people.find((p: any) => p.person.primaryEmail === OWNER)
+    expect([ownerRow.acts.pause, ownerRow.acts.reinstate, ownerRow.acts.end]).toEqual([false, false, false])
+    expect(ownerRow.acts.whyNoActs).toBe('The only Owner here, so never paused or removed while they are the last. They can pass ownership in Settings → Owners.')
   })
 
   it('the invite form tells the inviter an address is already invited and where to press Send again', async () => {
@@ -636,7 +650,9 @@ describe('an invitation that did not go says why, and can be copied or sent agai
   // say they are fillers, a minute old.
   const fillHourTo = async (n: number) => {
     await prisma.automationLog.deleteMany({ where: { companyId: it_.firm, summary: 'hour filler' } })
-    const real = await prisma.automationLog.count({ where: { companyId: it_.firm, action: { in: ['PERSON_INVITED', 'INVITATION_SENT_AGAIN'] }, at: { gte: new Date(Date.now() - 3_600_000) }, NOT: { payload: { path: ['act'], equals: 'COPIED' } } } })
+    // Only a row whose email left counts against the hour (founder, 2026-11-15).
+    const real = (await prisma.automationLog.findMany({ where: { companyId: it_.firm, action: { in: ['PERSON_INVITED', 'INVITATION_SENT_AGAIN'] }, at: { gte: new Date(Date.now() - 3_600_000) } }, select: { payload: true } }))
+      .filter((r) => countsAgainstCap(r.payload)).length
     const rows = Array.from({ length: Math.max(0, n - real) }, () => ({
       companyId: it_.firm, action: 'PERSON_INVITED', summary: 'hour filler', reason: 'filler', payload: { act: 'INVITED' }, at: new Date(Date.now() - 60_000),
     }))
@@ -681,6 +697,74 @@ describe('an invitation that did not go says why, and can be copied or sent agai
     const [a, b] = [await json(ra), await json(rb)]
     expect([a.status, b.status].filter((x) => x === 429), JSON.stringify([a.body, b.body])).toHaveLength(1)
     expect(await prisma.person.count({ where: { primaryEmail: { in: ['race.a@batch-works-fixture.com', 'race.b@batch-works-fixture.com'] } } })).toBe(1)
+  })
+
+  it('an invitation email that did not go does not count against the hourly limit', async () => {
+    as(OWNER)
+    await fillHourTo(59)
+    mailOn(refused)
+    const failed = await json(await invite(req('POST', '/api/access/invite', { email: 'not.gone@batch-works-fixture.com' })))
+    expect(failed.status, JSON.stringify(failed.body)).toBe(201)
+    expect(failed.body.data.mail.state).toBe('FAILED')
+    const logged = await prisma.automationLog.findFirst({ where: { companyId: it_.firm, action: 'PERSON_INVITED', summary: { contains: 'not.gone@batch-works-fixture.com' } }, select: { payload: true } })
+    expect((logged?.payload as any)?.mail).toBe('FAILED')
+    // The hour still has room for one: the refused email was a try, not a send.
+    mailOn(ok)
+    const next = await json(await invite(req('POST', '/api/access/invite', { email: 'gone.ok@batch-works-fixture.com' })))
+    expect(next.status, JSON.stringify(next.body)).toBe(201)
+    expect(next.body.data.mail.state).toBe('SENT')
+  })
+
+  it('an invitation email that went still counts against the hourly limit', async () => {
+    as(OWNER)
+    // The press above filled the hour to sixty with an email that left.
+    const r = await json(await invite(req('POST', '/api/access/invite', { email: 'one.too.many@batch-works-fixture.com' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(429)
+    expect(r.body.error.cap).toBe('HOURLY')
+  })
+
+  it('a Send again whose email did not go is logged as a try, never as sent again', async () => {
+    as(OWNER)
+    await fillHourTo(0)
+    mailOn(ok)
+    const seat = await json(await invite(req('POST', '/api/access/invite', { email: 'tried.again@batch-works-fixture.com' })))
+    expect(seat.status, JSON.stringify(seat.body)).toBe(201)
+    mailOn(refused)
+    const r = await json(await sendAgain(req('POST', `/api/access/${seat.body.data.contextId}/resend`), seatParams(seat.body.data.contextId)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const row = await prisma.automationLog.findFirst({ where: { companyId: it_.firm, action: 'INVITATION_SENT_AGAIN', summary: { contains: 'tried.again@batch-works-fixture.com' } }, orderBy: { at: 'desc' } })
+    expect(row?.summary).toMatch(/ tried to send the invitation to tried\.again@batch-works-fixture\.com again; the email did not go$/)
+    expect(row?.reason).toBe('Asked for on the waiting row. The same seat; nothing was duplicated.')
+  })
+
+  it('the Invited figure counts the invitations whose newest email did not go, read from the same rows each waiting row shows', async () => {
+    as(OWNER)
+    mailOn(ok)
+    const list = await json(await access(req('GET', '/api/access')))
+    expect(list.status, JSON.stringify(list.body)).toBe(200)
+    const invited = list.body.data.waitingForAccess.filter((w: any) => w.figure === 'invited')
+    const notGone = invited.filter((w: any) => w.mail && w.mail.state !== 'SENT' && w.mail.state !== 'PENDING').length
+    expect(notGone).toBeGreaterThan(0)
+    const figure = list.body.data.summary.figures.find((f: any) => f.key === 'invited')
+    const n = invited.length
+    expect(figure.value).toBe(n)
+    expect(figure.says).toMatch(notGone === 1
+      ? new RegExp(`^${n} invited, never signed in\\. The email to (them|1 of them) did not go: send it again, or copy the invitation\\.$`)
+      : new RegExp(`^${n} invited, never signed in\\. The emails to (all ${n}|${notGone} of them) did not go: send them again, or copy the invitations\\.$`))
+  })
+
+  it('where no email can leave, the Invited figure says so and nothing counts against the hourly limit', async () => {
+    as(OWNER)
+    mailOn(ok)
+    await fillHourTo(60)
+    delete process.env.RESEND_API_KEY
+    const list = await json(await access(req('GET', '/api/access')))
+    const figure = list.body.data.summary.figures.find((f: any) => f.key === 'invited')
+    expect(figure.says).toMatch(/never signed in\. No email can be sent from here yet: copy the invitation and send it yourself, or withdraw it\.$/)
+    const r = await json(await invite(req('POST', '/api/access/invite', { email: 'no.mail.here@batch-works-fixture.com' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.mail.state).toBe('NOT_CONFIGURED')
+    mailOn(ok)
   })
 
   it('Send the invitation again counts against the company’s hour, and is refused once the hour is spent', async () => {

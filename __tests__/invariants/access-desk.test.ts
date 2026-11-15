@@ -36,8 +36,12 @@ function change(over: Partial<DeskChange> = {}): DeskChange {
 }
 
 describe('changing a desk', () => {
-  it('a Member row reads "Member · give them a role", and every other desk reads its own name', () => {
-    expect(deskLine('Member')).toBe('Member · give them a role')
+  it('a seat holding the Member role, or none, reads "No role yet · give them a role", the chip’s own words, and every other role reads its own name', async () => {
+    const { NO_ROLE_LABEL, levelOf } = await import('@/lib/access-grant')
+    expect(deskLine('Member')).toBe('No role yet · give them a role')
+    expect(deskLine(null)).toBe('No role yet · give them a role')
+    expect(deskLine('Member').startsWith(NO_ROLE_LABEL)).toBe(true)
+    expect(levelOf('Member', []).label).toBe(NO_ROLE_LABEL)
     expect(deskLine('Recruiter')).toBe('Recruiter')
   })
 
@@ -865,7 +869,7 @@ describe('Users & permissions counts people the way Settings and Team structure 
   // place of the hand-typed sub-lines this sentence used to pin.
   it('each figure on the page says what it counts, in the one function’s words', () => {
     expect(page).toContain('<Stat label={f.label} value={f.value} sub={f.says} href={`?show=${f.key}`}')
-    expect(route).toContain('figures: figuresFor(counts, decisions.size, parts)')
+    expect(route).toContain('figures: figuresFor(counts, decisions.size, parts, invitedMail)')
     expect(page).not.toContain('sub="signed in, not paused"')
   })
 
@@ -1175,6 +1179,37 @@ describe('the figures on Users and permissions say what they count and filter to
     expect(figureWords('with-access', 4)!.says).toBe('4 can sign in and work. Nothing to do.')
   })
 
+  it('the Invited figure says how many of the invitation emails did not go, and to send them again or copy the invitation', async () => {
+    const { figureWords, figuresFor } = await import('@/lib/access-grant')
+    expect(figureWords('invited', 3, undefined, { notGone: 2, leaves: true })!.says)
+      .toBe('3 invited, never signed in. The emails to 2 of them did not go: send them again, or copy the invitations.')
+    expect(figureWords('invited', 3, undefined, { notGone: 1, leaves: true })!.says)
+      .toBe('3 invited, never signed in. The email to 1 of them did not go: send it again, or copy the invitation.')
+    expect(figureWords('invited', 1, undefined, { notGone: 1, leaves: true })!.says)
+      .toBe('1 invited, never signed in. The email to them did not go: send it again, or copy the invitation.')
+    expect(figureWords('invited', 3, undefined, { notGone: 3, leaves: true })!.says)
+      .toBe('3 invited, never signed in. The emails to all 3 did not go: send them again, or copy the invitations.')
+    expect(figuresFor({ withAccess: 1, invited: 2, waitingForRole: 0, paused: 0 }, 0, NONE, { notGone: 2, leaves: true })[1].says).toContain('all 2 did not go')
+  })
+
+  it('the Invited figure reads as before where every invitation email went', async () => {
+    const { figureWords } = await import('@/lib/access-grant')
+    expect(figureWords('invited', 3, undefined, { notGone: 0, leaves: true })!.says).toBe('3 invited, never signed in. Send the invitation again or withdraw it.')
+  })
+
+  it('where no email can leave this deployment, the Invited figure says so instead of blaming each invitation', async () => {
+    const { figureWords } = await import('@/lib/access-grant')
+    const says = figureWords('invited', 3, undefined, { notGone: 3, leaves: false })!.says
+    expect(says).toBe('3 invited, never signed in. No email can be sent from here yet: copy the invitation and send it yourself, or withdraw it.')
+    expect(says).not.toContain('did not go')
+  })
+
+  it('the Invited figure is told how many invitation emails did not go, from the same email rows each waiting row reads', () => {
+    expect(route).toContain("didNotGo(mails.get(c.id))")
+    expect(route).toContain("figureOf(c.id) === 'invited'")
+    expect(route).toContain('leaves: mailLeaves()')
+  })
+
   it('a figure of zero is not drawn, except With access', async () => {
     const { figureWords, figuresFor } = await import('@/lib/access-grant')
     expect(figureWords('invited', 0)).toBeNull()
@@ -1474,5 +1509,48 @@ describe('pausing somebody on a deployment where no email can leave (walk fdc it
     expect(pg).toContain('pauseReasonHelp(mailLeaves)')
     expect(pg).not.toContain("'They are told this")
     expect(pg).not.toMatch(/from '@\/lib\/notify\/mail-leaves'/)
+  })
+})
+
+/**
+ * Fix list D1, 2026-11-15: Send the invitation again wrote "sent ... again"
+ * to the activity log whatever happened, and an email that did not leave
+ * counted against the hourly limit (founder: "go with your
+ * recommendations", only a try whose email left counts).
+ */
+describe('an invitation email that did not go is said as a try and never counted as a send', () => {
+  it('Send the invitation again is logged as sent again where the email went, and as tried where it did not', async () => {
+    const { sentAgainLogged } = await import('@/lib/access-grant')
+    expect(sentAgainLogged('Dana Reyes', 'kim@northwind-staffing.example', 'SENT')).toBe('Dana Reyes sent the invitation to kim@northwind-staffing.example again')
+    for (const state of ['FAILED', 'NOT_CONFIGURED', 'DEMO_SKIPPED'] as const) {
+      expect(sentAgainLogged('Dana Reyes', 'kim@northwind-staffing.example', state)).toBe('Dana Reyes tried to send the invitation to kim@northwind-staffing.example again; the email did not go')
+    }
+    const resend = read('src/app/api/access/[contextId]/resend/route.ts')
+    expect(resend).toContain('summary: sentAgainLogged(caller.person.name, email, sent.mail.state)')
+    expect(resend).toContain("reason: 'Asked for on the waiting row. The same seat; nothing was duplicated.'")
+  })
+
+  it('an invitation email that did not go does not count against the hourly limit', async () => {
+    const { countsAgainstCap } = await import('@/lib/access-grant')
+    expect(countsAgainstCap({ act: 'INVITED', mail: 'FAILED' })).toBe(false)
+    expect(countsAgainstCap({ act: 'SENT_AGAIN', mail: 'NOT_CONFIGURED' })).toBe(false)
+    expect(countsAgainstCap({ act: 'INVITED', mail: 'DEMO_SKIPPED' })).toBe(false)
+    expect(countsAgainstCap({ act: 'COPIED' })).toBe(false)
+  })
+
+  it('an invitation email that went still counts, and so does a row that cannot say how its email went', async () => {
+    const { countsAgainstCap } = await import('@/lib/access-grant')
+    expect(countsAgainstCap({ act: 'INVITED', mail: 'SENT' })).toBe(true)
+    expect(countsAgainstCap({ act: 'SENT_AGAIN', mail: 'SENT' })).toBe(true)
+    expect(countsAgainstCap({ act: 'INVITED' })).toBe(true)
+    expect(countsAgainstCap(null)).toBe(true)
+  })
+
+  it('both limits count only emails that left, and nothing where no email can leave this deployment', () => {
+    const one = read('src/app/api/access/invite/one.ts')
+    expect(one).toContain('countsAgainstCap(r.payload)')
+    expect(one).toContain('deliveryState: { notIn: [...MAIL_NOT_GONE] }')
+    expect(one.match(/if \(!mailLeaves\(\)\) return \{ count: 0, oldest: null \}/g)?.length).toBe(2)
+    expect(one).toContain('payload: { ...logPayload, mail: sent.mail.state }')
   })
 })

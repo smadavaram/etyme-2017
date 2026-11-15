@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hourlyCapSays, INVITES_PER_HOUR, seatCapSays, sentAgainSays, SENDS_PER_SEAT_PER_HOUR } from '@/lib/access-grant'
+import { hourlyCapSays, INVITES_PER_HOUR, seatCapSays, sentAgainLogged, sentAgainSays, SENDS_PER_SEAT_PER_HOUR } from '@/lib/access-grant'
 import { recordRefusal } from '@/lib/access-log'
 import { copyTextFor, invitationEmailsSince, invitationsThisHour, modeOf, sendInvitationMail, underInviteLock } from '../../invite/one'
 import { waitingSeatFor } from '../waiting-seat'
@@ -60,7 +60,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: {
         companyId: seat.company.id,
         action: 'INVITATION_SENT_AGAIN',
-        summary: `${caller.person.name} sent the invitation to ${email} again`,
+        // Said from what the send returned: "tried ... ; the email did not
+        // go" where it did not (fix list D1). The cap still counts the try.
+        summary: sentAgainLogged(caller.person.name, email, sent.mail.state),
         reason: 'Asked for on the waiting row. The same seat; nothing was duplicated.',
         payload: { contextId: seat.id, email, act: 'SENT_AGAIN', mail: sent.mail.state },
         reversible: true,
