@@ -142,9 +142,12 @@ describe('the domain typed for a recorded company is a note, never a claim', () 
 
   it('the record writes the note to the typed-website column and never to the domain a company is joined by', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/companies/route.ts'), 'utf8')
-    const record = route.slice(route.indexOf('async function recordCompany('))
+    const recordCompany = route.slice(route.indexOf('async function recordCompany('))
+    // One writer records the company for Add a company and Add contact (fix list A2): record.ts.
+    expect(recordCompany).toContain('writeRecord(tx, caller, { name, slug, domain: body?.domain, entityType: body?.entityType,')
+    const record = readFileSync(join(process.cwd(), 'src/app/api/companies/record.ts'), 'utf8')
     // One writer keeps the note, on every door (2026-11-15): twins.ts.
-    expect(record).toContain('await keepNote(tx, { me: mine.id, companyId: created.company.id, domain: body?.domain, entityType: body?.entityType })')
+    expect(record).toContain('await keepNote(tx, { me: mine.id, companyId: created.company.id, domain: input.domain, entityType: input.entityType })')
     const twins = readFileSync(join(process.cwd(), 'src/app/api/companies/twins.ts'), 'utf8')
     expect(twins).toContain("data: { website: domain }")
     expect(twins).not.toMatch(/data: \{[^}]*\bdomain:/)
@@ -503,7 +506,7 @@ describe('the Companies and Contacts screens draw the two facts apart', () => {
     expect(page).toContain('`/api/contacts?at=${encodeURIComponent(company.id)}`')
   })
 
-  it('Contacts’ Works at offers the firm’s own name first, then every company on its Companies list once, by name', async () => {
+  it('Contacts’ Works for offers the firm’s own name first, then every company on its Companies list once, by name', async () => {
     const { worksAtChoices } = await import('@/lib/contacts')
     const choices = worksAtChoices({
       own: { id: 'me', name: 'Northwind Staffing' },

@@ -6,9 +6,10 @@ import { isExcludedDomain } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { directoryScope, directoryCopy, type Reader } from '@/lib/directory-scope'
 import { companiesOnList } from './dealings'
-import { ownDomainsFor, twinFor, keepNote } from './twins'
+import { ownDomainsFor, keepNote } from './twins'
+import { lookBeforeRecording, writeRecord, refusedFound, uniqueSlug, slugify, RESERVED_SLUGS, EITHER_SIDE, reservedNameSays, SLUG_RACE_SAYS, ownCompanySays, onYourListAlreadySays } from './record'
 import { mayRegisterWithEmail } from '@/lib/company-defaults'
-import { createCompany, findFirm, workTogether } from '@/lib/company-create'
+import { createCompany, workTogether } from '@/lib/company-create'
 import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
 import { mayAddCompany, sameNameRefused, sameDomainRefused, namesakeSays, consumerDomainSays, identityDomain, readTypedDomain, NEVER_EMAILS, mayExtend, maySetRecordedKind, isMine, notLinkedYet, notedDomain } from '@/lib/counterparty'
@@ -19,8 +20,6 @@ import { speaksForItself } from '@/lib/public-site/speaks'
 import { roleCanDo } from '@/lib/company-roles'
 
 
-/** A company not classified yet is asked to link as either one: the two choices the box offers. */
-const EITHER_SIDE = 'supplier or your customer'
 
 /**
  * POST /api/companies
@@ -40,62 +39,8 @@ const EITHER_SIDE = 'supplier or your customer'
  * Everything after is enrichment and skippable.
  */
 
-const RESERVED_SLUGS = new Set([
-  'api',
-  'app',
-  'admin',
-  'login',
-  'signup',
-  'dashboard',
-  'settings',
-  'www',
-  'mail',
-  'help',
-  'support',
-  'blog',
-  'docs',
-  'status',
-  'etyme',
-])
-
-// The seven hard-coded staffing-agency roles that used to live here are
-// retired: every kind of company now gets the roles for what it is, from
-// rolesFor(kind), through lib/company-create — the same function first
-// sign-in uses (founder, 2026-10-07).
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48)
-}
-
-/**
- * Generates a unique slug by checking for collisions and appending a number.
- * Mirrors the 2017 create_slug with collision numbering.
- */
-async function uniqueSlug(base: string): Promise<string> {
-  // Check if base slug exists
-  const existing = await prisma.company.findUnique({ where: { slug: base } })
-  if (!existing) return base
-
-  // Find the highest numbered collision
-  const like = `${base}-%`
-  const collisions = await prisma.company.findMany({
-    where: { slug: { startsWith: `${base}-` } },
-    select: { slug: true },
-  })
-
-  let max = 0
-  for (const c of collisions) {
-    const suffix = c.slug.slice(base.length + 1)
-    const n = parseInt(suffix, 10)
-    if (!isNaN(n) && n > max) max = n
-  }
-
-  return `${base}-${max + 1}`
-}
+// The reserved names, the address a name makes and its collision number
+// live in ./record, which Add contact runs too (fix list A2).
 
 export async function POST(request: NextRequest) {
   const email = await getSessionEmail()
@@ -216,11 +161,17 @@ export async function POST(request: NextRequest) {
     // domains are two companies under one name; with no domain on either
     // side the name decides, compared without case, spaces or punctuation
     // (2026-11-12). The one already there is linked rather than a second
-    // record made. Only the caller's own records are read.
-    const read = await twinFor(mine.id, { name: String(name ?? ''), domain: body?.domain })
-    if (read.twin) {
-      const twin = read.twin
-      const byDomain = read.by === 'DOMAIN'
+    // record made. Only the caller's own records are read. Then Etyme
+    // itself, by `findFirm`. One look, shared with Add contact
+    // (`lookBeforeRecording`, fix list A2), so the two doors never differ.
+    const look = await lookBeforeRecording(seatedCaller, {
+      name: String(name ?? ''),
+      domain: body?.domain ?? null,
+      address: body?.address ? String(body.address) : null,
+    })
+    if (look.found === 'TWIN') {
+      const twin = look.twin
+      const byDomain = look.by === 'DOMAIN'
       await refusedFound(seatedCaller, twin.id, `${twin.name} is on the caller's own Companies list already${byDomain ? ` on ${twin.domain}` : ''}`)
       return NextResponse.json(
         {
@@ -235,23 +186,17 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       )
     }
-    namesake = read.namesake ? namesakeSays(read.namesake) : null
-    const firm = await findFirm({
-      emailDomain: body?.domain ? String(body.domain) : null,
-      etymeAddress: body?.address ? String(body.address) : null,
-      name,
-      isDemo: mine.isDemo === true,
-    })
-    if (firm && firm.id === mine.id) {
+    if (look.found === 'OWN_FIRM') {
       return NextResponse.json(
-        { error: { code: 'OWN_COMPANY', message: `${firm.name} is your own company, so it cannot be your ${as.toLowerCase()} too.` } },
+        { error: { code: 'OWN_COMPANY', message: ownCompanySays(look.firm.name, as) } },
         { status: 422 }
       )
     }
-    if (firm && recording) {
+    if (look.found === 'ON_ETYME' && recording) {
+      const firm = look.firm
       // Already on Etyme: today's reply, and nothing written. Nothing is
       // sent unless the person presses "Ask them to link".
-      if (!(await workTogether(mine.id, firm.id))) {
+      if (!look.together) {
         const says = onEtymeAskToLinkSays(EITHER_SIDE)
         await refusedFound(seatedCaller, firm.id, says)
         return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: null } }, { status: 409 })
@@ -260,13 +205,14 @@ export async function POST(request: NextRequest) {
         data: {
           company: { id: firm.id, name: firm.name, slug: firm.slug, kind: firm.kind },
           linked: true,
-          says: `${firm.name} is on Etyme and already works with you, so it is on your Companies list already. No copy was made.`,
+          says: onYourListAlreadySays(firm.name),
           message: `${firm.name} is on your Companies list.`,
         },
       })
     }
-    if (firm) {
-      if (!(await workTogether(mine.id, firm.id))) {
+    if (look.found === 'ON_ETYME') {
+      const firm = look.firm
+      if (!look.together) {
         const says = onEtymeAskToLinkSays(asWord)
         await refusedFound(seatedCaller, firm.id, says)
         return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: as } }, { status: 409 })
@@ -287,22 +233,17 @@ export async function POST(request: NextRequest) {
     }
     // A name and nothing else, and a firm on Etyme holds that name: say so
     // rather than guess either way. A domain or an address tells them apart.
-    if (!body?.domain && !body?.address) {
-      const namesake = await prisma.company.findFirst({
-        where: { claimedAt: { not: null }, isDemo: mine.isDemo === true, name: { equals: name.trim(), mode: 'insensitive' }, id: { not: mine.id } },
-        select: { id: true, name: true },
-      })
-      if (namesake) {
-        // The name the person typed, and nothing more: no address, no id
-        // of a firm the caller does not work with (review, 2026-11-13).
-        const says =
-          `A company called ${namesake.name} is on Etyme already. If that is them, ask them for their web domain, ` +
-          `or the address their Etyme page opens at, and type it in the Domain box or the Etyme address box. Then you can ask them to link, as your ${asWord}. ` +
-          `If it is a different company, type its web domain in the Domain box so the two are told apart.`
-        await refusedFound(seatedCaller, namesake.id, says)
-        return NextResponse.json({ error: { code: 'SAME_NAME', field: 'domain', message: says } }, { status: 409 })
-      }
+    if (look.found === 'SAME_NAME_ON_ETYME') {
+      // The name the person typed, and nothing more: no address, no id
+      // of a firm the caller does not work with (review, 2026-11-13).
+      const says =
+        `A company called ${look.namesake.name} is on Etyme already. If that is them, ask them for their web domain, ` +
+        `or the address their Etyme page opens at, and type it in the Domain box or the Etyme address box. Then you can ask them to link, as your ${asWord}. ` +
+        `If it is a different company, type its web domain in the Domain box so the two are told apart.`
+      await refusedFound(seatedCaller, look.namesake.id, says)
+      return NextResponse.json({ error: { code: 'SAME_NAME', field: 'domain', message: says } }, { status: 409 })
     }
+    namesake = look.namesake ? namesakeSays(look.namesake) : null
   }
 
   if (recording && seatedCaller?.company) return recordCompany(seatedCaller, String(name), body, adding.says, [namesake, domainSays].filter(Boolean).join(' ') || null)
@@ -311,7 +252,7 @@ export async function POST(request: NextRequest) {
 
   if (RESERVED_SLUGS.has(baseSlug)) {
     return NextResponse.json(
-      { error: { code: 'SLUG_RESERVED', message: `The name "${name}" is reserved. Please choose another.`, field: 'name' } },
+      { error: { code: 'SLUG_RESERVED', message: reservedNameSays(name), field: 'name' } },
       { status: 422 }
     )
   }
@@ -599,7 +540,7 @@ export async function GET(request: NextRequest) {
   // nobody's picker by default: they hold no position, so a screen that
   // lists companies to pick from never meets one (founder, 2026-11-12).
   const withRecords = request.nextUrl.searchParams.get('records') === '1'
-  // One reader for this list and for Contacts' Works at (`companiesOnList`):
+  // One reader for this list and for Contacts' Works for (`companiesOnList`):
   // every company this firm recorded and nobody has claimed is on it,
   // whatever Kind it has been given since, because a Kind is no position.
   const sides = verdict.reach === 'ALL' ? null : await companiesOnList(caller, verdict.includesOwn, withRecords)
@@ -813,11 +754,10 @@ async function recordCompany(
   says: string,
   namesake: string | null = null,
 ): Promise<NextResponse> {
-  const mine = caller.company!
   const baseSlug = slugify(name)
   if (RESERVED_SLUGS.has(baseSlug)) {
     return NextResponse.json(
-      { error: { code: 'SLUG_RESERVED', message: `The name "${name}" is reserved. Please choose another.`, field: 'name' } },
+      { error: { code: 'SLUG_RESERVED', message: reservedNameSays(name), field: 'name' } },
       { status: 422 }
     )
   }
@@ -825,50 +765,23 @@ async function recordCompany(
   const personal = typed && !identityDomain(typed) && notedDomain(typed) ? consumerDomainSays(notedDomain(typed)!) : null
   try {
     const slug = await uniqueSlug(baseSlug || 'company')
-    const made = await prisma.$transaction(async (tx) => {
-      const created = await createCompany(
-        {
-          name,
-          kind: 'UNCLASSIFIED',
-          slug,
-          domain: null,
-          country: body?.country ?? null,
-          currency: body?.currency ?? null,
-          byPersonId: caller.person.id,
-          seatAsOwner: false,
-          claimDomain: false,
-          startsSetup: false,
-          listedById: mine.id,
-          isDemo: mine.isDemo === true,
-        },
-        tx
-      )
-      const kept = await keepNote(tx, { me: mine.id, companyId: created.company.id, domain: body?.domain, entityType: body?.entityType })
-      await tx.automationLog.create({
-        data: {
-          companyId: mine.id,
-          action: 'COMPANY_CREATED',
-          summary: `${caller.person.name} recorded ${created.company.name} on ${mine.name}'s Companies list, not classified yet`,
-          reason: 'Recorded, not classified: no position, no agreement, nobody seated and nothing sent.',
-          payload: { otherCompanyId: created.company.id, byName: caller.person.name, personId: caller.person.id, position: null, kind: 'UNCLASSIFIED' },
-          // No control deletes a recorded company, so the flag says so.
-          reversible: false,
-        },
-      })
-      return { ...created.company, noted: kept.domain }
-    }, { timeout: 20_000 })
+    // The one write Add contact runs too (`writeRecord`, fix list A2).
+    const made = await prisma.$transaction(
+      (tx) => writeRecord(tx, caller, { name, slug, domain: body?.domain, entityType: body?.entityType, country: body?.country ?? null, currency: body?.currency ?? null }),
+      { timeout: 20_000 }
+    )
     const noted = made.noted
     return NextResponse.json(
       {
         data: {
-          company: { id: made.id, name: made.name, slug: made.slug, kind: made.kind, domain: null, notedDomain: noted, siteLiveAt: null, networkVerifiedAt: null },
+          company: { id: made.company.id, name: made.company.name, slug: made.company.slug, kind: made.company.kind, domain: null, notedDomain: noted, siteLiveAt: null, networkVerifiedAt: null },
           positions: [],
           notClassified: true,
           mine: true,
           roles: [],
           context: null,
           says,
-          message: [`${made.name} is on your Companies list, not classified yet. ${NEVER_EMAILS}`, namesake, personal].filter(Boolean).join(' '),
+          message: [`${made.company.name} is on your Companies list, not classified yet. ${NEVER_EMAILS}`, namesake, personal].filter(Boolean).join(' '),
         },
       },
       { status: 201 }
@@ -876,24 +789,13 @@ async function recordCompany(
   } catch (err: any) {
     if (err?.code === 'P2002') {
       return NextResponse.json(
-        { error: { code: 'SLUG_TAKEN', message: 'Another company took that name a moment ago. Press Save again.', field: 'name' } },
+        { error: { code: 'SLUG_TAKEN', message: SLUG_RACE_SAYS, field: 'name' } },
         { status: 409 }
       )
     }
     reportError('Recording a company failed:', err)
     return NextResponse.json({ error: { code: 'INTERNAL', message: 'The company was not recorded. Please try again.' } }, { status: 500 })
   }
-}
-
-/** A refused add, written to the access log before the refusal is sent. */
-/** A refusal while adding a company, written to the access log before the reply. */
-async function refusedFound(caller: import('@/lib/api-context').CallerContext, otherId: string, says: string): Promise<void> {
-  await recordRefusal([{ companyId: otherId }], {
-    actorPersonId: caller.isService ? undefined : caller.person.id,
-    actorCompanyId: caller.company!.id,
-    action: 'CONTRACT_VIEW',
-    reason: `Refused adding a company: ${says}`,
-  })
 }
 
 async function refusedAdd(caller: import('@/lib/api-context').CallerContext, doing: string): Promise<void> {

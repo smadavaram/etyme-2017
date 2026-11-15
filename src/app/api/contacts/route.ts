@@ -4,12 +4,15 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import {
   problems, alreadyOnFile, sameNameOnFile, contactKindOf, KINDS, kindOfRole, writableEmail, kindsHeld, rolesOffered, mayWorkAt,
-  memberElsewhereSays, contactRecordedLog, NOT_ON_YOUR_LIST_SAYS, ADD_A_COMPANY_HREF, type ContactKind,
+  memberElsewhereSays, contactRecordedLog, NOT_ON_YOUR_LIST_SAYS, ADD_A_COMPANY_HREF, WORKS_FOR_MISSING, NEW_COMPANY_NAME_MISSING,
+  worksForFromEmail, emailDomain, ownFirmChoice, savedSays, savedWithCompanySays, type ContactKind,
 } from '@/lib/contacts'
 import { recordRefusal } from '@/lib/access-log'
 import { worksAtBook } from './works-at'
 import { dealingsWithSides } from '../companies/dealings'
-import { notLinkedYet } from '@/lib/counterparty'
+import { notLinkedYet, mayRecordCompany, sameDomainRefused, sameNameRefused } from '@/lib/counterparty'
+import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
+import { lookBeforeRecording, writeRecord, refusedFound, uniqueSlug, slugify, RESERVED_SLUGS, EITHER_SIDE, reservedNameSays, SLUG_RACE_SAYS, ownCompanySays, onYourListAlreadySays } from '../companies/record'
 
 /**
  * GET  /api/contacts — the people at the firms you trade with, filterable by company and kind
@@ -184,10 +187,13 @@ export async function POST(request: NextRequest) {
   const companyId = caller.company!.id
   const body = await request.json().catch(() => ({}))
 
-  const atCompanyId = String(body?.atCompanyId ?? '')
-  if (!atCompanyId) {
+  // A company not on the list yet, named by the contact's own work email
+  // and added in the same save (fix list of 2026-11-14, A2).
+  const adding = body?.newCompany != null && typeof body.newCompany === 'object'
+  const atCompanyIdTyped = String(body?.atCompanyId ?? '')
+  if (!adding && !atCompanyIdTyped) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Say which company they work at.', field: 'atCompanyId' } },
+      { error: { code: 'VALIDATION', message: WORKS_FOR_MISSING, field: 'atCompanyId' } },
       { status: 422 }
     )
   }
@@ -197,7 +203,7 @@ export async function POST(request: NextRequest) {
   // 2026-11-14, H1 and A2). A contact is a row in this firm's own address
   // book: saving one sends nothing to anybody, and no firm is told.
   const book = await worksAtBook(caller)
-  if (!mayWorkAt(book, atCompanyId)) {
+  if (!adding && !mayWorkAt(book, atCompanyIdTyped)) {
     const says = NOT_ON_YOUR_LIST_SAYS
     await recordRefusal([{ companyId: companyId }], {
       actorPersonId: caller.isService ? undefined : caller.person.id,
@@ -212,8 +218,6 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     )
   }
-  const atOwnFirm = atCompanyId === book.own.id
-  const atName = atOwnFirm ? book.own.name : book.companies.find((c) => c.id === atCompanyId)!.name
 
   const found = problems({
     name: String(body?.name ?? ''),
@@ -227,6 +231,17 @@ export async function POST(request: NextRequest) {
       { status: 422 }
     )
   }
+  // A new company: the same look and the same gates Add a company asks,
+  // before anything is written (`lookBeforeRecording`).
+  const newName = adding ? String(body.newCompany?.name ?? '').trim() : ''
+  if (adding) {
+    const refused = await mayAddWithContact(caller, book, newName, body?.email)
+    if (refused) return refused
+  }
+  const atCompanyId = adding ? '' : atCompanyIdTyped
+  const atOwnFirm = !adding && atCompanyId === book.own.id
+  const atName = adding ? newName : atOwnFirm ? book.own.name : book.companies.find((c) => c.id === atCompanyId)!.name
+
   // Team member is a colleague at the firm's own firm, never somebody at
   // another company (fix list of 2026-11-14, B4).
   if (contactKindOf(body?.kind) === 'MEMBER' && !atOwnFirm) {
@@ -239,7 +254,8 @@ export async function POST(request: NextRequest) {
   // Refused as a duplicate rather than quietly creating a twin. Two
   // records for one human is how somebody gets emailed at an address
   // they left.
-  const existing = await prisma.companyContact.findMany({
+  // A company added in this save has nobody on file yet.
+  const existing = adding ? [] : await prisma.companyContact.findMany({
     where: { companyId, atCompanyId },
     select: { id: true, name: true, email: true, phone: true, atCompanyId: true },
   })
@@ -269,34 +285,130 @@ export async function POST(request: NextRequest) {
   // no remove exists (fix list of 2026-11-14, B6). Read only by this firm.
   const name = String(body.name).trim()
   const log = contactRecordedLog({ byName: caller.person.name, name, atName, ownFirm: atOwnFirm })
-  const contact = await prisma.$transaction(async (tx) => {
-    const made = await tx.companyContact.create({
-      data: {
-        companyId,
-        atCompanyId,
-        name,
-        email: body?.email ? String(body.email).trim().toLowerCase() : null,
-        phone: body?.phone ? String(body.phone).trim() : null,
-        title: body?.title ? String(body.title).trim() : null,
-        // No role, or a blank one, is saved as Other: the role is optional.
-        kind: (() => { const k = contactKindOf(body?.kind); return k && Object.hasOwn(KINDS, k) ? k : 'OTHER' })(),
-        notes: body?.notes ? String(body.notes).trim() : null,
-        createdById: caller.person.id,
-      },
-      include: { atCompany: { select: { id: true, name: true } } },
-    })
-    await tx.automationLog.create({
-      data: {
-        companyId,
-        action: 'CONTACT_RECORDED',
-        summary: log.summary,
-        reason: log.reason,
-        payload: { contactId: made.id, otherCompanyId: atCompanyId, ownFirm: atOwnFirm, byName: caller.person.name, personId: caller.person.id },
-        reversible: log.reversible,
-      },
-    })
-    return made
-  })
+  // A new company's address is made before the write, as Add a company makes it.
+  const slug = adding ? await uniqueSlug(slugify(newName) || 'company') : ''
+  try {
+    const { contact, company } = await prisma.$transaction(async (tx) => {
+      // The company first, by the one writer Add a company runs, then the
+      // contact at it: one transaction, so a failure writes neither.
+      const company = adding
+        ? (await writeRecord(tx, caller, { name: newName, slug, domain: emailDomain(body?.email) })).company
+        : null
+      const at = company ? company.id : atCompanyId
+      const made = await tx.companyContact.create({
+        data: {
+          companyId,
+          atCompanyId: at,
+          name,
+          email: body?.email ? String(body.email).trim().toLowerCase() : null,
+          phone: body?.phone ? String(body.phone).trim() : null,
+          title: body?.title ? String(body.title).trim() : null,
+          // No role, or a blank one, is saved as Other: the role is optional.
+          kind: (() => { const k = contactKindOf(body?.kind); return k && Object.hasOwn(KINDS, k) ? k : 'OTHER' })(),
+          notes: body?.notes ? String(body.notes).trim() : null,
+          createdById: caller.person.id,
+        },
+        include: { atCompany: { select: { id: true, name: true } } },
+      })
+      await tx.automationLog.create({
+        data: {
+          companyId,
+          action: 'CONTACT_RECORDED',
+          summary: log.summary,
+          reason: log.reason,
+          payload: { contactId: made.id, otherCompanyId: at, ownFirm: atOwnFirm, byName: caller.person.name, personId: caller.person.id, ...(company ? { companyAdded: true } : {}) },
+          reversible: log.reversible,
+        },
+      })
+      return { contact: made, company }
+    }, { timeout: 20_000 })
 
-  return NextResponse.json({ data: { contact } }, { status: 201 })
+    return NextResponse.json({
+      data: {
+        contact,
+        ...(company ? { company: { id: company.id, name: company.name } } : {}),
+        // Both facts, where the save added the company too (fix list A2).
+        says: company ? savedWithCompanySays(name, company.name) : savedSays(name, atName),
+      },
+    }, { status: 201 })
+  } catch (err: any) {
+    if (adding && err?.code === 'P2002') {
+      return NextResponse.json({ error: { code: 'SLUG_TAKEN', message: SLUG_RACE_SAYS, field: 'newCompanyName' } }, { status: 409 })
+    }
+    throw err
+  }
+}
+
+/**
+ * Whether a company not on the list yet may be added with this contact,
+ * by the gates Add a company asks, in its words. Null where it may. Every
+ * refusal about another firm is logged before it is sent.
+ */
+async function mayAddWithContact(
+  caller: import('@/lib/api-context').CallerContext,
+  book: Awaited<ReturnType<typeof worksAtBook>>,
+  newName: string,
+  email: unknown,
+): Promise<NextResponse | null> {
+  const me = caller.company!
+  const may = mayRecordCompany({ seatedAt: { id: me.id, name: me.name }, permissions: caller.permissions })
+  if (!may.ok) {
+    await recordRefusal([{ companyId: me.id }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: me.id,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused: adding ${newName || 'a company'} to the Companies list with a contact, which is for whoever manages who the firm trades with.`,
+    })
+    return NextResponse.json({ error: { code: 'NOT_YOURS_TO_ADD', message: book.whoRecords ?? may.says, field: 'atCompanyId' } }, { status: 403 })
+  }
+  if (newName.length < 2) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: NEW_COMPANY_NAME_MISSING, field: 'newCompanyName' } }, { status: 422 })
+  }
+  // Only a work email names a company. A personal mailbox, Etyme's own
+  // address or no email at all says nothing about where somebody works.
+  const read = worksForFromEmail(typeof email === 'string' ? email : null, book)
+  if (read.read !== 'NEW') {
+    const says = read.read === 'NOTHING' || read.read === 'NOT_A_COMPANY'
+      ? 'A new company is added from a work email at its domain. Choose the company they work for, or add it on Companies first.'
+      : read.read === 'OWN'
+        ? `${read.domain} is your own firm's domain. Choose ${ownFirmChoice(book.own.name)} under Works for.`
+        : `A company on your list already uses ${read.domain}. Choose it under Works for.`
+    return NextResponse.json({ error: { code: 'VALIDATION', message: says, field: 'atCompanyId', ...(read.read === 'ONE' ? { companyId: read.company.id } : {}) } }, { status: 422 })
+  }
+  if (RESERVED_SLUGS.has(slugify(newName))) {
+    return NextResponse.json({ error: { code: 'SLUG_RESERVED', message: reservedNameSays(newName), field: 'newCompanyName' } }, { status: 422 })
+  }
+  const look = await lookBeforeRecording(caller, { name: newName, domain: read.domain })
+  switch (look.found) {
+    case 'NOTHING':
+      return null
+    case 'TWIN': {
+      const byDomain = look.by === 'DOMAIN'
+      await refusedFound(caller, look.twin.id, `${look.twin.name} is on the caller's own Companies list already${byDomain ? ` on ${look.twin.domain}` : ''}`)
+      return NextResponse.json({
+        error: {
+          code: byDomain ? 'SAME_DOMAIN_ON_YOUR_LIST' : 'SAME_NAME_ON_YOUR_LIST',
+          field: 'atCompanyId',
+          message: byDomain ? sameDomainRefused(look.twin) : sameNameRefused(look.twin),
+          companyId: look.twin.id,
+        },
+      }, { status: 409 })
+    }
+    case 'OWN_FIRM':
+      return NextResponse.json({ error: { code: 'OWN_COMPANY', message: ownCompanySays(look.firm.name, ''), field: 'atCompanyId', companyId: me.id } }, { status: 422 })
+    case 'ON_ETYME': {
+      if (look.together) {
+        // On the list already through the work between them: chosen there, never copied.
+        return NextResponse.json({ error: { code: 'ON_YOUR_LIST', message: onYourListAlreadySays(look.firm.name), field: 'atCompanyId', ...(mayWorkAt(book, look.firm.id) ? { companyId: look.firm.id } : {}) } }, { status: 409 })
+      }
+      // Add a company's own answer for this domain, in its words, and
+      // nothing more: no id, name or address of a firm she does not work with.
+      const says = onEtymeAskToLinkSays(EITHER_SIDE)
+      await refusedFound(caller, look.firm.id, says)
+      return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: null } }, { status: 409 })
+    }
+    case 'SAME_NAME_ON_ETYME':
+      // Never reached: a new company here always carries the email's domain.
+      return null
+  }
 }

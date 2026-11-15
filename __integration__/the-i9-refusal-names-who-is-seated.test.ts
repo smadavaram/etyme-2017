@@ -12,7 +12,7 @@ import { POST as record } from '@/app/api/compliance/verifications/route'
  *
  *   Teleworld, a seeded integrator. An Accounts Receivable seat is added.
  *   With every seat that records checks paused, it is refused the I-9 in
- *   a sentence naming the Owner or an Admin. Then an HR seat is added,
+ *   a sentence naming the Owner, the one of the two it has seated. Then an HR seat is added,
  *   and the same refusal names HR.
  */
 
@@ -52,7 +52,7 @@ beforeAll(async () => {
 })
 
 describe('a seat that may not record an I-9 is told who at its own firm may', () => {
-  it('where nobody here holds a role that records checks, the refusal names the Owner or an Admin', async () => {
+  it('where nobody here holds a role that records checks and no Admin is seated, the refusal names the Owner alone', async () => {
     // Every seat here that records checks is paused first, so the firm
     // has nobody seated who may: the case this sentence is about.
     const records = desksHolding(['consultants.write', 'privacy.manage'], 'GSI').filter((d) => !['Owner', 'Admin'].includes(d))
@@ -64,7 +64,8 @@ describe('a seat that may not record an I-9 is told who at its own firm may', ()
     const { status, body } = await json(await recordI9())
     expect(status).toBe(403)
     expect(body.error.code).toBe('FORBIDDEN')
-    expect(body.error.message).toContain('is for the Owner or an Admin here.')
+    expect(body.error.message).toContain('is for the Owner here. Ask them.')
+    expect(body.error.message).not.toContain('Admin')
     expect(body.error.message).not.toMatch(/compliance officer/i)
   })
 

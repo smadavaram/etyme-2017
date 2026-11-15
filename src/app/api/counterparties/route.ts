@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 
   // The companies this firm recorded and has not classified: no register
   // row, so no row above, and still somewhere a contact can work
-  // (Contacts' Works at, founder 2026-11-12). Only this firm's own records.
+  // (Contacts' Works for, founder 2026-11-12). Only this firm's own records.
   const onRegister = new Set(rows.map((r) => r.otherCompanyId))
   const known = (await prisma.company.findMany({
     // Whatever Kind it has been given since: a Kind is not a position.

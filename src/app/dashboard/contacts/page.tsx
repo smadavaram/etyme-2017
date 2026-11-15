@@ -5,7 +5,10 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import Link from 'next/link'
 import type { Route } from 'next'
-import { worksAtChoices, rolesOffered, OWN_FIRM_KIND, ADD_ANYWAY, type WorksAtChoice } from '@/lib/contacts'
+import {
+  worksAtChoices, rolesOffered, OWN_FIRM_KIND, ADD_ANYWAY, NEW_COMPANY_CHOICE, WORKS_FOR_MISSING, NEW_COMPANY_NAME_MISSING, CHECK_THE_NAME,
+  worksForFromEmail, worksForSays, savedSays, type WorksAtChoice, type WorksAtBook, type WorksForRead,
+} from '@/lib/contacts'
 import { mayAddConsultant, ADDS_CONSULTANTS } from '@/lib/consultant-portfolio/who-adds'
 import { desksHolding } from '@/lib/permissions'
 import { mayOpen } from '@/lib/nav-table'
@@ -188,6 +191,7 @@ export default function ContactsPage() {
       {adding && contacts && (
         <AddContactModal
           companies={worksAtChoices(contacts.worksAt)}
+          book={contacts.worksAt ?? null}
           permissions={permissions}
           readerKind={readerKind}
           onClose={() => setAdding(false)}
@@ -204,23 +208,26 @@ export default function ContactsPage() {
 
 function AddContactModal({
   companies,
+  book,
   permissions,
   readerKind,
   onClose,
   onCreated,
 }: {
   companies: WorksAtChoice[]
+  book: WorksAtBook | null
   permissions: readonly string[] | null
   readerKind: string | null
   onClose: () => void
   onCreated: (says: string) => void
 }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', title: '', atCompanyId: '', kind: 'OTHER' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', title: '', atCompanyId: '', kind: 'OTHER', newCompanyName: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // The route's link beside its refusal, such as Add a company.
   const [errorLink, setErrorLink] = useState<{ href: string; label: string } | null>(null)
   const atOwnFirm = companies.some((c) => c.own && c.id === form.atCompanyId)
+  const addingCompany = form.atCompanyId === NEW_COMPANY_CHOICE
   // Team member only at the firm's own firm (lib/contacts rolesOffered).
   const kinds = rolesOffered(atOwnFirm)
   // A firm that pays its own people adds them under Candidates; a client's
@@ -234,35 +241,100 @@ function AddContactModal({
   // The same name at this company with no email or phone in common: asked,
   // with one press that saves anyway (2026-11-15).
   const [namesake, setNamesake] = useState(false)
+  // Works for is read from the email's domain (fix list A2) until she
+  // chooses by hand; what was read is said under the box.
+  const [read, setRead] = useState<WorksForRead>({ read: 'NOTHING' })
+  const [readFor, setReadFor] = useState('')
+  const [pickedByHand, setPickedByHand] = useState(false)
+  const [nameTouched, setNameTouched] = useState(false)
+  const mayRecord = book?.mayRecord === true
+  // A firm on Etyme she does not work with: Add a company's own answer and
+  // its one act, "Ask them to link" (lib/trade-link).
+  const [linkable, setLinkable] = useState<{ name: string; domain: string } | null>(null)
+  const [linkAs, setLinkAs] = useState('SUPPLIER')
+  const [asked, setAsked] = useState<string | null>(null)
 
-  function chooseCompany(id: string) {
+  function kindAt(id: string, kind: string): string {
     const own = companies.some((c) => c.own && c.id === id)
     // A colleague starts on Team member; leaving the own firm puts a
     // Team member back on Other, since that role is only for colleagues.
-    const kind = own ? (form.kind === 'OTHER' ? OWN_FIRM_KIND : form.kind) : form.kind === OWN_FIRM_KIND ? 'OTHER' : form.kind
-    setForm({ ...form, atCompanyId: id, kind })
+    return own ? (kind === 'OTHER' ? OWN_FIRM_KIND : kind) : kind === OWN_FIRM_KIND ? 'OTHER' : kind
   }
+
+  function chooseCompany(id: string) {
+    setPickedByHand(true)
+    setForm({ ...form, atCompanyId: id, kind: kindAt(id, form.kind), newCompanyName: id === NEW_COMPANY_CHOICE && !form.newCompanyName && read.read === 'NEW' ? read.name : form.newCompanyName })
+  }
+
+  /** Read Works for from the email, unless she has chosen it by hand. Returns the form it leaves. */
+  function readEmail(email: string, from = form): typeof form {
+    const r = worksForFromEmail(email, book)
+    setRead(r)
+    setReadFor(email.trim())
+    if (pickedByHand) return from
+    let atCompanyId = ''
+    let newCompanyName = from.newCompanyName
+    if (r.read === 'ONE') atCompanyId = r.company.id
+    else if (r.read === 'OWN') atCompanyId = r.id
+    else if (r.read === 'NEW' && mayRecord) {
+      atCompanyId = NEW_COMPANY_CHOICE
+      if (!nameTouched) newCompanyName = r.name
+    }
+    const next = { ...from, atCompanyId, kind: kindAt(atCompanyId, from.kind), newCompanyName }
+    setForm(next)
+    return next
+  }
+
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // Checked here, not left to the browser. A native refusal inside a
   // modal on a phone is invisible — the Add consultant form proved it.
-  function problems(): Record<string, string> {
+  function problems(f = form): Record<string, string> {
     const p: Record<string, string> = {}
-    if (form.name.trim().length < 2) p.name = 'A name, so somebody knows who they are calling.'
-    if (!form.atCompanyId) p.atCompanyId = 'Say which company they work at.'
-    const email = form.email.trim()
+    if (f.name.trim().length < 2) p.name = 'A name, so somebody knows who they are calling.'
+    if (!f.atCompanyId) p.atCompanyId = WORKS_FOR_MISSING
+    if (f.atCompanyId === NEW_COMPANY_CHOICE && f.newCompanyName.trim().length < 2) p.newCompanyName = NEW_COMPANY_NAME_MISSING
+    const email = f.email.trim()
     // The route says the same sentence (lib/contacts), so a script that
     // skips this form is refused in the same words.
-    if (!email && !form.phone.trim()) p.email = NO_WAY_TO_REACH
+    if (!email && !f.phone.trim()) p.email = NO_WAY_TO_REACH
     if (email && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
       p.email = `"${email}" is not an email address. Leave it blank if you only have a phone number.`
     }
     return p
   }
 
+  async function askToLink() {
+    if (!linkable) return
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/trade-links', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: linkable.name, domain: linkable.domain, relationship: linkAs }),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      setLinkable(null)
+      if (!res.ok) { setError(body.error?.message ?? 'The ask could not be sent.'); return }
+      setError(null)
+      setAsked(body.data?.says ?? 'Asked. Nothing is on either list until they say yes.')
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent, addAnyway = false) {
     e.preventDefault()
     setNamesake(false)
+    setLinkable(null)
+    setAsked(null)
+    // An email typed and never left: read it now and let her see what it
+    // chose, so no company is ever named for her unseen.
+    if (form.email.trim() !== readFor && !pickedByHand) {
+      const next = readEmail(form.email)
+      if (next.atCompanyId !== form.atCompanyId || next.newCompanyName !== form.newCompanyName) return
+    }
     const found = problems()
     setFieldErrors(found)
     if (Object.keys(found).length > 0) {
@@ -273,16 +345,24 @@ function AddContactModal({
     setError(null)
     setErrorLink(null)
     try {
+      const { newCompanyName, atCompanyId, ...contact } = form
+      const payload = addingCompany ? { ...contact, newCompany: { name: newCompanyName.trim() } } : { ...contact, atCompanyId }
       const res = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(addAnyway ? { ...form, addAnyway: true } : form),
+        body: JSON.stringify(addAnyway ? { ...payload, addAnyway: true } : payload),
       })
       const body = await res.json()
       if (!res.ok) {
         setError(body.error?.message ?? 'Could not save the contact.')
         // Drawn only where the page will take the reader.
         if (body.error?.href && mayOpen(body.error.href, permissions)) setErrorLink({ href: body.error.href, label: body.error.hrefLabel ?? 'Open it' })
+        // A company on the list already: chosen for her, and said.
+        if (body.error?.companyId && companies.some((c) => c.id === body.error.companyId)) {
+          const id = String(body.error.companyId)
+          setForm({ ...form, atCompanyId: id, kind: kindAt(id, form.kind) })
+        }
+        if (body.error?.code === 'ALREADY_ON_ETYME' && read.read === 'NEW') setLinkable({ name: form.newCompanyName.trim(), domain: read.domain })
         // The same-person question is asked once, in the banner with its
         // button, never again under Name (press of 2026-11-15).
         if (body.error?.code === 'SAME_NAME') setNamesake(true)
@@ -290,7 +370,7 @@ function AddContactModal({
         return
       }
       const at = companies.find((c) => c.id === form.atCompanyId)
-      onCreated(`${form.name.trim()} is in your Contacts at ${at?.name.replace(/ \(your own firm\)$/, '') ?? 'that company'}. Nothing was sent to them.`)
+      onCreated(body.data?.says ?? savedSays(form.name.trim(), at?.name.replace(/ \(your own firm\)$/, '') ?? 'that company'))
     } catch {
       setError('Network error. Try again.')
     } finally {
@@ -298,18 +378,20 @@ function AddContactModal({
     }
   }
 
-  const field = (name: keyof typeof form, label: string, placeholder: string, type = 'text', required = false) => (
+  const field = (name: keyof typeof form, label: string, placeholder: string, type = 'text', required = false, onBlur?: () => void) => (
     <div>
-      <label className="mb-1 block text-xs font-semibold text-etyme-muted">{label}</label>
+      <label htmlFor={`add-contact-${name}`} className="mb-1 block text-xs font-semibold text-etyme-muted">{label}</label>
       {/* required says so to a screen reader; noValidate on the form
           keeps the browser from blocking with a bubble nobody sees in a
           modal on a phone, so the sentence above is what explains it. */}
       <input
+        id={`add-contact-${name}`}
         required={required}
         aria-required={required || undefined}
         type={type}
         value={form[name]}
         onChange={(e) => setForm({ ...form, [name]: e.target.value })}
+        onBlur={onBlur}
         aria-invalid={!!fieldErrors[name]}
         className={`w-full rounded-lg border px-3 py-2 text-sm ${fieldErrors[name] ? 'border-etyme-attention' : 'border-etyme-rule'}`}
         placeholder={placeholder}
@@ -318,9 +400,11 @@ function AddContactModal({
     </div>
   )
 
+  const readSays = pickedByHand ? null : worksForSays(read, { ownName: book?.own.name ?? '', companyName: form.newCompanyName, mayRecord, whoRecords: book?.whoRecords })
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="card mx-4 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+      <div className="card mx-4 max-h-[90vh] w-full max-w-lg overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h2 className="mb-4 text-lg font-semibold">Add contact</h2>
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -338,65 +422,95 @@ function AddContactModal({
                 </button>
               </div>
             )}
+            {linkable && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <select aria-label="Ask them to link as" value={linkAs} onChange={(e) => setLinkAs(e.target.value)} className="rounded-lg border border-etyme-rule bg-white px-3 py-2 text-sm">
+                  <option value="SUPPLIER">as your supplier</option>
+                  <option value="CLIENT">as your customer</option>
+                </select>
+                <button type="button" className="btn-primary" disabled={submitting} onClick={askToLink}>Ask them to link</button>
+              </div>
+            )}
           </div>
         )}
+        {asked && <FormMessage tone="ok">{asked}</FormMessage>}
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          {/* Stacked on a phone, always. */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {field('name', 'Name *', 'Dana Whitfield — first and last', 'text', true)}
+          {/* One column, in the order a person says it: who, their email,
+              who they work for, their role, their title, then the phone
+              (fix list of 2026-11-14, A1). */}
+          {field('name', 'Name *', 'First and last name', 'text', true)}
+          {field('email', 'Email', 'name@company.example', 'email', false, () => readEmail(form.email))}
+          <p className="-mt-2 text-[12px] text-etyme-muted">An email address or a phone number. Either one is enough.</p>
+          <div>
+            <label htmlFor="add-contact-works-for" className="mb-1 block text-xs font-semibold text-etyme-muted">Works for *</label>
+            <select
+              id="add-contact-works-for"
+              required
+              aria-required="true"
+              value={form.atCompanyId}
+              onChange={(e) => chooseCompany(e.target.value)}
+              aria-invalid={!!fieldErrors.atCompanyId}
+              className={`w-full rounded-lg border bg-white px-3 py-2 text-sm ${fieldErrors.atCompanyId ? 'border-etyme-attention' : 'border-etyme-rule'}`}
+            >
+              <option value="">Select…</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+              {mayRecord && read.read === 'NEW' && (
+                <option value={NEW_COMPANY_CHOICE}>{`A new company: ${(form.newCompanyName.trim() || read.name)}`}</option>
+              )}
+            </select>
+            {readSays && <p className="mt-1 text-[12px] text-etyme-muted">{readSays}</p>}
+            {fieldErrors.atCompanyId && (
+              <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.atCompanyId}</p>
+            )}
+            {atOwnFirm && (
+              <p className="mt-1 text-[12px] text-etyme-muted">
+                Saving a colleague here gives them no login and sends them nothing.
+                {mayInvite && <> A colleague who needs a login is invited under <Link href={USERS_HREF} className="text-etyme-action">Users &amp; permissions</Link>.</>}
+                {mayAddCandidate && <> A person you pay is added under <Link href={ADD_CANDIDATE_HREF} className="text-etyme-action">Candidates</Link>.</>}
+                {paysPeople && !mayAddCandidate && addsPeople.length > 0 && <> A person you pay is added under Candidates, by {addsPeople.length === 1 ? addsPeople[0] : `${addsPeople.slice(0, -1).join(', ')} or ${addsPeople[addsPeople.length - 1]}`}.</>}
+              </p>
+            )}
+          </div>
+          {addingCompany && (
             <div>
-              <label className="mb-1 block text-xs font-semibold text-etyme-muted">Works at *</label>
-              <select
+              <label htmlFor="add-contact-new-company" className="mb-1 block text-xs font-semibold text-etyme-muted">New company’s name *</label>
+              <input
+                id="add-contact-new-company"
                 required
                 aria-required="true"
-                value={form.atCompanyId}
-                onChange={(e) => chooseCompany(e.target.value)}
-                aria-invalid={!!fieldErrors.atCompanyId}
-                className={`w-full rounded-lg border bg-white px-3 py-2 text-sm ${fieldErrors.atCompanyId ? 'border-etyme-attention' : 'border-etyme-rule'}`}
-              >
-                <option value="">Select…</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              {fieldErrors.atCompanyId && (
-                <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.atCompanyId}</p>
-              )}
-              {atOwnFirm && (
-                <p className="mt-1 text-[12px] text-etyme-muted">
-                  Saving a colleague here gives them no login and sends them nothing.
-                  {mayInvite && <> A colleague who needs a login is invited under <Link href={USERS_HREF} className="text-etyme-action">Users &amp; permissions</Link>.</>}
-                  {mayAddCandidate && <> A person you pay is added under <Link href={ADD_CANDIDATE_HREF} className="text-etyme-action">Candidates</Link>.</>}
-                  {paysPeople && !mayAddCandidate && addsPeople.length > 0 && <> A person you pay is added under Candidates, by {addsPeople.length === 1 ? addsPeople[0] : `${addsPeople.slice(0, -1).join(', ')} or ${addsPeople[addsPeople.length - 1]}`}.</>}
-                </p>
-              )}
+                type="text"
+                value={form.newCompanyName}
+                onChange={(e) => { setNameTouched(true); setForm({ ...form, newCompanyName: e.target.value }) }}
+                aria-invalid={!!fieldErrors.newCompanyName}
+                className={`w-full rounded-lg border px-3 py-2 text-sm ${fieldErrors.newCompanyName ? 'border-etyme-attention' : 'border-etyme-rule'}`}
+                placeholder="Name as on their contract"
+              />
+              <p className="mt-1 text-[12px] text-etyme-muted">{CHECK_THE_NAME}</p>
+              {fieldErrors.newCompanyName && <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.newCompanyName}</p>}
             </div>
+          )}
+          <div>
+            <label htmlFor="add-contact-role" className="mb-1 block text-xs font-semibold text-etyme-muted">Their role at that firm (optional)</label>
+            <select
+              id="add-contact-role"
+              value={form.kind}
+              onChange={(e) => setForm({ ...form, kind: e.target.value })}
+              className="w-full rounded-lg border border-etyme-rule bg-white px-3 py-2 text-sm"
+            >
+              {kinds.map((k) => (
+                <option key={k.key} value={k.key}>{k.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[12px] text-etyme-muted">
+              {atOwnFirm ? 'Not sure? Leave it on Team member.' : 'Not sure? Leave it on Other.'}
+            </p>
+            {fieldErrors.kind && <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.kind}</p>}
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {field('email', 'Email', 'dana@client.example', 'email')}
-            {field('phone', 'Phone', '(303) 555-0100', 'tel')}
-          </div>
-          <p className="-mt-2 text-[12px] text-etyme-muted">An email address or a phone number. Either one is enough.</p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {field('title', 'Title', 'Director, Contingent Workforce')}
-            <div>
-              <label className="mb-1 block text-xs font-semibold text-etyme-muted">Their role at that firm (optional)</label>
-              <select
-                value={form.kind}
-                onChange={(e) => setForm({ ...form, kind: e.target.value })}
-                className="w-full rounded-lg border border-etyme-rule bg-white px-3 py-2 text-sm"
-              >
-                {kinds.map((k) => (
-                  <option key={k.key} value={k.key}>{k.label}</option>
-                ))}
-              </select>
-              <p className="mt-1 text-[12px] text-etyme-muted">
-                {atOwnFirm ? 'Not sure? Leave it on Team member.' : 'Not sure? Leave it on Other.'}
-              </p>
-              {fieldErrors.kind && <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.kind}</p>}
-            </div>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
+          {field('title', 'Title', 'Director, Contingent Workforce')}
+          {field('phone', 'Phone', '(303) 555-0100', 'tel')}
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
             <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
               {submitting ? 'Saving…' : 'Add contact'}

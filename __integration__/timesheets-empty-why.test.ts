@@ -67,19 +67,19 @@ beforeAll(async () => {
 }, 600_000)
 
 describe('an empty Timesheets page says why it is empty, before anybody is placed', () => {
-  it('the AP & Payroll person reads that nobody is placed yet, and which role records a placement, with no link', async () => {
+  it('the AP & Payroll person reads that nobody is placed yet, and which seated role records a placement, with no link', async () => {
     const d = await read(seats.ap)
     expect(d.timesheets).toEqual([])
     expect(d.empty).toMatchObject({ why: 'NOBODY_PLACED', link: null, says: 'Nobody is placed yet, so there are no hours to file.' })
     expect(d.empty.detail).toBe(
-      'A placement starts when a client awards a submission. Recording a placement is for the Owner or an Admin here. Ask one of them.'
+      'A placement starts when a client awards a submission. Recording a placement is for the Owner here. Ask them.'
     )
   })
 
   it('the Account Manager, who records no placement, is told who does, with no link', async () => {
     const d = await read(seats.am)
     expect(d.empty.link).toBeNull()
-    expect(d.empty.detail).toContain('Recording a placement is for the Owner or an Admin here.')
+    expect(d.empty.detail).toContain('Recording a placement is for the Owner here.')
   })
 
   it('the Owner, who may record a placement, is handed Record a placement on Contracts', async () => {
@@ -119,7 +119,7 @@ describe('people placed, and no placement has started yet', () => {
       'Sam Ortiz’s placement has not started yet, so no week can be filed.',
     ])
     expect(JSON.stringify(d.empty)).not.toMatch(/signed in|Sending the invitation again/)
-    expect(d.empty.detail).toMatch(/^A placement starts from Contracts\. Recording a placement is for the Owner or an Admin here\./)
+    expect(d.empty.detail).toMatch(/^A placement starts from Contracts\. Recording a placement is for the Owner here\./)
     expect(d.empty.link).toBeNull()
   })
 

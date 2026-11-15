@@ -175,13 +175,20 @@ export function ownerOnlyNoLonger(): string {
 /**
  * The roles to name for an act: those of `desks` (who may, from the
  * role set, e.g. `desksHolding`) that somebody at the company holds,
- * else the Owner and an Admin, who hold every act a role may hold.
+ * else the Owner and an Admin, who hold every act a role may hold, but
+ * only those of the two the company has seated (press of 2026-11-15: a
+ * firm with no Admin seated was told to ask an Admin). A firm whose
+ * first person has not proved ownership yet holds an Admin and no Owner,
+ * so it names the Admin alone; a firm with neither on the list given
+ * names the Owner, which every firm has once it is proved.
  * `seated` is the role names of the company's live seats.
  */
 export function seatedWhoMay(desks: readonly string[], seated: readonly string[]): string[] {
   const there = new Set(seated.map((r) => r.trim().toLowerCase()))
   const named = desks.filter((d) => !['owner', 'admin'].includes(d.toLowerCase()) && there.has(d.toLowerCase()))
-  return named.length ? named : ['Owner', 'Admin']
+  if (named.length) return named
+  const top = (['Owner', 'Admin'] as const).filter((r) => there.has(r.toLowerCase()))
+  return top.length ? [...top] : ['Owner']
 }
 
 /** "the Owner or an Admin" · "the Contract Manager" · "the HR or Finance". */

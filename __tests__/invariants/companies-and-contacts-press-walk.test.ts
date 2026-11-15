@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { recordEditedSummary } from '@/lib/counterparty'
-import { KINDS, alreadyOnFile, sameNameOnFile, duplicateSays, ADD_ANYWAY } from '@/lib/contacts'
+import { KINDS, alreadyOnFile, sameNameOnFile, duplicateSays, ADD_ANYWAY, savedSays } from '@/lib/contacts'
 import { desksHolding } from '@/lib/permissions'
 import { ADDS_CONSULTANTS } from '@/lib/consultant-portfolio/who-adds'
 
@@ -152,7 +152,7 @@ describe('Adding the same person twice', () => {
     expect(ADD_ANYWAY).toBe('Add anyway, this is somebody else')
     expect(addContact).toContain("if (body.error?.code === 'SAME_NAME') setNamesake(true)")
     expect(addContact).toContain('onClick={(e) => handleSubmit(e, true)}')
-    expect(addContact).toContain('JSON.stringify(addAnyway ? { ...form, addAnyway: true } : form)')
+    expect(addContact).toContain('JSON.stringify(addAnyway ? { ...payload, addAnyway: true } : payload)')
     expect(companies).toContain('onClick={(e) => save(e, true)}>{ADD_ANYWAY}</button>')
   })
 })
@@ -171,13 +171,13 @@ describe('Add contact', () => {
   })
 
   it('the email box’s example address is on a reserved domain', () => {
-    expect(addContact).toContain("{field('email', 'Email', 'dana@client.example', 'email')}")
+    expect(addContact).toContain("{field('email', 'Email', 'name@company.example', 'email', false, () => readEmail(form.email))}")
     expect(contactsPage).not.toContain('@client.com')
   })
 
   it('after Save she reads who is in her Contacts, at which company, and that nothing was sent to them', () => {
-    expect(addContact).toContain('onCreated(`${form.name.trim()} is in your Contacts at ${')
-    expect(addContact).toContain('Nothing was sent to them.`)')
+    expect(addContact).toContain('onCreated(body.data?.says ?? savedSays(form.name.trim(), ')
+    expect(savedSays('Dana Reyes', 'Harborline Tech')).toBe('Dana Reyes is in your Contacts at Harborline Tech. Nothing was sent to them.')
     expect(contactsPage).toContain('{saved && <FormMessage tone="ok">{saved}</FormMessage>}')
   })
 })

@@ -26,6 +26,10 @@
 
 import { reservedAddress } from '@/lib/reserved-address'
 import { NO_WAY_TO_REACH, reachable } from '@/lib/contact-reach'
+import { identityDomain } from '@/lib/counterparty'
+import { isPlatformDomain } from '@/lib/company-domains'
+import { registrableDomain, sameOrganisation } from '@/lib/registrable-domain'
+import { nameFromDomain } from '@/lib/supplier-list'
 
 export { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 
@@ -405,8 +409,15 @@ export function kindOfRole(
  * the caller's own firm, and every company on its Companies list.
  */
 export interface WorksAtBook {
-  own: { id: string; name: string }
+  /** The firm itself, and the domain its own people sign in from, where it has one. */
+  own: { id: string; name: string; domain?: string | null }
   companies: { id: string; name: string; domain: string | null }[]
+  /**
+   * Whether this seat may add a company to the list in the same save, and
+   * where it may not, the sentence naming who may (fix list A2).
+   */
+  mayRecord?: boolean
+  whoRecords?: string | null
 }
 
 export interface WorksAtChoice {
@@ -416,13 +427,13 @@ export interface WorksAtChoice {
   own: boolean
 }
 
-/** How the firm's own name reads at the top of Works at. */
+/** How the firm's own name reads at the top of Works for. */
 export function ownFirmChoice(name: string): string {
   return `${name} (your own firm)`
 }
 
 /**
- * The choices under Works at: the firm's own name first, marked as its own
+ * The choices under Works for: the firm's own name first, marked as its own
  * firm, then every company on its Companies list once, sorted by name.
  * Two companies of one name (a company is known by its domain) are told
  * apart by their domain, or by saying they have none yet.
@@ -478,6 +489,107 @@ export function kindsHeld(rows: readonly { kind: string }[]): { key: ContactKind
   return (Object.entries(KINDS) as [ContactKind, (typeof KINDS)[ContactKind]][])
     .filter(([key]) => held.has(key))
     .map(([key, v]) => ({ key, ...v }))
+}
+
+// ── Works for, read from the email (fix list of 2026-11-14, A2) ────────
+//
+// The founder, 2026-11-14: "The email is the identifier." A contact's
+// email domain says where she works, so Add contact reads it against the
+// companies on the firm's own Companies list by the same rule that decides
+// a company's identity (the registrable domain, `sameOrganisation`, which
+// the twin rule uses). It only fills the box: she sees what was read and
+// may choose another. Pure, so the screen and its tests read one answer.
+
+/** The choice under Works for that adds a company not on the list yet, in the same save. */
+export const NEW_COMPANY_CHOICE = 'new'
+
+/** What the email's domain says about where a contact works. */
+export type WorksForRead =
+  /** No full email address yet: nothing is read. */
+  | { read: 'NOTHING' }
+  /** A personal mail domain, or Etyme's own: it says nothing about where they work. */
+  | { read: 'NOT_A_COMPANY'; domain: string; platform: boolean }
+  /** The firm's own domain: the firm itself. */
+  | { read: 'OWN'; domain: string; id: string }
+  /** One company on the list uses this domain. */
+  | { read: 'ONE'; domain: string; company: { id: string; name: string } }
+  /** Two or more companies on the list use it: she chooses, nothing is picked for her. */
+  | { read: 'MANY'; domain: string; companies: { id: string; name: string }[] }
+  /** No company on the list uses it: a new one, with a name she checks before saving. */
+  | { read: 'NEW'; domain: string; name: string }
+
+/** The domain of an email address that reads as one, lower case; null otherwise. */
+export function emailDomain(email: string | null | undefined): string | null {
+  const e = (email ?? '').trim().toLowerCase()
+  if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(e)) return null
+  return e.slice(e.lastIndexOf('@') + 1).replace(/\.$/, '')
+}
+
+const sameCompanyDomain = (a: string, b: string) => a === b || sameOrganisation(a, b)
+
+/** Where the email says the contact works, read against the firm's own list. */
+export function worksForFromEmail(email: string | null | undefined, book: WorksAtBook | null | undefined): WorksForRead {
+  const domain = emailDomain(email)
+  if (!domain || !book) return { read: 'NOTHING' }
+  if (isPlatformDomain(domain)) return { read: 'NOT_A_COMPANY', domain, platform: true }
+  if (!identityDomain(domain)) return { read: 'NOT_A_COMPANY', domain, platform: false }
+  const own = book.own.domain ? identityDomain(book.own.domain) : null
+  if (own && sameCompanyDomain(own, domain)) return { read: 'OWN', domain, id: book.own.id }
+  const seen = new Set<string>()
+  const hits = book.companies.filter((c) => {
+    if (c.id === book.own.id || seen.has(c.id) || !c.domain || !sameCompanyDomain(c.domain, domain)) return false
+    seen.add(c.id)
+    return true
+  })
+  if (hits.length === 1) return { read: 'ONE', domain, company: { id: hits[0].id, name: hits[0].name } }
+  if (hits.length > 1) {
+    return { read: 'MANY', domain, companies: hits.map((c) => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name)) }
+  }
+  // A name from the domain, where there is nothing better, and only as the
+  // first answer in a box she reads and may correct before saving.
+  return { read: 'NEW', domain, name: nameFromDomain(registrableDomain(domain) ?? domain) }
+}
+
+/** The line under Works for, saying what the email told the form, and what saving will do. */
+export function worksForSays(read: WorksForRead, opts: { ownName: string; companyName?: string; mayRecord: boolean; whoRecords?: string | null }): string | null {
+  switch (read.read) {
+    case 'NOTHING':
+      return null
+    case 'NOT_A_COMPANY':
+      return read.platform
+        ? `${read.domain} is Etyme's own address, so it does not say where they work. Choose the company.`
+        : `${read.domain} is a personal email domain, so it does not say where they work. Choose the company.`
+    case 'OWN':
+      return `Chosen from the email: ${read.domain} is your own firm's domain. Choose another if that is wrong.`
+    case 'ONE':
+      return `Chosen from the email: ${read.company.name} uses ${read.domain}. Choose another if that is wrong.`
+    case 'MANY':
+      return `${read.companies.length} companies on your list use ${read.domain}: ${read.companies.map((c) => c.name).join(', ')}. Choose the one they work for.`
+    case 'NEW':
+      if (!opts.mayRecord) {
+        return `No company on your list uses ${read.domain}. ${opts.whoRecords ?? 'Adding a company to your list is not part of your seat.'} You can still choose a company that is on your list.`
+      }
+      return `No company on your list uses ${read.domain}. Saving adds ${(opts.companyName ?? read.name).trim() || 'the company named below'} to your Companies, not classified. Nobody is emailed.`
+  }
+}
+
+/** Where the name box for a new company asks her to look before saving. */
+export const CHECK_THE_NAME = 'Check the name before you save. It was read from the email’s domain.'
+
+/** The refusal for a new company with no name. */
+export const NEW_COMPANY_NAME_MISSING = 'Give the new company’s name, at least two letters.'
+
+/** The refusal where Works for is left empty. */
+export const WORKS_FOR_MISSING = 'Say which company they work for.'
+
+/** What she reads after a save that added a company too. Nothing went to anybody. */
+export function savedWithCompanySays(person: string, company: string): string {
+  return `${person} is in your Contacts at ${company}. ${company} was added to your Companies, not classified. Nothing was sent to anybody.`
+}
+
+/** What she reads after a save at a company already there. */
+export function savedSays(person: string, company: string): string {
+  return `${person} is in your Contacts at ${company}. Nothing was sent to them.`
 }
 
 /** The route's sentence for a company that is not on the caller's list. */

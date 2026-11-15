@@ -416,6 +416,27 @@ export const NEVER_EMAILS = 'Saving a company never emails them.'
 export const NOT_CLASSIFIED_KIND_LABEL = 'Company — not classified yet'
 
 /**
+ * The Kinds Add a company offers, each with the one line that says what it
+ * is in the trade's words (fix list of 2026-11-14, A7). A Kind is what a
+ * company is, never what it is to you: so "Vendor", never "Supplier".
+ * "GSI" is an integrator in this product's words, and a contractor's own
+ * corporation is somebody else's one-person company, never "My own".
+ */
+export const KIND_CHOICES = [
+  { kind: 'UNCLASSIFIED', word: NOT_CLASSIFIED_KIND_LABEL, means: 'Not sure yet. Only the name is needed, and the kind can be said later.' },
+  { kind: 'VENDOR', word: 'Vendor', means: 'A staffing firm. It puts people forward to jobs and employs them.' },
+  { kind: 'CLIENT', word: 'Client', means: 'A company that hires contractors through staffing firms.' },
+  { kind: 'MSP', word: 'MSP', means: 'A firm that runs a client’s contractor program for it.' },
+  { kind: 'GSI', word: 'Integrator', means: 'Delivers projects with its own people and people it buys in.' },
+  { kind: 'CONSULTANT_CORP', word: 'Own company — one person', means: 'A contractor’s own company, with only that person in it.' },
+] as const
+
+/** The word and the line for one Kind on Add a company. */
+export function kindChoice(kind: string): { word: string; means: string } {
+  return KIND_CHOICES.find((k) => k.kind === kind) ?? KIND_CHOICES[0]
+}
+
+/**
  * The answer "What are they to you?" starts on, once a Kind is chosen.
  * A client is a customer and an MSP is an MSP; anything else starts as a
  * supplier, as the form did before. Only where the box starts: the
@@ -1057,10 +1078,10 @@ export const KINDS_TO_SET = ['VENDOR', 'CLIENT', 'MSP', 'GSI'] as const
 export type KindToSet = (typeof KINDS_TO_SET)[number]
 /**
  * The Kind in the words the Companies list prints for it (Vendor, Client,
- * MSP, GSI), never a position's words: a Kind never says who is a
+ * MSP, Integrator), never a position's words: a Kind never says who is a
  * supplier or a customer (walk, 2026-11-14).
  */
-const KIND_SET_WORDS: Record<KindToSet, string> = { VENDOR: 'a vendor', CLIENT: 'a client', MSP: 'an MSP', GSI: 'a GSI' }
+const KIND_SET_WORDS: Record<KindToSet, string> = { VENDOR: 'a vendor', CLIENT: 'a client', MSP: 'an MSP', GSI: 'an integrator' }
 
 export type KindSetVerdict =
   | { ok: true; to: KindToSet; already: boolean; says: string }

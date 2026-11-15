@@ -4,7 +4,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 /**
  * Contacts, after the founder's firm pressed it on 2026-11-14 (record 72,
  * items H1, A2, B4, H2, B6), on the seeded world. A firm adds its own
- * people; Works at offers exactly what the Companies list holds; the role
+ * people; Works for offers exactly what the Companies list holds; the role
  * is optional; adding a contact writes one activity-log row; and nothing
  * here sends an email: the one sender is faked and counted.
  */
@@ -49,15 +49,15 @@ beforeAll(async () => {
 }, 600_000)
 
 describe('a firm can add its own people', () => {
-  it('Works at offers the firm’s own name first, marked as its own firm', async () => {
+  it('Works for offers the firm’s own name first, marked as its own firm', async () => {
     as(OWNER)
     const { worksAt } = await list()
-    expect(worksAt.own).toEqual({ id: brightmoor.id, name: brightmoor.name })
+    expect({ id: worksAt.own.id, name: worksAt.own.name }).toEqual({ id: brightmoor.id, name: brightmoor.name })
     const { worksAtChoices } = await import('@/lib/contacts')
     expect(worksAtChoices(worksAt)[0]).toEqual({ id: brightmoor.id, name: `${brightmoor.name} (your own firm)`, own: true })
   })
 
-  it('a firm can add a contact whose Works at is its own firm, and she is listed under Contacts at that firm, with nothing emailed and no invitation written', async () => {
+  it('a firm can add a contact whose Works for is its own firm, and she is listed under Contacts at that firm, with nothing emailed and no invitation written', async () => {
     as(OWNER)
     const invites = async () => (await prisma.context.count()) + (await prisma.supplierInvite.count())
     const invitesBefore = await invites()
@@ -100,8 +100,8 @@ describe('a firm can add its own people', () => {
   })
 })
 
-describe('Works at and the route read one list', () => {
-  it('for every seeded seat, Works at offers exactly the companies its Companies list holds, plus its own firm', async () => {
+describe('Works for and the route read one list', () => {
+  it('for every seeded seat, Works for offers exactly the companies its Companies list holds, plus its own firm', async () => {
     for (const seat of SEATS) {
       as(seat)
       const onList = (await companiesList()).map((c) => c.id).sort()

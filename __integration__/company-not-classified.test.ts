@@ -5,7 +5,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
  * "Company — not classified yet", walked through the routes (founder,
  * 2026-11-12). A firm the Owner simply knows is recorded with its name
  * alone, holds no position, is on the Companies list and in Contacts'
- * Works at, and on no supplier list, client list or picker until it is
+ * Works for, and on no supplier list, client list or picker until it is
  * extended. The Kind is what a company is; the position is the register
  * row between two firms; neither ever sets the other. Nothing here sends
  * an email or writes a notice: the one sender is faked and counted, and
@@ -121,7 +121,7 @@ describe('recording a company with only its name', () => {
     as(OWNER)
   })
 
-  it('a company not classified yet appears on the Companies list with a Not classified badge and in the Works at choice on Contacts', async () => {
+  it('a company not classified yet appears on the Companies list with a Not classified badge and in the Works for choice on Contacts', async () => {
     const row = (await listed()).find((c) => c.id === id)
     expect(row).toMatchObject({ kind: 'UNCLASSIFIED', notClassified: true, mine: true, positions: [] })
     const reg = await call(counterparties.GET as any, 'GET', '/api/counterparties', '')
@@ -423,7 +423,7 @@ describe('the founder’s acceptance walk', () => {
     expect((await row(id))).toMatchObject({ notClassified: true, kind: 'UNCLASSIFIED', may: { extendToSupplier: true, extendToCustomer: true, setKind: true } })
   })
 
-  it('2. a contact added with Works at that company saves, and shows under Contacts and on the company', async () => {
+  it('2. a contact added with Works for that company saves, and shows under Contacts and on the company', async () => {
     const r = await call(contacts.POST as any, 'POST', '/api/contacts', '', { name: 'Petra Lindqvist', phone: '(303) 555-0142', atCompanyId: id })
     expect(r.status).toBe(201)
     expect(JSON.stringify((await call(contacts.GET as any, 'GET', '/api/contacts', '')).body)).toContain('Petra Lindqvist')

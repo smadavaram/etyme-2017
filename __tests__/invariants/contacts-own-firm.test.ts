@@ -9,7 +9,7 @@ import { decidedBy, kindOf } from '@/lib/autonomy'
 
 /**
  * Contacts, after the founder's firm pressed it on 2026-11-14 (record 72,
- * items H1, A2, B4, H2, B6). A firm can add its own people; Works at
+ * items H1, A2, B4, H2, B6). A firm can add its own people; Works for
  * offers what the Companies list holds, read by one reader; Contacts is
  * people; the role is optional; and adding a contact is on the activity log.
  */
@@ -29,7 +29,7 @@ const book = {
 }
 
 describe('a firm can add its own people as contacts', () => {
-  it('Works at offers the firm’s own name first, marked as its own firm', () => {
+  it('Works for offers the firm’s own name first, marked as its own firm', () => {
     const choices = worksAtChoices(book)
     expect(choices[0]).toEqual({ id: 'me', name: 'Northwind Staffing (your own firm)', own: true })
     expect(ownFirmChoice('Northwind Staffing')).toBe('Northwind Staffing (your own firm)')
@@ -49,7 +49,7 @@ describe('a firm can add its own people as contacts', () => {
 
   it('choosing the own firm starts the role on Team member, and leaving it puts the role back on Other', () => {
     expect(OWN_FIRM_KIND).toBe('MEMBER')
-    expect(modal).toContain("const kind = own ? (form.kind === 'OTHER' ? OWN_FIRM_KIND : form.kind) : form.kind === OWN_FIRM_KIND ? 'OTHER' : form.kind")
+    expect(modal).toContain("return own ? (kind === 'OTHER' ? OWN_FIRM_KIND : kind) : kind === OWN_FIRM_KIND ? 'OTHER' : kind")
   })
 
   it('under the own firm one quiet line says a colleague gets no login, with links only where the reader’s seat opens the page', () => {
@@ -61,7 +61,7 @@ describe('a firm can add its own people as contacts', () => {
   })
 })
 
-describe('Works at and the route read one list', () => {
+describe('Works for and the route read one list', () => {
   it('every company on the list is offered once, sorted by name, and two of one name are told apart by their domain', () => {
     expect(worksAtChoices(book).slice(1).map((c) => c.name)).toEqual([
       'Alder Freight',
@@ -73,7 +73,7 @@ describe('Works at and the route read one list', () => {
   it('the picker and the route ask the same reader, which is the Companies list’s own', () => {
     expect(route).toContain('worksAt: await worksAtBook(caller)')
     expect(route).toContain('const book = await worksAtBook(caller)')
-    expect(route).toContain('if (!mayWorkAt(book, atCompanyId)) {')
+    expect(route).toContain('if (!adding && !mayWorkAt(book, atCompanyIdTyped)) {')
     const reader = read('src/app/api/contacts/works-at.ts')
     expect(reader).toContain('await companiesOnList(caller, false, true)')
     expect(read('src/app/api/companies/route.ts')).toContain('await companiesOnList(caller, verdict.includesOwn, withRecords)')
@@ -140,7 +140,7 @@ describe('adding a contact is on the activity log', () => {
   })
 
   it('the contact and its row are written in one transaction', () => {
-    expect(route).toMatch(/prisma\.\$transaction\(async \(tx\) => \{\s*const made = await tx\.companyContact\.create[\s\S]*?await tx\.automationLog\.create\(\{[\s\S]*?action: 'CONTACT_RECORDED'/)
+    expect(route).toMatch(/prisma\.\$transaction\(async \(tx\) => \{[\s\S]*?const made = await tx\.companyContact\.create[\s\S]*?await tx\.automationLog\.create\(\{[\s\S]*?action: 'CONTACT_RECORDED'/)
   })
 
   it('the activity log files the row under Contacts, and the company’s drawer reads it in its history', () => {

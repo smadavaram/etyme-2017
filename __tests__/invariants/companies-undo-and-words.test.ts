@@ -137,7 +137,8 @@ describe('Asking a firm to link calls one relationship one thing', () => {
   })
 
   it('a company not classified yet is asked about as your supplier or your customer, the two choices the box offers, never as a partner', () => {
-    expect(companiesRoute).toContain("const EITHER_SIDE = 'supplier or your customer'")
+    expect(read('src/app/api/companies/record.ts')).toContain("export const EITHER_SIDE = 'supplier or your customer'")
+    expect(companiesRoute).toContain('onEtymeAskToLinkSays(EITHER_SIDE)')
     expect(companiesRoute).not.toContain("onEtymeAskToLinkSays('partner')")
     expect(onEtymeAskToLinkSays('supplier or your customer')).toContain('Ask them to link, as your supplier or your customer:')
     expect(addCompany).toContain('<option value="SUPPLIER">as your supplier</option>')

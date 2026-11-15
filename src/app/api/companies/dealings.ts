@@ -174,7 +174,7 @@ export async function dealingsWithSides(
  * dealings with, and with `withRecords`, every company it recorded and
  * nobody has claimed, whatever Kind it has been given since. The one
  * reader behind the Companies page (`GET /api/companies?records=1`) and
- * Contacts' Works at, so the list and the picker can never differ
+ * Contacts' Works for, so the list and the picker can never differ
  * (fix list of 2026-11-14: the picker offered 1 company of hundreds).
  */
 export async function companiesOnList(

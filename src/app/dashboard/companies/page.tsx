@@ -9,13 +9,13 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
-import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, countedTwiceSays, noPositionTile, rowsUnderFilter, relationshipForKind, type Position } from '@/lib/counterparty'
+import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, kindChoice, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, countedTwiceSays, noPositionTile, rowsUnderFilter, relationshipForKind, type Position } from '@/lib/counterparty'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import { ADD_ANYWAY } from '@/lib/contacts'
 import { Chip, Field, FilterChips, FormMessage, Input, LoadingState, PageHead, RefusedState, Select, Stat, SubmitButton, type ChipTone } from '@/components/ui'
 
 /**
- * Companies working surface — manage vendor, client, MSP, and GSI companies.
+ * Companies working surface — manage vendor, client, MSP and integrator companies.
  *
  * CLAUDE.md design system:
  *   Working surfaces: "Tables, search, filters, bulk, density"
@@ -80,7 +80,7 @@ function kindOnList(kind: Company['kind']): string {
     case 'VENDOR': return 'Vendor'
     case 'CLIENT': return 'Client'
     case 'MSP': return 'MSP'
-    case 'GSI': return 'GSI'
+    case 'GSI': return 'Integrator'
     case 'CONSULTANT_CORP': return kindWord('CONSULTANT_CORP')
     case 'UNCLASSIFIED': return kindWord('UNCLASSIFIED')
   }
@@ -604,7 +604,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
               onChange={(e) => { setTwin(null); setForm({ ...form, name: e.target.value }) }}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-              placeholder="Techpeple Inc."
+              placeholder="Name as on their contract"
             />
             {twin?.field === 'name' && (
               <p className="mt-1 text-[12px] text-etyme-attention">
@@ -628,12 +628,14 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
                 <option value="UNCLASSIFIED">{NOT_CLASSIFIED_KIND_LABEL}</option>
-                <option value="VENDOR">Vendor</option>
-                <option value="CLIENT">Client</option>
-                <option value="MSP">MSP</option>
-                <option value="GSI">GSI</option>
-                <option value="CONSULTANT_CORP">My own consulting corporation — one person</option>
+                <option value="VENDOR">{kindChoice('VENDOR').word}</option>
+                <option value="CLIENT">{kindChoice('CLIENT').word}</option>
+                <option value="MSP">{kindChoice('MSP').word}</option>
+                <option value="GSI">{kindChoice('GSI').word}</option>
+                <option value="CONSULTANT_CORP">{kindChoice('CONSULTANT_CORP').word}</option>
               </select>
+              {/* What the chosen Kind is, in one line, so nobody guesses (fix list A7). */}
+              <p className="mt-1 text-[12px] text-etyme-muted">{kindChoice(form.kind).means}</p>
             </div>
             )}
             {!recording && (
@@ -685,7 +687,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                   onChange={(e) => setForm({ ...form, contactName: e.target.value })}
                   className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                              focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                  placeholder="Dana Whitfield"
+                  placeholder="First and last name"
                 />
               </div>
               <div>
@@ -697,7 +699,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                              focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                  placeholder="dana@client.example"
+                  placeholder="name@company.example"
                 />
               </div>
               <p className="sm:col-span-2 text-xs text-etyme-muted">
@@ -728,7 +730,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                 onChange={(e) => { setDomainSays(null); if (twin?.field === 'domain') setTwin(null); setForm({ ...form, domain: e.target.value }) }}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                placeholder="techpeple.example"
+                placeholder="company.example"
               />
               {domainSays && <p className="mt-1 text-[12px] text-etyme-attention">{domainSays}</p>}
               {twin?.field === 'domain' && (
@@ -751,7 +753,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                   className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                              focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
                              text-etyme-muted"
-                  placeholder="techpeple"
+                  placeholder="their-address"
                 />
               </div>
               {form.slug ? (
@@ -948,7 +950,7 @@ function EditRecord({ company, onSaved }: { company: Company; onSaved: (says: st
         <form onSubmit={save} noValidate className="space-y-3">
           <p className="eyebrow">Edit</p>
           <Field label="Company name *"><Input required aria-required="true" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label="Domain"><Input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} placeholder="northwind-staffing.example" /></Field>
+          <Field label="Domain"><Input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} placeholder="company.example" /></Field>
           <Field label="Entity type"><Input value={form.entityType} onChange={(e) => setForm({ ...form, entityType: e.target.value })} placeholder="LLC, Corp, GmbH…" /></Field>
           <p className="text-[12px] text-etyme-muted">The domain is your own note. It is never a claim on that domain. {NEVER_EMAILS}</p>
           <div className="flex flex-wrap gap-2">
@@ -1214,9 +1216,9 @@ function CompanyContacts({ company }: { company: Company }) {
       </ul>
       {adding ? (
         <form onSubmit={save} noValidate className="mt-3 space-y-3">
-          <Field label="Name *"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Dana Whitfield" /></Field>
+          <Field label="Name *"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="First and last name" /></Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+            <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="name@company.example" /></Field>
             <Field label="Phone"><Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
           </div>
           <Field label="Title"><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></Field>

@@ -33,7 +33,7 @@ describe('the Add contact form', () => {
     // The route hands problems() the phone as well as the email, so a
     // script that skips the form is refused in the same words.
     expect(route).toMatch(/problems\(\{[\s\S]*?phone: body\?\.phone \?\? null,[\s\S]*?\}\)/)
-    expect(modal).toContain('if (!email && !form.phone.trim()) p.email = NO_WAY_TO_REACH')
+    expect(modal).toContain('if (!email && !f.phone.trim()) p.email = NO_WAY_TO_REACH')
     expect(page).toContain("import { NO_WAY_TO_REACH } from '@/lib/contact-reach'")
   })
 
@@ -41,9 +41,9 @@ describe('the Add contact form', () => {
     expect(modal).toContain('An email address or a phone number. Either one is enough.')
   })
 
-  it('the name and the company they work at are marked required for the browser, and the form still explains a refusal itself', () => {
-    expect(modal).toContain("{field('name', 'Name *', 'Dana Whitfield — first and last', 'text', true)}")
-    expect(modal).toMatch(/<select\s+required\s+aria-required="true"\s+value=\{form\.atCompanyId\}/)
+  it('the name and the company they work for are marked required for the browser, and the form still explains a refusal itself', () => {
+    expect(modal).toContain("{field('name', 'Name *', 'First and last name', 'text', true)}")
+    expect(modal).toMatch(/<select\s+id="add-contact-works-for"\s+required\s+aria-required="true"\s+value=\{form\.atCompanyId\}/)
     expect(modal).toContain('required={required}')
     // A browser bubble inside a modal on a phone is a refusal nobody sees.
     expect(modal).toContain('<form onSubmit={handleSubmit} noValidate')
@@ -56,7 +56,7 @@ describe('the Add contact form', () => {
   })
 
   it('the role it starts on reads Other, because Other is what it saves', () => {
-    expect(modal).toContain("kind: 'OTHER' })")
+    expect(modal).toContain("kind: 'OTHER', newCompanyName: '' })")
     expect(KINDS.OTHER.label).toBe('Other')
   })
 
@@ -69,10 +69,11 @@ describe('the Add contact form', () => {
     for (const f of refusedFields) expect(formKeys, `the route refuses without ${f}`).toContain(f)
   })
 
-  it('marks only the name and the company they work at as required, never the role', () => {
+  it('marks only the name and the company they work for as required, and a new company’s name only while one is being added, never the role', () => {
     const required = [...modal.matchAll(/<label[^>]*>([^<]*\*)<\/label>/g)].map((m) => m[1])
     expect(modal).toContain("'Name *'")
-    expect(required).toEqual(['Works at *'])
+    expect(required).toEqual(['Works for *', 'New company’s name *'])
+    expect(modal).toContain('{addingCompany && (')
     expect(modal).not.toMatch(/Their role at that firm \*/)
   })
 
