@@ -33,6 +33,8 @@
  * Pure: no database, no clock.
  */
 
+import { noApproverRecordedSays, addApproverSays } from './approval-by-email'
+
 /** The address that opens Record a placement on Contracts. */
 export const RECORD_A_PLACEMENT_HREF = '/dashboard/contracts?new=1'
 /** Where a firm's people, and their invitations, are kept. */
@@ -265,20 +267,51 @@ export function firmFilingSays(firmName: string | null): string {
   )
 }
 
+/** Where a person who approves hours at a client is added. */
+export const CONTACTS_HREF = '/dashboard/contacts'
+
+/**
+ * A client, not on Etyme, at which nobody who approves hours is recorded:
+ * the week page refuses the attach until somebody is (the week-approval
+ * route's own refusal, `addApproverSays`). `may` is whether this seat
+ * adds a contact there; `whoSays` names the role that does where not.
+ */
+export interface NoApproverAt {
+  clientName: string
+  may: boolean
+  whoSays: string | null
+}
+
 /**
  * How many filed weeks still wait for the client's approval, for a firm
  * below the client. Null where none do.
+ *
+ * Where a client is not on Etyme and nobody there who approves hours is
+ * recorded, the attach on the week is refused until somebody is. So the
+ * steps are said in the order she acts: add that person under Contacts,
+ * then attach the approval on the week. The same words as the refusal.
  */
-export function clientApprovalSays(count: number, attach: { may: boolean; whoSays: string | null }): string | null {
+export function clientApprovalSays(
+  count: number,
+  attach: { may: boolean; whoSays: string | null },
+  noApprover: readonly NoApproverAt[] = []
+): string | null {
   if (count <= 0) return null
   const lead = count === 1
     ? '1 week waits for the client’s approval.'
     : `${count} weeks wait for the client’s approval.`
-  return attach.may
-    ? `${lead} Open the week to attach the approval the client gave.`
+  const first = noApprover.map((n) =>
+    [noApproverRecordedSays(n.clientName), n.may ? addApproverSays(n.clientName) : n.whoSays].filter(Boolean).join(' ')
+  )
+  const then = attach.may
+    ? `${first.length ? 'Then open' : 'Open'} the week to attach the approval the client gave.`
     : attach.whoSays
-      ? `${lead} ${attach.whoSays}`
-      : lead
+  return [lead, ...first, then].filter(Boolean).join(' ')
+}
+
+/** The link to Contacts beside the panel: only for a seat that adds a contact there. */
+export function clientApprovalLink(noApprover: readonly NoApproverAt[]): EmptyLink | null {
+  return noApprover.some((n) => n.may) ? { label: 'Open Contacts', href: CONTACTS_HREF } : null
 }
 
 /**

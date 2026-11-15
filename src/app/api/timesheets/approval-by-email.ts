@@ -364,6 +364,20 @@ export type ApproverVerdict =
   | { ok: true; how: ApproverHow }
   | { ok: false; code: 'APPROVER_NOT_AT_CLIENT'; says: string }
 
+/**
+ * The fact, where a client is not on Etyme and its supplier has recorded
+ * nobody there who approves hours. One sentence, read by the week's own
+ * refusal and by the Timesheets panel that links to the week.
+ */
+export function noApproverRecordedSays(clientName: string): string {
+  return `${clientName} is not on Etyme, and nobody there who approves hours is recorded yet.`
+}
+
+/** The step that clears it, in the words Bills uses for the same step. */
+export function addApproverSays(clientName: string): string {
+  return `Add the person at ${clientName} who approves hours, under Contacts.`
+}
+
 /** The address, or a subdomain of it, belongs to this domain. */
 function underDomain(addressDomain: string, domain: string): boolean {
   return addressDomain === domain || addressDomain.endsWith('.' + domain)
@@ -466,9 +480,10 @@ export function approverIsKnownAtClient(i: {
         return {
           ok: false,
           code: 'APPROVER_NOT_AT_CLIENT',
-          says:
-            `${clientName} is not on Etyme, and nobody there who approves hours is recorded yet. ` +
-            `Add that person under Contacts, working at ${clientName}, and try again.`,
+          // The same two sentences the Timesheets panel says before its
+          // link to the week (`clientApprovalSays`), so the first press
+          // there is never this refusal unannounced.
+          says: `${noApproverRecordedSays(clientName)} ${addApproverSays(clientName)} Then try again.`,
         }
       }
       return {

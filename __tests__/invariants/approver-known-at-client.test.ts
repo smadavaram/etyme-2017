@@ -146,10 +146,10 @@ describe('who is told to act when a client not on Etyme has no approver recorded
     expect(refusal({ firmName: null, as: 'WORKER' })).toContain('Ask the firm you work for to add the approver under Contacts')
   })
 
-  it('a supplier’s own timesheet seat is told to add the person who approves hours under Contacts, working at the client, and try again', () => {
+  it('a supplier’s own timesheet seat is told to add the person at the client who approves hours under Contacts, and try again', () => {
     expect(refusal({ firmName: 'Brightwater Staffing', as: 'SUPPLIER_DESK' })).toBe(
       'Acme is not on Etyme, and nobody there who approves hours is recorded yet. ' +
-      'Add that person under Contacts, working at Acme, and try again.'
+      'Add the person at Acme who approves hours, under Contacts. Then try again.'
     )
   })
 

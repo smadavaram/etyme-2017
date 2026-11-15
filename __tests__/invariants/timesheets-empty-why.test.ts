@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  emptyWhy, emptyDrawn, firmFilingSays, clientApprovalSays, RECORD_A_PLACEMENT_HREF, lineStarted, NOT_STARTED_STATES,
+  emptyWhy, emptyDrawn, firmFilingSays, clientApprovalSays, clientApprovalLink, RECORD_A_PLACEMENT_HREF, lineStarted, NOT_STARTED_STATES,
   type EmptyFacts, type EmptyPerson,
 } from '@/app/api/timesheets/empty-why'
+import { approverIsKnownAtClient, noApproverRecordedSays, addApproverSays } from '@/app/api/timesheets/approval-by-email'
 import { inTile, TILE_LABEL, TILE_EMPTY, waitingSub, tileShowing } from '@/app/dashboard/timesheets/tiles'
 import { pasteAnswerSays, supplierStandingSays, contactShown, companyOpenHref } from '@/lib/supplier-list'
 
@@ -246,6 +247,53 @@ describe('one bucket, one name', () => {
     expect(clientApprovalSays(2, { may: true, whoSays: null })).toBe('2 weeks wait for the client’s approval. Open the week to attach the approval the client gave.')
     expect(clientApprovalSays(1, { may: false, whoSays: 'Attaching the client’s approval is for the AP & Payroll here. Ask them.' }))
       .toBe('1 week waits for the client’s approval. Attaching the client’s approval is for the AP & Payroll here. Ask them.')
+  })
+
+  it('where an approver is recorded at the client, the sentence stays as it is and Contacts is not linked', () => {
+    expect(clientApprovalSays(1, { may: true, whoSays: null }, [])).toBe('1 week waits for the client’s approval. Open the week to attach the approval the client gave.')
+    expect(clientApprovalLink([])).toBeNull()
+  })
+
+  it('a client off Etyme with nobody recorded who approves hours: a seat that may add a contact is told to add that person under Contacts first, then attach on the week, and is linked to Contacts', () => {
+    const none = [{ clientName: 'Larkspur Freight', may: true, whoSays: null }]
+    expect(clientApprovalSays(1, { may: true, whoSays: null }, none)).toBe(
+      '1 week waits for the client’s approval. ' +
+      'Larkspur Freight is not on Etyme, and nobody there who approves hours is recorded yet. ' +
+      'Add the person at Larkspur Freight who approves hours, under Contacts. ' +
+      'Then open the week to attach the approval the client gave.'
+    )
+    expect(clientApprovalLink(none)).toEqual({ label: 'Open Contacts', href: '/dashboard/contacts' })
+  })
+
+  it('a client off Etyme with nobody recorded who approves hours: a seat that may not add a contact is told which role does, with no link', () => {
+    const none = [{ clientName: 'Larkspur Freight', may: false, whoSays: 'Adding the person at Larkspur Freight who approves hours is for the AP & Payroll here. Ask them.' }]
+    const says = clientApprovalSays(1, { may: false, whoSays: 'Attaching the client’s approval is for the AP & Payroll here. Ask them.' }, none)
+    expect(says).toBe(
+      '1 week waits for the client’s approval. ' +
+      'Larkspur Freight is not on Etyme, and nobody there who approves hours is recorded yet. ' +
+      'Adding the person at Larkspur Freight who approves hours is for the AP & Payroll here. Ask them. ' +
+      'Attaching the client’s approval is for the AP & Payroll here. Ask them.'
+    )
+    expect(says).not.toContain('Add the person at')
+    expect(clientApprovalLink(none)).toBeNull()
+  })
+
+  it('the panel’s first step and the week page’s refusal say the same two sentences', () => {
+    const v = approverIsKnownAtClient({
+      approverEmail: 'dana@larkspur-freight.example',
+      client: { name: 'Larkspur Freight', domain: null, seatedEmails: [], offPlatform: true, recordedContacts: [] },
+      asks: { firmName: 'Northwind Staffing', as: 'SUPPLIER_DESK' },
+    })
+    if (v.ok) throw new Error('expected a refusal')
+    const panel = clientApprovalSays(1, { may: true, whoSays: null }, [{ clientName: 'Larkspur Freight', may: true, whoSays: null }])!
+    expect(v.says).toBe(`${noApproverRecordedSays('Larkspur Freight')} ${addApproverSays('Larkspur Freight')} Then try again.`)
+    expect(panel).toContain(`${noApproverRecordedSays('Larkspur Freight')} ${addApproverSays('Larkspur Freight')}`)
+  })
+
+  it('the Timesheets page draws the Contacts link only where the route sent one', () => {
+    const page = read('src/app/dashboard/timesheets/page.tsx')
+    expect(page).toContain('{clientApproval.link && (')
+    expect(page).toMatch(/<Link href=\{clientApproval\.link\.href as Route\}/)
   })
 
   it('each week waiting for the client’s approval is a link to that week’s own page', () => {

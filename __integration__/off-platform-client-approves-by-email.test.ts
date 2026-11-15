@@ -78,7 +78,7 @@ describe('a supplier whose client is not on Etyme gets its weeks approved by ema
     const r = await send(it_.week1, 'Dana Whitfield', DANA)
     expect(r.status).toBe(422)
     expect(r.body.error.code).toBe('APPROVER_NOT_AT_CLIENT')
-    expect(r.body.error.message).toBe('Larkspur Freight is not on Etyme, and nobody there who approves hours is recorded yet. Add that person under Contacts, working at Larkspur Freight, and try again.')
+    expect(r.body.error.message).toBe('Larkspur Freight is not on Etyme, and nobody there who approves hours is recorded yet. Add the person at Larkspur Freight who approves hours, under Contacts. Then try again.')
   })
 
   it('a worker attaching her client’s approval, where the client is not on Etyme and no contact is on record, is told to ask her firm to add the approver under Contacts', async () => {

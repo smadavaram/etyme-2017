@@ -238,3 +238,60 @@ describe('a filed week the client has not approved', () => {
     expect(d.clientApproval.count).toBe(0)
   })
 })
+
+/**
+ * The founder's own case: a client that is not on Etyme. Until somebody
+ * there who approves hours is recorded, the week page refuses the attach,
+ * so the panel says that step first, in the refusal's own words.
+ *
+ *   Larkspur Freight   a client Northwind Staffing listed; nobody claimed it
+ *   Kofi Mensah        placed there, one week filed
+ */
+describe('a filed week at a client that is not on Etyme', () => {
+  let week = ''
+  let larkspur = ''
+  beforeAll(async () => {
+    larkspur = (await prisma.company.create({
+      data: { name: 'Larkspur Freight', slug: 'larkspur-freight-empty', kind: 'CLIENT', currency: 'USD', listedById: co.northwind },
+    })).id
+    const kofi = (await prisma.person.create({ data: { name: 'Kofi Mensah', primaryEmail: 'kofi.mensah@reserved.example' } })).id
+    const l = await prisma.sellContract.create({
+      data: { companyId: co.northwind, clientCompanyId: larkspur, personId: kofi, billRate: 9_000, startDate: new Date('2026-03-01T00:00:00Z'), state: 'IN_PROGRESS' },
+    })
+    week = (await prisma.timesheet.create({
+      data: {
+        sellContractId: l.id, personId: kofi,
+        periodStart: new Date('2026-03-01T00:00:00Z'), periodEnd: new Date('2026-03-07T00:00:00Z'),
+        days: { '2026-03-02': 8, '2026-03-03': 8 }, totalHours: 16, status: 'SUBMITTED', submittedAt: new Date('2026-03-09T00:00:00Z'),
+      },
+    })).id
+  })
+
+  it('the AP & Payroll person, who may add a contact, is told to add the person at Larkspur Freight who approves hours under Contacts first, and is linked to Contacts', async () => {
+    const d = await read(seats.ap)
+    expect(d.timesheets.find((t: any) => t.id === week)?.waitsOnClient).toBe(true)
+    expect(d.clientApproval.says).toBe(
+      '2 weeks wait for the client’s approval. ' +
+      'Larkspur Freight is not on Etyme, and nobody there who approves hours is recorded yet. ' +
+      'Add the person at Larkspur Freight who approves hours, under Contacts. ' +
+      'Then open the week to attach the approval the client gave.'
+    )
+    expect(d.clientApproval.link).toEqual({ label: 'Open Contacts', href: '/dashboard/contacts' })
+  })
+
+  it('the Account Manager, who may add a contact and may not attach, is linked to Contacts and told which role attaches', async () => {
+    const d = await read(seats.am)
+    expect(d.clientApproval.says).toContain('Add the person at Larkspur Freight who approves hours, under Contacts.')
+    expect(d.clientApproval.says).toMatch(/Attaching the client’s approval is for /)
+    expect(d.clientApproval.link).toEqual({ label: 'Open Contacts', href: '/dashboard/contacts' })
+  })
+
+  it('once the person who approves hours at Larkspur Freight is recorded, the sentence stays as it was and Contacts is not linked', async () => {
+    await prisma.companyContact.create({
+      data: { companyId: co.northwind, atCompanyId: larkspur, name: 'Dana Whitfield', email: 'dana@larkspur-freight.example' },
+    })
+    const d = await read(seats.ap)
+    expect(d.clientApproval.says).toBe('2 weeks wait for the client’s approval. Open the week to attach the approval the client gave.')
+    expect(d.clientApproval.link).toBeNull()
+  })
+})

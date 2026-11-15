@@ -606,7 +606,7 @@ export default function TimesheetsPage() {
   // Why the list is empty and the step that is missing, as the route read it.
   const [empty, setEmpty] = useState<EmptyWhy | null>(null)
   // How many weeks wait for the client's approval, said once.
-  const [clientApproval, setClientApproval] = useState<{ count: number; says: string | null } | null>(null)
+  const [clientApproval, setClientApproval] = useState<{ count: number; says: string | null; link?: { label: string; href: string } | null } | null>(null)
   // The tile pressed: the list narrowed to exactly the weeks it counts.
   const [tile, setTile] = useState<Tile | null>(null)
 
@@ -1221,6 +1221,15 @@ export default function TimesheetsPage() {
       {readOnce && !error && clientApproval?.says && waitingClient.length > 0 && (
         <div className="mb-4 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3 text-[13px] text-etyme-ink">
           <p>{clientApproval.says}</p>
+          {/* Contacts first, where nobody at a client off Etyme who approves
+              hours is recorded: drawn only for a seat that adds a contact. */}
+          {clientApproval.link && (
+            <p className="mt-1">
+              <Link href={clientApproval.link.href as Route} className="text-etyme-action hover:underline">
+                {clientApproval.link.label}
+              </Link>
+            </p>
+          )}
           <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
             {waitingClient.slice(0, 5).map((t) => (
               <li key={t.id}>
