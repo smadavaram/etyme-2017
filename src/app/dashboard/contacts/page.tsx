@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import Link from 'next/link'
+import type { Route } from 'next'
 import { worksAtChoices, rolesOffered, OWN_FIRM_KIND, type WorksAtChoice } from '@/lib/contacts'
 import { mayOpen } from '@/lib/nav-table'
 import { usePageSection } from '@/components/page-section'
@@ -310,7 +311,7 @@ function AddContactModal({
             {errorLink && (
               <>
                 {' '}
-                <Link href={errorLink.href} className="font-semibold underline">{errorLink.label}</Link>
+                <Link href={errorLink.href as Route} className="font-semibold underline">{errorLink.label}</Link>
               </>
             )}
           </div>
