@@ -1263,7 +1263,7 @@ function VarianceTable({ rows }: { rows: VarianceRow[] }) {
   return (
     <>
       <ReplyTable
-        caption="Invoice mismatches by supplier"
+        caption="Invoice receipts that do not match, by supplier"
         head={[{ label: 'Supplier' }, { label: 'Receipts', n: true }, { label: 'Match', n: true }, { label: 'Do not match', n: true }, { label: 'Hours over approved', n: true }]}
       >
         {rows.map((r) => {
@@ -1282,7 +1282,7 @@ function VarianceTable({ rows }: { rows: VarianceRow[] }) {
         })}
       </ReplyTable>
       {notAccepted && (
-        <p className="text-[12px] text-etyme-muted">Hours billed on timesheets nobody has approved are not counted as over; they hold the invoice until the timesheet is approved.</p>
+        <p className="text-[12px] text-etyme-muted">Hours billed on timesheets nobody has approved are not counted as over; they hold the invoice receipt until the timesheet is approved.</p>
       )}
     </>
   )

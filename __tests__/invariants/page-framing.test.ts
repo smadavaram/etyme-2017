@@ -523,7 +523,7 @@ describe('a supplier reading its own book is framed exactly as before', () => {
       'What you bill clients. Revenue side — track active engagements, pending verifications, and upcoming rolloffs.'
     )
     expect(pageFraming('VENDOR', 'timesheets', null, OWNER).subtitle).toBe(
-      'Hours your people worked for your clients. Check them, approve them and bill them. Flagged weeks are shown first.'
+      'Each person files her own week of hours. The client approves it, and the firm that pays her accepts it. Flagged weeks are shown first.'
     )
   })
 
@@ -562,10 +562,10 @@ describe('a supplier reading its own book is framed exactly as before', () => {
       .toBe('New job request')
   })
 
-  it('the "+" on a supplier\'s page still offers what it offered', () => {
+  it('the "+" on a supplier\'s page offers what it offered, and the Bills button reads Raise a bill', () => {
     expect(pageFraming('VENDOR', 'contracts.sell', null, OWNER).create).toBe('Record a placement')
     expect(pageFraming('VENDOR', 'timesheets', null, OWNER).create).toBe('New')
-    expect(pageFraming('VENDOR', 'invoices', null, OWNER).create).toBe('Generate')
+    expect(pageFraming('VENDOR', 'invoices', null, OWNER).create).toBe('Raise a bill')
     expect(pageFraming('VENDOR', 'expenses', null, OWNER).create).toBe('New')
     expect(pageFraming('VENDOR', 'submissions', null, OWNER).create).toBe('Submit')
   })

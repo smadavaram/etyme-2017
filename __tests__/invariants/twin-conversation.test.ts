@@ -301,9 +301,9 @@ describe('the twin’s conversation answers from the ledger by rules before any 
       ['Computer Systems', 'USD', 360000, 360000],
     ])
     expect(spend.says).toBe(
-      'Two suppliers billed you £1,000.00 and $11,342.50 in Oct 2026, on 4 invoices. ' +
+      'Two suppliers billed you £1,000.00 and $11,342.50 in Oct 2026, on 4 invoice receipts. ' +
       'Of that, £0.00 and $3,600.00 is paid. Counted by invoice date, and checked just now. ' +
-      'One invoice has no invoice date, so no month counts it.'
+      'One invoice receipt has no invoice date, so no month counts it.'
     )
     expect(spendBySupplier([])).toEqual([])
 
@@ -1267,7 +1267,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     expect(none.says).toBe(`${FILE_IT_YOURSELF} Every week you can file is filed.`)
     expect(none.links).toEqual([{ label: 'Open Your work', href: '/dashboard/my-work' }])
     // Signing is the client's and her employer's, never Etyme's.
-    expect((await respondWorker('Approve my timesheet', { facts })).says).toBe('Etyme never signs a week; Northbend Athletic signs it, then Techpeple accepts it.')
+    expect((await respondWorker('Approve my timesheet', { facts })).says).toBe('Etyme never signs a week. You file it, Northbend Athletic approves it, and Techpeple accepts it.')
     // And no file under Ask Etyme writes a week: no POST to her filing route, no timesheet written.
     const root = join(process.cwd(), 'src')
     for (const f of ['app/api/conversations/twin/worker.ts', 'app/api/conversations/twin/worker-read.ts', 'app/api/conversations/twin/route.ts', 'app/dashboard/conversations/ask-etyme.tsx']) {

@@ -517,7 +517,7 @@ const WHAT_STAYS: Record<Holding, string> = {
     'under a marker instead of a name, so your books go on adding up.',
   CLIENT:
     'The days they worked on your sites stay in your tenure ledger, counted once per day, ' +
-    'under a marker instead of a name. Your contracts and invoices keep their amounts.',
+    'under a marker instead of a name. Your contracts and invoice receipts keep their amounts.',
 }
 
 /**

@@ -222,12 +222,12 @@ describe('Lorena, program manager at Northbend Athletic', () => {
 
   it('the program manager asks “What did we spend by supplier this month?” and the rules answer it', async () => {
     await check('PM', 'What did we spend by supplier this month?', 'ANSWERED',
-      'Three suppliers billed you $42,587.00 in Oct 2026, on 3 invoices. Of that, $21,120.00 is paid. Counted by invoice date, and checked just now.')
+      'Three suppliers billed you $42,587.00 in Oct 2026, on 3 invoice receipts. Of that, $21,120.00 is paid. Counted by invoice date, and checked just now.')
   })
 
   it('the program manager asks “How much have suppliers billed us this month?” and the rules answer it', async () => {
     await check('PM', 'How much have suppliers billed us this month?', 'ANSWERED',
-      'Three suppliers billed you $42,587.00 in Oct 2026, on 3 invoices. Of that, $21,120.00 is paid. Counted by invoice date, and checked just now.')
+      'Three suppliers billed you $42,587.00 in Oct 2026, on 3 invoice receipts. Of that, $21,120.00 is paid. Counted by invoice date, and checked just now.')
   })
 
   it('the program manager asks “Which timesheets are waiting for approval?” and the rules answer it', async () => {
@@ -237,12 +237,12 @@ describe('Lorena, program manager at Northbend Athletic', () => {
 
   it('the program manager asks “Show me invoice mismatches by supplier this quarter” and the rules answer it', async () => {
     await check('PM', 'Show me invoice mismatches by supplier this quarter', 'ANSWERED',
-      'Pay PR-2026-0442 only after Pinnacle Resourcing corrects it. Three invoices from two suppliers were received in Q4 2026. One invoice does not match: 1.5 hours billed over the approved hours. Counted by invoice date, and checked just now against the three-way check. Last night’s check said PR-2026-0441 did not match; it matches now.')
+      'Pay PR-2026-0442 only after Pinnacle Resourcing corrects it. Three invoice receipts from two suppliers were received in Q4 2026. One invoice receipt does not match: 1.5 hours billed over the approved hours. Counted by invoice date, and checked just now against the three-way check. Last night’s check said PR-2026-0441 did not match; it matches now.')
   })
 
   it('the program manager asks “Which invoices don\'t match the timesheets?” and the rules answer it', async () => {
     await check('PM', 'Which invoices don\'t match the timesheets?', 'ANSWERED',
-      'Pay PR-2026-0442 only after Pinnacle Resourcing corrects it. Three invoices from two suppliers were received in Q4 2026. One invoice does not match: 1.5 hours billed over the approved hours. Counted by invoice date, and checked just now against the three-way check. Last night’s check said PR-2026-0441 did not match; it matches now.')
+      'Pay PR-2026-0442 only after Pinnacle Resourcing corrects it. Three invoice receipts from two suppliers were received in Q4 2026. One invoice receipt does not match: 1.5 hours billed over the approved hours. Counted by invoice date, and checked just now against the three-way check. Last night’s check said PR-2026-0441 did not match; it matches now.')
   })
 
   it('the program manager asks “Extend Helena Marsh\'s contract by three months” and is refused in one sentence that names the door', async () => {
@@ -607,8 +607,8 @@ describe('Helena Marsh, a worker on Techpeple’s bench, on site at Northbend At
     await worker('File my week', 'REFUSED', 'Etyme never files your week; you file it on Your work.')
   })
 
-  it('a worker asks “Approve my timesheet” and is told who signs it', async () => {
-    await worker('Approve my timesheet', 'REFUSED', 'Etyme never signs a week; Northbend Athletic signs it, then Techpeple accepts it.')
+  it('a worker asks “Approve my timesheet” and is told she files it, then who approves and who accepts it', async () => {
+    await worker('Approve my timesheet', 'REFUSED', 'Etyme never signs a week. You file it, Northbend Athletic approves it, and Techpeple accepts it.')
   })
 
   it('a worker asks “What is the capital of France?” and is refused in one sentence that says what Ask Etyme helps with', async () => {

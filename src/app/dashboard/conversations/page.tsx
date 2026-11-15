@@ -101,7 +101,7 @@ function topicLabel(topic: string): string {
     CONTRACT:    'a contract',
     SUBMISSION:  'a candidate',
     DOCUMENT:    'paperwork',
-    INVOICE:     'a bill or an invoice',
+    INVOICE:     'a bill or an invoice receipt',
     EXPENSE:     'an expense',
     DIRECT:      'direct',
     GENERAL:     'general',

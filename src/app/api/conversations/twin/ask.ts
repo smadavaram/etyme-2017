@@ -1416,15 +1416,15 @@ export function varianceSays(rows: readonly VarianceRow[], label: string, stale:
   const over = rows.reduce((s, r) => s + (r.hoursOverAccepted ?? 0), 0)
   const parts: string[] = []
   const failing = checked.filter((r) => r.verdict !== 'CLEAN')
-  if (failing.length === 1) parts.push(`Pay ${failing[0].number ?? 'the invoice that does not match'} only after ${failing[0].supplierName ?? 'the supplier'} corrects it.`)
-  else if (off > 0) parts.push(`Pay none of the invoices that do not match until their suppliers correct them.`)
-  parts.push(`${counted(receipts, 'invoice')} from ${counted(rows.length, 'supplier').toLowerCase()} ${receipts === 1 ? 'was' : 'were'} received in ${label}.`)
+  if (failing.length === 1) parts.push(`Pay ${failing[0].number ?? 'the invoice receipt that does not match'} only after ${failing[0].supplierName ?? 'the supplier'} corrects it.`)
+  else if (off > 0) parts.push(`Pay none of the invoice receipts that do not match until their suppliers correct them.`)
+  parts.push(`${counted(receipts, 'invoice receipt')} from ${counted(rows.length, 'supplier').toLowerCase()} ${receipts === 1 ? 'was' : 'were'} received in ${label}.`)
   parts.push(off === 0
     ? `All match.`
-    : `${counted(off, 'invoice')} ${off === 1 ? 'does' : 'do'} not match${over > 0 ? `: ${hrs(over)} hours billed over the approved hours` : ''}.`)
+    : `${counted(off, 'invoice receipt')} ${off === 1 ? 'does' : 'do'} not match${over > 0 ? `: ${hrs(over)} hours billed over the approved hours` : ''}.`)
   parts.push('Counted by invoice date, and checked just now against the three-way check.')
   for (const r of stale) {
-    parts.push(`Last night’s check said ${r.number ?? 'one invoice'} ${verdictWord(r.nightly!)}; ${r.verdict === 'CLEAN' ? 'it matches now' : 'it does not match now'}.`)
+    parts.push(`Last night’s check said ${r.number ?? 'one invoice receipt'} ${verdictWord(r.nightly!)}; ${r.verdict === 'CLEAN' ? 'it matches now' : 'it does not match now'}.`)
   }
   return parts.join(' ')
 }
@@ -1965,7 +1965,7 @@ export function monthOf(now: Date): { from: Date; to: Date; label: string } {
  */
 export function spendSays(rows: readonly SpendRow[], label: string, undated: number, money: (minor: number, currency: string) => string, whom = 'you'): string {
   const undatedLine = undated > 0
-    ? ` ${counted(undated, 'invoice')} ${undated === 1 ? 'has' : 'have'} no invoice date, so no month counts ${undated === 1 ? 'it' : 'them'}.`
+    ? ` ${counted(undated, 'invoice receipt')} ${undated === 1 ? 'has' : 'have'} no invoice date, so no month counts ${undated === 1 ? 'it' : 'them'}.`
     : ''
   if (rows.length === 0) return `No supplier billed ${whom} in ${label}. Checked just now.${undatedLine}`
   const currencies = [...new Set(rows.map((r) => r.currency))]
@@ -1975,7 +1975,7 @@ export function spendSays(rows: readonly SpendRow[], label: string, undated: num
   const receipts = rows.reduce((s, r) => s + r.receipts, 0)
   const suppliers = new Set(rows.map((r) => r.supplier)).size
   return (
-    `${counted(suppliers, 'supplier')} billed ${whom} ${billed} in ${label}, on ${receipts} invoice${receipts === 1 ? '' : 's'}. ` +
+    `${counted(suppliers, 'supplier')} billed ${whom} ${billed} in ${label}, on ${receipts} invoice receipt${receipts === 1 ? '' : 's'}. ` +
     `Of that, ${paid} is paid. Counted by invoice date, and checked just now.${undatedLine}`
   )
 }
@@ -2710,7 +2710,7 @@ export function itemsAskSays(items: readonly WaitingItem[]): RichLine | null {
       : { says: `Answer Etyme’s question on ${items[0].title} below.`, links: [{ text: items[0].title, href: items[0].href }] }
   }
   return receipts
-    ? { says: `Approve the ${counted(items.length, 'invoice').toLowerCase()} below; each matches the approved hours and the contract rate.` }
+    ? { says: `Approve the ${counted(items.length, 'invoice receipt').toLowerCase()} below; each matches the approved hours and the contract rate.` }
     : { says: `Answer Etyme’s ${counted(items.length, 'question').toLowerCase()} below.` }
 }
 

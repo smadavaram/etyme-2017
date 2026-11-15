@@ -1013,9 +1013,12 @@ export async function respondWorker(question: string, read: WorkerReaders): Prom
       const p = f.placements.find((x) => x.live) ?? f.placements[0]
       const signer = p ? p.site : 'the client'
       const accepter = p ? p.employer : 'your employer'
-      // Her own firm accepts nothing from her: it is her.
-      if (f.ownFirm && accepter === f.ownFirm) return text(`Etyme never signs a week; ${signer} signs it, then each firm above you accepts it.`)
-      return text(`Etyme never signs a week; ${signer} signs it, then ${accepter} accepts it.`)
+      // Her own firm accepts nothing from her: it is her. Who files comes
+      // first, and no order is claimed between the client's approval and
+      // the employer's acceptance: the employer may accept first (Area E,
+      // 2026-11-14).
+      if (f.ownFirm && accepter === f.ownFirm) return text(`Etyme never signs a week. You file it, ${signer} approves it, and each firm above you accepts it.`)
+      return text(`Etyme never signs a week. You file it, ${signer} approves it, and ${accepter} accepts it.`)
     }
 
     case 'EXTEND': {

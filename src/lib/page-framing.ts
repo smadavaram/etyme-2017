@@ -1,5 +1,6 @@
 import type { CompanyKind } from '@/components/session-provider'
 import { getNavForKind, menuFor, menuOf, type NavSection } from '@/lib/nav-table'
+import { RAISE_A_BILL } from '@/lib/money/nothing-to-bill'
 
 /**
  * Page framing per company type — and per seat.
@@ -76,7 +77,7 @@ export interface PageFraming {
    *
    * Null is not an oversight and is not a disabled button: a client does
    * not file a contractor's week (the worker files their own and nobody
-   * else may), does not generate its suppliers' invoices, and does not
+   * else may), does not raise its suppliers' bills, and does not
    * raise their expenses. CLAUDE.md: a control the route would refuse is
    * a control that lies.
    */
@@ -198,8 +199,13 @@ const SUPPLIER: Record<PageKey, Words> = {
   timesheets: {
     title: 'Timesheets',
     // Plain words for a page of hours, not the line they are filed on
-    // (sign-up walk, round one, item 27).
-    subtitle: 'Hours your people worked for your clients. Check them, approve them and bill them. Flagged weeks are shown first.',
+    // (sign-up walk, round one, item 27). Who files comes first: only the
+    // worker files her week, the client approves it and the firm that pays
+    // her accepts it (Area E, 2026-11-14). No order is claimed between the
+    // two, because the employer may accept before the client approves. It
+    // is read by a supplier, an integrator, an MSP and a one-person firm,
+    // so it names no act only one of them does.
+    subtitle: 'Each person files her own week of hours. The client approves it, and the firm that pays her accepts it. Flagged weeks are shown first.',
     create: 'New',
   },
   invoices: {
@@ -208,7 +214,10 @@ const SUPPLIER: Record<PageKey, Words> = {
     // a document names it. The route stays /dashboard/invoices.
     title: 'Bills',
     subtitle: 'What you have billed and what is outstanding. Track aging and record payments.',
-    create: 'Generate',
+    // The act's name is kept once, beside the dialog that does it
+    // (lib/money/nothing-to-bill), so the button, the dialog's title and
+    // its submit cannot drift apart, and a change of verb is one line.
+    create: RAISE_A_BILL,
   },
   expenses: {
     title: 'Expenses',
