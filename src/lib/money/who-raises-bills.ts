@@ -19,9 +19,9 @@
  */
 import { prisma } from '@/lib/db'
 import { refusalFor, type CallerContext } from '@/lib/api-context'
-import type { Permission } from '@/lib/permissions'
+import { hasPermission, type Permission } from '@/lib/permissions'
 import { notYourButton } from '@/lib/refusal-words'
-import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+import { readCompanySeats, type CompanySeat } from '@/lib/company-seats'
 
 const DOING = 'Raising a bill'
 
@@ -45,10 +45,31 @@ export async function whoRaisesBillsSays(caller: Pick<CallerContext, 'publicSeat
 }
 
 /**
+ * The roles to name as the ones to ask, from the company's live seats
+ * (`readCompanySeats`): a person at the firm, not the sample seat, not
+ * paused, whose role holds `needs` (the Owner's "*" included). A seat past
+ * its end date is not in `seats` at all (2026-11-15, `seatByDate`), so its
+ * role is never named; an Owner, or the last seat that may manage access,
+ * kept open past its date is still there and still named. Pure.
+ */
+export function rolesThatMay(
+  seats: readonly Pick<CompanySeat, 'roleId' | 'roleName' | 'state' | 'isPerson' | 'isSample'>[],
+  permissionsOf: ReadonlyMap<string, readonly string[]>,
+  needs: Permission,
+): string[] {
+  return seats
+    .filter((s) => s.isPerson && !s.isSample && s.state !== 'PAUSED' && s.roleId && s.roleName)
+    .filter((s) => hasPermission(permissionsOf.get(s.roleId as string) ?? [], needs))
+    .map((s) => s.roleName as string)
+}
+
+/**
  * The refusal for a seat that lacks `needs`, naming the roles of the live
  * seats at its own firm whose role holds it (the Owner's "*" included).
  * Falls back to the role set's names (`refusalFor`) only where no seat
  * holds it, and for a public-address seat, which is told the address is why.
+ * The seats are the one seat reader's, so a seat whose access has ended by
+ * its date is never named as somebody to ask.
  */
 export async function whoHereMaySays(
   caller: Pick<CallerContext, 'publicSeat' | 'company'>,
@@ -56,13 +77,13 @@ export async function whoHereMaySays(
 ): Promise<string> {
   const fallback = refusalFor(caller, args)
   if (caller.publicSeat || !caller.company?.id) return fallback
-  const seats = await prisma.context.findMany({
-    where: {
-      companyId: caller.company.id, revokedAt: null, suspendedAt: null, type: { not: 'CONSULTANT' },
-      role: { permissions: { hasSome: [args.needs, '*'] } },
-      ...NOT_THE_SAMPLE_SEAT,
-    },
-    select: { role: { select: { name: true } } },
-  }).catch(() => [])
-  return seatedSays(args.doing, seats.map((s) => s.role?.name ?? '')) ?? fallback
+  const roles = await readCompanySeats(caller.company.id)
+    .then(async (seats) => {
+      const ids = Array.from(new Set(seats.map((s) => s.roleId).filter((id): id is string => Boolean(id))))
+      if (ids.length === 0) return []
+      const held = await prisma.role.findMany({ where: { id: { in: ids } }, select: { id: true, permissions: true } })
+      return rolesThatMay(seats, new Map(held.map((r) => [r.id, r.permissions])), args.needs)
+    })
+    .catch(() => [] as string[])
+  return seatedSays(args.doing, roles) ?? fallback
 }

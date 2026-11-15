@@ -16,7 +16,7 @@ import { hasPermission, desksHolding, type Permission } from '@/lib/permissions'
 import { refusalFor, type CallerContext } from '@/lib/api-context'
 import { partiesSay } from './words'
 import { seatedWhoMay } from '@/lib/refusal-words'
-import { prisma } from '@/lib/db'
+import { readCompanySeats, type CompanySeat } from '@/lib/company-seats'
 
 export const VALID_ACTIONS = ['verify', 'activate', 'pause', 'resume', 'complete', 'cancel'] as const
 export type Action = typeof VALID_ACTIONS[number]
@@ -131,12 +131,17 @@ export function whoMay(action: Action, kind: string | null | undefined, seated?:
 /**
  * The role names of the company's live seats: not ended, not paused.
  * Null where there is no company to ask, so `whoMay` reads as before.
+ * Read through the one seat reader (`readCompanySeats`), so a seat past its
+ * end date is ended here too and its role is never named as one to ask
+ * (2026-11-15); an Owner kept open past its date is still named.
  */
 export async function seatedRoles(companyId: string | null | undefined): Promise<string[] | null> {
   if (!companyId) return null
-  const seats = await prisma.context.findMany({
-    where: { companyId, revokedAt: null, suspendedAt: null, roleId: { not: null } },
-    select: { role: { select: { name: true } } },
-  })
-  return Array.from(new Set(seats.map((s) => s.role?.name).filter((n): n is string => !!n)))
+  const seats = await readCompanySeats(companyId)
+  return liveRoleNames(seats)
+}
+
+/** The role names of seats that still work and are not paused, once each. Pure. */
+export function liveRoleNames(seats: readonly Pick<CompanySeat, 'roleName' | 'state'>[]): string[] {
+  return Array.from(new Set(seats.filter((s) => s.state !== 'PAUSED').map((s) => s.roleName).filter((n): n is string => !!n)))
 }
