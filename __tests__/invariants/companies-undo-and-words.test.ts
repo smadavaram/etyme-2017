@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { historyUndoSays, CAN_BE_UNDONE, CANNOT_BE_UNDONE_NOW, CANNOT_BE_UNDONE } from '@/lib/counterparty'
+import { historyUndoSays, rowsUnderFilter, noPositionTile, CAN_BE_UNDONE, CANNOT_BE_UNDONE_NOW, CANNOT_BE_UNDONE } from '@/lib/counterparty'
 import { wordFor, askerReads, readerReads } from '@/lib/trade-link'
 import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
 import { contactKindOf, problems, sameNameOnFile } from '@/lib/contacts'
@@ -78,6 +78,38 @@ describe('Extend on a Companies row', () => {
     expect(page).toContain('fetch(`/api/companies/${encodeURIComponent(row.id)}/extend?as=${pressed.as}`, { method: \'DELETE\' })')
     expect(positionsPanel).toContain("act({ url: `${base}/extend?as=${p}`, method: 'DELETE' })")
     expect(page).toContain("onUndone({ ...pressed, tone: 'error', undo: false, says: refusalSentence(body.error?.message, { what: 'Undoing an extension' })")
+  })
+
+  it('under the Not classified filter, a company just extended to Supplier stays on the list with its sentence and Undo until the sentence is closed', () => {
+    const rows = [
+      { id: 'northwind', positions: [] as string[], notClassified: true },
+      { id: 'harborline', positions: ['SUPPLIER'], notClassified: false },
+    ]
+    const unclassified = (r: { positions: string[]; notClassified: boolean }) => noPositionTile({ positions: r.positions as any, notClassified: r.notClassified, notLinked: false }) === 'NOT_CLASSIFIED'
+    // The list read again after the press: Northwind now holds Supplier.
+    const after = [{ ...rows[0], positions: ['SUPPLIER'], notClassified: false }, rows[1]]
+    expect(rowsUnderFilter(after, unclassified, new Set()).rows.map((r) => r.id)).toEqual([])
+    const kept = rowsUnderFilter(after, unclassified, new Set(['northwind']))
+    expect(kept.rows.map((r) => r.id)).toEqual(['northwind'])
+    // Drawn, never counted: the footer counts what the filter holds.
+    expect(kept.matching).toBe(0)
+  })
+
+  it('under the Suppliers filter, a company whose Supplier was undone keeps its sentence on the list, and other rows keep the list’s order', () => {
+    const rows = [{ id: 'a', s: true }, { id: 'northwind', s: false }, { id: 'c', s: true }]
+    const r = rowsUnderFilter(rows, (x) => x.s, new Set(['northwind']))
+    expect(r.rows.map((x) => x.id)).toEqual(['a', 'northwind', 'c'])
+    expect(r.matching).toBe(2)
+  })
+
+  it('the Companies list draws the rows a press left a sentence on, counts only what the filter holds, and closes the sentences when the filter changes', () => {
+    expect(page).toContain('rowsUnderFilter(companies, (c) => holds(c, positionFilter), new Set(Object.keys(pressed)))')
+    expect(page).toContain('const filtered = underFilter.rows')
+    expect(page).toContain('{underFilter.matching} compan{underFilter.matching !== 1 ? \'ies\' : \'y\'}')
+    expect(page).toContain('const chooseFilter = (f: PositionFilter) => { setPressed({}); setPositionFilter(f) }')
+    expect(page).toContain('onClick={() => chooseFilter(t.key)}')
+    expect(page).toContain('onChange={chooseFilter}')
+    expect(page).not.toContain('companies.filter((c) => holds(c, positionFilter))')
   })
 
   it('says under Positions that Kind is set below and makes nobody a supplier or customer, only where the Kind box is offered', () => {

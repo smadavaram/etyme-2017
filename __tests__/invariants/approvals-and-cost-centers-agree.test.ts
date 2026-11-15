@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { approvalWords, type ApprovalCount } from '@/app/api/settings/approval-words'
+import { approvalWords, NO_TEAM_RULES, type ApprovalCount } from '@/app/api/settings/approval-words'
 import { evaluateRequisition, type RequisitionFacts, type ApprovalRuleFacts } from '@/lib/requisition-approval'
 import { noCalendarSays } from '@/app/api/settings/no-calendar'
 import { NOTHING_CHANGED, CHOOSE_A_SUNDAY } from '@/components/settings/panel-bits'
@@ -26,8 +26,15 @@ const panel = read('src/components/settings/payroll-panel.tsx')
 const week = read('src/components/settings/week-panel.tsx')
 const rulesRoute = read('src/app/api/settings/approval-rules/route.ts')
 const settingsRoute = read('src/app/api/settings/route.ts')
+const requisitionsRoute = read('src/app/api/requisitions/route.ts')
+const words = read('src/app/api/settings/approval-words.ts')
 
-const count = (c: Partial<ApprovalCount>): ApprovalCount => ({ rules: 0, everything: 0, contacts: 0, costCenters: 0, ownedCostCenters: 0, ...c })
+// Rules are company-wide unless the case says how many are scoped to one department.
+const count = (c: Partial<ApprovalCount>): ApprovalCount => {
+  const rules = c.rules ?? 0
+  const scoped = c.scoped ?? 0
+  return { rules, companyWide: rules - scoped, everything: 0, contacts: 0, scoped, costCenters: 0, ownedCostCenters: 0, ...c }
+}
 const job = (f: Partial<RequisitionFacts> = {}): RequisitionFacts => ({
   annualValueCents: 120_000_00, headcount: 1, billMaxCents: null, skillMedianCents: null, costCenter: null, months: 12, raisedById: 'p-raiser', ...f,
 })
@@ -89,6 +96,36 @@ describe('Approvals and Cost centers say one thing, from one count', () => {
     }
     expect(rulesRoute).toContain('summary: approvalWords(await readApprovalCount(companyId)).approvals')
     expect(settingsRoute).toContain('approvalWords: approvalWords(await readApprovalCount(companyId))')
+  })
+
+  it('a firm whose only rule applies to everything but is set for one department clears a job request with no cost center by itself, and both tabs say so', () => {
+    // The requisitions route loads only company-wide rules for a job naming no team, so the engine sees none.
+    expect(evaluateRequisition(job(), []).state).toBe('AUTO_APPROVED')
+    const w = approvalWords(count({ rules: 1, scoped: 1 }))
+    const clears = 'A job request with no cost center clears by itself, with a note on it, because no rule for the whole company names a person to ask.'
+    const scoped = 'One rule is set for one department. It applies only to job requests for that department.'
+    expect(w.approvals).toBe(`One rule. A job request waits for a person when it matches one. ${clears} ${scoped}`)
+    expect(w.costCenters).toBe(`None yet. ${clears} ${scoped}`)
+    expect(w.approvals).not.toContain('goes to the person your approval rules name')
+  })
+
+  it('an HR or Procurement contact set for one department does not make a job request with no cost center wait, and both tabs say so', () => {
+    const w = approvalWords(count({ rules: 2, scoped: 2 }))
+    expect(w.costCenters).toContain('clears by itself')
+    expect(w.costCenters).toContain('2 rules are set for one department each. Each applies only to job requests for its department.')
+  })
+
+  it('a company-wide rule that applies to everything still sends a job request to its person when another rule is set for one department', () => {
+    expect(evaluateRequisition(job(), [EVERYTHING]).state).toBe('PENDING_APPROVAL')
+    const w = approvalWords(count({ rules: 2, scoped: 1, everything: 1 }))
+    expect(w.costCenters).toBe('None yet. A job request with no cost center goes to the person your approval rules name. One rule is set for one department. It applies only to job requests for that department.')
+  })
+
+  it('the count and the requisitions route read one filter for a job request that names no team', () => {
+    expect(NO_TEAM_RULES).toEqual({ orgUnitId: null })
+    // The route's company-wide branch, and the count's three company-wide reads.
+    expect(requisitionsRoute).toMatch(/OR: \[\s*\/\/ Company-wide: the central functions\.\s*\{ orgUnitId: null \},/)
+    expect(words.match(/\.\.\.NO_TEAM_RULES/g)?.length).toBe(3)
   })
 
   it('the Approvals page says its no-rules sentence once, and each tab links to the other', () => {

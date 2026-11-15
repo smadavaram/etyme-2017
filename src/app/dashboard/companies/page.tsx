@@ -7,7 +7,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
-import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, countedTwiceSays, noPositionTile, relationshipForKind, type Position } from '@/lib/counterparty'
+import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, countedTwiceSays, noPositionTile, rowsUnderFilter, relationshipForKind, type Position } from '@/lib/counterparty'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import { ADD_ANYWAY } from '@/lib/contacts'
 import { Chip, Field, FilterChips, FormMessage, Input, LoadingState, PageHead, RefusedState, Select, Stat, SubmitButton, type ChipTone } from '@/components/ui'
@@ -1598,7 +1598,18 @@ export default function CompaniesPage() {
     f === 'ALL' ? true
       : f === 'NOT_CLASSIFIED' || f === 'WORKS_WITH_YOU' || f === 'NOT_LINKED' ? noPositionTile(tileRow(c)) === f
       : c.positions.includes(f)
-  const filtered = useMemo(() => companies.filter((c) => holds(c, positionFilter)), [companies, positionFilter])
+  // What a press of Extend left on each row, kept on the row after the
+  // list is read again (the buttons go once the position is held). A row
+  // carrying one stays on a filtered list until its sentence is closed,
+  // so the sentence and its Undo never leave with the row.
+  const [pressed, setPressed] = useState<Record<string, Pressed>>({})
+  const underFilter = useMemo(
+    () => rowsUnderFilter(companies, (c) => holds(c, positionFilter), new Set(Object.keys(pressed))),
+    [companies, positionFilter, pressed],
+  )
+  const filtered = underFilter.rows
+  // A new filter is a new question: the sentences of the old one close.
+  const chooseFilter = (f: PositionFilter) => { setPressed({}); setPositionFilter(f) }
 
   // ── Stats, by position ────────────────────────────
   // Every row on the list is in a tile (2026-11-15): Customers, Suppliers,
@@ -1612,9 +1623,6 @@ export default function CompaniesPage() {
   const mspCount = tiles.msps
   const notClassifiedCount = tiles.notClassified
 
-  // What a press of Extend left on each row, kept on the row after the
-  // list is read again (the buttons go once the position is held).
-  const [pressed, setPressed] = useState<Record<string, Pressed>>({})
   function afterExtend(id: string) {
     return (as: 'SUPPLIER' | 'CUSTOMER', says: string) => {
       setPressed((p) => ({ ...p, [id]: { as, says, tone: 'ok', undo: true } }))
@@ -1788,7 +1796,7 @@ export default function CompaniesPage() {
             key={t.key}
             type="button"
             aria-pressed={positionFilter === t.key}
-            onClick={() => setPositionFilter(t.key)}
+            onClick={() => chooseFilter(t.key)}
             className={`rounded-panel text-left transition-shadow hover:shadow-lift ${positionFilter === t.key ? 'ring-2 ring-etyme-ink' : ''}`}
           >
             <Stat label={t.label} value={t.count} sub={t.sub} />
@@ -1840,14 +1848,14 @@ export default function CompaniesPage() {
         phoneView="feed"
         defaultPageSize={20}
         filters={
-          <FilterChips label="What they are to you" options={filterTabs} value={positionFilter} onChange={setPositionFilter} />
+          <FilterChips label="What they are to you" options={filterTabs} value={positionFilter} onChange={chooseFilter} />
         }
       />
 
       {/* Footer count */}
-      {!loading && filtered.length > 0 && (
+      {!loading && underFilter.matching > 0 && (
         <p className="text-xs text-etyme-faint mt-3 tabular-nums">
-          {filtered.length} compan{filtered.length !== 1 ? 'ies' : 'y'}
+          {underFilter.matching} compan{underFilter.matching !== 1 ? 'ies' : 'y'}
           {positionFilter !== 'ALL' && ` (${filterWord.toLowerCase()})`}
         </p>
       )}

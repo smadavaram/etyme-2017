@@ -750,6 +750,29 @@ export function noPositionTile(row: TileRow): 'NOT_CLASSIFIED' | 'NOT_LINKED' | 
   return 'WORKS_WITH_YOU'
 }
 
+/**
+ * The rows a filtered Companies list draws, and how many of them the
+ * filter itself holds (the press of 2026-11-15: under "Not classified",
+ * Extend moved the row out of the filter, and its sentence and Undo went
+ * with it, leaving no word anywhere). A row that carries the sentence a
+ * press left on it stays where it was until that sentence is closed or
+ * the filter is changed; it is drawn, never counted. Order is the list's
+ * own. Pure.
+ */
+export function rowsUnderFilter<R extends { id: string }>(
+  rows: readonly R[],
+  holds: (row: R) => boolean,
+  pressedIds: ReadonlySet<string>,
+): { rows: R[]; matching: number } {
+  let matching = 0
+  const drawn = rows.filter((r) => {
+    const h = holds(r)
+    if (h) matching++
+    return h || pressedIds.has(r.id)
+  })
+  return { rows: drawn, matching }
+}
+
 /** The tiles over the Companies list. Every row is in at least one. Pure. */
 export function companyTiles(rows: readonly TileRow[]): Tiles {
   const t: Tiles = { total: rows.length, customers: 0, suppliers: 0, primes: 0, msps: 0, notClassified: 0, worksWithYou: 0, notLinked: 0, countedTwice: 0 }
