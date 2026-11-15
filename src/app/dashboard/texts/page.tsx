@@ -12,8 +12,10 @@ import { useEffect, useState } from 'react'
  *
  * The screen behind the data integrity layer. Everything clever in this
  * product sits on a bench record, and the bench record rots — somebody
- * free at $78 three weeks ago took a contract on Tuesday and nobody
- * updated it, because updating records is nobody's job.
+ * free three weeks ago took a contract on Tuesday and nobody updated it,
+ * because updating records is nobody's job. The page says it with no
+ * figure: a rate on it was read as a fact about a real person (fix
+ * list, layer five, F3).
  *
  * The number at the top is the one that matters: how much of this bench
  * nobody has heard from. It is the number the whole loop exists to move.
@@ -66,7 +68,7 @@ export default function TextsPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   // A refusal is the page: its sentence alone. The heading and the line
-  // about a record saying somebody is free at a rate are for the desks
+  // about a bench record going out of date are for the seats
   // that read check-ins, and a reader who may not open the page is not
   // shown either (round seven, problem 6).
   const [refused, setRefused] = useState<string | null>(null)
@@ -104,9 +106,9 @@ export default function TextsPage() {
         title="Bench check-ins"
         subtitle={f && (
           <>
-            A record that says somebody is free at $78 was true three weeks
-            ago. Everything else here sits on top of it, so we ask — one
-            question, one tap, in your name.
+            A bench record goes out of date fast. Somebody free three weeks
+            ago may have started a contract since. So each person is asked
+            one question, answered in one tap, in your name.
           </>
         )}
       />

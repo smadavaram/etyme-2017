@@ -172,3 +172,33 @@ describe('a placed person with no account can be handed a way in by the firm tha
     expect(again.body.error.message).toMatch(/already signs in/)
   })
 })
+
+describe('a sample person reads as a sample person, with nothing to send (fix list, layer five, g)', () => {
+  it('a person at an address no mailbox uses is called a sample person on the row, and pressing for a link is refused in the same words', async () => {
+    const line = await prisma.buyContractCandidate.findFirstOrThrow({
+      where: { buyContract: { companyId: brightmoor, vendorCompanyId: null }, personId: { not: placed.id } },
+      orderBy: { id: 'asc' },
+      select: { person: { select: { id: true, name: true } } },
+    })
+    const sample = line.person
+    const email = `sample-${sample.id}@harborline-tech.example`
+    await prisma.person.update({ where: { id: sample.id }, data: { primaryEmail: email, passwordHash: null } })
+    await prisma.credential.deleteMany({ where: { personId: sample.id } })
+    await prisma.context.updateMany({ where: { personId: sample.id }, data: { lastUsedAt: null } })
+    const first = sample.name.split(' ')[0]
+
+    as(OWNER)
+    const row = await get(sample.id)
+    expect(row.status).toBe(200)
+    expect(row.body.data.state).toBe('DEMO')
+    expect(row.body.data.says).toBe(`${first} is a sample person. No email can reach ${email}, so there is nothing to send.`)
+    expect(row.body.data.note).toBeNull()
+    expect(row.body.data.action).toBeNull()
+    expect(row.body.data.link).toBeNull()
+
+    const pressed = await post(sample.id)
+    expect(pressed.status).toBe(422)
+    expect(pressed.body.error.message).toBe(`${first} is a sample person. No email can reach ${email}, so no sign-in link can be sent.`)
+    expect(pressed.body.error.message).not.toMatch(/demo page|password/i)
+  })
+})

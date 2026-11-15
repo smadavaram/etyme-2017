@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  MAY_HAND_OVER, copySentence, keptLinkIn, signInLetter, signInLineSays, tokenOf, sendFirstAction,
+  MAY_HAND_OVER, copySentence, keptLinkIn, sampleRefusal, signInLetter, signInLineSays, tokenOf, sendFirstAction,
 } from '@/lib/notify/sign-in-link'
 import { recordedBody } from '@/lib/notify/account-mail'
 
@@ -44,10 +44,18 @@ describe('the sign-in line on a person\'s row', () => {
     expect(line.action).toBe('Make a sign-in link')
   })
 
-  it('a demo address is told it opens from the demo page, and offers nothing to press', () => {
+  it('a person at a sample address is called a sample person with nothing to send, and offers nothing to press', () => {
     const line = signInLineSays({ name: 'Rajesh Iyer', email: 'rajesh@brightmoor.example', state: 'DEMO' })
+    expect(line.says).toBe('Rajesh is a sample person. No email can reach rajesh@brightmoor.example, so there is nothing to send.')
+    expect(line.note).toBeNull()
     expect(line.action).toBeNull()
-    expect(line.note).toMatch(/demo page/)
+  })
+
+  it('a sample person\'s line never sends an office manager to a demo page or a password she cannot act on (fix list, layer five, g)', () => {
+    const line = signInLineSays({ name: 'Rajesh Iyer', email: 'rajesh@brightmoor.example', state: 'DEMO' })
+    const words = [line.says, line.note ?? '', sampleRefusal('Rajesh Iyer', 'rajesh@brightmoor.example')].join(' ')
+    expect(words).not.toMatch(/demo page|password|demo seat|belongs to the Etyme demo/i)
+    expect(read('src/lib/notify/sign-in-link-door.ts')).toMatch(/sampleRefusal\(g\.person\.name, g\.person\.primaryEmail\)/)
   })
 
   it('a kept link is read off the notice\'s last line, and a sent notice keeps none', () => {

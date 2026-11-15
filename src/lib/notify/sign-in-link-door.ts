@@ -8,7 +8,7 @@ import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { baseUrl } from '@/lib/signed-link'
 import { ACCOUNT_MAIL, recordedBody, type AccountMailState } from '@/lib/notify/account-mail'
 import {
-  MAY_HAND_OVER, SIGN_IN_LINK_HOURS, keptLinkIn, mayNotHandOver, notYours, sendFirstAction,
+  MAY_HAND_OVER, SIGN_IN_LINK_HOURS, keptLinkIn, mayNotHandOver, notYours, sampleRefusal, sendFirstAction,
   signInLetter, signInLineSays, signInSubject, tokenOf, type SignInState,
 } from '@/lib/notify/sign-in-link'
 
@@ -170,7 +170,7 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
     return { ok: false, status: 409, code: 'HAS_ACCOUNT', says }
   }
   if (demoEmail(g.person.primaryEmail)) {
-    const says = `${g.person.primaryEmail} belongs to the Etyme demo. A demo seat opens only from the demo page, never with a link.`
+    const says = sampleRefusal(g.person.name, g.person.primaryEmail)
     await recordRefusal([g.person.id], { ...actor, action: 'PROFILE_VIEW', reason: `Refused a sign-in link for ${g.person.name}: a demo address.` })
     return { ok: false, status: 422, code: 'DEMO', says }
   }

@@ -1237,10 +1237,18 @@ describe('sign-up walk, round seven: a refused Bench check-ins or Interviews is 
     })
   }
 
-  it('the $78 line on Bench check-ins is drawn only once the check-ins have been read', () => {
+  it('the line about a bench record going out of date on Bench check-ins is drawn only once the check-ins have been read', () => {
     const src = readFileSync(join(process.cwd(), 'src/app/dashboard/texts/page.tsx'), 'utf8')
-    const line = src.indexOf('somebody is free at $78')
+    const line = src.indexOf('A bench record goes out of date fast.')
+    expect(line).toBeGreaterThan(-1)
     expect(src.lastIndexOf('{f && (', line)).toBeGreaterThan(src.indexOf('<PageHead'))
+  })
+
+  it('the Bench check-ins heading names no rate and assumes no currency: an invented figure there was read as a real person\'s (fix list, layer five, F3)', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/dashboard/texts/page.tsx'), 'utf8')
+    const head = src.slice(src.indexOf('<PageHead'), src.indexOf('/>', src.indexOf('<PageHead')))
+    expect(head).not.toMatch(/\$\s?\d/)
+    expect(head).not.toMatch(/free at/)
   })
 })
 

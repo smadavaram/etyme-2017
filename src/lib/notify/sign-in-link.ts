@@ -42,7 +42,7 @@ export const MAY_HAND_OVER = 'team.manage' as const
 export type SignInState =
   /** Already signs in: no line is drawn. */
   | 'HAS_ACCOUNT'
-  /** A demo address: no password is ever set on it. */
+  /** A sample address no mailbox uses: there is nothing to send. */
   | 'DEMO'
   /** No link made yet. */
   | 'NONE_YET'
@@ -80,6 +80,22 @@ export function copySentence(name: string): string {
   return `No email can leave this deployment. Copy this sign-in link and send it to ${firstName(name)} yourself.`
 }
 
+/**
+ * A person at an address no mailbox uses (`.example`, `.invalid`,
+ * `.local`, a demo host). The office manager reading the row cannot act
+ * on "the demo page", so the line says what is true for her: this is a
+ * sample person, and there is nothing to send (fix list, layer five, g).
+ * True on the seeded world and for a test person a firm typed in.
+ */
+export function sampleSays(name: string, email: string): string {
+  return `${firstName(name)} is a sample person. No email can reach ${email}, so there is nothing to send.`
+}
+
+/** The same fact, said where somebody pressed for a link anyway. */
+export function sampleRefusal(name: string, email: string): string {
+  return `${firstName(name)} is a sample person. No email can reach ${email}, so no sign-in link can be sent.`
+}
+
 /** What the row says, for each state. HAS_ACCOUNT draws nothing, so its words are never shown. */
 export function signInLineSays(f: SignInFacts): SignInLine {
   const first = firstName(f.name)
@@ -88,11 +104,7 @@ export function signInLineSays(f: SignInFacts): SignInLine {
     case 'HAS_ACCOUNT':
       return { says: `${first} already signs in to Etyme.`, note: null, action: null }
     case 'DEMO':
-      return {
-        says: `${f.email} belongs to the Etyme demo, so no password can be set on it.`,
-        note: 'A demo seat opens only from the demo page.',
-        action: null,
-      }
+      return { says: sampleSays(f.name, f.email), note: null, action: null }
     case 'NONE_YET':
       return { says: cannot, note: 'No email can leave this deployment, so make a sign-in link and send it yourself.', action: 'Make a sign-in link' }
     case 'KEPT':
