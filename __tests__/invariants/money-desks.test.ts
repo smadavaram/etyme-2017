@@ -273,7 +273,18 @@ describe('The refusal describes the reader it is actually in front of', () => {
     ]
     for (const r of REFUSES_A_MONEY_ACT) {
       const src = readFileSync(join(process.cwd(), r), 'utf8')
-      expect(src, `${r} refuses without saying a public-address seat is why`).toContain('refusalFor(caller, {')
+      // Raising a bill names who at THIS firm may (2026-11-15: an Account
+      // Manager was told to ask roles nobody held). Its sentence still goes
+      // through the one reader first, so a public-address seat is told its
+      // address is why.
+      if (r === 'src/app/api/invoices/generate/route.ts') {
+        expect(src, `${r} refuses without the sentence that names who may`).toContain('await whoRaisesBillsSays(caller)')
+        const who = readFileSync(join(process.cwd(), 'src/lib/money/who-raises-bills.ts'), 'utf8')
+        expect(who).toContain("const fallback = refusalFor(caller, { doing: DOING, needs: 'invoices.issue' })")
+        expect(who).toContain('if (caller.publicSeat || !caller.company?.id) return fallback')
+      } else {
+        expect(src, `${r} refuses without saying a public-address seat is why`).toContain('refusalFor(caller, {')
+      }
       expect(src, `${r} still asks the desk directly`).not.toContain('askTheDesk(')
     }
   })
