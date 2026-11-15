@@ -3,7 +3,10 @@ import {
   readSupplierList, readOne, readNames, companyDomain, nameFromDomain,
   splitLines, listSentence, mayClaim,
   mayBeSentJob, mayBePutForwardTo, offeredToSendOn, supplierDomain, pastedName,
+  addButtonSays, PASTED_CONTACT_KIND, lastEngagementOf, NO_WORK_YET_SAYS, namesTold, pasteLogSays,
 } from '@/lib/supplier-list'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
 /**
  * A client running contract staff already has twelve suppliers and an
@@ -236,5 +239,93 @@ describe('a company on the Companies list that nobody has classified yet', () =>
     expect(offeredToSendOn({ notClassified: true })).toBe(false)
     expect(offeredToSendOn({ notClassified: false })).toBe(true)
     expect(offeredToSendOn({})).toBe(true)
+  })
+})
+
+describe('what the supplier paste and the Suppliers list say are true (walk, 2026-11-15)', () => {
+  const page = readFileSync(join(process.cwd(), 'src/app/dashboard/suppliers/page.tsx'), 'utf8')
+  const route = readFileSync(join(process.cwd(), 'src/app/api/suppliers/route.ts'), 'utf8')
+
+  it("the paste's button counts the suppliers it adds, not the contacts", () => {
+    const rows = [
+      { company: 'Harborline Tech', email: 'mara@harborline-tech.example', domain: 'harborline-tech.example' },
+      { company: 'Harborline Tech', email: 'ops@harborline-tech.example', domain: 'harborline-tech.example' },
+    ]
+    expect(addButtonSays(rows)).toBe('Add 1 supplier')
+    expect(addButtonSays([...rows, { company: 'Quillmark Talent', email: 'rhea@quillmark.example', domain: 'quillmark.example' }])).toBe('Add 2 suppliers')
+    expect(page).toContain("{busy ? 'Adding…' : addButtonSays(rows)}")
+    expect(page).not.toMatch(/'contact' : 'contacts'/)
+  })
+
+  it('the preview of a paste is drawn inside the import panel, under the paste box, not at the top of the page', () => {
+    const panel = page.indexOf('Import the suppliers you already have')
+    expect(panel).toBeGreaterThan(0)
+    expect(page.indexOf("{/* ── What it made of the paste")).toBeGreaterThan(panel)
+    expect(page.indexOf('{pasteSaid && (')).toBeGreaterThan(panel)
+  })
+
+  it('a pasted contact is saved under the neutral role, never guessed as Recruiting', () => {
+    expect(PASTED_CONTACT_KIND).toBe('OTHER')
+    expect(route).toContain('kind: PASTED_CONTACT_KIND')
+    expect(route).not.toContain("kind: 'RECRUITING'")
+  })
+
+  it('an invitation or a paste is not an engagement: a firm with no work reads none yet', () => {
+    const now = new Date('2026-11-15T12:00:00Z')
+    expect(lastEngagementOf(0, [null, undefined], now)).toBeNull()
+    expect(NO_WORK_YET_SAYS).toBe('No submissions, orders or placements yet.')
+    expect(page).toContain('NO_WORK_YET_SAYS')
+  })
+
+  it('the latest submission, order or placement that has happened is the last engagement, and people on site make it today', () => {
+    const now = new Date('2026-11-15T12:00:00Z')
+    const sub = new Date('2026-10-01T00:00:00Z')
+    const order = new Date('2026-10-20T00:00:00Z')
+    const future = new Date('2026-12-01T00:00:00Z')
+    expect(lastEngagementOf(0, [sub, order, future], now)).toBe(order.toISOString())
+    expect(lastEngagementOf(2, [sub], now)).toBe(now.toISOString())
+  })
+
+  it('an unsigned agreement record never reads as approved by agreement or as an agreement on file', () => {
+    expect(page).toContain("{signed(s) ? 'Approved by agreement' : 'Not rated'}")
+    expect(page).toContain('const signed = (s: Supplier): boolean => s.agreement && !!s.signedAt')
+    expect(page).not.toMatch(/s\.agreement \? 'Approved by agreement'/)
+  })
+
+  it('two suppliers of one name are told apart by their domain, and a name nobody shares is left alone', () => {
+    const told = namesTold([
+      { companyId: 'a', name: 'Harborline Tech', domain: 'harborline-tech.example' },
+      { companyId: 'b', name: 'harborline tech', domain: 'quillmark.example' },
+      { companyId: 'c', name: 'Harborline Tech', domain: null },
+      { companyId: 'd', name: 'Veritan Talent', domain: 'veritantalent.example' },
+    ])
+    expect(told.get('a')).toBe('Harborline Tech (harborline-tech.example)')
+    expect(told.get('b')).toBe('harborline tech (quillmark.example)')
+    expect(told.get('c')).toBe('Harborline Tech (no domain yet)')
+    expect(told.get('d')).toBe('Veritan Talent')
+    for (const f of ['src/app/dashboard/requisitions/page.tsx', 'src/app/dashboard/requisitions/[id]/page.tsx', 'src/app/dashboard/requirements/[id]/page.tsx']) {
+      expect(readFileSync(join(process.cwd(), f), 'utf8'), f).toContain('s.shownAs ?? s.name')
+    }
+  })
+
+  it('the refusal for a company not classified yet links to Companies, where its kind is set', () => {
+    expect(page).toContain("r?.code === 'NOT_CLASSIFIED'")
+    expect(page).toContain("<Link href={'/dashboard/companies' as Route}")
+  })
+
+  it('the Activity log row for a paste names who pasted how many suppliers and contacts, and that the invitations were emailed', () => {
+    const r = pasteLogSays({ by: 'Avery Hart', suppliers: 2, contacts: 3, invitations: 3, emailed: 3, mailCanLeave: true })
+    expect(r.summary).toBe('Avery Hart pasted 2 suppliers and 3 new contacts onto Suppliers')
+    expect(r.reason).toBe('Pasted by hand on Suppliers. 3 invitations were emailed.')
+  })
+
+  it('the Activity log never says an invitation was emailed where no email can leave', () => {
+    const r = pasteLogSays({ by: 'Avery Hart', suppliers: 1, contacts: 1, invitations: 1, emailed: 0, mailCanLeave: false })
+    expect(r.reason).toBe('Pasted by hand on Suppliers. 1 invitation was made and not emailed: no email can be sent from here yet.')
+    expect(pasteLogSays({ by: 'A', suppliers: 1, contacts: 0, invitations: 0, emailed: 0, mailCanLeave: true }).reason)
+      .toBe('Pasted by hand on Suppliers. No invitation was sent: each address had one already.')
+    expect(pasteLogSays({ by: 'A', suppliers: 2, contacts: 2, invitations: 2, emailed: 1, mailCanLeave: true }).reason)
+      .toBe('Pasted by hand on Suppliers. 1 of 2 invitations were emailed; the others could not be sent.')
+    expect(route).toContain('mailCanLeave: mailLeaves()')
   })
 })

@@ -519,6 +519,82 @@ export const NEEDS_A_NAME_SAYS = (email: string) =>
 export const READ_IT_FIRST_SAYS =
   'Nothing was added. Paste the list on Suppliers, check each company name, then press Add.'
 
+// ── What the paste and the list say (walk, 2026-11-15) ───────────────
+
+/**
+ * How many suppliers a read paste comes to: one per domain, else one per
+ * company name, the way the route joins them. Pure.
+ */
+export function firmsIn(rows: readonly { domain: string | null; company: string | null; email: string }[]): number {
+  return new Set(rows.map((r) => r.domain ?? r.company?.trim().toLowerCase() ?? r.email)).size
+}
+
+/** The paste's button, named for what it does: it adds suppliers. Pure. */
+export function addButtonSays(rows: readonly { domain: string | null; company: string | null; email: string }[]): string {
+  const n = firmsIn(rows)
+  return `Add ${n} ${n === 1 ? 'supplier' : 'suppliers'}`
+}
+
+/**
+ * The role a pasted contact is saved under. A paste says nobody's role,
+ * so the neutral one: never a guess like Recruiting.
+ */
+export const PASTED_CONTACT_KIND = 'OTHER' as const
+
+/**
+ * When this client last did work with a supplier: today where somebody is
+ * on site, else the latest submission, order or placement date that has
+ * happened. An invitation or a paste is not work, so a firm with none of
+ * these reads null: none yet. Pure.
+ */
+export function lastEngagementOf(onSiteCount: number, workDates: readonly (Date | null | undefined)[], now: Date): string | null {
+  if (onSiteCount > 0) return now.toISOString()
+  let last: Date | null = null
+  for (const d of workDates) if (d && d <= now && (!last || d > last)) last = d
+  return last?.toISOString() ?? null
+}
+
+/** What the list says of a supplier it has done no work with yet. */
+export const NO_WORK_YET_SAYS = 'No submissions, orders or placements yet.'
+
+/**
+ * Each supplier's name as a list shows it: with its domain beside it where
+ * another supplier on the same list shares the name, read by the same
+ * name key Companies reads. Pure.
+ */
+export function namesTold(rows: readonly { companyId: string; name: string; domain?: string | null }[]): Map<string, string> {
+  const count = new Map<string, number>()
+  for (const r of rows) count.set(firmNameKey(r.name), (count.get(firmNameKey(r.name)) ?? 0) + 1)
+  const out = new Map<string, string>()
+  for (const r of rows) {
+    const shared = (count.get(firmNameKey(r.name)) ?? 0) > 1
+    out.set(r.companyId, shared ? `${r.name} (${r.domain ?? 'no domain yet'})` : r.name)
+  }
+  return out
+}
+
+/**
+ * The Activity log row for one paste: who pasted how many suppliers and
+ * contacts, and what became of the invitations. It says an invitation was
+ * emailed only where one left (`emailed` counts deliveries that went), and
+ * names why none could where no email can leave (`mailLeaves`). Pure.
+ */
+export function pasteLogSays(p: {
+  by: string; suppliers: number; contacts: number; invitations: number; emailed: number; mailCanLeave: boolean
+}): { summary: string; reason: string } {
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  const summary = `${p.by} pasted ${n(p.suppliers, 'supplier', 'suppliers')} and ${n(p.contacts, 'new contact', 'new contacts')} onto Suppliers`
+  const sent =
+    p.invitations === 0
+      ? 'No invitation was sent: each address had one already.'
+      : p.emailed === p.invitations
+        ? `${n(p.invitations, 'invitation was', 'invitations were')} emailed.`
+        : p.emailed === 0
+          ? `${n(p.invitations, 'invitation was', 'invitations were')} made and not emailed${p.mailCanLeave ? ': the email could not be sent.' : ': no email can be sent from here yet.'}`
+          : `${p.emailed} of ${p.invitations} invitations were emailed; the others could not be sent.`
+  return { summary, reason: `Pasted by hand on Suppliers. ${sent}` }
+}
+
 /** Whether a company held in a send-on picker is one a person may be sent on to. Pure. */
 export function offeredToSendOn(c: { notClassified?: boolean | null }): boolean {
   return c.notClassified !== true

@@ -92,9 +92,10 @@ describe('the two Network pages', () => {
     expect(bar).toContain('order.filter((f) => counts[f] !== undefined)')
     expect(bar).toContain('label: FILTER_WORD[f]')
   })
-  it('a supplier row says how many of its people are on site now, and when we last dealt with it', () => {
+  it('a supplier row says how many of its people are on site now, and when we last did work with it, never the day it was invited', () => {
     expect(suppliersApi).toContain("if (c.state === 'IN_PROGRESS') onSiteCount.set(c.companyId")
-    expect(suppliersApi).toContain("lastEngagement: (onSiteCount.get(r.companyId) ?? 0) > 0 ? now.toISOString() : lastDealt.get(r.companyId)?.toISOString() ?? r.invitedAt ?? null")
+    expect(suppliersApi).toContain('[lastDealt.get(r.companyId), lastSubmitted.get(r.companyId), lastOrdered.get(r.companyId)]')
+    expect(suppliersApi).not.toContain('r.invitedAt ?? null')
     expect(peopleApi).toContain("lastEngagement: onSite ? now.toISOString() : last?.toISOString() ?? null")
   })
   it('a contractor row says whether they are on site, their last engagement, where they are, and whether this client would take them again', () => {

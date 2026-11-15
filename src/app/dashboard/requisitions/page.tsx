@@ -762,7 +762,7 @@ export default function RequisitionsPage() {
     fetch('/api/suppliers').then(r => r.json())
       .then(j => {
         if (!Array.isArray(j?.data?.suppliers)) return
-        setSuppliers(j.data.suppliers.map((s: any) => ({ companyId: s.companyId, name: s.name, blocked: !!s.blocked })))
+        setSuppliers(j.data.suppliers.map((s: any) => ({ companyId: s.companyId, name: s.shownAs ?? s.name, blocked: !!s.blocked })))
         setSuppliersRead(true)
       })
       .catch(() => {})

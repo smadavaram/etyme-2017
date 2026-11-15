@@ -1,6 +1,9 @@
 'use client'
 
+import Link from 'next/link'
+import type { Route } from 'next'
 import { readJson } from '@/lib/read-response'
+import { addButtonSays, NO_WORK_YET_SAYS } from '@/lib/supplier-list'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
@@ -49,7 +52,13 @@ interface Supplier {
   name: string
   joined: boolean
   agreement: boolean
-  contacts: { email: string; name: string | null; state: string }[]
+  /** When the agreement was signed. An unsigned record (a paste writes one) is no agreement on file. */
+  signedAt?: string | null
+  /** The domain it is known by, and its name with that domain beside it where another supplier shares the name. */
+  domain?: string | null
+  shownAs?: string
+  /** The firm's own contacts there and whoever was invited; a contact may have a phone and no email. */
+  contacts: { email: string | null; name: string | null; state: string }[]
   invitedAt: string | null
   where: string
   tier: string | null
@@ -162,6 +171,8 @@ export default function SuppliersPage() {
   // a program office, Network for a client (round four, problem 15).
   const section = usePageSection('/dashboard/suppliers')
   const [done, setDone] = useState<string | null>(null)
+  /** The paste's own answer, drawn under the paste box, and the companies to set the kind of. */
+  const [pasteSaid, setPasteSaid] = useState<{ tone: 'ok' | 'error'; says: string; setKind: string[] } | null>(null)
   /**
    * What a desk is told when its click recorded nothing.
    *
@@ -402,6 +413,7 @@ export default function SuppliersPage() {
     if (!rows) return
     setBusy(true)
     setError(null)
+    setPasteSaid(null)
     setLinkAsks([])
     try {
       const res = await fetch('/api/suppliers', {
@@ -418,20 +430,21 @@ export default function SuppliersPage() {
           .filter((r) => r?.askToLink)
           .map((r) => ({ name: String(r.askToLink.name), domain: r.askToLink.domain ?? null, email: String(r.email ?? ''), says: String(r.says) })),
       )
+      const setKind = [...new Set(refusedRows.filter((r) => r?.code === 'NOT_CLASSIFIED').map((r) => String(r.name)))]
       if (!res.ok) {
         const others = refusedRows.filter((r) => !r?.askToLink)
         if (others.length > 0 || refusedRows.length === 0) {
-          setError(body?.error?.message ?? 'The list was not added. Try again in a minute.')
+          setPasteSaid({ tone: 'error', says: body?.error?.message ?? 'The list was not added. Try again in a minute.', setKind })
         }
         if (refusedRows.length > 0) { setRows(null); setText('') }
         return
       }
-      setDone(body.data.summary)
+      setPasteSaid({ tone: 'ok', says: body.data.summary, setKind })
       setRows(null)
       setText('')
       load()
     } catch (err: any) {
-      setError(err.message)
+      setPasteSaid({ tone: 'error', says: err.message, setKind: [] })
     } finally {
       setBusy(false)
     }
@@ -496,6 +509,14 @@ export default function SuppliersPage() {
 
   const needFirm = rows?.filter((r) => !r.company).length ?? 0
 
+  /** A signed agreement on file. The unsigned record a paste writes is not one (record 60). */
+  const signed = (s: Supplier): boolean => s.agreement && !!s.signedAt
+  /** The name as the list shows it: with its domain where another supplier shares it. */
+  const named = (s: Supplier): string => s.shownAs ?? s.name
+  /** Who the firm knows there, by address, else by name. */
+  const contactLine = (s: Supplier): string =>
+    s.contacts.map((c) => c.email ?? c.name).filter(Boolean).join(' · ') || 'No contact on file'
+
   /**
    * What "no agreement" means to the person reading it.
    *
@@ -538,7 +559,7 @@ export default function SuppliersPage() {
       onChange={(e) => setStanding(s.companyId, e.target.value)}
       className="border border-etyme-rule rounded px-2 py-1 text-[12px] bg-etyme-raised"
     >
-      <option value="">{s.agreement ? 'Approved by agreement' : 'Not rated'}</option>
+      <option value="">{signed(s) ? 'Approved by agreement' : 'Not rated'}</option>
       {STANDING.map((o) => <option key={o.value} value={o.value}>{o.word}</option>)}
     </select>
   )
@@ -548,14 +569,14 @@ export default function SuppliersPage() {
       key: 'name', label: 'Supplier',
       render: (s) => (
         <div>
-          <p className="text-etyme-ink">{s.name}</p>
-          <p className="text-[11px] text-etyme-faint">{s.contacts[0]?.email ?? 'No contact on file'}</p>
+          <p className="text-etyme-ink">{named(s)}</p>
+          <p className="text-[11px] text-etyme-faint">{contactLine(s)}</p>
         </div>
       ),
     },
     { key: 'tier', label: 'Standing', render: (s) => (s.pending ? <span className="text-[12px] text-etyme-faint">—</span> : standingSelect(s)), sortValue: (s) => s.tier ?? '' },
     { key: 'onSiteCount', label: 'On site', align: 'right', render: (s) => <span className="tabular-nums">{s.onSiteCount}</span> },
-    { key: 'lastEngagement', label: 'Last engagement', render: (s) => <span className="tabular-nums text-etyme-muted">{s.pending ? `Recommended ${when(s.pending.recommendedAt)}` : when(s.lastEngagement)}</span>, sortValue: (s) => s.lastEngagement ?? s.pending?.recommendedAt ?? '', hideOnMobile: true },
+    { key: 'lastEngagement', label: 'Last engagement', render: (s) => <span className="tabular-nums text-etyme-muted">{s.pending ? `Recommended ${when(s.pending.recommendedAt)}` : s.lastEngagement ? when(s.lastEngagement) : 'None yet'}</span>, sortValue: (s) => s.lastEngagement ?? s.pending?.recommendedAt ?? '', hideOnMobile: true },
     { key: 'location', label: 'Location', render: (s) => <span className="text-etyme-muted">{s.location ?? '—'}</span>, hideOnMobile: true },
     {
       key: 'owes', label: 'Owes on your orders',
@@ -567,9 +588,9 @@ export default function SuppliersPage() {
     {
       key: 'agreement', label: 'Agreement',
       render: (s) => (s.pending ? <span className="text-[12px] text-etyme-faint">—</span>
-        : s.agreement ? <span className="text-[12px] text-etyme-muted">On file</span>
+        : signed(s) ? <span className="text-[12px] text-etyme-muted">On file</span>
         : <span className="chip chip--attention" title={noAgreement(s)}>No agreement</span>),
-      sortValue: (s) => (s.agreement ? 1 : 0),
+      sortValue: (s) => (signed(s) ? 1 : 0),
     },
     { key: 'joined', label: 'Here', render: (s) => <span className={`chip ${s.pending ? 'chip--attention' : s.joined ? 'chip--verified' : 'chip--passive'}`}>{s.pending ? `Pending · ${s.pending.stageWord}` : s.joined ? 'Signed in' : 'Listed'}</span>, sortValue: (s) => (s.pending ? -1 : s.joined ? 1 : 0) },
     {
@@ -977,67 +998,6 @@ export default function SuppliersPage() {
         </section>
       )}
 
-      {/* ── What it made of the paste ─────────────────────────────── */}
-      {rows && (
-        <section className="space-y-3">
-          <p className="text-[14px] text-etyme-ink">{readSummary}</p>
-
-          {rows.length > 0 && (
-            <div className="panel space-y-2">
-              {rows.map((r, i) => (
-                <div
-                  key={r.email}
-                  className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1.2fr] items-center gap-2 border-b
-                             border-etyme-rule pb-2 last:border-0 last:pb-0"
-                >
-                  <input
-                    value={r.company ?? ''}
-                    onChange={(e) => edit(i, 'company', e.target.value)}
-                    placeholder="Which firm?"
-                    className={`rounded border px-2 py-1 text-[13px] ${
-                      r.company ? 'border-etyme-rule' : 'border-etyme-attention'
-                    }`}
-                  />
-                  <input
-                    value={r.contactName ?? ''}
-                    onChange={(e) => edit(i, 'contactName', e.target.value)}
-                    placeholder="Contact"
-                    className="rounded border border-etyme-rule px-2 py-1 text-[13px]"
-                  />
-                  <span className="font-mono text-[12px] text-etyme-muted">{r.email}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {skipped.length > 0 && (
-            <p className="text-[12px] text-etyme-faint">
-              Ignored, no address in them: {skipped.slice(0, 4).join(' · ')}
-              {skipped.length > 4 && ` and ${skipped.length - 4} more`}
-            </p>
-          )}
-
-          {rows.length > 0 && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={add}
-                disabled={busy || needFirm > 0}
-                className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white
-                           disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {busy ? 'Adding…' : `Add ${rows.length} ${rows.length === 1 ? 'contact' : 'contacts'}`}
-              </button>
-              {needFirm > 0 && (
-                <span className="text-[12px] text-etyme-attention">
-                  {needFirm} still {needFirm === 1 ? 'needs' : 'need'} a firm — a personal
-                  address does not say which.
-                </span>
-              )}
-            </div>
-          )}
-        </section>
-      )}
-
       {/* ── The same firm, listed twice ───────────────────────────── */}
       {pairs.length > 0 && (
         <section className="space-y-3">
@@ -1102,7 +1062,7 @@ export default function SuppliersPage() {
             data={shown}
             rowKey={(s) => s.companyId}
             searchPlaceholder="Search by firm, contact or place…"
-            searchFilter={(s, q) => `${s.name} ${s.contacts.map((c) => c.email).join(' ')} ${s.location ?? ''}`.toLowerCase().includes(q.toLowerCase())}
+            searchFilter={(s, q) => `${named(s)} ${s.contacts.map((c) => c.email ?? c.name ?? '').join(' ')} ${s.location ?? ''}`.toLowerCase().includes(q.toLowerCase())}
             exportName="suppliers"
             defaultPageSize={50}
             emptyMessage={emptyWord(filter, place).replace(/^Nobody/, 'No supplier')}
@@ -1115,11 +1075,11 @@ export default function SuppliersPage() {
             <div className="flex flex-wrap items-baseline justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[15px] font-semibold text-etyme-ink">
-                  {s.name}
+                  {named(s)}
                   {s.location && <span className="ml-2 text-[12px] font-normal text-etyme-faint">{s.location}</span>}
                 </p>
                 <p className="text-[12px] text-etyme-faint">
-                  {s.contacts.map((c) => c.email).join(' · ') || 'No contact on file'}
+                  {contactLine(s)}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1137,7 +1097,7 @@ export default function SuppliersPage() {
                         show. It was already known here — `agreement`
                         came back on every row — and was used for
                         nothing but the wording of a dropdown option. */}
-                    {!s.agreement && <span className="chip chip--attention">No agreement</span>}
+                    {!signed(s) && <span className="chip chip--attention">No agreement</span>}
                     <span className={`chip ${s.joined ? 'chip--verified' : 'chip--passive'}`}>
                       {s.joined ? 'Signed in' : 'Listed'}
                     </span>
@@ -1147,10 +1107,10 @@ export default function SuppliersPage() {
             </div>
             <p className="mt-2 text-[12px] text-etyme-muted">
               {s.onSiteCount > 0 ? `${s.onSiteCount} ${s.onSiteCount === 1 ? 'person' : 'people'} on site now. ` : ''}
-              {s.pending ? `Recommended ${when(s.pending.recommendedAt)}. ` : s.lastEngagement ? `Last engagement ${when(s.lastEngagement)}. ` : ''}
+              {s.pending ? `Recommended ${when(s.pending.recommendedAt)}. ` : s.lastEngagement ? `Last engagement ${when(s.lastEngagement)}. ` : `${NO_WORK_YET_SAYS} `}
               {s.where}
             </p>
-            {!s.pending && !s.agreement && (
+            {!s.pending && !signed(s) && (
               <p className="mt-1 text-[12px] text-etyme-attention">{noAgreement(s)}</p>
             )}
             {!s.pending && owesSays(s) && (
@@ -1216,6 +1176,82 @@ export default function SuppliersPage() {
             A spreadsheet column, a signature block, or an Outlook To: field.
           </span>
         </div>
+
+      {/* ── What it made of the paste ─────────────────────────────── */}
+      {rows && (
+        <section className="space-y-3">
+          <p className="text-[14px] text-etyme-ink">{readSummary}</p>
+
+          {rows.length > 0 && (
+            <div className="panel space-y-2">
+              {rows.map((r, i) => (
+                <div
+                  key={r.email}
+                  className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1.2fr] items-center gap-2 border-b
+                             border-etyme-rule pb-2 last:border-0 last:pb-0"
+                >
+                  <input
+                    value={r.company ?? ''}
+                    onChange={(e) => edit(i, 'company', e.target.value)}
+                    placeholder="Which firm?"
+                    className={`rounded border px-2 py-1 text-[13px] ${
+                      r.company ? 'border-etyme-rule' : 'border-etyme-attention'
+                    }`}
+                  />
+                  <input
+                    value={r.contactName ?? ''}
+                    onChange={(e) => edit(i, 'contactName', e.target.value)}
+                    placeholder="Contact"
+                    className="rounded border border-etyme-rule px-2 py-1 text-[13px]"
+                  />
+                  <span className="font-mono text-[12px] text-etyme-muted">{r.email}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {skipped.length > 0 && (
+            <p className="text-[12px] text-etyme-faint">
+              Ignored, no address in them: {skipped.slice(0, 4).join(' · ')}
+              {skipped.length > 4 && ` and ${skipped.length - 4} more`}
+            </p>
+          )}
+
+          {rows.length > 0 && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={add}
+                disabled={busy || needFirm > 0}
+                className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white
+                           disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {busy ? 'Adding…' : addButtonSays(rows)}
+              </button>
+              {needFirm > 0 && (
+                <span className="text-[12px] text-etyme-attention">
+                  {needFirm} still {needFirm === 1 ? 'needs' : 'need'} a firm — a personal
+                  address does not say which.
+                </span>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+          {/* What the paste did, beside the box it was pasted in. A
+              company nobody has said the kind of is refused; the link
+              opens Companies, where its row sets the kind. */}
+          {pasteSaid && (
+            <div className="space-y-1">
+              <FormMessage tone={pasteSaid.tone}>{pasteSaid.says}</FormMessage>
+              {pasteSaid.setKind.length > 0 && (
+                <p className="text-[12px] text-etyme-muted">
+                  To set the kind, open <Link href={'/dashboard/companies' as Route} className="text-etyme-action underline">Companies</Link>,
+                  press {pasteSaid.setKind.join(', ')} and choose its Kind. Then paste again.
+                </p>
+              )}
+            </div>
+          )}
 
           </div>
         </details>

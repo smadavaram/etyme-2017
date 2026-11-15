@@ -497,7 +497,7 @@ function DistributeModal({
         setVendors(
           suppliers
             .filter((s) => !s.blocked)
-            .map((s) => ({ id: s.companyId, name: s.name, kind: 'VENDOR' }))
+            .map((s) => ({ id: s.companyId, name: s.shownAs ?? s.name, kind: 'VENDOR' }))
         )
       })
       .catch(() => {})

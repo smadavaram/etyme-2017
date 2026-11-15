@@ -9,7 +9,9 @@ import { hasPermission } from '@/lib/permissions'
 import {
   type SupplierRow, pastedName, supplierDomain, NEEDS_A_NAME_SAYS, READ_IT_FIRST_SAYS,
   CANNOT_SEE_SUPPLIERS, CANNOT_ADD_SUPPLIER, onEtymeAskToLinkSays,
+  PASTED_CONTACT_KIND, lastEngagementOf, namesTold, pasteLogSays,
 } from '@/lib/supplier-list'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { workTogether } from '@/lib/company-create'
 import { positionsFor } from '@/app/api/companies/positions'
 import { suppliersOwing } from '@/lib/supplier-desks'
@@ -20,7 +22,7 @@ import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
 import { actingDesk } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
 import { mayInviteRecorded, namesakeSays } from '@/lib/counterparty'
-import { twinFor, keepNote } from '@/app/api/companies/twins'
+import { twinFor, keepNote, ownDomainsFor } from '@/app/api/companies/twins'
 
 /**
  * GET  /api/suppliers        — who this client buys from, and where each stands
@@ -254,14 +256,58 @@ export async function GET(request: NextRequest) {
     now
   )
 
+  // ── What else the list reads of each firm (walk, 2026-11-15) ───────
+  //
+  // The firm's own contacts at each supplier, where Contacts reads them,
+  // so the two pages give one answer. The work done with each (a
+  // submission, an order), so a firm only pasted reads as none yet. And
+  // the domain each is known by, so two suppliers of one name are told
+  // apart the way Companies tells them apart.
+  const ids = [...byCompany.keys()]
+  const [ownContacts, submitted, ordered, records] = await Promise.all([
+    prisma.companyContact.findMany({
+      where: { companyId, atCompanyId: { in: ids } },
+      select: { atCompanyId: true, name: true, email: true },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.submission.groupBy({ by: ['fromCompanyId'], where: { toCompanyId: companyId, fromCompanyId: { in: ids } }, _max: { submittedAt: true } }),
+    prisma.workOrder.groupBy({
+      by: ['issuedToId'],
+      where: { issuedById: companyId, issuedToId: { in: ids }, status: { notIn: ['DRAFT', 'CANCELLED'] }, startDate: { lte: now } },
+      _max: { startDate: true },
+    }),
+    prisma.company.findMany({ where: { id: { in: ids } }, select: { id: true, domain: true, website: true, claimedAt: true, listedById: true } }),
+  ])
+  for (const c of ownContacts) {
+    const row = byCompany.get(c.atCompanyId)
+    if (!row) continue
+    const email = c.email?.toLowerCase() ?? null
+    if (email && row.contacts.some((x: any) => x.email?.toLowerCase() === email)) continue
+    row.contacts.push({ email, name: c.name, state: 'CONTACT' })
+  }
+  const lastSubmitted = new Map(submitted.map((s) => [s.fromCompanyId, s._max.submittedAt]))
+  const lastOrdered = new Map(ordered.map((o) => [o.issuedToId, o._max.startDate]))
+  const noted = await ownDomainsFor(companyId, records)
+  const domainOf = new Map(records.map((c) => [c.id, c.domain ?? noted.get(c.id)?.domain ?? null]))
+  const told = namesTold([...byCompany.values()].map((r) => ({ companyId: r.companyId, name: r.name, domain: domainOf.get(r.companyId) ?? null })))
+
   const rows = [...byCompany.values()].map((r) => ({
     ...r,
+    domain: domainOf.get(r.companyId) ?? null,
+    // The name with its domain beside it where another supplier shares it.
+    shownAs: told.get(r.companyId) ?? r.name,
     owes: (owing.get(r.companyId)?.owed ?? []).map((o) => o.label),
     owesUnknown: (owing.get(r.companyId)?.unanswerable ?? []).length,
     onSiteCount: onSiteCount.get(r.companyId) ?? 0,
     onSite: (onSiteCount.get(r.companyId) ?? 0) > 0,
-    // A firm with people on site is engaged today, whatever day they started.
-    lastEngagement: (onSiteCount.get(r.companyId) ?? 0) > 0 ? now.toISOString() : lastDealt.get(r.companyId)?.toISOString() ?? r.invitedAt ?? null,
+    // A firm with people on site is engaged today, whatever day they
+    // started. An invitation is not an engagement: a firm with no
+    // submission, order or placement reads null, none yet.
+    lastEngagement: lastEngagementOf(
+      onSiteCount.get(r.companyId) ?? 0,
+      [lastDealt.get(r.companyId), lastSubmitted.get(r.companyId), lastOrdered.get(r.companyId)],
+      now,
+    ),
     favorite: starred.has(r.companyId),
     blocked: blockedBy.has(r.companyId),
     blockedReason: blockedBy.get(r.companyId) ?? null,
@@ -338,6 +384,10 @@ export async function POST(request: NextRequest) {
   }
 
   const made: any[] = []
+  // For the one Activity log row this paste writes.
+  let contactsAdded = 0
+  let invitationsMade = 0
+  let emailed = 0
   // A refused row. `companyId` only where the company is the caller's own
   // record; a firm on Etyme that does not work with the caller is said by
   // what the caller typed (`askToLink`), never by its id or stored name.
@@ -534,10 +584,12 @@ export async function POST(request: NextRequest) {
             atCompanyId: supplier.id,
             name: row.contactName ?? row.email.split('@')[0],
             email: row.email.toLowerCase(),
-            kind: 'RECRUITING',
+            // A paste says nobody's role, so the neutral one, never a guess.
+            kind: PASTED_CONTACT_KIND,
             createdById: caller.person.id,
           },
         })
+        contactsAdded++
       }
     }
 
@@ -571,6 +623,7 @@ export async function POST(request: NextRequest) {
     let delivery = { state: 'PENDING' as string, note: 'Not attempted' }
 
     if (invite.sentAt.getTime() > Date.now() - 5000) {
+      invitationsMade++
       const waiting = await prisma.requirementInvitation.findMany({
         where: { toCompanyId: supplier.id, status: { in: ['SENT', 'ACCEPTED'] } },
         select: { requirement: { select: { title: true } } },
@@ -598,6 +651,7 @@ export async function POST(request: NextRequest) {
         new Date()
       )
       delivery = { state: out.state, note: out.note }
+      if (out.state === 'SENT') emailed++
     }
 
     made.push({
@@ -615,6 +669,30 @@ export async function POST(request: NextRequest) {
   }
 
   const firms = new Set(made.map((m) => m.companyId)).size
+
+  // One Activity log row per paste, in words, as Add contact and Add a
+  // company write theirs. A person's own act; the invitations it sent
+  // cannot be called back, so it is not reversible.
+  if (made.length > 0) {
+    const log = pasteLogSays({
+      by: caller.person.name ?? 'Somebody', suppliers: firms, contacts: contactsAdded,
+      invitations: invitationsMade, emailed, mailCanLeave: mailLeaves(),
+    })
+    await prisma.automationLog.create({
+      data: {
+        companyId,
+        action: 'IMPORT_COMMITTED',
+        summary: log.summary,
+        reason: log.reason,
+        payload: {
+          from: 'SUPPLIER_PASTE', byName: caller.person.name, personId: caller.person.id,
+          suppliers: firms, contacts: contactsAdded, invitations: invitationsMade, emailed,
+          companyIds: [...new Set(made.map((m) => m.companyId))],
+        },
+        reversible: false,
+      },
+    })
+  }
 
   if (made.length === 0 && refused.length > 0) {
     return NextResponse.json(
