@@ -174,8 +174,9 @@ describe('the switch is the account menu’s, and a view rather than a permissio
 
   it('a seat chosen in the account menu is used only where it is the person’s own and live, and otherwise the seat it always was', () => {
     const src = read('src/lib/api-context.ts')
-    expect(src).toContain('where: { id: chosen, personId: person.id, ...usable }')
-    expect(src).toMatch(/: null\) \?\? await prisma\.context\.findFirst\(\{\s*where: \{ personId: person\.id, \.\.\.usable \}/)
+    // One reader picks the seat, the person's own and live by date (2026-11-15).
+    expect(src).toContain('where: { ...where, personId: person.id, ...usable }')
+    expect(src).toContain('(chosen ? await pick({ id: chosen }) : null) ?? await pick({})')
   })
 
   it('a switch to another firm’s seat is logged by the route that has always logged one', () => {

@@ -653,7 +653,7 @@ export async function POST(request: NextRequest) {
   // whose date has come is not somebody else who can give roles, so it is
   // never counted as the one who keeps the company able to.
   const onDates = await openSeatsHere(caller.company.id)
-  const givesDesks = (permissions: readonly string[]) => permissions.includes('*') || permissions.includes('settings.manage')
+  const givesDesks = (permissions: readonly string[]) => hasPermission([...permissions], 'settings.manage')
   const othersWhoCanGiveDesks = onDates.filter(c => c.id !== target.id && !c.suspendedAt && givesDesks(c.permissions)).length
   // A seat past its end date given a role again is a renewal: the same
   // role is the point, and it writes a new end date (`renewing`).

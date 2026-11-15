@@ -27,6 +27,13 @@ const db = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/db', () => ({ prisma: db }))
 
+// The caller check reads its seats as a list (findMany) since seats end on
+// their dates (2026-11-15); a test names one seat for both reads.
+const seatIs = (v: any) => {
+  db.context.findFirst.mockResolvedValue(v)
+  db.context.findMany.mockResolvedValue(v ? [v] : [])
+}
+
 const session = vi.hoisted(() => ({ value: null as any }))
 vi.mock('next-auth/next', () => ({ getServerSession: vi.fn(async () => session.value) }))
 vi.mock('@/lib/permission-grants', () => ({
@@ -165,7 +172,7 @@ describe('the routes refuse when called directly, and the row is written before 
   it('a live session signed in by a password cannot use a directory-only company’s seat, and is told why', async () => {
     session.value = { user: { email: 'nina@acmehealth.com', door: 'PASSWORD', issuer: null } }
     db.person.findUnique.mockResolvedValue({ id: 'p-nina', name: 'Nina Park', primaryEmail: 'nina@acmehealth.com', timezone: null })
-    db.context.findFirst.mockResolvedValue({
+    seatIs({
       id: 'ctx', type: 'EMPLOYEE', companyId: 'co-acme', roleId: 'r', personId: 'p-nina', orgUnitId: null, lastUsedAt: new Date(),
       company: { id: 'co-acme', name: 'Acme Health', slug: 'acme', kind: 'CLIENT', outsideAccess: 'ALLOWED', accountWalls: false, isDemo: false, signInPolicy: { mode: 'SSO_ONLY' }, identityProviders: [{ issuer: ACME.issuers[0] }] },
       role: { id: 'r', name: 'Owner', permissions: ['*'] }, orgUnit: null,
@@ -181,7 +188,7 @@ describe('the routes refuse when called directly, and the row is written before 
   it('the same seat opens for a session the company’s own directory signed in', async () => {
     session.value = { user: { email: 'nina@acmehealth.com', door: 'DIRECTORY', issuer: ACME.issuers[0] } }
     db.person.findUnique.mockResolvedValue({ id: 'p-nina', name: 'Nina Park', primaryEmail: 'nina@acmehealth.com', timezone: null })
-    db.context.findFirst.mockResolvedValue({
+    seatIs({
       id: 'ctx', type: 'EMPLOYEE', companyId: 'co-acme', roleId: 'r', personId: 'p-nina', orgUnitId: null, lastUsedAt: new Date(),
       company: { id: 'co-acme', name: 'Acme Health', slug: 'acme', kind: 'CLIENT', outsideAccess: 'ALLOWED', accountWalls: false, isDemo: false, signInPolicy: { mode: 'SSO_ONLY' }, identityProviders: [{ issuer: ACME.issuers[0] }] },
       role: { id: 'r', name: 'Owner', permissions: ['*'] }, orgUnit: null,
@@ -223,7 +230,7 @@ describe('isolation: an invited public-address seat never moves money or signs, 
   it('every route reads the narrowed permissions: the shared caller check takes the acts off the seat', async () => {
     session.value = { user: { email: 'sidhu@gmail.com', door: 'GOOGLE_SOCIAL', issuer: null } }
     db.person.findUnique.mockResolvedValue({ id: 'p-sidhu', name: 'Sidhu', primaryEmail: 'sidhu@gmail.com', timezone: null })
-    db.context.findFirst.mockResolvedValue({
+    seatIs({
       id: 'ctx', type: 'EMPLOYEE', companyId: 'co-tapin', roleId: 'r', personId: 'p-sidhu', orgUnitId: null, lastUsedAt: new Date(),
       company: { id: 'co-tapin', name: 'Tapin', slug: 'tapin', kind: 'VENDOR', outsideAccess: 'ALLOWED', accountWalls: false, isDemo: false, signInPolicy: { mode: 'HYBRID' }, identityProviders: [] },
       role: { id: 'r', name: 'Admin', permissions: ['payments.record', 'invoices.issue', 'timesheets.approve', 'team.manage'] }, orgUnit: null,
@@ -248,7 +255,7 @@ describe('isolation: an invited public-address seat never moves money or signs, 
   it('the same person’s seat at a company with no policy keeps its role, because one company’s choice never reaches another', async () => {
     session.value = { user: { email: 'sidhu@gmail.com', door: 'GOOGLE_SOCIAL', issuer: null } }
     db.person.findUnique.mockResolvedValue({ id: 'p-sidhu', name: 'Sidhu', primaryEmail: 'sidhu@gmail.com', timezone: null })
-    db.context.findFirst.mockResolvedValue({
+    seatIs({
       id: 'ctx2', type: 'EMPLOYEE', companyId: 'co-own', roleId: 'r2', personId: 'p-sidhu', orgUnitId: null, lastUsedAt: new Date(),
       company: { id: 'co-own', name: 'Sidhu LLC', slug: 'sidhu', kind: 'CONSULTANT_CORP', outsideAccess: 'ALLOWED', accountWalls: false, isDemo: false, signInPolicy: null, identityProviders: [] },
       role: { id: 'r2', name: 'Owner', permissions: ['invoices.issue'] }, orgUnit: null,
