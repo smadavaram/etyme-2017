@@ -96,7 +96,7 @@ describe('the owners hear that a colleague joined', () => {
     const owners = rows.filter((r) => r.personId !== mailJoiner)
     expect(owners.map((r) => r.personId).sort()).toEqual([mailOwner, mailAdmin].sort())
     for (const r of owners) {
-      expect(r.body).toBe('Sam Ito (sam@cavanaugh.test) joined Cavanaugh Glassworks as Member. Give them a role.')
+      expect(r.body).toBe('Sam Ito (sam@cavanaugh.test) joined Cavanaugh Glassworks with no role yet. Give them a role.')
       expect((r.data as any).href).toBe('/dashboard/access')
     }
   })
@@ -136,7 +136,7 @@ describe('the owners hear that a colleague joined', () => {
     expect(cards).toHaveLength(1)
     const card = cards[0].body.attachments[0].content
     expect(card.body.map((b: any) => b.text).join(' ')).toContain(
-      'Priya Nair (priya@northbend.test) joined Northbend Athletic as Member. Give them a role.'
+      'Priya Nair (priya@northbend.test) joined Northbend Athletic with no role yet. Give them a role.'
     )
     expect(card.actions[0].url).toBe('https://app.etyme.example/dashboard/access')
   })

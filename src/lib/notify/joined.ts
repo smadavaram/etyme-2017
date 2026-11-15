@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { notify, type NotifyParams } from '@/lib/notify'
 import { teamsLinkKind } from '@/lib/notify/teams-link'
 import { reportError } from '@/lib/alerts'
+import { memberWelcome } from '@/lib/password-words'
+import { MEMBER_ROLE } from '@/lib/company-defaults'
 
 /**
  * A colleague signed in on the company's own domain, and the owner is
@@ -17,9 +19,11 @@ import { reportError } from '@/lib/alerts'
  * ── What is said ─────────────────────────────────────────────────────
  *
  * One sentence that names the person, the address they came in on, the
- * company and the role they hold now, then one action:
+ * company and the role they hold now, then one action. A seat with only
+ * the Member role holds no role, and every screen says so ("No role
+ * yet"), so the owners read the same words:
  *
- *   "Priya Nair (priya@acme.com) joined Acme as Member. Give them a role."
+ *   "Priya Nair (priya@acme.example) joined Acme with no role yet. Give them a role."
  *
  * The address is there because a name alone does not tell an owner
  * whether this is the Priya they hired or somebody using a shared inbox.
@@ -27,7 +31,9 @@ import { reportError } from '@/lib/alerts'
  * opens Users & permissions, where the role is given.
  *
  * The joiner is told, in the app, that they are in and what happens
- * next. Only in the app: they have just signed in and are looking at it,
+ * next, in the very words the password sign-up says after it
+ * (`memberWelcome` in lib/password-words), read from there so the two can
+ * never drift. Only in the app: they have just signed in and are looking at it,
  * and on a company with a Teams channel an outward copy would post "You
  * are in" to everybody in the channel.
  *
@@ -72,11 +78,18 @@ export interface Joiner {
   pronoun?: Pronoun | null
 }
 
+/** The Member role, or none, is no role yet: what every screen calls it. */
+function holdsNoRole(roleName: string | null | undefined): boolean {
+  const n = (roleName ?? '').trim()
+  return !n || n === MEMBER_ROLE
+}
+
 /** The words the owners read. */
 export function joinedSaid(j: Joiner): { title: string; body: string } {
+  const how = holdsNoRole(j.roleName) ? 'with no role yet' : `as ${j.roleName}`
   return {
     title: `${j.name} joined ${j.companyName}`,
-    body: `${j.name} (${j.email}) joined ${j.companyName} as ${j.roleName}. Give ${objectOf(j.pronoun)} a role.`,
+    body: `${j.name} (${j.email}) joined ${j.companyName} ${how}. Give ${objectOf(j.pronoun)} a role.`,
   }
 }
 
@@ -89,12 +102,14 @@ export function welcomeSaid(input: { companyName: string; roleName: string; owne
   title: string
   body: string
 } {
-  const first = `You are in ${input.companyName} as ${input.roleName}.`
+  const first = holdsNoRole(input.roleName)
+    ? `You are in ${input.companyName} with no role yet.`
+    : `You are in ${input.companyName} as ${input.roleName}.`
   return {
     title: `You are in ${input.companyName}`,
     body: input.ownersTold
-      ? `${first} Your owner has been told; you will see more once they give you a role.`
-      : `${first} Nobody at ${input.companyName} is an Owner or Admin yet, so ask whoever set it up to give you a role in Users & permissions.`,
+      ? memberWelcome(input.companyName)
+      : `${first} Nobody here is an Owner or Admin yet. Ask whoever set it up to give you a role in Users & permissions.`,
   }
 }
 

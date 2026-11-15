@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db'
 import { canGiveDesks, MEMBER_DESK } from '@/lib/access-grant'
-import { readCompanySeats, peopleOf } from '@/lib/company-seats'
+import { readCompanySeats, peopleOf, type CompanySeat } from '@/lib/company-seats'
 import { seatedSays } from '@/lib/money/who-raises-bills'
 
 /**
@@ -14,8 +14,11 @@ import { seatedSays } from '@/lib/money/who-raises-bills'
  * "No role yet"), is told in one more sentence who gives her one:
  *
  *  1. the person who invited her, by name, while that person holds a
- *     live seat here (signed in, not paused, not ended) whose role may
- *     give roles (`canGiveDesks`);
+ *     live seat here whose role may give roles (`canGiveDesks`). Live is
+ *     what the people lists read (`readCompanySeats`: signed in, not
+ *     paused, not withdrawn or ended), and one more thing they do not
+ *     read: a seat past its own end date (`Context.expiresAt`) has ended
+ *     too, so an inviter whose seat ran out is never named;
  *  2. else the roles of the live seats here that may give roles, in the
  *     words Users & permissions uses (`seatedSays`);
  *  3. else "an Owner or Admin" of the firm.
@@ -51,6 +54,37 @@ export function noRoleYetSays(who: WhoGivesRoles, firmName: string): string {
   return `${lead} Ask an Owner or Admin of ${firmName} to give you one.`
 }
 
+/** A seat as the people lists read it, with its end date beside it. */
+export type GiverSeat = Pick<CompanySeat, 'contextId' | 'personId' | 'name' | 'roleName' | 'state'> & {
+  /** The role may give roles (`canGiveDesks` on its permissions). */
+  mayGive: boolean
+  /** The seat's own end date, or null where it has none. */
+  endsAt: Date | null
+}
+
+/** A seat past its end date has ended, whatever else it says. Pure. */
+export function seatHasEnded(endsAt: Date | null, now: Date): boolean {
+  return endsAt !== null && endsAt.getTime() <= now.getTime()
+}
+
+/**
+ * Who gives this seat its role, from the company's seats. Pure: the
+ * inviter is named only while she holds a live seat here that may give
+ * roles, and the roles are those of every such seat but the reader's own.
+ */
+export function whoGivesRoles(
+  seats: readonly GiverSeat[],
+  me: { contextId: string; personId: string; invitedById: string | null },
+  now: Date,
+): WhoGivesRoles {
+  const givers = seats.filter((s) =>
+    s.state === 'WITH_ACCESS' && s.contextId !== me.contextId && s.mayGive && !seatHasEnded(s.endsAt, now))
+  const inviter = me.invitedById && me.invitedById !== me.personId
+    ? givers.find((s) => s.personId === me.invitedById)?.name ?? null
+    : null
+  return { inviter, roles: givers.map((s) => s.roleName ?? '') }
+}
+
 type Seat = { person: { id: string }; context: { id: string; type: string }; company: { id: string; name: string } | null }
 
 /**
@@ -69,13 +103,16 @@ export async function noRoleLineFor(caller: Seat): Promise<string | null> {
   const live = peopleOf(await readCompanySeats(caller.company.id))
     .filter((s) => s.state === 'WITH_ACCESS' && s.contextId !== caller.context.id && s.roleId)
   const ids = Array.from(new Set(live.map((s) => s.roleId!)))
-  const perms = new Map(
-    (ids.length ? await prisma.role.findMany({ where: { id: { in: ids } }, select: { id: true, permissions: true } }) : [])
-      .map((r) => [r.id, r.permissions as string[]]),
+  const [roles, ends] = await Promise.all([
+    ids.length ? prisma.role.findMany({ where: { id: { in: ids } }, select: { id: true, permissions: true } }) : [],
+    live.length ? prisma.context.findMany({ where: { id: { in: live.map((s) => s.contextId) } }, select: { id: true, expiresAt: true } }) : [],
+  ])
+  const perms = new Map(roles.map((r) => [r.id, r.permissions as string[]]))
+  const endsAt = new Map(ends.map((c) => [c.id, c.expiresAt]))
+  const who = whoGivesRoles(
+    live.map((s) => ({ ...s, mayGive: canGiveDesks(perms.get(s.roleId!) ?? []), endsAt: endsAt.get(s.contextId) ?? null })),
+    { contextId: caller.context.id, personId: caller.person.id, invitedById: mine.invitedById },
+    new Date(),
   )
-  const givers = live.filter((s) => canGiveDesks(perms.get(s.roleId!) ?? []))
-  const inviter = mine.invitedById && mine.invitedById !== caller.person.id
-    ? givers.find((s) => s.personId === mine.invitedById)?.name ?? null
-    : null
-  return noRoleYetSays({ inviter, roles: givers.map((s) => s.roleName ?? '') }, caller.company.name)
+  return noRoleYetSays(who, caller.company.name)
 }

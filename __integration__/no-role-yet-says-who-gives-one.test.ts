@@ -61,6 +61,24 @@ describe('a person invited with no role is told on her first screen who gives he
     expect(said).toContain(`${LEAD} Ask Lee Park, who invited you, to give you one.`)
   })
 
+  it('an inviter whose seat has ended is never named, and she is told which roles give roles', async () => {
+    await prisma.context.update({ where: { id: seat[LEE] }, data: { expiresAt: new Date(Date.now() - 86_400_000) } })
+    as(ANA)
+    const answer = await greeting()
+    expect(everythingSaid(answer)).toContain(`${LEAD} Giving roles is for the Owner or an Admin here. Ask one of them.`)
+    expect(JSON.stringify(answer)).not.toContain('Lee Park')
+    await prisma.context.update({ where: { id: seat[LEE] }, data: { expiresAt: null } })
+  })
+
+  it('an inviter who was invited and never signed in is never named', async () => {
+    await prisma.context.update({ where: { id: seat[LEE] }, data: { invitedAt: new Date(), lastUsedAt: null } })
+    as(ANA)
+    const answer = await greeting()
+    expect(everythingSaid(answer)).toContain(`${LEAD} Giving roles is for the Owner or an Admin here. Ask one of them.`)
+    expect(JSON.stringify(answer)).not.toContain('Lee Park')
+    await prisma.context.update({ where: { id: seat[LEE] }, data: { invitedAt: null } })
+  })
+
   it('once the person who invited her is paused, she is told which roles here give roles, and his name is never said', async () => {
     await prisma.context.update({ where: { id: seat[LEE] }, data: { suspendedAt: new Date(), suspendReason: 'On leave' } })
     as(ANA)
