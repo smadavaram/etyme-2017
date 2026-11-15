@@ -549,6 +549,11 @@ const RULE_ATTRIBUTED = [
   // off, or said what kind of company a firm they recorded is. Their own
   // act; the row says the position or the kind, and each can be undone.
   'COMPANY_EXTENDED', 'COMPANY_POSITION_REMOVED', 'COMPANY_KIND_SET',
+  // A person corrected the name, the typed domain or the entity type of a
+  // company they recorded and nobody has claimed (2026-11-15). Their own
+  // act; the row says what changed from what to what, and it can be
+  // changed back the same way.
+  'COMPANY_RECORD_EDITED',
   // The Owner or an Admin moved the first day of the first pay period
   // (2026-11-14). Their own act; the row says the old day and the new
   // day, and setting the old day again puts the periods back.

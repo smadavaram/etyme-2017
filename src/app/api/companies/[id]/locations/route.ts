@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
-import { dealingsOf } from '../../dealings'
+import { dealingsWithSides } from '../../dealings'
+import { isMine } from '@/lib/counterparty'
+import { recordRefusal } from '@/lib/access-log'
 
 /**
  * GET /api/companies/:id/locations
@@ -31,15 +33,38 @@ export async function GET(
   const { id } = await params
 
   const own = caller.company?.id === id
-  const trades = own || caller.staff ? true : (await dealingsOf(caller, false)).has(id)
+  // Staff reach is for a staff caller with no seat. A staff address that
+  // holds a seat reads that seat's book, like anybody seated there
+  // (2026-11-15). A firm on Etyme the caller reached only by its own
+  // writing is one it does not work with (record 61), so its sites are
+  // not the caller's to read; the caller's own records are.
+  const target = own ? null : await prisma.company.findUnique({
+    where: { id },
+    select: { id: true, name: true, claimedAt: true, listedById: true, _count: { select: { contexts: true } } },
+  })
+  const sides = own || !caller.company ? null : await dealingsWithSides(caller, false)
+  const onEtyme = target != null && (target.claimedAt != null || target._count.contexts > 0)
+  const trades = own
+    || (caller.staff && !caller.company)
+    || (target != null && caller.company != null && isMine(target, caller.company.id))
+    || (sides != null && sides.ids.has(id) && !(onEtyme && sides.ownSideOnly.has(id)))
 
   const company = trades
     ? await prisma.company.findUnique({ where: { id }, select: { id: true, name: true } })
     : null
 
   if (!company) {
+    const says = 'That company is not one you trade with.'
+    // Written before the refusal is sent (lib/access-log).
+    const subject = target?.id ?? caller.company?.id
+    if (subject) await recordRefusal([{ companyId: subject }], {
+      actorPersonId: caller.isService ? undefined : caller.person?.id,
+      actorCompanyId: caller.company?.id,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused reading the sites of ${id}: ${says}`,
+    })
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'That company is not one you trade with.' } },
+      { error: { code: 'NOT_FOUND', message: says } },
       { status: 404 }
     )
   }

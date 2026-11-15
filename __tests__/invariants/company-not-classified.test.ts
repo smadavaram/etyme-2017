@@ -143,12 +143,18 @@ describe('the domain typed for a recorded company is a note, never a claim', () 
   it('the record writes the note to the typed-website column and never to the domain a company is joined by', () => {
     const route = readFileSync(join(process.cwd(), 'src/app/api/companies/route.ts'), 'utf8')
     const record = route.slice(route.indexOf('async function recordCompany('))
-    expect(record).toContain('const noted = notedDomain(body?.domain)')
-    expect(record).toContain('website: noted')
+    // One writer keeps the note, on every door (2026-11-15): twins.ts.
+    expect(record).toContain('await keepNote(tx, { me: mine.id, companyId: created.company.id, domain: body?.domain, entityType: body?.entityType })')
+    const twins = readFileSync(join(process.cwd(), 'src/app/api/companies/twins.ts'), 'utf8')
+    expect(twins).toContain("data: { website: domain }")
+    expect(twins).not.toMatch(/data: \{[^}]*\bdomain:/)
+    // Only on the caller's own record nobody has claimed.
+    expect(twins).toContain('const own = { id: input.companyId, listedById: input.me, claimedAt: null }')
     expect(record).toMatch(/domain: null,/)
     expect(record).toContain('claimDomain: false')
     // And the list shows it only on the reader's own unclaimed record.
-    expect(route).toContain('notedDomain: !c.domain && caller.company && isMine(c, caller.company.id) ? c.website : null')
+    expect(route).toContain('notedDomain: !c.domain ? noted.get(c.id)?.domain ?? null : null')
+    expect(twins).toContain('const mine = companies.filter((c) => c.claimedAt == null && c.listedById === me)')
   })
 })
 
@@ -441,7 +447,7 @@ describe('the Companies and Contacts screens draw the two facts apart', () => {
     const select = page.slice(page.indexOf('<label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>'))
     const options = [...select.matchAll(/<option value="([A-Z_]+)"/g)].map((m) => m[1])
     expect(options[0]).toBe('UNCLASSIFIED')
-    expect(page).toContain("kind: 'UNCLASSIFIED' as Company['kind']")
+    expect(page).toContain("kind: 'UNCLASSIFIED' as Kind")
     expect(page).toContain('{NOT_CLASSIFIED_KIND_LABEL}')
   })
 
@@ -467,8 +473,9 @@ describe('the Companies and Contacts screens draw the two facts apart', () => {
 
   it('every count, tile and filter on the Companies page is by position and never by Kind', () => {
     expect(page).not.toMatch(/c\.kind === '(VENDOR|CLIENT|MSP|GSI)'/)
-    expect(page).toMatch(/holds\(c, 'SUPPLIER'\)/)
-    expect(page).toMatch(/holds\(c, 'CUSTOMER'\)/)
+    // One reader counts every tile, from the positions (lib/counterparty).
+    expect(page).toContain('const tiles = companyTiles(companies.map(tileRow))')
+    expect(page).toContain('const tileRow = (c: Company) => ({ positions: c.positions, notClassified: c.notClassified, notLinked: c.notLinked === true })')
     expect(page).toContain("{ key: 'NOT_CLASSIFIED', label: NOT_CLASSIFIED, count: notClassifiedCount }")
   })
 

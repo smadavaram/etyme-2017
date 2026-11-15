@@ -19,7 +19,25 @@ export async function dealingsOf(
   caller: CallerContext,
   includesOwn: boolean
 ): Promise<Set<string>> {
+  return (await dealingsWithSides(caller, includesOwn)).ids
+}
+
+/**
+ * The same set, and which of it the caller reached only by its own
+ * writing: a row on its own register, or a job it sent (record 61: "A row
+ * or a job you wrote yourself never counts"). A firm on Etyme in
+ * `ownSideOnly` is one the caller does not work with, so a list names it
+ * by what the caller holds and says nothing else about it. Read with the
+ * facts `workTogether` reads (the other firm's register row naming the
+ * caller, an order either way), in one query each, whatever the count.
+ */
+export async function dealingsWithSides(
+  caller: CallerContext,
+  includesOwn: boolean
+): Promise<{ ids: Set<string>; ownSideOnly: Set<string> }> {
   const ids = new Set<string>()
+  const strong = new Set<string>()
+  const weak = new Set<string>()
 
   if (isConsultantSeat(caller)) {
     const [benches, placements] = await Promise.all([
@@ -38,11 +56,11 @@ export async function dealingsOf(
       ids.add(c.clientCompanyId)
       if (c.endClientCompanyId) ids.add(c.endClientCompanyId)
     }
-    return ids
+    return { ids, ownSideOnly: new Set() }
   }
 
   const me = caller.company?.id
-  if (!me) return ids
+  if (!me) return { ids, ownSideOnly: new Set() }
   if (includesOwn) ids.add(me)
 
   // Every sell line the caller is on, at any rung, with the seller's
@@ -71,7 +89,7 @@ export async function dealingsOf(
     }),
     prisma.requirementInvitation.findMany({
       where: { OR: [{ fromCompanyId: me }, { toCompanyId: me }] },
-      select: { fromCompanyId: true, toCompanyId: true },
+      select: { fromCompanyId: true, toCompanyId: true, requirement: { select: { companyId: true } } },
     }),
     prisma.programSeat.findMany({
       where: { OR: [{ officeCompanyId: me }, { clientCompanyId: me }] },
@@ -79,8 +97,8 @@ export async function dealingsOf(
     }),
   ])
 
-  for (const r of register) ids.add(r.otherCompanyId)
-  for (const a of agreements) { ids.add(a.clientId); ids.add(a.vendorId) }
+  for (const r of register) { ids.add(r.otherCompanyId); weak.add(r.otherCompanyId) }
+  for (const a of agreements) { ids.add(a.clientId); ids.add(a.vendorId); strong.add(a.clientId); strong.add(a.vendorId) }
   // A line this caller is a party to names both parties, and the seller
   // knows the site it works at. A line where the caller is only the end
   // client is a rung below the firm it pays — a prime's sub-vendor —
@@ -94,7 +112,9 @@ export async function dealingsOf(
     if (c.companyId !== me && c.clientCompanyId !== me) continue
     ids.add(c.companyId)
     ids.add(c.clientCompanyId)
-    if (c.endClientCompanyId) ids.add(c.endClientCompanyId)
+    strong.add(c.companyId)
+    strong.add(c.clientCompanyId)
+    if (c.endClientCompanyId) { ids.add(c.endClientCompanyId); strong.add(c.endClientCompanyId) }
   }
   if (below.length > 0) {
     const terms = await prisma.masterAgreement.findMany({
@@ -112,17 +132,39 @@ export async function dealingsOf(
       (prime) => mayNameSubVendors(terms, me, prime)
     )
     for (const c of below) {
-      if (seen.get(c.companyId)?.masked === false) ids.add(c.companyId)
+      if (seen.get(c.companyId)?.masked === false) { ids.add(c.companyId); strong.add(c.companyId) }
     }
   }
-  for (const c of buys) { ids.add(c.companyId); if (c.vendorCompanyId) ids.add(c.vendorCompanyId) }
-  for (const i of invitations) { ids.add(i.fromCompanyId); ids.add(i.toCompanyId) }
-  for (const s of seats) { ids.add(s.officeCompanyId); ids.add(s.clientCompanyId) }
+  for (const c of buys) { ids.add(c.companyId); strong.add(c.companyId); if (c.vendorCompanyId) { ids.add(c.vendorCompanyId); strong.add(c.vendorCompanyId) } }
+  for (const i of invitations) {
+    ids.add(i.fromCompanyId)
+    ids.add(i.toCompanyId)
+    // A job the other firm sent the caller is its act; a job the caller
+    // sent is the caller's own writing (workTogether reads it the same way).
+    if (i.toCompanyId === me && i.requirement.companyId !== me) strong.add(i.requirement.companyId)
+    if (i.toCompanyId === me) strong.add(i.fromCompanyId)
+    else weak.add(i.toCompanyId)
+  }
+  for (const s of seats) { ids.add(s.officeCompanyId); ids.add(s.clientCompanyId); strong.add(s.officeCompanyId); strong.add(s.clientCompanyId) }
+
+  const candidates = [...weak].filter((id) => !strong.has(id) && id !== me)
+  const ownSideOnly = new Set(candidates)
+  if (candidates.length > 0) {
+    const [theirRows, orders] = await Promise.all([
+      prisma.counterparty.findMany({ where: { companyId: { in: candidates }, otherCompanyId: me }, select: { companyId: true } }),
+      prisma.workOrder.findMany({
+        where: { OR: [{ issuedById: me, issuedToId: { in: candidates } }, { issuedToId: me, issuedById: { in: candidates } }] },
+        select: { issuedById: true, issuedToId: true },
+      }),
+    ])
+    for (const r of theirRows) ownSideOnly.delete(r.companyId)
+    for (const o of orders) { ownSideOnly.delete(o.issuedById); ownSideOnly.delete(o.issuedToId) }
+  }
 
   // A sandbox and a real book are separate universes, whatever else is
   // true: a visitor must never read a customer's name and a customer
   // must never read a stranger's sandbox. Dealings never cross the line
   // today; this is the belt on top of the braces.
   if (!includesOwn) ids.delete(me)
-  return ids
+  return { ids, ownSideOnly }
 }

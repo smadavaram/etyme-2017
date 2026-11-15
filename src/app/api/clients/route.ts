@@ -13,7 +13,8 @@ import { clientInviteLetter } from '@/lib/reaching-out'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
 import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
-import { mayInviteRecorded } from '@/lib/counterparty'
+import { mayInviteRecorded, namesakeSays, consumerDomainSays, identityDomain, notedDomain } from '@/lib/counterparty'
+import { twinFor, keepNote } from '../companies/twins'
 import { recordedNotClassified } from '../companies/positions'
 import { writeCustomerPosition } from '../companies/positions'
 
@@ -187,15 +188,17 @@ export async function POST(request: NextRequest) {
     ? { id: firm.id, name: firm.name, slug: firm.slug, claimedAt: new Date(), listedById: null }
     : null
 
-  // One firm listing the same client twice is one client.
-  const alreadyListed = await prisma.company.findFirst({
-    where: {
-      listedById: companyId,
-      claimedAt: null,
-      name: { equals: name, mode: 'insensitive' },
-    },
-    select: { id: true, name: true, claimedAt: true, listedById: true, kind: true },
-  })
+  // One firm listing the same client twice is one client, and a company
+  // is known by its domain (founder, 2026-11-15): the same reader Add a
+  // company asks (`twinFor`), over this firm's own records only. The same
+  // organization's domain is the same client whatever the name; another
+  // domain under the same name is another client, and the reply says the
+  // name is shared.
+  const read = await twinFor(companyId, { name, domain: body.domain })
+  const alreadyListed = read.twin
+    ? { id: read.twin.id, name: read.twin.name, claimedAt: read.twin.claimedAt, listedById: read.twin.listedById, kind: read.twin.kind }
+    : null
+  const namesake = read.namesake ? namesakeSays(read.namesake) : null
 
   const verdict = mayList({ callerCompanyId: companyId, claimedAtDomain, alreadyListed, name })
 
@@ -245,6 +248,12 @@ export async function POST(request: NextRequest) {
   // the register row (Partnership died of exactly this omission). One
   // function, the one Extend to Customer writes through.
   const msa = { id: (await writeCustomerPosition(prisma, { me: companyId, otherId: client.id, byId: caller.person.id })).msaId }
+  // What was typed is kept: the domain as this firm's own note (never the
+  // claim column), and the entity type, only on this firm's own record
+  // nobody has claimed, and only into an empty box.
+  await keepNote(prisma, { me: companyId, companyId: client.id, domain: body.domain, entityType: body.entityType })
+  const typedDomain = typeof body.domain === 'string' ? body.domain.trim() : ''
+  const personal = typedDomain && !identityDomain(typedDomain) && notedDomain(typedDomain) ? consumerDomainSays(notedDomain(typedDomain)!) : null
 
   // The person at the client, where one was given, in the firm's own
   // address book — the way the supplier path fills it. While the client is
@@ -342,6 +351,9 @@ export async function POST(request: NextRequest) {
         message:
           `${client.name} is on your register. You can record the contracts you already ` +
           `hold with them, and the purchase orders they handed you, today. ` +
+          (verdict.reuse ? `${verdict.says} ` : '') +
+          (namesake ? `${namesake} ` : '') +
+          (personal ? `${personal} ` : '') +
           (contact ? `${contact.email} is recorded as your contact there. ` : '') +
           (contactRefused ? `${contactRefused} ` : '') +
           invitedSays(invite),

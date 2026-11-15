@@ -97,11 +97,19 @@ describe('recording a company with only its name', () => {
     as(OWNER)
   })
 
-  it('the same name twice, in another case and spacing, is refused in a sentence that links the one already there', async () => {
-    const r = await record('RIVERMARK  partners')
+  it('the same name twice with no domain on either side, in another case and spacing, is refused in a sentence that links the one already there', async () => {
+    const halvard = (await prisma.company.findFirstOrThrow({ where: { listedById: brightmoor, name: 'Halvard Talent Group' }, select: { id: true } })).id
+    const r = await record('HALVARD  talent group')
     expect(r.status).toBe(409)
-    expect(r.body.error.message).toBe('Rivermark Partners is on your Companies list already. Open it there rather than record it twice.')
-    expect(r.body.error.companyId).toBe(id)
+    expect(r.body.error.message).toBe('Halvard Talent Group is on your Companies list already. Open it there rather than record it twice.')
+    expect(r.body.error.companyId).toBe(halvard)
+  })
+
+  it('the same name where only the one already there has a domain is recorded, and the message says another company on the list shares the name', async () => {
+    const r = await record('RIVERMARK  partners')
+    expect(r.status).toBe(201)
+    expect(r.body.data.message).toContain('Another company on your list is also called Rivermark Partners, on rivermark.example.')
+    expect(r.body.data.company.id).not.toBe(id)
   })
 
   it('a seat that does not manage who the firm trades with is refused, and the refusal is in the access log before it is sent', async () => {

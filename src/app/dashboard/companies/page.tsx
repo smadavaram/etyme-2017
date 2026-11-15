@@ -7,7 +7,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
-import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, POSITION_WORDS, relationshipForKind, type Position } from '@/lib/counterparty'
+import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, countedTwiceSays, noPositionTile, relationshipForKind, type Position } from '@/lib/counterparty'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import { Chip, Field, FilterChips, FormMessage, Input, LoadingState, PageHead, RefusedState, Select, Stat, SubmitButton, type ChipTone } from '@/components/ui'
 
@@ -24,20 +24,29 @@ import { Chip, Field, FilterChips, FormMessage, Input, LoadingState, PageHead, R
 
 // ── Types ──────────────────────────────────────────────────
 
+type Kind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP' | 'UNCLASSIFIED'
+
 interface Company {
   id: string
   name: string
   slug: string
-  kind: 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP' | 'UNCLASSIFIED'
+  /** Null for a firm on Etyme that has not linked with you: its own facts stay with it. */
+  kind: Kind | null
   entityType: string | null
   domain: string | null
   domainVerified: boolean
   /** The domain you typed for your own record of a company nobody has claimed. A note, never a claim. */
   notedDomain?: string | null
-  currency: string
+  /** Where the note came from: typed on Add a company, or on an invitation you sent. */
+  notedFrom?: 'TYPED' | 'INVITATION' | null
+  currency: string | null
   siteLiveAt: string | null
   networkVerifiedAt: string | null
-  createdAt: string
+  createdAt: string | null
+  /** A firm on Etyme you wrote down or sent a job to, that has not linked with you (record 61). */
+  notLinked?: boolean
+  /** The relationship "Ask them to link" asks as, for a row not linked yet. */
+  askAs?: 'SUPPLIER' | 'CLIENT' | null
   /** Somebody at the firm signed up or took its record; false for a client somebody else wrote down. */
   onEtyme: boolean
   /** Its Etyme address opens its public page. */
@@ -64,6 +73,7 @@ interface Company {
  */
 function kindOnList(kind: Company['kind']): string {
   switch (kind) {
+    case null: return 'Not shown until they link'
     case 'VENDOR': return 'Vendor'
     case 'CLIENT': return 'Client'
     case 'MSP': return 'MSP'
@@ -80,10 +90,12 @@ function extendLine(name: string, as: 'SUPPLIER' | 'CUSTOMER'): string {
     : `Puts ${name} under Customers, with no agreement signed yet. It does not email them and does not change what kind of company they are.`
 }
 
-/** The positions as chips, or the Not classified badge. Nothing for a firm that is neither. */
-function PositionChips({ row }: { row: Pick<Company, 'positions' | 'notClassified' | 'customerAgreement'> }) {
+/** The positions as chips, or the words for a row that holds none. Never a bare dash. */
+function PositionChips({ row }: { row: Pick<Company, 'positions' | 'notClassified' | 'customerAgreement' | 'notLinked'> }) {
   if (row.notClassified) return <Chip tone="attention">{NOT_CLASSIFIED}</Chip>
-  if (row.positions.length === 0) return <span className="text-etyme-faint">—</span>
+  const none = noPositionTile({ positions: row.positions, notClassified: row.notClassified, notLinked: row.notLinked === true })
+  if (none === 'NOT_LINKED') return <Chip tone="passive">{NO_POSITION_WORDS.NOT_LINKED}</Chip>
+  if (none === 'WORKS_WITH_YOU') return <Chip tone="passive">{NO_POSITION_WORDS.WORKS_WITH_YOU}</Chip>
   return (
     <span className="inline-flex flex-wrap gap-1">
       {row.positions.map((p) => (
@@ -93,6 +105,14 @@ function PositionChips({ row }: { row: Pick<Company, 'positions' | 'notClassifie
       ))}
     </span>
   )
+}
+
+/** The words under "To you", for sorting, search and the export. */
+function toYouWords(row: Pick<Company, 'positions' | 'notClassified' | 'notLinked'>): string[] {
+  if (row.notClassified) return [NOT_CLASSIFIED]
+  const none = noPositionTile({ positions: row.positions, notClassified: row.notClassified, notLinked: row.notLinked === true })
+  if (none === 'NOT_LINKED' || none === 'WORKS_WITH_YOU') return [NO_POSITION_WORDS[none]]
+  return row.positions.map((p) => POSITION_WORDS[p])
 }
 
 /** Extend one company, one press; the route's sentence is handed back. */
@@ -194,6 +214,42 @@ function ExtendButtons({ row, onDone, withLines = false }: { row: Company; onDon
 }
 
 /**
+ * "Ask them to link", for a firm on Etyme you wrote down or sent a job to
+ * that has not linked with you (record 61). The one act on its row: nothing
+ * is on either list until they say yes.
+ */
+function AskToLink({ row }: { row: Company }) {
+  const [busy, setBusy] = useState(false)
+  const [said, setSaid] = useState<{ tone: 'ok' | 'error'; says: string } | null>(null)
+  async function ask() {
+    setBusy(true)
+    try {
+      const res = await fetch('/api/trade-links', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: row.id, relationship: row.askAs ?? 'SUPPLIER' }),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) { setSaid({ tone: 'error', says: refusalSentence(body.error?.message, { what: 'Asking a firm to link' }) || 'The ask could not be sent. Try again in a minute.' }); return }
+      setSaid({ tone: 'ok', says: body.data?.says ?? 'Asked. Nothing is on either list until they say yes.' })
+    } catch {
+      setSaid({ tone: 'error', says: 'Network error. Please try again.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="flex flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+      {said?.tone !== 'ok' && (
+        <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={ask}>
+          {busy ? 'Asking…' : 'Ask them to link'}
+        </button>
+      )}
+      {said && <div className="max-w-xs"><FormMessage tone={said.tone}>{said.says}</FormMessage></div>}
+    </div>
+  )
+}
+
+/**
  * The line under a company's name. Its address only where the address
  * opens a page; a client nobody has claimed is "Not on Etyme yet", never
  * an address that leads nowhere; anybody else, nothing.
@@ -215,12 +271,13 @@ interface Location {
   isPrimary: boolean
 }
 
-type PositionFilter = 'ALL' | Position | 'NOT_CLASSIFIED'
+type PositionFilter = 'ALL' | Position | 'NOT_CLASSIFIED' | 'WORKS_WITH_YOU' | 'NOT_LINKED'
 
 // ── Kind chip mapping ─────────────────────────────────────
 
 function kindTone(kind: Company['kind']): ChipTone {
   switch (kind) {
+    case null: return 'passive'
     case 'VENDOR': return 'action'
     case 'CLIENT': return 'verified'
     case 'MSP': return 'attention'
@@ -269,7 +326,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
     // "Company — not classified yet" is the first choice and the default
     // (founder, 2026-11-12): a firm you know is recorded by its name, and
     // nothing has to be said about what it is to you until work starts.
-    kind: 'UNCLASSIFIED' as Company['kind'],
+    kind: 'UNCLASSIFIED' as Kind,
     // What they are to us. Asked only once a Kind is chosen; a company
     // not classified yet stores no relationship, never a supplier.
     relationship: 'SUPPLIER',
@@ -349,6 +406,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
               contactName: form.contactName.trim() || undefined,
               email: form.email.trim() || undefined,
               domain: form.domain.trim() || undefined,
+              entityType: form.entityType.trim() || undefined,
               address: form.slug.trim() || undefined,
               invite: form.invite && form.email.trim() !== '',
             }),
@@ -373,7 +431,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
         // ran.
         const body = await res.json().catch(() => ({}) as any)
         const e = body.error ?? {}
-        if (e.code === 'SAME_NAME_ON_YOUR_LIST' && e.companyId) {
+        if ((e.code === 'SAME_NAME_ON_YOUR_LIST' || e.code === 'SAME_DOMAIN_ON_YOUR_LIST') && e.companyId) {
           setTwin({ id: e.companyId, says: e.message })
           return
         }
@@ -468,7 +526,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>
               <select
                 value={form.kind}
-                onChange={(e) => setForm({ ...form, kind: e.target.value as Company['kind'], relationship: relationshipForKind(e.target.value) })}
+                onChange={(e) => setForm({ ...form, kind: e.target.value as Kind, relationship: relationshipForKind(e.target.value) })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
@@ -497,7 +555,7 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
               </select>
             </div>
             )}
-            {!isClient && (
+            {/* Kept on every door, a client's too (2026-11-15): never a box whose answer is thrown away. */}
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Entity type</label>
               <input
@@ -509,7 +567,6 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                 placeholder="LLC, Corp, GmbH…"
               />
             </div>
-            )}
           </div>
 
           {recording && (
@@ -724,6 +781,8 @@ interface DrawerRead {
   customerAgreement: 'SIGNED' | 'UNSIGNED' | 'NONE' | null
   history: { action: string; summary: string; reason: string; at: string; byName: string | null; position: string | null; reversible: boolean }[]
   may: {
+    /** Correct the name, the typed domain and the entity type (PATCH /api/companies/:id/record). */
+    edit?: boolean
     extend: { SUPPLIER: boolean; CUSTOMER: boolean }
     remove: Partial<Record<'SUPPLIER' | 'CUSTOMER', { ok: boolean; says: string }>>
     setKind: boolean
@@ -733,11 +792,69 @@ interface DrawerRead {
 }
 
 /**
+ * Correct a company on your own list: its name, the domain you typed and
+ * its entity type (2026-11-15). Drawn only where the route takes it, on a
+ * record this firm made and nobody has claimed. The same twin rule as Add
+ * a company is asked on save; a twin is linked with "Open it". Saving
+ * emails nobody.
+ */
+function EditRecord({ company, onSaved }: { company: Company; onSaved: (says: string) => void | Promise<void> }) {
+  const [open, setOpen] = useState(false)
+  const [form, setForm] = useState({ name: company.name, domain: company.notedDomain ?? '', entityType: company.entityType ?? '' })
+  const [pending, setPending] = useState(false)
+  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; says: string } | null>(null)
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setMessage(null)
+    if (form.name.trim().length < 2) { setMessage({ tone: 'error', says: 'Give the company’s name, at least two letters.' }); return }
+    setPending(true)
+    try {
+      const res = await fetch(`/api/companies/${encodeURIComponent(company.id)}/record`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name, domain: form.domain, entityType: form.entityType }),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) { setMessage({ tone: 'error', says: refusalSentence(body.error?.message, { what: 'Correcting a company' }) || 'The change was not saved. Try again.' }); return }
+      const says = body.data?.message ?? 'Saved.'
+      setMessage({ tone: 'ok', says })
+      setOpen(false)
+      await onSaved(says)
+    } catch {
+      setMessage({ tone: 'error', says: 'Network error. Please try again.' })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <div>
+      {open ? (
+        <form onSubmit={save} noValidate className="space-y-3">
+          <p className="eyebrow">Edit</p>
+          <Field label="Company name *"><Input required aria-required="true" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          <Field label="Domain"><Input value={form.domain} onChange={(e) => setForm({ ...form, domain: e.target.value })} placeholder="northwind-staffing.example" /></Field>
+          <Field label="Entity type"><Input value={form.entityType} onChange={(e) => setForm({ ...form, entityType: e.target.value })} placeholder="LLC, Corp, GmbH…" /></Field>
+          <p className="text-[12px] text-etyme-muted">The domain is your own note. It is never a claim on that domain. {NEVER_EMAILS}</p>
+          <div className="flex flex-wrap gap-2">
+            <SubmitButton pending={pending} pendingLabel="Saving…">Save</SubmitButton>
+            <button type="button" className="btn-secondary" onClick={() => { setOpen(false); setMessage(null) }}>Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <button type="button" className="btn-secondary text-[13px]" onClick={() => { setMessage(null); setOpen(true) }}>Edit</button>
+      )}
+      {message && <div className="mt-2"><FormMessage tone={message.tone}>{message.says}</FormMessage></div>}
+    </div>
+  )
+}
+
+/**
  * Where this company sits with the reader, its Kind, and what was done to
  * it here, read from GET /api/companies/:id/extend. Every button is one the
  * route takes; a removal it would refuse is said in its own sentence.
  */
-function PositionsPanel({ company, onChanged }: { company: Company; onChanged: (says: string) => void }) {
+function PositionsPanel({ company, onChanged, onClose }: { company: Company; onChanged: (says: string) => void; onClose: () => void }) {
   const [read, setRead] = useState<DrawerRead | null>(null)
   const [unread, setUnread] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -782,7 +899,18 @@ function PositionsPanel({ company, onChanged }: { company: Company; onChanged: (
     }
   }
 
-  if (unread) return <p className="text-sm text-etyme-muted">{unread}</p>
+  // A refused drawer says the route's own sentence and leads straight back
+  // to the list it was opened from (2026-11-15).
+  if (unread) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-etyme-muted">{unread}</p>
+        <a href="/dashboard/companies" className="text-sm text-etyme-action underline" onClick={(e) => { e.preventDefault(); onClose() }}>
+          Back to Companies
+        </a>
+      </div>
+    )
+  }
   if (!read) return <LoadingState compact says="Opening where this company sits with you…" />
 
   const base = `/api/companies/${encodeURIComponent(company.id)}`
@@ -791,6 +919,7 @@ function PositionsPanel({ company, onChanged }: { company: Company; onChanged: (
 
   return (
     <div className="space-y-6">
+      {read.may.edit && <EditRecord company={company} onSaved={async (says) => { await load(); onChanged(says) }} />}
       <div>
         <p className="eyebrow mb-2">Positions</p>
         {read.notClassified && (
@@ -985,6 +1114,7 @@ function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onCl
 
   useEffect(() => {
     async function fetchData() {
+      if (company.notLinked) { setLoadingLocations(false); return }
       setLoadingLocations(true)
       try {
         // Fetch locations (all companies) + trust signals (vendors only) in parallel
@@ -1019,7 +1149,7 @@ function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onCl
       }
     }
     fetchData()
-  }, [company.id, company.kind])
+  }, [company.id, company.kind, company.notLinked])
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onClose}>
@@ -1041,19 +1171,31 @@ function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onCl
 
         <div className="p-6 space-y-6">
           {/* Two facts, never one: where it sits with you, and what it is. */}
-          <PositionsPanel company={company} onChanged={onChanged} />
+          {company.notLinked ? (
+            <div className="space-y-2">
+              <p className="text-sm text-etyme-ink">
+                {company.name} is on Etyme and has not linked with you. What it says about itself stays with it until it says yes.
+              </p>
+              <AskToLink row={company} />
+            </div>
+          ) : (
+            <PositionsPanel company={company} onChanged={onChanged} onClose={onClose} />
+          )}
 
-          <AccountManagerPanel clientId={company.id} />
+          {!company.notLinked && <AccountManagerPanel clientId={company.id} />}
 
           <CompanyContacts company={company} />
 
-          {/* Details grid */}
+          {/* Details grid: none for a firm that has not linked with you. */}
+          {!company.notLinked && (<>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="eyebrow mb-1">Domain</p>
-              <p className="text-sm break-words">{company.domain ?? company.notedDomain ?? 'Not set'}</p>
+              <p className="text-sm break-words">{domainCell(company).domain ?? domainCell(company).note}</p>
               {!company.domain && company.notedDomain && (
-                <p className="text-xs text-etyme-muted mt-1">As you typed it. Nobody has checked it.</p>
+                <p className="text-xs text-etyme-muted mt-1">
+                  {company.notedFrom === 'INVITATION' ? 'As you typed it on the invitation you sent. Nobody has checked it.' : 'As you typed it. Nobody has checked it.'}
+                </p>
               )}
               {company.domain && (
                 <span className={`chip mt-1 ${company.domainVerified ? 'chip--verified' : 'chip--attention'}`}>
@@ -1098,7 +1240,7 @@ function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onCl
             <div>
               <p className="eyebrow mb-1">Created</p>
               <p className="text-sm tabular-nums">
-                {dayOfMomentFor(new Date(company.createdAt), readerZone())}
+                {company.createdAt ? dayOfMomentFor(new Date(company.createdAt), readerZone()) : 'Not shown until they link'}
               </p>
             </div>
           </div>
@@ -1146,6 +1288,7 @@ function CompanyDrawer({ company, onClose, onChanged }: { company: Company; onCl
               </div>
             )}
           </div>
+          </>)}
 
           {/* Trust Signals — Addendum D §D.3.3 (vendor companies only) */}
           {trustSignals && (
@@ -1282,16 +1425,24 @@ export default function CompaniesPage() {
   // the relationship with it, whatever kind of company it is. So a Vendor
   // extended to Customer counts under Customers, and a company of any
   // Kind extended to Supplier counts under Suppliers.
+  const tileRow = (c: Company) => ({ positions: c.positions, notClassified: c.notClassified, notLinked: c.notLinked === true })
   const holds = (c: Company, f: PositionFilter) =>
-    f === 'ALL' ? true : f === 'NOT_CLASSIFIED' ? c.notClassified : c.positions.includes(f)
+    f === 'ALL' ? true
+      : f === 'NOT_CLASSIFIED' || f === 'WORKS_WITH_YOU' || f === 'NOT_LINKED' ? noPositionTile(tileRow(c)) === f
+      : c.positions.includes(f)
   const filtered = useMemo(() => companies.filter((c) => holds(c, positionFilter)), [companies, positionFilter])
 
   // ── Stats, by position ────────────────────────────
-  const customerCount = companies.filter((c) => holds(c, 'CUSTOMER')).length
-  const supplierCount = companies.filter((c) => holds(c, 'SUPPLIER')).length
-  const primeCount = companies.filter((c) => holds(c, 'PRIME')).length
-  const mspCount = companies.filter((c) => holds(c, 'MSP')).length
-  const notClassifiedCount = companies.filter((c) => c.notClassified).length
+  // Every row on the list is in a tile (2026-11-15): Customers, Suppliers,
+  // Not classified, and, drawn only above zero, Primes, MSPs, "Works with
+  // you" (on the list through work, holding no position) and "Not linked
+  // yet". One reader counts them all (`companyTiles` in lib/counterparty).
+  const tiles = companyTiles(companies.map(tileRow))
+  const customerCount = tiles.customers
+  const supplierCount = tiles.suppliers
+  const primeCount = tiles.primes
+  const mspCount = tiles.msps
+  const notClassifiedCount = tiles.notClassified
 
   function afterAct(says: string) {
     setToast(says)
@@ -1313,25 +1464,46 @@ export default function CompaniesPage() {
       width: 'min-w-[200px]',
     },
     {
+      // The identifier (founder, 2026-11-15: "The email is the identifier"),
+      // so it stands beside the name. A domain this firm typed says so.
+      key: 'domain',
+      label: 'Domain',
+      render: (row) => {
+        const d = domainCell(row)
+        return d.domain ? (
+          <span className="text-sm text-etyme-ink">
+            {d.domain}
+            {d.note && <span className="ml-1 text-[11px] text-etyme-faint">· {d.note}</span>}
+          </span>
+        ) : (
+          <span className="text-etyme-faint text-[12px]">{d.note}</span>
+        )
+      },
+      sortValue: (row) => domainCell(row).domain ?? '',
+      exportValue: (row) => domainCell(row).domain ?? domainCell(row).note ?? '',
+    },
+    {
       key: 'slug',
       // The reader's word for it is the address they signed up with
       // (sign-up walk, round five, problem 19), never the system's.
       label: 'Etyme address',
-      // A firm that is not on Etyme holds no address yet.
-      render: (row) => (
-        row.onEtyme
-          ? <span className="text-etyme-muted text-[12px] font-mono">{row.slug}</span>
-          : <span className="text-etyme-faint">—</span>
-      ),
-      sortValue: (row) => (row.onEtyme ? row.slug : ''),
+      // A firm nobody there has joined reads "Not on Etyme", never a dash.
+      render: (row) => {
+        const a = addressCell(row)
+        return a.slug
+          ? <span className="text-etyme-muted text-[12px] font-mono">{a.slug}</span>
+          : <span className="text-etyme-faint text-[12px]">{a.note}</span>
+      },
+      sortValue: (row) => addressCell(row).slug ?? addressCell(row).note ?? '',
+      exportValue: (row) => addressCell(row).slug ?? addressCell(row).note ?? '',
       hideOnMobile: true,
     },
     {
       key: 'positions',
       label: 'To you',
       render: (row) => <PositionChips row={row} />,
-      sortValue: (row) => (row.notClassified ? NOT_CLASSIFIED : row.positions.map((p) => POSITION_WORDS[p]).join(' ')),
-      exportValue: (row) => (row.notClassified ? NOT_CLASSIFIED : row.positions.map((p) => POSITION_WORDS[p]).join(', ')),
+      sortValue: (row) => toYouWords(row).join(' '),
+      exportValue: (row) => toYouWords(row).join(', '),
     },
     {
       key: 'kind',
@@ -1346,22 +1518,9 @@ export default function CompaniesPage() {
       key: 'entityType',
       label: 'Entity type',
       render: (row) => (
-        <span className="text-etyme-muted">{row.entityType ?? '—'}</span>
+        <span className="text-etyme-muted">{row.entityType ?? (row.notLinked ? 'Not shown' : 'Not given')}</span>
       ),
       sortValue: (row) => row.entityType ?? '',
-      hideOnMobile: true,
-    },
-    {
-      key: 'domain',
-      label: 'Domain',
-      render: (row) => (
-        row.domain ?? row.notedDomain ? (
-          <span className="text-sm text-etyme-ink">{row.domain ?? row.notedDomain}</span>
-        ) : (
-          <span className="text-etyme-faint">—</span>
-        )
-      ),
-      sortValue: (row) => row.domain ?? row.notedDomain ?? '',
       hideOnMobile: true,
     },
     {
@@ -1369,17 +1528,17 @@ export default function CompaniesPage() {
       label: 'Created',
       render: (row) => (
         <span className="text-[12px] tabular-nums text-etyme-muted">
-          {dayOfMomentFor(new Date(row.createdAt), readerZone())}
+          {row.createdAt ? dayOfMomentFor(new Date(row.createdAt), readerZone()) : 'Not shown'}
         </span>
       ),
-      sortValue: (row) => new Date(row.createdAt).getTime(),
+      sortValue: (row) => (row.createdAt ? new Date(row.createdAt).getTime() : 0),
       hideOnMobile: true,
     },
     {
       key: 'actions',
       label: 'Actions',
       sortable: false,
-      render: (row) => <ExtendButtons row={row} onDone={afterAct} />,
+      render: (row) => (row.notLinked ? <AskToLink row={row} /> : <ExtendButtons row={row} onDone={afterAct} />),
       exportValue: () => null,
     },
   ]
@@ -1388,11 +1547,10 @@ export default function CompaniesPage() {
   const searchFilter = (row: Company, q: string) =>
     row.name.toLowerCase().includes(q) ||
     row.slug.toLowerCase().includes(q) ||
-    (row.domain ?? row.notedDomain ?? '').toLowerCase().includes(q) ||
+    (domainCell(row).domain ?? '').toLowerCase().includes(q) ||
     (row.entityType ?? '').toLowerCase().includes(q) ||
     kindOnList(row.kind).toLowerCase().includes(q) ||
-    (row.notClassified && NOT_CLASSIFIED.toLowerCase().includes(q)) ||
-    row.positions.some((p) => POSITION_WORDS[p].toLowerCase().includes(q))
+    toYouWords(row).some((w) => w.toLowerCase().includes(q))
 
   // ── Filter tabs ───────────────────────────────────
   const filterTabs: { key: PositionFilter; label: string; count: number }[] = [
@@ -1404,6 +1562,8 @@ export default function CompaniesPage() {
     ...(primeCount > 0 ? [{ key: 'PRIME' as const, label: 'Primes', count: primeCount }] : []),
     ...(mspCount > 0 ? [{ key: 'MSP' as const, label: 'MSPs', count: mspCount }] : []),
     { key: 'NOT_CLASSIFIED', label: NOT_CLASSIFIED, count: notClassifiedCount },
+    ...(tiles.worksWithYou > 0 ? [{ key: 'WORKS_WITH_YOU' as const, label: 'Works with you', count: tiles.worksWithYou }] : []),
+    ...(tiles.notLinked > 0 ? [{ key: 'NOT_LINKED' as const, label: NO_POSITION_WORDS.NOT_LINKED, count: tiles.notLinked }] : []),
   ]
   const filterWord = filterTabs.find((t) => t.key === positionFilter)?.label ?? ''
 
@@ -1434,12 +1594,17 @@ export default function CompaniesPage() {
       <LinkAsks onAnswered={handleCreated} />
 
       {/* Stats row, by position: what each is to you, never its Kind. */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Total" value={companies.length} sub="on your list" />
+      <div className={`${tiles.countedTwice > 0 ? 'mb-2' : 'mb-6'} grid grid-cols-2 gap-3 lg:grid-cols-4`}>
+        <Stat label="Total" value={tiles.total} sub="on your list" />
         <Stat label="Customers" value={customerCount} sub="above you" />
         <Stat label="Suppliers" value={supplierCount} sub="below you" />
+        {primeCount > 0 && <Stat label="Primes" value={primeCount} sub="your work flows through them" />}
+        {mspCount > 0 && <Stat label="MSPs" value={mspCount} sub="run a program you work in" />}
         <Stat label="Not classified" value={notClassifiedCount} sub="no position yet" />
+        {tiles.worksWithYou > 0 && <Stat label="Works with you" value={tiles.worksWithYou} sub="through work, no position yet" />}
+        {tiles.notLinked > 0 && <Stat label={NO_POSITION_WORDS.NOT_LINKED} value={tiles.notLinked} sub="on Etyme, not linked with you" />}
       </div>
+      {tiles.countedTwice > 0 && <p className="mb-6 text-[12px] text-etyme-muted">{countedTwiceSays(tiles.countedTwice)}</p>}
 
       {/* Data table with kind filter tabs */}
       <ListSurface<Company>
@@ -1462,9 +1627,11 @@ export default function CompaniesPage() {
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 <PositionChips row={row} />
-                <Chip tone={kindTone(row.kind)}>{kindOnList(row.kind)}</Chip>
+                {row.kind && <Chip tone={kindTone(row.kind)}>{kindOnList(row.kind)}</Chip>}
               </div>
             </div>
+            <p className="mt-1 text-[12px] text-etyme-muted">{domainCell(row).domain ? `${domainCell(row).domain}${domainCell(row).note ? ` · ${domainCell(row).note}` : ''}` : domainCell(row).note}</p>
+            {row.notLinked && <div className="mt-3"><AskToLink row={row} /></div>}
             {(row.may.extendToSupplier || row.may.extendToCustomer) && (
               <div className="mt-3">
                 <ExtendButtons row={row} onDone={afterAct} />

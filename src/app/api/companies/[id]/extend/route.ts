@@ -5,7 +5,8 @@ import { staffOnly } from '@/lib/seat'
 import { recordRefusal } from '@/lib/access-log'
 import { workTogether } from '@/lib/company-create'
 import { dealsWith, NOT_ON_YOUR_LIST } from '../../dealing'
-import { mayExtend, mayRemovePosition, maySetRecordedKind, readExtendAs, POSITION_WORDS, KINDS_TO_SET, type ExtendAs } from '@/lib/counterparty'
+import { dealingsWithSides } from '../../dealings'
+import { mayEditRecord, mayExtend, mayRemovePosition, maySetRecordedKind, readExtendAs, POSITION_WORDS, KINDS_TO_SET, type ExtendAs } from '@/lib/counterparty'
 import { positionsFor, writeCustomerPosition, writeSupplierPosition, workOnPosition, removePosition, historyOf, agreementKeepsPosition } from '../../positions'
 
 /**
@@ -27,7 +28,7 @@ type Params = { params: { id: string } }
 
 const OTHER = { id: true, name: true, slug: true, kind: true, claimedAt: true, listedById: true, isDemo: true, _count: { select: { contexts: true } } } as const
 
-async function open(request: NextRequest, id: string) {
+async function open(request: NextRequest, id: string, opts: { listed?: boolean } = {}) {
   const { caller, error } = await getCallerContext(request)
   if (error) return { error }
   const notStaff = staffOnly(caller, 'Companies')
@@ -41,10 +42,26 @@ async function open(request: NextRequest, id: string) {
   // nor works with is answered exactly as an id that does not exist, so
   // this door never says a stranger's name or that it is on Etyme
   // (review, 2026-11-13).
-  if (!other || other.isDemo !== (caller.company.isDemo === true) || !(await dealsWith(caller.company.id, other))) {
+  if (!other || other.isDemo !== (caller.company.isDemo === true) || !((await dealsWith(caller.company.id, other)) || (opts.listed && (await onTheList(caller, other))))) {
     return { error: await refuse(caller, id, 404, 'NOT_FOUND', NOT_ON_YOUR_LIST) }
   }
   return { caller, other }
+}
+
+/**
+ * Whether the Companies list draws this company for the caller in full:
+ * the list's own reader (`dealingsWithSides`), less a firm on Etyme reached
+ * only by the caller's own writing, which the list draws as "Not linked
+ * yet" and whose drawer calls no route. So every row the list draws opens
+ * in its drawer (2026-11-15: a sub-vendor's list drew the site its people
+ * work at, and the drawer refused it). Only the drawer's read asks this;
+ * every change still asks its own rule.
+ */
+async function onTheList(caller: CallerContext, other: { id: string; claimedAt: Date | null; _count: { contexts: number } }): Promise<boolean> {
+  const sides = await dealingsWithSides(caller, false)
+  if (!sides.ids.has(other.id)) return false
+  const onEtyme = other.claimedAt != null || other._count.contexts > 0
+  return !(onEtyme && sides.ownSideOnly.has(other.id))
 }
 
 async function refuse(caller: CallerContext, otherId: string, status: number, code: string, says: string, field?: string): Promise<NextResponse> {
@@ -62,14 +79,15 @@ async function readOne(me: string, other: { id: string; kind: string; claimedAt:
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const o = await open(request, params.id)
+  const o = await open(request, params.id, { listed: true })
   if (o.error) return o.error
   const { caller, other } = o
   const me = caller.company!.id
   const read = await readOne(me, other)
-  // Only a company on the caller's own list, or one it works with.
+  // Only a company on the caller's own list, one it works with, or one the
+  // Companies list draws in full (the site a sub-vendor's people work at).
   const worksTogether = read.mine || read.positions.length > 0 || (await workTogether(me, other.id))
-  if (!worksTogether) {
+  if (!worksTogether && !(await onTheList(caller, other))) {
     return refuse(caller, other.id, 404, 'NOT_FOUND', NOT_ON_YOUR_LIST)
   }
   // What the drawer may press, asked of the rules POST, DELETE and the
@@ -100,6 +118,13 @@ export async function GET(request: NextRequest, { params }: Params) {
     permissions: caller.permissions,
     other: { id: other.id, name: other.name, kind: other.kind, claimedAt: other.claimedAt, listedById: other.listedById, seats: other._count.contexts },
   })
+  // Correcting the name, the typed domain and the entity type: only on the
+  // caller's own record nobody has claimed (PATCH /api/companies/:id/record).
+  const editVerdict = mayEditRecord({
+    me: meAt,
+    permissions: caller.permissions,
+    other: { id: other.id, name: other.name, claimedAt: other.claimedAt, listedById: other.listedById, seats: other._count.contexts },
+  })
   return NextResponse.json({
     data: {
       companyId: other.id,
@@ -107,6 +132,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       ...read,
       history: await historyOf(me, other.id),
       may: {
+        edit: editVerdict.ok,
         extend: { SUPPLIER: extend('SUPPLIER'), CUSTOMER: extend('CUSTOMER') },
         remove,
         setKind: kindVerdict.ok,
