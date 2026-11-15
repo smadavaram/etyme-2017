@@ -75,7 +75,7 @@ describe('Renew on a seat whose access has ended', () => {
     expect(RENEW_LABEL).toBe('Renew')
     // The same role, the reason it was last given, and the same route.
     expect(page).toContain("setForm(opening ? { roleId: e.roleId ?? '', endsOn: '', reason: e.reason ?? '' }")
-    expect(page).toContain('{pickable.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}')
+    expect(page).toContain('{pickable.map(r => <option key={r.id} value={r.id}>{roleWords(r.name)}</option>)}')
     expect(page).toContain('onClick={() => grant(e.contextId)}')
     expect(page).toContain("{form.roleId && form.roleId === e.roleId ? 'Renew access' : 'Change role'}")
     // The grant route takes the same role on a seat whose date has come.

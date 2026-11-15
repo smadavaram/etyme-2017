@@ -8,7 +8,7 @@ import { POST as copied } from '@/app/api/access/[contextId]/copied/route'
 import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
 import { resetPassword } from '@/lib/password-door'
-import { countsAgainstCap } from '@/lib/access-grant'
+import { countsAgainstCap, NO_ROLE_SEES } from '@/lib/access-grant'
 
 /**
  * Users & permissions, walked as Brightmoor's owner after round one of
@@ -76,6 +76,40 @@ describe('Users & permissions gives, changes and explains a desk', () => {
     as(OWNER)
     const after = await json(await access(req('GET', '/api/access')))
     expect(after.body.data.people.find((p: any) => p.contextId === it_.memberContext).line).toBe('Recruiter')
+  })
+
+  it('an owner who changes a colleague to the Member role is told he has no role yet and what he sees, and the log and his notice say the same', async () => {
+    // Fix list layer 4, 2026-11-15: the answer said "read-only access", the
+    // log "gave … Member", the notice "You now have the Member role".
+    as(OWNER)
+    const r = await json(await grant(req('POST', '/api/access', {
+      contextId: it_.memberContext, roleId: it_.roles['Member'], days: null, reason: 'Moves off recruiting while the roles are rewritten',
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(r.body.data.message).toBe(`Meera Iyer has no role yet. ${NO_ROLE_SEES}`)
+    expect(r.body.data.message).not.toContain('read-only')
+
+    const log = await prisma.automationLog.findFirst({
+      where: { companyId: it_.firm, action: 'ACCESS_GRANTED', payload: { path: ['contextId'], equals: it_.memberContext } },
+      orderBy: { at: 'desc' }, select: { summary: true },
+    })
+    expect(log?.summary).toMatch(/ took Meera Iyer’s role away \(was Recruiter\)$/)
+    expect(log?.summary).not.toContain('Member')
+
+    const meera = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: MEMBER }, select: { id: true } })
+    // The notice is written without waiting for it; give it a moment to land.
+    let notice: { title: string; body: string | null } | null = null
+    for (let i = 0; i < 20 && !notice; i++) {
+      notice = await prisma.notification.findFirst({
+        where: { personId: meera.id, title: 'Your role was taken away' }, select: { title: true, body: true },
+      })
+      if (!notice) await new Promise((res) => setTimeout(res, 100))
+    }
+    expect(notice?.body).toBe('Your role at Brightmoor Staffing was taken away; you have no role yet. You see Ask Etyme and your own pages.')
+
+    const after = await json(await access(req('GET', '/api/access')))
+    const row = after.body.data.people.find((p: any) => p.contextId === it_.memberContext)
+    expect(row.line).toBe('No role yet · give them a role')
   })
 
   it('a desk change to Owner by somebody who is not an Owner is refused in a sentence', async () => {

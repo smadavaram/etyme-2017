@@ -4,7 +4,7 @@ import { readJson, statusMeans } from '@/lib/read-response'
 import { pauseReasonHelp } from '@/app/api/access/[contextId]/pause-words'
 import {
   desksOffered, mailLine, capRefusalSays, MAX_ADDRESSES_AT_ONCE,
-  DECIDE_LATER, DECIDE_LATER_LABEL, PICK_A_ROLE, roleOptionText, roleChoiceSays, inviteRoleId, inviteProblems,
+  DECIDE_LATER, DECIDE_LATER_LABEL, PICK_A_ROLE, roleOptionText, roleChoiceSays, roleWords, holdsNoRole, inviteRoleId, inviteProblems,
   addressAsTyped, addressesAsTyped, type PickerRole,
   COPY_LABEL, SEND_AGAIN_LABEL, levelLegend, LEVEL_LABEL, NO_ROLE_SEES, figureFromQuery,
   ENDED_HEADING, RENEW_LABEL, NO_END_DATE, KEPT_OPEN_COLUMN, type FigureKey, type FigureWords, type InviteForm, type InviteMail, type GrantSensitivity,
@@ -326,7 +326,7 @@ function CanTheySeeForm({ people }: { people: Person[] }) {
           <option value="">Who?</option>
           {people.map((p) => (
             <option key={p.contextId} value={p.person.id}>
-              {p.person.name} — {p.role}
+              {p.person.name} — {roleWords(p.role)}
             </option>
           ))}
         </Select>
@@ -826,6 +826,11 @@ export default function AccessPage() {
   const s = data.summary
   // Owner is offered only to an Owner; the route refuses the same.
   const pickable = desksOffered(roles, data.actorIsOwner === true)
+  // Whether the role chosen in a picker is the Member role, said as "No role yet".
+  const choiceHoldsNoRole = (id: string) => {
+    const r = pickable.find((x) => x.id === id)
+    return r ? holdsNoRole(r.name) : false
+  }
 
   // Which figure filters the lists, where one is drawn: a shared link to
   // a figure that has since gone to zero shows everybody.
@@ -881,10 +886,10 @@ export default function AccessPage() {
 
       {granting === w.contextId && (
         <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
-          <Field label="What can they do?">
+          <Field label="What can they do?" help={roleChoiceSays(form.roleId, pickable)}>
             <Select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}>
               <option value="">— pick a role —</option>
-              {pickable.filter(r => r.id !== w.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {pickable.filter(r => r.id !== w.roleId).map(r => <option key={r.id} value={r.id}>{roleWords(r.name)}</option>)}
             </Select>
           </Field>
           {/* etyme-market, 2026-09-17. A cross-domain line in
@@ -991,10 +996,10 @@ export default function AccessPage() {
 
       {granting === p.contextId && (
         <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
-          <Field label="New role">
+          <Field label="New role" help={roleChoiceSays(form.roleId, pickable)}>
             <Select value={form.roleId} onChange={e => setForm({ ...form, roleId: e.target.value })}>
               <option value="">— pick a role —</option>
-              {pickable.filter(r => r.id !== p.roleId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {pickable.filter(r => r.id !== p.roleId).map(r => <option key={r.id} value={r.id}>{roleWords(r.name)}</option>)}
             </Select>
           </Field>
           <Field label="Why?" help="Whoever reviews this in six months is probably not you.">
@@ -1034,7 +1039,7 @@ export default function AccessPage() {
           {e.shared && sharedOpen === e.contextId && <div className="text-xs text-etyme-muted mt-0.5 break-words">{SHARED_SAYS}</div>}
           <Address email={e.person.primaryEmail} />
           <div className="text-xs text-etyme-muted break-words">
-            {e.role ? `${e.role} · ` : ''}{e.dateLine}{e.paused ? ' · Paused' : ''}
+            {e.role ? `${roleWords(e.role)} · ` : ''}{e.dateLine}{e.paused ? ' · Paused' : ''}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -1050,10 +1055,10 @@ export default function AccessPage() {
       </div>
       {granting === e.contextId && (
         <div className="mt-4 pt-4 border-t border-etyme-rule flex flex-col gap-3">
-          <Field label="Role" help="The role they had is chosen. Pick another to change it as you renew.">
+          <Field label="Role" help={`The role they had is chosen. Pick another to change it as you renew.${choiceHoldsNoRole(form.roleId) ? ` ${NO_ROLE_SEES}` : ''}`}>
             <Select value={form.roleId} onChange={ev => setForm({ ...form, roleId: ev.target.value })}>
               <option value="">— pick a role —</option>
-              {pickable.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {pickable.map(r => <option key={r.id} value={r.id}>{roleWords(r.name)}</option>)}
             </Select>
           </Field>
           <Field label="Why?" help="The reason it was last given. Change it if it is no longer true.">
@@ -1238,7 +1243,7 @@ export default function AccessPage() {
               }`}>
                 <div className="flex items-baseline justify-between gap-4">
                   <span className="text-etyme-ink min-w-0">
-                    {r.personName} <span className="text-etyme-muted">· {r.roleName}</span>
+                    {r.personName} <span className="text-etyme-muted">· {roleWords(r.roleName)}</span>
                     <Address email={r.personEmail} />
                   </span>
                   <Chip tone={r.finding === 'EXPIRED' || r.finding === 'DORMANT' ? 'attention' : 'passive'}>

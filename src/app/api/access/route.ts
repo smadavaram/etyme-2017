@@ -10,14 +10,13 @@ import { recordRefusal } from '@/lib/access-log'
 import {
   assessGrant, reviewAccess, sensitivityOf, levelOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
-  hasSignedIn, seatPlace, deskChangedNotice, needsDecisionCount, inviteFormWords,
+  hasSignedIn, seatPlace, deskChangedNotice, roleChangeSummary, roleChangeSays, needsDecisionCount, inviteFormWords,
   decisionSeats, decisionParts, figuresFor, FINDING_WORDS, RENEW_DOING, type FigureKey, type InvitedMail,
 } from '@/lib/access-grant'
 import { seatByDate, seatDateLine, pastEndDate, type ByDate, type DatedSeat } from '@/lib/account-lifecycle'
 import { companyPolicy } from '@/lib/identity/read'
 import { isSamplePerson } from '@/lib/sample-seat'
 import { consoleHome, type CompanyKind } from '@/lib/console-home'
-import { formatDay } from '@/lib/format-date'
 import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
 import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act'
 import { mayChangeRole, offersFor, peopleHeadline, renameVerdict, readOnTheirDates, PAUSE_OR_END_DOING } from './row-acts'
@@ -725,9 +724,16 @@ export async function POST(request: NextRequest) {
     data: {
       companyId: caller.company.id,
       action: 'ACCESS_GRANTED',
-      summary: renewing && target.role?.name === role.name
-        ? `${caller.person.name} renewed ${target.person.name}’s ${role.name} access${target.expiresAt ? `, which ended on ${formatDay(target.expiresAt)}` : ''}${expiresAt ? `, until ${formatDay(expiresAt)}` : ''}`
-        : `${caller.person.name} gave ${target.person.name} ${role.name}${target.role ? ` (was ${target.role.name})` : ''}${expiresAt ? ` until ${formatDay(expiresAt)}` : ''}`,
+      // The Member role reads as no role here too (fix list layer 4): never "gave Tobias Member".
+      summary: roleChangeSummary({
+        actorName: caller.person.name,
+        personName: target.person.name,
+        roleName: role.name,
+        fromRoleName: target.role?.name ?? null,
+        expiresAt,
+        renewing: renewing && target.role?.name === role.name,
+        endedOn: target.expiresAt,
+      }),
       reason: String(reason).trim(),
       payload: {
         contextId: target.id,
@@ -766,6 +772,7 @@ export async function POST(request: NextRequest) {
   // same words, and the link opens the page the new desk lands on.
   const notice = deskChangedNotice({
     roleName: role.name,
+    fromRoleName: target.role?.name ?? null,
     companyName: caller.company.name,
     expiresAt,
     landing: consoleHome({
@@ -793,13 +800,13 @@ export async function POST(request: NextRequest) {
         sensitivity: decision.sensitivity,
         expiresAt: expiresAt?.toISOString().slice(0, 10) ?? null,
         notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
-        message: renewing && target.role?.name === role.name
-          ? (expiresAt
-            ? `${target.person.name}’s access as ${role.name} is renewed. It ends on ${formatDay(expiresAt)} unless renewed again.`
-            : `${target.person.name}’s access as ${role.name} is renewed, read-only, with no end date.`)
-          : expiresAt
-            ? `${target.person.name} can now work as ${role.name}. This ends on ${formatDay(expiresAt)} unless renewed.`
-            : `${target.person.name} has read-only access with no end date.`,
+        // The Member role, or none, says the page's own sentence (`NO_ROLE_SEES`), never "read-only access".
+        message: roleChangeSays({
+          personName: target.person.name,
+          roleName: role.name,
+          expiresAt,
+          renewing: renewing && target.role?.name === role.name,
+        }),
       },
     },
     { status: 201 }

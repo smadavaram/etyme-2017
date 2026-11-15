@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  DECIDE_LATER, DECIDE_LATER_LABEL, DECIDE_LATER_SAYS, NO_ROLE_SEES, levelLegend, levelOf, INVITE_ADDRESS_MISSING, INVITE_ROLE_MISSING, INVITE_ADDRESSES_MISSING,
+  DECIDE_LATER, DECIDE_LATER_LABEL, DECIDE_LATER_SAYS, NO_ROLE_SEES, NO_ROLE_LABEL, levelLegend, levelOf, INVITE_ADDRESS_MISSING, INVITE_ROLE_MISSING, INVITE_ADDRESSES_MISSING,
   addressAsTyped, addressesAsTyped, inviteProblems, inviteRoleId, inviteSays, roleChoiceSays, roleLine, roleOptionText,
 } from '@/lib/access-grant'
 import { shippedLineFor } from '@/app/api/roles/blurb'
@@ -71,7 +71,9 @@ describe('the role picker', () => {
       for (const seed of rolesFor(kind)) {
         const line = shippedLineFor(kind, seed)
         expect(line, `${kind} ${seed.name}`).toBe(seed.blurb)
-        expect(roleOptionText({ id: 'r', name: seed.name, blurb: line })).toBe(`${seed.name}: ${seed.blurb}`)
+        // The Member role is offered as what it leaves a person with (fix list layer 4).
+        expect(roleOptionText({ id: 'r', name: seed.name, blurb: line }))
+          .toBe(seed.name === 'Member' ? `${NO_ROLE_LABEL}: ${NO_ROLE_SEES}` : `${seed.name}: ${seed.blurb}`)
       }
     }
   })
