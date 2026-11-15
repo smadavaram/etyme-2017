@@ -25,6 +25,7 @@ import { InviteCandidatesDialog } from './invite-candidates'
 import { resendListingId } from '@/lib/consultant-portfolio/bench-invites'
 import { nudgeBody } from '@/lib/consultant-portfolio/forms'
 import { readJson } from '@/lib/read-response'
+import { alreadyKept } from '@/lib/consultant-portfolio/already-kept'
 
 /**
  * Consultants working surface — the company's talent pool.
@@ -88,7 +89,24 @@ interface BenchCount {
 /** The currencies a firm most often pays people in, offered beside the pay; the firm's own is always offered. */
 const PAY_CURRENCIES = ['USD', 'INR', 'GBP', 'EUR', 'CAD', 'AUD', 'MXN', 'BRL', 'VND', 'PHP']
 
-function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: () => void; onCreated: (says: string) => void; mailOn?: boolean }) {
+function AddConsultantModal({
+  onClose,
+  onCreated,
+  mailOn = false,
+  kept = [],
+  onOpen,
+  onResend,
+}: {
+  onClose: () => void
+  onCreated: (says: string) => void
+  mailOn?: boolean
+  /** The firm's own list, as the page loaded it: the only rows the early check reads. */
+  kept?: Consultant[]
+  /** Opens a person's record on this page. */
+  onOpen?: (row: Consultant) => void
+  /** Sends a waiting invitation again, by the row's own Resend door. */
+  onResend?: (row: Consultant, listingId: string) => void
+}) {
   // Rates typed here are in the firm’s own currency, by its own exponent.
   const currency = useFirmCurrency()
   const [form, setForm] = useState({
@@ -120,6 +138,9 @@ function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: (
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  // Somebody this firm already keeps, said beside Email as soon as the
+  // address is whole, from the firm's own list and nothing else (A4).
+  const match = alreadyKept(form.email, kept, true)
 
   /**
    * Checked here rather than left to the browser.
@@ -143,7 +164,10 @@ function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: (
     } else if (!email.includes('@') || !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
       // Names it, because "invalid email" leaves somebody staring at a
       // field they have already read twice.
-      p.email = `"${email}" is not an email address. It needs an @ and a domain — jane@acme.com.`
+      p.email = `"${email}" is not an email address. It needs an @ and a domain, like name@company.example.`
+    } else if (match?.blocks) {
+      // The route would ask nobody: said before the press, not after.
+      p.email = match.says
     }
 
     return p
@@ -203,7 +227,7 @@ function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: (
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
-      <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+      <div className="card w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold">Add consultant</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
@@ -220,12 +244,13 @@ function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: (
         )}
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          {/* One column on a phone.
+          {/* One column at every width, name then email, both first.
               Side by side, "Full name" and "Email" read as first name and
               last name to anybody moving fast — which is exactly what
               happened: a surname typed into the email field, and a button
-              that then did nothing. */}
-          <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-4">
+              that then did nothing. The email is the identifier, so it is
+              asked before anything else about them (fix list A4). */}
+          <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Full name *</label>
               {/* required says so to a screen reader; noValidate on the
@@ -241,7 +266,7 @@ function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: (
                 className={`w-full px-3 py-2 text-sm border rounded-lg
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
                            ${fieldErrors.name ? 'border-etyme-attention' : 'border-etyme-rule'}`}
-                placeholder="Jane Smith — first and last"
+                placeholder="First and last name"
               />
               {fieldErrors.name && (
                 <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.name}</p>
@@ -259,15 +284,34 @@ function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: (
                 inputMode="email"
                 autoComplete="off"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                aria-invalid={!!fieldErrors.email}
+                onChange={(e) => { setForm({ ...form, email: e.target.value }); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: '' }) }}
+                aria-invalid={!!fieldErrors.email || !!match?.blocks}
+                aria-describedby={match ? 'add-email-kept' : undefined}
                 className={`w-full px-3 py-2 text-sm border rounded-lg
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
-                           ${fieldErrors.email ? 'border-etyme-attention' : 'border-etyme-rule'}`}
-                placeholder="jane@acme.com"
+                           ${fieldErrors.email || match?.blocks ? 'border-etyme-attention' : 'border-etyme-rule'}`}
+                placeholder="name@company.example"
               />
-              {fieldErrors.email && (
+              {fieldErrors.email && fieldErrors.email !== match?.says && (
                 <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.email}</p>
+              )}
+              {/* Somebody already on this firm's own list: said here, with
+                  the one act that moves it on, before the rest is typed. */}
+              {match && (
+                <div id="add-email-kept" className={`mt-1 text-[12px] ${match.blocks ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+                  <p>{match.says}</p>
+                  {match.act === 'RESEND' && match.listingId && onResend ? (
+                    <button type="button" onClick={() => { onResend(match.row, match.listingId!); onClose() }}
+                      className="mt-1 text-etyme-action-press hover:underline">
+                      {match.actWords}
+                    </button>
+                  ) : onOpen ? (
+                    <button type="button" onClick={() => { onOpen(match.row); onClose() }}
+                      className="mt-1 text-etyme-action-press hover:underline">
+                      {match.actWords}
+                    </button>
+                  ) : null}
+                </div>
               )}
             </div>
           </div>
@@ -344,7 +388,7 @@ function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: (
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                placeholder="Dallas, TX"
+                placeholder="City, and state or country"
               />
             </div>
             <div>
@@ -409,13 +453,20 @@ function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: (
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
             </div>
           </div>
-          {/* Pay terms, optional. Only the two a person added here can
-              have: "through their own company" needs their company on
-              record first, and "employed by another firm" is that firm's
-              to put forward. */}
+          {/* Pay terms, optional and last, under the one line that says so
+              (fix list A4). Only the two a person added here can have:
+              "through their own company" needs their company on record
+              first, and "employed by another firm" is that firm's to put
+              forward. */}
+          <div className="pt-2 border-t border-etyme-rule">
+            <p className="text-xs font-semibold text-etyme-ink">Pay terms (optional)</p>
+            <p className="text-xs text-etyme-muted mt-0.5">
+              If you fill these in, they see them when they are asked and agree them by saying yes.
+            </p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="add-terms-type" className="block text-xs font-semibold text-etyme-muted mb-1">How you would pay them (optional)</label>
+              <label htmlFor="add-terms-type" className="block text-xs font-semibold text-etyme-muted mb-1">How you would pay them</label>
               <select
                 id="add-terms-type"
                 value={form.termsEngagementType}
@@ -450,10 +501,6 @@ function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: (
               {fieldErrors.termsPayCurrency && <p className="text-xs text-etyme-attention mt-1">{fieldErrors.termsPayCurrency}</p>}
             </div>
           </div>
-          <p className="text-xs text-etyme-muted">
-            If you fill these in, they see them when they are asked and agree them by saying yes.
-          </p>
-
           {/* Said plainly, right above the one button, because saving
               sends an email (outside review, 2026-10-05), or, where none
               can leave, keeps the link for staff (walk l2a, 2026-11-15). */}
@@ -1462,7 +1509,13 @@ export default function ConsultantsPage() {
 
       {/* Modals */}
       {showInvite && mayAdd && <InviteCandidatesDialog onClose={() => setShowInvite(false)} onDone={() => { void fetchConsultants() }} />}
-      {showAdd && mayAdd && <AddConsultantModal mailOn={mailOn} onClose={() => setShowAdd(false)} onCreated={(says) => { setAdded(says); fetchConsultants() }} />}
+      {showAdd && mayAdd && <AddConsultantModal mailOn={mailOn}
+          kept={consultants}
+          onOpen={(row) => setSelected(row)}
+          onResend={(row, listingId) => { void resend(row, listingId) }}
+          onClose={() => setShowAdd(false)}
+          onCreated={(says) => { setAdded(says); fetchConsultants() }}
+        />}
       {selected && (
         <ConsultantDrawer
           consultant={selected}

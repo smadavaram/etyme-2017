@@ -78,7 +78,7 @@ describe('The layout does not invite the mistake in the first place', () => {
   })
 
   it('the name placeholder says it wants both names', () => {
-    expect(PAGE).toContain('first and last')
+    expect(PAGE).toContain('placeholder="First and last name"')
   })
 })
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 
 import { GET as payroll } from '@/app/api/payroll/route'
@@ -89,9 +89,24 @@ async function payrollPayDay(email: string): Promise<string> {
   return String(row.nextPayDate).slice(0, 10)
 }
 
+/**
+ * Today, on her page, is a fixed day inside the world this file builds:
+ * Monday Dec 21, 2026, after both weeks were accepted and before the pay
+ * day they name. Her page says the next pay day from today, so read on
+ * the real clock this file went red the day after Dec 24, 2026.
+ */
+const TODAY = '2026-12-21T12:00:00Z'
+
 async function herPage(email: string) {
   as(email)
-  const r = await json(await myWork(req('GET', '/api/me/work')))
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(TODAY))
+  let r: Awaited<ReturnType<typeof json>>
+  try {
+    r = await json(await myWork(req('GET', '/api/me/work')))
+  } finally {
+    vi.useRealTimers()
+  }
   expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
   const owed = r.body.data.owed
   const weeks = (owed.weeks as any[]).filter((w) => w.stage === 'OWED' && w.priced)

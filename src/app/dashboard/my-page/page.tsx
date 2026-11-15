@@ -290,7 +290,7 @@ export default function MyPagePage() {
             className={`${field} mt-1.5`}
             value={headline}
             onChange={(e) => setHeadline(e.target.value)}
-            placeholder="SAP FICO consultant"
+            placeholder="Data engineer, or ICU travel nurse"
           />
 
           <div className="mt-4">

@@ -334,7 +334,7 @@ export function YourPapers({ standalone = false, onRows }: {
                             <input
                               value={licenseOf(r.id).issuedBy}
                               onChange={(e) => setLicense({ ...license, [r.id]: { ...licenseOf(r.id), issuedBy: e.target.value } })}
-                              placeholder="Wisconsin Board of Nursing"
+                              placeholder="The board or agency that issued it"
                               className="mt-1 block w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised"
                             />
                           </label>
