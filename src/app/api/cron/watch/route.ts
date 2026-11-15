@@ -28,6 +28,7 @@ import {
   isCredential,
 } from '@/lib/credential-chase'
 import { sweepExpired } from '@/lib/holds'
+import { hasSignedIn } from '@/lib/access-grant'
 
 /**
  * GET /api/cron/watch
@@ -260,10 +261,20 @@ async function lookAtPurchaseOrders(now: Date): Promise<Finding[]> {
 async function lookAtAccess(now: Date): Promise<Finding[]> {
   const rows = await prisma.context.findMany({
     where: { revokedAt: null, companyId: { not: null } },
+    // What the end-date rule reads (`seatByDate`): the role's permissions,
+    // whether the seat is paused, and whether its person ever signed in.
+    // Without them the last seat that may manage access is never found, so
+    // a sole Admin kept open past its date was reported as "lost access".
     select: {
       id: true, companyId: true, expiresAt: true, lastUsedAt: true, grantedAt: true,
-      person: { select: { name: true } },
-      role: { select: { name: true } },
+      suspendedAt: true, invitedAt: true,
+      person: {
+        select: {
+          name: true,
+          credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
+        },
+      },
+      role: { select: { name: true, permissions: true } },
     },
   })
 
@@ -276,6 +287,9 @@ async function lookAtAccess(now: Date): Promise<Finding[]> {
       expiresAt: c.expiresAt,
       lastUsedAt: c.lastUsedAt,
       grantedAt: c.grantedAt,
+      rolePermissions: c.role?.permissions ?? [],
+      suspendedAt: c.suspendedAt,
+      hasSignedIn: hasSignedIn({ invitedAt: c.invitedAt, lastUsedAt: c.lastUsedAt, everSignedIn: c.person.credentials.length > 0 }),
     })),
     now
   )
