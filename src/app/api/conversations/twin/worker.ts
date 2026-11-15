@@ -817,6 +817,8 @@ export function workerToday(
     now?: Date
     /** The Owner asks addressed to her (./owner-asks): said first, as the recommendation, and counted in the headline. */
     owners?: { lead: RichLine | null; cards: readonly QueueCard[] }
+    /** Who gives a firm's own seat with no role its role (./no-role), said under the headline in place of "nothing yet". */
+    noRole?: string | null
   } = {},
 ): WorkerAnswer {
   const cards = cardsFor(f)
@@ -844,7 +846,9 @@ export function workerToday(
   if (first.length > shown.length) lines.push({ says: `${numberWord(first.length - shown.length)} more ${first.length - shown.length === 1 ? 'is' : 'are'} on Your work.`, links: [{ text: 'Your work', href: YOUR_WORK }] })
   // A new worker is recommended her one next act; the old sentence stays only where that could not be read.
   const firstAct = noWork(f) ? newWorkerAct(f) : null
-  if (noWork(f) && !firstAct) lines.push({ says: nothingYet(f) })
+  // A firm's own seat with no role is told who gives her one, in place of "nothing yet" (./no-role).
+  if (f.seat !== 'CONSULTANT' && opts.noRole) lines.push({ says: opts.noRole })
+  else if (noWork(f) && !firstAct) lines.push({ says: nothingYet(f) })
 
   const more = lines.slice(0, WORKER_LINES)
   const tail: RichLine[] = []

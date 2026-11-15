@@ -83,11 +83,16 @@ export function firmHatWithNothing(f: HatFacts): boolean {
   return f.workerSeat && !f.consultantSeat && !f.region && !greetsAsYou(f)
 }
 
-/** "Nothing of Teleworld Solutions's is addressed to you; your own work is under You." */
-export function nothingOfTheFirm(firmName: string, saidElse = false): string {
-  return saidElse
+/**
+ * "Nothing of Teleworld Solutions's is addressed to you; your own work is under You."
+ * A seat with no role hears, after it, who gives her one (`noRoleYetSays`
+ * in ./no-role); a seat with a role reads the line alone, as before.
+ */
+export function nothingOfTheFirm(firmName: string, saidElse = false, noRole: string | null = null): string {
+  const line = saidElse
     ? 'Your own work is under You, in the account menu.'
     : `Nothing of ${firmName}${firmName.endsWith('s') ? '’' : '’s'} is addressed to you; your own work is under You, in the account menu.`
+  return noRole ? `${line} ${noRole}` : line
 }
 
 /** The hat the cookie on this request names, or null. */

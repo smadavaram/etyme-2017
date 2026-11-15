@@ -28,6 +28,7 @@ import { linkAsksFor, joinAsksFor, firmAskItems, withFirmAsks } from './firm-ask
 import { ownerAsksFor, withOwnerAsks, ownerAskLead, ownerAsksHeadline, becomeOwnerLineFor, NO_OWNER_ASKS, type OwnerAskRead } from './owner-asks'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { ownPageFor } from '@/lib/portfolio-data'
+import { noRoleLineFor } from './no-role'
 import { cookieHatOf, greetsAsYou, firmHatWithNothing, nothingOfTheFirm, noticesForHat, youOffered, type HatFacts } from './hat'
 import { sinceSays, queueCards } from './ask'
 import type { CompanyKind } from '@/lib/nav-table'
@@ -873,7 +874,10 @@ async function workerGreeting(caller: Caller, request: NextRequest) {
     // threads other companies wrote to the firm, wait for the firm hat.
     const hat = await hatFactsOf(caller, request)
     const own = youOffered(hat)
-    const [allNotices, allThreads, facts] = await Promise.all([unreadNotices(caller), unreadThreads(caller), workerFacts(caller, request)])
+    // A firm's own seat with no role, offered no You hat (this greeting is
+    // all it reads), is told who gives her a role (./no-role). In the You
+    // hat her own work is the subject, and the firm hat says it instead.
+    const [allNotices, allThreads, facts, noRole] = await Promise.all([unreadNotices(caller), unreadThreads(caller), workerFacts(caller, request), own ? null : noRoleLineFor(caller).catch(() => null)])
     const owners = await ownerAsksOf(caller)
     // An Owner ask addressed to this person is theirs to answer whatever
     // their role (the Owner walk, 2026-11-12): it leads, as its card, and
@@ -884,7 +888,7 @@ async function workerGreeting(caller: Caller, request: NextRequest) {
     const notices = { ...allNotices, shown: hatNotices.filter((n) => !(n.entityId && asked.has(n.entityId))) }
     const threads = own ? { shown: [], more: 0, noticeIds: [] } : allThreads
     const answer = workerToday(facts, {
-      greeting: true, notices, threads,
+      greeting: true, notices, threads, noRole,
       ...(owners.items.length ? { owners: { lead: ownerAskLead(owners.items), cards: queueCards({ total: owners.items.length, items: owners.items }) } } : {}),
     })
     await Promise.all([
@@ -917,7 +921,7 @@ async function nothingOfTheFirmGreeting(caller: Caller, request: NextRequest) {
     return NextResponse.json({ data: { thread: await saved } })
   }
   try {
-    const [hat, all, threads, owners] = await Promise.all([hatFactsOf(caller, request), unreadNotices(caller), unreadThreads(caller), ownerAsksOf(caller)])
+    const [hat, all, threads, owners, noRole] = await Promise.all([hatFactsOf(caller, request), unreadNotices(caller), unreadThreads(caller), ownerAsksOf(caller), noRoleLineFor(caller).catch(() => null)])
     // An Owner ask addressed to this seat is its own, whatever its desk:
     // it leads, as a card, and its notice is not said again under it.
     const asked = new Set(owners.items.map((d) => d.entityId))
@@ -928,7 +932,7 @@ async function nothingOfTheFirmGreeting(caller: Caller, request: NextRequest) {
     const answer: Answer = {
       kind: 'NEEDS', greeting: true, items: [],
       ...(lead ? { recommend: lead } : {}),
-      says: lead ? `${ownerAsksHeadline(owners.items.length)} Checked just now.` : nothingOfTheFirm(caller.company!.name, since.length > 0),
+      says: lead ? `${ownerAsksHeadline(owners.items.length)} Checked just now.` : nothingOfTheFirm(caller.company!.name, since.length > 0, noRole),
       ...(cards.length ? { queue: cards } : {}),
       ...(since.length ? { more: since } : {}),
     }
@@ -1028,7 +1032,8 @@ export async function POST(request: NextRequest) {
   if (await inFirmHatWithNothing(caller, request)) {
     // Nothing of the firm's is this seat's to read: every question in the firm hat is told so, and where its own work is.
     const text = typeof body.text === 'string' ? body.text.slice(0, 2000) : ''
-    const answer: Answer = { kind: 'TEXT', says: nothingOfTheFirm(caller.company!.name) }
+    // A seat with no role is told who gives her one (./no-role).
+    const answer: Answer = { kind: 'TEXT', says: nothingOfTheFirm(caller.company!.name, false, await noRoleLineFor(caller).catch(() => null)) }
     const kept = text.trim() ? await keep(caller, text.trim(), answer) : NOT_KEPT_EMPTY
     return NextResponse.json({ data: { answer, ...kept } })
   }
