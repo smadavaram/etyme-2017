@@ -95,7 +95,10 @@ export async function GET(request: NextRequest) {
         days: l.stayDays!,
         url: inviteUrl(l.id),
       })
-      await send({
+      // The message's id goes on the log row, so Bench check-ins names
+      // this row as the reminder it was (`check-in-rows`, which reads the
+      // id first), never by guessing from the listing.
+      const sent = await send({
         companyId: l.companyId,
         personId: person.id,
         kind: 'LINK',
@@ -116,7 +119,7 @@ export async function GET(request: NextRequest) {
               ? `${person.name} was reminded by email that their stay on ${possessive(l.company.name)} bench ends soon.`
               : `${person.name}'s stay on ${possessive(l.company.name)} bench ends soon. No email can be sent from here, so the reminder and its one-tap renew wait on their notice.`,
             reason: `Their chosen stay of ${l.stayDays} days ends within ${reminderLeadDays(l.stayDays)} day(s); the reminder carries a one-tap renew.`,
-            payload: { listingId: l.id, staysUntil: l.staysUntil!.toISOString() },
+            payload: { listingId: l.id, messageId: sent.id, status: sent.status, staysUntil: l.staysUntil!.toISOString() },
             reversible: false,
           },
         }),

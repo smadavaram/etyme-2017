@@ -52,7 +52,7 @@ const token = vi.hoisted(() => ({ value: null as any }))
 vi.mock('next-auth/jwt', () => ({ getToken: vi.fn(async () => token.value) }))
 
 import { setOwnPassword, versionAfterOwnChange, ownPasswordState, SIGN_IN_AGAIN_TO_SET, NOT_YOUR_CURRENT, FIRST_PASSWORD_MINUTES } from '@/lib/password-door'
-import { hashPassword, passwordMatches, DEMO_REFUSAL, RESET_SHUT } from '@/lib/password'
+import { hashPassword, passwordMatches, NO_MAIL_REFUSAL, RESET_SHUT } from '@/lib/password'
 import { seatRefusal } from '@/lib/identity/policy'
 
 const NEW = 'copper kettle rides north'
@@ -117,9 +117,9 @@ describe('a signed-in person sets a password of their own', () => {
     expect(await setOwnPassword(ask({ password: 'sharath-is-signing-in' }), NOW)).toMatchObject({ ok: false, field: 'password', says: 'Do not use your email address in your password.' })
   })
 
-  it('a password for a demo address is refused', async () => {
+  it('a password for an address no email can reach is refused, and says so', async () => {
     seat({ primaryEmail: 'dana@northbend.example' })
-    expect(await setOwnPassword(ask({ email: 'dana@northbend.example' }), NOW)).toMatchObject({ ok: false, says: DEMO_REFUSAL })
+    expect(await setOwnPassword(ask({ email: 'dana@northbend.example' }), NOW)).toMatchObject({ ok: false, says: NO_MAIL_REFUSAL })
   })
 
   it('a password on a directory-only company’s address is refused in one sentence and the refusal is logged first', async () => {

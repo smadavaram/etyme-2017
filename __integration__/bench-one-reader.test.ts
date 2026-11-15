@@ -37,6 +37,9 @@ let lastDayElsewhere = ''
 let startsLater = ''
 let endedElsewhere = ''
 let otherLineId = ''
+let ownEndedUndated = ''
+let ownEndedLater = ''
+let endedLaterElsewhere = ''
 
 async function onOurBench(name: string, slug: string): Promise<string> {
   const person = await prisma.person.create({ data: { name, primaryEmail: `${slug}@northwind-staffing.example` } })
@@ -48,6 +51,12 @@ async function onOurBench(name: string, slug: string): Promise<string> {
     },
   })
   return person.id
+}
+
+async function lineHere(personId: string, startDate: Date, endDate: Date | null) {
+  return prisma.sellContract.create({
+    data: { companyId: firm, clientCompanyId: client, personId, billRate: 87_654, state: 'ENDED', startDate, endDate },
+  })
 }
 
 async function lineAtHarborline(personId: string, startDate: Date, endDate: Date | null, state: 'IN_PROGRESS' | 'ENDED' = 'IN_PROGRESS') {
@@ -74,6 +83,15 @@ beforeAll(async () => {
 
   endedElsewhere = await onOurBench('Dev Anand Rao', 'dev.rao')
   await lineAtHarborline(endedElsewhere, new Date(now.getTime() - 90 * DAY), new Date(now.getTime() - 5 * DAY), 'ENDED')
+
+  // Reader of batch five, item 1: a line of this firm's own, ended, with
+  // no last day on record, or with a last day still to come.
+  ownEndedUndated = await onOurBench('Ines Varga', 'ines.varga')
+  await lineHere(ownEndedUndated, new Date(now.getTime() - 90 * DAY), null)
+  ownEndedLater = await onOurBench('Kwame Asante', 'kwame.asante')
+  await lineHere(ownEndedLater, new Date(now.getTime() - 90 * DAY), new Date(now.getTime() + 20 * DAY))
+  endedLaterElsewhere = await onOurBench('Noor Haddad', 'noor.haddad')
+  await lineAtHarborline(endedLaterElsewhere, new Date(now.getTime() - 90 * DAY), new Date(now.getTime() + 20 * DAY), 'ENDED')
 }, 600_000)
 
 describe('one reader of who is on the bench', () => {
@@ -121,6 +139,37 @@ describe('one reader of who is on the bench', () => {
     expect(said).not.toContain('987.65')
     for (const row of await benchAt(firm, new Date())) {
       expect(Object.keys(row).sort()).toEqual(['name', 'personId', 'since'])
+    }
+  })
+})
+
+describe('a person whose only line has ended reads the same on Today, Candidates and Bench', () => {
+  async function threePages() {
+    as(TECHPEPLE)
+    const t = await json(await today(req('GET', '/api/today')))
+    expect(t.status, JSON.stringify(t.body).slice(0, 300)).toBe(200)
+    const c = await json(await consultants(req('GET', '/api/consultants')))
+    const b = await json(await bench(req('GET', '/api/bench?scope=company')))
+    const onToday = (t.body.data.bench as { personId: string }[]).map((r) => r.personId)
+    const rows = [...b.body.data.tiers.MARKETING, ...b.body.data.tiers.RETAINED]
+    const row = (id: string) => rows.find((r: any) => r.consultant.person.id === id)
+    return { onToday, candidates: c.body.data.bench.count as number, onBench: b.body.data.totals.onBench as number, row }
+  }
+
+  it('a person whose own line here has ended with no last day on record is on the bench on Today, Candidates and Bench, as Bench reads her free now', async () => {
+    const p = await threePages()
+    expect(p.onToday).toContain(ownEndedUndated)
+    expect(p.candidates).toBe(p.onToday.length)
+    expect(p.onBench).toBe(p.onToday.length)
+    expect(p.row(ownEndedUndated)?.onBenchToday).toBe(true)
+  })
+
+  it('a person whose ended line, here or at another firm, has a last day still to come is off the bench on every page until the day after it', async () => {
+    const p = await threePages()
+    for (const id of [ownEndedLater, endedLaterElsewhere]) {
+      expect(p.onToday).not.toContain(id)
+      expect(p.row(id)?.onBenchToday).toBe(false)
+      expect(p.row(id)?.free?.state).not.toBe('NOW')
     }
   })
 })

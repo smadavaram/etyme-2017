@@ -63,7 +63,7 @@ import {
   weakPasswordReason, hashPassword, passwordMatches, newToken, hashToken, expiresAfter, tokenUsable,
   secondsToWait, waitSentence, checkAddress, numberedAddress, cleanEmail, looksLikeEmail,
   NO_MATCH, UNVERIFIED_CODE, unverifiedSentence, checkYourEmail, VERIFY_HOURS, RESET_HOURS,
-  SIGNUP_SHUT, RESET_SHUT, DEMO_REFUSAL, CONFIRMED_CODE, ALREADY_CONFIRMED, firmAddedYou, soloFromCandidate,
+  SIGNUP_SHUT, RESET_SHUT, noPasswordSays, CONFIRMED_CODE, ALREADY_CONFIRMED, firmAddedYou, soloFromCandidate,
   memberWelcome, colleagueSentence, demoEmail,
 } from '@/lib/password'
 
@@ -155,7 +155,7 @@ export const DOOR_SHUT = SIGNUP_SHUT
  * and that locked a real person out for good.
  */
 function demoRefusal(email: string): Answer | null {
-  return demoEmail(email) ? refuse(DEMO_REFUSAL, 'email', 403) : null
+  return demoEmail(email) ? refuse(noPasswordSays(email), 'email', 403) : null
 }
 
 // ── Sending a link ────────────────────────────────────────────────────
@@ -664,7 +664,7 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
     return { ok: false, code: CONFIRMED_CODE, says: ALREADY_CONFIRMED }
   }
   if (!usable.ok) return { ok: false, says: usable.says }
-  if (demoEmail(row!.person.primaryEmail)) return { ok: false, says: DEMO_REFUSAL }
+  if (demoEmail(row!.person.primaryEmail)) return { ok: false, says: noPasswordSays(row!.person.primaryEmail) }
   // Before the link is spent or anybody seated: a directory-only company's
   // address is not let in by a link either.
   const shut = await policyRefusal(row!.person.primaryEmail, 'VERIFY_TOKEN')
@@ -865,7 +865,7 @@ export async function checkPassword(rawEmail: unknown, password: unknown, ip: st
   const pw = String(password ?? '')
 
   // The demo world is opened from the demo page and never with a password.
-  if (demoEmail(email)) return { ok: false, code: 'DEMO', says: DEMO_REFUSAL }
+  if (demoEmail(email)) return { ok: false, code: 'DEMO', says: noPasswordSays(email) }
 
   const wait = secondsToWait(await failuresFor(email, ip, now), now)
   if (wait > 0) return { ok: false, code: 'WAIT', says: waitSentence(wait) }
@@ -958,7 +958,7 @@ export async function resetPassword(token: unknown, password: unknown, now: Date
   })
   const usable = tokenUsable(row && row.purpose === 'RESET' ? asLink(row) : null, 'RESET', now)
   if (!usable.ok) return refuse(usable.says, 'token', 410)
-  if (demoEmail(row!.person.primaryEmail)) return refuse(DEMO_REFUSAL, 'token', 403)
+  if (demoEmail(row!.person.primaryEmail)) return refuse(noPasswordSays(row!.person.primaryEmail), 'token', 403)
   const policy = await policyRefusal(row!.person.primaryEmail, 'PASSWORD')
   if (policy) return policy
 
@@ -997,7 +997,7 @@ export async function resetLinkState(token: unknown, now: Date = new Date()): Pr
   })
   const usable = tokenUsable(row && row.purpose === 'RESET' ? asLink(row) : null, 'RESET', now)
   if (!usable.ok) return { ok: false, says: usable.says }
-  if (demoEmail(row!.person.primaryEmail)) return { ok: false, says: DEMO_REFUSAL }
+  if (demoEmail(row!.person.primaryEmail)) return { ok: false, says: noPasswordSays(row!.person.primaryEmail) }
   return { ok: true }
 }
 
@@ -1055,7 +1055,7 @@ export interface OwnPasswordState {
 export async function ownPasswordState(rawEmail: unknown): Promise<OwnPasswordState> {
   const email = cleanEmail(rawEmail)
   if (!looksLikeEmail(email)) return { hasPassword: false, allowed: false, says: SIGN_IN_AGAIN_TO_SET }
-  if (demoEmail(email)) return { hasPassword: false, allowed: false, says: DEMO_REFUSAL }
+  if (demoEmail(email)) return { hasPassword: false, allowed: false, says: noPasswordSays(email) }
   const { policyFacts } = await import('@/lib/identity/read')
   const { decideDoor } = await import('@/lib/identity/policy')
   const facts = await policyFacts(email, null)

@@ -5,7 +5,7 @@ import {
   weakPasswordReason, hashPassword, passwordMatches, checkAddress, numberedAddress,
   secondsToWait, waitSentence, tokenUsable, expiresAfter, newToken, hashToken,
   NO_MATCH, VERIFY_HOURS, RESET_HOURS, cleanEmail,
-  demoEmail, SUPERSEDED, SIGNUP_SHUT, RESET_SHUT, DEMO_REFUSAL, ALREADY_CONFIRMED, firmAddedYou, soloFromCandidate,
+  demoEmail, SUPERSEDED, SIGNUP_SHUT, RESET_SHUT, DEMO_REFUSAL, NO_MAIL_REFUSAL, noPasswordSays, ALREADY_CONFIRMED, firmAddedYou, soloFromCandidate,
   PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading,
   memberWelcome, colleagueSentence, claimTokenIn, safeNext,
 } from '@/lib/password'
@@ -306,8 +306,29 @@ describe('the login page offers email and password even when no provider key is 
   })
 })
 
+describe('the password door says what is true of an address no email can reach', () => {
+  it('a firm’s own test person at a reserved address is told no email can reach it, never that it is the Etyme demo', () => {
+    for (const e of ['test.recruiter@northwind-staffing.example', 'ap@harborline-tech.invalid', 'hr@talvern.local']) {
+      expect(noPasswordSays(e), e).toBe(NO_MAIL_REFUSAL)
+      expect(noPasswordSays(e), e).not.toMatch(/demo/i)
+    }
+  })
+
+  it('an address on the Etyme demo’s own host keeps the demo page’s guidance', () => {
+    for (const e of ['pm@demo.etyme.com', ' PM@Demo.Etyme.io ', 'world-techpeple@demo.etyme.local']) {
+      expect(noPasswordSays(e), e).toBe(DEMO_REFUSAL)
+    }
+  })
+
+  it('every refusal of the password door reads its sentence from the address, never the demo sentence alone', () => {
+    const door = read('src/lib/password-door.ts')
+    expect(door).not.toMatch(/\bDEMO_REFUSAL\b/)
+    expect(door.match(/noPasswordSays\(/g)?.length ?? 0).toBeGreaterThanOrEqual(6)
+  })
+})
+
 describe('round one of the sign-up walk, said as the walk found it', () => {
-  it('a seeded demo person can never set a password; the demo door is the only way into a demo seat', () => {
+  it('an address no email can reach can never set a password, and an address on the demo’s own host is told the demo page is the way in', () => {
     for (const e of ['dana@northbend.example', 'ap@cavanaugh.invalid', 'hr@talvern.local', 'pm@demo.etyme.com', ' PM@Demo.Etyme.io ']) {
       expect(demoEmail(e), e).toBe(true)
     }
@@ -315,6 +336,7 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
       expect(demoEmail(e), e).toBe(false)
     }
     expect(DEMO_REFUSAL).toBe('This address belongs to the Etyme demo. A demo seat opens only from the demo page, never with a password.')
+    expect(NO_MAIL_REFUSAL).toBe('No email can reach this address, so no password can be set for it. Use an address that gets email.')
     // Every door of the password door asks it: sign-up, claim, resend, reset, sign-in.
     const door = read('src/lib/password-door.ts')
     for (const fn of ['signUpCompany', 'signUpCandidate', 'signUpClaim', 'resendVerification', 'requestReset']) {

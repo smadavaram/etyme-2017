@@ -504,4 +504,22 @@ describe('a person chooses how long they stay on a bench', () => {
     expect(after.revokedAt).toBeNull()
     expect(after.lapsedAt).toBeNull()
   })
+
+  it('the reminder before a bench stay ends is logged with the id of the letter it sent, so Bench check-ins can name that letter as the reminder', async () => {
+    const priscilla = await listingOf(PRISCILLA, 'world-halcyon')
+    await prisma.benchListing.update({
+      where: { id: priscilla.id },
+      data: { stayDays: 15, staysUntil: new Date(Date.now() + 36 * HOUR), stayRemindedAt: null },
+    })
+    const ran = await cron()
+    expect(ran.remindedList.map((x: any) => x.person)).toContain('Priscilla Adeyemi')
+    const letters = await prisma.textMessage.findMany({ where: { aboutId: priscilla.id, kind: 'LINK' }, select: { id: true } })
+    const logs = await prisma.automationLog.findMany({
+      where: { action: 'BENCH_STAY_REMINDED', payload: { path: ['listingId'], equals: priscilla.id } },
+      select: { payload: true },
+    })
+    expect(logs.length).toBeGreaterThan(0)
+    const ids = new Set(letters.map((l) => l.id))
+    for (const l of logs) expect(ids.has((l.payload as { messageId?: string }).messageId ?? '')).toBe(true)
+  })
 })

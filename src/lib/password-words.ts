@@ -26,9 +26,38 @@ export const SIGNUP_SHUT = 'Sign-up is off on this deployment until an email sen
  */
 export const RESET_SHUT = 'Etyme cannot send email here yet, so a reset link cannot reach you. If you can still sign in with Google or Microsoft, do that, then choose Set a password in the account menu.'
 
-/** A seeded demo person never gets a password (round one of the sign-up walk, item 46). */
+/**
+ * A seeded demo person never gets a password (round one of the sign-up
+ * walk, item 46). Said only where the address is on the demo's own host
+ * (`demo.etyme…`), since only there is the demo page the way in.
+ */
 export const DEMO_REFUSAL =
   'This address belongs to the Etyme demo. A demo seat opens only from the demo page, never with a password.'
+
+/**
+ * Any other address no email can reach (.example, .invalid, .local): a
+ * real firm's test person as much as a sample one. The demo sentence was
+ * said to all of them, and it is not true of a firm's own test person
+ * (reader of batch five, item 2). This is true for every such reader.
+ */
+export const NO_MAIL_REFUSAL =
+  'No email can reach this address, so no password can be set for it. Use an address that gets email.'
+
+/** Whether an address is on the Etyme demo's own host. Pure: the address alone decides. */
+export function demoHost(email: string): boolean {
+  const e = String(email ?? '').trim().toLowerCase()
+  const domain = e.slice(e.lastIndexOf('@') + 1)
+  return e.includes('@') && (domain === 'demo.etyme' || domain.startsWith('demo.etyme.'))
+}
+
+/**
+ * What the password door says to an address it never takes a password
+ * for: the demo's own guidance on the demo's host, else that no email
+ * can reach it. Called only for such an address (`demoEmail`).
+ */
+export function noPasswordSays(email: string): string {
+  return demoHost(email) ? DEMO_REFUSAL : NO_MAIL_REFUSAL
+}
 
 /** Prefix on a refusal for an address that is already confirmed, so the link page can offer Sign in. */
 export const CONFIRMED_CODE = 'CONFIRMED'

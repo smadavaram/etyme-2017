@@ -10,8 +10,8 @@ import { send, configured } from '@/lib/messages'
  * Every fortnight, ask everybody on a bench whether anything has changed.
  *
  * This is the loop that keeps the whole supply side honest. A bench record
- * says somebody is free at $78; that was true three weeks ago, and nobody
- * updated it because updating records is nobody's job. Scoring a stale
+ * says somebody is free at a rate; that was true three weeks ago, and
+ * nobody updated it because updating records is nobody's job. Scoring a stale
  * record produces confident nonsense faster than a human could produce it
  * slowly.
  *

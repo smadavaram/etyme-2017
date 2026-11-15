@@ -10,7 +10,7 @@ import { POST as enter } from '@/app/api/onboarding/route'
 import { GET as probe } from '@/app/api/auth/password/signup/route'
 import { verifyEmail, checkPassword, resetPassword, issueSetPassword, resetLinkState, setOwnPassword } from '@/lib/password-door'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
-import { DEMO_REFUSAL, SUPERSEDED, ALREADY_CONFIRMED, firmAddedYou, SIGNUP_SHUT, RESET_SHUT } from '@/lib/password'
+import { DEMO_REFUSAL, NO_MAIL_REFUSAL, SUPERSEDED, ALREADY_CONFIRMED, firmAddedYou, SIGNUP_SHUT, RESET_SHUT } from '@/lib/password'
 import { ACCOUNT_MAIL } from '@/lib/notify/account-mail'
 import { passwordDoor } from '@/lib/auth'
 import { gatherFacts } from '@/lib/readiness-facts'
@@ -359,14 +359,19 @@ describe('a password door, until the single sign-on keys exist', () => {
     await expect(authorize({ verifyToken: used }, { headers: {} })).rejects.toThrow(`CONFIRMED:${ALREADY_CONFIRMED}`)
   })
 
-  it('a seeded demo person can never set a password; the demo door is the only way into a demo seat', async () => {
+  it('an address no email can reach can never set a password, and an address on the demo’s own host is told the demo page is the way in', async () => {
     // An address nobody can register, or a demo host, is refused at every door.
-    for (const email of ['dana@northbend.example', 'ap@cavanaugh.invalid', 'hr@talvern.local', 'pm@demo.etyme.com']) {
+    // The demo's own host is told the demo page is the way in; any other
+    // reserved address, that no email can reach it (reader of batch five, 2).
+    for (const [email, says] of [
+      ['dana@northbend.example', NO_MAIL_REFUSAL], ['ap@cavanaugh.invalid', NO_MAIL_REFUSAL],
+      ['hr@talvern.local', NO_MAIL_REFUSAL], ['pm@demo.etyme.com', DEMO_REFUSAL],
+    ] as const) {
       const up = await json(await signUp(req('POST', '/api/auth/password/signup', company({ email, address: 'seedtry' }))))
       expect(up.status, email).toBe(403)
-      expect(up.body.error.message).toBe(DEMO_REFUSAL)
-      expect((await json(await askReset(req('POST', '/api/auth/password/reset', { email })))).body.error.message).toBe(DEMO_REFUSAL)
-      expect((await json(await resend(req('POST', '/api/auth/password/resend', { email })))).body.error.message).toBe(DEMO_REFUSAL)
+      expect(up.body.error.message).toBe(says)
+      expect((await json(await askReset(req('POST', '/api/auth/password/reset', { email })))).body.error.message).toBe(says)
+      expect((await json(await resend(req('POST', '/api/auth/password/resend', { email })))).body.error.message).toBe(says)
       expect(await checkPassword(email, PASSWORD, '10.0.9.1')).toMatchObject({ ok: false, code: 'DEMO' })
     }
 

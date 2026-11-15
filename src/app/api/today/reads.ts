@@ -97,8 +97,43 @@ export interface BenchRow {
   since: string
 }
 
-/** The sell-line states a spell on the bench is read against, as bench profit reads them. */
-const LIVE_OR_PAPERED = ['PENDING_VERIFICATION', 'VERIFIED', 'IN_PROGRESS', 'PAUSED', 'ENDED'] as const
+/**
+ * The sell-line states a spell on the bench is read against: the states
+ * that place somebody (`LIVE_STATES`, Bench's `whenFree`), and ENDED.
+ * ENDED is read for one fact only, the day she left, which dates her
+ * spell on the bench: a firm's own employee with no listing is on the
+ * bench from the end of her last placement here, and without the ended
+ * line she would have no spell at all. That is why ENDED stays in this
+ * read and is kept out of the placing states.
+ */
+const LIVE_OR_PAPERED = [...LIVE_STATES, 'ENDED'] as SellContractState[]
+
+/** One of this firm's own lines, as the read below selects it. */
+export interface OwnLine {
+  id: string
+  state: SellContractState | string
+  startDate: Date
+  endDate: Date | null
+}
+
+/**
+ * The span a line is read as on the bench, or null where it says nothing.
+ *
+ * A papered or running line is read whole: it places the person over its
+ * dates. An ended line places nobody: it says only her last day, the way
+ * Bench's `whenFree` reads an ended line (`lastEnded`, the latest end
+ * date). So an ended line with no last day on record says nothing and is
+ * dropped (fix list, layer five, reader's item 1: it was read as a
+ * placement with no end, so Today and Candidates called her placed while
+ * Bench called her free now). An ended line with a last day is kept with
+ * its dates, so a last day today or later keeps her off the bench until
+ * the day after, as Bench's "Free from" says, and a last day gone dates
+ * her spell.
+ */
+export function benchSpan(l: OwnLine): { id: string; startsOn: Date; endsOn: Date | null } | null {
+  if (l.state === 'ENDED' && l.endDate == null) return null
+  return { id: l.id, startsOn: l.startDate, endsOn: l.endDate }
+}
 
 /**
  * Who is on this firm's bench today, by either consent — a listing the
@@ -145,8 +180,8 @@ export async function benchAt(companyId: string, now: Date): Promise<BenchRow[]>
   const people = [...names.keys()]
   const [lines, elsewhere] = await Promise.all([
     prisma.sellContract.findMany({
-      where: { companyId, personId: { in: people }, state: { in: [...LIVE_OR_PAPERED] } },
-      select: { id: true, personId: true, startDate: true, endDate: true },
+      where: { companyId, personId: { in: people }, state: { in: LIVE_OR_PAPERED } },
+      select: { id: true, personId: true, state: true, startDate: true, endDate: true },
     }),
     placedElsewhereToday(companyId, people, now),
   ])
@@ -156,7 +191,7 @@ export async function benchAt(companyId: string, now: Date): Promise<BenchRow[]>
     if (elsewhere.has(personId)) continue
     const spell = benchSpell({
       joinedBench: joined.get(personId) ?? null,
-      lines: lines.filter((l) => l.personId === personId).map((l) => ({ id: l.id, startsOn: l.startDate, endsOn: l.endDate })),
+      lines: lines.filter((l) => l.personId === personId).flatMap((l) => benchSpan(l) ?? []),
       now,
     })
     if (spell.kind === 'NOW') out.push({ personId, name, since: iso(spell.from) })
@@ -167,8 +202,9 @@ export async function benchAt(companyId: string, now: Date): Promise<BenchRow[]>
 /**
  * Which of these people hold a line at another firm that is live today:
  * started on or before today, and ending today or later, since a
- * contract's last day is a day on site. Days are read the way Bench reads
- * them (UTC days, `whenFree`). Only the person's id is selected.
+ * contract's last day is a day on site; or an ended line whose last day
+ * is today or later. Days are read the way Bench reads them (UTC days,
+ * `whenFree`). Only the person's id is selected.
  */
 export async function placedElsewhereToday(companyId: string, personIds: string[], now: Date): Promise<Set<string>> {
   if (personIds.length === 0) return new Set()
@@ -178,10 +214,16 @@ export async function placedElsewhereToday(companyId: string, personIds: string[
     where: {
       companyId: { not: companyId },
       personId: { in: personIds },
-      // The states that place a person, as Bench's `whenFree` reads them.
-      state: { in: [...LIVE_STATES] as SellContractState[] },
       startDate: { lt: tomorrow },
-      OR: [{ endDate: null }, { endDate: { gte: today } }],
+      OR: [
+        // The states that place a person, as Bench's `whenFree` reads them.
+        { state: { in: [...LIVE_STATES] as SellContractState[] }, OR: [{ endDate: null }, { endDate: { gte: today } }] },
+        // An ended line whose last day is today or later, which `whenFree`
+        // reads as free only from the day after (`benchSpan` above, the
+        // same reading for this firm's own lines). One with no last day
+        // on record places nobody.
+        { state: 'ENDED', endDate: { gte: today } },
+      ],
     },
     select: { personId: true },
     distinct: ['personId'],
