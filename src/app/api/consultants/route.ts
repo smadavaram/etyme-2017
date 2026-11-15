@@ -1,3 +1,4 @@
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
@@ -308,6 +309,8 @@ export async function GET(request: NextRequest) {
       // The firm's bench, as Today and Ask Etyme count it, and the people
       // asked who have not answered. Null where this seat does not read it.
       bench: bench ? { count: bench.length, invited: invited ?? 0 } : null,
+      // Whether the ask on Add consultant can go by email (`savingSays`).
+      mailLeaves: mailLeaves(),
       pagination: {
         page,
         limit,

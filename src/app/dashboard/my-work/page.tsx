@@ -11,7 +11,7 @@ import { YourExpense } from './your-expense'
 import { workStops, type PaperRow, type RunningOut } from './paperwork-rows'
 import { formatDay } from '@/lib/format-date'
 import { momentFor, readerZone } from '@/lib/when'
-import { askedWeek } from './asked-week'
+import { askedWeek, openingWeek, allFiledSays } from './asked-week'
 
 /**
  * A consultant's own page.
@@ -75,6 +75,8 @@ interface OwedWeek {
   dueOn?: string | null
   overdue?: boolean
   paidOn?: string | null
+  /** Processed by payroll, with its pay day (`paidOn`) still to come. */
+  paysLater?: boolean
   /** Held by Payroll until the overtime answer is recorded: no figure, no pay day. */
   held?: boolean
   /** Where its days are paid on more than one pay day, each part on its own. */
@@ -98,6 +100,7 @@ interface OwedPart {
   dueOn: string | null
   overdue: boolean
   paidOn: string | null
+  paysLater?: boolean
 }
 interface Owed {
   cents: number
@@ -726,6 +729,9 @@ interface Filing {
   payer: string
   /** What the Placement option reads, no two alike (`filingLabels`). */
   label: string
+  /** The server's today, so the picker opens on a whole week (`openingWeek`). */
+  today?: string
+  endDate?: string | null
   /** Who signs her hours after she sends them, in order (`signingOrder`). */
   signs?: string
   weeks: OpenWeek[]
@@ -830,7 +836,7 @@ function FileYourWeek({ filing, asked, onSent }: { filing: Filing[]; asked?: str
   const [opened] = useState(() => askedWeek(filing, asked))
   const [contractId, setContractId] = useState(opened?.contractId ?? filing[0]?.contractId ?? '')
   const current = filing.find((f) => f.contractId === contractId) ?? filing[0]
-  const [periodStart, setPeriodStart] = useState(opened?.periodStart ?? current?.weeks[0]?.periodStart ?? '')
+  const [periodStart, setPeriodStart] = useState(opened?.periodStart ?? (current ? openingWeek(current.weeks, current.today) : undefined)?.periodStart ?? '')
   const week = current?.weeks.find((w) => w.periodStart === periodStart) ?? current?.weeks[0]
   const [hours, setHours] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -844,7 +850,7 @@ function FileYourWeek({ filing, asked, onSent }: { filing: Filing[]; asked?: str
       <section className="mb-8">
         <h2 className="font-serif text-lg text-etyme-ink mb-3">File your hours</h2>
         <p className="text-sm text-etyme-muted">
-          You have filed every day you worked at {current.site}. The next week opens tomorrow.
+          {allFiledSays(current.site, current.today, current.endDate)}
         </p>
       </section>
     )
@@ -888,7 +894,7 @@ function FileYourWeek({ filing, asked, onSent }: { filing: Filing[]; asked?: str
                 onChange={(e) => {
                   const next = filing.find((f) => f.contractId === e.target.value)
                   setContractId(e.target.value)
-                  setPeriodStart(next?.weeks[0]?.periodStart ?? '')
+                  setPeriodStart((next ? openingWeek(next.weeks, next.today) : undefined)?.periodStart ?? '')
                   setHours({})
                 }}
                 className="px-2 py-1.5 text-sm border border-etyme-rule rounded bg-white text-etyme-ink"
@@ -972,7 +978,8 @@ const STAGE: Record<WeekStage, (w: OwedWeek) => { word: string; tone: 'attention
   // A week Payroll holds until her overtime answer is recorded is not owed at any figure yet.
   OWED: (w) => (w.held ? { word: 'On hold', tone: 'passive' }
     : w.overdue ? { word: 'Past its pay day', tone: 'attention' } : { word: 'Owed to you', tone: 'attention' }),
-  PAID: () => ({ word: 'Paid', tone: 'verified' }),
+  // Processed with its pay day still to come is not paid yet.
+  PAID: (w) => (w.paysLater ? { word: 'Processed', tone: 'passive' } : { word: 'Paid', tone: 'verified' }),
 }
 
 function Line({ label, children, tone }: { label: string; children: React.ReactNode; tone?: string }) {
@@ -987,8 +994,8 @@ function Line({ label, children, tone }: { label: string; children: React.ReactN
 function YourPay({ owed }: { owed: Owed }) {
   const [showPaid, setShowPaid] = useState(false)
   const weeks = owed.weeks ?? []
-  const open = weeks.filter((w) => w.stage !== 'PAID')
-  const paid = weeks.filter((w) => w.stage === 'PAID')
+  const open = weeks.filter((w) => w.stage !== 'PAID' || w.paysLater)
+  const paid = weeks.filter((w) => w.stage === 'PAID' && !w.paysLater)
   const shown = showPaid ? [...open, ...paid].sort((a, b) => b.weekOf.localeCompare(a.weekOf)) : open
 
   return (
@@ -1054,7 +1061,7 @@ function YourPay({ owed }: { owed: Owed }) {
                             tone={pt.stage === 'PAID' ? 'text-etyme-verified' : pt.overdue ? 'text-etyme-attention' : undefined}
                           >
                             {pt.stage === 'PAID'
-                              ? `paid ${pt.paidOn ? dayLabel(pt.paidOn) : ''}`.trim()
+                              ? `${pt.paysLater ? 'pays' : 'paid'} ${pt.paidOn ? dayLabel(pt.paidOn) : ''}`.trim()
                               : pt.dueOn ? `due ${dayLabel(pt.dueOn)}` : 'no pay date set'}
                           </Line>
                         </div>
@@ -1062,8 +1069,8 @@ function YourPay({ owed }: { owed: Owed }) {
                     </>
                   ) : w.stage === 'PAID' ? (
                     <>
-                      <Line label="Paid">{amount(w.paidCents ?? 0, w.currency)}</Line>
-                      <Line label="On">{w.paidOn ? dayLabel(w.paidOn) : 'not recorded'}</Line>
+                      <Line label={w.paysLater ? 'Processed' : 'Paid'}>{amount(w.paidCents ?? 0, w.currency)}</Line>
+                      <Line label={w.paysLater ? 'Pay day' : 'On'}>{w.paidOn ? dayLabel(w.paidOn) : 'not recorded'}</Line>
                     </>
                   ) : (
                     <>

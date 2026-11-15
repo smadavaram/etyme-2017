@@ -101,10 +101,10 @@ describe('The add form says what is true before anybody presses the button', () 
   })
 
   it('the sentence right above the button names the person who will be emailed', () => {
-    expect(savingSays('Jane Smith')).toBe(
+    expect(savingSays('Jane Smith', true)).toBe(
       'Saving emails Jane Smith to ask if they will join your bench. Nobody outside your firm sees them, and nobody puts them forward, until they say yes.'
     )
-    const sentence = MODAL.indexOf('{savingSays(form.name)}')
+    const sentence = MODAL.indexOf('{savingSays(form.name, mailOn)}')
     const buttons = MODAL.indexOf('<button type="submit"')
     expect(sentence).toBeGreaterThan(-1)
     expect(sentence).toBeLessThan(buttons)
@@ -113,7 +113,26 @@ describe('The add form says what is true before anybody presses the button', () 
   })
 
   it('before a name is typed the sentence still reads as English', () => {
-    expect(savingSays('  ')).toMatch(/^Saving emails this person to ask/)
+    expect(savingSays('  ', true)).toMatch(/^Saving emails this person to ask/)
+    expect(savingSays('  ')).toMatch(/^Saving asks this person to join your bench/)
+  })
+
+  it('where no email can leave, the sentence above the button says the link is kept and promises no email', () => {
+    const says = savingSays('Amara Velde', false)
+    expect(says).not.toMatch(/email(s|ed)? Amara/i)
+    expect(says).toBe(
+      'Saving asks Amara Velde to join your bench. No email can be sent from here yet, so the invitation link is kept on the notice for staff to pass on. Nobody outside your firm sees them, and nobody puts them forward, until they say yes.'
+    )
+    // Not known yet is no email: the default never promises one.
+    expect(savingSays('Amara Velde')).toBe(says)
+  })
+
+  it('the add form learns whether email can leave from the consultants list, which reads mailLeaves', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/consultants/route.ts'), 'utf8')
+    expect(route).toContain('mailLeaves: mailLeaves()')
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/consultants/page.tsx'), 'utf8')
+    expect(page).toContain("setMailOn(body.data?.mailLeaves === true)")
+    expect(page).toContain('<AddConsultantModal mailOn={mailOn}')
   })
 
   it('there is one button, and the old small print after the rates is gone', () => {

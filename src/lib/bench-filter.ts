@@ -1084,11 +1084,17 @@ export const ADD_TIER_OPTION = {
 
 /**
  * The sentence above the one button. Saving the form also emails the
- * person, so the button must not be the first place that is said.
+ * person, so the button must not be the first place that is said. Where
+ * no email can leave (`mailLeaves`), it says what happens instead, as the
+ * sentence after saving does (`INVITE_LINK_KEPT_SAYS`; walk l2a,
+ * 2026-11-15). Not known yet reads as no email: a letter is never promised.
  */
-export function savingSays(name: string): string {
+export function savingSays(name: string, mailOn = false): string {
   const who = name.trim() || 'this person'
-  return `Saving emails ${who} to ask if they will join your bench. Nobody outside your firm sees them, and nobody puts them forward, until they say yes.`
+  const rest = 'Nobody outside your firm sees them, and nobody puts them forward, until they say yes.'
+  return mailOn
+    ? `Saving emails ${who} to ask if they will join your bench. ${rest}`
+    : `Saving asks ${who} to join your bench. ${INVITE_LINK_KEPT_SAYS} ${rest}`
 }
 
 /**

@@ -88,7 +88,7 @@ interface BenchCount {
 /** The currencies a firm most often pays people in, offered beside the pay; the firm's own is always offered. */
 const PAY_CURRENCIES = ['USD', 'INR', 'GBP', 'EUR', 'CAD', 'AUD', 'MXN', 'BRL', 'VND', 'PHP']
 
-function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCreated: (says: string) => void }) {
+function AddConsultantModal({ onClose, onCreated, mailOn = false }: { onClose: () => void; onCreated: (says: string) => void; mailOn?: boolean }) {
   // Rates typed here are in the firm’s own currency, by its own exponent.
   const currency = useFirmCurrency()
   const [form, setForm] = useState({
@@ -455,8 +455,9 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
           </p>
 
           {/* Said plainly, right above the one button, because saving
-              sends an email (outside review, 2026-10-05). */}
-          <p className="text-sm text-etyme-ink pt-2">{savingSays(form.name)}</p>
+              sends an email (outside review, 2026-10-05), or, where none
+              can leave, keeps the link for staff (walk l2a, 2026-11-15). */}
+          <p className="text-sm text-etyme-ink pt-2">{savingSays(form.name, mailOn)}</p>
 
           <div className="flex justify-end gap-3">
             <button type="button" onClick={onClose} className="btn-secondary">
@@ -1036,6 +1037,8 @@ export default function ConsultantsPage() {
    * read three numbers). Null where this seat does not read the bench.
    */
   const [bench, setBench] = useState<BenchCount | null>(null)
+  // Whether an email can leave, from the list's own answer (`mailLeaves`).
+  const [mailOn, setMailOn] = useState(false)
   /** Every consultant record, from the route's own count rather than the rows on this page. */
   const [total, setTotal] = useState<number | null>(null)
   /**
@@ -1148,6 +1151,7 @@ export default function ConsultantsPage() {
       }))
       setConsultants(mapped)
       setBench(body.data?.bench ?? null)
+      setMailOn(body.data?.mailLeaves === true)
       setTotal(typeof body.data?.pagination?.total === 'number' ? body.data.pagination.total : null)
       setCounted(true)
       // The seat's own permissions: the list answer does not carry them, so
@@ -1458,7 +1462,7 @@ export default function ConsultantsPage() {
 
       {/* Modals */}
       {showInvite && mayAdd && <InviteCandidatesDialog onClose={() => setShowInvite(false)} onDone={() => { void fetchConsultants() }} />}
-      {showAdd && mayAdd && <AddConsultantModal onClose={() => setShowAdd(false)} onCreated={(says) => { setAdded(says); fetchConsultants() }} />}
+      {showAdd && mayAdd && <AddConsultantModal mailOn={mailOn} onClose={() => setShowAdd(false)} onCreated={(says) => { setAdded(says); fetchConsultants() }} />}
       {selected && (
         <ConsultantDrawer
           consultant={selected}

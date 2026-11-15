@@ -11,7 +11,7 @@ import {
   type OwedWeek, type WaitingWeek, type WeekSigner, type CompanyPayCalendar,
 } from '@/lib/consultant-portfolio'
 import { companyPayPeriods } from '@/lib/money/company-pay-periods'
-import { workerPayCalendar } from '@/lib/money/pay-periods'
+import { workerPayCalendar, periodHolding } from '@/lib/money/pay-periods'
 import { POST as createTimesheet } from '@/app/api/timesheets/route'
 import { rungVerdict } from '@/app/api/timesheets/filing'
 import { filingLabels } from '@/lib/consultant-portfolio/filing-labels'
@@ -340,6 +340,8 @@ export async function GET(request: NextRequest) {
       endDate: r.endDate,
       filed,
       weeks: openWeeks(r, filed, today),
+      // So the picker opens on her most recent whole week (`openingWeek`).
+      today,
       // Weeks sent back, to correct and send again over the same row.
       returned: filedOn
         .filter((t) => t.sellContractId === r.id && t.status === 'OPEN' && reasons.has(t.id))
@@ -482,6 +484,17 @@ export async function GET(request: NextRequest) {
   // And the day each was paid, read off the same rows (`paidDatesFrom`):
   // the book says how much, and not when.
   const payers = [...new Set([...payByCompany.values()].map((l) => l.buyContract.companyId))]
+  // Each employer's own pay periods, read once: where it pays by them, a
+  // processed week is paid on the pay day of the period it was worked
+  // in, the day Payroll and the pay file name, never the day somebody
+  // pressed Process (walk, 2026-11-15).
+  const payPeriodsOf = new Map<string, Awaited<ReturnType<typeof companyPayPeriods>>>()
+  for (const id of payers) payPeriodsOf.set(id, await companyPayPeriods(id))
+  const employerOf = new Map([...payByCompany.values()].map((l) => [l.buyContract.id, l.buyContract.companyId]))
+  const periodPayDayOf = (buyContractId: string, day: string): string | null => {
+    const co = payPeriodsOf.get(employerOf.get(buyContractId) ?? '')
+    return co?.byPeriod ? periodHolding(day, co.rhythm, co.rule)?.payOn ?? null : null
+  }
   const paidDates = payers.length
     ? paidDatesFrom(
         await prisma.automationLog.findMany({
@@ -494,7 +507,8 @@ export async function GET(request: NextRequest) {
         }),
         directIds,
         paidKey,
-        (id) => [...payByCompany.values()].find((l) => l.buyContract.id === id)?.buyContract.buyCycles ?? []
+        (id) => [...payByCompany.values()].find((l) => l.buyContract.id === id)?.buyContract.buyCycles ?? [],
+        periodPayDayOf
       )
     : new Map<string, string>()
 
@@ -577,7 +591,7 @@ export async function GET(request: NextRequest) {
   for (const pay of payByCompany.values()) {
     const bc = pay.buyContract
     if (!payWindow || !paidByPayroll(bc) || calendarOf.has(bc.id)) continue
-    const co = await companyPayPeriods(bc.companyId)
+    const co = payPeriodsOf.get(bc.companyId) ?? await companyPayPeriods(bc.companyId)
     calendarOf.set(bc.id, workerPayCalendar(co.rhythm, co.rule, periodTermsFor('BUY', bc).straddle, payWindow))
   }
 
@@ -778,6 +792,18 @@ export async function GET(request: NextRequest) {
       )
     }
     if (nextDue) notes.push(`The next pay day for it is ${shortDay(nextDue, now)}.`)
+    // Processed by payroll, with the pay day still to come: said with that
+    // day, never as paid (walk, 2026-11-15).
+    const coming = weeks.filter((w) => w.priced && w.paysLater && w.paidOn)
+    if (coming.length > 0) {
+      const days = [...new Set(coming.map((w) => w.paidOn!))].sort()
+      // Only what is still to be paid out: a week on two pay days counts its later parts.
+      const sum = coming.reduce((n, w) => n + (w.parts ? w.parts.filter((pt) => pt.paysLater).reduce((m, pt) => m + pt.paidCents, 0) : w.paidCents), 0)
+      notes.push(
+        `Payroll has processed ${amount(sum, currency ?? undefined)} for you. ` +
+          (days.length === 1 ? `It is paid on your pay day, ${shortDay(days[0], now)}.` : `The first of it is paid on your pay day, ${shortDay(days[0], now)}.`)
+      )
+    }
     notes.push(...heldNotes)
     const weeksWord = (n: number) => `${n} more week${n === 1 ? ' is' : 's are'} accepted`
     if (unknownOwnRate > 0) {
@@ -879,7 +905,8 @@ export async function GET(request: NextRequest) {
     employed: employedBy.size === 0
       ? null
       : {
-          paid: employedWeeks.filter((w) => w.priced && w.stage === 'PAID').length,
+          paid: employedWeeks.filter((w) => w.priced && w.stage === 'PAID' && !w.paysLater).length,
+          processed: employedWeeks.filter((w) => w.priced && w.stage === 'PAID' && w.paysLater).length,
           owed: employedWeeks.filter((w) => w.priced && w.stage === 'OWED').length,
           unknown: employedWeeks.filter((w) => !w.priced).length,
           employer: (() => {
