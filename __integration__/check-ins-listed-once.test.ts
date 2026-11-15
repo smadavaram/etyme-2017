@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
+import { MailRefused } from '@/lib/notify/mail-failure'
 
 /**
  * Bench check-ins lists each message once (fix list, layer five, F3).
@@ -16,7 +17,7 @@ vi.mock('@/lib/senders', async (orig) => {
   const real: any = await orig()
   return {
     ...real,
-    emailSender: () => (senderRefuses ? { channel: 'EMAIL', send: async () => { throw new Error('The sender refused it.') } } : null),
+    emailSender: () => (senderRefuses ? { channel: 'EMAIL', send: async () => { throw new MailRefused('Resend', 403, 'The domain is not verified.') } } : null),
   }
 })
 
@@ -40,7 +41,7 @@ async function listed(personId: string) {
   as(OWNER)
   const r = await json(await readTexts(req('GET', '/api/texts?limit=100')))
   expect(r.status).toBe(200)
-  return (r.body.data.messages as { id: string; person: { id: string }; status: string }[]).filter((m) => m.person.id === personId)
+  return (r.body.data.messages as { id: string; person: { id: string }; status: string; direction: string; what: string; notSent: string | null; whyNotSent: string | null }[]).filter((m) => m.person.id === personId)
 }
 
 async function ask(name: string, email: string) {
@@ -75,6 +76,8 @@ describe('Bench check-ins lists each message once', () => {
     const rows = await listed(personId)
     expect(rows).toHaveLength(1)
     expect(rows[0].status).toBe('NOT_CONFIGURED')
+    expect(rows[0].what).toBe('bench invitation')
+    expect(rows[0].whyNotSent).toBe('No email can be sent from here yet.')
   })
 
   it('one check-in the sender refused is listed once, marked as not sent', async () => {
@@ -87,6 +90,9 @@ describe('Bench check-ins lists each message once', () => {
     const rows = await listed(personId)
     expect(rows).toHaveLength(1)
     expect(rows[0].status).toBe('FAILED')
+    // Why, in the words every screen uses, never the sender's own.
+    expect(rows[0].notSent).toBe('not sent')
+    expect(rows[0].whyNotSent).toBe('Etyme’s email sender refused it, so nothing was sent. Etyme has been told.')
   })
 
   it('asking the same person a second time sends nothing new, so the page still lists one message', async () => {
@@ -123,5 +129,25 @@ describe('Bench check-ins lists each message once', () => {
     // Each try is its own row, and the log names the second as the Resend.
     const resent = await prisma.automationLog.findFirstOrThrow({ where: { action: 'BENCH_INVITATION_RESENT', payload: { path: ['listingId'], equals: listingId } } })
     expect(rows.map((m) => m.id)).toContain((resent.payload as any).messageId)
+  })
+
+  it('a first invitation and a resend are named apart on Bench check-ins', async () => {
+    const { personId, listingId } = await ask('Odile Marchetti', 'odile.marchetti@harborline-tech.com')
+    await settled(personId, 1)
+    as(OWNER)
+    const r = await json(await nudge(req('POST', `/api/bench/listings/${listingId}/nudge`, { copyOnly: false }), { params: Promise.resolve({ id: listingId }) }))
+    expect(r.status).toBe(200)
+    const rows = await listed(personId)
+    expect(rows.map((m) => m.what).sort()).toEqual(['bench invitation', 'bench invitation, sent again'])
+    const resent = await prisma.automationLog.findFirstOrThrow({ where: { action: 'BENCH_INVITATION_RESENT', payload: { path: ['listingId'], equals: listingId } } })
+    expect(rows.find((m) => m.id === (resent.payload as any).messageId)!.what).toBe('bench invitation, sent again')
+  })
+
+  it('an outbound message is never labelled a reply', async () => {
+    as(OWNER)
+    const r = await json(await readTexts(req('GET', '/api/texts?limit=100')))
+    const out = (r.body.data.messages as { direction: string; what: string }[]).filter((m) => m.direction === 'OUT')
+    expect(out.length).toBeGreaterThan(0)
+    for (const m of out) expect(m.what).not.toMatch(/repl/i)
   })
 })

@@ -35,6 +35,7 @@ import { reportMailRefused } from '@/lib/notification-delivery'
 import { isMailRefused } from '@/lib/notify/mail-failure'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { choicesBlock } from '@/lib/reply-link'
+import { NO_ADDRESS_REASON } from '@/lib/notify/check-in-rows'
 import type { Kind } from '@/lib/texts'
 
 export type Status = 'SENT' | 'FAILED' | 'NOT_CONFIGURED'
@@ -89,7 +90,7 @@ export async function send(m: Outbound): Promise<Sent> {
   })
 
   if (!m.to) {
-    return await settle(row.id, 'FAILED', 'No email address on file.')
+    return await settle(row.id, 'FAILED', NO_ADDRESS_REASON)
   }
 
   if (!configured()) {

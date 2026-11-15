@@ -30,8 +30,13 @@ interface Message {
   kind: string
   direction: 'OUT' | 'IN'
   body: string
+  /** What this letter was, from the route (`lib/notify/check-in-rows`): never "reply" for one the firm sent. */
+  what: string
   status: string
-  statusNote: string
+  /** The chip on a try that did not go, or null. */
+  notSent: string | null
+  /** Why it did not go, in the words every screen uses for an email that did not go. */
+  whyNotSent: string | null
   read: string | null
   at: string
 }
@@ -48,14 +53,6 @@ function when(iso: string): string {
   if (mins < 60) return `${mins}m ago`
   if (mins < 1440) return `${Math.floor(mins / 60)}h ago`
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
-const KIND: Record<string, string> = {
-  FRESHNESS: 'still looking?',
-  CONSENT: 'ok to submit?',
-  OUTCOME: 'what happened',
-  PLACED: 'you got it',
-  LINK: 'reply',
 }
 
 export default function TextsPage() {
@@ -161,22 +158,22 @@ export default function TextsPage() {
                 <span className="font-medium text-etyme-ink">{m.person.name}</span>
                 <span className="text-etyme-faint">
                   {' '}
-                  · {m.direction === 'IN' ? 'replied' : KIND[m.kind] ?? m.kind.toLowerCase()} ·{' '}
+                  · {m.what} ·{' '}
                   {when(m.at)}
                 </span>
               </span>
               <span className="flex items-center gap-2">
                 {m.read && <Chip tone="action">{m.read.toLowerCase()}</Chip>}
-                {m.direction === 'OUT' && m.status !== 'SENT' && (
-                  <Chip tone={m.status === 'FAILED' ? 'danger' : 'passive'} title={m.statusNote}>
-                    {m.status === 'NOT_CONFIGURED' ? 'not sent' : m.status.toLowerCase()}
-                  </Chip>
+                {m.notSent && (
+                  <Chip tone={m.status === 'FAILED' ? 'danger' : 'passive'}>{m.notSent}</Chip>
                 )}
               </span>
             </div>
             <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-etyme-ink">
               {m.body}
             </p>
+            {/* Why a try did not go, on the row and not in a tooltip a phone cannot open. */}
+            {m.whyNotSent && <p className="mt-1 text-[12px] text-etyme-muted">{m.whyNotSent}</p>}
           </div>
         ))}
       </div>
