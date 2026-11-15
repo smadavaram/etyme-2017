@@ -163,12 +163,13 @@ describe('The first-pay-day box has one address', () => {
     expect(panel).toContain('? CHOOSE_A_SUNDAY')
     // Defaults never saved may be saved as they stand (the press walk l2a, 2026-11-15).
     expect(panel).toContain(': !mayPress ? NOTHING_CHANGED : null')
-    expect(panel).toContain('<SaveWhy id="payroll-save-why" says={busy ? null : saveWhy} />')
+    // Said beside the button by the shared Save's own words (fix list G3).
+    expect(panel).toContain('disabled={!mayPress} whyDisabled={saveWhy}>')
     expect(panel).not.toMatch(/December (6|13|27)/)
   })
 
   it('every other greyed Save on the Cycles tab says why too', () => {
-    expect(week).toContain('<SaveWhy id="week-save-why" says={!changed && !busy ? NOTHING_CHANGED : null} />')
+    expect(week).toContain('disabled={!changed} whyDisabled={NOTHING_CHANGED}>')
   })
 
   it('the no-calendar line about the first Sunday scrolls to the box for a seat that may set it, and names who sets it for any other', () => {

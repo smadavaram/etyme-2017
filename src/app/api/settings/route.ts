@@ -1,4 +1,5 @@
-import { ownerOnlyLine } from '@/lib/owner-gate'
+import { ownerOnlyLine, needsVerifiedOwner } from '@/lib/owner-gate'
+import { holidaysFor } from '@/lib/holidays'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
@@ -17,7 +18,7 @@ import { noCalendarSays, FALLBACK_PACK_ID } from './no-calendar'
 import { approvalWords, readApprovalCount } from './approval-words'
 import { shiftSavedSays } from './payroll/saved-says'
 import { paysByPeriod, firstDayNeededSays } from '@/lib/money/pay-periods'
-import { rhythmFrom } from '@/lib/pay-dates'
+import { rhythmFrom, holidayOffersStanding } from '@/lib/pay-dates'
 import { chosenPayroll } from '@/lib/contract-cycles'
 
 /**
@@ -88,6 +89,8 @@ export async function GET(request: NextRequest) {
       select: {
         id: true, name: true, slug: true, domain: true, domainVerified: true,
         kind: true, supplierPosture: true, currency: true, templatePack: true, country: true,
+        // Typed in Setup → Your company; the Company tab says where (fix list A6).
+        website: true,
         teamsWebhookUrl: true, networkVerifiedAt: true, siteLiveAt: true,
         outsideAccess: true, accountWalls: true,
         cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
@@ -141,6 +144,7 @@ export async function GET(request: NextRequest) {
       : Promise.resolve(null),
     isOwnerSeat(caller.context.id, companyId),
   ])
+  const typeGateOk = company ? needsVerifiedOwner(company, 'COMPANY_TYPE').ok : true
   const pack = company?.templatePack ? getTemplatePack(company.templatePack) : null
   // No calendar of its own: what is true, and the step (./no-calendar).
   const offered = company && !pack ? getTemplatePack(packFor(company.kind as any, company.country ?? null)) : null
@@ -217,6 +221,14 @@ export async function GET(request: NextRequest) {
       joins,
       locations,
       holidays: holidays.map((h) => ({ ...h, date: h.date.toISOString().slice(0, 10) })),
+      // The one-press US sets, each offered only while some of its days are
+      // missing; a full one is said instead (fix list G4). The calendar read
+      // above starts on Jan 1 this year, so it holds every day both sets name.
+      holidayOffers: holidayOffersStanding(
+        new Date(),
+        holidays.map((h) => h.date.toISOString().slice(0, 10)),
+        (year) => holidaysFor('US', year),
+      ),
       costCenters,
       // Who approves a job request, said on Cost centers from the same count
       // Approvals reads (fix list of 2026-11-14, E4).
@@ -249,11 +261,14 @@ export async function GET(request: NextRequest) {
       canEdit: hasPermission(caller.permissions, 'settings.manage'),
       canEditGovernance: hasPermission(caller.permissions, 'governance.write'),
       // The type is the Owner's to change, and nobody else's.
-      canChangeType: mayChangeType,
+      // An Owner at a company still waiting for a verified Owner is refused
+      // on Save (changeCompanyKind), so she is shown the step, with its
+      // link, in place of a button that would be refused (fix list A6).
+      canChangeType: mayChangeType && typeGateOk,
       // What a reader who may not change it is told: the gate's sentence
       // with the link to Prove ownership where there is no verified Owner
       // to ask, the Owner-only sentence otherwise (lib/owner-gate).
-      typeLine: mayChangeType || !company ? null : ownerOnlyLine(company, 'COMPANY_TYPE'),
+      typeLine: (mayChangeType && typeGateOk) || !company ? null : ownerOnlyLine(company, 'COMPANY_TYPE'),
     },
   })
 }

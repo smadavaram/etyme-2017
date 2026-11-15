@@ -9,6 +9,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from '@/components/session-provider'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { mayOpen } from '@/lib/nav-table'
+import { hasPermission } from '@/lib/permissions'
+import Link from 'next/link'
+import type { Route } from 'next'
+import { NO_COMPANIES_IMPORT, PASTE_SUPPLIERS_LINK, PASTE_SUPPLIERS_WHO, SUPPLIERS_HREF } from '@/components/settings/settings-says'
 import { IMPORT_RECORDS_LABEL, IMPORT_RECORDS_POINTS, IMPORT_RECORDS_SAYS, TEAM_STRUCTURE_HREF, importRecordsSubtitle } from '@/lib/team-structure/directory/words'
 
 /**
@@ -171,6 +175,15 @@ export default function DataPage() {
         {mayOpen(TEAM_STRUCTURE_HREF, seat.permissions)
           ? <a href={TEAM_STRUCTURE_HREF} className="text-etyme-action-press hover:underline">{IMPORT_RECORDS_POINTS}</a>
           : `${IMPORT_RECORDS_POINTS.replace(/\.$/, '')}, on Team structure, which your Owner or an Admin opens.`}
+      </p>
+      {/* A pointer, not an import (fix list G7): suppliers are pasted on
+          Suppliers, by a seat that may manage who the firm trades with. */}
+      <p className="-mt-3 mb-5 text-[13px] text-etyme-muted">
+        Many suppliers can be added at once by{' '}
+        {mayOpen(SUPPLIERS_HREF, seat.permissions) && hasPermission(seat.permissions ?? [], 'vendors.manage')
+          ? <Link href={SUPPLIERS_HREF as Route} className="text-etyme-action-press hover:underline">{PASTE_SUPPLIERS_LINK}</Link>
+          : `${PASTE_SUPPLIERS_LINK}, ${PASTE_SUPPLIERS_WHO}`}
+        . {NO_COMPANIES_IMPORT}
       </p>
 
       {note && (

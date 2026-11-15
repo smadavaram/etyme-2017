@@ -207,7 +207,7 @@ describe('an Owner-only screen at a company with no verified Owner names Prove o
   })
 
   it('Settings says the type line from the one helper, not its own words', () => {
-    expect(read('src/app/api/settings/route.ts')).toContain("typeLine: mayChangeType || !company ? null : ownerOnlyLine(company, 'COMPANY_TYPE')")
+    expect(read('src/app/api/settings/route.ts')).toContain("typeLine: (mayChangeType && typeGateOk) || !company ? null : ownerOnlyLine(company, 'COMPANY_TYPE')")
     const page = read('src/app/dashboard/settings/page.tsx')
     expect(page).toContain('<OwnerGateLine line={data.typeLine}')
     expect(page).not.toContain('subtitle="Only the Owner changes the type. Ask the Owner if it is wrong."')

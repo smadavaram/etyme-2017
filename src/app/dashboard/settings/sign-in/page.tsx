@@ -7,6 +7,7 @@ import { momentFor, readerZone } from '@/lib/when'
 import { OwnerGateLine } from '@/components/owner-gate-line'
 import { refusalLine, type OwnerLine } from '@/lib/owner-gate'
 import { SIGN_IN_SCREEN_MODES, modeOptionSays, eventWords, sourceWords, eventSays, setLine } from '@/lib/identity/screen-words'
+import { ASSURANCE_SAYS, RESIDENCY_SAYS, SAY_WHY_FIRST } from '@/components/settings/settings-says'
 
 /**
  * Settings → Sign-in (founder, 2026-11-11, "Enterprise identity"): how the
@@ -162,10 +163,12 @@ export default function SignInSettings() {
 
       <Panel title="How your people sign in" subtitle={o.setAt ? setLine({ setBy: o.setBy, on: when(o.setAt), reason: o.reason }) : 'Nothing is set yet.'}>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void send('mode', '/api/settings/sign-in', 'PATCH', { mode, reason, jit, scim, requiredAssurance: assurance, dataRegion: region, requireDirectorySuppliers: dirSuppliers }) }}>
-          <fieldset className="space-y-2" disabled={!can}>
+          {/* Never greyed, so the chosen way reads as chosen to a reader who
+              may not change it (fix list G6); her press changes nothing. */}
+          <fieldset className="space-y-2" aria-disabled={!can || undefined}>
             {SIGN_IN_SCREEN_MODES.map((m) => (
               <label key={m.mode} className="flex items-start gap-2 text-[13px] text-etyme-ink">
-                <input type="radio" name="mode" value={m.mode} checked={mode === m.mode} onChange={() => setMode(m.mode)} className="mt-1 accent-etyme-action" />
+                <input type="radio" name="mode" value={m.mode} checked={mode === m.mode} aria-disabled={!can || undefined} onChange={() => { if (can) setMode(m.mode) }} className="mt-1 accent-etyme-action" />
                 <span><span className="font-medium">{m.label}.</span> {modeOptionSays(m.mode)}</span>
               </label>
             ))}
@@ -177,17 +180,17 @@ export default function SignInSettings() {
             <Check label="Approve only suppliers whose people sign in through their own directory" checked={dirSuppliers} disabled={!can} onChange={(e) => setDirSuppliers(e.target.checked)} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Assurance level your directory must assert" help="Recorded, not yet enforced. For a government's identity provider, as it names the level.">
+            <Field label="Assurance level your directory must assert" help={`${ASSURANCE_SAYS} For a government's identity provider, as it names the level.`}>
               <Input value={assurance} disabled={!can} onChange={(e) => setAssurance(e.target.value)} />
             </Field>
-            <Field label="Where your data must stay" help="Recorded, not yet enforced: Etyme runs in one region today.">
+            <Field label="Where your data must stay" help={RESIDENCY_SAYS}>
               <Input value={region} disabled={!can} onChange={(e) => setRegion(e.target.value)} />
             </Field>
           </div>
           <Field label="Why" help="Kept beside the change, with your name and the time." error={fieldError.reason}>
             <Input value={reason} disabled={!can} onChange={(e) => setReason(e.target.value)} />
           </Field>
-          {can && <SubmitButton pending={busy === 'mode'} disabled={!reason.trim()}>Save how people sign in</SubmitButton>}
+          {can && <SubmitButton pending={busy === 'mode'} disabled={!reason.trim()} whyDisabled={SAY_WHY_FIRST}>Save how people sign in</SubmitButton>}
         </form>
       </Panel>
 
@@ -237,7 +240,7 @@ export default function SignInSettings() {
           <Check label="Turn it on (runs the test first)" checked={d.enabled} disabled={!can} onChange={(e) => setD({ ...d, enabled: e.target.checked })} />
           {fieldError.enabled && <p role="alert" className="text-[12px] text-etyme-danger">{fieldError.enabled}</p>}
           <Field label="Why" error={fieldError.reason}><Input value={d.reason} disabled={!can} onChange={(e) => setD({ ...d, reason: e.target.value })} /></Field>
-          {can && <SubmitButton pending={busy === 'dir'} disabled={!d.reason.trim()}>Save the directory</SubmitButton>}
+          {can && <SubmitButton pending={busy === 'dir'} disabled={!d.reason.trim()} whyDisabled={SAY_WHY_FIRST}>Save the directory</SubmitButton>}
         </form>
       </Panel>
 

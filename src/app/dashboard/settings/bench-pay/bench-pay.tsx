@@ -189,14 +189,12 @@ export function BenchPaySection({ head }: { head?: React.ReactNode } = {}) {
             <p className="text-[14px] text-etyme-ink">{h.says}</p>
             <p className="text-[12px] text-etyme-muted mt-1">{h.turned ?? (h.integratorNote ? 'On by default. Nobody has turned it.' : 'Off by default. Nobody has turned it.')}</p>
           </div>
-          <button
-            disabled={busy}
-            onClick={() => save({ holidayPay: !h.paid })}
-            aria-pressed={h.paid}
-            className={`shrink-0 ${h.paid ? 'btn-secondary' : 'btn-primary'}`}
-          >
+          {/* The button names the act and is drawn alike either way; the
+              sentence beside it is the state (fix list G6). A pressed look,
+              or a quieter look while on, read as the opposite of its words. */}
+          <SubmitButton type="button" tone="secondary" className="shrink-0" pending={busy} onClick={() => save({ holidayPay: !h.paid })}>
             {h.paid ? 'Turn off' : 'Turn on'}
-          </button>
+          </SubmitButton>
         </div>
         <p className="text-[13px] text-etyme-muted mt-3">{h.perPerson}</p>
         {h.history.length > 1 && (

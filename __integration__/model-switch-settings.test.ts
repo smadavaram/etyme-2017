@@ -60,7 +60,8 @@ describe('the Owner turns the model on or off for their company', () => {
     const r = await call(turnSwitch, 'PATCH', { on: true, reason: 'Ready for when it is set up.' })
     expect(r.status).toBe(200)
     expect(r.body.data).toMatchObject({ on: true, modelSetUp: false })
-    expect(r.body.data.message).toContain('not set up on this deployment')
+    // The reply is the one sentence the panel stands on (fix list G1).
+    expect(r.body.data.message).toBe('On, but nothing is sent: no model is connected to this deployment yet. Ask Etyme answers from your records only.')
     expect((await prisma.company.findUniqueOrThrow({ where: { id: companyId } })).askEtymeModelOn).toBe(true)
     const read = await call(readSwitch, 'GET')
     expect(read.body.data).toMatchObject({ on: true, modelSetUp: false, setById: owner.personId })

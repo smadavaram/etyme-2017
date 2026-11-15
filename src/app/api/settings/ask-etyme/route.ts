@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { askTheDesk, hasAnyPermission, hasPermission } from '@/lib/permissions'
 import { modelPromptsFor, modelSetUpHere, modelSwitchFor, setModelOn } from '@/lib/model-boundary'
 import { allowanceUsageFor } from '@/lib/model-allowance'
+import { modelStateSays } from '@/components/settings/settings-says'
 
 /**
  * GET   /api/settings/ask-etyme — whether Ask Etyme may send free-text
@@ -79,11 +80,9 @@ export async function PATCH(request: NextRequest) {
       ...now,
       modelSetUp,
       canEdit: true,
-      message: !out.on
-        ? 'Off. Ask Etyme answers from the rules only and sends nothing to the model.'
-        : modelSetUp
-          ? 'On. A question the rules do not answer may be sent to the model, masked, and every one is logged below.'
-          : 'On, recorded. The model is not set up on this deployment yet, so nothing leaves until it is.',
+      // The sentence the panel stands on after the press, from the one
+      // copy (fix list G1), so the reply and the panel never disagree.
+      message: modelStateSays({ on: now.on, modelSetUp, heldSays: now.heldSays }),
     },
   })
 }

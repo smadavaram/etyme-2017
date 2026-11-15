@@ -219,7 +219,7 @@ function AddSite({ region, onDone }: { region: string | null; onDone: () => void
       <Field label="Time zone"><Input value={f.timeZone} onChange={set('timeZone')} placeholder="America/New_York" /></Field>
       <Field label="Region"><Input value={f.region} onChange={set('region')} disabled={Boolean(region)} /></Field>
       <div className="sm:col-span-3 flex items-center gap-3">
-        <SubmitButton pending={busy} pendingLabel="Saving…" disabled={!f.name.trim()}>Add the site</SubmitButton>
+        <SubmitButton pending={busy} pendingLabel="Saving…" disabled={!f.name.trim()} whyDisabled="Name the site first.">Add the site</SubmitButton>
         {said && <p className="text-[12.5px] text-etyme-attention">{said}</p>}
       </div>
     </form>

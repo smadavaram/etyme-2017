@@ -201,7 +201,8 @@ describe('Settings, Holidays', () => {
       { year: 2027, from: null, label: 'Add US holidays for 2027' },
     ])
     const page = src('src/app/dashboard/settings/page.tsx')
-    expect(page).toContain('holidaySeedOffers(new Date())')
+    // The route reads the sets on its own clock and says which are full (fix list G4).
+    expect(src('src/app/api/settings/route.ts')).toContain('holidayOffers: holidayOffersStanding(\n        new Date(),')
     expect(page).toContain('from: o.from')
   })
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode, type TouchEvent } from 'react'
 import { usePageSection } from '@/components/page-section'
-import { ErrorState, LoadingState, PageHead, RefusedState, Field, Input, Select } from '@/components/ui'
+import { ErrorState, LoadingState, PageHead, RefusedState, Field, Input, Select, SubmitButton } from '@/components/ui'
 import { actBody, type Act, type ActValues } from '@/lib/team-structure/acts'
 import { deletePlan, KINDS_OFFERED, kindWord, namesShown } from '@/lib/team-structure/tree'
 import type { BoxRead, SeatName, TreeRead } from '@/lib/team-structure/types'
@@ -429,14 +429,17 @@ export default function TeamStructurePage() {
           <button className={asList ? 'btn-secondary' : 'btn-primary'} onClick={() => setImporting(true)}>{READ_TEAMS_LABEL}</button>
           {/* Undo only where there is a change to undo; another person's last change says whose it was. */}
           {tree.lastChange && (
-            <button
-              className="btn-secondary"
-              disabled={busy || !tree.lastChange.yours}
-              title={!tree.lastChange.yours ? `The last change was ${tree.lastChange.by ?? 'somebody else'}'s.` : undefined}
+            <SubmitButton
+              type="button"
+              tone="secondary"
+              pending={busy}
+              disabled={!tree.lastChange.yours}
+              // Said beside it, never only on hover (fix list G3).
+              whyDisabled={`The last change was ${tree.lastChange.by ?? 'somebody else'}'s, so only they undo it.`}
               onClick={() => act('UNDO', {})}
             >
               Undo
-            </button>
+            </SubmitButton>
           )}
         </>
       }
@@ -842,9 +845,8 @@ function Chooser(props: {
             {options.map((b) => <option key={b.id} value={b.id}>{b.name} · {b.kindWord}</option>)}
           </Select>
         </Field>
-        {!to && <p className="text-[12px] text-etyme-muted">Choose where they go first.</p>}
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" disabled={!to || props.busy} onClick={() => void go()}>{props.busy ? 'Saving…' : person ? 'Move' : 'Charge there'}</button>
+          <SubmitButton type="button" pending={props.busy} pendingLabel="Saving…" disabled={!to} whyDisabled="Choose where they go first." onClick={() => void go()}>{person ? 'Move' : 'Charge there'}</SubmitButton>
           <button className="btn-secondary" onClick={props.onClose}>Cancel</button>
         </div>
       </div>

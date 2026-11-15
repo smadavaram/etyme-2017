@@ -4,7 +4,7 @@ import { usePageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
-import { ACTIONS, LADDER, RUNGS, type Rung } from '@/lib/autonomy'
+import { ACTIONS, LADDER, RUNGS, logUndoesAnything, type Rung } from '@/lib/autonomy'
 import { dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
 import { ACTIVITY_LOG_SUBTITLE, ACTIVITY_LOG_TITLE, UNPROMPTED_PANEL_HEADING } from './words'
 import { Check, Chip, EmptyState, ErrorState, FilterChips, LoadingState, PageHead, Panel, RefusedState, Stat, type ChipTone } from '@/components/ui'
@@ -95,7 +95,7 @@ function actionIcon(action: string): string {
  * words"): a requisition is a job request, and what the firm raises to
  * its customer is a bill.
  */
-const PLAIN_WORD: Record<string, string> = { REQUISITION: 'Job request', INVOICE: 'Bill' }
+const PLAIN_WORD: Record<string, string> = { REQUISITION: 'Job request', INVOICE: 'Bill', REVERSAL: 'Reverse pressed' }
 
 function actionLabel(action: string): string {
   return action
@@ -118,7 +118,7 @@ function actionCategory(action: string): string {
   if (action.startsWith('BLACKLIST')) return 'Compliance'
   if (action.startsWith('IMPORT')) return 'Import'
   if (action.startsWith('TEMPLATE') || action.startsWith('COMPANY')) return 'Setup'
-  if (action === 'REVERSAL') return 'Reversal'
+  if (action === 'REVERSAL') return 'Undo'
   return 'Other'
 }
 
@@ -243,6 +243,7 @@ export default function AutomationPage() {
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0)
   const reversibleCount = entries.filter((e) => e.reversible && !e.reversedAt).length
+  const undoes = logUndoesAnything()
 
   // Level and kind are properties of the action, so they are counted here
   // from the action tallies. Nothing is stored per row.
@@ -278,10 +279,12 @@ export default function AutomationPage() {
       />
 
       {/* Stats row */}
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {/* The undo tile and filter only while the log undoes some act
+          (logUndoesAnything): otherwise they could only read 0 and show nothing. */}
+      <div className={`mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 ${undoes ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
         <Stat label="Total actions" value={total} sub="recorded" />
         <Stat label="On its own" value={unpromptedCount} sub="nobody asked" />
-        <Stat label="Reversible" value={reversibleCount} sub="can be undone" />
+        {undoes && <Stat label="Reversible" value={reversibleCount} sub="can be undone" />}
         <Stat label="Highest level" value={topRung} sub={topRung ? LADDER[topRung].name.toLowerCase() : 'nothing yet'} />
         <Stat label="By a rule" value={ruleCount} sub="no model involved" />
       </div>
@@ -325,11 +328,13 @@ export default function AutomationPage() {
           />
         </div>
 
-        <Check
-          label="Reversible only"
-          checked={showReversibleOnly}
-          onChange={() => setShowReversibleOnly(!showReversibleOnly)}
-        />
+        {undoes && (
+          <Check
+            label="Reversible only"
+            checked={showReversibleOnly}
+            onChange={() => setShowReversibleOnly(!showReversibleOnly)}
+          />
+        )}
       </div>
 
       {error && <div className="mb-4"><ErrorState says={error} action={{ label: 'Try again', onClick: () => fetchEntries() }} /></div>}

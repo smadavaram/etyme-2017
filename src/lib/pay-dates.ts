@@ -666,6 +666,35 @@ export function holidaySeedOffers(today: Date, countryWord = 'US'): HolidaySeedO
   ]
 }
 
+/**
+ * The sets worth offering, each with whether its days are all on the
+ * calendar already (fix list G4, 2026-11-15). Settings > Holidays drew both
+ * buttons whatever the calendar held, so a press on a full year added
+ * nothing. A set whose days are all on the calendar is said, not offered;
+ * one with no days left at all (late December) is neither.
+ *
+ * `onCalendar` is every day the company has, "YYYY-MM-DD", whatever its
+ * country: the route skips a day already there by its date alone, so this
+ * reads it the same way. `daysFor` is the country's own list for a year.
+ */
+export function holidayOffersStanding(
+  today: Date,
+  onCalendar: readonly string[],
+  daysFor: (year: number) => readonly { date: string }[] | null,
+  countryWord = 'US',
+): (HolidaySeedOffer & { complete: boolean; says: string | null })[] {
+  const there = new Set(onCalendar)
+  const out: (HolidaySeedOffer & { complete: boolean; says: string | null })[] = []
+  for (const o of holidaySeedOffers(today, countryWord)) {
+    const days = holidaysFrom(daysFor(o.year) ?? [], o.from)
+    if (days.length === 0) continue
+    const complete = days.every((d) => there.has(d.date))
+    const which = o.from ? `the rest of ${o.year}` : `${o.year}`
+    out.push({ ...o, complete, says: complete ? `The ${countryWord} holidays for ${which} are already on your calendar.` : null })
+  }
+  return out
+}
+
 /** The days of a set on or after `from`, or every day where `from` is null or not a day. */
 export function holidaysFrom<T extends { date: string }>(days: readonly T[], from: string | null): T[] {
   if (!from || dayMs(from) === null) return [...days]

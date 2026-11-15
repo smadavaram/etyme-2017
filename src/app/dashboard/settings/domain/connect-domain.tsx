@@ -118,9 +118,9 @@ export function ConnectDomain({ suggested = '', onChanged }: { suggested?: strin
           onSubmit={(e) => { e.preventDefault(); if (domain.trim()) act('claim', { action: 'CLAIM', domain }) }}
         >
           <Field label="Your company’s domain">
-            <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="yourcompany.com" autoCapitalize="none" autoCorrect="off" inputMode="url" />
+            <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="company.example" autoCapitalize="none" autoCorrect="off" inputMode="url" />
           </Field>
-          <SubmitButton type="submit" disabled={!domain.trim()} pending={busy === 'claim'} pendingLabel="Checking…">Check my domain</SubmitButton>
+          <SubmitButton type="submit" disabled={!domain.trim()} whyDisabled="Type your domain first." pending={busy === 'claim'} pendingLabel="Checking…">Check my domain</SubmitButton>
         </form>
       )}
 

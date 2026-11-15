@@ -11,7 +11,7 @@ import { KIND_CHOICES, choiceOf } from '@/lib/company-kind'
 
 import { useEffect, useState, useCallback } from 'react'
 import { plainDate } from '@/lib/plain-date'
-import { holidaySeedOffers } from '@/lib/pay-dates'
+import type { HolidaySeedOffer } from '@/lib/pay-dates'
 import { BenchPaySection } from './bench-pay/bench-pay'
 import { TEAMS_LINK_HOW_TO } from '@/lib/notify/teams-link'
 // The week and payroll panels are one component each, drawn here and on
@@ -20,6 +20,9 @@ import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel, goToFirstPayDay } from '@/components/settings/payroll-panel'
 import { AskEtymePanel } from '@/components/settings/ask-etyme-panel'
 import { Chip, ErrorState, FormMessage, Lbl, LoadingState, PageHead, Panel } from '@/components/ui'
+import { SubmitButton } from '@/components/ui/form'
+import { MODEL_CARD_SUBTITLE, ONLY_OWNER_OR_ADMIN, TYPE_UNCHANGED, wallSays, accountWord } from '@/components/settings/settings-says'
+import { NOTHING_CHANGED } from '@/components/settings/panel-bits'
 import { levelOf } from '@/lib/access-grant'
 
 /**
@@ -55,6 +58,8 @@ interface Company {
   networkVerifiedAt: string | null
   /** Who last changed the type, and when; null until anybody did. */
   typeSet: { by: string | null; at: string } | null
+  /** The website the firm typed in Setup → Your company, or null. */
+  website?: string | null
 }
 interface Role {
   id: string
@@ -119,6 +124,8 @@ interface Settings {
   roles: Role[]
   locations: Location[]
   holidays: Holiday[]
+  /** The one-press sets, each with whether its days are all on the calendar already (fix list G4). */
+  holidayOffers?: (HolidaySeedOffer & { complete: boolean; says: string | null })[]
   costCenters: CostCenter[]
   /** Who approves a job request, from the one count Approvals reads too (E4). */
   approvalWords: { approvals: string; costCenters: string }
@@ -354,10 +361,12 @@ function WallsTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
               <input
                 type="radio"
                 name="outsideAccess"
-                className="mt-1"
+                className="mt-1 accent-etyme-ink"
                 checked={w.outsideAccess === o.value}
-                disabled={busy || !data.canEdit}
-                onChange={() => send('/api/settings', 'PATCH', { outsideAccess: o.value })}
+                // Never greyed, so the chosen one reads as chosen to every
+                // reader (fix list G6); a press that may not change it does nothing.
+                aria-disabled={busy || !data.canEdit || undefined}
+                onChange={() => { if (!busy && data.canEdit && w.outsideAccess !== o.value) send('/api/settings', 'PATCH', { outsideAccess: o.value }) }}
               />
               <span>
                 <span className="text-[14px] text-etyme-ink">{o.label}</span>
@@ -366,6 +375,7 @@ function WallsTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
             </label>
           ))}
         </div>
+        {!data.canEdit && <p className="mt-3 text-[12px] text-etyme-muted">{ONLY_OWNER_OR_ADMIN}</p>}
 
         {w.outsideAccess !== 'CLOSED' && (
           <div className="mt-5 pt-4 border-t border-etyme-rule">
@@ -389,18 +399,28 @@ function WallsTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
       </Panel>
 
       <Panel
-        title="One client account seeing another"
-        subtitle="Whether somebody attached to a client account can read the staffing, rates and rolloffs of the accounts next door. Attaching people to accounts is what builds the wall; anybody attached to none still sees the whole firm."
+        title={`One ${accountWord(data.company.kind).one} seeing another`}
+        subtitle={`Whether a person attached to one ${accountWord(data.company.kind).one} can read the work of the others. Attaching people on Team structure is what builds the wall.`}
       >
         <label className="flex items-center gap-2 text-[14px] text-etyme-ink cursor-pointer">
           <input
             type="checkbox"
+            className="accent-etyme-ink"
             checked={w.accountWalls}
-            disabled={busy || !data.canEdit}
-            onChange={() => send('/api/settings', 'PATCH', { accountWalls: !w.accountWalls })}
+            aria-disabled={busy || !data.canEdit || undefined}
+            onChange={() => { if (!busy && data.canEdit) send('/api/settings', 'PATCH', { accountWalls: !w.accountWalls }) }}
           />
-          Keep each account&rsquo;s work to that account
+          Keep each {accountWord(data.company.kind).one}&rsquo;s work to that {accountWord(data.company.kind).one}
         </label>
+        {/* What it does today, at the control (fix list G3): the state, who
+            it limits, and exactly which screens it covers. */}
+        <p className="mt-2 text-[13px] text-etyme-ink">{wallSays(data.company.kind, w.accountWalls).state}</p>
+        <p className="mt-1 text-[13px] text-etyme-muted">
+          {wallSays(data.company.kind, w.accountWalls).covers}{' '}
+          {data.canEdit
+            ? <Link href={'/dashboard/settings/team-structure' as Route} className="text-etyme-action-press">Attach people on Team structure</Link>
+            : ONLY_OWNER_OR_ADMIN}
+        </p>
       </Panel>
     </>
   )
@@ -483,14 +503,28 @@ function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: Sen
           </div>
         </div>
 
+        <div className="mt-4 border-t border-etyme-rule pt-3">
+          <Lbl>Website</Lbl>
+          {/* Kept in one place, typed in Setup → Your company (fix list A6). */}
+          <p className="mt-1 text-[13px] text-etyme-ink">
+            {c.website ? c.website : 'None typed yet.'}{' '}
+            {data.canEdit
+              ? <Link href={'/dashboard/settings/setup/company' as Route} className="text-etyme-action-press">Change it in Setup → Your company</Link>
+              : <span className="text-etyme-muted">The Owner or an Admin types it in Setup → Your company.</span>}
+          </p>
+        </div>
+
         {data.canEdit && (
-          <button
+          <SubmitButton
+            type="button"
+            className="mt-4"
             onClick={() => send('/api/settings', 'PATCH', { name, currency })}
-            disabled={busy}
-            className="mt-4 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-50"
+            pending={busy}
+            disabled={name === c.name && currency === c.currency}
+            whyDisabled={NOTHING_CHANGED}
           >
             Save
-          </button>
+          </SubmitButton>
         )}
       </Panel>
 
@@ -499,8 +533,14 @@ function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: Sen
       {/* Beside the type, because the founder looked here for it
           (2026-11-03): the switch itself is the Ask Etyme tab's. */}
       {data.canEdit && (
-        <Panel title="Ask Etyme and the model" subtitle="Whether a question the rules do not answer may be sent to a model, masked. Off until an Owner or an Admin turns it on.">
-          <button onClick={openModel} className="text-[13px] text-etyme-action-press">Open the switch</button>
+        <Panel title="Ask Etyme and the model" subtitle={MODEL_CARD_SUBTITLE}>
+          <a
+            href="/dashboard/settings?tab=ask-etyme"
+            onClick={(e) => { e.preventDefault(); openModel(); window.history.replaceState(null, '', '/dashboard/settings?tab=ask-etyme') }}
+            className="text-[13px] text-etyme-action-press"
+          >
+            Open the switch
+          </a>
         </Panel>
       )}
 
@@ -523,16 +563,20 @@ function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: Sen
           {c.teams.says}
         </p>
         {data.canEdit && (
-          <button
+          <SubmitButton
+            type="button"
+            className="mt-3"
             onClick={() => send('/api/settings', 'PATCH', { teamsWebhookUrl: teams.trim() || null })}
+            pending={busy}
             // Nothing typed and nothing saved means there is nothing to do.
             // A "Remove channel" button with no channel to remove is a
-            // control that lies about what it does.
-            disabled={busy || (!teams.trim() && !c.teamsWebhookUrl)}
-            className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+            // control that lies about what it does. The same link again
+            // changes nothing either.
+            disabled={(!teams.trim() && !c.teamsWebhookUrl) || teams.trim() === (c.teamsWebhookUrl ?? '')}
+            whyDisabled={!teams.trim() && !c.teamsWebhookUrl ? 'Paste a Teams Workflows link above first.' : NOTHING_CHANGED}
           >
             {teams.trim() ? 'Save channel' : 'Remove channel'}
-          </button>
+          </SubmitButton>
         )}
       </Panel>
     </>
@@ -607,13 +651,19 @@ function TypePanel({ data, busy }: { data: Settings; busy: boolean }) {
         ))}
       </div>
       {refused && <div className="mt-4"><FormMessage tone="error">{refused}</FormMessage></div>}
-      <button
+      <SubmitButton
+        type="button"
+        className="mt-4"
         onClick={save}
-        disabled={busy || saving || !chosen || chosen === now?.key}
-        className="mt-4 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-50"
+        pending={busy || saving}
+        pendingLabel="Changing…"
+        disabled={!chosen || chosen === now?.key}
+        // Said beside it, never a button greyed without words (fix list A6). Only the Owner
+        // reads this button; anybody else reads who may, above.
+        whyDisabled={TYPE_UNCHANGED}
       >
-        {saving ? 'Changing…' : 'Change type'}
-      </button>
+        Change type
+      </SubmitButton>
     </Panel>
   )
 }
@@ -681,17 +731,20 @@ function RolesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: bo
 function HolidaysTab({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {
   const [date, setDate] = useState('')
   const [name, setName] = useState('')
-  // The rest of this year, then next year (lib/pay-dates, holidaySeedOffers).
-  const offers = holidaySeedOffers(new Date())
+  // The rest of this year, then next year (lib/pay-dates, holidaySeedOffers),
+  // each offered only while some of its days are missing (fix list G4).
+  const offers = data.holidayOffers ?? []
+  const missing = offers.filter((o) => !o.complete)
+  const already = offers.filter((o) => o.complete && o.says)
 
   return (
     <Panel
       title="Holiday calendar"
       subtitle="Cycle dates shift off weekends and off these days. An empty calendar means due dates land on public holidays and nobody notices until a billing run fires on Christmas Day."
       action={
-        data.canEdit ? (
+        data.canEdit && missing.length > 0 ? (
           <span className="flex flex-wrap gap-2">
-            {offers.map((o) => (
+            {missing.map((o) => (
               <button
                 key={o.year}
                 onClick={() => send('/api/settings/holidays', 'POST', { seedYear: o.year, country: 'US', ...(o.from ? { from: o.from } : {}) })}
@@ -705,6 +758,11 @@ function HolidaysTab({ data, send, busy }: { data: Settings; send: SendFn; busy:
         ) : null
       }
     >
+      {already.length > 0 && (
+        <div className="mb-3 space-y-0.5">
+          {already.map((o) => <p key={o.year} className="text-[12px] text-etyme-muted">{o.says}</p>)}
+        </div>
+      )}
       {data.holidays.length === 0 ? (
         <Empty>
           Nothing in the calendar. Every cycle date is currently computed against weekends only.
@@ -740,16 +798,19 @@ function HolidaysTab({ data, send, busy }: { data: Settings; send: SendFn; busy:
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company shutdown"
               className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm" />
           </div>
-          <button
+          <SubmitButton
+            type="button"
+            className="mt-3"
             onClick={async () => {
               const r = await send('/api/settings/holidays', 'POST', { date, name })
               if (r) { setDate(''); setName('') }
             }}
-            disabled={busy || !date || !name.trim()}
-            className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+            pending={busy}
+            disabled={!date || !name.trim()}
+            whyDisabled={!date && !name.trim() ? 'Choose a date and name the day first.' : !date ? 'Choose a date first.' : 'Name the day first.'}
           >
             Add
-          </button>
+          </SubmitButton>
         </div>
       )}
     </Panel>
@@ -811,16 +872,19 @@ function CostCentersTab({ data, send, busy, openTab }: { data: Settings; send: S
             <input value={gl} onChange={(e) => setGl(e.target.value)} placeholder="GL 6120"
               className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
           </div>
-          <button
+          <SubmitButton
+            type="button"
+            className="mt-3"
             onClick={async () => {
               const r = await send('/api/settings/cost-centers', 'POST', { code, name, glAccount: gl || null })
               if (r) { setCode(''); setName(''); setGl('') }
             }}
-            disabled={busy || !code.trim() || !name.trim()}
-            className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+            pending={busy}
+            disabled={!code.trim() || !name.trim()}
+            whyDisabled={!code.trim() && !name.trim() ? 'Type a code and a name first.' : !code.trim() ? 'Type a code first.' : 'Type a name first.'}
           >
             Add
-          </button>
+          </SubmitButton>
         </div>
       )}
     </Panel>
@@ -858,13 +922,14 @@ function CyclesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: b
             </p>
           ))}
           {data.noCalendar?.offer && (
-            <button
+            <SubmitButton
+              type="button"
+              className="mt-1"
               onClick={() => send(`/api/companies/${data.company.id}/template-pack`, 'POST', { pack: data.noCalendar!.offer!.id })}
-              disabled={busy}
-              className="mt-1 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+              pending={busy}
             >
               Use the “{data.noCalendar.offer.label}” calendar
-            </button>
+            </SubmitButton>
           )}
         </div>
       ) : (
@@ -925,9 +990,14 @@ function WeekendShiftPanel({ data, send, busy }: { data: Settings; send: SendFn;
                   return (
                     <button
                       key={d.value}
+                      type="button"
                       title={d.means}
-                      disabled={busy || !data.canEdit || chosen}
-                      onClick={() => send('/api/settings', 'PATCH', { [field(cat.key)]: d.value })}
+                      aria-pressed={chosen}
+                      // The chosen one is never greyed: it reads as chosen to
+                      // every reader (fix list G6). Pressing it changes nothing,
+                      // so it sends nothing and writes no log row.
+                      disabled={!chosen && (busy || !data.canEdit)}
+                      onClick={() => { if (!chosen) send('/api/settings', 'PATCH', { [field(cat.key)]: d.value }) }}
                       className={`px-3 py-1.5 rounded text-[13px] border transition-colors ${
                         chosen
                           ? 'bg-etyme-ink text-white border-etyme-ink'
@@ -946,6 +1016,7 @@ function WeekendShiftPanel({ data, send, busy }: { data: Settings; send: SendFn;
           )
         })}
       </div>
+      {!data.canEdit && <p className="text-[12px] text-etyme-muted pb-3">{ONLY_OWNER_OR_ADMIN}</p>}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mt-1">
         Dates already written on a placement’s “What is due” list keep their dates. Placements recorded from now on take the new rule.
       </p>
@@ -1201,16 +1272,19 @@ function AddressTab({ send, busy }: { send: SendFn; busy: boolean }) {
         </div>
 
         {data.canEdit && (
-          <button
+          <SubmitButton
+            type="button"
+            className="mt-3"
             onClick={async () => {
               const r = await send('/api/settings/address', 'PATCH', { subdomain: sub })
               if (r) load()
             }}
-            disabled={busy || !sub.trim() || sub === data.subdomain}
-            className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+            pending={busy}
+            disabled={!sub.trim() || sub === data.subdomain}
+            whyDisabled={!sub.trim() ? 'Type the address you want first.' : 'This is your address now. Type a new one to change it.'}
           >
             Change my address
-          </button>
+          </SubmitButton>
         )}
 
         {data.previousAddresses.length > 0 && (
@@ -1234,7 +1308,7 @@ function AddressTab({ send, busy }: { send: SendFn; busy: boolean }) {
 
       <Panel
         title="A domain you own"
-        subtitle="Point your own address here — talent.yourcompany.com, or your bare domain. Nothing serves until we can see a DNS record only you could have published, because anybody can type a domain into a form."
+        subtitle="Point your own address here — talent.company.example, or your bare domain. Nothing serves until we can see a DNS record only you could have published, because anybody can type a domain into a form."
       >
         {data.customDomains.length === 0 ? (
           <Empty>None yet. Your Etyme address is the only way in.</Empty>
@@ -1292,23 +1366,25 @@ function AddressTab({ send, busy }: { send: SendFn; busy: boolean }) {
         {data.canEdit && (
           <div className="border-t border-etyme-rule pt-4">
             <Lbl>Add a domain</Lbl>
-            <div className="flex gap-2 mt-2">
+            <div className="flex flex-wrap items-start gap-2 mt-2">
               <input
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
-                placeholder="talent.yourcompany.com"
-                className="flex-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono"
+                placeholder="talent.company.example"
+                className="flex-1 min-w-[12rem] px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono"
               />
-              <button
+              <SubmitButton
+                type="button"
                 onClick={async () => {
                   const r = await send('/api/settings/address', 'POST', { domain })
                   if (r) { setDomain(''); load() }
                 }}
-                disabled={busy || !domain.trim()}
-                className="px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+                pending={busy}
+                disabled={!domain.trim()}
+                whyDisabled="Type the domain first."
               >
                 Add
-              </button>
+              </SubmitButton>
             </div>
           </div>
         )}

@@ -6,11 +6,13 @@ import { momentFor, readerZone } from '@/lib/when'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { Field, Textarea, SubmitButton, FormMessage } from '@/components/ui/form'
 import { Empty, Panel, setLine } from './panel-bits'
+import { MODEL_PANEL_SUBTITLE, modelStateSays } from './settings-says'
 
 /**
  * Ask Etyme and the model (founder, 2026-10-13, "The model boundary").
- * Off until an Owner or Admin turns it on; who did and when is said under
- * it; the boundary is said in four lines a buyer can check; every prompt
+ * Off by default; one sentence says what happens now, for the switch,
+ * the deployment's key and the allowance together (fix list G1); who
+ * turned it and when is said under it; the boundary is said in four lines a buyer can check; every prompt
  * that left is listed, masked, with a CSV export. The rules are
  * lib/model-boundary, through /api/settings/ask-etyme.
  *
@@ -38,9 +40,6 @@ export const BOUNDARY_LINES = [
 export function switchLabel(on: boolean): 'Turn it on' | 'Turn it off' {
   return on ? 'Turn it off' : 'Turn it on'
 }
-
-/** Said where this deployment has no model key; the choice is still recorded. */
-export const NOT_SET_UP_LINE = 'The model is not set up on this deployment yet; turning it on here takes effect when it is.'
 
 interface PromptRow {
   id: string
@@ -134,14 +133,13 @@ export function AskEtymePanel() {
     <div id={PANEL_ANCHOR} className="scroll-mt-20">
     <Panel
       title={title}
-      subtitle="Off until an Owner or an Admin turns it on. Ask Etyme answers from the rules first either way."
+      subtitle={MODEL_PANEL_SUBTITLE}
     >
-      <p className="mb-2 text-[14px] text-etyme-ink">
-        {data.on
-          ? 'On. A question the rules do not answer may be sent, masked.'
-          : 'Off. Ask Etyme answers from the rules only and sends nothing.'}
+      {/* One sentence for the switch, the deployment's key and the
+          allowance together: the only place the state is said (G1). */}
+      <p className={`mb-2 text-[14px] ${data.on && (!data.modelSetUp || data.heldSays) ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+        {modelStateSays(data)}
       </p>
-      {data.on && data.heldSays && <p className="mb-2 text-[13px] text-etyme-attention">{data.heldSays}</p>}
       <ul className="mb-4 space-y-1 text-[13px] text-etyme-muted list-disc pl-5">
         {BOUNDARY_LINES.map((l) => <li key={l}>{l}</li>)}
       </ul>
@@ -160,13 +158,11 @@ export function AskEtymePanel() {
             <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…">
               {switchLabel(data.on)}
             </SubmitButton>
-            {!data.modelSetUp && <p className="text-[13px] text-etyme-ink">{NOT_SET_UP_LINE}</p>}
           </div>
         </div>
       ) : (
         <div className="mb-4 space-y-1">
           <p className="text-[13px] text-etyme-muted">Only the Owner or an Admin turns this on or off.</p>
-          {!data.modelSetUp && <p className="text-[13px] text-etyme-ink">{NOT_SET_UP_LINE}</p>}
         </div>
       )}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mb-4">{setLine(data.setAt, data.setByName)}</p>
@@ -182,7 +178,7 @@ export function AskEtymePanel() {
         rowKey={(r) => r.id}
         searchPlaceholder="Search what left…"
         emptyMessage="Nothing has been sent to the model."
-        emptyDetail={data.on ? 'A question the rules cannot answer will be listed here once it is sent.' : 'The model is off, so nothing can be sent.'}
+        emptyDetail={data.on && data.modelSetUp && !data.heldSays ? 'A question your records cannot answer is listed here once it is sent.' : 'Nothing can be sent now, as the line above says.'}
         exportName="ask-etyme-model-prompts"
       />
     </Panel>

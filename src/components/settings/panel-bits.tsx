@@ -38,12 +38,6 @@ export function setLine(setAt: string | null, setByName: string | null): string 
   return `Last changed by ${setByName ?? 'somebody no longer here'} on ${formatDay(setAt)}.`
 }
 
-/** Why a Save is greyed, in words beside it (no button is greyed out without words). */
+/** Why a Save is greyed, said beside it by `SubmitButton`'s `whyDisabled` (no button is greyed out without words). */
 export const NOTHING_CHANGED = 'Nothing has changed.'
 export const CHOOSE_A_SUNDAY = 'Choose a Sunday to save.'
-
-/** The sentence beside a greyed Save, tied to it for a screen reader. Draws nothing where Save can be pressed. */
-export function SaveWhy({ id, says }: { id: string; says: string | null }) {
-  if (!says) return null
-  return <p id={id} className="mt-1.5 text-[12px] text-etyme-muted">{says}</p>
-}

@@ -103,8 +103,10 @@ export async function POST(
       data: {
         companyId: entry.companyId,
         action: 'REVERSAL',
-        summary: `Reversed: ${entry.summary}`,
-        reason: `${caller.person.name} reversed automation action ${entry.action}`,
+        // Reached only for an act this route really undoes; read on the
+        // log through reversalRowReads, with no machine name.
+        summary: `Undone: ${entry.summary}`,
+        reason: `${caller.person.name} undid this from the activity log.`,
         payload: { reversedEntryId: entry.id, originalAction: entry.action },
         reversible: false,
       },

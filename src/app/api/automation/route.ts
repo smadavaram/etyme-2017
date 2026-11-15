@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { LADDER, RUNGS, readRow, KIND_SAYS, ACTIONS, UNDONE_BY_THE_LOG, UNDONE_ON_COMPANIES, UNDONE_ON_JOBS, undoneElsewhere, reversibleHere } from '@/lib/autonomy'
+import { LADDER, RUNGS, readRow, KIND_SAYS, ACTIONS, UNDONE_BY_THE_LOG, UNDONE_ON_COMPANIES, UNDONE_ON_JOBS, undoneElsewhere, reversibleHere, reversalRowReads } from '@/lib/autonomy'
 import { mayOpen } from '@/lib/nav-table'
 
 /**
@@ -168,8 +168,9 @@ export async function GET(request: NextRequest) {
         return {
           id: e.id,
           action: e.action,
-          summary: e.summary,
-          reason: e.reason,
+          // A row the old Reverse wrote reads in a person's words: the press
+          // was recorded and changed nothing (reversalRowReads).
+          ...(e.action === 'REVERSAL' ? reversalRowReads(e) : { summary: e.summary, reason: e.reason }),
           payload: e.payload,
           reversible: reversibleHere(e),
           reversedAt: reversedAt?.toISOString() ?? null,

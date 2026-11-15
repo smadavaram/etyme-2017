@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { MODEL_SWITCH_ANCHOR, MODEL_SWITCH_HREF, MODEL_SWITCH_TAB, modelSetUpHere } from '@/lib/model-boundary'
-import { BOUNDARY_LINES, NOT_SET_UP_LINE, PANEL_ANCHOR, switchLabel } from '@/components/settings/ask-etyme-panel'
+import { BOUNDARY_LINES, PANEL_ANCHOR, switchLabel } from '@/components/settings/ask-etyme-panel'
+import { modelStateSays } from '@/components/settings/settings-says'
 import { ACTIONS } from '@/lib/autonomy'
 
 /**
@@ -55,11 +56,12 @@ describe('the Owner reaches the model switch from the sentence that names it', (
     expect(modelSetUpHere({})).toBe(false)
     expect(modelSetUpHere({ ANTHROPIC_API_KEY: '  ' })).toBe(false)
     expect(modelSetUpHere({ ANTHROPIC_API_KEY: 'sk-x' })).toBe(true)
-    expect(NOT_SET_UP_LINE).toBe('The model is not set up on this deployment yet; turning it on here takes effect when it is.')
-    expect(panel).toContain('{!data.modelSetUp && ')
+    // One sentence for the switch and the key together (fix list G1).
+    expect(modelStateSays({ on: true, modelSetUp: false })).toBe('On, but nothing is sent: no model is connected to this deployment yet. Ask Etyme answers from your records only.')
+    expect(panel).toContain('{modelStateSays(data)}')
     // The switch is drawn whatever the key: the save is never gated on it.
     expect(panel).not.toMatch(/disabled=\{[^}]*modelSetUp/)
-    expect(route).toContain('On, recorded. The model is not set up on this deployment yet')
+    expect(route).toContain('message: modelStateSays({ on: now.on, modelSetUp, heldSays: now.heldSays })')
   })
 
   it('nobody else may change the switch, and the refusal says who may', () => {
@@ -96,13 +98,10 @@ describe('the Owner reaches the model switch from the sentence that names it', (
     expect(panel).not.toMatch(/disabled=\{[^}]*reason/)
   })
 
-  it('where the deployment has no model key, the sentence sits beside the switch for whoever reads it', () => {
-    const beside = panel.indexOf('{switchLabel(data.on)}')
-    const line = panel.indexOf('{!data.modelSetUp && ', beside)
-    expect(line).toBeGreaterThan(beside)
-    expect(line - beside).toBeLessThan(300)
-    // And a reader who may not change it is told too.
-    const readOnly = panel.indexOf('Only the Owner or an Admin turns this on or off.')
-    expect(panel.indexOf('{!data.modelSetUp && ', readOnly)).toBeGreaterThan(readOnly)
+  it('where the deployment has no model key, every reader reads it in the one sentence above the switch', () => {
+    const said = panel.indexOf('{modelStateSays(data)}')
+    expect(said).toBeGreaterThan(0)
+    expect(said).toBeLessThan(panel.indexOf('{switchLabel(data.on)}'))
+    expect(said).toBeLessThan(panel.indexOf('Only the Owner or an Admin turns this on or off.'))
   })
 })

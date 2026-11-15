@@ -101,8 +101,11 @@ export function Textarea({ className = '', ...props }: TextareaHTMLAttributes<HT
  * Not inside a `Field`: the words are its label.
  */
 export function Check({ label, className = '', ...props }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode }) {
+  // A ticked box that cannot be changed still reads as ticked: its words
+  // stay in ink, and only an unticked one fades (fix list G6, 2026-11-15).
+  const faded = props.disabled && !props.checked
   return (
-    <label className={`inline-flex items-center gap-2 text-[13px] text-etyme-ink ${props.disabled ? 'opacity-60' : 'cursor-pointer'} ${className}`}>
+    <label className={`inline-flex items-center gap-2 text-[13px] text-etyme-ink ${faded ? 'opacity-60' : props.disabled ? '' : 'cursor-pointer'} ${className}`}>
       <input type="checkbox" {...props} className="h-4 w-4 rounded-box border-etyme-rule accent-etyme-action" />
       {label}
     </label>
@@ -115,18 +118,30 @@ export function Check({ label, className = '', ...props }: InputHTMLAttributes<H
  * While the send is out it says what it is doing ("Inviting…") and
  * cannot be pressed again, so one click is one invitation. `pending`
  * is the page's own flag; the button only draws it.
+ *
+ * A button greyed for any other reason says why beside it (`whyDisabled`,
+ * fix list G3, 2026-11-15): "Nothing has changed.", "Choose a Sunday to
+ * save.", or the real reason. The sentence is tied to the button for a
+ * screen reader and drawn only while the button is greyed and not
+ * sending. With no `whyDisabled` the button draws exactly as before.
  */
-export function SubmitButton({ pending = false, pendingLabel, children, disabled, tone = 'primary', className = '', ...props }:
+export function SubmitButton({ pending = false, pendingLabel, children, disabled, tone = 'primary', className = '', whyDisabled, ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & {
     pending?: boolean
     /** What it says while waiting. Defaults to the label with an ellipsis. */
     pendingLabel?: ReactNode
     tone?: 'primary' | 'secondary'
+    /** Why it is greyed, said beside it while it is. Never a greyed button without words. */
+    whyDisabled?: string | null
   }) {
-  return (
+  const whyId = useId()
+  const says = !pending && disabled && whyDisabled ? whyDisabled : null
+  const describedBy = [props['aria-describedby'], says ? whyId : null].filter(Boolean).join(' ') || undefined
+  const button = (
     <button
       type={props.type ?? 'submit'}
       {...props}
+      aria-describedby={describedBy}
       disabled={pending || disabled}
       aria-busy={pending || undefined}
       className={`${tone === 'primary' ? 'btn-primary' : 'btn-secondary'} inline-flex items-center justify-center gap-2 ${className}`}
@@ -136,6 +151,13 @@ export function SubmitButton({ pending = false, pendingLabel, children, disabled
       )}
       {pending ? (pendingLabel ?? <>{children}…</>) : children}
     </button>
+  )
+  if (whyDisabled === undefined) return button
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {button}
+      {says && <span id={whyId} className="text-[12px] leading-relaxed text-etyme-muted">{says}</span>}
+    </span>
   )
 }
 

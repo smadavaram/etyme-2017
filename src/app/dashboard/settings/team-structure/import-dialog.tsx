@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { NOT_AVAILABLE_YET, READ_TEAMS_LABEL, splitSources, tileStatus, IMPORT_RECORDS_HREF, IMPORT_RECORDS_LABEL } from '@/lib/team-structure/directory/words'
+import { SubmitButton } from '@/components/ui/form'
 
 /**
  * "Read teams from your directory", once "Import from your directory" (founder, 2026-11-09: "Can it be integrated
@@ -277,7 +278,7 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
             <div className="flex flex-wrap gap-2">
               {result
                 ? <button className="btn-primary" onClick={() => onApplied(said?.says ?? 'Done.')}>Done</button>
-                : <button className="btn-primary" disabled={busy || count === 0} onClick={apply}>{busy ? 'Applying…' : `Apply ${count} ${count === 1 ? 'change' : 'changes'}`}</button>}
+                : <SubmitButton type="button" pending={busy} pendingLabel="Applying…" disabled={count === 0} whyDisabled="Tick a change above first." onClick={apply}>{`Apply ${count} ${count === 1 ? 'change' : 'changes'}`}</SubmitButton>}
               {!result && <button className="btn-secondary" onClick={() => { setPreview(null); setCsv(null); setFileName(null) }}>Back</button>}
               <button className="btn-secondary" onClick={onClose}>Cancel</button>
             </div>

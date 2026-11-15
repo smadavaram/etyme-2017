@@ -1399,6 +1399,38 @@ export const UNDONE_BY_THE_LOG: ReadonlySet<string> = new Set<string>([])
 /** What the log says, and the reverse route refuses in, for an act it cannot undo and nobody named a place for. */
 export const LOG_CANNOT_UNDO = 'The activity log only records this. It cannot undo it.'
 
+/**
+ * Whether the log's own Reverse undoes anything at all. The "can be undone"
+ * tile and the "Reversible only" filter are drawn only while it does: with
+ * no act in the reader they could only ever read 0 and show nothing, a
+ * dead end (2026-11-15).
+ */
+export function logUndoesAnything(): boolean {
+  return UNDONE_BY_THE_LOG.size > 0
+}
+
+/**
+ * A row the log's old Reverse button wrote, read in a person's words. It
+ * was written "Reversed: <what>" with the reason "<name> reversed
+ * automation action REQUISITION_DISTRIBUTED": a machine name, and a claim
+ * the press never made good, because the route changed no record. Read at
+ * the screen, so a row already written loses nothing and needs no script:
+ * the press is said as recorded and as having changed nothing, which is
+ * what happened. An act the log really undoes reads as undone.
+ */
+export function reversalRowReads(row: { summary: string; reason: string; payload?: unknown }): { summary: string; reason: string } {
+  const p = (row.payload ?? {}) as { originalAction?: unknown }
+  const what = row.summary.replace(/^Reversed:\s*/, '').trim()
+  const who = row.reason.match(/^(.*?) reversed automation action\b/)?.[1]?.trim() || 'Somebody'
+  if (typeof p.originalAction === 'string' && undoneHere(p.originalAction)) {
+    return { summary: `Undone: ${what}`, reason: `${who} undid this from the activity log.` }
+  }
+  return {
+    summary: `Reverse pressed on: ${what}`,
+    reason: `${who} pressed Reverse here. The press was recorded and changed nothing.`,
+  }
+}
+
 /** Whether the log's own Reverse really undoes this act. */
 export function undoneHere(action: string): boolean {
   return UNDONE_BY_THE_LOG.has(action)

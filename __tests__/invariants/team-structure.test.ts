@@ -313,7 +313,7 @@ describe('a company with no teams opens as a plain list of its people', () => {
   })
 
   it('Undo is drawn only where there is a change to undo', () => {
-    expect(page).toMatch(/\{tree\.lastChange && \(\s*<button/)
+    expect(page).toMatch(/\{tree\.lastChange && \(\s*<SubmitButton/)
   })
 })
 

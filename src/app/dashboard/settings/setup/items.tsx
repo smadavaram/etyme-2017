@@ -192,7 +192,7 @@ function CompanyItem(p: Props) {
           </Select>
         </Field>
         <Field label="Established (year)"><Input inputMode="numeric" value={f.establishedYear} onChange={set('establishedYear')} placeholder="2019" /></Field>
-        <Field label="Website" help={<From says={from('website')} />}><Input value={f.website} onChange={set('website')} placeholder="tapin.com" /></Field>
+        <Field label="Website" help={<From says={from('website')} />}><Input value={f.website} onChange={set('website')} placeholder="company.example" /></Field>
         <Field label="Phone"><Input value={f.phone} onChange={set('phone')} /></Field>
         <Field label="EIN" help={<From says={from('taxId')} />}><Input value={f.taxId} onChange={set('taxId')} placeholder="12-3456789" /></Field>
         <Field label="Currency" help={<From says={from('currency')} />}><Input value={f.currency} onChange={set('currency')} maxLength={3} /></Field>
@@ -260,7 +260,7 @@ function PaperReader({ onUse }: { onUse: (values: { field: string; value: string
         <Input type="file" accept="application/pdf,text/plain" onChange={(e) => { const file = e.target.files?.[0]; if (file) readIt(file) }} />
       </Field>
       <Field label="Or paste the text of the form"><Textarea value={text} onChange={(e) => setText(e.target.value)} /></Field>
-      <SubmitButton type="button" tone="secondary" pending={busy} pendingLabel="Reading…" disabled={!text.trim()} onClick={() => readIt()}>Read it</SubmitButton>
+      <SubmitButton type="button" tone="secondary" pending={busy} pendingLabel="Reading…" disabled={!text.trim()} whyDisabled="Paste the text first." onClick={() => readIt()}>Read it</SubmitButton>
       {said && <FormMessage tone="error">{said}</FormMessage>}
       {read && (
         <div className="space-y-1.5">
