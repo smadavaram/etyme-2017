@@ -292,7 +292,7 @@ export async function POST(request: NextRequest) {
           action: 'JOIN',
           companyId: decision.companyId,
           companyName: decision.companyName,
-          message: `You are in ${decision.companyName} as ${MEMBER_ROLE}, and ${decision.domain} is now theirs so nobody else has to answer that.`,
+          message: `You are in ${decision.companyName} with no role yet, and ${decision.domain} is now theirs so nobody else has to answer that.`,
           role: MEMBER_ROLE,
         },
       })
@@ -333,7 +333,7 @@ export async function POST(request: NextRequest) {
       data: {
         companyId: decision.companyId,
         action: 'COLLEAGUE_JOINED',
-        summary: `${person.name} joined from ${domain} as ${MEMBER_ROLE}`,
+        summary: `${person.name} joined from ${domain} with no role yet`,
         reason: 'Verified work email on a domain this company already owns',
         payload: { personId: person.id, email, role: MEMBER_ROLE },
         reversible: true,
@@ -354,7 +354,7 @@ export async function POST(request: NextRequest) {
         action: 'JOIN',
         companyId: decision.companyId,
         companyName: decision.companyName,
-        message: `You are in ${decision.companyName} as ${MEMBER_ROLE}. You can see your own work now. An owner there gives you a role.`,
+        message: `You are in ${decision.companyName} with no role yet. You can see your own work now. An Owner or Admin there gives you a role.`,
         role: MEMBER_ROLE,
       },
     })

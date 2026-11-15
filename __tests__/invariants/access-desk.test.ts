@@ -927,10 +927,10 @@ describe('Users & permissions says how people join in the one join sentence', ()
     expect(joinSentence(facts())).toBe('People join Tapin by invitation only. An Owner or Admin invites each person from Users & permissions.')
   })
 
-  it('a verified domain set to join at once is said as joining at once as Member, waiting for a role', async () => {
+  it('a verified domain set to join at once is said as joining at once with no role yet', async () => {
     const { joinSentence } = await import('@/lib/join-words')
     const s = joinSentence(facts({ companyName: 'Brightmoor Staffing', domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'AUTO' }] }))
-    expect(s).toContain('on brightmoor.example joins at once as Member and waits for a role')
+    expect(s).toContain('on brightmoor.example joins at once with no role yet, and an Owner or Admin gives them one')
   })
 
   it('a verified domain that asks to join is never said to join at once', async () => {

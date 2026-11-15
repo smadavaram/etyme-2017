@@ -771,7 +771,7 @@ async function joinAsMember(
   await prisma.automationLog.create({
     data: {
       companyId: company.id, action: 'COLLEAGUE_JOINED',
-      summary: `${person.name} joined as ${MEMBER_ROLE} by signing up with a password`,
+      summary: `${person.name} joined with no role yet by signing up with a password`,
       reason, payload: { personId: person.id, email: person.primaryEmail, role: MEMBER_ROLE, door: 'PASSWORD' },
       reversible: true,
     },

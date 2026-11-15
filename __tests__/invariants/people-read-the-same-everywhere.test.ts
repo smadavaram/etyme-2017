@@ -150,6 +150,29 @@ describe('Settings, Sites', () => {
   it('the street box shows a plain example, never "Not found. Type it.", and the table prints the address under the name', () => {
     const page = read('src/app/dashboard/settings/sites/page.tsx')
     expect(page).not.toContain('Not found. Type it.')
-    expect(page).toContain('{siteAddressLine(s) && <p className="text-[11px] text-etyme-faint">{siteAddressLine(s)}</p>}')
+    expect(page).toContain('{addressOf(s) && <p className="text-[11px] text-etyme-faint">{addressOf(s)}</p>}')
+    expect(page).toContain('siteAddressLine(s, home, countryName)')
+  })
+
+  it('a site in the company’s own country reads street, city, state and ZIP, and names no country', () => {
+    expect(siteAddressLine({ address: '100 Main Street', city: 'Denver', state: 'CO', postalCode: '80202', country: 'US' }, 'US')).toBe('100 Main Street, Denver, CO 80202')
+  })
+
+  it('a site outside the company’s own country leaves no state slot where none is kept and ends with the country’s name', () => {
+    const name = (c: string) => ({ GB: 'United Kingdom', US: 'United States' } as Record<string, string>)[c] ?? c
+    expect(siteAddressLine({ address: '12 King Street', city: 'Leeds', state: null, postalCode: 'LS1 4DY', country: 'GB' }, 'US', name)).toBe('12 King Street, Leeds, LS1 4DY, United Kingdom')
+    expect(siteAddressLine({ address: '100 Main Street', city: 'Denver', state: 'CO', postalCode: '80202', country: 'US' }, 'GB', name)).toBe('100 Main Street, Denver, CO 80202, United States')
+    // A country setup does not list reads as its two letters.
+    expect(siteAddressLine({ city: 'Lisbon', postalCode: '1100-148', country: 'pt' }, 'US', name)).toBe('Lisbon, 1100-148, PT')
+  })
+
+  it('where the company’s own country is not known, every site names its country rather than guess which is home', () => {
+    expect(siteAddressLine({ city: 'Denver', state: 'CO', country: 'US' }, null)).toBe('Denver, CO, US')
+  })
+
+  it('the Sites route tells the page the company’s own country, falling back to the primary site’s', () => {
+    const route = read('src/app/api/settings/locations/route.ts')
+    expect(route).toContain('own?.country ?? read.sites.find((s) => s.isPrimary)?.country ?? null')
+    expect(route).toContain('kind: caller.company.kind, country }')
   })
 })

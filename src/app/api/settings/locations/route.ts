@@ -118,11 +118,19 @@ export async function GET(request: NextRequest) {
     return refuse('FORBIDDEN', askTheDesk({ doing: 'Reading sites', needs: ['settings.manage', 'vendors.manage'], kind: caller.company.kind, companyName: caller.company.name }))
   }
   const scope = await scopeOf(caller)
-  const [read, daysOff] = await Promise.all([sitesOf(caller.company.id, scope?.siteIds), daysOffFor(caller.company.id)])
+  const [read, daysOff, own] = await Promise.all([
+    sitesOf(caller.company.id, scope?.siteIds),
+    daysOffFor(caller.company.id),
+    prisma.company.findUnique({ where: { id: caller.company.id }, select: { country: true } }),
+  ])
+  // The company's own country, so a site abroad names its country on its
+  // address line. The schema's own fallback: the primary site's. Null
+  // where neither is read, and then every site names its country.
+  const country = own?.country ?? read.sites.find((s) => s.isPrimary)?.country ?? null
   return NextResponse.json({
     data: {
       ...read,
-      company: { id: caller.company.id, name: caller.company.name, kind: caller.company.kind },
+      company: { id: caller.company.id, name: caller.company.name, kind: caller.company.kind, country },
       region: scope?.label ?? null,
       // The company's days off, 0 Sunday to 6 Saturday: a site follows them.
       daysOff,

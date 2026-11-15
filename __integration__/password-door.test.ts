@@ -295,12 +295,12 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect(signin.state).toBe('PROVEN')
     expect(signin.says).toContain('through password')
   })
-  it('a colleague on a claimed address is asked only email, name and password, and told which company they join as Member', async () => {
+  it('a colleague on a claimed address is asked only email, name and password, and told which company they join with no role yet', async () => {
     const email = 'ravi@kestrelworks.test'
     const p = await json(await probe(req('GET', `/api/auth/password/signup?email=${encodeURIComponent(email)}`)))
     expect(p.body.data.joins).toEqual({
       address: 'kestrel', company: 'Kestrel Works',
-      says: "kestrel is Kestrel Works' address. You will join it as Member once you confirm your email.",
+      says: "kestrel is Kestrel Works' address. You join it with no role yet once you confirm your email. An Owner or Admin there gives you one.",
     })
     // Nothing about a company: no name, no type, no country, no address.
     const r = await json(await signUp(req('POST', '/api/auth/password/signup', { as: 'company', email, personName: 'Ravi Iyer', password: PASSWORD })))

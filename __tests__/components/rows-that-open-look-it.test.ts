@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import postcss from 'postcss'
 import tailwindcss from 'tailwindcss'
 import tailwindConfig from '../../tailwind.config'
-import { DataTable, NAME_OPENS, ROW_OPENS, ROW_OPENS_FILL, type Column } from '@/components/data-table'
+import { DataTable, NAME_OPENS, ROW_FOCUS_RING, ROW_OPENS, ROW_OPENS_FILL, type Column } from '@/components/data-table'
 import { ListSurface } from '@/components/list-surface'
 
 /**
@@ -70,5 +70,20 @@ describe('a row that opens a drawer', () => {
     expect(out).toMatch(/:hover\s*\{\s*--tw-bg-opacity: 1 !important;\s*background-color: rgb\(240 238 230/)
     // A name printed as plain text is underlined with the row too.
     expect(out).toMatch(/\.group\\\/row:hover [^{]*:not\(:has\(\*\)\)\s*\{\s*text-decoration-line: underline/)
+  })
+
+  it('a row that opens, in the table and in the feed, draws a two-pixel ring in the brand action color under keyboard focus, and none under the pointer', async () => {
+    const tr = unescape(bodyRow(table(() => {})).match(/<tr[^>]*>/)![0])
+    for (const c of ROW_FOCUS_RING.split(' ')) expect(tr).toContain(c)
+    const feed = renderToStaticMarkup(createElement(ListSurface<Row>, { data: rows, columns, rowKey: (r: Row) => r.id, onRowClick: () => {}, defaultView: 'feed' } as any))
+    for (const c of ROW_FOCUS_RING.split(' ')) expect(unescape(feed)).toContain(c)
+    expect(bodyRow(table())).not.toContain('outline')
+    const out = await css(ROW_FOCUS_RING)
+    // #5228FF, the action color the brand kit gives a filled button and a ring.
+    expect(out).toMatch(/:focus-visible\s*\{\s*outline-color: #5228FF/i)
+    expect(out).toMatch(/:focus-visible\s*\{\s*outline-width: 2px/)
+    expect(out).toMatch(/:focus-visible\s*\{\s*outline-style: solid/)
+    expect(out).toMatch(/:focus-visible\s*\{\s*outline-offset: -2px/)
+    expect(out).not.toMatch(/:focus\s*\{|:hover\s*\{/)
   })
 })

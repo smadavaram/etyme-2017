@@ -36,9 +36,9 @@ describe('how people join this company is said from what the code does', () => {
     )
   })
 
-  it('a company with a verified domain that lets people in at once is told they join as Member and wait for a role', () => {
+  it('a company with a verified domain that lets people in at once is told they join at once with no role yet, and an Owner or Admin gives them one', () => {
     const s = joinSentence(facts({ domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'AUTO' }] }))!
-    expect(s).toContain('Anybody who signs in with an address on brightmoor.example joins at once as Member and waits for a role.')
+    expect(s).toContain('Anybody who signs in with an address on brightmoor.example joins at once with no role yet, and an Owner or Admin gives them one.')
     expect(s).not.toContain('signs up with brightmoor.etyme.com')
   })
 
@@ -117,5 +117,43 @@ describe('the sign-up start page says how people join from the same sentence (20
 
   it('the start page, a browser page, never imports the database reader behind the sentence', () => {
     expect(page).not.toMatch(/from '@\/lib\/join-words'/)
+  })
+})
+
+describe('a colleague who joins with only the Member role is told she has no role yet, the words every screen uses for her', () => {
+  const doors = [
+    'src/lib/password-words.ts',
+    'src/lib/join-words.ts',
+    'src/lib/company-domains.ts',
+    'src/app/(auth)/start/page.tsx',
+    'src/app/api/onboarding/route.ts',
+    'src/lib/password-door.ts',
+    'src/lib/identity/provision.ts',
+  ]
+  // The one sentence still waiting: the welcome after a password sign-up
+  // is held word for word equal to the in-app welcome in lib/notify/joined
+  // (etyme-conversation's), so the two are reworded together. This line
+  // goes in the commit that rewords them.
+  const WAITS_ON_THE_IN_APP_WELCOME = 'You are in ${company} as Member. Your owner has been told; you will see more once they give you a role.'
+  // The strings a person reads, with code comments taken out.
+  const said = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(WAITS_ON_THE_IN_APP_WELCOME, '')
+
+  it('no sentence a joining colleague reads says she joins, or is in a company, as Member', () => {
+    for (const p of doors) {
+      const s = said(p)
+      expect(s, p).not.toMatch(/\b(join|joins|are in|seat)\b[^.`'"\n]{0,40} as (Member|\$\{MEMBER_ROLE\})/)
+      expect(s, p).not.toContain('Your owner')
+      expect(s, p).not.toContain('An owner there')
+    }
+  })
+
+  it('a colleague on a domain that admits people at once, or asks first, is told an Owner or Admin gives the role', async () => {
+    const { describePolicy } = await import('@/lib/company-domains')
+    expect(describePolicy('AUTO', 'brightmoor.example').detail).toBe('Anybody signing in on brightmoor.example joins with no role yet, seeing only their own work, and an Owner or Admin here gives them a role.')
+    expect(describePolicy('REQUEST', 'brightmoor.example').detail).toBe('Anybody signing in on brightmoor.example gets a seat with no role yet, and an Owner or Admin here is asked to give them a role.')
+  })
+
+  it('the start page tells a colleague joining a company already here that she joins with no role yet and who gives her one', () => {
+    expect(read('src/app/(auth)/start/page.tsx')).toContain('You join with no role yet. You can see your own work at once. An Owner or Admin there gives you a role.')
   })
 })

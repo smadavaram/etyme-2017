@@ -175,7 +175,7 @@ export function decideEntry(email: string, claims: ClaimedDomain[]): Entry {
           companyId: exact.companyId,
           companyName: exact.companyName,
           domain,
-          message: `${exact.companyName} is already here. You will join as Member, seeing your own work, and somebody there gives you a role.`,
+          message: `${exact.companyName} is already here. You join with no role yet and see your own work at once. An Owner or Admin there gives you a role.`,
         }
       case 'NONE':
         // The domain is claimed but does not admit anybody — a company
@@ -298,13 +298,13 @@ export function describePolicy(policy: JoinPolicy, domain: string): {
     case 'AUTO':
       return {
         label: 'They are in',
-        detail: `Anybody signing in on ${domain} joins as Member, seeing only their own work, and somebody here gives them a role.`,
+        detail: `Anybody signing in on ${domain} joins with no role yet, seeing only their own work, and an Owner or Admin here gives them a role.`,
         caution: `Only choose this where everybody on ${domain} genuinely works for you. On a shared or university domain it admits strangers.`,
       }
     case 'REQUEST':
       return {
         label: 'They wait for somebody',
-        detail: `Anybody signing in on ${domain} gets a seat as Member and somebody here is asked to give them a role.`,
+        detail: `Anybody signing in on ${domain} gets a seat with no role yet, and an Owner or Admin here is asked to give them a role.`,
         caution: null,
       }
     case 'NONE':

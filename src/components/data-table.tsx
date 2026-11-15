@@ -132,6 +132,15 @@ interface SortState {
  * `onRowClick` is drawn as before.
  */
 export const ROW_OPENS = 'group/row cursor-pointer'
+/**
+ * The ring a row that opens draws under the keyboard, and only there: the
+ * brand's action color for a filled button, two pixels, inside the row so the
+ * table's rounded box never clips it. A pointer click draws no ring.
+ * Drawn here as well as in globals.css, so the row carries it on every
+ * list without leaning on one stylesheet rule (fix list, 2026-11-15: the
+ * ring on a focused row read faint).
+ */
+export const ROW_FOCUS_RING = 'focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-etyme-action'
 /** The row's fill under the pointer and under the keyboard, unless the row is selected. */
 export const ROW_OPENS_FILL = 'hover:!bg-etyme-canvas focus-visible:!bg-etyme-canvas'
 /** The first cell of a row that opens: the name, in the action text color, underlined with the row. */
@@ -459,7 +468,7 @@ export function DataTable<T extends Record<string, any>>({
                     onKeyDown={onRowClick ? rowKeyDown(row) : undefined}
                     aria-selected={selectable ? isSelected : undefined}
                     className={`
-                      ${onRowClick ? ROW_OPENS : ''}
+                      ${onRowClick ? `${ROW_OPENS} ${ROW_FOCUS_RING}` : ''}
                       ${onRowClick && !isSelected ? ROW_OPENS_FILL : ''}
                       ${isSelected ? '!bg-etyme-action-wash' : ''}
                       ${rowClassName?.(row) ?? ''}

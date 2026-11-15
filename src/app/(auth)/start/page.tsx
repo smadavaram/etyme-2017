@@ -258,7 +258,7 @@ export default function StartPage() {
             </h1>
             <p className="text-etyme-muted mt-3">{state.message}</p>
             <p className="text-sm text-etyme-muted mt-4">
-              You join as Member. You can see your own work at once. An owner there gives you a role.
+              You join with no role yet. You can see your own work at once. An Owner or Admin there gives you a role.
             </p>
             <button onClick={() => enter({})} disabled={busy} className={`mt-6 ${primary}`}>
               {busy ? 'Joining…' : `Join ${state.company?.name ?? state.companyName}`}

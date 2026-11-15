@@ -71,7 +71,12 @@ export function soloFromCandidate(company: string, keepsPassword: boolean): stri
     (keepsPassword ? ' You sign in with the password you already use.' : '')
 }
 
-/** What a colleague reads once they are seated as Member. */
+/**
+ * What a colleague reads once they are seated as Member. Word for word the
+ * in-app welcome `welcomeSaid` in lib/notify/joined sends the same person
+ * (etyme-conversation's), and a test holds the two equal, so the two are
+ * reworded to "no role yet" together, never one alone.
+ */
 export function memberWelcome(company: string): string {
   return `You are in ${company} as Member. Your owner has been told; you will see more once they give you a role.`
 }
@@ -83,7 +88,7 @@ export function memberWelcome(company: string): string {
  * this file keeps no imports.
  */
 export function colleagueSentence(address: string, companys: string): string {
-  return `${address} is ${companys} address. You will join it as Member once you confirm your email.`
+  return `${address} is ${companys} address. You join it with no role yet once you confirm your email. An Owner or Admin there gives you one.`
 }
 
 /**

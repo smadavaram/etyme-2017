@@ -84,15 +84,30 @@ export function siteShort(site: { name: string; city?: string | null }): string 
 
 /**
  * A site's address on one line, as the Sites table prints it under the
- * site's name: street, city, then the state and ZIP together, from what is
- * kept and nothing else ("100 Main Street, Denver, CO 80202"). Null where
- * no part is kept. Pure.
+ * site's name: street, city, then the state or province and the postal
+ * code together, from what is kept and nothing else ("100 Main Street,
+ * Denver, CO 80202"). A part nobody kept leaves no slot, so a site with no
+ * state reads "12 King Street, Leeds, LS1 4DY".
+ *
+ * Where the site is in another country than the company's own (`home`,
+ * a two-letter code), the line ends with that country, by its name where
+ * `nameOf` knows it ("…, LS1 4DY, United Kingdom"). Where `home` is null,
+ * the company's own country is not known and every site names its
+ * country, which is never untrue; where it is not passed, none does. Null
+ * where no part of the address is kept. Pure.
  */
-export function siteAddressLine(site: { address?: string | null; city?: string | null; state?: string | null; postalCode?: string | null }): string | null {
+export function siteAddressLine(
+  site: { address?: string | null; city?: string | null; state?: string | null; postalCode?: string | null; country?: string | null },
+  home?: string | null,
+  nameOf: (code: string) => string = (code) => code,
+): string | null {
   const t = (v: string | null | undefined) => (v ?? '').trim()
   const tail = [t(site.state), t(site.postalCode)].filter(Boolean).join(' ')
   const parts = [t(site.address), t(site.city), tail].filter(Boolean)
-  return parts.length > 0 ? parts.join(', ') : null
+  if (parts.length === 0) return null
+  const country = t(site.country).toUpperCase()
+  const abroad = country && (home === undefined ? false : country !== t(home).toUpperCase())
+  return [...parts, ...(abroad ? [nameOf(country)] : [])].join(', ')
 }
 
 /** The longest ZIP or postal code kept. Longer is refused, never cut. */

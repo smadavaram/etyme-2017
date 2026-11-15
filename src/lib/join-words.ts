@@ -62,7 +62,7 @@ export function joinSentence(f: JoinFacts): string | null {
   const asks = live.filter((d) => d.joinPolicy === 'REQUEST').map((d) => d.domain)
 
   const more: string[] = []
-  if (atOnce.length) more.push(`Anybody who signs in with an address on ${list(atOnce)} joins at once as Member and waits for a role.`)
+  if (atOnce.length) more.push(`Anybody who signs in with an address on ${list(atOnce)} joins at once with no role yet, and an Owner or Admin gives them one.`)
   if (asks.length) more.push(`Anybody who signs in with an address on ${list(asks)} asks to join, and an Owner or Admin gives them a role.`)
   if (more.length === 0) return `People join ${name} by invitation only. ${invite}`
   return `People join ${name} by invitation. ${invite} ${more.join(' ')}`

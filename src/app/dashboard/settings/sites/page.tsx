@@ -51,7 +51,8 @@ interface Read {
   sites: Site[]
   approved: { id: string; name: string }[]
   regionalManagers: Record<string, string>
-  company: { id: string; name: string; kind: string }
+  /** `country` is the company's own, two letters; null where it is not known. */
+  company: { id: string; name: string; kind: string; country?: string | null }
   region: string | null
   daysOff: number[]
   mayEdit: boolean
@@ -62,6 +63,9 @@ const DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', '
 const NO_REGION = 'No region'
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 const listWords = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+
+/** A country's name where setup offers it, else its two letters. */
+const countryName = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code
 
 /**
  * The names a Country box offers as it is typed in. The box still takes
@@ -128,6 +132,11 @@ export default function SitesPage() {
       .sort((a, b) => Number(b.home) - Number(a.home) || b.contractors - a.contractors || a.region.localeCompare(b.region))
   }, [read])
 
+  // The address under a site's name, naming the country where it is not the
+  // company's own (undefined before the read, null where it is not known).
+  const home = read ? read.company.country ?? null : undefined
+  const addressOf = useCallback((s: Site) => siteAddressLine(s, home, countryName), [home])
+
   const columns: Column<Site>[] = useMemo(() => [
     {
       key: 'name', label: 'Site',
@@ -135,7 +144,7 @@ export default function SitesPage() {
       render: (s) => (
         <div>
           <p className="text-etyme-ink">{s.name}{s.isPrimary && <span className="ml-2 text-[11px] text-etyme-faint">primary</span>}</p>
-          {siteAddressLine(s) && <p className="text-[11px] text-etyme-faint">{siteAddressLine(s)}</p>}
+          {addressOf(s) && <p className="text-[11px] text-etyme-faint">{addressOf(s)}</p>}
         </div>
       ),
       sortValue: (s) => s.name,
@@ -153,7 +162,7 @@ export default function SitesPage() {
       hideOnMobile: true,
     },
     { key: 'contractors', label: 'Contractors', align: 'right', render: (s) => <span className="tabular-nums">{s.contractors}</span>, sortValue: (s) => s.contractors },
-  ], [])
+  ], [addressOf])
 
   if (refused) return <RefusedState says={refused} />
   if (error && !read) return <ErrorState says={error} />
