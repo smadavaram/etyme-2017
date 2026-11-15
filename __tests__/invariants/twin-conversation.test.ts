@@ -69,6 +69,7 @@ import {
   sentencesOf, type QueueRead, type QueueItem,
   billCardTitle, billRows, billFromPayload, billSentSays, billKeptSays, heldBillTitle, heldBillSays, NOT_NOW_REASON,
   NOT_GROUNDED, NOT_YET, REPLACED_NOTE, grounded, cardIdsOf,
+  SHORTENED, TOO_LONG, CUT_NOTE, CUT_UNSHOWN_NOTE, wholeSentences,
   type Answer, type Readers, type WaitingItem, type VarianceReceipt, type LimitEntry, type OtherWaiting, type SpendReceipt,
 } from '@/app/api/conversations/twin/ask'
 
@@ -1751,5 +1752,61 @@ describe('every first screen names a person and the step in front of them (found
     // The paying clerk's receipts are each checked at the same time, not in turn.
     const read = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/read.ts'), 'utf8')
     expect(read).toContain('const verdicts = await Promise.all(flagged.map((f) => invoiceVerdict(f.entityId, rules)))')
+  })
+})
+
+describe('a model answer cut at its length limit never shows half a sentence (fix list G6)', () => {
+  const cutReply = (text: string) => vi.fn(async () => ({ text, model: SMALL_MODEL, tokensIn: 400, tokensOut: 700, cut: true }))
+
+  it('an answer that stopped at its length limit is shown up to its last whole sentence, with one line saying it was shortened', async () => {
+    const read = readers({ model: cutReply('FIRM_1 billed over the hours accepted [entry-442]. It was also late by two days and the next invoice is') })
+    const a = await respond('Which supplier is slowest to send its invoice?', read, { env: KEY })
+    expect(a).toMatchObject({ kind: 'MODEL', says: `Pinnacle Resourcing billed over the hours accepted [entry-442].\n\n${SHORTENED}` })
+    expect((a as { says: string }).says).not.toContain('the next invoice is')
+    expect(SHORTENED).toBe('This answer was shortened to its last whole sentence. Ask about one person, one job or one week to read all of it.')
+    expect(voiceBreaks(SHORTENED)).toEqual([])
+  })
+
+  it('the prompt log keeps everything a cut answer said, marked as stopped at its length limit', async () => {
+    const text = 'FIRM_1 billed over the hours accepted [entry-442]. It was also late by two days and the next invoice is'
+    const read = readers({ model: cutReply(text) })
+    await respond('Which supplier is slowest to send its invoice?', read, { env: KEY })
+    const logged = (read.logPrompt as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(logged.maskedAnswer).toBe(`${CUT_NOTE}${text}`)
+    expect(logged.tokensOut).toBe(700)
+  })
+
+  it('an answer cut before one whole sentence is not shown; the person is asked to ask about less, and the log says why', async () => {
+    const read = readers({ model: cutReply('FIRM_1 billed over the hours accepted on the week of') })
+    const a = await respond('Which supplier is slowest to send its invoice?', read, { env: KEY })
+    expect(a).toEqual({ kind: 'TEXT', says: TOO_LONG })
+    expect(TOO_LONG).toBe('That answer was too long to show. Ask about one person, one job or one week.')
+    expect(voiceBreaks(TOO_LONG)).toEqual([])
+    const logged = (read.logPrompt as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(logged.maskedAnswer).toBe(`${CUT_UNSHOWN_NOTE}FIRM_1 billed over the hours accepted on the week of`)
+  })
+
+  it('a cut answer whose kept sentences cite no line of the record is not shown, as for any answer', async () => {
+    const read = readers({ model: cutReply('Suppliers are often late. FIRM_1 billed over the hours accepted [entry-442') })
+    expect(await respond('Which supplier is slowest to send its invoice?', read, { env: KEY })).toMatchObject({ kind: 'TEXT', says: NOT_GROUNDED })
+  })
+
+  it('an answer that finished on its own is shown whole, with no line saying it was shortened', async () => {
+    const read = readers()
+    const a = await respond('Which supplier is slowest to send its invoice?', read, { env: KEY })
+    expect((a as { says: string }).says).not.toContain(SHORTENED)
+  })
+
+  it('a whole sentence ends at a stop followed by a space or a new line, never at a stop the cut fell on', () => {
+    expect(wholeSentences('One. Two is $1.')).toBe('One.')
+    expect(wholeSentences('Paid “in full.” Then the')).toBe('Paid “in full.”')
+    expect(wholeSentences('- FIRM_1 [entry-1]\n- FIRM_2 billed')).toBe('- FIRM_1 [entry-1]')
+    expect(wholeSentences('The rate rose to 1.5 times on the')).toBeNull()
+    expect(wholeSentences('Nothing whole here')).toBeNull()
+  })
+
+  it('the model reader marks a reply that stopped at its length limit, so the answer can be shortened', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/read.ts'), 'utf8')
+    expect(src).toMatch(/cut: res\.stop_reason === 'max_tokens'/)
   })
 })

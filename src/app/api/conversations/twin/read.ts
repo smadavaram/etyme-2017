@@ -1016,7 +1016,9 @@ export function readersFor(
               .join('')
               .trim()
             return {
-              result: text ? { text, model: SMALL_MODEL, tokensIn: res.usage?.input_tokens ?? null, tokensOut: res.usage?.output_tokens ?? null } : null,
+              // A reply that stopped at its length limit says so, so ask.ts
+              // shows it only to its last whole sentence (fix list G6).
+              result: text ? { text, model: SMALL_MODEL, tokensIn: res.usage?.input_tokens ?? null, tokensOut: res.usage?.output_tokens ?? null, cut: res.stop_reason === 'max_tokens' } : null,
               model: SMALL_MODEL,
               usage: res.usage,
             }

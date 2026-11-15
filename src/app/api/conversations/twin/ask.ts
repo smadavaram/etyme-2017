@@ -1116,7 +1116,14 @@ export function heldByAllowance(h: AllowanceHeld): Answer {
 export const SMALL_MODEL = modelFor('SMALL')
 
 /** Who answered a free-text question, and what it cost, for the prompt log. */
-export interface ModelReply { text: string; model: string; tokensIn: number | null; tokensOut: number | null }
+export interface ModelReply {
+  text: string
+  model: string
+  tokensIn: number | null
+  tokensOut: number | null
+  /** True where the model stopped at its length limit, so the text may end mid-sentence. */
+  cut?: boolean
+}
 
 /** One prompt that left, masked, as the log keeps it (lib/model-boundary's recordModelPrompt). */
 export interface PromptLog {
@@ -1179,6 +1186,32 @@ export const LEDGER_LINK: { label: string; href: string } = { label: 'Open the l
 
 /** How a replaced answer is kept in the company's prompt log, ahead of what the model wrote (masked). */
 export const REPLACED_NOTE = 'Not shown to the person: it cited no line of the record. The model wrote: '
+
+/**
+ * A model answer that stopped at its length limit (fix list G6). Nobody
+ * reads half a sentence: the answer is shown up to its last whole
+ * sentence or whole line, and one sentence says it was shortened and how
+ * to ask for less. With not one whole sentence, nothing of it is shown.
+ */
+export const SHORTENED = 'This answer was shortened to its last whole sentence. Ask about one person, one job or one week to read all of it.'
+export const TOO_LONG = 'That answer was too long to show. Ask about one person, one job or one week.'
+/** How a cut answer is kept in the prompt log, ahead of what the model wrote (masked). */
+export const CUT_NOTE = 'Stopped at its length limit; shown to the person up to its last whole sentence. The model wrote, until it was stopped: '
+export const CUT_UNSHOWN_NOTE = 'Stopped at its length limit before one whole sentence; not shown to the person. The model wrote, until it was stopped: '
+
+/**
+ * The text up to its last whole sentence or whole line, or null where it
+ * holds neither. A stop at the very end is not trusted as a sentence end,
+ * because a cut can fall inside a figure ("1." of "1.5").
+ */
+export function wholeSentences(text: string): string | null {
+  let end = -1
+  for (const m of text.matchAll(/[.!?][\]"')\u201D\u2019]*(?=\s)/g)) end = m.index! + m[0].length
+  const line = text.lastIndexOf('\n')
+  if (line > end) end = line
+  const kept = end > 0 ? text.slice(0, end).trimEnd() : ''
+  return kept ? kept : null
+}
 
 /**
  * Whether a model's answer may be shown: it cites at least one ledger line
@@ -3685,20 +3718,31 @@ export async function respond(
       const maskedContext = masker.mask(ledgerContext(lines))
       const reply = await read.model(MODEL_SYSTEM, maskedQuestion, maskedContext)
       if (!reply) return { kind: 'TEXT', says: 'The model did not answer just now. ' + WHAT_I_ANSWER }
+      const maskedPrompt = `Ledger lines:\n${maskedContext}\n\nQuestion: ${maskedQuestion}`
+      // An answer cut at its length limit is shown only up to its last
+      // whole sentence, and the log keeps all of what came back.
+      const shown = reply.cut ? wholeSentences(reply.text) : reply.text
+      if (shown === null) {
+        await read.logPrompt({
+          model: reply.model, maskedPrompt, maskedAnswer: `${CUT_UNSHOWN_NOTE}${reply.text}`,
+          tokensIn: reply.tokensIn, tokensOut: reply.tokensOut, realValues: masker.realValues(),
+        })
+        return { kind: 'TEXT', says: TOO_LONG }
+      }
       // An answer with no line of the record behind it is not shown, and
       // the log says so beside what the model wrote.
-      const check = grounded(reply.text, lines)
+      const check = grounded(shown, lines)
       await read.logPrompt({
         model: reply.model,
-        maskedPrompt: `Ledger lines:\n${maskedContext}\n\nQuestion: ${maskedQuestion}`,
-        maskedAnswer: check.replaced ? `${REPLACED_NOTE}${reply.text}` : reply.text,
+        maskedPrompt,
+        maskedAnswer: `${reply.cut ? CUT_NOTE : ''}${check.replaced ? REPLACED_NOTE : ''}${reply.text}`,
         tokensIn: reply.tokensIn,
         tokensOut: reply.tokensOut,
         realValues: masker.realValues(),
         ...(check.replaced ? { replaced: true } : {}),
       })
       if (!check.show) return { kind: 'TEXT', says: NOT_GROUNDED, links: [LEDGER_LINK] }
-      const said = masker.unmask(reply.text)
+      const said = masker.unmask(shown) + (shown !== reply.text ? `\n\n${SHORTENED}` : '')
       const byId = new Map(lines.map((l) => [l.id, l]))
       return {
         kind: 'MODEL',
