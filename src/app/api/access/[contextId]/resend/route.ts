@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hourlyCapSays, INVITES_PER_HOUR, seatCapSays, sentAgainLogged, sentAgainSays, SENDS_PER_SEAT_PER_HOUR } from '@/lib/access-grant'
 import { recordRefusal } from '@/lib/access-log'
-import { copyTextFor, invitationEmailsSince, invitationsThisHour, modeOf, sendInvitationMail, underInviteLock } from '../../invite/one'
+import { copyTextFor, invitationEmailsSince, invitationsThisHour, modeOf, tryInvitationMail, underInviteLock } from '../../invite/one'
 import { waitingSeatFor } from '../waiting-seat'
 
 /**
@@ -46,7 +46,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const mode = await modeOf(seat.company.id)
-    const sent = await sendInvitationMail({
+    // Never throws: a send that threw is logged below as a try whose email
+    // did not go, unless it threw after the email had left.
+    const sent = await tryInvitationMail({
       contextId: seat.id,
       person: seat.person,
       inviterName: caller.person.name,

@@ -777,4 +777,74 @@ describe('an invitation that did not go says why, and can be copied or sent agai
     expect(r.status, JSON.stringify(r.body)).toBe(429)
     expect(r.body.error.cap).toBe('HOURLY')
   })
+
+  // The set-password link is made just before the email is handed over:
+  // making it fail is a send that throws before anything left. One spy for
+  // both cases, never restored between them: a Prisma model's method spied
+  // on a second time after a restore is lost. Past its one refusal it calls
+  // the real write.
+  let tokenSpy: { mockRejectedValueOnce: (e: Error) => unknown } | null = null
+  const sendThrowsOnce = () => {
+    const spy = tokenSpy ?? vi.spyOn(prisma.emailToken, 'create')
+    tokenSpy = spy
+    spy.mockRejectedValueOnce(new Error('the database went away'))
+    return spy
+  }
+
+  it('an invitation whose email send throws is still logged, and can still be withdrawn', async () => {
+    as(OWNER)
+    await fillHourTo(0)
+    const outbox = mailOn(ok)
+    const spy = sendThrowsOnce()
+    const r = await json(await invite(req('POST', '/api/access/invite', { name: 'Tomas Reyes', email: 'send.throws@batch-works-fixture.com' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    expect(spy).toHaveBeenCalled()
+    expect(outbox.filter((m) => m.to === 'send.throws@batch-works-fixture.com')).toHaveLength(0)
+    expect(r.body.data.mail.state).toBe('FAILED')
+    // One sentence: the invitation was made, the email did not go, and what to press.
+    expect(r.body.data.says).toMatch(/^Tomas Reyes has been invited, and the email to send\.throws@batch-works-fixture\.com did not go\./)
+    expect(r.body.data.says).toMatch(/Press Send the invitation again on their row, or Copy invitation\.$/)
+    const logged = await prisma.automationLog.findFirst({
+      where: { companyId: it_.firm, action: 'PERSON_INVITED', payload: { path: ['contextId'], equals: r.body.data.contextId } },
+      select: { payload: true },
+    })
+    expect(logged, 'the invitation is on the activity log').not.toBeNull()
+    expect((logged!.payload as any).mail).toBe('FAILED')
+    expect((logged!.payload as any).createdPerson).toBe(true)
+    // Withdrawing reads createdPerson from that row, so the person this invitation made goes too.
+    const gone = await json(await withdraw(req('DELETE', `/api/access/${r.body.data.contextId}`), seatParams(r.body.data.contextId)))
+    expect(gone.status, JSON.stringify(gone.body)).toBe(200)
+    expect(await prisma.context.count({ where: { id: r.body.data.contextId } })).toBe(0)
+    expect(await prisma.person.count({ where: { primaryEmail: 'send.throws@batch-works-fixture.com' } })).toBe(0)
+  })
+
+  it('an invitation whose send throws does not count against the hourly limit', async () => {
+    as(OWNER)
+    await fillHourTo(59)
+    mailOn(ok)
+    sendThrowsOnce()
+    const thrown = await json(await invite(req('POST', '/api/access/invite', { email: 'throws.uncounted@batch-works-fixture.com' })))
+    expect(thrown.status, JSON.stringify(thrown.body)).toBe(201)
+    expect(thrown.body.data.mail.state).toBe('FAILED')
+    // The hour still has room for one: the email that never left was no send.
+    const next = await json(await invite(req('POST', '/api/access/invite', { email: 'after.the.throw@batch-works-fixture.com' })))
+    expect(next.status, JSON.stringify(next.body)).toBe(201)
+    expect(next.body.data.mail.state).toBe('SENT')
+  })
+
+  it('a Send again whose send throws is logged as a try whose email did not go, and the inviter is told to copy it', async () => {
+    as(OWNER)
+    await fillHourTo(0)
+    mailOn(ok)
+    const seat = await json(await invite(req('POST', '/api/access/invite', { email: 'again.throws@batch-works-fixture.com' })))
+    expect(seat.status, JSON.stringify(seat.body)).toBe(201)
+    sendThrowsOnce()
+    const r = await json(await sendAgain(req('POST', `/api/access/${seat.body.data.contextId}/resend`), seatParams(seat.body.data.contextId)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.mail.state).toBe('FAILED')
+    expect(r.body.data.says).toBe('Not sent to again.throws@batch-works-fixture.com: it did not leave. It is the same seat; nothing was duplicated. Copy invitation and send it to them yourself.')
+    const row = await prisma.automationLog.findFirst({ where: { companyId: it_.firm, action: 'INVITATION_SENT_AGAIN', summary: { contains: 'again.throws@batch-works-fixture.com' } }, select: { summary: true, payload: true } })
+    expect(row?.summary).toMatch(/ tried to send the invitation to again\.throws@batch-works-fixture\.com again; the email did not go$/)
+    expect(countsAgainstCap(row?.payload)).toBe(false)
+  })
 })

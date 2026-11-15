@@ -25,6 +25,7 @@ import { failureFromNote, mailFailureSays } from '@/lib/notify/mail-failure'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { checkDoor, companyPolicy } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
+import { reportError } from '@/lib/alerts'
 import type { EffectiveMode } from '@/lib/identity/policy'
 import {
   alreadyInvitedSays, copyInvitation, hasSignedIn, invitedAs, inviteLetter, inviteSays, INVITE_LINK_HOURS, OWNER_DESK,
@@ -106,20 +107,58 @@ export async function sendInvitationMail(a: {
     personId: a.person.id,
   })
   const state: InviteMailState = sent.state
-  await prisma.notification.create({
-    data: {
-      personId: a.person.id, companyId: a.company.id, type: 'SYSTEM', channel: 'EMAIL',
-      // Where no email can be sent (or the address is a demo one), the link
-      // is kept on the notice so staff can pass it on; sent or failed, it
-      // lives in the mailbox only (lib/notify/account-mail).
-      title, body: recordedBody(letter.lines, letter.link, state === 'DEMO_SKIPPED' ? 'NOT_CONFIGURED' : state),
-      entityId: a.contextId,
-      deliveryState: state, deliveryNote: sent.note, deliveredAt: sent.at,
-    },
-  })
-  return {
-    door,
-    mail: { state, at: sent.at, why: sent.left ? null : mailFailureSays(sent.failure) },
+  const mail = { state, at: sent.at, why: sent.left ? null : mailFailureSays(sent.failure) }
+  try {
+    await prisma.notification.create({
+      data: {
+        personId: a.person.id, companyId: a.company.id, type: 'SYSTEM', channel: 'EMAIL',
+        // Where no email can be sent (or the address is a demo one), the link
+        // is kept on the notice so staff can pass it on; sent or failed, it
+        // lives in the mailbox only (lib/notify/account-mail).
+        title, body: recordedBody(letter.lines, letter.link, state === 'DEMO_SKIPPED' ? 'NOT_CONFIGURED' : state),
+        entityId: a.contextId,
+        deliveryState: state, deliveryNote: sent.note, deliveredAt: sent.at,
+      },
+    })
+  } catch {
+    // The send has answered by now: whoever catches this still knows
+    // whether the email left, so an email that went is never logged as one
+    // that did not.
+    throw new InvitationNoticeLost(mail)
+  }
+  return { door, mail }
+}
+
+/**
+ * Thrown by `sendInvitationMail` where the email was tried and its notice
+ * could not be written. It carries how the send went. It never carries the
+ * database's own words, which may hold the letter and its one-time link.
+ */
+export class InvitationNoticeLost extends Error {
+  constructor(readonly mail: InviteMail & { state: InviteMailState }) {
+    super('The invitation email was tried, and its notice could not be written.')
+    this.name = 'InvitationNoticeLost'
+  }
+}
+
+/**
+ * `sendInvitationMail`, never throwing. A throw before the email was handed
+ * over (the set-password link could not be made) is an email that did not
+ * go. A throw after it (the notice could not be written) keeps what the
+ * send said. Etyme's staff are told either way, with no letter, link or
+ * database words in the report.
+ */
+export async function tryInvitationMail(a: Parameters<typeof sendInvitationMail>[0]): Promise<{ mail: InviteMail & { state: InviteMailState }; threw: boolean }> {
+  try {
+    return { mail: (await sendInvitationMail(a)).mail, threw: false }
+  } catch (err) {
+    const lost = err instanceof InvitationNoticeLost
+    void reportError(
+      lost ? 'An invitation email’s notice could not be written' : 'An invitation email could not be sent',
+      `Seat ${a.contextId}${lost ? `; the send said ${err.mail.state}` : '; nothing was sent'}`,
+      { personId: a.person.id, companyId: a.company.id },
+    )
+    return { mail: lost ? err.mail : { state: 'FAILED', at: null, why: null }, threw: true }
   }
 }
 
@@ -360,17 +399,17 @@ export async function inviteOne(inviter: Inviter, input: { email: string; name?:
     payload: { email, invited: true, roleName: role?.name ?? null, outsider: check.outsider },
   })
 
-  // ── The email: always a way in, never only an instruction, and awaited ──
-  const sent = await sendInvitationMail({
-    contextId: context.id,
-    person: { id: person.id, primaryEmail: email, passwordHash: person.passwordHash },
-    inviterName: inviter.name,
-    company: { id: companyId, name: company?.name ?? inviter.company.name },
-    roleName: role?.name ?? null,
-    mode,
-  })
+  // ── The record of the invitation, written before the email is tried ──
+  //
+  // Whatever the send does, the invitation is on the record: withdrawing it
+  // reads createdPerson here (it deletes the person only where this
+  // invitation made them, never somebody who was on Etyme before; security
+  // review, 2026-11-12), and the hourly cap and the activity log read this
+  // row. Until the send answers, the row carries no mail state, and a row
+  // that cannot say how its email went still counts against the hour
+  // (`countsAgainstCap`). Written inside the company's invite lock.
   const logPayload = { contextId: context.id, email, roleId: role?.id ?? null, outsider: check.outsider, act: 'INVITED', createdPerson: !existing }
-  await prisma.automationLog.create({
+  const logged = await prisma.automationLog.create({
     data: {
       companyId,
       action: 'PERSON_INVITED',
@@ -378,16 +417,31 @@ export async function inviteOne(inviter: Inviter, input: { email: string; name?:
       // The reason this is worth logging: it is an exception to the rule
       // everything else depends on.
       reason: check.reason,
-      // createdPerson: whether this invitation made the person row. Withdrawing
-      // the invitation deletes the person only where it did (security
-      // review, 2026-11-12), never somebody who was on Etyme before.
-      // mail: how the email went, so the hourly cap counts only an email
-      // that left (`countsAgainstCap`; founder, 2026-11-15). Written after
-      // the send and inside the company's invite lock, before the next
-      // press reads the count.
-      payload: { ...logPayload, mail: sent.mail.state },
+      payload: logPayload,
       reversible: true,
     },
+    select: { id: true },
+  })
+
+  // ── The email: always a way in, never only an instruction, and awaited ──
+  const sent = await tryInvitationMail({
+    contextId: context.id,
+    person: { id: person.id, primaryEmail: email, passwordHash: person.passwordHash },
+    inviterName: inviter.name,
+    company: { id: companyId, name: company?.name ?? inviter.company.name },
+    roleName: role?.name ?? null,
+    mode,
+  })
+  // How the email went, so the hourly cap counts only an email that left
+  // (founder, 2026-11-15), and a send that threw before the email was handed
+  // over is an email that did not go. Still inside the lock, before the next
+  // press reads the count. Where this write fails the row keeps no mail
+  // state and counts: the cap stays safe where the record cannot say.
+  await prisma.automationLog.update({
+    where: { id: logged.id },
+    data: { payload: { ...logPayload, mail: sent.mail.state } },
+  }).catch(() => {
+    void reportError('An invitation’s log row could not say how its email went', `Seat ${context.id}`, { companyId })
   })
 
   // The reply and its sentence are the same for an address Etyme has never
