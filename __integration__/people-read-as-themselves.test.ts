@@ -68,7 +68,7 @@ describe('giving access to somebody invited', () => {
     const list = await json(await grants.GET(req('GET', '/api/settings/grants')))
     expect(list.body.data.people.find((p: any) => p.contextId === seat.id)?.state).toBe('INVITED')
 
-    const r = await json(await grants.POST(req('POST', '/api/settings/grants', { permission: 'margin.read', contextId: seat.id, scope: 'COMPANY', reason: 'Covers the desk from Monday' })))
+    const r = await json(await grants.POST(req('POST', '/api/settings/grants', { permission: 'margin.read', contextId: seat.id, scope: 'COMPANY', reason: 'Covers for a recruiter from Monday' })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect(r.body.data.says).toMatch(/^Saved\. Pat Kim may .+ once they sign in with pat\.kim@brightmoor-walk\.example\. Revoke takes it back in one press\.$/)
     expect(r.body.data.says).not.toContain('may now')
