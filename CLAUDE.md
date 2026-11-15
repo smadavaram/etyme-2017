@@ -413,7 +413,7 @@ The founder cannot read code. This is the compensating discipline.
 
 ## Who pays, and the order of work
 
-Full text → 40, 11, 56, 68.
+Full text → 40, 11, 56, 68, 72.
 
 - **The client is the customer.** Suppliers come because their client is
   there. Free while testing.
@@ -432,6 +432,12 @@ Full text → 40, 11, 56, 68.
   invite candidates, they onboard themselves, a contract starts on the
   fewest papers the rules allow, payroll runs in the next cycle. The
   coding block and the party pages wait behind it.
+- **The fix list is worked in layers, each its own deploy** (founder,
+  2026-11-15). Tapin first, as the live tenant that runs its whole
+  business on Etyme. A layer is built and deployed, the tester retests
+  Tapin in production and sends a numbered list by area, and only what
+  failed is fixed again. No new features. The order: linkage, the money
+  chain, daily flows, findability and access, the bench.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
@@ -442,7 +448,7 @@ Full text → 40, 11, 56, 68.
 
 ## Parties, deals and the record
 
-Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52.
+Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72.
 
 - **Positions on a deal.** A client only buys. A prime, integrator or MSP
   sells to the client and buys from a sub-vendor by order, or from its
@@ -483,6 +489,10 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52.
   Contacts' "Works at", and in no supplier or client list, count, picker
   or workflow. "Saving a company never emails them." One reader decides
   every gate and the badge (`standingWith`, `lacksPosition`).
+- **The email is the identifier** (founder, 2026-11-14). A contact's
+  email domain says where she works, and a company's identity is its
+  domain. A company missing while a contact is added is created in that
+  save: not classified, and nobody is emailed.
 - **A firm on Etyme is never tied to you from your side alone.** Two
   firms on Etyme link by one ask and one yes. No door writes an
   agreement, a register row or an order on a firm that did not take part,
@@ -882,7 +892,11 @@ Full text → 28, 22, 23, 68, 69, 71.
   Manager), timesheets (AP & Payroll), and three partners as Admins on
   the Gmail addresses they were invited on.
 - **Tapin gets agents, not a website.** The generated company page at
-  `/site/<slug>` is the website.
+  `/site/<slug>` is the website. Etyme owns each company's website
+  (founder, 2026-11-15 → 72): the tenant's Etyme address is its public
+  storefront, drawn from the same record. Clients, integrators and MSPs
+  get a supplier portal on Etyme, not their whole website. Talent is the
+  inventory on the lower side of the chain; client control on the upper.
 - **A company page shows only people who said yes to being shown**, and
   never a name or a rate. "Join the bench" is the person's own yes, given
   from the invitation letter. Nobody gets a seat or a second record
@@ -1055,6 +1069,10 @@ were.
 - **American English on every screen**: program, cost center,
   authorization, color (`american-english.test.ts`). Machine names
   written before the rule stay.
+- **Flowy** (founder, 2026-11-15 → 72). No dead ends, no silent no-ops,
+  no form that blocks without saying why. A blocked screen links to the
+  act that unblocks it. Each fix is checked four ways: the logic, the
+  flow a person meets, how it is drawn, and the rows under it.
 - **Explain in a sentence, not a code.** A refusal says what is missing
   and what to do: "Priya cannot start without an I-9. Get it on file,
   then activate." Never a code, and never a greyed button without words.
