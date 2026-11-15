@@ -831,8 +831,10 @@ export function inviteSays(i: {
    */
   reason?: string | null
 }): string {
-  const head = i.roleName ? `${i.personName} has been invited as ${i.roleName}` : `${i.personName} has been invited`
-  const seat = i.roleName
+  // Member reads as no role, the words every screen uses (fix list layer 4).
+  const roleName = i.roleName && i.roleName.trim().toLowerCase() !== MEMBER_DESK.toLowerCase() ? i.roleName : null
+  const head = roleName ? `${i.personName} has been invited as ${roleName}` : `${i.personName} has been invited`
+  const seat = roleName
     ? ` The seat is theirs when they sign in with ${i.email}.`
     // The one sentence the form and the legend say (press walk, 2026-11-15).
     : ` ${NO_ROLE_SEES}`

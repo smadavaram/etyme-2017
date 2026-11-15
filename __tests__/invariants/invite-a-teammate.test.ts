@@ -142,6 +142,12 @@ describe('Decide later', () => {
     expect(inviteSays({ personName: 'Kim Oduya', email: 'kim.oduya@example.test', roleName: 'Recruiter', mail: 'SENT' })).not.toContain(NO_ROLE_SEES)
   })
 
+  it('the answer after inviting somebody as Member reads as one with no role, never "invited as Member"', () => {
+    const says = inviteSays({ personName: 'Sam Ito', email: 'sam.ito@example.test', roleName: 'Member', mail: 'SENT' })
+    expect(says).toContain(NO_ROLE_SEES)
+    expect(says).not.toContain('as Member')
+  })
+
   it('Decide later is one of the choices in the picker, and it sends no role', () => {
     expect(DECIDE_LATER_LABEL).toBe('Decide later')
     expect(panel).toContain('<option value={DECIDE_LATER}>{DECIDE_LATER_LABEL}</option>')
