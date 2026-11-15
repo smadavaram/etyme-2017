@@ -151,7 +151,7 @@ export function Ask({
         autoComplete="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder={firm ? 'you@yourcompany.com' : 'you@yourfirm.com'}
+        placeholder="you@company.example"
         className="mt-2 w-full rounded-lg border border-etyme-rule bg-etyme-raised px-4 py-3
                    text-[16px] text-etyme-ink placeholder:text-etyme-faint
                    focus:border-etyme-ink focus:outline-none"

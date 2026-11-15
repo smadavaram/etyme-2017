@@ -103,13 +103,10 @@ const RESERVED_ANYWHERE = /\.(example|invalid|local|test)$|(^|\.)example\.(com|o
 /**
  * The boxes outside this domain still waiting on their owner, named here
  * so a new one fails at once. This list may only shrink.
- *  - site/ask.tsx is etyme-market's public ask form (handed off 2026-11-15).
  *  - the Teams webhook box shows the shape of the address the customer's
  *    own Teams gives them: an integration target, named as a setting.
  */
 const WAITING_OR_ALLOWED = new Set([
-  'src/app/site/ask.tsx: yourcompany.com',
-  'src/app/site/ask.tsx: yourfirm.com',
   'src/app/dashboard/settings/page.tsx: logic.azure.com',
 ])
 

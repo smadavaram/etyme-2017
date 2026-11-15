@@ -490,7 +490,7 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73.
   Supplier below us) lives on the register row, is given by Extend and
   never by the Kind, and one company can hold both. A company with no
   position reads "Not classified": it is on the Companies list and in
-  Contacts' "Works at", and in no supplier or client list, count, picker
+  Contacts' "Works for", and in no supplier or client list, count, picker
   or workflow. "Saving a company never emails them." One reader decides
   every gate and the badge (`standingWith`, `lacksPosition`).
 - **The email is the identifier** (founder, 2026-11-14). A contact's
