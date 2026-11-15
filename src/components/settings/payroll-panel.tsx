@@ -12,7 +12,7 @@ import {
   FIRST_DAY_CONFIRM_TITLE, FIRST_DAY_CONFIRM_BUTTON,
   type PayPeriod, type PayRhythm, type PayPeriodOn, type DayOffRule,
 } from '@/lib/pay-dates'
-import { Empty, Lbl, Panel, setLine } from './panel-bits'
+import { Empty, Lbl, Panel, setLine, SaveWhy, NOTHING_CHANGED, CHOOSE_A_SUNDAY } from './panel-bits'
 import { Field, Input, Select, SubmitButton, FormMessage } from '@/components/ui/form'
 
 // ── Payroll ──────────────────────────────────────────
@@ -37,6 +37,23 @@ import { Field, Input, Select, SubmitButton, FormMessage } from '@/components/ui
 // Where the company has run payroll (`payrollRun`, from the same route),
 // moving the first day asks first, in a box with its own heading, its
 // second press focused and named for what it does, and Cancel.
+
+/**
+ * The first-pay-day box's own id. Every sentence blocked on the Sunday
+ * links to /dashboard/settings?tab=cycles#first-pay-day (FIRST_DAY_HREF in
+ * lib/money/pay-periods), and arriving there opens the Cycles tab,
+ * scrolls to this box and focuses it (fix list of 2026-11-14, E5).
+ */
+export const FIRST_PAY_DAY_ID = 'first-pay-day'
+
+/** Bring the first-pay-day box into view and put the cursor in it. True where the box is on the page. */
+export function goToFirstPayDay(): boolean {
+  const box = typeof document === 'undefined' ? null : document.getElementById(FIRST_PAY_DAY_ID)
+  if (!box) return false
+  box.scrollIntoView?.({ block: 'center' })
+  ;(box as HTMLInputElement).focus?.({ preventScroll: true })
+  return true
+}
 
 interface PayAnswers extends PayRhythm {
   setAt: string | null
@@ -82,6 +99,17 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
     }
   }, [])
   useEffect(() => { load() }, [load])
+
+  // Arriving at #first-pay-day, or the hash set on this page, brings the
+  // box into view with the cursor in it, once the box is drawn.
+  const drawn = draft != null
+  useEffect(() => {
+    if (!drawn) return
+    const go = () => { if (window.location.hash === `#${FIRST_PAY_DAY_ID}`) goToFirstPayDay() }
+    go()
+    window.addEventListener('hashchange', go)
+    return () => window.removeEventListener('hashchange', go)
+  }, [drawn])
 
   async function save(confirmed = false) {
     if (!draft) return
@@ -135,6 +163,12 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
   const rule = saved?.dayOffRule ?? {}
   const firstTyped = !firstSaved && firstCheck.ok && firstCheck.day ? payPeriodHolding(firstCheck.day, draft, rule) : null
   const firstShown = firstSaved ?? firstTyped
+  // Why Save is greyed, in words: never a greyed button without them (E5).
+  // A week-based company with no Sunday chosen is asked for one; otherwise
+  // nothing has changed. No Sunday is suggested: which one is the firm's.
+  const saveWhy = !firstCheck.ok || (!changed && byWeek && !draft.payFirstPeriodStart)
+    ? CHOOSE_A_SUNDAY
+    : !changed ? NOTHING_CHANGED : null
 
   return (
     <Panel
@@ -177,6 +211,7 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
             </Select>
           </Field>
           <Field
+            id={FIRST_PAY_DAY_ID}
             label={FIRST_PERIOD_LABEL}
             className="sm:col-span-2"
             help={
@@ -256,9 +291,12 @@ export function PayrollPanel({ canEdit, shiftSection = true }: { canEdit: boolea
         </div>
       )}
       {canEdit && !asking && (
-        <SubmitButton type="button" onClick={() => save()} pending={busy} pendingLabel="Saving…" disabled={!changed || !firstCheck.ok}>
-          Save payroll
-        </SubmitButton>
+        <>
+          <SubmitButton type="button" onClick={() => save()} pending={busy} pendingLabel="Saving…" disabled={!changed || !firstCheck.ok} aria-describedby={saveWhy ? 'payroll-save-why' : undefined}>
+            Save payroll
+          </SubmitButton>
+          <SaveWhy id="payroll-save-why" says={busy ? null : saveWhy} />
+        </>
       )}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mt-4">{setLine(saved?.setAt ?? null, saved?.setByName ?? null)}</p>
     </Panel>

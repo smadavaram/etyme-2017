@@ -14,6 +14,7 @@ import { joinSentenceFor } from '@/lib/join-words'
 import { roleCanDo } from '@/lib/company-roles'
 import { packFor } from '@/lib/company-defaults'
 import { noCalendarSays, FALLBACK_PACK_ID } from './no-calendar'
+import { approvalWords, readApprovalCount } from './approval-words'
 import { shiftSavedSays } from './payroll/saved-says'
 import { paysByPeriod, firstDayNeededSays } from '@/lib/money/pay-periods'
 import { rhythmFrom } from '@/lib/pay-dates'
@@ -217,6 +218,9 @@ export async function GET(request: NextRequest) {
       locations,
       holidays: holidays.map((h) => ({ ...h, date: h.date.toISOString().slice(0, 10) })),
       costCenters,
+      // Who approves a job request, said on Cost centers from the same count
+      // Approvals reads (fix list of 2026-11-14, E4).
+      approvalWords: approvalWords(await readApprovalCount(companyId)),
       templatePack: pack && {
         id: pack.id,
         label: pack.label,

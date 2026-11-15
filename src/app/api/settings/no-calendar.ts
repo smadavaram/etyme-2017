@@ -45,6 +45,13 @@ export interface NoCalendar {
   says: string[]
   /** The calendar the button sets, where this reader may set one. */
   offer: { id: string; label: string } | null
+  /**
+   * The line about the first Sunday, by its place in `says`, where this
+   * reader may set it: Cycles draws a link after it that scrolls to the box
+   * (#first-pay-day, E5). Null where there is no such line, or where the
+   * reader cannot set it, and the line then names who does.
+   */
+  firstDayAt: number | null
 }
 
 export function noCalendarSays(i: {
@@ -60,12 +67,14 @@ export function noCalendarSays(i: {
     `A contract from an award, an extension or the bench uses the "${i.fallbackLabel}" calendar instead.`,
     'A placement recorded by hand, or a submission turned into a contract, gets no due dates.',
   ]
+  let firstDayAt: number | null = null
   if (i.payroll === 'BY_PERIOD') {
     says.push('So no timesheet is due on it, and no bill date is set.')
     says.push('The Payroll page still lists a W-2 worker on it in your own pay periods.')
   } else if (i.payroll === 'FIRST_DAY_NEEDED') {
     says.push('So no timesheet is due on it, and no bill or pay date is set.')
-    says.push(`A W-2 placement cannot be recorded by hand until "${FIRST_PERIOD_LABEL}" is set.`)
+    says.push(`A W-2 placement cannot be recorded by hand until "${FIRST_PERIOD_LABEL}" is set.` + (i.canEdit ? '' : ' The Owner or an Admin sets it in the Payroll box below.'))
+    firstDayAt = i.canEdit ? says.length - 1 : null
   } else {
     says.push('So no timesheet is due on it, and no bill or pay date is set.')
   }
@@ -74,5 +83,5 @@ export function noCalendarSays(i: {
   } else {
     says.push('Your Owner or an Admin can set one here.')
   }
-  return { says, offer: i.canEdit ? i.offer : null }
+  return { says, offer: i.canEdit ? i.offer : null, firstDayAt }
 }

@@ -80,7 +80,7 @@ describe('the + button, ⌘K and the sidebar read one desk', () => {
   it('a seated compliance officer is offered no consultant, no contract and no job request — only what her desk may do', () => {
     const desk = deskOf(seatedOffice)
     const offered = labels(plusMenuFor(desk.menuKind, desk.isConsultant, desk.permissions, desk.worker))
-    for (const write of ['Add consultant', 'Add to bench', 'New contract', 'Submit consultant', 'Generate bill', 'New job request', 'New requirement']) {
+    for (const write of ['Add consultant', 'Add to bench', 'New contract', 'Submit consultant', 'Raise a bill', 'New job request', 'New requirement']) {
       expect(offered).not.toContain(write)
     }
     expect(offered).toContain('Review approvals')

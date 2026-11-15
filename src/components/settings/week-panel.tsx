@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
-import { Empty, Lbl, Panel, setLine } from './panel-bits'
+import { Empty, Lbl, Panel, setLine, SaveWhy, NOTHING_CHANGED } from './panel-bits'
 import { Field, Select, Check, SubmitButton, FormMessage } from '@/components/ui/form'
 
 // ── Your week ────────────────────────────────────────
@@ -129,9 +129,12 @@ export function WeekPanel({ canEdit }: { canEdit: boolean }) {
         </div>
       )}
       {canEdit && (
-        <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…" disabled={!changed}>
-          Save your week
-        </SubmitButton>
+        <>
+          <SubmitButton type="button" onClick={save} pending={busy} pendingLabel="Saving…" disabled={!changed} aria-describedby={!changed ? 'week-save-why' : undefined}>
+            Save your week
+          </SubmitButton>
+          <SaveWhy id="week-save-why" says={!changed && !busy ? NOTHING_CHANGED : null} />
+        </>
       )}
       <p className="text-[12px] text-etyme-muted border-t border-etyme-rule pt-3 mt-4">{setLine(saved?.setAt ?? null, saved?.setByName ?? null)}</p>
     </Panel>

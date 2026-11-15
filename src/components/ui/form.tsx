@@ -42,7 +42,7 @@ function useFieldProps() {
   }
 }
 
-export function Field({ label, help, error, children, className = '' }: {
+export function Field({ label, help, error, children, className = '', id }: {
   /** What the field is, in the reader's words. Required: a field with no
    *  label is a field a screen reader calls "edit text". */
   label: ReactNode
@@ -52,10 +52,12 @@ export function Field({ label, help, error, children, className = '' }: {
   error?: ReactNode
   children: ReactNode
   className?: string
+  /** The box's own id, where an address elsewhere links to it (`#first-pay-day`). Generated otherwise. */
+  id?: string
 }) {
   const base = useId()
   const ids: FieldIds = {
-    id: `${base}-input`,
+    id: id ?? `${base}-input`,
     helpId: help ? `${base}-help` : undefined,
     errorId: error ? `${base}-error` : undefined,
     invalid: Boolean(error),

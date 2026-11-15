@@ -2,7 +2,7 @@
 
 import { usePageSection } from '@/components/page-section'
 import { amount, DEFAULT_CURRENCY } from '@/lib/money-display'
-import { ErrorState, Field, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea } from '@/components/ui'
+import { ErrorState, Field, LoadingState, PageHead, Panel, RefusedState, SubmitButton, Textarea } from '@/components/ui'
 import { useEffect, useState } from 'react'
 import { useSession } from '@/components/session-provider'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -19,7 +19,6 @@ export default function IntegrationsPage() {
   const section = usePageSection('/dashboard/integrations')
   const [data, setData] = useState<any>(null)
   const [runs, setRuns] = useState<any[]>([])
-  const [system, setSystem] = useState('QUICKBOOKS')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -62,7 +61,7 @@ export default function IntegrationsPage() {
     const res = await fetch('/api/integrations/export', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ system }),
+      body: JSON.stringify({}),
     })
     const body = await res.json()
     if (!res.ok) {
@@ -74,7 +73,7 @@ export default function IntegrationsPage() {
       const blob = new Blob([body.data.csv], { type: 'text/csv' })
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = `etyme-journal-${system.toLowerCase()}.csv`
+      a.download = 'etyme-journal.csv'
       a.click()
     }
     load()
@@ -138,24 +137,20 @@ export default function IntegrationsPage() {
       {note && <p className="text-[13px] text-etyme-ink">{note}</p>}
 
       {data && (
-        <Panel
-          title="Send to your accounting system"
-          subtitle={`${data.pending} entr${data.pending === 1 ? 'y' : 'ies'} waiting · ${data.sent} already sent`}
-        >
-          <div className="flex flex-wrap items-end gap-3">
-            <Field label="Accounting system" className="min-w-[240px]">
-              <Select value={system} onChange={(e) => setSystem(e.target.value)}>
-                {data.systems.map((s: any) => (
-                  <option key={s.system} value={s.system}>
-                    {s.system} {s.mappedAccounts > 0 ? `(${s.mappedAccounts} accounts mapped)` : '(nothing mapped yet)'}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <SubmitButton type="button" onClick={doExport} disabled={data.pending === 0}>
-              Export {data.pending > 0 ? `${data.pending} entries` : '— nothing waiting'}
-            </SubmitButton>
+        <Panel title="Your journal, as a file">
+          {/* Only what is true today, in the route's words (E6): no product
+              reads as chosen, and Export is drawn only where entries wait,
+              the firm's own account codes exist and the seat's route takes it. */}
+          <div className="space-y-2">
+            {(data.says as string[]).map((line) => (
+              <p key={line} className="text-[13px] text-etyme-ink">{line}</p>
+            ))}
           </div>
+          {data.showExport && (
+            <SubmitButton type="button" onClick={doExport} className="mt-3">
+              Export {data.pending} {data.pending === 1 ? 'entry' : 'entries'}
+            </SubmitButton>
+          )}
         </Panel>
       )}
 

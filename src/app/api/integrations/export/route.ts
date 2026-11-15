@@ -3,7 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
-import { toExport, type Entry, type ErpSystem } from '@/lib/gl'
+import { toExport, type Entry } from '@/lib/gl'
+import { journalWords, JOURNAL_FILE, NO_CODES_HERE } from './words'
 
 /**
  * GET  /api/integrations/export — what is waiting to go to their books
@@ -17,9 +18,12 @@ import { toExport, type Entry, type ErpSystem } from '@/lib/gl'
  * Refuses on an unmapped account rather than substituting a suspense
  * line — a suspense line is a line somebody chases in a month, in our
  * direction.
+ *
+ * One generic file (fix list of 2026-11-14, E6): Etyme is connected to no
+ * accounting system, and no layout is named after a product, so the
+ * export is always the one file (`JOURNAL_FILE`) and the screen offers no
+ * product to pick. What the page says is `journalWords`.
  */
-
-const SYSTEMS = ['SAP', 'ORACLE', 'WORKDAY', 'NETSUITE', 'QUICKBOOKS', 'XERO', 'CSV']
 
 async function mapFor(companyId: string, system: string) {
   const rows = await prisma.erpAccountMap.findMany({
@@ -62,21 +66,24 @@ export async function GET(request: NextRequest) {
   }
 
   const companyId = caller.company!.id
-  const [pending, sent, maps] = await Promise.all([
+  const [pending, sent, mappedAccounts] = await Promise.all([
     prisma.journalEntry.count({ where: { companyId, exportedAt: null } }),
     prisma.journalEntry.count({ where: { companyId, exportedAt: { not: null } } }),
-    prisma.erpAccountMap.groupBy({ by: ['system'], where: { companyId }, _count: true }),
+    prisma.erpAccountMap.count({ where: { companyId, system: JOURNAL_FILE } }),
   ])
+  // Export is drawn only for a seat the POST below takes (invoices.issue);
+  // a reader is told who exports instead of shown a button it is refused.
+  const mayExport = hasPermission(caller.permissions, 'invoices.issue')
+  const whoExports = askTheDesk({
+    doing: 'Sending the journal to the company\u2019s books',
+    needs: 'invoices.issue',
+    kind: caller.company?.kind,
+    companyName: caller.company?.name,
+  })
+  const words = journalWords({ pending, sent, mappedAccounts, mayExport, whoExports })
 
   return NextResponse.json({
-    data: {
-      pending,
-      sent,
-      systems: SYSTEMS.map((s) => ({
-        system: s,
-        mappedAccounts: maps.find((m) => m.system === s)?._count ?? 0,
-      })),
-    },
+    data: { pending, sent, mappedAccounts, mayExport, says: words.says, showExport: words.showExport },
   })
 }
 
@@ -107,14 +114,8 @@ export async function POST(request: NextRequest) {
   }
 
   const companyId = caller.company!.id
-  const body = await request.json().catch(() => ({}))
-  const system = String(body?.system ?? '')
-  if (!SYSTEMS.includes(system)) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: `Say which system: ${SYSTEMS.join(', ')}.`, field: 'system' } },
-      { status: 422 }
-    )
-  }
+  // One file, whatever a caller names: no product's layout (E6).
+  const system = JOURNAL_FILE
 
   const map = await mapFor(companyId, system)
 
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
         memo: l.memo ?? undefined,
       })),
     }
-    const out = toExport(entry, system as ErpSystem, map, e.lines[0]?.currency ?? 'USD', e.id)
+    const out = toExport(entry, system, map, e.lines[0]?.currency ?? 'USD', e.id)
     if (out.unmapped.length > 0) {
       out.unmapped.forEach((u) => unmappedAll.add(u))
       continue
@@ -164,9 +165,8 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'UNMAPPED_ACCOUNTS',
           message:
-            `${unmappedAll.size} account${unmappedAll.size === 1 ? ' has' : 's have'} no ` +
-            `${system} mapping: ${[...unmappedAll].sort().join(', ')}. Map them first — ` +
-            `a suspense line is a line somebody chases in a month, in our direction.`,
+            `${unmappedAll.size} Etyme account${unmappedAll.size === 1 ? ' has' : 's have'} no account code of your own yet: ` +
+            `${[...unmappedAll].sort().join(', ')}. Nothing was exported. ${NO_CODES_HERE}`,
         },
       },
       { status: 422 }
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
     data: {
       rows: entries.length,
       csv: allRows.join('\n'),
-      says: `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} exported to ${system} and stamped. They will not go again.`,
+      says: `${entries.length} entr${entries.length === 1 ? 'y is' : 'ies are'} in the file and stamped as sent. They will not go again.`,
     },
   })
 }

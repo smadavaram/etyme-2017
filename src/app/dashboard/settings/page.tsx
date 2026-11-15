@@ -16,7 +16,7 @@ import { TEAMS_LINK_HOW_TO } from '@/lib/notify/teams-link'
 // The week and payroll panels are one component each, drawn here and on
 // the setup's "How you work" step, so the two can never ask differently.
 import { WeekPanel } from '@/components/settings/week-panel'
-import { PayrollPanel } from '@/components/settings/payroll-panel'
+import { PayrollPanel, goToFirstPayDay } from '@/components/settings/payroll-panel'
 import { AskEtymePanel } from '@/components/settings/ask-etyme-panel'
 import { Chip, ErrorState, FormMessage, Lbl, LoadingState, PageHead, Panel } from '@/components/ui'
 import { levelOf } from '@/lib/access-grant'
@@ -119,9 +119,11 @@ interface Settings {
   locations: Location[]
   holidays: Holiday[]
   costCenters: CostCenter[]
+  /** Who approves a job request, from the one count Approvals reads too (E4). */
+  approvalWords: { approvals: string; costCenters: string }
   templatePack: Pack | null
   /** Where the company has no calendar of its own: what is true, and the one it may set (api/settings/no-calendar). */
-  noCalendar?: { says: string[]; offer: { id: string; label: string } | null } | null
+  noCalendar?: { says: string[]; offer: { id: string; label: string } | null; firstDayAt?: number | null } | null
   cycleShift: CycleShift
   canEdit: boolean
   /** The type is the Owner's to change, and nobody else's (lib/company-kind). */
@@ -298,9 +300,9 @@ export default function SettingsPage() {
       {tab === 'Walls' && <WallsTab data={data} send={send} busy={busy} />}
       {tab === 'Address' && <AddressTab send={send} busy={busy} />}
       {tab === 'Roles' && <RolesTab data={data} send={send} busy={busy} />}
-      {tab === 'Approvals' && <ApprovalsTab send={send} busy={busy} />}
+      {tab === 'Approvals' && <ApprovalsTab send={send} busy={busy} openTab={setTab} />}
       {tab === 'Holidays' && <HolidaysTab data={data} send={send} busy={busy} />}
-      {tab === 'Cost centers' && <CostCentersTab data={data} send={send} busy={busy} />}
+      {tab === 'Cost centers' && <CostCentersTab data={data} send={send} busy={busy} openTab={setTab} />}
       {tab === 'Cycles' && <CyclesTab data={data} send={send} busy={busy} />}
       {tab === 'Ask Etyme' && <AskEtymePanel />}
       {tab === 'Bench pay' && <BenchPaySection />}
@@ -755,7 +757,7 @@ function HolidaysTab({ data, send, busy }: { data: Settings; send: SendFn; busy:
 
 // ── Cost centers ─────────────────────────────────────
 
-function CostCentersTab({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {
+function CostCentersTab({ data, send, busy, openTab }: { data: Settings; send: SendFn; busy: boolean; openTab: (t: Tab) => void }) {
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [gl, setGl] = useState('')
@@ -763,13 +765,14 @@ function CostCentersTab({ data, send, busy }: { data: Settings; send: SendFn; bu
   return (
     <Panel
       title="Cost centers"
-      subtitle="Who owns the spend. A job request with no cost center is spend nobody owns, so it goes to a human for approval — which is why a company with none routes everything to a human. The code must match your ERP exactly; the coded bill export posts straight into it."
+      subtitle="Who owns the spend. A job request names the cost center it is charged to. Use the same code your own accounting system uses."
     >
-      {data.costCenters.length === 0 ? (
-        <Empty>
-          None yet. Every job request will be routed for approval because nobody owns the budget.
-        </Empty>
-      ) : (
+      {/* The same count Approvals reads, so the two tabs say one thing (E4). */}
+      <p className="text-[13px] text-etyme-ink mb-4">
+        {data.approvalWords.costCenters}{' '}
+        <TabLink to="Approvals" openTab={openTab}>See Approvals</TabLink>
+      </p>
+      {data.costCenters.length === 0 ? null : (
         <div className="divide-y divide-etyme-rule mb-4">
           {data.costCenters.map((cc) => (
             <div key={cc.id} className="py-2.5 flex items-baseline justify-between gap-3">
@@ -835,8 +838,23 @@ function CyclesTab({ data, send, busy }: { data: Settings; send: SendFn; busy: b
     >
       {!pack ? (
         <div className="space-y-2">
-          {(data.noCalendar?.says ?? []).map((line) => (
-            <p key={line} className="text-[13px] text-etyme-ink">{line}</p>
+          {(data.noCalendar?.says ?? []).map((line, i) => (
+            <p key={line} className="text-[13px] text-etyme-ink">
+              {line}
+              {/* Scrolls to the box on this page (E5), drawn only for a seat that may set it. */}
+              {data.noCalendar?.firstDayAt === i && (
+                <>
+                  {' '}
+                  <a
+                    href="/dashboard/settings?tab=cycles#first-pay-day"
+                    className="text-etyme-action-press underline"
+                    onClick={(e) => { e.preventDefault(); window.history.replaceState(null, '', '/dashboard/settings?tab=cycles#first-pay-day'); goToFirstPayDay() }}
+                  >
+                    Set it below
+                  </a>
+                </>
+              )}
+            </p>
           ))}
           {data.noCalendar?.offer && (
             <button
@@ -954,7 +972,21 @@ interface Rule {
   }[]
 }
 
-function ApprovalsTab({ send, busy }: { send: SendFn; busy: boolean }) {
+/** A link to another tab of this page, drawn as a link: every tab it names is drawn for every seat that reads Settings. */
+function TabLink({ to, openTab, children }: { to: Tab; openTab: (t: Tab) => void; children: React.ReactNode }) {
+  const href = `/dashboard/settings?tab=${to.toLowerCase().replace(/\s+/g, '-')}`
+  return (
+    <a
+      href={href}
+      className="text-etyme-action-press underline"
+      onClick={(e) => { e.preventDefault(); openTab(to); window.history.replaceState(null, '', href) }}
+    >
+      {children}
+    </a>
+  )
+}
+
+function ApprovalsTab({ send, busy, openTab }: { send: SendFn; busy: boolean; openTab: (t: Tab) => void }) {
   const [rules, setRules] = useState<Rule[] | null>(null)
   const [summary, setSummary] = useState('')
   const [canEdit, setCanEdit] = useState(false)
@@ -991,11 +1023,13 @@ function ApprovalsTab({ send, busy }: { send: SendFn; busy: boolean }) {
       title="Who has to say yes"
       subtitle="Above what value a job request waits for a person. Most should clear without one — governance slower than the workaround produces the workaround. Every change here is recorded with a name against it."
     >
-      <p className="text-[13px] text-etyme-ink mb-4">{summary}</p>
+      {/* Said once: the route's one sentence, from the count Cost centers reads too (E4). */}
+      <p className="text-[13px] text-etyme-ink mb-4">
+        {summary}{' '}
+        <TabLink to="Cost centers" openTab={openTab}>See Cost centers</TabLink>
+      </p>
 
-      {active.length === 0 ? (
-        <Empty>No rules. Every job request clears without approval.</Empty>
-      ) : (
+      {active.length === 0 ? null : (
         <div className="divide-y divide-etyme-rule">
           {active.map((r) => (
             <div key={r.id} className="py-3">

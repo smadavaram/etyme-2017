@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { assessRule, assessDeletion } from '@/lib/governance-authorship'
+import { approvalWords, readApprovalCount } from '../approval-words'
 
 /**
  * GET    /api/settings/approval-rules      — the chain, and how it got here
@@ -78,8 +79,6 @@ export async function GET(request: NextRequest) {
     },
   })
 
-  const active = rules.filter((r) => r.isActive)
-
   return NextResponse.json({
     data: {
       rules: rules.map((r) => ({
@@ -106,12 +105,9 @@ export async function GET(request: NextRequest) {
         })),
       })),
       canEdit: hasPermission(caller!.permissions, 'governance.write'),
-      // The number that matters for a program: with no rules, everything
-      // clears without a human, which is a choice and not a failure.
-      summary:
-        active.length === 0
-          ? 'No approval rules. Every job request clears without anybody approving it.'
-          : `${active.length} rule(s). A job request waits for a person when it matches one.`,
+      // Who approves a job request, from the one count Cost centers reads
+      // too, so the two tabs cannot say opposite things (E4).
+      summary: approvalWords(await readApprovalCount(companyId)).approvals,
     },
   })
 }

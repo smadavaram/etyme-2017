@@ -40,6 +40,7 @@
  * top of the rail, so the bar draws no second door to Ask Etyme.
  */
 
+import { RAISE_A_BILL } from '@/lib/money/nothing-to-bill'
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -104,7 +105,7 @@ type PlusMenuSection = {
 // The labels on these sections only order the items: every heading the +
 // menu prints is the noun the reader's own menu files the page under
 // (see plusMenuFor), so a supplier reads "Jobs › New job request" and
-// "Bills › Generate bill".
+// "Bills › Raise a bill".
 const PLUS_MENU: PlusMenuSection[] = [
   {
     label: 'Jobs',
@@ -191,7 +192,8 @@ const PLUS_MENU: PlusMenuSection[] = [
         writes: ['invoices.read'],
       },
       {
-        label: 'Generate bill',
+        // The act's one name, kept in one place (RAISE_A_BILL, lib/money/nothing-to-bill).
+        label: RAISE_A_BILL,
         description: 'Bill the customer for approved timesheets',
         href: '/dashboard/invoices?new=1',
         icon: '▧',
