@@ -40,7 +40,7 @@ async function signedWeek(sellContractId: string, personId: string, sunday: stri
   })
 }
 
-async function billFor(clientId: string, number: string) {
+async function billFor(clientId: string, number: string, status: 'SUBMITTED' | 'DRAFT' = 'SUBMITTED') {
   const msa = await prisma.masterAgreement.findFirstOrThrow({ where: { vendorId: it_.brightmoor, clientId } })
   const engagement = await prisma.engagement.create({ data: { title: `${number} work`, msaId: msa.id }, select: { id: true } })
   const line = await prisma.sellContract.create({
@@ -56,7 +56,7 @@ async function billFor(clientId: string, number: string) {
     data: {
       engagementId: engagement.id, number, currency: 'USD', total: 11600,
       periodStart: new Date('2026-10-01T00:00:00.000Z'), periodEnd: new Date('2026-10-31T00:00:00.000Z'),
-      dueAt: new Date('2026-12-15T00:00:00.000Z'), status: 'SUBMITTED', issuedAt: new Date(), submittedAt: new Date(),
+      dueAt: new Date('2026-12-15T00:00:00.000Z'), status, issuedAt: new Date(), submittedAt: status === 'SUBMITTED' ? new Date() : null,
       remitToId: it_.remit,
       invoiceLines: {
         create: [w1, w2].map((w) => ({ timesheetId: w.id, sellContractId: line.id, personId: it_.worker, hours: 40, rateCents: 14500, amountCents: 580000 })),
@@ -243,8 +243,13 @@ describe('a bill reaches the firm that pays it', () => {
 
   it('a bill sent to a client on Etyme tells its payer inside the sending itself, so a sent bill always has somebody told and a rolled-back one told nobody', async () => {
     const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    // The world bills its first three seeded weeks once per billing period,
+    // so it holds one or two of Brightmoor's bills to Northbend depending on
+    // the day it was seeded, and the case above sends the first. This case
+    // drafts its own, so it never rests on the day the world was born.
+    const drafted = await billFor(northbend.id, 'IN-NORTHBEND-DRAFT-202610', 'DRAFT')
     const bills = await prisma.invoice.findMany({
-      where: { status: { not: 'SUBMITTED' }, invoiceLines: { some: { sellContract: { companyId: it_.brightmoor, clientCompanyId: northbend.id } } } },
+      where: { id: drafted.invoiceId, status: { not: 'SUBMITTED' }, invoiceLines: { some: { sellContract: { companyId: it_.brightmoor, clientCompanyId: northbend.id } } } },
       select: { id: true, number: true },
       orderBy: { id: 'asc' },
       take: 1,
