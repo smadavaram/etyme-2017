@@ -31,3 +31,15 @@ export function mayAddConsultant(permissions: readonly string[]): boolean {
 export function whoAddsSays(o: { kind: string | null | undefined; companyName: string | null | undefined }): string {
   return askTheDesk({ doing: 'Adding a consultant', needs: ADDS_CONSULTANTS, kind: o.kind, companyName: o.companyName })
 }
+
+/**
+ * The sentence a seat reads on Bench where it may not ask somebody onto
+ * the bench, send an invitation again or copy its link. Those doors ask
+ * for the same one permission as Add consultant (`POST /api/bench/listings`
+ * and its nudge door), so Resend, Copy link, Ask to renew and Add to
+ * bench are drawn only where `mayAddConsultant` holds, and this names who
+ * may elsewhere (fix list, layer five, b).
+ */
+export function whoAsksOntoBenchSays(o: { kind: string | null | undefined; companyName: string | null | undefined }): string {
+  return askTheDesk({ doing: 'Asking somebody onto the bench or sending their invitation again', needs: ADDS_CONSULTANTS, kind: o.kind, companyName: o.companyName })
+}

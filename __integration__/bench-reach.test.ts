@@ -139,6 +139,12 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     as(SUB)
     await withId(changeListing, 'PATCH', `/api/bench/listings/${it_.listing}`, it_.listing, { tier: 'RETAINED' })
 
+    // Consultis had her on its bench once and she took it back, so it
+    // knows her and may ask again (Add to bench asks only somebody the
+    // firm knows, fix list layer five, a).
+    await prisma.benchListing.create({
+      data: { consultantId: it_.consultantId, companyId: co['world-consultis'], tier: 'MARKETING', state: 'GRANTED', revokedAt: new Date(), firmName: 'Lena Ostrova' },
+    })
     as(OTHER_BENCH)
     const asked = await json(await askForListing(req('POST', '/api/bench/listings', { consultantId: it_.consultantId, tier: 'MARKETING' })))
     expect(asked.body?.error, JSON.stringify(asked.body)).toBeUndefined()

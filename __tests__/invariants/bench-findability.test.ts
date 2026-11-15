@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { candidateRecordHref, openFromAddress, NOT_ON_THIS_LIST_SAYS, CANDIDATES_PATH } from '@/lib/consultant-portfolio/open-from-link'
 import { nudgeLogSummary } from '@/lib/consultant-portfolio/nudge-words'
-import { tierInWords, ADD_TIER_OPTION, TIER_WORD, INVITE_LINK_KEPT_SAYS, INVITE_NOT_EMAILED_LOG, savingSays, listingRates } from '@/lib/bench-filter'
+import { tierInWords, ADD_TIER_OPTION, TIER_WORD, INVITE_LINK_KEPT_SAYS, INVITE_NOT_EMAILED_LOG, savingSays, listingRates, rateBoxLabel } from '@/lib/bench-filter'
 import { askSummary } from '@/lib/consultant-portfolio/bench-ask'
 import { ADDS_CONSULTANTS } from '@/lib/consultant-portfolio/who-adds'
 
@@ -168,8 +168,11 @@ describe('where no email can leave, the sentence says what she can do now', () =
 
 describe('Add consultant marks the rate range optional', () => {
   it('the lowest and highest rate say they are optional in the label', () => {
-    expect(CANDIDATES).toContain('mb-1">Lowest rate ($/hr, optional)</label>')
-    expect(CANDIDATES).toContain('mb-1">Highest rate ($/hr, optional)</label>')
+    // In the firm's own currency since layer five, c (`rateBoxLabel`).
+    expect(CANDIDATES).toContain(`mb-1">{rateBoxLabel('LOW', currency)}</label>`)
+    expect(CANDIDATES).toContain(`mb-1">{rateBoxLabel('HIGH', currency)}</label>`)
+    expect(rateBoxLabel('LOW', 'USD')).toBe('Lowest rate per hour (USD, optional)')
+    expect(rateBoxLabel('HIGH', 'USD')).toBe('Highest rate per hour (USD, optional)')
   })
 
   it('the rate check is unchanged: blank is no rate, and the lowest above the highest is refused', () => {

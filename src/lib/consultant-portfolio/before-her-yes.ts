@@ -98,6 +98,65 @@ export function typedOnly(listing: TypedListing | null | undefined, email: strin
   }
 }
 
+/**
+ * Whether a firm may ask somebody onto its bench by her record's id
+ * (`POST /api/bench/listings`; fix list, layer five, a). The door took any
+ * id, so a firm could ask, and read the name of, a person it had never
+ * met. It knows her where she holds a seat here (it employs her), where it
+ * has ever listed her (a listing taken back counts: she is asked again),
+ * or where a firm it trades with shows her on its partner bench, which is
+ * the one place Ask to represent reads her from. Anybody else is answered
+ * as an id that does not exist. Pure.
+ */
+export function firmKnowsForBench(f: { seatHere: boolean; listedHereEver: boolean; onPartnerBench: boolean }): boolean {
+  return f.seatHere || f.listedHereEver || f.onPartnerBench
+}
+
+/**
+ * The name a firm asks somebody onto its bench under: what it is written as
+ * on the listing (`firmName`) and what the log and the answer say.
+ *
+ *  - Asked again on a listing it holds: the name it typed then, kept; on a
+ *    listing from before the column, the address it asked at.
+ *  - Otherwise she is somebody it employs, or a partner shows her by name
+ *    on its bench with her yes: the name it reads there.
+ *
+ * Never her own record's name on a record the firm has only an id for.
+ * Pure.
+ */
+export function nameAskedUnder(o: {
+  existing: Pick<TypedListing, 'firmName'> | null
+  email: string | null
+  /** The name the firm reads of her where it employs her or a partner shows her. */
+  shownName: string
+}): { firmName: string | null; says: string } {
+  if (o.existing) {
+    const kept = o.existing.firmName?.trim() || null
+    return { firmName: kept, says: nameItTyped(o.existing, o.email) }
+  }
+  return { firmName: o.shownName, says: o.shownName }
+}
+
+/**
+ * Where the Candidates list puts its rows (fix list, layer five, i). It
+ * sorted every row by her own record's name, so the place of a row the
+ * firm reads only as typed hinted at a name it was never shown. Those rows
+ * come after the others, by the date asked, newest first. This is the
+ * page window over the two runs: how many of each, from where. Pure.
+ */
+export function askedLastWindow(o: { othersTotal: number; skip: number; limit: number }): {
+  others: { skip: number; take: number }
+  typed: { skip: number; take: number }
+} {
+  const skip = Math.max(0, o.skip)
+  const limit = Math.max(0, o.limit)
+  const othersTake = Math.max(0, Math.min(limit, o.othersTotal - skip))
+  return {
+    others: { skip: Math.min(skip, o.othersTotal), take: othersTake },
+    typed: { skip: Math.max(0, skip - o.othersTotal), take: limit - othersTake },
+  }
+}
+
 // ── The facts, read once per page ──────────────────────────────────────
 
 export interface FirmRead {

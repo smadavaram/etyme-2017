@@ -14,7 +14,7 @@ import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 import { addConsultantBody } from '@/lib/consultant-portfolio/forms'
 import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
 import { consultantsPageUrl, pagesAfterFirst } from '@/lib/consultant-portfolio/list-pages'
-import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, type BenchStanding } from '@/lib/bench-filter'
+import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, rateBoxLabel, tierShown, TIER_BEFORE_YES, type BenchStanding } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -442,13 +442,13 @@ function AddConsultantModal({
               </select>
             </div>
             <div>
-              <label htmlFor="add-rate-min" className="block text-xs font-semibold text-etyme-muted mb-1">Lowest rate ($/hr, optional)</label>
+              <label htmlFor="add-rate-min" className="block text-xs font-semibold text-etyme-muted mb-1">{rateBoxLabel('LOW', currency)}</label>
               <input id="add-rate-min" type="number" min="0" step="0.01" value={form.rateMin}
                 onChange={(e) => setForm({ ...form, rateMin: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
             </div>
             <div>
-              <label htmlFor="add-rate-max" className="block text-xs font-semibold text-etyme-muted mb-1">Highest rate ($/hr, optional)</label>
+              <label htmlFor="add-rate-max" className="block text-xs font-semibold text-etyme-muted mb-1">{rateBoxLabel('HIGH', currency)}</label>
               <input id="add-rate-max" type="number" min="0" step="0.01" value={form.rateMax}
                 onChange={(e) => setForm({ ...form, rateMax: e.target.value })}
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums" />
@@ -798,7 +798,8 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
             </div>
             <div>
               <p className="eyebrow mb-1">Tier</p>
-              <p className="text-sm">{wordFor(consultant.tier)}</p>
+              {/* Before her yes the tier markets nobody, so it is not shown (the table's own rule, `tierShown`). */}
+              <p className="text-sm">{tierShown(consultant.consent) ? wordFor(consultant.tier) : TIER_BEFORE_YES}</p>
             </div>
             <div>
               <p className="eyebrow mb-1">Visibility</p>
@@ -1392,7 +1393,7 @@ export default function ConsultantsPage() {
       // A tier markets nobody until the person says yes, so it is shown
       // only on a yes (or where there is no listing to answer).
       render: (row) => (
-        row.tier && (row.consent == null || row.consent === 'GRANTED') ? (
+        row.tier && tierShown(row.consent) ? (
           <span className={`chip ${
             row.tier === 'RETAINED' ? 'chip--verified' : 'chip--attention'
           }`}>

@@ -23,6 +23,18 @@ let personId = ''
 let companyId = ''
 let requirementId = ''
 
+/**
+ * Add to bench asks only somebody the firm knows (fix list, layer five, a):
+ * a seat there, a listing there ever, or a partner's bench. Each person
+ * here was on this bench once and took the listing back, so asking them
+ * is asking afresh, under the name the firm typed then.
+ */
+async function listedOnceAndTakenBack(consultantId: string, firmName: string) {
+  await prisma.benchListing.create({
+    data: { consultantId, companyId, tier: 'MARKETING', state: 'GRANTED', revokedAt: new Date(), firmName },
+  })
+}
+
 beforeAll(async () => {
   await resetDatabase()
   process.env.NEXTAUTH_SECRET = 'integration-test-secret'
@@ -44,9 +56,10 @@ beforeAll(async () => {
     data: { name: 'Ravi Patel', primaryEmail: 'ravi@invite-flow.test' },
   })
   personId = person.id
-  await prisma.consultantProfile.create({
+  const ravi = await prisma.consultantProfile.create({
     data: { personId, skills: ['Java'], location: 'Dallas, Texas', visibility: 'VERIFIED' },
   })
+  await listedOnceAndTakenBack(ravi.id, 'Ravi Patel')
 
   const client = await prisma.company.create({
     data: { name: 'A Client', slug: 'invite-flow-client', kind: 'CLIENT', currency: 'USD' },
@@ -197,6 +210,7 @@ describe('what comes after a yes', () => {
     const answers: any[] = []
     for (const p of [fresh, signed]) {
       const profile = await prisma.consultantProfile.create({ data: { personId: p.id, skills: ['Java'], location: 'Dallas, Texas', visibility: 'VERIFIED' } })
+      await listedOnceAndTakenBack(profile.id, p.name)
       as(VENDOR)
       const made = await json(await createListing(req('POST', '/api/bench/listings', { consultantId: profile.id, tier: 'MARKETING' })))
       expect(made.body?.error, JSON.stringify(made.body)).toBeUndefined()
@@ -215,6 +229,7 @@ describe('what comes after a yes', () => {
     const { signInvite } = await import('@/lib/bench-invite')
     const p = await prisma.person.create({ data: { name: 'Kofi Asante', primaryEmail: 'kofi@invite-flow.test' } })
     const profile = await prisma.consultantProfile.create({ data: { personId: p.id, skills: ['Java'], location: 'Dallas, Texas', visibility: 'VERIFIED' } })
+    await listedOnceAndTakenBack(profile.id, p.name)
     as(VENDOR)
     await createListing(req('POST', '/api/bench/listings', { consultantId: profile.id, tier: 'MARKETING' }))
     const listing = await prisma.benchListing.findFirstOrThrow({ where: { consultantId: profile.id } })

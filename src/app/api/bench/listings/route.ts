@@ -6,8 +6,12 @@ import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { askByEmail } from '@/app/api/consultants/ask-by-email'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { listingTermsFrom, termsShown, notAtACompany, INVITE_LINK_KEPT_SAYS, tierInWords } from '@/lib/bench-filter'
+import { listingTermsFrom, termsShown, notAtACompany, INVITE_LINK_KEPT_SAYS, tierInWords, askedOntoBenchSays } from '@/lib/bench-filter'
 import { readAddToBench } from '@/lib/consultant-portfolio/forms'
+import { firmKnowsForBench, nameAskedUnder, firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
+import { recordRefusal, accessActor } from '@/lib/access-log'
+import { maySeeOutside } from '@/lib/walls'
+import { NETWORK_VISIBLE } from '@/lib/shared-consultant'
 
 /**
  * POST /api/bench/listings
@@ -80,6 +84,42 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // The firm must know them (fix list, layer five, a): a seat here, a
+  // listing here ever (one taken back is asked again), or a partner's
+  // bench that shows them to this firm, where Ask to represent reads them
+  // (`firmKnowsForBench`). Anybody else is answered as an id that does
+  // not exist, and the refusal is written before it is sent.
+  const [seatHere, existingAny] = await Promise.all([
+    prisma.context.findFirst({ where: { personId: consultant.personId, companyId, revokedAt: null }, select: { id: true } }),
+    prisma.benchListing.findUnique({
+      where: { consultantId_companyId: { consultantId, companyId } },
+      select: { id: true, firmName: true },
+    }),
+  ])
+  const onPartnerBench = !seatHere && !existingAny && (await shownOnPartnerBench(caller, companyId, consultantId))
+  if (!firmKnowsForBench({ seatHere: seatHere != null, listedHereEver: existingAny != null, onPartnerBench })) {
+    await recordRefusal([consultant.personId], {
+      ...accessActor(caller),
+      action: 'PROFILE_VIEW',
+      reason: 'Refused Add to bench: the firm neither employs this person, nor ever listed them, nor sees them on a partner bench.',
+    })
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Consultant not found' } },
+      { status: 404 }
+    )
+  }
+
+  // The name the firm asks her under: the one it typed on its listing, or
+  // the one it reads where it employs her or a partner shows her
+  // (`nameAskedUnder`). Her own record's name is never written or said on
+  // a record the firm has only an id for. Her own name stays in the
+  // letter, which only she reads.
+  const asked = nameAskedUnder({
+    existing: existingAny,
+    email: consultant.person.primaryEmail,
+    shownName: consultant.person.name,
+  })
+
   // Check rate floor — the consultant sets this; no listing may go below it
   if (consultant.rateFloor != null && rateMax != null) {
     const max = parseInt(String(rateMax), 10)
@@ -106,7 +146,7 @@ export async function POST(request: NextRequest) {
   const terms = listingTermsFrom(
     { engagementType: body.termsEngagementType, payRateCents: body.termsPayRateCents, payCurrency: body.termsPayCurrency },
     {
-      personName: consultant.person.name,
+      personName: asked.says,
       firmName: caller.company!.name,
       ownCompany: consultant.ownCompany ?? null,
       statedById: caller.person.id,
@@ -153,9 +193,9 @@ export async function POST(request: NextRequest) {
             ...invitation(new Date()),
             revokedAt: null,
             declinedNote: null,
-            // The name the firm read when it asked, kept so it reads it
-            // until she says yes (lib/consultant-portfolio/before-her-yes).
-            firmName: consultant.person.name,
+            // The name the firm typed when it first asked, kept: asking
+            // again never swaps in her own record's (`nameAskedUnder`).
+            firmName: asked.firmName,
             // Stated afresh or not at all. Terms agreed on the listing
             // they took back went with it.
             ...terms.fields,
@@ -176,7 +216,9 @@ export async function POST(request: NextRequest) {
             // right and there was no mechanism behind it. grantedAt
             // defaulted to now() and nobody was ever asked.
             ...invitation(new Date()),
-            firmName: consultant.person.name,
+            // The name the firm reads her by when it asks, kept so it reads
+            // it until she says yes (lib/consultant-portfolio/before-her-yes).
+            firmName: asked.firmName,
             ...terms.fields,
           },
         })
@@ -187,7 +229,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           action: 'BENCH_LISTING_REQUESTED',
-          summary: `Bench listing requested for "${consultant.person.name}"${tierInWords(tier, true) ? ` (${tierInWords(tier, true)})` : ''}. Waiting on their yes.`,
+          summary: `Bench listing requested for "${asked.says}"${tierInWords(tier, true) ? ` (${tierInWords(tier, true)})` : ''}. Waiting on their yes.`,
           reason: 'Vendor requested bench listing via API',
           payload: {
             listingId: listing.id,
@@ -215,6 +257,12 @@ export async function POST(request: NextRequest) {
     //
     // Sent in the vendor's name. A consultant on two benches never
     // learns that from us.
+    // What the firm reads her as now that it has asked (`firmReadsAt`):
+    // the name it typed where it reads only that, else the name it asked
+    // under. The sentence says nothing else of hers.
+    const typed = (await firmReadsAt({ companyId, callerPersonId: caller.person.id, consultantIds: [consultantId] })).get(consultantId)?.typed ?? null
+    const shown = typed ? typed.name : asked.says
+
     const url = inviteUrl(result.id)
     const msg = inviteText({
       personName: consultant.person.name,
@@ -252,7 +300,7 @@ export async function POST(request: NextRequest) {
             termsAgreedAt: null,
           },
           message:
-            `Bench listing created for "${consultant.person.name}". Consultant must grant it before submissions can be made.` +
+            askedOntoBenchSays(shown) +
             (mail === 'KEPT' ? ` ${INVITE_LINK_KEPT_SAYS}` : '') +
             (terms.says ? ` ${terms.says}` : ''),
           mail,
@@ -279,4 +327,30 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+/**
+ * Whether a firm this one trades with shows her on its partner bench to
+ * this seat: a live yes, marketed, at a firm on either side of an active
+ * register row, and only where this seat may look outside its own firm.
+ * The same reading as `GET /api/bench?scope=network`, asked as a yes or no.
+ */
+async function shownOnPartnerBench(
+  caller: { company: { outsideAccess?: string | null } | null; permissions: readonly string[] },
+  companyId: string,
+  consultantId: string
+): Promise<boolean> {
+  const outside = maySeeOutside({ posture: caller.company?.outsideAccess ?? 'NAMED_ONLY', permissions: caller.permissions })
+  if (!outside.ok) return false
+  const [mine, theirs] = await Promise.all([
+    prisma.counterparty.findMany({ where: { companyId, status: 'ACTIVE' }, select: { otherCompanyId: true } }),
+    prisma.counterparty.findMany({ where: { otherCompanyId: companyId, status: 'ACTIVE' }, select: { companyId: true } }),
+  ])
+  const partnerIds = [...new Set([...mine.map((c) => c.otherCompanyId), ...theirs.map((c) => c.companyId)])].filter((id) => id !== companyId)
+  if (partnerIds.length === 0) return false
+  const shown = await prisma.benchListing.findFirst({
+    where: { consultantId, ...NETWORK_VISIBLE, companyId: { in: partnerIds } },
+    select: { id: true },
+  })
+  return shown != null
 }

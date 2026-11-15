@@ -221,7 +221,7 @@ describe('11 · one door decides who is free, on every page', () => {
 
   it('a placement papered to start later means not free, with the day it starts', () => {
     const f = whenFree({ lines: [{ startsOn: d('2026-10-20'), endsOn: null, state: 'VERIFIED' }], availableFrom: null, onBenchSince: NOW, now: NOW })
-    expect(f).toEqual({ state: 'PLACED', on: null, says: 'Starts a placement on Oct 20, 2026' })
+    expect(f).toEqual({ state: 'PLACED', on: null, says: 'Starts a placement on Oct 20, 2026', startsOn: '2026-10-20' })
   })
 
   it('a free date of their own in the future is kept, as the later of it and their last placement', () => {
@@ -321,7 +321,8 @@ describe('17 · adding a consultant says what it did, and one set of words for t
 
   it('Add to bench marks somebody already on the bench and saves the rate onto their listing instead of refusing', () => {
     const page = src('src/app/dashboard/bench/page.tsx')
-    expect(page).toContain('Already on your bench — choose to set their rate')
+    // Said by what the person answered since layer five, F2 (`alreadyAskedSays`).
+    expect(page).toContain("alreadyAskedSays(listed.get(c.id)?.consent ?? null, 'ROW')")
     expect(page).toContain("method: 'PATCH'")
     expect(src('src/app/api/bench/listings/[id]/route.ts')).toContain('return setRates(caller, companyId, id, body)')
   })

@@ -63,6 +63,14 @@ beforeAll(async () => {
   })
   expect(free).toHaveLength(2)
   ;[stated, unstated] = free.map((f) => f.id)
+  // Add to bench asks only somebody the firm knows (fix list, layer five,
+  // a). Each was on Brightmoor's bench once and took the listing back, so
+  // this asks them afresh.
+  for (const consultantId of [stated, unstated]) {
+    await prisma.benchListing.create({
+      data: { consultantId, companyId: brightmoor.id, tier: 'MARKETING', state: 'GRANTED', revokedAt: new Date(), firmName: 'Asked before' },
+    })
+  }
 }, 600_000)
 
 describe('the invitation a firm sends', () => {

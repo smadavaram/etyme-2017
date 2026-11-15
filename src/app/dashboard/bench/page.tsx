@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { candidateRecordHref } from '@/lib/consultant-portfolio/open-from-link'
 import { range, compact, amount } from '@/lib/money-display'
 import type { BurnTotal } from '@/app/api/bench/burn/totals'
-import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, benchPageClosed, listingRates, TIER_WORD, ASKED_HEADING, askedSays, type Free } from '@/lib/bench-filter'
+import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, benchPageClosed, listingRates, TIER_WORD, ASKED_HEADING, askedSays, freeOnTheBench, rateBoxLabel, alreadyAskedSays, tierBoxHiddenSays, NOBODY_FOUND_SAYS, saysNobodyFound, type Free } from '@/lib/bench-filter'
+import { mayAddConsultant, whoAddsSays, whoAsksOntoBenchSays } from '@/lib/consultant-portfolio/who-adds'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
 import { OurBench } from './our-bench'
@@ -79,6 +80,8 @@ interface BenchEntry {
   companyName: string
   /** On Partner bench: why the reader may not ask — already theirs (`alreadyOursSays`). */
   oursSays: string | null
+  /** Whether the one bench list the tile counts (`benchAt`) names them today; null where not read. */
+  onBenchToday: boolean | null
 }
 
 /**
@@ -234,17 +237,24 @@ function formatRate(min: number | null, max: number | null): string {
  * duplicate with the rate lost (2026-10-01). Choosing them now saves the
  * rate onto the listing they already have.
  */
-function AddBenchListingModal({ onClose, onCreated, listed }: {
+function AddBenchListingModal({ onClose, onCreated, listed, mayAdd, whoAdds }: {
   onClose: () => void
   onCreated: (msg: string) => void
   /** Your own listings, by consultant: the listing and what the person said. */
   listed: Map<string, { listingId: string; consent: string | null }>
+  /** Whether this seat may add a consultant on Candidates (`mayAddConsultant`). */
+  mayAdd: boolean
+  /** Who adds one, where this seat may not (`whoAddsSays`). */
+  whoAdds: string
 }) {
   // Rates typed here are in the firm’s own currency, by its own exponent.
   const currency = useFirmCurrency()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<ConsultantOption[]>([])
   const [searching, setSearching] = useState(false)
+  // Whether the box's current words have been searched, so "nobody by
+  // that name" is said only after an answer, never while typing.
+  const [searched, setSearched] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
   const [selectedConsultant, setSelectedConsultant] = useState<ConsultantOption | null>(null)
   const [tier, setTier] = useState<'RETAINED' | 'MARKETING'>('MARKETING')
@@ -260,6 +270,7 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
     setSearchQuery(value)
     setSelectedConsultant(null)
     setError(null)
+    setSearched(false)
 
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
 
@@ -284,6 +295,7 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
           }))
           setSearchResults(results)
           setShowDropdown(results.length > 0)
+          setSearched(true)
         }
       } catch {
         // Silently fail — user can retry
@@ -408,7 +420,7 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
                   <p className="text-sm font-medium text-etyme-ink truncate">{selectedConsultant.name}</p>
                   <p className="text-[11px] text-etyme-faint truncate">
                     {listed.has(selectedConsultant.id)
-                      ? `Already on your bench${listed.get(selectedConsultant.id)?.consent === 'INVITED' ? ', not answered yet' : ''}. The rate below is saved on that listing.`
+                      ? alreadyAskedSays(listed.get(selectedConsultant.id)?.consent ?? null, 'CHOSEN')
                       : selectedConsultant.headline ?? selectedConsultant.email}
                   </p>
                 </div>
@@ -442,16 +454,30 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-etyme-ink truncate">{c.name}</p>
                       <p className="text-[11px] text-etyme-faint truncate">
-                        {listed.has(c.id) ? 'Already on your bench — choose to set their rate' : c.headline ?? c.email}
+                        {listed.has(c.id) ? alreadyAskedSays(listed.get(c.id)?.consent ?? null, 'ROW') : c.headline ?? c.email}
                       </p>
                     </div>
                   </button>
                 ))}
               </div>
             )}
+
+            {/* The search reads only your own Candidates. Where it finds
+                nobody, say so, and where somebody new is added (layer five, F1). */}
+            {!selectedConsultant && saysNobodyFound({ query: searchQuery, searching, searched, results: searchResults.length }) && (
+              <p role="status" className="mt-1.5 text-[12px] text-etyme-muted">
+                {NOBODY_FOUND_SAYS}{' '}
+                {mayAdd
+                  ? <Link href={'/dashboard/consultants?new=1' as Route} className="text-etyme-action hover:underline">Add consultant</Link>
+                  : whoAdds}
+              </p>
+            )}
           </div>
 
-          {/* Tier — only for somebody new; a listing's tier moves from its row. */}
+          {/* Tier — only for somebody new; a listing's tier moves from its row, and the form says so. */}
+          {selectedConsultant && listed.has(selectedConsultant.id) && (
+            <p className="text-[12px] text-etyme-muted">{tierBoxHiddenSays(listed.get(selectedConsultant.id)?.consent ?? null)}</p>
+          )}
           {!(selectedConsultant && listed.has(selectedConsultant.id)) && (
           <div>
             <label className="block text-xs font-semibold text-etyme-muted mb-1">Who sees them *</label>
@@ -470,7 +496,7 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
           {/* Rate range */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Rate min ($/hr)</label>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">{rateBoxLabel('LOW', currency)}</label>
               <input
                 type="number"
                 min="0"
@@ -483,7 +509,7 @@ function AddBenchListingModal({ onClose, onCreated, listed }: {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-etyme-muted mb-1">Rate max ($/hr)</label>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">{rateBoxLabel('HIGH', currency)}</label>
               <input
                 type="number"
                 min="0"
@@ -576,6 +602,12 @@ export default function BenchPage() {
   // Whether a name may lead to her record: the link is drawn only where
   // the Candidates page's own route takes this seat (GET /api/consultants).
   const readsCandidates = hasPermission(session.permissions, 'consultants.read')
+  // Asking somebody onto the bench, sending the invitation again, copying
+  // its link and moving a tier are one permission at the route, the one
+  // Add consultant asks for (`mayAddConsultant`). They are drawn only
+  // where it holds; elsewhere one sentence names who may (layer five, b).
+  const writesBench = mayAddConsultant(session.permissions)
+  const whoAsks = whoAsksOntoBenchSays({ kind: session.company?.kind ?? null, companyName: session.company?.name ?? null })
   const turnsHolidays = mayChangeBenchPay({
     companyName: session.company?.name ?? 'your firm',
     companyKind: session.company?.kind ?? null,
@@ -623,13 +655,14 @@ export default function BenchPage() {
     if (!scopeChosen) setScope(opensOn)
   }, [opensOn, scopeChosen])
 
-  // Open modal from ?new=1 link
+  // Open modal from ?new=1 link, once the session says whether this seat
+  // may ask; a seat that may not reads the sentence under the header.
   useEffect(() => {
-    if (searchParams.get('new') === '1') {
-      setShowAddModal(true)
+    if (searchParams.get('new') === '1' && !session.loading) {
+      if (writesBench) setShowAddModal(true)
       router.replace('/dashboard/bench')
     }
-  }, [searchParams, router])
+  }, [searchParams, router, session.loading, writesBench])
 
   const fetchBench = useCallback(async (forScope: BenchScope) => {
     const thisRequest = ++requestId.current
@@ -681,7 +714,9 @@ export default function BenchPage() {
         rateMin: r.rateMin,
         rateMax: r.rateMax,
         availableFrom: r.availableFrom,
-        free: r.free,
+        // Read against the list the tile counts, so a person placed today
+        // is not "Free now" under a tile that leaves her out (`freeOnTheBench`).
+        free: freeOnTheBench(r.free, r.onBenchToday),
         stay: r.stay,
         reach: r.reach,
         reachSays: r.reachSays,
@@ -690,6 +725,7 @@ export default function BenchPage() {
         companyId: r.companyId,
         companyName: r.companyName,
         oursSays: r.oursSays ?? null,
+        onBenchToday: r.onBenchToday,
       }))
 
       // A tab clicked twice in quick succession fires two requests; only
@@ -960,7 +996,7 @@ export default function BenchPage() {
             key: 'actions',
             label: '',
             render: (row: BenchEntry) =>
-              row.consent === 'INVITED' ? (
+              !writesBench ? null : row.consent === 'INVITED' ? (
                 // Not answered: send it again, or copy the link to send yourself.
                 <span className="flex gap-2 whitespace-nowrap">
                   <button onClick={(e) => { e.stopPropagation(); nudge(row.id, false) }} disabled={busyRow === row.id}
@@ -988,7 +1024,7 @@ export default function BenchPage() {
                 // Already the reader's: asking would go round the partner
                 // or ask twice (`alreadyOursSays`).
                 <span className="text-[11px] text-etyme-muted whitespace-nowrap">{row.oursSays}</span>
-              ) : (
+              ) : !writesBench ? null : (
                 <button
                   onClick={(e) => { e.stopPropagation(); askToRepresent(row) }}
                   disabled={busyRow === row.id}
@@ -1115,7 +1151,7 @@ export default function BenchPage() {
                 : 'People the firms you work with are marketing, who agreed to it. To put one forward yourself, ask to represent them — they answer, not their firm.'}
           </p>
         </div>
-        {asksBench && scope !== 'payroll' && !showProfit && (
+        {asksBench && writesBench && scope !== 'payroll' && !showProfit && (
           <button onClick={() => setShowAddModal(true)} className="btn-primary mt-3 shrink-0">
             Add to bench
           </button>
@@ -1179,6 +1215,11 @@ export default function BenchPage() {
 
       <div className={showProfit || !asksBench ? 'hidden' : undefined}>
 
+      {/* Who may ask, resend or copy a link, where this seat may not (layer five, b). */}
+      {scope !== 'payroll' && !session.loading && !writesBench && (
+        <p role="status" className="text-[12px] text-etyme-muted mb-6">{whoAsks}</p>
+      )}
+
       {/* Stats row */}
       {scope !== 'payroll' && !loading && (entries.length > 0 || askedPeople.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
@@ -1226,12 +1267,12 @@ export default function BenchPage() {
           {ended.map((e) => (
             <div key={e.listingId} className="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
               <span className="text-[13px] text-etyme-ink"><span className="font-medium">{e.name}</span> · {e.says}</span>
-              <span className="flex gap-3">
+              {writesBench && <span className="flex gap-3">
                 <button onClick={() => nudge(e.listingId, false)} disabled={busyRow === e.listingId}
                   className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Ask to renew</button>
                 <button onClick={() => nudge(e.listingId, true)} disabled={busyRow === e.listingId}
                   className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Copy link</button>
-              </span>
+              </span>}
             </div>
           ))}
         </section>
@@ -1249,7 +1290,7 @@ export default function BenchPage() {
                   : <span className="font-medium">{a.name}</span>}
                 {' · '}{askedSays(a.consent)}
               </span>
-              {a.consent === 'INVITED' && (
+              {a.consent === 'INVITED' && writesBench && (
                 <span className="flex gap-3">
                   <button onClick={() => nudge(a.listingId, false)} disabled={busyRow === a.listingId}
                     className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Resend</button>
@@ -1384,6 +1425,8 @@ export default function BenchPage() {
           listed={ownListed}
           onClose={() => setShowAddModal(false)}
           onCreated={handleListingCreated}
+          mayAdd={writesBench}
+          whoAdds={whoAddsSays({ kind: session.company?.kind ?? null, companyName: session.company?.name ?? null })}
         />
       )}
 

@@ -67,7 +67,8 @@ describe('what a firm reads about somebody before she says yes', () => {
 
   it('every ask writes the name the firm typed on its own listing', () => {
     expect(src('src/lib/consultant-portfolio/bench-ask.ts')).toContain('firmName: name || null')
-    expect(src('src/app/api/bench/listings/route.ts').match(/firmName: consultant\.person\.name/g)?.length).toBe(2)
+    // Add to bench writes the name it asks under (`nameAskedUnder`, layer five, a), never her record's.
+    expect(src('src/app/api/bench/listings/route.ts').match(/firmName: asked\.firmName/g)?.length).toBe(2)
     expect(src('src/app/api/bench/share/route.ts').match(/firmName: source\.consultant\.person\.name/g)?.length).toBe(2)
     expect(src('src/app/api/rolloff/[id]/resolve/route.ts').match(/firmName: personName/g)?.length).toBe(2)
   })

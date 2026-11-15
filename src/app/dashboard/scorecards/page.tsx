@@ -557,7 +557,7 @@ export default function ScorecardsPage() {
 
           <div className="mt-4 flex flex-wrap gap-x-9 gap-y-3 border-t border-etyme-rule pt-4">
             <Fig label="Answered" f={c.answered} />
-            <Fig label="First CV" f={c.firstReplyHours} suffix="h" />
+            <Fig label="First resume" f={c.firstReplyHours} suffix="h" />
             <Fig label="Worth reading" f={c.worthReading} />
             <Fig label="Hired" f={c.hired} />
           </div>

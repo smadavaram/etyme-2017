@@ -218,8 +218,13 @@ const later = (a: Date | null, b: Date | null) => (a && b ? (a > b ? a : b) : a 
  */
 export function benchSpell(input: { joinedBench: Date | null; lines: LineSpan[]; now: Date }): Spell {
   const now = input.now
+  // Read by the day, as `whenFree` and `benchAt` read it (layer five, 12):
+  // a contract's last day is a day on site, so a line ending today at
+  // midnight is live all of today, and a line starting today is live from
+  // its first hour.
+  const today = utcDay(now)
   const live = input.lines
-    .filter((l) => l.startsOn <= now && (l.endsOn == null || l.endsOn >= now))
+    .filter((l) => utcDay(l.startsOn) <= today && (l.endsOn == null || utcDay(l.endsOn) >= today))
     .sort((a, b) => b.startsOn.getTime() - a.startsOn.getTime())[0]
 
   const lastEndBefore = (d: Date) =>
@@ -238,7 +243,7 @@ export function benchSpell(input: { joinedBench: Date | null; lines: LineSpan[];
   if (!from) return { kind: 'UNKNOWN' }
   const startsOn =
     input.lines
-      .filter((l) => l.startsOn > now)
+      .filter((l) => utcDay(l.startsOn) > today)
       .sort((a, b) => a.startsOn.getTime() - b.startsOn.getTime())[0]?.startsOn ?? null
   return { kind: 'NOW', from, to: now, days: daysBetween(from, now), startsOn }
 }

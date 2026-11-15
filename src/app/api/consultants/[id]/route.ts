@@ -336,14 +336,17 @@ export async function PATCH(
           },
         },
       },
-      // This firm's listing, and how many other firms list them: read as
-      // two counts so nothing about another firm's listing leaves here.
+      // This firm's listing, and how many other firms ever listed them:
+      // read as a count so nothing about another firm's listing leaves
+      // here. Every listing ever, taken back or not, as `firmReadsAt`
+      // counts them (fix list, layer five, j): a firm whose record another
+      // firm once listed her on is not the record's keeper.
       listings: {
         where: { companyId: companyId ?? '', revokedAt: null },
         select: { id: true, firmHeadline: true, firmSkills: true, firmLocation: true, firmNotes: true },
       },
       _count: {
-        select: { listings: { where: { revokedAt: null, ...(companyId ? { companyId: { not: companyId } } : {}) } } },
+        select: { listings: { where: { ...(companyId ? { companyId: { not: companyId } } : {}) } } },
       },
     },
   })

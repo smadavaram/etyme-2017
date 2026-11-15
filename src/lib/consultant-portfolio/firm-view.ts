@@ -176,7 +176,7 @@ export type ProfileEdit =
 export function profileEditPlan(o: {
   isSubject: boolean
   ownAccount: boolean
-  /** Other firms with a listing for this person that was not taken back. */
+  /** Other firms that ever listed this person, taken back or not (as `firmReadsAt` counts them). */
   otherFirms: number
   /** Whether this firm has a listing for them that was not taken back. */
   hasListing: boolean

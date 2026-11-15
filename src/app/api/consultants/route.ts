@@ -2,6 +2,7 @@ import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
 import { educationShown } from '@/lib/consultant-portfolio/education'
 import { addedSays, benchClosedSays, notAtACompany, benchStanding, consultantsReadBench } from '@/lib/bench-filter'
 import { addRefusalSays, askedAgainSays } from '@/lib/consultant-portfolio'
@@ -9,8 +10,8 @@ import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
 import { readAddConsultant } from '@/lib/consultant-portfolio/forms'
 import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
 import { readAsTheFirm, hasOwnAccount, recordKeptBy } from '@/lib/consultant-portfolio/firm-view'
-import { firmReadsAt, typedOnlyIds } from '@/lib/consultant-portfolio/before-her-yes'
-import { benchAt } from '@/app/api/today/reads'
+import { firmReadsAt, typedOnlyIds, askedLastWindow } from '@/lib/consultant-portfolio/before-her-yes'
+import { benchAt, askedAt } from '@/app/api/today/reads'
 import { todayReads } from '@/lib/today-page'
 import { logBulkAccess } from '@/lib/access-log'
 import { getCallerContext } from '@/lib/api-context'
@@ -169,53 +170,84 @@ export async function GET(request: NextRequest) {
     where.AND = andClauses
   }
 
-  const [total, profiles] = await Promise.all([
-    prisma.consultantProfile.count({ where }),
-    prisma.consultantProfile.findMany({
-      where,
-      include: {
-        person: {
-          select: {
-            id: true, name: true, primaryEmail: true,
-            // Whether they have an account of their own: read, never sent.
-            passwordHash: true,
-            _count: { select: { credentials: true, contexts: { where: { type: 'CONSULTANT', companyId: null } } } },
-          },
-        },
-        // How many other firms list them, as a number only: it decides
-        // whose record this is to change, and nothing about those firms
-        // leaves this route.
-        _count: { select: { listings: { where: { revokedAt: null, ...(companyId ? { companyId: { not: companyId } } : {}) } } } },
-        listings: companyId
-          ? {
-              where: { companyId, revokedAt: null },
-              select: {
-                id: true,
-                tier: true,
-                state: true,
-                rateMin: true,
-                rateMax: true,
-                grantedAt: true,
-                termsEngagementType: true,
-                termsPayRateCents: true,
-                termsPayCurrency: true,
-                termsAgreedAt: true,
-                // The firm's own view of the person, read before her own words.
-                firmName: true,
-                firmHeadline: true,
-                firmSkills: true,
-                firmLocation: true,
-                firmNotes: true,
-              },
-            }
-          : false,
+  // What each row carries, read the same way for both runs below.
+  const include = {
+    person: {
+      select: {
+        id: true, name: true, primaryEmail: true,
+        // Whether they have an account of their own: read, never sent.
+        passwordHash: true,
+        _count: { select: { credentials: true, contexts: { where: { type: 'CONSULTANT', companyId: null } } } },
       },
-      // The id breaks a tie, so two people of one name never swap between pages.
-      orderBy: [{ person: { name: 'asc' } }, { id: 'asc' }],
-      skip,
-      take: limit,
-    }),
+    },
+    // How many other firms ever listed them, taken back or not, as a
+    // number only: it decides whose record this is to change, counted as
+    // `firmReadsAt` counts it (layer five, j), and nothing about those
+    // firms leaves this route.
+    _count: { select: { listings: { where: { ...(companyId ? { companyId: { not: companyId } } : {}) } } } },
+    listings: companyId
+      ? {
+          where: { companyId, revokedAt: null },
+          select: {
+            id: true,
+            tier: true,
+            state: true,
+            rateMin: true,
+            rateMax: true,
+            grantedAt: true,
+            termsEngagementType: true,
+            termsPayRateCents: true,
+            termsPayCurrency: true,
+            termsAgreedAt: true,
+            // The firm's own view of the person, read before her own words.
+            firmName: true,
+            firmHeadline: true,
+            firmSkills: true,
+            firmLocation: true,
+            firmNotes: true,
+          },
+        }
+      : false,
+  } satisfies Prisma.ConsultantProfileInclude
+
+  // The order (fix list, layer five, i). Sorting every row by her own
+  // record's name let a row's place hint at a name the firm was never
+  // shown. The rows it reads only as typed come after the others, by the
+  // date it asked, newest first; everyone else by name as before. The
+  // page window runs over the two (`askedLastWindow`), so the total and
+  // the pages stay honest.
+  const othersWhere = typedOnlyRows.length > 0 ? { AND: [where, { id: { notIn: typedOnlyRows } }] } : where
+  const [othersTotal, typedMatched] = await Promise.all([
+    prisma.consultantProfile.count({ where: othersWhere }),
+    typedOnlyRows.length > 0 && companyId
+      ? prisma.benchListing.findMany({
+          where: { companyId, revokedAt: null, consultantId: { in: typedOnlyRows }, consultant: where },
+          select: { consultantId: true },
+          // Newest ask first; the id breaks a tie so two asks of one day never swap between pages.
+          orderBy: [{ invitedAt: { sort: 'desc', nulls: 'last' } }, { consultantId: 'asc' }],
+        })
+      : Promise.resolve([] as { consultantId: string }[]),
   ])
+  const total = othersTotal + typedMatched.length
+  const window = askedLastWindow({ othersTotal, skip, limit })
+  const typedPage = typedMatched.slice(window.typed.skip, window.typed.skip + window.typed.take).map((l) => l.consultantId)
+  const [others, typedRows] = await Promise.all([
+    window.others.take > 0
+      ? prisma.consultantProfile.findMany({
+          where: othersWhere,
+          include,
+          // The id breaks a tie, so two people of one name never swap between pages.
+          orderBy: [{ person: { name: 'asc' } }, { id: 'asc' }],
+          skip: window.others.skip,
+          take: window.others.take,
+        })
+      : Promise.resolve([]),
+    typedPage.length > 0
+      ? prisma.consultantProfile.findMany({ where: { id: { in: typedPage } }, include })
+      : Promise.resolve([]),
+  ])
+  const byId = new Map(typedRows.map((p) => [p.id, p]))
+  const profiles = [...others, ...typedPage.map((id) => byId.get(id)).filter((p): p is (typeof typedRows)[number] => p != null)]
 
   // Field-level filtering
   const fieldCtx: FieldContext = {
@@ -233,7 +265,8 @@ export async function GET(request: NextRequest) {
   const [bench, invited] = readsBench
     ? await Promise.all([
         benchAt(companyId!, now),
-        prisma.benchListing.count({ where: { companyId: companyId!, revokedAt: null, state: 'INVITED' } }),
+        // The same count Today reads (`askedAt`), so the two cannot drift.
+        askedAt(companyId!),
       ])
     : [null, null]
   const onBench = bench ? new Set(bench.map((b) => b.personId)) : null
