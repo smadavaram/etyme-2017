@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { DataTable, defaultSearch, type Column, type DataTableProps } from '@/components/data-table'
+import { DataTable, defaultSearch, NAME_OPENS, ROW_OPENS, type Column, type DataTableProps } from '@/components/data-table'
 import { ViewToggle, type View } from '@/components/network-view'
 import { EmptyState, LoadingState, RefusedState } from '@/components/ui/states'
 
@@ -147,12 +147,12 @@ function Feed<T extends Record<string, any>>({
             onClick={onRowClick ? () => onRowClick(row) : undefined}
             onKeyDown={onRowClick ? (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onRowClick(row) } } : undefined}
             tabIndex={onRowClick ? 0 : undefined}
-            className={`rounded-panel border border-etyme-rule bg-etyme-surface px-5 py-4 transition-shadow ${onRowClick ? 'cursor-pointer hover:shadow-lift hover:border-etyme-action-line' : ''} ${rowClassName?.(row) ?? ''}`}
+            className={`rounded-panel border border-etyme-rule bg-etyme-surface px-5 py-4 transition-shadow ${onRowClick ? `${ROW_OPENS} hover:shadow-lift hover:border-etyme-action-line focus-visible:shadow-lift focus-visible:border-etyme-action-line` : ''} ${rowClassName?.(row) ?? ''}`}
           >
             {card ? card(row) : (
               <>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <div className="min-w-0 text-[15px] font-semibold text-etyme-ink">{cell(shape.title, row, i)}</div>
+                  <div className={`min-w-0 text-[15px] font-semibold ${onRowClick ? NAME_OPENS : 'text-etyme-ink'}`}>{cell(shape.title, row, i)}</div>
                   <div className="text-[13px] text-etyme-muted">{cell(shape.subtitle, row, i)}</div>
                 </div>
                 {shape.rest.length > 0 && (

@@ -122,6 +122,28 @@ interface SortState {
   dir: SortDir
 }
 
+/**
+ * A row that opens something looks like it does (fix list, 2026-11-15: a
+ * tester never found the drawer behind a Companies row). Its name is drawn
+ * in the action text color, underlined while the row is hovered or has the
+ * keyboard's focus, and the row takes the canvas fill under the pointer.
+ * The name is the first column's first line: the cell's own text, or the
+ * first element of the block a column renders. A table with no
+ * `onRowClick` is drawn as before.
+ */
+export const ROW_OPENS = 'group/row cursor-pointer'
+/** The row's fill under the pointer and under the keyboard, unless the row is selected. */
+export const ROW_OPENS_FILL = 'hover:!bg-etyme-canvas focus-visible:!bg-etyme-canvas'
+/** The first cell of a row that opens: the name, in the action text color, underlined with the row. */
+export const NAME_OPENS = [
+  'text-etyme-action-press underline-offset-2',
+  '[&>div>:first-child]:!text-etyme-action-press [&>p:first-child]:!text-etyme-action-press [&>span:first-child]:!text-etyme-action-press',
+  'group-hover/row:[&>div>:first-child]:underline group-hover/row:[&>p:first-child]:underline group-hover/row:[&>span:first-child]:underline',
+  'group-focus-visible/row:[&>div>:first-child]:underline group-focus-visible/row:[&>p:first-child]:underline group-focus-visible/row:[&>span:first-child]:underline',
+  // A name the column prints as plain text, with nothing else in the cell.
+  'group-hover/row:[&:not(:has(*))]:underline group-focus-visible/row:[&:not(:has(*))]:underline',
+].join(' ')
+
 /** The text a value reads as, for search and for the CSV. */
 export function cellText(v: unknown): string {
   if (v == null) return ''
@@ -437,7 +459,8 @@ export function DataTable<T extends Record<string, any>>({
                     onKeyDown={onRowClick ? rowKeyDown(row) : undefined}
                     aria-selected={selectable ? isSelected : undefined}
                     className={`
-                      ${onRowClick ? 'cursor-pointer' : ''}
+                      ${onRowClick ? ROW_OPENS : ''}
+                      ${onRowClick && !isSelected ? ROW_OPENS_FILL : ''}
                       ${isSelected ? '!bg-etyme-action-wash' : ''}
                       ${rowClassName?.(row) ?? ''}
                     `}
@@ -454,12 +477,13 @@ export function DataTable<T extends Record<string, any>>({
                         />
                       </td>
                     )}
-                    {columns.map((col) => {
+                    {columns.map((col, c) => {
                       const align = col.align ?? 'left'
                       return (
                         <td
                           key={col.key}
                           className={`
+                            ${onRowClick && c === 0 ? NAME_OPENS : ''}
                             ${col.width ?? ''}
                             ${col.hideOnMobile ? 'hidden md:table-cell' : ''}
                             ${align === 'right' ? '!text-right' : align === 'center' ? '!text-center' : ''}

@@ -9,7 +9,7 @@ import { companiesOnList } from './dealings'
 import { ownDomainsFor, keepNote } from './twins'
 import { lookBeforeRecording, writeRecord, refusedFound, uniqueSlug, slugify, RESERVED_SLUGS, EITHER_SIDE, reservedNameSays, SLUG_RACE_SAYS, ownCompanySays, onYourListAlreadySays } from './record'
 import { mayRegisterWithEmail } from '@/lib/company-defaults'
-import { createCompany, workTogether } from '@/lib/company-create'
+import { createCompany, workTogetherAmong } from '@/lib/company-create'
 import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
 import type { Relationship } from '@/lib/counterparty'
 import { mayAddCompany, sameNameRefused, sameDomainRefused, namesakeSays, consumerDomainSays, identityDomain, readTypedDomain, NEVER_EMAILS, mayExtend, maySetRecordedKind, isMine, notLinkedYet, notedDomain } from '@/lib/counterparty'
@@ -692,10 +692,16 @@ async function rowActs(
 ): Promise<Map<string, RowActs>> {
   const me = caller.company!
   const out = new Map<string, RowActs>()
+  // Whether the reader works with each row that holds no position and is
+  // not its own record, read once for all of them (`workTogetherAmong`,
+  // the reader `workTogether` asks for one): five queries whatever the
+  // count, never five per row.
+  const unread = companies.filter((c) => c.id !== me.id && !((at.get(c.id)?.positions.length ?? 0) > 0 || at.get(c.id)?.mine)).map((c) => c.id)
+  const together = await workTogetherAmong(me.id, unread)
   for (const c of companies) {
     if (c.id === me.id) { out.set(c.id, NOTHING_TO_PRESS); continue }
     const read = at.get(c.id) ?? { positions: [], mine: false }
-    const worksTogether = read.positions.length > 0 || read.mine ? true : await workTogether(me.id, c.id)
+    const worksTogether = read.positions.length > 0 || read.mine ? true : together.has(c.id)
     const ask = (as: 'SUPPLIER' | 'CUSTOMER') => {
       const v = mayExtend({
         as,

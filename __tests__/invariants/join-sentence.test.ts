@@ -73,7 +73,9 @@ describe('how people join this company is said from what the code does', () => {
 
   it('Settings, its Sign-in page and the setup items for the team and the domain read the one sentence', () => {
     expect(read('src/app/api/settings/route.ts')).toContain('joinSentenceFor(companyId)')
-    expect(read('src/app/api/settings/sign-in/overview/route.ts')).toContain('joinSentenceFor(company.id)')
+    // The Sign-in page reads the facts once, for the heading's sentence and
+    // the default it says under "How your people sign in" (2026-11-15).
+    expect(read('src/app/api/settings/sign-in/overview/route.ts')).toContain('joins: joinFacts ? joinSentence(joinFacts) : null')
     const setup = read('src/app/api/settings/setup/read.ts')
     expect(setup).toContain('joinSentenceFor(companyId)')
     expect(setup).toContain("if (k === 'TEAM')")

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePageSection } from '@/components/page-section'
 import { Chip, ErrorState, Field, FormMessage, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea } from '@/components/ui'
 import { readJson, isRefusal } from '@/lib/read-response'
-import { viewAfterRefusedRead, moveFormSays, passFormSays } from './view'
+import { viewAfterRefusedRead, moveFormSays, passFormSays, personOption } from './view'
 
 /**
  * Settings → Owners (founder, 2026-11-11, drawn and built): who owns the
@@ -29,8 +29,8 @@ type Read = {
   /** The reader is neither Owner nor Admin: only the asks addressed to them. */
   addressedOnly?: false
   /** aloneToAdmin: this Owner passed ownership to the reader, who moves them to Admin with nobody else asked. */
-  owners: { contextId: string; name: string; you: boolean; aloneToAdmin?: boolean }[]
-  others: { contextId: string; name: string; role: string | null }[]
+  owners: { contextId: string; name: string; email?: string | null; you: boolean; aloneToAdmin?: boolean }[]
+  others: { contextId: string; name: string; email?: string | null; role: string | null }[]
   roles: { id: string; name: string }[]
   iAmOwner: boolean
   narrowAdminOffered: boolean
@@ -139,7 +139,10 @@ export default function OwnersPage() {
           <div className="space-y-2">
             {r.owners.map((o) => (
               <div key={o.contextId} className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-etyme-rule bg-etyme-raised px-3 py-2.5">
-                <span className="text-[14px] text-etyme-ink">{o.name} {o.you && <Chip tone="verified">You</Chip>}</span>
+                <span className="min-w-0">
+                  <span className="block text-[14px] text-etyme-ink">{o.name} {o.you && <Chip tone="verified">You</Chip>}</span>
+                  {o.email && o.email !== o.name && <span className="block break-all text-[12.5px] text-etyme-muted">{o.email}</span>}
+                </span>
                 <Chip tone="action">Owner</Chip>
               </div>
             ))}
@@ -160,7 +163,7 @@ export default function OwnersPage() {
               <Field label="Who">
                 <Select value={who} onChange={(e) => setWho(e.target.value)}>
                   <option value="">Choose somebody with a seat here</option>
-                  {r.others.map((o) => <option key={o.contextId} value={o.contextId}>{o.name}{o.role ? ` · ${o.role}` : ''}</option>)}
+                  {r.others.map((o) => <option key={o.contextId} value={o.contextId}>{personOption(o)}</option>)}
                 </Select>
               </Field>
               <p className="text-[12.5px] text-etyme-muted">Somebody new? Invite them from Users & permissions first, then come back.</p>
@@ -188,7 +191,7 @@ export default function OwnersPage() {
               <Field label="Which Owner">
                 <Select value={who} onChange={(e) => setWho(e.target.value)}>
                   <option value="">Choose an Owner</option>
-                  {r.owners.map((o) => <option key={o.contextId} value={o.contextId}>{o.name}{o.you ? ' (you)' : ''}</option>)}
+                  {r.owners.map((o) => <option key={o.contextId} value={o.contextId}>{personOption(o)}</option>)}
                 </Select>
               </Field>
               <Field label="What happens">

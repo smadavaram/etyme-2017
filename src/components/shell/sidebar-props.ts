@@ -1,6 +1,7 @@
 import type { SessionState } from '@/components/session-provider'
 import type { Hat } from '@/lib/nav-table'
 import { kindLabel, kindWord } from '@/lib/parties'
+import { NO_ROLE_LABEL, MEMBER_DESK } from '@/lib/access-grant'
 
 /**
  * The sidebar's props, read off the session.
@@ -186,8 +187,11 @@ export function deskOf(
 
 /**
  * The line under the company's name at the foot of the menu: the kind of
- * firm, then the role this person actually holds there, or "Member"
- * where the seat holds none. Never the kind's own tagline, which read as
+ * firm, then the role this person actually holds there, or "No role yet"
+ * where the seat holds none or holds only the Member role a sign-up is
+ * seated in: the words Users & permissions says of the same person
+ * (`NO_ROLE_LABEL`, fix list 2026-11-15, where one person read "Member"
+ * here and "No role yet" there). Never the kind's own tagline, which read as
  * a role: "Integrator · Delivery" for Karthik Menon at Teleworld, who
  * holds no delivery role (walk 4, A3). A role the seat does not hold is
  * never named.
@@ -195,5 +199,5 @@ export function deskOf(
 export function footerRole(kind: SidebarIdentity['companyKind'] | undefined, roleName: string | null | undefined): string {
   if (!kind) return kindLabel(kind)
   const role = roleName?.trim()
-  return `${kindWord(kind)} · ${role || 'Member'}`
+  return `${kindWord(kind)} · ${role && role !== MEMBER_DESK ? role : NO_ROLE_LABEL}`
 }

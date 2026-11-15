@@ -726,18 +726,20 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
       // table in lib/parties that stopped Settings printing
       // CONSULTANT_CORP at a nurse's own corporation.
       // The kind of firm, then the role the seat actually holds, or
-      // Member where it holds none: never "Integrator · Delivery", a
+      // No role yet where it holds none: never "Integrator · Delivery", a
       // tagline that read as a role he does not hold (walk 4, A3).
-      companyName: 'Teleworld Solutions', companyLabel: 'Integrator · Member',
+      companyName: 'Teleworld Solutions', companyLabel: 'Integrator · No role yet',
     })
   })
 
-  it('the foot of the menu names the role the person actually holds at the firm, or Member where the seat holds none, never a role the seat does not hold', () => {
+  it('the foot of the menu names the role the person actually holds at the firm, or No role yet where the seat holds none or only Member, never a role the seat does not hold', () => {
     const seat = (roleName: string | null) => sidebarPropsFrom({
       company: { id: 't', name: 'Teleworld Solutions', slug: 'teleworld', kind: 'GSI' },
       contextType: 'EMPLOYEE', isWorker: true, permissions: GSI_PERMS, loading: false, roleName,
     })
-    expect(seat(null).companyLabel).toBe('Integrator · Member')
+    expect(seat(null).companyLabel).toBe('Integrator · No role yet')
+    // The same words Users & permissions says of the same person (fix list, 2026-11-15).
+    expect(seat('Member').companyLabel).toBe('Integrator · No role yet')
     expect(seat('Delivery Manager').companyLabel).toBe('Integrator · Delivery Manager')
     expect(seat(null).companyLabel).not.toMatch(/Delivery/)
   })

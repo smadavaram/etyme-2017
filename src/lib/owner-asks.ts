@@ -39,6 +39,7 @@ export async function seatsAt(companyId: string): Promise<Seat[]> {
     name: r.person.name || r.person.primaryEmail,
     roleName: r.role?.name ?? null,
     live: !r.suspendedAt && (!r.expiresAt || r.expiresAt.getTime() > now),
+    email: r.person.primaryEmail ?? null,
   }))
 }
 

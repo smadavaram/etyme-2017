@@ -70,10 +70,12 @@ export async function GET(request: NextRequest) {
     data: {
       company: company.name,
       owners: liveOwners(seats).map((s) => ({
-        contextId: s.contextId, name: s.name, you: s.personId === personId,
+        contextId: s.contextId, name: s.name, email: s.email ?? null, you: s.personId === personId,
         aloneToAdmin: iAmOwner && movesAloneAfterPass({ actor: me, subject: s, toRoleName: ADMIN_ROLE, passedToActorBy: passedBy, seats }),
       })),
-      others: seats.filter((s) => s.roleName !== OWNER_ROLE && s.live).map((s) => ({ contextId: s.contextId, name: s.name, role: s.roleName })),
+      // Each with the address it signs in with: the name alone could not
+      // tell two records of one person apart (fix list, 2026-11-15).
+      others: seats.filter((s) => s.roleName !== OWNER_ROLE && s.live).map((s) => ({ contextId: s.contextId, name: s.name, email: s.email ?? null, role: s.roleName })),
       roles,
       iAmOwner,
       // The one press that narrows an Admin role trading companies kept

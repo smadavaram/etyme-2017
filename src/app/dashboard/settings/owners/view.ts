@@ -48,3 +48,14 @@ export function moveFormSays(input: { alone: boolean; subjectName: string | null
 export function passFormSays(emailLeaves: boolean): string {
   return `They say yes on a card in Ask Etyme${emailLeaves ? ' and by email' : ''}. Nothing changes until then. Both changes then happen together.`
 }
+
+/**
+ * One person in a picker on Settings → Owners: the name, the address they
+ * sign in with, and then the role or "(you)". The address is what tells
+ * two records of one person apart, and a person from a firm whose record
+ * carries the firm's name (fix list, 2026-11-15).
+ */
+export function personOption(p: { name: string; email?: string | null; role?: string | null; you?: boolean }): string {
+  const parts = [p.name, ...(p.email && p.email !== p.name ? [p.email] : []), ...(p.role ? [p.role] : [])]
+  return `${parts.join(' · ')}${p.you ? ' (you)' : ''}`
+}

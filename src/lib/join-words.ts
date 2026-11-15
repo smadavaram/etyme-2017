@@ -26,7 +26,7 @@
 import { prisma } from '@/lib/db'
 import { isConsumerDomain, isPlatformDomain } from '@/lib/company-domains'
 import { companyPolicy } from '@/lib/identity/read'
-import type { EffectiveMode } from '@/lib/identity/policy'
+import { modeSays, type EffectiveMode } from '@/lib/identity/policy'
 
 export interface JoinFacts {
   companyName: string
@@ -66,6 +66,26 @@ export function joinSentence(f: JoinFacts): string | null {
   if (asks.length) more.push(`Anybody who signs in with an address on ${list(asks)} asks to join, and an Owner or Admin gives them a role.`)
   if (more.length === 0) return `People join ${name} by invitation only. ${invite}`
   return `People join ${name} by invitation. ${invite} ${more.join(' ')}`
+}
+
+/**
+ * What Settings → Sign-in says under "How your people sign in" where nobody
+ * has saved a choice yet (fix list, 2026-11-15). It read "Nothing is set
+ * yet." under a heading that said "People join … by invitation only.",
+ * which read as if the two disagreed. Nothing set means the default
+ * applies, so this says which default and why, from the same facts the
+ * heading reads. Pure.
+ */
+export function defaultModeSays(f: JoinFacts): string {
+  const lead = 'No choice made yet, so the default applies:'
+  if (f.mode === 'SSO_ONLY') return `${lead} ${modeSays('SSO_ONLY', f.companyName)}`
+  if (f.mode !== 'OPEN') return modeSays(f.mode, f.companyName)
+  const live = f.domains.filter((d) => d.verified && !nobodysDomain(d.domain))
+  if (live.length === 0) return `${lead} invitation only, because no domain is verified.`
+  if (!live.some((d) => d.joinPolicy === 'AUTO' || d.joinPolicy === 'REQUEST')) {
+    return `${lead} invitation only, because nobody joins by your verified domain.`
+  }
+  return modeSays('OPEN', f.companyName)
 }
 
 /** The facts for one company, read the way the doors read them. */

@@ -43,7 +43,8 @@
 import { RAISE_A_BILL } from '@/lib/money/nothing-to-bill'
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import type { Route } from 'next'
+import { useRouter, usePathname } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
 import { useOwedCount } from '@/components/shell/ask-etyme-mark'
 import { ViewSwitch, useRememberedTab } from '@/components/shell/view-switch'
@@ -414,6 +415,34 @@ export function searchResultsFor(
     .slice(0, limit)
 }
 
+/** One piece of the sentence under an empty search: words, or a link to a page. */
+export type SaidPart = string | { label: string; href: string }
+
+/**
+ * What the search box says when no page matches (fix list, 2026-11-15:
+ * a tester typed a person's name, read "No results" and thought the
+ * person was missing). The box searches pages only; a person or a company
+ * is found on the list that keeps them. So the sentence names the reader's
+ * own lists, as its menu names them (a client keeps Suppliers, not
+ * Companies), each a link, and names nothing its menu does not hold.
+ */
+export function noPageMatchSays(query: string, pages: readonly SearchResult[]): SaidPart[] {
+  const page = (label: string) => pages.find((p) => p.label === label)
+  const people = page('Candidates')
+  const firms = page('Companies') ?? page('Suppliers')
+  const parts: SaidPart[] = [`No page matches \u201c${query.trim()}\u201d.`]
+  const lists = [people, firms].filter((p): p is SearchResult => Boolean(p))
+  if (lists.length === 0) return parts
+  const what = people && firms ? 'a person or a company' : people ? 'a person' : 'a company'
+  parts.push(` To find ${what}, search on `)
+  lists.forEach((p, i) => {
+    if (i > 0) parts.push(' or ')
+    parts.push({ label: p.label, href: p.href })
+  })
+  parts.push('.')
+  return parts
+}
+
 /** First letters of the first two words of a name, e.g. "Anita Desai" → "AD". */
 function initials(name: string | undefined): string {
   if (!name) return '·'
@@ -465,6 +494,13 @@ export function Header({ title }: HeaderProps) {
   const accountRef = useRef<HTMLDivElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
+  // A new page starts with an empty box, however the reader got there: a
+  // link, the menu, the back button, or a result.
+  const pathname = usePathname()
+  useEffect(() => {
+    setSearchQuery('')
+    setSearchFocused(false)
+  }, [pathname])
   const plusRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -587,9 +623,22 @@ export function Header({ title }: HeaderProps) {
   const results = showSearchResults && (
     <div className="bg-etyme-raised rounded-r-lg shadow-float border border-etyme-rule overflow-hidden">
       {searchResults.length === 0 ? (
-        <div className="px-4 py-3 text-[13px] text-etyme-muted">
-          No results for &ldquo;{searchQuery}&rdquo;
-        </div>
+        <p className="px-4 py-3 text-[13px] text-etyme-muted">
+          {noPageMatchSays(searchQuery, reachablePages).map((part, i) =>
+            typeof part === 'string' ? (
+              <span key={i}>{part}</span>
+            ) : (
+              <Link
+                key={i}
+                href={part.href as Route}
+                onClick={(e) => { e.preventDefault(); navigateTo(part.href) }}
+                className="text-etyme-action-press underline-offset-2 hover:underline focus-visible:underline"
+              >
+                {part.label}
+              </Link>
+            )
+          )}
+        </p>
       ) : (
         <div className="py-1">
           <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">

@@ -7,6 +7,7 @@ import { FormMessage } from '@/components/ui/form'
 import { Panel, Lbl } from './panel-bits'
 import { giveAccessBody, fieldsDrawn, type GiveAccessValues } from '@/lib/permission-grants/form'
 import { focusFromQuery } from '@/app/dashboard/access/focus'
+import { NO_ROLE_LABEL } from '@/lib/access-grant'
 
 /**
  * "Give access", on Users & permissions (founder, 2026-11-08: "Owner
@@ -32,7 +33,7 @@ interface Data {
   ownerRight?: Option | null
   scopes: { key: string; label: string }[]
   roles: { id: string; name: string }[]
-  people: { contextId: string; name: string; roleName: string | null; state?: 'INVITED' | 'WITH_ACCESS' | 'PAUSED' }[]
+  people: { contextId: string; name: string; roleName: string | null; state?: 'INVITED' | 'WAITING_FOR_ROLE' | 'WITH_ACCESS' | 'PAUSED' }[]
   units: { id: string; name: string }[]
   grants: Grant[]
 }
@@ -161,7 +162,7 @@ export function GiveAccess() {
               )}
               <optgroup label="One person">
                 {data.people.map((p) => (
-                  <option key={p.contextId} value={`person:${p.contextId}`}>{p.name}{p.roleName ? ` · ${p.roleName}` : ''}{p.state === 'INVITED' ? ' · invited' : p.state === 'PAUSED' ? ' · paused' : ''}</option>
+                  <option key={p.contextId} value={`person:${p.contextId}`}>{whoOptionLabel(p)}</option>
                 ))}
               </optgroup>
             </select>
@@ -218,4 +219,20 @@ export function GiveAccess() {
     </Panel>
     </div>
   )
+}
+
+/**
+ * One person in the WHO picker: the name, the role, and the state beside
+ * them, so an invited, waiting or paused person is never read as somebody
+ * who has access today. A person who signed in and holds no role reads
+ * "no role yet", the words Users & permissions uses (`NO_ROLE_LABEL`).
+ */
+export function whoOptionLabel(p: { name: string; roleName: string | null; state?: string }): string {
+  const role = p.roleName ? ` · ${p.roleName}` : ''
+  const state =
+    p.state === 'INVITED' ? ' · invited'
+      : p.state === 'PAUSED' ? ' · paused'
+        : p.state === 'WAITING_FOR_ROLE' ? ` · ${NO_ROLE_LABEL.toLowerCase()}`
+          : ''
+  return `${p.name}${role}${state}`
 }

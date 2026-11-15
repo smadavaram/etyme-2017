@@ -43,6 +43,12 @@ export interface Seat {
   roleName: string | null
   /** Not ended and not paused. */
   live: boolean
+  /**
+   * The address the person signs in with, printed beside the name on
+   * Settings → Owners so two records of one person, or a person whose
+   * record carries the firm's name, can be told apart. Never decides.
+   */
+  email?: string | null
 }
 
 export type Verdict = { ok: true } | { ok: false; says: string }

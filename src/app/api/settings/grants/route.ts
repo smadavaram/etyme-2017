@@ -21,6 +21,8 @@ import {
   type HolderSet,
 } from '@/lib/permission-grants'
 import { SCOPE_LABELS } from '@/lib/permission-grants/words'
+import { grantSaid } from './says'
+import { hasSignedIn } from '@/lib/access-grant'
 
 /**
  * GET    /api/settings/grants      — the grants at this company, and what the dialog offers
@@ -174,6 +176,8 @@ export async function POST(request: NextRequest) {
   })) as GrantRow[]
 
   let holder: { kind: 'ROLE' | 'PERSON'; name: string } | null = null
+  // A person invited and never signed in: the grant starts when they do.
+  let invited: { as: string | null } | null = null
   const holderSets: HolderSet[] = []
   let alreadyHeld = false
 
@@ -202,10 +206,18 @@ export async function POST(request: NextRequest) {
   } else if (contextId && !roleId) {
     const seat = await prisma.context.findFirst({
       where: { id: contextId, companyId, revokedAt: null },
-      select: { id: true, roleId: true, person: { select: { name: true } }, role: { select: { name: true, permissions: true } } },
+      select: {
+        id: true, roleId: true, invitedAt: true, lastUsedAt: true,
+        person: { select: { name: true, primaryEmail: true, credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
+        role: { select: { name: true, permissions: true } },
+      },
     })
     if (seat) {
       holder = { kind: 'PERSON', name: seat.person.name }
+      // The same rule the WHO list reads for "· invited" (lib/company-seats).
+      if (!hasSignedIn({ invitedAt: seat.invitedAt, lastUsedAt: seat.lastUsedAt, everSignedIn: seat.person.credentials.length > 0 })) {
+        invited = { as: seat.person.primaryEmail }
+      }
       const set = effectivePermissions(seat.role?.permissions ?? [], { companyId, roleId: seat.roleId, contextId: seat.id }, all)
       alreadyHeld = set.includes(permission) || set.includes('*')
       if (permission === GRANT_RIGHT) alreadyHeld = all.some((g) => g.permission === GRANT_RIGHT && g.contextId === seat.id)
@@ -244,7 +256,7 @@ export async function POST(request: NextRequest) {
     select: { id: true, grantedAt: true },
   })
 
-  const said = `${holder!.name} may now ${labelOf(permission)} ${SCOPE_WORDS[scope]}.`
+  const said = grantSaid({ holderName: holder!.name, doWhat: labelOf(permission), scopeWords: SCOPE_WORDS[scope], invited: invited != null, invitedAs: invited?.as ?? null })
   await prisma.automationLog.create({
     data: {
       companyId,

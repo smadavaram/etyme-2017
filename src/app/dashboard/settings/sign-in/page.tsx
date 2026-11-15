@@ -10,6 +10,7 @@ import { OwnerGateLine } from '@/components/owner-gate-line'
 import { refusalLine, type OwnerLine } from '@/lib/owner-gate'
 import { SIGN_IN_SCREEN_MODES, modeOptionSays, eventWords, sourceWords, eventSays, setLine } from '@/lib/identity/screen-words'
 import { ASSURANCE_SAYS, RESIDENCY_SAYS, SAY_WHY_FIRST, NO_VERIFIED_DOMAIN, PROVE_DOMAIN_HREF, PROVE_DOMAIN_LINK, SAML_NOT_AVAILABLE, scimSays, noScimTokenSays } from '@/components/settings/settings-says'
+import { NO_ROLE_LABEL, MEMBER_DESK } from '@/lib/access-grant'
 
 /**
  * Settings → Sign-in (founder, 2026-11-11, "Enterprise identity"): how the
@@ -32,6 +33,8 @@ type Overview = {
   says: string
   /** How people join this company, from what the doors do (lib/join-words). Null for a one-person firm. */
   joins?: string | null
+  /** Where nobody has saved a choice: the default that applies, and why. */
+  unsetSays?: string | null
   jit: boolean
   scim: boolean
   requiredAssurance: string | null
@@ -167,7 +170,7 @@ export default function SignInSettings() {
       {saidLine && <div role="alert"><OwnerGateLine line={saidLine} className="text-etyme-ink" /></div>}
       {!can && <OwnerGateLine line={o.ownerLine ?? { says: 'Only an Owner changes how people sign in.', href: null, linkSays: null }} />}
 
-      <Panel title="How your people sign in" subtitle={o.setAt ? setLine({ setBy: o.setBy, on: when(o.setAt), reason: o.reason }) : 'Nothing is set yet.'}>
+      <Panel title="How your people sign in" subtitle={o.setAt ? setLine({ setBy: o.setBy, on: when(o.setAt), reason: o.reason }) : o.unsetSays ?? o.says}>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void send('mode', '/api/settings/sign-in', 'PATCH', { mode, reason, jit, scim, requiredAssurance: assurance, dataRegion: region, requireDirectorySuppliers: dirSuppliers }) }}>
           {/* Never greyed, so the chosen way reads as chosen to a reader who
               may not change it (fix list G6); her press changes nothing. */}
@@ -319,9 +322,13 @@ export default function SignInSettings() {
         <ul className="divide-y divide-etyme-rule">
           {o.people.map((p) => (
             <li key={p.contextId} className="flex flex-wrap items-center justify-between gap-2 py-2 text-[13px]">
+              {/* The address on its own line under the name, as Users &
+                  permissions draws it, so a copied row never runs the
+                  name into the address (fix list, 2026-11-15). */}
               <span className="min-w-0">
-                <span className="text-etyme-ink">{p.name}</span> <span className="text-etyme-muted break-all">{p.email}</span>
-                <span className="text-etyme-muted"> · {p.role ?? 'No role'} · {sourceWords(p.source)}{p.paused ? ' · paused' : ''}</span>
+                <span className="block text-etyme-ink">{p.name}</span>
+                {p.email && <span className="block text-etyme-muted break-all">{p.email}</span>}
+                <span className="block text-etyme-muted">{p.role && p.role !== MEMBER_DESK ? p.role : NO_ROLE_LABEL} · {sourceWords(p.source)}{p.paused ? ' · paused' : ''}</span>
               </span>
               <SubmitButton tone="secondary" type="button" pending={busy === `s-${p.personId}`} onClick={() => void send(`s-${p.personId}`, '/api/settings/sign-in/sessions', 'POST', { personId: p.personId })}>Sign out everywhere</SubmitButton>
             </li>

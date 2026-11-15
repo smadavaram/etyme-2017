@@ -82,6 +82,19 @@ export function siteShort(site: { name: string; city?: string | null }): string 
 
 // ── A site's address and time zone (fix list A5, G5, 2026-11-15) ──────
 
+/**
+ * A site's address on one line, as the Sites table prints it under the
+ * site's name: street, city, then the state and ZIP together, from what is
+ * kept and nothing else ("100 Main Street, Denver, CO 80202"). Null where
+ * no part is kept. Pure.
+ */
+export function siteAddressLine(site: { address?: string | null; city?: string | null; state?: string | null; postalCode?: string | null }): string | null {
+  const t = (v: string | null | undefined) => (v ?? '').trim()
+  const tail = [t(site.state), t(site.postalCode)].filter(Boolean).join(' ')
+  const parts = [t(site.address), t(site.city), tail].filter(Boolean)
+  return parts.length > 0 ? parts.join(', ') : null
+}
+
 /** The longest ZIP or postal code kept. Longer is refused, never cut. */
 export const POSTAL_CODE_MAX = 20
 

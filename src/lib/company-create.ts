@@ -724,16 +724,60 @@ async function companyForeignKeys(db: Db): Promise<{ table: string; column: stri
  * (api/suppliers/direct) reads the invitation the same way.
  */
 export async function workTogether(aId: string, bId: string, db: Db = prisma): Promise<boolean> {
-  if (aId === bId) return false
-  const either = <T extends string>(x: T, y: T) => [{ [x]: aId, [y]: bId }, { [x]: bId, [y]: aId }]
-  const hit =
-    (await db.masterAgreement.findFirst({ where: { OR: either('vendorId', 'clientId') }, select: { id: true } })) ??
-    (await db.counterparty.findFirst({ where: { companyId: bId, otherCompanyId: aId }, select: { id: true } })) ??
-    (await db.workOrder.findFirst({ where: { OR: either('issuedById', 'issuedToId') }, select: { id: true } })) ??
-    (await db.sellContract.findFirst({ where: { OR: either('companyId', 'clientCompanyId') }, select: { id: true } })) ??
+  return (await workTogetherAmong(aId, [bId], db)).has(bId)
+}
+
+/**
+ * `workTogether` for many firms at once: the ids among `bIds` the asker
+ * works with, read in five queries whatever the count, never one per firm
+ * (fix list, 2026-11-15: a Companies list of a few hundred rows asked five
+ * queries per row and took twenty seconds). The same facts and the same
+ * exclusions, because `workTogether` is this reader asked about one id, so
+ * the two cannot drift: the asker's own register row and a job the asker
+ * sent never count, and the asker never works with itself.
+ */
+export async function workTogetherAmong(aId: string, bIds: readonly string[], db: Db = prisma): Promise<Set<string>> {
+  const ids = [...new Set(bIds)].filter((id) => id !== aId)
+  const out = new Set<string>()
+  if (ids.length === 0) return out
+  const among = { in: ids }
+  const reads = [
+    // An agreement either way.
+    () => db.masterAgreement.findMany({
+      where: { OR: [{ vendorId: aId, clientId: among }, { clientId: aId, vendorId: among }] },
+      select: { vendorId: true, clientId: true },
+    }).then((rows) => rows.flatMap((r) => [r.vendorId, r.clientId])),
+    // A row on the other firm's register naming the asker: never the asker's own row.
+    () => db.counterparty.findMany({
+      where: { companyId: among, otherCompanyId: aId },
+      select: { companyId: true },
+    }).then((rows) => rows.map((r) => r.companyId)),
+    // An order either way.
+    () => db.workOrder.findMany({
+      where: { OR: [{ issuedById: aId, issuedToId: among }, { issuedToId: aId, issuedById: among }] },
+      select: { issuedById: true, issuedToId: true },
+      distinct: ['issuedById', 'issuedToId'],
+    }).then((rows) => rows.flatMap((r) => [r.issuedById, r.issuedToId])),
+    // A contract either way.
+    () => db.sellContract.findMany({
+      where: { OR: [{ companyId: aId, clientCompanyId: among }, { clientCompanyId: aId, companyId: among }] },
+      select: { companyId: true, clientCompanyId: true },
+      distinct: ['companyId', 'clientCompanyId'],
+    }).then((rows) => rows.flatMap((r) => [r.companyId, r.clientCompanyId])),
     // Only a job the other firm sent the asker: never the asker's own send.
-    (await db.requirementInvitation.findFirst({ where: { toCompanyId: aId, requirement: { companyId: bId } }, select: { id: true } }))
-  return hit !== null
+    () => db.requirementInvitation.findMany({
+      where: { toCompanyId: aId, requirement: { companyId: among } },
+      select: { requirement: { select: { companyId: true } } },
+    }).then((rows) => rows.map((r) => r.requirement.companyId)),
+  ]
+  // In parallel on the shared client; one after another inside a
+  // transaction, whose single connection takes one query at a time.
+  const found = '$transaction' in db
+    ? await Promise.all(reads.map((read) => read()))
+    : await reads.reduce<Promise<string[][]>>(async (acc, read) => [...(await acc), await read()], Promise.resolve([]))
+  const wanted = new Set(ids)
+  for (const id of found.flat()) if (wanted.has(id)) out.add(id)
+  return out
 }
 
 /**

@@ -4,7 +4,7 @@ import { ownerOnlyLineAt } from '@/lib/owner-proof'
 import { fixedAppUrl } from '@/lib/app-url'
 import { companyPolicy } from '@/lib/identity/read'
 import { modeSays } from '@/lib/identity/policy'
-import { joinSentenceFor } from '@/lib/join-words'
+import { joinFactsFor, joinSentence, defaultModeSays } from '@/lib/join-words'
 import { IDENTITY_EVENTS, readIdentityReason } from '@/lib/identity/ledger'
 import { isMockIssuer } from '@/lib/identity/mock-directory'
 import { verifiedDomainsOf } from '@/lib/identity/provision'
@@ -30,8 +30,9 @@ export async function GET(request: NextRequest) {
     await recordRefusal([{ companyId: company.id }], { action: 'PROFILE_VIEW', actorPersonId: caller.person.id, actorCompanyId: company.id, reason: 'Refused reading Settings, Sign-in (its people and their sessions): the seat does not hold settings.manage.' })
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: `How ${company.name}'s people sign in is read by a seat that manages its settings.` } }, { status: 403 })
   }
-  const [p, provider, token, groups, roles, domains, people, events] = await Promise.all([
+  const [p, joinFacts, provider, token, groups, roles, domains, people, events] = await Promise.all([
     companyPolicy(company.id),
+    joinFactsFor(company.id),
     prisma.identityProvider.findFirst({
       where: { companyId: company.id }, orderBy: { createdAt: 'asc' },
       select: { id: true, type: true, label: true, issuer: true, clientId: true, metadataUrl: true, entityId: true, certificate: true, secretRef: true, secretSealed: true, subjectClaim: true, emailClaim: true, groupsClaim: true, enabled: true, updatedAt: true },
@@ -57,7 +58,10 @@ export async function GET(request: NextRequest) {
       effective: p.effective,
       says: modeSays(p.effective, company.name),
       // How people join this company, from what the doors do (lib/join-words).
-      joins: await joinSentenceFor(company.id),
+      joins: joinFacts ? joinSentence(joinFacts) : null,
+      // Under "How your people sign in" where nobody has saved a choice:
+      // the default that applies and why, from the same facts.
+      unsetSays: p.row?.setAt ? null : joinFacts ? defaultModeSays(joinFacts) : null,
       jit: p.row?.jit ?? false,
       scim: p.row?.scim ?? false,
       requiredAssurance: p.row?.requiredAssurance ?? null,
