@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   readSupplierList, readOne, readNames, companyDomain, nameFromDomain,
   splitLines, listSentence, mayClaim,
-  mayBeSentJob, mayBePutForwardTo, ownRecordByName, offeredToSendOn,
+  mayBeSentJob, mayBePutForwardTo, offeredToSendOn, supplierDomain, pastedName,
 } from '@/lib/supplier-list'
 
 /**
@@ -216,11 +216,20 @@ describe('a company on the Companies list that nobody has classified yet', () =>
     expect(mayBePutForwardTo(record, ['CLIENT'])).toEqual({ ok: true })
   })
 
-  it('a pasted supplier whose name is already a record on the list is that record, whatever the case and spacing', () => {
-    const mine = [{ id: 'a', name: 'Ashgrove Contract Staff' }, { id: 'b', name: 'Corrigan Search Partners' }]
-    expect(ownRecordByName('ASHGROVE  contract staff', mine)?.id).toBe('a')
-    expect(ownRecordByName('Ashgrove Contracting', mine)).toBeNull()
-    expect(ownRecordByName('', mine)).toBeNull()
+  it('a pasted or approved supplier is known by the domain typed for it, else by its contact\u2019s address, and a personal address gives it none', () => {
+    expect(supplierDomain('northwind-staffing.example', 'desk@other.example')).toBe('northwind-staffing.example')
+    expect(supplierDomain('https://www.Harborline-Tech.example/jobs', null)).toBe('harborline-tech.example')
+    expect(supplierDomain(null, 'Lead@Saltmarsh-Eng.example')).toBe('saltmarsh-eng.example')
+    expect(supplierDomain(null, 'someone@gmail.com')).toBeNull()
+    expect(supplierDomain('gmail.com', 'desk@northwind-staffing.example')).toBeNull()
+    expect(supplierDomain(null, null)).toBeNull()
+  })
+
+  it('a pasted row is saved only under the company name the person saw, and is never given one made from its domain', () => {
+    expect(pastedName({ company: '  Northwind   Staffing ' })).toBe('Northwind Staffing')
+    expect(pastedName({ company: null })).toBeNull()
+    expect(pastedName({ company: '   ' })).toBeNull()
+    expect(pastedName({})).toBeNull()
   })
 
   it('the send-on picker never offers a company not classified yet', () => {

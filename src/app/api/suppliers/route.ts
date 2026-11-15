@@ -7,7 +7,7 @@ import { seatedDesk } from '@/lib/resolve-client-company'
 import { defaultPostureFor } from '@/lib/walls'
 import { hasPermission } from '@/lib/permissions'
 import {
-  readSupplierList, nameFromDomain, ownRecordByName, type SupplierRow,
+  type SupplierRow, pastedName, supplierDomain, NEEDS_A_NAME_SAYS, READ_IT_FIRST_SAYS,
   CANNOT_SEE_SUPPLIERS, CANNOT_ADD_SUPPLIER, onEtymeAskToLinkSays,
 } from '@/lib/supplier-list'
 import { workTogether } from '@/lib/company-create'
@@ -19,7 +19,8 @@ import { configuredSenders } from '@/lib/senders'
 import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
 import { actingDesk } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
-import { mayInviteRecorded } from '@/lib/counterparty'
+import { mayInviteRecorded, namesakeSays } from '@/lib/counterparty'
+import { twinFor, keepNote } from '@/app/api/companies/twins'
 
 /**
  * GET  /api/suppliers        — who this client buys from, and where each stands
@@ -313,14 +314,16 @@ export async function POST(request: NextRequest) {
   const companyId = desk!.companyId
   const body = await request.json().catch(() => ({}))
 
-  // Either a raw paste, or the rows after somebody has corrected them on
-  // screen. The second is what actually gets sent — the first is only
-  // here so a caller can do both in one step.
-  const rows: SupplierRow[] = Array.isArray(body?.rows)
-    ? body.rows
-    : readSupplierList(String(body?.text ?? '')).rows
+  // The rows after somebody has read them on screen and corrected them
+  // (`POST /api/suppliers/read` makes the preview). A raw paste is never
+  // saved from here: a name read out of a domain is a guess, and a guess is
+  // saved only after the person has seen it (2026-11-15).
+  if (!Array.isArray(body?.rows)) {
+    return NextResponse.json({ error: { code: 'READ_IT_FIRST', message: READ_IT_FIRST_SAYS } }, { status: 422 })
+  }
+  const rows: SupplierRow[] = body.rows
 
-  const usable = rows.filter((r) => r.email && (r.company || r.domain))
+  const usable = rows.filter((r) => r && typeof r.email === 'string' && r.email.includes('@'))
   if (usable.length === 0) {
     return NextResponse.json(
       {
@@ -343,12 +346,19 @@ export async function POST(request: NextRequest) {
     name: string
     email: string
     says: string
-    code: 'NOT_CLASSIFIED' | 'ALREADY_ON_ETYME' | 'OWN_COMPANY'
+    code: 'NOT_CLASSIFIED' | 'ALREADY_ON_ETYME' | 'OWN_COMPANY' | 'NEEDS_A_NAME'
     askToLink?: { name: string; domain: string | null }
   }[] = []
 
   for (const row of usable) {
-    const name = row.company ?? nameFromDomain(row.domain!)
+    // The name the person saw on the preview, never one made here.
+    const name = pastedName(row)
+    if (!name) {
+      refused.push({ name: '', email: row.email, says: NEEDS_A_NAME_SAYS(row.email), code: 'NEEDS_A_NAME' })
+      continue
+    }
+    // The domain this supplier is known by on the caller's own list.
+    const knownBy = supplierDomain(row.domain, row.email)
 
     // ── Which company this is, in three steps ───────────────────────
     //
@@ -366,6 +376,9 @@ export async function POST(request: NextRequest) {
     //    domain from the real Techpeple, be handed it, or collide with a
     //    stranger's sandbox. The domain is recorded on the invitation
     //    and moves onto the company when somebody signs in and claims it.
+    //    The caller's own note of it (`website`, by `keepNote`) is kept
+    //    too, so its row on Companies shows the domain; a note is never
+    //    a claim.
     const claimed = row.domain
       ? await prisma.company.findFirst({
           where: {
@@ -385,14 +398,18 @@ export async function POST(request: NextRequest) {
             select: { company: { select: { id: true, name: true, claimedAt: true, kind: true } } },
           })
 
-    // 2b. A company this client already recorded under the same name on
-    //     its Companies list, nobody having claimed it (the neutral
-    //     Company, 2026-11-12). One record of a firm, never a second
-    //     Vendor copy beside the one already there.
-    const recordedByName =
-      claimed || listedBefore?.company
-        ? null
-        : ownRecordByName(name, await ownRecords(companyId, caller.company!.isDemo))
+    // 2b. A company this client already recorded on its Companies list,
+    //     nobody having claimed it, read by the rule every door onto that
+    //     list reads (`twinFor`, 2026-11-15): the same domain is the same
+    //     company whatever the name; two domains are two companies even
+    //     under one name; with no domain on either side the name decides.
+    //     Only the caller's own records are read, never a firm on Etyme.
+    const onOwnList =
+      claimed || listedBefore?.company ? null : await twinFor(companyId, { name, domain: knownBy })
+    const recordedByName = onOwnList?.twin ?? null
+    // Another record of the same name on another domain, or with none: a
+    // new record is made, and the reply says the two share a name.
+    const namesake = onOwnList && !onOwnList.twin && onOwnList.namesake ? namesakeSays(onOwnList.namesake) : null
 
     const existing = claimed ?? listedBefore?.company ?? recordedByName ?? null
 
@@ -461,6 +478,12 @@ export async function POST(request: NextRequest) {
           isDemo: caller.company!.isDemo,
         },
       }))
+
+    // The domain it was pasted with is kept as this firm's own note on the
+    // record it just made (`keepNote`: never the claim column, only an
+    // empty box, only an unclaimed record of the caller's own), so its row
+    // on Companies shows it.
+    if (!existing && knownBy) await keepNote(prisma, { me: companyId, companyId: supplier.id, domain: knownBy })
 
     // An agreement stub, so the screen does not hold their first
     // submission back for having no relationship on file. Unsigned,
@@ -582,6 +605,7 @@ export async function POST(request: NextRequest) {
       name: supplier.name,
       email: row.email,
       alreadyHere: existing != null && existing.claimedAt != null,
+      ...(namesake ? { says: namesake } : {}),
       claimUrl,
       state: invite.state,
       // Said out loud. NOT_CONFIGURED is a true answer and it points at
@@ -605,20 +629,9 @@ export async function POST(request: NextRequest) {
       refused,
       summary:
         `${firms} ${firms === 1 ? 'supplier' : 'suppliers'} on your list. You can send them a job now — they will find out when one arrives.` +
+        [...new Set(made.map((m) => m.says).filter(Boolean))].map((l) => ` ${l}`).join('') +
         (refused.length > 0 ? ` ${[...new Set(refused.map((r) => r.says))].join(' ')}` : ''),
     },
-  })
-}
-
-/**
- * The companies this firm recorded itself and nobody has claimed: the
- * records a pasted name may already be. Read once per row; a paste is a
- * few dozen rows at most.
- */
-async function ownRecords(companyId: string, isDemo: boolean) {
-  return prisma.company.findMany({
-    where: { listedById: companyId, claimedAt: null, isDemo },
-    select: { id: true, name: true, claimedAt: true, kind: true },
   })
 }
 

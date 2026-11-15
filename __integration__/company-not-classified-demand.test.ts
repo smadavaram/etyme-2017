@@ -87,8 +87,10 @@ describe('a company not classified yet, on the demand side', () => {
 
   it('pasting a company not classified yet into the supplier list invites nobody and says to set its kind first', async () => {
     const before = await prisma.supplierInvite.count({ where: { companyId: recordId } })
+    // Recorded with no domain, and pasted from a personal address: neither
+    // side holds a domain, so the name says it is that record (2026-11-15).
     const r = await json(
-      await suppliers.POST(req('POST', '/api/suppliers', { rows: [{ company: 'Corrigan Search Partners', email: 'desk@corrigan.example', contactName: 'Ruth Corrigan', domain: 'corrigan.example' }] })),
+      await suppliers.POST(req('POST', '/api/suppliers', { rows: [{ company: 'Corrigan Search Partners', email: 'ruth.corrigan.walk@gmail.com', contactName: 'Ruth Corrigan', domain: null }] })),
     )
     expect(r.status).toBe(409)
     expect(r.body.error.message).toBe('Say what kind of company Corrigan Search Partners is before you invite them.')
@@ -109,17 +111,29 @@ describe('a company not classified yet, on the demand side', () => {
     expect((await prisma.company.findUniqueOrThrow({ where: { id: recordId } })).kind).toBe('UNCLASSIFIED')
   })
 
-  it('pasting a supplier whose name is already on the Companies list, with a Kind set, reuses that record rather than making a second one', async () => {
+  it('pasting a supplier whose name is already on the Companies list with no domain, from a personal address, with a Kind set, reuses that record rather than making a second one', async () => {
     as(OWNER)
     const r = await record('Ashgrove Contract Staff')
     const id = r.body.data.company.id
     await prisma.company.update({ where: { id }, data: { kind: 'VENDOR' } })
     const p = await json(
-      await suppliers.POST(req('POST', '/api/suppliers', { rows: [{ company: 'ASHGROVE contract staff', email: 'hello@ashgrove.example', domain: 'ashgrove.example' }] })),
+      await suppliers.POST(req('POST', '/api/suppliers', { rows: [{ company: 'ASHGROVE contract staff', email: 'ashgrove.staff.walk@gmail.com', domain: null }] })),
     )
     expect(p.status).toBe(200)
     expect(p.body.data.added[0].companyId).toBe(id)
     expect(await prisma.company.count({ where: { listedById: brightmoor, name: { equals: 'Ashgrove Contract Staff', mode: 'insensitive' } } })).toBe(1)
+  })
+
+  it('pasting a supplier on a domain whose name is on the Companies list with no domain records it, and says another company on the list shares the name', async () => {
+    as(OWNER)
+    const id = (await record('Pendlecroft Staffing')).body.data.company.id
+    await prisma.company.update({ where: { id }, data: { kind: 'VENDOR' } })
+    const p = await json(
+      await suppliers.POST(req('POST', '/api/suppliers', { rows: [{ company: 'Pendlecroft Staffing', email: 'hello@pendlecroft.example', domain: 'pendlecroft.example' }] })),
+    )
+    expect(p.status, JSON.stringify(p.body)).toBe(200)
+    expect(p.body.data.added[0].companyId).not.toBe(id)
+    expect(p.body.data.summary).toContain('Another company on your list is also called Pendlecroft Staffing, with no domain yet.')
   })
 
   it('a recorded company given the Kind Vendor and no position is still refused a job in the same sentence, and is sent one once it is extended to Supplier', async () => {

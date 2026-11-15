@@ -31,7 +31,8 @@
  */
 
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
-import { firmNameKey, type HeldWith } from '@/lib/counterparty'
+import { firmNameKey, identityDomain, notedDomain, type HeldWith } from '@/lib/counterparty'
+import { domainOfEmail } from '@/lib/company-domains'
 
 // ── Who may open the supplier register ───────────────────────────────
 //
@@ -484,16 +485,39 @@ export function mayBePutForwardTo(
 }
 
 /**
- * Which of a firm's own records a pasted or approved supplier is, by name:
- * a company this firm recorded, nobody has claimed, under the same name
- * (`firmNameKey`). One record of a firm, never a second Vendor copy beside
- * the one already on the Companies list. Pure.
+ * The domain a pasted or approved supplier is known by on the firm's own
+ * list (2026-11-15: "the email is the identifier"): the domain typed for
+ * it, else the domain of its contact's address. Never a personal mail
+ * domain, because a personal mailbox is nobody's company. Pure; the twin
+ * rule itself is `twinOnOwnList` in lib/counterparty, the one every door
+ * onto the Companies list reads.
  */
-export function ownRecordByName<T extends { id: string; name: string }>(name: string, mine: readonly T[]): T | null {
-  const key = firmNameKey(name)
-  if (!key) return null
-  return mine.find((c) => firmNameKey(c.name) === key) ?? null
+export function supplierDomain(typed: unknown, email: unknown): string | null {
+  const fromTyped = identityDomain(typed)
+  if (fromTyped) return fromTyped
+  if (typeof email !== 'string' || notedDomain(typed)) return null
+  const d = domainOfEmail(email.trim())
+  return d ? identityDomain(d) : null
 }
+
+/**
+ * The company name a pasted row is saved under: the one the person saw
+ * and could correct on the preview, and nothing else. A row that reaches
+ * the route with no name is never given one made from its domain, because
+ * that name was never shown to anybody. Pure.
+ */
+export function pastedName(row: { company?: unknown }): string | null {
+  const name = typeof row.company === 'string' ? row.company.replace(/\s+/g, ' ').trim() : ''
+  return firmNameKey(name) ? name.slice(0, 120) : null
+}
+
+/** The one sentence for a pasted row that reached the route with no company name. */
+export const NEEDS_A_NAME_SAYS = (email: string) =>
+  `${email} was not added because it has no company name. Paste it again, check the company name, then press Add.`
+
+/** The one sentence for a paste sent with no preview at all. */
+export const READ_IT_FIRST_SAYS =
+  'Nothing was added. Paste the list on Suppliers, check each company name, then press Add.'
 
 /** Whether a company held in a send-on picker is one a person may be sent on to. Pure. */
 export function offeredToSendOn(c: { notClassified?: boolean | null }): boolean {

@@ -17,8 +17,9 @@ import {
 import { actingDesk } from '@/lib/program-seat'
 import { recordRefusal } from '@/lib/access-log'
 import { hasPermission } from '@/lib/permissions'
-import { mayInviteRecorded } from '@/lib/counterparty'
-import { ownRecordByName } from '@/lib/supplier-list'
+import { mayInviteRecorded, namesakeSays } from '@/lib/counterparty'
+import { supplierDomain } from '@/lib/supplier-list'
+import { twinFor, keepNote } from '@/app/api/companies/twins'
 import { askFirmToLink, askStanding, approvedAskSays } from './link-ask'
 import { firmTookPart } from './took-part'
 import { recordEvidence } from '../evidence'
@@ -424,26 +425,31 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         },
       })
     }
-    // A company this client already recorded on its Companies list under
-    // the same name, nobody having claimed it (the neutral Company,
-    // 2026-11-12): the approval gives that record its Supplier position,
-    // never a second Vendor copy beside it.
-    const onOurList = claimed
-      ? null
-      : ownRecordByName(
-          row.name,
-          await prisma.company.findMany({
-            where: { listedById: companyId, claimedAt: null, isDemo: caller.company!.isDemo },
-            select: { id: true, name: true, claimedAt: true, kind: true },
-          }),
-        )
-    const supplier = claimed ?? onOurList ?? (await prisma.company.create({
+    // A company this client already recorded on its Companies list, nobody
+    // having claimed it, read by the rule every door onto that list reads
+    // (`twinFor`, 2026-11-15): the same domain is the same company whatever
+    // the name, two domains are two companies even under one name, and with
+    // no domain on either side the name decides. The approval gives that
+    // record its Supplier position, never a second Vendor copy beside it.
+    // Only the client's own records are read, never a firm on Etyme.
+    const knownBy = supplierDomain(row.domain, row.contactEmail)
+    const onOwnList = claimed ? null : await twinFor(companyId, { name: row.name, domain: knownBy })
+    const onOurList = onOwnList?.twin ?? null
+    // Another record of the same name on another domain, or with none: a
+    // new record is made, and the answer says the two share a name.
+    const namesake = onOwnList && !onOwnList.twin && onOwnList.namesake ? namesakeSays(onOwnList.namesake) : null
+    const made = claimed || onOurList ? null : await prisma.company.create({
       data: {
         name: row.name, slug: await freeSlug(row.name), domain: null, domainVerified: false, kind: 'VENDOR', currency: 'USD',
         outsideAccess: defaultPostureFor('VENDOR'), listedById: companyId, isDemo: caller.company!.isDemo,
       },
       select: { id: true, name: true, claimedAt: true, kind: true },
-    }))
+    })
+    // The domain it was approved with is kept as the client's own note on
+    // the record just made (`keepNote`: never the claim column), so its row
+    // on Companies shows it.
+    if (made && knownBy) await keepNote(prisma, { me: companyId, companyId: made.id, domain: knownBy })
+    const supplier = claimed ?? onOurList ?? made!
     // Signed only where the copy both firms signed is on file. A row
     // marked on file before the copy was required reads as unsigned, so
     // the agreement stub is written without a signature rather than with
@@ -564,6 +570,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         },
         says:
           `${row.name} is a supplier now, at approved standing. Send them a job.` +
+          (namesake ? ` ${namesake}` : '') +
           (claim
             ? claim.state === 'SENT'
               ? ` ${claim.to} has been emailed a link to take ${row.name}’s account.`
