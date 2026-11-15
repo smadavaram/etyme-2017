@@ -739,9 +739,12 @@ export interface InviteLetter {
  * link out of the stored copy.
  */
 export function inviteLetter(l: InviteLetter): { lines: string[]; link: string | null } {
-  const youAre = l.roleName
-    ? `You are in ${l.companyName} as ${l.roleName}.`
-    : `You are in ${l.companyName}. Somebody there will give you a role once you are in.`
+  // Member, or no role at all, is "No role yet" on every screen, so the
+  // letter says the same (fix list layer 4, 2026-11-15).
+  const noRole = !l.roleName || l.roleName.trim().toLowerCase() === 'member'
+  const youAre = noRole
+    ? `You are in ${l.companyName} with no role yet. An Owner or Admin there gives you one.`
+    : `You are in ${l.companyName} as ${l.roleName}.`
   const days = l.linkHours >= 24 ? `${Math.round(l.linkHours / 24)} days` : `${l.linkHours} hours`
 
   if (l.door === 'PASSWORD' && l.setPasswordUrl) {

@@ -124,6 +124,14 @@ describe('the invitation email', () => {
     expect(l.lines.join(' ')).toContain('for 3 days')
   })
 
+  it('a letter for a seat invited as Member, or with no role, says they are in with no role yet and who gives one, never "as Member"', () => {
+    for (const roleName of ['Member', null]) {
+      const l = inviteLetter({ ...base, roleName })
+      expect(l.lines[0]).toBe('Set your password and you are signed in. You are in Walk Co with no role yet. An Owner or Admin there gives you one.')
+      expect(l.lines.join(' ')).not.toContain('as Member')
+    }
+  })
+
   it('with only Microsoft or Google on, it says "Sign in with your work account at" the sign-in page', () => {
     const l = inviteLetter({ ...base, door: 'WORK_ACCOUNT', setPasswordUrl: null })
     expect(l.lines[0]).toBe('Sign in with your work account at https://app.example/login. You are in Walk Co as HR.')
