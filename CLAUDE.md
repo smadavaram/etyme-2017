@@ -452,7 +452,7 @@ Full text → 40, 11, 56, 68, 72.
 
 ## Parties, deals and the record
 
-Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73.
+Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73, 75.
 
 - **Positions on a deal.** A client only buys. A prime, integrator or MSP
   sells to the client and buys from a sub-vendor by order, or from its
@@ -499,6 +499,11 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73.
   whatever the name, and one name on two domains is two. A company
   missing while a contact is added is created in that save: not
   classified, and nobody is emailed.
+- **Before her yes, a firm reads only what it typed** (2026-11-15 →
+  75). A firm that asked somebody on a record whose words are not its
+  own reads the name, title, skills, place and note on its own listing,
+  and nothing of hers. A search or a filter is a reader too. One reader
+  decides it (`firmReadsAt`). A read by id asks whose list she is on.
 - **A firm on Etyme is never tied to you from your side alone.** Two
   firms on Etyme link by one ask and one yes. No door writes an
   agreement, a register row or an order on a firm that did not take part,
@@ -932,7 +937,7 @@ Full text → 28, 22, 23, 68, 69, 71.
 
 ## How this project tests and ships
 
-Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73, 74.
+Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73, 74, 75.
 
 - **The simulation drives the real routes as real seats**
   (`npm run simulate`), never rows written into tables, and never on
@@ -968,7 +973,9 @@ Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73, 74.
   imports a server-only file, and a test walks for it. A relayed claim
   is re-derived before it steers work. A DNS change is checked against
   the old zone, mail first; a domain with mailboxes and no MX is an
-  outage, said first and alone. Seeded companies hold only reserved
+  outage, said first and alone. After a deploy that adds a column, one
+  read-only request that reads the changed table proves it; the health
+  page does not. Seeded companies hold only reserved
   domains (.example, .invalid, .local), never a real verified one,
   because joining by domain beats creating.
 - **The hardest things**: cycle generation; field-level permissions
