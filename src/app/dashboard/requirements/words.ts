@@ -185,6 +185,16 @@ export function sourceWord(source: string | null | undefined): string {
   }
 }
 
+/**
+ * The sentence on a firm's own copy of a job it was sent, the moment
+ * "Send to your own suppliers" opens it (press walk l2b, 2026-11-15: the
+ * copy was headed with the firm's own name, with no word that a copy was
+ * made). Whose job it copies, and who sees it.
+ */
+export function copySays(clientName: string): string {
+  return `This is your own copy of ${clientName}’s job. Only your firm sees it, until you send it to your suppliers.`
+}
+
 // ── A client on the supplier's address (release walk, 2026-10-27) ─────
 
 /**

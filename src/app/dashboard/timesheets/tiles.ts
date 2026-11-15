@@ -38,13 +38,17 @@ export const TILE_LABEL: Record<Tile, string> = {
   OVERTIME: 'Overtime to decide',
 }
 
-/** The line under the waiting tile. */
-export function waitingSub(n: number): string {
-  return n === 0 ? 'nothing waiting on you' : n === 1 ? '1 week for you to sign' : `${n} weeks for you to sign`
+/**
+ * The line under the waiting tile, named for the act: a client approves
+ * a week, and every firm below it accepts it.
+ */
+export function waitingSub(n: number, act: 'approve' | 'accept' = 'accept'): string {
+  return n === 0 ? 'nothing waiting on you' : n === 1 ? `1 week for you to ${act}` : `${n} weeks for you to ${act}`
 }
 
 /** The line over a list a tile narrowed. */
 export function tileShowing(tile: Tile, n: number): string {
+  if (n === 0) return TILE_EMPTY[tile]
   const weeks = n === 1 ? '1 week' : `${n} weeks`
   switch (tile) {
     case 'WAITING_ON_YOU':

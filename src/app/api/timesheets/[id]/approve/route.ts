@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { notSignableSays } from '../../not-signable'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
+import { mayReadBillRate } from '@/lib/money/pay-visibility'
 import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
 import { seatFor, actingInSeat } from '@/lib/program-seat'
@@ -1315,7 +1316,14 @@ export async function POST(
   // pays": for the employer it is the bill to the firm above it, and what
   // the employer pays its own W2 is payroll's to work out at the pay rate
   // (`acceptedSays`, the third screen walk's fault M4).
-  const worthSays = worth == null ? '' : ` — ${amount(value.totalCents, worthCurrency)} billable`
+  // What the leg bills at is read only by the seats that price and bill
+  // it (`mayReadBillRate`). AP & Payroll accepts the week and reads no
+  // amount: 40 hours and the figure give the rate away.
+  const readsBill = mayReadBillRate(
+    { permissions: acting.permissions, companyId: signingAs.companyId ?? null, companyKind: signingAs.companyKind },
+    { sellerId: deciding.companyId, clientId: deciding.clientCompanyId }
+  )
+  const worthSays = worth == null || !readsBill ? '' : ` — ${amount(value.totalCents, worthCurrency)} billable`
 
   // Below the top: what this firm bills upward, and how the person below
   // it is paid, each only where this press knows it.
@@ -1328,7 +1336,7 @@ export async function POST(
       // The employer's figure is on the contract the hours are filed on,
       // which is its bill to the firm directly above it.
       if (worth != null && leg.onHoursLeg) {
-        billMinor = value.totalCents
+        billMinor = readsBill ? value.totalCents : null
         billsName = timesheet.sellContract.clientCompany?.name ?? nameOf(timesheet.sellContract.clientCompanyId)
       }
       const lines = await prisma.buyContract.findMany({
@@ -1371,7 +1379,7 @@ export async function POST(
       id,
       status: g.mayInvoice && g.mayPay ? 'APPROVED' : 'SUBMITTED',
       totalHours: hours,
-      billAmount: worth,
+      billAmount: readsBill ? worth : null,
       // Below the top, the client's overtime decision as a fact — "Northbend
       // Athletic decided 5 hours at time and a half." — or, where it could
       // not be read, why the week carries no figure. Null at the top.

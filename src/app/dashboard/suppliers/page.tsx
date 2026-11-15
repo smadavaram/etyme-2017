@@ -1179,7 +1179,7 @@ export default function SuppliersPage() {
             {busy ? 'Reading…' : 'Read the list'}
           </button>
           <span className="text-[12px] text-etyme-faint">
-            A spreadsheet column, a signature block, or an Outlook To: field.
+            A spreadsheet column, a signature block, or the To: line of an email.
           </span>
         </div>
 

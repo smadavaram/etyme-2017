@@ -415,7 +415,7 @@ export default function ProgramTeamPage() {
             </tbody>
           </table>
         </div>
-        {draft.kind !== 'VALUE' && ruleForm}
+        {adding && draft.kind !== 'VALUE' && ruleForm}
       </section>
 
       {/* ── A new unit ── */}
@@ -478,14 +478,16 @@ export default function ProgramTeamPage() {
             </tbody>
           </table>
         </div>
-
+        {/* The button and its form sit where the money rules are listed;
+            the form moves under the desks only while one is being named. */}
+        {(!adding || draft.kind === 'VALUE') && ruleForm}
       </section>
 
       {/* ── Whose money ── */}
       <section className="panel mb-6">
-        <h2 className="headline-serif text-[17px] text-etyme-ink">Whose budget</h2>
+        <h2 className="headline-serif text-[17px] text-etyme-ink">Whose cost center</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-etyme-muted">
-          A job request charged to a budget nobody owns has nobody to ask
+          A job request charged to a cost center nobody owns has nobody to ask
           about it, so it goes for approval instead.
         </p>
         <div className="mt-4 overflow-scroll-x">

@@ -159,7 +159,7 @@ describe('a new client’s first job', () => {
   it('a job form with no budget set up does not ask for one and does not say it goes for approval', () => {
     const none = budgetField(false)
     expect(none.show).toBe(false)
-    expect(none.says).toBe('No budget is set up here yet, so this job needs none. Once one is set up, you pick it here.')
+    expect(none.says).toBe('No cost center is set up here yet, so this job needs none. Once one is set up, you pick it here.')
     expect(none.says).not.toMatch(/approval/)
     expect(budgetField(true).show).toBe(true)
   })

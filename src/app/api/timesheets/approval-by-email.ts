@@ -698,10 +698,23 @@ export function approvedByWords(i: { approverName: string; on: Date; how: 'LINK'
  * — Acme was not on Etyme". Said of the day it was approved, so it reads
  * the same after the client claims its record.
  */
-export function offPlatformApprovalWords(i: { approverName: string; approverEmail: string; clientName: string }): string {
+export function offPlatformApprovalWords(i: {
+  approverName: string
+  approverEmail: string
+  clientName: string
+  /**
+   * An attached file says the record's words, the day and "evidence
+   * attached" (docs/decisions/46), then that the client was not on Etyme
+   * (the press walk l2a, 2026-11-15). Absent: a link the approver answered.
+   */
+  evidence?: { on: Date; now: Date }
+}): string {
   const name = i.approverName.trim()
   const email = i.approverEmail.trim().toLowerCase()
   const client = i.clientName.trim() || 'The client'
+  if (i.evidence) {
+    return `${approvedByWords({ approverName: name, on: i.evidence.on, how: 'EVIDENCE', now: i.evidence.now })} — ${client} was not on Etyme`
+  }
   return `Approved by email: ${name}, ${email} — ${client} was not on Etyme`
 }
 

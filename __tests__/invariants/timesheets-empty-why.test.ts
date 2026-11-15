@@ -239,7 +239,7 @@ describe('one bucket, one name', () => {
     expect(tileShowing('WAITING_ON_YOU', 1)).toBe('Showing the 1 week waiting on you.')
     expect(TILE_EMPTY.OVERTIME).toBe('No weeks have overtime to decide.')
     expect(waitingSub(0)).toBe('nothing waiting on you')
-    expect(waitingSub(3)).toBe('3 weeks for you to sign')
+    expect(waitingSub(3)).toBe('3 weeks for you to accept')
   })
 
   it('a supplier is told how many weeks wait for the client’s approval, and who attaches it where the seat may not', () => {

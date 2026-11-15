@@ -5,7 +5,7 @@ import { usePageSection } from '@/components/page-section'
 
 import { useEffect, useState, useCallback } from 'react'
 import { range } from '@/lib/money-display'
-import { statusWord, stageWordFor, stageReason, sourceWord, jobListWord, readsMarginClass, putForward } from '../words'
+import { statusWord, stageWordFor, stageReason, sourceWord, jobListWord, readsMarginClass, putForward, copySays } from '../words'
 import { hasPermission } from '@/lib/permissions'
 import { useSession } from '@/components/session-provider'
 import { mayEdit } from '@/lib/requisition-stage'
@@ -136,6 +136,12 @@ export default function RequirementDetailPage() {
   const [requirement, setRequirement] = useState<Requirement | null>(null)
   // Whether this reader raised the job — the matches route answers it.
   const [raiser, setRaiser] = useState(false)
+  // Opened by "Send to your own suppliers": this job is the firm's own
+  // copy of the one it was sent, and the page says so (`copySays`).
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    setCopied(new URLSearchParams(window.location.search).get('copied') === '1')
+  }, [])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // A refusal is drawn alone: no back link to a list the reader's menu
@@ -216,7 +222,7 @@ export default function RequirementDetailPage() {
       })
       const body = await readJson(res)
       const id = body.data?.requirement?.id
-      if (id) window.location.href = `/dashboard/requirements/${id}`
+      if (id) window.location.href = `/dashboard/requirements/${id}?copied=1`
     } catch (err: any) {
       setDistributeResult(`Error: ${err.message}`)
       setPassing(false)
@@ -329,6 +335,9 @@ export default function RequirementDetailPage() {
         {/* A sentence, not a code. Somebody who opens a role that was
             withdrawn should read why on the way in, rather than find
             out by submitting into it. */}
+        {copied && raiser && requirement.endClientCompany && requirement.endClientCompany.id !== requirement.company.id && (
+          <p className="mt-2 text-[13px] text-etyme-muted">{copySays(requirement.endClientCompany.name)}</p>
+        )}
         {stoppedBecause && (
           <p className="mt-2 text-[13px] text-etyme-muted">
             {requirement.status === 'CANCELLED'

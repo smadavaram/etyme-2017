@@ -215,13 +215,16 @@ export async function weekTurns(
     }),
     prisma.company.findMany({
       where: { id: { in: [...new Set(shaped.flatMap((x) => x.signers.map((s) => s.companyId)))] } },
-      select: { id: true, name: true },
+      select: { id: true, name: true, claimedAt: true },
     }),
   ])
   const names = new Map(firms.map((c) => [c.id, c.name]))
+  // A client nobody has claimed is not on Etyme and never signs here
+  // (the same reading as the Timesheets panel's `clientsWithNoApprover`).
+  const onEtyme = new Map(firms.map((c) => [c.id, c.claimedAt != null]))
   for (const { w, ladder, signers } of shaped) {
     const mine = live.filter((a) => a.timesheetId === w.id)
-    const turn = turnOf(signers, companyId, (s) => signedBy(s, w, mine), (id) => names.get(id) ?? 'The firm above you')
+    const turn = turnOf(signers, companyId, (s) => signedBy(s, w, mine), (id) => names.get(id) ?? 'The firm above you', (id) => onEtyme.get(id) ?? true)
     // The signatures still missing, in the order they come, each firm by
     // name: what a reader who signs nothing on the week (the worker, or
     // a one-person firm reading its own) is told it is waiting on.

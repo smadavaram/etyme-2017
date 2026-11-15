@@ -43,7 +43,11 @@ export interface AcceptedSaysInput {
   billMinor: number | null
   /** The currency of the line the bill figure is on. */
   currency: string
-  /** Who the bill goes to: the firm directly above. */
+  /**
+   * Who the bill goes to: the firm directly above. Set with a null
+   * `billMinor` where the week can be billed and this seat may not read
+   * what the line bills at (`mayReadBillRate`): the sentence names no amount.
+   */
   billsName: string | null
   /** How the person below is paid, where the press knows. */
   paidBelow: PaidBelow | null
@@ -52,7 +56,13 @@ export interface AcceptedSaysInput {
 }
 
 export function acceptedSays(x: AcceptedSaysInput): string {
-  const bill = x.billMinor != null && x.billsName ? `${amount(x.billMinor, x.currency)} to bill ${x.billsName}.` : null
+  // A seat that may not read what the line bills at is told the week can
+  // be billed, never the amount: 40 hours and the figure give the rate.
+  const bill = x.billsName
+    ? x.billMinor != null
+      ? `${amount(x.billMinor, x.currency)} to bill ${x.billsName}.`
+      : `It can now be billed to ${x.billsName}.`
+    : null
   const below = paidBelowSays(x.paidBelow)
 
   let out: string

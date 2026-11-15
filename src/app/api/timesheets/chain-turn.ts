@@ -104,7 +104,13 @@ export function turnOf(
   signers: Signer[],
   companyId: string,
   signed: (s: Signer) => boolean,
-  nameOf: (companyId: string) => string
+  nameOf: (companyId: string) => string,
+  /**
+   * Whether a firm is on Etyme. A client that is not never signs here, so
+   * a week waiting on it says to attach the approval it gave, in the words
+   * of the panel above the list (`clientApprovalSays`). Absent: every firm is.
+   */
+  onEtyme: (companyId: string) => boolean = () => true
 ): Turn {
   const mine = signers.filter((s) => s.companyId === companyId)
   if (mine.length === 0) {
@@ -120,6 +126,13 @@ export function turnOf(
   }
   const at = signers.indexOf(pending)
   const waiting = signers.slice(0, at).find((s) => !signed(s))
+  if (waiting && waiting.role === 'CLIENT_APPROVAL' && !onEtyme(waiting.companyId)) {
+    return {
+      ok: false,
+      code: 'NOT_YOUR_TURN',
+      says: `${nameOf(waiting.companyId)} is not on Etyme, so it does not sign here. Open the week to attach the approval they gave.`,
+    }
+  }
   if (waiting) {
     return {
       ok: false,

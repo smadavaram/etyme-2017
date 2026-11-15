@@ -1193,7 +1193,7 @@ export default function TimesheetsPage() {
         {/* A tile that counts weeks is a button: pressed, the list shows
             exactly those weeks, and pressed again, every week (./tiles). */}
         <TileButton tile="WAITING_ON_YOU" on={tile} set={setTile}>
-          <Stat label={TILE_LABEL.WAITING_ON_YOU} value={pendingApproval} sub={waitingSub(pendingApproval)}
+          <Stat label={TILE_LABEL.WAITING_ON_YOU} value={pendingApproval} sub={waitingSub(pendingApproval, company?.kind === 'CLIENT' || atDesk ? 'approve' : 'accept')}
             tone={pendingApproval > 0 ? 'attention' : 'default'} />
         </TileButton>
         <TileButton tile="FLAGGED" on={tile} set={setTile}>

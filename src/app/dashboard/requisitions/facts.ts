@@ -259,7 +259,7 @@ export function defaultPanel(hiringManager: string | null | undefined): string[]
 export function budgetField(costCentersOffered: boolean): { show: boolean; says: string } {
   return costCentersOffered
     ? { show: true, says: 'Without one, nobody owns the spend and it goes for approval.' }
-    : { show: false, says: 'No budget is set up here yet, so this job needs none. Once one is set up, you pick it here.' }
+    : { show: false, says: 'No cost center is set up here yet, so this job needs none. Once one is set up, you pick it here.' }
 }
 
 /**

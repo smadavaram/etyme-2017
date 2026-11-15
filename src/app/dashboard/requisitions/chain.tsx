@@ -331,7 +331,7 @@ export function whoWillBeAsked(
       ? budget.owner
         ? null
         : `${budget.code} has nobody answerable for it, so nobody gives the final word on its spend.`
-      : 'Pick the budget and this says who would be asked.',
+      : 'Pick the cost center and this says who would be asked.',
     money: (team?.approvers ?? [])
       .filter((a) => a.kind === 'VALUE')
       .map((a) => ({

@@ -431,7 +431,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
               the line says the job needs none (release walk, 2026-10-27). */}
           {budget.show ? (
             <label className="block">
-              <Lbl>Which budget pays for it</Lbl>
+              <Lbl>Which cost center pays for it</Lbl>
               <select value={form.costCenterId} onChange={e => setForm({ ...form, costCenterId: e.target.value })}
                 className={`${field} mt-1`}>
                 <option value="">— not stated —</option>
@@ -503,10 +503,10 @@ function RaiseModal({ onClose, onRaised, team, me }: {
                 <li className="text-[13px] text-etyme-muted">
                   <span className="text-etyme-ink">The money — the lead.</span>{' '}
                   {asked.lead
-                    ? `${asked.lead.name}, who owns this budget — if it is over budget.`
+                    ? `${asked.lead.name}, who owns this cost center — if it is over budget.`
                     : !budget.show && asked.money.length === 0
-                      ? 'No budget is set up yet, so nobody is asked about the money.'
-                      : (asked.leadNote ?? 'Pick the budget and this says who would be asked.')}
+                      ? 'No cost center is set up yet, so nobody is asked about the money.'
+                      : (asked.leadNote ?? 'Pick the cost center and this says who would be asked.')}
                 </li>
                 {asked.money.map(m => (
                   <li key={m.id} className="text-[13px] text-etyme-muted">
