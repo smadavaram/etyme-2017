@@ -30,6 +30,7 @@ import {
 import { sweepExpired } from '@/lib/holds'
 import { seatHasSignedIn } from '@/lib/access-grant'
 import { signedInHere } from '@/lib/access-log'
+import { accessUseHere } from '@/lib/watch/access-use'
 
 /**
  * GET /api/cron/watch
@@ -285,6 +286,10 @@ async function lookAtAccess(now: Date): Promise<Finding[]> {
     toAsk.set(c.companyId!, [...(toAsk.get(c.companyId!) ?? []), c.personId])
   }
   const here = new Map(await Promise.all([...toAsk].map(async ([companyId, ids]) => [companyId, await signedInHere(companyId, ids)] as const)))
+  // Whether and when she used the seat is this firm's own access log
+  // (accessUseHere), never the use-date column alone, which nothing writes:
+  // without it the watch says nothing about use (2026-11-16).
+  const used = await accessUseHere(rows.map((c) => ({ contextId: c.id, companyId: c.companyId!, personId: c.personId, invitedAt: c.invitedAt, lastUsedAt: c.lastUsedAt })))
 
   return watchAccess(
     rows.map((c) => ({
@@ -298,6 +303,7 @@ async function lookAtAccess(now: Date): Promise<Finding[]> {
       rolePermissions: c.role?.permissions ?? [],
       suspendedAt: c.suspendedAt,
       hasSignedIn: seatHasSignedIn({ invitedAt: c.invitedAt, lastUsedAt: c.lastUsedAt, signedInHere: here.get(c.companyId!)?.has(c.personId) ?? false }),
+      usedHere: used.get(c.id),
     })),
     now
   )
