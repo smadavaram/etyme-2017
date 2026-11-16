@@ -71,7 +71,7 @@ describe("a supplier's own bill", () => {
 
     // The route builds its answer from that one shape and reads no split.
     const route = read('src/app/api/invoices/[id]/own-bill/route.ts')
-    expect(route).toContain('data: ownBillView(')
+    expect(route).toMatch(/data: \{\s*\.\.\.ownBillView\(/)
     expect(route).not.toMatch(/costAllocation|costCenter|glAccount|internalOrder|allocateAmount|erp-profiles/)
   })
 

@@ -21,7 +21,7 @@ describe('what is left on an order is one figure on a bill’s page', () => {
     // Both sides of one bill read it through that door, and neither sums the order itself.
     for (const route of ['src/app/api/invoices/[id]/coding/route.ts', 'src/app/api/invoices/[id]/own-bill/route.ts']) {
       const text = read(route)
-      expect(text, route).toContain('await leftAfterThisBill(invoice)')
+      expect(text, route).toContain('leftAfterThisBill(invoice)')
       expect(text, route).not.toMatch(/drawnOnOrder\(|poBalance\(|prisma\.invoice\.aggregate\(/)
     }
   })
