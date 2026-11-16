@@ -452,7 +452,7 @@ Full text → 40, 11, 56, 68, 72.
 
 ## Parties, deals and the record
 
-Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73, 75.
+Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73, 75, 77.
 
 - **Positions on a deal.** A client only buys. A prime, integrator or MSP
   sells to the client and buys from a sub-vendor by order, or from its
@@ -504,6 +504,11 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73, 75.
   own reads the name, title, skills, place and note on its own listing,
   and nothing of hers. A search or a filter is a reader too. One reader
   decides it (`firmReadsAt`). A read by id asks whose list she is on.
+  A refusal or a missing line is a reader too: nothing a firm reads
+  before her yes moves with her data, her rate or her account (→ 77).
+- **Who is on the bench reads the same on every page** (2026-11-16 →
+  77): placed today through any firm's line is off the bench, and
+  nothing of the other firm's deal is read.
 - **A firm on Etyme is never tied to you from your side alone.** Two
   firms on Etyme link by one ask and one yes. No door writes an
   agreement, a register row or an order on a firm that did not take part,
@@ -944,7 +949,7 @@ Full text → 28, 22, 23, 68, 69, 71.
 
 ## How this project tests and ships
 
-Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73, 74, 75, 76.
+Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73, 74, 75, 76, 77.
 
 - **The simulation drives the real routes as real seats**
   (`npm run simulate`), never rows written into tables, and never on
