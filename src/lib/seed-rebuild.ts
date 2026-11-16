@@ -110,6 +110,9 @@ export const DELETE_ORDER = [
   // The security log is kept (KEPT): no foreign key reaches it and the
   // database refuses to delete a row of it. Named so the list is whole.
   'SecurityEvent',
+  // Layer 9 (record 87): a line's message names the run, the receipt, its
+  // line and the payer; the payer's coding settings name the payer.
+  'BillFeedMessage', 'CompanyCoding',
   'Credential', 'EmailToken', 'SignInFailure', 'Context', 'ProgramSeat', 'ProgramSeatRequest', 'TradeLinkRequest', 'AccessLog', 'Interview', 'IdentityMatch', 'SupplierInvite',
   'Counterparty', 'CompanyContact', 'BenchListing', 'BenchWant', 'BenchHolidaySwitch', 'VisaDocument', 'VisaEvent', 'MasterAgreementVersion',
   'AgreementSignature', 'EarlyPaymentDiscount', 'HeadcountPlan', 'ApprovalRuleVersion', 'RequirementApproval',
