@@ -76,7 +76,7 @@ describe('a bill sent to a payer on Etyme records what its channel did, never a 
     const { channelSays } = await import('@/lib/notify/bill-delivery')
     const { failureNote } = await import('@/lib/notify/mail-failure')
     const refused = failureNote({ provider: 'Resend', status: 403, words: 'The etyme.com domain is not verified' })
-    expect(channelSays('SENT', null)).toBe('Shown in the app, and sent on their channel')
+    expect(channelSays('SENT', null)).toBe('Shown in the app. Handed to the email service. Delivery is not confirmed yet.')
     expect(channelSays('FAILED', refused)).toMatch(/^Shown in the app; on their channel it did not go\. Etyme’s email sender refused it/)
     expect(channelSays('FAILED', refused)).not.toMatch(/Resend|403|domain/)
     expect(channelSays('NOT_CONFIGURED', null)).toBe('Shown in the app; nothing is set up to send on their channel')

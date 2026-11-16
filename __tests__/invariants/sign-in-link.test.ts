@@ -30,7 +30,7 @@ describe('the sign-in line on a person\'s row', () => {
 
   it('where email can leave, the row says it was sent and offers Send again', () => {
     const line = signInLineSays({ ...facts, state: 'SENT', at: '2026-11-03T09:00:00Z' })
-    expect(line.says).toBe('Rajesh was sent a sign-in link on Nov 3, 2026, to rajesh@example.com.')
+    expect(line.says).toBe('The sign-in link to rajesh@example.com was handed to the email service on Nov 3, 2026.')
     expect(line.action).toBe('Send again')
     expect(sendFirstAction()).toBe('Send a sign-in link')
   })

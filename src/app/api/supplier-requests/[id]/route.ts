@@ -141,7 +141,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const delivery = await sendLink({ to: row.contactEmail, contactName: row.contactName, firmName: row.name, clientName: desk!.companyName, token: row.token, papersOnly: walk === 'PAPERS' })
     // Sent means an email left; where none did, the link is still kept for staff to send.
     if (delivery.state === 'SENT') await prisma.supplierRequest.update({ where: { id }, data: { linkSentAt: now } })
-    return NextResponse.json({ data: { delivery, says: delivery.state === 'SENT' ? `${row.name} has been sent its link again.` : `No email left. Copy the link and send it to ${row.name} yourself.` } })
+    return NextResponse.json({ data: { delivery, says: delivery.state === 'SENT' ? `The link for ${row.name} was handed to the email service again. Delivery is not confirmed yet.` : `No email left. Copy the link and send it to ${row.name} yourself.` } })
   }
 
   if (action === 'mark') {
@@ -576,7 +576,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           (namesake ? ` ${namesake}` : '') +
           (claim
             ? claim.state === 'SENT'
-              ? ` ${claim.to} has been emailed a link to take ${row.name}’s account.`
+              ? ` The link for ${claim.to} to take ${row.name}’s account was handed to the email service. Delivery is not confirmed yet.`
               : ` The link for ${claim.to} to take ${row.name}’s account did not go out: ${claim.note}`
             : inviteHeld ? ` ${inviteHeld}` : '') +
           (recorded > 0

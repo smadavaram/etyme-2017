@@ -101,7 +101,7 @@ export function says(invite: Invite, opts: { mail: boolean }): { now: string; ne
     case 'ASKED':
       return {
         now: opts.mail
-          ? `${first} has been sent a link and has not answered yet.`
+          ? `${first}’s link was handed to the email service and has not been answered yet. Delivery is not confirmed.`
           : `The ask for ${first} shows in Etyme. ${NO_MAIL_HERE}, so ${first} has not been sent the link.`,
         next: null,
       }

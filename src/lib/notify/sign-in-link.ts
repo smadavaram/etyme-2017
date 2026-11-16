@@ -223,8 +223,8 @@ export function signInLineSays(f: SignInFacts): SignInLine {
       }
     case 'SENT':
       return {
-        says: f.at ? `${first} was sent a sign-in link on ${formatDay(f.at)}, to ${f.email}.` : `${first} was sent a sign-in link, to ${f.email}.`,
-        note: `It works for ${SIGN_IN_LINK_HOURS} hours.`,
+        says: f.at ? `The sign-in link to ${f.email} was handed to the email service on ${formatDay(f.at)}.` : `The sign-in link to ${f.email} was handed to the email service.`,
+        note: `Delivery is not confirmed yet. It works for ${SIGN_IN_LINK_HOURS} hours.`,
         action: 'Send again',
       }
     case 'FAILED':

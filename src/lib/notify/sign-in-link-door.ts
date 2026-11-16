@@ -294,7 +294,7 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
       action: 'PERSON_INVITED',
       // The firm's activity log reads this: the name the firm reads her as.
       summary: `${caller.person.name} made a sign-in link for ${g.as.logged}` +
-        (state === 'SENT' ? ', sent by email.' : state === 'FAILED' ? '; the email did not go.' : ', kept to hand over by hand.'),
+        (state === 'SENT' ? ', handed to the email service.' : state === 'FAILED' ? '; the email did not go.' : ', kept to hand over by hand.'),
       reason: 'A person the firm employs or lists had no way to sign in here, so no timesheet could be filed.',
       payload: { personId: g.person.id, delivery: state, byPersonId: caller.person.id },
       // A newer link replaces it, and an unused one runs out on its own.

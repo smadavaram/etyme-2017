@@ -343,7 +343,7 @@ export function deliverySays(d: BillDelivery, now: Date): string {
   const went = d.to.filter((t) => REACHED.has(t.state)).map((t) => t.address)
   const stuck = d.to.filter((t) => !REACHED.has(t.state))
   const parts: string[] = []
-  if (went.length) parts.push(`Sent${again} to ${andList(went)} on ${when}`)
+  if (went.length) parts.push(`Handed to the email service${again} for ${andList(went)} on ${when}. Delivery is not confirmed yet`)
   for (const t of stuck) {
     const why =
       t.state === 'DEMO_SKIPPED' ? 'it is a demo address, so nothing left'
@@ -374,7 +374,7 @@ export function billSentSays(history: BillDelivery[], now: Date): string | null 
   const firstReached = first.to.some((t) => REACHED.has(t.state))
   const firstDay = onDay(new Date(first.at), now)
   // "first sent Oct 19" beside "sent again on Oct 19" says nothing.
-  return firstReached && firstDay !== onDay(new Date(last.at), now) ? `${said}; first sent ${firstDay}` : said
+  return firstReached && firstDay !== onDay(new Date(last.at), now) ? `${said}; first handed over ${firstDay}` : said
 }
 
 // ── The page ──────────────────────────────────────────────────────────

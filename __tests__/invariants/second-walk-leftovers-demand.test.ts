@@ -115,7 +115,7 @@ describe('an ask promises an email only where one can leave', () => {
 
   it('the row of an ask waiting on an answer says a link was sent only where an email can leave', () => {
     const row = { state: 'ASKED' as const, name: 'Lucía Fernández', answer: null, supplierName: null }
-    expect(says(row, { mail: true }).now).toBe('Lucía has been sent a link and has not answered yet.')
+    expect(says(row, { mail: true }).now).toBe('Lucía’s link was handed to the email service and has not been answered yet. Delivery is not confirmed.')
     expect(says(row, { mail: false }).now).toBe(`The ask for Lucía shows in Etyme. ${NO_MAIL_HERE}, so Lucía has not been sent the link.`)
   })
 

@@ -33,6 +33,7 @@ import { effectiveMode, isLimitedPublicSeat, narrowForPublicSeat, type CompanyPo
 import { momentFor } from '@/lib/when'
 import { clause } from '@/lib/owner-rules'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { HANDED_TO_EMAIL_SERVICE } from '@/lib/notify/mail-failure'
 import { GRANT_LABELS } from '@/lib/permission-grants/words'
 
 export type GrantSensitivity = 'CRITICAL' | 'HIGH' | 'STANDARD' | 'READ_ONLY'
@@ -1015,7 +1016,7 @@ export function inviteSays(i: {
     : ` ${NO_ROLE_SEES}`
 
   if (i.mail === 'SENT') {
-    return `${head} and emailed.${seat} The email tells them how to sign in.`
+    return `${head}.${seat} ${HANDED_TO_EMAIL_SERVICE} It tells them how to sign in.`
   }
   if (i.mail === 'FAILED') {
     const why = i.reason ? ` ${i.reason}` : ''
@@ -1052,15 +1053,15 @@ export interface InviteMail {
 }
 
 /**
- * "Email sent Thu, Nov 12, 3:40 PM PST." or "Email not sent: <why> Copy
+ * "Email handed over Thu, Nov 12, 3:40 PM PST." or "Email not sent: <why> Copy
  * the invitation, or send it again." The moment is printed in the reader's
  * own zone (lib/when). Null where no invitation email is on the record.
  */
 export function mailLine(m: InviteMail | null | undefined, zone: string | null): string | null {
   if (!m) return null
-  if (m.state === 'SENT' && m.at) return `Email sent ${momentFor(new Date(m.at), zone)}.`
+  if (m.state === 'SENT' && m.at) return `Email handed over ${momentFor(new Date(m.at), zone)}. Delivery is not confirmed yet.`
   if (m.state === 'PENDING') return 'Email waiting to go.'
-  if (m.state === 'SENT') return 'Email sent.'
+  if (m.state === 'SENT') return HANDED_TO_EMAIL_SERVICE
   const why = m.why ?? (m.state === 'NOT_CONFIGURED' ? 'No email can be sent from here yet.' : 'It did not leave.')
   const next = m.state === 'DEMO_SKIPPED' ? ''
     : m.state === 'NOT_CONFIGURED' ? ' Copy the invitation and send it to them yourself.'
@@ -1209,7 +1210,7 @@ export function sentAgainLogged(actorName: string, email: string, mail: InviteMa
 }
 
 export function sentAgainSays(email: string, mail: InviteMailState, why: string | null): string {
-  if (mail === 'SENT') return `Sent again to ${email}. It is the same seat; nothing was duplicated.`
+  if (mail === 'SENT') return `Invitation for ${email} handed to the email service again. Delivery is not confirmed yet. It is the same seat; nothing was duplicated.`
   return `Not sent to ${email}: ${why ?? 'it did not leave.'} It is the same seat; nothing was duplicated. ${COPY_LABEL} and send it to them yourself.`
 }
 

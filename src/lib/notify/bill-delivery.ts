@@ -10,7 +10,7 @@ import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { refusalFor, type CallerContext } from '@/lib/api-context'
 import { reportError } from '@/lib/alerts'
-import { failureFromNote, mailFailureSays } from '@/lib/notify/mail-failure'
+import { failureFromNote, mailFailureSays, HANDED_TO_EMAIL_SERVICE, TEAMS_POSTED_SAYS } from '@/lib/notify/mail-failure'
 import {
   billLetter, billNotice, billLinkToken, billLinkUrl, billLinkExpiresAt, billLinkOpen,
   readBillLinkToken, billPageView, billPageInEtyme, billSentSays, deliverySays,
@@ -501,7 +501,8 @@ const SHOWN_CHANNEL_UNREAD = 'Shown in the app; what happened on their channel c
 export function channelSays(state: string | null | undefined, note: string | null | undefined): string {
   switch (state) {
     case 'SENT':
-      return 'Shown in the app, and sent on their channel'
+      // A Teams post's note starts "Posted to the"; any other SENT is an email.
+      return `Shown in the app. ${note?.startsWith('Posted to the') ? TEAMS_POSTED_SAYS : HANDED_TO_EMAIL_SERVICE}`
     case 'FAILED':
       return `Shown in the app; on their channel it did not go. ${mailFailureSays(failureFromNote(note))}`
     case 'DEMO_SKIPPED':

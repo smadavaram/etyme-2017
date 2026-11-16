@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
         says:
           `${name} is in. Check its papers — the W-9, the insurance, the good standing and the agreement — and it is your supplier. ` +
           'HR, the Compliance Officer or the Owner checks them; one person may.' +
-          (contactEmail ? (delivery?.state === 'SENT' ? ` ${name} has been sent a link to send them.` : ` No email left, so the link is kept here for you to send.`) : ' Add a contact email and they can be sent a link to send them.'),
+          (contactEmail ? (delivery?.state === 'SENT' ? ` The link for ${name} was handed to the email service. Delivery is not confirmed yet.` : ` No email left, so the link is kept here for you to send.`) : ' Add a contact email and they can be sent a link to send them.'),
       },
     }, { status: 201 })
   }
@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
     data: {
       request: { id: row.id, stage: row.stage, link: applyUrl(row.token) },
       delivery,
-      says: `${name} is with ${leadWord}. It needs four approvals — ${desks.leadId ? 'your lead' : 'the program manager'}, Procurement, HR, Finance — and becomes a supplier when the last one says yes.${contactEmail ? (delivery?.state === 'SENT' ? ` ${name} has been sent a link to supply its paperwork.` : ' No email left, so the link is kept here for staff to send.') : ' Add a contact email and they can be sent a link to supply their paperwork.'}`,
+      says: `${name} is with ${leadWord}. It needs four approvals — ${desks.leadId ? 'your lead' : 'the program manager'}, Procurement, HR, Finance — and becomes a supplier when the last one says yes.${contactEmail ? (delivery?.state === 'SENT' ? ` The link for ${name} was handed to the email service. Delivery is not confirmed yet.` : ' No email left, so the link is kept here for staff to send.') : ' Add a contact email and they can be sent a link to supply their paperwork.'}`,
     },
   }, { status: 201 })
 }

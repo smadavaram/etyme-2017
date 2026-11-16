@@ -166,7 +166,7 @@ describe('a placed person with no account can be handed a way in by the firm tha
     const r = await post(placed.id)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.state).toBe('SENT')
-    expect(r.body.data.says).toMatch(/was sent a sign-in link on .+, to /)
+    expect(r.body.data.says).toMatch(/was handed to the email service on /)
     expect(r.body.data.action).toBe('Send again')
     expect(r.body.data.link).toBeNull()
     expect(sent.at(-1)?.body).toMatch(/\/answer\/sign-in\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/)

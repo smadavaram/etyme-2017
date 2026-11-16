@@ -419,7 +419,7 @@ describe('a bill, sent to the firm that pays it', () => {
 
   it('the Bills page reads who a bill was sent to and when, and never says sent where the email did not leave', () => {
     const now = new Date('2026-10-20T12:00:00Z')
-    expect(billSentSays([delivery()], now)).toBe('Sent to dana@acme.test on Oct 19')
+    expect(billSentSays([delivery()], now)).toBe('Handed to the email service for dana@acme.test on Oct 19. Delivery is not confirmed yet')
     expect(billSentSays([delivery({ onEtyme: true, clientName: 'Northbend Athletic', to: [{ address: 'ap@nb.test', via: 'ETYME', state: 'SENT', note: 'Shown in the app', role: 'AP Clerk' }] })], now))
       .toBe('Sent on Etyme to Northbend Athletic’s AP Clerk on Oct 19')
     expect(billSentSays([delivery({ to: [{ address: 'dana@acme.example', via: 'EMAIL', state: 'DEMO_SKIPPED', note: 'demo address, nothing sent' }] })], now))
@@ -427,7 +427,7 @@ describe('a bill, sent to the firm that pays it', () => {
     expect(billSentSays([delivery({ to: [], why: 'Larkspur Freight is not on Etyme and no address is recorded for it. Record the person there who receives bills, then send it again.' })], now))
       .toBe('Not sent: Larkspur Freight is not on Etyme and no address is recorded for it. Record the person there who receives bills, then send it again.')
     expect(billSentSays([delivery(), delivery({ resend: true, at: '2026-10-21T09:00:00.000Z' })], new Date('2026-10-22T00:00:00Z')))
-      .toBe('Sent again to dana@acme.test on Oct 21; first sent Oct 19')
+      .toBe('Handed to the email service again for dana@acme.test on Oct 21. Delivery is not confirmed yet; first handed over Oct 19')
     expect(billSentSays([], now)).toBeNull()
   })
 

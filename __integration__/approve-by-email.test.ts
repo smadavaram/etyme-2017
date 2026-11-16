@@ -221,7 +221,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.status).toBe(201)
     expect(r.body.data.delivery.state).toBe('SENT')
-    expect(r.body.data.says).toMatch(/^Sent to Dana Whitfield at dana\.whitfield@northbend\.test\. The link works once and runs out on /)
+    expect(r.body.data.says).toMatch(/^Handed to the email service for Dana Whitfield at dana\.whitfield@northbend\.test\. Delivery is not confirmed yet\. The link works once and runs out on /)
     // The sender is never handed the link: whoever holds it signs for the client.
     expect(JSON.stringify(r.body)).not.toMatch(/answer\/week\//)
 

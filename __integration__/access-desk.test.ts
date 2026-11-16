@@ -573,7 +573,7 @@ describe('an invitation that did not go says why, and can be copied or sent agai
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'vik@partner-works-fixture.com' }, select: { id: true } })
     const r = await json(await sendAgain(req('POST', `/api/access/${it_.vik}/resend`, { email: 'someone.else@elsewhere.example' }), seatParams(it_.vik)))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.says).toBe('Sent again to vik@partner-works-fixture.com. It is the same seat; nothing was duplicated.')
+    expect(r.body.data.says).toBe('Invitation for vik@partner-works-fixture.com handed to the email service again. Delivery is not confirmed yet. It is the same seat; nothing was duplicated.')
     // Only to the address on the record, never one from the request.
     expect(out.map((m) => m.to)).toEqual(['vik@partner-works-fixture.com'])
     expect(await prisma.context.count({ where: { personId: person.id, companyId: it_.firm } })).toBe(1)

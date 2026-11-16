@@ -353,7 +353,7 @@ describe('what the inviter is told', () => {
     expect(failed).not.toContain('/login')
 
     const sent = inviteSays({ ...base, mail: 'SENT' })
-    expect(sent).toBe('Dana Whitfield has been invited as Program Manager and emailed. The seat is theirs when they sign in with dana@northbend.example. The email tells them how to sign in.')
+    expect(sent).toBe('Dana Whitfield has been invited as Program Manager. The seat is theirs when they sign in with dana@northbend.example. Handed to the email service. Delivery is not confirmed yet. It tells them how to sign in.')
   })
 
   it('what the inviter is told never says whether the address already has a password', () => {
@@ -677,7 +677,7 @@ describe('an invitation says whether its email left, and why not', () => {
 
   it('a waiting row says "Email sent" with the day and time in the reader’s own zone', () => {
     const line = mailLine({ state: 'SENT', at: '2026-11-12T23:40:00.000Z', why: null }, 'America/Los_Angeles')
-    expect(line).toBe('Email sent Thu, Nov 12, 3:40 PM PST.')
+    expect(line).toBe('Email handed over Thu, Nov 12, 3:40 PM PST. Delivery is not confirmed yet.')
   })
 
   it('a waiting row whose email was refused says "Email not sent", the reason, and what to do', () => {
@@ -783,7 +783,7 @@ describe('Send the invitation again', () => {
   })
 
   it('Send again says it went to the address on record, as the same seat, or why it did not', () => {
-    expect(sentAgainSays('vik@partner-mail.example', 'SENT', null)).toBe('Sent again to vik@partner-mail.example. It is the same seat; nothing was duplicated.')
+    expect(sentAgainSays('vik@partner-mail.example', 'SENT', null)).toBe('Invitation for vik@partner-mail.example handed to the email service again. Delivery is not confirmed yet. It is the same seat; nothing was duplicated.')
     const why = mailFailureSays({ kind: 'DOWN' })
     const not = sentAgainSays('vik@partner-mail.example', 'FAILED', why)
     expect(not).toContain(why)

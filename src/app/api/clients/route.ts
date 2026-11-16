@@ -488,7 +488,7 @@ export async function PATCH(request: NextRequest) {
 function invitedSays(invite: { email: string; delivery: { state: string; note: string } | null } | null): string {
   if (!invite) return 'Nothing reaches them until you invite somebody there.'
   if (!invite.delivery) return `${invite.email} was invited before; no second email was sent.`
-  if (invite.delivery.state === 'SENT') return `${invite.email} has been sent a link to take the record when they want it.`
+  if (invite.delivery.state === 'SENT') return `The link for ${invite.email} was handed to the email service. Delivery is not confirmed yet.`
   return `The invitation to ${invite.email} is ready, but the email did not leave: ${invite.delivery.note}`
 }
 

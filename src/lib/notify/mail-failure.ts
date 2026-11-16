@@ -199,3 +199,15 @@ export function isMailRefused(err: unknown): err is MailRefused {
   return err instanceof MailRefused
     || (Boolean(err) && typeof err === 'object' && (err as any).name === 'MailRefused' && 'providerName' in (err as any))
 }
+
+// ── What SENT means ──────────────────────────────────────────────────
+//
+// An email's SENT state means the email service accepted it. No delivery
+// or bounce report comes back yet (Layer 8), so no screen may say it
+// arrived. Every screen that reads SENT reads these words.
+
+/** The email service took it. Said wherever an email's state is shown as SENT. */
+export const HANDED_TO_EMAIL_SERVICE = 'Handed to the email service. Delivery is not confirmed yet.'
+
+/** A Teams channel took the post. Teams sends nothing back. */
+export const TEAMS_POSTED_SAYS = 'Posted to the channel. Teams does not confirm it arrived.'

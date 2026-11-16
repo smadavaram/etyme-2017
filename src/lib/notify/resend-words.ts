@@ -38,7 +38,7 @@ export function resendEmailLeaves(f: Pick<ResentFacts, 'leaves' | 'address'>): b
 /** The one sentence the firm reads after Send again. */
 export function resentSays(f: ResentFacts): string {
   if (resendEmailLeaves(f)) {
-    return `Sent again to ${f.address}, waiting on ${f.waitingOn}. The link is open until ${f.until}.`
+    return `Handed to the email service again for ${f.address}, waiting on ${f.waitingOn}. Delivery is not confirmed yet. The link is open until ${f.until}.`
   }
   const why = f.leaves
     ? `${f.address} is a demo address, so no email went to it`

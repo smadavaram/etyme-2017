@@ -815,7 +815,7 @@ describe('a bill sent from the Bills page reaches the person the supplier record
     as(BRIGHTMOOR)
     const out = await json(await sendBill(req('POST', `/api/invoices/${h.bill}/submit`, {}), params(h.bill)))
     expect(out.status, JSON.stringify(out.body)).toBe(200)
-    const says = `Sent to ${PAYABLES} on ${formatDay(new Date(), { year: false })}`
+    const says = `Handed to the email service for ${PAYABLES} on ${formatDay(new Date(), { year: false })}. Delivery is not confirmed yet`
     expect(out.body.data.delivery).toBe(says)
     expect(mail).toHaveLength(1)
     expect(mail[0].to).toBe(PAYABLES)
@@ -864,7 +864,7 @@ describe('a bill sent from the Bills page reaches the person the supplier record
       const again = await json(await resendBill(req('POST', `/api/invoices/${h.bill}/resend`, {}), params(h.bill)))
       expect(again.status, JSON.stringify(again.body)).toBe(200)
       expect(again.body.data).toMatchObject({ sent: true, to: [PAYABLES] })
-      expect(again.body.data.message).toBe(`Sent again to ${PAYABLES} on ${formatDay(later, { year: false })}`)
+      expect(again.body.data.message).toBe(`Handed to the email service again for ${PAYABLES} on ${formatDay(later, { year: false })}. Delivery is not confirmed yet`)
     } finally {
       vi.useRealTimers()
     }

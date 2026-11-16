@@ -24,7 +24,7 @@ describe('Send again says what left, and nothing more', () => {
   })
 
   it('where an email leaves to a real address, the sentence says sent again, what it waits on and when the link closes', () => {
-    expect(resentSays({ ...BASE, leaves: true })).toBe('Sent again to rajesh.iyer@acme-staffing.com, waiting on the I-9 and the NDA. The link is open until Dec 3, 2026.')
+    expect(resentSays({ ...BASE, leaves: true })).toBe('Handed to the email service again for rajesh.iyer@acme-staffing.com, waiting on the I-9 and the NDA. Delivery is not confirmed yet. The link is open until Dec 3, 2026.')
   })
 
   it('a person with an account is told to read it in Etyme when they sign in, and a person without one is not promised it', () => {

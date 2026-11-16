@@ -978,7 +978,7 @@ export async function sendApprovalLink(
     url,
     delivery: { state: delivery.state, note: delivery.note },
     says: sent
-      ? `Sent to ${approver.name} at ${approver.email}. The link works once and runs out on ${dayOf(expiresAt, now)}.`
+      ? `Handed to the email service for ${approver.name} at ${approver.email}. Delivery is not confirmed yet. The link works once and runs out on ${dayOf(expiresAt, now)}.`
       : `The link is ready, but the email did not leave: ${delivery.note} The link works once and runs out on ${dayOf(expiresAt, now)}.`,
   }
 }

@@ -111,7 +111,7 @@ describe('a bill reaches the firm that pays it', () => {
 
   it('a bill sent to a client not on Etyme is emailed to the person the supplier recorded, with a link that opens the bill and nothing below the supplier’s own rate', async () => {
     const r = await sendBillToCustomer({ invoiceId: it_.bill, byPersonId: it_.owner })
-    expect(r).toEqual({ sent: true, to: [PAYABLES], says: `Sent to ${PAYABLES} on ${today()}` })
+    expect(r).toEqual({ sent: true, to: [PAYABLES], says: `Handed to the email service for ${PAYABLES} on ${today()}. Delivery is not confirmed yet` })
 
     expect(mail).toHaveLength(1)
     expect(mail[0].to).toBe(PAYABLES)
@@ -141,7 +141,7 @@ describe('a bill reaches the firm that pays it', () => {
 
   it('a bill is emailed once; sending it again is a separate act by somebody who sends bills', async () => {
     const again = await sendBillToCustomer({ invoiceId: it_.bill, byPersonId: it_.owner })
-    expect(again).toEqual({ sent: false, to: [PAYABLES], says: `Sent to ${PAYABLES} on ${today()}` })
+    expect(again).toEqual({ sent: false, to: [PAYABLES], says: `Handed to the email service for ${PAYABLES} on ${today()}. Delivery is not confirmed yet` })
     expect(mail).toHaveLength(1)
 
     // A seat at Brightmoor that does not send bills is told who does.
@@ -169,7 +169,7 @@ describe('a bill reaches the firm that pays it', () => {
     expect(mail).toHaveLength(2)
     const logged = await prisma.event.findFirstOrThrow({ where: { subjectType: 'Invoice', subjectId: it_.bill, type: 'invoice.resent' } })
     expect(logged.actorPersonId).toBe(it_.owner)
-    expect(await billDeliverySays(it_.bill, later)).toBe(`Sent again to ${PAYABLES} on ${formatDay(later, { year: false })}`)
+    expect(await billDeliverySays(it_.bill, later)).toBe(`Handed to the email service again for ${PAYABLES} on ${formatDay(later, { year: false })}. Delivery is not confirmed yet`)
   })
 
   it('the bill link opens without a sign-in, is logged as the contact’s read, and dies 90 days after the due date', async () => {
