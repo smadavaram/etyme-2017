@@ -307,6 +307,9 @@ export default function PayrollPage() {
   const [error, setError] = useState<string | null>(null)
   /** What the last Calculate or Process did, in the route's own figures. */
   const [runSaid, setRunSaid] = useState<string | null>(null)
+  // The route's sentence after a pay window is repaired. Kept here, above the
+  // table, because the held row it came from stops being held on the reload.
+  const [repairedSaid, setRepairedSaid] = useState<string | null>(null)
   /** What the route said when it refused the read; null where it did not. */
   const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
   const { company, loading: sessionLoading, permissions } = useSession()
@@ -600,7 +603,7 @@ export default function PayrollPage() {
               {/* The act the sentence names, for a seat that runs payroll;
                   any other seat's sentence names who here may. */}
               {mayRepairWindow && (row.windowRepairs ?? []).map((t) => (
-                <WindowRepair key={t.sellContractId} target={t} onSaved={fetchPayroll} />
+                <WindowRepair key={t.sellContractId} target={t} onSaved={(says) => { setRepairedSaid(says); fetchPayroll() }} />
               ))}
             </span>
           )}
@@ -879,6 +882,12 @@ export default function PayrollPage() {
       {/* A held week is found before the run, not after it: who has one,
           and that the answer is recorded on the row. */}
       {heldSays && <p className="mb-2 text-[12.5px] text-etyme-attention">{heldSays}</p>}
+      {repairedSaid && (
+        <p role="status" className="mb-2 flex items-start justify-between gap-4 text-[12.5px] text-etyme-verified">
+          <span>{repairedSaid}</span>
+          <button type="button" className="text-[12px] text-etyme-muted hover:text-etyme-ink" onClick={() => setRepairedSaid(null)}>Close</button>
+        </p>
+      )}
       {runSaid && <p role="status" className="mb-2 text-[12.5px] text-etyme-verified">{runSaid}</p>}
 
       {/* Stats row — prototype Stat component pattern */}

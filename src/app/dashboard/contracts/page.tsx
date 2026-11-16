@@ -738,6 +738,7 @@ function ContractDetailDrawer({
   onClose,
   onToast,
   onRefresh,
+  onKeep,
 }: {
   contract: Contract
   tab: ViewTab
@@ -748,13 +749,15 @@ function ContractDetailDrawer({
   onClose: () => void
   onToast: (message: string, type: 'success' | 'error') => void
   onRefresh: () => void
+  /** A sentence with a link in it, kept on the page until closed. */
+  onKeep: (says: string, link: { href: string; label: string }) => void
 }) {
   const [masters, setMasters] = useState<MasterContract[] | null>(null)
   const [tagging, setTagging] = useState(false)
   const [showExtendConfirm, setShowExtendConfirm] = useState(false)
   // Whether the extend route will take this reader's press, asked before
   // Extend is drawn: the route's own sentence stands where it will not.
-  const [extend, setExtend] = useState<{ may: boolean; says: string | null } | null>(null)
+  const [extend, setExtend] = useState<{ may: boolean; says: string | null; mayEnd?: boolean; endSays?: string | null } | null>(null)
   const [showRolloffConfirm, setShowRolloffConfirm] = useState(false)
   const [initiatingRolloff, setInitiatingRolloff] = useState(false)
   const [activating, setActivating] = useState(false)
@@ -819,7 +822,9 @@ function ContractDetailDrawer({
   const canCancel = isDraft || isPending
   const canPause = isActive
   const canResume = isPaused
-  const canComplete = isActive
+  // Drawn only where the end press will take it: the extend route's answer
+  // is read off the same gate the press asks.
+  const canComplete = isActive && extend?.mayEnd === true
   const isRolloff = contract.daysUntilEnd != null && contract.daysUntilEnd >= 0 && contract.daysUntilEnd <= 28
   const drawerRateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
   const drawerCounterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
@@ -1175,6 +1180,9 @@ function ContractDetailDrawer({
                 {extend && !extend.may && extend.says && (
                   <p className="mt-2 text-[13px] text-etyme-muted">{extend.says}</p>
                 )}
+                {isActive && extend?.mayEnd === false && extend.endSays && (
+                  <p className="mt-2 text-[13px] text-etyme-muted">{extend.endSays}</p>
+                )}
                 <div className="flex gap-3 mt-2">
                   {canPause && (
                     <button
@@ -1229,8 +1237,11 @@ function ContractDetailDrawer({
           personName={contract.personName}
           endDate={contract.endDate}
           onClose={() => setShowExtendConfirm(false)}
-          onDone={(says) => {
-            onToast(says, 'success')
+          onDone={(says, door) => {
+            // A sentence that sends the reader somewhere is kept on the page
+            // with its link; a toast fades in four seconds.
+            if (door) onKeep(says, door)
+            else onToast(says, 'success')
             setShowExtendConfirm(false)
             onRefresh()
             onClose()
@@ -1891,6 +1902,7 @@ export default function ContractsPage() {
           onClose={() => setSelectedContract(null)}
           onToast={(message, type) => setToast({ type, message })}
           onRefresh={fetchContracts}
+          onKeep={(says, link) => setRecordedAfter({ says, link })}
         />
       )}
 

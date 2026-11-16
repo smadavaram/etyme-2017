@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { earlierEnds, follows, windowsAtNewEnd, payLineInForce, noPayLineInForce, anotherWindowSays } from '@/lib/money/extension-windows'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { earlierEnds, follows, windowsAtNewEnd, payLineInForce, noPayLineInForce, anotherWindowSays, movedSays, PAY_LINES_DOOR } from '@/lib/money/extension-windows'
 import { formatDay } from '@/lib/format-date'
 import { extensionPlan, type PlannedCycle } from '@/lib/contract-cycles'
 import { generateCycles } from '@/lib/cycle-generator'
@@ -277,5 +279,53 @@ describe('a processed pay period is never reopened by an extension', () => {
     expect(done.kept).toBe(1)
     // And the period it covered is not written a second time.
     expect(done.write.some((c) => c.periodStart.getTime() === stored[stored.length - 1].periodStart!.getTime())).toBe(false)
+  })
+})
+
+describe('what an extension says about pay, and where to check it', () => {
+  const day = (d: string) => new Date(`${d}T00:00:00Z`)
+  const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+
+  it('where her pay window and pay row moved, the reply says both moved to the new end', () => {
+    const says = movedSays({ links: [{ id: 'l', from: '2026-01-31', to: '2026-04-30' }], rows: [{ id: 'r', from: '2026-01-31', to: '2026-04-30' }] }, day('2026-04-30'))
+    expect(says).toBe(`Her pay window and pay row moved to ${formatDay('2026-04-30')}.`)
+  })
+
+  it('where only the window moved, the reply names only the window', () => {
+    expect(movedSays({ links: [{ id: 'l', from: 'a', to: 'b' }], rows: [] }, day('2026-04-30'))).toMatch(/^Her pay window moved to /)
+  })
+
+  it('where nothing on the pay side moved, the reply says nothing about pay moving', () => {
+    expect(movedSays({ links: [], rows: [] }, day('2026-04-30'))).toBeNull()
+  })
+
+  it('the extension reply carries the moved clause and a door to the pay lines only where the window was left', () => {
+    const route = read('src/app/api/contracts/[id]/extend/route.ts')
+    expect(route).toMatch(/movedSays\(windows, newEnd\)/)
+    expect(route).toMatch(/notMovedSays && contractSide\(caller, contract\) === 'SUPPLIER' \? \{ payWindowDoor: PAY_LINES_DOOR \}/)
+  })
+
+  it('the sentence that says to check the pay line is kept on the Contracts page with a link, and the log reason stays text', () => {
+    const page = read('src/app/dashboard/contracts/page.tsx')
+    expect(page).toMatch(/if \(door\) onKeep\(says, door\)/)
+    expect(PAY_LINES_DOOR.href).toBe('/dashboard/contracts?side=buy')
+    expect(read('src/app/api/contracts/[id]/extend/route.ts')).toMatch(/\(notMovedSays \? ` \$\{notMovedSays\}` : ''\)/)
+  })
+})
+
+describe('Complete is drawn only where the end press will take it', () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+
+  it('the placement panel draws Complete only when the extend route says this seat may end it', () => {
+    const page = read('src/app/dashboard/contracts/page.tsx')
+    expect(page).toMatch(/const canComplete = isActive && extend\?\.mayEnd === true/)
+  })
+
+  it('where Complete is not drawn, the panel shows the sentence the end press itself would refuse with', () => {
+    const page = read('src/app/dashboard/contracts/page.tsx')
+    const route = read('src/app/api/contracts/[id]/extend/route.ts')
+    expect(page).toMatch(/extend\?\.mayEnd === false && extend\.endSays/)
+    expect(route).toMatch(/gateRefusal\(caller, contract, 'complete'\)/)
+    expect(route).toMatch(/whoHereMaySays\(caller, \{ doing: DOING\.complete, needs: NEEDS\.complete \}\)/)
   })
 })

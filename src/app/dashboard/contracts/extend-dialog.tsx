@@ -68,7 +68,7 @@ export function ExtendDialog({
   endDate: string | null
   onClose: () => void
   /** Called with the route's own sentence once the extension stands. */
-  onDone: (says: string) => void
+  onDone: (says: string, door?: { href: string; label: string }) => void
 }) {
   const [day, setDay] = useState(() => suggested(endDate))
   const [note, setNote] = useState('')
@@ -108,7 +108,7 @@ export function ExtendDialog({
       const body = await res.json().catch(() => ({}) as any)
       if (res.ok) {
         const d = body?.data ?? {}
-        onDone([d.message ?? `Extended to ${plain(day)}.`, d.pastTheOrder].filter(Boolean).join(' '))
+        onDone([d.message ?? `Extended to ${plain(day)}.`, d.pastTheOrder].filter(Boolean).join(' '), d.payWindowDoor ?? undefined)
         return
       }
       const err = body?.error ?? {}

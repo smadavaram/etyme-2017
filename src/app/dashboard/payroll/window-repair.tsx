@@ -6,8 +6,8 @@ import { REPAIR_BUTTON, windowRepairBody } from '@/lib/money/window-repair-body'
 /**
  * The one act a week held after its pay window ended waits on: "Repair
  * the pay window", on the held row, for a seat that runs payroll. Posts to
- * POST /api/payroll/window-repair (lib/money/window-repair). Done, it says
- * where the window now runs and reloads the page, so the held week reads
+ * POST /api/payroll/window-repair (lib/money/window-repair). Done, it hands the
+ * sentence (where the window now runs) to the page and reloads it, so the held week reads
  * as owed in this pay. Refused, it shows the route's own sentence.
  */
 export function WindowRepair({
@@ -15,10 +15,10 @@ export function WindowRepair({
   onSaved,
 }: {
   target: { sellContractId: string; buyContractId: string; personId: string }
-  onSaved: () => void
+  /** Called with the route's own sentence; the page keeps it, because this row stops being held. */
+  onSaved: (says: string) => void
 }) {
   const [saving, setSaving] = useState(false)
-  const [said, setSaid] = useState<string | null>(null)
   const [refused, setRefused] = useState<string | null>(null)
 
   async function repair() {
@@ -35,14 +35,12 @@ export function WindowRepair({
         setRefused(body.error?.message ?? 'The pay window was not moved. Try again.')
         return
       }
-      setSaid(body.data?.says ?? 'The pay window was moved.')
-      onSaved()
+      onSaved(body.data?.says ?? 'The pay window was moved.')
     } finally {
       setSaving(false)
     }
   }
 
-  if (said) return <span className="mt-1 block text-etyme-verified">{said}</span>
   return (
     <span className="mt-1 block">
       <button type="button" className="btn-secondary !px-2 !py-1 !text-[11.5px]" disabled={saving} onClick={repair}>

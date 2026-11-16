@@ -10,9 +10,12 @@ import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { extensionPapers, mayExtendOnPapers } from '@/lib/contract-clearance'
 import { extensionEnd } from '@/lib/money/extension-end'
-import { anotherWindowSays, earlierEnds, noPayLineInForce, payLineInForce, windowsAtNewEnd } from '@/lib/money/extension-windows'
+import { anotherWindowSays, earlierEnds, movedSays, noPayLineInForce, PAY_LINES_DOOR, payLineInForce, windowsAtNewEnd } from '@/lib/money/extension-windows'
 import { formatDay } from '@/lib/format-date'
 import { extendGate } from './gate'
+import { gateRefusal, DOING, NEEDS } from '../activate/gate'
+import { whoHereMaySays } from '@/lib/money/who-raises-bills'
+import { contractSide } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/contracts/:id/extend
@@ -72,7 +75,17 @@ export async function GET(
     })
   }
   const gate = extendGate(caller, contract)
-  return NextResponse.json({ data: gate.ok ? { may: true, says: null } : { may: false, says: gate.says } })
+  // Ending the placement is asked of the same gate the end press goes
+  // through (`gateRefusal`), so the panel draws "Complete" only where the
+  // press will take it. A seat refused for its role reads who may, in the
+  // press's own sentence.
+  const ending = gateRefusal(caller, contract, 'complete')
+  const endSays = ending?.error.code === 'FORBIDDEN'
+    ? await whoHereMaySays(caller, { doing: DOING.complete, needs: NEEDS.complete })
+    : null
+  return NextResponse.json({
+    data: { ...(gate.ok ? { may: true, says: null } : { may: false, says: gate.says }), mayEnd: ending === null, endSays },
+  })
 }
 
 export async function POST(
@@ -469,10 +482,15 @@ export async function POST(
       // The pay window left where it was is said where the extension is,
       // never only in the log.
       message: withSentence(
-        months != null ? `Contract extended by ${months} month${months !== 1 ? 's' : ''}, to ${newEndSays}` : asked.says,
+        withSentence(
+          months != null ? `Contract extended by ${months} month${months !== 1 ? 's' : ''}, to ${newEndSays}` : asked.says,
+          movedSays(windows, newEnd),
+        ),
         notMovedSays,
       ),
       ...(notMovedSays ? { payWindow: notMovedSays } : {}),
+      // Where to check it: the pay lines, for the selling firm only.
+      ...(notMovedSays && contractSide(caller, contract) === 'SUPPLIER' ? { payWindowDoor: PAY_LINES_DOOR } : {}),
       ...(note ? { note } : {}),
       ...(pastTheOrder ? { pastTheOrder } : {}),
       // A paper ending before the new end, gone ahead on the reason given.

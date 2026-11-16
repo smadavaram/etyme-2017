@@ -246,6 +246,25 @@ export function anotherWindowSays(personName: string, moves: WindowMoves): strin
   )
 }
 
+/**
+ * Where a person checks and acts on a pay window an extension left alone:
+ * the pay lines, on the Contracts page. The sentence stays text in the log;
+ * only the reply on screen carries this link, and only for the selling firm,
+ * the one side that has pay lines.
+ */
+export const PAY_LINES_DOOR = { href: '/dashboard/contracts?side=buy', label: 'Open the pay lines' } as const
+
+/**
+ * One short clause for what DID move with the placement's end: her pay
+ * window, her pay row, or both. Null where neither moved, so a reply never
+ * claims pay moved when it did not.
+ */
+export function movedSays(moves: Pick<WindowMoves, 'links' | 'rows'>, newEnd: Date): string | null {
+  const what = moves.links.length > 0 && moves.rows.length > 0 ? 'pay window and pay row' : moves.links.length > 0 ? 'pay window' : moves.rows.length > 0 ? 'pay row' : null
+  if (!what) return null
+  return `Her ${what} moved to ${formatDay(dayKey(newEnd))}.`
+}
+
 function inForce<L extends { buyContractId: string; effectiveFrom: Date; effectiveTo: Date | null }>(
   links: readonly L[],
   oldEnd: Date | null,

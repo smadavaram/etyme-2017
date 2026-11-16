@@ -207,3 +207,21 @@ describe('what the held row says, and to whom', () => {
     }
   })
 })
+
+describe('the sentence after a repair stays on screen', () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+
+  it('the repair sentence is handed to the payroll page, so it outlasts the held row it came from', () => {
+    const button = read('src/app/dashboard/payroll/window-repair.tsx')
+    const page = read('src/app/dashboard/payroll/page.tsx')
+    expect(button).toMatch(/onSaved\(body\.data\?\.says \?\? 'The pay window was moved\.'\)/)
+    expect(button).not.toMatch(/setSaid/)
+    expect(page).toMatch(/onSaved=\{\(says\) => \{ setRepairedSaid\(says\); fetchPayroll\(\) \}\}/)
+  })
+
+  it('the page shows the repair sentence above the table until the person closes it', () => {
+    const page = read('src/app/dashboard/payroll/page.tsx')
+    expect(page).toMatch(/\{repairedSaid && \(/)
+    expect(page).toMatch(/onClick=\{\(\) => setRepairedSaid\(null\)\}>Close/)
+  })
+})
