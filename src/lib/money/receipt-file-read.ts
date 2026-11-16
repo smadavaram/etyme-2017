@@ -6,6 +6,10 @@ import {
   receiptFile, pickColumns,
   type ReceiptFile, type ReceiptIn, type ReceiptLineIn, type CodeShare,
 } from '@/lib/money/receipt-file'
+import { costObjectTypeOf, codingBlock, vendorNumberFor, poLineNumber, savedColumns } from '@/lib/money/client-codes'
+import { mayGoInFile, feedKey, nextGeneration, stateInWords, standingOfRows, type FeedMessageRead } from '@/lib/money/bill-feed'
+import { formatDay } from '@/lib/format-date'
+import { Prisma } from '@prisma/client'
 
 /**
  * Read an approved payment run for the client's file of invoice lines, and
@@ -49,8 +53,9 @@ const CONTRACT_SELECT = {
     select: {
       shareBps: true,
       glAccount: true,
-      internalOrder: { select: { code: true } },
-      costCenter: { select: { id: true, code: true, glAccount: true, companyId: true } },
+      createdAt: true,
+      internalOrder: { select: { code: true, kind: true } },
+      costCenter: { select: { id: true, code: true, glAccount: true, companyId: true, profitCenter: true } },
     },
   },
 } as const
@@ -61,8 +66,9 @@ type ContractRead = {
   costAllocations: {
     shareBps: number
     glAccount: string | null
-    internalOrder: { code: string } | null
-    costCenter: { id: string; code: string; glAccount: string | null; companyId: string }
+    createdAt: Date
+    internalOrder: { code: string; kind: string | null } | null
+    costCenter: { id: string; code: string; glAccount: string | null; companyId: string; profitCenter: string | null }
   }[]
 }
 
@@ -73,21 +79,28 @@ function sharesOf(candidates: ContractRead[], payerId: string): CodeShare[] {
     if (!splitIsPayers(c.costAllocations, payerId)) continue
     return c.costAllocations.map((a) => ({
       key: a.costCenter.id,
-      costObjectType: a.internalOrder ? 'INTERNAL_ORDER' : 'COST_CENTER',
+      costObjectType: costObjectTypeOf({ internalOrder: a.internalOrder }),
       costObject: a.internalOrder ? a.internalOrder.code : a.costCenter.code,
       glAccount: a.glAccount ?? a.costCenter.glAccount,
+      profitCenter: codingBlock(null, a.costCenter).profitCenter,
       shareBps: a.shareBps,
     }))
   }
   return []
 }
 
-export async function readReceiptFile(
+type Loaded =
+  | { ok: true; run: { id: string; currency: string; scheduledFor: Date }; receipts: ReceiptIn[] }
+  | Extract<ReceiptFileRead, { ok: false }>
+
+/** An approved run's receipts as the file builder reads them, with the client's own codes. */
+export async function loadRunReceipts(
   caller: Caller,
   companyId: string,
   runId: string,
-  columns: readonly string[] | null,
-): Promise<ReceiptFileRead> {
+  /** A paid run is read too where the answer is. */
+  statuses: readonly string[] = ['APPROVED'],
+): Promise<Loaded> {
   const actor = accessActor(caller)
   const run = await prisma.paymentRun.findUnique({
     where: { id: runId },
@@ -98,11 +111,11 @@ export async function readReceiptFile(
           id: true, amountCents: true,
           vendorBill: {
             select: {
-              id: true, number: true, currency: true, totalCents: true, paidCents: true, dueAt: true,
+              id: true, number: true, currency: true, totalCents: true, paidCents: true, dueAt: true, updatedAt: true,
               periodStart: true, periodEnd: true, buyContractId: true, workOrderId: true,
               vendorCompanyId: true,
               vendorCompany: { select: { name: true } },
-              workOrder: { select: { number: true } },
+              workOrder: { select: { number: true, buyContracts: { select: { id: true, createdAt: true } } } },
               lines: {
                 select: {
                   id: true, personId: true, timesheetId: true, hours: true, rateCents: true, amountCents: true,
@@ -142,7 +155,7 @@ export async function readReceiptFile(
     })
     return { ok: false, status: 404, code: 'NOT_FOUND', says: 'No such payment run here' }
   }
-  if (run.status !== 'APPROVED') {
+  if (!statuses.includes(run.status)) {
     return {
       ok: false, status: 422, code: 'NOT_APPROVED',
       says:
@@ -151,9 +164,6 @@ export async function readReceiptFile(
           : `This run is ${run.status.toLowerCase()}, so there is nothing in it to send to your system.`,
     }
   }
-  const picked = pickColumns(columns)
-  if (!picked.ok) return { ok: false, status: 422, code: 'BAD_COLUMNS', says: picked.says }
-
   // Who approved each week, by name, in one read.
   const approverIds = new Set<string>()
   for (const i of run.items) for (const l of i.vendorBill.lines) {
@@ -163,6 +173,15 @@ export async function readReceiptFile(
     ? await prisma.person.findMany({ where: { id: { in: [...approverIds] } }, select: { id: true, name: true } })
     : []
   const nameOf = new Map(people.map((p) => [p.id, p.name]))
+
+  const [register, coding] = await Promise.all([
+    prisma.counterparty.findMany({
+      where: { companyId, otherCompanyId: { in: [...new Set(run.items.map((i) => i.vendorBill.vendorCompanyId))] } },
+      select: { companyId: true, otherCompanyId: true, relationship: true, vendorNumber: true },
+    }),
+    prisma.companyCoding.findUnique({ where: { companyId }, select: { companyCode: true } }),
+  ])
+  const companyCode = codingBlock(coding, null).companyCode
 
   const receipts: ReceiptIn[] = []
   for (const i of run.items) {
@@ -208,6 +227,11 @@ export async function readReceiptFile(
         rateCents: l.rateCents,
         amountCents: l.amountCents,
         shares: sharesOf(candidates, companyId),
+        poLine: poLineNumber(b.workOrder?.buyContracts ?? [], b.buyContractId),
+        // A line is fixed when its receipt changes or a code is added to a contract it bills.
+        fixedAt: candidates
+          .flatMap((c) => c.costAllocations.map((a) => a.createdAt))
+          .reduce<Date>((d, x) => (x > d ? x : d), b.updatedAt),
       }
     })
 
@@ -217,6 +241,8 @@ export async function readReceiptFile(
       number: b.number,
       vendorId: b.vendorCompanyId,
       vendorName: b.vendorCompany.name,
+      vendorNumber: vendorNumberFor(register, companyId, b.vendorCompanyId),
+      companyCode,
       orderNumber: b.workOrder?.number ?? null,
       orderLineId: b.buyContractId,
       amountCents: i.amountCents,
@@ -230,19 +256,186 @@ export async function readReceiptFile(
     })
   }
 
-  const file = receiptFile(run, receipts, picked.ids)
+  return { ok: true, run, receipts }
+}
+
+// ── The file is a message (Layer 9, slice 2) ──────────────────────────
+//
+// A download writes one OUT message per row, SENT, keyed by run, line,
+// share, direction and generation, in the same transaction that reads
+// what was sent before. If the write fails, the request fails and no
+// bytes leave. A line already sent, accepted or paid is not in the next
+// file; a rejected or failed line is held until it is fixed, and then
+// goes again as the next generation while the old message is marked
+// SUPERSEDED. Two requests at one moment make one message per row: the
+// second finds the unique key taken and serves the same rows.
+
+type Msg = FeedMessageRead & {
+  id: string; lineId: string | null; shareKey: string; reason: string | null
+  externalRef: string | null; answeredAt: Date | null; sentAt: Date | null
+}
+
+const MESSAGE_SELECT = {
+  id: true, lineId: true, shareKey: true, direction: true, state: true, reason: true,
+  externalRef: true, answeredAt: true, sentAt: true, createdAt: true,
+} as const
+
+const rowKeyOf = (m: { lineId: string | null; shareKey: string }) => `${m.lineId ?? ''}:${m.shareKey}`
+
+function groupByRow(msgs: readonly Msg[]): Map<string, Msg[]> {
+  const by = new Map<string, Msg[]>()
+  for (const m of msgs) by.set(rowKeyOf(m), [...(by.get(rowKeyOf(m)) ?? []), m])
+  return by
+}
+
+/** What each row of a run's lines is, given what was sent before. */
+function rowStateFor(
+  run: { id: string },
+  by: Map<string, Msg[]>,
+  serve: ReadonlySet<string>,
+  opts: { lineId?: string; resend?: boolean },
+) {
+  return (r: ReceiptIn, l: ReceiptLineIn, rowId: string) => {
+    if (serve.has(rowId)) return null
+    if (opts.lineId && l.id !== opts.lineId) return { kind: 'SKIP' as const, says: '' }
+    const ms = by.get(rowId) ?? []
+    const stands = standingMessageOf(ms)
+    if (opts.resend || opts.lineId) {
+      if (!stands || (stands.state !== 'REJECTED' && stands.state !== 'FAILED')) return { kind: 'SKIP' as const, says: '' }
+    }
+    const verdict = mayGoInFile(ms, l.fixedAt ?? null)
+    if (verdict.ok) return null
+    const what = l.person ? `${l.person}’s line` : 'A line'
+    if (stands && (stands.state === 'REJECTED' || stands.state === 'FAILED')) {
+      const why = stands.state === 'REJECTED' ? `rejected${stands.reason ? `: ${stands.reason}` : ''}` : `not delivered${stands.reason ? `: ${stands.reason}` : ''}`
+      return {
+        kind: 'HELD' as const,
+        says: `${what} on ${r.vendorName}’s invoice ${r.number} was ${why}. It has not been changed since. Fix it, then send it again.`,
+      }
+    }
+    const out = ms.filter((m) => m.direction === 'OUT' && m.state !== 'SUPERSEDED').sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]
+    const when = out ? formatDay(out.sentAt ?? out.createdAt) : 'an earlier day'
+    return { kind: 'SENT' as const, says: `${what} on ${r.vendorName}’s invoice ${r.number} was already sent on ${when}, file ${run.id.slice(-6)}.` }
+  }
+}
+
+function standingMessageOf(ms: readonly Msg[]): Msg | null {
+  const live = ms.filter((m) => m.state !== 'SUPERSEDED')
+  if (live.length === 0) return null
+  const rank: Record<string, number> = { QUEUED: 1, FAILED: 2, REJECTED: 3, SENT: 4, ACCEPTED: 5, PAID: 6 }
+  return [...live].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || rank[a.state] - rank[b.state])[live.length - 1]
+}
+
+export async function readReceiptFile(
+  caller: Caller,
+  companyId: string,
+  runId: string,
+  columns: readonly string[] | null,
+  opts: { lineId?: string; resend?: boolean } = {},
+): Promise<ReceiptFileRead> {
+  const loaded = await loadRunReceipts(caller, companyId, runId)
+  if (!loaded.ok) return loaded
+  const { run, receipts } = loaded
+
+  const coding = await prisma.companyCoding.findUnique({ where: { companyId }, select: { fileColumns: true } })
+  const picked = pickColumns(columns && columns.length > 0 ? columns : savedColumns(coding?.fileColumns))
+  if (!picked.ok) return { ok: false, status: 422, code: 'BAD_COLUMNS', says: picked.says }
+
+  const attempted = new Set<string>()
+  const attempt = () =>
+    prisma.$transaction(async (tx) => {
+      const msgs = (await tx.billFeedMessage.findMany({ where: { runId: run.id, companyId }, select: MESSAGE_SELECT })) as Msg[]
+      const by = groupByRow(msgs)
+      const file = receiptFile(run, receipts, picked.ids, rowStateFor(run, by, new Set(), opts))
+      const data = file.items.map((row) => {
+        const ms = by.get(row.rowId) ?? []
+        attempted.add(row.rowId)
+        return {
+          companyId, runId: run.id, vendorBillId: row.billId, lineId: row.lineId, shareKey: row.shareKey,
+          direction: 'OUT', state: 'SENT', sentAt: new Date(),
+          idempotencyKey: feedKey({ runId: run.id, lineId: row.lineId, shareKey: row.shareKey, direction: 'OUT', generation: nextGeneration(ms, 'OUT') }),
+          attempts: nextGeneration(ms, 'OUT'),
+        }
+      })
+      if (data.length > 0) {
+        await tx.billFeedMessage.createMany({ data })
+        const old = file.items.flatMap((row) => (by.get(row.rowId) ?? []).filter((m) => m.state !== 'SUPERSEDED').map((m) => m.id))
+        if (old.length > 0) await tx.billFeedMessage.updateMany({ where: { id: { in: old } }, data: { state: 'SUPERSEDED' } })
+      }
+      return file
+    })
+
+  let file: ReceiptFile
+  try {
+    file = await attempt()
+  } catch (e) {
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== 'P2002') throw e
+    // Another request made these messages a moment ago: serve the same rows.
+    const msgs = (await prisma.billFeedMessage.findMany({ where: { runId: run.id, companyId }, select: MESSAGE_SELECT })) as Msg[]
+    file = receiptFile(run, receipts, picked.ids, rowStateFor(run, groupByRow(msgs), attempted, opts))
+  }
 
   // One row for each person on the lines, written before the file leaves.
   await recordAccess(
     file.personIds.map((personId) => ({ personId })),
     {
-      ...actor,
+      ...accessActor(caller),
       action: 'CONTRACT_VIEW',
       reason:
         `Downloaded the invoice lines of payment run ${run.id} for the payer's own system: ` +
         `the person, the week, the hours and the amount on each line, in the payer's own codes.`,
     },
   )
-
   return { ok: true, runId: run.id, file }
+}
+
+// ── What each line says, for the page ─────────────────────────────────
+
+export interface LineStateRow {
+  billId: string
+  number: string
+  vendorName: string
+  lineId: string
+  person: string | null
+  amountCents: number
+  currency: string
+  /** NOT_SENT · SENT · ACCEPTED · REJECTED · PAID · FAILED */
+  state: string
+  /** The line's state in the client's words. */
+  says: string
+  /** True where the line may be sent again now: rejected or failed, and fixed. */
+  canSendAgain: boolean
+}
+
+export async function readLineStates(
+  caller: Caller,
+  companyId: string,
+  runId: string,
+): Promise<{ ok: true; lines: LineStateRow[] } | Extract<ReceiptFileRead, { ok: false }>> {
+  const loaded = await loadRunReceipts(caller, companyId, runId, ['APPROVED', 'PAID'])
+  if (!loaded.ok) return loaded
+  const { run, receipts } = loaded
+  const msgs = (await prisma.billFeedMessage.findMany({ where: { runId: run.id, companyId }, select: MESSAGE_SELECT })) as Msg[]
+  const by = groupByRow(msgs)
+  const file = receiptFile(run, receipts, undefined, rowStateFor(run, by, new Set(), {}))
+  const out: LineStateRow[] = []
+  for (const r of receipts) {
+    const receiptWhy = file.held.find((h) => h.billId === r.billId && h.lineId == null)?.says ?? null
+    for (const l of r.lines) {
+      const rowIds = l.shares.map((s) => `${l.id}:${s.key}`)
+      const stands = standingOfRows(rowIds.map((id) => standingMessageOf(by.get(id) ?? [])))
+      const why = file.held.find((h) => h.lineId === l.id)?.says ?? receiptWhy
+      const canSendAgain =
+        !!stands && (stands.state === 'REJECTED' || stands.state === 'FAILED') &&
+        rowIds.every((id) => mayGoInFile(by.get(id) ?? [], l.fixedAt ?? null).ok)
+      out.push({
+        billId: r.billId, number: r.number, vendorName: r.vendorName, lineId: l.id, person: l.person,
+        amountCents: l.amountCents, currency: r.currency,
+        state: stands ? stands.state : 'NOT_SENT',
+        says: stateInWords(stands, why ? why.replace(/^.*? is left out: /, '') : null),
+        canSendAgain,
+      })
+    }
+  }
+  return { ok: true, lines: out }
 }

@@ -5,7 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { recordRefusal } from '@/lib/access-log'
-import { readReceiptFile } from '@/lib/money/receipt-file-read'
+import { readReceiptFile, readLineStates } from '@/lib/money/receipt-file-read'
 import { RECEIPT_COLUMNS } from '@/lib/money/receipt-file'
 
 /**
@@ -21,10 +21,17 @@ import { RECEIPT_COLUMNS } from '@/lib/money/receipt-file'
  * before it is sent; the download writes a row for each person on the
  * lines. Nothing is paid and no payment row is written: this is a read.
  *
- * `columns` chooses and orders the columns; no choice is every column.
- * The choice is kept in the request and not as a company setting, because
- * no company column holds it yet. Without `run`, the answer lists the
- * columns and the approved runs that can be downloaded.
+ * `columns` chooses and orders the columns; with none, the company's saved
+ * choice (`CompanyCoding.fileColumns`), else every column. The request
+ * overrides the saved choice and never changes it.
+ *
+ * A download is a message (Layer 9, slice 2): each row is written as SENT
+ * in the same transaction that reads what was sent before, so a line that
+ * left in one file is not in the next, and two requests at once make one
+ * message per row. `again=1` sends again only the lines your system
+ * rejected, after they were fixed; `line=<id>` does so for one line.
+ * `state=1` reads each line's state in the client's words and draws
+ * nothing into a file.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -75,7 +82,14 @@ export async function GET(request: NextRequest) {
   const columns = asked ? asked.split(',') : null
 
   noteMoneyRead(books, `the invoice lines of payment run ${runId}`)
-  const read = await readReceiptFile(caller, books.companyId, runId, columns)
+  if (url.searchParams.get('state') === '1') {
+    const states = await readLineStates(caller, books.companyId, runId)
+    if (!states.ok) return NextResponse.json({ error: { code: states.code, message: states.says } }, { status: states.status })
+    return NextResponse.json({ data: { runId, lines: states.lines } })
+  }
+  const lineId = url.searchParams.get('line') || undefined
+  const resend = url.searchParams.get('again') === '1'
+  const read = await readReceiptFile(caller, books.companyId, runId, columns, { lineId, resend })
   if (!read.ok) {
     return NextResponse.json({ error: { code: read.code, message: read.says } }, { status: read.status })
   }
@@ -96,6 +110,7 @@ export async function GET(request: NextRequest) {
       available: RECEIPT_COLUMNS,
       rows: read.file.rows,
       held: read.file.held,
+      alreadySent: read.file.alreadySent,
       totals: read.file.totals,
       says: read.file.says,
     },

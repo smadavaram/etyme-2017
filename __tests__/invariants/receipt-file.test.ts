@@ -36,6 +36,31 @@ function receipt(over: Partial<ReceiptIn> = {}): ReceiptIn {
 const rowsOf = (csv: string) => csv.trim().split('\r\n').map((r) => r.split(','))
 
 describe('the client’s file of the invoice receipts it received', () => {
+  it('the file carries the company code, the profit center, the client’s own number for the supplier and the order line, and the kind of cost object', () => {
+    const f = receiptFile(
+      RUN,
+      [receipt({ vendorNumber: 'S-5521', companyCode: '1000', lines: [line({ poLine: '20', shares: [one({ profitCenter: 'PC-9', costObjectType: 'WBS_ELEMENT', costObject: 'W-1' })] })] })],
+    )
+    const [head, row] = rowsOf(f.csv)
+    const at = (id: string) => row[head.indexOf(id)]
+    expect([at('company_code'), at('profit_center'), at('vendor_number'), at('po_line'), at('cost_object_type')]).toEqual(['1000', 'PC-9', 'S-5521', '20', 'WBS_ELEMENT'])
+  })
+
+  it('a line an earlier file carried is not in this file and is listed as already sent', () => {
+    const f = receiptFile(RUN, [receipt()], undefined, () => ({ kind: 'SENT', says: 'Ada North’s line was already sent on Nov 13, file abc123.' }))
+    expect(f.rows).toBe(0)
+    expect(f.alreadySent.map((a) => a.lineId)).toEqual(['ln1'])
+    expect(f.says).toContain('already sent')
+    expect(f.csv.trim().split('\r\n')).toHaveLength(1)
+  })
+
+  it('a line waiting on a fix is held and named, and a line to skip is neither in the file nor listed', () => {
+    const held = receiptFile(RUN, [receipt()], undefined, () => ({ kind: 'HELD', says: 'Fix it, then send it again.' }))
+    expect(held.held.map((h) => h.lineId)).toEqual(['ln1'])
+    const skipped = receiptFile(RUN, [receipt()], undefined, () => ({ kind: 'SKIP', says: '' }))
+    expect([skipped.rows, skipped.held.length, skipped.alreadySent.length]).toEqual([0, 0, 0])
+  })
+
   it('each receipt line is one row, with the supplier, the order, the person, the signed week, the approver, the hours, the rate and the client’s own codes', () => {
     const f = receiptFile(RUN, [receipt()])
     const [head, row] = rowsOf(f.csv)
@@ -43,7 +68,7 @@ describe('the client’s file of the invoice receipts it received', () => {
     expect(row).toEqual([
       'ln1:cc1', 'ln1', 'bill1', 'NW-0441', 'Northwind Staffing', 'co_northwind', 'PO-77', 'buy1', 'Ada North',
       '2026-11-01', '2026-11-07', 'wk1', 'Mina Hart', '2026-11-09', '40.00', '98.00', '3920.00', 'USD', '100%',
-      'COST_CENTER', 'CC-4100', '6120', '2026-11-20',
+      'COST_CENTER', 'CC-4100', '6120', '2026-11-20', '', '', '', '',
     ])
     expect(f.rows).toBe(1)
     expect(f.personIds).toEqual(['p1'])

@@ -165,7 +165,7 @@ describe('paying a firm waits for a verified Owner at a company formed under the
     const gate = bills.indexOf("needsVerifiedOwnerAt(reading.companyId, 'PAY')")
     expect(gate).toBeGreaterThan(0)
     expect(gate).toBeLessThan(bills.indexOf('keyedPayGateNow(bill,'))
-    const runs = readFileSync('src/app/api/ap/payment-runs/route.ts', 'utf8')
+    const runs = readFileSync('src/app/api/ap/payment-runs/route.ts', 'utf8') + readFileSync('src/lib/money/run-confirm-door.ts', 'utf8')
     const runGate = runs.indexOf("needsVerifiedOwnerAt(companyId, 'PAY')")
     expect(runGate).toBeGreaterThan(0)
     expect(runGate).toBeLessThan(runs.indexOf('recordKeyedPayment(tx,'))
@@ -212,7 +212,7 @@ describe('every door that pays keeps a refused payment before it says the refusa
   })
 
   it('releasing a payment run and marking it paid from a confirmation keep every rule\u2019s refusal before the answer goes', () => {
-    const runs = read('src/app/api/ap/payment-runs/route.ts')
+    const runs = read('src/app/api/ap/payment-runs/route.ts') + read('src/lib/money/run-confirm-door.ts')
     for (const why of ['OWNER_NOT_VERIFIED', 'MATCH_FAILED', 'BANK_NOT_CHECKED']) expect(runs).toContain(`await refusedRelease('${why}'`)
     expect(runs).toContain("door: 'RUN_CONFIRM', why: 'OWNER_NOT_VERIFIED'")
     expect(runs).toContain("why: gate.code === 'BANK_NOT_CHECKED' ? 'BANK_NOT_CHECKED' : 'MATCH_FAILED'")

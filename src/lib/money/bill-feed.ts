@@ -10,6 +10,8 @@
  * Pure. No database.
  */
 
+import { formatDay } from '@/lib/format-date'
+
 export type FeedState = 'QUEUED' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'PAID' | 'FAILED' | 'SUPERSEDED'
 export type FeedDirection = 'OUT' | 'IN'
 
@@ -81,4 +83,64 @@ export function feedKey(input: {
 /** The generation the next message takes: how many went before it. */
 export function nextGeneration(messages: readonly { direction: FeedDirection }[], direction: FeedDirection): number {
   return messages.filter((m) => m.direction === direction).length + 1
+}
+
+// ── What a line says about itself, in the reader's words ──────────────
+
+export interface FeedStateRead extends FeedMessageRead {
+  reason?: string | null
+  externalRef?: string | null
+  /** For a PAID answer, the day the money left. */
+  answeredAt?: Date | null
+}
+
+
+/** The message that stands for a line: the latest live one, a later answer beating an earlier send. */
+export function standingMessage<T extends FeedMessageRead>(messages: readonly T[]): T | null {
+  const live = messages.filter((m) => m.state !== 'SUPERSEDED')
+  if (live.length === 0) return null
+  return [...live].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || RANK[a.state] - RANK[b.state])[live.length - 1]
+}
+
+/**
+ * One line's state as a sentence. `notSentBecause` is why the line is not
+ * in a file (the file's own sentence), or null. The payer reads "your
+ * system"; the supplier reads "the client's system".
+ */
+export function stateInWords(
+  stands: FeedStateRead | null,
+  notSentBecause: string | null,
+  reader: 'PAYER' | 'SUPPLIER' = 'PAYER',
+): string {
+  const system = reader === 'PAYER' ? 'your system' : 'the client’s system'
+  if (!stands || stands.state === 'QUEUED') {
+    return `Not sent yet: ${notSentBecause ?? 'the file has not been downloaded.'}`
+  }
+  switch (stands.state) {
+    case 'SENT':
+      return reader === 'PAYER' ? 'Sent' : 'Sent to the client’s system'
+    case 'ACCEPTED':
+      return reader === 'PAYER' ? 'Accepted by your system' : 'Accepted by the client’s system'
+    case 'REJECTED':
+      return `Rejected: ${stands.reason?.trim() || `${system} gave no reason`}`
+    case 'FAILED':
+      return `Not delivered: ${stands.reason?.trim() || 'the send failed'}`
+    case 'PAID':
+      return `Paid on ${stands.answeredAt ? formatDay(stands.answeredAt) : 'a day not recorded'}` +
+        (stands.externalRef ? `, ref ${stands.externalRef}` : '')
+    default:
+      return `Not sent yet: ${notSentBecause ?? 'the file has not been downloaded.'}`
+  }
+}
+
+/**
+ * Several rows of one line (a split) read as one state: any rejection or
+ * failure first, otherwise the least advanced row.
+ */
+export function standingOfRows<T extends FeedMessageRead>(rows: readonly (T | null)[]): T | null {
+  if (rows.length === 0 || rows.some((r) => r === null)) return null
+  const list = rows as T[]
+  const bad = list.find((r) => r.state === 'REJECTED' || r.state === 'FAILED')
+  if (bad) return bad
+  return [...list].sort((a, b) => RANK[a.state] - RANK[b.state])[0]
 }

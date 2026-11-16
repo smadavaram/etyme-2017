@@ -18,7 +18,7 @@ import { useSession } from '@/components/session-provider'
 import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { runDesk, type RunDeskVerdict } from '@/lib/money/pay-desk'
 import { Receipts } from './receipts'
-import { DownloadRunFile, DownloadReceiptLines, ConfirmRunPaid, MarkRunPaid, RunConfirmSummary } from './payment-run-file'
+import { DownloadRunFile, DownloadReceiptLines, ReceiptLineStates, AnswerFromYourSystem, ConfirmRunPaid, MarkRunPaid, RunConfirmSummary } from './payment-run-file'
 import type { ConfirmSummary } from '@/lib/money/run-confirm'
 import { formatDay } from '@/lib/format-date'
 
@@ -1138,6 +1138,8 @@ function PaymentRuns({ currency, desk, onOpenReceipts }: { currency: string; des
                   )}
                   {r.status === 'APPROVED' && <DownloadRunFile runId={r.id} disabled={busy} />}
                   {r.status === 'APPROVED' && <DownloadReceiptLines runId={r.id} disabled={busy} onOpenReceipts={onOpenReceipts} />}
+                  {r.status === 'APPROVED' && <ReceiptLineStates runId={r.id} />}
+                  {r.status === 'APPROVED' && !data?.payWaits && <AnswerFromYourSystem runId={r.id} onDone={() => void load()} />}
                   {/* No Mark it paid or confirmation where the company still waits
                       for a verified Owner: the page's own line says why, with its link. */}
                   {r.status === 'APPROVED' && !data?.payWaits && (

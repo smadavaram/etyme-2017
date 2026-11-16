@@ -1,5 +1,6 @@
 import { allocateAmount, validateAllocation, formatShare } from '@/lib/cost-allocation'
 import { decimalAmount, csvCell } from '@/lib/money/run-file'
+import type { CostObjectType } from '@/lib/money/client-codes'
 
 /**
  * The invoice receipts a client received, as lines in the client's own
@@ -60,6 +61,10 @@ export const RECEIPT_COLUMNS: readonly ColumnSpec[] = [
   { id: 'cost_object', label: 'Cost object' },
   { id: 'gl_account', label: 'GL account' },
   { id: 'due_date', label: 'Due date' },
+  { id: 'company_code', label: 'Company code' },
+  { id: 'profit_center', label: 'Profit center' },
+  { id: 'vendor_number', label: 'Your supplier number' },
+  { id: 'po_line', label: 'Order line number' },
 ]
 
 export const DEFAULT_RECEIPT_COLUMNS: readonly string[] = RECEIPT_COLUMNS.map((c) => c.id)
@@ -88,9 +93,11 @@ export function pickColumns(
 export interface CodeShare {
   /** Unique within the line: the cost center the share belongs to. */
   key: string
-  costObjectType: 'COST_CENTER' | 'INTERNAL_ORDER'
+  costObjectType: CostObjectType
   costObject: string
   glAccount: string | null
+  /** The cost center's own profit center; empty where it has none. */
+  profitCenter?: string | null
   shareBps: number
 }
 
@@ -108,6 +115,10 @@ export interface ReceiptLineIn {
   hours: number | null
   rateCents: number | null
   amountCents: number
+  /** The place of the line in its order (10, 20, 30), or null. */
+  poLine?: string | null
+  /** When the line was last fixed: the receipt changed or a code was added. */
+  fixedAt?: Date | null
   /** The client's coding for this line. Empty where the client has not coded it. */
   shares: CodeShare[]
 }
@@ -118,6 +129,10 @@ export interface ReceiptIn {
   number: string
   vendorId: string
   vendorName: string
+  /** The payer's own number for this supplier, or null. */
+  vendorNumber?: string | null
+  /** The payer's company code, or empty. */
+  companyCode?: string
   orderNumber: string | null
   orderLineId: string | null
   /** What the run pays on this receipt, in minor units. */
@@ -144,6 +159,7 @@ export interface HeldFromReceiptFile {
 export interface ReceiptFileRow {
   rowId: string
   lineId: string
+  shareKey: string
   billId: string
   currency: string
   amountCents: number
@@ -156,6 +172,10 @@ export interface ReceiptFile {
   columns: string[]
   /** Rows in the file; the header is not counted. */
   rows: number
+  /** The rows in the file, with the keys a message is kept under. */
+  items: ReceiptFileRow[]
+  /** Lines left out because an earlier file already carried them. */
+  alreadySent: { billId: string; lineId: string; person: string | null; says: string }[]
   held: HeldFromReceiptFile[]
   /** One per currency in the file. Never a sum across two, never changed by the picker. */
   totals: { currency: string; minor: number; amount: string }[]
@@ -217,7 +237,14 @@ export function receiptFile(
   run: { id: string; currency: string; scheduledFor: Date },
   receipts: ReceiptIn[],
   columnIds: readonly string[] = DEFAULT_RECEIPT_COLUMNS,
+  /**
+   * What the message record says about a row: 'SENT' where an earlier file
+   * carries it, 'HELD' with a sentence where it waits on a fix, null where
+   * it may go. Asked before the row is written.
+   */
+  rowState?: (receipt: ReceiptIn, line: ReceiptLineIn, rowId: string) => { kind: 'SENT' | 'HELD' | 'SKIP'; says: string } | null,
 ): ReceiptFile {
+  const alreadySent: ReceiptFile['alreadySent'] = []
   const held: HeldFromReceiptFile[] = []
   const rows: ReceiptFileRow[] = []
   const personIds = new Set<string>()
@@ -241,13 +268,27 @@ export function receiptFile(
       const shares = l.shares.map((s) => ({ costCenterId: s.key, shareBps: s.shareBps }))
       const money = allocateAmount(l.amountCents, shares)
       const time = l.hours == null ? null : allocateAmount(Math.round(l.hours * 100), shares)
+      let linePut = false
       for (const part of money) {
         const s = l.shares.find((x) => x.key === part.costCenterId)!
         const h = time?.find((x) => x.costCenterId === part.costCenterId)
         const rowId = `${l.id}:${s.key}`
+        const state = rowState ? rowState(r, l, rowId) : null
+        if (state) {
+          if (state.kind === 'SKIP') continue
+          if (state.kind === 'SENT') {
+            if (!alreadySent.some((a) => a.lineId === l.id)) alreadySent.push({ billId: r.billId, lineId: l.id, person: l.person, says: state.says })
+          } else if (!held.some((x) => x.lineId === l.id)) {
+            held.push({ billId: r.billId, number: r.number, vendorName: r.vendorName, lineId: l.id, person: l.person, says: state.says })
+            leftOut++
+          }
+          continue
+        }
+        linePut = true
         rows.push({
           rowId,
           lineId: l.id,
+          shareKey: s.key,
           billId: r.billId,
           currency: cur,
           amountCents: part.amountCents,
@@ -275,10 +316,14 @@ export function receiptFile(
             cost_object: s.costObject,
             gl_account: s.glAccount ?? '',
             due_date: day(r.dueAt),
+            company_code: r.companyCode ?? '',
+            profit_center: s.profitCenter?.trim() ?? '',
+            vendor_number: r.vendorNumber ?? '',
+            po_line: l.poLine ?? '',
           },
         })
       }
-      if (l.personId) personIds.add(l.personId)
+      if (l.personId && linePut) personIds.add(l.personId)
     }
     if (leftOut > 0 && leftOut < r.lines.length) partly++
   }
@@ -298,19 +343,27 @@ export function receiptFile(
       ? ''
       : ` ${held.length === 1 ? 'One item is' : `${held.length} items are`} left out. ${held.map((h) => h.says).join(' ')}` +
         (partly > 0 ? ' Where only a line is left out, the rest of that invoice is in the file.' : '')
+  const sentNote =
+    alreadySent.length === 0
+      ? ''
+      : ` ${alreadySent.length === 1 ? 'One line was' : `${alreadySent.length} lines were`} already sent and ${alreadySent.length === 1 ? 'is' : 'are'} not in this file again.`
 
   return {
     csv: `${[header, ...body].join('\r\n')}\r\n`,
     filename: `invoice-lines-${run.scheduledFor.toISOString().slice(0, 10)}-${run.currency.toUpperCase()}-${run.id.slice(-6)}.csv`,
     columns: [...columnIds],
     rows: n,
+    items: rows,
+    alreadySent,
     held,
     totals,
     personIds: [...personIds],
     says:
       (n === 0
-        ? 'Nothing in this run can be put in the file today, so it has no lines.'
+        ? alreadySent.length > 0
+          ? 'Every line in this run that can go was sent in an earlier file.'
+          : 'Nothing in this run can be put in the file today, so it has no lines.'
         : `${n} line${n === 1 ? '' : 's'} in the file, coded with your own cost centers, for your own system to pay from. Etyme sends no money and the file holds no bank details.`) +
-      left,
+      sentNote + left,
   }
 }

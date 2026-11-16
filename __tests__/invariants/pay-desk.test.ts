@@ -254,7 +254,7 @@ describe('Approve it, on a payment run, is drawn only where the route takes it',
     const page = read('app/dashboard/ap/page.tsx')
     expect(page).toContain("r.status === 'DRAFT' && r.approve?.may")
     expect(page).toContain('{r.approve.says}')
-    const route = read('app/api/ap/payment-runs/route.ts')
+    const route = read('app/api/ap/payment-runs/route.ts') + read('lib/money/run-confirm-door.ts')
     expect(route).toMatch(/mayApproveRun\(\{ status: r\.status, createdById \}, reader, whoApproves\)/)
   })
 })

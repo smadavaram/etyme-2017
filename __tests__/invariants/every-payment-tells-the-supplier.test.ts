@@ -37,7 +37,7 @@ import { markPaidBody } from '@/lib/money/run-confirm'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const BILLS = read('src/app/api/ap/bills/route.ts')
-const RUNS = read('src/app/api/ap/payment-runs/route.ts')
+const RUNS = read('src/app/api/ap/payment-runs/route.ts') + read('src/lib/money/run-confirm-door.ts')
 const INVOICE = read('src/app/api/invoices/[id]/payments/route.ts')
 const RUN_FORM = read('src/app/dashboard/ap/payment-run-file.tsx')
 const AP_PAGE = read('src/app/dashboard/ap/page.tsx')
@@ -71,8 +71,8 @@ describe('every payment goes through one function', () => {
     expect(BILLS).toContain('recordKeyedPayment(tx, {')
     expect(RUNS).toContain('recordKeyedPayment(tx, {')
     // "Mark it paid" is the confirmation typed for the whole run.
-    const pay = RUNS.slice(RUNS.indexOf("// action === 'pay'"), RUNS.indexOf('// ── The confirmation from the payer'))
-    expect(pay).toContain('return confirm(caller, companyId, { id, reference, paidOn })')
+    const pay = RUNS.slice(RUNS.indexOf("// action === 'pay'"), RUNS.indexOf('// ── Shared loading'))
+    expect(pay).toContain('confirmRunPayments(caller, companyId, { id, reference, paidOn })')
   })
 
   it('a supplier’s bill that arrived on Etyme is paid by the one invoice write, and its notice is sent after the commit', () => {

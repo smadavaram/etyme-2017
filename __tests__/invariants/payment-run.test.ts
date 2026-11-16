@@ -182,7 +182,7 @@ describe('The day a remittance advice says', () => {
   })
 
   it('a paid run’s advice on the payment runs screen is read with the run’s own paid date, and the kept advice is written again when the run is confirmed paid', () => {
-    const route = readFileSync(join(__dirname, '../../src/app/api/ap/payment-runs/route.ts'), 'utf8')
+    const route = readFileSync(join(__dirname, '../../src/app/api/ap/payment-runs/route.ts'), 'utf8') + readFileSync(join(__dirname, '../../src/lib/money/run-confirm-door.ts'), 'utf8')
     expect(route).toContain('paidOn: run.paidAt')
     expect(route).toContain('rewriteAdvice(read.runId, last, payerName)')
   })
