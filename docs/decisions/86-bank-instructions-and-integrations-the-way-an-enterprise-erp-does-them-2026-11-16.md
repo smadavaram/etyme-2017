@@ -126,3 +126,12 @@ A payment made in a system that cannot answer by message comes back by
 file. Where no file exists, it comes back by hand, recorded with its
 reference. Either way it is logged, and a line already marked paid is
 never marked paid twice.
+
+The founder added: *"very rarely they will use etyme"* to pay. Paying in
+Etyme is the rare case. The common case is the client's own system:
+- Etyme delivers coded bill lines into that system.
+- Etyme reads back what the system did with them.
+
+So the second check before release guards the few doors where money is
+released inside Etyme. The bank-change confirmation still matters
+wherever a bill prints where to pay.
