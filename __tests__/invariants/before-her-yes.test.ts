@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { readsOnlyWhatItTyped, wordsAreTheFirms, typedOnly, nameItTyped } from '@/lib/consultant-portfolio/before-her-yes'
+import { readsOnlyWhatItTyped, wordsAreTheFirms, typedOnly, nameItTyped, nameOnHerAnswer } from '@/lib/consultant-portfolio/before-her-yes'
 import { nothingNamed } from '@/lib/consultant-portfolio/bench-ask'
 
 /**
@@ -93,5 +93,33 @@ describe('what a firm reads about somebody before she says yes', () => {
     expect(route).toContain('{ ...hers, skills: { hasSome: [q] } }')
     expect(route).toContain('{ ...hers, skills: { hasEvery: skills } }')
     expect(route).toContain('andClauses.push({ ...hers, workAuth })')
+  })
+})
+
+describe('her answer from her own page, as the firm that asked reads it (batch five, 2026-11-16)', () => {
+  const asTyped = { onlyTyped: true, typed: typedOnly({ ...listing, firmName: 'Theo Marchetti' }, 'daniel.osei@harborline-tech.example') }
+
+  it('when she says no from her own page, the firm\'s notice and its log name her as the firm typed her, never by the name on her own record', () => {
+    expect(nameOnHerAnswer({ said: 'DECLINE', ownName: 'Daniel Osei', read: asTyped })).toBe('Theo Marchetti')
+    // Where the firm typed no name, it reads her as the address it asked at.
+    const noName = { onlyTyped: true, typed: typedOnly({ ...listing, firmName: null }, 'daniel.osei@harborline-tech.example') }
+    expect(nameOnHerAnswer({ said: 'DECLINE', ownName: 'Daniel Osei', read: noName })).toBe('daniel.osei@harborline-tech.example')
+  })
+
+  it('a no names her own name only where the firm already reads her record', () => {
+    expect(nameOnHerAnswer({ said: 'DECLINE', ownName: 'Daniel Osei', read: { onlyTyped: false, typed: null } })).toBe('Daniel Osei')
+  })
+
+  it('a yes from her own page names her own name', () => {
+    expect(nameOnHerAnswer({ said: 'ACCEPT', ownName: 'Daniel Osei', read: asTyped })).toBe('Daniel Osei')
+  })
+
+  it('her own page\'s answer reads the firm\'s view as the firm, and both the log and the notice carry that one name', () => {
+    const route = src('src/app/api/me/benches/[id]/respond/route.ts')
+    expect(route).toMatch(/firmReadsAt\(\{ companyId: listing\.company\.id, callerPersonId: '',/)
+    expect(route).toContain('`${firmCalls} ${said === \'ACCEPT\' ? \'agreed to\'')
+    expect(route).toContain('personName: firmCalls,')
+    expect(route).not.toMatch(/\$\{caller\.person\.name\} \$\{said/)
+    expect(route).not.toContain('personName: caller.person.name')
   })
 })

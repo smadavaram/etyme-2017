@@ -5,6 +5,7 @@ import { answer, type State } from '@/lib/bench-consent'
 import { tellTheFirm } from '@/lib/bench-invite'
 import { readStay, stayFields, staySays } from '@/lib/bench-stay'
 import { agreeingTerms } from '@/lib/bench-filter'
+import { firmReadsAt, nameOnHerAnswer } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
  * POST /api/me/benches/:id/respond
@@ -46,7 +47,7 @@ export async function POST(
   const listing = await prisma.benchListing.findUnique({
     where: { id },
     include: {
-      consultant: { select: { personId: true } },
+      consultant: { select: { id: true, personId: true } },
       company: { select: { id: true, name: true, homeCurrency: true } },
     },
   })
@@ -92,6 +93,20 @@ export async function POST(
   }
   const agreed = terms && terms.ok ? terms : null
 
+  // The name the firm reads her as, read before her answer is written. A
+  // no is not a yes: where the firm reads only what it typed, its log and
+  // the notice it gets name her as it typed her, never by the name on her
+  // own record. Read as the firm (no caller), not as her, since she is the
+  // one signed in. A yes shares her record, so it names her own name
+  // (`firmReadsAt`, `nameOnHerAnswer`; batch five, 2026-11-16).
+  const firmCalls = nameOnHerAnswer({
+    said,
+    ownName: caller.person.name,
+    read: said === 'DECLINE'
+      ? (await firmReadsAt({ companyId: listing.company.id, callerPersonId: '', consultantIds: [listing.consultant.id] })).get(listing.consultant.id)
+      : null,
+  })
+
   await prisma.$transaction([
     prisma.benchListing.update({
       where: { id },
@@ -104,7 +119,7 @@ export async function POST(
         companyId: listing.company.id,
         action: said === 'ACCEPT' ? 'BENCH_CONSENT_GIVEN' : 'BENCH_CONSENT_DECLINED',
         summary:
-          `${caller.person.name} ${said === 'ACCEPT' ? 'agreed to' : 'declined'} being marketed by ${listing.company.name}` +
+          `${firmCalls} ${said === 'ACCEPT' ? 'agreed to' : 'declined'} being marketed by ${listing.company.name}` +
           (agreed?.agreed && 'termsAgreedAt' in agreed.data ? ', and agreed the pay terms stated with the listing' : ''),
         reason: 'The consultant answered the invitation themselves.',
         payload: {
@@ -122,14 +137,14 @@ export async function POST(
   ])
 
   // The firm that asked hears the answer — whoever sent the invitation
-  // and every desk that puts people forward, in the app and by email.
+  // and every role that puts people forward, in the app and by email.
   // It was written to the consultant's own inbox (tester, 2026-09-30).
   // Their reason reaches the firm and nobody else.
   void tellTheFirm({
     listingId: id,
     companyId: listing.company.id,
     subjectPersonId: caller.person.id,
-    personName: caller.person.name,
+    personName: firmCalls,
     said,
     note: said === 'DECLINE' && body.note ? String(body.note) : null,
     askFirst: typeof body.askFirst === 'boolean' ? body.askFirst : null,

@@ -279,6 +279,17 @@ export async function firmReadsAt(
   return out
 }
 
+/**
+ * The name a firm's log and notice carry when she answers its ask from her
+ * own page or her invitation. A yes shares her record with the firm, so it
+ * names her own name. A no is not a yes: it names her as the firm reads
+ * her, which is what it typed where that is all it reads. Pure.
+ */
+export function nameOnHerAnswer(o: { said: string; ownName: string; read: FirmRead | null | undefined }): string {
+  if (o.said === 'ACCEPT') return o.ownName
+  return o.read?.typed?.name ?? o.ownName
+}
+
 /** The ids, out of `firmReadsAt`'s answer, this firm reads only its own words about. */
 export function typedOnlyIds(reads: Map<string, FirmRead>): string[] {
   return [...reads.entries()].filter(([, r]) => r.onlyTyped).map(([id]) => id)
