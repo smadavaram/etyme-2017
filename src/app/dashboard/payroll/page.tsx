@@ -593,32 +593,6 @@ export default function PayrollPage() {
               {row.straightTime}
             </span>
           )}
-          {/* A week held because nobody has said whether the person is
-              exempt: not in this pay, said, with the answer on the row. */}
-          {row.exemptHeld && (
-            <span className="block max-w-[300px] text-left text-[11px] text-etyme-attention ml-auto">
-              {row.exemptHeld}
-              {mayRecordExempt && <ExemptAnswer row={row} onSaved={fetchPayroll} />}
-            </span>
-          )}
-          {/* A week after the pay window ended on a placement extended past
-              it: not in this pay and not dropped, said with what to do. */}
-          {row.windowHeld && (
-            <span className="block max-w-[300px] text-left text-[11px] text-etyme-attention ml-auto">
-              {row.windowHeld}
-              {/* The act the sentence names, for a seat that runs payroll;
-                  any other seat's sentence names who here may. */}
-              {mayRepairWindow && (row.windowRepairs ?? []).map((t) => (
-                <WindowRepair key={t.sellContractId} target={t} onSaved={(says) => { setRepairedSaid(says); fetchPayroll() }} />
-              ))}
-            </span>
-          )}
-          {/* A week filed and not accepted yet: not in this pay, said. */}
-          {row.notAccepted && (
-            <span className="block max-w-[260px] text-left text-[11px] text-etyme-attention ml-auto">
-              {row.notAccepted}
-            </span>
-          )}
         </span>
       ),
       sortValue: (row) => row.totalApprovedHours,
@@ -1011,6 +985,40 @@ export default function PayrollPage() {
         exportName={`payroll${selectedPeriod ? `-${selectedPeriod}` : ''}`}
         defaultPageSize={20}
       />
+
+      {/* A week held off this pay is said under the table, one line a person,
+          never inside a cell: a long sentence there breaks the columns. */}
+      {!loading && filtered.some((r) => r.exemptHeld || r.windowHeld || r.notAccepted) && (
+        <ul className="mt-3 space-y-2" aria-label="Weeks held off this pay">
+          {filtered.map((row) => (row.exemptHeld || row.windowHeld || row.notAccepted) && (
+            <li key={`held-${row.buyContractId}`} className="max-w-[70ch] text-[12.5px] text-etyme-attention">
+              <span className="font-medium text-etyme-ink">{row.person.name}</span>
+              {/* A week held because nobody has said whether the person is
+                  exempt: not in this pay, said, with the answer on the row. */}
+              {row.exemptHeld && (
+                <span className="block">
+                  {row.exemptHeld}
+                  {mayRecordExempt && <ExemptAnswer row={row} onSaved={fetchPayroll} />}
+                </span>
+              )}
+              {/* A week after the pay window ended on a placement extended past
+                  it: not in this pay and not dropped, said with what to do. */}
+              {row.windowHeld && (
+                <span className="block">
+                  {row.windowHeld}
+                  {/* The act the sentence names, for a seat that runs payroll;
+                      any other seat's sentence names who here may. */}
+                  {mayRepairWindow && (row.windowRepairs ?? []).map((t) => (
+                    <WindowRepair key={t.sellContractId} target={t} onSaved={(says) => { setRepairedSaid(says); fetchPayroll() }} />
+                  ))}
+                </span>
+              )}
+              {/* A week filed and not accepted yet: not in this pay, said. */}
+              {row.notAccepted && <span className="block">{row.notAccepted}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {/* Paid on an invoice receipt, never by payroll as well */}
       {!loading && paidElsewhere.length > 0 && (

@@ -64,7 +64,7 @@ export function DownloadRunFile({ runId, disabled }: { runId: string; disabled?:
  * request and is not kept as a company setting. The route's own
  * sentence says what was left out and why before the file is saved.
  */
-export function DownloadReceiptLines({ runId, disabled }: { runId: string; disabled?: boolean }) {
+export function DownloadReceiptLines({ runId, disabled, onOpenReceipts }: { runId: string; disabled?: boolean; onOpenReceipts?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState(false)
   const [chosen, setChosen] = useState<string[]>([...DEFAULT_RECEIPT_COLUMNS])
@@ -152,6 +152,19 @@ export function DownloadReceiptLines({ runId, disabled }: { runId: string; disab
         </div>
       )}
       {said && <p className="text-[13px] text-etyme-ink">{said}</p>}
+      {said && said.includes('no lines') && (
+        <p className="text-[13px] text-etyme-ink">
+          Lines cannot be added to an invoice receipt recorded as a total. Ask the supplier to send the bill from Etyme with its lines, or code that invoice in your own system.
+          {onOpenReceipts && (
+            <>
+              {' '}
+              <button type="button" className="underline" style={{ color: 'var(--color-action)' }} onClick={onOpenReceipts}>
+                Open Invoice receipts
+              </button>
+            </>
+          )}
+        </p>
+      )}
       {failed && <p className="text-[13px] text-etyme-attention">{failed}</p>}
     </div>
   )
