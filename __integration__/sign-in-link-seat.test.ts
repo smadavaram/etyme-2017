@@ -179,11 +179,11 @@ describe('a seat never signed in here', () => {
   it('a newer link replaces the old one, and the old one opens a page that says so', async () => {
     const old = tokenIn((await post(people.without)).body.data.link)
     await post(people.without)
-    expect(await readSignInDoorPage(old)).toEqual({ ok: false, firmName: 'Brightmoor Staffing' })
+    expect(await readSignInDoorPage(old)).toEqual({ ok: false, firmName: 'Brightmoor Staffing', used: false })
     const went = await enter(old)
     expect(went.to).toBe(`http://localhost:3000/answer/sign-in/${encodeURIComponent(old)}`)
     // A token somebody edited names nobody.
-    expect(await readSignInDoorPage(`${old}x`)).toEqual({ ok: false, firmName: null })
+    expect(await readSignInDoorPage(`${old}x`)).toEqual({ ok: false, firmName: null, used: false })
   })
 
   it('once she has signed in here, her row goes quiet and no new link is made', async () => {

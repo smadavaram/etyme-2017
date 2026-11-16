@@ -80,7 +80,7 @@ describe('the rate range on her own My benches page', () => {
 
   it('where it is below her own lowest rate, she is told, and the firm reads nothing', async () => {
     const ask = await mine()
-    expect(ask.range.belowFloor).toBe('This is below the lowest rate on your record, $97 an hour.')
+    expect(ask.range.belowFloor).toBe('This is below the lowest rate on your record, $97 an hour, if that rate is in USD.')
 
     // At or under the top of the range, nothing is said about it.
     await prisma.consultantProfile.update({ where: { id: profileId }, data: { rateFloor: 9_000 } })

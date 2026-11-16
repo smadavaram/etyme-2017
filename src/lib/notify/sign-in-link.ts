@@ -34,12 +34,16 @@ import { formatDay } from '@/lib/format-date'
  *    link this firm made. Every other person reads the same line.
  *  - The link is the same for everybody, and the door decides at use
  *    (`/answer/sign-in/<token>`, `enterSignInDoor` in sign-in-link-door):
- *    an address with a way in already is sent to the sign-in page, and
- *    one with none is given the password door's own one-time link
- *    (`issueSetPassword`) to choose a password. So the link the firm
- *    copies never sets a password on an account somebody already holds,
- *    and it never shows which of the two it will do. Never a second
- *    record: the first sign-in turns the person's record into her seat.
+ *    a record anybody has ever used, by any door, is sent to the sign-in
+ *    page (`everCameIn`), and only a record nobody has ever used is given
+ *    the password door's own one-time link (`issueSetPassword`) to choose
+ *    a first password. So the link the firm copies never sets a password
+ *    on an account somebody has used, and it never shows which of the two
+ *    it will do. Never a second record: the first sign-in turns the
+ *    person's record into her seat.
+ *  - The link works once (2026-11-16). The first Continue spends it,
+ *    whichever way it sent her; a second press says it was used. Every
+ *    press is logged with her as the subject, and no row holds a link.
  *  - Where no email can leave, the link is shown to copy. Where email can
  *    leave, the line says the link was sent, and offers "Send again".
  *
@@ -257,7 +261,7 @@ export function signInLetter(l: { name: string; firmName: string; loginUrl: stri
   return [
     `Hello ${firstName(l.name)},`,
     `${l.firmName} uses Etyme for your work. You file your own timesheet there, each week.`,
-    `Open the link below to sign in. If you have no Etyme password yet, you choose one there. It works for ${SIGN_IN_LINK_HOURS} hours.`,
+    `Open the link below to sign in. If you have not used Etyme before, you choose a password there. The link works once, within ${SIGN_IN_LINK_HOURS} hours.`,
     l.loginUrl ? `After that, sign in at ${l.loginUrl} with this email address.` : 'After that, sign in with this email address.',
   ]
 }
@@ -300,14 +304,70 @@ export function signInDoorUntil(madeAt: Date): Date {
 }
 
 /**
- * Where the sign-in door sends whoever opens a live link, decided at use
- * and never before (`enterSignInDoor`). An address with a way in already
- * (a password, or a Google or Microsoft sign-in) goes to the sign-in page
- * with its address filled: the link never sets a password on an account
- * somebody holds. One with none chooses a password. Pure.
+ * Every trace the platform keeps of a person having used it, by any door
+ * (2026-11-16). Read at the door's use by `cameInTraces` in
+ * lib/notify/came-in, and nowhere else. Each is a count or a yes:
+ *
+ *  - `password`: a password on the record (`Person.passwordHash`).
+ *  - `mailboxProved`: she proved the mailbox once, by a verify or reset
+ *    link, a provider or a directory (`Person.emailVerifiedAt`).
+ *  - `signInMethods`: a sign-in method on record, any provider: Google,
+ *    Microsoft, an email link, SAML, a password (`Credential`).
+ *  - `directoryIdentities`: a company's directory vouches for her
+ *    (`ExternalIdentity`).
+ *  - `sessionsEnded`: sessions she held were ended (`sessionVersion`,
+ *    `sessionsEndedAt`): there were sessions.
+ *  - `oneTimeLinksUsed`: she opened a verify or set-password link
+ *    (`EmailToken.usedAt`).
+ *  - `seatsUsed`: a seat at any firm that a request of hers used
+ *    (`Context.lastUsedAt`).
+ *  - `ownSeats`: her own company-less seat (`Context` CONSULTANT with no
+ *    company), which only her own session makes: her first sign-up by an
+ *    email link or Google, her password sign-up, or her own work opening
+ *    it on her first request. A first sign-in through an email link
+ *    writes no Credential row, so this is often the only trace of it.
+ *  - `actsAsActor`: any access-log row naming her as the actor, at any
+ *    firm, refusals included: a sign-in by any door (LinkedIn writes only
+ *    this), an invitation accepted, a read she made.
+ *  - `ownWords`: her own Ask Etyme conversations, model prompts, Teams
+ *    conversations, data requests she made, or her own page written or
+ *    confirmed by her (`bioWrittenBy` PERSON, `confirmedAt`, `pageLiveAt`).
+ *  - `answers`: a bench invitation she answered, either way, or terms she
+ *    agreed (`BenchListing.respondedAt`, `termsAgreedAt`).
+ *
+ * Any one of them means somebody has used this record, and the firm's
+ * link may only send her to sign in as usual. Pure.
  */
-export function signInDoorSends(o: { hasWayIn: boolean }): 'SIGN_IN' | 'CHOOSE_PASSWORD' {
-  return o.hasWayIn ? 'SIGN_IN' : 'CHOOSE_PASSWORD'
+export interface CameInTraces {
+  password: boolean
+  mailboxProved: boolean
+  signInMethods: number
+  directoryIdentities: number
+  sessionsEnded: boolean
+  oneTimeLinksUsed: number
+  seatsUsed: number
+  ownSeats: number
+  actsAsActor: number
+  ownWords: number
+  answers: number
+}
+
+export function everCameIn(t: CameInTraces): boolean {
+  return t.password || t.mailboxProved || t.sessionsEnded ||
+    t.signInMethods > 0 || t.directoryIdentities > 0 || t.oneTimeLinksUsed > 0 ||
+    t.seatsUsed > 0 || t.ownSeats > 0 || t.actsAsActor > 0 || t.ownWords > 0 || t.answers > 0
+}
+
+/**
+ * Where the sign-in door sends whoever presses Continue on a live link,
+ * decided at use and never before (`enterSignInDoor`). A record anybody
+ * has ever used, by any door (`everCameIn`), goes to the sign-in page
+ * with its address filled, where she uses her own door: the link a firm
+ * holds never sets a password on it. Only a record nobody has ever used
+ * chooses a first password. Pure.
+ */
+export function signInDoorSends(o: { everCameIn: boolean }): 'SIGN_IN' | 'CHOOSE_PASSWORD' {
+  return o.everCameIn ? 'SIGN_IN' : 'CHOOSE_PASSWORD'
 }
 
 /** The page the sign-in door link opens, in words. One for every address: it never says which way the door will go. */
@@ -316,8 +376,38 @@ export function signInDoorPage(firmName: string): { heading: string; says: strin
     heading: 'Sign in to Etyme',
     says: `${firmName} uses Etyme for your work. You file your own timesheets there.`,
     button: 'Continue',
-    after: 'If you already sign in to Etyme, you sign in as usual. If not, you choose a password.',
+    after: 'If you have used Etyme before, you sign in as usual. If not, you choose a password. The link works once.',
   }
+}
+
+/**
+ * The same page where the link was used already (2026-11-16). True
+ * whichever way the first press went: she may have chosen a password, or
+ * been sent to sign in as usual, or somebody else may have pressed it.
+ */
+export function signInDoorUsed(firmName: string): string {
+  return `This sign-in link was already used, and it works only once. If you can sign in, sign in as usual. If not, ask ${firmName} for a new link.`
+}
+
+/**
+ * What the access log says of a press on the door (2026-11-16). One
+ * sentence whichever way the door sent her, so the row never says whether
+ * she had used Etyme before. Never the link or its token. Pure.
+ */
+export function signInDoorPressed(firmName: string): string {
+  return `Continue was pressed on the sign-in link ${firmName} made. The link is now used.`
+}
+
+/** Why a press on the door was refused, for the access log. Never the link or its token. Pure. */
+export function signInDoorRefused(firmName: string, why: 'USED' | 'REPLACED_OR_RAN_OUT' | 'SAMPLE' | 'NOT_ON_BOOKS' | 'AWAITING_YES'): string {
+  const because = {
+    USED: 'it was already used',
+    REPLACED_OR_RAN_OUT: 'it ran out or a newer one was made',
+    SAMPLE: 'the address is a sample one',
+    NOT_ON_BOOKS: `the person is no longer on ${firmName}'s books`,
+    AWAITING_YES: 'the person has not said yes to the bench invitation',
+  }[why]
+  return `Refused Continue on the sign-in link ${firmName} made: ${because}.`
 }
 
 /** The same page where the link no longer works. */

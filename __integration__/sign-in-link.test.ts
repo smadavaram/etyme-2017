@@ -76,6 +76,9 @@ beforeAll(async () => {
   })
   await prisma.credential.deleteMany({ where: { personId: placed.id } })
   await prisma.context.updateMany({ where: { personId: placed.id }, data: { lastUsedAt: null } })
+  // Nobody has ever used her record: the seed's yes to the bench is a trace of use
+  // (`everCameIn`), so it is taken off, and the firm's link may give her a first password.
+  await prisma.benchListing.updateMany({ where: { consultant: { personId: placed.id } }, data: { respondedAt: null, termsAgreedAt: null } })
 }, 300_000)
 
 afterEach(() => {

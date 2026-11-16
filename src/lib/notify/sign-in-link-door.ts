@@ -10,8 +10,9 @@ import { ACCOUNT_MAIL, recordedBody, type AccountMailState } from '@/lib/notify/
 import {
   MAY_HAND_OVER, alreadySignsInRefusal, awaitingYesRefusal, awaitsHerYes, calledOnRow, keptLinkIn, mayNotHandOver, notYours,
   sampleRefusal, sendFirstAction, signInLetter, signInLineSays, signInSubject, tokenOf, isSignInDoorLink, signInDoorLive, signInDoorUntil,
-  signInDoorSends, type SignInState,
+  signInDoorSends, signInDoorPressed, signInDoorRefused, type SignInState,
 } from '@/lib/notify/sign-in-link'
+import { hasEverCameIn } from '@/lib/notify/came-in'
 import { readSignInDoor, signInDoorUrl } from '@/lib/notify/sign-in-door'
 import { firmReadsAt, nameItTyped } from '@/lib/consultant-portfolio/before-her-yes'
 
@@ -84,15 +85,6 @@ async function tiesHere(companyId: string, personId: string): Promise<{ onBooks:
 async function signsInHere(companyId: string, personId: string): Promise<boolean> {
   const acted = await prisma.accessLog.findFirst({ where: { actorPersonId: personId, actorCompanyId: companyId }, select: { id: true } })
   return Boolean(acted)
-}
-
-/** Whether an address has a way in already: a password, or a Google or Microsoft sign-in. Read by the door at use, and nowhere else. */
-async function hasWayIn(personId: string): Promise<boolean> {
-  const p = await prisma.person.findUnique({
-    where: { id: personId },
-    select: { passwordHash: true, _count: { select: { credentials: true } } },
-  })
-  return Boolean(p && (p.passwordHash || p._count.credentials > 0))
 }
 
 /** What the sign-in door keeps on its notice, beside the delivery. */
@@ -316,68 +308,108 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
 
 export type DoorRead =
   | { ok: true; firmName: string }
-  | { ok: false; firmName: string | null }
+  /** `used`: the link was pressed already and works only once. */
+  | { ok: false; firmName: string | null; used: boolean }
+
+type Why = Parameters<typeof signInDoorRefused>[1]
 
 /**
  * The notice a sign-in door link names, if it still works: the newest
- * this firm made for her, younger than `SIGN_IN_LINK_HOURS`, at an
- * address a mailbox uses, for somebody still on this firm's books and not
- * waiting on her yes. Reads only.
+ * this firm made for her, younger than `SIGN_IN_LINK_HOURS`, never pressed
+ * before, at an address a mailbox uses, for somebody still on this firm's
+ * books and not waiting on her yes. Reads only. A refusal says whom the
+ * token named, where it named anybody, so a press can be logged against her.
  */
 async function liveDoor(token: string, now: Date) {
+  const nobody = { ok: false as const, firmName: null, personId: null, why: null }
   const t = readSignInDoor(token)
-  if (!t) return { ok: false as const, firmName: null }
+  if (!t) return nobody
   const notice = await prisma.notification.findUnique({
     where: { id: t.noticeId },
     select: {
       id: true, personId: true, companyId: true, title: true, type: true, createdAt: true, data: true,
     },
   })
-  if (!notice || notice.type !== ACCOUNT_MAIL || !notice.companyId || !doorData(notice.data)) return { ok: false as const, firmName: null }
+  if (!notice || notice.type !== ACCOUNT_MAIL || !notice.companyId || !doorData(notice.data)) return nobody
   const [company, person] = await Promise.all([
     prisma.company.findUnique({ where: { id: notice.companyId }, select: { id: true, name: true } }),
     prisma.person.findUnique({ where: { id: notice.personId }, select: { id: true, primaryEmail: true } }),
   ])
-  if (!company || !person) return { ok: false as const, firmName: null }
+  if (!company || !person) return nobody
+  const refused = (why: Why) => ({ ok: false as const, firmName: company.name, personId: person.id, why })
+  // Used once already: said first, whatever else is true of it now.
+  if (doorData(notice.data)!.openedAt) return refused('USED')
   const newest = await prisma.notification.findFirst({
     where: { personId: notice.personId, companyId: notice.companyId, type: ACCOUNT_MAIL, title: notice.title },
     orderBy: { createdAt: 'desc' }, select: { id: true },
   })
-  const live = signInDoorLive({ madeAt: notice.createdAt, isNewest: newest?.id === notice.id, now })
-  if (!live || demoEmail(person.primaryEmail)) return { ok: false as const, firmName: company.name }
+  if (!signInDoorLive({ madeAt: notice.createdAt, isNewest: newest?.id === notice.id, now })) return refused('REPLACED_OR_RAN_OUT')
+  if (demoEmail(person.primaryEmail)) return refused('SAMPLE')
   const ties = await tiesHere(company.id, notice.personId)
-  if (!ties.onBooks || ties.awaitsYes) return { ok: false as const, firmName: company.name }
+  if (!ties.onBooks) return refused('NOT_ON_BOOKS')
+  if (ties.awaitsYes) return refused('AWAITING_YES')
   return { ok: true as const, firmName: company.name, notice, person }
 }
 
 /** GET of the page the link opens: whether it still works, and the firm's name. Never reads her account. */
 export async function readSignInDoorPage(token: string, now: Date = new Date()): Promise<DoorRead> {
   const d = await liveDoor(token, now)
-  return d.ok ? { ok: true, firmName: d.firmName } : { ok: false, firmName: d.firmName }
+  return d.ok ? { ok: true, firmName: d.firmName } : { ok: false, firmName: d.firmName, used: d.why === 'USED' }
+}
+
+/**
+ * Spend the link: set `openedAt` only where it is still unset, in one
+ * statement, so two presses at once cannot both pass. True where this
+ * press spent it.
+ */
+async function spend(noticeId: string, now: Date): Promise<boolean> {
+  const n = await prisma.$executeRaw`
+    UPDATE "Notification"
+    SET "data" = jsonb_set("data"::jsonb, '{openedAt}', to_jsonb(${now.toISOString()}::text))
+    WHERE "id" = ${noticeId} AND ("data"::jsonb ->> 'openedAt') IS NULL`
+  return n === 1
 }
 
 /**
  * Continue, pressed on the page (a button, so a mail scanner that opens
  * every link decides nothing). The door decides here, at use, and only
- * here (`signInDoorSends`): an address with a way in already goes to the
- * sign-in page with its address filled, and the link never sets a
- * password on an account somebody holds; one with none is given the
- * password door's own one-time link to choose a password, which signs her
- * in when she has. The one-time link goes to her browser as a redirect,
- * never into a reply body, a log or the notice. The notice records when
- * it was first opened, the same for both ways.
+ * here (2026-11-16, after a reader found the firm could choose a password
+ * on the account of somebody who signs in by an email link):
+ *
+ *  - The link is spent first, once and for all, whichever way it goes.
+ *    A second press is refused and goes back to the page, which says the
+ *    link was used.
+ *  - A record anybody has ever used, by any door (`hasEverCameIn`, every
+ *    trace the platform keeps), goes to the sign-in page with its address
+ *    filled, where she uses her own door. The link a firm holds never sets
+ *    a password on it.
+ *  - Only a record nobody has ever used is given the password door's own
+ *    one-time link to choose a first password, which signs her in when
+ *    she has.
+ *
+ * Every press is logged with her as the subject before the answer goes:
+ * a refusal through `recordRefusal`, a use through `recordAccess`. No
+ * actor is named, since whoever holds the link pressed it, and no row,
+ * reply body or notice holds the link, its token, or the one-time link,
+ * which goes to her browser as a redirect.
  */
 export async function enterSignInDoor(token: string, now: Date = new Date()): Promise<{ ok: true; to: string } | { ok: false }> {
   const d = await liveDoor(token, now)
-  if (!d.ok) return { ok: false }
-  const kept = doorData(d.notice.data)!
-  if (!kept.openedAt) {
-    await prisma.notification.update({ where: { id: d.notice.id }, data: { data: { ...kept, openedAt: now.toISOString() } as any } })
+  if (!d.ok) {
+    if (d.personId && d.why) {
+      await recordRefusal([d.personId], { action: 'PROFILE_VIEW', reason: signInDoorRefused(d.firmName, d.why) })
+    }
+    return { ok: false }
   }
-  const way = signInDoorSends({ hasWayIn: await hasWayIn(d.notice.personId) })
+  if (!(await spend(d.notice.id, now))) {
+    await recordRefusal([d.person.id], { action: 'PROFILE_VIEW', reason: signInDoorRefused(d.firmName, 'USED') })
+    return { ok: false }
+  }
+  await recordAccess([d.person.id], { action: 'PROFILE_VIEW', reason: signInDoorPressed(d.firmName) })
+  const way = signInDoorSends({ everCameIn: await hasEverCameIn(d.person.id) })
   if (way === 'SIGN_IN') {
     return { ok: true, to: `/login?email=${encodeURIComponent(d.person.primaryEmail.trim().toLowerCase())}` }
   }
   // An hour: she is at the door now. The password door spends any older link.
-  return { ok: true, to: await issueSetPassword(d.notice.personId, 1, now) }
+  return { ok: true, to: await issueSetPassword(d.person.id, 1, now) }
 }

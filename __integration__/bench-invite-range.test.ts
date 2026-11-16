@@ -63,7 +63,7 @@ describe('the rate range on the link Marisol Quintero is emailed', () => {
     const hers = await open(token)
     expect(hers.body.data.range).toEqual({
       says: 'Brightmoor Staffing will put you forward at $80–$90 an hour.',
-      belowFloor: 'This is below the lowest rate on your record, $97 an hour.',
+      belowFloor: 'This is below the lowest rate on your record, $97 an hour, if that rate is in USD.',
     })
 
     // Brightmoor, holding the same link, reads the range and nothing of her floor,

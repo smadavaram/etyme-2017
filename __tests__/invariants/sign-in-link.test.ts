@@ -5,6 +5,7 @@ import {
   MAY_HAND_OVER, copySentence, keptLinkIn, sampleRefusal, signInLetter, signInLineSays, tokenOf, sendFirstAction,
   calledOnRow, sampleSays, alreadySignsInRefusal, awaitsHerYes, awaitingYesRefusal,
   notHereYetSays, signInDoorSends, signInDoorLive, signInDoorPage, signInDoorGone, isSignInDoorLink,
+  everCameIn, signInDoorUsed, signInDoorPressed, signInDoorRefused, type CameInTraces,
 } from '@/lib/notify/sign-in-link'
 import { recordedBody } from '@/lib/notify/account-mail'
 
@@ -94,7 +95,7 @@ describe('the sign-in line on a person\'s row', () => {
     expect(letter).toMatch(/timesheet/)
     expect(letter).not.toMatch(/\b(he|she|his|her|him)\b/i)
     // One letter for every address: it says both ways, never which.
-    expect(letter).toMatch(/Open the link below to sign in\. If you have no Etyme password yet, you choose one there\./)
+    expect(letter).toMatch(/Open the link below to sign in\. If you have not used Etyme before, you choose a password there\. The link works once, within 72 hours\./)
   })
 
   it('the link is drawn only for a seat that may invite: the same permission the invite route asks for', () => {
@@ -109,7 +110,8 @@ describe('the sign-in line on a person\'s row', () => {
     // Refusals are awaited, never fire-and-forget.
     expect(door).toMatch(/await recordRefusal\(/)
     expect(door).not.toMatch(/\blogAccess\(/)
-    expect((door.match(/await recordAccess\(/g) ?? []).length).toBe(2)
+    // Two on the row and the press, and one at the door when Continue is pressed.
+    expect((door.match(/await recordAccess\(/g) ?? []).length).toBe(3)
     // One way a link is made, and it is never a second record of the person.
     expect(door).toMatch(/issueSetPassword\(/)
     expect(door).not.toMatch(/person\.create\(/)
@@ -200,10 +202,8 @@ describe('a seat never signed in here reads the same whether or not the address 
   it('a seat never signed in here reads the same sign-in line whether or not the address has an account elsewhere, in the words and in the route\'s reply', () => {
     // The line and the press never read her account: no password, no sign-in, anywhere before the door at use.
     const beforeDoor = door.slice(0, atUse)
-    const hasWayIn = beforeDoor.slice(beforeDoor.indexOf('async function hasWayIn('), beforeDoor.indexOf('/** What the sign-in door keeps'))
-    const rest = beforeDoor.replace(hasWayIn, '')
-    expect(rest).not.toMatch(/passwordHash|credentials|hasWayIn\(/)
-    expect(rest).not.toMatch(/hasAccount/)
+    expect(beforeDoor).not.toMatch(/passwordHash|credentials|hasEverCameIn\(|cameInTraces\(/)
+    expect(beforeDoor).not.toMatch(/hasAccount/)
     // What makes the line go quiet is this firm's own record: her acts on a seat here.
     expect(door).toMatch(/actorPersonId: personId, actorCompanyId: companyId/)
     // The words take no account fact.
@@ -211,11 +211,11 @@ describe('a seat never signed in here reads the same whether or not the address 
   })
 
   it('a firm\'s own new employee can still be given a way in where no email can leave: one link, and the door decides at use', () => {
-    expect(signInDoorSends({ hasWayIn: false })).toBe('CHOOSE_PASSWORD')
-    expect(signInDoorSends({ hasWayIn: true })).toBe('SIGN_IN')
+    expect(signInDoorSends({ everCameIn: false })).toBe('CHOOSE_PASSWORD')
+    expect(signInDoorSends({ everCameIn: true })).toBe('SIGN_IN')
     const at = door.slice(atUse)
     // Only the door reads whether she has a way in, and only it makes the one-time password link.
-    expect(at).toMatch(/signInDoorSends\(\{ hasWayIn: await hasWayIn\(/)
+    expect(at).toMatch(/signInDoorSends\(\{ everCameIn: await hasEverCameIn\(/)
     expect(at).toMatch(/issueSetPassword\(/)
     expect(door.slice(0, atUse)).not.toMatch(/issueSetPassword\(/)
   })
@@ -226,7 +226,7 @@ describe('a seat never signed in here reads the same whether or not the address 
       heading: 'Sign in to Etyme',
       says: 'Brightmoor Staffing uses Etyme for your work. You file your own timesheets there.',
       button: 'Continue',
-      after: 'If you already sign in to Etyme, you sign in as usual. If not, you choose a password.',
+      after: 'If you have used Etyme before, you sign in as usual. If not, you choose a password. The link works once.',
     })
     expect(signInDoorGone('Brightmoor Staffing')).toBe('This sign-in link has run out or a newer one was made. Ask Brightmoor Staffing for a new link.')
     const pageSrc = read('src/app/answer/sign-in/[token]/page.tsx')
@@ -246,6 +246,74 @@ describe('a seat never signed in here reads the same whether or not the address 
     expect(route).toMatch(/NextResponse\.redirect\(new URL\(to, request\.url\), 303\)/)
     expect(route).not.toMatch(/NextResponse\.json/)
     const at = door.slice(atUse)
-    expect(at).not.toMatch(/recordAccess|automationLog|console\./)
+    expect(at).not.toMatch(/automationLog|console\./)
+    // The rows at the door are written from fixed sentences that take only the firm's name.
+    for (const call of at.match(/await record(?:Access|Refusal)\([^\n]+/g) ?? []) {
+      expect(call).not.toMatch(/token|to:|issueSetPassword|link/i)
+    }
+  })
+})
+
+describe('the sign-in door a firm holds never takes over an account (2026-11-16)', () => {
+  const door = read('src/lib/notify/sign-in-link-door.ts')
+  const atUse = door.slice(door.indexOf('// ── The sign-in door, at use'))
+  const none: CameInTraces = {
+    password: false, mailboxProved: false, signInMethods: 0, directoryIdentities: 0, sessionsEnded: false,
+    oneTimeLinksUsed: 0, seatsUsed: 0, ownSeats: 0, actsAsActor: 0, ownWords: 0, answers: 0,
+  }
+
+  it('a firm holding a sign-in link can never set a password on an account somebody has used, by any door', () => {
+    expect(everCameIn(none)).toBe(false)
+    // Each trace alone is enough: a password, a proved mailbox, Google or Microsoft or an email link,
+    // a directory, ended sessions, a one-time link opened, a seat used, her own seat (a first
+    // sign-in by email link writes only this), any act as the actor (LinkedIn writes only this),
+    // her own words, an answer to an invitation.
+    const one: Partial<CameInTraces>[] = [
+      { password: true }, { mailboxProved: true }, { signInMethods: 1 }, { directoryIdentities: 1 }, { sessionsEnded: true },
+      { oneTimeLinksUsed: 1 }, { seatsUsed: 1 }, { ownSeats: 1 }, { actsAsActor: 1 }, { ownWords: 1 }, { answers: 1 },
+    ]
+    expect(one).toHaveLength(Object.keys(none).length)
+    for (const t of one) {
+      expect(everCameIn({ ...none, ...t }), JSON.stringify(t)).toBe(true)
+      expect(signInDoorSends({ everCameIn: everCameIn({ ...none, ...t }) })).toBe('SIGN_IN')
+    }
+    // The door reads every trace through the one predicate, and a record it cannot read counts as used.
+    const reader = read('src/lib/notify/came-in.ts')
+    expect(reader).toMatch(/return t === null \|\| everCameIn\(t\)/)
+    for (const trace of ['passwordHash', 'emailVerifiedAt', 'sessionVersion', 'sessionsEndedAt', 'credentials', 'externalIdentities', 'emailToken.findMany', 'supersededAt', 'contexts', 'actions', 'askEtymeThreads', 'modelPrompts', 'teamsConversations', 'dataRequestsMade', 'bioWrittenBy', 'confirmedAt', 'pageLiveAt', 'respondedAt', 'termsAgreedAt']) {
+      expect(reader, trace).toContain(trace)
+    }
+  })
+
+  it('a person who signs in by email link is sent to sign in as usual, never to choose a password, from a firm\'s link', () => {
+    // From her second sign-in a Credential row; from her first, only her own seat.
+    expect(everCameIn({ ...none, signInMethods: 1 })).toBe(true)
+    expect(everCameIn({ ...none, ownSeats: 1 })).toBe(true)
+    expect(read('src/lib/notify/came-in.ts')).toMatch(/type: 'CONSULTANT', companyId: null/)
+    expect(atUse).toMatch(/to: `\/login\?email=/)
+  })
+
+  it('a sign-in link is spent once it has issued a set-password link', () => {
+    // Spent in one statement that only passes where it was unspent, before either way is taken.
+    expect(atUse).toMatch(/WHERE "id" = \$\{noticeId\} AND \("data"::jsonb ->> 'openedAt'\) IS NULL/)
+    const press = atUse.slice(atUse.indexOf('export async function enterSignInDoor('))
+    expect(press.indexOf('await spend(')).toBeGreaterThan(-1)
+    expect(press.indexOf('await spend(')).toBeLessThan(press.indexOf('issueSetPassword('))
+    expect(signInDoorUsed('Brightmoor Staffing')).toBe('This sign-in link was already used, and it works only once. If you can sign in, sign in as usual. If not, ask Brightmoor Staffing for a new link.')
+    const page = read('src/app/answer/sign-in/[token]/page.tsx')
+    expect(page).toMatch(/This link was already used/)
+    expect(page).toMatch(/href=\{'\/login' as Route\}/)
+  })
+
+  it('every use and every refusal of the sign-in door is logged, and no row holds a link', () => {
+    expect(signInDoorPressed('Brightmoor Staffing')).toBe('Continue was pressed on the sign-in link Brightmoor Staffing made. The link is now used.')
+    expect(signInDoorRefused('Brightmoor Staffing', 'USED')).toBe('Refused Continue on the sign-in link Brightmoor Staffing made: it was already used.')
+    expect(signInDoorRefused('Brightmoor Staffing', 'REPLACED_OR_RAN_OUT')).toBe('Refused Continue on the sign-in link Brightmoor Staffing made: it ran out or a newer one was made.')
+    const press = atUse.slice(atUse.indexOf('export async function enterSignInDoor('))
+    // Every refusal is written before the answer, and the use before the way is taken.
+    expect((press.match(/await recordRefusal\(/g) ?? []).length).toBe(2)
+    expect(press.indexOf('await recordAccess(')).toBeLessThan(press.indexOf('signInDoorSends('))
+    // Neither row names an actor: whoever holds the link pressed it.
+    expect(press).not.toMatch(/actorPersonId|accessActor\(/)
   })
 })

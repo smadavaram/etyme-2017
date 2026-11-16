@@ -63,7 +63,10 @@ export function inviteTerms(
  * The range is minor units an hour, typed in the firm's currency
  * (`listingRates` in lib/bench-filter). Her lowest rate carries no
  * currency of its own and is read in the same one, as every check of it
- * does. Null where the firm saved no range: nothing is said about one.
+ * does. So the sentence says which currency it read her rate in
+ * (2026-11-16): a firm in euros and a rate she meant in dollars would
+ * otherwise read "below" as a fact about her record. Null where the firm
+ * saved no range: nothing is said about one.
  */
 export interface InviteRange {
   /** "Northwind Staffing will put you forward at $80–$90 an hour." */
@@ -89,6 +92,6 @@ export function inviteRange(
   const below = ownFloor != null && ownFloor > 0 && max != null && max < ownFloor
   return {
     says: `${vendor} will put you forward at ${band}.`,
-    belowFloor: below ? `This is below the lowest rate on your record, ${compact(ownFloor, currency)} an hour.` : null,
+    belowFloor: below ? `This is below the lowest rate on your record, ${compact(ownFloor, currency)} an hour, if that rate is in ${currency}.` : null,
   }
 }

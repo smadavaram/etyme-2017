@@ -54,7 +54,7 @@ describe('the rate range on her yes page', () => {
 
   it('where the range is below her own lowest rate, she is told before she says yes, and the firm is told nothing', () => {
     // Read as her: the top is under her lowest rate, so she is told, with the figure.
-    expect(inviteRange({ rateMin: 8_000, rateMax: 9_000 }, FIRM, 9_700)?.belowFloor).toBe('This is below the lowest rate on your record, $97 an hour.')
+    expect(inviteRange({ rateMin: 8_000, rateMax: 9_000 }, FIRM, 9_700)?.belowFloor).toBe('This is below the lowest rate on your record, $97 an hour, if that rate is in USD.')
     // At or under the top, nothing.
     expect(inviteRange({ rateMin: 8_000, rateMax: 9_000 }, FIRM, 9_000)?.belowFloor).toBeNull()
     // A range with no top is not under anything.
@@ -66,5 +66,12 @@ describe('the rate range on her yes page', () => {
     expect(post).not.toMatch(/rateFloor|belowFloor/)
     // On the page, her sentence sits above the yes.
     expect(PAGE.indexOf('ask.range.belowFloor')).toBeLessThan(PAGE.indexOf("onClick={() => say('ACCEPT')}"))
+  })
+
+  it('her lowest rate carries no currency, so the sentence that says a range is below it names the currency it read her rate in', () => {
+    const euros = inviteRange({ rateMin: 7_000, rateMax: 8_000 }, { name: 'Harborline Tech', homeCurrency: 'EUR' }, 9_500)!
+    expect(euros.belowFloor).toBe('This is below the lowest rate on your record, €95 an hour, if that rate is in EUR.')
+    // Every way the sentence can be said names the currency it read her rate in.
+    expect(read('src/app/api/bench-invite/[token]/terms.ts')).toMatch(/an hour, if that rate is in \$\{currency\}\./)
   })
 })

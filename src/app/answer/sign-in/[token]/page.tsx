@@ -1,5 +1,7 @@
+import Link from 'next/link'
+import type { Route } from 'next'
 import { readSignInDoorPage } from '@/lib/notify/sign-in-link-door'
-import { signInDoorGone, signInDoorPage } from '@/lib/notify/sign-in-link'
+import { signInDoorGone, signInDoorPage, signInDoorUsed } from '@/lib/notify/sign-in-link'
 
 /**
  * The page a firm's sign-in link opens (2026-11-16).
@@ -8,6 +10,8 @@ import { signInDoorGone, signInDoorPage } from '@/lib/notify/sign-in-link'
  * signs in to Etyme: Continue decides that, at use (`enterSignInDoor`), and
  * sends her to sign in as usual or to choose a password. Opening the page
  * only reads, so a mail scanner that opens every link decides nothing.
+ * The link works once: pressed already, the page says so and links to the
+ * sign-in page, the same words whichever way the first press went.
  */
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +32,14 @@ export default async function SignInDoorPage({ params }: { params: { token: stri
               </button>
             </form>
             <p className="mt-4 max-w-[46ch] text-[12px] text-etyme-muted">{words.after}</p>
+          </>
+        ) : !read.ok && read.used && read.firmName ? (
+          <>
+            <h1 className="headline-serif text-[27px]">This link was already used</h1>
+            <p className="mt-2 max-w-[46ch] text-[14px] text-etyme-ink">{signInDoorUsed(read.firmName)}</p>
+            <p className="mt-4 text-[13px]">
+              <Link href={'/login' as Route} className="text-etyme-action-press underline underline-offset-2">Go to sign in</Link>
+            </p>
           </>
         ) : (
           <>
