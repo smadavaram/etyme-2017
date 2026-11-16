@@ -136,11 +136,20 @@ export function cyclesAtLastDay(stored: readonly StoredCycleRow[], lastDay: Date
 export interface WeekAfter {
   id: string
   periodStart: Date
-  /** ISO day → hours, as filed. */
+  /** The week's last day. A week with no daily hours is judged on it. */
+  periodEnd: Date
+  /** ISO day → hours, as filed. Empty where the week was filed as a total. */
   days: Record<string, unknown>
+  /** The week's total as filed, read where it has no daily hours. */
+  totalHours: number
   /** On a bill the payer has been sent. */
   billed: boolean
-  /** Paid: by a pay run processed over the day, or on an invoice receipt paid. Per day. */
+  /**
+   * Some paid record names this week: a pay run's paid lines, an invoice
+   * receipt paid, or a pay day settled over it. Whatever the day.
+   */
+  paid: boolean
+  /** Paid on this day: by a pay run processed over the day. */
   paidOn: (day: string) => boolean
 }
 
@@ -151,6 +160,8 @@ export interface PastLastDay {
   weekOf: Date
   day: string
   stage: Stage
+  /** The week has no daily hours, so the day named is its last day. */
+  noDays: boolean
   says: string
 }
 
@@ -163,34 +174,65 @@ const RANK: Record<Stage, number> = { PAID: 3, BILLED: 2, FILED: 1 }
  * billed, then filed, and of those the latest day, because ending on or
  * after that day is the one way past it the act offers. A rejected week
  * is no claim and is passed over by the caller.
+ *
+ * A week with no daily hours cannot say which of its days were worked
+ * (2026-11-16, found by a reader). Its hours could be on any of them, and
+ * cutting at the last day would leave them outside the window. So such a
+ * week ending after the last day refuses it where it holds hours, or is
+ * billed or paid, and the day it names is the week's own last day.
  */
 export function moneyPastLastDay(weeks: readonly WeekAfter[], lastDay: Date, personName: string): PastLastDay | null {
   const last = dayKey(lastDay)
-  let found: { w: WeekAfter; day: string; stage: Stage } | null = null
+  let found: { w: WeekAfter; day: string; stage: Stage; noDays: boolean } | null = null
+  const consider = (w: WeekAfter, key: string, stage: Stage, noDays: boolean) => {
+    if (!found || RANK[stage] > RANK[found.stage] || (RANK[stage] === RANK[found.stage] && key > found.day)) {
+      found = { w, day: key, stage, noDays }
+    }
+  }
   for (const w of weeks) {
-    for (const [day, raw] of Object.entries(w.days ?? {})) {
+    const entries = Object.entries(w.days ?? {})
+    if (entries.length === 0) {
+      const end = dayKey(w.periodEnd)
+      if (end <= last) continue
+      if (!(Number(w.totalHours) > 0) && !w.billed && !w.paid) continue
+      consider(w, end, w.paid ? 'PAID' : w.billed ? 'BILLED' : 'FILED', true)
+      continue
+    }
+    for (const [day, raw] of entries) {
       const key = day.slice(0, 10)
       if (key <= last || !(Number(raw) > 0)) continue
-      const stage: Stage = w.paidOn(key) ? 'PAID' : w.billed ? 'BILLED' : 'FILED'
-      if (!found || RANK[stage] > RANK[found.stage] || (RANK[stage] === RANK[found.stage] && key > found.day)) {
-        found = { w, day: key, stage }
-      }
+      consider(w, key, w.paid || w.paidOn(key) ? 'PAID' : w.billed ? 'BILLED' : 'FILED', false)
     }
   }
   if (!found) return null
+  const f = found as { w: WeekAfter; day: string; stage: Stage; noDays: boolean }
   return {
-    weekId: found.w.id,
-    weekOf: found.w.periodStart,
-    day: found.day,
-    stage: found.stage,
-    says: pastLastDaySays(found.stage, found.w.periodStart, found.day, personName),
+    weekId: f.w.id,
+    weekOf: f.w.periodStart,
+    day: f.day,
+    stage: f.stage,
+    noDays: f.noDays,
+    says: pastLastDaySays(f.stage, f.w.periodStart, f.day, personName, f.noDays),
   }
 }
 
-/** The refusal, in one sentence a payroll clerk would say. */
-export function pastLastDaySays(stage: Stage, weekOf: Date, day: string, personName: string): string {
+/**
+ * The refusal, in one sentence a payroll clerk would say. A week with no
+ * daily hours names its own last day, since its hours may fall on any.
+ */
+export function pastLastDaySays(stage: Stage, weekOf: Date, day: string, personName: string, noDays = false): string {
   const week = formatDay(weekOf)
   const on = formatDay(day)
+  if (noDays) {
+    switch (stage) {
+      case 'PAID':
+        return `The week of ${week} is already paid, as a weekly total with no daily hours, through ${on}. End ${personName}'s placement on or after that day.`
+      case 'BILLED':
+        return `The week of ${week} is already billed, as a weekly total with no daily hours, through ${on}. End ${personName}'s placement on or after that day.`
+      case 'FILED':
+        return `The week of ${week} has a weekly total filed with no daily hours, through ${on}. Have that week corrected, or end ${personName}'s placement on or after that day.`
+    }
+  }
   switch (stage) {
     case 'PAID':
       return `The week of ${week} is already paid, with hours on ${on}. End ${personName}'s placement on or after that day.`

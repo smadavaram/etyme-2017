@@ -116,6 +116,13 @@ interface PayItem {
    */
   exemptHeld?: string | null
   heldHours?: number
+  /**
+   * Each week held because it is after the pay window ended on a
+   * placement extended past it, in a sentence with what a person does;
+   * and its hours, which are inside `heldHours`.
+   */
+  windowHeld?: string | null
+  windowHeldHours?: number
   exemptStatus?: 'EXEMPT' | 'NONEXEMPT' | null
   /** A week paid at straight time before "not exempt" was recorded, and the overtime still owed. */
   owedSinceRecorded?: string | null
@@ -159,6 +166,9 @@ interface PayrollSummary {
   totalHours: number
   byContractType: Record<string, { count: number; grossPay: number | null; grossSays?: string | null; hours: number }>
   byStatus: Record<string, number>
+  /** Every week held off this pay, for any reason, and whose. */
+  weeksHeld?: number
+  peopleHeld?: number
 }
 
 type StatusFilter = 'ALL' | 'PENDING' | 'CALCULATED' | 'PROCESSED' | 'HELD' | 'NO_HOURS'
@@ -474,6 +484,7 @@ export default function PayrollPage() {
     calculated: summary?.byStatus?.CALCULATED ?? 0,
     processed: summary?.byStatus?.PROCESSED ?? 0,
     held: summary?.byStatus?.HELD ?? 0,
+    weeksHeld: summary?.weeksHeld ?? 0,
   }
 
   // ── Filtered items ────────────────────────────────
@@ -574,6 +585,13 @@ export default function PayrollPage() {
             <span className="block max-w-[300px] text-left text-[11px] text-etyme-attention ml-auto">
               {row.exemptHeld}
               {mayRecordExempt && <ExemptAnswer row={row} onSaved={fetchPayroll} />}
+            </span>
+          )}
+          {/* A week after the pay window ended on a placement extended past
+              it: not in this pay and not dropped, said with what to do. */}
+          {row.windowHeld && (
+            <span className="block max-w-[300px] text-left text-[11px] text-etyme-attention ml-auto">
+              {row.windowHeld}
             </span>
           )}
           {/* A week filed and not accepted yet: not in this pay, said. */}
@@ -865,8 +883,11 @@ export default function PayrollPage() {
         <Stat
           label="Pending"
           value={stats.pending}
-          tone={stats.pending > 0 ? 'attention' : 'verified'}
-          sub={stats.pending > 0 ? 'awaiting calculation' : 'all clear'}
+          tone={stats.pending > 0 || stats.weeksHeld > 0 ? 'attention' : 'verified'}
+          /* Never "all clear" while a week is held off this pay. */
+          sub={stats.weeksHeld > 0
+            ? `${stats.pending > 0 ? 'awaiting calculation; ' : ''}${stats.weeksHeld} ${stats.weeksHeld === 1 ? 'week' : 'weeks'} held`
+            : stats.pending > 0 ? 'awaiting calculation' : 'all clear'}
         />
       </div>
 

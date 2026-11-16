@@ -24,6 +24,7 @@ import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { workedOutKeys, isWorkedOut, notWorkedOutSays, payCovers, type NotWorkedOut } from '@/lib/money/payroll-worked-out'
 import { overtimeNotPaidFor, type OvertimeNotPaid } from '@/lib/money/overtime-not-paid'
 import { repostPayFor } from '@/lib/order-postings'
+import { windowBehind, daysPastWindow, weeksPastWindow, hoursIn, windowHeldSays } from '@/lib/money/outside-pay-window'
 
 /**
  * POST /api/payroll/run
@@ -119,6 +120,10 @@ export async function POST(request: NextRequest) {
           sellContract: {
             include: {
               workLocation: { select: { country: true } },
+              // Every pay window on the placement: a week after the last one
+              // closed is held and said on the run's row, never dropped
+              // silently (lib/money/outside-pay-window), as the page says it.
+              buyLinks: { select: { buyContractId: true, effectiveFrom: true, effectiveTo: true } },
               timesheets: {
                 // What the employer accepted for pay, which is what a
                 // payroll run pays — the same weeks the payroll screen
@@ -277,6 +282,8 @@ export async function POST(request: NextRequest) {
         straightTime: string | null
         /** Each week held off this run because nobody has said whether the person is exempt, in a sentence. */
         exemptHeld?: string | null
+        /** Each week held off this run because it is after the pay window ended, in a sentence. */
+        windowHeld?: string | null
         /** Why nothing was paid for this person, where nothing was. */
         refused: string | null
         paid: PaidLine[]
@@ -305,10 +312,14 @@ export async function POST(request: NextRequest) {
         // the payroll file, the screen and back pay read them in.
         const sheets = [
           ...bc.sellLinks.flatMap((l) =>
-            l.sellContract.timesheets.map((ts) => ({ ts, narrow: true, sell: l.sellContract }))
+            l.sellContract.timesheets.map((ts) => ({
+              ts, narrow: true, sell: l.sellContract,
+              behind: windowBehind(l.sellContract.buyLinks, l.sellContract.endDate),
+            }))
           ),
           ...(bc.supplierSellContract?.timesheets ?? []).map((ts) => ({
             ts, narrow: false, sell: bc.supplierSellContract!,
+            behind: null,
           })),
         ]
         const method = methodFor(bc).method
@@ -326,7 +337,7 @@ export async function POST(request: NextRequest) {
           const row = bc.exemptAssertions.find((a) => a.personId === cand.personId) ?? null
           const mine = sheets
             .filter((x) => x.ts.personId === cand.personId)
-            .map(({ ts, narrow, sell }) => {
+            .map(({ ts, narrow, sell, behind }) => {
               const all = (ts.days as Record<string, number>) ?? {}
               const filed = narrow && Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
               const line = payLineOn(bc, sell, { name: cand.person.name, payCurrency: cand.payCurrency }, row)
@@ -348,9 +359,22 @@ export async function POST(request: NextRequest) {
                 ? heldForExemption({ line, days: filed, leaveDays, accepted: pay.accepted, cutOvertime: cutOvertimeFor(bc).rule })
                 : []
               const kept = withoutHeldWeeks(pay?.days ?? {}, held)
+              // A week after the last pay window closed, on a placement
+              // extended past it: held, never paid here, and said on the row.
+              const past = behind && behind.buyContractId === bc.id ? daysPastWindow(all, behind) : {}
+              const pastPay = Object.keys(past).length > 0
+                ? paySheet({
+                    all, mine: past, leaveDays, afterHours: line.afterHours,
+                    accepted: acceptance === 'MANY' ? null : acceptance, cutOvertime: cutOvertimeFor(bc).rule,
+                  })
+                : null
+              const windowHeld = pastPay && behind
+                ? weeksPastWindow({ ...pastPay.days, ...Object.fromEntries(Object.entries(pastPay.leaveDays).map(([d, h]) => [d, (pastPay.days[d] ?? 0) + h])) }, all, behind.endedOn)
+                : []
               return {
                 id: ts.id,
                 line,
+                windowHeld,
                 leaveDays,
                 periodStart: ts.periodStart,
                 periodEnd: ts.periodEnd,
@@ -428,6 +452,22 @@ export async function POST(request: NextRequest) {
           const wageLine = wageLineFor(bc, cand.person.name, row)
           // Each week held in this period, said on the run's row.
           const heldHere: HeldWeek[] = []
+          // And each week after the pay window ended, in this period.
+          const windowHere: Array<{ weekOf: string; endedOn: string; hours: number; whole: boolean }> = []
+          if (payPeriod) {
+            const start = payPeriod.start.toISOString().slice(0, 10)
+            const end = payPeriod.end.toISOString().slice(0, 10)
+            for (const t of mine) {
+              for (const w of t.windowHeld) {
+                const h = hoursIn(w, start, end)
+                if (h <= 0) continue
+                const was = windowHere.find((x) => x.weekOf === w.weekOf)
+                if (was) { was.hours = Math.round((was.hours + h) * 100) / 100; was.whole = was.whole && w.whole }
+                else windowHere.push({ weekOf: w.weekOf, endedOn: w.endedOn, hours: h, whole: w.whole })
+              }
+            }
+            windowHere.sort((a, b) => a.weekOf.localeCompare(b.weekOf))
+          }
           if (payPeriod) {
             for (const t of mine) {
               for (const w of t.held) {
@@ -588,6 +628,7 @@ export async function POST(request: NextRequest) {
             accepted: acceptedSaid.length ? acceptedSaid.join(' ') : null,
             straightTime: straightSaid.length ? straightSaid.join(' ') : null,
             exemptHeld: heldSays(cand.person.name, heldHere),
+            windowHeld: windowHeldSays(cand.person.name, windowHere),
             refused: payPeriod ? null : `No accepted hours for ${cand.person.name}, so there is no period to pay.`,
             paid: lines,
             covers,
@@ -658,6 +699,10 @@ export async function POST(request: NextRequest) {
               currency: p.currency,
               refused: p.refused,
               covers: p.covers ?? null,
+              // A week held because it is after the pay window ended: not
+              // paid by this run, and said in its record, never dropped
+              // without a word (lib/money/outside-pay-window).
+              ...(p.windowHeld ? { windowHeld: p.windowHeld } : {}),
               // `premiumsPriced` says this run priced overtime, so a day
               // with no premium on it had none owed — not "unknown".
               ...(action === 'process' && !p.refused ? { paid: p.paid, premiumsPriced: true } : {}),

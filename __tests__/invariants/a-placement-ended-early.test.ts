@@ -107,7 +107,8 @@ describe('no week or bill falls after the real last day', () => {
 
 describe('an early end past a week already billed or paid', () => {
   const week = (over: Partial<WeekAfter>): WeekAfter => ({
-    id: 'w1', periodStart: u(2026, 3, 1), days: { '2026-03-02': 8, '2026-03-05': 8 }, billed: false, paidOn: () => false, ...over,
+    id: 'w1', periodStart: u(2026, 3, 1), periodEnd: u(2026, 3, 7), days: { '2026-03-02': 8, '2026-03-05': 8 }, totalHours: 16,
+    billed: false, paid: false, paidOn: () => false, ...over,
   })
 
   it('an early end past a week already billed is refused in a sentence naming the week and the day', () => {
@@ -136,9 +137,45 @@ describe('an early end past a week already billed or paid', () => {
 
   it('every refusal is one or two short sentences, never past twenty-five words each', () => {
     for (const stage of ['PAID', 'BILLED', 'FILED'] as const) {
-      const says = pastLastDaySays(stage, u(2026, 3, 1), '2026-03-05', 'Lena Okafor')
-      for (const sentence of says.split(/(?<=\.)\s+(?=[A-Z])/)) expect(sentence.split(/\s+/).length).toBeLessThanOrEqual(25)
+      for (const noDays of [false, true]) {
+        const says = pastLastDaySays(stage, u(2026, 3, 1), '2026-03-05', 'Lena Okafor', noDays)
+        for (const sentence of says.split(/(?<=\.)\s+(?=[A-Z])/)) expect(sentence.split(/\s+/).length).toBeLessThanOrEqual(25)
+      }
     }
+  })
+
+  it('an early end is refused past a week with hours and no daily breakdown', () => {
+    const total = week({ days: {}, totalHours: 40 })
+    const r = moneyPastLastDay([total], u(2026, 3, 4), 'Lena Okafor')
+    expect(r?.stage).toBe('FILED')
+    expect(r?.noDays).toBe(true)
+    // The week's own last day: its hours may be on any of its days.
+    expect(r?.day).toBe('2026-03-07')
+    expect(r?.says).toBe(
+      "The week of Mar 1, 2026 has a weekly total filed with no daily hours, through Mar 7, 2026. Have that week corrected, or end Lena Okafor's placement on or after that day.",
+    )
+    expect(moneyPastLastDay([week({ days: {}, totalHours: 40, billed: true })], u(2026, 3, 4), 'Lena Okafor')?.says).toBe(
+      "The week of Mar 1, 2026 is already billed, as a weekly total with no daily hours, through Mar 7, 2026. End Lena Okafor's placement on or after that day.",
+    )
+    expect(moneyPastLastDay([week({ days: {}, totalHours: 40, billed: true, paid: true })], u(2026, 3, 4), 'Lena Okafor')?.stage).toBe('PAID')
+  })
+
+  it('a week with no daily breakdown and no hours is refused only where it is billed or paid', () => {
+    expect(moneyPastLastDay([week({ days: {}, totalHours: 0 })], u(2026, 3, 4), 'Lena Okafor')).toBeNull()
+    expect(moneyPastLastDay([week({ days: {}, totalHours: 0, billed: true })], u(2026, 3, 4), 'Lena Okafor')?.stage).toBe('BILLED')
+    expect(moneyPastLastDay([week({ days: {}, totalHours: 0, paid: true })], u(2026, 3, 4), 'Lena Okafor')?.stage).toBe('PAID')
+  })
+
+  it('a week with no daily breakdown ending on or before the last day never refuses an early end', () => {
+    expect(moneyPastLastDay([week({ days: {}, totalHours: 40, billed: true, paid: true })], u(2026, 3, 7), 'Lena Okafor')).toBeNull()
+    expect(moneyPastLastDay([week({ days: {}, totalHours: 40 })], u(2026, 3, 9), 'Lena Okafor')).toBeNull()
+  })
+
+  it('a week any paid record names is called paid, never filed, whatever day the record put its hours on', () => {
+    // A pay run before 2026-11-16 paid it as one lump on its first day; no pay day was settled over it.
+    const r = moneyPastLastDay([week({ paid: true })], u(2026, 3, 4), 'Lena Okafor')
+    expect(r?.stage).toBe('PAID')
+    expect(r?.says).toBe("The week of Mar 1, 2026 is already paid, with hours on Mar 5, 2026. End Lena Okafor's placement on or after that day.")
   })
 })
 

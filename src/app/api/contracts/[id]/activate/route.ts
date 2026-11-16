@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
+import { PAYROLL_RUN } from '@/lib/payroll-paid'
 import { evaluateGovernance } from '@/lib/governance'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { contractSide } from '@/lib/resolve-client-company'
@@ -401,18 +403,23 @@ export async function POST(
   // and Today read her free only after it and tenure counted days she was
   // not on site. The line's end date becomes the day it is ended, and the
   // planned end goes in the log below (`lib/money/early-end`).
-  const ending = action === 'complete' ? await earlyEnd(contract, buyIds, new Date()) : null
+  //
+  // Read once before the save, so a refusal costs no lock; and again
+  // inside it, on the save's own connection, so a week filed in between
+  // is read before anything is cut (2026-11-16, found by a reader).
+  const endedAt = new Date()
+  const ending = action === 'complete' ? await earlyEnd(prisma, contract, buyIds, endedAt) : null
   if (ending && !ending.ok) {
     return NextResponse.json({ error: { code: 'PAST_LAST_DAY', message: ending.says, week: ending.week } }, { status: 409 })
   }
-  const early = ending?.ok && ending.early ? ending : null
+  let early = ending?.ok && ending.early ? ending : null
 
-  await prisma.$transaction([
-    prisma.sellContract.update({
+  const writes = (db: Db) => [
+    db.sellContract.update({
       where: { id },
       data: { state: newState as any, ...(early ? { endDate: early.lastDay } : {}) },
     }),
-    prisma.buyContract.updateMany({
+    db.buyContract.updateMany({
       where: { id: { in: buyIds }, state: { in: TRANSITIONS[action as Action].from as any } },
       data: { state: newState as any },
     }),
@@ -421,24 +428,24 @@ export async function POST(
     // window her hours are paid through. Never moved later.
     ...(early
       ? [
-          prisma.buyContract.updateMany({
+          db.buyContract.updateMany({
             where: { id: { in: early.buyEnding }, OR: [{ endDate: null }, { endDate: { gt: early.lastDay } }] },
             data: { endDate: early.lastDay },
           }),
-          prisma.buyContractCandidate.updateMany({
+          db.buyContractCandidate.updateMany({
             where: { buyContractId: { in: early.buyMoving }, personId: contract.personId, OR: [{ endDate: null }, { endDate: { gt: early.lastDay } }] },
             data: { endDate: early.lastDay },
           }),
-          prisma.contractLink.updateMany({
+          db.contractLink.updateMany({
             where: { sellContractId: id, OR: [{ effectiveTo: null }, { effectiveTo: { gt: early.lastDay } }] },
             data: { effectiveTo: early.lastDay },
           }),
           // No period after the last day; the one holding it is cut at it.
-          prisma.cycle.deleteMany({ where: { id: { in: early.cycles.remove }, completedAt: null } }),
-          ...early.cycles.cut.map((c) => prisma.cycle.updateMany({ where: { id: c.id, completedAt: null }, data: { periodEnd: c.periodEnd } })),
+          db.cycle.deleteMany({ where: { id: { in: early.cycles.remove }, completedAt: null } }),
+          ...early.cycles.cut.map((c) => db.cycle.updateMany({ where: { id: c.id, completedAt: null }, data: { periodEnd: c.periodEnd } })),
         ]
       : []),
-    prisma.automationLog.create({
+    db.automationLog.create({
       data: {
         companyId: contract.companyId,
         // ── The name this is recorded under ──────────────────────────
@@ -509,7 +516,25 @@ export async function POST(
         reversible: !['complete', 'cancel'].includes(action),
       },
     }),
-  ])
+  ]
+
+  const refusedInside = await prisma
+    .$transaction(async (tx) => {
+      if (action === 'complete') {
+        const again = await earlyEnd(tx, contract, buyIds, endedAt)
+        if (!again.ok) return again
+        early = again.early ? again : null
+      }
+      // In order, on the save's own connection; a failure undoes them all.
+      for (const op of writes(tx)) await op
+      return null
+    })
+  if (refusedInside) {
+    return NextResponse.json(
+      { error: { code: 'PAST_LAST_DAY', message: refusedInside.says, week: refusedInside.week } },
+      { status: 409 },
+    )
+  }
 
   // Notify the consultant about contract state changes
   // Activation, completion, and cancellation are the ones they need to know about
@@ -550,6 +575,9 @@ export async function POST(
   })
 }
 
+/** The client a read goes through: the shared one, or the save's own. */
+type Db = Prisma.TransactionClient | typeof prisma
+
 /**
  * What ending this line today writes, or the week that refuses it.
  *
@@ -561,8 +589,11 @@ export async function POST(
  * an invoice receipt paid, billed on a bill that was sent, or filed. The
  * cycles past it are worked out on this line and on each pay line that
  * ends with it; a pay line that holds other people keeps its own dates.
+ * It reads through `db`: the client before the save, the save's own
+ * connection inside it.
  */
 async function earlyEnd(
+  db: Db,
   contract: {
     id: string; personId: string; startDate: Date; endDate: Date | null
     person: { name: string; timezone: string | null }
@@ -578,37 +609,63 @@ async function earlyEnd(
   const day = lastDayOnSite({ startDate: contract.startDate, plannedEnd: contract.endDate, today })
   if (!day.early) return { ok: true, ...day, buyMoving: [], buyEnding: [], cycles: { remove: [], cut: [], unplaced: 0 } }
 
-  const [buys, sheets, payDays] = await Promise.all([
-    prisma.buyContract.findMany({
-      where: { id: { in: buyIds } },
-      select: { id: true, state: true, candidates: { select: { personId: true } } },
-    }),
-    prisma.timesheet.findMany({
+  // One after another: inside the save these share one connection.
+  const buys = await db.buyContract.findMany({
+    where: { id: { in: buyIds } },
+    select: { id: true, companyId: true, state: true, candidates: { select: { personId: true } } },
+  })
+  const sheets = await db.timesheet.findMany({
       where: {
         periodEnd: { gt: day.lastDay },
         status: { not: 'REJECTED' },
         OR: [{ sellContractId: contract.id }, { invoiceLines: { some: { sellContractId: contract.id } } }],
       },
       select: {
-        id: true, periodStart: true, days: true,
+        id: true, periodStart: true, periodEnd: true, days: true, totalHours: true,
         invoiceLines: { select: { invoice: { select: { status: true } } } },
         vendorBillLines: { select: { vendorBill: { select: { paidAt: true, paidCents: true } } } },
       },
-    }),
-    prisma.cycle.findMany({
-      where: { buyContractId: { in: buyIds }, kind: 'SALARY_PAY', completedAt: { not: null } },
-      select: { periodStart: true, periodEnd: true },
-    }),
-  ])
+    })
+  const payDays = await db.cycle.findMany({
+    where: { buyContractId: { in: buyIds }, kind: 'SALARY_PAY', completedAt: { not: null } },
+    select: { periodStart: true, periodEnd: true },
+  })
+  // Every week a processed pay run recorded paying on these pay lines,
+  // whatever day it put the hours on: a run before 2026-11-16 paid a week
+  // outside its window as one lump on the week's first day. A paid week is
+  // named paid, never filed (2026-11-16, found by a reader).
+  const employers = [...new Set(buys.map((b) => b.companyId))]
+  const runs = employers.length && sheets.length
+    ? await db.automationLog.findMany({
+        where: { companyId: { in: employers }, action: PAYROLL_RUN, payload: { path: ['action'], equals: 'process' } },
+        select: { payload: true },
+      })
+    : []
+  const wanted = new Set(buyIds)
+  const paidSheets = new Set<string>()
+  for (const r of runs) {
+    for (const c of ((r.payload ?? {}) as { contracts?: Array<{ buyContractId?: string; refused?: string | null; paid?: Array<{ timesheetId?: string; hours?: number; overtimeHours?: number }> }> }).contracts ?? []) {
+      if (!c.buyContractId || !wanted.has(c.buyContractId) || c.refused || !Array.isArray(c.paid)) continue
+      for (const l of c.paid) if (l.timesheetId && (Number(l.hours) > 0 || Number(l.overtimeHours ?? 0) > 0)) paidSheets.add(l.timesheetId)
+    }
+  }
 
   const weeks: WeekAfter[] = sheets.map((t) => {
     const receiptPaid = t.vendorBillLines.some((l) => l.vendorBill.paidAt != null || l.vendorBill.paidCents > 0)
+    const settledOver = payDays.some((p) =>
+      p.periodStart && p.periodEnd && dayKey(p.periodStart) <= dayKey(t.periodEnd) && dayKey(t.periodStart) <= dayKey(p.periodEnd))
+    const days = (t.days ?? {}) as Record<string, unknown>
     return {
       id: t.id,
       periodStart: t.periodStart,
-      days: (t.days ?? {}) as Record<string, unknown>,
+      periodEnd: t.periodEnd,
+      days,
+      totalHours: Number(t.totalHours ?? 0),
       billed: t.invoiceLines.some((l) => isSent(l.invoice.status)),
-      paidOn: (d: string) => receiptPaid || payDays.some((p) => periodCovers(p, d)),
+      // Any paid record names it: an invoice receipt paid, a run's paid
+      // lines; or, for a week with no daily hours, a pay day settled over it.
+      paid: receiptPaid || paidSheets.has(t.id) || (Object.keys(days).length === 0 && settledOver),
+      paidOn: (d: string) => payDays.some((p) => periodCovers(p, d)),
     }
   })
   const past = moneyPastLastDay(weeks, day.lastDay, contract.person.name)
@@ -620,7 +677,7 @@ async function earlyEnd(
   const buyEnding = buys
     .filter((b) => buyMoving.includes(b.id) && b.candidates.every((c) => c.personId === contract.personId))
     .map((b) => b.id)
-  const stored = await prisma.cycle.findMany({
+  const stored = await db.cycle.findMany({
     where: { OR: [{ sellContractId: contract.id }, ...(buyEnding.length ? [{ buyContractId: { in: buyEnding } }] : [])] },
     select: { id: true, completedAt: true, periodStart: true, periodEnd: true },
   })

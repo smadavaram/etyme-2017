@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 import { GET as bench } from '@/app/api/bench/route'
@@ -65,6 +65,9 @@ const complete = async (id: string) =>
 
 let ended: Awaited<ReturnType<typeof placed>>
 let held: Awaited<ReturnType<typeof placed>>
+let totalOnly: Awaited<ReturnType<typeof placed>>
+let lump: Awaited<ReturnType<typeof placed>>
+let between: Awaited<ReturnType<typeof placed>>
 
 beforeAll(async () => {
   await freshWorld()
@@ -96,6 +99,33 @@ beforeAll(async () => {
       periodStart: new Date(today.getTime() - 6 * DAY), periodEnd: new Date(today.getTime() + 7 * DAY),
     },
   })
+
+  // A third, whose week running past today was filed as a total with no daily hours.
+  totalOnly = await placed('Ines Moreau', 'ines.moreau.early')
+  await prisma.timesheet.create({
+    data: {
+      sellContractId: totalOnly.sellId, personId: totalOnly.personId, periodStart: new Date(today.getTime() - DAY), periodEnd: new Date(today.getTime() + 5 * DAY),
+      days: {}, totalHours: 40, status: 'SUBMITTED', submittedAt: today,
+    },
+  })
+
+  // A fourth, whose week past today a pay run paid as one lump on its first day, with no pay day settled over it.
+  lump = await placed('Tomas Berg', 'tomas.berg.early')
+  const lumpSheet = await prisma.timesheet.create({
+    data: {
+      sellContractId: lump.sellId, personId: lump.personId, periodStart: today, periodEnd: new Date(today.getTime() + 6 * DAY),
+      days: { [key(new Date(today.getTime() + 2 * DAY))]: 8 }, totalHours: 8, status: 'APPROVED',
+    },
+  })
+  await prisma.automationLog.create({
+    data: {
+      companyId: firm, action: 'PAYROLL_RUN', summary: 'Payroll processed', reason: 'A run before the window rule.', reversible: false,
+      payload: { action: 'process', contracts: [{ buyContractId: lump.buyId, paid: [{ personId: lump.personId, timesheetId: lumpSheet.id, day: key(today), hours: 8, rateCents: 6_000 }] }] },
+    },
+  })
+
+  // A fifth, with nothing after today when the act is pressed.
+  between = await placed('Ada Nkemelu', 'ada.nkemelu.early')
 }, 600_000)
 
 describe('a placement ended early', () => {
@@ -175,5 +205,58 @@ describe('a placement ended early', () => {
     const line = await prisma.sellContract.findUniqueOrThrow({ where: { id: held.sellId } })
     expect(line.state).toBe('IN_PROGRESS')
     expect(key(line.endDate!)).toBe(key(planned))
+  })
+
+  it('an early end is refused past a week with hours and no daily breakdown', async () => {
+    as(TECHPEPLE)
+    const r = await complete(totalOnly.sellId)
+    expect(r.status).toBe(409)
+    expect(r.body.error.code).toBe('PAST_LAST_DAY')
+    expect(r.body.error.message).toBe(
+      `The week of ${formatDay(new Date(today.getTime() - DAY))} has a weekly total filed with no daily hours, through ${formatDay(new Date(today.getTime() + 5 * DAY))}. ` +
+        "Have that week corrected, or end Ines Moreau's placement on or after that day.",
+    )
+    const line = await prisma.sellContract.findUniqueOrThrow({ where: { id: totalOnly.sellId } })
+    expect(line.state).toBe('IN_PROGRESS')
+    expect(key(line.endDate!)).toBe(key(planned))
+  })
+
+  it('a week a pay run paid is named paid, never filed, wherever the run put its hours', async () => {
+    as(TECHPEPLE)
+    const r = await complete(lump.sellId)
+    expect(r.status).toBe(409)
+    expect(r.body.error.week.stage).toBe('PAID')
+    expect(r.body.error.message).toMatch(/^The week of .+ is already paid, with hours on .+\. End Tomas Berg's placement on or after that day\.$/)
+  })
+
+  it('an early end re-reads the weeks inside its save', async () => {
+    // A week filed after the first read and before the save: the save reads it and refuses, and nothing is cut.
+    const real = prisma.$transaction.bind(prisma)
+    const spy = vi.spyOn(prisma, '$transaction').mockImplementation((async (fn: any, opts?: any) => {
+      await prisma.timesheet.create({
+        data: {
+          sellContractId: between.sellId, personId: between.personId, periodStart: today, periodEnd: new Date(today.getTime() + 6 * DAY),
+          days: { [key(new Date(today.getTime() + DAY))]: 8 }, totalHours: 8, status: 'SUBMITTED', submittedAt: today,
+        },
+      })
+      return real(fn, opts)
+    }) as any)
+    try {
+      as(TECHPEPLE)
+      const r = await complete(between.sellId)
+      expect(r.status).toBe(409)
+      expect(r.body.error.message).toBe(
+        `The week of ${formatDay(today)} has hours filed on ${formatDay(new Date(today.getTime() + DAY))}. Have that week corrected, or end Ada Nkemelu's placement on or after that day.`,
+      )
+    } finally {
+      spy.mockRestore()
+    }
+    const line = await prisma.sellContract.findUniqueOrThrow({ where: { id: between.sellId } })
+    expect(line.state).toBe('IN_PROGRESS')
+    expect(key(line.endDate!)).toBe(key(planned))
+    const link = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: between.sellId } })
+    expect(key(link.effectiveTo!)).toBe(key(planned))
+    const log = await prisma.automationLog.count({ where: { action: 'CONTRACT_COMPLETED', payload: { path: ['contractId'], equals: between.sellId } } })
+    expect(log).toBe(0)
   })
 })

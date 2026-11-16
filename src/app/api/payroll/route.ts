@@ -31,6 +31,7 @@ import {
 import { PAY_PERIOD_WORDS } from '@/lib/pay-dates'
 import { mayOpen } from '@/lib/nav-table'
 import { payLeftInPeriod, partPaidSays, type PricedDay, type PremiumDay } from '@/lib/money/period-pay-left'
+import { windowBehind, daysPastWindow, weeksPastWindow, hoursIn, windowHeldSays, type WindowHeldWeek } from '@/lib/money/outside-pay-window'
 
 /**
  * GET /api/payroll
@@ -224,6 +225,10 @@ export async function GET(request: NextRequest) {
               endClientCompany: { select: { id: true, name: true } },
               engagement: { select: { id: true, title: true } },
               workLocation: { select: { country: true } },
+              // Every pay window on this placement, whichever pay line it
+              // is on, so a week after the last one closed is found and
+              // held, never dropped silently (lib/money/outside-pay-window).
+              buyLinks: { select: { buyContractId: true, effectiveFrom: true, effectiveTo: true } },
             },
           },
         },
@@ -447,10 +452,30 @@ export async function GET(request: NextRequest) {
             const mineHours = Object.keys(all).length > 0
               ? (pay ? Math.round((pay.cut.paid - kept.hoursHeld) * 100) / 100 : 0)
               : acceptance === 'MANY' ? 0 : Number(acceptance?.hours ?? ts.totalHours)
+            // A week after the last pay window of this placement closed, on
+            // a placement extended past it before 2026-11-16: no window pays
+            // it, so it is held and said, never paid and never dropped
+            // without a word. Said on the pay line holding that last window
+            // only, so it is held once. Its hours are what the employer
+            // accepted on those days, cut the way pay is cut.
+            const behind = link.supplier
+              ? null
+              : windowBehind((link.sellContract as { buyLinks?: { buyContractId: string; effectiveFrom: Date; effectiveTo: Date | null }[] }).buyLinks ?? [], link.sellContract.endDate)
+            const past = behind && behind.buyContractId === bc.id ? daysPastWindow(all, behind) : {}
+            const pastPay = Object.keys(past).length > 0
+              ? paySheet({
+                  all, mine: past, leaveDays, afterHours: line.afterHours,
+                  accepted: acceptance === 'MANY' ? null : acceptance, cutOvertime: cutOvertimeFor(bc).rule,
+                })
+              : null
+            const windowHeld: WindowHeldWeek[] = pastPay && behind
+              ? weeksPastWindow({ ...pastPay.days, ...Object.fromEntries(Object.entries(pastPay.leaveDays).map(([d, h]) => [d, (pastPay.days[d] ?? 0) + h])) }, all, behind.endedOn)
+              : []
             return {
             id: ts.id,
             line,
             held,
+            windowHeld,
             heldDays: held.length > 0 ? Object.fromEntries(Object.entries(pay?.days ?? {}).filter(([d]) => !(d in kept.days))) : {},
             filed: filedDays,
             accepted: pay?.accepted ?? null,
@@ -479,7 +504,7 @@ export async function GET(request: NextRequest) {
         for (const ts of linkedTimesheets) {
           if (ts.many) continue
           const dayKeys = Object.keys(ts.days ?? {})
-          if (dayKeys.length === 0 && Object.keys(ts.heldDays).length === 0) {
+          if (dayKeys.length === 0 && Object.keys(ts.heldDays).length === 0 && ts.windowHeld.length === 0) {
             // A week filed as a total: unpaid while no run paid any day of it.
             const anyPaid = [...book.paid.keys()].some((k) => k.startsWith(`${bc.id}|${cand.personId}|${ts.id}|`))
             if (ts.totalHours > 0 && !anyPaid) unpaidDays.add(weekStart(ts.rawStart.toISOString().slice(0, 10)))
@@ -493,6 +518,7 @@ export async function GET(request: NextRequest) {
           // A held week is accepted and not paid: its period is offered, so
           // the row that says why it is held can be found.
           for (const day of Object.keys(ts.heldDays)) unpaidDays.add(day.slice(0, 10))
+          for (const w of ts.windowHeld) for (const day of Object.keys(w.days)) unpaidDays.add(day)
         }
       }
 
@@ -556,7 +582,7 @@ export async function GET(request: NextRequest) {
         : []
 
       // The working of the cut stays here; the row carries its sentence.
-      const filteredTimesheets = shares.map(({ ts: { cut: _cut, filed: _filed, line: _line, held: _held, heldDays: _heldDays, ...ts }, share }) => ({
+      const filteredTimesheets = shares.map(({ ts: { cut: _cut, filed: _filed, line: _line, held: _held, heldDays: _heldDays, windowHeld: _windowHeld, ...ts }, share }) => ({
         ...ts,
         totalHours: share!.hours,
         partPeriod: share!.partial,
@@ -710,8 +736,33 @@ export async function GET(request: NextRequest) {
               return weekStart(d.slice(0, 10)) === w.weekOf && at >= payPeriod.start.getTime() && at <= payPeriod.end.getTime()
             })))
         : []
-      const heldHours = Math.round(heldInPeriod.reduce((n, w) => n + w.workedHours, 0) * 100) / 100
+      const exemptHeldHours = Math.round(heldInPeriod.reduce((n, w) => n + w.workedHours, 0) * 100) / 100
       const exemptHeld = heldSays(cand.person.name, heldInPeriod)
+
+      // Each week after the pay window ended, inside this period: left out
+      // of gross pay and the run, kept on the file's held list, counted
+      // with the held hours, and said on the row with what a person does.
+      const windowInPeriod = payPeriod
+        ? (() => {
+            const start = payPeriod.start.toISOString().slice(0, 10)
+            const end = payPeriod.end.toISOString().slice(0, 10)
+            const byWeek = new Map<string, { weekOf: string; endedOn: string; hours: number; whole: boolean }>()
+            for (const t of linkedTimesheets) {
+              for (const w of t.windowHeld) {
+                const h = hoursIn(w, start, end)
+                if (h <= 0) continue
+                const was = byWeek.get(w.weekOf)
+                byWeek.set(w.weekOf, was
+                  ? { ...was, hours: Math.round((was.hours + h) * 100) / 100, whole: was.whole && w.whole }
+                  : { weekOf: w.weekOf, endedOn: w.endedOn, hours: h, whole: w.whole })
+              }
+            }
+            return [...byWeek.values()].sort((a, b) => a.weekOf.localeCompare(b.weekOf))
+          })()
+        : []
+      const windowHeldHours = Math.round(windowInPeriod.reduce((n, w) => n + w.hours, 0) * 100) / 100
+      const windowHeldSaid = windowHeldSays(cand.person.name, windowInPeriod)
+      const heldHours = Math.round((exemptHeldHours + windowHeldHours) * 100) / 100
 
       // A week a run paid at straight time before the person was recorded
       // as not exempt: its straight time is paid, its premium is not. The
@@ -864,7 +915,11 @@ export async function GET(request: NextRequest) {
         // is exempt from overtime, the hours held, and the sentence; with
         // what is recorded, so the row offers the step that releases it.
         exemptHeld,
+        // Every hour held off this pay, for either reason; and of them, the
+        // hours after the pay window ended, with their own sentence.
         heldHours,
+        windowHeld: windowHeldSaid,
+        windowHeldHours,
         exemptStatus: (row?.status as 'EXEMPT' | 'NONEXEMPT' | undefined) ?? null,
         // A week paid at straight time before "not exempt" was recorded,
         // and the overtime still owed on it.
@@ -875,7 +930,11 @@ export async function GET(request: NextRequest) {
         payStatus: statusWithHeld(payStatus, heldHours),
         statusSays: payStatusSays(statusWithHeld(payStatus, heldHours), heldHours),
         // Each held week and its hours, for the pay file's own column.
-        heldWeeks: heldInPeriod.map((w) => ({ weekOf: w.weekOf, hours: w.workedHours })),
+        heldWeeks: [
+          // No reason is the overtime answer, as the file has always read it.
+          ...heldInPeriod.map((w) => ({ weekOf: w.weekOf, hours: w.workedHours })),
+          ...windowInPeriod.map((w) => ({ weekOf: w.weekOf, hours: w.hours, reason: 'WINDOW' as const, endedOn: w.endedOn })),
+        ],
         // What earlier runs paid in this period, null where nothing was;
         // what a run would pay now; and, where both, one sentence.
         paidSoFar: left.paid,
@@ -942,6 +1001,10 @@ export async function GET(request: NextRequest) {
         filtered.filter((p) => p.payStatus === s).length,
       ])
     ),
+    // Every week held off this pay, for either reason, and the people
+    // they belong to, whatever status each row reads.
+    weeksHeld: filtered.reduce((n, p) => n + p.heldWeeks.length, 0),
+    peopleHeld: new Set(filtered.filter((p) => p.heldWeeks.length > 0).map((p) => p.person.id)).size,
   }
 
   // ── The spread, from the one margin service ─────────────────────────
@@ -1045,7 +1108,9 @@ export async function GET(request: NextRequest) {
   const firstDay = !shownPeriod && !co.byPeriod && calendarMonthWaitsSays(companyName, co.rhythm)
     ? firstDayStep(mayOpen(FIRST_DAY_HREF, caller.permissions))
     : null
-  const nothingToPay = shownPeriod && !onRun.some((p) => p.totalApprovedHours > 0) ? nothingToPaySays(shownPeriod) : null
+  // A period whose only hours are held is not "nothing owed": the held
+  // weeks are owed, and the rows say why they wait.
+  const nothingToPay = shownPeriod && !onRun.some((p) => p.totalApprovedHours > 0 || p.heldHours > 0) ? nothingToPaySays(shownPeriod) : null
 
   return NextResponse.json({
     data: {

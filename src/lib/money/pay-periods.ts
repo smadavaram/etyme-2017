@@ -26,6 +26,7 @@ import {
   type DayOffRule, type PayPeriodOn, type PayRhythm,
 } from '@/lib/pay-dates'
 import { formatDay, formatDayLong, formatRange } from '@/lib/format-date'
+import { windowHeldAboveTableSays } from '@/lib/money/outside-pay-window'
 import { decimalsFor, wholeFromMinor } from '@/lib/money'
 import type { Straddle, Terms } from '@/lib/periods'
 
@@ -430,7 +431,7 @@ export interface PayFileRow {
    * is exempt from overtime: the Sunday it began and its hours. Its pay is
    * on no total; the file names it on the person's line.
    */
-  heldWeeks?: ReadonlyArray<{ weekOf: string; hours: number }> | null
+  heldWeeks?: ReadonlyArray<HeldWeekCell> | null
   /** What a run would pay now (lib/money/period-pay-left). */
   toPay?: {
     hours: number
@@ -457,6 +458,21 @@ const STATUS_WORDS: Record<string, string> = {
   CALCULATED: 'Worked out, not paid',
   PROCESSED: 'Paid',
   HELD: 'Paid',
+  // A line whose only hours in the period are held: nothing else to pay.
+  NO_HOURS: 'Nothing to pay',
+}
+
+/**
+ * One held week on the file and the row: its Sunday, its hours, and why.
+ * No reason is the first one, the overtime answer not recorded. WINDOW is
+ * a week after the pay window ended on a placement extended past it
+ * (lib/money/outside-pay-window), with the day the window ended.
+ */
+export interface HeldWeekCell {
+  weekOf: string
+  hours: number
+  reason?: 'WINDOW'
+  endedOn?: string | null
 }
 
 // ── A week held off pay, on the status and the file ────────────────────
@@ -490,6 +506,9 @@ const SCREEN_STATUS: Record<string, string> = {
  * "Processed", and ", week held" after it while any week is held.
  */
 export function payStatusSays(status: string, heldHours: number): string {
+  // A row whose only hours are held has nothing else to pay; "No hours"
+  // would read as if nothing was worked.
+  if (status === 'NO_HOURS' && heldHours > 0) return 'Nothing to pay, week held'
   const base = SCREEN_STATUS[status] ?? status
   return heldHours > 0 || status === 'HELD' ? `${base}, week held` : base
 }
@@ -499,11 +518,15 @@ export function payStatusSays(status: string, heldHours: number): string {
  * hours, "Week of November 8, 2026, 46 hours, overtime answer not
  * recorded". Empty where nothing is held.
  */
-export function heldWeeksCell(weeks: ReadonlyArray<{ weekOf: string; hours: number }> | null | undefined): string {
+export function heldWeeksCell(weeks: ReadonlyArray<HeldWeekCell> | null | undefined): string {
   if (!weeks || weeks.length === 0) return ''
   return [...weeks]
-    .sort((a, b) => a.weekOf.localeCompare(b.weekOf))
-    .map((w) => `Week of ${formatDayLong(w.weekOf.slice(0, 10))}, ${Math.round(w.hours * 100) / 100} hours, exempt or not exempt not recorded`)
+    .sort((a, b) => a.weekOf.localeCompare(b.weekOf) || String(a.reason ?? '').localeCompare(String(b.reason ?? '')))
+    .map((w) =>
+      `Week of ${formatDayLong(w.weekOf.slice(0, 10))}, ${Math.round(w.hours * 100) / 100} hours, ` +
+      (w.reason === 'WINDOW' && w.endedOn
+        ? `after the pay window ended on ${formatDayLong(w.endedOn.slice(0, 10))}, window to repair`
+        : 'exempt or not exempt not recorded'))
     .join('; ')
 }
 
@@ -512,8 +535,20 @@ export function heldWeeksCell(weeks: ReadonlyArray<{ weekOf: string; hours: numb
  * three or fewer, and that the answer is recorded on the row. Null where
  * nobody has a week held.
  */
-export function heldAboveTableSays(rows: ReadonlyArray<{ person: { name: string }; heldHours?: number | null }>): string | null {
-  const names = [...new Set(rows.filter((r) => (r.heldHours ?? 0) > 0).map((r) => r.person.name))]
+export function heldAboveTableSays(
+  rows: ReadonlyArray<{ person: { name: string }; heldHours?: number | null; windowHeldHours?: number | null }>
+): string | null {
+  // Held for the overtime answer: the hours held less those held for the
+  // pay window, which have their own sentence and their own step.
+  const exempt = [...new Set(rows
+    .filter((r) => Math.round(((r.heldHours ?? 0) - (r.windowHeldHours ?? 0)) * 100) / 100 > 0)
+    .map((r) => r.person.name))]
+  const window = windowHeldAboveTableSays(rows.filter((r) => (r.windowHeldHours ?? 0) > 0).map((r) => r.person.name))
+  const said = [exemptHeldAboveTableSays(exempt), window].filter((x): x is string => Boolean(x))
+  return said.length ? said.join(' ') : null
+}
+
+function exemptHeldAboveTableSays(names: readonly string[]): string | null {
   if (names.length === 0) return null
   if (names.length === 1) {
     return `${names[0]} has a week held off this pay until you record on the row whether the person is exempt from overtime.`

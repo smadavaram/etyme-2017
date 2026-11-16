@@ -4,6 +4,7 @@ import { POST as extend } from '@/app/api/contracts/[id]/extend/route'
 import { GET as payroll } from '@/app/api/payroll/route'
 import { POST as runPayroll } from '@/app/api/payroll/run/route'
 import { planCyclesFor, writeCyclesFor } from '@/lib/contract-cycles'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * An extended W-2 placement, and the hours after its first end.
@@ -213,6 +214,9 @@ beforeAll(async () => {
   })
   const again = await extendTo(behind, key(behind.newEnd))
   expect(again.status, JSON.stringify(again.body).slice(0, 400)).toBe(200)
+  // Her week before the first end, and the week after it, both accepted.
+  await acceptedWeek(behind, at(behind.firstEnd, -6))
+  await acceptedWeek(behind, at(behind.firstEnd, 1))
 }, 900_000)
 
 describe('an extended W-2 placement is paid for the days it gained', () => {
@@ -320,5 +324,64 @@ describe('a placement extended before today', () => {
       links: [{ id: link.id, endsOn: key(behind.firstEnd) }],
       rows: [{ id: row.id, endsOn: key(behind.firstEnd) }],
     })
+  })
+})
+
+describe('a week outside every pay window of a placement extended before today', () => {
+  const heldWords = () =>
+    `Ines Moreau's week of ${formatDay(at(behind.firstEnd, 1))}, 40 hours, is held off this pay. ` +
+    `It is after the pay window ended on ${formatDay(behind.firstEnd)}; the placement was extended. ` +
+    'Ask whoever runs payroll here to repair the window before it is paid.'
+
+  it('a week outside every pay window of an extended placement is held on Payroll with a sentence, never paid and never dropped silently', async () => {
+    as(BRIGHTMOOR)
+    const r = await json(await payroll(req('GET', `/api/payroll?period=${behind.month}`)))
+    const row = r.body.data.payItems.find((x: any) => x.buyContractId === behind.buyId)
+    // Only the week inside the window is paid.
+    expect(row.totalApprovedHours).toBe(40)
+    expect(row.grossPay).toBe(180_000)
+    // The week after it is held, by name and week, with what a person does.
+    expect(row.windowHeld).toBe(heldWords())
+    expect(row.windowHeldHours).toBe(40)
+    expect(row.heldHours).toBe(40)
+    expect(row.heldWeeks).toEqual([{ weekOf: key(at(behind.firstEnd, 1)), hours: 40, reason: 'WINDOW', endedOn: key(behind.firstEnd) }])
+    expect(row.statusSays).toMatch(/, week held$/)
+    // Above the table, and in the count.
+    expect(r.body.data.heldSays).toContain('Ines Moreau has a week held off this pay because it is after the pay window ended.')
+    expect(r.body.data.summary.weeksHeld).toBeGreaterThanOrEqual(1)
+    // The run pays the week inside the window only, and says the held one on its row.
+    const worked = await run(behind, 'calculate')
+    expect(worked.totalHours).toBe(40)
+    expect(worked.windowHeld).toBe(heldWords())
+    const paid = await run(behind, 'process')
+    expect(paid.totalHours).toBe(40)
+    expect(paid.grossPay).toBe(180_000)
+    expect(paid.windowHeld).toBe(heldWords())
+    // What the run recorded paying: no day after the window ended.
+    const lines = (await runsLogged())
+      .filter((r) => (r.payload as any)?.action === 'process')
+      .flatMap((r) => ((r.payload as any).contracts ?? []).filter((c: any) => c.buyContractId === behind.buyId))
+      .flatMap((c: any) => c.paid ?? [])
+    expect(lines.length).toBeGreaterThan(0)
+    expect(lines.every((l: any) => l.day <= key(behind.firstEnd))).toBe(true)
+    // And the run's own log says the held week, so it is never dropped without a word.
+    expect((await runsLogged()).some((r) => ((r.payload as any)?.contracts ?? []).some((c: any) => c.buyContractId === behind.buyId && c.windowHeld === heldWords()))).toBe(true)
+  })
+
+  it('after the run, the row reads processed with a week held, and the pay file lists the held week', async () => {
+    const row = await payRow(behind)
+    expect(row.payStatus).toBe('HELD')
+    expect(row.statusSays).toBe('Processed, week held')
+    expect(row.windowHeld).toBe(heldWords())
+    as(BRIGHTMOOR)
+    const res = await payroll(req('GET', `/api/payroll?period=${behind.month}&format=csv`))
+    expect(res.status).toBe(200)
+    const line = (await res.text()).split('\n').find((l) => l.startsWith('Ines Moreau,'))!
+    expect(line).toContain(`after the pay window ended on`)
+    expect(line).toContain('window to repair')
+    expect(line).toContain('"Paid, week held"')
+    // The window is not repaired by itself: that is a person's decision.
+    const link = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: behind.sellId } })
+    expect(key(link.effectiveTo!)).toBe(key(behind.firstEnd))
   })
 })
