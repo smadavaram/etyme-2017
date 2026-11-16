@@ -92,3 +92,23 @@ answers in place of its questions:
 6. The words on the public pages.
 
 Security work runs on the strongest model (record 82).
+
+### Where many clients pay — 2026-11-16
+
+The founder's words: *"many companies take invoice line items to their
+[procurement network] or ERP and then process payments."*
+
+For such a client, Etyme does not run the payment, and its release step
+is the client's own. Etyme's job is in two parts:
+1. Deliver the bill to the client's system line by line, coded with the
+   client's own codes (record 80, Layer 9) and matched to the PO line and
+   the signed week.
+2. Take back what that system did with each line: accepted, rejected
+   with a reason, approved, or paid with a reference. Then tell the
+   supplier.
+
+Both directions are monitored messages under the bar above: a status on
+every message, reprocessing after a failure, and no duplicates. The
+second check before money is released (record 86, answers 2 and 3)
+applies where the payment is released inside Etyme. Where the client's
+own system releases it, that system's own controls apply.
