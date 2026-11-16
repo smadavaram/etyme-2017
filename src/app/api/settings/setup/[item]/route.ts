@@ -4,6 +4,7 @@ import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
 import { companyPolicy } from '@/lib/identity/read'
 import { NextRequest, NextResponse } from 'next/server'
 import { bankChange } from '@/lib/money/remit-change'
+import { recordBankWrite } from '@/app/api/settings/remit-to/bank-log'
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/db'
 import { setupDoor, refused } from '../door'
@@ -267,15 +268,23 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
       enteredById: by, enteredAt: new Date(),
       ...(change.cleared ? change.data : {}),
     }
-    if (existing) {
-      await prisma.remitTo.update({ where: { id: existing.id }, data })
-    } else {
-      await prisma.remitTo.create({
+    const saved = existing
+      ? await prisma.remitTo.update({ where: { id: existing.id }, data })
+      : await prisma.remitTo.create({
         data: {
           companyId: c.id, legalName: co.legalName ?? co.name, isDefault: true, country: legal?.country ?? co.country ?? 'US',
           addressLines: legal ? [legal.street, [legal.city, legal.state, legal.postalCode].filter(Boolean).join(', ')].filter((x): x is string => !!x) : [],
           taxId: co.taxId, ...data,
         },
+      })
+    // The same row Settings → Payment details writes: the bank, the
+    // account name and four digits, never undone from the log. A save
+    // that changed nothing a payer checked leaves no row.
+    if (!existing || change.cleared) {
+      const who = await prisma.person.findUniqueOrThrow({ where: { id: by }, select: { name: true } })
+      await recordBankWrite({
+        companyId: c.id, remitToId: saved.id, legalName: saved.legalName, byName: who.name, added: !existing, madeDefault: !existing, door: 'SETUP',
+        after: saved, change,
       })
     }
     return { ok: true, answers: [{ field: 'bank', source: 'PERSON' }], says: existing && change.cleared ? change.says : undefined }

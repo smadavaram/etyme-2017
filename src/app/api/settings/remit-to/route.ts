@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { bankChange, type BankFacts } from '@/lib/money/remit-change'
+import { recordBankWrite } from './bank-log'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
@@ -61,6 +62,31 @@ async function guard(request: NextRequest, write: boolean) {
   return { caller, error: null }
 }
 
+/**
+ * Refuse anything longer than four digits rather than silently truncating
+ * it. Somebody pasting a full account number needs to know this is not
+ * where it goes, not have it quietly stored and trimmed. Adding and
+ * editing ask the same.
+ */
+function notFourDigits(body: any): NextResponse | null {
+  for (const field of ['accountLast4', 'routingLast4'] as const) {
+    const v = body[field]
+    if (v !== undefined && v !== null && v !== '' && !/^\d{1,4}$/.test(String(v))) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION',
+            message: 'Only the last four digits are stored here. Etyme never holds a full account number — the payment happens in your bank, not in this system.',
+            field,
+          },
+        },
+        { status: 422 }
+      )
+    }
+  }
+  return null
+}
+
 export async function GET(request: NextRequest) {
   const { caller, error } = await guard(request, false)
   if (error) return error
@@ -119,24 +145,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Refuse anything longer than four digits rather than silently truncating
-  // it. Somebody pasting a full account number needs to know this is not
-  // where it goes, not have it quietly stored and trimmed.
-  for (const field of ['accountLast4', 'routingLast4'] as const) {
-    const v = body[field]
-    if (v !== undefined && v !== null && v !== '' && !/^\d{1,4}$/.test(String(v))) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'VALIDATION',
-            message: 'Only the last four digits are stored here. Etyme never holds a full account number — the payment happens in your bank, not in this system.',
-            field,
-          },
-        },
-        { status: 422 }
-      )
-    }
-  }
+  const long = notFourDigits(body)
+  if (long) return long
 
   const makeDefault = Boolean(body.isDefault) || (await prisma.remitTo.count({ where: { companyId } })) === 0
 
@@ -162,19 +172,11 @@ export async function POST(request: NextRequest) {
   })
 
   // Changing where money arrives is worth a trail even when it is the
-  // first one.
-  await prisma.automationLog.create({
-    data: {
-      companyId,
-      action: 'REMIT_TO_ADDED',
-      summary: `${caller!.person.name} added payment details for ${legalName}${makeDefault ? ' and made them the default' : ''}`,
-      reason: 'Added in settings',
-      payload: { remitToId: remitTo.id, legalName, method, isDefault: makeDefault },
-      // The activity log cannot undo where money arrives, and saying it
-      // can is a lie on the one edit an attacker wants most (Layer 7 money
-      // review, 2026-11-16). It is changed again here, and checked again.
-      reversible: false,
-    },
+  // first one: the bank, the account name and four digits, never undone
+  // from the log (`recordBankWrite`, one row for every door).
+  await recordBankWrite({
+    companyId, remitToId: remitTo.id, legalName, byName: caller!.person.name, added: true, door: 'SETTINGS', madeDefault: makeDefault,
+    after: remitTo, change: bankChange(null, remitTo),
   })
 
   return NextResponse.json({ data: { remitTo, message: `${legalName} saved.` } }, { status: 201 })
@@ -195,6 +197,9 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
+  const long = notFourDigits(body)
+  if (long) return long
+
   if (body.isDefault === true) {
     await prisma.remitTo.updateMany({ where: { companyId, isDefault: true }, data: { isDefault: false } })
   }
@@ -212,8 +217,10 @@ export async function PATCH(request: NextRequest) {
       ...(Array.isArray(body.addressLines) ? { addressLines: body.addressLines.map(String) } : {}),
       ...(typeof body.country === 'string' ? { country: body.country.toUpperCase().slice(0, 2) } : {}),
       ...('taxId' in body ? { taxId: body.taxId ? String(body.taxId).trim() : null } : {}),
-      ...('bankName' in body ? { bankName: body.bankName ? String(body.bankName).trim() : null } : {}),
-      ...('accountName' in body ? { accountName: after.accountName ?? null } : {}),
+      // The bank, the account name, the last four and the routing digits
+      // the edit carried, as typed (money's review, 2026-11-16: the new
+      // digits cleared the check and were never saved).
+      ...after,
       ...('isDefault' in body ? { isDefault: Boolean(body.isDefault) } : {}),
       // A different bank is a different place for the money to go, so a
       // check a paying firm's Finance made no longer stands; a label
@@ -222,16 +229,9 @@ export async function PATCH(request: NextRequest) {
     },
   })
 
-  await prisma.automationLog.create({
-    data: {
-      companyId,
-      action: 'REMIT_TO_CHANGED',
-      summary: `${caller!.person.name} changed payment details for ${remitTo.legalName}`,
-      reason: 'Edited in settings',
-      payload: { remitToId: id },
-      // Not undone from the activity log: changed again here, and checked again.
-      reversible: false,
-    },
+  await recordBankWrite({
+    companyId, remitToId: id, legalName: remitTo.legalName, byName: caller!.person.name, added: false, door: 'SETTINGS', madeDefault: body.isDefault === true,
+    after: remitTo, change,
   })
 
   return NextResponse.json({ data: { remitTo, message: change.cleared ? change.says : 'Saved.' } })
