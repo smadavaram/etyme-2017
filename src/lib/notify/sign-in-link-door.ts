@@ -74,8 +74,9 @@ async function tiesHere(companyId: string, personId: string): Promise<{ onBooks:
 /**
  * Whether she came in here: this firm's own fact, never her account
  * elsewhere (2026-11-16). She acted on a seat at this firm in person:
- * every act a seat does is logged with its company, her first sign-in on
- * an invitation here included (INVITE_ACCEPTED, lib/identity/sign-in).
+ * every act a seat does is logged with its company, her first opening of
+ * the seat an invitation here made included (INVITE_ACCEPTED, written by
+ * `markSeatOpened` through the caller check, never by a sign-in elsewhere).
  * Read through `signedInHere` in lib/access-log, the one reader Users &
  * permissions, the invite answer and the caller check read, so a row a
  * twin wrote on her seat's authority, or a sign-in this firm refused, is
@@ -417,5 +418,5 @@ export async function enterSignInDoor(token: string, now: Date = new Date()): Pr
     return { ok: true, to: `/login?email=${encodeURIComponent(d.person.primaryEmail.trim().toLowerCase())}` }
   }
   // An hour: she is at the door now. The password door spends any older link.
-  return { ok: true, to: await issueSetPassword(d.person.id, 1, now) }
+  return { ok: true, to: await issueSetPassword(d.person.id, 1, now, d.notice.companyId) }
 }

@@ -114,7 +114,7 @@ export async function sendInvitationMail(a: {
   const title = inviteTitle(a.inviterName, a.company.name)
 
   // One door mints the link, and it kills any older one for this person.
-  const setPasswordUrl = door === 'PASSWORD' ? await issueSetPassword(a.person.id, INVITE_LINK_HOURS, now) : null
+  const setPasswordUrl = door === 'PASSWORD' ? await issueSetPassword(a.person.id, INVITE_LINK_HOURS, now, a.company.id) : null
   const letter = inviteLetter({
     door, companyName: a.company.name, roleName: a.roleName,
     setPasswordUrl, loginUrl: login, linkHours: INVITE_LINK_HOURS, workAccount: workAccountOn(),

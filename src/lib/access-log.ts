@@ -190,7 +190,7 @@ export type AccessAction =
   | 'LOGIN_REFUSED_SSO_ONLY'    // a door was refused because the company signs in through its directory only
   | 'JOIN_REFUSED_BY_POLICY'    // a join was refused because the company admits people by invitation only
   | 'INVITE_SENT'               // an Owner or Admin invited a person to a seat
-  | 'INVITE_ACCEPTED'           // an invited person signed in to the seat for the first time
+  | 'INVITE_ACCEPTED'           // an invited person opened the seat for the first time
   | 'MEMBERSHIP_REVOKED'        // a person's seat at a company was ended
   | 'INVITATION_WITHDRAW'       // somebody asked to withdraw a person's invitation; written only when refused
   | 'AUTH_POLICY_CHANGED'       // a company's Owner changed how its people sign in
@@ -639,8 +639,8 @@ export const NOT_A_SIGN_IN: readonly AccessAction[] = ['LOGIN_REFUSED_SSO_ONLY',
 /**
  * Where to look for whether a person came in at a firm: a row this firm's
  * access log keeps with her, in person, as the actor at this firm. Her
- * first sign-in on an invitation here writes one (INVITE_ACCEPTED,
- * lib/identity/sign-in), choosing a seat here writes one
+ * first opening of the seat an invitation here made writes one
+ * (INVITE_ACCEPTED, `markSeatOpened` through the caller check), choosing a seat here writes one
  * (CONTEXT_SWITCH), and so does every read she makes on a seat here. A
  * row a twin wrote on a seat's authority is not her coming in, and
  * neither is a refused sign-in (`NOT_A_SIGN_IN`). Pure, so the shape is a

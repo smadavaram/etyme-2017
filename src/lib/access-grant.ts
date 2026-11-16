@@ -715,7 +715,7 @@ export function waitingLine(w: { invited: boolean; signedIn: boolean; days: numb
  * A seat nobody invited was made by a sign-in, so it has. An invited seat
  * has once it was used here (its own use date), or once she did anything
  * at this firm that the access log keeps with her as the actor, her first
- * sign-in on the invitation included (INVITE_ACCEPTED). `signedInHere` is
+ * opening of the invited seat included (INVITE_ACCEPTED). `signedInHere` is
  * that second fact, read by `signedInHere` in lib/access-log.
  *
  * Never her account anywhere else. The rule read "or once the person
