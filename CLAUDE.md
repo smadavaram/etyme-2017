@@ -539,6 +539,10 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73, 75, 77.
 - **Who is on the bench reads the same on every page** (2026-11-16 →
   77): placed today through any firm's line is off the bench, and
   nothing of the other firm's deal is read.
+- **Signed in means signed in at this firm** (2026-11-16 → 78). A sign-in
+  marks no seat it did not open; an invitation is accepted when she
+  chooses it, and by default the seat she already uses opens. A firm's
+  sign-in link never sets a password on an account anybody has used.
 - **A firm on Etyme is never tied to you from your side alone.** Two
   firms on Etyme link by one ask and one yes. No door writes an
   agreement, a register row or an order on a firm that did not take part,
@@ -623,6 +627,9 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
 - **Payroll is run by pay period, and the period is the company's
   choice** (default every other week). Pay never goes out before it is
   worked out. Every hour is paid at the rate in force on the day worked.
+- **A placement ended early takes the day it ended as its last day on
+  site** (founder, 2026-11-16 → 78); the planned end stays in the log.
+  An extension moves her pay window and row with it, or says why not.
 - **Months served are whole months, never rounded up.** A contract's
   last day is a day on site; a break starts the day after it. Tenure is
   the person's at the client, across every supplier, a day counted once.
