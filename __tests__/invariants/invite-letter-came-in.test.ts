@@ -76,7 +76,7 @@ describe('an invitation never carries a link that sets a password on an account 
     expect(one).not.toContain('prisma.credential.count')
     expect(one).not.toMatch(/hasPassword/)
     // A set-password link is minted only where the door is the password door.
-    expect(one).toContain("door === 'PASSWORD' ? await issueSetPassword(a.person.id, INVITE_LINK_HOURS, now) : null")
+    expect(one).toContain("door === 'PASSWORD' ? await issueSetPassword(a.person.id, INVITE_LINK_HOURS, now, a.company.id) : null")
   })
 })
 
