@@ -43,6 +43,13 @@ interface Ask {
     says: string
     seen: { engagementType: string; payRateCents: number } | null
   }
+  /**
+   * The rate range the firm saved on its ask, read before the yes
+   * (2026-11-16), or null where it saved none. `belowFloor` is said only
+   * to her, signed in: the lowest rate on her own record, where the
+   * range's top is under it.
+   */
+  range?: { says: string; belowFloor: string | null } | null
 }
 
 export default function BenchInvitePage({ params }: { params: { token: string } }) {
@@ -170,6 +177,15 @@ export default function BenchInvitePage({ params }: { params: { token: string } 
                   sends back exactly these, so nobody agrees a figure
                   they never read. */}
               {changed && <p className="mt-3 max-w-[46ch] text-[13px] text-etyme-attention">{changed}</p>}
+              {/* The rate range the firm saved, above the yes. Where it is
+                  under the lowest rate on her own record, she is told here
+                  (only she: the route says it only to her, signed in). */}
+              {ask.range && (
+                <div className="mt-3 max-w-[46ch] rounded-md border border-etyme-rule bg-etyme-raised px-3 py-2 text-[14px]" data-testid="invite-range">
+                  <p className="text-etyme-ink">{ask.range.says}</p>
+                  {ask.range.belowFloor && <p className="mt-1 text-etyme-attention">{ask.range.belowFloor}</p>}
+                </div>
+              )}
               {ask.terms && (
                 <p className="mt-3 max-w-[46ch] rounded-md border border-etyme-rule bg-etyme-raised px-3 py-2 text-[14px] text-etyme-ink">
                   {ask.terms.says}

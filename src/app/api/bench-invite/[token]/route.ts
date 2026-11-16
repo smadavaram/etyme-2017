@@ -6,7 +6,8 @@ import { tellTheFirm } from '@/lib/bench-invite'
 import { STAY_CHOICES, readStay, renewFields, stayFields, staySays } from '@/lib/bench-stay'
 import { renewStay } from '@/lib/bench-stay-record'
 import { agreeingTerms } from '@/lib/bench-filter'
-import { inviteTerms } from './terms'
+import { inviteTerms, inviteRange } from './terms'
+import { getSessionIdentity } from '@/lib/api-context'
 import { afterYes } from '@/lib/consultant-portfolio'
 import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 
@@ -56,10 +57,25 @@ async function load(token: string) {
     where: { id: t.listingId },
     include: {
       company: { select: { id: true, name: true, homeCurrency: true } },
-      consultant: { select: { id: true, personId: true, person: { select: { name: true } } } },
+      consultant: { select: { id: true, personId: true, rateFloor: true, person: { select: { name: true, primaryEmail: true } } } },
     },
   })
   return listing
+}
+
+/**
+ * Whether the person reading is the person asked: signed in, on the
+ * address her record is found by. The firm holds this link too (Copy link
+ * on Bench), so the link alone never shows anything of her own record.
+ * A session that cannot be read is nobody. Reads only her own record.
+ */
+async function readerIsHer(email: string): Promise<boolean> {
+  try {
+    const me = await getSessionIdentity()
+    return !!me && me.email.trim().toLowerCase() === email.trim().toLowerCase()
+  } catch {
+    return false
+  }
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
@@ -103,6 +119,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
       // The pay terms the firm stated, in the words their own page uses,
       // and what the yes sends back to agree them (2026-10-06).
       terms: inviteTerms(listing, listing.company),
+      // The rate range the firm saved, read before the yes (2026-11-16).
+      // Her lowest rate is compared only where she is the one reading;
+      // nothing about it reaches the firm, which holds this link too.
+      range: inviteRange(
+        listing,
+        listing.company,
+        (await readerIsHer(listing.consultant.person.primaryEmail)) ? listing.consultant.rateFloor : null
+      ),
     },
   })
 }
