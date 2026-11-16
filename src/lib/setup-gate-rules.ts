@@ -7,6 +7,7 @@
 
 import type { ItemKey } from '@/lib/setup-checklist'
 import type { Party } from '@/lib/document-stages/required-sets'
+import { bankChange, type BankFacts } from '@/lib/money/remit-change'
 
 export type Gate = { ok: true } | { ok: false; says: string; step: ItemKey }
 
@@ -99,6 +100,71 @@ export function bankGate(f: {
   const checked = f.remitOnFile ? f.remitVerified : f.walkBankState === 'HELD'
   if (checked) return { ok: true }
   return { ok: false, says: bankNotChecked(f.payee, f.who), step: 'BANK' }
+}
+
+// ── Checked by this payer (Layer 7, record 86) ──────────────────────
+//
+// Record 86, answer 7: "Each payer confirms for itself, so one client's
+// check never counts for another." `BankCheck` holds one row per set of
+// details per paying firm, and it is read first. The old columns on the
+// details (`verifiedAt`, `verifiedByCompanyId`) stay written for one
+// release and count only for the payer they name. The payment gate does
+// not read this yet: `bankGate` above is unchanged, and the switch is the
+// next slice's (money).
+
+/** The details as they read now, with the old single check on them. */
+export interface PayToFacts extends BankFacts {
+  verifiedAt: Date | null
+  verifiedByCompanyId: string | null
+}
+
+/** One paying firm's own check, as its `BankCheck` row holds it. */
+export interface PayerCheckRow extends BankFacts {
+  checkedAt: Date
+  /** The call back's outcome, where one is recorded. */
+  callbackOutcome?: 'CONFIRMED' | 'DID_NOT_MATCH' | 'NOT_REACHED' | null
+}
+
+export type PayerCheck =
+  | { checked: true; from: 'BANK_CHECK' | 'OLD_COLUMNS'; at: Date }
+  | {
+      checked: false
+      why:
+        | 'NO_DETAILS'
+        | 'NOT_CHECKED'
+        /** This payer checked details that have since changed. */
+        | 'DETAILS_CHANGED'
+        /** This payer's call back did not confirm the details. */
+        | 'CALLBACK_DID_NOT_CONFIRM'
+        /** Only another paying firm checked them. */
+        | 'ANOTHER_PAYER'
+        /** Checked before Etyme recorded which firm checked. */
+        | 'PAYER_NOT_RECORDED'
+    }
+
+/**
+ * Pure: whether this paying firm checked the details a payment goes to.
+ *
+ * Its own `BankCheck` decides first, and stands only while the details
+ * still read what it checked: a change to the bank, the account name or
+ * either last four voids it, by the same rule that clears the old check
+ * (`bankChange` in lib/money/remit-change). With no `BankCheck`, the old
+ * columns count only where they name this payer.
+ */
+export function checkedByPayer(row: PayToFacts | null, check: PayerCheckRow | null, payerCompanyId: string): PayerCheck {
+  if (!row) return { checked: false, why: 'NO_DETAILS' }
+  if (check) {
+    const now: BankFacts = {
+      bankName: row.bankName, accountName: row.accountName, accountLast4: row.accountLast4, routingLast4: row.routingLast4,
+    }
+    if (bankChange(check, now).cleared) return { checked: false, why: 'DETAILS_CHANGED' }
+    if (check.callbackOutcome && check.callbackOutcome !== 'CONFIRMED') return { checked: false, why: 'CALLBACK_DID_NOT_CONFIRM' }
+    return { checked: true, from: 'BANK_CHECK', at: check.checkedAt }
+  }
+  if (!row.verifiedAt) return { checked: false, why: 'NOT_CHECKED' }
+  if (!row.verifiedByCompanyId) return { checked: false, why: 'PAYER_NOT_RECORDED' }
+  if (row.verifiedByCompanyId !== payerCompanyId) return { checked: false, why: 'ANOTHER_PAYER' }
+  return { checked: true, from: 'OLD_COLUMNS', at: row.verifiedAt }
 }
 
 export function domainNotVerified(company: string, domain: string): string {

@@ -15,6 +15,7 @@ import { INBOUND_SECRET_ENV } from '@/lib/texts'
 import { teamsBotEdge, teamsBotFacts } from '@/lib/teams/readiness'
 import { modelHealth } from '@/lib/model-health'
 import { currentAllowanceLimits } from '@/lib/model-allowance'
+import { securityLogGuarded } from '@/lib/identity/security-ledger'
 
 const DEMO_DOMAIN = '@demo.etyme.local'
 
@@ -73,6 +74,9 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     // The password door's columns (2026-10-08): sign-in reads them on every try.
     await prisma.person.findFirst({ select: { passwordHash: true, emailVerifiedAt: true } })
     await prisma.emailToken.findFirst({ select: { id: true } })
+    // The second check and the bank checks (Layer 7, record 86).
+    await prisma.securityEvent.findFirst({ select: { id: true } })
+    await prisma.bankCheck.findFirst({ select: { id: true } })
   } catch {
     schemaCurrent = false
   }
@@ -122,6 +126,8 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     demo: { seeded: Boolean(nike), current: Boolean(nike && nikeHr) },
     privacyContact: contactEmail() !== null,
     inbound,
+    // Never throws: a read that fails says the guard is missing.
+    securityLog: { guarded: await securityLogGuarded() },
   }
 }
 

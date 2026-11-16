@@ -17,12 +17,21 @@ import { createHash } from 'node:crypto'
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
-import { copyDatabase, databaseExists, databasesLike, dropDatabase, psql, urlFor } from './postgres'
+import { copyDatabase, databaseExists, databasesLike, dropDatabase, psql, psqlFile, urlFor } from './postgres'
 
 const ROOT = path.resolve(__dirname, '..')
 const SRC = path.join(ROOT, 'src')
 
 export const TEMPLATE_PREFIX = 'etyme_tpl_'
+
+/**
+ * The security log's guard (Layer 7, record 86): triggers that refuse to
+ * change, delete or empty a SecurityEvent row. `db push` cannot declare
+ * them, so the template applies them right after its push, the way
+ * scripts/db-sync.mjs does on a deploy. Every test database is a copy of
+ * the template, so every one of them carries the guard.
+ */
+export const GUARD_SQL = path.join(ROOT, 'prisma', 'sql', 'append-only.sql')
 
 /** Resolve one import specifier to a file under src/, or null for a package. */
 function resolveImport(spec: string, from: string): string | null {
@@ -89,7 +98,8 @@ export interface TemplatePlan {
 export function planTemplates(now = new Date()): TemplatePlan {
   const schema = path.join(ROOT, 'prisma', 'schema.prisma')
   const harness = [path.join(__dirname, 'templates.ts'), path.join(__dirname, 'postgres.ts')]
-  const emptyHash = hashFiles([schema, ...harness]).slice(0, 12)
+  // The SQL applied after the push is part of the empty schema too.
+  const emptyHash = hashFiles([schema, GUARD_SQL, ...harness]).slice(0, 12)
 
   const libDir = path.join(SRC, 'lib')
   const seedEntries = readdirSync(libDir)
@@ -175,6 +185,7 @@ export function buildEmptyTemplate(name: string): void {
     cwd: ROOT,
     env: { ...process.env, DATABASE_URL: urlFor(building) },
   })
+  psqlFile(GUARD_SQL, building)
   promote(building, name)
 }
 

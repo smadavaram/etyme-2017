@@ -19,7 +19,7 @@
 import { prisma } from '@/lib/db'
 import { PARTY_SAYS, type Party } from '@/lib/document-stages/required-sets'
 import {
-  NO_BILLING_ADDRESS, billingAddressGate, bankGate, paperChaseGate, type Gate, type BankCheckerNames,
+  NO_BILLING_ADDRESS, billingAddressGate, bankGate, checkedByPayer, paperChaseGate, type Gate, type BankCheckerNames, type PayerCheck,
 } from '@/lib/setup-gate-rules'
 import { payToRow } from '@/lib/money/pay-to'
 
@@ -85,6 +85,34 @@ export async function mayPayFirm(payerCompanyId: string, payeeCompanyId: string,
   // it for a held receipt, so the payment, the payment run and the receipt
   // name the same people.
   return bankGate({ ...facts, who: await bankCheckerNamesAt(payerCompanyId) })
+}
+
+/**
+ * Has this paying firm, itself, checked the details a payment to that
+ * firm goes to? Record 86: each payer confirms for itself. The row is
+ * money's one reader (`payToRow`); the answer is `checkedByPayer`, which
+ * reads this payer's `BankCheck` first and the old columns second.
+ *
+ * Not read by `mayPayFirm` yet: who may pay does not change in this
+ * slice. The payment gate, the held receipt's check and the payment run's
+ * file move onto it together, in money's next slice.
+ */
+export async function bankCheckedBy(payerCompanyId: string, payeeCompanyId: string, db: Db = prisma): Promise<PayerCheck> {
+  const payTo = await payToRow(payeeCompanyId, db)
+  if (!payTo) return checkedByPayer(null, null, payerCompanyId)
+  const row = await db.remitTo.findUnique({
+    where: { id: payTo.id },
+    select: {
+      bankName: true, accountName: true, accountLast4: true, routingLast4: true, verifiedAt: true, verifiedByCompanyId: true,
+      bankChecks: {
+        where: { payerCompanyId },
+        select: { bankName: true, accountName: true, accountLast4: true, routingLast4: true, checkedAt: true, callbackOutcome: true },
+      },
+    },
+  })
+  if (!row) return checkedByPayer(null, null, payerCompanyId)
+  const { bankChecks, ...facts } = row
+  return checkedByPayer(facts, bankChecks[0] ?? null, payerCompanyId)
 }
 
 /**

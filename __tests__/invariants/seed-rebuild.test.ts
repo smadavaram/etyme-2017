@@ -105,8 +105,8 @@ describe('rebuilding the demo world', () => {
     }
   })
 
-  it('never deletes a lead from the site, an incident or a run of the nightly job', () => {
-    expect([...KEPT].sort()).toEqual(['Incident', 'JobRun', 'MarketingLead'])
+  it('never deletes a lead from the site, an incident, a run of the nightly job or a row of the security log', () => {
+    expect([...KEPT].sort()).toEqual(['Incident', 'JobRun', 'MarketingLead', 'SecurityEvent'])
     for (const e of edges()) expect(KEPT as readonly string[], `${e.from}.${e.column}`).not.toContain(e.from)
   })
 

@@ -50,7 +50,8 @@
  * the one mistake here that cannot be put back.
  *
  * Three models are records that outlive what they mention and are never
- * deleted: `JobRun`, `Incident`, `MarketingLead` (`KEPT`).
+ * deleted: `JobRun`, `Incident`, `MarketingLead`, and the security log
+ * `SecurityEvent`, which the database refuses to delete (`KEPT`).
  *
  * Before anybody asks for the delete, `dryRunRebuild` says what would go
  * and every tie, by whose record it is (lib/seed-owners names the owner,
@@ -100,6 +101,15 @@ export const DELETE_ORDER = [
   // A directory group mapped to a role (identity, 2026-11-11) names the
   // role and the identity provider, so it goes before both.
   'DirectoryGroupRole',
+  // The second check (Layer 7, record 86): a person's passkeys and
+  // authenticator apps go before the person.
+  'Passkey', 'AuthenticatorApp',
+  // A payer's check of a firm's bank details goes before the change it
+  // answered, the details and both firms; the change before the details.
+  'BankCheck', 'BankChangeRequest',
+  // The security log is kept (KEPT): no foreign key reaches it and the
+  // database refuses to delete a row of it. Named so the list is whole.
+  'SecurityEvent',
   'Credential', 'EmailToken', 'SignInFailure', 'Context', 'ProgramSeat', 'ProgramSeatRequest', 'TradeLinkRequest', 'AccessLog', 'Interview', 'IdentityMatch', 'SupplierInvite',
   'Counterparty', 'CompanyContact', 'BenchListing', 'BenchWant', 'BenchHolidaySwitch', 'VisaDocument', 'VisaEvent', 'MasterAgreementVersion',
   'AgreementSignature', 'EarlyPaymentDiscount', 'HeadcountPlan', 'ApprovalRuleVersion', 'RequirementApproval',
@@ -170,7 +180,7 @@ export const DELETE_ORDER = [
  * stops here. A demo row that points at one of them is not a thread to
  * the real world: deleting the demo row takes nothing real away.
  */
-export const KEPT = ['JobRun', 'Incident', 'MarketingLead'] as const
+export const KEPT = ['JobRun', 'Incident', 'MarketingLead', 'SecurityEvent'] as const
 
 /**
  * Parents with no owner of their own, deleted once the demo world was
@@ -280,6 +290,24 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'CompanyAddress.recordedById': { as: 'RECORD' },
   'CompanyInCharge.recordedById': { as: 'RECORD' },
   'RemitTo.enteredById': { as: 'RECORD' },
+  // Layer 7 (record 86): who checked, called back, entered, disowned or
+  // removed. Records of a person, never followed. The passkey's
+  // credential id is the authenticator's, no row's key.
+  'BankCheck.checkedById': { as: 'RECORD' },
+  'BankCheck.callbackById': { as: 'RECORD' },
+  'BankChangeRequest.enteredById': { as: 'RECORD' },
+  'BankChangeRequest.disownedById': { as: 'RECORD' },
+  'Passkey.credentialId': { as: 'RECORD' },
+  'Passkey.revokedById': { as: 'RECORD' },
+  'AuthenticatorApp.revokedById': { as: 'RECORD' },
+  // The security log names everybody by a plain id and is kept whole
+  // (KEPT): what it mentions never decides what the rebuild deletes.
+  'SecurityEvent.companyId': { as: 'RECORD' },
+  'SecurityEvent.actorPersonId': { as: 'RECORD' },
+  'SecurityEvent.subjectPersonId': { as: 'RECORD' },
+  'SecurityEvent.subjectCompanyId': { as: 'RECORD' },
+  'SecurityEvent.sessionId': { as: 'RECORD' },
+  'SecurityEvent.targetId': { as: 'RECORD' },
   'RemitTo.verifiedById': { as: 'RECORD' },
   'RemitTo.verifiedByCompanyId': { as: 'RECORD' },
   'Interview.requestedById': { as: 'RECORD' },

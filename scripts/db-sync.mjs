@@ -56,7 +56,6 @@ console.log(`db-sync: DB_PUSH_ON_BUILD=${said} — reconciling the database to t
 
 try {
   execSync('npx prisma db push --skip-generate --accept-data-loss', { stdio: 'inherit' })
-  console.log('db-sync: done. Unset DB_PUSH_ON_BUILD before the next deploy.')
 } catch (err) {
   // Loud, and fatal. A build that ships code against a schema the
   // database does not have is a site that returns 500 on every page,
@@ -64,3 +63,19 @@ try {
   console.error('db-sync: could not reconcile the database.')
   process.exit(1)
 }
+
+// The security log's guard (Layer 7, record 86). `db push` runs no SQL
+// and cannot declare a trigger, so the triggers that refuse to change,
+// delete or empty a SecurityEvent row are applied here, right after every
+// push. The file is safe to run any number of times. Fatal on failure: a
+// security log the database does not guard is one /ready says is missing,
+// and the build is where somebody is watching.
+try {
+  execSync('npx prisma db execute --file prisma/sql/append-only.sql --schema prisma/schema.prisma', { stdio: 'inherit' })
+  console.log('db-sync: the security log is guarded (prisma/sql/append-only.sql).')
+} catch (err) {
+  console.error('db-sync: the schema is pushed, but the security log guard could not be applied (prisma/sql/append-only.sql).')
+  process.exit(1)
+}
+
+console.log('db-sync: done. Unset DB_PUSH_ON_BUILD before the next deploy.')

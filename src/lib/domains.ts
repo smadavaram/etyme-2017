@@ -586,6 +586,9 @@ export const DOMAINS: Domain[] = [
       // directory for the demo (reserved domains only), and SCIM 2.0.
       'app/api/sso', 'app/api/mock-directory', 'app/api/scim', 'app/dashboard/settings/sign-in',
       'scripts/identity-walk',
+      // The deploy's one database step: the schema push behind
+      // DB_PUSH_ON_BUILD, then the security log's guard (Layer 7, record 86).
+      'scripts/db-sync.mjs',
       // A seat that reads one region of a client's program (founder,
       // 2026-10-27, the region map): the scope, the where-fragments and the
       // door, read by lib/api-context. The views over it are demand's.
@@ -773,6 +776,10 @@ export const READERS: Reader[] = [
  */
 export const SHARED: string[] = [
   'prisma/schema.prisma',
+  // The SQL applied after every schema push: the security log's guard
+  // (Layer 7, record 86). It guards a table the schema declares, so it
+  // queues where the schema queues.
+  'prisma/sql/',
   'package.json',
   'CLAUDE.md',
   'BUILD.md',

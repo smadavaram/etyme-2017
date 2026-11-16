@@ -116,6 +116,13 @@ export interface ReadinessFacts {
    * secret: a fact nobody gathered is not a configured edge.
    */
   inbound?: { secretSet: boolean; signedDeliveries: number | null }
+  /**
+   * The security log's guard (Layer 7, record 86): whether the database's
+   * own triggers refuse to change, delete or empty a row
+   * (`securityLogGuarded` in lib/identity/security-ledger). Absent where
+   * nothing measured it, as when there is no database to ask.
+   */
+  securityLog?: { guarded: boolean }
 }
 
 export interface Readiness {
@@ -156,6 +163,27 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
       key: 'database', name: 'Database', state: 'PROVEN', required: true,
       says: `Reachable, and the tables match the code${f.db.ms != null ? ` (${f.db.ms} ms)` : ''}.`,
     })
+  }
+
+  // ── The security log cannot be changed ──────────────────────────────
+  //
+  // Record 86, answer 1: "a separate security log that nothing can
+  // change". Nothing in the code can promise that; only the database can,
+  // so the edge reads the database's own triggers. Two states: the guard
+  // is there, or it is missing.
+  if (f.securityLog) {
+    edges.push(
+      f.securityLog.guarded
+        ? {
+            key: 'security-log', name: 'The security log cannot be changed', state: 'PROVEN', required: true,
+            says: 'The database refuses to change, delete or empty a row of the security log.',
+          }
+        : {
+            key: 'security-log', name: 'The security log cannot be changed', state: 'MISSING', required: true,
+            says: 'The database does not guard the security log, so a row could be changed or deleted.',
+            fix: 'Set DB_PUSH_ON_BUILD=1 and redeploy: the build applies prisma/sql/append-only.sql after the schema. Then unset it.',
+          }
+    )
   }
 
   // ── Somebody outside can sign in ─────────────────────────────────────

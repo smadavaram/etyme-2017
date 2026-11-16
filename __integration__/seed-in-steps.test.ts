@@ -62,10 +62,12 @@ async function inSteps(budgetMs = 1): Promise<{ calls: number; ran: string[][] }
 /**
  * An empty database, without dropping it: the harness's reset drops the
  * database, which cannot happen while this file's connection is open.
+ * The security log is left out: the database refuses to empty it, and
+ * the seed never writes to it.
  */
 async function empty(): Promise<void> {
   const tables = (await prisma.$queryRawUnsafe(
-    `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename NOT IN ('_prisma_migrations', 'SecurityEvent')`
   )) as { tablename: string }[]
   await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables.map((t) => `"${t.tablename}"`).join(', ')} CASCADE`)
 }

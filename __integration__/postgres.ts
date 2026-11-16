@@ -30,6 +30,14 @@ export function psql(sql: string | string[], db = 'postgres'): string {
   })
 }
 
+/** A file of SQL against one database, stopping at the first error. */
+export function psqlFile(file: string, db: string): string {
+  return execSync(`psql -X -v ON_ERROR_STOP=1 -h ${PG_HOST} -p ${PG_PORT} -U ${PG_USER} -d ${db} -Atq -f ${JSON.stringify(file)}`, {
+    stdio: 'pipe',
+    encoding: 'utf8',
+  })
+}
+
 /** Every database whose name starts with this prefix. */
 export function databasesLike(prefix: string): string[] {
   return psql(`SELECT datname FROM pg_database WHERE datname LIKE '${prefix.replace(/_/g, '\\_')}%'`)

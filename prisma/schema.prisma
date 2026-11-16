@@ -295,6 +295,9 @@ model Person {
   submissionsSubmitted   Submission[]          @relation("submissionSubmittedBy")
   commissionsEarned      ContractCommission[]  @relation("commissionEarnedBy")
   commissionsSet         ContractCommission[]  @relation("commissionSetBy")
+  /// The second check before money is released (Layer 7, record 86).
+  passkeys               Passkey[]
+  authenticatorApps      AuthenticatorApp[]
 
   @@index([name])
   @@index([createdAt])
@@ -1204,6 +1207,11 @@ model Company {
   /// line's commission rows (2026-11-08). Null is the shipped default: none.
   commissionDefaults  Json?
   contractCommissions ContractCommission[]
+
+  /// Bank details this firm changed, and the checks this firm made, as a
+  /// payer, on another firm's details (Layer 7, record 86).
+  bankChangeRequests BankChangeRequest[]
+  bankChecksMade     BankCheck[]
 
   @@index([listedById])
 }
@@ -6478,9 +6486,116 @@ model RemitTo {
   verifiedByCompanyId String?
   createdAt           DateTime  @default(now())
 
-  invoices Invoice[]
+  invoices           Invoice[]
+  /// Each paying firm's own check of these details (record 86).
+  bankChecks         BankCheck[]
+  bankChangeRequests BankChangeRequest[]
 
   @@index([companyId, isDefault])
+}
+
+// ─────────────────────────────────────────────
+// BANK DETAILS: EACH PAYER CHECKS FOR ITSELF (Layer 7, record 86, 2026-11-16)
+//
+// The founder: "do what [an enterprise ERP] would do for bank
+// instructions". Bank details are sensitive data. The firm that is paid
+// enters a change; each firm that pays confirms it for itself, with a
+// call back on a number from its own records; one payer's check never
+// counts for another. `RemitTo.verifiedAt / verifiedById /
+// verifiedByCompanyId` stay, and stay written, for one release as the old
+// reader. `BankCheck` is read first (`bankCheckedBy` in lib/setup-gates).
+// ─────────────────────────────────────────────
+
+/// One paying firm's check of one set of payment details. The check
+/// stands only while the details still read what was checked: the four
+/// facts below are the ones `bankChange` in lib/money/remit-change says a
+/// payer checks, so any change to them voids every payer's check without
+/// a writer having to remember to clear it. Never a full account number.
+model BankCheck {
+  id                   String               @id @default(cuid())
+  remitToId            String
+  remitTo              RemitTo              @relation(fields: [remitToId], references: [id], onDelete: Cascade)
+  /// The firm that pays, and checked for itself.
+  payerCompanyId       String
+  payer                Company              @relation(fields: [payerCompanyId], references: [id], onDelete: Cascade)
+  /// What this payer checked, as the details read when it checked them.
+  bankName             String?
+  accountName          String?
+  accountLast4         String?
+  routingLast4         String?
+  /// Who checked, and when. A record of a person, never followed.
+  checkedById          String?
+  checkedAt            DateTime             @default(now())
+  /// The call back: when, by whom, on which number and where the number
+  /// came from (the payer's own record, never one the payee sent), who
+  /// answered, and what they said. Etyme never phones and never judges;
+  /// it records what a person says they did.
+  callbackAt           DateTime?
+  callbackById         String?
+  callbackNumber       String?
+  callbackNumberSource String?
+  callbackSpokeWith    String?
+  callbackOutcome      BankCallbackOutcome?
+  /// The change this check answered, where it answered one.
+  bankChangeRequestId  String?
+  bankChangeRequest    BankChangeRequest?   @relation(fields: [bankChangeRequestId], references: [id], onDelete: SetNull)
+
+  @@unique([remitToId, payerCompanyId])
+  @@index([payerCompanyId])
+  @@index([bankChangeRequestId])
+}
+
+enum BankCallbackOutcome {
+  /// The person called confirmed the bank, the account name and the last four.
+  CONFIRMED
+  /// The person called did not recognize the details.
+  DID_NOT_MATCH
+  /// Nobody answered, or nobody who could say.
+  NOT_REACHED
+}
+
+/// A change to a firm's payment details, kept as the change record: what
+/// stood before, what was entered, who entered it and when. Entered by the
+/// firm that is paid; each paying firm confirms it through its own
+/// `BankCheck`. Last four digits only, never a full number.
+model BankChangeRequest {
+  id                  String          @id @default(cuid())
+  /// The firm whose details changed.
+  companyId           String
+  company             Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  remitToId           String?
+  remitTo             RemitTo?        @relation(fields: [remitToId], references: [id], onDelete: SetNull)
+  state               BankChangeState @default(ENTERED)
+  /// What stood before the change. Null where nothing did.
+  beforeBankName      String?
+  beforeAccountName   String?
+  beforeAccountLast4  String?
+  beforeRoutingLast4  String?
+  beforePaymentMethod String?
+  /// What was entered.
+  bankName            String?
+  accountName         String?
+  accountLast4        String?
+  routingLast4        String?
+  paymentMethod       String?
+  /// Who entered it. A record of a person, never followed.
+  enteredById         String?
+  enteredAt           DateTime        @default(now())
+  /// An Owner of the firm said "This was not us".
+  disownedAt          DateTime?
+  disownedById        String?
+
+  checks BankCheck[]
+
+  @@index([companyId, state])
+  @@index([remitToId])
+}
+
+enum BankChangeState {
+  /// Entered by the firm. Each paying firm confirms it for itself.
+  ENTERED
+  /// An Owner of the firm said "This was not us".
+  DISOWNED
 }
 
 model IntercompanyPosition {
@@ -10570,4 +10685,105 @@ model OwnerProof {
 enum OwnerProofKind {
   DOMAIN
   PERSON
+}
+
+// ─────────────────────────────────────────────
+// THE SECOND CHECK AND THE SECURITY LOG (Layer 7, record 86, 2026-11-16)
+//
+// Each act that releases money asks for its own check inside Etyme: a
+// passkey first, an authenticator app as the fallback. Every security
+// event is written to `SecurityEvent`, which the database itself refuses
+// to change, delete or empty (prisma/sql/append-only.sql, applied after
+// every schema push by scripts/db-sync.mjs).
+// ─────────────────────────────────────────────
+
+enum SecondCheckMethod {
+  PASSKEY
+  AUTHENTICATOR_APP
+}
+
+/// A passkey a person enrolled for the second check. Only the public key
+/// is kept; the private key never leaves the person's device.
+model Passkey {
+  id           String    @id @default(cuid())
+  personId     String
+  person       Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  /// The credential's id, base64url, as the authenticator gave it.
+  credentialId String    @unique
+  publicKey    Bytes
+  /// The authenticator's signature counter (a 32-bit unsigned number), as
+  /// last seen. A counter that goes backwards is refused.
+  counter      BigInt    @default(0)
+  transports   String[]
+  backedUp     Boolean   @default(false)
+  deviceType   String?
+  /// The person's own name for it ("Work laptop").
+  label        String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  revokedAt    DateTime?
+  /// Who removed it. A record of a person, never followed.
+  revokedById  String?
+
+  @@index([personId])
+}
+
+/// An authenticator app a person enrolled for the second check.
+///
+/// The shared secret is kept only sealed: AES-256-GCM through `seal` in
+/// lib/team-structure/directory/sealed, under the platform key
+/// ETYME_SECOND_CHECK_KEY, which lives in the deployment's environment and
+/// never in the database. It is never logged, never written to a security
+/// event, and never returned after the enrolment screen shows it once.
+model AuthenticatorApp {
+  id           String    @id @default(cuid())
+  personId     String
+  person       Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  secretSealed String
+  label        String?
+  /// Set when the person typed a first good code; an app never confirmed is no check.
+  confirmedAt  DateTime?
+  /// The 30-second step of the last code accepted, so a code is used once.
+  lastUsedStep Int?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+  revokedAt    DateTime?
+  /// Who removed it. A record of a person, never followed.
+  revokedById  String?
+
+  @@index([personId])
+}
+
+/// The security log: second checks, factors, bank changes and every
+/// release of money a check stood behind. Append-only, enforced by the
+/// database (prisma/sql/append-only.sql), and proved on /ready.
+///
+/// No relations on purpose: erasing a person or a company never reaches
+/// this table, and no cascade can delete a row. Ids are kept as plain
+/// strings. A row carries a sentence and pseudonymous ids only: no email,
+/// no name, no secret, no code, no bank digits beyond the last four.
+/// Written only through `recordSecurityEvent` in lib/identity/security-ledger.
+model SecurityEvent {
+  id               String             @id @default(cuid())
+  at               DateTime           @default(now())
+  /// One of `SECURITY_EVENTS` in lib/identity/security-ledger.
+  event            String
+  companyId        String?
+  actorPersonId    String?
+  subjectPersonId  String?
+  subjectCompanyId String?
+  sessionId        String?
+  /// WEB, TEAMS, STAFF, CRON or EMAIL_LINK.
+  surface          String
+  method           SecondCheckMethod?
+  targetKind       String?
+  targetId         String?
+  says             String
+  facts            Json?
+
+  @@index([actorPersonId, at])
+  @@index([subjectPersonId, at])
+  @@index([companyId, at])
+  @@index([subjectCompanyId, at])
+  @@index([targetKind, targetId])
 }
