@@ -68,8 +68,11 @@ export async function ensureDefaultRoles(
   const granted: string[] = []
   for (const grant of GRANTED_SINCE) {
     if (!grant.kinds.includes(kind as CompanyKind)) continue
+    // The oldest role of that name: the seeded one, never a role somebody
+    // later made under the same name (2026-11-16).
     const role = await prisma.role.findFirst({
       where: { companyId, name: grant.role },
+      orderBy: { id: 'asc' },
       select: { id: true, permissions: true },
     })
     if (!role) continue

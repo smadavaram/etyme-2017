@@ -77,7 +77,7 @@ export function SecondCheckDialog({ act, subjectId, onProof, onCancel }: {
     }
   }
 
-  async function usePasskey() {
+  async function checkWithPasskey() {
     if (!begun?.passkey) return
     let response: unknown
     try {
@@ -119,7 +119,7 @@ export function SecondCheckDialog({ act, subjectId, onProof, onCancel }: {
           ) : (
             <>
               {hasPasskey && (
-                <SubmitButton type="button" pending={pending === 'PASSKEY'} pendingLabel="Waiting for your device…" onClick={() => void usePasskey()} className="w-full">
+                <SubmitButton type="button" pending={pending === 'PASSKEY'} pendingLabel="Waiting for your device…" onClick={() => void checkWithPasskey()} className="w-full">
                   Use your passkey
                 </SubmitButton>
               )}

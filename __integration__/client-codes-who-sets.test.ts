@@ -137,8 +137,9 @@ describe('a company’s own accounting codes are kept by Finance and the Owner, 
   })
 
   it('a company formed before the permission existed gets it on its Finance and Owner roles and not its Admin, with no migration', async () => {
-    const owners = await prisma.role.findMany({ where: { companyId: vendorId, name: { in: ['Finance', 'Owner', 'Admin'] } } })
-    const fin = owners.find((r) => r.name === 'Finance')!
+    // Earlier cases seat people on their own roles named Finance, so the
+    // case reads the role the defaults reach: the oldest by that name.
+    const fin = await prisma.role.findFirstOrThrow({ where: { companyId: vendorId, name: 'Finance' }, orderBy: { id: 'asc' } })
     await prisma.role.update({ where: { id: fin.id }, data: { permissions: fin.permissions.filter((p) => p !== 'codes.manage') } })
     await ensureDefaultRoles(vendorId, 'VENDOR')
     expect((await prisma.role.findUniqueOrThrow({ where: { id: fin.id } })).permissions).toContain('codes.manage')
