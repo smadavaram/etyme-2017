@@ -491,6 +491,18 @@ const SUPPLIER_SCORECARDS: NavItem = { label: 'Supplier scorecards', href: '/das
  */
 const SETTINGS: NavItem = { label: 'Settings', href: '/dashboard/settings', icon: '⚙', needs: ['settings.manage'] }
 /**
+ * The client's own codes: the company code, the kinds of cost object and
+ * each cost center's profit center. Kept by Finance or the Owner, or by
+ * the AP clerk where no Finance seat exists (`mayMaintainCodes`), none of
+ * whom need open the company's settings page. The link is offered by the
+ * two permissions those seats can hold; the route then answers any other
+ * seat in a sentence naming who sets the codes.
+ */
+const COST_CENTERS: NavItem = {
+  label: 'Cost centers', href: '/dashboard/settings/cost-centers', icon: '▦',
+  needs: ['codes.manage', 'payments.record'], api: 'settings/codes',
+}
+/**
  * Where people work, who hires there, and which approved suppliers fill
  * jobs there (founder, 2026-10-28). Read by whoever sets the company up
  * and by Procurement, who names the suppliers at each site; the route
@@ -595,7 +607,7 @@ export const SETTINGS_GROUPS = ['People', 'Company', 'Records'] as const
  */
 const FIRM_SETTINGS: NavItem[] = [
   ...inGroup('People', [USERS, TEAM_STRUCTURE, OWNERS, SIGN_IN]),
-  ...inGroup('Company', [SETTINGS, SETUP, SITES, INTEGRATIONS, IMPORT]),
+  ...inGroup('Company', [SETTINGS, SETUP, COST_CENTERS, SITES, INTEGRATIONS, IMPORT]),
   ...inGroup('Records', [AUTOMATION, DATA_REQUESTS, YOUR_DATA_HERE, DNR_LIST]),
 ]
 
@@ -912,7 +924,7 @@ const CLIENT_NAV: NavSection[] = [
       // The MSP the client seats in its program, granted and taken back here.
       { label: 'MSPs', href: '/dashboard/program/seats', icon: '⌂', needs: ['governance.read'] },
     ]),
-    ...inGroup('Company', [SETTINGS, SITES, IMPORT]),
+    ...inGroup('Company', [SETTINGS, COST_CENTERS, SITES, IMPORT]),
     ...inGroup('Records', [
       // The program manager's twin (2026-10-12): what it did, what it is
       // waiting on a person for, and what it may do.

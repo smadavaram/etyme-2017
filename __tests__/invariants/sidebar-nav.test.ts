@@ -1890,7 +1890,7 @@ describe('Settings reads People, Company and Records, and each label says what i
       expect(groups.map((g) => g.name)).toEqual(['People', 'Company', 'Records'])
       expect(groups.map((g) => g.tabs.map((t) => t.label))).toEqual([
         ['Users & permissions', 'Team structure', 'Owners', 'Sign-in'],
-        ['Settings', 'Setup', 'Sites', 'Integrations', 'Import records'],
+        ['Settings', 'Setup', 'Cost centers', 'Sites', 'Integrations', 'Import records'],
         ['Activity log', 'Data requests', 'Your data', 'DNR list'],
       ])
     })
@@ -1901,7 +1901,7 @@ describe('Settings reads People, Company and Records, and each label says what i
     expect(groups.map((g) => g.name)).toEqual(['People', 'Company', 'Records'])
     expect(groups.map((g) => g.tabs.map((t) => t.label))).toEqual([
       ['Users & permissions', 'Team structure', 'Owners', 'Sign-in', 'Program team', 'MSPs'],
-      ['Settings', 'Sites', 'Import records'],
+      ['Settings', 'Cost centers', 'Sites', 'Import records'],
       ['Program twin', 'Org view', 'Data requests', 'Your data'],
     ])
     expect(new Set(items.map((i) => i.href)).size).toBe(items.length)
@@ -1935,7 +1935,7 @@ describe('Settings reads People, Company and Records, and each label says what i
   it('AP & Payroll sees only the Company and Records groups, each with its one pill, and no People group', () => {
     const { groups } = rowOf('VENDOR', role('VENDOR', 'AP & Payroll'))
     expect(groups.map((g) => [g.name, g.tabs.map((t) => t.label)])).toEqual([
-      ['Company', ['Integrations']],
+      ['Company', ['Cost centers', 'Integrations']],
       ['Records', ['Your data']],
     ])
     // A group with one pill still reads as a group: its name is drawn over it.

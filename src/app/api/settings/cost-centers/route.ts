@@ -88,7 +88,14 @@ export async function GET(request: NextRequest) {
   })
 }
 
-async function guard(request: NextRequest) {
+/**
+ * `profitCenterAlone`: a change that sets nothing but the profit center is
+ * also open to the seat that keeps the client's codes, who does not hold
+ * settings.manage. The verdict itself (`refuseUnlessPayerManager`) is asked
+ * after, on the same body, so an Admin or a clerk beside a Finance seat is
+ * refused in a sentence.
+ */
+async function guard(request: NextRequest, profitCenterAlone = false) {
   const { caller, error } = await getCallerContext(request)
   if (error) return { caller: null, error }
   if (!caller.company) {
@@ -101,6 +108,11 @@ async function guard(request: NextRequest) {
     }
   }
   // Finance owns the chart of accounts, not whoever can edit the address.
+  if (profitCenterAlone && !hasPermission(caller.permissions, 'settings.manage')) {
+    const body = await request.clone().json().catch(() => ({}))
+    const keys = Object.keys(body ?? {})
+    if (keys.includes('profitCenter') && keys.every((k) => k === 'id' || k === 'profitCenter')) return { caller, error: null }
+  }
   if (!hasPermission(caller.permissions, 'settings.manage')) {
     return {
       caller: null,
@@ -162,7 +174,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const { caller, error } = await guard(request)
+  const { caller, error } = await guard(request, true)
   if (error) return error
   const companyId = caller!.company!.id
 
