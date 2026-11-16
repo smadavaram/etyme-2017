@@ -83,8 +83,13 @@ describe('a bill reaches the firm that pays it', () => {
     it_.owner = owner.id
     const brightmoor = await prisma.company.findFirstOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
     it_.brightmoor = brightmoor.id
+    // The account a payment goes to is the firm's one default row, and the
+    // bill page prints it only once it is checked (payToOnBill,
+    // 2026-11-16). This bill's row is made that default and checked, so the
+    // page shows where the money really goes.
+    await prisma.remitTo.updateMany({ where: { companyId: brightmoor.id }, data: { isDefault: false } })
     const remit = await prisma.remitTo.create({
-      data: { companyId: brightmoor.id, legalName: 'Brightmoor Staffing LLC', addressLines: ['1 Mill Street'], country: 'US', bankName: 'First Harbor Bank', accountLast4: '4421', isDefault: true },
+      data: { companyId: brightmoor.id, legalName: 'Brightmoor Staffing LLC', addressLines: ['1 Mill Street'], country: 'US', bankName: 'First Harbor Bank', accountLast4: '4421', isDefault: true, verifiedAt: new Date() },
     })
     it_.remit = remit.id
 
