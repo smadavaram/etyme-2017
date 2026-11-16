@@ -195,12 +195,27 @@ export function audienceFor(kind: string): Audience {
  * before this existed, or one whose generation failed — the rules write
  * something from the same facts rather than leaving a blank.
  */
+/**
+ * The headings a visitor can read: only the keys the page knows, and never
+ * a line that says the firm trains people (record 69). A stored row that
+ * once held `training` is dropped here, not served. Pure.
+ */
+export function publicHeadings(stored: unknown): Record<string, string> {
+  const out: Record<string, string> = { ...DEFAULT_HEADINGS }
+  if (!stored || typeof stored !== 'object') return out
+  const s = stored as Record<string, unknown>
+  for (const k of Object.keys(DEFAULT_HEADINGS)) {
+    const v = s[k]
+    if (typeof v === 'string' && v.trim() && !saysItTrains(v)) out[k] = v
+  }
+  return out
+}
+
 function voiceFor(
   company: { siteTagline: string | null; siteIntro: string | null; siteHeadings: unknown; siteWrittenBy: string | null },
   facts: Parameters<typeof writeFromRules>[0]
 ): Pick<PublicSite, 'tagline' | 'intro' | 'headings' | 'writtenBy'> {
   const fallback = writeFromRules(facts)
-  const stored = company.siteHeadings as Record<string, string> | null
 
   // A blank stored line is nothing stored: the page never opens on an
   // empty sentence because somebody cleared a field.
@@ -211,7 +226,7 @@ function voiceFor(
   return {
     tagline: said(company.siteTagline) ?? fallback.tagline,
     intro: said(company.siteIntro) ?? fallback.intro,
-    headings: { ...DEFAULT_HEADINGS, ...(stored ?? {}) },
+    headings: publicHeadings(company.siteHeadings),
     writtenBy:
       said(company.siteTagline) === null
         ? 'RULES'

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { whatTheyDo } from '@/lib/public-site'
+import { whatTheyDo, publicHeadings } from '@/lib/public-site'
 
 /**
  * siteLiveAt has been set at sign-up since the beginning and nothing was
@@ -36,5 +36,20 @@ describe('what a company is said to do', () => {
       expect(said, kind).not.toContain('_')
       expect(said, kind).toBe(said.toLowerCase())
     }
+  })
+})
+
+describe('the headings a company\'s public page serves', () => {
+  it('a heading stored as training never reaches a company\'s public page', () => {
+    const h = publicHeadings({ training: 'Training they run', skills: 'Courses we run' })
+    expect(h).not.toHaveProperty('training')
+    expect(JSON.stringify(h)).not.toMatch(/train|course/i)
+    expect(h.skills).toBe('What they place')
+  })
+
+  it('a stored heading under a key the page does not know is never served', () => {
+    const h = publicHeadings({ margin: 'Our margin', skills: 'What we place' })
+    expect(h).not.toHaveProperty('margin')
+    expect(h.skills).toBe('What we place')
   })
 })
