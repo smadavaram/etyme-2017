@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { earlierEnds, follows, windowsAtNewEnd, payLineInForce } from '@/lib/money/extension-windows'
+import { earlierEnds, follows, windowsAtNewEnd, payLineInForce, noPayLineInForce, anotherWindowSays } from '@/lib/money/extension-windows'
+import { formatDay } from '@/lib/format-date'
 import { extensionPlan, type PlannedCycle } from '@/lib/contract-cycles'
 import { generateCycles } from '@/lib/cycle-generator'
 import { getTemplatePack } from '@/lib/template-packs'
@@ -44,7 +45,10 @@ describe('which windows follow the new end', () => {
     })
     expect(moves.links).toEqual([])
     expect(moves.rows).toEqual([])
-    expect(moves.leftBehind).toEqual({ links: [{ id: 'l1', endsOn: '2026-10-24' }], rows: [{ id: 'r1', endsOn: '2026-10-24' }] })
+    expect(moves.leftBehind).toEqual({
+      links: [{ id: 'l1', endsOn: '2026-10-24', why: 'EARLIER_EXTENSION' }],
+      rows: [{ id: 'r1', endsOn: '2026-10-24', why: 'EARLIER_EXTENSION' }],
+    })
   })
 
   it('a window a replacement or a change of supplier closed before the end stays closed, and so does her row on that line', () => {
@@ -88,6 +92,71 @@ describe('which windows follow the new end', () => {
   })
 })
 
+describe('a window moves only where no other window claims the days it gains', () => {
+  const none = earlierEnds([])
+
+  it('two windows that ended on the old end are neither moved, and both are named for a person, with her rows on them', () => {
+    const moves = windowsAtNewEnd({
+      links: [
+        { id: 'l1', buyContractId: 'b1', effectiveFrom: u('2026-07-26'), effectiveTo: FIRST_END },
+        { id: 'l2', buyContractId: 'b2', effectiveFrom: u('2026-09-01'), effectiveTo: FIRST_END },
+      ],
+      rows: [
+        { id: 'r1', buyContractId: 'b1', endDate: FIRST_END },
+        { id: 'r2', buyContractId: 'b2', endDate: FIRST_END },
+      ],
+      oldEnd: FIRST_END,
+      earlier: none,
+      newEnd: NEW_END,
+    })
+    expect(moves.links).toEqual([])
+    expect(moves.rows).toEqual([])
+    expect(moves.leftBehind.links).toEqual([
+      { id: 'l1', endsOn: '2026-10-24', why: 'ANOTHER_WINDOW' },
+      { id: 'l2', endsOn: '2026-10-24', why: 'ANOTHER_WINDOW' },
+    ])
+    expect(moves.leftBehind.rows.map((r) => r.id)).toEqual(['r1', 'r2'])
+  })
+
+  it('a window is not moved over days another window of the placement already covers, and the person who extended reads why', () => {
+    // A change of supplier set to start after the old end, open-ended.
+    const moves = windowsAtNewEnd({
+      links: [
+        { id: 'now', buyContractId: 'b-now', effectiveFrom: u('2026-07-26'), effectiveTo: FIRST_END },
+        { id: 'next', buyContractId: 'b-next', effectiveFrom: u('2026-11-01'), effectiveTo: null },
+      ],
+      rows: [{ id: 'r-now', buyContractId: 'b-now', endDate: FIRST_END }],
+      oldEnd: FIRST_END,
+      earlier: none,
+      newEnd: NEW_END,
+    })
+    expect(moves.links).toEqual([])
+    expect(moves.rows).toEqual([])
+    expect(moves.leftBehind.links).toEqual([{ id: 'now', endsOn: '2026-10-24', why: 'ANOTHER_WINDOW' }])
+    expect(anotherWindowSays('Lena Okafor', moves)).toBe(
+      `Lena Okafor's pay window ending ${formatDay('2026-10-24')} was not moved: another pay window claims the same days. ` +
+        'Moving it would leave them paid by neither. Check which pay line pays the added days.',
+    )
+  })
+
+  it('a window that ended before the old end, or starts after the new end, never stops the window in force from moving', () => {
+    const moves = windowsAtNewEnd({
+      links: [
+        { id: 'old', buyContractId: 'b-old', effectiveFrom: u('2026-01-04'), effectiveTo: u('2026-07-25') },
+        { id: 'now', buyContractId: 'b-now', effectiveFrom: u('2026-07-26'), effectiveTo: FIRST_END },
+        { id: 'later', buyContractId: 'b-later', effectiveFrom: u('2027-03-01'), effectiveTo: null },
+      ],
+      rows: [{ id: 'r-now', buyContractId: 'b-now', endDate: FIRST_END }],
+      oldEnd: FIRST_END,
+      earlier: none,
+      newEnd: NEW_END,
+    })
+    expect(moves.links.map((m) => m.id)).toEqual(['now'])
+    expect(moves.rows.map((m) => m.id)).toEqual(['r-now'])
+    expect(anotherWindowSays('Lena Okafor', moves)).toBeNull()
+  })
+})
+
 describe('which pay line moves with the placement', () => {
   it('the pay line moved is the one in force at the end, never the first link on the record', () => {
     const links = [
@@ -109,6 +178,59 @@ describe('which pay line moves with the placement', () => {
       { buyContractId: 'b2', effectiveFrom: u('2026-07-26'), effectiveTo: FIRST_END },
     ]
     expect(payLineInForce(links, FIRST_END, new Set())).toBeNull()
+  })
+
+  it('where no single pay line is in force, the windows it turned on are named and the person who extended reads why', () => {
+    const tied = [
+      { id: 'l1', buyContractId: 'b1', effectiveFrom: u('2026-07-26'), effectiveTo: FIRST_END },
+      { id: 'l2', buyContractId: 'b2', effectiveFrom: u('2026-07-26'), effectiveTo: FIRST_END },
+    ]
+    const two = noPayLineInForce(tied, FIRST_END, new Set(), 'Lena Okafor')!
+    expect(two.windows).toEqual([
+      { id: 'l1', endsOn: '2026-10-24', why: 'NO_PAY_LINE_IN_FORCE' },
+      { id: 'l2', endsOn: '2026-10-24', why: 'NO_PAY_LINE_IN_FORCE' },
+    ])
+    expect(two.says).toBe(
+      "Lena Okafor's pay window was not moved: two pay lines start on the same day, and moving either would be a guess. " +
+        'Check which pay line pays the added days.',
+    )
+
+    // None reaches the old end: the windows that ended last are named.
+    const closed = [
+      { id: 'a', buyContractId: 'b1', effectiveFrom: u('2026-01-04'), effectiveTo: u('2026-05-30') },
+      { id: 'b', buyContractId: 'b2', effectiveFrom: u('2026-05-31'), effectiveTo: u('2026-09-12') },
+    ]
+    const gone = noPayLineInForce(closed, FIRST_END, new Set(), 'Lena Okafor')!
+    expect(gone.windows).toEqual([{ id: 'b', endsOn: '2026-09-12', why: 'NO_PAY_LINE_IN_FORCE' }])
+    expect(gone.says).toBe(
+      `Lena Okafor's pay window was not moved: no pay window reaches the old end, and the last one ended on ${formatDay('2026-09-12')}. ` +
+        'Check which pay line pays the added days.',
+    )
+
+    // A pay line in force, or no window at all: nothing to say.
+    expect(noPayLineInForce([tied[0]], FIRST_END, new Set(), 'Lena Okafor')).toBeNull()
+    expect(noPayLineInForce([], FIRST_END, new Set(), 'Lena Okafor')).toBeNull()
+  })
+
+  it('every sentence about a window not moved is short: none past twenty-five words', () => {
+    const moves = windowsAtNewEnd({
+      links: [
+        { id: 'l1', buyContractId: 'b1', effectiveTo: FIRST_END },
+        { id: 'l2', buyContractId: 'b2', effectiveTo: FIRST_END },
+      ],
+      rows: [],
+      oldEnd: FIRST_END,
+      earlier: new Set(),
+      newEnd: NEW_END,
+    })
+    const said = [
+      anotherWindowSays('Lena Okafor', moves)!,
+      noPayLineInForce([{ id: 'l1', buyContractId: 'b1', effectiveFrom: u('2026-07-26'), effectiveTo: FIRST_END }, { id: 'l2', buyContractId: 'b2', effectiveFrom: u('2026-07-26'), effectiveTo: FIRST_END }], FIRST_END, new Set(), 'Lena Okafor')!.says,
+      noPayLineInForce([{ id: 'a', buyContractId: 'b1', effectiveFrom: u('2026-01-04'), effectiveTo: u('2026-05-30') }], FIRST_END, new Set(), 'Lena Okafor')!.says,
+    ]
+    for (const text of said) {
+      for (const sentence of text.split(/(?<=\.)\s+(?=[A-Z])/)) expect(sentence.split(/\s+/).length, sentence).toBeLessThanOrEqual(25)
+    }
   })
 
   it('an open-ended pay line is the one in force', () => {

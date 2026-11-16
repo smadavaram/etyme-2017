@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { POST as extend } from '@/app/api/contracts/[id]/extend/route'
 import { GET as payroll } from '@/app/api/payroll/route'
@@ -321,8 +321,8 @@ describe('a placement extended before today', () => {
     const w = (log.payload as any).windows
     expect(w.links).toEqual([])
     expect(w.leftBehind).toEqual({
-      links: [{ id: link.id, endsOn: key(behind.firstEnd) }],
-      rows: [{ id: row.id, endsOn: key(behind.firstEnd) }],
+      links: [{ id: link.id, endsOn: key(behind.firstEnd), why: 'EARLIER_EXTENSION' }],
+      rows: [{ id: row.id, endsOn: key(behind.firstEnd), why: 'EARLIER_EXTENSION' }],
     })
   })
 })
@@ -383,5 +383,107 @@ describe('a week outside every pay window of a placement extended before today',
     // The window is not repaired by itself: that is a person's decision.
     const link = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: behind.sellId } })
     expect(key(link.effectiveTo!)).toBe(key(behind.firstEnd))
+  })
+})
+
+/** A week filed and approved by nobody yet: submitted, not accepted. */
+async function filedWeek(p: Placed, sunday: Date) {
+  const days: Record<string, number> = {}
+  for (let i = 1; i <= 5; i++) days[key(at(sunday, i))] = 8
+  return prisma.timesheet.create({
+    data: { sellContractId: p.sellId, personId: p.personId, periodStart: sunday, periodEnd: at(sunday, 6), days, totalHours: 40, status: 'SUBMITTED', submittedAt: at(sunday, 6) },
+  })
+}
+
+/** A second pay line for her on the same placement, its window from `from` to `to`. */
+async function secondLine(p: Placed, from: Date, to: Date | null) {
+  const buy = await prisma.buyContract.create({
+    data: {
+      companyId: firmId, contractType: 'W2', payCurrency: 'USD', state: 'IN_PROGRESS', startDate: from, endDate: to,
+      payFrequency: 'MONTHLY', payAnchor: 'CALENDAR', payStraddle: 'SPLIT',
+      candidates: { create: { personId: p.personId, payRate: 4_500, payCurrency: 'USD', startDate: from, endDate: to } },
+    },
+  })
+  const link = await prisma.contractLink.create({ data: { sellContractId: p.sellId, buyContractId: buy.id, effectiveFrom: from, effectiveTo: to } })
+  return { buyId: buy.id, linkId: link.id }
+}
+
+describe('an extension whose pay window changes while it saves', () => {
+  it('an extension whose pay window changed while it was saving is not made, and nothing is half moved', async () => {
+    const p = await placed('Tomas Berg', 'tomas.berg.extend', [...saturdaysBack(midnight(new Date()))][2])
+    const row = await prisma.buyContractCandidate.findFirstOrThrow({ where: { buyContractId: p.buyId, personId: p.personId } })
+    // Her row moves between the read and the save: the window must not move without it.
+    const real = prisma.$transaction.bind(prisma)
+    const spy = vi.spyOn(prisma, '$transaction').mockImplementation((async (fn: any, opts?: any) => {
+      await prisma.buyContractCandidate.update({ where: { id: row.id }, data: { endDate: at(p.firstEnd, -1) } })
+      return real(fn, opts)
+    }) as any)
+    let r: { status: number; body: any }
+    try {
+      r = await extendTo(p, key(p.newEnd))
+    } finally {
+      spy.mockRestore()
+    }
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).toBe("Tomas Berg's pay window changed while this was saving, so the placement was not extended. Open it again and extend it.")
+    const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: p.sellId } })
+    expect(key(sell.endDate!)).toBe(key(p.firstEnd))
+    const link = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: p.sellId } })
+    expect(key(link.effectiveTo!)).toBe(key(p.firstEnd))
+    expect(await prisma.automationLog.count({ where: { action: 'CONTRACT_EXTENDED', payload: { path: ['contractId'], equals: p.sellId } } })).toBe(0)
+  })
+})
+
+describe('an extension with no single pay line in force', () => {
+  it('an extension with two pay lines starting the same day moves neither window, says so, and names both in the log', async () => {
+    const p = await placed('Sana Ivers', 'sana.ivers.extend', [...saturdaysBack(midnight(new Date()))][3])
+    const first = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: p.sellId, buyContractId: p.buyId } })
+    const second = await secondLine(p, p.started, p.firstEnd)
+    const r = await extendTo(p, key(p.newEnd))
+    expect(r.status, JSON.stringify(r.body).slice(0, 400)).toBe(200)
+    const says =
+      "Sana Ivers's pay window was not moved: two pay lines start on the same day, and moving either would be a guess. " +
+      'Check which pay line pays the added days.'
+    expect(r.body.data.message).toBe(`Extended to ${formatDay(p.newEnd)}. ${says}`)
+    expect(r.body.data.payWindow).toBe(says)
+    // Neither window moved.
+    for (const id of [first.id, second.linkId]) {
+      const l = await prisma.contractLink.findUniqueOrThrow({ where: { id } })
+      expect(key(l.effectiveTo!)).toBe(key(p.firstEnd))
+    }
+    const log = await prisma.automationLog.findFirstOrThrow({ where: { action: 'CONTRACT_EXTENDED', payload: { path: ['contractId'], equals: p.sellId } } })
+    const w = (log.payload as any).windows
+    expect(w.links).toEqual([])
+    expect(w.notMoved).toBe(says)
+    expect(w.leftBehind.links.map((l: any) => [l.id, l.why]).sort()).toEqual(
+      [[first.id, 'NO_PAY_LINE_IN_FORCE'], [second.linkId, 'NO_PAY_LINE_IN_FORCE']].sort(),
+    )
+    expect(log.reason).toContain(says)
+  })
+})
+
+describe('a week not accepted yet, on the pay line it belongs to', () => {
+  it("a week no window of this pay line covers is never named as waiting on this pay line's row", async () => {
+    // A change of pay line the day after the first end: the old window closed, the new one open.
+    const p = await placed('Rafe Dunmore', 'rafe.dunmore.extend', [...saturdaysBack(midnight(new Date()))][4])
+    await prisma.sellContract.update({ where: { id: p.sellId }, data: { endDate: p.newEnd } })
+    const next = await secondLine(p, at(p.firstEnd, 1), null)
+    await filedWeek(p, at(p.firstEnd, 1))
+    as(BRIGHTMOOR)
+    const r = await json(await payroll(req('GET', `/api/payroll?period=${p.month}`)))
+    const old = r.body.data.payItems.find((x: any) => x.buyContractId === p.buyId)
+    const now = r.body.data.payItems.find((x: any) => x.buyContractId === next.buyId)
+    // Waiting on the line whose window covers it, and only there.
+    expect(old?.notAccepted ?? null).toBeNull()
+    expect(now.notAccepted).toMatch(/^Rafe Dunmore's week of .+, 40 hours, is not in this pay until /)
+  })
+
+  it("a week after a window this pay line holds behind the placement's end is still named as waiting on it", async () => {
+    // Extended before the rule: the window stayed at the first end, and the week after it is filed, not accepted.
+    const p = await placed('Lio Marchetti', 'lio.marchetti.extend', [...saturdaysBack(midnight(new Date()))][5])
+    await prisma.sellContract.update({ where: { id: p.sellId }, data: { endDate: at(p.firstEnd, 30) } })
+    await filedWeek(p, at(p.firstEnd, 1))
+    const row = await payRow(p)
+    expect(row.notAccepted).toMatch(/^Lio Marchetti's week of .+, 40 hours, is not in this pay until /)
   })
 })

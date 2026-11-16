@@ -254,3 +254,31 @@ export function periodCovers(p: { periodStart: Date | null; periodEnd: Date | nu
   return dayKey(p.periodStart) <= day && day <= dayKey(p.periodEnd)
 }
 
+
+/**
+ * Which pay lines an early end cuts at the last day, and which it leaves.
+ *
+ * Her row on a pay line is ended only where no other open placement of
+ * hers pays through that line: the same person on two placements through
+ * one pay line keeps her row for the one still running, or that one pays
+ * her nothing (2026-11-16, found by a reader). The line's own end is cut
+ * only where she is the only person on it and the same holds.
+ *
+ * `otherOpen` is each pay line among `moving` that another of her
+ * placements, not ended or cancelled, still pays through after the last
+ * day.
+ */
+export function payLinesAtLastDay(input: {
+  moving: readonly string[]
+  /** Lines among `moving` whose only person is her. */
+  onlyHers: readonly string[]
+  otherOpen: ReadonlyArray<{ buyContractId: string; sellContractId: string }>
+}): { rowsEnding: string[]; linesEnding: string[]; keptOpen: Array<{ buyContractId: string; sellContractId: string }> } {
+  const kept = new Set(input.otherOpen.map((o) => o.buyContractId))
+  const rowsEnding = input.moving.filter((b) => !kept.has(b))
+  return {
+    rowsEnding,
+    linesEnding: input.onlyHers.filter((b) => rowsEnding.includes(b)),
+    keptOpen: input.otherOpen.filter((o) => input.moving.includes(o.buyContractId)),
+  }
+}

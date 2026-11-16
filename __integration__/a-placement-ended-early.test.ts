@@ -260,3 +260,56 @@ describe('a placement ended early', () => {
     expect(log).toBe(0)
   })
 })
+
+describe('an early end leaves what another placement still needs', () => {
+  it('her row on a pay line another open placement of hers still pays through is not ended with the first', async () => {
+    const p = await placed('Noor Haddad', 'noor.haddad.early')
+    // A second placement of hers, still running, paid through the same pay line.
+    const second = await prisma.sellContract.create({
+      data: { companyId: firm, clientCompanyId: client, personId: p.personId, billRate: 9_000, state: 'IN_PROGRESS', startDate: started, endDate: planned },
+    })
+    await prisma.contractLink.create({ data: { sellContractId: second.id, buyContractId: p.buyId, effectiveFrom: started, effectiveTo: null } })
+    as(TECHPEPLE)
+    const r = await complete(p.sellId)
+    expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200)
+    // Her row and the pay line keep their end: the second placement still pays through them.
+    const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: p.buyId }, include: { candidates: true } })
+    expect(key(buy.candidates[0].endDate!)).toBe(key(planned))
+    expect(key(buy.endDate!)).toBe(key(planned))
+    // The ended placement's own window ends on its last day; the second's is untouched.
+    const own = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: p.sellId } })
+    expect(key(own.effectiveTo!)).toBe(key(today))
+    const theirs = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: second.id } })
+    expect(theirs.effectiveTo).toBeNull()
+    const log = await prisma.automationLog.findFirstOrThrow({ where: { action: 'CONTRACT_COMPLETED', payload: { path: ['contractId'], equals: p.sellId } } })
+    expect((log.payload as any).payLinesKeptOpen).toEqual([{ buyContractId: p.buyId, sellContractId: second.id }])
+  })
+
+  it('a pay window that starts after the last day is never given a last day before its first, and the log names it', async () => {
+    const p = await placed('Yusuf Arslan', 'yusuf.arslan.early')
+    // A change of pay line set for a later day: its window, its line and her row on it all start then.
+    const later = new Date(today.getTime() + 30 * DAY)
+    const next = await prisma.buyContract.create({
+      data: {
+        companyId: firm, contractType: 'W2', payCurrency: 'USD', state: 'IN_PROGRESS', startDate: later, endDate: planned,
+        candidates: { create: { personId: p.personId, payRate: 6_200, payCurrency: 'USD', startDate: later, endDate: planned } },
+      },
+      include: { candidates: true },
+    })
+    const link = await prisma.contractLink.create({ data: { sellContractId: p.sellId, buyContractId: next.id, effectiveFrom: later, effectiveTo: planned } })
+    as(TECHPEPLE)
+    const r = await complete(p.sellId)
+    expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200)
+    const after = await prisma.contractLink.findUniqueOrThrow({ where: { id: link.id } })
+    expect(key(after.effectiveFrom)).toBe(key(later))
+    expect(key(after.effectiveTo!)).toBe(key(planned))
+    const line = await prisma.buyContract.findUniqueOrThrow({ where: { id: next.id }, include: { candidates: true } })
+    expect(key(line.endDate!)).toBe(key(planned))
+    expect(key(line.candidates[0].endDate!)).toBe(key(planned))
+    // Nothing on the record runs backwards.
+    const windows = await prisma.contractLink.findMany({ where: { sellContractId: p.sellId } })
+    for (const w of windows) if (w.effectiveTo) expect(key(w.effectiveTo) >= key(w.effectiveFrom), w.id).toBe(true)
+    const log = await prisma.automationLog.findFirstOrThrow({ where: { action: 'CONTRACT_COMPLETED', payload: { path: ['contractId'], equals: p.sellId } } })
+    expect((log.payload as any).windowsStartingLater).toEqual([{ id: link.id, buyContractId: next.id, startsOn: key(later) }])
+  })
+})

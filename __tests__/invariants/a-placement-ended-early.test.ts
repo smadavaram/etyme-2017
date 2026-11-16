@@ -4,7 +4,7 @@ import { getTemplatePack } from '@/lib/template-packs'
 import { daysOnSite, standingAgainstLimit } from '@/lib/tenure-days'
 import { whenFree } from '@/lib/bench-filter'
 import {
-  calendarDayIn, lastDayOnSite, cyclesAtLastDay, moneyPastLastDay, pastLastDaySays, lastDaySays,
+  calendarDayIn, lastDayOnSite, cyclesAtLastDay, moneyPastLastDay, pastLastDaySays, lastDaySays, payLinesAtLastDay,
   type StoredCycleRow, type WeekAfter,
 } from '@/lib/money/early-end'
 
@@ -203,5 +203,24 @@ describe('what the real last day does to tenure and the bench', () => {
       .toBe('Free from Mar 5, 2026')
     expect(whenFree({ lines: [], lastEnded: last, availableFrom: null, onBenchSince: u(2026, 1, 1), now: new Date('2026-03-05T09:00:00Z') }).state)
       .toBe('NOW')
+  })
+})
+
+describe('which pay lines an early end cuts', () => {
+  it('her row on a pay line another open placement of hers still pays through is not ended, and neither is the line', () => {
+    const cut = payLinesAtLastDay({
+      moving: ['shared', 'own'],
+      onlyHers: ['shared', 'own'],
+      otherOpen: [{ buyContractId: 'shared', sellContractId: 'second-placement' }],
+    })
+    expect(cut.rowsEnding).toEqual(['own'])
+    expect(cut.linesEnding).toEqual(['own'])
+    expect(cut.keptOpen).toEqual([{ buyContractId: 'shared', sellContractId: 'second-placement' }])
+  })
+
+  it('a pay line that holds other people keeps its own end, and her row on it ends', () => {
+    const cut = payLinesAtLastDay({ moving: ['team'], onlyHers: [], otherOpen: [] })
+    expect(cut.rowsEnding).toEqual(['team'])
+    expect(cut.linesEnding).toEqual([])
   })
 })

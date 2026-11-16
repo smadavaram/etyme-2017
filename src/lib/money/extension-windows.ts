@@ -34,6 +34,8 @@
  * Pure: no database, no clock.
  */
 
+import { formatDay } from '@/lib/format-date'
+
 /** "2026-11-16" for a stored day (midnight UTC). */
 const dayKey = (d: Date): string => d.toISOString().slice(0, 10)
 
@@ -59,15 +61,31 @@ export type Moved = {
   to: string
 }
 
-/** A window or a row left at an earlier end, named for a person to repair. */
+/**
+ * Why a window or a row was not moved, in the log:
+ * - EARLIER_EXTENSION: an extension before 2026-11-16 left it at an
+ *   earlier end; what was paid on it may not name the days.
+ * - ANOTHER_WINDOW: another window of this placement already covers a day
+ *   in the moved range, or ends on the same day; moving it would set two
+ *   windows claiming one day, which pays neither.
+ * - NO_PAY_LINE_IN_FORCE: no single pay line is in force at the end
+ *   (`payLineInForce`); the pay line's own end and its pay dates did not
+ *   move either.
+ */
+export type NotMovedWhy = 'EARLIER_EXTENSION' | 'ANOTHER_WINDOW' | 'NO_PAY_LINE_IN_FORCE'
+
+/** A window or a row not moved, named for a person to repair. `endsOn` is null for an open window. */
 export type LeftBehind = {
   id: string
-  endsOn: string
+  endsOn: string | null
+  why: NotMovedWhy
 }
 
 /**
  * Whether a closed day follows the new end: it is the end being extended,
- * and the new end is later. Null (open) never moves.
+ * and the new end is later. Null (open) never moves. Whether the window
+ * holding it may move is `windowsAtNewEnd`'s question: no other window of
+ * the placement may already claim a day it would gain.
  */
 export function follows(current: Date | null, oldEnd: Date | null, newEnd: Date): boolean {
   if (current === null || oldEnd === null) return false
@@ -76,8 +94,8 @@ export function follows(current: Date | null, oldEnd: Date | null, newEnd: Date)
 }
 
 export interface WindowInput {
-  /** Every link on this sell line. */
-  links: ReadonlyArray<{ id: string; buyContractId: string; effectiveTo: Date | null }>
+  /** Every link on this sell line. Without `effectiveFrom`, a window is read as starting before the end. */
+  links: ReadonlyArray<{ id: string; buyContractId: string; effectiveFrom?: Date; effectiveTo: Date | null }>
   /** Her rows on the pay lines those links reach. Other people's rows are never passed. */
   rows: ReadonlyArray<{ id: string; buyContractId: string; endDate: Date | null }>
   oldEnd: Date | null
@@ -91,9 +109,16 @@ export interface WindowMoves {
   links: Moved[]
   /** Her rows whose end date moves to the new end. */
   rows: Moved[]
-  /** Links and rows still on an end an earlier extension moved past. Not moved. */
+  /** Links and rows not moved, each with why: an earlier end, or another window claiming the days. */
   leftBehind: { links: LeftBehind[]; rows: LeftBehind[] }
 }
+
+/**
+ * Whether a window claims a day after `afterDay` and on or before
+ * `toDay`, as it stands.
+ */
+const claimsBetween = (l: { effectiveFrom?: Date; effectiveTo: Date | null }, afterDay: string, toDay: string): boolean =>
+  (l.effectiveTo === null || dayKey(l.effectiveTo) > afterDay) && (!l.effectiveFrom || dayKey(l.effectiveFrom) <= toDay)
 
 /**
  * The windows an extension moves to the new end, each with its from and
@@ -103,8 +128,20 @@ export interface WindowMoves {
  */
 export function windowsAtNewEnd(input: WindowInput): WindowMoves {
   const to = dayKey(input.newEnd)
-  const links = input.links
-    .filter((l) => follows(l.effectiveTo, input.oldEnd, input.newEnd))
+  const following = input.links.filter((l) => follows(l.effectiveTo, input.oldEnd, input.newEnd))
+  // A window moves only where no other window of this placement claims a
+  // day it would gain: one already covering a day after the old end, or a
+  // second window ending on it that would move too. Two windows claiming
+  // one day pay neither (`daysFor`), so neither is moved by a guess; both
+  // are named for a person to repair.
+  const old = input.oldEnd ? dayKey(input.oldEnd) : ''
+  const contested = new Set(
+    following
+      .filter((l) => input.links.some((o) => o.id !== l.id && (following.includes(o) || claimsBetween(o, old, to))))
+      .map((l) => l.id),
+  )
+  const links = following
+    .filter((l) => !contested.has(l.id))
     .map((l) => ({ id: l.id, from: dayKey(l.effectiveTo!), to }))
   // A pay line this placement still reaches after the move: its window is
   // open, or it now runs to the new end or past it.
@@ -117,12 +154,22 @@ export function windowsAtNewEnd(input: WindowInput): WindowMoves {
     .filter((r) => held.has(r.buyContractId) && follows(r.endDate, input.oldEnd, input.newEnd))
     .map((r) => ({ id: r.id, from: dayKey(r.endDate!), to }))
   const behind = (d: Date | null) => d !== null && input.earlier.has(dayKey(d)) && (input.oldEnd === null || dayKey(d) < dayKey(input.oldEnd))
+  // Her row on a pay line whose window was contested stays with it.
+  const contestedLines = new Set(input.links.filter((l) => contested.has(l.id)).map((l) => l.buyContractId))
   return {
     links,
     rows,
     leftBehind: {
-      links: input.links.filter((l) => behind(l.effectiveTo)).map((l) => ({ id: l.id, endsOn: dayKey(l.effectiveTo!) })),
-      rows: input.rows.filter((r) => behind(r.endDate)).map((r) => ({ id: r.id, endsOn: dayKey(r.endDate!) })),
+      links: [
+        ...input.links.filter((l) => behind(l.effectiveTo)).map((l) => ({ id: l.id, endsOn: dayKey(l.effectiveTo!), why: 'EARLIER_EXTENSION' as const })),
+        ...input.links.filter((l) => contested.has(l.id)).map((l) => ({ id: l.id, endsOn: dayKey(l.effectiveTo!), why: 'ANOTHER_WINDOW' as const })),
+      ],
+      rows: [
+        ...input.rows.filter((r) => behind(r.endDate)).map((r) => ({ id: r.id, endsOn: dayKey(r.endDate!), why: 'EARLIER_EXTENSION' as const })),
+        ...input.rows
+          .filter((r) => contestedLines.has(r.buyContractId) && !held.has(r.buyContractId) && follows(r.endDate, input.oldEnd, input.newEnd))
+          .map((r) => ({ id: r.id, endsOn: dayKey(r.endDate!), why: 'ANOTHER_WINDOW' as const })),
+      ],
     },
   }
 }
@@ -143,13 +190,74 @@ export function payLineInForce(
   oldEnd: Date | null,
   earlier: ReadonlySet<string>,
 ): string | null {
+  const read = inForce(links, oldEnd, earlier)
+  return 'buyContractId' in read ? read.buyContractId : null
+}
+
+/**
+ * Where `payLineInForce` is null on a placement that has windows: the
+ * windows a person looks at, each named for the log, and the sentence the
+ * person who extended reads. Null where a pay line is in force, or where
+ * the placement has no window at all (nothing pays through one).
+ *
+ * The windows named are the ones the answer turned on: the windows that
+ * start on the same day, where two pay lines do; else the windows that
+ * ended last, where none reaches the end.
+ */
+export function noPayLineInForce(
+  links: ReadonlyArray<{ id: string; buyContractId: string; effectiveFrom: Date; effectiveTo: Date | null }>,
+  oldEnd: Date | null,
+  earlier: ReadonlySet<string>,
+  personName: string,
+): { windows: LeftBehind[]; says: string } | null {
+  if (links.length === 0) return null
+  const read = inForce(links, oldEnd, earlier)
+  if ('buyContractId' in read) return null
+  const named = (ls: typeof links) =>
+    ls.map((l) => ({ id: l.id, endsOn: l.effectiveTo ? dayKey(l.effectiveTo) : null, why: 'NO_PAY_LINE_IN_FORCE' as const }))
+  if (read.tied.length > 0) {
+    return {
+      windows: named(links.filter((l) => read.tied.includes(l))),
+      says:
+        `${personName}'s pay window was not moved: two pay lines start on the same day, and moving either would be a guess. ` +
+        'Check which pay line pays the added days.',
+    }
+  }
+  const lastDay = links.map((l) => (l.effectiveTo ? dayKey(l.effectiveTo) : '')).sort().at(-1)!
+  return {
+    windows: named(links.filter((l) => l.effectiveTo && dayKey(l.effectiveTo) === lastDay)),
+    says:
+      `${personName}'s pay window was not moved: no pay window reaches the old end, and the last one ended on ${formatDay(lastDay)}. ` +
+      'Check which pay line pays the added days.',
+  }
+}
+
+/**
+ * The sentence for windows `windowsAtNewEnd` did not move because another
+ * window claims the days, or null where there are none.
+ */
+export function anotherWindowSays(personName: string, moves: WindowMoves): string | null {
+  const contested = moves.leftBehind.links.filter((l) => l.why === 'ANOTHER_WINDOW')
+  if (contested.length === 0) return null
+  const on = contested[0].endsOn
+  return (
+    `${personName}'s pay window ending ${on ? formatDay(on) : 'at the old end'} was not moved: another pay window claims the same days. ` +
+    'Moving it would leave them paid by neither. Check which pay line pays the added days.'
+  )
+}
+
+function inForce<L extends { buyContractId: string; effectiveFrom: Date; effectiveTo: Date | null }>(
+  links: readonly L[],
+  oldEnd: Date | null,
+  earlier: ReadonlySet<string>,
+): { buyContractId: string } | { tied: L[] } {
   const at = oldEnd ? dayKey(oldEnd) : null
   const live = links.filter(
     (l) => l.effectiveTo === null || at === null || dayKey(l.effectiveTo) >= at || earlier.has(dayKey(l.effectiveTo)),
   )
-  if (live.length === 0) return null
+  if (live.length === 0) return { tied: [] }
   const latest = Math.max(...live.map((l) => Date.parse(dayKey(l.effectiveFrom))))
   const top = live.filter((l) => Date.parse(dayKey(l.effectiveFrom)) === latest)
   const ids = new Set(top.map((l) => l.buyContractId))
-  return ids.size === 1 ? top[0].buyContractId : null
+  return ids.size === 1 ? { buyContractId: top[0].buyContractId } : { tied: top }
 }

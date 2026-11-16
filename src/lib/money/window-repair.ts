@@ -90,11 +90,18 @@ export interface RepairInput {
   paid: readonly PaidDay[]
   /** Her weeks on this placement, as filed. */
   sheets: ReadonlyArray<{ id: string; days: Record<string, unknown> | null | undefined }>
+  /**
+   * The day of a processed run on this pay line that recorded a total and
+   * not which days (`PaidBook.unrecorded`, runs before 2026-09-29), or
+   * null. The run refuses such a line (api/payroll/run), so a repair would
+   * promise a payment the run will not make.
+   */
+  unrecordedOn?: string | null
 }
 
 export type RepairPlan =
   | { ok: true; endedOn: string; sellEnds: string; links: Moved[]; rows: Moved[] }
-  | { ok: false; status: number; code: 'NOTHING_TO_REPAIR' | 'PAID_AFTER_THE_WINDOW'; says: string }
+  | { ok: false; status: number; code: 'NOTHING_TO_REPAIR' | 'PAID_AFTER_THE_WINDOW' | 'PAID_UNRECORDED'; says: string }
 
 const weeksSaid = (weeks: readonly string[]): string => {
   const said = weeks.map((w) => formatDay(w))
@@ -113,6 +120,16 @@ export function planRepair(input: RepairInput): RepairPlan {
       status: 409,
       code: 'NOTHING_TO_REPAIR',
       says: `${input.personName}'s pay window already reaches the end of the placement, so there is nothing to repair.`,
+    }
+  }
+  if (input.unrecordedOn) {
+    return {
+      ok: false,
+      status: 409,
+      code: 'PAID_UNRECORDED',
+      says:
+        `A pay run on ${formatDay(input.unrecordedOn)} paid ${input.personName} without recording which days it covered, ` +
+        'so the pay window was not moved. Settle this pay line by hand first, so no day is paid twice.',
     }
   }
   const paidAfter = weeksPaidAfter(behind.endedOn, input.paid, input.sheets)

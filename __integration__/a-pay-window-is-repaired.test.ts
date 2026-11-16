@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { GET as payroll } from '@/app/api/payroll/route'
 import { POST as runPayroll } from '@/app/api/payroll/run/route'
@@ -144,6 +144,7 @@ async function windowOf(p: Placed) {
 
 let held: Placed
 let lumped: Placed
+let saturdays: Date[] = []
 let completedBefore: Array<{ id: string; periodEnd: string | null; completedAt: string | null }>
 let repaired: { status: number; body: any }
 
@@ -151,7 +152,7 @@ beforeAll(async () => {
   await freshWorld()
   firmId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })).id
   clientId = (await prisma.company.create({ data: { name: 'Ridgefold Mills', slug: 'ridgefold-window-repair', kind: 'CLIENT', currency: 'USD' } })).id
-  const saturdays = [...saturdaysBack(midnight(new Date()))]
+  saturdays = [...saturdaysBack(midnight(new Date()))]
 
   // A seat that reads payroll and may not run it.
   const role = await prisma.role.create({ data: { companyId: firmId, name: 'Payroll reader', permissions: ['payroll.read'] } })
@@ -289,5 +290,95 @@ describe('a seat that may not run payroll', () => {
     expect(r.body.error.message).toMatch(/^Repairing the pay window is for the .+ here\. Ask (them|one of them)\.$/)
     expect(r.body.error.message).toContain('AP & Payroll')
     expect(await windowOf(lumped)).toEqual({ link: key(lumped.firstEnd), row: key(lumped.firstEnd) })
+  })
+})
+
+/** The access-log rows the repair wrote about her, oldest first. */
+async function trailOf(p: Placed) {
+  const rows = await prisma.accessLog.findMany({
+    where: { subjectId: p.personId, action: 'PAYROLL_VIEW', reason: { startsWith: 'Repair the pay window' } },
+    select: { allowed: true, reason: true, actorPersonId: true },
+  })
+  return rows
+}
+
+describe('every press of the repair is in the access log', () => {
+  it('a repair writes an access-log row naming her, and every refusal writes one before it is sent', async () => {
+    // Held: repaired once, then refused as nothing to repair.
+    const heldRows = await trailOf(held)
+    expect(heldRows.filter((r) => r.allowed)).toHaveLength(1)
+    expect(heldRows.some((r) => !r.allowed && /NOTHING_TO_REPAIR/.test(r.reason ?? ''))).toBe(true)
+    // Lumped: refused for the week a run paid, and refused to a seat that may not run payroll.
+    const lumpedRows = await trailOf(lumped)
+    expect(lumpedRows.every((r) => !r.allowed)).toBe(true)
+    expect(lumpedRows.some((r) => /PAID_AFTER_THE_WINDOW/.test(r.reason ?? ''))).toBe(true)
+    expect(lumpedRows.some((r) => /may not run payroll/.test(r.reason ?? ''))).toBe(true)
+    for (const r of [...heldRows, ...lumpedRows]) expect(r.actorPersonId).toBeTruthy()
+  })
+})
+
+describe('a placement another firm holds', () => {
+  it("a placement of another firm's is never repaired through this firm's pay line, and the refusal is in the access log", async () => {
+    const p = await extendedBefore('Mara Quist', 'mara.quist.repair', saturdays[2])
+    // Another firm's placement for her, paying through this firm's pay line.
+    const harborline = await prisma.company.create({ data: { name: 'Harborline Tech', slug: 'harborline-window-repair', kind: 'VENDOR', currency: 'USD' } })
+    const theirs = await prisma.sellContract.create({
+      data: { companyId: harborline.id, clientCompanyId: clientId, personId: p.personId, billRate: 7_000, state: 'IN_PROGRESS', startDate: at(p.firstEnd, -13 * 7 + 1), endDate: p.sellEnd },
+    })
+    await prisma.contractLink.create({ data: { sellContractId: theirs.id, buyContractId: p.buyId, effectiveFrom: at(p.firstEnd, -13 * 7 + 1), effectiveTo: p.firstEnd } })
+    as(BRIGHTMOOR)
+    const r = await json(await repairWindow(req('POST', '/api/payroll/window-repair', { sellContractId: theirs.id, buyContractId: p.buyId, personId: p.personId })))
+    expect(r.status).toBe(404)
+    expect(r.body.error.message).toBe('This pay line is not on your payroll.')
+    expect(await windowOf(p)).toEqual({ link: key(p.firstEnd), row: key(p.firstEnd) })
+    const theirLink = await prisma.contractLink.findFirstOrThrow({ where: { sellContractId: theirs.id } })
+    expect(key(theirLink.effectiveTo!)).toBe(key(p.firstEnd))
+    expect((await trailOf(p)).some((row) => !row.allowed && /not on this firm's payroll/.test(row.reason ?? ''))).toBe(true)
+  })
+})
+
+describe('a window that changes while the repair saves', () => {
+  it('a window that changed while the repair was saving is left as it was, and nothing is half moved', async () => {
+    const p = await extendedBefore('Petra Lund', 'petra.lund.repair', saturdays[3])
+    // Her row moves between the read and the save: the window must not move without it.
+    const real = prisma.$transaction.bind(prisma)
+    const spy = vi.spyOn(prisma, '$transaction').mockImplementation((async (fn: any, opts?: any) => {
+      await prisma.buyContractCandidate.update({ where: { id: p.rowId }, data: { endDate: at(p.firstEnd, -1) } })
+      return real(fn, opts)
+    }) as any)
+    let r: { status: number; body: any }
+    try {
+      r = await repair(p)
+    } finally {
+      spy.mockRestore()
+    }
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).toBe("Petra Lund's pay window changed while this was saving, so nothing was moved. Open Payroll again.")
+    const link = await prisma.contractLink.findUniqueOrThrow({ where: { id: p.linkId } })
+    expect(key(link.effectiveTo!)).toBe(key(p.firstEnd))
+    expect(await prisma.automationLog.count({ where: { companyId: firmId, action: 'PAY_WINDOW_REPAIRED', payload: { path: ['buyContractId'], equals: p.buyId } } })).toBe(0)
+    expect((await trailOf(p)).filter((row) => row.allowed)).toHaveLength(0)
+  })
+})
+
+describe('a pay line an old run paid as a total', () => {
+  it('a pay line an old run paid without recording its days is not repaired, and the refusal says to settle it by hand', async () => {
+    const p = await extendedBefore('Arlo Kemp', 'arlo.kemp.repair', saturdays[4])
+    const ranOn = new Date()
+    await prisma.automationLog.create({
+      data: {
+        companyId: firmId, action: 'PAYROLL_RUN', summary: 'Payroll process: 1 contract', reason: 'A run before days were recorded.',
+        payload: { action: 'process', contracts: [{ buyContractId: p.buyId, totalHours: 40, grossPay: 180_000 }] },
+        reversible: false, at: ranOn,
+      },
+    })
+    const r = await repair(p)
+    expect(r.status).toBe(409)
+    expect(r.body.error.code).toBe('PAID_UNRECORDED')
+    expect(r.body.error.message).toBe(
+      `A pay run on ${formatDay(key(ranOn))} paid Arlo Kemp without recording which days it covered, ` +
+        'so the pay window was not moved. Settle this pay line by hand first, so no day is paid twice.',
+    )
+    expect(await windowOf(p)).toEqual({ link: key(p.firstEnd), row: key(p.firstEnd) })
   })
 })

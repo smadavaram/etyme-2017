@@ -717,9 +717,24 @@ export async function GET(request: NextRequest) {
           const src = sources.find((s) => s.sellContractId === ts.sellContractId)
           if (!src) continue
           const all = (ts.days as Record<string, number>) ?? {}
-          const filed = !src.supplier && Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
+          // Narrowed the way an accepted week is: the days this pay line's
+          // window covers, and the days after a window this line holds
+          // behind the placement's end (said here, held once accepted).
+          // A week narrowed to nothing is not this line's week, so its
+          // total is what the narrowed days hold, never the week's whole
+          // total read as one lump.
+          const narrowed = !src.supplier && Object.keys(all).length > 0
+          const behind = narrowed
+            ? windowBehind((src.sellContract as { buyLinks?: { buyContractId: string; effectiveFrom: Date; effectiveTo: Date | null }[] }).buyLinks ?? [], src.sellContract.endDate)
+            : null
+          const filed = narrowed
+            ? { ...daysFor(bc.id, links, all), ...(behind && behind.buyContractId === bc.id ? daysPastWindow(all, behind) : {}) }
+            : all
+          const filedTotal = narrowed
+            ? Math.round(Object.values(filed).reduce((n, h) => n + (Number(h) || 0), 0) * 100) / 100
+            : Number(ts.totalHours)
           const share = hoursInPeriod(
-            { id: ts.id, periodStart: ts.periodStart, periodEnd: ts.periodEnd, days: filed, totalHours: Number(ts.totalHours) },
+            { id: ts.id, periodStart: ts.periodStart, periodEnd: ts.periodEnd, days: filed, totalHours: filedTotal },
             payPeriod,
             terms.straddle
           )

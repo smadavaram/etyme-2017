@@ -17,7 +17,7 @@ import { isSent } from '@/lib/money/bill-state'
 import { formatDay } from '@/lib/format-date'
 import { startWarningVerdict, startIdentityWarning, type StartWarning } from '@/lib/money/start-warnings'
 import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
-import { calendarDayIn, lastDayOnSite, cyclesAtLastDay, moneyPastLastDay, lastDaySays, periodCovers, dayKey, type WeekAfter } from '@/lib/money/early-end'
+import { calendarDayIn, lastDayOnSite, cyclesAtLastDay, moneyPastLastDay, lastDaySays, periodCovers, dayKey, payLinesAtLastDay, type WeekAfter } from '@/lib/money/early-end'
 
 /**
  * POST /api/contracts/:id/activate
@@ -425,19 +425,29 @@ export async function POST(
     }),
     // The pay side ends on the same day: her row on each pay line it
     // moves, the line itself where she is the only person on it, and the
-    // window her hours are paid through. Never moved later.
+    // window her hours are paid through. Never moved later. A pay line
+    // another open placement of hers still pays through keeps her row and
+    // its end (`payLinesAtLastDay`).
+    //
+    // Only what started on or before the last day is cut there. A window,
+    // a row or a line that starts after it (a change of supplier set for
+    // a later day) is left as written, never given a last day before its
+    // first: it holds no day, since no week is filed past the last day.
     ...(early
       ? [
           db.buyContract.updateMany({
-            where: { id: { in: early.buyEnding }, OR: [{ endDate: null }, { endDate: { gt: early.lastDay } }] },
+            where: { id: { in: early.buyEnding }, startDate: { lte: early.lastDay }, OR: [{ endDate: null }, { endDate: { gt: early.lastDay } }] },
             data: { endDate: early.lastDay },
           }),
           db.buyContractCandidate.updateMany({
-            where: { buyContractId: { in: early.buyMoving }, personId: contract.personId, OR: [{ endDate: null }, { endDate: { gt: early.lastDay } }] },
+            where: {
+              buyContractId: { in: early.rowsEnding }, personId: contract.personId, startDate: { lte: early.lastDay },
+              OR: [{ endDate: null }, { endDate: { gt: early.lastDay } }],
+            },
             data: { endDate: early.lastDay },
           }),
           db.contractLink.updateMany({
-            where: { sellContractId: id, OR: [{ effectiveTo: null }, { effectiveTo: { gt: early.lastDay } }] },
+            where: { sellContractId: id, effectiveFrom: { lte: early.lastDay }, OR: [{ effectiveTo: null }, { effectiveTo: { gt: early.lastDay } }] },
             data: { effectiveTo: early.lastDay },
           }),
           // No period after the last day; the one holding it is cut at it.
@@ -507,6 +517,11 @@ export async function POST(
             ? {
                 endDate: { from: early.plannedEnd?.toISOString().slice(0, 10) ?? null, to: dayKey(early.lastDay) },
                 cycles: { removed: early.cycles.remove.length, cut: early.cycles.cut.length, leftAsWritten: early.cycles.unplaced },
+                // Pay lines another open placement of hers still pays
+                // through, which keep her row; and windows that start after
+                // the last day, left as written.
+                ...(early.keptOpen.length > 0 ? { payLinesKeptOpen: early.keptOpen } : {}),
+                ...(early.notStarted.length > 0 ? { windowsStartingLater: early.notStarted } : {}),
               }
             : {}),
           // And where the hiring manager said the person who started is not the one interviewed.
@@ -603,11 +618,16 @@ async function earlyEnd(
   now: Date,
 ): Promise<
   | { ok: false; says: string; week: { id: string; weekOf: string; day: string; stage: string } }
-  | ({ ok: true; early: boolean; buyMoving: string[]; buyEnding: string[]; cycles: ReturnType<typeof cyclesAtLastDay> } & ReturnType<typeof lastDayOnSite>)
+  | ({
+      ok: true; early: boolean; buyMoving: string[]; buyEnding: string[]; rowsEnding: string[]
+      keptOpen: Array<{ buyContractId: string; sellContractId: string }>
+      notStarted: Array<{ id: string; buyContractId: string; startsOn: string }>
+      cycles: ReturnType<typeof cyclesAtLastDay>
+    } & ReturnType<typeof lastDayOnSite>)
 > {
   const today = calendarDayIn(now, contract.workLocation?.timeZone ?? contract.person.timezone)
   const day = lastDayOnSite({ startDate: contract.startDate, plannedEnd: contract.endDate, today })
-  if (!day.early) return { ok: true, ...day, buyMoving: [], buyEnding: [], cycles: { remove: [], cut: [], unplaced: 0 } }
+  if (!day.early) return { ok: true, ...day, buyMoving: [], buyEnding: [], rowsEnding: [], keptOpen: [], notStarted: [], cycles: { remove: [], cut: [], unplaced: 0 } }
 
   // One after another: inside the save these share one connection.
   const buys = await db.buyContract.findMany({
@@ -674,12 +694,33 @@ async function earlyEnd(
   }
 
   const buyMoving = buys.filter((b) => (TRANSITIONS.complete.from as string[]).includes(b.state)).map((b) => b.id)
-  const buyEnding = buys
-    .filter((b) => buyMoving.includes(b.id) && b.candidates.every((c) => c.personId === contract.personId))
-    .map((b) => b.id)
+  // Another open placement of hers through the same pay line, still paying
+  // after the last day: that line keeps her row and its end.
+  const otherOpen = buyMoving.length
+    ? await db.contractLink.findMany({
+        where: {
+          buyContractId: { in: buyMoving },
+          sellContractId: { not: contract.id },
+          sellContract: { personId: contract.personId, state: { notIn: ['ENDED', 'CANCELLED'] } },
+          OR: [{ effectiveTo: null }, { effectiveTo: { gt: day.lastDay } }],
+        },
+        select: { buyContractId: true, sellContractId: true },
+      })
+    : []
+  const lines = payLinesAtLastDay({
+    moving: buyMoving,
+    onlyHers: buys.filter((b) => b.candidates.every((c) => c.personId === contract.personId)).map((b) => b.id),
+    otherOpen,
+  })
+  const buyEnding = lines.linesEnding
+  // Windows of this line that start after the last day: left as written.
+  const notStarted = (await db.contractLink.findMany({
+    where: { sellContractId: contract.id, effectiveFrom: { gt: day.lastDay } },
+    select: { id: true, buyContractId: true, effectiveFrom: true },
+  })).map((l) => ({ id: l.id, buyContractId: l.buyContractId, startsOn: dayKey(l.effectiveFrom) }))
   const stored = await db.cycle.findMany({
     where: { OR: [{ sellContractId: contract.id }, ...(buyEnding.length ? [{ buyContractId: { in: buyEnding } }] : [])] },
     select: { id: true, completedAt: true, periodStart: true, periodEnd: true },
   })
-  return { ok: true, ...day, buyMoving, buyEnding, cycles: cyclesAtLastDay(stored, day.lastDay) }
+  return { ok: true, ...day, buyMoving, buyEnding, rowsEnding: lines.rowsEnding, keptOpen: lines.keptOpen, notStarted, cycles: cyclesAtLastDay(stored, day.lastDay) }
 }

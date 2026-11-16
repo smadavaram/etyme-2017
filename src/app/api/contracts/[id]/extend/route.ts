@@ -10,7 +10,7 @@ import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { extensionPapers, mayExtendOnPapers } from '@/lib/contract-clearance'
 import { extensionEnd } from '@/lib/money/extension-end'
-import { earlierEnds, payLineInForce, windowsAtNewEnd } from '@/lib/money/extension-windows'
+import { anotherWindowSays, earlierEnds, noPayLineInForce, payLineInForce, windowsAtNewEnd } from '@/lib/money/extension-windows'
 import { formatDay } from '@/lib/format-date'
 import { extendGate } from './gate'
 
@@ -248,6 +248,10 @@ export async function POST(
   const before = earlierEnds(earlier.map((l) => (l.payload as { oldEndDate?: string | null } | null)?.oldEndDate))
   // The pay line in force at the end, never "the first link".
   const buyId = payLineInForce(links, oldEnd, before)
+  // Where none is, nothing on the pay side moves: not the window, not the
+  // line's end, not its pay dates. Said in the log and the reply, with the
+  // windows named, never left silent.
+  const noLine = buyId ? null : noPayLineInForce(links, oldEnd, before, contract.person.name)
   const buy = buyId
     ? await prisma.buyContract.findUnique({
         where: { id: buyId },
@@ -272,6 +276,15 @@ export async function POST(
       })
     : []
   const windows = windowsAtNewEnd({ links, rows, oldEnd, earlier: before, newEnd })
+  // Every window or row left where it was, each with why, named once.
+  const leftBehind = {
+    links: [
+      ...(noLine?.windows ?? []),
+      ...windows.leftBehind.links.filter((l) => !(noLine?.windows ?? []).some((w) => w.id === l.id)),
+    ],
+    rows: windows.leftBehind.rows,
+  }
+  const notMovedSays = noLine?.says ?? anotherWindowSays(contract.person.name, windows)
   const already = new Map<string, Set<string>>()
   for (const c of written) {
     const days = already.get(c.kind) ?? new Set<string>()
@@ -298,15 +311,18 @@ export async function POST(
     }
     // The window her hours are paid through, and her row on the pay line,
     // in the same save. Each update names the value it moves from, as it
-    // was read, so a row changed since is left alone rather than overwritten.
+    // was read; a window or a row changed since undoes the whole save,
+    // so the log never says a window moved that did not.
+    let moved = 0
     for (const l of windows.links) {
       const was = links.find((x) => x.id === l.id)!.effectiveTo
-      await tx.contractLink.updateMany({ where: { id: l.id, effectiveTo: was }, data: { effectiveTo: newEnd } })
+      moved += (await tx.contractLink.updateMany({ where: { id: l.id, effectiveTo: was }, data: { effectiveTo: newEnd } })).count
     }
     for (const r of windows.rows) {
       const was = rows.find((x) => x.id === r.id)!.endDate
-      await tx.buyContractCandidate.updateMany({ where: { id: r.id, endDate: was }, data: { endDate: newEnd } })
+      moved += (await tx.buyContractCandidate.updateMany({ where: { id: r.id, endDate: was }, data: { endDate: newEnd } })).count
     }
+    if (moved !== windows.links.length + windows.rows.length) throw new WindowChanged()
 
     // The document travels with the line, so the dates the added
     // months are generated over go through one door.
@@ -355,6 +371,7 @@ export async function POST(
           (cycles.sell + cycles.buy > 0
             ? `Extended by ${caller.person.name}. ${cycles.sell + cycles.buy} new due dates written — hours, pay and bills for the added months.`
             : `Extended by ${caller.person.name}. No new due dates: the contract has no start date, or every date in the new period was already on the books.`) +
+          (notMovedSays ? ` ${notMovedSays}` : '') +
           (note ? ` Why: ${note}` : ''),
         payload: {
           contractId: id,
@@ -378,9 +395,12 @@ export async function POST(
             line: buyLineMoved,
             periodsWidened: widen.length,
             processedLeftAsTheyWere: kept,
-            // Left at an end an extension before 2026-11-16 moved past:
-            // for a person to repair, never moved here.
-            ...(windows.leftBehind.links.length + windows.leftBehind.rows.length > 0 ? { leftBehind: windows.leftBehind } : {}),
+            // Not moved, each with why: left at an end an extension before
+            // 2026-11-16 moved past, another window claiming the same days,
+            // or no single pay line in force at the end. For a person to
+            // repair, never moved here by a guess.
+            ...(leftBehind.links.length + leftBehind.rows.length > 0 ? { leftBehind } : {}),
+            ...(notMovedSays ? { notMoved: notMovedSays } : {}),
           },
           ...(past ? { timeLimit: { says: past.says, reason: limitReason } } : {}),
           ...(onPapers.reason ? { papers: { says: papers.says, reason: onPapers.reason } } : {}),
@@ -390,7 +410,22 @@ export async function POST(
     })
 
     return cycles
+  }).catch((e: unknown) => {
+    if (e instanceof WindowChanged) return null
+    throw e
   })
+
+  if (!added) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'CHANGED',
+          message: `${contract.person.name}'s pay window changed while this was saving, so the placement was not extended. Open it again and extend it.`,
+        },
+      },
+      { status: 409 }
+    )
+  }
 
   void emit({
     type: 'contract.extended',
@@ -431,9 +466,13 @@ export async function POST(
       id,
       personName: contract.person.name,
       newEndDate: newEnd.toISOString(),
-      message: months != null
-        ? `Contract extended by ${months} month${months !== 1 ? 's' : ''}, to ${newEndSays}`
-        : asked.says,
+      // The pay window left where it was is said where the extension is,
+      // never only in the log.
+      message: withSentence(
+        months != null ? `Contract extended by ${months} month${months !== 1 ? 's' : ''}, to ${newEndSays}` : asked.says,
+        notMovedSays,
+      ),
+      ...(notMovedSays ? { payWindow: notMovedSays } : {}),
       ...(note ? { note } : {}),
       ...(pastTheOrder ? { pastTheOrder } : {}),
       // A paper ending before the new end, gone ahead on the reason given.
@@ -446,4 +485,17 @@ export async function POST(
       }),
     },
   })
+}
+
+/** A window or a row changed between the read and the save: the save is undone. */
+class WindowChanged extends Error {
+  constructor() {
+    super('The pay window changed while the extension was saving.')
+  }
+}
+
+/** A reply and one more sentence after it, the first closed with a full stop where it is not. */
+function withSentence(said: string, more: string | null): string {
+  if (!more) return said
+  return `${/[.!?]$/.test(said) ? said : `${said}.`} ${more}`
 }

@@ -6,6 +6,7 @@ import { windowRepairBody, REPAIR_BUTTON, REPAIRING_THE_WINDOW } from '@/lib/mon
 import { windowBehind, windowHeldSays, REPAIR_THE_WINDOW } from '@/lib/money/outside-pay-window'
 import { seatedSays } from '@/lib/money/who-raises-bills'
 import { daysFor } from '@/lib/contract-links'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * A week held on Payroll because it is after a pay window an extension
@@ -70,6 +71,20 @@ describe('repairing a pay window an extension left behind', () => {
       "A pay run recorded Lena Okafor's week of Nov 8, 2026 as paid, so the pay window was not moved. " +
         'Check it against what your payroll provider paid out, so no day is paid twice.',
     )
+  })
+
+  it('a pay line an old run paid as a total, without its days, is not repaired, because the run will not pay it', () => {
+    const plan = planRepair({ ...base, unrecordedOn: '2026-09-15' })
+    expect(plan).toEqual({
+      ok: false,
+      status: 409,
+      code: 'PAID_UNRECORDED',
+      says:
+        `A pay run on ${formatDay('2026-09-15')} paid Lena Okafor without recording which days it covered, ` +
+        'so the pay window was not moved. Settle this pay line by hand first, so no day is paid twice.',
+    })
+    // Every sentence short.
+    if (!plan.ok) for (const sentence of plan.says.split(/(?<=\.)\s+(?=[A-Z])/)) expect(sentence.split(/\s+/).length).toBeLessThanOrEqual(25)
   })
 
   it("a week the old run paid as one lump on its first day is read as paid, even where that day is on or before the window's end", () => {
