@@ -24,12 +24,22 @@ import { formatDay } from '@/lib/format-date'
  *  - Never before her yes (`awaitsHerYes`): a person asked onto the bench
  *    and not answered gets no line, whatever her address, so the line
  *    never says whether an address has an account.
- *  - Only for somebody with no account yet. A link that sets a password
- *    on an account somebody already holds is a way into that account, so
- *    a person with a password or a work-account sign-in gets no line.
- *  - Never a second record: the link is the password door's own
- *    one-time invitation link (`issueSetPassword`), which the person's
- *    first sign-in turns into their own seat.
+ *  - Never reads her account (2026-11-16, founder's yes). The line drew
+ *    nothing for an address that already signs in anywhere, and "cannot
+ *    sign in yet" for one that does not, so a firm that seated an address
+ *    could read whether it has an account. CLAUDE.md: the page never says
+ *    whether an address has an account. So the line reads only this
+ *    firm's own facts: she came in here (`SIGNS_IN_HERE`: she acted on a
+ *    seat here, or filed a week on this firm's work), and the fate of the
+ *    link this firm made. Every other person reads the same line.
+ *  - The link is the same for everybody, and the door decides at use
+ *    (`/answer/sign-in/<token>`, `enterSignInDoor` in sign-in-link-door):
+ *    an address with a way in already is sent to the sign-in page, and
+ *    one with none is given the password door's own one-time link
+ *    (`issueSetPassword`) to choose a password. So the link the firm
+ *    copies never sets a password on an account somebody already holds,
+ *    and it never shows which of the two it will do. Never a second
+ *    record: the first sign-in turns the person's record into her seat.
  *  - Where no email can leave, the link is shown to copy. Where email can
  *    leave, the line says the link was sent, and offers "Send again".
  *
@@ -48,8 +58,11 @@ export type SignInState =
    * whatever her address (`awaitsHerYes`). Checked before every other state.
    */
   | 'AWAITING_YES'
-  /** Already signs in: no line is drawn. */
-  | 'HAS_ACCOUNT'
+  /**
+   * She came in here: she acted on a seat at this firm, or filed a week on
+   * its work. This firm's own fact, never her account elsewhere. No line.
+   */
+  | 'SIGNS_IN_HERE'
   /** A sample address no mailbox uses: there is nothing to send. */
   | 'DEMO'
   /** No link made yet. */
@@ -62,6 +75,8 @@ export type SignInState =
   | 'SENT'
   /** Email can leave, and the last send failed. */
   | 'FAILED'
+  /** The last link this firm made was opened, and she has not come in here yet. */
+  | 'OPENED'
 
 export interface SignInFacts {
   state: SignInState
@@ -160,20 +175,29 @@ export function sampleRefusal(name: string | null, email: string): string {
   return `${firstName(name)} is a sample person. No email can reach ${email}, so no sign-in link can be sent.`
 }
 
-/** Pressing for a link for somebody who already signs in. */
+/** Pressing for a link for somebody who already comes in here (`SIGNS_IN_HERE`). */
 export function alreadySignsInRefusal(name: string | null): string {
   return `${firstName(name)} already signs in to Etyme, so there is no link to make. ${name?.trim() ? firstName(name) : 'They'} can reset a forgotten password from the sign-in page.`
 }
 
-/** What the row says, for each state. AWAITING_YES and HAS_ACCOUNT draw nothing, so their words are never shown. */
+/**
+ * The line for somebody who has not come in here yet. It claims nothing
+ * about an account: the same words whether or not the address signs in
+ * somewhere else.
+ */
+export function notHereYetSays(name: string | null): string {
+  return `${firstName(name)} files timesheets in Etyme. If ${again(name)} cannot sign in yet, give ${toWhom(name)} a sign-in link.`
+}
+
+/** What the row says, for each state. AWAITING_YES and SIGNS_IN_HERE draw nothing, so their words are never shown. */
 export function signInLineSays(f: SignInFacts): SignInLine {
   const first = firstName(f.name)
-  const cannot = `${first} cannot sign in to Etyme yet, so ${again(f.name)} cannot file a timesheet.`
+  const cannot = notHereYetSays(f.name)
   switch (f.state) {
     case 'AWAITING_YES':
       // Nothing, and no name: it must read the same for every address.
       return { says: '', note: null, action: null }
-    case 'HAS_ACCOUNT':
+    case 'SIGNS_IN_HERE':
       return { says: `${first} already signs in to Etyme.`, note: null, action: null }
     case 'DEMO':
       return { says: sampleSays(f.name, f.email), note: null, action: null }
@@ -182,7 +206,7 @@ export function signInLineSays(f: SignInFacts): SignInLine {
     case 'KEPT':
       return {
         says: copySentence(f.name),
-        note: f.until ? `It works once, until ${formatDay(f.until)}, for ${f.email}.` : `It works once, for ${f.email}.`,
+        note: f.until ? `It works until ${formatDay(f.until)}, for ${f.email}.` : `It works only for ${f.email}.`,
         action: 'Make a new link',
       }
     case 'RAN_OUT':
@@ -196,7 +220,7 @@ export function signInLineSays(f: SignInFacts): SignInLine {
     case 'SENT':
       return {
         says: f.at ? `${first} was sent a sign-in link on ${formatDay(f.at)}, to ${f.email}.` : `${first} was sent a sign-in link, to ${f.email}.`,
-        note: `It works once, for ${SIGN_IN_LINK_HOURS} hours.`,
+        note: `It works for ${SIGN_IN_LINK_HOURS} hours.`,
         action: 'Send again',
       }
     case 'FAILED':
@@ -204,6 +228,12 @@ export function signInLineSays(f: SignInFacts): SignInLine {
         says: f.at ? `The sign-in link to ${f.email} did not go on ${formatDay(f.at)}.` : `The sign-in link to ${f.email} did not go.`,
         note: 'Check the address on the person, then send it again.',
         action: 'Send again',
+      }
+    case 'OPENED':
+      return {
+        says: f.at ? `${first} opened the sign-in link on ${formatDay(f.at)}.` : `${first} opened the sign-in link.`,
+        note: `If ${again(f.name)} still cannot sign in, make a new link and send it to ${toWhom(f.name)} yourself.`,
+        action: 'Make a new link',
       }
   }
 }
@@ -218,12 +248,16 @@ export function signInSubject(firmName: string): string {
   return `${firmName} set up your Etyme sign-in`
 }
 
-/** The letter to the person. No pronouns: the record stores none. */
+/**
+ * The letter to the person. No pronouns: the record stores none. One
+ * letter for everybody: the link decides at use whether she signs in or
+ * chooses a password, so the letter never says which.
+ */
 export function signInLetter(l: { name: string; firmName: string; loginUrl: string | null }): string[] {
   return [
     `Hello ${firstName(l.name)},`,
     `${l.firmName} uses Etyme for your work. You file your own timesheet there, each week.`,
-    `Open the link below to choose a password. It works once, for ${SIGN_IN_LINK_HOURS} hours.`,
+    `Open the link below to sign in. If you have no Etyme password yet, you choose one there. It works for ${SIGN_IN_LINK_HOURS} hours.`,
     l.loginUrl ? `After that, sign in at ${l.loginUrl} with this email address.` : 'After that, sign in with this email address.',
   ]
 }
@@ -231,16 +265,66 @@ export function signInLetter(l: { name: string; firmName: string; loginUrl: stri
 /**
  * The link kept on a notice where no email could leave (`recordedBody`
  * with NOT_CONFIGURED puts it on the last line). Null where none is kept.
+ * A notice from before 2026-11-16 keeps the password door's own link
+ * (`/reset/<token>`); one from after keeps the sign-in door's
+ * (`/answer/sign-in/<token>`). Both are read, so a kept link loses nothing.
  */
 export function keptLinkIn(body: string): string | null {
   const last = body.trim().split('\n').pop()?.trim() ?? ''
-  return /^https?:\/\/\S+\/reset\/[A-Za-z0-9_-]+$/.test(last) || /^\/reset\/[A-Za-z0-9_-]+$/.test(last) ? last : null
+  const path = last.replace(/^https?:\/\/[^/\s]+/, '')
+  return /^\/reset\/[A-Za-z0-9_-]+$/.test(path) || /^\/answer\/sign-in\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(path) ? last : null
 }
 
-/** The token at the end of a kept link. */
+/** The password door's token at the end of a kept link from before the sign-in door; null for a sign-in door link. */
 export function tokenOf(link: string): string | null {
   const m = /\/reset\/([A-Za-z0-9_-]+)$/.exec(link)
   return m ? m[1] : null
+}
+
+/** Whether a kept link is the sign-in door's, which decides at use. */
+export function isSignInDoorLink(link: string): boolean {
+  return /\/answer\/sign-in\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(link)
+}
+
+/**
+ * Whether a sign-in door link still works: made by this firm, the newest
+ * it made for her, and younger than `SIGN_IN_LINK_HOURS`. Pure.
+ */
+export function signInDoorLive(o: { madeAt: Date; isNewest: boolean; now: Date }): boolean {
+  return o.isNewest && o.now.getTime() < o.madeAt.getTime() + SIGN_IN_LINK_HOURS * 3_600_000
+}
+
+/** Until when a sign-in door link made at `madeAt` works. Pure. */
+export function signInDoorUntil(madeAt: Date): Date {
+  return new Date(madeAt.getTime() + SIGN_IN_LINK_HOURS * 3_600_000)
+}
+
+/**
+ * Where the sign-in door sends whoever opens a live link, decided at use
+ * and never before (`enterSignInDoor`). An address with a way in already
+ * (a password, or a Google or Microsoft sign-in) goes to the sign-in page
+ * with its address filled: the link never sets a password on an account
+ * somebody holds. One with none chooses a password. Pure.
+ */
+export function signInDoorSends(o: { hasWayIn: boolean }): 'SIGN_IN' | 'CHOOSE_PASSWORD' {
+  return o.hasWayIn ? 'SIGN_IN' : 'CHOOSE_PASSWORD'
+}
+
+/** The page the sign-in door link opens, in words. One for every address: it never says which way the door will go. */
+export function signInDoorPage(firmName: string): { heading: string; says: string; button: string; after: string } {
+  return {
+    heading: 'Sign in to Etyme',
+    says: `${firmName} uses Etyme for your work. You file your own timesheets there.`,
+    button: 'Continue',
+    after: 'If you already sign in to Etyme, you sign in as usual. If not, you choose a password.',
+  }
+}
+
+/** The same page where the link no longer works. */
+export function signInDoorGone(firmName: string | null): string {
+  return firmName
+    ? `This sign-in link has run out or a newer one was made. Ask ${firmName} for a new link.`
+    : 'This sign-in link is not valid. It may have been retyped or altered.'
 }
 
 /** The refusal a seat that may not invite reads. Who can, never the permission's code. */

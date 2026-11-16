@@ -11,13 +11,14 @@ import { readJson } from '@/lib/read-response'
  * placement's person) as `<SignInLink personId={…} />`. It draws nothing
  * for a seat that may not invite, for a person this firm neither employs
  * nor lists, for somebody asked onto the bench who has not said yes
- * (whatever her address, so the line never says whether it has an
- * account), and for somebody who already signs in; the route decides all
- * four (`/api/notifications/sign-in-link`), so the line and the refusal
- * cannot disagree.
+ * (whatever her address), and for somebody who already signs in at this
+ * firm; the route decides all four (`/api/notifications/sign-in-link`),
+ * so the line and the refusal cannot disagree. It never says whether an
+ * address has an account anywhere else (2026-11-16).
  *
- * Where no email can leave, it shows the one-time link to copy; where
+ * Where no email can leave, it shows the sign-in link to copy; where
  * email can leave, it says the link was sent and offers "Send again".
+ * The link decides at use whether she signs in or chooses a password.
  */
 
 interface Line {

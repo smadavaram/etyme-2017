@@ -143,32 +143,35 @@ describe('before her yes', () => {
 })
 
 describe('after her yes', () => {
-  it('after her yes the sign-in line reads as before', async () => {
+  it('after her yes the sign-in line reads the same whether or not her address has an account, and offers both the same link', async () => {
     reachable.clear()
     reachable.add(HAS_ACCOUNT_EMAIL); reachable.add(NO_ACCOUNT_EMAIL)
     for (const id of [people.withAccount, people.without]) {
       await prisma.benchListing.update({ where: { id: (await listingAt(id)).id }, data: { state: 'GRANTED', grantedAt: new Date(), respondedAt: new Date() } })
     }
 
-    // She already signs in: nothing is drawn, and no link is made.
+    // Her account is never read for the line (2026-11-16): she already
+    // signs in elsewhere, and her row reads as his, who has no account.
     const a = await get(people.withAccount)
     expect(a.status).toBe(200)
-    expect(a.body.data).toMatchObject({ state: 'HAS_ACCOUNT', show: false })
-    const pa = await post(people.withAccount)
-    expect(pa.status).toBe(409)
-    expect(pa.body.error.code).toBe('HAS_ACCOUNT')
-
-    // No account yet: the row says what it stops, and offers the link.
+    expect(a.body.data).toMatchObject({
+      state: 'NONE_YET', show: true,
+      says: 'Mara files timesheets in Etyme. If Mara cannot sign in yet, give Mara a sign-in link.',
+      action: 'Make a sign-in link',
+    })
     const b = await get(people.without)
     expect(b.status).toBe(200)
     expect(b.body.data).toMatchObject({
       state: 'NONE_YET', show: true,
-      says: 'Ivo cannot sign in to Etyme yet, so Ivo cannot file a timesheet.',
+      says: 'Ivo files timesheets in Etyme. If Ivo cannot sign in yet, give Ivo a sign-in link.',
       action: 'Make a sign-in link',
     })
-    const pb = await post(people.without)
-    expect(pb.status, JSON.stringify(pb.body)).toBe(200)
-    expect(pb.body.data.state).toBe('KEPT')
-    expect(pb.body.data.link).toMatch(/\/reset\/[A-Za-z0-9_-]+$/)
+    // Both are given the same kind of link; the door decides at use.
+    for (const id of [people.withAccount, people.without]) {
+      const p = await post(id)
+      expect(p.status, JSON.stringify(p.body)).toBe(200)
+      expect(p.body.data.state).toBe('KEPT')
+      expect(p.body.data.link).toMatch(/\/answer\/sign-in\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
+    }
   })
 })

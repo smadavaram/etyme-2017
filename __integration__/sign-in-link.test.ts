@@ -23,6 +23,15 @@ vi.mock('@/lib/senders', async (orig) => {
 
 const { GET: read, POST: make } = await import('@/app/api/notifications/sign-in-link/route')
 const { resetPassword } = await import('@/lib/password-door')
+const { POST: enterDoor } = await import('@/app/api/answer/sign-in/[token]/route')
+const { readSignInDoorPage } = await import('@/lib/notify/sign-in-link-door')
+
+/** Continue on the page the link opens: where the door sends whoever pressed it. */
+const enter = async (link: string) => {
+  const token = link.split('/answer/sign-in/')[1]
+  const res = await enterDoor(req('POST', `/api/answer/sign-in/${token}`), { params: Promise.resolve({ token }) })
+  return res.headers.get('location') ?? ''
+}
 
 const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
@@ -89,7 +98,8 @@ describe('a placed person with no account can be handed a way in by the firm tha
     expect(made.body.data.state).toBe('KEPT')
     const name = placed.name.split(' ')[0]
     expect(made.body.data.says).toBe(`No email can leave this deployment. Copy this sign-in link and send it to ${name} yourself.`)
-    expect(made.body.data.link).toMatch(/\/reset\/[A-Za-z0-9_-]+$/)
+    // One link for every address: the sign-in door, which decides at use (2026-11-16).
+    expect(made.body.data.link).toMatch(/\/answer\/sign-in\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
 
     // Read again, the row shows the same link: the notice keeps it.
     const again = await get(placed.id)
@@ -105,12 +115,14 @@ describe('a placed person with no account can be handed a way in by the firm tha
 
   it('a new link replaces the old one, and the old one stops working', async () => {
     as(OWNER)
-    const before = (await get(placed.id)).body.data.link
+    const before = (await get(placed.id)).body.data.link as string
+    expect(before).toMatch(/\/answer\/sign-in\//)
     const after = (await post(placed.id)).body.data.link
     expect(after).not.toBe(before)
-    const oldToken = before.split('/reset/')[1]
-    const r = await resetPassword(oldToken, 'Teal-harbor-lantern-9417')
-    expect(r.ok).toBe(false)
+    const oldToken = before.split('/answer/sign-in/')[1]
+    expect((await readSignInDoorPage(oldToken)).ok).toBe(false)
+    // Pressed anyway, the old link sends back to its own page, which says so, and makes no password link.
+    expect(await enter(before)).toMatch(/\/answer\/sign-in\/[^/]+$/)
   })
 
   it('the link is drawn only for a seat that may invite, and every read is logged', async () => {
@@ -154,22 +166,30 @@ describe('a placed person with no account can be handed a way in by the firm tha
     expect(r.body.data.says).toMatch(/was sent a sign-in link on .+, to /)
     expect(r.body.data.action).toBe('Send again')
     expect(r.body.data.link).toBeNull()
-    expect(sent.at(-1)?.body).toMatch(/\/reset\/[A-Za-z0-9_-]+/)
+    expect(sent.at(-1)?.body).toMatch(/\/answer\/sign-in\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/)
     // Sent, the link lives in the mailbox only.
     const notice = await prisma.notification.findFirstOrThrow({ where: { personId: placed.id, companyId: brightmoor, type: 'ACCOUNT_MAIL' }, orderBy: { createdAt: 'desc' } })
-    expect(notice.body).not.toMatch(/\/reset\//)
+    expect(notice.body).not.toMatch(/\/answer\/sign-in\/|\/reset\//)
   })
 
-  it('once the person sets a password from the link, the row draws nothing and no new link is made', async () => {
+  it('once the person opens the link and sets a password, the row says the link was opened, and once she signs in here it draws nothing and no new link is made', async () => {
     as(OWNER)
     const link = (await post(placed.id)).body.data.link as string
-    const done = await resetPassword(link.split('/reset/')[1], 'Teal-harbor-lantern-9417')
+    const to = await enter(link)
+    expect(to).toMatch(/\/reset\/[A-Za-z0-9_-]+$/)
+    const done = await resetPassword(to.split('/reset/')[1], 'Teal-harbor-lantern-9417')
     expect(done.ok, JSON.stringify(done)).toBe(true)
+    as(OWNER)
+    const opened = await get(placed.id)
+    expect(opened.body.data).toMatchObject({ state: 'OPENED', show: true, action: 'Make a new link' })
+    // Her first act on a seat at Brightmoor is Brightmoor's own record that she signs in there.
+    const firstName = placed.name.split(' ')[0]
+    await prisma.accessLog.create({ data: { subjectId: placed.id, actorPersonId: placed.id, actorCompanyId: brightmoor, action: 'PROFILE_VIEW', allowed: true, reason: 'Read her own page.' } })
     const row = await get(placed.id)
     expect(row.body.data.show).toBe(false)
     const again = await post(placed.id)
     expect(again.status).toBe(409)
-    expect(again.body.error.message).toMatch(/already signs in/)
+    expect(again.body.error.message).toBe(`${firstName} already signs in to Etyme, so there is no link to make. ${firstName} can reset a forgotten password from the sign-in page.`)
   })
 })
 
