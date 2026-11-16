@@ -639,6 +639,10 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
   the bank where no Finance seat exists. The 0.5% hours tolerance decides
   what is raised, not what is paid. A paid date that has not happened is
   refused.
+- **One account pays, and only once it is checked** (2026-11-16 → 85).
+  The gate, the run file and every bill read one row (`payToRow`,
+  `payToOnBill`); an unchecked row holds payment and prints no account.
+  Payroll and payment runs wait for a verified Owner.
 - **Etyme never moves money.** A payment run is a list. It leaves as a
   file for the client's own system; the confirmation marks receipts
   paid; the supplier is told the day it is paid.
