@@ -39,6 +39,8 @@ export const SECURITY_EVENTS = [
   'BANK_CHANGE_DISOWNED',
   'BANK_CALLBACK_RECORDED',
   'BANK_CHECKED',
+  /** Full bank details shown, after a fresh second check (record 87). Never the details themselves. */
+  'BANK_DETAILS_SHOWN',
 ] as const
 export type SecurityEventName = (typeof SECURITY_EVENTS)[number]
 
@@ -61,6 +63,7 @@ export const WRITTEN_BY: Record<SecurityEventName, string | null> = {
   BANK_CHANGE_DISOWNED: null,
   BANK_CALLBACK_RECORDED: null,
   BANK_CHECKED: null,
+  BANK_DETAILS_SHOWN: null,
 }
 
 export const SECURITY_SURFACES = ['WEB', 'TEAMS', 'STAFF', 'CRON', 'EMAIL_LINK'] as const
