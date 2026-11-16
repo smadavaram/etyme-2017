@@ -144,3 +144,54 @@ export function standingOfRows<T extends FeedMessageRead>(rows: readonly (T | nu
   if (bad) return bad
   return [...list].sort((a, b) => RANK[a.state] - RANK[b.state])[0]
 }
+
+// ── What the supplier reads about one of its own lines ────────────────
+
+export interface SupplierLineRead {
+  /** The latest live message that stands for the line, or null. */
+  stands: FeedStateRead | null
+  /** The day the line left in a file, where it did. */
+  sentAt: Date | null
+  /** The paying company's name: "Brightmoor's system". */
+  clientName: string
+}
+
+/**
+ * A line in the supplier's own words, and its next step where there is one.
+ *
+ * It names the client and the day, the client's reason and the client's
+ * payment reference, and nothing else of the client's: never a cost
+ * center, a GL account or a profit center. A line the client's own file
+ * has not carried (or one whose send failed on the client's side) reads
+ * "Not sent yet": the failure is the client's to fix, not the supplier's.
+ *
+ * A rejected line is released by a change to the client's own record of
+ * the invoice (`mayGoInFile`). Sending the bill again changes nothing on
+ * that record, so the next step is the client's AP, never "send it again".
+ */
+export function supplierLineSays(read: SupplierLineRead): { says: string; next: string | null } {
+  const { stands, sentAt, clientName } = read
+  const system = `${clientName}’s system`
+  if (!stands || stands.state === 'QUEUED' || stands.state === 'FAILED') {
+    return { says: 'Not sent yet', next: null }
+  }
+  switch (stands.state) {
+    case 'SENT':
+      return { says: `Sent to ${system}${sentAt ? ` on ${formatDay(sentAt)}` : ''}`, next: null }
+    case 'ACCEPTED':
+      return { says: `Accepted by ${system}`, next: null }
+    case 'REJECTED':
+      return {
+        says: `Rejected by ${system}: ${stands.reason?.trim() || 'no reason was given'}`,
+        next: `Ask ${clientName}’s AP to correct their record of this invoice. The line goes in their next file once they have changed it.`,
+      }
+    case 'PAID':
+      return {
+        says: `Paid on ${stands.answeredAt ? formatDay(stands.answeredAt) : 'a day not recorded'}` +
+          (stands.externalRef ? `, ref ${stands.externalRef}` : ''),
+        next: null,
+      }
+    default:
+      return { says: 'Not sent yet', next: null }
+  }
+}

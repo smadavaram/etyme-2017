@@ -32,7 +32,14 @@ export async function confirmRunPayments(
   if (!personId) {
     return { status: 403, body: { error: { code: 'FORBIDDEN', message: 'A payment is recorded by a person, and this request names none.' } } }
   }
-  const payerName = caller.company!.name
+  // In a client's program the payer is the client, whose book this is, and the
+  // person acts as the office's seat there. The record names both (`seatMayPay`
+  // in `lib/money/seated-books` decided whether the seat's role may pay at all).
+  const seated = caller.company!.id !== companyId
+  const payerName = seated
+    ? (await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } }))?.name ?? caller.company!.name
+    : caller.company!.name
+  const appliedByName = seated ? `${caller.person.name} (seat of ${caller.company!.name})` : caller.person.name
 
   let runCurrency = ''
   // The supplier is told the moment its line commits, line by line, so a
@@ -111,7 +118,7 @@ export async function confirmRunPayments(
               etymeReference: paymentReference(row.runItemId),
               runId: read.runId,
               appliedById: personId,
-              appliedByName: caller.person.name,
+              appliedByName,
             })
           )
           if (out.ok) {

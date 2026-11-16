@@ -166,9 +166,9 @@ async function payReceipt(
   r: { runItemId: string; amountCents: number; currency: string },
   paidOn: string, reference: string,
 ): Promise<{ ok: true } | { ok: false; says: string }> {
-  if (caller.company!.id !== companyId) {
-    return { ok: false, says: 'Marking paid is done from the company that pays, not from a seat in its program.' }
-  }
+  // A seat in the client's program pays under the client's book where the
+  // client's role for it holds payments.record; the answer route checked that
+  // before it called here, and `companyId` is the book that route resolved.
   const ref = paymentReference(r.runItemId)
   const csv = ['etyme_payment_reference,amount,paid_date,payer_reference', [ref, decimalAmount(r.amountCents, r.currency), paidOn, reference].map(csvCell).join(',')].join('\r\n')
   const done = await confirmRunPayments(caller, companyId, { action: 'confirm', id: runId, csv })

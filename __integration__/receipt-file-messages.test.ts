@@ -132,7 +132,8 @@ describe('the file is a message, as the client’s own AP seat', () => {
     const theirs = json(await supplierState(req('GET', `/api/ap/receipts-file/state?bill=${s.bill}`)))
     const t = await theirs
     expect(t.status).toBe(200)
-    expect(t.body.data.lines[0].says).toContain('Wrong GL account')
+    expect(t.body.data.lines[0].says).toMatch(/^Rejected by .*’s system: Wrong GL account$/)
+    expect(t.body.data.lines[0].next).toContain('AP')
     expect(JSON.stringify(t.body)).not.toMatch(/CC-M-9|6100|PC-M/)
 
     // Fixed: the receipt changed after the rejection. Now it goes again.
@@ -146,6 +147,19 @@ describe('the file is a message, as the client’s own AP seat', () => {
     expect(all.filter((m) => m.direction === 'OUT').map((m) => m.state).sort()).toEqual(['SENT', 'SUPERSEDED'])
     expect(new Set(all.map((m) => m.idempotencyKey)).size).toBe(all.length)
     expect((await get(run, '&again=1')).body.data.rows).toBe(0)
+  })
+
+  it('a rejected line is fixed by correcting the coding in place, with no new row added', async () => {
+    const run = await newRun()
+    as(PAYROLL)
+    const sent = await get(run, '&columns=etyme_row_id')
+    const rowId = rowIdOf(sent.body.data.csv)
+    await reply({ runId: run, csv: `etyme_row_id,status,reason\r\n${rowId},rejected,Wrong GL account\r\n` })
+    expect((await get(run, '&state=1')).body.data.lines[0].canSendAgain).toBe(false)
+    await new Promise((r) => setTimeout(r, 20))
+    await prisma.contractCostAllocation.updateMany({ where: { sellContractId: s.contract, costCenterId: s.cc }, data: { glAccount: '6200' } })
+    expect((await get(run, '&state=1')).body.data.lines[0].canSendAgain).toBe(true)
+    await prisma.contractCostAllocation.updateMany({ where: { sellContractId: s.contract, costCenterId: s.cc }, data: { glAccount: null } })
   })
 
   it('an answer row for another company’s receipt is refused and logged', async () => {
@@ -242,7 +256,7 @@ describe('a paid answer, through the one gate', () => {
     // The supplier reads it too.
     as(s.supplierSeat)
     const t = await json(await supplierState(req('GET', `/api/ap/receipts-file/state?bill=${s.bill}`)))
-    expect(t.body.data.lines[0].says).toMatch(/^Paid on .*BANK-77/)
+    expect(t.body.data.lines[0].says).toMatch(/^Paid on .*, ref BANK-77$/)
     await resetBill()
   })
 
@@ -266,5 +280,96 @@ describe('a paid answer, through the one gate', () => {
     const again = await reply({ runId: run, receipt: number, paidOn: today(), reference: 'CHQ-5' })
     expect(again.body.data.refused[0].says).toContain('already paid')
     await resetBill()
+  })
+})
+
+describe('the supplier reads its own bill’s lines, found by the number the client keyed', () => {
+  async function ownBill() {
+    const inv = await prisma.invoice.findFirst({
+      where: { engagement: { msa: { vendorId: s.payee, clientId: s.payer } }, status: { not: 'DRAFT' } },
+      select: { id: true, number: true },
+    })
+    return inv
+  }
+  it('the supplier reads that a line was sent, with the client’s name and the day, and never the client’s codes', async () => {
+    const inv = await ownBill()
+    expect(inv, 'a seeded bill from the supplier to the payer').not.toBeNull()
+    const was = (await prisma.vendorBill.findUniqueOrThrow({ where: { id: s.bill }, select: { number: true } })).number
+    await prisma.billFeedMessage.deleteMany({ where: { vendorBillId: s.bill } })
+    await prisma.vendorBill.update({ where: { id: s.bill }, data: { number: inv!.number } })
+    try {
+      as(s.supplierSeat)
+      const before = await json(await supplierState(req('GET', `/api/ap/receipts-file/state?invoice=${inv!.id}`)))
+      expect(before.status, JSON.stringify(before.body)).toBe(200)
+      expect(before.body.data.lines[0].says).toBe('Not sent yet')
+
+      const run = await newRun()
+      as(PAYROLL)
+      expect((await get(run)).status).toBe(200)
+      as(s.supplierSeat)
+      const sent = await json(await supplierState(req('GET', `/api/ap/receipts-file/state?invoice=${inv!.id}`)))
+      expect(sent.body.data.lines[0].says).toMatch(/^Sent to .+’s system on /)
+      expect(sent.body.data.lines[0].says).toContain(sent.body.data.client)
+      expect(JSON.stringify(sent.body)).not.toMatch(/CC-M-9|"glAccount"|PC-M|"companyCode"|"profitCenter"/)
+    } finally {
+      await prisma.vendorBill.update({ where: { id: s.bill }, data: { number: was } })
+    }
+  })
+  it('a bill the client has not keyed reads Not sent yet, and another firm’s bill is refused as missing', async () => {
+    const other = await prisma.invoice.findFirst({ where: { engagement: { msa: { vendorId: { not: s.payee } } } }, select: { id: true } })
+    expect(other).not.toBeNull()
+    as(s.supplierSeat)
+    const r = await json(await supplierState(req('GET', `/api/ap/receipts-file/state?invoice=${other!.id}`)))
+    expect(r.status).toBe(404)
+  })
+})
+
+describe('a seat in the client’s program records the answer under the client’s book, where the client’s role pays', () => {
+  const APTIVA = `world-aptiva${D}`
+  async function seatWith(roleId: string) {
+    const office = { id: (await prisma.context.findFirstOrThrow({ where: { person: { primaryEmail: APTIVA }, revokedAt: null }, select: { companyId: true } })).companyId! }
+    return prisma.programSeat.create({
+      data: { clientCompanyId: s.payer, officeCompanyId: office.id, roleId, grantedById: s.finance, reason: 'Runs the program for the payer' },
+      select: { id: true },
+    })
+  }
+  const roleOf = async (personId: string) => (await prisma.context.findFirstOrThrow({ where: { personId, companyId: s.payer, revokedAt: null }, select: { roleId: true } })).roleId!
+
+  it('an MSP seat whose client role records payments marks the receipt paid in the client’s book, once, and the record names the seat', async () => {
+    const seat = await seatWith(await roleOf(s.payroll))
+    try {
+      const run = await newRun()
+      as(APTIVA)
+      const number = (await prisma.vendorBill.findUniqueOrThrow({ where: { id: s.bill }, select: { number: true } })).number
+      const r = await json(await answer(req('POST', `/api/ap/receipts-file/answer?clientCompanyId=${s.payer}`, { runId: run, receipt: number, paidOn: today(), reference: 'SEAT-1' })))
+      expect(r.status, JSON.stringify(r.body)).toBe(200)
+      expect(r.body.data.paid, JSON.stringify(r.body)).toHaveLength(1)
+      const pay = await prisma.payment.findFirstOrThrow({ where: { vendorBillId: s.bill }, select: { payerCompanyId: true, appliedBy: { select: { name: true } } } })
+      expect(pay.payerCompanyId).toBe(s.payer)
+      const bill = await prisma.vendorBill.findUniqueOrThrow({ where: { id: s.bill }, select: { status: true } })
+      expect(bill.status).toBe('PAID')
+    } finally {
+      await prisma.payment.deleteMany({ where: { vendorBillId: s.bill } })
+      await prisma.vendorBill.update({ where: { id: s.bill }, data: { paidCents: 0, paidAt: null, status: s.billStatus } })
+      await prisma.programSeat.delete({ where: { id: seat.id } }).catch(() => {})
+    }
+  })
+
+  it('an MSP seat whose client role does not record payments is refused, logged, and nothing is paid', async () => {
+    expect(s.noPaySeat).not.toBeNull()
+    const noPay = await prisma.person.findFirstOrThrow({ where: { primaryEmail: s.noPaySeat }, select: { id: true } })
+    const seat = await seatWith(await roleOf(noPay.id))
+    try {
+      const run = await newRun()
+      as(APTIVA)
+      const before = await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: s.payer } })
+      const number = (await prisma.vendorBill.findUniqueOrThrow({ where: { id: s.bill }, select: { number: true } })).number
+      const r = await json(await answer(req('POST', `/api/ap/receipts-file/answer?clientCompanyId=${s.payer}`, { runId: run, receipt: number, paidOn: today(), reference: 'SEAT-2' })))
+      expect(r.status).toBe(403)
+      expect(await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: s.payer } })).toBeGreaterThan(before)
+      expect(await prisma.payment.count({ where: { vendorBillId: s.bill } })).toBe(0)
+    } finally {
+      await prisma.programSeat.delete({ where: { id: seat.id } }).catch(() => {})
+    }
   })
 })

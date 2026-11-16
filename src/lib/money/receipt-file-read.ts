@@ -54,6 +54,7 @@ const CONTRACT_SELECT = {
       shareBps: true,
       glAccount: true,
       createdAt: true,
+      updatedAt: true,
       internalOrder: { select: { code: true, kind: true } },
       costCenter: { select: { id: true, code: true, glAccount: true, companyId: true, profitCenter: true } },
     },
@@ -67,6 +68,7 @@ type ContractRead = {
     shareBps: number
     glAccount: string | null
     createdAt: Date
+    updatedAt: Date
     internalOrder: { code: string; kind: string | null } | null
     costCenter: { id: string; code: string; glAccount: string | null; companyId: string; profitCenter: string | null }
   }[]
@@ -228,9 +230,9 @@ export async function loadRunReceipts(
         amountCents: l.amountCents,
         shares: sharesOf(candidates, companyId),
         poLine: poLineNumber(b.workOrder?.buyContracts ?? [], b.buyContractId),
-        // A line is fixed when its receipt changes or a code is added to a contract it bills.
+        // A line is fixed when its receipt changes, or a code is added to, or changed on, a contract it bills.
         fixedAt: candidates
-          .flatMap((c) => c.costAllocations.map((a) => a.createdAt))
+          .flatMap((c) => c.costAllocations.map((a) => (a.updatedAt > a.createdAt ? a.updatedAt : a.createdAt)))
           .reduce<Date>((d, x) => (x > d ? x : d), b.updatedAt),
       }
     })

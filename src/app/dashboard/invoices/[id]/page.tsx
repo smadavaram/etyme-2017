@@ -8,6 +8,7 @@ import { amount } from '@/lib/money-display'
 import { CHECK_NAME, type MatchCode } from '@/lib/three-way-match'
 import { plainDate, daySpan } from '@/lib/plain-date'
 import { InvoiceMoney } from '../invoice-money'
+import { BillLineStates } from '../bill-line-states'
 import { SaidField, SaidYes, refusalFrom } from '../said-field'
 import { askSupplierBody } from '../ask-body'
 import { Chip, DetailHead, EmptyState, ErrorState, Lbl, LoadingState, RefusedState } from '@/components/ui'
@@ -546,6 +547,10 @@ export default function InvoiceDetail() {
           )}
         </div>
       )}
+
+      {/* What the customer's own system said about each line: drawn only for the
+          firm that sent the bill, at its own books, where the state route answers. */}
+      {inv.direction === 'RECEIVABLE' && inv.status !== 'DRAFT' && !readingInASeat && <BillLineStates invoiceId={id} />}
 
       {/* Who worked, on what, and whether it matches — one line, before the checks. */}
       {data.receipt && (
