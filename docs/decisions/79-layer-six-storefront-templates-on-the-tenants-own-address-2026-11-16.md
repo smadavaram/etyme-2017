@@ -117,3 +117,40 @@ Tapin, in the live page's own words, drawn from the record and
 photographed at phone width. The founder looks at it. Only then is it
 built, by etyme-market for the pages and etyme-supply for the bench
 cards. It ships as its own deploy and is retested on Tapin.
+
+### Branding: a template is a layout, never a look — 2026-11-16
+
+The founder's instruction covers Layer 6 and the Layer 8 storefronts.
+
+- **Every tenant page renders in the tenant's own branding**, stored on
+  the tenant's record as settings: the logo, the primary and secondary
+  colors, and the font pairing. Branding is never hard-coded into a
+  template.
+- **Etyme's own branding is never forced onto a tenant's storefront.** At
+  most a small "Runs on Etyme" line appears.
+- **A tenant gets its branding in one of two ways.**
+  1. *Adopt what exists.* The Owner uploads the logo and confirms the
+     colors. Etyme offers to read the colors from the logo, or from the
+     company's own website when the Owner asks. The template renders in
+     those colors.
+
+     The test case is Tapin. Its branding is the ink-navy and teal of its
+     Nov 14 home page draft, not Etyme's purple.
+  2. *Create.* For an Owner who has no branding, or who asks Etyme to make
+     it:
+     - Etyme generates a small brand kit (a wordmark, a color palette and
+       a font pairing) from a short choice by the Owner.
+     - Etyme previews it on the chosen template.
+     - The kit is published only on the Owner's explicit yes. Until then
+       the page uses a neutral default.
+- **Rules.**
+  - Branding lives in tenant settings.
+  - Changing the branding never touches the tenant's data or its
+    template choice.
+  - Switching templates keeps the branding.
+  - When an Owner's colors fail the contrast and accessibility checks,
+    the Owner is warned. Etyme never changes the colors silently.
+
+**Answers that bear on Layer 6** (record 80, question 8): the chat doors
+Microsoft Teams, Google Chat and WhatsApp stay named on storefronts. They
+are entry doors the tenant offers.

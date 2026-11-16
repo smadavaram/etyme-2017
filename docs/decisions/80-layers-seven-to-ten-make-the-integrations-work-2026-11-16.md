@@ -182,3 +182,44 @@ people want DocuSign for paperwork — or similar apps like that."*
 Nothing in this update answers them. Where the spec's own words bear on
 one (the client sign-in rule and question 1), the question still stands
 until he answers it. His two pay decisions remain untouched.
+
+### The founder's answers to the eight questions — 2026-11-16
+
+1. **Client sign-in (Layer 7). Yes.**
+   - A client company must use its own directory where it has one.
+   - A small client with no directory gets invitation-only access, scoped
+     to its own view.
+   - No client gets a password or magic-link back door.
+2. **Upload scanning (Layer 7). Yes, one outside scanning service.** It is
+   named in Settings, and each use of it is written to the ledger.
+3. **The second check before approving money (Layer 7).**
+   - A passkey first, with an authenticator app as the fallback.
+   - It applies to approvals that move money and to changes of bank
+     details.
+4. **Jobs to the professional network and the job board (Layer 8). Yes,
+   scoped.**
+   - Only replies to Etyme's own job postings come back.
+   - They land as candidate records, with consent.
+   - No other data from that network is used.
+5. **The 1,500-notification cap (Layer 8). It warns for now.**
+   - The count is visible, and a warning shows at the cap.
+   - Nothing is blocked.
+   - The "upgrade" gate waits until a price exists. Free while testing
+     governs until then.
+6. **Hours from timesheet apps (Layer 10).**
+   - They arrive as a draft week that the worker confirms.
+   - Her confirmation is her filing, so "only the worker files hours"
+     holds.
+7. **Invoices without a PO (Layer 9).**
+   - They pass the same single payment gate as every other invoice. There
+     is no second, weaker path.
+   - The approval before that gate is the engagement owner's, made
+     against the approved timesheets.
+8. **Naming outside systems. Confirmed, with one carve-out.**
+   - Accounting, ERP and operations systems are named only as labels on a
+     setting a customer picks, never on a public page.
+   - The chat doors (Microsoft Teams, Google Chat, WhatsApp) stay named on
+     storefronts. They are entry doors the tenant offers, not claims of
+     an integration.
+
+The founder's two pay decisions stay untouched.

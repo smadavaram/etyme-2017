@@ -263,7 +263,8 @@ company admin. The OAuth tenant is the authority — replaces the 2017
 **LinkedIn** is a sign-in door for candidates only, since 2026-11-12 (see "The
 sign-in page leads with the account buttons"). The button says "Candidates
 only". A seat at a company never signs in with it. The profile URL stays a
-field. No other LinkedIn data is used.
+field. No other LinkedIn data is used, except replies to Etyme's own job
+postings, which land as candidate records with consent (→ 80).
 
 **The table is the default.** A company also chooses directory-only,
 invitation-only or hybrid sign-in, and a small firm or a worker may use
@@ -459,6 +460,18 @@ Full text → 40, 11, 56, 68, 72.
   duplicate is never posted twice, and anything short of that is labeled
   as what it is, never "connected". Signing goes through the client's own
   e-signature app; Etyme builds none.
+- **The founder's eight answers** (→ 80): a client uses its own directory
+  where it has one, else invitation only; one named scanning service;
+  passkey first, authenticator app as fallback, for money and bank acts;
+  only replies to Etyme's own postings come back from a job network, with
+  consent; the notification cap warns and never blocks; hours from an
+  app are a draft week she confirms; an invoice without a PO passes the
+  same one gate, approved first by the engagement owner; outside systems
+  are labels on a setting, while the chat doors stay named on storefronts.
+- **A template is a layout, never a look** (→ 79). A storefront renders in
+  the tenant's own branding, kept as tenant settings, adopted or created
+  on the Owner's yes; Etyme's own brand is at most "Runs on Etyme". Colors
+  that fail contrast are warned about, never changed.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
