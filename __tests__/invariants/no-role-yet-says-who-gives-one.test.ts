@@ -86,7 +86,7 @@ describe('only a live seat that may give roles is ever named', () => {
     id: `c-${id}`, personId: `p-${id}`, type: 'EMPLOYEE', roleId: `r-${role}`, orgUnitId: null, grantedAt: dayAgo,
     invitedAt: null, lastUsedAt: dayAgo, suspendedAt: null, revokedAt: null, expiresAt,
     role: { name: role, permissions },
-    person: { name, primaryEmail: `${id}@harborline-tech.example`, credentials: [{ id: `k-${id}` }] },
+    person: { name, primaryEmail: `${id}@harborline-tech.example` },
   })
   const asTheReaderSays = (rows: ReturnType<typeof row>[]): GiverSeat[] =>
     seatsFrom(rows, 'Harborline Tech', now).map((s) => ({ ...s, mayGive: canGiveDesks(rows.find((r) => r.id === s.contextId)!.role.permissions) }))

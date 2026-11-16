@@ -17,14 +17,14 @@ import { regionDoor, REGION_UNIT_KIND } from '@/lib/region-scope'
 import { pageNameOf, HAT_COOKIE, readHatCookie, type CompanyKind } from '@/lib/nav-table'
 import { invoiceBetween } from '@/lib/money/invoice-parties'
 import { seatFor } from '@/lib/program-seat'
-import { recordRefusal } from '@/lib/access-log'
+import { recordRefusal, signedInHere } from '@/lib/access-log'
 import { ownSeatFor, ownWorkOf, ownSeatWasRemoved, openOwnSeat } from '@/lib/own-seat'
 import {
   seatRefusal, linkedInSeatRefusal, effectiveMode, isLimitedPublicSeat, narrowForPublicSeat, publicSeatRefusal, needsWithheld, directoryTurnedOffSays, DIRECTORY_SUSPEND_REASON,
   type CompanyPolicy, type Door, type SignInMode,
 } from '@/lib/identity/policy'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
-import { pausedSays, hasSignedIn } from '@/lib/access-grant'
+import { pausedSays, seatHasSignedIn } from '@/lib/access-grant'
 import { seatByDate, pastEndDate, endedByDateSays, MANAGES_ACCESS, type ByDate } from '@/lib/account-lifecycle'
 import { OWNER_ROLE } from '@/lib/owner-rules'
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
@@ -568,6 +568,13 @@ async function sampleCaller(
  * reads the company's seats that may manage access, once, on this rare
  * path, so the Owner's seat and the last one that may manage access stay
  * open (`seatByDate`).
+ *
+ * Another manager counts as able to rescue the firm only once she signed
+ * in here (`seatHasSignedIn` over `signedInHere`, 2026-11-16), as Users &
+ * permissions reads it; her account at another firm never counts. The
+ * change can only keep a seat open that the old reading ended, never end
+ * one it kept, so nobody is locked out by it. The caller's own seat is
+ * read as signed in: she is using it.
  */
 async function seatOpenByDate(
   seat: { id: string; companyId: string | null; expiresAt: Date | null; revokedAt: Date | null; suspendedAt: Date | null; invitedAt: Date | null; lastUsedAt: Date | null; role: { name: string; permissions: unknown } | null },
@@ -582,12 +589,15 @@ async function seatOpenByDate(
         },
         select: {
           id: true, companyId: true, expiresAt: true, revokedAt: true, suspendedAt: true, invitedAt: true, lastUsedAt: true,
+          personId: true,
           role: { select: { name: true, permissions: true } },
-          person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
         },
       })
     : []
-  const dated = (r: { id: string; companyId: string | null; expiresAt: Date | null; revokedAt: Date | null; suspendedAt: Date | null; invitedAt: Date | null; lastUsedAt: Date | null; role: { name: string; permissions: unknown } | null }, everSignedIn: boolean) => ({
+  const here = seat.companyId
+    ? await signedInHere(seat.companyId, managers.filter((m) => m.invitedAt !== null && m.lastUsedAt === null).map((m) => m.personId))
+    : new Set<string>()
+  const dated = (r: { id: string; companyId: string | null; expiresAt: Date | null; revokedAt: Date | null; suspendedAt: Date | null; invitedAt: Date | null; lastUsedAt: Date | null; role: { name: string; permissions: unknown } | null }, signedIn: boolean) => ({
     contextId: r.id,
     companyId: r.companyId,
     expiresAt: r.expiresAt,
@@ -595,11 +605,11 @@ async function seatOpenByDate(
     rolePermissions: (r.role?.permissions as string[] | undefined) ?? [],
     revokedAt: r.revokedAt,
     suspendedAt: r.suspendedAt,
-    hasSignedIn: hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn }),
+    hasSignedIn: signedIn,
   })
   return seatByDate(
     dated(seat, true),
-    managers.map((m) => dated(m, m.person.credentials.length > 0)),
+    managers.map((m) => dated(m, seatHasSignedIn({ invitedAt: m.invitedAt, lastUsedAt: m.lastUsedAt, signedInHere: here.has(m.personId) }))),
     now
   )
 }

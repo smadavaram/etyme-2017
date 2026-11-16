@@ -127,7 +127,7 @@ describe('when a colleague joins on the company domain', () => {
       id: `c-${id}`, personId: id, type: 'EMPLOYEE', roleId: `r-${role}`, orgUnitId: null, grantedAt: dayAgo,
       invitedAt: null, lastUsedAt: dayAgo, suspendedAt: extra.suspendedAt ?? null, revokedAt: null, expiresAt: extra.expiresAt ?? null,
       role: { name: role, permissions: role === 'Member' ? [] : ['*'] },
-      person: { name: id, primaryEmail: `${id}@northwind-staffing.example`, credentials: [{ id: `k-${id}` }] },
+      person: { name: id, primaryEmail: `${id}@northwind-staffing.example` },
     })
     const told = (rows: ReturnType<typeof row>[]) => whoHearsAJoin(seatsFrom(rows, 'Northwind Staffing', now), 'priya')
 

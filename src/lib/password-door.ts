@@ -43,6 +43,7 @@ import { ACCOUNT_MAIL, recordedBody, type AccountMailState } from '@/lib/notify/
 import { linkWithStaff } from '@/lib/password-words'
 import { personNameFor } from '@/lib/company-seats'
 import { emit } from '@/lib/events'
+import { hasEverCameIn } from '@/lib/notify/came-in'
 import { emailSender } from '@/lib/senders'
 import { sendEmailNow } from '@/lib/notify/send-now'
 import { appUrl } from '@/lib/supplier-link'
@@ -304,11 +305,18 @@ async function tellAlreadyHere(person: Standing): Promise<void> {
 }
 
 /**
- * A person a firm put on the record, who never set a password, never
- * signed in and never confirmed the address. For them sign-up is the
- * first sign-up, not a second one.
+ * A person a firm put on the record, whose record nobody has ever used by
+ * any door. For them sign-up is the first sign-up, not a second one.
+ *
+ * Read through the one predicate the firm's sign-in link reads
+ * (`hasEverCameIn` in lib/notify/came-in, 2026-11-16), so a firm-made
+ * record and a used one are told apart by one rule. It read only the
+ * password, a sign-in method and a confirmed address, so somebody who had
+ * answered a bench invitation or used a seat, and never set a password,
+ * could choose a password by signing up. Now she is told she has an
+ * account and given the reset link, which goes to her own mailbox.
  */
-const firmMade = (p: Standing) => p.passwordHash === null && p.credentials.length === 0 && p.emailVerifiedAt === null
+const firmMade = async (p: Standing): Promise<boolean> => !(await hasEverCameIn(p.id))
 
 /** The firm that put a person on the record: the firm on their seat, else the newest bench that lists them. */
 async function firmThatAdded(personId: string): Promise<string | null> {
@@ -350,7 +358,6 @@ async function standing(email: string) {
     select: {
       id: true, primaryEmail: true, passwordHash: true, emailVerifiedAt: true,
       contexts: { where: { revokedAt: null }, select: { id: true }, take: 1 },
-      credentials: { select: { id: true }, take: 1 },
     },
   })
 }
@@ -382,7 +389,7 @@ async function begin(email: string, name: string, pending: Pending, typed?: stri
       await sendVerify(existing, pending, soloFromCandidate(pending.name!, existing.passwordHash !== null))
       return { ok: true, says: toldWhere(email) }
     }
-    if (firmMade(existing)) {
+    if (await firmMade(existing)) {
       await sendVerify(existing, pending, firmAddedYou(await firmThatAdded(existing.id)))
       return { ok: true, says: toldWhere(email) }
     }

@@ -653,7 +653,7 @@ describe('Program team counts who has a seat the way Users & permissions does', 
       id, personId: `p-${id}`, type: 'EMPLOYEE', roleId: role ? `r-${id}` : null, orgUnitId: null, grantedAt: at,
       invitedAt: at, lastUsedAt: signedIn ? at : null, suspendedAt: null, revokedAt: null,
       role: role ? { name: role } : null,
-      person: { name, primaryEmail: email, credentials: signedIn ? [{ id: `c-${id}` }] : [] },
+      person: { name, primaryEmail: email },
     })
     const seats = peopleOf(seatsFrom([
       row('1', 'Sharath', 'sharath@tapin.example', 'Owner', true),

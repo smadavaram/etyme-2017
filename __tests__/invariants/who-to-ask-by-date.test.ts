@@ -37,7 +37,7 @@ function row(id: string, role: typeof OWNER, expiresAt: Date | null, email: stri
     id, personId: `p-${id}`, type: 'EMPLOYEE', roleId: role.id, orgUnitId: null, grantedAt: new Date(0),
     invitedAt: null, lastUsedAt: new Date(0), suspendedAt: null, revokedAt: null, expiresAt,
     role: { name: role.name, permissions: role.permissions },
-    person: { name: email.split('@')[0], primaryEmail: email, credentials: [{ id: `cred-${id}` }] },
+    person: { name: email.split('@')[0], primaryEmail: email },
   }
 }
 

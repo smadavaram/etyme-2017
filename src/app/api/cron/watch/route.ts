@@ -28,7 +28,8 @@ import {
   isCredential,
 } from '@/lib/credential-chase'
 import { sweepExpired } from '@/lib/holds'
-import { hasSignedIn } from '@/lib/access-grant'
+import { seatHasSignedIn } from '@/lib/access-grant'
+import { signedInHere } from '@/lib/access-log'
 
 /**
  * GET /api/cron/watch
@@ -262,21 +263,28 @@ async function lookAtAccess(now: Date): Promise<Finding[]> {
   const rows = await prisma.context.findMany({
     where: { revokedAt: null, companyId: { not: null } },
     // What the end-date rule reads (`seatByDate`): the role's permissions,
-    // whether the seat is paused, and whether its person ever signed in.
+    // whether the seat is paused, and whether its person signed in here.
     // Without them the last seat that may manage access is never found, so
     // a sole Admin kept open past its date was reported as "lost access".
     select: {
-      id: true, companyId: true, expiresAt: true, lastUsedAt: true, grantedAt: true,
+      id: true, companyId: true, personId: true, expiresAt: true, lastUsedAt: true, grantedAt: true,
       suspendedAt: true, invitedAt: true,
-      person: {
-        select: {
-          name: true,
-          credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
-        },
-      },
+      person: { select: { name: true } },
       role: { select: { name: true, permissions: true } },
     },
   })
+
+  // Signed in is this firm's own record, never her account elsewhere
+  // (2026-11-16), as the caller check and Users & permissions read it. The
+  // end-date rule reads it only at a company with a seat that has an end
+  // date, and only an invited seat with no use date needs asking.
+  const dated = new Set(rows.filter((c) => c.expiresAt !== null).map((c) => c.companyId!))
+  const toAsk = new Map<string, string[]>()
+  for (const c of rows) {
+    if (!dated.has(c.companyId!) || c.invitedAt === null || c.lastUsedAt !== null) continue
+    toAsk.set(c.companyId!, [...(toAsk.get(c.companyId!) ?? []), c.personId])
+  }
+  const here = new Map(await Promise.all([...toAsk].map(async ([companyId, ids]) => [companyId, await signedInHere(companyId, ids)] as const)))
 
   return watchAccess(
     rows.map((c) => ({
@@ -289,7 +297,7 @@ async function lookAtAccess(now: Date): Promise<Finding[]> {
       grantedAt: c.grantedAt,
       rolePermissions: c.role?.permissions ?? [],
       suspendedAt: c.suspendedAt,
-      hasSignedIn: hasSignedIn({ invitedAt: c.invitedAt, lastUsedAt: c.lastUsedAt, everSignedIn: c.person.credentials.length > 0 }),
+      hasSignedIn: seatHasSignedIn({ invitedAt: c.invitedAt, lastUsedAt: c.lastUsedAt, signedInHere: here.get(c.companyId!)?.has(c.personId) ?? false }),
     })),
     now
   )

@@ -172,7 +172,7 @@ describe('Compliance never names a seat whose access has ended as the one who ac
     id, personId: `p-${id}`, type: 'EMPLOYEE', roleId: `r-${roleName}`, orgUnitId: null,
     grantedAt: days(-90), invitedAt: null, lastUsedAt: null, suspendedAt: null, revokedAt: null, expiresAt,
     role: { name: roleName, permissions: roleName === 'Owner' ? ['*'] : roleName === 'Admin' ? ADMIN : ['assignments.write'] },
-    person: { name: `Person ${id}`, primaryEmail: `${id}@northwind-staffing.example`, credentials: [{ id: 'k' }] },
+    person: { name: `Person ${id}`, primaryEmail: `${id}@northwind-staffing.example` },
   })
 
   it('the roles Compliance names are read from the live seats, and a seat past its end date is not one of them', () => {

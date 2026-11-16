@@ -42,9 +42,12 @@ describe('the sentence a grant is confirmed in', () => {
       .toBe('Pat Kim may read margin for the whole company once they sign in.')
   })
 
-  it('the grants route asks whether the person has signed in by the rule the WHO list reads, and words the answer through the one sentence', () => {
+  it('the grants route asks whether the person has signed in at this firm by the rule the WHO list reads, never a sign-in elsewhere, and words the answer through the one sentence', () => {
     const route = read('src/app/api/settings/grants/route.ts')
-    expect(route).toContain('hasSignedIn({ invitedAt: seat.invitedAt, lastUsedAt: seat.lastUsedAt, everSignedIn: seat.person.credentials.length > 0 })')
+    expect(route).toContain('await signedInHere(companyId, [seat.personId])')
+    expect(route).toContain('seatHasSignedIn({ invitedAt: seat.invitedAt, lastUsedAt: seat.lastUsedAt, signedInHere: here.has(seat.personId) })')
+    expect(route).not.toMatch(/credentials/)
+    expect(route).not.toMatch(/\bhasSignedIn\(/)
     expect(route).toContain('const said = grantSaid(')
     expect(route).not.toMatch(/may now \$\{labelOf/)
   })

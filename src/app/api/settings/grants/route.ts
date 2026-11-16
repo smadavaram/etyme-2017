@@ -22,7 +22,8 @@ import {
 } from '@/lib/permission-grants'
 import { SCOPE_LABELS } from '@/lib/permission-grants/words'
 import { grantSaid } from './says'
-import { hasSignedIn } from '@/lib/access-grant'
+import { seatHasSignedIn } from '@/lib/access-grant'
+import { signedInHere } from '@/lib/access-log'
 
 /**
  * GET    /api/settings/grants      — the grants at this company, and what the dialog offers
@@ -207,15 +208,18 @@ export async function POST(request: NextRequest) {
     const seat = await prisma.context.findFirst({
       where: { id: contextId, companyId, revokedAt: null },
       select: {
-        id: true, roleId: true, invitedAt: true, lastUsedAt: true,
-        person: { select: { name: true, primaryEmail: true, credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
+        id: true, personId: true, roleId: true, invitedAt: true, lastUsedAt: true,
+        person: { select: { name: true, primaryEmail: true } },
         role: { select: { name: true, permissions: true } },
       },
     })
     if (seat) {
       holder = { kind: 'PERSON', name: seat.person.name }
-      // The same rule the WHO list reads for "· invited" (lib/company-seats).
-      if (!hasSignedIn({ invitedAt: seat.invitedAt, lastUsedAt: seat.lastUsedAt, everSignedIn: seat.person.credentials.length > 0 })) {
+      // The same rule the WHO list reads for "· invited" (lib/company-seats):
+      // signed in at this firm, never her account elsewhere (2026-11-16), so
+      // the sentence never tells the firm the address has an account.
+      const here = seat.invitedAt !== null && seat.lastUsedAt === null ? await signedInHere(companyId, [seat.personId]) : new Set<string>()
+      if (!seatHasSignedIn({ invitedAt: seat.invitedAt, lastUsedAt: seat.lastUsedAt, signedInHere: here.has(seat.personId) })) {
         invited = { as: seat.person.primaryEmail }
       }
       const set = effectivePermissions(seat.role?.permissions ?? [], { companyId, roleId: seat.roleId, contextId: seat.id }, all)

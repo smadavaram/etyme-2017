@@ -138,7 +138,7 @@ describe('the one seat reader ends a seat past its date', () => {
     personId: `p-${o.id}`, type: 'EMPLOYEE', roleId: 'r-recruiter', orgUnitId: null, grantedAt: day,
     invitedAt: null, lastUsedAt: day, suspendedAt: null, revokedAt: null, expiresAt: null,
     role: { name: 'Recruiter', permissions: RECRUITER },
-    person: { name: `Person ${o.id}`, primaryEmail: `${o.id}@northwind-staffing.example`, credentials: [{ id: 'c' }] },
+    person: { name: `Person ${o.id}`, primaryEmail: `${o.id}@northwind-staffing.example` },
     ...o,
   })
 

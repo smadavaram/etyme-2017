@@ -8,7 +8,7 @@
  * and nobody could say which number was right.
  *
  * This reads each live seat once, with what it is:
- *  - its state: INVITED (never signed in), WAITING_FOR_ROLE (signed in,
+ *  - its state: INVITED (never signed in here), WAITING_FOR_ROLE (signed in,
  *    and nobody has given them a role yet), WITH_ACCESS (signed in with a
  *    role), or PAUSED. Users & permissions lists a seat with no role under
  *    "Waiting for access" (`seatPlace` in lib/access-grant), so it is never
@@ -25,9 +25,19 @@
  * Scoped to one company: the query names `companyId`, never a person, so a
  * person with seats at two companies is counted once at each and never
  * shows in the other's list.
+ *
+ * Signed in means signed in at this firm (2026-11-16), read the way Users
+ * & permissions reads it: `seatHasSignedIn` over this firm's own record
+ * (`signedInHere` in lib/access-log), never her account anywhere else. It
+ * read "any sign-in anywhere on Etyme", so a seat invited at an address
+ * that already signs in at another firm counted as with access on
+ * Settings, Team structure, setup, Compliance and the Give access picker
+ * while Users & permissions said Invited, and those screens told the firm
+ * the address has an account elsewhere.
  */
 import { prisma } from '@/lib/db'
-import { hasSignedIn } from '@/lib/access-grant'
+import { seatHasSignedIn } from '@/lib/access-grant'
+import { signedInHere } from '@/lib/access-log'
 import { stateOf, seatByDate, type DatedSeat } from '@/lib/account-lifecycle'
 import { OWNER_ROLE } from '@/lib/owner-rules'
 import { isSamplePerson } from '@/lib/sample-seat'
@@ -152,7 +162,7 @@ export function seatStateOf(s: { revokedAt: Date | null; suspendedAt: Date | nul
 }
 
 /** Every live seat at one company, once each, oldest first. */
-export async function readCompanySeats(companyId: string, db: Pick<typeof prisma, 'company' | 'context'> = prisma): Promise<CompanySeat[]> {
+export async function readCompanySeats(companyId: string, db: Pick<typeof prisma, 'company' | 'context' | 'accessLog'> = prisma): Promise<CompanySeat[]> {
   const [company, rows] = await Promise.all([
     db.company.findUnique({ where: { id: companyId }, select: { name: true } }),
     db.context.findMany({
@@ -161,19 +171,17 @@ export async function readCompanySeats(companyId: string, db: Pick<typeof prisma
         id: true, personId: true, type: true, roleId: true, orgUnitId: true, grantedAt: true,
         invitedAt: true, lastUsedAt: true, suspendedAt: true, revokedAt: true, expiresAt: true,
         role: { select: { name: true, permissions: true } },
-        person: {
-          select: {
-            name: true, primaryEmail: true,
-            // Any sign-in anywhere on Etyme, as Users & permissions reads it.
-            credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
-          },
-        },
+        person: { select: { name: true, primaryEmail: true } },
       },
       orderBy: { grantedAt: 'asc' },
       take: 5000,
     }),
   ])
-  return seatsFrom(rows, company?.name ?? null)
+  // Whether each invited person came in at this firm: its own record, never
+  // her account elsewhere. A seat nobody invited was made by a sign-in, and
+  // a seat with a use date was used, so only the rest are asked about.
+  const here = await signedInHere(companyId, rows.filter((r) => r.invitedAt !== null && r.lastUsedAt === null).map((r) => r.personId), db)
+  return seatsFrom(rows.map((r) => ({ ...r, signedInHere: here.has(r.personId) })), company?.name ?? null)
 }
 
 type Row = {
@@ -182,7 +190,13 @@ type Row = {
   /** The seat's end date. Absent reads as none. */
   expiresAt?: Date | null
   role: { name: string; permissions?: string[] } | null
-  person: { name: string; primaryEmail: string | null; credentials: { id: string }[] }
+  person: { name: string; primaryEmail: string | null }
+  /**
+   * Whether her person did anything at this firm as herself
+   * (`signedInHere` in lib/access-log). Absent reads as no: an invited
+   * seat with no use date then reads Invited.
+   */
+  signedInHere?: boolean
 }
 
 /**
@@ -194,6 +208,8 @@ type Row = {
  */
 export function seatsFrom(rows: readonly Row[], companyName: string | null, now: Date = new Date()): CompanySeat[] {
   const out: CompanySeat[] = []
+  // Signed in at this firm, as Users & permissions reads it (`seatHasSignedIn`).
+  const signedIn = (r: Row) => seatHasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, signedInHere: r.signedInHere === true })
   const dated = (r: Row): DatedSeat => ({
     contextId: r.id,
     // Every row is this one company's, so one shared mark stands for it.
@@ -203,7 +219,7 @@ export function seatsFrom(rows: readonly Row[], companyName: string | null, now:
     rolePermissions: r.role?.permissions ?? [],
     revokedAt: r.revokedAt,
     suspendedAt: r.suspendedAt,
-    hasSignedIn: hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn: r.person.credentials.length > 0 }),
+    hasSignedIn: signedIn(r),
   })
   const all = rows.map(dated)
   for (const r of rows) {
@@ -211,7 +227,7 @@ export function seatsFrom(rows: readonly Row[], companyName: string | null, now:
     if (!byDate.open) continue
     const state = seatStateOf({
       revokedAt: r.revokedAt, suspendedAt: r.suspendedAt,
-      signedIn: hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn: r.person.credentials.length > 0 }),
+      signedIn: signedIn(r),
       hasRole: Boolean(r.role?.name),
     })
     if (!state) continue

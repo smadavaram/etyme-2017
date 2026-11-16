@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  seatsFrom, peopleOf, countSeats, countsByRole, countWords, roleHeldWords, peopleWords, personNameFor, teammatesOf, isSharedSignIn,
+  seatsFrom, peopleOf, countSeats, countsByRole, countWords, roleHeldWords, peopleWords, personNameFor, teammatesOf, isSharedSignIn, seatStateOf,
 } from '@/lib/company-seats'
 import { roleCanDo } from '@/lib/company-roles'
 import { PERMISSIONS } from '@/lib/permissions'
 import { planBootstrap } from '@/lib/staff-bootstrap'
+import { seatHasSignedIn } from '@/lib/access-grant'
 
 /**
  * One reader of a company's seats, and what a role can do, counted one way
@@ -24,12 +25,12 @@ function row(o: Partial<Row> & { id: string }): Row {
     personId: `p-${o.id}`, type: 'EMPLOYEE', roleId: 'r-admin', orgUnitId: null, grantedAt: day,
     invitedAt: null, lastUsedAt: day, suspendedAt: null, revokedAt: null,
     role: { name: 'Admin' },
-    person: { name: `Person ${o.id}`, primaryEmail: `${o.id}@tapin.example`, credentials: [{ id: 'c' }] },
+    person: { name: `Person ${o.id}`, primaryEmail: `${o.id}@tapin.example` },
     ...o,
   }
 }
 const invited = (id: string, extra: Partial<Row> = {}) =>
-  row({ id, invitedAt: day, lastUsedAt: null, person: { name: `Person ${id}`, primaryEmail: `${id}@gmail.com`, credentials: [] }, ...extra })
+  row({ id, invitedAt: day, lastUsedAt: null, person: { name: `Person ${id}`, primaryEmail: `${id}@gmail.com` }, ...extra })
 
 describe('one reader counts a company’s people the same way on every screen', () => {
   it('a person invited who never signed in is counted as invited, never as having access', () => {
@@ -68,12 +69,12 @@ describe('one reader counts a company’s people the same way on every screen', 
   })
 
   it('the shared sample seat of the home page is never counted among a company’s people', () => {
-    const sample = row({ id: 's', person: { name: 'Shared sample', primaryEmail: 'world-nike-sample@demo.etyme.local', credentials: [{ id: 'c' }] } })
+    const sample = row({ id: 's', person: { name: 'Shared sample', primaryEmail: 'world-nike-sample@demo.etyme.local' } })
     expect(peopleOf(seatsFrom([row({ id: 'a' }), sample], 'Northbend Athletic'))).toHaveLength(1)
   })
 
   it('a person is never given the company’s name: a seat named after the company reads as the name part of its address', () => {
-    const seats = seatsFrom([row({ id: 'a', person: { name: 'Tapin', primaryEmail: 'sharath.m@etyme.com', credentials: [{ id: 'c' }] } })], 'Tapin')
+    const seats = seatsFrom([row({ id: 'a', person: { name: 'Tapin', primaryEmail: 'sharath.m@etyme.com' } })], 'Tapin')
     expect(seats[0].name).toBe('Sharath M')
     expect(personNameFor('TAPIN ', 'oliver@etyme.com', 'Tapin')).toBe('Oliver')
     expect(personNameFor('', 'hr.admin@etyme.com', 'Tapin')).toBe('Hr Admin')
@@ -92,7 +93,7 @@ describe('one reader counts a company’s people the same way on every screen', 
   it('timesheets at the company’s own address is a shared sign-in, shown by its address and never as a person called Timesheets', () => {
     expect(isSharedSignIn('timesheets@etyme.com')).toBe(true)
     expect(isSharedSignIn('Support@Tapin.example')).toBe(true)
-    const [s] = seatsFrom([row({ id: 'a', role: { name: 'AP & Payroll' }, person: { name: 'Timesheets', primaryEmail: 'timesheets@etyme.com', credentials: [] } })], 'Tapin')
+    const [s] = seatsFrom([row({ id: 'a', role: { name: 'AP & Payroll' }, person: { name: 'Timesheets', primaryEmail: 'timesheets@etyme.com' } })], 'Tapin')
     expect(s.shared).toBe(true)
     expect(s.name).toBe('timesheets@etyme.com')
     expect(personNameFor('Hradmin', 'hradmin@etyme.com', 'Tapin')).toBe('hradmin@etyme.com')
@@ -102,7 +103,7 @@ describe('one reader counts a company’s people the same way on every screen', 
 
   it('oliver at the company is Oliver and never a shared sign-in, even where his name matches his address', () => {
     expect(isSharedSignIn('oliver@etyme.com')).toBe(false)
-    const [s] = seatsFrom([row({ id: 'a', person: { name: 'Oliver', primaryEmail: 'oliver@etyme.com', credentials: [{ id: 'c' }] } })], 'Tapin')
+    const [s] = seatsFrom([row({ id: 'a', person: { name: 'Oliver', primaryEmail: 'oliver@etyme.com' } })], 'Tapin')
     expect(s.shared).toBe(false)
     expect(s.name).toBe('Oliver')
   })
@@ -119,7 +120,7 @@ describe('one reader counts a company’s people the same way on every screen', 
   })
 
   it('a shared sign-in is still listed and counted exactly as before: invited, waiting, with access or paused', () => {
-    const shared = (id: string, o: Partial<Row> = {}) => row({ id, person: { name: '', primaryEmail: `${id}@tapin.example`, credentials: [] }, invitedAt: day, lastUsedAt: null, ...o })
+    const shared = (id: string, o: Partial<Row> = {}) => row({ id, person: { name: '', primaryEmail: `${id}@tapin.example` }, invitedAt: day, lastUsedAt: null, ...o })
     const seats = seatsFrom([row({ id: 'owner' }), shared('timesheets'), shared('support', { suspendedAt: day })], 'Tapin')
     expect(seats.filter((s) => s.shared)).toHaveLength(2)
     expect(peopleOf(seats)).toHaveLength(3)
@@ -261,5 +262,86 @@ describe('what a role can do is counted against the whole catalog, for display o
     expect(src).toContain('permissionCount: roleCanDo(r).count,')
     expect(src).toContain('permissions: roleCanDo(r).words,')
     expect(src).not.toContain('permissionCount: r.permissions.length')
+  })
+})
+
+describe('signed in means signed in at this firm, on every screen that counts a seat (2026-11-16)', () => {
+  // The files that decide, for a seat at a firm, whether its person has
+  // signed in: the seat reader every count reads, the sentence on Give
+  // access, the nightly access watch and the caller check's end-date rule.
+  const DECIDERS = [
+    'src/lib/company-seats.ts',
+    'src/app/api/settings/grants/route.ts',
+    'src/app/api/cron/watch/route.ts',
+    'src/lib/api-context.ts',
+  ]
+
+  it('every screen that counts a seat as signed in reads this firm’s own record, never a sign-in elsewhere', () => {
+    // An invited seat whose person signs in at another firm, and has not here.
+    const [elsewhere] = seatsFrom([invited('a', { signedInHere: false })], 'Northwind Staffing')
+    expect(elsewhere.state).toBe('INVITED')
+    // The same seat once she did something at this firm as herself.
+    const [here] = seatsFrom([invited('a', { signedInHere: true })], 'Northwind Staffing')
+    expect(here.state).toBe('WITH_ACCESS')
+    for (const f of DECIDERS) {
+      const src = read(f)
+      expect(src, f).toContain('signedInHere(')
+      expect(src, f).toContain('seatHasSignedIn(')
+      // The old reading: a sign-in method used anywhere on Etyme.
+      expect(src, f).not.toMatch(/\bhasSignedIn\(/)
+      expect(src, f).not.toMatch(/credentials: \{ where: \{ lastUsedAt/)
+    }
+  })
+
+  it('Users & permissions, Settings and the Give access picker count the same seats as signed in', () => {
+    // The rows of one firm: somebody nobody invited, somebody invited who
+    // came in here, somebody invited who signs in only at another firm,
+    // somebody invited and used, and one paused.
+    const rows = [
+      row({ id: 'founder' }),
+      invited('came', { signedInHere: true }),
+      invited('elsewhere', { signedInHere: false }),
+      invited('used', { lastUsedAt: day }),
+      row({ id: 'paused', suspendedAt: day }),
+    ]
+    const seats = seatsFrom(rows, 'Northwind Staffing')
+    // Users & permissions reads each seat's state again by `seatStateOf`
+    // over `seatHasSignedIn` (api/access): the same answer, seat by seat.
+    for (const r of rows) {
+      const theirs = seatStateOf({
+        revokedAt: r.revokedAt, suspendedAt: r.suspendedAt, hasRole: Boolean(r.role?.name),
+        signedIn: seatHasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, signedInHere: r.signedInHere === true }),
+      })
+      expect(seats.find((s) => s.contextId === r.id)?.state, r.id).toBe(theirs)
+    }
+    // Settings' headline and the picker's states come from those same seats.
+    expect(peopleWords(countSeats(peopleOf(seats)))).toBe('5 people: 3 with access · 1 invited · 1 paused')
+    expect(seats.find((s) => s.contextId === 'elsewhere')?.state).toBe('INVITED')
+    // Settings, the picker and Users & permissions each read the one reader.
+    expect(read('src/app/api/settings/route.ts')).toContain('readCompanySeats(companyId)')
+    expect(read('src/app/api/settings/grants/route.ts')).toContain('readCompanySeats(companyId).then(peopleOf)')
+    expect(read('src/app/api/access/route.ts')).toContain('readCompanySeats(caller.company.id)')
+  })
+
+  it('the seat reader asks this firm’s access log only about invited seats with no use date', () => {
+    const src = read('src/lib/company-seats.ts')
+    expect(src).toContain('rows.filter((r) => r.invitedAt !== null && r.lastUsedAt === null).map((r) => r.personId)')
+    expect(src).not.toContain('credentials')
+  })
+
+  it('the caller check counts another manager as able to keep the firm open past an end date only once she signed in here, and reads the caller’s own seat as signed in', () => {
+    const src = read('src/lib/api-context.ts')
+    expect(src).toContain('dated(seat, true)')
+    expect(src).toContain('seatHasSignedIn({ invitedAt: m.invitedAt, lastUsedAt: m.lastUsedAt, signedInHere: here.has(m.personId) })')
+  })
+})
+
+describe('a firm-made record and a used one are told apart by one rule', () => {
+  it('sign-up treats a person a firm added as a first sign-up only where nobody has ever used the record, by the predicate the firm’s sign-in link reads', () => {
+    const src = read('src/lib/password-door.ts')
+    expect(src).toContain("import { hasEverCameIn } from '@/lib/notify/came-in'")
+    expect(src).toContain('const firmMade = async (p: Standing): Promise<boolean> => !(await hasEverCameIn(p.id))')
+    expect(src).toContain('if (await firmMade(existing)) {')
+    expect(src).not.toMatch(/p\.credentials\.length === 0/)
   })
 })
