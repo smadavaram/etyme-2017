@@ -10,6 +10,7 @@ import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { ORDER_HEADER_SELECT, termsFor } from '@/lib/money/order-terms'
 import { extensionPapers, mayExtendOnPapers } from '@/lib/contract-clearance'
 import { extensionEnd } from '@/lib/money/extension-end'
+import { earlierEnds, payLineInForce, windowsAtNewEnd } from '@/lib/money/extension-windows'
 import { formatDay } from '@/lib/format-date'
 import { extendGate } from './gate'
 
@@ -224,23 +225,53 @@ export async function POST(
   // The buy leg moves with the sell leg for the same reason it does on
   // activation: a contract to pay somebody for work that is no longer
   // under contract is the pair disagreeing about when the job ends.
-  const linked = await prisma.sellContract.findUnique({
-    where: { id },
-    select: { buyLinks: { select: { buyContractId: true } } },
-  })
-  const buyId = linked?.buyLinks[0]?.buyContractId ?? null
+  //
+  // The window her hours are paid through moves too (2026-11-16). Payroll
+  // narrows every week to the days a link covers (`daysFor`), and this
+  // route left the link and her row on the pay line at the first end, so
+  // every hour after it read as nobody's. A window whose last day is the
+  // end being extended follows it (lib/money/extension-windows). A window a
+  // replacement or a change of sub-vendor closed stays closed. A window an
+  // extension made before this rule left at an earlier end is not moved —
+  // what was paid on it may not name the days — and is named in the log.
+  const [linked, earlier] = await Promise.all([
+    prisma.sellContract.findUnique({
+      where: { id },
+      select: { buyLinks: { select: { id: true, buyContractId: true, effectiveFrom: true, effectiveTo: true } } },
+    }),
+    prisma.automationLog.findMany({
+      where: { action: 'CONTRACT_EXTENDED', payload: { path: ['contractId'], equals: id } },
+      select: { payload: true },
+    }),
+  ])
+  const links = linked?.buyLinks ?? []
+  const before = earlierEnds(earlier.map((l) => (l.payload as { oldEndDate?: string | null } | null)?.oldEndDate))
+  // The pay line in force at the end, never "the first link".
+  const buyId = payLineInForce(links, oldEnd, before)
   const buy = buyId
     ? await prisma.buyContract.findUnique({
         where: { id: buyId },
-        select: { id: true, contractType: true, vendorCompanyId: true },
+        select: { id: true, contractType: true, vendorCompanyId: true, endDate: true },
       })
+    : null
+  // The pay line's own end, where it moves: out to the new end, never in.
+  const buyLineMoved = buy && (buy.endDate === null || buy.endDate.getTime() < newEnd.getTime())
+    ? { id: buy.id, from: buy.endDate?.toISOString().slice(0, 10) ?? null, to: newEnd.toISOString().slice(0, 10) }
     : null
 
   // What is already on the books, keyed the way the generator keys it.
   const written = await prisma.cycle.findMany({
     where: { OR: [{ sellContractId: id }, ...(buyId ? [{ buyContractId: buyId }] : [])] },
-    select: { id: true, sellContractId: true, buyContractId: true, kind: true, dueOn: true, periodStart: true, periodEnd: true },
+    select: { id: true, sellContractId: true, buyContractId: true, kind: true, dueOn: true, periodStart: true, periodEnd: true, completedAt: true },
   })
+  // Her rows on the pay lines this placement reaches, and nobody else's.
+  const rows = links.length
+    ? await prisma.buyContractCandidate.findMany({
+        where: { buyContractId: { in: links.map((l) => l.buyContractId) }, personId: contract.personId },
+        select: { id: true, buyContractId: true, endDate: true },
+      })
+    : []
+  const windows = windowsAtNewEnd({ links, rows, oldEnd, earlier: before, newEnd })
   const already = new Map<string, Set<string>>()
   for (const c of written) {
     const days = already.get(c.kind) ?? new Set<string>()
@@ -257,13 +288,31 @@ export async function POST(
 
   const added = await prisma.$transaction(async (tx) => {
     await tx.sellContract.update({ where: { id }, data: { endDate: newEnd } })
-    if (buyId) await tx.buyContract.update({ where: { id: buyId }, data: { endDate: newEnd } })
+    // The pay line's end moves out to meet it, never in: a line that holds
+    // other people may already run later.
+    if (buyLineMoved) {
+      await tx.buyContract.updateMany({
+        where: { id: buyLineMoved.id, OR: [{ endDate: null }, { endDate: { lt: newEnd } }] },
+        data: { endDate: newEnd },
+      })
+    }
+    // The window her hours are paid through, and her row on the pay line,
+    // in the same save. Each update names the value it moves from, as it
+    // was read, so a row changed since is left alone rather than overwritten.
+    for (const l of windows.links) {
+      const was = links.find((x) => x.id === l.id)!.effectiveTo
+      await tx.contractLink.updateMany({ where: { id: l.id, effectiveTo: was }, data: { effectiveTo: newEnd } })
+    }
+    for (const r of windows.rows) {
+      const was = rows.find((x) => x.id === r.id)!.endDate
+      await tx.buyContractCandidate.updateMany({ where: { id: r.id, endDate: was }, data: { endDate: newEnd } })
+    }
 
     // The document travels with the line, so the dates the added
     // months are generated over go through one door.
     const planInput = {
       sell: { id, startDate: contract.startDate, endDate: newEnd, workOrder: contract.workOrder },
-      buy,
+      buy: buy ? { id: buy.id, contractType: buy.contractType, vendorCompanyId: buy.vendorCompanyId } : null,
       packId: contract.company.templatePack ?? 'US_IT',
       holidays,
     }
@@ -287,8 +336,8 @@ export async function POST(
       // days for one fortnight is money, not tidiness.
       onlyPeriodsAfter: oldEnd,
     })
-    const { widen, write } = extensionPlan(written, full.rows, planned.rows)
-    for (const w of widen) await tx.cycle.update({ where: { id: w.id }, data: { periodEnd: w.periodEnd } })
+    const { widen, write, kept } = extensionPlan(written, full.rows, planned.rows)
+    for (const w of widen) await tx.cycle.updateMany({ where: { id: w.id, completedAt: null }, data: { periodEnd: w.periodEnd } })
     if (write.length > 0) await tx.cycle.createMany({ data: write })
     const cycles = {
       sell: write.filter((r) => 'sellContractId' in r).length,
@@ -318,6 +367,21 @@ export async function POST(
           months,
           ...(note ? { note } : {}),
           cyclesAdded: { sell: cycles.sell, buy: cycles.buy },
+          // What else followed the new end, each from → to: the window her
+          // hours are paid through, her row on the pay line, the pay line's
+          // own end, and the open periods that held the old end. A period
+          // already processed is never widened, and is counted here.
+          payLine: buyId,
+          windows: {
+            links: windows.links,
+            rows: windows.rows,
+            line: buyLineMoved,
+            periodsWidened: widen.length,
+            processedLeftAsTheyWere: kept,
+            // Left at an end an extension before 2026-11-16 moved past:
+            // for a person to repair, never moved here.
+            ...(windows.leftBehind.links.length + windows.leftBehind.rows.length > 0 ? { leftBehind: windows.leftBehind } : {}),
+          },
           ...(past ? { timeLimit: { says: past.says, reason: limitReason } } : {}),
           ...(onPapers.reason ? { papers: { says: papers.says, reason: onPapers.reason } } : {}),
         },

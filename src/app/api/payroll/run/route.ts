@@ -363,7 +363,12 @@ export async function POST(request: NextRequest) {
                 accepted: pay?.accepted ?? null,
                 cut: pay?.cut ?? null,
                 many: acceptance === 'MANY',
-                totalHours: Object.keys(filed).length > 0
+                // Whether the week has a day breakdown is read off the week
+                // as filed, never off the days left after the window: a week
+                // whose every day falls outside the window this line pays
+                // through is owed nothing here, as the payroll page reads it,
+                // and not its whole accepted total (2026-11-16).
+                totalHours: Object.keys(all).length > 0
                   ? (pay ? Math.round((pay.cut.paid - kept.hoursHeld) * 100) / 100 : 0)
                   : acceptance && acceptance !== 'MANY' ? acceptance.hours : acceptance === 'MANY' ? 0 : Number(ts.totalHours),
               }

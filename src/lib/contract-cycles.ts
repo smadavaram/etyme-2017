@@ -244,6 +244,11 @@ export interface StoredCycle {
   kind: string
   periodStart: Date | null
   periodEnd: Date | null
+  /**
+   * Set where the cycle is done: a pay day that ran, a bill that went.
+   * Such a period is history and is never widened (2026-11-16).
+   */
+  completedAt?: Date | null
 }
 
 export interface ExtensionPlan {
@@ -251,6 +256,8 @@ export interface ExtensionPlan {
   widen: { id: string; periodEnd: Date }[]
   /** Cycles to write for the periods the extension added. */
   write: PlannedCycle[]
+  /** Completed cycles whose period the new series would widen, left as they were. */
+  kept: number
 }
 
 /**
@@ -276,15 +283,22 @@ export function extensionPlan(stored: readonly StoredCycle[], full: readonly Pla
   const fullBy = new Map(full.map((c) => [keyOf(lineOf(c as never), c.kind, c.periodStart), c]))
   const covered = new Set<string>()
   const widen: ExtensionPlan['widen'] = []
+  let kept = 0
   for (const r of stored) {
     if (!r.periodStart || !r.periodEnd) continue
     const k = keyOf(lineOf(r), r.kind, r.periodStart)
     covered.add(k)
     const now = fullBy.get(k)
-    if (now && now.periodEnd.getTime() > r.periodEnd.getTime()) widen.push({ id: r.id, periodEnd: now.periodEnd })
+    if (now && now.periodEnd.getTime() > r.periodEnd.getTime()) {
+      // A pay run already processed over this period, or a bill already
+      // raised for it, is never reopened by an extension: its days stay
+      // the days it covered.
+      if (r.completedAt) kept++
+      else widen.push({ id: r.id, periodEnd: now.periodEnd })
+    }
   }
   const write = added.filter((c) => !covered.has(keyOf(lineOf(c as never), c.kind, c.periodStart)))
-  return { widen, write }
+  return { widen, write, kept }
 }
 
 export async function writeCyclesFor(db: CycleWriter, input: PlanInput): Promise<Written> {
