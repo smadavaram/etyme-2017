@@ -21,6 +21,7 @@ import { PARTY_SAYS, type Party } from '@/lib/document-stages/required-sets'
 import {
   NO_BILLING_ADDRESS, billingAddressGate, bankGate, paperChaseGate, type Gate, type BankCheckerNames,
 } from '@/lib/setup-gate-rules'
+import { payToRow } from '@/lib/money/pay-to'
 
 export * from '@/lib/setup-gate-rules'
 
@@ -57,9 +58,11 @@ export async function mayIssueBill(issuerCompanyId: string, db: Db = prisma): Pr
  * never before payroll to a person.
  */
 export async function mayPayFirm(payerCompanyId: string, payeeCompanyId: string, db: Db = prisma): Promise<Gate> {
-  const [payee, remit, walks] = await Promise.all([
+  const [payee, payTo, walks] = await Promise.all([
     db.company.findUnique({ where: { id: payeeCompanyId }, select: { name: true } }),
-    db.remitTo.findFirst({ where: { companyId: payeeCompanyId, verifiedAt: { not: null } }, select: { id: true } }),
+    // The row the payment goes to, through money's one reader, never
+    // "some checked row" (Layer 7 money review, 2026-11-16).
+    payToRow(payeeCompanyId, db),
     db.supplierRequest.findMany({
       where: { companyId: payerCompanyId, OR: [{ supplierCompanyId: payeeCompanyId }, { firmCompanyId: payeeCompanyId }] },
       select: { checklist: true },
@@ -70,8 +73,11 @@ export async function mayPayFirm(payerCompanyId: string, payeeCompanyId: string,
   const states = walks.map((w) => (Array.isArray(w.checklist) ? (w.checklist as any[]).find((i) => i?.key === 'BANK')?.state ?? null : null))
   const facts = {
     payee: payee?.name ?? 'This firm',
-    remitVerified: !!remit,
-    walkBankState: states.find((s) => s === 'HELD' || s === 'WAIVED') ?? states[0] ?? null,
+    remitOnFile: !!payTo,
+    remitVerified: !!payTo?.verifiedAt,
+    // The newest walk that carries a bank item says where it stands; an
+    // older walk's hold never stands in for the newest walk's answer.
+    walkBankState: states.find((s) => s != null) ?? null,
   }
   const open = bankGate(facts)
   if (open.ok) return open

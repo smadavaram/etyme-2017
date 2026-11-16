@@ -30,6 +30,8 @@ function pickBuy<T extends { buyContractId?: string; sellContractId?: string; ef
 }
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
+import { logPaymentRefused } from '@/lib/money/payment-refused'
 import { checkOffCycle, carryLedger, OFF_CYCLE_LABEL, type CarryPeriod } from '@/lib/pay-model'
 import { orderFor } from '@/lib/order-postings'
 import { proposeBackPay, type BackPayLine } from '@/lib/money/back-pay'
@@ -210,6 +212,14 @@ export async function POST(request: NextRequest) {
   }
 
   const companyId = caller.company.id
+  // Pay outside the run is pay, so it waits for a verified Owner like
+  // every other act that pays (founder, 2026-11-11; Layer 7 money review,
+  // 2026-11-16), in the gate's own sentence, logged before it is said.
+  const owner = await needsVerifiedOwnerAt(companyId, 'PAY')
+  if (!owner.ok) {
+    await logPaymentRefused({ companyId, byPersonId: caller.person.id, door: 'PAYROLL_OFF_CYCLE', why: 'OWNER_NOT_VERIFIED', says: owner.says })
+    return NextResponse.json(gateRefusal(owner), { status: 403 })
+  }
   const body = await request.json().catch(() => ({}))
   const sellContractId = String(body.sellContractId ?? '')
   const personId = String(body.personId ?? '')

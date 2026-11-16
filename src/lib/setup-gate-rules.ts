@@ -76,18 +76,28 @@ export function bankNotChecked(payee: string, who?: BankCheckerNames | null): st
 }
 
 /**
- * Pure: the payee's bank details are checked where its payment details
- * carry a check, or where the payer's own Finance checked them on the
- * supplier's walk (the BANK item held or waived with a reason).
+ * Pure: the payee's bank details are checked.
+ *
+ * Where the payee has payment details on Etyme, the row a payment goes to
+ * decides (`payToRow` in lib/money/pay-to: its default, else the first it
+ * entered), and nothing else: an older checked row never stands in for a
+ * newer unchecked default. Where it has none, the payer's own Finance
+ * holding the bank item on the supplier's newest walk is the check. A
+ * waived bank item checks nothing, so it never opens the gate (Layer 7
+ * money review, 2026-11-16; it used to).
  */
 export function bankGate(f: {
   payee: string
+  /** The payee has payment details on Etyme, so the row in use decides. */
+  remitOnFile: boolean
+  /** The row in use carries a check. */
   remitVerified: boolean
+  /** The BANK item on the payer's newest walk of this supplier. */
   walkBankState: string | null
   who?: BankCheckerNames | null
 }): Gate {
-  if (f.remitVerified) return { ok: true }
-  if (f.walkBankState === 'HELD' || f.walkBankState === 'WAIVED') return { ok: true }
+  const checked = f.remitOnFile ? f.remitVerified : f.walkBankState === 'HELD'
+  if (checked) return { ok: true }
   return { ok: false, says: bankNotChecked(f.payee, f.who), step: 'BANK' }
 }
 

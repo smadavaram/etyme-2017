@@ -3,6 +3,8 @@ import { amount, totals } from '@/lib/money-display'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
+import { logPaymentRefused } from '@/lib/money/payment-refused'
 import { writeRateTrail } from '@/lib/money/pay-trail'
 import { staffOnly } from '@/lib/seat'
 import { commissionFor, marginForCommission, lineMargin, alreadyPaidIn } from '@/lib/commission'
@@ -209,6 +211,14 @@ export async function POST(request: NextRequest) {
     )
   }
   const companyId = caller.company!.id
+  // A commission run pays people, so it waits for a verified Owner like
+  // every other act that pays (founder, 2026-11-11; Layer 7 money review,
+  // 2026-11-16), in the gate's own sentence, logged before it is said.
+  const owner = await needsVerifiedOwnerAt(companyId, 'PAY')
+  if (!owner.ok) {
+    await logPaymentRefused({ companyId, byPersonId: caller.person.id, door: 'COMMISSION_RUN', why: 'OWNER_NOT_VERIFIED', says: owner.says })
+    return NextResponse.json(gateRefusal(owner), { status: 403 })
+  }
   const body = await request.json().catch(() => ({}))
   const periodStart = body.periodStart ? new Date(body.periodStart) : null
   const periodEnd = body.periodEnd ? new Date(body.periodEnd) : null

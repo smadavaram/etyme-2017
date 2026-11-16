@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { accessActor, recordAccess } from '@/lib/access-log'
 import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { runFile, type RunFile, type RunFileLine } from '@/lib/money/run-file'
+import { payToRows } from '@/lib/money/pay-to'
 
 /**
  * Read an approved payment run for its file, and record the read.
@@ -57,18 +58,15 @@ export async function readRunFile(caller: Caller, companyId: string, runId: stri
     }
   }
 
-  // The pay-to details on record: the checked ones, the default first.
+  // The pay-to details on record: the row each payment goes to, through
+  // the one reader the payment gate reads (`payToRow` in lib/money/pay-to),
+  // and only where it is checked. Never an older checked row standing in
+  // for a newer default nobody checked: that line is held by the gate.
   const vendorIds = [...new Set(run.items.map((i) => i.vendorBill.vendorCompanyId))]
-  const remits = await prisma.remitTo.findMany({
-    where: { companyId: { in: vendorIds }, verifiedAt: { not: null } },
-    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-    select: { companyId: true, bankName: true, accountName: true, legalName: true, accountLast4: true },
-  })
+  const rows = await payToRows(vendorIds)
   const bankOf = new Map<string, RunFileLine['bank']>()
-  for (const r of remits) {
-    if (!bankOf.has(r.companyId)) {
-      bankOf.set(r.companyId, { bankName: r.bankName, accountName: r.accountName ?? r.legalName, accountLast4: r.accountLast4 })
-    }
+  for (const [companyId, r] of rows) {
+    if (r.verifiedAt) bankOf.set(companyId, { bankName: r.bankName, accountName: r.accountName ?? r.legalName, accountLast4: r.accountLast4 })
   }
 
   const lines: RunFileLine[] = []

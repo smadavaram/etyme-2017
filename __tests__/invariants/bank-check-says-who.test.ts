@@ -26,7 +26,7 @@ describe('a payment held for an unchecked bank says who checks it', () => {
   })
 
   it('the gate carries the names into its sentence, and the payment gate asks money’s reader for them on a refusal', () => {
-    expect(bankGate({ payee: 'Fenwick', remitVerified: false, walkBankState: null, who: { by: 'FINANCE', names: 'Imelda Santoro', payer: 'B' } }))
+    expect(bankGate({ payee: 'Fenwick', remitOnFile: true, remitVerified: false, walkBankState: null, who: { by: 'FINANCE', names: 'Imelda Santoro', payer: 'B' } }))
       .toMatchObject({ ok: false, step: 'BANK' })
     const src = readFileSync('src/lib/setup-gates.ts', 'utf8')
     expect(src).toContain("import('@/lib/money/bank-check-read')")

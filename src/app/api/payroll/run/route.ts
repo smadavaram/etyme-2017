@@ -4,6 +4,8 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
+import { logPaymentRefused } from '@/lib/money/payment-refused'
 import { daysFor } from '@/lib/contract-links'
 import { periodFor, hoursInPeriod, type Period, type Terms } from '@/lib/periods'
 import { priceByDay, ratePeriods } from '@/lib/contract-rate'
@@ -76,6 +78,21 @@ export async function POST(request: NextRequest) {
       { error: { code: 'NO_CONTEXT', message: notAtACompany('Payroll') } },
       { status: 403 }
     )
+  }
+
+  // Approving pay and marking it paid wait for a verified Owner, like
+  // every other act that pays (founder, 2026-11-11; Layer 7 money review,
+  // 2026-11-16), in the gate's own sentence, logged before it is said.
+  // Working the figures out pays nobody, so calculate is never held.
+  if (action === 'approve' || action === 'process') {
+    const owner = await needsVerifiedOwnerAt(companyId, 'PAY')
+    if (!owner.ok) {
+      await logPaymentRefused({
+        companyId, byPersonId: caller.person.id, door: action === 'approve' ? 'PAYROLL_APPROVE' : 'PAYROLL_PROCESS',
+        why: 'OWNER_NOT_VERIFIED', says: owner.says,
+      })
+      return NextResponse.json(gateRefusal(owner), { status: 403 })
+    }
   }
 
   // What the run is for. A 'YYYY-MM' month, an explicit { start, end }, or

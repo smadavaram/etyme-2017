@@ -146,7 +146,10 @@ export async function GET(request: NextRequest) {
       : null
     return {
       ...r,
-      approve: verdict ? { may: verdict.ok, says: verdict.ok ? null : verdict.says } : null,
+      // Approving pays, so where the company waits for a verified Owner
+      // Approve it is not drawn; the page's own payWaits line says why,
+      // with its link, once rather than per run.
+      approve: verdict ? (payWaits ? { may: false, says: null } : { may: verdict.ok, says: verdict.ok ? null : verdict.says }) : null,
       // A paid run's advice says the day its confirmation paid it.
       advice: r.status === 'PAID' ? remittanceAdvice(paidRunAdvice(r), caller.company!.name) : [],
     }
@@ -418,6 +421,14 @@ export async function PATCH(request: NextRequest) {
         { error: { code: 'SEGREGATION', message: verdict.says } },
         { status: 422 }
       )
+    }
+    // Approving a run is an act that pays, so it waits for a verified Owner
+    // like the release does (founder, 2026-11-11; Layer 7 money review,
+    // 2026-11-16), in the gate's own sentence, logged before it is said.
+    const approveOwner = await needsVerifiedOwnerAt(companyId, 'PAY')
+    if (!approveOwner.ok) {
+      await logPaymentRefused({ companyId, byPersonId: personId, door: 'RUN_APPROVE', why: 'OWNER_NOT_VERIFIED', says: approveOwner.says, runId: run.id })
+      return NextResponse.json(gateRefusal(approveOwner), { status: 403 })
     }
     // Conditional on the run still being the draft that was read.
     const approved = await prisma.paymentRun.updateMany({

@@ -13,6 +13,7 @@
 import { prisma } from '@/lib/db'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
 import { mayPayFirm } from '@/lib/setup-gates'
+import { payToRow } from '@/lib/money/pay-to'
 import {
   bankCheckers, bankHeldSays, bankCheckWrite, mayCheckBank,
   type BankHeld, type PayerSeat, type BankFactsShown,
@@ -35,13 +36,12 @@ export async function payerSeats(companyId: string): Promise<PayerSeat[]> {
   }))
 }
 
-/** The payment details a check is made on: the default, else the first entered (the walk's order). */
+/**
+ * The payment details a check is made on: the row a payment goes to
+ * (`payToRow` in lib/money/pay-to), the same row the gate asks about.
+ */
 async function payeeRemit(payeeId: string) {
-  return prisma.remitTo.findFirst({
-    where: { companyId: payeeId },
-    orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-    select: { id: true, bankName: true, accountName: true, legalName: true, accountLast4: true },
-  })
+  return payToRow(payeeId)
 }
 
 function factsOf(r: Awaited<ReturnType<typeof payeeRemit>>): BankFactsShown | null {

@@ -300,12 +300,12 @@ describe('what a skipped item refuses', () => {
   })
 
   it('no firm is paid until its bank details are checked, here or on the supplier’s walk', () => {
-    expect(bankGate({ payee: 'Fenwick Staffing', remitVerified: false, walkBankState: 'PROVIDED' })).toEqual({
+    expect(bankGate({ payee: 'Fenwick Staffing', remitOnFile: false, remitVerified: false, walkBankState: 'PROVIDED' })).toEqual({
       ok: false, step: 'BANK',
       says: 'Pay Fenwick Staffing once its bank details are checked. Fenwick Staffing enters them under Setup → Bank details, and your Finance team checks them before anybody pays.',
     })
-    expect(bankGate({ payee: 'Fenwick Staffing', remitVerified: false, walkBankState: 'HELD' })).toEqual({ ok: true })
-    expect(bankGate({ payee: 'Fenwick Staffing', remitVerified: true, walkBankState: null })).toEqual({ ok: true })
+    expect(bankGate({ payee: 'Fenwick Staffing', remitOnFile: false, remitVerified: false, walkBankState: 'HELD' })).toEqual({ ok: true })
+    expect(bankGate({ payee: 'Fenwick Staffing', remitOnFile: true, remitVerified: true, walkBankState: null })).toEqual({ ok: true })
   })
 
   it('a colleague joins by domain only once the domain is verified, and is told how to get in', () => {

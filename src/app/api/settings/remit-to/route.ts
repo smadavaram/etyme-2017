@@ -170,7 +170,10 @@ export async function POST(request: NextRequest) {
       summary: `${caller!.person.name} added payment details for ${legalName}${makeDefault ? ' and made them the default' : ''}`,
       reason: 'Added in settings',
       payload: { remitToId: remitTo.id, legalName, method, isDefault: makeDefault },
-      reversible: true,
+      // The activity log cannot undo where money arrives, and saying it
+      // can is a lie on the one edit an attacker wants most (Layer 7 money
+      // review, 2026-11-16). It is changed again here, and checked again.
+      reversible: false,
     },
   })
 
@@ -226,7 +229,8 @@ export async function PATCH(request: NextRequest) {
       summary: `${caller!.person.name} changed payment details for ${remitTo.legalName}`,
       reason: 'Edited in settings',
       payload: { remitToId: id },
-      reversible: true,
+      // Not undone from the activity log: changed again here, and checked again.
+      reversible: false,
     },
   })
 
