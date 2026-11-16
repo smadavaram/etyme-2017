@@ -869,7 +869,7 @@ const CLIENT_NAV: NavSection[] = [
   ]),
   // One entry for a job, at every stage: the stage is a filter on the
   // screen, never a fork in the menu (raised twice by the founder).
-  tabbed('Jobs', [{ label: 'Jobs', href: '/dashboard/requisitions', icon: '⊞' }]),
+  tabbed('Jobs', [{ label: 'Jobs', href: '/dashboard/requisitions', icon: '⊞', pageCalls: ['requirements', 'requirements/**'] }]),
   // What suppliers put forward, waiting to be looked at; the list
   // defaults to what was sent TO the caller.
   tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
@@ -1788,9 +1788,14 @@ export function pageNameOf(apiPath: string, kind: CompanyKind | null | undefined
     let best: { label: string; weight: number } | null = null
     for (const s of nav) {
       for (const i of s.items) {
+        // A link's `api` list gates whether the link is drawn; it does not
+        // make the route that page's own. On a tie, the page whose own
+        // address the route is, or that calls it, names it: /api/requirements
+        // is Jobs, never Training (walk of ab9440839, 2026-11-16).
+        const gates = new Set(i.api != null ? routesOf(i) : [])
         for (const r of [...routesOf(i), ...(i.pageCalls ?? [])]) {
           if (!routeMatches(apiPath, r)) continue
-          const weight = r.replace(/\*\*$/, '').length * 2 + (r.endsWith('**') ? 0 : 1)
+          const weight = r.replace(/\*\*$/, '').length * 4 + (r.endsWith('**') ? 0 : 2) + (gates.has(r) && !(i.pageCalls ?? []).includes(r) ? 0 : 1)
           if (!best || weight > best.weight) best = { label: i.label, weight }
         }
       }
