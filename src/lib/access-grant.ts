@@ -862,8 +862,12 @@ export function roleChangeSays(c: Pick<RoleChange, 'personName' | 'roleName' | '
 /**
  * Which way in the invitation can offer.
  *
- * PASSWORD: the deployment can send mail, so the email carries a one-time
- *   link to set a password.
+ * PASSWORD: nobody has ever used her record, by any door
+ *   (`hasEverCameIn`), so the email carries a one-time link to set a
+ *   first password.
+ * SIGN_IN: she has used Etyme before, by some door. The email gives the
+ *   sign-in address and says to sign in the way she usually does; it
+ *   never carries a link that sets a password (2026-11-16).
  * WORK_ACCOUNT: Microsoft or Google sign-in is set up, and no mail-based
  *   door; the email gives the sign-in address.
  * NONE: neither. The email still gives the sign-in address, and the
@@ -883,7 +887,7 @@ export const INVITE_LINK_HOURS = 72
  * email names the directory and carries no set-password link at all: a
  * password is a door that company has shut (founder, 2026-11-11).
  */
-export type InviteDoor = 'PASSWORD' | 'WORK_ACCOUNT' | 'DIRECTORY' | 'NONE'
+export type InviteDoor = 'PASSWORD' | 'SIGN_IN' | 'WORK_ACCOUNT' | 'DIRECTORY' | 'NONE'
 
 export interface InviteLetter {
   door: InviteDoor
@@ -937,7 +941,11 @@ export function inviteLetter(l: InviteLetter): { lines: string[]; link: string |
   if (l.loginUrl) {
     return {
       lines: [
-        l.door === 'WORK_ACCOUNT'
+        // She has used Etyme before, by some door: she signs in the way she
+        // always does, and no link here sets a password (2026-11-16).
+        l.door === 'SIGN_IN'
+          ? `Sign in at ${l.loginUrl} the way you usually do. ${youAre}`
+          : l.door === 'WORK_ACCOUNT'
           ? `Sign in with your work account at ${l.loginUrl}. ${youAre}`
           : `Sign in at ${l.loginUrl}. ${youAre}`,
       ],

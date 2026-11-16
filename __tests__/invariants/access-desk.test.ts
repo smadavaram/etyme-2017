@@ -690,8 +690,8 @@ describe('an invitation says whether its email left, and why not', () => {
 
   it('a directory-only company is never sent a set-password link: its invitation’s door is the directory', async () => {
     const { doorFor } = await import('@/app/api/access/invite/one')
-    expect(doorFor({ mode: 'SSO_ONLY', hasPassword: false, login: 'https://app.etyme.example/login' })).toBe('DIRECTORY')
-    expect(doorFor({ mode: 'HYBRID', hasPassword: true, login: 'https://app.etyme.example/login' })).not.toBe('PASSWORD')
+    expect(doorFor({ mode: 'SSO_ONLY', cameIn: false, login: 'https://app.etyme.example/login' })).toBe('DIRECTORY')
+    expect(doorFor({ mode: 'HYBRID', cameIn: true, login: 'https://app.etyme.example/login' })).not.toBe('PASSWORD')
   })
 
   it('a directory-only company’s invitation email carries no set-password link and names the directory', () => {

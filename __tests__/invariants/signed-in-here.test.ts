@@ -113,8 +113,10 @@ describe('the one place it is read from', () => {
   })
 
   it('an invitation to an address that already has a way in never carries a link that sets a password on it', () => {
+    // Read through the one predicate the firm's sign-in link reads
+    // (`hasEverCameIn`); the sentences are in invite-letter-came-in.test.ts.
     const one = read('src/app/api/access/invite/one.ts')
-    expect(one).toContain('const wayIn = Boolean(a.person.passwordHash) || (await prisma.credential.count({ where: { personId: a.person.id } })) > 0')
-    expect(one).toContain('doorFor({ mode: a.mode, hasPassword: wayIn, login })')
+    expect(one).toContain('const cameIn = await hasEverCameIn(a.person.id)')
+    expect(one).toContain('doorFor({ mode: a.mode, cameIn, login })')
   })
 })

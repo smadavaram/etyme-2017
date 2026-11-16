@@ -203,6 +203,20 @@ export type AccessAction =
   | 'PERSON_RENAME'             // somebody asked to rename the person on a seat; written only when refused
   | 'DESK_CHANGE'               // somebody asked to give or change a person's role; written only when refused
   | 'DIRECTORY_READ'            // the company's Google Workspace directory was read, read only, to propose team structure
+  // ── A firm's sign-in link, pressed ────────────────────────────────
+  //
+  // `lib/notify/sign-in-link-door` (etyme-conversation, 2026-11-16): a
+  // firm hands a person a link that lets her into Etyme for the first
+  // time. Whoever holds the link presses Continue; the door reads every
+  // trace of her record (`hasEverCameIn`) and sends her to sign in as
+  // usual, or, only on a record nobody has ever used, to choose a first
+  // password. Each press, and each refusal (the link ran out, was
+  // replaced, or was used already), is a row with her as the subject and
+  // no actor, since whoever holds the link pressed it. They were filed as
+  // PROFILE_VIEW with the story in the reason, so "who pressed a sign-in
+  // link for her, and was it refused" could only be answered by reading
+  // reasons. No row holds the link or its token.
+  | 'SIGN_IN_LINK_USE'          // somebody pressed Continue on a firm's sign-in link for this person, or was refused: run out, replaced, used already
 
 /**
  * Whose data was read (2026-11-01). A person, by id — every caller before
