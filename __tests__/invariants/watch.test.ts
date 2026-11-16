@@ -9,6 +9,7 @@ import {
   digest,
   type Finding,
 } from '@/lib/watch'
+import { usedHereOf } from '@/lib/watch/access-use'
 
 /**
  * Everything built so far records. A packet reopens when insurance expires
@@ -170,6 +171,7 @@ describe('access nobody is using', () => {
   const base = {
     contextId: 'c1', companyId: 'co1', personName: 'Ravi Patel',
     roleName: 'Recruiter', expiresAt: null, lastUsedAt: inDays(-2), grantedAt: inDays(-100),
+    usedHere: { signedIn: true, lastAt: null as Date | null },
   }
 
   it('warns before somebody loses access rather than after', () => {
@@ -184,8 +186,32 @@ describe('access nobody is using', () => {
 
   it('reports access granted a month ago and never once used', () => {
     // Either they do not need it, or nobody told them it was there.
-    const f = watchAccess([{ ...base, lastUsedAt: null, grantedAt: inDays(-45) }], NOW)
+    const f = watchAccess([{ ...base, lastUsedAt: null, grantedAt: inDays(-45), usedHere: { signedIn: false, lastAt: null } }], NOW)
     expect(f[0].kind).toBe('ACCESS_NEVER_USED')
+    expect(f[0].headline).toBe('Ravi Patel has never used their access')
+  })
+
+  it('the nightly watch never says somebody has never used their access when she has signed in here', () => {
+    // The seat's own use date is never written; her acts here are this firm's record that she came in.
+    const signedInHere = { ...base, lastUsedAt: null, grantedAt: inDays(-45), usedHere: { signedIn: true, lastAt: inDays(-1) } }
+    expect(watchAccess([signedInHere], NOW)).toHaveLength(0)
+    // Signed in here with no act on the log since (a seat made by her own sign-in): still never "never used".
+    expect(watchAccess([{ ...signedInHere, usedHere: { signedIn: true, lastAt: null } }], NOW)).toHaveLength(0)
+  })
+
+  it('the nightly watch says nothing about use where this firm’s own record of it was not read', () => {
+    const unread = { contextId: 'c1', companyId: 'co1', personName: 'Ravi Patel', roleName: 'Recruiter', expiresAt: null, lastUsedAt: null, grantedAt: inDays(-45) }
+    expect(watchAccess([unread], NOW)).toHaveLength(0)
+    // An end date is still read without it.
+    expect(watchAccess([{ ...unread, expiresAt: inDays(5) }], NOW).map((x) => x.kind)).toEqual(['ACCESS_EXPIRING'])
+  })
+
+  it('access untouched here for three months is reported from her last act at this firm, though the seat’s own use date was never written', () => {
+    const f = watchAccess([{ ...base, lastUsedAt: null, usedHere: { signedIn: true, lastAt: inDays(-120) } }], NOW)
+    expect(f.map((x) => x.kind)).toEqual(['ACCESS_DORMANT'])
+    expect(f[0].headline).toBe('Ravi Patel has not used their access in 120 days')
+    // Her latest act counts: one last week keeps the seat quiet.
+    expect(watchAccess([{ ...base, lastUsedAt: inDays(-120), usedHere: { signedIn: true, lastAt: inDays(-7) } }], NOW)).toHaveLength(0)
   })
 
   it('gives somebody granted access last week time to use it', () => {
@@ -300,5 +326,24 @@ describe('the one line somebody is told', () => {
     const d = digest([f('BLOCKING', 'first'), f('BLOCKING', 'second'), f('BLOCKING', 'third')])
     expect(d).toContain('first')
     expect(d).toContain('2 other')
+  })
+})
+
+describe('whether a watched seat was used, from its own firm’s record', () => {
+  const pair = (c: string, p: string) => `${c}|${p}`
+  const seat = { contextId: 'c1', companyId: 'co1', personId: 'p1', invitedAt: inDays(-60), lastUsedAt: null }
+
+  it('a seat invited here reads as used once she has an act of her own at this firm, with that act as its last use', () => {
+    const used = usedHereOf([seat], new Map([[pair('co1', 'p1'), inDays(-3)]]), pair).get('c1')
+    expect(used).toEqual({ signedIn: true, lastAt: inDays(-3) })
+  })
+
+  it('a seat invited here and used only at another firm reads as never used here', () => {
+    const used = usedHereOf([seat], new Map([[pair('co2', 'p1'), inDays(-3)]]), pair).get('c1')
+    expect(used).toEqual({ signedIn: false, lastAt: null })
+  })
+
+  it('a seat nobody invited was made by her own sign-in, so it reads as used', () => {
+    expect(usedHereOf([{ ...seat, invitedAt: null }], new Map(), pair).get('c1')).toEqual({ signedIn: true, lastAt: null })
   })
 })

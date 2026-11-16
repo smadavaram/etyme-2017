@@ -43,6 +43,8 @@ const { POST: invite } = await import('@/app/api/access/invite/route')
 const { POST: makeSignIn } = await import('@/app/api/notifications/sign-in-link/route')
 const { POST: enterDoor } = await import('@/app/api/answer/sign-in/[token]/route')
 const { readSignInDoorPage } = await import('@/lib/notify/sign-in-link-door')
+const { POST: actOnSeat } = await import('@/app/api/access/[contextId]/route')
+const { hasEverCameIn } = await import('@/lib/notify/came-in')
 
 const BRIGHTMOOR = 'world-brightmoor@demo.etyme.local'
 
@@ -60,6 +62,7 @@ const USED = {
 } as const
 const NEW_HIRE = 'ivy.newhire@northwind-staffing.example'
 const SECOND_HIRE = 'jon.newhire@northwind-staffing.example'
+const WITHDRAWN_HIRE = 'kit.newhire@northwind-staffing.example'
 
 const ids: Record<string, string> = {}
 
@@ -80,7 +83,7 @@ beforeAll(async () => {
   await freshWorld()
   process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ?? 'integration-test-secret'
   process.env.NEXTAUTH_URL = 'http://localhost:3000'
-  for (const e of [...Object.values(USED), NEW_HIRE, SECOND_HIRE]) reachable.add(e)
+  for (const e of [...Object.values(USED), NEW_HIRE, SECOND_HIRE, WITHDRAWN_HIRE]) reachable.add(e)
 
   const elsewhere = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' }, select: { id: true } })
   const make = async (email: string, name: string, data: Record<string, unknown> = {}) =>
@@ -111,7 +114,9 @@ beforeAll(async () => {
   await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: elsewhere.id, tier: 'MARKETING', state: 'GRANTED', invitedAt: new Date(), respondedAt: new Date() } })
 
   ids.mailboxProved = await make(USED.mailboxProved, 'Gus Verified', { emailVerifiedAt: new Date() })
-  ids.endedSessions = await make(USED.endedSessions, 'Hal Sessions', { sessionVersion: 1, sessionsEndedAt: new Date() })
+  // She signed out everywhere herself: her own act ended her sessions.
+  ids.endedSessions = await make(USED.endedSessions, 'Hal Sessions')
+  await prisma.person.update({ where: { id: ids.endedSessions }, data: { sessionVersion: 1, sessionsEndedAt: new Date(), sessionsEndedById: ids.endedSessions } })
 
   // Every one of them, and two new hires, invited to a seat at Brightmoor.
   as(BRIGHTMOOR)
@@ -183,6 +188,29 @@ describe('the sign-in door a firm holds never takes over an account', () => {
     expect(await resets(ids.newHire)).toBe(before + 1)
   })
 
+  it('a firm that withdraws somebody’s only seat never turns a record nobody used into a used one, so her next invitation still lets her choose a first password', async () => {
+    as(BRIGHTMOOR)
+    const first = await json(await invite(req('POST', '/api/access/invite', { email: WITHDRAWN_HIRE, name: 'Kit Newhire' })))
+    expect([200, 201], JSON.stringify(first.body)).toContain(first.status)
+    const kit = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: WITHDRAWN_HIRE }, select: { id: true } })
+    const seat = await prisma.context.findFirstOrThrow({ where: { personId: kit.id, revokedAt: null }, select: { id: true } })
+
+    // Withdrawn: her last seat ended, so the route ends every session she held, though she never had one.
+    as(BRIGHTMOOR)
+    const ended = await json(await actOnSeat(req('POST', `/api/access/${seat.id}`, { action: 'revoke', reason: 'Hired somebody else' }), { params: Promise.resolve({ contextId: seat.id }) }))
+    expect(ended.status, JSON.stringify(ended.body)).toBe(200)
+    expect((await prisma.person.findUniqueOrThrow({ where: { id: kit.id }, select: { sessionsEndedAt: true } })).sessionsEndedAt).not.toBeNull()
+    expect(await hasEverCameIn(kit.id)).toBe(false)
+
+    // Invited again, the firm's sign-in link still lets her choose a first password.
+    as(BRIGHTMOOR)
+    const again = await json(await invite(req('POST', '/api/access/invite', { email: WITHDRAWN_HIRE, name: 'Kit Newhire' })))
+    expect([200, 201], JSON.stringify(again.body)).toContain(again.status)
+    const made = await post(kit.id)
+    expect(made.status, JSON.stringify(made.body)).toBe(200)
+    expect((await enter(tokenIn(made.body.data.link))).to).toMatch(/\/reset\/[A-Za-z0-9_-]+$/)
+  })
+
   it('a sign-in link is spent once it has issued a set-password link', async () => {
     const before = await resets(ids.secondHire)
     const made = await post(ids.secondHire)
@@ -209,7 +237,7 @@ describe('the sign-in door a firm holds never takes over an account', () => {
     const since = new Date(Date.now() - 1000)
     const old = tokenIn((await post(personId)).body.data.link)
     const live = tokenIn((await post(personId)).body.data.link)
-    const rowsNow = () => prisma.accessLog.findMany({ where: { subjectId: personId, at: { gte: since } }, orderBy: { at: 'asc' }, select: { allowed: true, reason: true, actorPersonId: true } })
+    const rowsNow = () => prisma.accessLog.findMany({ where: { subjectId: personId, at: { gte: since } }, orderBy: { at: 'asc' }, select: { allowed: true, reason: true, actorPersonId: true, action: true } })
     const before = (await rowsNow()).length
 
     // A replaced link: refused, and the row is written.
@@ -236,6 +264,9 @@ describe('the sign-in door a firm holds never takes over an account', () => {
     // A token nobody signed names nobody, so there is no person to log it against, and nothing is written about her.
     await enter(`${live}x`)
     expect((await rowsNow()).slice(before)).toHaveLength(3)
+
+    // Every press and refusal carries the door's own name on the log, never a profile read.
+    expect((await rowsNow()).slice(before).map((r) => r.action)).toEqual(['SIGN_IN_LINK_USE', 'SIGN_IN_LINK_USE', 'SIGN_IN_LINK_USE'])
 
     // No row anywhere holds the door's link, its token, or a set-password link.
     const everyRow = [

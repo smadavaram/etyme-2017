@@ -204,8 +204,9 @@ describe('a seat never signed in here reads the same whether or not the address 
     const beforeDoor = door.slice(0, atUse)
     expect(beforeDoor).not.toMatch(/passwordHash|credentials|hasEverCameIn\(|cameInTraces\(/)
     expect(beforeDoor).not.toMatch(/hasAccount/)
-    // What makes the line go quiet is this firm's own record: her acts on a seat here.
-    expect(door).toMatch(/actorPersonId: personId, actorCompanyId: companyId/)
+    // What makes the line go quiet is this firm's own record: her acts on a seat here, in person, read by the one reader.
+    expect(door).toMatch(/signedInHere\(companyId, \[personId\]\)/)
+    expect(read('src/lib/access-log.ts')).toMatch(/actorPersonId: personId,\s+actorCompanyId: companyId,\s+actorKind: 'PERSON'/)
     // The words take no account fact.
     expect(notHereYetSays('Rajesh Iyer')).not.toMatch(/account|already/)
   })
@@ -249,7 +250,8 @@ describe('a seat never signed in here reads the same whether or not the address 
     expect(at).not.toMatch(/automationLog|console\./)
     // The rows at the door are written from fixed sentences that take only the firm's name.
     for (const call of at.match(/await record(?:Access|Refusal)\([^\n]+/g) ?? []) {
-      expect(call).not.toMatch(/token|to:|issueSetPassword|link/i)
+      // The action's own name, SIGN_IN_LINK_USE, is a fixed word, not a link.
+      expect(call.replace("action: 'SIGN_IN_LINK_USE'", '')).not.toMatch(/token|to:|issueSetPassword|link/i)
     }
   })
 })
@@ -280,7 +282,7 @@ describe('the sign-in door a firm holds never takes over an account (2026-11-16)
     // The door reads every trace through the one predicate, and a record it cannot read counts as used.
     const reader = read('src/lib/notify/came-in.ts')
     expect(reader).toMatch(/return t === null \|\| everCameIn\(t\)/)
-    for (const trace of ['passwordHash', 'emailVerifiedAt', 'sessionVersion', 'sessionsEndedAt', 'credentials', 'externalIdentities', 'emailToken.findMany', 'supersededAt', 'contexts', 'actions', 'askEtymeThreads', 'modelPrompts', 'teamsConversations', 'dataRequestsMade', 'bioWrittenBy', 'confirmedAt', 'pageLiveAt', 'respondedAt', 'termsAgreedAt']) {
+    for (const trace of ['passwordHash', 'emailVerifiedAt', 'sessionsEndedAt', 'sessionsEndedById', 'credentials', 'externalIdentities', 'emailToken.findMany', 'supersededAt', 'contexts', 'actions', 'askEtymeThreads', 'modelPrompts', 'teamsConversations', 'dataRequestsMade', 'bioWrittenBy', 'confirmedAt', 'pageLiveAt', 'respondedAt', 'termsAgreedAt']) {
       expect(reader, trace).toContain(trace)
     }
   })
@@ -315,5 +317,24 @@ describe('the sign-in door a firm holds never takes over an account (2026-11-16)
     expect(press.indexOf('await recordAccess(')).toBeLessThan(press.indexOf('signInDoorSends('))
     // Neither row names an actor: whoever holds the link pressed it.
     expect(press).not.toMatch(/actorPersonId|accessActor\(/)
+  })
+
+  it('a firm that pauses or ends somebody’s last seat never turns a record nobody used into a used one', () => {
+    // Ending sessions is a trace of her only where she ended her own.
+    const reader = read('src/lib/notify/came-in.ts')
+    expect(reader).toMatch(/sessionsEnded: Boolean\(p\.sessionsEndedAt\) && p\.sessionsEndedById === personId/)
+    expect(reader).not.toMatch(/sessionVersion/)
+  })
+
+  it('a press of a firm’s sign-in link, and every refusal of one, is filed under its own name on the access log, never as a profile read', () => {
+    const press = atUse.slice(atUse.indexOf('export async function enterSignInDoor('))
+    expect((press.match(/action: 'SIGN_IN_LINK_USE'/g) ?? []).length).toBe(3)
+    expect(press).not.toMatch(/PROFILE_VIEW/)
+  })
+
+  it('the line on a person’s row reads whether she signs in here from the one reader Users & permissions reads', () => {
+    const fn = door.slice(door.indexOf('async function signsInHere('), door.indexOf('async function signsInHere(') + 300)
+    expect(fn).toMatch(/signedInHere\(companyId, \[personId\]\)/)
+    expect(fn).not.toMatch(/accessLog\.findFirst/)
   })
 })

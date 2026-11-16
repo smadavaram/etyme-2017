@@ -185,6 +185,11 @@ describe('a placed person with no account can be handed a way in by the firm tha
     as(OWNER)
     const opened = await get(placed.id)
     expect(opened.body.data).toMatchObject({ state: 'OPENED', show: true, action: 'Make a new link' })
+    // A twin acting on her seat's authority, or a sign-in this firm refused, is not her coming in here:
+    // the line reads the one reader Users & permissions reads.
+    await prisma.accessLog.create({ data: { subjectId: placed.id, actorPersonId: placed.id, actorCompanyId: brightmoor, actorKind: 'TWIN', action: 'PROFILE_VIEW', allowed: true, reason: 'The twin read her week.' } })
+    await prisma.accessLog.create({ data: { subjectId: placed.id, actorPersonId: placed.id, actorCompanyId: brightmoor, action: 'LOGIN_REFUSED_SSO_ONLY', allowed: false, reason: 'Refused: directory only.' } })
+    expect((await get(placed.id)).body.data.show).toBe(true)
     // Her first act on a seat at Brightmoor is Brightmoor's own record that she signs in there.
     const firstName = placed.name.split(' ')[0]
     await prisma.accessLog.create({ data: { subjectId: placed.id, actorPersonId: placed.id, actorCompanyId: brightmoor, action: 'PROFILE_VIEW', allowed: true, reason: 'Read her own page.' } })

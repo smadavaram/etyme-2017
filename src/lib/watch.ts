@@ -297,7 +297,31 @@ export interface WatchedAccess {
   rolePermissions?: readonly string[]
   suspendedAt?: Date | null
   hasSignedIn?: boolean
+  /**
+   * Whether she has used this seat, read from this firm's own access log
+   * (`accessUseHere` in lib/watch/access-use, 2026-11-16): `signedIn` is
+   * `seatHasSignedIn` over `signedInHere`, and `lastAt` the latest row
+   * with her, in person, as the actor at this firm. Absent where the
+   * caller did not read it, and then neither "never used" nor "not used
+   * in N days" is said: the watch never says what it has not read.
+   *
+   * `lastUsedAt` above is the seat's own column, which no code writes
+   * today. Read alone it reported every seat granted a month ago as
+   * "has never used their access", including people who sign in here
+   * daily, and could never say a seat had gone unused.
+   */
+  usedHere?: UsedHere
 }
+
+/** A seat's use at its own firm, as this firm's access log holds it. */
+export interface UsedHere {
+  signedIn: boolean
+  lastAt: Date | null
+}
+
+/** The latest of two dates, either of which may be missing. */
+const latest = (a: Date | null | undefined, b: Date | null | undefined): Date | null =>
+  a && b ? (a > b ? a : b) : (a ?? b ?? null)
 
 /** A watched seat as the end-date rule reads it. */
 function datedAccess(a: WatchedAccess): DatedSeat {
@@ -309,7 +333,7 @@ function datedAccess(a: WatchedAccess): DatedSeat {
     rolePermissions: a.rolePermissions ?? [],
     revokedAt: null,
     suspendedAt: a.suspendedAt ?? null,
-    hasSignedIn: a.hasSignedIn ?? a.lastUsedAt !== null,
+    hasSignedIn: a.usedHere?.signedIn ?? a.hasSignedIn ?? a.lastUsedAt !== null,
   }
 }
 
@@ -370,8 +394,13 @@ export function watchAccess(rows: WatchedAccess[], now: Date): Finding[] {
       }
     }
 
+    // Used is this firm's own record of her (`usedHere`), never a column
+    // nothing writes. Where it was not read, nothing about use is said.
+    if (!a.usedHere) continue
+    const lastUsed = latest(a.lastUsedAt, a.usedHere.lastAt)
+
     // Never used, and long enough ago that it was not going to be.
-    if (!a.lastUsedAt && daysBetween(now, a.grantedAt) >= 30) {
+    if (!a.usedHere.signedIn && !lastUsed && daysBetween(now, a.grantedAt) >= 30) {
       out.push({
         kind: 'ACCESS_NEVER_USED',
         urgency: 'WORTH_KNOWING',
@@ -386,14 +415,14 @@ export function watchAccess(rows: WatchedAccess[], now: Date): Finding[] {
       continue
     }
 
-    if (a.lastUsedAt && daysBetween(now, a.lastUsedAt) >= 90) {
+    if (lastUsed && daysBetween(now, lastUsed) >= 90) {
       out.push({
         kind: 'ACCESS_DORMANT',
         urgency: 'WORTH_KNOWING',
         companyId: a.companyId,
         subjectType: 'Context',
         subjectId: a.contextId,
-        headline: `${a.personName} has not used their access in ${daysBetween(now, a.lastUsedAt)} days`,
+        headline: `${a.personName} has not used their access in ${daysBetween(now, lastUsed)} days`,
         detail: `Held but not doing anything, which is exposure rather than access.`,
         action: 'NOTIFY_ONLY',
         daysUntil: null,

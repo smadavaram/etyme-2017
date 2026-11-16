@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
-import { recordAccess, recordRefusal, accessActor } from '@/lib/access-log'
+import { recordAccess, recordRefusal, accessActor, signedInHere } from '@/lib/access-log'
 import { issueSetPassword } from '@/lib/password-door'
 import { demoEmail, hashToken } from '@/lib/password'
 import { sendEmailNow } from '@/lib/notify/send-now'
@@ -73,18 +73,22 @@ async function tiesHere(companyId: string, personId: string): Promise<{ onBooks:
 
 /**
  * Whether she came in here: this firm's own fact, never her account
- * elsewhere (2026-11-16). She acted on a seat at this firm: every act a
- * seat does is logged with its company, her first sign-in on an
- * invitation here included (INVITE_ACCEPTED, lib/identity/sign-in). The
- * firm's own access log holds it already. A week on file is not read: a
- * week can be imported or seeded, and the timesheet does not say who
+ * elsewhere (2026-11-16). She acted on a seat at this firm in person:
+ * every act a seat does is logged with its company, her first sign-in on
+ * an invitation here included (INVITE_ACCEPTED, lib/identity/sign-in).
+ * Read through `signedInHere` in lib/access-log, the one reader Users &
+ * permissions, the invite answer and the caller check read, so a row a
+ * twin wrote on her seat's authority, or a sign-in this firm refused, is
+ * not her coming in here either. It counted both, so a seat whose twin
+ * acted, or whose sign-in the directory refused, read "signs in here"
+ * while Users & permissions read "Invited". A week on file is not read:
+ * a week can be imported or seeded, and the timesheet does not say who
  * filed it. Whether her address has a password or a Google or Microsoft
  * sign-in anywhere is never read for the line; only the door reads it,
  * at use.
  */
 async function signsInHere(companyId: string, personId: string): Promise<boolean> {
-  const acted = await prisma.accessLog.findFirst({ where: { actorPersonId: personId, actorCompanyId: companyId }, select: { id: true } })
-  return Boolean(acted)
+  return (await signedInHere(companyId, [personId])).has(personId)
 }
 
 /** What the sign-in door keeps on its notice, beside the delivery. */
@@ -387,8 +391,10 @@ async function spend(noticeId: string, now: Date): Promise<boolean> {
  *    one-time link to choose a first password, which signs her in when
  *    she has.
  *
- * Every press is logged with her as the subject before the answer goes:
- * a refusal through `recordRefusal`, a use through `recordAccess`. No
+ * Every press is logged with her as the subject before the answer goes,
+ * as SIGN_IN_LINK_USE, its own name on the access log (2026-11-16; it was
+ * filed as PROFILE_VIEW): a refusal through `recordRefusal`, a use
+ * through `recordAccess`. No
  * actor is named, since whoever holds the link pressed it, and no row,
  * reply body or notice holds the link, its token, or the one-time link,
  * which goes to her browser as a redirect.
@@ -397,15 +403,15 @@ export async function enterSignInDoor(token: string, now: Date = new Date()): Pr
   const d = await liveDoor(token, now)
   if (!d.ok) {
     if (d.personId && d.why) {
-      await recordRefusal([d.personId], { action: 'PROFILE_VIEW', reason: signInDoorRefused(d.firmName, d.why) })
+      await recordRefusal([d.personId], { action: 'SIGN_IN_LINK_USE', reason: signInDoorRefused(d.firmName, d.why) })
     }
     return { ok: false }
   }
   if (!(await spend(d.notice.id, now))) {
-    await recordRefusal([d.person.id], { action: 'PROFILE_VIEW', reason: signInDoorRefused(d.firmName, 'USED') })
+    await recordRefusal([d.person.id], { action: 'SIGN_IN_LINK_USE', reason: signInDoorRefused(d.firmName, 'USED') })
     return { ok: false }
   }
-  await recordAccess([d.person.id], { action: 'PROFILE_VIEW', reason: signInDoorPressed(d.firmName) })
+  await recordAccess([d.person.id], { action: 'SIGN_IN_LINK_USE', reason: signInDoorPressed(d.firmName) })
   const way = signInDoorSends({ everCameIn: await hasEverCameIn(d.person.id) })
   if (way === 'SIGN_IN') {
     return { ok: true, to: `/login?email=${encodeURIComponent(d.person.primaryEmail.trim().toLowerCase())}` }

@@ -28,6 +28,20 @@ async function seat(companyId: string, roleId: string, name: string, email: stri
   await prisma.context.create({ data: { personId: p.id, companyId, roleId, type: 'EMPLOYEE', expiresAt, lastUsedAt: dayAgo() } })
 }
 
+/**
+ * A manager invited here who has never come in here, though her account
+ * signs in somewhere else on Etyme (a sign-in method used yesterday).
+ * Where `cameInHere`, this firm's access log holds a row of hers.
+ */
+async function invitedManager(companyId: string, roleId: string, name: string, email: string, cameInHere: boolean) {
+  const p = await prisma.person.create({ data: { name, primaryEmail: email } })
+  await prisma.credential.create({ data: { personId: p.id, provider: 'EMAIL', providerId: email, email, lastUsedAt: dayAgo() } })
+  await prisma.context.create({ data: { personId: p.id, companyId, roleId, type: 'EMPLOYEE', invitedAt: dayAgo(), lastUsedAt: null } })
+  if (cameInHere) {
+    await prisma.accessLog.create({ data: { subjectId: p.id, actorPersonId: p.id, actorCompanyId: companyId, action: 'INVITE_ACCEPTED' } })
+  }
+}
+
 describe('the Teams bot reads a seat’s end date by the one rule', () => {
   beforeAll(async () => {
     await resetDatabase()
@@ -39,6 +53,16 @@ describe('the Teams bot reads a seat’s end date by the one rule', () => {
 
     const north = await firm('Northwind Staffing', 'teams-dated-northwind', 'northwind-staffing.example')
     await seat(north.id, north.admin, 'Ana Silva', 'ana@northwind-staffing.example', dayAgo())
+
+    // Two firms, each with an Admin past her date and a second Admin
+    // invited. At the first the second Admin signs in elsewhere and never
+    // here; at the second she has come in here.
+    const cove = await firm('Cove Lane Staffing', 'teams-dated-cove', 'cove-lane.example')
+    await seat(cove.id, cove.admin, 'Mara Quinn', 'mara@cove-lane.example', dayAgo())
+    await invitedManager(cove.id, cove.admin, 'Theo Brandt', 'theo@cove-lane.example', false)
+    const pier = await firm('Pier Street Talent', 'teams-dated-pier', 'pier-street.example')
+    await seat(pier.id, pier.admin, 'Iris Vale', 'iris@pier-street.example', dayAgo())
+    await invitedManager(pier.id, pier.admin, 'Omar Nash', 'omar@pier-street.example', true)
   }, 600_000)
 
   it('an Owner whose seat is past its end date is still answered in Teams, because a date never ends an Owner’s seat', async () => {
@@ -60,5 +84,15 @@ describe('the Teams bot reads a seat’s end date by the one rule', () => {
   it('the last seat at a firm that may manage access stays open in Teams past its end date', async () => {
     const b = await bindTeamsIdentity({ userPrincipalName: 'ana@northwind-staffing.example' })
     expect(b.ok).toBe(true)
+  })
+
+  it('a manager who signed in elsewhere on Etyme and never here does not end another manager’s seat in Teams, as on the web', async () => {
+    const b = await bindTeamsIdentity({ userPrincipalName: 'mara@cove-lane.example' })
+    expect(b.ok).toBe(true)
+  })
+
+  it('a manager who has come in here does end another manager’s seat past its date in Teams', async () => {
+    const b = await bindTeamsIdentity({ userPrincipalName: 'iris@pier-street.example' })
+    expect(b).toMatchObject({ ok: false, code: 'NO_SEAT' })
   })
 })

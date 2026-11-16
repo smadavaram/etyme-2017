@@ -315,8 +315,11 @@ export function signInDoorUntil(madeAt: Date): Date {
  *    Microsoft, an email link, SAML, a password (`Credential`).
  *  - `directoryIdentities`: a company's directory vouches for her
  *    (`ExternalIdentity`).
- *  - `sessionsEnded`: sessions she held were ended (`sessionVersion`,
- *    `sessionsEndedAt`): there were sessions.
+ *  - `sessionsEnded`: she ended her own sessions, by signing out
+ *    everywhere or changing her password (`sessionsEndedAt`, with her as
+ *    `sessionsEndedById`): there were sessions. Never a firm's act: a
+ *    pause, an end or a withdrawn invitation ends sessions too, on a
+ *    record nobody may have used, so `sessionVersion` is never read.
  *  - `oneTimeLinksUsed`: she opened a verify or set-password link
  *    (`EmailToken.usedAt`).
  *  - `seatsUsed`: a seat at any firm that a request of hers used

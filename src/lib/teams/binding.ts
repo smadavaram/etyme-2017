@@ -35,7 +35,8 @@
 
 import { prisma } from '@/lib/db'
 import { isConsumerDomain } from '@/lib/company-domains'
-import { hasSignedIn } from '@/lib/access-grant'
+import { seatHasSignedIn } from '@/lib/access-grant'
+import { signedInHere } from '@/lib/access-log'
 import { seatByDate, pastEndDate, MANAGES_ACCESS, type DatedSeat } from '@/lib/account-lifecycle'
 import { OWNER_ROLE } from '@/lib/owner-rules'
 
@@ -218,16 +219,23 @@ function datedSeat(r: DatedRow, signedIn: boolean): DatedSeat {
  * The company's live seats that may manage access, as the end-date rule
  * reads them. Read only for a seat past its date, so a seat in date costs
  * no query.
+ *
+ * Signed in is this firm's own record (`seatHasSignedIn` over
+ * `signedInHere`, 2026-11-16), exactly as the web's caller check reads it
+ * (`seatOpenByDate` in lib/api-context), so Teams and the web keep the
+ * same seats open. It read a sign-in anywhere on Etyme, so a manager
+ * invited here who had never come in could keep a seat open in Teams
+ * that the web had ended.
  */
 async function mayManageAccessAt(companyId: string): Promise<DatedSeat[]> {
   const rows = await prisma.context.findMany({
     where: { companyId, revokedAt: null, suspendedAt: null, role: { permissions: { hasSome: ['*', ...MANAGES_ACCESS] } } },
     select: {
-      id: true, expiresAt: true, revokedAt: true, suspendedAt: true, invitedAt: true, lastUsedAt: true,
+      id: true, expiresAt: true, revokedAt: true, suspendedAt: true, invitedAt: true, lastUsedAt: true, personId: true,
       company: { select: { id: true } },
       role: { select: { name: true, permissions: true } },
-      person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
     },
   })
-  return rows.map((r) => datedSeat(r, hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn: r.person.credentials.length > 0 })))
+  const here = await signedInHere(companyId, rows.filter((r) => r.invitedAt !== null && r.lastUsedAt === null).map((r) => r.personId))
+  return rows.map((r) => datedSeat(r, seatHasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, signedInHere: here.has(r.personId) })))
 }

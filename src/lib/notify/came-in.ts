@@ -26,7 +26,7 @@ export async function cameInTraces(personId: string): Promise<CameInTraces | nul
     prisma.person.findUnique({
       where: { id: personId },
       select: {
-        passwordHash: true, emailVerifiedAt: true, sessionVersion: true, sessionsEndedAt: true,
+        passwordHash: true, emailVerifiedAt: true, sessionsEndedAt: true, sessionsEndedById: true,
         consultant: { select: { bioWrittenBy: true, confirmedAt: true, pageLiveAt: true } },
         _count: {
           select: {
@@ -61,7 +61,12 @@ export async function cameInTraces(personId: string): Promise<CameInTraces | nul
     mailboxProved: Boolean(p.emailVerifiedAt),
     signInMethods: c.credentials,
     directoryIdentities: c.externalIdentities,
-    sessionsEnded: p.sessionVersion > 0 || Boolean(p.sessionsEndedAt),
+    // Only her own ending of her own sessions (sign out everywhere, a
+    // password change) is a trace of her. A firm that pauses or ends her
+    // last seat, or withdraws her invitation, ends her sessions too, and
+    // raises the version on a record nobody ever used: that is the firm's
+    // act, never her coming in (2026-11-16).
+    sessionsEnded: Boolean(p.sessionsEndedAt) && p.sessionsEndedById === personId,
     oneTimeLinksUsed: usedLinks.filter((t) => !(t.payload && typeof t.payload === 'object' && 'supersededAt' in (t.payload as object))).length,
     seatsUsed: c.contexts,
     ownSeats,
