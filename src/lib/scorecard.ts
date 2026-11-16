@@ -468,16 +468,46 @@ function heldSays(code: string, count: number, total: number): string {
  * list is still loading: the page asserts nothing about suppliers it has
  * not counted yet.
  */
-export function onlyHereSays(suppliers: number | null): string {
+export function onlyHereSays(suppliers: number | null, onRegister = 0): string {
   const built = 'Built from what actually happened here — not from who emails you most.'
   if (suppliers == null) return built
-  if (suppliers === 0) return 'No suppliers yet.'
+  // A client with suppliers on its books and no job sent on Etyme has no
+  // scorecard yet, and still has suppliers (batch five walk, 2026-11-16).
+  if (suppliers === 0) return onRegister > 0 ? built : 'No suppliers yet.'
   if (suppliers === 1) {
-    return `${built} You have one supplier, so there is nobody to compare it with yet.`
+    return onRegister > 1
+      ? `${built} One supplier has a scorecard so far, so there is nobody to compare it with yet.`
+      : `${built} You have one supplier, so there is nobody to compare it with yet.`
   }
   const others = suppliers - 1
   return (
     `${built} None of your suppliers can work these out about themselves: ` +
     `they cannot see what the other ${others} did with the same job.`
   )
+}
+
+/**
+ * The line over an empty Scored section, said for the suppliers this
+ * firm has on its books (batch five walk, 2026-11-16).
+ *
+ * It read "No suppliers yet." to a client with 25 active suppliers and
+ * 359 contractors through them, because a scorecard is built from jobs
+ * sent on Etyme and that client had sent none. Now "No suppliers yet." is
+ * said only where the register holds no supplier at all; otherwise the
+ * line says what fills a scorecard, and how many suppliers there are.
+ *
+ * `onRegister` counts supplier rows on the firm's own register, in any
+ * standing; `active` those marked active. `readsStanding` is whether the
+ * same seat may read the Standing section, so the line points there only
+ * where the reader can follow it. Pure.
+ */
+export function nothingScoredSays(o: { onRegister: number; active: number; readsStanding: boolean }): string {
+  if (o.onRegister <= 0) return 'No suppliers yet.'
+  const months = Math.round(WINDOW_DAYS / 30)
+  const none = `No job went to a supplier on Etyme in the last ${months} months, so there is nothing to score.`
+  if (o.active <= 0) return none
+  const n = o.active === 1 ? 'one active supplier' : `${o.active} active suppliers`
+  return o.readsStanding
+    ? `${none} Your ${n} ${o.active === 1 ? 'is' : 'are'} listed under Standing.`
+    : `${none} You have ${n}.`
 }

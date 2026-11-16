@@ -105,9 +105,10 @@ describe('Add to bench asks only somebody the firm knows (a)', () => {
 
 describe('Resend and Copy link are drawn only where the seat may send (b)', () => {
   it('every Resend, Copy link and Ask to renew on Bench sits behind the one permission its route asks', () => {
-    expect(BENCH_PAGE).toContain("!writesBench ? null : row.consent === 'INVITED' ? (")
-    expect(BENCH_PAGE).toContain("{a.consent === 'INVITED' && writesBench && (")
-    expect(BENCH_PAGE).toContain('{writesBench && <span className="flex gap-3">')
+    // Batch five: and only where an email can reach the person (`offersSend`).
+    expect(BENCH_PAGE).toContain("!writesBench ? null : row.consent === 'INVITED' && !offersSend(row) ? (")
+    expect(BENCH_PAGE).toContain("{a.consent === 'INVITED' && writesBench && offersSend(a) && (")
+    expect(BENCH_PAGE).toContain('{writesBench && offersSend(e) && <span className="flex gap-3">')
     expect(BENCH_PAGE).toContain('const writesBench = mayAddConsultant(session.permissions)')
     expect((BENCH_PAGE.match(/>Resend</g) ?? []).length).toBe(2)
     expect((BENCH_PAGE.match(/>Copy link</g) ?? []).length).toBe(3)

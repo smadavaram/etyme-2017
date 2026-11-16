@@ -381,12 +381,12 @@ describe('the sentence under Scorecards is said for the suppliers this client ha
     expect(onlyHereSays(null)).toBe('Built from what actually happened here — not from who emails you most.')
   })
 
-  it('the page and the route carry no fixed count, and the empty route says "No suppliers yet." with no paste box', () => {
+  it('the page and the route carry no fixed count, and the empty route says its line through nothingScoredSays with no paste box', () => {
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/scorecards/page.tsx'), 'utf8')
     const route = readFileSync(join(process.cwd(), 'src/app/api/vendors/scorecards/route.ts'), 'utf8')
     expect(page).not.toMatch(/other eleven/)
     expect(page).toContain('onlyHereSays(')
-    expect(route).toContain("? 'No suppliers yet.'")
+    expect(route).toContain('? nothingScoredSays({ onRegister, active, readsStanding:')
     expect(route).not.toContain('Paste the list')
   })
 })

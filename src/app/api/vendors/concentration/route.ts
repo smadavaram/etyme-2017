@@ -7,6 +7,7 @@ import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
 import { DRAWS_NOTHING } from '@/lib/money/bill-state'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
+import { programView } from '@/app/api/program/view'
 import {
   concentration, concentrationReport, clientExposures, dimensionsFor, concentrationRefusal,
   type Concentration, type Exposure, type Owners,
@@ -311,6 +312,22 @@ export async function GET(request: NextRequest) {
         name: p.buyContract.vendorCompany?.name ?? 'Unnamed supplier',
         amountMinor: (had?.amountMinor ?? 0) + 1,
       })
+    }
+    // A client holds no buy line of its own: what it buys is the sell
+    // line each supplier holds to it. So a client with 359 contractors
+    // through 25 suppliers read "No suppliers on the books" here (batch
+    // five walk, 2026-11-16). Where nothing above counted anybody, a
+    // client's spread is counted from the people on site through each
+    // supplier, read by the reader its program page and Today read
+    // (`programView`): the rung it pays, its names as that reader shows them.
+    if (!sells && bySupplier.size === 0) {
+      const view = await programView(caller, null, { trail: 'Supplier scorecards' })
+      if ('data' in view && view.data) {
+        for (const v of view.data.vendors) {
+          if (v.headcount <= 0) continue
+          bySupplier.set(v.id, { id: v.id, name: v.name, amountMinor: v.headcount })
+        }
+      }
     }
     supplier = concentration({
       dimension: 'SUPPLIER',

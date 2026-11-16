@@ -4,8 +4,9 @@ import { readsOnlyOwnWork } from '@/lib/console-home'
 import { notYoursToRead } from '@/lib/releasing-soon'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { hasPermission } from '@/lib/permissions'
 import {
-  scorecard, order, WINDOW_DAYS, type Sent, type Put,
+  scorecard, order, nothingScoredSays, WINDOW_DAYS, type Sent, type Put,
 } from '@/lib/scorecard'
 import type { Reason } from '@/lib/outcomes'
 
@@ -139,12 +140,27 @@ export async function GET(request: NextRequest) {
   const ranked = order(cards)
   const scored = ranked.filter((c) => c.enough).length
 
+  // The suppliers on this firm's own register, in any standing and active.
+  // A scorecard is built from jobs sent on Etyme, so a client with 25
+  // active suppliers and no job sent read "No suppliers yet." beside a
+  // Standing section listing all 25 (batch five walk, 2026-11-16). The
+  // empty line now says what fills a scorecard and how many there are.
+  const register = await prisma.counterparty.groupBy({
+    by: ['status'],
+    where: { companyId, relationship: 'SUPPLIER' },
+    _count: { _all: true },
+  })
+  const onRegister = register.reduce((n, r) => n + r._count._all, 0)
+  const active = register.find((r) => r.status === 'ACTIVE')?._count._all ?? 0
+
   return NextResponse.json({
     data: {
       suppliers: ranked.map((c, i) => ({ ...c, rank: c.enough ? i + 1 : null })),
       summary:
         ranked.length === 0
-          ? 'No suppliers yet.'
+          // Standing is read through `vendors.read` (api/vendors/risk), so
+          // the line points there only for a seat that may follow it.
+          ? nothingScoredSays({ onRegister, active, readsStanding: hasPermission(caller.permissions, 'vendors.read') })
           : `${ranked.length} ${ranked.length === 1 ? 'supplier' : 'suppliers'}, ` +
             `${scored} with enough history to score.`,
       // Said on the page, not buried in a tooltip. A ranking somebody
@@ -153,6 +169,8 @@ export async function GET(request: NextRequest) {
         'Hires first, then how many were worth reading, then how fast they answer. ' +
         'No overall grade — a single letter hides which of the six is the problem.',
       windowDays: WINDOW_DAYS,
+      /** Supplier rows on this firm's register, in any standing; the header line reads it. */
+      onRegister,
     },
   })
 }

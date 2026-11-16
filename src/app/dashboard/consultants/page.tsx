@@ -586,6 +586,14 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
   const [rateProgression, setRateProgression] = useState<RateProgressionData | null>(null)
   const [loadingActivity, setLoadingActivity] = useState(true)
 
+  // Escape closes the drawer, as it closes the Companies drawer and every
+  // dialog (batch five walk, 2026-11-16).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   useEffect(() => {
     async function fetchActivity() {
       setLoadingActivity(true)

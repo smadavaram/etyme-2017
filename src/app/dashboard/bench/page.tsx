@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { candidateRecordHref } from '@/lib/consultant-portfolio/open-from-link'
 import { range, compact, amount } from '@/lib/money-display'
 import type { BurnTotal } from '@/app/api/bench/burn/totals'
-import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, benchPageClosed, listingRates, TIER_WORD, ASKED_HEADING, askedSays, freeOnTheBench, rateBoxLabel, alreadyAskedSays, tierBoxHiddenSays, NOBODY_FOUND_SAYS, saysNobodyFound, type Free } from '@/lib/bench-filter'
+import { readBench, submitLink, BURN_READ_BY, benchSubtitle, mayBrowseBench, benchClosedSays, benchPageClosed, listingRates, TIER_WORD, ASKED_HEADING, askedSays, freeOnTheBench, rateBoxLabel, alreadyAskedSays, tierBoxHiddenSays, NOBODY_FOUND_SAYS, saysNobodyFound, CHOOSE_FIRST_SAYS, CHOOSE_FROM_RESULTS_SAYS, offersSend, sampleRowSays, type Free } from '@/lib/bench-filter'
 import { mayAddConsultant, whoAddsSays, whoAsksOntoBenchSays } from '@/lib/consultant-portfolio/who-adds'
 import { readJson } from '@/lib/read-response'
 import { useCompanyKind, useSession } from '@/components/session-provider'
@@ -82,6 +82,8 @@ interface BenchEntry {
   oursSays: string | null
   /** Whether the one bench list the tile counts (`benchAt`) names them today; null where not read. */
   onBenchToday: boolean | null
+  /** An address no email can reach: no Resend, no Copy link (`offersSend`). */
+  sample: boolean
 }
 
 /**
@@ -326,7 +328,7 @@ function AddBenchListingModal({ onClose, onCreated, listed, mayAdd, whoAdds }: {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedConsultant) {
-      setError('Choose the person from the search results.')
+      setError(CHOOSE_FROM_RESULTS_SAYS)
       return
     }
 
@@ -523,11 +525,16 @@ function AddBenchListingModal({ onClose, onCreated, listed, mayAdd, whoAdds }: {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+            {/* Never greyed for want of a choice: the words say what is
+                missing, and pressing anyway says it again (batch five walk). */}
+            {!selectedConsultant && (
+              <p className="mr-auto text-[12px] text-etyme-muted">{CHOOSE_FIRST_SAYS}</p>
+            )}
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" disabled={submitting || !selectedConsultant} className="btn-primary disabled:opacity-50">
+            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
               {submitting ? 'Saving…' : selectedConsultant && listed.has(selectedConsultant.id) ? 'Save rate' : 'Add to bench'}
             </button>
           </div>
@@ -620,12 +627,12 @@ export default function BenchPage() {
   /** Your own listings, kept from the last read of your own bench, for the Add to bench search. */
   const [ownListed, setOwnListed] = useState<Map<string, { listingId: string; consent: string | null }>>(new Map())
   // Whose chosen stay ran out: shown, not vanished (bench tester, 2026-09-30).
-  const [ended, setEnded] = useState<{ listingId: string; name: string; says: string }[]>([])
+  const [ended, setEnded] = useState<{ listingId: string; name: string; says: string; sample?: boolean }[]>([])
   // Whom the firm asked and who has not said yes: listed apart from the
   // bench, never in it (`onTheBench`, the screen walk of 2026-10-22).
   // The one bench count (`benchAt`) Consultants, Today and Ask Etyme give.
   const [onBenchCount, setOnBenchCount] = useState<number | null>(null)
-  const [askedPeople, setAskedPeople] = useState<{ listingId: string; consultantId: string; personId: string; name: string; consent: string | null }[]>([])
+  const [askedPeople, setAskedPeople] = useState<{ listingId: string; consultantId: string; personId: string; name: string; consent: string | null; sample: boolean }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tierFilter, setTierFilter] = useState<TierFilter>('all')
@@ -726,6 +733,7 @@ export default function BenchPage() {
         companyName: r.companyName,
         oursSays: r.oursSays ?? null,
         onBenchToday: r.onBenchToday,
+        sample: r.sample,
       }))
 
       // A tab clicked twice in quick succession fires two requests; only
@@ -737,7 +745,7 @@ export default function BenchPage() {
       setEntries(flat)
       setOnBenchCount(forScope === 'company' ? reading.onBench : null)
       const askedRows = forScope === 'company'
-        ? reading.asked.map((r) => ({ listingId: r.listingId, consultantId: r.consultantId, personId: r.personId, name: r.name, consent: r.consent }))
+        ? reading.asked.map((r) => ({ listingId: r.listingId, consultantId: r.consultantId, personId: r.personId, name: r.name, consent: r.consent, sample: r.sample }))
         : []
       setAskedPeople(askedRows)
       if (forScope === 'company') {
@@ -996,7 +1004,10 @@ export default function BenchPage() {
             key: 'actions',
             label: '',
             render: (row: BenchEntry) =>
-              !writesBench ? null : row.consent === 'INVITED' ? (
+              !writesBench ? null : row.consent === 'INVITED' && !offersSend(row) ? (
+                // A sample person: nobody to send it to (batch five walk).
+                <span className="text-[11px] text-etyme-muted">{sampleRowSays(row.name)}</span>
+              ) : row.consent === 'INVITED' ? (
                 // Not answered: send it again, or copy the link to send yourself.
                 <span className="flex gap-2 whitespace-nowrap">
                   <button onClick={(e) => { e.stopPropagation(); nudge(row.id, false) }} disabled={busyRow === row.id}
@@ -1267,7 +1278,10 @@ export default function BenchPage() {
           {ended.map((e) => (
             <div key={e.listingId} className="px-4 py-3 flex flex-wrap items-center justify-between gap-2">
               <span className="text-[13px] text-etyme-ink"><span className="font-medium">{e.name}</span> · {e.says}</span>
-              {writesBench && <span className="flex gap-3">
+              {writesBench && !offersSend(e) && (
+                <span className="basis-full text-[12px] text-etyme-muted">{sampleRowSays(e.name)}</span>
+              )}
+              {writesBench && offersSend(e) && <span className="flex gap-3">
                 <button onClick={() => nudge(e.listingId, false)} disabled={busyRow === e.listingId}
                   className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Ask to renew</button>
                 <button onClick={() => nudge(e.listingId, true)} disabled={busyRow === e.listingId}
@@ -1290,7 +1304,9 @@ export default function BenchPage() {
                   : <span className="font-medium">{a.name}</span>}
                 {' · '}{askedSays(a.consent)}
               </span>
-              {a.consent === 'INVITED' && writesBench && (
+              {/* A sample person is offered neither: no email can reach
+                  them, and the line below says so (batch five walk). */}
+              {a.consent === 'INVITED' && writesBench && offersSend(a) && (
                 <span className="flex gap-3">
                   <button onClick={() => nudge(a.listingId, false)} disabled={busyRow === a.listingId}
                     className="text-[12px] text-etyme-action hover:underline disabled:opacity-40">Resend</button>
@@ -1301,7 +1317,10 @@ export default function BenchPage() {
               {/* How they get into Etyme where no letter can leave: the route
                   draws it only for somebody with no way to sign in, and only
                   for a seat that may invite (the third screen walk, S1). */}
-              {a.consent === 'INVITED' && drawsSignInLine(session.permissions) && <SignInLink personId={a.personId} className="basis-full" />}
+              {a.consent === 'INVITED' && a.sample && (
+                <p className="basis-full text-[12px] text-etyme-muted">{sampleRowSays(a.name)}</p>
+              )}
+              {a.consent === 'INVITED' && !a.sample && drawsSignInLine(session.permissions) && <SignInLink personId={a.personId} className="basis-full" />}
             </div>
           ))}
         </section>

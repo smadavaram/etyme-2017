@@ -167,6 +167,8 @@ export default function ScorecardsPage() {
   const [summary, setSummary] = useState('')
   const [orderedBy, setOrderedBy] = useState('')
   const [windowDays, setWindowDays] = useState(365)
+  /** Supplier rows on this firm's register, as the route counted them. */
+  const [onRegister, setOnRegister] = useState(0)
   const [open, setOpen] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -208,6 +210,7 @@ export default function ScorecardsPage() {
       setSummary(body.data.summary)
       setOrderedBy(body.data.orderedBy)
       setWindowDays(body.data.windowDays)
+      setOnRegister(typeof body.data.onRegister === 'number' ? body.data.onRegister : 0)
       setError(null)
     } catch (err: any) {
       // A failure that is not a refusal still answers: the section shows
@@ -297,7 +300,7 @@ export default function ScorecardsPage() {
           Suppliers, and what they cost you if they stop
         </h1>
         <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
-          {onlyHereSays(loading || error ? null : cards.length)}
+          {onlyHereSays(loading || error ? null : cards.length, onRegister)}
         </p>
       </header>
 
@@ -535,7 +538,7 @@ export default function ScorecardsPage() {
       {error && <ErrorState says={error} />}
 
       {!loading && cards.length === 0 && !error && (
-        <EmptyState says="Nothing to score yet. Send a job to a supplier and this fills in." />
+        <EmptyState says="Send a job to a supplier on Etyme, and their answers fill this in." />
       )}
 
       {cards.map((c) => (

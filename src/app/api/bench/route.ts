@@ -22,6 +22,7 @@ import { stayEndedRow, stayRow } from '@/lib/bench-stay'
 import { benchAt } from '@/app/api/today/reads'
 import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, alreadyOursSays, type FreeLine, notAtACompany, onTheBench } from '@/lib/bench-filter'
 import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
+import { demoEmail } from '@/lib/password'
 
 /**
  * GET /api/bench
@@ -359,6 +360,9 @@ export async function GET(request: NextRequest) {
       oursSays: oursOf.get(l.consultant.personId) ?? null,
       // Whether `benchAt` names them today; null where this scope does not read it.
       onBenchToday: onBenchToday ? onBenchToday.has(l.consultant.personId) : null,
+      // An address no email can reach: the row offers no Resend and no
+      // Copy link (`offersSend`). Never said about a partner's person.
+      sample: scope !== 'network' && demoEmail(l.consultant.person.primaryEmail ?? ''),
       rateMin: showRate ? l.rateMin : undefined,
       rateMax: showRate ? l.rateMax : undefined,
       grantedAt: l.grantedAt.toISOString(),
@@ -467,7 +471,7 @@ export async function GET(request: NextRequest) {
             where: { companyId, state: 'GRANTED', lapsedAt: { not: null } },
             select: {
               id: true, lapsedAt: true, staysUntil: true, stayDays: true,
-              consultant: { select: { personId: true, skills: true, person: { select: { name: true } } } },
+              consultant: { select: { personId: true, skills: true, person: { select: { name: true, primaryEmail: true } } } },
             },
             orderBy: { lapsedAt: 'desc' },
           })
@@ -480,6 +484,7 @@ export async function GET(request: NextRequest) {
             skills: l.consultant.skills,
             endedOn: on.toISOString().slice(0, 10),
             says: stayEndedRow(on),
+            sample: demoEmail(l.consultant.person.primaryEmail ?? ''),
           }
         })
       : []

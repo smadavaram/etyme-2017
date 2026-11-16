@@ -418,6 +418,12 @@ export interface BenchRow {
    * too (`freeOnTheBench`).
    */
   onBenchToday: boolean | null
+  /**
+   * Whether the address on her record is one no email can reach (a
+   * sample person), as the route read it (`demoEmail`). Such a row offers
+   * no Resend and no Copy link: there is nobody to send it to.
+   */
+  sample: boolean
 }
 
 export type BenchReading =
@@ -525,7 +531,9 @@ export function benchStanding(o: { onBench: boolean | null; listingState: string
 /** The words a row reads for its standing. */
 export const STANDING_WORD: Record<BenchStanding, string> = {
   ON_BENCH: 'On the bench',
-  ON_A_PROJECT: 'On a project',
+  // The Bench page's words for the same state ("On a placement until …",
+  // `whenFree`), so one person reads one phrase on both pages (batch five walk).
+  ON_A_PROJECT: 'On a placement',
   ASKED: 'Asked, not answered',
   SAID_NO: 'Said no',
   EMPLOYED: 'Employed here',
@@ -666,6 +674,7 @@ function benchRowOf(l: any, tier: 'RETAINED' | 'MARKETING'): BenchRow | null {
     companyName: String(l.company?.name ?? ''),
     oursSays: typeof l.oursSays === 'string' ? l.oursSays : null,
     onBenchToday: typeof l.onBenchToday === 'boolean' ? l.onBenchToday : null,
+    sample: l.sample === true,
   }
 }
 
@@ -1752,4 +1761,34 @@ export function saysNobodyFound(o: { query: string; searching: boolean; searched
  */
 export function askedOntoBenchSays(name: string): string {
   return `Asked ${name.trim() || 'them'} to agree to be on your bench. Nobody can put them forward until they say yes.`
+}
+
+/**
+ * Add to bench's button stays pressable before anybody is chosen, and
+ * says why it will not save (batch five walk, 2026-11-16). It was greyed
+ * with only "Consultant *" as the clue. The line beside it says what to
+ * do first; pressing anyway says it again, at the top of the dialog.
+ */
+export const CHOOSE_FIRST_SAYS = 'Choose somebody first.'
+export const CHOOSE_FROM_RESULTS_SAYS = 'Choose the person from the search results.'
+
+/**
+ * Whether a row offers Resend, Ask to renew and Copy link: only somebody
+ * an email can reach (batch five walk, 2026-11-16). A sample person read
+ * "there is nothing to send" with both buttons under it, and Resend then
+ * said to copy the link. Pure.
+ */
+export function offersSend(row: { sample?: boolean | null }): boolean {
+  return row.sample !== true
+}
+
+/**
+ * The line on a sample person's row, where nothing can be sent. The same
+ * words the sign-in line says for her (`sampleSays` in
+ * lib/notify/sign-in-link), without the address: before her yes a firm
+ * reads only what it typed. Pure.
+ */
+export function sampleRowSays(name: string): string {
+  const first = name.trim().split(/\s+/)[0] || 'This person'
+  return `${first} is a sample person. No email can reach them, so there is nothing to send.`
 }

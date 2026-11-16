@@ -200,12 +200,12 @@ describe('Consultants, Today and Ask Etyme count the bench from one list', () =>
     expect(STANDING_WORD.SAID_NO).toBe('Said no')
   })
 
-  it('somebody who said yes and is on a project here today reads On a project, never On the bench', () => {
+  it('somebody who said yes and is on a placement here today reads On a placement, the Bench page’s words, never On the bench', () => {
     expect(benchStanding({ onBench: false, listingState: 'GRANTED' })).toBe('ON_A_PROJECT')
-    expect(STANDING_WORD.ON_A_PROJECT).toBe('On a project')
+    expect(STANDING_WORD.ON_A_PROJECT).toBe('On a placement')
   })
 
-  it('where the seat does not read the bench, no row guesses On a project or On the bench', () => {
+  it('where the seat does not read the bench, no row guesses On a placement or On the bench', () => {
     expect(benchStanding({ onBench: null, listingState: 'GRANTED' })).toBeNull()
     expect(benchStanding({ onBench: null, listingState: null })).toBeNull()
     // An unanswered ask is still said: it is on the row's own listing.
