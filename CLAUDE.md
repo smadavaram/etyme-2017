@@ -455,7 +455,7 @@ Full text → 40, 11, 56, 68, 72.
   sign-in, outreach doors, an accounting feed any system reads, and
   operations tools on the record. Each fails visibly and writes to the
   record. Eight questions in 80 wait on the founder before each layer.
-  The bar is "SAP-like stability": every message has a status on the
+  The bar is enterprise-ERP stability: every message has a status on the
   record, nothing is lost silently, a failure can be reprocessed, a
   duplicate is never posted twice, and anything short of that is labeled
   as what it is, never "connected". Signing goes through the client's own
@@ -643,6 +643,13 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
   The gate, the run file and every bill read one row (`payToRow`,
   `payToOnBill`); an unchecked row holds payment and prints no account.
   Payroll and payment runs wait for a verified Owner.
+- **Bank details are sensitive data, confirmed by the payer** (founder,
+  2026-11-16 → 86: "do what [an enterprise ERP] would do"). The supplier
+  enters a change; each paying client confirms it for itself, with a
+  recorded call back; payment to that supplier is blocked until then and
+  for three days after. An Admin neither enters nor confirms one. Each
+  release of money asks for its own fresh check inside Etyme; marking a
+  run paid from the bank's file is reconciliation, logged.
 - **Etyme never moves money.** A payment run is a list. It leaves as a
   file for the client's own system; the confirmation marks receipts
   paid; the supplier is told the day it is paid.

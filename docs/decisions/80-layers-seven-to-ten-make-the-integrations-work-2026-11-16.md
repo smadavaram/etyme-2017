@@ -96,7 +96,7 @@ Sunday, and the overtime hold for W-2 weeks over 40 hours outside the US.
 queued after them. Stabilization is the priority track. Layer 6 ships as
 its own batch and must not destabilize it.
 
-**The stability bar.** The founder's words: *"Give it SAP-like
+**The stability bar.** The founder's words: *"Give it [enterprise ERP]-like
 stability."* Every integration in Layers 7 to 10 behaves like a
 monitored interface:
 - every message or event has a status a person can see on the record;
