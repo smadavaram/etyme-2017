@@ -569,6 +569,7 @@ const RULE_ATTRIBUTED = [
   // Their own act; the row says from and to, and nothing undoes it.
   'PAY_WINDOW_REPAIRED',
   'VENDOR_NUMBER_CHANGED',
+  'CONTRACT_CODING_CHANGED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 
