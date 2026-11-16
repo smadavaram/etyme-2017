@@ -1165,6 +1165,8 @@ model Company {
   billsIssued      VendorBill[]          @relation("billIssuer")
 
   paymentRuns         PaymentRun[]         @relation("paymentRunOwner")
+  coding              CompanyCoding?       @relation("companyCoding")
+  billFeedMessages    BillFeedMessage[]    @relation("billFeedPayer")
   classificationCalls ClassificationCall[] @relation("classificationOwner")
   /// Exempt positions this company has taken as the employer. Never as
   /// the client — the client is not the party an investigator bills.
@@ -2396,6 +2398,10 @@ model Counterparty {
   accountManagerSetById String?
   accountManagerSetBy   Person?   @relation("counterpartyAccountManagerSetter", fields: [accountManagerSetById], references: [id], onDelete: SetNull)
   accountManagerSetAt   DateTime?
+
+  /// The number this firm's own books give the other company as a
+  /// supplier. Read only by the firm whose register this is.
+  vendorNumber String?
 
   @@unique([companyId, otherCompanyId, relationship])
   @@index([otherCompanyId])
@@ -5633,6 +5639,7 @@ model VendorBill {
   updatedAt DateTime @updatedAt
 
   paymentRunItems PaymentRunItem[]
+  feedMessages    BillFeedMessage[]
   lines           VendorBillLine[]
   matchOverrides  VendorBillMatchOverride[]
   payments        Payment[]
@@ -5683,6 +5690,8 @@ model VendorBillLine {
   rateCents   Int?
   amountCents Int
   createdAt   DateTime @default(now())
+
+  feedMessages BillFeedMessage[]
 
   @@index([vendorBillId])
   @@index([timesheetId])
@@ -5744,6 +5753,10 @@ model InternalOrder {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  /// What kind of cost object the code is: INTERNAL_ORDER · PROJECT_CODE ·
+  /// WBS_ELEMENT · MATERIAL_CODE. A type beside the value, never free text.
+  /// Existing rows are internal orders.
+  kind        String      @default("INTERNAL_ORDER")
   /// The client's own code, matched exactly — "IO-4711", "WBS-4711.02".
   ///
   /// INTERFACE ONLY. This object exists so a figure leaving here lands on
@@ -6277,15 +6290,17 @@ model CostCenter {
   /// it, so "who signed off on this spend" had no answer that did not
   /// involve asking around. The programme team screen is where this gets
   /// set, beside the approvers it usually is one of.
-  ownerId   String?
-  owner     Person?  @relation("costCentreOwner", fields: [ownerId], references: [id])
-  code      String // must match the owner's ERP — "MFG-FIN-4100"
-  name      String
-  glAccount String? // default expense/revenue account, e.g. "6120"
-  orgUnitId String? // the department it funds, when they correspond
-  orgUnit   OrgUnit? @relation(fields: [orgUnitId], references: [id])
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  ownerId      String?
+  owner        Person?  @relation("costCentreOwner", fields: [ownerId], references: [id])
+  code         String // must match the owner's ERP — "MFG-FIN-4100"
+  name         String
+  glAccount    String? // default expense/revenue account, e.g. "6120"
+  /// The client's own profit center for what this budget spends. Optional.
+  profitCenter String?
+  orgUnitId    String? // the department it funds, when they correspond
+  orgUnit      OrgUnit? @relation(fields: [orgUnitId], references: [id])
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
 
   allocations    ContractCostAllocation[]
   headcountPlans HeadcountPlan[]
@@ -8875,7 +8890,8 @@ model PaymentRun {
   approvedBy   Person?  @relation("paymentRunApprover", fields: [approvedById], references: [id])
   createdAt    DateTime @default(now())
 
-  items PaymentRunItem[]
+  items        PaymentRunItem[]
+  feedMessages BillFeedMessage[]
 
   @@index([companyId, status])
   @@index([createdById])
@@ -10786,4 +10802,73 @@ model SecurityEvent {
   @@index([companyId, at])
   @@index([subjectCompanyId, at])
   @@index([targetKind, targetId])
+}
+
+/// A client's own coding, one row per company: what the file needs that
+/// is not on a cost center. Nothing here is a default for a line; a line
+/// with no code of its own is held and named, never guessed.
+model CompanyCoding {
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation("companyCoding", fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// The paying company's code in its own books. Null until the Finance
+  /// person sets it.
+  companyCode String?
+  /// The columns of the invoice-lines file, in order, set once. Empty
+  /// means every column (`pickColumns`).
+  fileColumns String[]
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+/// One message about one invoice line, to or from the client's own system.
+///
+/// OUT is the file leaving, IN is the answer coming back. A message has a
+/// state that answers "what happened to this line": QUEUED · SENT ·
+/// ACCEPTED · REJECTED · PAID · FAILED · SUPERSEDED. A line is never in
+/// two live files: `lib/money/bill-feed` reads these rows to say whether
+/// a line may go in the next one. A re-send after a fix is a new message
+/// (the next generation in its key) and the old one reads SUPERSEDED.
+model BillFeedMessage {
+  id String @id @default(cuid())
+
+  /// The paying company: the client whose system this is.
+  companyId String
+  company   Company @relation("billFeedPayer", fields: [companyId], references: [id], onDelete: Cascade)
+
+  runId String?
+  run   PaymentRun? @relation(fields: [runId], references: [id])
+
+  vendorBillId String
+  vendorBill   VendorBill      @relation(fields: [vendorBillId], references: [id])
+  /// The receipt line; null only for a message about a whole receipt.
+  lineId       String?
+  line         VendorBillLine? @relation(fields: [lineId], references: [id])
+  /// Which share of a split line; empty when the line is whole.
+  shareKey     String          @default("")
+
+  /// OUT · IN
+  direction   String
+  state       String  @default("QUEUED")
+  /// Why, in words, where the state is a refusal or a failure.
+  reason      String?
+  /// The other system's document number, or the payment reference.
+  externalRef String?
+  attempts    Int     @default(1)
+
+  /// One message per run, line, share, direction and generation. A second
+  /// request for the same run finds this row instead of making another.
+  idempotencyKey String @unique
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  sentAt     DateTime?
+  answeredAt DateTime?
+
+  @@index([companyId, state])
+  @@index([runId])
+  @@index([vendorBillId])
+  @@index([lineId])
 }
