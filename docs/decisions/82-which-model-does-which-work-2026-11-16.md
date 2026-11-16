@@ -28,8 +28,8 @@ effect from the next batch onward.
   can see the split is real.
 
 **How it is held.**
-- The lead passes the model to each agent it spawns: Sonnet by default,
-  Opus only for the pieces named above. It names the model in each
+- The lead passes the model to each agent it spawns: the standard model
+  by default, the strongest only for the pieces named above. It names the model in each
   batch note.
 - Read-only readers and walkers count toward the three.
 - The pull request into the old Rails branch shows conflicts because this
