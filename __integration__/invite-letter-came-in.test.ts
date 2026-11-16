@@ -80,7 +80,7 @@ describe('an invitation never carries a link that sets a password on an account 
       const { personId, bodies } = await lettersTo(email)
       expect(bodies.length).toBeGreaterThan(0)
       for (const body of bodies) {
-        expect(body).toContain('the way you usually do. You are in Brightmoor')
+        expect(body).toContain('the way you usually do, then choose Brightmoor Staffing in the account menu. You are in Brightmoor')
         expect(body).not.toContain('/reset/')
         expect(body).not.toMatch(/Set your password/)
       }

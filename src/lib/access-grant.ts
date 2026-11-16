@@ -944,7 +944,7 @@ export function inviteLetter(l: InviteLetter): { lines: string[]; link: string |
         // She has used Etyme before, by some door: she signs in the way she
         // always does, and no link here sets a password (2026-11-16).
         l.door === 'SIGN_IN'
-          ? `Sign in at ${l.loginUrl} the way you usually do. ${youAre}`
+          ? `Sign in at ${l.loginUrl} the way you usually do, then choose ${l.companyName} in the account menu. ${youAre}`
           : l.door === 'WORK_ACCOUNT'
           ? `Sign in with your work account at ${l.loginUrl}. ${youAre}`
           : `Sign in at ${l.loginUrl}. ${youAre}`,

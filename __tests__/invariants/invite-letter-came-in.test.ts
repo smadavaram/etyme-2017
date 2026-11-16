@@ -48,7 +48,7 @@ describe('an invitation never carries a link that sets a password on an account 
       door: 'SIGN_IN', companyName: 'Northwind Staffing', roleName: 'Recruiter', setPasswordUrl: null,
       loginUrl: LOGIN, linkHours: INVITE_LINK_HOURS, workAccount: true,
     })
-    expect(l.lines).toEqual([`Sign in at ${LOGIN} the way you usually do. You are in Northwind Staffing as Recruiter.`])
+    expect(l.lines).toEqual([`Sign in at ${LOGIN} the way you usually do, then choose Northwind Staffing in the account menu. You are in Northwind Staffing as Recruiter.`])
     expect(l.link).toBeNull()
     expect(l.lines.join(' ')).not.toMatch(/password|reset/i)
   })
