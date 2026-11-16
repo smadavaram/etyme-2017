@@ -192,6 +192,14 @@ export function mapColumnsFor(spec: EntitySpec, headers: string[]): MappingRepor
   for (const header of headers) {
     const n = normalize(header)
 
+    // This door writes a person's record and nothing about how she is
+    // employed. Said at the column, so "not used" is never a silent drop:
+    // a W2 row becomes the firm's own employee on the Import page.
+    if (spec.key === 'CONSULTANTS' && CONTRACT_TYPE_HEADERS.includes(n)) {
+      columns.push({ column: header, field: null, confidence: 0, note: CONTRACT_TYPE_NOT_READ })
+      continue
+    }
+
     const exact = spec.fields.find((f) => !taken.has(f.key) && f.aliases.includes(n))
     if (exact) {
       taken.add(exact.key)
@@ -234,6 +242,11 @@ export function mapColumnsFor(spec: EntitySpec, headers: string[]): MappingRepor
     ready: missingRequired.length === 0,
   }
 }
+
+/** Headings that name how a person is employed, which this door does not read. */
+const CONTRACT_TYPE_HEADERS = ['contract type', 'contract_type', 'employment type', 'w2/c2c']
+export const CONTRACT_TYPE_NOT_READ =
+  'Not read here. A W2 row becomes your own employee under Import, on the Import page; this sheet only keeps the person’s record.'
 
 // ── Reading a row ─────────────────────────────────────────────────────
 

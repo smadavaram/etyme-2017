@@ -14,6 +14,7 @@ import { plainDate } from '@/lib/plain-date'
 import type { HolidaySeedOffer } from '@/lib/pay-dates'
 import { BenchPaySection } from './bench-pay/bench-pay'
 import { TEAMS_LINK_HOW_TO } from '@/lib/notify/teams-link'
+import { TEAMS_NOT_CONFIRMED } from '@/lib/team-structure/directory/words'
 // The week and payroll panels are one component each, drawn here and on
 // the setup's "How you work" step, so the two can never ask differently.
 import { WeekPanel } from '@/components/settings/week-panel'
@@ -558,7 +559,7 @@ function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: Sen
             className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm disabled:opacity-60"
           />
         </label>
-        <p className="text-[12px] text-etyme-muted mt-2">{TEAMS_LINK_HOW_TO}</p>
+        <p className="text-[12px] text-etyme-muted mt-2">{TEAMS_LINK_HOW_TO} {TEAMS_NOT_CONFIRMED}</p>
         <p className={`text-[12px] mt-2 ${c.teams.state === 'NEEDS_NEW_LINK' ? 'text-etyme-attention' : c.teams.state === 'WORKS' ? 'text-etyme-verified' : 'text-etyme-muted'}`}>
           {c.teams.says}
         </p>

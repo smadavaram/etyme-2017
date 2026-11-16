@@ -9,6 +9,7 @@ import { momentFor, readerZone } from '@/lib/when'
 import { OwnerGateLine } from '@/components/owner-gate-line'
 import { refusalLine, type OwnerLine } from '@/lib/owner-gate'
 import { SIGN_IN_SCREEN_MODES, modeOptionSays, eventWords, sourceWords, eventSays, setLine } from '@/lib/identity/screen-words'
+import { SAML_STATE } from '@/lib/identity/saml-words'
 import { ASSURANCE_SAYS, RESIDENCY_SAYS, SAY_WHY_FIRST, NO_VERIFIED_DOMAIN, PROVE_DOMAIN_HREF, PROVE_DOMAIN_LINK, SAML_NOT_AVAILABLE, scimSays, noScimTokenSays } from '@/components/settings/settings-says'
 import { holdsNoRole, roleWords, NO_ROLE_SEES } from '@/lib/access-grant'
 
@@ -214,7 +215,7 @@ export default function SignInSettings() {
           )}
       </Panel>
 
-      <Panel title="Your company's directory" subtitle={o.directory ? `${o.directory.enabled ? 'On' : 'Off'}${o.directory.isMock ? ' · the demo’s mock directory' : ''} · secret ${o.directory.secret}` : 'Not connected.'}
+      <Panel title="Your company's directory" subtitle={o.directory ? `${o.directory.type === 'SAML' ? SAML_STATE : o.directory.enabled ? 'On' : 'Off'}${o.directory.isMock ? ' · the demo’s mock directory' : ''} · secret ${o.directory.secret}` : 'Not connected.'}
         action={o.directory ? <SubmitButton tone="secondary" type="button" pending={busy === 'test'} onClick={() => void send('test', '/api/settings/sign-in/directory/test', 'POST')}>Test</SubmitButton> : null}>
         {test && <p role="status" className="mb-3 text-[13px] text-etyme-ink">{test}</p>}
         {isSaml && <p className="mb-3 text-[13px] text-etyme-attention">{SAML_NOT_AVAILABLE}</p>}

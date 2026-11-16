@@ -55,7 +55,7 @@ describe('Sign-in never offers a choice that does nothing', () => {
   })
 
   it('a saved SAML directory still reads back, with a sentence saying nobody can sign in through it', () => {
-    expect(SAML_NOT_AVAILABLE).toBe('SAML sign-in is not available yet, so nobody can sign in through this directory. Choose OpenID Connect, Microsoft Entra ID or Google Workspace instead.')
+    expect(SAML_NOT_AVAILABLE).toContain('set up and stored, and not built yet')
     expect(page).toContain('{isSaml && <p className="mb-3 text-[13px] text-etyme-attention">{SAML_NOT_AVAILABLE}</p>}')
   })
 })

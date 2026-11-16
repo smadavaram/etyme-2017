@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { SAML_NOT_BUILT } from '@/lib/identity/saml-words'
 import { appUrl } from '@/lib/app-url'
 import { domainOfEmail, isConsumerDomain } from '@/lib/company-domains'
 import { unseal } from '@/lib/team-structure/directory/sealed'
@@ -47,7 +48,7 @@ export const DIRECTORY_PROVIDER_ID = 'directory-oidc'
 /** The types the directory door signs in through in pass 1. */
 const OIDC_TYPES = ['OIDC', 'ENTRA', 'GOOGLE_WORKSPACE'] as const
 
-export const SAML_NOT_BUILT = 'Sign-in through a SAML directory is set up and stored, and not built yet in this pass. Use an OpenID Connect directory, or sign in another way your company allows.'
+export { SAML_NOT_BUILT }
 
 export function callbackUrl(): string {
   return `${appUrl()}/api/sso/callback`

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
-import { NOT_AVAILABLE_YET, READ_TEAMS_LABEL, splitSources, tileStatus, IMPORT_RECORDS_HREF, IMPORT_RECORDS_LABEL } from '@/lib/team-structure/directory/words'
+import { NOT_AVAILABLE_YET, READ_TEAMS_LABEL, splitSources, tileStatus, IMPORT_RECORDS_HREF, IMPORT_RECORDS_LABEL, connectionSays } from '@/lib/team-structure/directory/words'
 import { SubmitButton } from '@/components/ui/form'
 
 /**
@@ -215,8 +215,7 @@ export function ImportDialog({ onClose, onApplied, opening }: { onClose: () => v
             )}
             {(chosen?.key === 'GOOGLE' || chosen?.key === 'ENTRA') && chosen.connection && (
               <p className="rounded-lg border border-etyme-rule bg-etyme-raised p-3 text-[13px]">
-                Connected for {chosen.connection.domain}{chosen.connection.connectedBy ? ` by ${chosen.connection.connectedBy}` : ''} on {day(chosen.connection.connectedAt)}. Read only.
-                {chosen.connection.lastReadAt ? ` Last read ${day(chosen.connection.lastReadAt)}: ${chosen.connection.lastReadCount ?? 0} people.` : ' Not read yet.'}
+                {connectionSays({ domain: chosen.connection.domain, connectedBy: chosen.connection.connectedBy ?? null, connectedDay: day(chosen.connection.connectedAt), lastReadDay: chosen.connection.lastReadAt ? day(chosen.connection.lastReadAt) : null, lastReadCount: chosen.connection.lastReadCount ?? null })}
                 {' '}{chosen.key === 'GOOGLE' ? 'Disconnect deletes the stored access; your team structure stays.' : 'Disconnect stops Etyme reading it; your team structure stays.'}
               </p>
             )}

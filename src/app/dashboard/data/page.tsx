@@ -284,7 +284,7 @@ export default function DataPage() {
                       !c.field ? 'text-etyme-faint' : c.confidence < 1 ? 'text-etyme-attention' : 'text-etyme-muted'
                     }`}>
                       {c.field ? `→ ${c.field}` : 'not used'}
-                      {c.note && c.field ? ` · ${c.note}` : ''}
+                      {c.note && (c.field || c.note !== 'Not used') ? ` · ${c.note}` : ''}
                     </span>
                   </div>
                 ))}

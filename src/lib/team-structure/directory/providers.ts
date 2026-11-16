@@ -1,6 +1,7 @@
 import type { DirectoryPerson } from './csv'
 import { googleReadiness, GOOGLE_DIRECTORY } from './google'
 import { entraReadiness } from './entra'
+import { accessGivenSays } from './words'
 
 /**
  * Microsoft Entra ID and Google Workspace, read as the directory, read
@@ -59,7 +60,7 @@ export function directorySources(
     {
       key: 'ENTRA',
       label: 'Microsoft Entra ID',
-      says: entraConnected ? `Connected for ${entra!.domain}. Read only.` : 'Active Directory in the cloud. Your admin approves read-only access once.',
+      says: entraConnected ? accessGivenSays(entra!.domain) : 'Active Directory in the cloud. Your admin approves read-only access once.',
       connected: entraConnected,
       connectable: e.ready && !entra,
       connection: entra,
@@ -74,7 +75,7 @@ export function directorySources(
     {
       key: 'GOOGLE',
       label: 'Google Workspace',
-      says: googleConnected ? `Connected for ${google!.domain}. Read only.` : 'The Google directory. Your admin approves read-only access once.',
+      says: googleConnected ? accessGivenSays(google!.domain) : 'The Google directory. Your admin approves read-only access once.',
       connected: googleConnected,
       connectable: g.ready && !google,
       connection: google,

@@ -102,3 +102,30 @@ export function teamsLinkAsk(roleName: string | null | undefined): string {
   const role = (roleName ?? '').trim().toLowerCase()
   return role === 'owner' || role === 'admin' ? TEAMS_LINK_WHERE : TEAMS_LINK_ASK
 }
+
+/**
+ * Teams does not tell Etyme a notice arrived: a post is accepted, and
+ * nothing comes back from the channel. Said under the link, so "Posted"
+ * is never read as "read" or "delivered".
+ */
+export const TEAMS_NOT_CONFIRMED = 'Notices are posted to the channel. Teams does not confirm they arrived.'
+
+/** What a directory source says once access is given: access, never a live link. */
+export function accessGivenSays(domain: string): string {
+  return `Access given for ${domain}. Read only, and read only when somebody presses read.`
+}
+
+/**
+ * What a kept directory connection says of itself: who gave access, when
+ * it was last read and how many it returned, and that a read happens only
+ * when somebody presses it. The connection keeps no failure, so a failed
+ * read is not said here; nothing is claimed beyond the last read that
+ * worked. Dates arrive already formatted (lib/format-date). Pure.
+ */
+export function connectionSays(c: { domain: string; connectedBy: string | null; connectedDay: string; lastReadDay: string | null; lastReadCount: number | null }): string {
+  const gave = `Access given for ${c.domain}${c.connectedBy ? ` by ${c.connectedBy}` : ''} on ${c.connectedDay}. Read only.`
+  const last = c.lastReadDay
+    ? ` Last read ${c.lastReadDay}${c.lastReadCount == null ? '' : `: ${c.lastReadCount} ${c.lastReadCount === 1 ? 'person' : 'people'}`}.`
+    : ' Not read yet.'
+  return `${gave}${last} It is read only when somebody presses read.`
+}

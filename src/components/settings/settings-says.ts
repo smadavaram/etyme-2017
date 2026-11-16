@@ -1,3 +1,4 @@
+import { SAML_NOT_BUILT } from '@/lib/identity/saml-words'
 /**
  * What Settings says about a setting, as pure sentences with no database
  * in them, so the panel, the route's reply and the tests read one copy
@@ -123,9 +124,8 @@ export const PROVE_DOMAIN_HREF = '/dashboard/settings/domain'
 export const NO_VERIFIED_DOMAIN = 'No verified domain yet. “Your company’s directory only” needs one.'
 export const PROVE_DOMAIN_LINK = 'Prove your domain'
 
-/** Said where a SAML directory was saved before SAML was taken off the list. */
-export const SAML_NOT_AVAILABLE =
-  'SAML sign-in is not available yet, so nobody can sign in through this directory. Choose OpenID Connect, Microsoft Entra ID or Google Workspace instead.'
+/** Said where a SAML directory is stored: the same words the sign-in refusal uses. */
+export const SAML_NOT_AVAILABLE = SAML_NOT_BUILT
 
 /**
  * The SCIM panel's line. The address is given only where it can be used:

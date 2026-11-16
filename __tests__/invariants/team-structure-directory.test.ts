@@ -213,7 +213,7 @@ describe('Microsoft Entra ID, connected by the client’s IT admin', () => {
   it('with everything set it can be connected, and once connected the card reads it as connected with no secret in it', () => {
     expect(directorySources(ENTRA_ENV)[0]).toMatchObject({ connected: false, connectable: true })
     const e = directorySources(ENTRA_ENV, null, kept)[0]
-    expect(e).toMatchObject({ connected: true, connectable: false, adminApproves: null, says: 'Connected for corvane.example. Read only.' })
+    expect(e).toMatchObject({ connected: true, connectable: false, adminApproves: null, says: 'Access given for corvane.example. Read only, and read only when somebody presses read.' })
     expect(Object.keys(e.connection!)).toEqual(['domain', 'connectedBy', 'connectedAt', 'lastReadAt', 'lastReadCount'])
   })
 

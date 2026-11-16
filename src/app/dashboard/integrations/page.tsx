@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from '@/components/session-provider'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
 import { mayOpen } from '@/lib/nav-table'
-import { teamsLinkAsk, TEAMS_LINK_HREF, TEAMS_LINK_SAYS, TEAMS_LINK_WHERE } from '@/lib/team-structure/directory/words'
+import { teamsLinkAsk, TEAMS_LINK_HREF, TEAMS_LINK_SAYS, TEAMS_LINK_WHERE, TEAMS_NOT_CONFIRMED } from '@/lib/team-structure/directory/words'
 
 /**
  * Their books, fed from ours. Export once, stamped as sent; reconcile
@@ -131,6 +131,7 @@ export default function IntegrationsPage() {
         {mayOpen(TEAMS_LINK_HREF, seat.permissions)
           ? <a href={TEAMS_LINK_HREF} className="text-etyme-action-press hover:underline">{TEAMS_LINK_WHERE}</a>
           : teamsLinkAsk(session.roleName)}
+        {' '}{TEAMS_NOT_CONFIRMED}
       </p>
 
       {loading && <LoadingState says="Opening integrations…" />}
