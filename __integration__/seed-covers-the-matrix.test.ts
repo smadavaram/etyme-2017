@@ -68,6 +68,9 @@ const RUNTIME: Record<string, string> = {
   passkey: 'written when a person enrolls a passkey for the second check; the seed enrolls nobody',
   authenticatorApp: 'written when a person enrolls an authenticator app; the seed enrolls nobody',
   securityEvent: 'written by security events as they happen (a second check, a showing of bank details); the seed claims none happened',
+  // Layer 9, slice 2 (2026-11-16, record 87).
+  billFeedMessage: 'written when a client downloads or sends its coded line file, and when its own system answers; the seed sends no file',
+  companyCoding: 'written when a client saves its company code or its file columns; a seeded row would claim a client chose them',
   // Owners (2026-11-11/12): an ask about who owns a company, and a proof
   // of ownership. A seeded ask would claim an Owner asked; a seeded proof
   // would claim a provider checked somebody, and Etyme renders no verdict.
