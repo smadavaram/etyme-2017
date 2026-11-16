@@ -85,7 +85,9 @@ export async function GET(request: NextRequest) {
   if (url.searchParams.get('state') === '1') {
     const states = await readLineStates(caller, books.companyId, runId)
     if (!states.ok) return NextResponse.json({ error: { code: states.code, message: states.says } }, { status: states.status })
-    return NextResponse.json({ data: { runId, lines: states.lines } })
+    // The door to the coding is offered only to a seat the coding route will take.
+    const mayFix = hasPermission(books.caller.permissions, 'settings.manage')
+    return NextResponse.json({ data: { runId, lines: states.lines.map((l) => (mayFix ? l : { ...l, codingContractId: null })) } })
   }
   const lineId = url.searchParams.get('line') || undefined
   const resend = url.searchParams.get('again') === '1'

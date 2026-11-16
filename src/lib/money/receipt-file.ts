@@ -119,6 +119,8 @@ export interface ReceiptLineIn {
   poLine?: string | null
   /** When the line was last fixed: the receipt changed or a code was added. */
   fixedAt?: Date | null
+  /** The client's own contract line this line is coded on, where the client can fix its coding. */
+  codingContractId?: string | null
   /** The client's coding for this line. Empty where the client has not coded it. */
   shares: CodeShare[]
 }

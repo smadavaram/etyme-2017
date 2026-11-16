@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { readJson } from '@/lib/read-response'
 import { confirmBody, confirmSummary, markPaidBody, type ConfirmSummary } from '@/lib/money/run-confirm'
 import { RECEIPT_COLUMNS, DEFAULT_RECEIPT_COLUMNS } from '@/lib/money/receipt-file'
@@ -396,7 +398,7 @@ export function MarkRunPaid({ runId, disabled, onDone }: { runId: string; disabl
   )
 }
 
-interface LineState { billId: string; number: string; vendorName: string; lineId: string; person: string | null; says: string; state: string; canSendAgain: boolean }
+interface LineState { billId: string; number: string; vendorName: string; lineId: string; person: string | null; says: string; state: string; canSendAgain: boolean; codingContractId?: string | null; codingHeld?: boolean }
 
 /**
  * What each line of an approved run says, in the client's own words:
@@ -465,6 +467,14 @@ export function ReceiptLineStates({ runId }: { runId: string }) {
           <li key={l.lineId} className="flex flex-wrap items-baseline gap-x-3 text-[13px] text-etyme-ink">
             <span>{l.vendorName}, invoice {l.number}{l.person ? `, ${l.person}` : ''}</span>
             <span className={l.state === 'REJECTED' || l.state === 'FAILED' ? 'text-etyme-attention' : ''}>{l.says}</span>
+            {l.codingHeld && !l.codingContractId && (
+              <span className="text-etyme-muted">Ask the Owner or an Admin to fix the coding.</span>
+            )}
+            {l.codingHeld && l.codingContractId && (
+              <Link href={`/dashboard/contracts?side=sell&open=${l.codingContractId}` as Route} className="underline" style={{ color: 'var(--color-action)' }}>
+                Fix the coding
+              </Link>
+            )}
             {l.canSendAgain && (
               <button type="button" className="underline" style={{ color: 'var(--color-action)' }} disabled={busy} onClick={() => sendAgain(l.lineId)}>
                 Send again

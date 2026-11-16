@@ -229,6 +229,7 @@ export async function loadRunReceipts(
         rateCents: l.rateCents,
         amountCents: l.amountCents,
         shares: sharesOf(candidates, companyId),
+        codingContractId: candidates.find((c) => c.clientCompanyId === companyId)?.id ?? null,
         poLine: poLineNumber(b.workOrder?.buyContracts ?? [], b.buyContractId),
         // A line is fixed when its receipt changes, or a code is added to, or changed on, a contract it bills.
         fixedAt: candidates
@@ -413,6 +414,10 @@ export interface LineStateRow {
   says: string
   /** True where the line may be sent again now: rejected or failed, and fixed. */
   canSendAgain: boolean
+  /** The contract whose coding holds or got this line rejected, or null where it is neither. */
+  codingContractId: string | null
+  /** True where the line waits on its coding being fixed. */
+  codingHeld: boolean
 }
 
 export async function readLineStates(
@@ -442,6 +447,8 @@ export async function readLineStates(
         state: stands ? stands.state : 'NOT_SENT',
         says: stateInWords(stands, why ? why.replace(/^.*? is left out: /, '') : null),
         canSendAgain,
+        codingHeld: !canSendAgain && (l.shares.length === 0 || stands?.state === 'REJECTED' || stands?.state === 'FAILED'),
+        codingContractId: l.shares.length === 0 || stands?.state === 'REJECTED' || stands?.state === 'FAILED' ? l.codingContractId ?? null : null,
       })
     }
   }

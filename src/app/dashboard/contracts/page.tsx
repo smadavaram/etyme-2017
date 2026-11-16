@@ -32,6 +32,7 @@ import { reasonAsked } from '@/lib/award/reason-asked'
 import { activateBody } from './activate-body'
 import { ActivatePanel } from './activate-panel'
 import { CommissionPanel } from './commission-panel'
+import { AllocationsPanel } from './allocations-panel'
 import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 
 /**
@@ -1227,6 +1228,8 @@ function ContractDetailDrawer({
           {/* The commissions on this line, for the firm that holds it: drawn
               only where the line's own route answers this seat. */}
           {(tab === 'sell' || tab === 'buy') && <CommissionPanel contractId={contract.id} />}
+          {/* The client's own cost coding: drawn only where the route saves it. */}
+          {tab === 'sell' && <AllocationsPanel contractId={contract.id} />}
         </div>
       </div>
 
@@ -1414,6 +1417,14 @@ export default function ContractsPage() {
       router.replace(sideHref(tab) as any, { scroll: false })
     }
   }, [searchParams, router, mayRecord, tab])
+
+  // A link from a held invoice line opens the contract whose coding holds it.
+  const openId = searchParams.get('open')
+  useEffect(() => {
+    if (!openId) return
+    const found = contracts.find((c) => c.id === openId)
+    if (found) setSelectedContract(found)
+  }, [openId, contracts])
 
   // Auto-dismiss toast
   useEffect(() => {
