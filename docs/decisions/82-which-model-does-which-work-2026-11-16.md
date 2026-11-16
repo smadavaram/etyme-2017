@@ -3,10 +3,10 @@
 **What he said.** The founder set the model split for the build work, in
 effect from the next batch onward.
 
-- **The lead stays on Opus.** The main thread of the session does
+- **The lead stays on the strongest model.** The main thread of the session does
   architecture, reading the spec, spotting clashes, reviewing code and
   merging. The lead is never downgraded.
-- **Workers run on Sonnet by default.** These are the agents the lead
+- **Workers run on the standard model by default.** These are the agents the lead
   spawns to implement well-specified work against the written layer
   specs. That includes wording fixes, template rendering, mapping tables
   and distribution plumbing.
@@ -14,7 +14,7 @@ effect from the next batch onward.
   no two workers edit the same files. Width is capped to protect
   mergeability, not for lack of allowance. The pull request already
   carries merge conflicts at two.
-- **Opus workers only for correctness-critical pieces.** These are:
+- **Strongest-model workers only for correctness-critical pieces.** These are:
   - the Layer 7 security work: SSO enforcement, the sign-in leak proof,
     the bank-detail flow and the security ledger;
   - the lane enforcement in model routing (record 81), meaning the

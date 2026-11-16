@@ -1200,10 +1200,10 @@ and why, and stops.
 | `etyme-release` | Deciding whether it ships — read only |
 
 **Which model does which work** (founder, 2026-11-16 → 82). The lead
-stays on Opus. Workers run on Sonnet by default, at most three at once,
-each on its own files. Opus workers only for Layer 7 security and the
+stays on the strongest model. Workers run on the standard model by default, at most three at once,
+each on its own files. Strongest-model workers only for Layer 7 security and the
 model-routing lane tests. Each batch note says which model ran which
-piece.
+piece; the model names are said in the note to the founder, not in the repository.
 
 Work moves: scout → schema → spec as test names → build → release →
 preview URL. Different domains may run at the same time. Two agents in
