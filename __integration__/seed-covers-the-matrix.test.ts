@@ -61,6 +61,13 @@ import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
  * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
+  // Layer 7, slice S0 (2026-11-16, records 86 and 87). Nothing writes these
+  // until a person acts, and a seeded row would claim an act nobody did.
+  bankCheck: 'written when a paying client confirms a supplier’s bank details with a recorded call back; a seeded row would claim a client called somebody',
+  bankChangeRequest: 'written when a supplier enters new bank details; the seed changes nobody’s bank',
+  passkey: 'written when a person enrolls a passkey for the second check; the seed enrolls nobody',
+  authenticatorApp: 'written when a person enrolls an authenticator app; the seed enrolls nobody',
+  securityEvent: 'written by security events as they happen (a second check, a showing of bank details); the seed claims none happened',
   // Owners (2026-11-11/12): an ask about who owns a company, and a proof
   // of ownership. A seeded ask would claim an Owner asked; a seeded proof
   // would claim a provider checked somebody, and Etyme renders no verdict.
