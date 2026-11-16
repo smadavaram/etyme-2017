@@ -10,9 +10,11 @@ import { readJson } from '@/lib/read-response'
  * Drawn by any page that shows the person (People, the bench, the
  * placement's person) as `<SignInLink personId={…} />`. It draws nothing
  * for a seat that may not invite, for a person this firm neither employs
- * nor lists, and for somebody who already signs in; the route decides
- * all three (`/api/notifications/sign-in-link`), so the line and the
- * refusal cannot disagree.
+ * nor lists, for somebody asked onto the bench who has not said yes
+ * (whatever her address, so the line never says whether it has an
+ * account), and for somebody who already signs in; the route decides all
+ * four (`/api/notifications/sign-in-link`), so the line and the refusal
+ * cannot disagree.
  *
  * Where no email can leave, it shows the one-time link to copy; where
  * email can leave, it says the link was sent and offers "Send again".

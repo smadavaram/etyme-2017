@@ -9,7 +9,8 @@ import { as, req, json, prisma, freshWorld } from './harness'
  * address whose record is another person's own. Bench and Candidates
  * showed the name the firm typed. Bench check-ins showed the name on her
  * own record, with the letter greeting her by her own first name, and the
- * sample-person line on her row read her own first name too. This file
+ * sample-person line on her row read her own first name too. That row now
+ * draws no sign-in line at all before her yes. This file
  * walks the same path on the seeded world: another firm keeps her record,
  * then Brightmoor asks her at that address under a name of its own.
  */
@@ -26,7 +27,7 @@ const PINNACLE = 'world-pinnacle@demo.etyme.local'
 const OWN_NAME = 'Daniel Osei'
 const TYPED = 'Theo Marchetti'
 
-/** The address no mailbox uses, so the row is the sample-person line. */
+/** The address no mailbox uses, so after her yes the row is the sample-person line. */
 const SAMPLE_EMAIL = 'daniel.osei@harborline-tech.example'
 
 let personId = ''
@@ -121,27 +122,29 @@ describe('Bench check-ins before her yes', () => {
   })
 })
 
-describe('the sample-person line before her yes', () => {
-  it('the sample-person line names her as the firm typed her before her yes', async () => {
+describe('the sign-in line before her yes', () => {
+  // Before her yes the row draws no sign-in line at all, for every
+  // address, so it can say neither her name nor whether her address has
+  // an account (__integration__/sign-in-link-before-her-yes.test.ts).
+  it('before her yes the row draws no sign-in line, so it can never read her own first name off her record', async () => {
     const row = await signInRow(personId)
     expect(row.status, JSON.stringify(row.body)).toBe(200)
-    expect(row.body.data.state).toBe('DEMO')
-    expect(row.body.data.says).toBe(`Theo is a sample person. No email can reach ${SAMPLE_EMAIL}, so there is nothing to send.`)
+    expect(row.body.data).toMatchObject({ state: 'AWAITING_YES', show: false, says: '', note: null, action: null, link: null })
     expect(JSON.stringify(row.body)).not.toMatch(/Daniel|Osei/)
 
     as(BRIGHTMOOR)
     const pressed = await json(await makeSignIn(req('POST', '/api/notifications/sign-in-link', { personId })))
-    expect(pressed.status).toBe(422)
-    expect(pressed.body.error.message).toBe(`Theo is a sample person. No email can reach ${SAMPLE_EMAIL}, so no sign-in link can be sent.`)
+    expect(pressed.status).toBe(409)
+    expect(pressed.body.error.message).toBe('This person has not said yes to your bench invitation, so there is no sign-in link to make. The invitation is their way in.')
+    expect(JSON.stringify(pressed.body)).not.toMatch(/Daniel|Osei/)
   })
 
-  it('where the firm typed no name, the sample-person line says This person, never the name on her own record', async () => {
+  it('where the firm typed no name, the row still draws nothing, and Bench check-ins names her by the address it asked at', async () => {
     await prisma.benchListing.update({ where: { id: listingId }, data: { firmName: null } })
     try {
       const row = await signInRow(personId)
       expect(row.status).toBe(200)
-      expect(row.body.data.says).toBe(`This person is a sample person. No email can reach ${SAMPLE_EMAIL}, so there is nothing to send.`)
-      // Bench check-ins names her by the address the firm asked at.
+      expect(row.body.data).toMatchObject({ state: 'AWAITING_YES', show: false, says: '' })
       const rows = await rowsFor(personId)
       for (const r of rows) expect(r.person.name).toBe(SAMPLE_EMAIL)
     } finally {

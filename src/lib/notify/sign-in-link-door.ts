@@ -8,7 +8,7 @@ import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { baseUrl } from '@/lib/signed-link'
 import { ACCOUNT_MAIL, recordedBody, type AccountMailState } from '@/lib/notify/account-mail'
 import {
-  MAY_HAND_OVER, SIGN_IN_LINK_HOURS, alreadySignsInRefusal, calledOnRow, keptLinkIn, mayNotHandOver, notYours,
+  MAY_HAND_OVER, SIGN_IN_LINK_HOURS, alreadySignsInRefusal, awaitingYesRefusal, awaitsHerYes, calledOnRow, keptLinkIn, mayNotHandOver, notYours,
   sampleRefusal, sendFirstAction, signInLetter, signInLineSays, signInSubject, tokenOf, type SignInState,
 } from '@/lib/notify/sign-in-link'
 import { firmReadsAt, nameItTyped } from '@/lib/consultant-portfolio/before-her-yes'
@@ -47,17 +47,25 @@ export interface Line {
   mail: boolean
 }
 
-/** Whether this firm employs or lists the person: a seat, a live bench listing, or a pay line that pays them direct. */
-async function onOurBooks(companyId: string, personId: string): Promise<boolean> {
+/**
+ * Whether this firm employs or lists the person (a seat, a live bench
+ * listing, or a pay line that pays them direct), and whether its only tie
+ * is an ask she has not said yes to (`awaitsHerYes`). Neither reads her
+ * account.
+ */
+async function tiesHere(companyId: string, personId: string): Promise<{ onBooks: boolean; awaitsYes: boolean }> {
   const [seat, listing, pay] = await Promise.all([
     prisma.context.findFirst({ where: { personId, companyId, type: 'EMPLOYEE', revokedAt: null }, select: { id: true } }),
-    prisma.benchListing.findFirst({ where: { companyId, revokedAt: null, consultant: { personId } }, select: { id: true } }),
+    prisma.benchListing.findFirst({ where: { companyId, revokedAt: null, consultant: { personId } }, select: { state: true } }),
     prisma.buyContractCandidate.findFirst({
       where: { personId, buyContract: { companyId, vendorCompanyId: null } },
       select: { id: true },
     }),
   ])
-  return Boolean(seat || listing || pay)
+  return {
+    onBooks: Boolean(seat || listing || pay),
+    awaitsYes: awaitsHerYes({ seatHere: Boolean(seat), paysHerDirect: Boolean(pay), listingState: listing?.state ?? null }),
+  }
 }
 
 /** Whether the person already signs in: a password, a work-account sign-in, or a seat used once. */
@@ -83,7 +91,7 @@ async function hasAccount(personId: string): Promise<boolean> {
 interface Called { called: string | null; logged: string }
 
 type Gate =
-  | { ok: true; company: { id: string; name: string }; person: { id: string; name: string; primaryEmail: string }; as: Called }
+  | { ok: true; company: { id: string; name: string }; person: { id: string; name: string; primaryEmail: string }; as: Called; awaitsYes: boolean }
   | { ok: false; status: number; code: string; says: string }
 
 /**
@@ -119,8 +127,9 @@ async function gate(caller: Caller, personId: string, doing: string): Promise<Ga
   }
   if (caller.isService) return refuse(403, 'PERSON_REQUIRED', 'An integration cannot let people in. A person has to decide this.')
   if (!hasPermission(caller.permissions, MAY_HAND_OVER)) return refuse(403, 'FORBIDDEN', mayNotHandOver(company.name))
-  if (!(await onOurBooks(company.id, person.id))) return refuse(404, 'NOT_YOURS', notYours(company.name))
-  return { ok: true, company, person, as: await calledAs(company.id, caller.person.id, person) }
+  const ties = await tiesHere(company.id, person.id)
+  if (!ties.onBooks) return refuse(404, 'NOT_YOURS', notYours(company.name))
+  return { ok: true, company, person, as: await calledAs(company.id, caller.person.id, person), awaitsYes: ties.awaitsYes }
 }
 
 /** The last notice this firm wrote for this person's sign-in. */
@@ -132,7 +141,7 @@ function lastNotice(companyId: string, personId: string, firmName: string) {
   })
 }
 
-async function lineFor(company: { id: string; name: string }, person: { id: string; name: string; primaryEmail: string }, called: string | null, readOnly: boolean, now: Date): Promise<Line> {
+async function lineFor(company: { id: string; name: string }, person: { id: string; name: string; primaryEmail: string }, called: string | null, awaitsYes: boolean, readOnly: boolean, now: Date): Promise<Line> {
   const mail = mailLeaves()
   const base = { personId: person.id, mail }
   const draw = (state: SignInState, extra: { at?: Date | null; until?: Date | null; link?: string | null } = {}): Line => {
@@ -140,13 +149,16 @@ async function lineFor(company: { id: string; name: string }, person: { id: stri
     const action = state === 'NONE_YET' && mail ? sendFirstAction() : words.action
     const note = state === 'NONE_YET' && mail ? null : words.note
     return {
-      ...base, state, show: state !== 'HAS_ACCOUNT', says: words.says, note,
+      ...base, state, show: state !== 'HAS_ACCOUNT' && state !== 'AWAITING_YES', says: words.says, note,
       // A read-only sample seat never makes or reads a link.
       action: readOnly ? null : action,
       link: readOnly ? null : extra.link ?? null,
     }
   }
 
+  // Before her yes, one answer for every address, decided before her
+  // account is read (`awaitsHerYes`).
+  if (awaitsYes) return draw('AWAITING_YES')
   if (await hasAccount(person.id)) return draw('HAS_ACCOUNT')
   if (demoEmail(person.primaryEmail)) return draw('DEMO')
 
@@ -175,7 +187,7 @@ async function lineFor(company: { id: string; name: string }, person: { id: stri
 export async function readSignInLine(caller: Caller, personId: string, now: Date = new Date()): Promise<Answer> {
   const g = await gate(caller, personId, 'reading whether they can sign in')
   if (!g.ok) return g
-  const line = await lineFor(g.company, g.person, g.as.called, Boolean(caller.readOnly), now)
+  const line = await lineFor(g.company, g.person, g.as.called, g.awaitsYes, Boolean(caller.readOnly), now)
   await recordAccess([g.person.id], {
     ...accessActor({ person: caller.person, company: g.company, context: caller.context ?? null, readOnly: caller.readOnly }),
     action: 'PROFILE_VIEW',
@@ -191,6 +203,13 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
   const g = await gate(caller, personId, 'making a sign-in link')
   if (!g.ok) return g
   const actor = accessActor({ person: caller.person, company: g.company, context: caller.context ?? null, readOnly: caller.readOnly })
+  // Before her yes, one refusal for every address, decided before her
+  // account is read: the status, the code and the words never say whether
+  // she already signs in.
+  if (g.awaitsYes) {
+    await recordRefusal([g.person.id], { ...actor, action: 'PROFILE_VIEW', reason: `Refused a sign-in link for ${g.person.name}: not yet a yes to the bench invitation.` })
+    return { ok: false, status: 409, code: 'AWAITING_HER_YES', says: awaitingYesRefusal() }
+  }
   if (await hasAccount(g.person.id)) {
     const says = alreadySignsInRefusal(g.as.called)
     await recordRefusal([g.person.id], { ...actor, action: 'PROFILE_VIEW', reason: `Refused a sign-in link for ${g.person.name}: an account exists.` })
@@ -241,7 +260,7 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
       reversible: true,
     },
   })
-  const line = await lineFor(g.company, g.person, g.as.called, false, now)
+  const line = await lineFor(g.company, g.person, g.as.called, g.awaitsYes, false, now)
   await recordAccess([g.person.id], {
     ...actor, action: 'PROFILE_VIEW',
     reason: `Made a sign-in link for ${g.person.name} (${state === 'NOT_CONFIGURED' ? 'kept to hand over' : state === 'SENT' ? 'sent' : 'send failed'}).`,

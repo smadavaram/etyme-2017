@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   MAY_HAND_OVER, copySentence, keptLinkIn, sampleRefusal, signInLetter, signInLineSays, tokenOf, sendFirstAction,
-  calledOnRow, sampleSays, alreadySignsInRefusal,
+  calledOnRow, sampleSays, alreadySignsInRefusal, awaitsHerYes, awaitingYesRefusal,
 } from '@/lib/notify/sign-in-link'
 import { recordedBody } from '@/lib/notify/account-mail'
 
@@ -132,5 +132,41 @@ describe('before her yes, the sign-in line names her as the firm typed her (batc
     expect(door).toMatch(/alreadySignsInRefusal\(g\.as\.called\)/)
     expect(door).toMatch(/signInLetter\(\{ name: g\.person\.name,/)
     expect(door).toMatch(/made a sign-in link for \$\{g\.as\.logged\}/)
+  })
+})
+
+describe('before her yes, the sign-in line never says whether her address has an account (batch five, 2026-11-16)', () => {
+  const asked = { seatHere: false, paysHerDirect: false }
+
+  it('a person asked onto the bench who has not answered, or who said no, is before her yes', () => {
+    expect(awaitsHerYes({ ...asked, listingState: 'INVITED' })).toBe(true)
+    expect(awaitsHerYes({ ...asked, listingState: 'DECLINED' })).toBe(true)
+  })
+
+  it('after her yes, or where the firm employs her or pays her direct, the line reads as before', () => {
+    expect(awaitsHerYes({ ...asked, listingState: 'GRANTED' })).toBe(false)
+    expect(awaitsHerYes({ seatHere: true, paysHerDirect: false, listingState: 'INVITED' })).toBe(false)
+    expect(awaitsHerYes({ seatHere: false, paysHerDirect: true, listingState: 'INVITED' })).toBe(false)
+    expect(awaitsHerYes({ seatHere: true, paysHerDirect: false, listingState: null })).toBe(false)
+  })
+
+  it('before her yes the line says nothing and names nobody, and a press is refused in one sentence with no name in it', () => {
+    for (const name of ['Rajesh Iyer', null]) {
+      const line = signInLineSays({ name, email: 'rajesh@example.com', state: 'AWAITING_YES' })
+      expect(line).toEqual({ says: '', note: null, action: null })
+    }
+    expect(awaitingYesRefusal()).toBe('This person has not said yes to your bench invitation, so there is no sign-in link to make. The invitation is their way in.')
+    expect(awaitingYesRefusal()).not.toMatch(/account|signs in/)
+  })
+
+  it('the door decides before her yes before it reads her account, on the row and on a press, and draws no line for it', () => {
+    const door = read('src/lib/notify/sign-in-link-door.ts')
+    const row = door.slice(door.indexOf('async function lineFor('))
+    expect(row.indexOf("if (awaitsYes) return draw('AWAITING_YES')")).toBeGreaterThan(-1)
+    expect(row.indexOf("if (awaitsYes) return draw('AWAITING_YES')")).toBeLessThan(row.indexOf('await hasAccount(person.id)'))
+    const press = door.slice(door.indexOf('export async function makeSignInLink('))
+    expect(press.indexOf('if (g.awaitsYes)')).toBeGreaterThan(-1)
+    expect(press.indexOf('if (g.awaitsYes)')).toBeLessThan(press.indexOf('await hasAccount(g.person.id)'))
+    expect(door).toMatch(/show: state !== 'HAS_ACCOUNT' && state !== 'AWAITING_YES'/)
   })
 })

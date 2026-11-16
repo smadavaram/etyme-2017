@@ -21,6 +21,9 @@ import { formatDay } from '@/lib/format-date'
  *    person in, which is the same decision as an invitation.
  *  - Only for a person this firm employs or lists: a seat here, a live
  *    bench listing here, or a pay line here that pays the person direct.
+ *  - Never before her yes (`awaitsHerYes`): a person asked onto the bench
+ *    and not answered gets no line, whatever her address, so the line
+ *    never says whether an address has an account.
  *  - Only for somebody with no account yet. A link that sets a password
  *    on an account somebody already holds is a way into that account, so
  *    a person with a password or a work-account sign-in gets no line.
@@ -40,6 +43,11 @@ export const SIGN_IN_LINK_HOURS = 72
 export const MAY_HAND_OVER = 'team.manage' as const
 
 export type SignInState =
+  /**
+   * Asked onto this firm's bench and not answered yes: no line is drawn,
+   * whatever her address (`awaitsHerYes`). Checked before every other state.
+   */
+  | 'AWAITING_YES'
   /** Already signs in: no line is drawn. */
   | 'HAS_ACCOUNT'
   /** A sample address no mailbox uses: there is nothing to send. */
@@ -99,6 +107,38 @@ export function calledOnRow(o: { ownName: string; beforeHerYes: boolean; typedNa
   return o.typedName?.trim() || null
 }
 
+/**
+ * Whether the firm's only tie to her is an ask she has not said yes to
+ * (batch five, 2026-11-16). The line drew nothing for an address that
+ * already signs in, and "cannot sign in yet" for one that does not. So a
+ * firm that asked a stranger's address could read whether it has an
+ * account off the line. CLAUDE.md: the page never says whether an
+ * address has an account, and before her yes a firm reads only what it
+ * typed.
+ *
+ * So before her yes the line is nothing, for everybody, and a press for a
+ * link is refused in one sentence, for everybody. Her bench invitation is
+ * the way in, and a sign-in link is not the firm's act until she answers.
+ * The account is never read before this is decided.
+ *
+ * Keyed on the listing, not on `firmReadsAt`'s own answer: that answer
+ * reads her record in full where every word on it is the firm's, which is
+ * only where she has no account. Keyed on it, the line would still differ.
+ *
+ * After her yes, or where the firm employs her (a seat here, or a pay
+ * line that pays her direct: the employment is the consent), as before.
+ * Pure.
+ */
+export function awaitsHerYes(o: { seatHere: boolean; paysHerDirect: boolean; listingState: string | null }): boolean {
+  if (o.seatHere || o.paysHerDirect) return false
+  return o.listingState != null && o.listingState !== 'GRANTED'
+}
+
+/** Pressing for a link before her yes. No name, so it reads the same for every address. */
+export function awaitingYesRefusal(): string {
+  return 'This person has not said yes to your bench invitation, so there is no sign-in link to make. The invitation is their way in.'
+}
+
 /** The exact sentence the founder asked for, kept as one constant so the screen and the tests agree. */
 export function copySentence(name: string | null): string {
   return `No email can leave this deployment. Copy this sign-in link and send it to ${toWhom(name)} yourself.`
@@ -125,11 +165,14 @@ export function alreadySignsInRefusal(name: string | null): string {
   return `${firstName(name)} already signs in to Etyme, so there is no link to make. ${name?.trim() ? firstName(name) : 'They'} can reset a forgotten password from the sign-in page.`
 }
 
-/** What the row says, for each state. HAS_ACCOUNT draws nothing, so its words are never shown. */
+/** What the row says, for each state. AWAITING_YES and HAS_ACCOUNT draw nothing, so their words are never shown. */
 export function signInLineSays(f: SignInFacts): SignInLine {
   const first = firstName(f.name)
   const cannot = `${first} cannot sign in to Etyme yet, so ${again(f.name)} cannot file a timesheet.`
   switch (f.state) {
+    case 'AWAITING_YES':
+      // Nothing, and no name: it must read the same for every address.
+      return { says: '', note: null, action: null }
     case 'HAS_ACCOUNT':
       return { says: `${first} already signs in to Etyme.`, note: null, action: null }
     case 'DEMO':
