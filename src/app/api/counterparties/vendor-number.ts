@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { CallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { paysInvoiceReceipts } from '../settings/coding/guard'
 import { hasPermission } from '@/lib/permissions'
 import { recordRefusal } from '@/lib/access-log'
 import { CLIENT_CODES_NOT_PAYER, CLIENT_CODES_REFUSED, VENDOR_NUMBER_HELP } from '@/lib/counterparty'
@@ -25,8 +26,8 @@ async function refuse(caller: CallerContext, doing: string, notPayer: boolean) {
   return NextResponse.json({ error: { code: 'FORBIDDEN', message: notPayer ? CLIENT_CODES_NOT_PAYER : CLIENT_CODES_REFUSED } }, { status: 403 })
 }
 
-function mayHold(caller: CallerContext) {
-  return caller.company!.kind === 'CLIENT' && hasPermission(caller.permissions, 'settings.manage')
+async function mayHold(caller: CallerContext) {
+  return hasPermission(caller.permissions, 'settings.manage') && (await paysInvoiceReceipts(caller))
 }
 
 const supplierRow = (companyId: string, supplierId: string) =>
@@ -38,14 +39,14 @@ const supplierRow = (companyId: string, supplierId: string) =>
 const NOT_A_SUPPLIER = { error: { code: 'NOT_FOUND', message: 'That firm is not a supplier on your register.' } }
 
 export async function readVendorNumber(caller: CallerContext, supplierId: string) {
-  if (!mayHold(caller)) return refuse(caller, 'Reading a vendor number', caller.company!.kind !== 'CLIENT')
+  if (!(await mayHold(caller))) return refuse(caller, 'Reading a vendor number', !(await paysInvoiceReceipts(caller)))
   const row = supplierId ? await supplierRow(caller.company!.id, supplierId) : null
   if (!row) return NextResponse.json(NOT_A_SUPPLIER, { status: 404 })
   return NextResponse.json({ data: { vendorNumber: row.vendorNumber, says: VENDOR_NUMBER_HELP } })
 }
 
 export async function nameVendorNumber(caller: CallerContext, body: { vendorNumberFor?: unknown; vendorNumber?: unknown }) {
-  if (!mayHold(caller)) return refuse(caller, 'Changing a vendor number', caller.company!.kind !== 'CLIENT')
+  if (!(await mayHold(caller))) return refuse(caller, 'Changing a vendor number', !(await paysInvoiceReceipts(caller)))
   const companyId = caller.company!.id
   if (typeof body.vendorNumber !== 'string' && body.vendorNumber !== null) {
     return NextResponse.json({ error: { code: 'VALIDATION', message: 'Type the vendor number, or leave the box empty.', field: 'vendorNumber' } }, { status: 422 })

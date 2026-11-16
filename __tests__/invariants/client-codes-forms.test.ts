@@ -25,6 +25,6 @@ describe('the client’s code forms are drawn only where their routes will save'
     for (const f of ['src/app/api/settings/coding/route.ts', 'src/app/api/settings/internal-orders/route.ts']) {
       expect(read(f)).toContain('refuseUnlessPayerManager')
     }
-    expect(read('src/app/api/counterparties/vendor-number.ts')).toContain("kind === 'CLIENT'")
+    expect(read('src/app/api/counterparties/vendor-number.ts')).toContain('paysInvoiceReceipts')
   })
 })

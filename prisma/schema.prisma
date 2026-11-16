@@ -6340,6 +6340,9 @@ model ContractCostAllocation {
   shareBps       Int // basis points, 0–10000. All shares on a contract total 10000.
   glAccount      String? // overrides the cost centre default for this contract
   createdAt      DateTime     @default(now())
+  /// Moves on every edit, so a coding fix made in place counts as fixed
+  /// when a rejected line is sent again (`fixedAt` in receipt-file-read).
+  updatedAt      DateTime     @default(now()) @updatedAt
 
   /// Either a standing department or a project pot. Never both.
   internalOrderId String?

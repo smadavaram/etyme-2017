@@ -34,7 +34,11 @@ describe('a client sets the codes its own books use', () => {
     client = { ...seatOf(c), companyId: c.companyId! }
     const s = await prisma.context.findFirstOrThrow({
       orderBy: { id: 'asc' },
-      where: { type: 'EMPLOYEE', company: { kind: 'VENDOR' }, role: { permissions: { has: '*' } } },
+      // A supplier that buys from nobody: no supplier on its register and no agreement as the buyer.
+      where: {
+        type: 'EMPLOYEE', role: { permissions: { has: '*' } },
+        company: { kind: 'VENDOR', counterparties: { none: { relationship: 'SUPPLIER' } }, msasAsClient: { none: {} } },
+      },
       include: { person: true },
     })
     supplier = { ...seatOf(s), companyId: s.companyId! }
@@ -163,15 +167,43 @@ describe('a client sets the codes its own books use', () => {
   })
 
   it('a supplier cannot write a vendor number on its own register, and the client’s row is untouched', async () => {
-    await prisma.counterparty.upsert({
-      where: { companyId_otherCompanyId_relationship: { companyId: supplier.companyId, otherCompanyId: client.companyId, relationship: 'SUPPLIER' } },
-      create: { companyId: supplier.companyId, otherCompanyId: client.companyId, relationship: 'SUPPLIER', status: 'ACTIVE' },
-      update: {},
-    })
     const r = await call(changeRegister, 'PATCH', '/api/counterparties', { vendorNumberFor: client.companyId, vendorNumber: 'HIJACK' }, supplier)
     expect(r.status).toBe(403)
     expect(await prisma.counterparty.count({ where: { vendorNumber: 'HIJACK' } })).toBe(0)
     expect((await prisma.counterparty.findUniqueOrThrow({ where: { id: supplierRowId } })).vendorNumber).toBe('V-5521')
+  })
+
+  it('a prime that pays its sub-vendors sets its own company code and vendor numbers', async () => {
+    const sub = await prisma.company.findFirstOrThrow({ where: { id: { notIn: [client.companyId, supplier.companyId] } }, orderBy: { id: 'asc' } })
+    await prisma.counterparty.upsert({
+      where: { companyId_otherCompanyId_relationship: { companyId: supplier.companyId, otherCompanyId: sub.id, relationship: 'SUPPLIER' } },
+      create: { companyId: supplier.companyId, otherCompanyId: sub.id, relationship: 'SUPPLIER', status: 'ACTIVE' },
+      update: {},
+    })
+    const code = await call(changeCoding, 'PATCH', '/api/settings/coding', { companyCode: 'P-100' }, supplier)
+    expect(code.status, JSON.stringify(code.body)).toBe(200)
+    expect((await call(readCoding, 'GET', '/api/settings/coding', undefined, supplier)).body.data.companyCode).toBe('P-100')
+    const num = await call(changeRegister, 'PATCH', '/api/counterparties', { vendorNumberFor: sub.id, vendorNumber: 'P-V-7' }, supplier)
+    expect(num.status, JSON.stringify(num.body)).toBe(200)
+    expect((await call(readRegister, 'GET', `/api/counterparties?vendorNumberFor=${sub.id}`, undefined, supplier)).body.data.vendorNumber).toBe('P-V-7')
+    const page = await call(readSettings, 'GET', '/api/settings', undefined, supplier)
+    expect(page.body.data.canEditCodes).toBe(true)
+    // The client's own code and number are not touched, and the prime cannot read them.
+    expect((await call(readCoding, 'GET', '/api/settings/coding')).body.data.companyCode).not.toBe('P-100')
+    expect((await prisma.counterparty.findUniqueOrThrow({ where: { id: supplierRowId } })).vendorNumber).toBe('V-5521')
+    expect(JSON.stringify(code.body)).not.toContain('V-5521')
+  })
+
+  it('editing a cost allocation in place moves its updated time', async () => {
+    const contract = await prisma.sellContract.findFirstOrThrow({ select: { id: true } })
+    const cc = await prisma.costCenter.create({ data: { companyId: client.companyId, code: `UP-${Date.now()}`, name: 'Updated check' } })
+    const a = await prisma.contractCostAllocation.create({ data: { sellContractId: contract.id, costCenterId: cc.id, shareBps: 10000 } })
+    expect(a.updatedAt).toBeInstanceOf(Date)
+    await new Promise((r) => setTimeout(r, 15))
+    const b = await prisma.contractCostAllocation.update({ where: { id: a.id }, data: { glAccount: '6100' } })
+    expect(b.updatedAt.getTime()).toBeGreaterThan(a.updatedAt.getTime())
+    await prisma.contractCostAllocation.delete({ where: { id: a.id } })
+    await prisma.costCenter.delete({ where: { id: cc.id } })
   })
 
   it('a firm that is not a supplier on the client’s register is refused in a sentence', async () => {
