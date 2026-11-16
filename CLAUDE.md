@@ -451,6 +451,9 @@ Full text → 40, 11, 56, 68, 72.
   bench by skills and availability only; board trading is for the known
   network; nothing is submitted before her consent. Its own batch and
   deploy; it never destabilizes the stabilization track.
+- **Layer 9 moves ahead of the rest of Layer 7's money work** (→ 87):
+  clients pay in their own systems, so coded bill lines go out and the
+  paid or rejected answer comes back first.
 - **Layers 7 to 10 make the integrations work** (→ 80): security and
   sign-in, outreach doors, an accounting feed any system reads, and
   operations tools on the record. Each fails visibly and writes to the
@@ -989,9 +992,11 @@ Full text → 28, 22, 23, 68, 69, 71.
 - **One payroll person may attach the client's approval and accept the
   same week** (founder, 2026-11-14).
 - **Tapin's first people are W2, paid every two weeks through an
-  outside payroll provider** (founder, 2026-11-14). The provider holds
-  each person's W-4, bank details and tax number; Etyme gives it hours
-  and gross pay as a file and holds none of the three.
+  outside payroll provider** (founder, 2026-11-14). Etyme gives it hours
+  and gross pay as a file. Since 2026-11-16 (→ 87) Etyme collects the
+  W-4 or W-9 and a voided check as sealed papers, verified and passed on
+  to the provider; bank details show masked, and in full only to a
+  permitted seat after a fresh second check, each showing logged.
 - **Tapin is the way to market: a bench in data engineering** (founder,
   2026-11-14). Nothing a client reads says Tapin trains, places or is
   the founder's, and no page claims the opposite: none says Etyme runs
