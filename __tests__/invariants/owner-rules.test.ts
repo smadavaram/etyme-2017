@@ -101,6 +101,12 @@ describe('passing ownership', () => {
     expect(mayAskToPass({ actor: vikash, subject: oliver, after: 'ADMIN' })).toEqual({ ok: false, says: 'Only an Owner passes ownership. An Admin never can.' })
   })
 
+  it('ownership is never passed to somebody invited who has not signed in here yet', () => {
+    expect(mayAskToPass({ actor: sharath, subject: { ...oliver, signedIn: false }, after: 'OWNER' }))
+      .toEqual({ ok: false, says: 'Oliver is invited and has not signed in here yet. Ownership can be passed once they sign in.' })
+    expect(mayAskToPass({ actor: sharath, subject: { ...oliver, signedIn: true }, after: 'OWNER' }).ok).toBe(true)
+  })
+
   it('pass ownership needs the new Owner’s yes, and nobody else’s', () => {
     const seats = [sharath, madhavi, oliver]
     expect(mayAskToPass({ actor: sharath, subject: oliver, after: 'ADMIN' }).ok).toBe(true)

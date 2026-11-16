@@ -54,6 +54,24 @@ describe('Settings, Owners', () => {
     expect(r.body.data.owners.find((o: any) => o.you)?.email).toBe(BRIGHTMOOR_OWNER)
     for (const o of [...r.body.data.owners, ...r.body.data.others]) expect(o.email, o.name).toEqual(expect.stringContaining('@'))
   })
+
+  it('somebody invited who has not signed in here is never offered to take ownership, and asking for them is refused in a sentence and logged', async () => {
+    as(BRIGHTMOOR_OWNER)
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
+    const role = await prisma.role.findFirstOrThrow({ where: { companyId: firm.id, name: 'Recruiter' }, select: { id: true } })
+    const person = await prisma.person.create({ data: { primaryEmail: 'dana.reyes@brightmoor-walk.example', name: 'Dana Reyes' } })
+    const seat = await prisma.context.create({ data: { personId: person.id, companyId: firm.id, type: 'EMPLOYEE', roleId: role.id, invitedAt: new Date() } })
+
+    const r = await json(await owners.GET(req('GET', '/api/settings/owners')))
+    expect(r.body.data.others.map((o: any) => o.contextId)).not.toContain(seat.id)
+    expect(r.body.data.invitedNotSignedIn).toEqual([{ contextId: seat.id, name: 'Dana Reyes', email: 'dana.reyes@brightmoor-walk.example' }])
+
+    const ask = await json(await owners.POST(req('POST', '/api/settings/owners', { action: 'pass', contextId: seat.id, after: 'OWNER', reason: 'A second Owner for cover' })))
+    expect(ask.status).not.toBe(201)
+    expect(await prisma.ownershipRequest.count({ where: { subjectContextId: seat.id } })).toBe(0)
+    expect(ask.body.error.message).toBe('Dana Reyes is invited and has not signed in here yet. Ownership can be passed once they sign in.')
+    expect(await prisma.accessLog.count({ where: { subjectId: person.id, actorCompanyId: firm.id, action: 'DESK_CHANGE', allowed: false } })).toBe(1)
+  })
 })
 
 describe('giving access to somebody invited', () => {

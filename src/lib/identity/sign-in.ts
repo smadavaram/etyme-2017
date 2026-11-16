@@ -57,6 +57,27 @@ export function opensAnInvitation(seat: OpenedSeat): boolean {
 }
 
 /**
+ * The seat a session opens where she chose none (2026-11-16, walk of
+ * 30f2c4d87): no seat named on the request and none chosen in the account
+ * menu on this device. The newest seat she has used, never an invitation
+ * she has not opened. The newest seat used to win, and a fresh invitation
+ * is always the newest, so signing in on a new device opened it, accepted
+ * it, and told the inviting firm she has an account, without her ever
+ * choosing that firm.
+ *
+ * Used is a seat no invitation made (her own, or one she founded), a seat
+ * with a use date, or one at a firm whose own access log holds a row of
+ * hers (`usedHere`, the seats `signedInHere` found). An invitation is
+ * opened by choosing it in the account menu, or by holding nothing else:
+ * where every seat she may use is an invitation she has not opened, the
+ * newest is opened, because signing in with nowhere else to be is coming
+ * in where she was invited. `open` is newest first. Pure.
+ */
+export function defaultSeatOf<T extends OpenedSeat>(open: readonly T[], usedHere: ReadonlySet<string>): T | null {
+  return open.find((s) => !opensAnInvitation(s) || usedHere.has(s.id)) ?? open[0] ?? null
+}
+
+/**
  * Her invitation to this firm is accepted the moment she opens its seat
  * (2026-11-16): one INVITE_ACCEPTED row, at this firm, naming this seat,
  * and never a row at any other firm she holds a seat at.

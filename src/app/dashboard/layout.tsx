@@ -178,17 +178,22 @@ async function companyIsADemo(): Promise<boolean> {
  * shell is drawn as it was and the pages surface their own errors, which
  * is an outage, not a refusal, and must not be dressed as one.
  */
-async function whyNotSeated(): Promise<Denied | null> {
+async function whyNotSeated(): Promise<{ denied: Denied | null; seatId: string | null }> {
   try {
     const { caller, error } = await getCallerContext()
-    if (caller) return null
+    // The seat the caller check opened, so the account menu names the
+    // seat every route reads (2026-11-16): /api/me is asked for it.
+    if (caller) return { denied: null, seatId: caller.context?.id?.startsWith('staff:') ? null : caller.context?.id ?? null }
     const body = await error.json().catch(() => ({}) as any)
-    return deniedFor({
-      code: String(body?.error?.code ?? 'DENIED'),
-      message: String(body?.error?.message ?? ''),
-    })
+    return {
+      denied: deniedFor({
+        code: String(body?.error?.code ?? 'DENIED'),
+        message: String(body?.error?.message ?? ''),
+      }),
+      seatId: null,
+    }
   } catch {
-    return null
+    return { denied: null, seatId: null }
   }
 }
 
@@ -301,7 +306,7 @@ export default async function DashboardLayout({
   // Asked before the other two, and alone: a caller the app cannot seat
   // gets one sentence and nothing else, so there is no menu to decide
   // the shape of and no company name to fail to resolve.
-  const denied = await whyNotSeated()
+  const { denied, seatId } = await whyNotSeated()
   if (denied) return <DeniedScreen denied={denied} />
 
   const [worker, seat, demo, termsHref, filesAWeek, region, hat, granted, earnsCommission, superadmin] = await Promise.all([
@@ -310,7 +315,7 @@ export default async function DashboardLayout({
   ])
 
   return (
-    <SessionProvider worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region} hat={hat} granted={granted} earnsCommission={earnsCommission} superadmin={superadmin}>
+    <SessionProvider seatId={seatId} worker={worker} seat={seat} demo={demo} termsHref={termsHref} filesAWeek={filesAWeek} region={region} hat={hat} granted={granted} earnsCommission={earnsCommission} superadmin={superadmin}>
       <div className="min-h-screen flex bg-etyme-canvas">
         {/* The first Tab on every page goes past the menu to the page
             itself, so a keyboard reader does not walk forty links to

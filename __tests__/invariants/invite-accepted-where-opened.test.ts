@@ -38,7 +38,7 @@ const db: any = {
 }
 vi.mock('@/lib/db', () => ({ get prisma() { return db } }))
 
-import { recordSignInLedger, markSeatOpened, opensAnInvitation } from '@/lib/identity/sign-in'
+import { recordSignInLedger, markSeatOpened, opensAnInvitation, defaultSeatOf } from '@/lib/identity/sign-in'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const written = () => (db.accessLog.createMany.mock.calls as any[]).flatMap((c) => c[0].data)
@@ -97,5 +97,30 @@ describe('an invitation is accepted where its seat is opened', () => {
     expect(mark).toBeGreaterThan(src.indexOf("code: 'LINKEDIN_NOT_FOR_COMPANIES'"))
     // Read off the seat before its use date is written.
     expect(mark).toBeLessThan(src.indexOf('data: { lastUsedAt: new Date() }'))
+  })
+})
+
+describe('the seat a session opens where she chose none', () => {
+  const used = { id: 'seat-a', companyId: 'co-a', invitedAt: null, lastUsedAt: new Date('2026-11-01T09:00:00Z') }
+  const fresh = { id: 'seat-b', companyId: 'co-b', invitedAt: new Date('2026-11-15T09:00:00Z'), lastUsedAt: null }
+
+  it('with no seat chosen, the seat she already uses opens before a newer invitation she has not opened', () => {
+    expect(defaultSeatOf([fresh, used], new Set())).toBe(used)
+  })
+
+  it('an invitation at a firm whose own log holds a row of hers counts as a seat she uses', () => {
+    expect(defaultSeatOf([fresh, used], new Set(['seat-b']))).toBe(fresh)
+  })
+
+  it('where every seat she may use is an invitation she has not opened, the newest opens, because she has nowhere else to be', () => {
+    const older = { ...fresh, id: 'seat-c', companyId: 'co-c' }
+    expect(defaultSeatOf([fresh, older], new Set())).toBe(fresh)
+    expect(defaultSeatOf([], new Set())).toBeNull()
+  })
+
+  it('the caller check opens the default seat by this rule, and a seat chosen in the account menu still wins', () => {
+    const src = read('src/lib/api-context.ts')
+    expect(src).toContain('defaultSeatOf(open, usedHere)')
+    expect(src).toContain('(chosen ? await pick({ id: chosen }) : null) ?? await pickDefault()')
   })
 })

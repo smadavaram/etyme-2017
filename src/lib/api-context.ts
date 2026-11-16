@@ -24,7 +24,7 @@ import {
   type CompanyPolicy, type Door, type SignInMode,
 } from '@/lib/identity/policy'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
-import { markSeatOpened, opensAnInvitation } from '@/lib/identity/sign-in'
+import { markSeatOpened, opensAnInvitation, defaultSeatOf } from '@/lib/identity/sign-in'
 import { pausedSays, seatHasSignedIn } from '@/lib/access-grant'
 import { seatByDate, pastEndDate, endedByDateSays, MANAGES_ACCESS, type ByDate } from '@/lib/account-lifecycle'
 import { OWNER_ROLE } from '@/lib/owner-rules'
@@ -742,12 +742,38 @@ export async function getCallerContext(
     return null
   }
 
+  // Where she chose no seat: the newest she has used, never an invitation
+  // she has not opened (2026-11-16, `defaultSeatOf` in lib/identity/
+  // sign-in). Opening an invitation by default accepted it and told the
+  // inviting firm she has an account. This firm's access log is asked only
+  // where the newest seat is such an invitation and she holds another.
+  const pickDefault = async () => {
+    const rows = await prisma.context.findMany({
+      where: { personId: person.id, ...usable },
+      include: seatInclude,
+      orderBy: { grantedAt: 'desc' },
+    })
+    const open: typeof rows = []
+    for (const r of rows) {
+      const v = await seatOpenByDate(r, now)
+      if (v.open) open.push(r)
+      else if (open.length === 0) passedOver.seen ??= { companyName: r.company?.name ?? null, endedOn: v.endedOn }
+    }
+    const usedHere = new Set<string>()
+    if (open.length > 1 && opensAnInvitation(open[0])) {
+      for (const s of open) {
+        if (opensAnInvitation(s) && (await signedInHere(s.companyId!, [person.id])).size > 0) usedHere.add(s.id)
+      }
+    }
+    return defaultSeatOf(open, usedHere)
+  }
+
   // Where no header names a seat, the one chosen in the account menu,
-  // if it is still this person's and live; else the most recent.
+  // if it is still this person's and live; else the default above.
   const chosen = contextId ? null : await chosenSeat(request)
   let context = contextId
     ? await pick({ id: contextId })
-    : (chosen ? await pick({ id: chosen }) : null) ?? await pick({})
+    : (chosen ? await pick({ id: chosen }) : null) ?? await pickDefault()
 
   if (!context && !contextId) {
     // ── Their own work is their own seat (simulation, 2026-10-20) ──────

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePageSection } from '@/components/page-section'
 import { Chip, ErrorState, Field, FormMessage, LoadingState, PageHead, Panel, RefusedState, Select, SubmitButton, Textarea } from '@/components/ui'
 import { readJson, isRefusal } from '@/lib/read-response'
-import { viewAfterRefusedRead, moveFormSays, passFormSays, personOption } from './view'
+import { viewAfterRefusedRead, moveFormSays, passFormSays, personOption, notListedYetSays } from './view'
 import { holdsNoRole, roleWords, NO_ROLE_SEES } from '@/lib/access-grant'
 
 /**
@@ -32,6 +32,8 @@ type Read = {
   /** aloneToAdmin: this Owner passed ownership to the reader, who moves them to Admin with nobody else asked. */
   owners: { contextId: string; name: string; email?: string | null; you: boolean; aloneToAdmin?: boolean }[]
   others: { contextId: string; name: string; email?: string | null; role: string | null }[]
+  /** Invited and not signed in here yet: named under the picker, never offered in it. */
+  invitedNotSignedIn?: { contextId: string; name: string; email?: string | null }[]
   roles: { id: string; name: string }[]
   iAmOwner: boolean
   narrowAdminOffered: boolean
@@ -167,6 +169,7 @@ export default function OwnersPage() {
                   {r.others.map((o) => <option key={o.contextId} value={o.contextId}>{personOption(o)}</option>)}
                 </Select>
               </Field>
+              {notListedYetSays(r.invitedNotSignedIn ?? []) && <p className="text-[12.5px] text-etyme-muted">{notListedYetSays(r.invitedNotSignedIn ?? [])}</p>}
               <p className="text-[12.5px] text-etyme-muted">Somebody new? Invite them from Users & permissions first, then come back.</p>
               <fieldset className="space-y-1.5">
                 <legend className="text-[13px] text-etyme-ink">What are you at {r.company} afterwards?</legend>

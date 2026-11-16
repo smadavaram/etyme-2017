@@ -151,3 +151,24 @@ describe('what the notice says', () => {
     )
   })
 })
+
+describe('the password notice in Ask Etyme', () => {
+  it('Ask Etyme says the password notice’s whole sentence, naming the firm and what to do, with no link to the page she is on', async () => {
+    const { sinceSays } = await import('@/app/api/conversations/twin/ask')
+    const { passwordNoticeSays } = await import('@/lib/identity/password-notice')
+    const on = new Date('2026-11-16T15:00:00Z')
+    const { title, body } = passwordNoticeSays({ changed: false, on, from: { by: 'LINK', firmName: 'Northwind Staffing' }, mailLeaves: true })
+    const lines = sinceSays([{ id: 'n1', title, body, type: 'SYSTEM', href: '/dashboard/conversations' }], 0, { now: on })
+    const line = lines.find((l) => l.says.includes('Northwind Staffing'))
+    expect(line?.says).toBe(body)
+    expect(line?.says).toContain('support@etyme.com')
+    expect(line?.links ?? []).toEqual([])
+    expect(JSON.stringify(lines)).not.toMatch(/token|https?:\/\//i)
+  })
+
+  it('a password notice written with no sentence still says its title, and links nowhere', async () => {
+    const { sinceSays } = await import('@/app/api/conversations/twin/ask')
+    const lines = sinceSays([{ id: 'n2', title: 'Your Etyme password was changed', body: null, type: 'SYSTEM', href: '/dashboard/conversations' }], 0)
+    expect(lines.find((l) => l.says.startsWith('Your Etyme password'))).toEqual({ says: 'Your Etyme password was changed.', links: [] })
+  })
+})

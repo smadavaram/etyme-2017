@@ -17,6 +17,23 @@ import { isConsumerDomain } from '@/lib/company-domains'
 export const MIN_PASSWORD = 12
 
 
+/**
+ * The two titles of the notice that tells a person a password was set or
+ * changed on her account (`passwordNoticeSays` in lib/identity/
+ * password-notice). Here, with no server import, so Ask Etyme's greeting
+ * knows the notice and says its whole sentence rather than the title
+ * (walk of 30f2c4d87, 2026-11-16).
+ */
+export const PASSWORD_NOTICE_TITLES = {
+  set: 'A password was set on your Etyme account',
+  changed: 'Your Etyme password was changed',
+} as const
+
+/** Whether a notice's title is one of the two above. Pure. */
+export function isPasswordNotice(title: string): boolean {
+  return title === PASSWORD_NOTICE_TITLES.set || title === PASSWORD_NOTICE_TITLES.changed
+}
+
 /** Without an email sender nobody can prove a mailbox, so these doors say so before any form. */
 export const SIGNUP_SHUT = 'Sign-up is off on this deployment until an email sender is set up.'
 /**

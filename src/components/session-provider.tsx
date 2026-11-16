@@ -267,8 +267,17 @@ export function SessionProvider({
   region = null,
   hat = null,
   granted = null,
+  seatId = null,
 }: {
   children: ReactNode
+  /**
+   * The seat the one caller check opened for this page, read on the
+   * server (2026-11-16): the seat chosen on this device where it is still
+   * live, else the newest she has used, never an invitation she has not
+   * opened. Asked of /api/me, so the account menu names the seat every
+   * route reads.
+   */
+  seatId?: string | null
   /**
    * The permissions the Owner granted this seat beyond its role
    * (2026-11-08), read on the server, with the seat they belong to: merged
@@ -309,7 +318,7 @@ export function SessionProvider({
       try {
         // The seat chosen in the account menu, named the way every route
         // reads it, so /api/me and the pages agree on which firm this is.
-        const chosen = readHatCookie(hatCookieHere()).contextId
+        const chosen = seatId ?? readHatCookie(hatCookieHere()).contextId
         const res = await fetch('/api/me', chosen ? { headers: { 'x-context-id': chosen } } : undefined)
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))

@@ -63,3 +63,17 @@ export function personOption(p: { name: string; email?: string | null; role?: st
   const parts = [p.name, ...(p.email && p.email !== p.name ? [p.email] : []), ...(p.role !== undefined ? [roleWords(p.role)] : [])]
   return `${parts.join(' · ')}${p.you ? ' (you)' : ''}`
 }
+
+/**
+ * Under the Owners picker, for the people it leaves out because they were
+ * invited and have not signed in here yet (2026-11-16): Users &
+ * permissions calls them Invited, not members, and the ask refuses them.
+ * Null where nobody is left out. Pure.
+ */
+export function notListedYetSays(people: readonly { name: string; email?: string | null }[]): string | null {
+  if (people.length === 0) return null
+  const names = people.map((p) => personOption({ name: p.name, email: p.email }))
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  return `Not listed: ${list}, invited and not signed in here yet. They can be asked once they sign in.`
+}
+

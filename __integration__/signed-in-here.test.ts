@@ -166,6 +166,19 @@ describe('Users & permissions reads only this firm’s own record', () => {
     expect(figures(data)).toEqual(countsBefore)
   })
 
+  it('signing in on a new device with no seat chosen opens the seat she already uses, never the newer invitation', async () => {
+    const countsBefore = figures(await register())
+    // No seat named on the request and none chosen in the account menu:
+    // the invitation here is her newest seat, and it stays unopened.
+    as(ELSEWHERE)
+    expect((await today(req('GET', '/api/today'))).status).toBe(200)
+    expect(await prisma.accessLog.count({ where: { actorPersonId: it_.her, actorCompanyId: it_.firm } })).toBe(0)
+    expect((await prisma.context.findUniqueOrThrow({ where: { id: it_.herSeat }, select: { lastUsedAt: true } })).lastUsedAt).toBeNull()
+    const data = await register()
+    expect(rowOf(data, it_.herSeat).waiting).toMatchObject({ signedIn: false, figure: 'invited' })
+    expect(figures(data)).toEqual(countsBefore)
+  })
+
   it('opening an invited seat marks that seat, once', async () => {
     const countsBefore = figures(await register())
     as(ELSEWHERE)
@@ -189,4 +202,12 @@ describe('Users & permissions reads only this firm’s own record', () => {
     expect(rowOf(data, it_.newSeat).waiting).toMatchObject({ signedIn: false, figure: 'invited' })
   })
 
+  it('a person whose only seat is the invitation opens it by signing in, because she has nowhere else to be', async () => {
+    as(NEW)
+    expect((await today(req('GET', '/api/today'))).status).toBe(200)
+    const ravi = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NEW }, select: { id: true } })
+    const rows = await prisma.accessLog.findMany({ where: { actorPersonId: ravi.id, action: 'INVITE_ACCEPTED' }, select: { actorCompanyId: true } })
+    expect(rows.map((r) => r.actorCompanyId)).toEqual([it_.firm])
+    expect(rowOf(await register(), it_.newSeat).withAccess).toMatchObject({ figure: 'with-access' })
+  })
 })

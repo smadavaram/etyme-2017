@@ -167,3 +167,15 @@ describe('the move form says when the new Owner moves the previous one alone (Ow
     expect(page).toContain("alone: !!chosenOwner?.aloneToAdmin && ownerAct === 'demote' && !!adminRole && chosenRoleId === adminRole.id")
   })
 })
+
+describe('the Owners picker offers only somebody who has signed in here (walk of 30f2c4d87)', () => {
+  it('the Owners picker names the people it leaves out because they were invited and have not signed in here yet', async () => {
+    const { notListedYetSays } = await import('@/app/dashboard/settings/owners/view')
+    expect(notListedYetSays([])).toBeNull()
+    expect(notListedYetSays([{ name: 'Dana Reyes', email: 'dana.reyes@northwind-staffing.example' }]))
+      .toBe('Not listed: Dana Reyes · dana.reyes@northwind-staffing.example, invited and not signed in here yet. They can be asked once they sign in.')
+    const page = readFileSync('src/app/dashboard/settings/owners/page.tsx', 'utf8')
+    expect(page).toContain('notListedYetSays(r.invitedNotSignedIn ?? [])')
+    expect(readFileSync('src/app/api/settings/owners/route.ts', 'utf8')).toContain('s.live && s.signedIn !== false')
+  })
+})

@@ -49,6 +49,18 @@ export interface Seat {
    * record carries the firm's name, can be told apart. Never decides.
    */
   email?: string | null
+  /**
+   * Whether the person has come in at this firm (`seatHasSignedIn` over
+   * this firm's own record, 2026-11-16). False for a seat invited and
+   * never signed in here, which Users & permissions calls Invited, not a
+   * member. Unknown (undefined) reads as signed in.
+   */
+  signedIn?: boolean
+}
+
+/** The sentence for a seat invited and not signed in here yet, asked to take ownership. Pure. */
+export function notSignedInYetSays(name: string): string {
+  return `${name} is invited and has not signed in here yet. Ownership can be passed once they sign in.`
 }
 
 export type Verdict = { ok: true } | { ok: false; says: string }
@@ -108,6 +120,7 @@ export function mayAskToPass(input: { actor: Seat; subject: Seat; after: AskerAf
   if (subject.contextId === actor.contextId) return { ok: false, says: 'Choose somebody else to take over. You are already an Owner.' }
   if (isOwner(subject)) return { ok: false, says: `${subject.name} is already an Owner.` }
   if (!subject.live) return { ok: false, says: `${subject.name} has no working seat here. Give them a seat first, then pass ownership.` }
+  if (subject.signedIn === false) return { ok: false, says: notSignedInYetSays(subject.name) }
   if (!['OWNER', 'ADMIN', 'LEAVE'].includes(input.after)) {
     return { ok: false, says: 'Say what you are afterwards: an Admin, an Owner still, or leaving.' }
   }

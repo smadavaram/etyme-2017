@@ -13,6 +13,7 @@ import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { ownersDoor, refused } from './seats'
 import { passedToSeatBy, landMoveAfterPass } from './act'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { recordRefusal } from '@/lib/access-log'
 
 /**
  * GET  /api/settings/owners — the Owners, the seats that could take over,
@@ -75,7 +76,12 @@ export async function GET(request: NextRequest) {
       })),
       // Each with the address it signs in with: the name alone could not
       // tell two records of one person apart (fix list, 2026-11-15).
-      others: seats.filter((s) => s.roleName !== OWNER_ROLE && s.live).map((s) => ({ contextId: s.contextId, name: s.name, email: s.email ?? null, role: s.roleName })),
+      // Only somebody who has signed in here (2026-11-16): a person invited
+      // and never signed in is Invited on Users & permissions, not a
+      // member, and the ask below refuses them. Named apart, so the Owner
+      // reads why they are not offered.
+      others: seats.filter((s) => s.roleName !== OWNER_ROLE && s.live && s.signedIn !== false).map((s) => ({ contextId: s.contextId, name: s.name, email: s.email ?? null, role: s.roleName })),
+      invitedNotSignedIn: seats.filter((s) => s.roleName !== OWNER_ROLE && s.live && s.signedIn === false).map((s) => ({ contextId: s.contextId, name: s.name, email: s.email ?? null })),
       roles,
       iAmOwner,
       // The one press that narrows an Admin role trading companies kept
@@ -169,7 +175,14 @@ export async function POST(request: NextRequest) {
     if (!gate.ok) return NextResponse.json(gateRefusal(gate), { status: 403 })
     after = String(body.after ?? '') as AskerAfter
     const v = mayAskToPass({ actor: me, subject, after })
-    if (!v.ok) return refused(v.says)
+    if (!v.ok) {
+      // About a person's seat, so written, and waited for, before it is sent.
+      await recordRefusal([subject.personId], {
+        actorPersonId: personId, actorCompanyId: company.id, action: 'DESK_CHANGE',
+        reason: `Refused asking ${subject.name} to take over ownership of ${company.name}: ${v.says}`,
+      })
+      return refused(v.says)
+    }
     kind = 'PASS'
   } else {
     kind = action === 'remove' ? 'REMOVE' : 'DEMOTE'

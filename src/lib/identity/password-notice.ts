@@ -1,6 +1,7 @@
 import { notify } from '@/lib/notify'
 import { emailSender } from '@/lib/senders'
 import { formatDay } from '@/lib/format-date'
+import { PASSWORD_NOTICE_TITLES } from '@/lib/password-words'
 
 /**
  * Telling a person a password was set or changed on their account: in the
@@ -23,7 +24,7 @@ export type PasswordSetFrom =
 
 /** What the notice says. Pure, so every sentence is a test. */
 export function passwordNoticeSays(a: { changed: boolean; on: Date; from: PasswordSetFrom; mailLeaves: boolean }): { title: string; body: string } {
-  const title = a.changed ? 'Your Etyme password was changed' : 'A password was set on your Etyme account'
+  const title = a.changed ? PASSWORD_NOTICE_TITLES.changed : PASSWORD_NOTICE_TITLES.set
   const what = a.changed ? 'Your password was changed' : 'A password was set'
   if (a.from.by === 'MENU') {
     return {

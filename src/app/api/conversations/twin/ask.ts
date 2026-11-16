@@ -48,6 +48,7 @@ import { supplierToldSays } from '@/lib/money/invoice-hold'
 import { offRecord, asksAboutFirmMoney, anotherFirmsMoneyOnRecord, writingAsk, NOT_ANOTHER_BOOK, ONLY_THE_RECORD } from './transaction'
 import type { WorkerAnswer } from './worker'
 import { isTwinAct } from '@/lib/autonomy'
+import { isPasswordNotice } from '@/lib/password-words'
 import { countWord, countWordLower } from './count-words'
 import {
   readGiveAccess, readWhoHolds, draftGiveAccess, whoHoldsSays, whoHoldsTable, asksFirmWide, ACCESS_LINK, GIVE_ACCESS_ACT,
@@ -1586,7 +1587,7 @@ export function sinceSays(
   const now = opts.now ?? new Date()
   const threadLines = threadsSay(opts.threads ?? [], opts.moreThreads ?? 0)
   if (notices.length === 0 && threadLines.length === 0) return []
-  const groups: { key: string; kind: string | null; dueOn: string | null; title: string; href: string; people: string[]; act?: string | null; linkText?: string | null }[] = []
+  const groups: { key: string; kind: string | null; dueOn: string | null; title: string; href: string; people: string[]; act?: string | null; linkText?: string | null; body?: string | null }[] = []
   // Who is coming free is said once, the newest: a week not opened is not two lines of the same bench.
   let comingFree = false
   for (const n of notices) {
@@ -1602,7 +1603,7 @@ export function sinceSays(
     if (same) {
       for (const p of people) if (!same.people.includes(p)) same.people.push(p)
     } else {
-      groups.push({ key, kind: dated ? n.cycleKind! : null, dueOn: dated ? n.dueOn! : null, title, href: n.href, people, act: n.act ?? null, linkText: n.linkText ?? null })
+      groups.push({ key, kind: dated ? n.cycleKind! : null, dueOn: dated ? n.dueOn! : null, title, href: n.href, people, act: n.act ?? null, linkText: n.linkText ?? null, body: n.body ?? null })
     }
   }
   const out: RichLine[] = [{ says: SINCE_HEADING }, ...threadLines]
@@ -1634,6 +1635,11 @@ export function sinceSays(
       out.push({ says: said, links: text ? [{ text, href: opts.worker && g.kind === 'TIMESHEET_SUBMIT' ? YOUR_WORK_HREF : g.href }] : [] })
     } else if (g.act === COMING_FREE) {
       out.push(comingFreeLine(g.title))
+    } else if (isPasswordNotice(g.title)) {
+      // A password set on her account (walk of 30f2c4d87): its sentence,
+      // which names the firm and what to do, and no link, because it
+      // opened the page she was on. Never a link or a token in it.
+      out.push({ says: g.body?.trim() || `${g.title}.`, links: [] })
     } else {
       const text = g.linkText && g.title.includes(g.linkText) ? g.linkText : g.title
       out.push({ says: `${g.title}.`, links: [{ text, href: g.href }] })

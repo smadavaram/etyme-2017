@@ -16,6 +16,8 @@
 import { prisma } from '@/lib/db'
 import { formatDay } from '@/lib/format-date'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+import { seatHasSignedIn } from '@/lib/access-grant'
+import { signedInHere } from '@/lib/access-log'
 import {
   decidersFor, lapsed, askSaysTo, addresseeBecomes, addresseeCanThen,
   type AskKind, type AskerAfter, type Seat,
@@ -26,13 +28,16 @@ export async function seatsAt(companyId: string): Promise<Seat[]> {
   const rows = await prisma.context.findMany({
     where: { companyId, revokedAt: null, type: 'EMPLOYEE', ...NOT_THE_SAMPLE_SEAT },
     select: {
-      id: true, personId: true, suspendedAt: true, expiresAt: true,
+      id: true, personId: true, suspendedAt: true, expiresAt: true, invitedAt: true, lastUsedAt: true,
       person: { select: { name: true, primaryEmail: true } },
       role: { select: { name: true } },
     },
     orderBy: { grantedAt: 'asc' },
   })
   const now = Date.now()
+  // Signed in is this firm's own record, read the way Users & permissions
+  // reads it (2026-11-16): asked only of invited seats with no use date.
+  const here = await signedInHere(companyId, rows.filter((r) => r.invitedAt !== null && r.lastUsedAt === null).map((r) => r.personId))
   return rows.map((r) => ({
     contextId: r.id,
     personId: r.personId,
@@ -40,6 +45,7 @@ export async function seatsAt(companyId: string): Promise<Seat[]> {
     roleName: r.role?.name ?? null,
     live: !r.suspendedAt && (!r.expiresAt || r.expiresAt.getTime() > now),
     email: r.person.primaryEmail ?? null,
+    signedIn: seatHasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, signedInHere: here.has(r.personId) }),
   }))
 }
 
