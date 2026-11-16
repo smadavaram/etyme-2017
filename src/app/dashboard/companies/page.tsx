@@ -946,8 +946,8 @@ function VendorNumberPanel({ supplierId }: { supplierId: string }) {
 
   return (
     <form onSubmit={save} className="space-y-2">
-      <Field label="Your vendor number for them">
-        <input value={value} onChange={(e) => setValue(e.target.value)} className="w-full px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
+      <Field label="Your vendor number for them" id={`vendor-number-${supplierId}`}>
+        <input id={`vendor-number-${supplierId}`} value={value} onChange={(e) => setValue(e.target.value)} className="w-full px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
       </Field>
       <SubmitButton pending={pending} pendingLabel="Saving…" disabled={value.trim() === (saved ?? '')}>
         Save

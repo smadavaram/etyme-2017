@@ -364,6 +364,11 @@ export async function readReceiptFile(
         const old = file.items.flatMap((row) => (by.get(row.rowId) ?? []).filter((m) => m.state !== 'SUPERSEDED').map((m) => m.id))
         if (old.length > 0) await tx.billFeedMessage.updateMany({ where: { id: { in: old } }, data: { state: 'SUPERSEDED' } })
       }
+      // A resend is a file of its own: the name carries the send it is.
+      if (opts.resend || opts.lineId) {
+        const gen = Math.max(2, ...file.items.map((row) => nextGeneration(by.get(row.rowId) ?? [], 'OUT')))
+        return { ...file, filename: file.filename.replace(/\.csv$/, `-again-${gen}.csv`) }
+      }
       return file
     })
 
@@ -375,6 +380,7 @@ export async function readReceiptFile(
     // Another request made these messages a moment ago: serve the same rows.
     const msgs = (await prisma.billFeedMessage.findMany({ where: { runId: run.id, companyId }, select: MESSAGE_SELECT })) as Msg[]
     file = receiptFile(run, receipts, picked.ids, rowStateFor(run, groupByRow(msgs), attempted, opts))
+    if (opts.resend || opts.lineId) file = { ...file, filename: file.filename.replace(/\.csv$/, '-again.csv') }
   }
 
   // One row for each person on the lines, written before the file leaves.

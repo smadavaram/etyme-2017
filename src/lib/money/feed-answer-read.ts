@@ -64,7 +64,7 @@ export async function takeAnswer(caller: CallerCtx, companyId: string, input: An
     const stands = standingMessage(same.map((m) => ({ ...m, direction: m.direction as 'OUT' | 'IN', state: m.state as never })))
     sent.push({
       runId: run.id, billId: r.billId, runItemId: r.runItemId, number: r.number, vendorName: r.vendorName,
-      lineId: out.lineId!, shareKey: out.shareKey, rowId: rowKey(out), generation: out.attempts,
+      lineId: out.lineId!, person: r.lines.find((l) => l.id === out.lineId)?.person ?? null, shareKey: out.shareKey, rowId: rowKey(out), generation: out.attempts,
       currency: r.currency, amountCents: amountOf.get(rowKey(out)) ?? null, state: stands?.state ?? out.state,
       answeredKeys: same.filter((m) => m.direction === 'IN').map((m) => m.idempotencyKey),
     })

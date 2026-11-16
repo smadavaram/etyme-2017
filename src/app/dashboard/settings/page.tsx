@@ -829,6 +829,9 @@ function CostCentersTab({ data, send, busy, openTab }: { data: Settings; send: S
   const [name, setName] = useState('')
   const [gl, setGl] = useState('')
   const [pc, setPc] = useState('')
+  // The one cost center whose profit center is being changed, and what is typed for it.
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editPc, setEditPc] = useState('')
 
   return (
     <>
@@ -855,6 +858,41 @@ function CostCentersTab({ data, send, busy, openTab }: { data: Settings; send: S
                 )}
                 {cc.profitCenter && (
                   <span className="text-[12px] font-mono text-etyme-faint">Profit center {cc.profitCenter}</span>
+                )}
+                {data.canEditCodes && editing !== cc.id && (
+                  <button
+                    type="button"
+                    onClick={() => { setEditing(cc.id); setEditPc(cc.profitCenter ?? '') }}
+                    disabled={busy}
+                    className="text-[12px] underline"
+                    style={{ color: 'var(--color-action)' }}
+                  >
+                    {cc.profitCenter ? 'Change profit center' : 'Set profit center'}
+                  </button>
+                )}
+                {data.canEditCodes && editing === cc.id && (
+                  <span className="flex items-center gap-2">
+                    <input
+                      value={editPc}
+                      onChange={(e) => setEditPc(e.target.value)}
+                      aria-label={`Profit center for ${cc.code}`}
+                      placeholder="Profit center"
+                      className="px-2 py-1 border border-etyme-rule rounded bg-etyme-raised text-[12px] font-mono"
+                    />
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="text-[12px] underline"
+                      style={{ color: 'var(--color-action)' }}
+                      onClick={async () => {
+                        const r = await send('/api/settings/cost-centers', 'PATCH', { id: cc.id, profitCenter: editPc.trim() || null })
+                        if (r) setEditing(null)
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button type="button" className="text-[12px] underline text-etyme-muted" onClick={() => setEditing(null)}>Cancel</button>
+                  </span>
                 )}
                 {data.canEdit && (
                   <button

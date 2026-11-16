@@ -101,6 +101,8 @@ export interface SentRow {
   number: string
   vendorName: string
   lineId: string
+  /** The person on the line, where the read has one: how a sentence names the line. */
+  person?: string | null
   shareKey: string
   /** The row's own id in the file: `<line>:<share>`. */
   rowId: string
@@ -208,10 +210,21 @@ export function decideAnswer(
     if (missingRows.length === 0 && missingLines.length === 0) continue
     const n = missingRows.length + missingLines.length
     const who = `${mine[0]?.vendorName ?? 'The supplier'}’s invoice ${mine[0]?.number ?? ''}`.trim()
-    const says =
-      `${who} is paid whole: ${n} more ${n === 1 ? 'row is' : 'rows are'} not answered paid, or ${missingLines.length > 0 ? 'not in a file yet' : 'not in this answer'}. ` +
-      `Answer paid for every line of it together. Nothing was written for it.`
+    // A rejected line is named, once, and said to hold the whole invoice.
+    const rejected = new Map<string, string>()
+    for (const s of missingRows.filter((x) => x.state === 'REJECTED')) {
+      rejected.set(s.lineId, s.person ? `${s.person}’s line` : `the line ending ${s.lineId.slice(-6)}`)
+    }
+    const says = rejected.size > 0
+      ? `${who} is paid whole, and ${[...rejected.values()].join(' and ')} ${rejected.size === 1 ? 'is' : 'are'} rejected. ` +
+        `One rejected line holds the whole invoice: fix it and send it again, then answer paid for every line together. Nothing was written for it.`
+      : `${who} is paid whole: ${n} more ${n === 1 ? 'row is' : 'rows are'} not answered paid, or ${missingLines.length > 0 ? 'not in a file yet' : 'not in this answer'}. ` +
+        `Answer paid for every line of it together. Nothing was written for it.`
+    // One sentence for each line of the answer, however many rows it was split into.
+    const told = new Set<number>()
     for (const d of apply.filter((x) => x.status === 'PAID' && x.target.billId === billId)) {
+      if (told.has(d.row.line)) continue
+      told.add(d.row.line)
       refused.push({ line: d.row.line, says: `Line ${d.row.line}: ${says}` })
     }
     for (let i = apply.length - 1; i >= 0; i--) {

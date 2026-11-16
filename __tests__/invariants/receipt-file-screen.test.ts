@@ -81,3 +81,29 @@ describe('the line states and the answer from your system, drawn only where thei
     expect(reader).not.toMatch(/recordKeyedPayment|prisma\.payment\.|vendorBill\.update/)
   })
 })
+
+describe('what the file screen says after each act', () => {
+  const companies = read('src/app/dashboard/companies/page.tsx')
+  const settings = read('src/app/dashboard/settings/page.tsx')
+  it('saving the column choice says the columns are used for the next file, beside the button', () => {
+    expect(screen).toContain('Saved. These columns are used for your next file.')
+    const at = screen.indexOf('Save these columns for every file')
+    expect(screen.indexOf('{savedSays &&', at)).toBeLessThan(screen.indexOf('</div>', at) + 1)
+  })
+  it('each line already sent is listed with its own sentence under the count', () => {
+    expect(screen).toContain('alreadySent')
+    expect(screen).toContain('sentBefore.map')
+  })
+  it('a resend is named as its own file, not the first file’s name', () => {
+    const lib = read('src/lib/money/receipt-file-read.ts')
+    expect(lib).toContain('-again-')
+  })
+  it('a cost center’s profit center is changed through the route that already accepts it', () => {
+    expect(settings).toContain("'/api/settings/cost-centers', 'PATCH', { id: cc.id, profitCenter")
+    expect(read('src/app/api/settings/cost-centers/route.ts')).toContain("'profitCenter' in body")
+  })
+  it('the vendor number label is tied to its box', () => {
+    expect(companies).toContain('id={`vendor-number-${supplierId}`}')
+    expect(companies).toMatch(/label="Your vendor number for them" id=\{`vendor-number-\$\{supplierId\}`\}/)
+  })
+})

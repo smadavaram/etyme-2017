@@ -73,6 +73,7 @@ export function DownloadReceiptLines({ runId, disabled, onOpenReceipts }: { runI
   const [open, setOpen] = useState(false)
   const [chosen, setChosen] = useState<string[]>([...DEFAULT_RECEIPT_COLUMNS])
   const [said, setSaid] = useState<string | null>(null)
+  const [sentBefore, setSentBefore] = useState<{ lineId: string; says: string }[]>([])
   const [failed, setFailed] = useState<string | null>(null)
   const [savedSays, setSavedSays] = useState<string | null>(null)
   const label = (id: string) => RECEIPT_COLUMNS.find((c) => c.id === id)?.label ?? id
@@ -97,13 +98,15 @@ export function DownloadReceiptLines({ runId, disabled, onOpenReceipts }: { runI
         body: JSON.stringify({ columns: chosen }),
       })
       const b = await readJson(r)
-      setSavedSays((b.data as { says: string }).says)
+      void b
+      setSavedSays('Saved. These columns are used for your next file.')
     } catch (e: any) {
       setFailed(e.message)
     }
   }
 
   function toggle(id: string) {
+    setSavedSays(null)
     setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
   }
   function move(id: string, by: -1 | 1) {
@@ -123,8 +126,9 @@ export function DownloadReceiptLines({ runId, disabled, onOpenReceipts }: { runI
     try {
       const r = await fetch(`/api/ap/receipts-file?run=${encodeURIComponent(runId)}&columns=${encodeURIComponent(chosen.join(','))}`)
       const b = await readJson(r)
-      const d = b.data as { csv: string; filename: string; says: string; rows: number }
+      const d = b.data as { csv: string; filename: string; says: string; rows: number; alreadySent?: { lineId: string; says: string }[] }
       setSaid(d.says)
+      setSentBefore(d.alreadySent ?? [])
       if (d.rows > 0) {
         const url = URL.createObjectURL(new Blob([d.csv], { type: 'text/csv;charset=utf-8' }))
         const a = document.createElement('a')
@@ -163,8 +167,8 @@ export function DownloadReceiptLines({ runId, disabled, onOpenReceipts }: { runI
             Save these columns for every file
           </button>
         )}
+        {savedSays && <span role="status" className="text-[13px] text-etyme-ink">{savedSays}</span>}
       </div>
-      {savedSays && <p className="text-[13px] text-etyme-ink">{savedSays}</p>}
       <p className="text-[11px] text-etyme-faint">One row for each invoice line, in your own cost centers. No bank details.</p>
       {chosen.length === 0 && <p className="text-[13px] text-etyme-attention">Choose at least one column to download.</p>}
       {open && (
@@ -190,6 +194,13 @@ export function DownloadReceiptLines({ runId, disabled, onOpenReceipts }: { runI
         </div>
       )}
       {said && <p className="text-[13px] text-etyme-ink">{said}</p>}
+      {sentBefore.length > 0 && (
+        <ul className="space-y-1">
+          {sentBefore.map((l) => (
+            <li key={l.lineId} className="text-[13px] text-etyme-muted">{l.says}</li>
+          ))}
+        </ul>
+      )}
       {said && said.includes('no lines') && (
         <p className="text-[13px] text-etyme-ink">
           Lines cannot be added to an invoice receipt recorded as a total. Ask the supplier to send the bill from Etyme with its lines, or code that invoice in your own system.

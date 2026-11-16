@@ -74,6 +74,21 @@ describe('reading the answer from the client’s system', () => {
     expect(d.refused[0].says).toContain('paid whole')
     expect(decide([row(), row({ line: 3, rowId: 'l1:cc2' })], sent).apply).toHaveLength(2)
   })
+  it('a paid answer held by a rejected line says which line is rejected and why it holds the whole invoice', () => {
+    const sent = [sentRow(), sentRow({ lineId: 'l2', rowId: 'l2:cc1', state: 'REJECTED', person: 'Ana Ortiz' })]
+    const d = decide([row()], sent, [], new Map([['b1', ['l1', 'l2']]]))
+    expect(d.apply).toEqual([])
+    expect(d.refused[0].says).toContain('Ana Ortiz’s line is rejected')
+    expect(d.refused[0].says).toContain('holds the whole invoice')
+  })
+  it('a line split into two rows is refused once, in one sentence, not once for each row', () => {
+    const sent = [
+      sentRow(), sentRow({ rowId: 'l1:cc2', shareKey: 'cc2' }),
+      sentRow({ lineId: 'l2', rowId: 'l2:cc1', state: 'REJECTED' }),
+    ]
+    const d = decide([row({ rowId: '', lineId: 'l1' })], sent, [], new Map([['b1', ['l1', 'l2']]]))
+    expect(d.refused).toHaveLength(1)
+  })
   it('an invoice with a line that was never in a file cannot be paid by the file', () => {
     const d = decide([row()], [sentRow()], [], new Map([['b1', ['l1', 'l2']]]))
     expect(d.apply).toEqual([])

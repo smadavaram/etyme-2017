@@ -74,6 +74,14 @@ describe('the client’s file of the invoice receipts it received', () => {
     expect(f.personIds).toEqual(['p1'])
   })
 
+  it('a line split across two cost centers is said as one line in two rows, never as two lines', () => {
+    const two = [one({ key: 'a', costObject: 'CC-A', shareBps: 5000 }), one({ key: 'b', costObject: 'CC-B', shareBps: 5000 })]
+    const f = receiptFile(RUN, [receipt({ amountCents: 10_000, owedCents: 10_000, lines: [line({ amountCents: 10_000, hours: 1, rateCents: 10_000, shares: two })] })])
+    expect(f.rows).toBe(2)
+    expect(f.says).toContain('1 line in the file, in 2 rows')
+    expect(f.says).not.toContain('2 lines in the file')
+  })
+
   it('a line split across three cost centers is three rows that add back to the line to the cent, hours included', () => {
     const third = [
       one({ key: 'a', costObject: 'CC-A', shareBps: 3333 }),
