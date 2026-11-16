@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notAtACompany, rateEnd } from '@/lib/bench-filter'
+import { notAtACompany, rateEnd, rateSavedSays } from '@/lib/bench-filter'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { recordAccess } from '@/lib/access-log'
@@ -188,7 +188,7 @@ async function setRates(
   const listing = await prisma.benchListing.findUnique({
     where: { id },
     select: {
-      id: true, companyId: true, consultantId: true, rateMin: true, rateMax: true,
+      id: true, companyId: true, consultantId: true, rateMin: true, rateMax: true, state: true, revokedAt: true,
       consultant: { select: { personId: true, rateFloor: true, person: { select: { name: true } } } },
     },
   })
@@ -223,8 +223,10 @@ async function setRates(
   const firm = await prisma.company.findUnique({ where: { id: companyId }, select: { homeCurrency: true } })
   const currency = firm?.homeCurrency ?? 'USD'
   const said = min == null && max == null ? 'no rate' : `${rateEnd(min, currency)}–${rateEnd(max, currency)} an hour`
+  // Only a yes is on the bench (`rateSavedSays`): before it, she has not
+  // answered, said by the name the firm typed.
   return NextResponse.json({
-    data: { listing: { id, rateMin: min, rateMax: max }, message: `${name} is already on your bench. Their rate is now ${said}.` },
+    data: { listing: { id, rateMin: min, rateMax: max }, message: rateSavedSays(listing, name, said) },
   })
 }
 

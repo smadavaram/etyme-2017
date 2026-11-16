@@ -68,7 +68,11 @@ interface Data {
    * Firms that asked to market them and are waiting on an answer. Not a
    * bench yet: nothing reaches anybody until they say yes.
    */
-  invited?: { listingId: string; company: string; askedAt: string | null; terms?: Terms | null }[]
+  invited?: {
+    listingId: string; company: string; askedAt: string | null; terms?: Terms | null
+    /** The rate range the firm saved, in its currency, and her own lowest rate where the range is under it (`inviteRange`). */
+    range?: { says: string; belowFloor: string | null } | null
+  }[]
   /** Stays that ran out: not a bench any more, and one tap from being one again. */
   ended?: { listingId: string; company: string; stayDays: number | null; stay: string; mayRenew: boolean }[]
   stayChoices?: number[]
@@ -288,6 +292,15 @@ export default function MyBenchesPage() {
                       <p className="text-[15px] text-etyme-ink">{a.company}</p>
                       {a.askedAt && (
                         <p className="text-[13px] text-etyme-muted mt-0.5 tabular-nums">asked {a.askedAt}</p>
+                      )}
+                      {/* The rate range the firm saved, read before the yes
+                          (2026-11-16), and, said to her alone, where it is
+                          under the lowest rate on her own record. */}
+                      {a.range && (
+                        <p className="text-[13px] text-etyme-ink mt-1">{a.range.says}</p>
+                      )}
+                      {a.range?.belowFloor && (
+                        <p className="text-[13px] text-etyme-attention mt-0.5">{a.range.belowFloor}</p>
                       )}
                       {/* Pay terms stated with the ask, read before the yes. */}
                       {a.terms ? (

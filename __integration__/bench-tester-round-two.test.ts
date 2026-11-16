@@ -116,7 +116,9 @@ describe('bench profit counts what it says it counted', () => {
 describe('Add to bench on somebody already asked', () => {
   it('saves the rate onto the listing they have, and says so, instead of refusing them as a duplicate', async () => {
     const pell = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pellwright' }, select: { id: true } })
-    const listing = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { companyId: pell.id, revokedAt: null }, select: { id: true, consultant: { select: { person: { select: { name: true } }, rateFloor: true } } } })
+    // Somebody who said yes: only a yes reads as already on the bench
+    // (layer four, 2026-11-16; an ask not answered says so instead).
+    const listing = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { companyId: pell.id, revokedAt: null, state: 'GRANTED' }, select: { id: true, consultant: { select: { person: { select: { name: true } }, rateFloor: true } } } })
     as(PELLWRIGHT)
     const low = Math.max(listing.consultant.rateFloor ?? 0, 7_000)
     const r = await json(await patchListing(req('PATCH', `/api/bench/listings/${listing.id}`, { rateMin: low, rateMax: low + 1_500 }), params(listing.id)))

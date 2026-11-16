@@ -14,7 +14,7 @@ import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 import { addConsultantBody } from '@/lib/consultant-portfolio/forms'
 import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
 import { consultantsPageUrl, pagesAfterFirst } from '@/lib/consultant-portfolio/list-pages'
-import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, rateBoxLabel, tierShown, TIER_BEFORE_YES, type BenchStanding } from '@/lib/bench-filter'
+import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, rateBoxLabel, tierShown, TIER_BEFORE_YES, offersSend, sampleRowSays, type BenchStanding } from '@/lib/bench-filter'
 import { usePageSection } from '@/components/page-section'
 import { pageFraming } from '@/lib/page-framing'
 import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
@@ -77,6 +77,8 @@ interface Consultant {
   education?: EducationShown[] | null
   /** This firm's live listing for them, where there is one: the one Resend sends again. */
   listings?: { id: string; consent?: string | null }[]
+  /** An address no email can reach (a sample person): no Resend is offered (`offersSend`). */
+  sample?: boolean
 }
 
 /** The firm's bench as Today and Ask Etyme count it (`benchAt`), and who was asked and has not answered. */
@@ -1386,6 +1388,11 @@ export default function ConsultantsPage() {
       label: '',
       render: (row) => {
         const listingId = resendListingId(row, mayAdd)
+        // A sample person asked and not answered: nothing to send, said in
+        // the words Bench's row uses (`sampleRowSays`).
+        if (!listingId && mayAdd && row.standing === 'ASKED' && !offersSend(row)) {
+          return <span className="text-[11px] text-etyme-muted">{sampleRowSays(row.name)}</span>
+        }
         return listingId ? (
           <button onClick={(e) => { e.stopPropagation(); void resend(row, listingId) }} disabled={resending === listingId}
             className="text-[11px] text-etyme-action hover:underline disabled:opacity-40 whitespace-nowrap">

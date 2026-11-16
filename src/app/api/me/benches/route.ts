@@ -11,6 +11,7 @@ import { STAY_CHOICES, readStay, renewFields, stayFields, stayOver, staySays } f
 import { renewStay } from '@/lib/bench-stay-record'
 import { termsShown, agreeingTerms } from '@/lib/bench-filter'
 import { possessive } from '@/lib/requisition-approval'
+import { inviteRange } from '@/app/api/bench-invite/[token]/terms'
 
 /**
  * GET   /api/me/benches — who has me, what have they done with me
@@ -65,11 +66,16 @@ export async function GET(_request: NextRequest) {
           id: true, state: true, invitedAt: true,
           stayDays: true, staysUntil: true, lapsedAt: true, revokedAt: true, showInMatches: true,
           termsEngagementType: true, termsPayRateCents: true, termsPayCurrency: true, termsAgreedAt: true,
+          rateMin: true, rateMax: true,
           company: { select: { name: true, homeCurrency: true } },
         },
       })
     ).map((l) => [l.id, l])
   )
+  // The lowest rate on her own record. This route answers only the person
+  // signed in, about herself, so it is always hers to read; it is compared
+  // here and never written anywhere a firm reads.
+  const ownFloor = (await prisma.consultantProfile.findUnique({ where: { personId: person.id }, select: { rateFloor: true } }))?.rateFloor ?? null
   const termsOf = (id: string) => {
     const l = states.get(id)
     return l ? termsShown(l, l.company) : null
@@ -84,6 +90,14 @@ export async function GET(_request: NextRequest) {
       // What the firm says it would pay them, read beside the yes. The
       // page sends these back with the yes, which is how the yes agrees them.
       terms: termsOf(b.listingId),
+      // The rate range the firm saved on its ask, in the firm's own
+      // currency, and where its top is under her own lowest rate, one
+      // sentence saying so (founder, 2026-11-16). The same reader as the
+      // emailed link (`inviteRange`), so the two say the same words.
+      range: (() => {
+        const l = states.get(b.listingId)
+        return l ? inviteRange(l, l.company, ownFloor) : null
+      })(),
     }))
   data.benches = data.benches.filter((b) => (states.get(b.listingId)?.state ?? 'GRANTED') === 'GRANTED')
 

@@ -17,11 +17,15 @@
  * would refuse, before the press. Pure, and safe in a browser.
  */
 
+import { offersSend, sampleRowSays } from '@/lib/bench-filter'
+
 export interface KeptRow {
   id: string
   name: string
   email: string
   standing?: string | null
+  /** An address no email can reach (a sample person): nothing is offered to send. */
+  sample?: boolean | null
   /** This firm's live listing for them, the first one only, as the list sends it. */
   listings?: readonly { id: string; consent?: string | null }[] | null
 }
@@ -73,6 +77,11 @@ export function alreadyKept<R extends KeptRow>(typed: string, rows: readonly R[]
     }
   }
   if (consent === 'INVITED') {
+    // A sample person: no email can reach them, so nothing is offered to
+    // send, as Bench's row does (`offersSend`, `sampleRowSays`).
+    if (!offersSend(row)) {
+      return { row, blocks: true, says: `You already asked ${name}. ${sampleRowSays(name)}`, ...open }
+    }
     const listingId = mayAdd && row.standing === 'ASKED' ? row.listings?.[0]?.id ?? null : null
     return listingId
       ? {

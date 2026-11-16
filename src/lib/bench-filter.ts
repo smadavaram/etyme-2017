@@ -1690,6 +1690,27 @@ export function rateEnd(minor: number | null, currency: string = 'USD'): string 
   return minor == null ? 'open' : compact(minor, currency)
 }
 
+/**
+ * What the firm reads after it saves a rate on a listing it holds, by
+ * what the person has said to it (layer four, 2026-11-16). It read
+ * "<name> is already on your bench" on every listing, so a firm that had
+ * only asked was told she had said yes. Only a yes is on the bench; an
+ * ask not answered says so, and a no or a listing taken back says that.
+ * `name` is the one the firm reads: the name it typed, before her yes.
+ * `said` is the range already worded ("$80–$90 an hour", or "no rate").
+ * Pure.
+ */
+export function rateSavedSays(
+  listing: { state: string; revokedAt: Date | null },
+  name: string,
+  said: string
+): string {
+  if (listing.revokedAt) return `${name} is not on your bench. The rate on the listing is now ${said}.`
+  if (listing.state === 'GRANTED') return `${name} is already on your bench. Their rate is now ${said}.`
+  if (listing.state === 'DECLINED') return `${name} said no to your bench. The rate on your ask is now ${said}.`
+  return `${name} has not answered yet. The rate on your ask is now ${said}.`
+}
+
 // ── Layer five of the fix list: the bench (2026-11-15) ──────────────────
 
 /**

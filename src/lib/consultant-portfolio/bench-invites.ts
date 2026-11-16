@@ -16,7 +16,7 @@
  * same parser, so what the box shows and what the route asks are the same.
  */
 
-import { INVITE_LINK_KEPT_SAYS, type InviteMail } from '@/lib/bench-filter'
+import { INVITE_LINK_KEPT_SAYS, offersSend, type InviteMail } from '@/lib/bench-filter'
 import { hasPermission } from '@/lib/permissions'
 import { MAY_HAND_OVER } from '@/lib/notify/sign-in-link'
 
@@ -187,10 +187,11 @@ export function inviteCandidatesBody(list: string): { list: string } {
  * `POST /api/bench/listings/:id/nudge` asks for, like Add consultant).
  */
 export function resendListingId(
-  row: { standing?: string | null; listings?: readonly { id: string; consent?: string | null }[] | null },
+  row: { standing?: string | null; sample?: boolean | null; listings?: readonly { id: string; consent?: string | null }[] | null },
   mayAdd: boolean
 ): string | null {
-  if (!mayAdd || row.standing !== 'ASKED') return null
+  // A sample person: no email can reach them (`offersSend`), so no Resend.
+  if (!mayAdd || row.standing !== 'ASKED' || !offersSend(row)) return null
   const l = row.listings?.[0]
   return l && l.consent === 'INVITED' ? l.id : null
 }

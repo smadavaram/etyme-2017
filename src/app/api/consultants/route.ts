@@ -14,6 +14,7 @@ import { firmReadsAt, typedOnlyIds, askedLastWindow } from '@/lib/consultant-por
 import { benchAt, askedAt } from '@/app/api/today/reads'
 import { todayReads } from '@/lib/today-page'
 import { logBulkAccess } from '@/lib/access-log'
+import { demoEmail } from '@/lib/password'
 import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
@@ -330,6 +331,9 @@ export async function GET(request: NextRequest) {
       standing: benchStanding({ onBench: onBench ? onBench.has(p.personId) : null, listingState: listing?.state ?? null }),
       keptBy,
       listed: listing != null,
+      // An address no email can reach (a sample person, on a reserved
+      // domain): the row offers no Resend, as Bench's row does (`offersSend`).
+      sample: demoEmail(p.person.primaryEmail ?? ''),
       workAuth: typed ? typed.workAuth : p.workAuth,
       rateFloor: showRate ? (typed ? typed.rateFloor : p.rateFloor) : undefined,
       availableFrom: typed ? typed.availableFrom : p.availableFrom?.toISOString() ?? null,
