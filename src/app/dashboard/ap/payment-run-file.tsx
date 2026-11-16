@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { confirmBody, confirmSummary, markPaidBody, type ConfirmSummary } from '@/lib/money/run-confirm'
+import { RECEIPT_COLUMNS, DEFAULT_RECEIPT_COLUMNS } from '@/lib/money/receipt-file'
 
 /**
  * The file an approved run leaves as, for the payer's own payment system
@@ -50,6 +51,106 @@ export function DownloadRunFile({ runId, disabled }: { runId: string; disabled?:
       >
         {busy ? 'Working…' : 'Download for your payment system'}
       </button>
+      {said && <p className="text-[13px] text-etyme-ink">{said}</p>}
+      {failed && <p className="text-[13px] text-etyme-attention">{failed}</p>}
+    </div>
+  )
+}
+
+/**
+ * The invoice lines of an approved run, one row per line in the client's
+ * own cost centers, for the client's own system (Layer 9, slice 1). The
+ * client picks and orders the columns; the choice is sent with the
+ * request and is not kept as a company setting. The route's own
+ * sentence says what was left out and why before the file is saved.
+ */
+export function DownloadReceiptLines({ runId, disabled }: { runId: string; disabled?: boolean }) {
+  const [busy, setBusy] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [chosen, setChosen] = useState<string[]>([...DEFAULT_RECEIPT_COLUMNS])
+  const [said, setSaid] = useState<string | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+  const label = (id: string) => RECEIPT_COLUMNS.find((c) => c.id === id)?.label ?? id
+
+  function toggle(id: string) {
+    setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]))
+  }
+  function move(id: string, by: -1 | 1) {
+    setChosen((c) => {
+      const i = c.indexOf(id)
+      const j = i + by
+      if (i < 0 || j < 0 || j >= c.length) return c
+      const next = [...c]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      return next
+    })
+  }
+
+  async function download() {
+    setBusy(true)
+    setFailed(null)
+    try {
+      const r = await fetch(`/api/ap/receipts-file?run=${encodeURIComponent(runId)}&columns=${encodeURIComponent(chosen.join(','))}`)
+      const b = await readJson(r)
+      const d = b.data as { csv: string; filename: string; says: string; rows: number }
+      setSaid(d.says)
+      if (d.rows > 0) {
+        const url = URL.createObjectURL(new Blob([d.csv], { type: 'text/csv;charset=utf-8' }))
+        const a = document.createElement('a')
+        a.href = url
+        a.download = d.filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+      }
+    } catch (e: any) {
+      setFailed(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="w-full space-y-1">
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          className="text-[13px] underline"
+          style={{ color: 'var(--color-action)' }}
+          disabled={busy || disabled || chosen.length === 0}
+          onClick={download}
+        >
+          {busy ? 'Working…' : 'Download for your system'}
+        </button>
+        <button type="button" className="text-[13px] underline text-etyme-muted" onClick={() => setOpen((o) => !o)}>
+          {open ? 'Hide columns' : 'Choose columns'}
+        </button>
+      </div>
+      <p className="text-[11px] text-etyme-faint">One row for each invoice line, in your own cost centers. No bank details.</p>
+      {chosen.length === 0 && <p className="text-[13px] text-etyme-attention">Choose at least one column to download.</p>}
+      {open && (
+        <div className="space-y-2">
+          <ul className="space-y-1">
+            {chosen.map((id) => (
+              <li key={id} className="flex items-center gap-2 text-[13px] text-etyme-ink">
+                <span className="w-48">{label(id)}</span>
+                <button type="button" className="underline" onClick={() => move(id, -1)}>Move up</button>
+                <button type="button" className="underline" onClick={() => move(id, 1)}>Move down</button>
+                <button type="button" className="underline" onClick={() => toggle(id)}>Remove</button>
+              </li>
+            ))}
+          </ul>
+          {chosen.length < RECEIPT_COLUMNS.length && (
+            <p className="text-[13px] text-etyme-ink">
+              Add:{' '}
+              {RECEIPT_COLUMNS.filter((c) => !chosen.includes(c.id)).map((c) => (
+                <button key={c.id} type="button" className="mr-2 underline" onClick={() => toggle(c.id)}>{c.label}</button>
+              ))}
+            </p>
+          )}
+        </div>
+      )}
       {said && <p className="text-[13px] text-etyme-ink">{said}</p>}
       {failed && <p className="text-[13px] text-etyme-attention">{failed}</p>}
     </div>
