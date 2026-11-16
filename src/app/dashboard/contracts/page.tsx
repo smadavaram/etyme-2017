@@ -898,7 +898,11 @@ function ContractDetailDrawer({
 
       setGovernanceWarn(null)
       setOverrideReason('')
-      onToast(`Contract ${label.toLowerCase()}d`, 'success')
+      // Ended early, the route says the last day it recorded ("Contract
+      // completed. Last day on site: Nov 16, 2026."), so the person who
+      // pressed it reads the day tenure and Bench now count from.
+      const done = action === 'complete' ? await res.json().catch(() => null) : null
+      onToast(typeof done?.data?.message === 'string' ? done.data.message : `Contract ${label.toLowerCase()}d`, 'success')
       onRefresh()
       onClose()
     } catch {
