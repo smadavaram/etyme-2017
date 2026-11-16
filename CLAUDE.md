@@ -1199,6 +1199,12 @@ and why, and stops.
 | `etyme-scout` | "Does this already exist and who owns it" — read only |
 | `etyme-release` | Deciding whether it ships — read only |
 
+**Which model does which work** (founder, 2026-11-16 → 82). The lead
+stays on Opus. Workers run on Sonnet by default, at most three at once,
+each on its own files. Opus workers only for Layer 7 security and the
+model-routing lane tests. Each batch note says which model ran which
+piece.
+
 Work moves: scout → schema → spec as test names → build → release →
 preview URL. Different domains may run at the same time. Two agents in
 one domain may not, and neither may anything touching the schema
