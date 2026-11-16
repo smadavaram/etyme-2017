@@ -16,7 +16,8 @@
  * The window is not moved here. Before 2026-11-16 the run paid such a
  * week as one lump on its first day, so moving the window could pay those
  * days twice (lib/money/extension-windows). That repair is a person's
- * decision. This file only finds the week and says it.
+ * decision, made with the button on the held row (lib/money/window-repair,
+ * POST /api/payroll/window-repair). This file only finds the week and says it.
  *
  * ── Which days ───────────────────────────────────────────────────────
  *
@@ -142,19 +143,29 @@ export function hoursIn(w: WindowHeldWeek, start: string, end: string): number {
 
 const hrs = (n: number) => `${n} ${n === 1 ? 'hour' : 'hours'}`
 
-/** What a person does about a held week: the window is repaired, then it is paid. */
-export const REPAIR_THE_WINDOW = 'Ask whoever runs payroll here to repair the window before it is paid.'
+/**
+ * What a seat that runs payroll does about a held week: the button beside
+ * the sentence repairs the window (lib/money/window-repair), and the next
+ * calculation pays it. A seat that may not run payroll reads, in its
+ * place, who here may (`whoHereMaySays`, from the seats the firm filled).
+ */
+export const REPAIR_THE_WINDOW = 'Repair the pay window to pay it.'
 
 /**
  * The row's sentence for each week held because it is after the pay
- * window ended, then once what a person does. Null where none is held.
+ * window ended, then once what the reader does: `next`, which is
+ * "Repair the pay window to pay it." for a seat that runs payroll, and
+ * who here may for any other. Null where none is held.
  *
  * "Lena Okafor's week of Nov 8, 2026, 40 hours, is held off this pay. It
  * is after the pay window ended on Nov 7, 2026; the placement was
- * extended. Ask whoever runs payroll here to repair the window before it
- * is paid."
+ * extended. Repair the pay window to pay it."
  */
-export function windowHeldSays(personName: string, weeks: ReadonlyArray<{ weekOf: string; endedOn: string; hours: number; whole: boolean }>): string | null {
+export function windowHeldSays(
+  personName: string,
+  weeks: ReadonlyArray<{ weekOf: string; endedOn: string; hours: number; whole: boolean }>,
+  next: string = REPAIR_THE_WINDOW,
+): string | null {
   const said = weeks.filter((w) => w.hours > 0)
   if (said.length === 0) return null
   const each = said.map((w) =>
@@ -163,7 +174,7 @@ export function windowHeldSays(personName: string, weeks: ReadonlyArray<{ weekOf
       ? `It is after the pay window ended on ${formatDay(w.endedOn)}; the placement was extended.`
       : `Those hours are after the pay window ended on ${formatDay(w.endedOn)}; the placement was extended.`),
   )
-  return `${each.join(' ')} ${REPAIR_THE_WINDOW}`
+  return `${each.join(' ')} ${next}`
 }
 
 /**

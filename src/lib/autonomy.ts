@@ -564,6 +564,10 @@ const RULE_ATTRIBUTED = [
   // (2026-11-14). Their own act; the row says the old day and the new
   // day, and setting the old day again puts the periods back.
   'PAY_FIRST_DAY_CHANGED',
+  // A payroll seat moved a pay window an extension made before 2026-11-16 left at the
+  // first end, and her row on the pay line, to the placement's end (lib/money/window-repair).
+  // Their own act; the row says from and to, and nothing undoes it.
+  'PAY_WINDOW_REPAIRED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 

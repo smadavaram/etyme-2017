@@ -331,7 +331,7 @@ describe('a week outside every pay window of a placement extended before today',
   const heldWords = () =>
     `Ines Moreau's week of ${formatDay(at(behind.firstEnd, 1))}, 40 hours, is held off this pay. ` +
     `It is after the pay window ended on ${formatDay(behind.firstEnd)}; the placement was extended. ` +
-    'Ask whoever runs payroll here to repair the window before it is paid.'
+    'Repair the pay window to pay it.'
 
   it('a week outside every pay window of an extended placement is held on Payroll with a sentence, never paid and never dropped silently', async () => {
     as(BRIGHTMOOR)

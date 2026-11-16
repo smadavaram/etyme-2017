@@ -45,7 +45,7 @@ describe('a week outside every pay window of an extended placement', () => {
     expect(windowHeldSays('Lena Okafor', [{ ...weeks[0], hours: 40 }])).toBe(
       "Lena Okafor's week of Nov 8, 2026, 40 hours, is held off this pay. " +
         'It is after the pay window ended on Nov 7, 2026; the placement was extended. ' +
-        'Ask whoever runs payroll here to repair the window before it is paid.',
+        'Repair the pay window to pay it.',
     )
   })
 

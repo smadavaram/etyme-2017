@@ -16,6 +16,7 @@ import { hasPermission } from '@/lib/permissions'
 import { EXEMPTION_CHOICES, exemptBody, exemptSavedSays, type ExemptChoice } from '@/lib/money/exempt-form'
 import { formatMonth } from '@/lib/format-date'
 import { payrollRunSays, postedInMoreThanOneCurrency } from '@/lib/money/payroll-run-says'
+import { WindowRepair } from './window-repair'
 
 /**
  * Payroll working surface — what the buy lines pay out.
@@ -123,6 +124,8 @@ interface PayItem {
    */
   windowHeld?: string | null
   windowHeldHours?: number
+  /** What Repair the pay window posts, one per placement whose window is behind. */
+  windowRepairs?: Array<{ sellContractId: string; buyContractId: string; personId: string }>
   exemptStatus?: 'EXEMPT' | 'NONEXEMPT' | null
   /** A week paid at straight time before "not exempt" was recorded, and the overtime still owed. */
   owedSinceRecorded?: string | null
@@ -310,6 +313,8 @@ export default function PayrollPage() {
   // Recording whether somebody is exempt is the payroll run's own
   // permission, as its route asks; a seat without it reads the sentence only.
   const mayRecordExempt = hasPermission(permissions, 'payroll.run')
+  // Repairing a pay window is too, as POST /api/payroll/window-repair asks.
+  const mayRepairWindow = hasPermission(permissions, 'payroll.run')
   // The section this page sits under on the reader's own menu, and
   // nothing while that is not known yet — never a word typed by hand.
   const eyebrow = usePageSection('/dashboard/payroll')
@@ -592,6 +597,11 @@ export default function PayrollPage() {
           {row.windowHeld && (
             <span className="block max-w-[300px] text-left text-[11px] text-etyme-attention ml-auto">
               {row.windowHeld}
+              {/* The act the sentence names, for a seat that runs payroll;
+                  any other seat's sentence names who here may. */}
+              {mayRepairWindow && (row.windowRepairs ?? []).map((t) => (
+                <WindowRepair key={t.sellContractId} target={t} onSaved={fetchPayroll} />
+              ))}
             </span>
           )}
           {/* A week filed and not accepted yet: not in this pay, said. */}
