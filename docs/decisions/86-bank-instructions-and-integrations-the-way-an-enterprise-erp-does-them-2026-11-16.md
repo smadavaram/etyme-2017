@@ -112,3 +112,17 @@ every message, reprocessing after a failure, and no duplicates. The
 second check before money is released (record 86, answers 2 and 3)
 applies where the payment is released inside Etyme. Where the client's
 own system releases it, that system's own controls apply.
+
+The founder added: *"smaller companies do it through [small-business
+accounting software] or local country solutions."* So the bill-line
+delivery is built once, as the generic coded feed of record 80. Each
+client chooses how it leaves:
+- a file shaped by a column picker, in the client's country's date,
+  number, tax and currency formats;
+- a system's own import format, as a label on that client's setting;
+- an API.
+
+A payment made in a system that cannot answer by message comes back by
+file. Where no file exists, it comes back by hand, recorded with its
+reference. Either way it is logged, and a line already marked paid is
+never marked paid twice.
