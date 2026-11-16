@@ -24,6 +24,7 @@ import {
   type CompanyPolicy, type Door, type SignInMode,
 } from '@/lib/identity/policy'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
+import { companyPolicy } from '@/lib/identity/read'
 import { markSeatOpened, opensAnInvitation, defaultSeatOf } from '@/lib/identity/sign-in'
 import { pausedSays, seatHasSignedIn } from '@/lib/access-grant'
 import { seatByDate, pastEndDate, endedByDateSays, MANAGES_ACCESS, type ByDate } from '@/lib/account-lifecycle'
@@ -170,9 +171,10 @@ export function refusalFor(
  * directory ended: the cookie decodes to an address whose directory
  * identity is off. The session callback refused it, so `getServerSession`
  * answered nobody; the cookie itself is still on this request. Returns the
- * sentence, or null for every other kind of signed-out. Never throws.
+ * sentence and whom it is about, or null for every other kind of
+ * signed-out. Never throws.
  */
-async function endedByDirectory(): Promise<string | null> {
+async function endedByDirectory(): Promise<{ says: string; personId: string; companyId: string; email: string } | null> {
   try {
     const secret = process.env.NEXTAUTH_SECRET
     if (!secret) return null
@@ -186,12 +188,32 @@ async function endedByDirectory(): Promise<string | null> {
     const off = await prisma.externalIdentity.findFirst({
       where: { person: { primaryEmail: email }, disabledAt: { not: null } },
       orderBy: { disabledAt: 'desc' },
-      select: { company: { select: { name: true } } },
+      select: { personId: true, companyId: true, company: { select: { name: true } } },
     })
-    return off ? directoryTurnedOffSays(off.company?.name ?? null) : null
+    return off ? { says: directoryTurnedOffSays(off.company?.name ?? null), personId: off.personId, companyId: off.companyId, email } : null
   } catch {
     return null
   }
+}
+
+/**
+ * A request from somebody her company's directory turned off, refused:
+ * the row is written, and waited for, before the refusal is sent (Layer 7,
+ * 2026-11-16). Under JOIN_REFUSED_BY_POLICY, a refusal the firm's own
+ * record never reads as her coming in (`NOT_A_SIGN_IN`). Never throws.
+ */
+async function recordDirectoryOff(a: { personId: string; companyId: string; email: string; says: string; request?: NextRequest }): Promise<void> {
+  const policy = await companyPolicy(a.companyId).then((p) => p.effective).catch(() => 'OPEN' as const)
+  const path = a.request?.nextUrl?.pathname
+  await recordIdentityEvent({
+    event: 'JOIN_REFUSED_BY_POLICY',
+    companyId: a.companyId,
+    actorPersonId: a.personId,
+    subject: { personId: a.personId },
+    policy,
+    surface: path?.startsWith('/api/') ? 'API' : 'WEB',
+    says: `Refused ${path ?? 'a page'} to ${a.email}: ${a.says}`,
+  }).catch(() => undefined)
 }
 
 export function realPersonId(caller: CallerContext): string | null {
@@ -671,7 +693,8 @@ export async function getCallerContext(
     // treated as somebody who never signed in (walk on 62a498151).
     const off = await endedByDirectory()
     if (off) {
-      return { caller: null, error: NextResponse.json({ error: { code: 'DIRECTORY_OFF', message: off } }, { status: 401 }) }
+      await recordDirectoryOff({ ...off, request })
+      return { caller: null, error: NextResponse.json({ error: { code: 'DIRECTORY_OFF', message: off.says } }, { status: 401 }) }
     }
     return {
       caller: null,
@@ -818,7 +841,7 @@ export async function getCallerContext(
       ? null
       : await prisma.context.findFirst({
           where: { personId: person.id, revokedAt: null, suspendedAt: { not: null } },
-          select: { suspendReason: true, company: { select: { name: true } } },
+          select: { suspendReason: true, companyId: true, company: { select: { name: true } } },
         })
 
     const ended =
@@ -841,6 +864,9 @@ export async function getCallerContext(
     })
 
     if (verdict.staff) return { caller: staffCaller(person), error: null }
+    if (verdict.code === 'DIRECTORY_OFF' && paused?.companyId) {
+      await recordDirectoryOff({ personId: person.id, companyId: paused.companyId, email: person.primaryEmail, says: verdict.says, request })
+    }
 
     return {
       caller: null,

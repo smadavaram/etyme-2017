@@ -54,16 +54,26 @@ export interface ScimCaller {
  * Who is calling: the company the token was issued to. Refused where the
  * token is unknown or revoked, where the company turned SCIM off, or where
  * it has no directory turned on to name the issuer. A refusal that names a
- * company is ledgered before it is answered; an unknown token names none,
- * and is answered without a row (KNOWN-LIMITS).
+ * company is ledgered before it is answered, a revoked token's included
+ * (Layer 7, 2026-11-16); an unknown token names none, and is answered
+ * without a row (KNOWN-LIMITS).
  */
 export async function scimCaller(authorization: string | null): Promise<{ ok: true; caller: ScimCaller } | { ok: false; res: NextResponse }> {
   const m = /^Bearer\s+(\S+)$/i.exec(String(authorization ?? '').trim())
   if (!m) return { ok: false, res: scimError(401, 'A SCIM bearer token is required.') }
   const want = hashToken(m[1])
-  const row = await prisma.scimToken.findUnique({ where: { tokenHash: want }, select: { id: true, tokenHash: true, revokedAt: true, companyId: true, company: { select: { name: true } } } })
+  const row = await prisma.scimToken.findUnique({ where: { tokenHash: want }, select: { id: true, tokenHash: true, last4: true, revokedAt: true, companyId: true, company: { select: { name: true } } } })
   const matches = row ? timingSafeEqual(Buffer.from(row.tokenHash, 'hex'), Buffer.from(want, 'hex')) : false
-  if (!row || !matches || row.revokedAt) return { ok: false, res: scimError(401, 'That SCIM token is not valid. Issue a new one on Settings, Sign-in.') }
+  const notValid = 'That SCIM token is not valid. Issue a new one on Settings, Sign-in.'
+  if (!row || !matches) return { ok: false, res: scimError(401, notValid) }
+  if (row.revokedAt) {
+    await recordIdentityEvent({
+      event: 'USER_PROVISIONED', refused: true, companyId: row.companyId, actorPersonId: null, subject: { companyId: row.companyId },
+      policy: (await companyPolicy(row.companyId).catch(() => null))?.effective ?? 'OPEN', surface: 'SCIM',
+      says: `Refused a SCIM call: the token ending …${row.last4} was revoked.`,
+    }).catch(() => undefined)
+    return { ok: false, res: scimError(401, notValid) }
+  }
 
   const [policy, provider] = await Promise.all([
     prisma.companySignInPolicy.findUnique({ where: { companyId: row.companyId }, select: { scim: true } }),

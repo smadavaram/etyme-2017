@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { appUrl } from '@/lib/app-url'
-import { EI_SELECT, isOff, scimCaller, scimError, scimJson, userPatch, userResource } from '@/lib/identity/scim'
-import { deprovision, reprovision } from '@/lib/identity/provision'
+import { EI_SELECT, isOff, scimCaller, scimError, scimJson, userPatch, userResource, type ScimCaller } from '@/lib/identity/scim'
+import { deprovision, reprovision, verifiedDomainsOf, onVerifiedDomain } from '@/lib/identity/provision'
 
 /**
  * GET    /scim/v2/Users/:id — one person
@@ -30,9 +30,19 @@ async function setActive(eiId: string, wasOn: boolean, on: boolean, why: string)
   return r.ok ? null : scimError(r.status, r.says, r.status === 409 ? 'mutability' : undefined)
 }
 
-async function changeEmail(eiId: string, userName: string | undefined) {
-  if (!userName || !userName.includes('@')) return
-  await prisma.externalIdentity.update({ where: { id: eiId }, data: { email: userName.trim().toLowerCase() } })
+/**
+ * A new address, only on the company's own verified domains: the rule a
+ * new person is seated by (`provision`), so a directory never moves its
+ * person onto an address it cannot vouch for (Layer 7, 2026-11-16).
+ */
+async function changeEmail(who: ScimCaller, eiId: string, userName: string | undefined) {
+  if (!userName || !userName.includes('@')) return null
+  const email = userName.trim().toLowerCase()
+  if (!onVerifiedDomain(email, await verifiedDomainsOf(who.companyId))) {
+    return scimError(400, `${email} is not on one of ${who.companyName}'s verified domains, so its directory cannot move a person to it.`, 'invalidValue')
+  }
+  await prisma.externalIdentity.update({ where: { id: eiId }, data: { email } })
+  return null
 }
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -46,7 +56,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if ('res' in r) return r.res
   const p = userPatch(await request.json().catch(() => null))
   if (p === 'unsupported') return scimError(400, 'A PatchOp with Operations is required.', 'invalidSyntax')
-  await changeEmail(r.ei.id, p.userName)
+  const moved = await changeEmail(r.who, r.ei.id, p.userName)
+  if (moved) return moved
   if (p.active !== undefined) {
     const err = await setActive(r.ei.id, !r.ei.disabledAt, p.active, 'turned off in the directory')
     if (err) return err
@@ -59,7 +70,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   const r = await one(request, params.id)
   if ('res' in r) return r.res
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
-  await changeEmail(r.ei.id, typeof body?.userName === 'string' ? body.userName : undefined)
+  const moved = await changeEmail(r.who, r.ei.id, typeof body?.userName === 'string' ? body.userName : undefined)
+  if (moved) return moved
   if (body && 'active' in body) {
     const err = await setActive(r.ei.id, !r.ei.disabledAt, !isOff(body.active), 'turned off in the directory')
     if (err) return err
