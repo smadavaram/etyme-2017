@@ -215,6 +215,8 @@ describe('every act that pays waits for a verified Owner', () => {
       const says = needsVerifiedOwner(await prisma.company.findUniqueOrThrow({ where: { id: s.payer }, select: { name: true, ownerProofRequiredAt: true, ownerVerifiedAt: true } }), 'PAY')
       expect(says.ok).toBe(false)
       const sentence = (says as { says: string }).says
+      // Payroll pays people, so its refusal says so.
+      const people = (needsVerifiedOwner(await prisma.company.findUniqueOrThrow({ where: { id: s.payer }, select: { name: true, ownerProofRequiredAt: true, ownerVerifiedAt: true } }), 'PAY_PEOPLE') as { says: string }).says
       const payrollRows = await prisma.automationLog.count({ where: { companyId: s.payer, action: { in: ['PAYROLL_RUN', 'PAYROLL_OFF_CYCLE'] } } })
       as(PAYROLL)
 
@@ -232,16 +234,16 @@ describe('every act that pays waits for a verified Owner', () => {
       for (const [action, door] of [['approve', 'PAYROLL_APPROVE'], ['process', 'PAYROLL_PROCESS']] as const) {
         const r = await json(await payrollRun(req('POST', '/api/payroll/run', { buyContractIds: ['any-line'], action })))
         expect(r.status, JSON.stringify(r.body)).toBe(403)
-        expect(r.body.error).toMatchObject({ code: 'OWNER_NOT_VERIFIED', message: sentence })
+        expect(r.body.error).toMatchObject({ code: 'OWNER_NOT_VERIFIED', message: people })
         expect(await refusedRows(s.payer, door)).toBe(1)
       }
       const off = await json(await offCycle(req('POST', '/api/payroll/off-cycle', {})))
       expect(off.status, JSON.stringify(off.body)).toBe(403)
-      expect(off.body.error).toMatchObject({ code: 'OWNER_NOT_VERIFIED', message: sentence })
+      expect(off.body.error).toMatchObject({ code: 'OWNER_NOT_VERIFIED', message: people })
       expect(await refusedRows(s.payer, 'PAYROLL_OFF_CYCLE')).toBe(1)
       const com = await json(await commissionRun(req('POST', '/api/payroll/commissions', {})))
       expect(com.status, JSON.stringify(com.body)).toBe(403)
-      expect(com.body.error).toMatchObject({ code: 'OWNER_NOT_VERIFIED', message: sentence })
+      expect(com.body.error).toMatchObject({ code: 'OWNER_NOT_VERIFIED', message: people })
       expect(await refusedRows(s.payer, 'COMMISSION_RUN')).toBe(1)
 
       // Working the figures out pays nobody, so it is never held.

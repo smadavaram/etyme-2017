@@ -31,6 +31,7 @@
 import type { Prisma } from '@prisma/client'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
+import { payToOnBill } from '@/lib/money/pay-to'
 import { completeCycles } from '@/lib/cycle-complete'
 import { sortForBill, expenseLine, expenseTotal, type LeftOff } from '@/lib/expense-billing'
 import { billsOnLeg, payersOwn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
@@ -1588,17 +1589,16 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
 
       // ── Where the customer pays it ─────────────────────────────────
       //
-      // The firm's own payment details, and only ones a paying firm's
-      // Finance has checked (`RemitTo.verifiedAt`): a bill went out with
-      // no pay-to at all (the screen walk, 2026-11-03). Those checked by
-      // this bill's payer first, then the firm's default. None checked,
-      // none written: the bill says nothing rather than an address
-      // nobody stands behind, and the payment gate refuses until checked.
-      const remits = await tx.remitTo.findMany({
-        where: { companyId: caller.company.id, verifiedAt: { not: null } },
-        select: { id: true, isDefault: true, verifiedByCompanyId: true },
-      })
-      const payTo = payToFor(remits, partners.payer.party.id)
+      // The firm's own payment details: the row the payment gate pays
+      // (`payToRow` in lib/money/pay-to), and only where that row is
+      // checked. A bill went out with no pay-to at all (the screen walk,
+      // 2026-11-03), and then with an older checked row while the firm's
+      // default was new and unchecked (Layer 7 money review, 2026-11-16),
+      // so a client could pay an account the firm had left. Not checked,
+      // none written: the bill says the details are being confirmed, and
+      // every screen that prints it reads the same row again when it is
+      // read (`payToOnBill`), so a later change never prints the old one.
+      const payTo = (await payToOnBill(caller.company.id, tx)).row?.id ?? null
 
       // Create the invoice
       const invoice = await tx.invoice.create({
@@ -1975,22 +1975,4 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     reportError('Invoice generation failed:', err)
     return reply(500, { error: { code: 'INTERNAL', message: 'The bill could not be generated' } })
   }
-}
-
-/**
- * Which of the firm's checked payment details a bill names, for the
- * firm that pays it: one that payer's Finance checked, else the firm's
- * default, else any checked one. Null where none is checked. Pure.
- */
-export function payToFor(
-  remits: readonly { id: string; isDefault: boolean; verifiedByCompanyId: string | null }[],
-  payerId: string,
-): string | null {
-  return (
-    remits.find((r) => r.verifiedByCompanyId === payerId && r.isDefault)?.id ??
-    remits.find((r) => r.verifiedByCompanyId === payerId)?.id ??
-    remits.find((r) => r.isDefault)?.id ??
-    remits[0]?.id ??
-    null
-  )
 }

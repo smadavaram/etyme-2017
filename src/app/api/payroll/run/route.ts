@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   // 2026-11-16), in the gate's own sentence, logged before it is said.
   // Working the figures out pays nobody, so calculate is never held.
   if (action === 'approve' || action === 'process') {
-    const owner = await needsVerifiedOwnerAt(companyId, 'PAY')
+    const owner = await needsVerifiedOwnerAt(companyId, 'PAY_PEOPLE')
     if (!owner.ok) {
       await logPaymentRefused({
         companyId, byPersonId: caller.person.id, door: action === 'approve' ? 'PAYROLL_APPROVE' : 'PAYROLL_PROCESS',

@@ -9,6 +9,8 @@ import { refusalOf, refusedRead } from '@/lib/money/refused-read'
 import { ListSurface, type Column } from '@/components/list-surface'
 import { EmptyState, ErrorState, Field, Input, LoadingState, PageHead, RefusedState, SubmitButton } from '@/components/ui'
 import { DefaultsPanel, type DefaultsRead } from './defaults-panel'
+import { OwnerGateLine } from '@/components/owner-gate-line'
+import type { OwnerLine } from '@/lib/owner-gate'
 
 /**
  * What a recruiter earned, and the run that posted it.
@@ -64,6 +66,8 @@ export default function CommissionsPage() {
   const [rows, setRows] = useState<CommissionRow[]>([])
   const [summary, setSummary] = useState('')
   const [mayRun, setMayRun] = useState(false)
+  // Run's place, where the company still waits for a verified Owner.
+  const [payWaits, setPayWaits] = useState<OwnerLine | null>(null)
   const [defaults, setDefaults] = useState<DefaultsRead | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -94,6 +98,7 @@ export default function CommissionsPage() {
       setRows(body.data.rows ?? [])
       setSummary(body.data.summary)
       setMayRun(body.data.mayRun)
+      setPayWaits(body.data.payWaits ?? null)
       setDefaults(body.data.defaults ?? null)
       setError(null)
     } catch (err: any) { setError(err.message) } finally { setLoading(false) }
@@ -147,6 +152,12 @@ export default function CommissionsPage() {
       />
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
+
+      {payWaits && (
+        <div className="panel">
+          <OwnerGateLine line={payWaits} />
+        </div>
+      )}
 
       {mayRun && (
         <form className="panel flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); run() }}>
@@ -234,7 +245,7 @@ export default function CommissionsPage() {
       {!loading && earnings.length === 0 && rows.length === 0 && !error && (
         <EmptyState
           says="Nothing posted yet."
-          detail={mayRun ? 'Pick a period above and run it.' : 'Whoever runs payroll here can run a period.'}
+          detail={mayRun ? 'Pick a period above and run it.' : payWaits ? 'A period can be run here once ownership is proved, as the line above says.' : 'Whoever runs payroll here can run a period.'}
         />
       )}
     </div>

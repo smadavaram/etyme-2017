@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { theLinkFor } from '@/lib/contract-links'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
+import { logPaymentRefused } from '@/lib/money/payment-refused'
 import {
   holdBackPosting, reserveBalance, drawFromReserve, exitPosting,
   type Policy, type ReserveMovement, type ReserveMovementKind, type LeaveReason,
@@ -159,6 +161,20 @@ export async function POST(request: NextRequest) {
       { error: { code: 'VALIDATION', message: 'One of hold, draw or exit', field: 'action' } },
       { status: 422 }
     )
+  }
+  // A draw pays somebody's bench week and an exit pays out or keeps the
+  // pot, so both wait for a verified Owner like every other act that pays
+  // people (founder, 2026-11-11; Layer 7 money review, 2026-11-16), in the
+  // gate's own sentence, logged before it is said. A hold pays nobody.
+  if (action === 'draw' || action === 'exit') {
+    const owner = await needsVerifiedOwnerAt(companyId, 'PAY_PEOPLE')
+    if (!owner.ok) {
+      await logPaymentRefused({
+        companyId, byPersonId: caller.person.id, door: action === 'draw' ? 'RESERVE_DRAW' : 'RESERVE_EXIT',
+        why: 'OWNER_NOT_VERIFIED', says: owner.says,
+      })
+      return NextResponse.json(gateRefusal(owner), { status: 403 })
+    }
   }
   if (!buyContractId) {
     return NextResponse.json(

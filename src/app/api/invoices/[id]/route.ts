@@ -15,6 +15,7 @@ import { fromPrismaDecimal, minorPerUnit } from '@/lib/money'
 import { daySpan } from '@/lib/plain-date'
 import { readReceipt } from '@/lib/money/receipt-read'
 import { payToSays } from '@/lib/money/pay-to-words'
+import { payToOnBill } from '@/lib/money/pay-to'
 import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
 import { payWaitsAt } from '@/lib/money/pay-waits'
 import { billDeliverySays } from '@/lib/notify/bill-delivery'
@@ -74,8 +75,6 @@ export async function GET(
   const invoice = await prisma.invoice.findFirst({
     where: { id, ...scope },
     include: {
-      // Where it is paid: the firm's checked details, as four digits.
-      remitTo: { select: { legalName: true, accountName: true, bankName: true, accountLast4: true, paymentMethod: true } },
       workOrder: {
         select: {
           id: true, number: true, amount: true, status: true, endDate: true,
@@ -336,6 +335,8 @@ export async function GET(
     }
   }
 
+  const payTo = parties.vendor ? await payToOnBill(parties.vendor.id) : null
+
   return NextResponse.json({
     data: {
       payPanel,
@@ -346,7 +347,10 @@ export async function GET(
         direction,
         deliverySays,
         beforeSend,
-        payToSays: payToSays(invoice.remitTo),
+        // Where it is paid: the issuer's pay-to row as it stands now, and
+        // only where it is checked (lib/money/pay-to `payToOnBill`), never
+        // the row the bill was written with.
+        payToSays: payTo ? payToSays(payTo.row, payTo.entered) : payToSays(null),
         // Minor units, beside the whole-currency figures older readers use.
         totalMinor,
         paidMinor,

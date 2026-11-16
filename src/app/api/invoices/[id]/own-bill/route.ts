@@ -7,6 +7,8 @@ import { codingReader } from '@/lib/money/coding-reader'
 import { leftAfterThisBill } from '@/lib/money/left-after-this-bill'
 import { ownBillIsTheIssuers, ownBillView } from '@/lib/money/own-bill-read'
 import { recordRefusal } from '@/lib/access-log'
+import { payToOnBill } from '@/lib/money/pay-to'
+import { payToSays } from '@/lib/money/pay-to-words'
 
 /**
  * GET /api/invoices/:id/own-bill
@@ -65,12 +67,6 @@ export async function GET(
           issuedTo: { select: { id: true, name: true } },
         },
       },
-      remitTo: {
-        select: {
-          companyId: true, legalName: true, accountName: true,
-          paymentMethod: true, bankName: true, accountLast4: true,
-        },
-      },
     },
   })
   if (!invoice) return notFound()
@@ -100,13 +96,18 @@ export async function GET(
   }
   noteMoneyRead(books, `the order and pay-to on ${invoice.number}`)
 
-  const left = await leftAfterThisBill(invoice)
+  const [left, payTo] = await Promise.all([leftAfterThisBill(invoice), payToOnBill(parties.vendor.id)])
   return NextResponse.json({
-    data: ownBillView({
-      orderNumber: invoice.workOrder?.number ?? null,
-      left,
-      remitTo: invoice.remitTo,
-      issuerId: parties.vendor.id,
-    }),
+    data: {
+      ...ownBillView({
+        orderNumber: invoice.workOrder?.number ?? null,
+        left,
+        // The pay-to row as it stands now, only where it is checked: the
+        // row the payment gate pays (lib/money/pay-to `payToOnBill`).
+        remitTo: payTo.row,
+        issuerId: parties.vendor.id,
+      }),
+      payToSays: payToSays(payTo.row, payTo.entered),
+    },
   })
 }

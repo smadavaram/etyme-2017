@@ -8,7 +8,8 @@ import { reportError } from '@/lib/alerts'
  * Every door that pays — a supplier's invoice paid from its row or from the
  * chat, a typed-in invoice receipt paid from its row, a payment run
  * approved or released, a run's confirmation marked paid, a payroll run
- * approved or marked paid, off-cycle pay, a commission run — writes one PAYMENT_REFUSED
+ * approved or marked paid, off-cycle pay, a commission run, a bench week
+ * paid from a reserve or a reserve settled on leaving — writes one PAYMENT_REFUSED
  * row before the refusal is sent, when the refusal is a rule's: the
  * three-way check did not pass, the supplier's bank details were not
  * checked, or the company was still waiting for a verified Owner. A
@@ -38,6 +39,10 @@ export type PaymentRefusedDoor =
   | 'PAYROLL_OFF_CYCLE'
   /** A commission run, which pays people. */
   | 'COMMISSION_RUN'
+  /** A bench week paid from somebody's reserve. */
+  | 'RESERVE_DRAW'
+  /** A reserve settled when somebody leaves. */
+  | 'RESERVE_EXIT'
 
 export type PaymentRefusedWhy = 'MATCH_FAILED' | 'BANK_NOT_CHECKED' | 'OWNER_NOT_VERIFIED'
 
@@ -67,6 +72,8 @@ const DOOR_WORDS: Record<PaymentRefusedDoor, string> = {
   PAYROLL_PROCESS: 'mark a payroll run paid',
   PAYROLL_OFF_CYCLE: 'pay somebody outside the payroll run',
   COMMISSION_RUN: 'run commissions',
+  RESERVE_DRAW: 'pay a bench week from a reserve',
+  RESERVE_EXIT: 'settle a reserve when somebody leaves',
 }
 
 const WHY_WORDS: Record<PaymentRefusedWhy, string> = {

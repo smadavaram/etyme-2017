@@ -10,11 +10,13 @@
  */
 
 
-export type GatedAct = 'PAY' | 'BANK' | 'SIGN' | 'COMPANY_TYPE' | 'SIGN_IN_MODE' | 'GIVE_ACCESS' | 'PASS_OWNERSHIP'
+export type GatedAct = 'PAY' | 'PAY_PEOPLE' | 'BANK' | 'SIGN' | 'COMPANY_TYPE' | 'SIGN_IN_MODE' | 'GIVE_ACCESS' | 'PASS_OWNERSHIP'
 
 /** Each act, said as the start of its refusal. */
 export const GATED_ACT_WORDS: Record<GatedAct, string> = {
   PAY: 'Paying a firm',
+  // Payroll pays people, never a firm: its own refusal says so (2026-11-16).
+  PAY_PEOPLE: 'Paying your people',
   BANK: 'Changing bank details',
   SIGN: 'Signing an agreement',
   COMPANY_TYPE: 'Changing the type of company',
@@ -61,6 +63,7 @@ export function needsVerifiedOwner(c: GateFacts & { name?: string | null }, act:
 /** The sentence a screen says beside an act only the Owner does, at a company that has one. */
 export const OWNER_ONLY_WORDS: Record<GatedAct, string> = {
   PAY: 'Only the Owner, or a role the Owner gives, pays a firm.',
+  PAY_PEOPLE: 'Only the Owner, or a role the Owner gives, runs payroll.',
   BANK: 'Only the Owner, or a role the Owner gives, changes bank details.',
   SIGN: 'Only the Owner, or a role the Owner gives, signs an agreement.',
   COMPANY_TYPE: 'Only the Owner changes the type. Ask the Owner if it is wrong.',

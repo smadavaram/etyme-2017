@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
   // Pay outside the run is pay, so it waits for a verified Owner like
   // every other act that pays (founder, 2026-11-11; Layer 7 money review,
   // 2026-11-16), in the gate's own sentence, logged before it is said.
-  const owner = await needsVerifiedOwnerAt(companyId, 'PAY')
+  const owner = await needsVerifiedOwnerAt(companyId, 'PAY_PEOPLE')
   if (!owner.ok) {
     await logPaymentRefused({ companyId, byPersonId: caller.person.id, door: 'PAYROLL_OFF_CYCLE', why: 'OWNER_NOT_VERIFIED', says: owner.says })
     return NextResponse.json(gateRefusal(owner), { status: 403 })

@@ -10,6 +10,7 @@ import type { PayDeskVerdict } from '@/lib/money/pay-desk'
 import type { ReceiptPayPanel } from '@/lib/money/receipt-pay-panel'
 import { withBooks, type Books } from '@/lib/money/books-view'
 import type { OwnBillView } from '@/lib/money/own-bill-read'
+import { PAY_TO_NONE } from '@/lib/money/pay-to-words'
 
 /**
  * The money half of one invoice: who it is paid to, how it is coded,
@@ -80,6 +81,8 @@ interface InvoiceCoding {
     bankName: string | null
     accountLast4: string | null
   } | null
+  /** In the account's place where none is printed: being confirmed, or none given. */
+  payToSays?: string
   billTo: { id: string; name: string }
   rows: CodingRow[]
   reconciliation: {
@@ -176,7 +179,7 @@ export function InvoiceMoney({
   // through a read that carries nothing of the client's
   // (GET /api/invoices/:id/own-bill, `lib/money/own-bill-read`).
   const readsOwnBill = invoice.direction === 'RECEIVABLE'
-  const [ownBill, setOwnBill] = useState<OwnBillView | null>(null)
+  const [ownBill, setOwnBill] = useState<(OwnBillView & { payToSays?: string }) | null>(null)
   const [ownBillLoading, setOwnBillLoading] = useState(readsOwnBill)
   useEffect(() => {
     let cancelled = false
@@ -207,6 +210,7 @@ export function InvoiceMoney({
     workOrder: string | null
     purchaseOrderBalance: InvoiceCoding['purchaseOrderBalance']
     remitTo: { legalName: string; paymentMethod: string; bankName: string | null; accountLast4: string | null } | null
+    payToSays?: string
   } | null =
     readsCoding ? coding : ownBill
   const orderAndPayToLoading = readsCoding ? codingLoading : ownBillLoading
@@ -322,7 +326,9 @@ export function InvoiceMoney({
                 </p>
               </>
             ) : (
-              <p className="text-sm text-etyme-attention">No bank details on file</p>
+              // The route's own sentence: the details are being confirmed,
+              // or none were given. Never an older or an unchecked account.
+              <p className="text-sm text-etyme-attention">{orderAndPayTo.payToSays ?? PAY_TO_NONE}</p>
             )}
           </div>
         </div>

@@ -14,11 +14,14 @@ import { ownerOnlyLineAt, type OwnerLine } from '@/lib/owner-proof'
  * company may pay, so nothing is said and nothing changes for a company
  * formed before the rule, or one whose Owner is verified.
  *
+ * Payroll asks it for people (`PAY_PEOPLE`), so its line says payroll's
+ * words, never "paying a firm".
+ *
  * Only the line with a step to take: at a company with a verified Owner
  * paying is not an Owner act (an AP clerk pays), so the Owner-only words
  * `ownerOnlyLine` says there are never shown beside Pay.
  */
-export async function payWaitsAt(companyId: string): Promise<OwnerLine | null> {
-  const line = await ownerOnlyLineAt(companyId, 'PAY')
+export async function payWaitsAt(companyId: string, act: 'PAY' | 'PAY_PEOPLE' = 'PAY'): Promise<OwnerLine | null> {
+  const line = await ownerOnlyLineAt(companyId, act)
   return line.href ? line : null
 }

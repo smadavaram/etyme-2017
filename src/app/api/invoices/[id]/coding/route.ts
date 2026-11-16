@@ -9,6 +9,8 @@ import { partiesOf } from '@/lib/money/invoice-parties'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { codingReader, splitIsPayers } from '@/lib/money/coding-reader'
 import { recordRefusal } from '@/lib/access-log'
+import { payToOnBill } from '@/lib/money/pay-to'
+import { payToSays } from '@/lib/money/pay-to-words'
 
 /**
  * GET /api/invoices/:id/coding
@@ -133,12 +135,6 @@ export async function GET(
       invoiceLines: {
         select: { sellContractId: true, amountCents: true, person: { select: { name: true } } },
         orderBy: { createdAt: 'asc' },
-      },
-      remitTo: {
-        select: {
-          legalName: true, addressLines: true, country: true, taxId: true,
-          paymentMethod: true, bankName: true, accountLast4: true, routingLast4: true,
-        },
       },
     },
   })
@@ -364,6 +360,15 @@ export async function GET(
     })
   }
 
+  // Where it is paid: the issuer's pay-to row as it stands now, and only
+  // where it is checked (lib/money/pay-to `payToOnBill`), never the row
+  // the bill was written with. The same fields as before, and no more.
+  const payTo = parties.vendor ? await payToOnBill(parties.vendor.id) : { row: null, entered: false }
+  const remitTo = payTo.row && {
+    legalName: payTo.row.legalName, addressLines: payTo.row.addressLines, country: payTo.row.country, taxId: payTo.row.taxId,
+    paymentMethod: payTo.row.paymentMethod, bankName: payTo.row.bankName, accountLast4: payTo.row.accountLast4, routingLast4: payTo.row.routingLast4,
+  }
+
   return NextResponse.json({
     data: {
       invoice: {
@@ -380,7 +385,8 @@ export async function GET(
       billTo: parties.client,
       workOrder: invoice.workOrder?.number ?? null,
       purchaseOrderBalance: poState,
-      remitTo: invoice.remitTo,
+      remitTo,
+      payToSays: payToSays(payTo.row, payTo.entered),
       rows,
       // How to hand these rows to a ledger. Said here so an AP team finds
       // it on the screen they are already looking at.

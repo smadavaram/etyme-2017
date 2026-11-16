@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { payToFor } from '@/lib/money/bill-generate'
-import { payToSays } from '@/lib/money/pay-to-words'
+import { printedOnBill, firstPerFirm, PAY_TO_ORDER } from '@/lib/money/pay-to'
+import { payToSays, PAY_TO_BEING_CONFIRMED, PAY_TO_NONE } from '@/lib/money/pay-to-words'
 import { readReceipt } from '@/lib/money/receipt-read'
 
 /**
@@ -9,20 +9,27 @@ import { readReceipt } from '@/lib/money/receipt-read'
  * "44 h × $98/hr = $4,508.00", a sum that does not add up.
  */
 describe('a bill says where it is paid and how each line was priced', () => {
-  it('a bill names the firm’s payment details its payer checked, else the checked default, and none where nothing is checked', () => {
-    const remits = [
-      { id: 'default', isDefault: true, verifiedByCompanyId: 'other' },
-      { id: 'northbend', isDefault: false, verifiedByCompanyId: 'northbend' },
+  it('a bill prints the firm’s default payment details only where they are checked, and never an older checked row in their place', () => {
+    const at = new Date('2026-01-05T00:00:00Z')
+    // Already in the pay-to order: the default first, then the first entered.
+    const rows = [
+      { companyId: 'f', id: 'new-default', isDefault: true, verifiedAt: null },
+      { companyId: 'f', id: 'older-checked', isDefault: false, verifiedAt: at },
     ]
-    expect(payToFor(remits, 'northbend')).toBe('northbend')
-    expect(payToFor(remits, 'cavanaugh')).toBe('default')
-    expect(payToFor([], 'northbend')).toBeNull()
+    expect(PAY_TO_ORDER[0]).toEqual({ isDefault: 'desc' })
+    const row = firstPerFirm(rows).get('f') ?? null
+    expect(row?.id).toBe('new-default')
+    expect(printedOnBill(row)).toBeNull()
+    expect(printedOnBill({ ...rows[0], verifiedAt: at })?.id).toBe('new-default')
+    expect(printedOnBill(null)).toBeNull()
   })
 
-  it('the pay-to reads as the name on the account, the bank and four digits, and says so where none is checked', () => {
+  it('the pay-to reads as the name on the account, the bank and four digits, says the details are being confirmed where they are not checked, and says none are on the bill where none were given', () => {
     expect(payToSays({ legalName: 'Brightmoor Staffing LLC', accountName: null, bankName: 'Chase', accountLast4: '4821', paymentMethod: 'ACH' }))
       .toBe('Pay to Brightmoor Staffing LLC, Chase, account ending 4821, by ACH.')
-    expect(payToSays(null)).toBe('No checked payment details are on this bill yet.')
+    expect(payToSays(null, true)).toBe(PAY_TO_BEING_CONFIRMED)
+    expect(PAY_TO_BEING_CONFIRMED).toBe('Payment details are being confirmed, so no account is printed on this bill yet.')
+    expect(payToSays(null)).toBe(PAY_TO_NONE)
   })
 
   it('a line with overtime at a premium never prints a multiplication that does not add up, and says how it was priced', () => {

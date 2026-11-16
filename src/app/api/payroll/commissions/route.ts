@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
 import { logPaymentRefused } from '@/lib/money/payment-refused'
+import { payWaitsAt } from '@/lib/money/pay-waits'
 import { writeRateTrail } from '@/lib/money/pay-trail'
 import { staffOnly } from '@/lib/seat'
 import { commissionFor, marginForCommission, lineMargin, alreadyPaidIn } from '@/lib/commission'
@@ -152,6 +153,12 @@ export async function GET(request: NextRequest) {
     where: { companyId, commissionType: { not: null }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
   })
 
+  // A run pays people: where the company still waits for a verified Owner
+  // the POST below refuses it, so Run is not offered and the gate's own
+  // sentence is said in its place, to the seat that would have pressed it.
+  const runs = hasPermission(caller.permissions, 'payroll.run')
+  const payWaits = runs ? await payWaitsAt(companyId, 'PAY_PEOPLE') : null
+
   return NextResponse.json({
     data: {
       earnings, agents,
@@ -160,7 +167,8 @@ export async function GET(request: NextRequest) {
       period: { from: period.from.toISOString().slice(0, 10), to: period.to.toISOString().slice(0, 10) },
       /** True where only the reader's own earnings are here. */
       onlyYours: !everybody,
-      mayRun: hasPermission(caller.permissions, 'payroll.run'),
+      mayRun: runs && !payWaits,
+      payWaits,
       /** The firm's default commission rates; null where this seat does not read them. */
       defaults,
       summary: !everybody
@@ -214,7 +222,7 @@ export async function POST(request: NextRequest) {
   // A commission run pays people, so it waits for a verified Owner like
   // every other act that pays (founder, 2026-11-11; Layer 7 money review,
   // 2026-11-16), in the gate's own sentence, logged before it is said.
-  const owner = await needsVerifiedOwnerAt(companyId, 'PAY')
+  const owner = await needsVerifiedOwnerAt(companyId, 'PAY_PEOPLE')
   if (!owner.ok) {
     await logPaymentRefused({ companyId, byPersonId: caller.person.id, door: 'COMMISSION_RUN', why: 'OWNER_NOT_VERIFIED', says: owner.says })
     return NextResponse.json(gateRefusal(owner), { status: 403 })

@@ -17,6 +17,8 @@ import { EXEMPTION_CHOICES, exemptBody, exemptSavedSays, type ExemptChoice } fro
 import { formatMonth } from '@/lib/format-date'
 import { payrollRunSays, postedInMoreThanOneCurrency } from '@/lib/money/payroll-run-says'
 import { WindowRepair } from './window-repair'
+import { OwnerGateLine } from '@/components/owner-gate-line'
+import type { OwnerLine } from '@/lib/owner-gate'
 
 /**
  * Payroll working surface — what the buy lines pay out.
@@ -340,6 +342,9 @@ export default function PayrollPage() {
   const [heldSays, setHeldSays] = useState<string | null>(null)
   // Where the company's holiday calendar is empty, one sentence saying so.
   const [noHolidays, setNoHolidays] = useState<string | null>(null)
+  // Where the company still waits for a verified Owner: the gate's own
+  // sentence and its link, said in Process's place.
+  const [payWaits, setPayWaits] = useState<OwnerLine | null>(null)
   // The current period is chosen once for the reader; after that the
   // picker is theirs.
   const [periodChosen, setPeriodChosen] = useState(false)
@@ -395,6 +400,7 @@ export default function PayrollPage() {
       setPayFileWaits(body.data?.payFileWaits ?? null)
       setHeldSays(body.data?.heldSays ?? null)
       setNoHolidays(body.data?.noHolidays ?? null)
+      setPayWaits(body.data?.payWaits ?? null)
       if (!periodChosen) {
         setPeriodChosen(true)
         // A company that pays by its own periods opens on the current one.
@@ -847,7 +853,10 @@ export default function PayrollPage() {
               {processing ? 'Running…' : `Calculate (${stats.pending})`}
             </button>
           )}
-          {runsHere && stats.calculated > 0 && (
+          {/* Process pays people, so it is drawn only where the run route
+              will take it: a company waiting for a verified Owner reads the
+              gate's sentence below, with its link, instead. */}
+          {runsHere && stats.calculated > 0 && !payWaits && (
             <button
               onClick={() => handleRunPayroll('process')}
               disabled={processing}
@@ -859,6 +868,11 @@ export default function PayrollPage() {
         </>}
       />
 
+      {payWaits && (
+        <div className="panel mb-2">
+          <OwnerGateLine line={payWaits} />
+        </div>
+      )}
       {periodSays && (
         <p className="mb-2 text-[12.5px] text-etyme-muted">
           {periodSays}

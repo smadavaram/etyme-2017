@@ -34,6 +34,7 @@ import { payLeftInPeriod, partPaidSays, type PricedDay, type PremiumDay } from '
 import { windowBehind, daysPastWindow, weeksPastWindow, hoursIn, windowHeldSays, REPAIR_THE_WINDOW, type WindowHeldWeek } from '@/lib/money/outside-pay-window'
 import { REPAIRING_THE_WINDOW } from '@/lib/money/window-repair'
 import { whoHereMaySays } from '@/lib/money/who-raises-bills'
+import { payWaitsAt } from '@/lib/money/pay-waits'
 
 /**
  * GET /api/payroll
@@ -1159,6 +1160,10 @@ export async function GET(request: NextRequest) {
       // Whether Calculate and Process may be offered on this view: on a
       // company that pays by its own periods, only on one of them.
       runsHere: co.byPeriod ? Boolean(shownPeriod) && !nothingToPay : true,
+      // Where the company still waits for a verified Owner, approving and
+      // marking pay paid are refused by the run route in this sentence; the
+      // page says it, with its link, and draws no Process in its place.
+      payWaits: await payWaitsAt(companyId, 'PAY_PEOPLE'),
       // Whether this seat may press Repair the pay window on a held row:
       // the payroll run's own permission, as the repair route asks it.
       mayRepairWindow,
