@@ -7,8 +7,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
-import { recordRefusal } from '@/lib/access-log'
-import { hasSignedIn, OWNER_DESK } from '@/lib/access-grant'
+import { recordRefusal, signedInHere } from '@/lib/access-log'
+import { seatHasSignedIn, OWNER_DESK } from '@/lib/access-grant'
 import { realPersonId, type CallerContext } from '@/lib/api-context'
 import { resendVerdict } from '../row-acts'
 
@@ -46,7 +46,6 @@ export async function waitingSeatFor(
       person: {
         select: {
           id: true, name: true, primaryEmail: true, passwordHash: true,
-          credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
         },
       },
     },
@@ -61,11 +60,14 @@ export async function waitingSeatFor(
   const actorId = realPersonId(caller)
   if (!actorId) return refuse(403, 'PERSON_REQUIRED', 'An integration cannot do this. A person has to.', ctx.personId)
 
+  // Whether she came in here: this firm's own record, never her account
+  // elsewhere (2026-11-16), as the register read it when it drew the press.
+  const here = await signedInHere(caller.company.id, [ctx.personId])
   const mine = await prisma.context.findUnique({ where: { id: caller.context.id }, select: { role: { select: { name: true } }, suspendedAt: true } })
   const verdict = resendVerdict({
     contextId: ctx.id,
     personId: ctx.personId,
-    hasSignedIn: hasSignedIn({ invitedAt: ctx.invitedAt, lastUsedAt: ctx.lastUsedAt, everSignedIn: ctx.person.credentials.length > 0 }),
+    hasSignedIn: seatHasSignedIn({ invitedAt: ctx.invitedAt, lastUsedAt: ctx.lastUsedAt, signedInHere: here.has(ctx.personId) }),
     roleId: ctx.roleId,
     rolePermissions: ctx.role?.permissions ?? [],
     suspendedAt: ctx.suspendedAt,

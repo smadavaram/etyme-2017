@@ -13,6 +13,7 @@
  * (lib/notify/account-mail): never in a reply, a log, a copied message.
  */
 import { prisma } from '@/lib/db'
+import { signedInHere } from '@/lib/access-log'
 import { hasPermission, inWords } from '@/lib/permissions'
 import { emit } from '@/lib/events'
 import { checkInvite } from '@/lib/account-lifecycle'
@@ -28,7 +29,7 @@ import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { reportError } from '@/lib/alerts'
 import type { EffectiveMode } from '@/lib/identity/policy'
 import {
-  alreadyInvitedSays, copyInvitation, hasSignedIn, invitedAs, inviteLetter, inviteSays, INVITE_LINK_HOURS, OWNER_DESK,
+  alreadyInvitedSays, copyInvitation, seatHasSignedIn, invitedAs, inviteLetter, inviteSays, INVITE_LINK_HOURS, OWNER_DESK,
   type InviteDoor, type InviteMail, type InviteMailState,
   countsAgainstCap, MAIL_NOT_GONE,
 } from '@/lib/access-grant'
@@ -89,7 +90,13 @@ export async function sendInvitationMail(a: {
   const now = a.now ?? new Date()
   const email = a.person.primaryEmail
   const login = baseUrl() ? `${baseUrl()}/login` : ''
-  const door = doorFor({ mode: a.mode, hasPassword: Boolean(a.person.passwordHash), login })
+  // A way in already: a password, or a Google, Microsoft or email sign-in.
+  // Read here, for the letter only she reads, and never said to the firm.
+  // A seat invited at an address that signs in elsewhere is offered Send
+  // again until she signs in here (2026-11-16), so the letter must never
+  // carry a link that sets a password on an account somebody holds.
+  const wayIn = Boolean(a.person.passwordHash) || (await prisma.credential.count({ where: { personId: a.person.id } })) > 0
+  const door = doorFor({ mode: a.mode, hasPassword: wayIn, login })
   const title = inviteTitle(a.inviterName, a.company.name)
 
   // One door mints the link, and it kills any older one for this person.
@@ -319,14 +326,18 @@ export async function inviteOne(inviter: Inviter, input: { email: string; name?:
         where: { companyId, revokedAt: null },
         select: { id: true, invitedAt: true, lastUsedAt: true },
       },
-      credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
     },
   })
 
   // Already waiting on an invitation here: say where to press, rather than
-  // the bare refusal (fault 8). Only this company's own seats are named.
+  // the bare refusal (fault 8). Only this company's own seats are named,
+  // and whether she came in is this firm's own record, never her account
+  // elsewhere (2026-11-16): an address invited here that signs in at
+  // another firm is "already invited" until she signs in here, the same
+  // answer as an address Etyme has never seen.
   const here = existing?.contexts ?? []
-  const waiting = here.find((c) => !hasSignedIn({ invitedAt: c.invitedAt ?? null, lastUsedAt: c.lastUsedAt ?? null, everSignedIn: (existing?.credentials?.length ?? 0) > 0 }))
+  const cameIn = existing && here.length ? await signedInHere(companyId, [existing.id]) : new Set<string>()
+  const waiting = here.find((c) => !seatHasSignedIn({ invitedAt: c.invitedAt ?? null, lastUsedAt: c.lastUsedAt ?? null, signedInHere: cameIn.has(existing!.id) }))
   if (waiting) {
     return { ok: false, email, status: 422, code: 'ALREADY_INVITED', message: alreadyInvitedSays(email), field: 'email' }
   }

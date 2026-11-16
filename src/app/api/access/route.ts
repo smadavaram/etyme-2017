@@ -6,11 +6,11 @@ import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
-import { recordRefusal } from '@/lib/access-log'
+import { recordRefusal, signedInHere } from '@/lib/access-log'
 import {
   assessGrant, reviewAccess, sensitivityOf, levelOf, deskLine, waitingLine,
   assessDeskChange, canGiveDesks, OWNER_DESK,
-  hasSignedIn, seatPlace, deskChangedNotice, roleChangeSummary, roleChangeSays, needsDecisionCount, inviteFormWords,
+  seatHasSignedIn, seatPlace, deskChangedNotice, roleChangeSummary, roleChangeSays, needsDecisionCount, inviteFormWords,
   decisionSeats, decisionParts, figuresFor, FINDING_WORDS, RENEW_DOING, type FigureKey, type InvitedMail,
 } from '@/lib/access-grant'
 import { seatByDate, seatDateLine, pastEndDate, type ByDate, type DatedSeat } from '@/lib/account-lifecycle'
@@ -24,7 +24,7 @@ import { seatedSays } from '@/lib/money/who-raises-bills'
 import { knownBeyond } from './[contextId]/rename'
 import { copyTextFor, latestInviteMails } from './invite/one'
 import type { EffectiveMode } from '@/lib/identity/policy'
-import { readCompanySeats, peopleOf, countSeats, peopleWords, personNameFor, type SeatState } from '@/lib/company-seats'
+import { readCompanySeats, peopleOf, countSeats, peopleWords, personNameFor, seatStateOf, type CompanySeat, type SeatState } from '@/lib/company-seats'
 import { joinSentenceFor } from '@/lib/join-words'
 
 /** An invitation's newest email that did not leave: refused, not set up, or a demo address. Never one on its way, and never a seat with no email. */
@@ -117,12 +117,9 @@ export async function GET(request: NextRequest) {
     where: { companyId: caller.company.id, revokedAt: null },
     include: {
       person: {
-        select: {
-          id: true, name: true, primaryEmail: true,
-          // Any sign-in anywhere on Etyme. The seat's own use date is
-          // cleared by a desk change, so it cannot answer this alone.
-          credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
-        },
+        // Never her sign-ins anywhere on Etyme (2026-11-16): whether she
+        // came in here is read from this firm's own record, below.
+        select: { id: true, name: true, primaryEmail: true },
       },
       role: { select: { id: true, name: true, permissions: true } },
     },
@@ -139,26 +136,45 @@ export async function GET(request: NextRequest) {
   // not the shared sample seat), each once, as with access, invited (never
   // signed in) or paused. The sample seat is nobody, so it is not listed
   // either; a consultant's seat is still listed, marked, and not counted.
-  const [seats, joins] = await Promise.all([
+  const [readSeats, joins, here] = await Promise.all([
     readCompanySeats(caller.company.id),
     joinSentenceFor(caller.company.id),
+    // Whether each invited person came in here: this firm's own record,
+    // never her account anywhere else (2026-11-16). A seat nobody invited
+    // was made by a sign-in, so only invited seats are asked about.
+    signedInHere(caller.company.id, contexts.filter(c => c.invitedAt !== null && c.lastUsedAt === null).map(c => c.personId)),
   ])
-  const seatOf = new Map(seats.map(s => [s.contextId, s]))
   const byCtx = new Map(contexts.map(c => [c.id, c]))
+  // An invitation is not access, whatever desk it carries. A seat with no
+  // desk, or whose person has never signed in here, waits; the rest have
+  // access. Signed in is this firm's own fact (`seatHasSignedIn`): a seat
+  // invited at an address that signs in at another firm reads "Invited"
+  // until she signs in here, so nothing on this page differs by whether
+  // the address has an account elsewhere.
+  const signedInOf = (c: (typeof contexts)[number]) => seatHasSignedIn({
+    invitedAt: c.invitedAt,
+    lastUsedAt: c.lastUsedAt,
+    signedInHere: here.has(c.personId),
+  })
+  // The seat reader still reads a sign-in anywhere as signed in (handed to
+  // its owner, 2026-11-16). Until it reads this firm's own record, each
+  // seat's state is read again here by its own rule (`seatStateOf`), so
+  // every figure, the figure each row is counted under, and the row's
+  // place agree. Once the reader reads this firm's record, this changes
+  // nothing.
+  const seats: CompanySeat[] = readSeats.map(s => {
+    const c = byCtx.get(s.contextId)
+    if (!c) return s
+    const state = seatStateOf({ revokedAt: c.revokedAt, suspendedAt: c.suspendedAt, signedIn: signedInOf(c), hasRole: Boolean(c.role?.name) })
+    return state ? { ...s, state } : s
+  })
+  const seatOf = new Map(seats.map(s => [s.contextId, s]))
   // A seat past its end date is not in the seat reader's answer, so these
   // two fall back to the row itself, by the reader's own rules.
   const isSample = (id: string) => seatOf.get(id)?.isSample ?? isSamplePerson(byCtx.get(id)?.person.primaryEmail ?? null)
   const isConsultant = (id: string) => seatOf.has(id) ? seatOf.get(id)!.isPerson === false : byCtx.get(id)?.type === 'CONSULTANT'
   const counts = countSeats(peopleOf(seats))
   const consultantsListed = seats.filter(s => !s.isPerson && !s.isSample).length
-
-  // An invitation is not access, whatever desk it carries. A seat with no
-  // desk, or whose person has never signed in, waits; the rest have access.
-  const signedInOf = (c: (typeof contexts)[number]) => hasSignedIn({
-    invitedAt: c.invitedAt,
-    lastUsedAt: c.lastUsedAt,
-    everSignedIn: c.person.credentials.length > 0,
-  })
 
   // ── A seat's end date (2026-11-15) ──
   // Read through the one rule (`seatByDate`), as the caller check and the
@@ -823,10 +839,12 @@ async function openSeatsHere(companyId: string): Promise<{ id: string; suspended
     where: { companyId, revokedAt: null },
     select: {
       id: true, companyId: true, expiresAt: true, suspendedAt: true, revokedAt: true, invitedAt: true, lastUsedAt: true,
+      personId: true,
       role: { select: { name: true, permissions: true } },
-      person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
     },
   })
+  // Signed in is this firm's own fact, never her account elsewhere (2026-11-16).
+  const here = await signedInHere(companyId, rows.filter(r => r.invitedAt !== null && r.lastUsedAt === null).map(r => r.personId))
   const now = new Date()
   const dated = (r: (typeof rows)[number]): DatedSeat => ({
     contextId: r.id,
@@ -836,7 +854,7 @@ async function openSeatsHere(companyId: string): Promise<{ id: string; suspended
     rolePermissions: r.role?.permissions ?? [],
     revokedAt: r.revokedAt,
     suspendedAt: r.suspendedAt,
-    hasSignedIn: hasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, everSignedIn: r.person.credentials.length > 0 }),
+    hasSignedIn: seatHasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, signedInHere: here.has(r.personId) }),
   })
   const all = rows.map(dated)
   return rows

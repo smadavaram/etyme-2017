@@ -709,13 +709,35 @@ export function waitingLine(w: { invited: boolean; signedIn: boolean; days: numb
 }
 
 /**
- * Whether the person behind a seat has ever signed in.
+ * Whether the person behind a seat has signed in here, read from this
+ * firm's own record only (2026-11-16).
  *
  * A seat nobody invited was made by a sign-in, so it has. An invited seat
- * has once it was used here, or once the person signed in anywhere on
- * Etyme. The seat's own use date is not enough by itself: a desk change
- * clears it, so a person who signed in last week would read as never
- * having come.
+ * has once it was used here (its own use date), or once she did anything
+ * at this firm that the access log keeps with her as the actor, her first
+ * sign-in on the invitation included (INVITE_ACCEPTED). `signedInHere` is
+ * that second fact, read by `signedInHere` in lib/access-log.
+ *
+ * Never her account anywhere else. The rule read "or once the person
+ * signed in anywhere on Etyme", so a seat invited at an address that
+ * already signs in at another firm read as a member with access, never
+ * "Invited", and the firm learned the address has an account elsewhere.
+ * CLAUDE.md: the page never says whether an address has an account; a
+ * person invited and never signed in is "Invited". Pure.
+ */
+export function seatHasSignedIn(s: { invitedAt: Date | null; lastUsedAt: Date | null; signedInHere: boolean }): boolean {
+  return s.invitedAt === null || s.lastUsedAt !== null || s.signedInHere
+}
+
+/**
+ * The old reading: signed in anywhere on Etyme counts. Kept, unchanged,
+ * only so that callers outside this domain still compile until each moves
+ * to `seatHasSignedIn` (handed over 2026-11-16: lib/company-seats,
+ * lib/api-context, lib/teams/binding, api/cron/watch, api/settings/grants,
+ * api/me/seats-on-offer). Nothing on Users & permissions or the invite
+ * answer reads it. Do not add a caller.
+ *
+ * @deprecated Reads her account elsewhere. Use `seatHasSignedIn`.
  */
 export function hasSignedIn(s: { invitedAt: Date | null; lastUsedAt: Date | null; everSignedIn: boolean }): boolean {
   return s.invitedAt === null || s.lastUsedAt !== null || s.everSignedIn

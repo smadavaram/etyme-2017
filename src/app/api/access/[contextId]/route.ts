@@ -13,11 +13,11 @@ import {
   type AccessRow,
 } from '@/lib/account-lifecycle'
 import { possessive } from '@/lib/requisition-approval'
-import { hasSignedIn } from '@/lib/access-grant'
+import { seatHasSignedIn } from '@/lib/access-grant'
 import { OWNER_ROLE, clause } from '@/lib/owner-rules'
 import { companyPolicy, endSessions } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
-import { recordRefusal } from '@/lib/access-log'
+import { recordRefusal, signedInHere } from '@/lib/access-log'
 import { withdrawHistorySays, withdrawVerdict, readOnTheirDates } from '../row-acts'
 import { renameSeat } from './rename'
 import { pausedReply } from './pause-words'
@@ -358,12 +358,7 @@ export async function DELETE(
         where: { id: contextId, companyId: caller.company.id },
         select: {
           id: true, personId: true, lastUsedAt: true, invitedAt: true, revokedAt: true,
-          person: {
-            select: {
-              name: true, primaryEmail: true,
-              credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 },
-            },
-          },
+          person: { select: { name: true, primaryEmail: true } },
         },
       })
     : null
@@ -435,13 +430,10 @@ export async function DELETE(
   // no other company counted, and the person row is removed below only
   // where no seat is left.
   const verdict = canDeleteOutright({
-    // An invitation nobody accepted has never been used.
-    // A desk change clears the seat's use date, so a sign-in anywhere
-    // on Etyme counts too.
-    hasSignedIn: hasSignedIn({
-      invitedAt: ctx.invitedAt, lastUsedAt: ctx.lastUsedAt,
-      everSignedIn: ctx.person.credentials.length > 0,
-    }),
+    // An invitation nobody accepted has never been used. Signed in is
+    // this firm's own fact, never her account elsewhere (2026-11-16): the
+    // same reading the register drew Withdraw or End from.
+    hasSignedIn: target.hasSignedIn,
     approvals,
     submissions,
     contracts,
@@ -532,18 +524,17 @@ async function loadAll(companyId: string, keep?: string): Promise<AccessRow[]> {
       id: true, personId: true, roleId: true, lastUsedAt: true, invitedAt: true,
       suspendedAt: true, revokedAt: true, expiresAt: true,
       role: { select: { permissions: true, name: true } },
-      person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
     },
   })
+  // Whether each invited person came in here: this firm's own record,
+  // never her account anywhere else (2026-11-16).
+  const here = await signedInHere(companyId, rows.filter((r) => r.invitedAt !== null && r.lastUsedAt === null).map((r) => r.personId))
 
   return readOnTheirDates(rows.map((r) => ({
     contextId: r.id,
     personId: r.personId,
-    // Somebody invited who has never done anything has never arrived.
-    hasSignedIn: hasSignedIn({
-      invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt,
-      everSignedIn: r.person.credentials.length > 0,
-    }),
+    // Somebody invited who has never come in here has never arrived.
+    hasSignedIn: seatHasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, signedInHere: here.has(r.personId) }),
     roleId: r.roleId,
     rolePermissions: r.role?.permissions ?? [],
     suspendedAt: r.suspendedAt,

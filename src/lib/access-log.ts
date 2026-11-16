@@ -612,3 +612,56 @@ export function forwardedEmailReadReason(read: { inboundEmailId: string; shownOn
   if (read.refused) return `Refused the body of forwarded email ${read.inboundEmailId}: ${read.refused}`
   return `Read the body of forwarded email ${read.inboundEmailId}${read.shownOn ? ` on ${read.shownOn}` : ''}`
 }
+
+// ── Whether she came in here ─────────────────────────────────────────
+
+/**
+ * Identity rows that name her as the actor at a firm and say she did NOT
+ * come in: a sign-in or a join the firm's policy refused. Never read as
+ * a sign-in here.
+ */
+export const NOT_A_SIGN_IN: readonly AccessAction[] = ['LOGIN_REFUSED_SSO_ONLY', 'JOIN_REFUSED_BY_POLICY']
+
+/**
+ * Where to look for whether a person came in at a firm: a row this firm's
+ * access log keeps with her, in person, as the actor at this firm. Her
+ * first sign-in on an invitation here writes one (INVITE_ACCEPTED,
+ * lib/identity/sign-in), choosing a seat here writes one
+ * (CONTEXT_SWITCH), and so does every read she makes on a seat here. A
+ * row a twin wrote on a seat's authority is not her coming in, and
+ * neither is a refused sign-in (`NOT_A_SIGN_IN`). Pure, so the shape is a
+ * sentence in a test.
+ */
+export function signedInHereWhere(companyId: string, personId: string) {
+  return {
+    actorPersonId: personId,
+    actorCompanyId: companyId,
+    actorKind: 'PERSON',
+    action: { notIn: [...NOT_A_SIGN_IN] as string[] },
+  }
+}
+
+/**
+ * Which of these people came in at this firm (2026-11-16): this firm's own
+ * record, never her account anywhere else. Users & permissions, the invite
+ * answer, Withdraw and End read it through `seatHasSignedIn` in
+ * lib/access-grant, so a seat invited at an address that already signs in
+ * at another firm reads "Invited" until she signs in here.
+ *
+ * The same fact the sign-in line on a person's row reads (`signsInHere`
+ * in lib/notify/sign-in-link-door). One row is enough, so each person is
+ * one indexed read that stops at the first row; only invited seats need
+ * asking, which on any firm is a handful.
+ */
+export async function signedInHere(
+  companyId: string,
+  personIds: readonly string[],
+  db: Pick<typeof prisma, 'accessLog'> = prisma,
+): Promise<Set<string>> {
+  const ids = [...new Set(personIds)].filter(Boolean)
+  const found = await Promise.all(ids.map(async (personId) => {
+    const row = await db.accessLog.findFirst({ where: signedInHereWhere(companyId, personId), select: { id: true } })
+    return row ? personId : null
+  }))
+  return new Set(found.filter((id): id is string => id !== null))
+}
