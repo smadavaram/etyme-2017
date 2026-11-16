@@ -101,7 +101,9 @@ Full text → 03, 11, 36, 37, 59, 62, 63.
   not the motivation. **Tenure is the moat, never the wedge**: keep the
   tenure ledger correct and do not lead with it. What the wedge is, is not
   decided. A buyer says it; no agent derives it.
-- **Never lead with AI.** Ask Etyme is met in use, never sold.
+- **Never lead with AI.** Ask Etyme is met in use, never sold. A
+  tenant's own storefront may open on its Ask box when it picks that
+  template (→ 79).
 - **Never name an enterprise incumbent, or any real company, anywhere**:
   page, document, screen, test name, code comment, commit message, reply
   to the founder. A rule stands on its own reason. The one exception is an
@@ -442,6 +444,16 @@ Full text → 40, 11, 56, 68, 72.
   Tapin in production and sends a numbered list by area, and only what
   failed is fixed again. No new features. The order: linkage, the money
   chain, daily flows, findability and access, the bench.
+- **Layer 6, storefront templates, runs beside stabilization** (founder,
+  2026-11-16 → 79): Ask-first (Tapin's default), Feed or Board on the
+  tenant's own address, drawn from its record. Public visitors see the
+  bench by skills and availability only; board trading is for the known
+  network; nothing is submitted before her consent. Its own batch and
+  deploy; it never destabilizes the stabilization track.
+- **Layers 7 to 10 make the integrations work** (→ 80): security and
+  sign-in, outreach doors, an accounting feed any system reads, and
+  operations tools on the record. Each fails visibly and writes to the
+  record. Eight questions in 80 wait on the founder before each layer.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
