@@ -97,3 +97,4 @@ built, every release check, every walk and every deploy.
 | 80 | Layers 7 to 10: the integrations Etyme claims must work — 2026-11-16 | 2,063 | [80-layers-seven-to-ten-make-the-integrations-work-2026-11-16.md](80-layers-seven-to-ten-make-the-integrations-work-2026-11-16.md) |
 | 81 | Model routing: one layer picks the provider by job and by data — 2026-11-16 | 2,027 | [81-model-routing-one-layer-picks-the-provider-by-job-and-data-2026-11-16.md](81-model-routing-one-layer-picks-the-provider-by-job-and-data-2026-11-16.md) |
 | 82 | Which model does which work — 2026-11-16 | 321 | [82-which-model-does-which-work-2026-11-16.md](82-which-model-does-which-work-2026-11-16.md) |
+| 83 | Three skill sets copied in as files — 2026-11-16 | 357 | [83-three-skill-sets-copied-in-as-files-2026-11-16.md](83-three-skill-sets-copied-in-as-files-2026-11-16.md) |
