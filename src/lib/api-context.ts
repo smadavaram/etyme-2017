@@ -24,6 +24,7 @@ import {
   type CompanyPolicy, type Door, type SignInMode,
 } from '@/lib/identity/policy'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
+import { markSeatOpened, opensAnInvitation } from '@/lib/identity/sign-in'
 import { pausedSays, seatHasSignedIn } from '@/lib/access-grant'
 import { seatByDate, pastEndDate, endedByDateSays, MANAGES_ACCESS, type ByDate } from '@/lib/account-lifecycle'
 import { OWNER_ROLE } from '@/lib/owner-rules'
@@ -865,6 +866,22 @@ export async function getCallerContext(
       caller: null,
       error: NextResponse.json({ error: { code: 'LINKEDIN_NOT_FOR_COMPANIES', message: linkedInSays } }, { status: 403 }),
     }
+  }
+
+  // ── Her invitation is accepted where she opens its seat (2026-11-16) ──
+  //
+  // Once, at this firm, for this seat, after the firm's policy let the
+  // session use it. A sign-in anywhere used to mark every invited seat
+  // she held at every firm, so a firm read her as having come in where
+  // she never had (lib/identity/sign-in). Read off the seat as it was
+  // before the use date below is written; a seat with a use date is
+  // passed over with no read.
+  if (opensAnInvitation(context)) {
+    await markSeatOpened(context, person, {
+      companyName: (context.company as { name?: string } | null)?.name ?? null,
+      policy: effectiveMode(seatPolicy),
+      surface: request?.nextUrl?.pathname?.startsWith('/api/') ? 'API' : 'WEB',
+    })
   }
 
   // ── Record that this access was actually used ──

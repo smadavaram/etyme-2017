@@ -43,7 +43,7 @@ const { GET: readSignIn, POST: makeSignIn } = await import('@/app/api/notificati
 const { POST: enterDoor } = await import('@/app/api/answer/sign-in/[token]/route')
 const { readSignInDoorPage } = await import('@/lib/notify/sign-in-link-door')
 const { resetPassword } = await import('@/lib/password-door')
-const { recordSignInLedger } = await import('@/lib/identity/sign-in')
+const { GET: today } = await import('@/app/api/today/route')
 
 const BRIGHTMOOR = 'world-brightmoor@demo.etyme.local'
 const WITH_ACCOUNT = 'sam.ortiz@harborline-tech.example'
@@ -187,7 +187,12 @@ describe('a seat never signed in here', () => {
   })
 
   it('once she has signed in here, her row goes quiet and no new link is made', async () => {
-    await recordSignInLedger({ email: WITH_ACCOUNT, door: 'PASSWORD' as any })
+    // She opens her seat here: that, and never a sign-in elsewhere, is signing in here.
+    const seat = await prisma.context.findFirstOrThrow({ where: { personId: people.withAccount, company: { slug: 'world-brightmoor' }, revokedAt: null }, select: { id: true } })
+    as(WITH_ACCOUNT)
+    // Her seat has no role yet, so Today is refused to it in a sentence; she has still come in here.
+    expect((await today(req('GET', '/api/today', undefined, { 'x-context-id': seat.id }))).status).toBe(403)
+    expect(await prisma.accessLog.count({ where: { actorPersonId: people.withAccount, action: 'INVITE_ACCEPTED', actorCompany: { slug: 'world-brightmoor' } } })).toBe(1)
     const row = await get(people.withAccount)
     expect(row.body.data).toMatchObject({ state: 'SIGNS_IN_HERE', show: false })
     const again = await post(people.withAccount)

@@ -141,7 +141,7 @@ describe('a password is stored as a slow hash and never returned or logged', () 
 
   it('a colleague who sets her password from the invitation lands signed in', () => {
     const door = read('src/lib/password-door.ts')
-    expect(door).toContain("payload: { invitation: true }")
+    expect(door).toContain("payload: { invitation: true, ...(firmId ? { firmId } : {}) }")
     expect(door).toContain("says: 'Your password is set. Signing you in.'")
     // Into Ask Etyme itself, so a phone opens the chat and not the thread list.
     expect(ASK_ETYME_HREF).toBe('/dashboard/conversations/etyme')

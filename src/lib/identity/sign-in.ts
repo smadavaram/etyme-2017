@@ -1,12 +1,19 @@
 import { prisma } from '@/lib/db'
-import { effectiveMode, type Door } from '@/lib/identity/policy'
+import { effectiveMode, type Door, type EffectiveMode } from '@/lib/identity/policy'
 import { policyFacts } from '@/lib/identity/read'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 
 /**
- * The two rows a sign-in that passed writes (founder, 2026-11-11):
- * LOGIN_SUCCEEDED, naming the door and the policy that governed it; and
- * INVITE_ACCEPTED for each invitation this is the first sign-in on.
+ * The row a sign-in that passed writes (founder, 2026-11-11):
+ * LOGIN_SUCCEEDED, naming the door and the policy that governed it.
+ *
+ * It no longer writes INVITE_ACCEPTED (2026-11-16). It used to, for every
+ * invited seat the person held with no use date, at every firm, whichever
+ * seat she opened. So a firm that invited an address whose owner signs in
+ * daily elsewhere read her as having come in there, and learned she has
+ * an account. An invitation is accepted when its seat is opened
+ * (`markSeatOpened`, called by the caller check in lib/api-context), and
+ * only that seat.
  *
  * Only where the person is on the record: somebody's very first sign-in
  * on a public address is made a person by /start, after this, and their
@@ -29,28 +36,63 @@ export async function recordSignInLedger(args: { email: string | null; door: Doo
     surface: args.door === 'DIRECTORY' ? 'DIRECTORY' : 'WEB',
     says: `${email} signed in through ${args.door ?? 'a door this build does not name'}.`,
   })
+}
 
-  // An invited seat nobody has used yet, at a company this person has no
-  // INVITE_ACCEPTED row for: this sign-in accepts it.
-  const invited = await prisma.context.findMany({
-    where: { personId: person.id, revokedAt: null, invitedAt: { not: null }, lastUsedAt: null, companyId: { not: null } },
-    select: { id: true, companyId: true, company: { select: { name: true } } },
-  })
-  for (const seat of invited) {
-    const already = await prisma.accessLog.findFirst({
-      where: { subjectId: person.id, actorCompanyId: seat.companyId, action: 'INVITE_ACCEPTED' },
-      select: { id: true },
+/** The seat the caller check resolved, as `markSeatOpened` reads it. */
+export interface OpenedSeat {
+  id: string
+  companyId: string | null
+  invitedAt: Date | null
+  lastUsedAt: Date | null
+}
+
+/**
+ * Whether opening this seat may be her accepting an invitation: a seat at
+ * a firm, made by an invitation, with no use recorded on it. Every other
+ * seat is passed over with no read. Pure, so the rule is a sentence in a
+ * test.
+ */
+export function opensAnInvitation(seat: OpenedSeat): boolean {
+  return seat.companyId !== null && seat.invitedAt !== null && seat.lastUsedAt === null
+}
+
+/**
+ * Her invitation to this firm is accepted the moment she opens its seat
+ * (2026-11-16): one INVITE_ACCEPTED row, at this firm, naming this seat,
+ * and never a row at any other firm she holds a seat at.
+ *
+ * Once per firm: a row already there is left alone, and two requests that
+ * open the seat at the same moment (a first page fires several) take a
+ * lock on the seat, so the second finds the first's row. Called after the
+ * firm's sign-in policy let the session use the seat, so a refused session
+ * never counts as coming in. Never throws: a row that could not be written
+ * is never a reason to refuse the request.
+ */
+export async function markSeatOpened(
+  seat: OpenedSeat,
+  person: { id: string; primaryEmail: string },
+  ctx: { companyName: string | null; policy: EffectiveMode; surface: 'WEB' | 'API' },
+): Promise<boolean> {
+  if (!opensAnInvitation(seat)) return false
+  const companyId = seat.companyId!
+  const already = { actorPersonId: person.id, actorCompanyId: companyId, action: 'INVITE_ACCEPTED' }
+  try {
+    if (await prisma.accessLog.findFirst({ where: already, select: { id: true } })) return false
+    return await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'invite-accepted:' + seat.id}))`
+      if (await tx.accessLog.findFirst({ where: already, select: { id: true } })) return false
+      await recordIdentityEvent({
+        event: 'INVITE_ACCEPTED',
+        companyId,
+        actorPersonId: person.id,
+        subject: { personId: person.id },
+        policy: ctx.policy,
+        surface: ctx.surface,
+        says: `${person.primaryEmail} opened the seat ${ctx.companyName ?? 'the company'} invited them to (seat ${seat.id}).`,
+      }, tx)
+      return true
     })
-    if (already) continue
-    const at = await policyFacts(email, seat.companyId)
-    await recordIdentityEvent({
-      event: 'INVITE_ACCEPTED',
-      companyId: seat.companyId,
-      actorPersonId: person.id,
-      subject: { personId: person.id },
-      policy: effectiveMode(at.target),
-      surface: 'WEB',
-      says: `${email} signed in for the first time on the invitation to ${seat.company?.name ?? 'the company'} (seat ${seat.id}).`,
-    })
+  } catch {
+    return false
   }
 }

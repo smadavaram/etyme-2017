@@ -306,7 +306,7 @@ export async function bootstrapCompany(input: BootstrapInput): Promise<Bootstrap
       }
       outcome = s.does === 'CREATE_PERSON_AND_SEAT' ? 'CREATED' : 'SEAT_ADDED'
     }
-    const link = await issueSetPassword(personId, LINK_HOURS)
+    const link = await issueSetPassword(personId, LINK_HOURS, new Date(), companyId)
     await prisma.automationLog.create({
       data: {
         companyId, action: 'STAFF_BOOTSTRAP',

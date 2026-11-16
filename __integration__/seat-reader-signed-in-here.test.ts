@@ -5,7 +5,7 @@ import { POST as invite } from '@/app/api/access/invite/route'
 import { GET as settings } from '@/app/api/settings/route'
 import { GET as grantsList, POST as giveAccess } from '@/app/api/settings/grants/route'
 import { readCompanySeats, peopleOf, countSeats, peopleWords } from '@/lib/company-seats'
-import { recordSignInLedger } from '@/lib/identity/sign-in'
+import { GET as today } from '@/app/api/today/route'
 
 /**
  * Signed in means signed in at this firm, on every screen that counts a
@@ -94,7 +94,9 @@ describe('every screen that counts a seat as signed in reads this firm’s own r
 
   it('once she signs in here, the seat reader, Users & permissions, Settings and the picker all move her to with access together', async () => {
     const before = countSeats(peopleOf(await readCompanySeats(it_.firm)))
-    await recordSignInLedger({ email: ELSEWHERE, door: 'PASSWORD' })
+    // She opens her seat here: that, never a sign-in elsewhere, is signing in here.
+    as(ELSEWHERE)
+    expect((await today(req('GET', '/api/today', undefined, { 'x-context-id': it_.seat }))).status).toBe(200)
 
     const after = countSeats(peopleOf(await readCompanySeats(it_.firm)))
     expect(after).toMatchObject({ withAccess: before.withAccess + 1, invited: before.invited - 1 })

@@ -285,12 +285,14 @@ async function sendReset(person: { id: string; primaryEmail: string }, opening: 
  * person, and the token is returned to go in the email and nowhere else.
  * The /reset/<token> page takes it.
  */
-export async function issueSetPassword(personId: string, hours: number, now: Date = new Date()): Promise<string> {
+export async function issueSetPassword(personId: string, hours: number, now: Date = new Date(), firmId: string | null = null): Promise<string> {
   await supersede(personId, 'RESET', now)
   const { token, tokenHash } = newToken()
   await prisma.emailToken.create({
     // Marked, so setting the password from it starts her session (2026-10-27).
-    data: { personId, purpose: 'RESET', tokenHash, expiresAt: expiresAfter(hours, now), payload: { invitation: true } },
+    // `firmId`: the firm whose seat the link was made for, so the notice
+    // that a password was set names it (2026-11-16). Never the link itself.
+    data: { personId, purpose: 'RESET', tokenHash, expiresAt: expiresAfter(hours, now), payload: { invitation: true, ...(firmId ? { firmId } : {}) } },
   })
   return link(`/reset/${token}`)
 }
@@ -961,7 +963,7 @@ export function resetAskedSays(email: string): string {
 export async function resetPassword(token: unknown, password: unknown, now: Date = new Date()): Promise<Answer & { email?: string; invitation?: boolean }> {
   const row = await prisma.emailToken.findUnique({
     where: { tokenHash: hashToken(String(token ?? '')) },
-    include: { person: { select: { id: true, primaryEmail: true, emailVerifiedAt: true } } },
+    include: { person: { select: { id: true, primaryEmail: true, emailVerifiedAt: true, passwordHash: true } } },
   })
   const usable = tokenUsable(row && row.purpose === 'RESET' ? asLink(row) : null, 'RESET', now)
   if (!usable.ok) return refuse(usable.says, 'token', 410)
@@ -976,6 +978,7 @@ export async function resetPassword(token: unknown, password: unknown, now: Date
   const spent = await prisma.emailToken.updateMany({ where: { id: row!.id, usedAt: null }, data: { usedAt: now } })
   if (spent.count === 0) return refuse('This link was already used. Ask for a new one on the reset page.', 'token', 410)
 
+  const hadPassword = row!.person.passwordHash !== null
   await prisma.person.update({
     where: { id: row!.personId },
     // The link was opened from the mailbox, which proves it as well as a verify link does.
@@ -984,7 +987,18 @@ export async function resetPassword(token: unknown, password: unknown, now: Date
   await prisma.signInFailure.deleteMany({ where: { email: row!.person.primaryEmail } })
   // An invitation's link: she has just proved the mailbox and chosen the
   // password, so the page signs her in with it rather than asking again.
-  const invitation = (row!.payload as { invitation?: boolean } | null)?.invitation === true
+  const payload = row!.payload as { invitation?: boolean; firmId?: string } | null
+  const invitation = payload?.invitation === true
+
+  // She is told, in the app and by email where email leaves, naming the
+  // firm whose link it was (2026-11-16). Before, a password set from a link
+  // was set in silence; only the account menu told her. Never the link.
+  const firmName = payload?.firmId
+    ? (await prisma.company.findUnique({ where: { id: payload.firmId }, select: { name: true } }).catch(() => null))?.name ?? null
+    : null
+  const { tellPasswordSet } = await import('@/lib/identity/password-notice')
+  await tellPasswordSet(row!.personId, hadPassword, now, { by: 'LINK', firmName })
+
   return invitation
     ? { ok: true, says: 'Your password is set. Signing you in.', email: row!.person.primaryEmail, invitation: true }
     : { ok: true, says: 'Your password is set. Sign in with it now.', email: row!.person.primaryEmail }

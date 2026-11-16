@@ -431,6 +431,27 @@ describe('a password door, until the single sign-on keys exist', () => {
     expect(await resetLinkState(second)).toMatchObject({ ok: false, says: 'This link was already used. Ask for a new one on the reset page.' })
   })
 
+  it('a password set from a link always tells the person, by email where it can leave', async () => {
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: OWNER } })
+    const firm = await prisma.company.findFirstOrThrow({ where: { name: 'Kestrel Works' }, select: { id: true } })
+    const token = (await issueSetPassword(person.id, 1, new Date(), firm.id)).split('/reset/')[1]
+    const since = new Date()
+    expect(await resetPassword(token, 'a long phrase she chose again')).toMatchObject({ ok: true })
+
+    const notices = await prisma.notification.findMany({ where: { personId: person.id, type: 'SYSTEM', createdAt: { gte: since } } })
+    expect(notices).toHaveLength(1)
+    expect(notices[0]).toMatchObject({ channel: 'EMAIL', companyId: null, title: 'Your Etyme password was changed' })
+    expect(notices[0].body).toContain('using a one-time link for your seat at Kestrel Works.')
+    expect(notices[0].body).toContain('If this was not you, choose Forgot your password on the sign-in page')
+    expect(notices[0].body).not.toContain('/reset/')
+    expect(notices[0].body).not.toContain(token)
+    // The email leaves, without the link.
+    await vi.waitFor(() => expect(sent.some((m) => m.to === OWNER && m.subject === 'Your Etyme password was changed')).toBe(true))
+    const mail = sent.find((m) => m.to === OWNER && m.subject === 'Your Etyme password was changed')!
+    expect(mail.text).not.toContain(token)
+    expect(mail.text).not.toContain('/reset/')
+  })
+
   it('a candidate may become a one-person firm with the same email, and nothing they typed is thrown away', async () => {
     const email = 'amara.diallo@gmail.com'
     await signUp(req('POST', '/api/auth/password/signup', { as: 'candidate', email, password: PASSWORD, name: 'Amara Diallo' }))

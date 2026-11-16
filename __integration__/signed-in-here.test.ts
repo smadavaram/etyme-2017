@@ -3,6 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as access } from '@/app/api/access/route'
 import { POST as invite } from '@/app/api/access/invite/route'
 import { DELETE as withdraw } from '@/app/api/access/[contextId]/route'
+import { GET as today } from '@/app/api/today/route'
 import { recordSignInLedger } from '@/lib/identity/sign-in'
 
 /**
@@ -71,7 +72,7 @@ beforeAll(async () => {
   })
   it_.her = her.id
   await prisma.credential.create({ data: { personId: her.id, provider: 'GOOGLE', providerId: `g-${her.id}`, email: ELSEWHERE, lastUsedAt: new Date() } })
-  await prisma.context.create({ data: { personId: her.id, companyId: other.id, type: 'EMPLOYEE', grantReason: 'Works there' } })
+  it_.otherSeat = (await prisma.context.create({ data: { personId: her.id, companyId: other.id, type: 'EMPLOYEE', grantReason: 'Works there' }, select: { id: true } })).id
   await prisma.accessLog.create({ data: { subjectId: her.id, actorPersonId: her.id, actorCompanyId: other.id, action: 'CONTEXT_SWITCH', reason: 'Switched to her seat there' } })
 
   as(OWNER)
@@ -149,10 +150,33 @@ describe('Users & permissions reads only this firm’s own record', () => {
     it_.herSeat = await seatOf(ELSEWHERE)
   })
 
-  it('once she signs in, her first sign-in on the invitation writes a row here, and her row moves to Everyone with access', async () => {
+  it('signing in at one firm never marks an invited seat at another firm as signed in', async () => {
     const countsBefore = figures(await register())
+    // She signs in, and works at the other firm: her seat there is the one opened.
     await recordSignInLedger({ email: ELSEWHERE, door: 'PASSWORD' })
-    expect(await prisma.accessLog.count({ where: { actorPersonId: it_.her, actorCompanyId: it_.firm, action: 'INVITE_ACCEPTED' } })).toBe(1)
+    as(ELSEWHERE)
+    expect((await today(req('GET', '/api/today', undefined, { 'x-context-id': it_.otherSeat }))).status).toBe(200)
+    expect(await prisma.accessLog.count({ where: { actorPersonId: it_.her, actorCompanyId: it_.firm, action: 'INVITE_ACCEPTED' } })).toBe(0)
+    expect(await prisma.accessLog.count({ where: { actorPersonId: it_.her, actorCompanyId: it_.firm } })).toBe(0)
+
+    // Users & permissions here still reads her Invited, exactly as before.
+    const data = await register()
+    expect(rowOf(data, it_.herSeat).withAccess).toBeNull()
+    expect(rowOf(data, it_.herSeat).waiting).toMatchObject({ signedIn: false, figure: 'invited' })
+    expect(figures(data)).toEqual(countsBefore)
+  })
+
+  it('opening an invited seat marks that seat, once', async () => {
+    const countsBefore = figures(await register())
+    as(ELSEWHERE)
+    const open = () => today(req('GET', '/api/today', undefined, { 'x-context-id': it_.herSeat }))
+    // A first page fires several requests at once; then she comes back.
+    const first = await Promise.all([open(), open(), open()])
+    for (const r of first) expect(r.status).toBe(200)
+    expect((await open()).status).toBe(200)
+    const rows = await prisma.accessLog.findMany({ where: { actorPersonId: it_.her, action: 'INVITE_ACCEPTED' }, select: { actorCompanyId: true, reason: true } })
+    expect(rows.map((r) => r.actorCompanyId)).toEqual([it_.firm])
+    expect(rows[0].reason).toContain(`opened the seat Brightmoor Staffing invited them to (seat ${it_.herSeat})`)
 
     const data = await register()
     const her = rowOf(data, it_.herSeat)
