@@ -56,6 +56,7 @@ export const PERMISSIONS = [
   'pnl.read',
   'team.manage',
   'settings.manage',
+  'codes.manage',
   // Who may change the rules everyone else is measured against. Held
   // apart from settings.manage because editing the approval chain is not
   // the same job as changing the company address, and apart from
@@ -432,6 +433,7 @@ export const PERMISSION_WORDS: Record<Permission, string> = {
   'pnl.read': 'see profit and loss',
   'team.manage': 'invite colleagues',
   'settings.manage': 'change company settings and hand out seats',
+  'codes.manage': 'set the company’s own accounting codes: company code, cost centers, orders, vendor numbers and a contract’s coding',
   'governance.read': 'read the approval rules and who holds what',
   'governance.write': 'change the approval rules',
   'privacy.manage': 'act on somebody else’s data rights',

@@ -42,6 +42,7 @@ export const GRANT_LABELS: Record<Permission, string> = {
   'pnl.read': 'read the firm’s profit and loss',
   'team.manage': 'invite colleagues and change roles',
   'settings.manage': 'change company settings',
+  'codes.manage': 'set the company’s own accounting codes',
   'governance.read': 'read the approval rules and who holds what',
   'governance.write': 'change the approval rules',
   'privacy.manage': 'act on somebody else’s data rights',

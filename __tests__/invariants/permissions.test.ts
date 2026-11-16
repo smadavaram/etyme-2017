@@ -25,7 +25,7 @@ import {
 
 describe('Permissions (BUILD.md §2)', () => {
   describe('The flat permission list', () => {
-    it('has exactly 34 permissions', () => {
+    it('has exactly 35 permissions', () => {
       // Deliberately a canary. Permission lists grow by accident, and every
       // addition is a new thing somebody can be granted without anyone
       // deciding they should be. Changing this number should be a decision.
@@ -58,7 +58,12 @@ describe('Permissions (BUILD.md §2)', () => {
       // a purchase order. An order is the ceiling a supplier bills against:
       // the seat that raises it is not the seat that bills on it or awards
       // against it (HELD_APART in lib/permissions).
-      expect(PERMISSIONS).toHaveLength(34)
+      //
+      // 34 → 35: codes.manage (2026-11-16, record 87). A client's own
+      // accounting codes were set by settings.manage, which an Admin holds,
+      // and the seeded Finance seat did not. Admin is IT and people, not
+      // money or contracts; Finance and the Owner keep the codes.
+      expect(PERMISSIONS).toHaveLength(35)
     })
 
     it('every permission follows the resource.action pattern', () => {
