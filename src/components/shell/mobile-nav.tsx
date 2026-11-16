@@ -11,6 +11,7 @@ import { mayOpen } from '@/lib/nav-table'
 import { HatList } from '@/components/shell/hat-list'
 import { LimitedSeatLine, SuperadminLine } from '@/components/shell/superadmin-line'
 import { PasswordLine } from '@/components/shell/password-line'
+import { SecondCheckLine } from '@/components/shell/second-check-line'
 
 /**
  * The navigation, on a phone.
@@ -195,6 +196,7 @@ function Account({
       <SuperadminLine roomy />
       <LimitedSeatLine roomy />
       <PasswordLine roomy />
+      <SecondCheckLine roomy />
     <div className="px-4 py-3">
       <p className="text-[13px] font-medium text-etyme-ink truncate">{name || 'Signed in'}</p>
       {email && <p className="text-[12px] text-etyme-muted truncate">{email}</p>}

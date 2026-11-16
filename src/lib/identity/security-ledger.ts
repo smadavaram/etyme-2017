@@ -29,7 +29,11 @@ export const SECURITY_EVENTS = [
   'SECOND_CHECK_REMOVED',
   'SECOND_CHECK_PASSED',
   'SECOND_CHECK_FAILED',
+  /** A proof spent on the one act it was made for; its id makes a second spend impossible. */
+  'SECOND_CHECK_USED',
   'SECOND_CHECK_RESET',
+  /** A reset asked for and refused: by an Admin, of one's own, or with no seat. */
+  'SECOND_CHECK_RESET_REFUSED',
   /** A release of money, naming the check that stood behind it. */
   'MONEY_RELEASED',
   // Bank details (record 86, answers 6 to 8).
@@ -46,16 +50,20 @@ export type SecurityEventName = (typeof SECURITY_EVENTS)[number]
 
 /**
  * Which code writes each event today, or null where nothing does yet.
- * Every one is null in slice S0: the log and its guard exist, and no act
- * writes to it until the second check and the bank change are built.
- * Read by the ledger's test, so a stub cannot be reported as wired.
+ * The second check's own events are written from slice S1 and S6
+ * (lib/identity/second-check); money releases and bank changes are null
+ * until slices S2 and S4 build them. Read by the ledger's test, so a stub
+ * cannot be reported as wired.
  */
+const SECOND_CHECK_FILE = 'src/lib/identity/second-check.ts'
 export const WRITTEN_BY: Record<SecurityEventName, string | null> = {
-  SECOND_CHECK_ENROLLED: null,
-  SECOND_CHECK_REMOVED: null,
-  SECOND_CHECK_PASSED: null,
-  SECOND_CHECK_FAILED: null,
-  SECOND_CHECK_RESET: null,
+  SECOND_CHECK_ENROLLED: SECOND_CHECK_FILE,
+  SECOND_CHECK_REMOVED: SECOND_CHECK_FILE,
+  SECOND_CHECK_PASSED: SECOND_CHECK_FILE,
+  SECOND_CHECK_FAILED: SECOND_CHECK_FILE,
+  SECOND_CHECK_USED: SECOND_CHECK_FILE,
+  SECOND_CHECK_RESET: SECOND_CHECK_FILE,
+  SECOND_CHECK_RESET_REFUSED: SECOND_CHECK_FILE,
   MONEY_RELEASED: null,
   BANK_CHANGE_ENTERED: null,
   BANK_CHANGE_OWNERS_TOLD: null,
@@ -167,6 +175,35 @@ export async function recordSecurityEvent(i: SecurityEventInput, db: Db = prisma
       { personId: i?.actorPersonId ?? null, companyId: i?.companyId ?? null }
     ).catch(() => undefined)
     return null
+  }
+}
+
+/**
+ * Write one row under an id the caller chose, once. The second check uses
+ * it to spend a proof: the row's id is made from the proof's own, so the
+ * database's primary key refuses a second spend, even two at the same
+ * instant. `ALREADY` where a row with that id exists; `FAILED` where the
+ * write failed for any other reason, and staff are told. Never throws.
+ */
+export async function recordSecurityEventOnce(
+  id: string,
+  i: SecurityEventInput,
+  db: Db = prisma
+): Promise<'WRITTEN' | 'ALREADY' | 'FAILED'> {
+  try {
+    // Read first, so an ordinary second try is answered without a failed
+    // write; the primary key still decides two tries at the same instant.
+    if (await db.securityEvent.findUnique({ where: { id }, select: { id: true } })) return 'ALREADY'
+    await db.securityEvent.create({ data: { ...securityEventRow(i), id }, select: { id: true } })
+    return 'WRITTEN'
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002') return 'ALREADY'
+    await reportError(
+      'security-log',
+      new Error(`Could not write ${String(i?.event)} to the security log. Cause: ${err instanceof Error ? err.message : String(err)}`),
+      { personId: i?.actorPersonId ?? null, companyId: i?.companyId ?? null }
+    ).catch(() => undefined)
+    return 'FAILED'
   }
 }
 

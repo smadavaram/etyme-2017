@@ -123,6 +123,12 @@ export interface ReadinessFacts {
    * nothing measured it, as when there is no database to ask.
    */
   securityLog?: { guarded: boolean }
+  /**
+   * The second check (Layer 7, slice S1): whether its sealing key
+   * (ETYME_SECOND_CHECK_KEY) is set, and how many checks have passed on
+   * this deployment. Absent where nothing measured it.
+   */
+  secondCheck?: { keySet: boolean; passed: number }
 }
 
 export interface Readiness {
@@ -183,6 +189,32 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
             says: 'The database does not guard the security log, so a row could be changed or deleted.',
             fix: 'Set DB_PUSH_ON_BUILD=1 and redeploy: the build applies prisma/sql/append-only.sql after the schema. Then unset it.',
           }
+    )
+  }
+
+  // ── The second check ─────────────────────────────────────────────────
+  //
+  // Record 86, answers 2 to 5: a passkey or an authenticator app, checked
+  // before an act. Without its key nothing can be added. Not required yet:
+  // no act that moves money asks for it until slice S2, which makes it so.
+  if (f.secondCheck) {
+    edges.push(
+      !f.secondCheck.keySet
+        ? {
+            key: 'second-check', name: 'Second check', state: 'MISSING', required: false,
+            says: 'Nobody can add a passkey or authenticator app: the second check has no sealing key.',
+            fix: 'Set ETYME_SECOND_CHECK_KEY to 32 random bytes, as base64 (openssl rand -base64 32), and redeploy. Changing it later stops every authenticator app.',
+          }
+        : f.secondCheck.passed === 0
+          ? {
+              key: 'second-check', name: 'Second check', state: 'SET', required: false,
+              says: 'The second check is set up. Nobody has passed one here yet.',
+              fix: 'Add a passkey under Second check in your account menu, then add a second one: that asks for the first.',
+            }
+          : {
+              key: 'second-check', name: 'Second check', state: 'PROVEN', required: false,
+              says: `${count(f.secondCheck.passed, 'second check has', 'second checks have')} passed on this deployment.`,
+            }
     )
   }
 

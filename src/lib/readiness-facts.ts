@@ -16,6 +16,7 @@ import { teamsBotEdge, teamsBotFacts } from '@/lib/teams/readiness'
 import { modelHealth } from '@/lib/model-health'
 import { currentAllowanceLimits } from '@/lib/model-allowance'
 import { securityLogGuarded } from '@/lib/identity/security-ledger'
+import { secondCheckKey } from '@/lib/identity/second-check-key'
 
 const DEMO_DOMAIN = '@demo.etyme.local'
 
@@ -128,6 +129,10 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     inbound,
     // Never throws: a read that fails says the guard is missing.
     securityLog: { guarded: await securityLogGuarded() },
+    secondCheck: {
+      keySet: secondCheckKey() !== null,
+      passed: await prisma.securityEvent.count({ where: { event: 'SECOND_CHECK_PASSED' } }).catch(() => 0),
+    },
   }
 }
 
