@@ -5,6 +5,7 @@ import { EtymeLogo } from '@/components/logo'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import type { BillPageView } from '@/lib/notify/bill-letter'
+import { PAY_TO_BEING_CONFIRMED } from '@/lib/money/pay-to-words'
 
 /**
  * A bill, opened from the email that carried it, with no account.
@@ -116,6 +117,10 @@ export default function BillPage() {
                   {view.remit.bank ? `, ${view.remit.bank}` : ''}
                   {view.remit.account ? `, account ${view.remit.account}` : ''}.
                   {' '}Ask {view.supplierName} for the full details if you do not have them on file.
+                </p>
+              ) : view.remitConfirming ? (
+                <p className="text-[14px] leading-relaxed">
+                  {PAY_TO_BEING_CONFIRMED} Ask {view.supplierName} before you pay.
                 </p>
               ) : (
                 <p className="text-[14px] leading-relaxed">

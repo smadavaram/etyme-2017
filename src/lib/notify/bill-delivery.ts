@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { partiesOf } from '@/lib/money/invoice-parties'
+import { payToOnBill } from '@/lib/money/pay-to'
 import { offPlatformRecord, weekSignersFor } from '@/lib/week-approval'
 import { emit } from '@/lib/events'
 import { deliverWritten, notificationRowFor, notify } from '@/lib/notify'
@@ -652,11 +653,14 @@ export async function openBillLink(token: string, now = new Date()): Promise<{ o
     return { ok: false, status: 503, code: 'NOT_RECORDED', says: 'The bill could not be opened just now, because the record of who opened it could not be written. Try again in a minute.' }
   }
 
-  const remit = w.bill.remitTo ?? (await prisma.remitTo.findFirst({
-    where: { companyId: w.supplier.id },
-    orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
-    select: { legalName: true, paymentMethod: true, bankName: true, accountLast4: true },
-  }))
+  // Where to pay is the row a payment would go to, and only once it is
+  // checked (payToOnBill, lib/money/pay-to): never a row the bill kept from
+  // before a bank change, and never the newest row while it is unchecked.
+  // This is the page a payer off Etyme pays from (2026-11-16).
+  const payTo = await payToOnBill(w.supplier.id)
+  const remit = payTo.row
+    ? { legalName: payTo.row.legalName, paymentMethod: payTo.row.paymentMethod, bankName: payTo.row.bankName, accountLast4: payTo.row.accountLast4 }
+    : null
 
   return {
     ok: true,
@@ -686,6 +690,7 @@ export async function openBillLink(token: string, now = new Date()): Promise<{ o
       weeks: w.weeks,
       signedBy: w.facts.signedBy,
       remit,
+      remitConfirming: !payTo.row && payTo.entered,
     }, now),
   }
 }

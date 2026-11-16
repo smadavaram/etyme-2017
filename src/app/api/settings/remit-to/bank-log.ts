@@ -60,5 +60,7 @@ export function bankLogRow(w: BankWrite) {
 }
 
 export async function recordBankWrite(w: BankWrite): Promise<void> {
-  await prisma.automationLog.create({ data: bankLogRow(w) })
+  // The action is named again at the write, so the autonomy inventory
+  // (actionsNamedIn, lib/autonomy) reads who writes each one.
+  await prisma.automationLog.create({ data: { ...bankLogRow(w), action: w.added ? 'REMIT_TO_ADDED' : 'REMIT_TO_CHANGED' } })
 }

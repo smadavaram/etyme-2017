@@ -10,6 +10,8 @@ import { GET as payrollGet } from '@/app/api/payroll/route'
 import { GET as commissionsGet } from '@/app/api/payroll/commissions/route'
 import { needsVerifiedOwner, PROVE_OWNERSHIP_HREF } from '@/lib/owner-gate'
 import { PAY_TO_BEING_CONFIRMED } from '@/lib/money/pay-to-words'
+import { openBillLink } from '@/lib/notify/bill-delivery'
+import { billLinkToken } from '@/lib/notify/bill-letter'
 
 /**
  * Layer 7 money review, second pass, 2026-11-16. Four faults the first
@@ -126,6 +128,20 @@ describe('a bill prints the account a payment goes to, and no other', () => {
     expect(coded.body.data.payToSays).toBe(PAY_TO_BEING_CONFIRMED)
 
     for (const body of [page.body, own.body, coded.body]) expect(JSON.stringify(body)).not.toContain(OLD_LAST4)
+  })
+
+  it('the emailed bill page a client off Etyme pays from prints no account while the new details are unchecked, and never the older checked one', async () => {
+    // The link is only ever made for a bill that was sent.
+    const before = await prisma.invoice.findUniqueOrThrow({ where: { id: s.bill }, select: { status: true } })
+    await prisma.invoice.update({ where: { id: s.bill }, data: { status: 'SENT' } })
+    const opened = await openBillLink(billLinkToken(s.bill, s.payerOwner.person.primaryEmail))
+    await prisma.invoice.update({ where: { id: s.bill }, data: { status: before.status } })
+    expect(opened.ok, JSON.stringify(opened)).toBe(true)
+    if (!opened.ok) return
+    expect(opened.view.remit).toBeNull()
+    expect(opened.view.remitConfirming).toBe(true)
+    expect(JSON.stringify(opened.view)).not.toContain(OLD_LAST4)
+    expect(JSON.stringify(opened.view)).not.toContain(NEW_LAST4)
   })
 
   it('once the new default is checked, the same bill prints the new account and never the older one', async () => {

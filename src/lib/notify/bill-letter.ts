@@ -419,6 +419,8 @@ export interface BillPageView {
   weeks: BillPageWeek[]
   builtFrom: string | null
   remit: BillPageRemit | null
+  /** The firm has payment details on Etyme that nobody has checked yet. */
+  remitConfirming: boolean
   /** For a payer on Etyme: where to record it. Null for a payer that is not. */
   recordOnEtyme: string | null
   expiresOn: string
@@ -451,6 +453,7 @@ export interface BillPageInput {
   weeks: { person: string; start: Date; end: Date; hours: number; signedAt: Date | null; signer: string | null; byEmail: boolean }[]
   signedBy: string | null
   remit: { legalName: string; paymentMethod: string; bankName: string | null; accountLast4: string | null } | null
+  remitConfirming?: boolean
 }
 
 const METHOD_WORDS: Record<string, string> = { ACH: 'ACH bank transfer', WIRE: 'Wire transfer', CHECK: 'Check' }
@@ -516,6 +519,7 @@ export function billPageView(i: BillPageInput, now: Date): BillPageView {
           account: lastFour(i.remit.accountLast4) ? `ending ${lastFour(i.remit.accountLast4)}` : null,
         }
       : null,
+    remitConfirming: !i.remit && Boolean(i.remitConfirming),
     recordOnEtyme: i.clientOnEtyme ? billPageInEtyme(i.invoiceId) : null,
     expiresOn: formatDay(billLinkExpiresAt(i.dueAt)),
   }
