@@ -99,3 +99,4 @@ built, every release check, every walk and every deploy.
 | 81 | Model routing: one layer picks the provider by job and by data — 2026-11-16 | 2,027 | [81-model-routing-one-layer-picks-the-provider-by-job-and-data-2026-11-16.md](81-model-routing-one-layer-picks-the-provider-by-job-and-data-2026-11-16.md) |
 | 82 | Which model does which work — 2026-11-16 | 321 | [82-which-model-does-which-work-2026-11-16.md](82-which-model-does-which-work-2026-11-16.md) |
 | 83 | Three skill sets copied in as files — 2026-11-16 | 357 | [83-three-skill-sets-copied-in-as-files-2026-11-16.md](83-three-skill-sets-copied-in-as-files-2026-11-16.md) |
+| 84 | Layer 7, first slice shipped: say only what is true, and directory removal ends access — 2026-11-16 | 483 | [84-layer-seven-first-slice-shipped-say-only-what-is-true-and-directory-removal-2026-11-16.md](84-layer-seven-first-slice-shipped-say-only-what-is-true-and-directory-removal-2026-11-16.md) |
