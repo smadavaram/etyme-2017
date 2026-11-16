@@ -172,7 +172,7 @@ describe('the caller check reads the end date wherever it picks the seat', () =>
   const src = readFileSync(join(process.cwd(), 'src/lib/api-context.ts'), 'utf8')
   it('the header’s seat, the chosen seat and the default seat are all picked through the one end-date reader', () => {
     expect(src).toContain('? await pick({ id: contextId })')
-    expect(src).toContain('(chosen ? await pick({ id: chosen }) : null) ?? await pick({})')
+    expect(src).toContain('(chosen ? await pick({ id: chosen }) : null) ?? await pickDefault()')
     expect(src).toContain('const v = await seatOpenByDate(r, now)')
   })
 })

@@ -184,7 +184,7 @@ describe('the switch is the account menu’s, and a view rather than a permissio
     const src = read('src/lib/api-context.ts')
     // One reader picks the seat, the person's own and live by date (2026-11-15).
     expect(src).toContain('where: { ...where, personId: person.id, ...usable }')
-    expect(src).toContain('(chosen ? await pick({ id: chosen }) : null) ?? await pick({})')
+    expect(src).toContain('(chosen ? await pick({ id: chosen }) : null) ?? await pickDefault()')
   })
 
   it('a switch to another firm’s seat is logged by the route that has always logged one', () => {
