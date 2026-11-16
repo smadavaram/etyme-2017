@@ -29,7 +29,10 @@ interface Message {
   person: { id: string; name: string }
   kind: string
   direction: 'OUT' | 'IN'
-  body: string
+  /** Null before her yes, where the firm reads only what it typed (`checkInShown`). */
+  body: string | null
+  /** The line drawn in its place, or null. */
+  bodyWaits: string | null
   /** What this letter was, from the route (`lib/notify/check-in-rows`): never "reply" for one the firm sent. */
   what: string
   status: string
@@ -169,9 +172,13 @@ export default function TextsPage() {
                 )}
               </span>
             </div>
-            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-etyme-ink">
-              {m.body}
-            </p>
+            {m.body != null ? (
+              <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-etyme-ink">
+                {m.body}
+              </p>
+            ) : (
+              m.bodyWaits && <p className="text-[13px] leading-relaxed text-etyme-muted">{m.bodyWaits}</p>
+            )}
             {/* Why a try did not go, on the row and not in a tooltip a phone cannot open. */}
             {m.whyNotSent && <p className="mt-1 text-[12px] text-etyme-muted">{m.whyNotSent}</p>}
           </div>

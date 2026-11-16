@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  whatEachWas, whatItWasSays, whyNotSent, notSentChip, NO_ADDRESS_REASON,
+  whatEachWas, whatItWasSays, whyNotSent, notSentChip, NO_ADDRESS_REASON, checkInShown, bodyWaitsSays,
   RESENT_ACTION, RENEW_ACTION, REMINDED_ACTION, type CheckInRow, type CheckInWhat,
 } from '@/lib/notify/check-in-rows'
 
@@ -96,5 +96,53 @@ describe('Bench check-ins names each row by what it was', () => {
   it('the reason a person reads never carries the provider’s own words or a status code', () => {
     const says = whyNotSent('FAILED', 'Resend answered 403: The domain northwind-staffing.example is not verified.')!
     expect(says).not.toMatch(/Resend|403|northwind/)
+  })
+})
+
+describe('Bench check-ins before her yes reads only what the firm typed (batch five, the walk of 2026-11-16)', () => {
+  const letter = { personName: 'Daniel Osei', direction: 'OUT', body: 'Hello Daniel,\nNorthwind Staffing would like to list you on its bench.' }
+
+  it('Bench check-ins names a person asked and not answered by the name the firm typed, never the name on her own record', () => {
+    const shown = checkInShown(letter, 'Theo Marchetti')
+    expect(shown.name).toBe('Theo Marchetti')
+    expect(JSON.stringify(shown)).not.toMatch(/Daniel|Osei/)
+  })
+
+  it('before her yes the letter that greets her by her own name is not shown to the firm, and the row says when it will be', () => {
+    const shown = checkInShown(letter, 'Theo Marchetti')
+    expect(shown.body).toBeNull()
+    expect(shown.bodyWaits).toBe('This letter is shown here once Theo Marchetti says yes. Until then you read only what you typed.')
+  })
+
+  it('before her yes a reply she wrote is not shown either, because her words are not what the firm typed', () => {
+    const shown = checkInShown({ personName: 'Daniel Osei', direction: 'IN', body: 'No thanks. Daniel' }, 'Theo Marchetti')
+    expect(shown.body).toBeNull()
+    expect(shown.bodyWaits).toBe(bodyWaitsSays('Theo Marchetti', 'IN'))
+    expect(shown.bodyWaits).toBe('What Theo Marchetti wrote is shown here once they say yes. Until then you read only what you typed.')
+  })
+
+  it('where the firm typed no name, the row names her by the address it asked at', () => {
+    const shown = checkInShown(letter, 'daniel.osei@harborline-tech.example')
+    expect(shown.name).toBe('daniel.osei@harborline-tech.example')
+    expect(shown.body).toBeNull()
+  })
+
+  it('after her yes, or where the firm reads her record, the row reads her name and the letter as it went', () => {
+    expect(checkInShown(letter, null)).toEqual({ name: 'Daniel Osei', body: letter.body, bodyWaits: null })
+  })
+
+  it('the line in place of a letter stays under twenty-five words a sentence at a long name', () => {
+    const says = bodyWaitsSays('Alexandria Konstantinopoulou-Whitfield', 'OUT')
+    for (const sentence of says.split(/(?<=\.)\s+/)) expect(sentence.split(/\s+/).length).toBeLessThanOrEqual(25)
+  })
+
+  it('the Bench check-ins route reads every name and body through the one reader of what a firm reads before her yes', () => {
+    const route = readFileSync(join(process.cwd(), 'src/app/api/texts/route.ts'), 'utf8')
+    expect(route).toMatch(/firmReadsAt\(/)
+    expect(route).toMatch(/checkInShown\(/)
+    expect(route).not.toMatch(/person: m\.person,/)
+    expect(route).not.toMatch(/body: m\.body,/)
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/texts/page.tsx'), 'utf8')
+    expect(page).toMatch(/m\.bodyWaits/)
   })
 })

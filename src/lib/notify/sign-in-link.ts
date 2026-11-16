@@ -57,7 +57,12 @@ export type SignInState =
 
 export interface SignInFacts {
   state: SignInState
-  name: string
+  /**
+   * The name the firm reads (`calledOnRow`): her own, or before her yes
+   * the name the firm typed. Null where the firm typed none: the row says
+   * "This person".
+   */
+  name: string | null
   email: string
   /** When the last link was made or sent. */
   at?: Date | string | null
@@ -73,11 +78,30 @@ export interface SignInLine {
   action: string | null
 }
 
-const firstName = (name: string) => (name.trim().split(/\s+/)[0] || name.trim() || 'This person')
+/** How a sentence opens on her: her first name, or "This person" where the firm typed no name. */
+const firstName = (name: string | null) => (name?.trim().split(/\s+/)[0] || 'This person')
+/** The same person said again later in the sentence. */
+const again = (name: string | null) => (name?.trim() ? firstName(name) : 'they')
+/** The same person as the one something is sent to. */
+const toWhom = (name: string | null) => (name?.trim() ? firstName(name) : 'them')
+
+/**
+ * The name a firm reads on her row (batch five, the walk of 2026-11-16).
+ * Before her yes, on a record whose words are not the firm's, the firm
+ * reads only what it typed (`firmReadsAt` in lib/consultant-portfolio/
+ * before-her-yes): the name it typed, or none, and then the row says
+ * "This person". The sample-person line read her own first name off her
+ * record. Otherwise her own name, as before. The letter she receives
+ * keeps her own name: only she reads it. Pure.
+ */
+export function calledOnRow(o: { ownName: string; beforeHerYes: boolean; typedName: string | null }): string | null {
+  if (!o.beforeHerYes) return o.ownName
+  return o.typedName?.trim() || null
+}
 
 /** The exact sentence the founder asked for, kept as one constant so the screen and the tests agree. */
-export function copySentence(name: string): string {
-  return `No email can leave this deployment. Copy this sign-in link and send it to ${firstName(name)} yourself.`
+export function copySentence(name: string | null): string {
+  return `No email can leave this deployment. Copy this sign-in link and send it to ${toWhom(name)} yourself.`
 }
 
 /**
@@ -87,19 +111,24 @@ export function copySentence(name: string): string {
  * sample person, and there is nothing to send (fix list, layer five, g).
  * True on the seeded world and for a test person a firm typed in.
  */
-export function sampleSays(name: string, email: string): string {
+export function sampleSays(name: string | null, email: string): string {
   return `${firstName(name)} is a sample person. No email can reach ${email}, so there is nothing to send.`
 }
 
 /** The same fact, said where somebody pressed for a link anyway. */
-export function sampleRefusal(name: string, email: string): string {
+export function sampleRefusal(name: string | null, email: string): string {
   return `${firstName(name)} is a sample person. No email can reach ${email}, so no sign-in link can be sent.`
+}
+
+/** Pressing for a link for somebody who already signs in. */
+export function alreadySignsInRefusal(name: string | null): string {
+  return `${firstName(name)} already signs in to Etyme, so there is no link to make. ${name?.trim() ? firstName(name) : 'They'} can reset a forgotten password from the sign-in page.`
 }
 
 /** What the row says, for each state. HAS_ACCOUNT draws nothing, so its words are never shown. */
 export function signInLineSays(f: SignInFacts): SignInLine {
   const first = firstName(f.name)
-  const cannot = `${first} cannot sign in to Etyme yet, so ${first} cannot file a timesheet.`
+  const cannot = `${first} cannot sign in to Etyme yet, so ${again(f.name)} cannot file a timesheet.`
   switch (f.state) {
     case 'HAS_ACCOUNT':
       return { says: `${first} already signs in to Etyme.`, note: null, action: null }
@@ -117,8 +146,8 @@ export function signInLineSays(f: SignInFacts): SignInLine {
       return {
         says: cannot,
         note: f.at
-          ? `The link made on ${formatDay(f.at)} has run out. Make a new one and send it to ${first} yourself.`
-          : `The last link has run out. Make a new one and send it to ${first} yourself.`,
+          ? `The link made on ${formatDay(f.at)} has run out. Make a new one and send it to ${toWhom(f.name)} yourself.`
+          : `The last link has run out. Make a new one and send it to ${toWhom(f.name)} yourself.`,
         action: 'Make a new link',
       }
     case 'SENT':

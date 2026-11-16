@@ -8,6 +8,7 @@ import { renewStay } from '@/lib/bench-stay-record'
 import { agreeingTerms } from '@/lib/bench-filter'
 import { inviteTerms } from './terms'
 import { afterYes } from '@/lib/consultant-portfolio'
+import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
  * GET  /api/bench-invite/:token — what is being asked, and the pay
@@ -55,7 +56,7 @@ async function load(token: string) {
     where: { id: t.listingId },
     include: {
       company: { select: { id: true, name: true, homeCurrency: true } },
-      consultant: { select: { personId: true, person: { select: { name: true } } } },
+      consultant: { select: { id: true, personId: true, person: { select: { name: true } } } },
     },
   })
   return listing
@@ -162,6 +163,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const agreedNow = !!agreed && 'termsAgreedAt' in agreed.data
 
   const chosen = said === 'ACCEPT' && stay.ok ? stayFields(stay.days, now) : null
+
+  // The name the firm reads her as. A no is not a yes: where the firm
+  // reads only what it typed, its log and the notice it gets name her as
+  // it typed her, never by the name on her own record (`firmReadsAt`,
+  // lib/consultant-portfolio/before-her-yes; batch five, 2026-11-16). A
+  // yes shares her record with the firm, so it reads her own name.
+  const firmCalls = said === 'DECLINE'
+    ? (await firmReadsAt({ companyId: listing.company.id, callerPersonId: '', consultantIds: [listing.consultant.id] }))
+        .get(listing.consultant.id)?.typed?.name ?? listing.consultant.person.name
+    : listing.consultant.person.name
   const data = chosen
     ? { ...outcome.data!, ...chosen, showInMatches: body.showInMatches === true, ...(agreed?.data ?? {}) }
     : outcome.data!
@@ -173,7 +184,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         companyId: listing.company.id,
         action: said === 'ACCEPT' ? 'BENCH_CONSENT_GIVEN' : 'BENCH_CONSENT_DECLINED',
         summary:
-          `${listing.consultant.person.name} ${said === 'ACCEPT' ? 'agreed to' : 'declined'} being marketed by ${listing.company.name}` +
+          `${firmCalls} ${said === 'ACCEPT' ? 'agreed to' : 'declined'} being marketed by ${listing.company.name}` +
           (agreedNow ? ', and agreed the pay terms stated with the listing' : ''),
         reason: 'The consultant answered the invitation themselves, from the link they were sent.',
         payload: {
@@ -194,7 +205,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     listingId: listing.id,
     companyId: listing.company.id,
     subjectPersonId: listing.consultant.personId,
-    personName: listing.consultant.person.name,
+    personName: firmCalls,
     said,
     note: said === 'DECLINE' && body.note ? String(body.note) : null,
     askFirst: typeof body.askFirst === 'boolean' ? body.askFirst : null,

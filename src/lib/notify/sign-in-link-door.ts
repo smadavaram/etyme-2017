@@ -8,9 +8,10 @@ import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { baseUrl } from '@/lib/signed-link'
 import { ACCOUNT_MAIL, recordedBody, type AccountMailState } from '@/lib/notify/account-mail'
 import {
-  MAY_HAND_OVER, SIGN_IN_LINK_HOURS, keptLinkIn, mayNotHandOver, notYours, sampleRefusal, sendFirstAction,
-  signInLetter, signInLineSays, signInSubject, tokenOf, type SignInState,
+  MAY_HAND_OVER, SIGN_IN_LINK_HOURS, alreadySignsInRefusal, calledOnRow, keptLinkIn, mayNotHandOver, notYours,
+  sampleRefusal, sendFirstAction, signInLetter, signInLineSays, signInSubject, tokenOf, type SignInState,
 } from '@/lib/notify/sign-in-link'
+import { firmReadsAt, nameItTyped } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
  * The one door to a sign-in link on a person's row (`lib/notify/sign-in-link`
@@ -72,9 +73,36 @@ async function hasAccount(personId: string): Promise<boolean> {
   return Boolean(p && (p.passwordHash || p._count.credentials > 0 || p.contexts.length > 0))
 }
 
+/**
+ * Who the firm reads her as. `called` is the name every sentence on her
+ * row uses (`calledOnRow`): her own, or before her yes the name the firm
+ * typed, or null where it typed none. `logged` is the name the firm's
+ * activity log uses: the same, or the address it asked at. Her own name
+ * stays in the letter, which only she reads.
+ */
+interface Called { called: string | null; logged: string }
+
 type Gate =
-  | { ok: true; company: { id: string; name: string }; person: { id: string; name: string; primaryEmail: string } }
+  | { ok: true; company: { id: string; name: string }; person: { id: string; name: string; primaryEmail: string }; as: Called }
   | { ok: false; status: number; code: string; says: string }
+
+/**
+ * Before her yes, on a record whose words are not this firm's, the firm
+ * reads only what it typed. One reader decides it (`firmReadsAt`, batch
+ * five, the walk of 2026-11-16: the sample-person line read her own
+ * first name off her record).
+ */
+async function calledAs(companyId: string, callerPersonId: string, person: { id: string; name: string; primaryEmail: string }): Promise<Called> {
+  const profile = await prisma.consultantProfile.findUnique({ where: { personId: person.id }, select: { id: true } })
+  const typed = profile
+    ? (await firmReadsAt({ companyId, callerPersonId, consultantIds: [profile.id] })).get(profile.id)?.typed ?? null
+    : null
+  if (!typed) return { called: person.name, logged: person.name }
+  // The name it typed, or, where it typed none, the reader's own stand-in
+  // (the address it asked at), which no sentence opens with.
+  const typedName = typed.name === nameItTyped(null, person.primaryEmail) ? null : typed.name
+  return { called: calledOnRow({ ownName: person.name, beforeHerYes: true, typedName }), logged: typed.name }
+}
 
 async function gate(caller: Caller, personId: string, doing: string): Promise<Gate> {
   if (!caller.company) return { ok: false, status: 403, code: 'NO_COMPANY', says: 'A sign-in link comes from a firm.' }
@@ -92,7 +120,7 @@ async function gate(caller: Caller, personId: string, doing: string): Promise<Ga
   if (caller.isService) return refuse(403, 'PERSON_REQUIRED', 'An integration cannot let people in. A person has to decide this.')
   if (!hasPermission(caller.permissions, MAY_HAND_OVER)) return refuse(403, 'FORBIDDEN', mayNotHandOver(company.name))
   if (!(await onOurBooks(company.id, person.id))) return refuse(404, 'NOT_YOURS', notYours(company.name))
-  return { ok: true, company, person }
+  return { ok: true, company, person, as: await calledAs(company.id, caller.person.id, person) }
 }
 
 /** The last notice this firm wrote for this person's sign-in. */
@@ -104,11 +132,11 @@ function lastNotice(companyId: string, personId: string, firmName: string) {
   })
 }
 
-async function lineFor(company: { id: string; name: string }, person: { id: string; name: string; primaryEmail: string }, readOnly: boolean, now: Date): Promise<Line> {
+async function lineFor(company: { id: string; name: string }, person: { id: string; name: string; primaryEmail: string }, called: string | null, readOnly: boolean, now: Date): Promise<Line> {
   const mail = mailLeaves()
   const base = { personId: person.id, mail }
   const draw = (state: SignInState, extra: { at?: Date | null; until?: Date | null; link?: string | null } = {}): Line => {
-    const words = signInLineSays({ state, name: person.name, email: person.primaryEmail, at: extra.at, until: extra.until })
+    const words = signInLineSays({ state, name: called, email: person.primaryEmail, at: extra.at, until: extra.until })
     const action = state === 'NONE_YET' && mail ? sendFirstAction() : words.action
     const note = state === 'NONE_YET' && mail ? null : words.note
     return {
@@ -147,7 +175,7 @@ async function lineFor(company: { id: string; name: string }, person: { id: stri
 export async function readSignInLine(caller: Caller, personId: string, now: Date = new Date()): Promise<Answer> {
   const g = await gate(caller, personId, 'reading whether they can sign in')
   if (!g.ok) return g
-  const line = await lineFor(g.company, g.person, Boolean(caller.readOnly), now)
+  const line = await lineFor(g.company, g.person, g.as.called, Boolean(caller.readOnly), now)
   await recordAccess([g.person.id], {
     ...accessActor({ person: caller.person, company: g.company, context: caller.context ?? null, readOnly: caller.readOnly }),
     action: 'PROFILE_VIEW',
@@ -163,14 +191,13 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
   const g = await gate(caller, personId, 'making a sign-in link')
   if (!g.ok) return g
   const actor = accessActor({ person: caller.person, company: g.company, context: caller.context ?? null, readOnly: caller.readOnly })
-  const first = g.person.name.split(' ')[0]
   if (await hasAccount(g.person.id)) {
-    const says = `${first} already signs in to Etyme, so there is no link to make. ${first} can reset a forgotten password from the sign-in page.`
+    const says = alreadySignsInRefusal(g.as.called)
     await recordRefusal([g.person.id], { ...actor, action: 'PROFILE_VIEW', reason: `Refused a sign-in link for ${g.person.name}: an account exists.` })
     return { ok: false, status: 409, code: 'HAS_ACCOUNT', says }
   }
   if (demoEmail(g.person.primaryEmail)) {
-    const says = sampleRefusal(g.person.name, g.person.primaryEmail)
+    const says = sampleRefusal(g.as.called, g.person.primaryEmail)
     await recordRefusal([g.person.id], { ...actor, action: 'PROFILE_VIEW', reason: `Refused a sign-in link for ${g.person.name}: a demo address.` })
     return { ok: false, status: 422, code: 'DEMO', says }
   }
@@ -205,7 +232,8 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
     data: {
       companyId: g.company.id,
       action: 'PERSON_INVITED',
-      summary: `${caller.person.name} made a sign-in link for ${g.person.name}` +
+      // The firm's activity log reads this: the name the firm reads her as.
+      summary: `${caller.person.name} made a sign-in link for ${g.as.logged}` +
         (state === 'SENT' ? ', sent by email.' : state === 'FAILED' ? '; the email did not go.' : ', kept to hand over by hand.'),
       reason: 'A person the firm employs or lists had no way to sign in, so no timesheet could be filed.',
       payload: { personId: g.person.id, delivery: state, byPersonId: caller.person.id },
@@ -213,7 +241,7 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
       reversible: true,
     },
   })
-  const line = await lineFor(g.company, g.person, false, now)
+  const line = await lineFor(g.company, g.person, g.as.called, false, now)
   await recordAccess([g.person.id], {
     ...actor, action: 'PROFILE_VIEW',
     reason: `Made a sign-in link for ${g.person.name} (${state === 'NOT_CONFIGURED' ? 'kept to hand over' : state === 'SENT' ? 'sent' : 'send failed'}).`,

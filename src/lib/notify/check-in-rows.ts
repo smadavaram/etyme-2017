@@ -166,3 +166,40 @@ export function notSentChip(status: string): string | null {
   if (status === 'SENT') return null
   return status === 'PENDING' ? 'not sent yet' : 'not sent'
 }
+
+/**
+ * What the firm reads on a row, before and after her yes (batch five,
+ * the walk of 2026-11-16).
+ *
+ * A firm that asked somebody at an address whose record is her own read
+ * the row as "Daniel Osei · bench invitation", the name on her record,
+ * and the letter below it greeted her by her own first name. CLAUDE.md:
+ * before her yes, a firm reads only what it typed, and one reader decides
+ * it (`firmReadsAt` in lib/consultant-portfolio/before-her-yes).
+ *
+ *  - `typedName` is that reader's answer for the row's person: the name
+ *    the firm typed, else the address it asked at; null where the firm
+ *    reads her record (she said yes, works here, or every word on the
+ *    record is the firm's own).
+ *  - Before her yes the row names her as typed, and the body is not
+ *    shown: the letter she received greets her by her own name, and a
+ *    reply is her words. Only she reads those until she says yes. The
+ *    letter she receives keeps her own name.
+ *  - After her yes, the row reads as it always did.
+ *
+ * Pure.
+ */
+export function checkInShown(
+  m: { personName: string; direction: string; body: string },
+  typedName: string | null
+): { name: string; body: string | null; bodyWaits: string | null } {
+  if (typedName == null) return { name: m.personName, body: m.body, bodyWaits: null }
+  return { name: typedName, body: null, bodyWaits: bodyWaitsSays(typedName, m.direction) }
+}
+
+/** The line in place of a body the firm does not read yet. Pure. */
+export function bodyWaitsSays(name: string, direction: string): string {
+  return direction === 'IN'
+    ? `What ${name} wrote is shown here once they say yes. Until then you read only what you typed.`
+    : `This letter is shown here once ${name} says yes. Until then you read only what you typed.`
+}

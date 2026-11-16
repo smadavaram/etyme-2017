@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   MAY_HAND_OVER, copySentence, keptLinkIn, sampleRefusal, signInLetter, signInLineSays, tokenOf, sendFirstAction,
+  calledOnRow, sampleSays, alreadySignsInRefusal,
 } from '@/lib/notify/sign-in-link'
 import { recordedBody } from '@/lib/notify/account-mail'
 
@@ -55,7 +56,7 @@ describe('the sign-in line on a person\'s row', () => {
     const line = signInLineSays({ name: 'Rajesh Iyer', email: 'rajesh@brightmoor.example', state: 'DEMO' })
     const words = [line.says, line.note ?? '', sampleRefusal('Rajesh Iyer', 'rajesh@brightmoor.example')].join(' ')
     expect(words).not.toMatch(/demo page|password|demo seat|belongs to the Etyme demo/i)
-    expect(read('src/lib/notify/sign-in-link-door.ts')).toMatch(/sampleRefusal\(g\.person\.name, g\.person\.primaryEmail\)/)
+    expect(read('src/lib/notify/sign-in-link-door.ts')).toMatch(/sampleRefusal\(g\.as\.called, g\.person\.primaryEmail\)/)
   })
 
   it('a kept link is read off the notice\'s last line, and a sent notice keeps none', () => {
@@ -91,5 +92,45 @@ describe('the sign-in line on a person\'s row', () => {
     // One way a link is made, and it is never a second record of the person.
     expect(door).toMatch(/issueSetPassword\(/)
     expect(door).not.toMatch(/person\.create\(/)
+  })
+})
+
+describe('before her yes, the sign-in line names her as the firm typed her (batch five, the walk of 2026-11-16)', () => {
+  it('the sample-person line names her as the firm typed her before her yes', () => {
+    const name = calledOnRow({ ownName: 'Daniel Osei', beforeHerYes: true, typedName: 'Theo Marchetti' })
+    expect(name).toBe('Theo Marchetti')
+    const line = signInLineSays({ name, email: 'daniel.osei@harborline-tech.example', state: 'DEMO' })
+    expect(line.says).toBe('Theo is a sample person. No email can reach daniel.osei@harborline-tech.example, so there is nothing to send.')
+    expect(sampleRefusal(name, 'daniel.osei@harborline-tech.example')).toBe('Theo is a sample person. No email can reach daniel.osei@harborline-tech.example, so no sign-in link can be sent.')
+    expect(line.says).not.toMatch(/Daniel/)
+  })
+
+  it('where the firm typed no name, the sample-person line says This person, never the name on her own record', () => {
+    const name = calledOnRow({ ownName: 'Daniel Osei', beforeHerYes: true, typedName: null })
+    expect(name).toBeNull()
+    expect(sampleSays(name, 'daniel.osei@harborline-tech.example')).toBe('This person is a sample person. No email can reach daniel.osei@harborline-tech.example, so there is nothing to send.')
+  })
+
+  it('every other line the firm reads before her yes says This person where it typed no name, and reads as a sentence', () => {
+    const facts = { name: null, email: 'daniel.osei@harborline-tech.example' }
+    expect(signInLineSays({ ...facts, state: 'NONE_YET' }).says).toBe('This person cannot sign in to Etyme yet, so they cannot file a timesheet.')
+    expect(signInLineSays({ ...facts, state: 'KEPT' }).says).toBe('No email can leave this deployment. Copy this sign-in link and send it to them yourself.')
+    expect(copySentence(null)).toBe('No email can leave this deployment. Copy this sign-in link and send it to them yourself.')
+    expect(signInLineSays({ ...facts, state: 'RAN_OUT' }).note).toBe('The last link has run out. Make a new one and send it to them yourself.')
+    expect(alreadySignsInRefusal(null)).toBe('This person already signs in to Etyme, so there is no link to make. They can reset a forgotten password from the sign-in page.')
+    expect(alreadySignsInRefusal('Rajesh Iyer')).toBe('Rajesh already signs in to Etyme, so there is no link to make. Rajesh can reset a forgotten password from the sign-in page.')
+  })
+
+  it('after her yes, or where the firm reads her record, the line reads her own name as before', () => {
+    expect(calledOnRow({ ownName: 'Daniel Osei', beforeHerYes: false, typedName: 'Theo Marchetti' })).toBe('Daniel Osei')
+  })
+
+  it('the door reads the name through the one reader of what a firm reads before her yes, and only the letter she receives keeps her own name', () => {
+    const door = read('src/lib/notify/sign-in-link-door.ts')
+    expect(door).toMatch(/firmReadsAt\(/)
+    expect(door).toMatch(/signInLineSays\(\{ state, name: called,/)
+    expect(door).toMatch(/alreadySignsInRefusal\(g\.as\.called\)/)
+    expect(door).toMatch(/signInLetter\(\{ name: g\.person\.name,/)
+    expect(door).toMatch(/made a sign-in link for \$\{g\.as\.logged\}/)
   })
 })

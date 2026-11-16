@@ -6,8 +6,9 @@ import { CHECK_IN_READERS, notYoursToRead } from '@/lib/releasing-soon'
 import { staffOnly } from '@/lib/seat'
 import { configured } from '@/lib/messages'
 import {
-  CHECK_IN_LOG_ACTIONS, notSentChip, whatEachWas, whatItWasSays, whyNotSent, type CheckInLog,
+  CHECK_IN_LOG_ACTIONS, checkInShown, notSentChip, whatEachWas, whatItWasSays, whyNotSent, type CheckInLog,
 } from '@/lib/notify/check-in-rows'
+import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 import { PING_EVERY_DAYS } from '@/lib/texts'
 
 /**
@@ -92,6 +93,24 @@ export async function GET(request: NextRequest) {
   })
   const what = whatEachWas(messages, { logs, firstOnListing })
 
+  // Before her yes, on a record whose words are not this firm's, the row
+  // names her as the firm typed her and her letter is not shown (one
+  // reader decides it: `firmReadsAt`, lib/consultant-portfolio/
+  // before-her-yes; the walk of batch five, 2026-11-16). The letter she
+  // receives keeps her own name: only she reads it.
+  const personIds = [...new Set(messages.map((m) => m.personId))]
+  const profiles = personIds.length
+    ? await prisma.consultantProfile.findMany({ where: { personId: { in: personIds } }, select: { id: true, personId: true } })
+    : []
+  const reads = profiles.length
+    ? await firmReadsAt({ companyId, callerPersonId: caller.person.id, consultantIds: profiles.map((p) => p.id) })
+    : new Map()
+  const typedName = new Map<string, string>()
+  for (const p of profiles) {
+    const typed = reads.get(p.id)?.typed
+    if (typed) typedName.set(p.personId, typed.name)
+  }
+
   const now = Date.now()
   const stale = bench.filter((b) => {
     const c = b.consultant.confirmedAt
@@ -100,23 +119,28 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: {
-      messages: messages.map((m) => ({
-        id: m.id,
-        person: m.person,
-        kind: m.kind,
-        direction: m.direction,
-        body: m.body,
-        // The words after the name: what this letter was. Only an
-        // inbound row reads "replied".
-        what: whatItWasSays(what.get(m.id) ?? (m.direction === 'IN' ? 'REPLIED' : 'MESSAGE')),
-        status: m.status,
-        // A try that did not go says so, and why, in the words every
-        // screen uses for an email that did not go.
-        notSent: m.direction === 'OUT' ? notSentChip(m.status) : null,
-        whyNotSent: m.direction === 'OUT' ? whyNotSent(m.status, m.failReason) : null,
-        read: m.read,
-        at: m.at.toISOString(),
-      })),
+      messages: messages.map((m) => {
+        const shown = checkInShown({ personName: m.person.name, direction: m.direction, body: m.body }, typedName.get(m.personId) ?? null)
+        return {
+          id: m.id,
+          person: { id: m.person.id, name: shown.name },
+          kind: m.kind,
+          direction: m.direction,
+          // Null before her yes, with the line that says when it is shown.
+          body: shown.body,
+          bodyWaits: shown.bodyWaits,
+          // The words after the name: what this letter was. Only an
+          // inbound row reads "replied".
+          what: whatItWasSays(what.get(m.id) ?? (m.direction === 'IN' ? 'REPLIED' : 'MESSAGE')),
+          status: m.status,
+          // A try that did not go says so, and why, in the words every
+          // screen uses for an email that did not go.
+          notSent: m.direction === 'OUT' ? notSentChip(m.status) : null,
+          whyNotSent: m.direction === 'OUT' ? whyNotSent(m.status, m.failReason) : null,
+          read: m.read,
+          at: m.at.toISOString(),
+        }
+      }),
       // How much of this bench nobody has heard from. The number the whole
       // loop exists to move.
       bench: {
