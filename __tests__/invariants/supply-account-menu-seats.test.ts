@@ -73,3 +73,29 @@ describe('the account menu offers only seats that work now', () => {
     expect(src).toMatch(/openOwnSeat\(/)
   })
 })
+
+describe('the account menu reads signed in at this firm, as the caller check does', () => {
+  const pastDateAdmin = seat('past-admin', { expiresAt: from(-1), role: { name: 'Admin', permissions: ['team.manage', 'settings.manage'] } })
+  const invited = (id: string) => seat(id, { invitedAt: from(-4), lastUsedAt: null, role: { name: 'Admin', permissions: ['team.manage', 'settings.manage'] } })
+
+  it('the account menu offers exactly the seats the caller check lets act, reading signed in at this firm, never a sign-in elsewhere', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/me/seats-on-offer.ts'), 'utf8')
+    expect(src).toMatch(/import \{ seatHasSignedIn \} from '@\/lib\/access-grant'/)
+    expect(src).toMatch(/import \{ signedInHere \} from '@\/lib\/access-log'/)
+    expect(src).not.toMatch(/\bhasSignedIn\(/)
+    expect(src).not.toMatch(/credentials/)
+  })
+
+  it('a manager invited here who has never come in here does not end another manager’s seat on the menu', () => {
+    expect(usableNow(pastDateAdmin, [datedSeat(invited('never-here'), false)], now)).toBe(true)
+  })
+
+  it('a manager invited here who has come in here does end another manager’s seat past its date on the menu', () => {
+    expect(usableNow(pastDateAdmin, [datedSeat(invited('came-in'), true)], now)).toBe(false)
+  })
+
+  it('a seat nobody invited, or one already used here, counts as signed in without asking the log', () => {
+    expect(datedSeat(seat('made-by-sign-in', { invitedAt: null, lastUsedAt: null }), false).hasSignedIn).toBe(true)
+    expect(datedSeat(seat('used-here', { invitedAt: from(-9), lastUsedAt: from(-2) }), false).hasSignedIn).toBe(true)
+  })
+})

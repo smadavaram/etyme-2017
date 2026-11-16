@@ -124,3 +124,84 @@ describe('the account menu offers only seats that work now', () => {
     expect(r.body.data.activeContext).toBeNull()
   })
 })
+
+/**
+ * Signed in is this firm's own record (2026-11-16), on the menu as on every
+ * route. Two firms each hold an Admin past her end date and a second Admin
+ * invited. At the first the second Admin signs in elsewhere on Etyme and
+ * never here; at the second she has come in here. The menu must offer
+ * exactly the seats the caller check lets act.
+ */
+const MARA = 'mara.menu@cove-lane.example'
+const IRIS = 'iris.menu@pier-street.example'
+
+describe('the account menu reads signed in at this firm, as the caller check does', () => {
+  const seatOf: Record<string, string> = {}
+
+  beforeAll(async () => {
+    async function firm(name: string, slug: string) {
+      const c = await prisma.company.create({ data: { name, slug, kind: 'VENDOR', currency: 'USD' }, select: { id: true } })
+      const admin = (await prisma.role.create({ data: { companyId: c.id, name: 'Admin', permissions: [...ADMIN_PERMISSIONS] }, select: { id: true } })).id
+      return { id: c.id, admin }
+    }
+    async function pastDateAdmin(f: { id: string; admin: string }, email: string, name: string) {
+      const p = await person(email, name)
+      const c = await prisma.context.create({
+        data: { personId: p, companyId: f.id, roleId: f.admin, type: 'EMPLOYEE', grantReason: 'Seated for the account menu walk', expiresAt: from(-1), grantedAt: from(-60) },
+        select: { id: true },
+      })
+      seatOf[email] = c.id
+    }
+    // Invited here; her account signs in elsewhere on Etyme (a sign-in method used yesterday).
+    async function invitedAdmin(f: { id: string; admin: string }, email: string, name: string, cameInHere: boolean) {
+      const p = await person(email, name)
+      await prisma.context.create({
+        data: { personId: p, companyId: f.id, roleId: f.admin, type: 'EMPLOYEE', grantReason: 'Invited for the account menu walk', invitedAt: from(-5), grantedAt: from(-5) },
+      })
+      if (cameInHere) {
+        await prisma.accessLog.create({ data: { subjectId: p, actorPersonId: p, actorCompanyId: f.id, action: 'INVITE_ACCEPTED' } })
+      }
+    }
+    const cove = await firm('Cove Lane Staffing', 'cove-lane-menu')
+    await pastDateAdmin(cove, MARA, 'Mara Quinn')
+    await invitedAdmin(cove, 'theo.menu@cove-lane.example', 'Theo Brandt', false)
+    const pier = await firm('Pier Street Talent', 'pier-street-menu')
+    await pastDateAdmin(pier, IRIS, 'Iris Vale')
+    await invitedAdmin(pier, 'omar.menu@pier-street.example', 'Omar Nash', true)
+  })
+
+  /** The seats among hers the caller check lets act when each is asked for by name. */
+  async function seatsTheCallerCheckLetsAct(email: string): Promise<string[]> {
+    as(email)
+    const all = await prisma.context.findMany({ where: { person: { primaryEmail: email } }, select: { id: true } })
+    const acts: string[] = []
+    for (const { id } of all) {
+      const { caller } = await getCallerContext(req('GET', '/api/me', undefined, { 'x-context-id': id }))
+      if (caller?.context.id === id) acts.push(id)
+    }
+    return acts.sort()
+  }
+
+  it('the account menu offers exactly the seats the caller check lets act, reading signed in at this firm, never a sign-in elsewhere', async () => {
+    for (const email of [MARA, IRIS]) {
+      as(email)
+      const r = await json(await me(req('GET', '/api/me')))
+      expect(r.status).toBe(200)
+      expect(offeredIds(r.body)).toEqual(await seatsTheCallerCheckLetsAct(email))
+    }
+  })
+
+  it('a manager who signed in elsewhere on Etyme and never here does not end another manager’s seat on the menu', async () => {
+    as(MARA)
+    const r = await json(await me(req('GET', '/api/me')))
+    expect(offeredIds(r.body)).toEqual([seatOf[MARA]])
+    expect(r.body.data.activeContext.id).toBe(seatOf[MARA])
+  })
+
+  it('a manager who has come in here does end another manager’s seat past its date on the menu', async () => {
+    as(IRIS)
+    const r = await json(await me(req('GET', '/api/me')))
+    expect(offeredIds(r.body)).not.toContain(seatOf[IRIS])
+  })
+})
+

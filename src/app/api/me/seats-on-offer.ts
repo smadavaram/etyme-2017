@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
-import { hasSignedIn } from '@/lib/access-grant'
+import { seatHasSignedIn } from '@/lib/access-grant'
+import { signedInHere } from '@/lib/access-log'
 import { seatByDate, pastEndDate, MANAGES_ACCESS, type DatedSeat } from '@/lib/account-lifecycle'
 import { OWNER_ROLE } from '@/lib/owner-rules'
 
@@ -13,6 +14,12 @@ import { OWNER_ROLE } from '@/lib/owner-rules'
  * firm's menu. Now the menu offers only what the caller check would honor:
  * not removed, not paused, and open by its date, so an Owner's seat and the
  * last one that may manage access, which a date never ends, stay offered.
+ *
+ * Signed in is this firm's own record (2026-11-16): `seatHasSignedIn` over
+ * `signedInHere`, the pair the caller check (`seatOpenByDate` in
+ * lib/api-context) and Teams (lib/teams/binding) read. It read a sign-in
+ * anywhere on Etyme, so a manager invited here who had never come in here
+ * kept another manager's ended seat on the menu while every route ended it.
  */
 
 /** The facts of one seat the menu reads. */
@@ -27,8 +34,12 @@ export interface SeatOnOffer {
   role: { name: string; permissions: unknown } | null
 }
 
-/** A seat as `seatByDate` reads it. `everSignedIn` is whether the person ever signed in. */
-export function datedSeat(s: SeatOnOffer, everSignedIn: boolean): DatedSeat {
+/**
+ * A seat as `seatByDate` reads it. `cameInHere` is whether this firm's own
+ * access log holds a row of the person's (`signedInHere`), never whether
+ * she signs in somewhere else on Etyme.
+ */
+export function datedSeat(s: SeatOnOffer, cameInHere: boolean): DatedSeat {
   return {
     contextId: s.id,
     companyId: s.companyId,
@@ -37,7 +48,7 @@ export function datedSeat(s: SeatOnOffer, everSignedIn: boolean): DatedSeat {
     rolePermissions: (s.role?.permissions as string[] | undefined) ?? [],
     revokedAt: s.revokedAt,
     suspendedAt: s.suspendedAt,
-    hasSignedIn: hasSignedIn({ invitedAt: s.invitedAt, lastUsedAt: s.lastUsedAt, everSignedIn }),
+    hasSignedIn: seatHasSignedIn({ invitedAt: s.invitedAt, lastUsedAt: s.lastUsedAt, signedInHere: cameInHere }),
   }
 }
 
@@ -70,8 +81,14 @@ export function seatsToOffer<T extends SeatOnOffer>(
 
 /**
  * The seats that may manage access at the companies where one of these
- * seats is past its end date, read the way the caller check reads them.
- * No query where no seat is past its date, which is nearly always.
+ * seats is past its end date, read the way the caller check reads them:
+ * signed in is this firm's own record, asked only of invited seats never
+ * used here, one company at a time. No query where no seat is past its
+ * date, which is nearly always.
+ *
+ * The query is the caller check's own (`seatOpenByDate` in
+ * lib/api-context), which it keeps private; until it exports a reader,
+ * this copy must change with it.
  */
 export async function managersWherePastDate(seats: readonly SeatOnOffer[], now: Date = new Date()): Promise<DatedSeat[]> {
   const companyIds = [...new Set(
@@ -87,9 +104,15 @@ export async function managersWherePastDate(seats: readonly SeatOnOffer[], now: 
     },
     select: {
       id: true, companyId: true, expiresAt: true, revokedAt: true, suspendedAt: true, invitedAt: true, lastUsedAt: true,
+      personId: true,
       role: { select: { name: true, permissions: true } },
-      person: { select: { credentials: { where: { lastUsedAt: { not: null } }, select: { id: true }, take: 1 } } },
     },
   })
-  return managers.map((m) => datedSeat(m, m.person.credentials.length > 0))
+  const here = new Map(await Promise.all(companyIds.map(async (companyId) => [
+    companyId,
+    await signedInHere(companyId, managers
+      .filter((m) => m.companyId === companyId && m.invitedAt !== null && m.lastUsedAt === null)
+      .map((m) => m.personId)),
+  ] as const)))
+  return managers.map((m) => datedSeat(m, here.get(m.companyId as string)?.has(m.personId) ?? false))
 }
