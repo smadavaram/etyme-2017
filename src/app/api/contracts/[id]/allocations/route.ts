@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, type CallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { mayMaintainCodes } from '@/lib/money/client-codes'
 import { recordRefusal } from '@/lib/access-log'
 import { actingDesk } from '@/lib/program-seat'
-import { CLIENT_CODES_NOT_PAYER, CLIENT_CODES_REFUSED } from '@/lib/counterparty'
+import { CLIENT_CODES_NOT_PAYER } from '@/lib/counterparty'
 import { planAllocationEdit, HELD_LINES_GO_NEXT } from '@/lib/money/allocation-edit'
 import { paysInvoiceReceipts } from '@/app/api/settings/coding/guard'
 
@@ -13,8 +13,9 @@ import { paysInvoiceReceipts } from '@/app/api/settings/coding/guard'
  * PATCH /api/contracts/:id/allocations — correct one coding line in place
  *
  * The award writes the coding once; this is the only way to fix it. Only
- * the company that pays the line writes it, through a seat that manages
- * settings, or a firm seated in that client's program under the role the
+ * the company that pays the line writes it, through a seat that holds
+ * `codes.manage` (Finance, the Owner, the AP clerk where there is no
+ * Finance seat; never an Admin by default), or a firm seated in that client's program under the role the
  * client gave it. A supplier never does, and the read says nothing to it.
  * The shares on a line still add up to 100%. A change moves `updatedAt`,
  * and that is what lets a held line go in the next receipt file.
@@ -37,8 +38,8 @@ const LINE = {
 async function whoWrites(caller: CallerContext, payerId: string): Promise<boolean> {
   const desk = await actingDesk(caller, payerId)
   if (!desk || desk.companyId !== payerId) return false
-  if (!hasPermission(desk.permissions, 'settings.manage')) return false
-  return desk.seat ? true : paysInvoiceReceipts(caller)
+  if (!desk.seat && !(await paysInvoiceReceipts(caller))) return false
+  return (await mayMaintainCodes(desk.acting, payerId)).may
 }
 
 export async function GET(request: NextRequest, { params }: Ctx) {
@@ -80,12 +81,14 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
       actorPersonId: caller.isService ? undefined : caller.person.id,
       actorCompanyId: caller.company?.id,
       action: 'CONTRACT_VIEW',
-      reason: 'Refused: changing a contract’s cost coding, which only the paying company’s settings seat does.',
+      reason: 'Refused: changing a contract’s cost coding, which only the paying company’s Finance, Owner or AP clerk seat does.',
     })
     const desk = await actingDesk(caller, line.clientCompanyId)
     const onPayerSide = desk?.companyId === line.clientCompanyId
+    const own = onPayerSide && (desk?.seat || (await paysInvoiceReceipts(caller)))
+    const verdict = own && desk ? await mayMaintainCodes(desk.acting, line.clientCompanyId) : null
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: onPayerSide && (desk?.seat || (await paysInvoiceReceipts(caller))) ? CLIENT_CODES_REFUSED : CLIENT_CODES_NOT_PAYER } },
+      { error: { code: 'FORBIDDEN', message: verdict && !verdict.may ? verdict.says : CLIENT_CODES_NOT_PAYER } },
       { status: 403 },
     )
   }
@@ -118,7 +121,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
         companyId: line.clientCompanyId,
         action: 'CONTRACT_CODING_CHANGED',
         summary: `${caller.person.name} changed the ${plan.fields.join(', ')} on one coding line of a contract`,
-        reason: 'Edited by a seat that manages the paying company’s codes',
+        reason: 'Edited by a seat that sets the paying company’s codes',
         payload: { by: caller.isService ? null : caller.person.id, contractId: id, allocationId: row.id, fields: plan.fields },
         reversible: false,
       },

@@ -1,4 +1,8 @@
 import { pickColumns } from '@/lib/money/receipt-file'
+import type { CallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
+import { payerSeats } from '@/lib/money/bank-check-read'
+import { bankCheckers, BANK_CHECK_PERMISSION, type PayerSeat } from '@/lib/money/bank-check'
 
 /**
  * Small readers for the client's own codes, for the invoice-lines file.
@@ -81,4 +85,55 @@ export function savedColumns(saved: readonly string[] | null | undefined): strin
   if (picked.ok) return picked.ids
   const all = pickColumns([])
   return all.ok ? all.ids : []
+}
+
+// ── Who maintains the client's own codes ─────────────────────────────────
+
+/**
+ * Maintaining a client's own accounting codes is a money act (records 87
+ * and 89): Finance and the Owner hold it, and where the company has no
+ * Finance seat the AP clerk does, because a role nobody has named falls
+ * back and never refuses. An Admin is IT and people, so an Admin never
+ * holds it by the fallback, only where the Owner grants `codes.manage`.
+ * `bankCheckers` already says who that is for the bank check; this reuses
+ * it and writes no second rule.
+ */
+export type MayMaintainCodes = { may: true } | { may: false; says: string }
+
+const ADMIN = 'Admin'
+const OWNER = 'Owner'
+
+/** Pure: the verdict, given the seat's permissions and the paying firm's live seats. */
+export function judgeMayMaintainCodes(
+  who: { personId: string | null; permissions: readonly string[] },
+  seats: readonly PayerSeat[],
+): MayMaintainCodes {
+  if (hasPermission(who.permissions, 'codes.manage')) return { may: true }
+  const mine = who.personId ? seats.find((s) => s.personId === who.personId) : undefined
+  // The Owner always may, whatever the role row was written before the permission existed.
+  if (mine?.roleName === OWNER) return { may: true }
+  const nonAdmin = seats.filter((s) => s.roleName !== ADMIN)
+  const checkers = bankCheckers(nonAdmin)
+  if (who.personId && checkers.people.some((p) => p.personId === who.personId)) return { may: true }
+
+  const who2: string[] = []
+  if (checkers.by === 'FINANCE') who2.push('Finance team')
+  else if (nonAdmin.some((s) => s.roleName !== OWNER && s.permissions.includes(BANK_CHECK_PERMISSION) && !s.permissions.includes('*'))) who2.push('AP clerk')
+  if (seats.some((s) => s.roleName === OWNER)) who2.push('Owner')
+  const says = who2.length === 0
+    ? 'Nobody at your company sets these yet. Give a seat the Finance or AP Clerk role first.'
+    : who2.length === 1
+      ? `Your ${who2[0]} sets these.`
+      : `Your ${who2[0]} or the ${who2[1]} sets these.`
+  return { may: false, says }
+}
+
+/**
+ * Whether this caller may set the paying company's codes. `payerId` is the
+ * company that pays; it defaults to the caller's own.
+ */
+export async function mayMaintainCodes(caller: CallerContext, payerId: string | null = caller.company?.id ?? null): Promise<MayMaintainCodes> {
+  if (!payerId) return { may: false, says: 'These codes belong to the company that pays.' }
+  const seats = await payerSeats(payerId)
+  return judgeMayMaintainCodes({ personId: caller.isService ? null : caller.person.id, permissions: caller.permissions }, seats)
 }

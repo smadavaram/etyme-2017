@@ -12,6 +12,9 @@ import { GET as readCoding, PATCH as patchCoding } from '@/app/api/contracts/[id
 
 const D = '@demo.etyme.local'
 const PAYROLL = `world-brightmoor-payroll${D}`
+const OWNER = `world-brightmoor${D}`
+const FINANCE = `world-brightmoor-finance${D}`
+const ADMIN = `world-brightmoor-admin${D}`
 const s: Record<string, any> = {}
 const parse = (csv: string) => csv.trim().split('\r\n').map((r) => r.split(','))
 
@@ -30,12 +33,9 @@ beforeAll(async () => {
     select: { id: true, personId: true, sellContractId: true, totalHours: true, sellContract: { select: { billRate: true } } },
   })
   Object.assign(s, { week: week.id, person: week.personId, contract: week.sellContractId, rate: week.sellContract.billRate, hours: Number(week.totalHours) })
-  const mgr = await prisma.context.findFirstOrThrow({
-    where: { companyId: payer.id, revokedAt: null, person: { primaryEmail: { startsWith: 'world-brightmoor-' } }, role: { permissions: { hasSome: ['settings.manage', '*'] } } },
-    select: { person: { select: { id: true, primaryEmail: true } } },
-  })
-  s.finance = mgr.person.id
-  s.manager = mgr.person.primaryEmail
+  const mgr = await prisma.person.findFirstOrThrow({ where: { primaryEmail: OWNER }, select: { id: true } })
+  s.finance = mgr.id
+  s.manager = OWNER
   s.payroll = (await prisma.person.findFirstOrThrow({ where: { primaryEmail: PAYROLL }, select: { id: true } })).id
   s.supplierSeat = (await prisma.context.findFirstOrThrow({ where: { companyId: s.payee, revokedAt: null }, select: { person: { select: { primaryEmail: true } } } })).person.primaryEmail
   s.cc = (await prisma.costCenter.create({ data: { companyId: payer.id, code: 'CC-E-1', name: 'E', glAccount: '6100', profitCenter: 'PC-E' }, select: { id: true } })).id
@@ -115,10 +115,11 @@ describe('the paying client corrects a contract’s cost coding', () => {
     expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime())
   })
 
-  it('the AP seat that cannot manage settings is refused and is told whom to ask, with no link', async () => {
+  it('where the firm has a Finance seat, its AP seat is refused and is told whom to ask, with no link', async () => {
     as(PAYROLL)
     const r = await patch({ allocationId: s.alloc, glAccount: '9998' })
     expect(r.status).toBe(403)
+    expect(r.body.error.message).toBe('Your Finance team or the Owner sets these.')
     const read = await json(await readCoding(req('GET', `/api/contracts/${s.contract}/allocations`), ctx(s.contract)))
     expect(read.body.data).toEqual({ may: false })
     const run = await newRun()
@@ -154,5 +155,47 @@ describe('the paying client corrects a contract’s cost coding', () => {
     as(s.supplierSeat)
     const theirs = await json(await readCoding(req('GET', `/api/contracts/${s.contract}/allocations`), ctx(s.contract)))
     expect(theirs.body.data).toEqual({ may: false })
+  })
+
+  it('an Admin, who is IT and people, does not set the client’s codes', async () => {
+    as(ADMIN)
+    const before = await prisma.contractCostAllocation.findUniqueOrThrow({ where: { id: s.alloc } })
+    const logs = await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: s.payer } })
+    const r = await patch({ allocationId: s.alloc, glAccount: '9997' })
+    expect(r.status).toBe(403)
+    expect(r.body.error.message).toBe('Your Finance team or the Owner sets these.')
+    expect(await prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: s.payer } })).toBeGreaterThan(logs)
+    expect((await prisma.contractCostAllocation.findUniqueOrThrow({ where: { id: s.alloc } })).glAccount).toBe(before.glAccount)
+    const read = await json(await readCoding(req('GET', `/api/contracts/${s.contract}/allocations`), ctx(s.contract)))
+    expect(read.body.data).toEqual({ may: false })
+  })
+
+  it('the client’s Finance seat corrects a contract’s coding', async () => {
+    as(FINANCE)
+    const read = await json(await readCoding(req('GET', `/api/contracts/${s.contract}/allocations`), ctx(s.contract)))
+    expect(read.body.data.may).toBe(true)
+    const r = await patch({ allocationId: s.alloc, glAccount: '6400' })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect((await prisma.contractCostAllocation.findUniqueOrThrow({ where: { id: s.alloc } })).glAccount).toBe('6400')
+  })
+
+  it('the Owner may always', async () => {
+    as(OWNER)
+    const r = await patch({ allocationId: s.alloc, glAccount: '6500' })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+  })
+
+  it('where a client has no Finance seat, its AP clerk corrects the coding and an Admin still may not', async () => {
+    await prisma.context.updateMany({ where: { companyId: s.payer, person: { primaryEmail: FINANCE } }, data: { revokedAt: new Date() } })
+    as(PAYROLL)
+    const read = await json(await readCoding(req('GET', `/api/contracts/${s.contract}/allocations`), ctx(s.contract)))
+    expect(read.body.data.may).toBe(true)
+    const r = await patch({ allocationId: s.alloc, glAccount: '6600' })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect((await prisma.contractCostAllocation.findUniqueOrThrow({ where: { id: s.alloc } })).glAccount).toBe('6600')
+    as(ADMIN)
+    const no = await patch({ allocationId: s.alloc, glAccount: '6700' })
+    expect(no.status).toBe(403)
+    expect(no.body.error.message).toBe('Your AP clerk or the Owner sets these.')
   })
 })

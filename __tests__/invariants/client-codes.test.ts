@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { costObjectTypeOf, codingBlock, vendorNumberFor, poLineNumber, savedColumns } from '@/lib/money/client-codes'
+import { costObjectTypeOf, codingBlock, vendorNumberFor, poLineNumber, savedColumns, judgeMayMaintainCodes } from '@/lib/money/client-codes'
 import { DEFAULT_RECEIPT_COLUMNS } from '@/lib/money/receipt-file'
 
 describe('the client codes the invoice-lines file reads', () => {
@@ -44,5 +44,37 @@ describe('the client codes the invoice-lines file reads', () => {
   })
   it('a saved column that no longer exists falls back to every column rather than a broken file', () => {
     expect(savedColumns(['amount', 'gone'])).toEqual([...DEFAULT_RECEIPT_COLUMNS])
+  })
+})
+
+describe('who maintains the client’s own codes', () => {
+  const seat = (personId: string, roleName: string, permissions: string[]) => ({ personId, name: personId, roleName, permissions })
+  const owner = seat('o', 'Owner', ['*'])
+  const admin = seat('a', 'Admin', ['team.manage', 'settings.manage', 'payments.record'])
+  const clerk = seat('c', 'AP Clerk', ['payments.record'])
+  const finance = seat('f', 'Finance', ['payments.record'])
+  const as = (s: ReturnType<typeof seat>) => ({ personId: s.personId, permissions: s.permissions })
+
+  it('an Admin, who is IT and people, does not set the client’s codes, even holding payments.record', () => {
+    expect(judgeMayMaintainCodes(as(admin), [owner, admin, clerk])).toMatchObject({ may: false })
+  })
+  it('an Admin the Owner has granted codes.manage may', () => {
+    expect(judgeMayMaintainCodes({ personId: 'a', permissions: [...admin.permissions, 'codes.manage'] }, [owner, admin])).toEqual({ may: true })
+  })
+  it('the client’s Finance seat corrects a contract’s coding, and the AP clerk beside it does not', () => {
+    expect(judgeMayMaintainCodes(as(finance), [owner, finance, clerk])).toEqual({ may: true })
+    expect(judgeMayMaintainCodes(as(clerk), [owner, finance, clerk])).toEqual({ may: false, says: 'Your Finance team or the Owner sets these.' })
+  })
+  it('where a client has no Finance seat, its AP clerk corrects the coding', () => {
+    expect(judgeMayMaintainCodes(as(clerk), [owner, admin, clerk])).toEqual({ may: true })
+    expect(judgeMayMaintainCodes(as(admin), [owner, admin, clerk])).toEqual({ may: false, says: 'Your AP clerk or the Owner sets these.' })
+  })
+  it('the Owner may always, even where a Finance seat exists and the role row predates the permission', () => {
+    expect(judgeMayMaintainCodes(as(seat('o2', 'Owner', ['settings.manage'])), [seat('o2', 'Owner', ['settings.manage']), finance])).toEqual({ may: true })
+  })
+  it('the refusal names only seats the firm has filled', () => {
+    const none = judgeMayMaintainCodes(as(admin), [admin])
+    expect(none).toEqual({ may: false, says: 'Nobody at your company sets these yet. Give a seat the Finance or AP Clerk role first.' })
+    expect(judgeMayMaintainCodes(as(admin), [owner, admin])).toEqual({ may: false, says: 'Your Owner sets these.' })
   })
 })
