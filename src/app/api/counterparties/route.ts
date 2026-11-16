@@ -6,6 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { recordRefusal } from '@/lib/access-log'
 import { register, mayRemove, riskJudgement, RELATIONSHIPS } from '@/lib/counterparty'
 import { readAccountManager, nameAccountManager } from './account-manager'
+import { readVendorNumber, nameVendorNumber } from './vendor-number'
 import { workTogether } from '@/lib/company-create'
 
 /**
@@ -27,6 +28,8 @@ export async function GET(request: NextRequest) {
   // One client's account manager, for the Companies drawer (2026-11-08).
   const accountManagerFor = request.nextUrl.searchParams.get('accountManagerFor')
   if (accountManagerFor !== null) return readAccountManager(caller, accountManagerFor)
+  const vendorNumberFor = request.nextUrl.searchParams.get('vendorNumberFor')
+  if (vendorNumberFor !== null) return readVendorNumber(caller, vendorNumberFor)
 
   const companyId = caller.company!.id
 
@@ -249,6 +252,7 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
   // The account manager on a client (2026-11-08): a write of its own.
   if (body?.accountManagerFor !== undefined) return nameAccountManager(caller, body)
+  if (body?.vendorNumberFor !== undefined) return nameVendorNumber(caller, body)
 
   const companyId = caller.company!.id
   const otherCompanyId = String(body?.otherCompanyId ?? '')

@@ -1176,3 +1176,24 @@ export function mayClaimRecorded(company: { name: string; kind?: string | null }
   }
   return { ok: true }
 }
+
+/**
+ * The client's own codes (Layer 9, slice 2): the company code, the kind of
+ * each cost object, a cost center's profit center and the number the
+ * client's books give a supplier. Only the paying client reads or writes
+ * them, through the seat that manages settings.
+ */
+export const CLIENT_CODES_NOT_PAYER =
+  'These codes belong to the company that pays. Your firm does not set or read them.'
+export const CLIENT_CODES_REFUSED =
+  'Only Finance, the Owner or an Admin changes your company’s codes. Ask one of them.'
+export const COMPANY_CODE_HELP =
+  'Your accounting system’s company code. It goes on every line of the file you download.'
+export const VENDOR_NUMBER_HELP =
+  'The number your own books give this supplier. Only your company reads it.'
+export const COST_OBJECT_KIND_WORDS: readonly { value: 'INTERNAL_ORDER' | 'PROJECT_CODE' | 'WBS_ELEMENT' | 'MATERIAL_CODE'; label: string }[] = [
+  { value: 'INTERNAL_ORDER', label: 'Internal order' },
+  { value: 'PROJECT_CODE', label: 'Project code' },
+  { value: 'WBS_ELEMENT', label: 'WBS element' },
+  { value: 'MATERIAL_CODE', label: 'Material code' },
+]

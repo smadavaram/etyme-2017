@@ -22,6 +22,7 @@ import { PayrollPanel, goToFirstPayDay } from '@/components/settings/payroll-pan
 import { AskEtymePanel } from '@/components/settings/ask-etyme-panel'
 import { Chip, ErrorState, FormMessage, Lbl, LoadingState, PageHead, Panel } from '@/components/ui'
 import { SubmitButton } from '@/components/ui/form'
+import { COMPANY_CODE_HELP, COST_OBJECT_KIND_WORDS } from '@/lib/counterparty'
 import { MODEL_CARD_SUBTITLE, ONLY_OWNER_OR_ADMIN, TYPE_UNCHANGED, wallSays, accountWord } from '@/components/settings/settings-says'
 import { NOTHING_CHANGED } from '@/components/settings/panel-bits'
 import { levelOf } from '@/lib/access-grant'
@@ -96,6 +97,7 @@ interface CostCenter {
   code: string
   name: string
   glAccount: string | null
+  profitCenter?: string | null
 }
 interface Pack {
   id: string
@@ -135,6 +137,8 @@ interface Settings {
   noCalendar?: { says: string[]; offer: { id: string; label: string } | null; firstDayAt?: number | null } | null
   cycleShift: CycleShift
   canEdit: boolean
+  /** The client's own codes: only where their routes will save. */
+  canEditCodes?: boolean
   /** The type is the Owner's to change, and nobody else's (lib/company-kind). */
   canChangeType?: boolean
   /** Beside the type for a reader who may not change it (lib/owner-gate). */
@@ -824,8 +828,10 @@ function CostCentersTab({ data, send, busy, openTab }: { data: Settings; send: S
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [gl, setGl] = useState('')
+  const [pc, setPc] = useState('')
 
   return (
+    <>
     <Panel
       title="Cost centers"
       subtitle="Who owns the spend. A job request names the cost center it is charged to. Use the same code your own accounting system uses."
@@ -846,6 +852,9 @@ function CostCentersTab({ data, send, busy, openTab }: { data: Settings; send: S
               <span className="flex items-center gap-3 shrink-0">
                 {cc.glAccount && (
                   <span className="text-[12px] font-mono text-etyme-faint">GL {cc.glAccount}</span>
+                )}
+                {cc.profitCenter && (
+                  <span className="text-[12px] font-mono text-etyme-faint">Profit center {cc.profitCenter}</span>
                 )}
                 {data.canEdit && (
                   <button
@@ -872,13 +881,17 @@ function CostCentersTab({ data, send, busy, openTab }: { data: Settings; send: S
               className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm" />
             <input value={gl} onChange={(e) => setGl(e.target.value)} placeholder="GL 6120"
               className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
+            {data.canEditCodes && (
+              <input value={pc} onChange={(e) => setPc(e.target.value)} placeholder="Profit center (optional)" aria-label="Profit center"
+                className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
+            )}
           </div>
           <SubmitButton
             type="button"
             className="mt-3"
             onClick={async () => {
-              const r = await send('/api/settings/cost-centers', 'POST', { code, name, glAccount: gl || null })
-              if (r) { setCode(''); setName(''); setGl('') }
+              const r = await send('/api/settings/cost-centers', 'POST', { code, name, glAccount: gl || null, ...(data.canEditCodes && pc.trim() ? { profitCenter: pc.trim() } : {}) })
+              if (r) { setCode(''); setName(''); setGl(''); setPc('') }
             }}
             pending={busy}
             disabled={!code.trim() || !name.trim()}
@@ -888,6 +901,88 @@ function CostCentersTab({ data, send, busy, openTab }: { data: Settings; send: S
           </SubmitButton>
         </div>
       )}
+    </Panel>
+    {data.canEditCodes && <ClientCodesPanel send={send} busy={busy} />}
+    </>
+  )
+}
+
+/** The company code, and the kind of each cost object. Drawn only for the paying client's settings seat. */
+function ClientCodesPanel({ send, busy }: { send: SendFn; busy: boolean }) {
+  const [companyCode, setCompanyCode] = useState('')
+  const [savedCode, setSavedCode] = useState('')
+  const [orders, setOrders] = useState<{ id: string; code: string; name: string; kind: string }[]>([])
+  const [code, setCode] = useState('')
+  const [name, setName] = useState('')
+  const [kind, setKind] = useState('INTERNAL_ORDER')
+  const kindWord = (k: string) => COST_OBJECT_KIND_WORDS.find((w) => w.value === k)?.label ?? 'Internal order'
+
+  const load = useCallback(async () => {
+    const [a, b] = await Promise.all([
+      fetch('/api/settings/coding').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch('/api/settings/internal-orders').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ])
+    if (a?.data) { setCompanyCode(a.data.companyCode ?? ''); setSavedCode(a.data.companyCode ?? '') }
+    if (b?.data) setOrders(b.data.internalOrders)
+  }, [])
+  useEffect(() => { void load() }, [load])
+
+  return (
+    <Panel title="Codes for the file you download" subtitle={COMPANY_CODE_HELP}>
+      <Lbl>Company code</Lbl>
+      <div className="flex gap-2 mt-2 items-center">
+        <input value={companyCode} onChange={(e) => setCompanyCode(e.target.value)} placeholder="1000" aria-label="Company code"
+          className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
+        <SubmitButton
+          type="button"
+          onClick={async () => { const r = await send('/api/settings/coding', 'PATCH', { companyCode }); if (r) setSavedCode(companyCode.trim()) }}
+          pending={busy}
+          disabled={companyCode.trim() === savedCode}
+          whyDisabled="Change the code first."
+        >
+          Save
+        </SubmitButton>
+      </div>
+
+      <div className="border-t border-etyme-rule pt-4 mt-4">
+        <Lbl>Other cost objects</Lbl>
+        {orders.length > 0 && (
+          <div className="divide-y divide-etyme-rule my-2">
+            {orders.map((o) => (
+              <div key={o.id} className="py-2 flex items-baseline justify-between gap-3">
+                <span><span className="text-[13px] font-mono">{o.code}</span><span className="ml-3 text-[13px] text-etyme-muted">{o.name}</span></span>
+                <select
+                  aria-label={`Kind of ${o.code}`}
+                  value={o.kind}
+                  onChange={async (e) => { const r = await send('/api/settings/internal-orders', 'PATCH', { id: o.id, kind: e.target.value }); if (r) void load() }}
+                  className="px-2 py-1 border border-etyme-rule rounded bg-etyme-raised text-[13px]"
+                >
+                  {COST_OBJECT_KIND_WORDS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="grid sm:grid-cols-3 gap-2 mt-2">
+          <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="WBS-4711.02" aria-label="Cost object code"
+            className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Plant upgrade" aria-label="Cost object name"
+            className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm" />
+          <select value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Kind" className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm">
+            {COST_OBJECT_KIND_WORDS.map((w) => <option key={w.value} value={w.value}>{w.label}</option>)}
+          </select>
+        </div>
+        <SubmitButton
+          type="button"
+          className="mt-3"
+          onClick={async () => { const r = await send('/api/settings/internal-orders', 'POST', { code, name, kind }); if (r) { setCode(''); setName(''); setKind('INTERNAL_ORDER'); void load() } }}
+          pending={busy}
+          disabled={!code.trim() || !name.trim()}
+          whyDisabled={!code.trim() && !name.trim() ? 'Type a code and a name first.' : !code.trim() ? 'Type a code first.' : 'Type a name first.'}
+        >
+          Add {kindWord(kind).toLowerCase()}
+        </SubmitButton>
+      </div>
     </Panel>
   )
 }

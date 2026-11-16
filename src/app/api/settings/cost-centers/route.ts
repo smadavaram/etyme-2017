@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { logCodeChange, refuseUnlessPayerManager } from '../coding/guard'
 
 /**
  * POST   /api/settings/cost-centers      — add one
@@ -134,6 +135,9 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  const profitCenter = body.profitCenter ? String(body.profitCenter).trim() || null : null
+  if (profitCenter) { const r = await refuseUnlessPayerManager(caller!, 'Setting a profit center'); if (r) return r }
+
   const clash = await prisma.costCenter.findFirst({ where: { companyId, code } })
   if (clash) {
     return NextResponse.json(
@@ -148,10 +152,12 @@ export async function POST(request: NextRequest) {
       code,
       name,
       glAccount: body.glAccount ? String(body.glAccount).trim() : null,
+      profitCenter,
     },
-    select: { id: true, code: true, name: true, glAccount: true, isActive: true },
+    select: { id: true, code: true, name: true, glAccount: true, profitCenter: true, isActive: true },
   })
 
+  if (profitCenter) await logCodeChange(caller!, 'PROFIT_CENTER_CHANGED', `the profit center of ${costCenter.code}`)
   return NextResponse.json({ data: { costCenter } }, { status: 201 })
 }
 
@@ -188,17 +194,21 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
+  if ('profitCenter' in body) { const r = await refuseUnlessPayerManager(caller!, 'Setting a profit center'); if (r) return r }
+
   const costCenter = await prisma.costCenter.update({
     where: { id },
     data: {
       ...(typeof body.code === 'string' && body.code.trim() ? { code: body.code.trim().toUpperCase() } : {}),
       ...(typeof body.name === 'string' && body.name.trim() ? { name: body.name.trim() } : {}),
       ...('glAccount' in body ? { glAccount: body.glAccount ? String(body.glAccount).trim() : null } : {}),
+      ...('profitCenter' in body ? { profitCenter: body.profitCenter ? String(body.profitCenter).trim() || null : null } : {}),
       ...('isActive' in body ? { isActive: Boolean(body.isActive) } : {}),
     },
-    select: { id: true, code: true, name: true, glAccount: true, isActive: true },
+    select: { id: true, code: true, name: true, glAccount: true, profitCenter: true, isActive: true },
   })
 
+  if ('profitCenter' in body) await logCodeChange(caller!, 'PROFIT_CENTER_CHANGED', `the profit center of ${costCenter.code}`)
   return NextResponse.json({ data: { costCenter } })
 }
 

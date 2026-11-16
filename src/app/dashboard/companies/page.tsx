@@ -892,6 +892,72 @@ function AccountManagerPanel({ clientId }: { clientId: string }) {
   )
 }
 
+/**
+ * The payer's own vendor number for a supplier (Layer 9, slice 2). Drawn
+ * only where the route answers: the paying client's settings seat, on a
+ * supplier it keeps. A supplier, or any other seat, never sees the box.
+ */
+function VendorNumberPanel({ supplierId }: { supplierId: string }) {
+  const [saved, setSaved] = useState<string | null>(null)
+  const [says, setSays] = useState('')
+  const [value, setValue] = useState('')
+  const [shown, setShown] = useState(false)
+  const [pending, setPending] = useState(false)
+  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; says: string } | null>(null)
+
+  useEffect(() => {
+    let gone = false
+    fetch(`/api/counterparties?vendorNumberFor=${encodeURIComponent(supplierId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        if (gone || !body?.data) return
+        setSaved(body.data.vendorNumber)
+        setValue(body.data.vendorNumber ?? '')
+        setSays(body.data.says)
+        setShown(true)
+      })
+      .catch(() => {})
+    return () => { gone = true }
+  }, [supplierId])
+
+  if (!shown) return null
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    setPending(true)
+    setMessage(null)
+    try {
+      const res = await fetch('/api/counterparties', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ vendorNumberFor: supplierId, vendorNumber: value }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setMessage({ tone: 'error', says: body?.error?.message ?? 'The vendor number was not saved. Try again in a minute.' })
+        return
+      }
+      setSaved(body.data.vendorNumber)
+      setMessage({ tone: 'ok', says: body.data.vendorNumber ? 'Vendor number saved.' : 'Vendor number cleared.' })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="space-y-2">
+      <Field label="Your vendor number for them">
+        <input value={value} onChange={(e) => setValue(e.target.value)} className="w-full px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
+      </Field>
+      <SubmitButton pending={pending} pendingLabel="Saving…" disabled={value.trim() === (saved ?? '')}>
+        Save
+      </SubmitButton>
+      {message && <FormMessage tone={message.tone}>{message.says}</FormMessage>}
+      {!message && <p className="text-[13px] text-etyme-muted">{says}</p>}
+    </form>
+  )
+}
+
 interface DrawerRead {
   kind: Company['kind']
   positions: Position[]
@@ -1325,6 +1391,7 @@ function CompanyDrawer({ company, onClose, onChanged, onAsked }: { company: Comp
 
           {/* Asked only of a customer: the route answers for a client on the register and nothing else. */}
           {!company.notLinked && company.positions.includes('CUSTOMER') && <AccountManagerPanel clientId={company.id} />}
+          {!company.notLinked && company.positions.includes('SUPPLIER') && <VendorNumberPanel supplierId={company.id} />}
 
           <CompanyContacts company={company} />
 
