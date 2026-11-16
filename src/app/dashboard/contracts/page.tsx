@@ -106,6 +106,8 @@ interface Contract {
   document: Document | null
   /** The line on the other side of the trade that pairs with this one. */
   pairedWith: { id: string; counterpartName: string | null } | null
+  /** On a buy line: the supplier's sell line it pays, where this firm's cost coding sits. */
+  codingContractId: string | null
   /**
    * How the buy line engages the person: this line's own type on a buy
    * line, the paired buy line's on a sell line. A 1099 or her own
@@ -1230,6 +1232,7 @@ function ContractDetailDrawer({
           {(tab === 'sell' || tab === 'buy') && <CommissionPanel contractId={contract.id} />}
           {/* The client's own cost coding: drawn only where the route saves it. */}
           {tab === 'sell' && <AllocationsPanel contractId={contract.id} />}
+          {tab === 'buy' && contract.codingContractId && <AllocationsPanel contractId={contract.codingContractId} />}
         </div>
       </div>
 
@@ -1422,7 +1425,7 @@ export default function ContractsPage() {
   const openId = searchParams.get('open')
   useEffect(() => {
     if (!openId) return
-    const found = contracts.find((c) => c.id === openId)
+    const found = contracts.find((c) => c.id === openId || c.codingContractId === openId)
     if (found) setSelectedContract(found)
   }, [openId, contracts])
 
@@ -1492,6 +1495,7 @@ export default function ContractsPage() {
           personName: c.person?.name ?? 'Unknown',
           document: c.workOrder ?? null,
           pairedWith: c.pairedWith ?? null,
+          codingContractId: c.codingContractId ?? null,
           buyContractType: (tab === 'buy' ? c.contractType : c.pairedWith?.contractType) ?? null,
           masterContract: c.masterContract ?? null,
           lineBuyerId: tab === 'sell' ? (c.clientCompany?.id ?? null) : (c.companyId ?? null),

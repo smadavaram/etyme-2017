@@ -5,6 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { mayOpen, refusal, PAYABLE } from '@/lib/money/desks'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { recordRefusal } from '@/lib/access-log'
+import { mayMaintainCodes } from '@/lib/money/client-codes'
 import { readReceiptFile, readLineStates } from '@/lib/money/receipt-file-read'
 import { RECEIPT_COLUMNS } from '@/lib/money/receipt-file'
 
@@ -85,9 +86,17 @@ export async function GET(request: NextRequest) {
   if (url.searchParams.get('state') === '1') {
     const states = await readLineStates(caller, books.companyId, runId)
     if (!states.ok) return NextResponse.json({ error: { code: states.code, message: states.says } }, { status: states.status })
-    // The door to the coding is offered only to a seat the coding route will take.
-    const mayFix = hasPermission(books.caller.permissions, 'settings.manage')
-    return NextResponse.json({ data: { runId, lines: states.lines.map((l) => (mayFix ? l : { ...l, codingContractId: null })) } })
+    // The door to the coding is offered only to a seat the coding route will
+    // take: the one rule, `mayMaintainCodes`. Everybody else reads who sets the codes.
+    const verdict = await mayMaintainCodes(books.caller, books.companyId)
+    const mayFixCoding = verdict.may
+    const says = verdict.may ? null : verdict.says
+    return NextResponse.json({
+      data: {
+        runId, mayFixCoding, says,
+        lines: states.lines.map((l) => (mayFixCoding ? l : { ...l, codingContractId: null })),
+      },
+    })
   }
   const lineId = url.searchParams.get('line') || undefined
   const resend = url.searchParams.get('again') === '1'

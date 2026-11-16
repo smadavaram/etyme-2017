@@ -1145,6 +1145,9 @@ export async function GET(request: NextRequest) {
                   counterpartName: c.sellLinks[0].sellContract.clientCompany.name,
                 }
               : null,
+            // The supplier's own line this one pays: where the paying
+            // firm's cost coding sits, drawn only where its route allows.
+            codingContractId: c.supplierSellContractId ?? null,
             state: c.state,
             contractType: c.contractType,
             payRate: pay.payRate,

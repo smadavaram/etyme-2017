@@ -65,6 +65,17 @@ export function mayGoInFile(messages: readonly FeedMessageRead[], fixedAt: Date 
 }
 
 /**
+ * Whether one row of a line goes again in a file now: its standing message
+ * is a rejection or a failure, and the line was fixed after it. The route
+ * and the screen both ask this one question of each row, so a line the
+ * screen calls held is a line the route holds.
+ */
+export function mayGoAgain(messages: readonly FeedMessageRead[], fixedAt: Date | null): boolean {
+  const stands = standingMessage(messages)
+  return !!stands && (stands.state === 'REJECTED' || stands.state === 'FAILED') && mayGoInFile(messages, fixedAt).ok
+}
+
+/**
  * The key a message is stored under. One run, one line, one share, one
  * direction and one generation make one key, so a second request for the
  * same run finds the first row. A re-send after a fix is the next

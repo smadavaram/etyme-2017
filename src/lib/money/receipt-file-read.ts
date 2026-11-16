@@ -7,8 +7,9 @@ import {
   type ReceiptFile, type ReceiptIn, type ReceiptLineIn, type CodeShare,
 } from '@/lib/money/receipt-file'
 import { costObjectTypeOf, codingBlock, vendorNumberFor, poLineNumber, savedColumns } from '@/lib/money/client-codes'
-import { mayGoInFile, feedKey, nextGeneration, stateInWords, standingOfRows, type FeedMessageRead } from '@/lib/money/bill-feed'
+import { mayGoInFile, mayGoAgain, feedKey, nextGeneration, stateInWords, standingOfRows, type FeedMessageRead } from '@/lib/money/bill-feed'
 import { formatDay } from '@/lib/format-date'
+import { sideWherePayerReadsLine, type ContractSide } from '@/lib/money/contract-side'
 import { Prisma } from '@prisma/client'
 
 /**
@@ -416,6 +417,8 @@ export interface LineStateRow {
   canSendAgain: boolean
   /** The contract whose coding holds or got this line rejected, or null where it is neither. */
   codingContractId: string | null
+  /** The side of the contracts page on which the paying company reads that contract. */
+  codingSide: ContractSide
   /** True where the line waits on its coding being fixed. */
   codingHeld: boolean
 }
@@ -429,6 +432,8 @@ export async function readLineStates(
   if (!loaded.ok) return loaded
   const { run, receipts } = loaded
   const msgs = (await prisma.billFeedMessage.findMany({ where: { runId: run.id, companyId }, select: MESSAGE_SELECT })) as Msg[]
+  const payer = await prisma.company.findUnique({ where: { id: companyId }, select: { kind: true } })
+  const codingSide = sideWherePayerReadsLine(payer?.kind)
   const by = groupByRow(msgs)
   const file = receiptFile(run, receipts, undefined, rowStateFor(run, by, new Set(), {}))
   const out: LineStateRow[] = []
@@ -438,15 +443,16 @@ export async function readLineStates(
       const rowIds = l.shares.map((s) => `${l.id}:${s.key}`)
       const stands = standingOfRows(rowIds.map((id) => standingMessageOf(by.get(id) ?? [])))
       const why = file.held.find((h) => h.lineId === l.id)?.says ?? receiptWhy
-      const canSendAgain =
-        !!stands && (stands.state === 'REJECTED' || stands.state === 'FAILED') &&
-        rowIds.every((id) => mayGoInFile(by.get(id) ?? [], l.fixedAt ?? null).ok)
+      // As the route reads it: a line goes again when any of its shares is
+      // rejected or undelivered and fixed since. Its other shares stay as they are.
+      const canSendAgain = rowIds.some((id) => mayGoAgain(by.get(id) ?? [], l.fixedAt ?? null))
       out.push({
         billId: r.billId, number: r.number, vendorName: r.vendorName, lineId: l.id, person: l.person,
         amountCents: l.amountCents, currency: r.currency,
         state: stands ? stands.state : 'NOT_SENT',
         says: stateInWords(stands, why ? why.replace(/^.*? is left out: /, '') : null),
         canSendAgain,
+        codingSide,
         codingHeld: !canSendAgain && (l.shares.length === 0 || stands?.state === 'REJECTED' || stands?.state === 'FAILED'),
         codingContractId: l.shares.length === 0 || stands?.state === 'REJECTED' || stands?.state === 'FAILED' ? l.codingContractId ?? null : null,
       })

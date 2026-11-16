@@ -47,3 +47,14 @@ export function answerFits(asked: ContractSide, onScreen: ContractSide): boolean
 export function rowsOfSide<T extends { side?: string | null }>(rows: T[], side: ContractSide): T[] {
   return rows.filter((r) => r.side == null || r.side === side)
 }
+
+/**
+ * The side of the contracts page on which a company that pays reads the
+ * line it pays. A client, an MSP and an integrator that pays are the
+ * "client" of the supplier's sell line, so they read it under Sell; any
+ * other supplier that pays a sub-vendor reads the line it buys under Buy
+ * (the same scope `payerScope` draws for the Sell list).
+ */
+export function sideWherePayerReadsLine(kind: string | null | undefined): ContractSide {
+  return kind === 'CLIENT' || kind === 'MSP' || kind === 'GSI' ? 'sell' : 'buy'
+}

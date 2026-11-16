@@ -398,7 +398,7 @@ export function MarkRunPaid({ runId, disabled, onDone }: { runId: string; disabl
   )
 }
 
-interface LineState { billId: string; number: string; vendorName: string; lineId: string; person: string | null; says: string; state: string; canSendAgain: boolean; codingContractId?: string | null; codingHeld?: boolean }
+interface LineState { billId: string; number: string; vendorName: string; lineId: string; person: string | null; says: string; state: string; canSendAgain: boolean; codingContractId?: string | null; codingSide?: 'sell' | 'buy'; codingHeld?: boolean }
 
 /**
  * What each line of an approved run says, in the client's own words:
@@ -412,12 +412,16 @@ export function ReceiptLineStates({ runId }: { runId: string }) {
   const [failed, setFailed] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // The route's own answer on who keeps the codes; the screen holds no rule of its own.
+  const [codes, setCodes] = useState<{ may: boolean; says: string | null }>({ may: false, says: null })
 
   async function load() {
     try {
       const r = await fetch(`/api/ap/receipts-file?run=${encodeURIComponent(runId)}&state=1`)
       const b = await readJson(r)
-      setLines((b.data as { lines: LineState[] }).lines)
+      const d = b.data as { lines: LineState[]; mayFixCoding?: boolean; says?: string | null }
+      setCodes({ may: d.mayFixCoding === true, says: d.says ?? null })
+      setLines(d.lines)
     } catch (e: any) {
       setFailed(e.message)
     }
@@ -467,11 +471,14 @@ export function ReceiptLineStates({ runId }: { runId: string }) {
           <li key={l.lineId} className="flex flex-wrap items-baseline gap-x-3 text-[13px] text-etyme-ink">
             <span>{l.vendorName}, invoice {l.number}{l.person ? `, ${l.person}` : ''}</span>
             <span className={l.state === 'REJECTED' || l.state === 'FAILED' ? 'text-etyme-attention' : ''}>{l.says}</span>
-            {l.codingHeld && !l.codingContractId && (
-              <span className="text-etyme-muted">Ask the Owner or an Admin to fix the coding.</span>
+            {l.codingHeld && !codes.may && codes.says && (
+              <span className="text-etyme-muted">{codes.says}</span>
             )}
-            {l.codingHeld && l.codingContractId && (
-              <Link href={`/dashboard/contracts?side=sell&open=${l.codingContractId}` as Route} className="underline" style={{ color: 'var(--color-action)' }}>
+            {l.codingHeld && codes.may && !l.codingContractId && (
+              <span className="text-etyme-muted">No contract line carries this coding yet.</span>
+            )}
+            {l.codingHeld && codes.may && l.codingContractId && (
+              <Link href={`/dashboard/contracts?side=${l.codingSide ?? 'sell'}&open=${l.codingContractId}` as Route} className="underline" style={{ color: 'var(--color-action)' }}>
                 Fix the coding
               </Link>
             )}
