@@ -223,3 +223,19 @@ until he answers it. His two pay decisions remain untouched.
      an integration.
 
 The founder's two pay decisions stay untouched.
+
+### Which doors Layer 8 builds against — 2026-11-16
+
+The live home page names no doors. "The doors the home page advertises"
+means the founder's decided design, not today's live text.
+- On 2026-11-13 he ruled that the three chat doors are Microsoft Teams,
+  Google Chat and WhatsApp, in that order.
+- The candidate home page of Nov 14 carries them in a "Works where you
+  work" section. That section was never made live.
+
+A firm's people are actually offered the doors on the tenant storefront
+(Layers 6 and 8). Layer 8 is built against the decided doors and the
+storefronts, never against the live home page.
+
+LinkedIn and Dice are not doors. They are distribution channels: postings
+go out, and replies come back as question 4 allows.
