@@ -105,7 +105,7 @@ const ALL: string[] = [
   'utilization.read', 'margin.read', 'pnl.read',
   'team.manage', 'settings.manage',
   'governance.read', 'governance.write',
-  'privacy.manage',
+  'privacy.manage', 'codes.manage',
 ]
 
 function uniq(...groups: Permission[][]): Permission[] {
@@ -191,7 +191,7 @@ const SUPPLIER_ROLES: RoleSeed[] = [
   {
     name: 'Admin',
     blurb: 'Runs the company day to day. Cannot see profit and loss.',
-    permissions: everything().filter((p) => p !== 'pnl.read'),
+    permissions: everything().filter((p) => p !== 'pnl.read' && p !== 'codes.manage'),
   },
   {
     name: 'Recruiter',
@@ -281,7 +281,7 @@ const SUPPLIER_ROLES: RoleSeed[] = [
     name: 'Finance',
     blurb: 'Bills, pays, and closes the month — the whole finance team at a small firm.',
     // Runs payroll, so reads the pay line, for the same reason as above.
-    permissions: uniq(APPROVE_WORK, RUN_MONEY_IN, RUN_PAYROLL, READ_PAY, ['pnl.read']),
+    permissions: uniq(APPROVE_WORK, RUN_MONEY_IN, RUN_PAYROLL, READ_PAY, ['pnl.read', 'codes.manage']),
   },
   {
     name: 'Compliance Officer',
@@ -489,6 +489,18 @@ export const GRANTED_SINCE: {
   {
     role: 'Owner',
     kinds: ['VENDOR', 'GSI', 'CLIENT', 'MSP', 'CONSULTANT_CORP'],
+    permissions: ['codes.manage'],
+    why: 'The owner holds every permission, and setting the company\u2019s own accounting codes became one of its own.',
+  },
+  {
+    role: 'Finance',
+    kinds: ['VENDOR', 'GSI'],
+    permissions: ['codes.manage'],
+    why: 'Finance keeps the books, so it keeps the company\u2019s own accounting codes. An Admin does not, unless the Owner grants it.',
+  },
+  {
+    role: 'Owner',
+    kinds: ['VENDOR', 'GSI', 'CLIENT', 'MSP', 'CONSULTANT_CORP'],
     permissions: ['orders.raise'],
     why: 'The owner holds every permission, and raising an order became one of its own.',
   },
@@ -521,7 +533,7 @@ export const GRANTED_SINCE: {
 export const ADMIN_LOSES: readonly Permission[] = [
   'invoices.issue', 'payments.record', 'payroll.run', 'payroll.approve', 'orders.raise',
   'requirements.write', 'assignments.write', 'assignments.terminate', 'rates.write',
-  'timesheets.approve', 'margin.read', 'pnl.read', 'consultants.cost',
+  'timesheets.approve', 'margin.read', 'pnl.read', 'consultants.cost', 'codes.manage',
 ]
 
 /** Whether an Admin role is the narrowed one: it holds no money or contract act. */
@@ -543,7 +555,7 @@ export function isNarrowedAdmin(permissions: readonly string[]): boolean {
 export const FOUNDING_ADMIN: RoleSeed = {
   name: ADMIN_ROLE,
   blurb: 'Runs the company day to day until an Owner is verified. Cannot see profit and loss.',
-  permissions: everything().filter((p) => p !== 'pnl.read'),
+  permissions: everything().filter((p) => p !== 'pnl.read' && p !== 'codes.manage'),
 }
 
 /**

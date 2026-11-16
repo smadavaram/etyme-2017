@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, type CallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
+import { mayMaintainCodes } from '@/lib/money/client-codes'
 import { recordRefusal } from '@/lib/access-log'
 import { mayOpen, PAYABLE } from '@/lib/money/desks'
-import { CLIENT_CODES_NOT_PAYER, CLIENT_CODES_REFUSED } from '@/lib/counterparty'
+import { CLIENT_CODES_NOT_PAYER } from '@/lib/counterparty'
 
 /**
  * Whether a company pays invoice receipts: it is a client, or it holds a
@@ -26,25 +26,25 @@ export async function paysInvoiceReceipts(caller: CallerContext): Promise<boolea
 }
 
 /**
- * Who may read or write a client's own codes: a seat that manages settings,
+ * Who may read or write a client's own codes: a seat `mayMaintainCodes` names,
  * at the company that pays. A refusal is a sentence, and its row is written
  * before it is sent.
  */
 export async function refuseUnlessPayerManager(caller: CallerContext, doing: string): Promise<NextResponse | null> {
   const company = caller.company
   const payer = company ? await paysInvoiceReceipts(caller) : false
-  const may = hasPermission(caller.permissions, 'settings.manage')
-  if (company && payer && may) return null
+  const verdict = company && payer ? await mayMaintainCodes(caller) : null
+  if (company && payer && verdict?.may) return null
   if (company) {
     await recordRefusal([{ companyId: company.id }], {
       actorPersonId: caller.isService ? undefined : caller.person.id,
       actorCompanyId: company.id,
       action: 'CONTRACT_VIEW',
-      reason: `Refused: ${doing}, which only the paying company’s settings seat does.`,
+      reason: `Refused: ${doing}, which only the paying company’s Finance, Owner or AP clerk does.`,
     })
   }
   return NextResponse.json(
-    { error: { code: 'FORBIDDEN', message: company && !payer ? CLIENT_CODES_NOT_PAYER : CLIENT_CODES_REFUSED } },
+    { error: { code: 'FORBIDDEN', message: company && !payer ? CLIENT_CODES_NOT_PAYER : verdict && !verdict.may ? verdict.says : CLIENT_CODES_NOT_PAYER } },
     { status: 403 },
   )
 }

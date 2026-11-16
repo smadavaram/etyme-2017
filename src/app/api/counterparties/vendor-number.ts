@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server'
 import type { CallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { paysInvoiceReceipts } from '../settings/coding/guard'
-import { hasPermission } from '@/lib/permissions'
+import { mayMaintainCodes } from '@/lib/money/client-codes'
 import { recordRefusal } from '@/lib/access-log'
-import { CLIENT_CODES_NOT_PAYER, CLIENT_CODES_REFUSED, VENDOR_NUMBER_HELP } from '@/lib/counterparty'
+import { CLIENT_CODES_NOT_PAYER, VENDOR_NUMBER_HELP } from '@/lib/counterparty'
 
 /**
  * The payer's own vendor number for a supplier, on the payer's register row.
@@ -12,22 +12,24 @@ import { CLIENT_CODES_NOT_PAYER, CLIENT_CODES_REFUSED, VENDOR_NUMBER_HELP } from
  * GET   /api/counterparties?vendorNumberFor=<supplierId>
  * PATCH /api/counterparties { vendorNumberFor: <supplierId>, vendorNumber }
  *
- * Only the paying client that keeps the row, and only a seat that manages
- * settings. The row is this caller's own, so no other firm's is read, and
+ * Only the paying client that keeps the row, and only the seat `mayMaintainCodes` names. The row is this caller's own, so no other firm's is read, and
  * the supplier is never told.
  */
-async function refuse(caller: CallerContext, doing: string, notPayer: boolean) {
+async function refuse(caller: CallerContext, doing: string, says: string) {
   await recordRefusal([{ companyId: caller.company!.id }], {
     actorPersonId: caller.isService ? undefined : caller.person.id,
     actorCompanyId: caller.company!.id,
     action: 'CONTRACT_VIEW',
-    reason: `Refused: ${doing}, which only the paying company’s settings seat does.`,
+    reason: `Refused: ${doing}, which only the paying company’s Finance, Owner or AP clerk does.`,
   })
-  return NextResponse.json({ error: { code: 'FORBIDDEN', message: notPayer ? CLIENT_CODES_NOT_PAYER : CLIENT_CODES_REFUSED } }, { status: 403 })
+  return NextResponse.json({ error: { code: 'FORBIDDEN', message: says } }, { status: 403 })
 }
 
-async function mayHold(caller: CallerContext) {
-  return hasPermission(caller.permissions, 'settings.manage') && (await paysInvoiceReceipts(caller))
+/** Null where the seat may; otherwise the sentence that says who does. */
+async function whyNot(caller: CallerContext): Promise<string | null> {
+  if (!(await paysInvoiceReceipts(caller))) return CLIENT_CODES_NOT_PAYER
+  const verdict = await mayMaintainCodes(caller)
+  return verdict.may ? null : verdict.says
 }
 
 const supplierRow = (companyId: string, supplierId: string) =>
@@ -39,14 +41,16 @@ const supplierRow = (companyId: string, supplierId: string) =>
 const NOT_A_SUPPLIER = { error: { code: 'NOT_FOUND', message: 'That firm is not a supplier on your register.' } }
 
 export async function readVendorNumber(caller: CallerContext, supplierId: string) {
-  if (!(await mayHold(caller))) return refuse(caller, 'Reading a vendor number', !(await paysInvoiceReceipts(caller)))
+  const no = await whyNot(caller)
+  if (no) return refuse(caller, 'Reading a vendor number', no)
   const row = supplierId ? await supplierRow(caller.company!.id, supplierId) : null
   if (!row) return NextResponse.json(NOT_A_SUPPLIER, { status: 404 })
   return NextResponse.json({ data: { vendorNumber: row.vendorNumber, says: VENDOR_NUMBER_HELP } })
 }
 
 export async function nameVendorNumber(caller: CallerContext, body: { vendorNumberFor?: unknown; vendorNumber?: unknown }) {
-  if (!(await mayHold(caller))) return refuse(caller, 'Changing a vendor number', !(await paysInvoiceReceipts(caller)))
+  const no = await whyNot(caller)
+  if (no) return refuse(caller, 'Changing a vendor number', no)
   const companyId = caller.company!.id
   if (typeof body.vendorNumber !== 'string' && body.vendorNumber !== null) {
     return NextResponse.json({ error: { code: 'VALIDATION', message: 'Type the vendor number, or leave the box empty.', field: 'vendorNumber' } }, { status: 422 })

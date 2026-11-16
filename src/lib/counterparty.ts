@@ -1185,8 +1185,6 @@ export function mayClaimRecorded(company: { name: string; kind?: string | null }
  */
 export const CLIENT_CODES_NOT_PAYER =
   'These codes belong to the company that pays. Your firm does not set or read them.'
-export const CLIENT_CODES_REFUSED =
-  'Only Finance, the Owner or an Admin changes your company’s codes. Ask one of them.'
 export const COMPANY_CODE_HELP =
   'Your accounting system’s company code. It goes on every line of the file you download.'
 export const VENDOR_NUMBER_HELP =

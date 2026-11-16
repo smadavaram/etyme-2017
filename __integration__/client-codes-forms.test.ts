@@ -92,7 +92,7 @@ describe('a client sets the codes its own books use', () => {
     if (plainClient.id === client.id) return
     const r = await call(changeCoding, 'PATCH', '/api/settings/coding', { companyCode: '2222' }, plainClient)
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain('Finance, the Owner or an Admin')
+    expect(r.body.error.message).toMatch(/sets these/)
     expect((await call(readCoding, 'GET', '/api/settings/coding')).body.data.companyCode).toBe('1000')
   })
 
