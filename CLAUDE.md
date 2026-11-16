@@ -799,6 +799,12 @@ Full text → 12, 14, 24, 32, 35.
   only. No model feature reads across tenants. Another company's book is
   refused by rule, before the model. A conversation never leaves the
   tenant or the transaction.
+- **Every model call goes through one routing layer** (founder, written
+  2026-11-13, sent 2026-11-16 → 81). It picks the provider by job and by
+  data lane, and writes a cost ledger entry for every call. Tier 0 rules
+  come first. A cheap model is the default, and a stronger model only on
+  a validator's reason. Restricted data reaches no model. Built in its
+  own order, never ahead of stabilization.
 - **The voice.** Recommendation first. Names, not counts. One sentence
   per refusal, with the door. No apology words. The trade's phrasing:
   who applied, approve a timesheet, pay an invoice, on hold.
