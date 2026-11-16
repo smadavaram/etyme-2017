@@ -89,3 +89,96 @@ against a standing rule:
 
 The founder's two open decisions are untouched: the first pay-period
 Sunday, and the overtime hold for W-2 weeks over 40 hours outside the US.
+
+### Update, the same day: the full spec, the stability bar, and paperwork signing
+
+**Order.** Layer 6 runs in parallel with Layers 7 to 10. It is not
+queued after them. Stabilization is the priority track. Layer 6 ships as
+its own batch and must not destabilize it.
+
+**The stability bar.** The founder's words: *"Give it SAP-like
+stability."* Every integration in Layers 7 to 10 behaves like a
+monitored interface:
+- every message or event has a status a person can see on the record;
+- nothing is lost silently;
+- a failure sits in an error state a person can see, and can be
+  reprocessed;
+- a duplicate is detected, never posted twice;
+- the journal answers "what happened to this invoice, timesheet or
+  envelope" end to end.
+
+An integration that cannot meet this bar never ships as "connected". It
+ships labeled as what it honestly is.
+
+**The spec, as he gave it** (verbatim from the fix list):
+
+> Theme: STABILIZING the integrations — connectors Etyme already claims or
+> scaffolds must actually work, hold under real use, fail visibly (never
+> silently), and write everything to the record/journal. Not new-feature
+> invention. Each layer ships and is retested on Tapin on its own.
+>
+> Layer 7 — Security & authentication: client tenants SSO-only via their
+> IdP (Entra first, then SAML/OIDC, SCIM deprovisioning, AD group → role
+> mapping, no Gmail/magic-link/password back door); invite-only Track 2
+> stays internal/small-supplier only. Close and prove per-tenant the
+> sign-in leak (sign-in marking every invited seat at every firm).
+> Bank-detail changes only via in-app flow with out-of-band verification
+> + second approver + cooling-off; money-moving approvals require step-up
+> auth inside Etyme; PII masked by default with guarded exports; uploads
+> scanned/quarantined; append-only security-event ledger; settings that
+> record-but-do-not-enforce (e.g. Walls) must enforce or say so at the
+> control.
+>
+> Layer 8 — Marketing integrations + the storefronts: stabilize the doors
+> the homepage advertises — Teams, Google Workspace/Chat, WhatsApp
+> (contact route for small business / individuals / non-enterprise),
+> LinkedIn and Dice distribution. Profiles/roles go OUT through them;
+> responses/leads come back INTO the record as submissions/candidates,
+> never side-channel email. Resend delivery state visible per
+> invite/message (sent ≠ delivered; bounces and never-sent show). Layer 6
+> storefront templates are fed and kept truthful by these integrations.
+> Notifications: 1,500 free, then upgrade (subject to clash question 5's
+> answer).
+>
+> Layer 9 — Accounting: build the mapping layer the Integrations page only
+> scaffolds (today QuickBooks "selected" but nothing mapped;
+> SAP/Oracle/Workday/NetSuite/Xero/CSV unmapped; export disabled).
+> ERP-agnostic: a structured, coded feed any ERP/accounting system can
+> consume (vendor number, GL, company code, external IDs; API/webhook or
+> structured export) — not a single-vendor connector. Two invoicing paths:
+> PO-based (invoice matched to the PO, mismatches held, never silently
+> paid) and non-PO (invoice against approved timesheets/engagement, its
+> own approval path). Every invoice line carries the client's cost object
+> — cost center, internal order, WBS element, project code, or just a
+> material code — stored as type + value and exported coded, not free
+> text.
+>
+> Layer 10 — Operations: ServiceNow, Slack, Jira boards and timesheet apps
+> land on the Etyme record (status, hours, approver, timestamp),
+> journaled, duplicates detected, failed syncs visible on the record.
+> Screenshot approvals: an approval that genuinely happened outside Etyme
+> can be attached as screenshot evidence — marked as screenshot evidence
+> with who supplied it and when, never presented as an in-system approval.
+
+**Layer 10 addition: paperwork signing.** The founder's words: *"some
+people want DocuSign for paperwork — or similar apps like that."*
+- Etyme builds no signing of its own.
+- Signature paperwork routes through the e-signature app the client
+  already uses, chosen per tenant. This covers contracts, MSA and SOW,
+  NDAs, onboarding packets and paperwork requests. It is the same
+  plug-into-their-stack pattern as Layer 9's accounting feed.
+- The envelope goes out from the record.
+- Its status (sent, viewed, signed, declined) journals back onto the
+  record.
+- The signed document and its completion certificate land on the record
+  as the filed paperwork. They drive the placement's "on file" state,
+  through the one reader of what is on file.
+- A client with no e-signature app keeps the existing document-request
+  link.
+- The app is named only as a label on the tenant's setting, never as a
+  claim on a public page.
+
+**Not answered here.** The eight questions above are with the founder.
+Nothing in this update answers them. Where the spec's own words bear on
+one (the client sign-in rule and question 1), the question still stands
+until he answers it. His two pay decisions remain untouched.

@@ -454,6 +454,11 @@ Full text → 40, 11, 56, 68, 72.
   sign-in, outreach doors, an accounting feed any system reads, and
   operations tools on the record. Each fails visibly and writes to the
   record. Eight questions in 80 wait on the founder before each layer.
+  The bar is "SAP-like stability": every message has a status on the
+  record, nothing is lost silently, a failure can be reprocessed, a
+  duplicate is never posted twice, and anything short of that is labeled
+  as what it is, never "connected". Signing goes through the client's own
+  e-signature app; Etyme builds none.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
