@@ -44,9 +44,14 @@ answers to the four owner questions. Sharath is the Owner of Tapin.
    Holidays affect only periods not yet written.
 3. *A public company page prints the firm, never a person's name.* The
    default is off. An Owner may opt in later.
-4. *A W-2 week over 40 hours worked outside the US is held, and flagged
-   where a person sees it,* until per-country overtime settings exist. This
-   settles the other decision that waited on the Owner.
+4. *A W-2 week worked outside the US is paid under the local overtime
+   rules of the country where the work was done* (short-term
+   employment). The hold applies only where that country's rule is not
+   known or not yet configured: then the week over 40 hours is held and
+   flagged where a person sees it, until the rule is set. This settles the
+   other decision that waited on the Owner. Sharath corrected the first
+   wording of this answer the same day. A country rule is enforced only
+   after regulatory confirms it with its source (CLAUDE.md, Papers).
 
 **The bill question** (Sharath's answer: yes). For a client that is not on
 Etyme, the bill shows the supplier's chosen account, with the line:
