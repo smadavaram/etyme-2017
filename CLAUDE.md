@@ -1179,6 +1179,12 @@ were.
 - **American English on every screen**: program, cost center,
   authorization, color (`american-english.test.ts`). Machine names
   written before the rule stay.
+- **Etyme flows like Vercel** (Sharath, 2026-11-17 → 93): few steps in the
+  order a person thinks, state on the item itself, verification that
+  turns green by itself, reversible by default, and the system does the
+  wiring: never a person relaying values between admin portals. A flow
+  that needs training or a rollout plan is wrong, not the user. First in
+  tenant setup, Settings, sign-in doors and integration connections.
 - **Flowy** (founder, 2026-11-15 → 72). No dead ends, no silent no-ops,
   no form that blocks without saying why. A blocked screen links to the
   act that unblocks it. Each fix is checked four ways: the logic, the
