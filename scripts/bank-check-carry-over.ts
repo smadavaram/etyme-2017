@@ -29,15 +29,16 @@ async function main() {
     for (const r of report) {
       console.log(
         r.payerId === null
-          ? `${r.remitToId}  supplier ${r.supplierId}  payer unknown  (${r.why})`
+          ? `${r.remitToId}  supplier ${r.supplierId}  payer unknown  (${r.why})${r.ownChecks ? `  ${r.ownChecks} payer(s) already hold their own check` : '  no payer holds its own check: held for every payer'}`
           : `${r.remitToId}  supplier ${r.supplierId}  payer ${r.payerId}  from ${r.from}${r.carried ? '  (already carried)' : ''}`,
       )
     }
+    const bare = report.filter((r) => r.payerId === null && r.ownChecks === 0).length
     const n = await carryOverOldChecks(db as never, { write })
     console.log(
       write
         ? `bank-check-carry-over: ${n.carried} of ${n.named} old checks written as the named payer's own; ${n.unplaced} name no payer and count for nobody.`
-        : `bank-check-carry-over: ${n.named} old checks name their payer and are not carried yet; ${n.unplaced} name no payer. Run again with --write to carry them.`,
+        : `bank-check-carry-over: ${n.named} old checks name their payer and are not carried yet; ${n.unplaced} name no payer, ${bare} of them with no payer's own check. Run again with --write to carry them.`,
     )
   } finally {
     await db.$disconnect()

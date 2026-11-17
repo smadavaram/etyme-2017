@@ -15,7 +15,7 @@ import { fromPrismaDecimal, minorPerUnit } from '@/lib/money'
 import { daySpan } from '@/lib/plain-date'
 import { readReceipt } from '@/lib/money/receipt-read'
 import { payToSays } from '@/lib/money/pay-to-words'
-import { payToOnBill } from '@/lib/money/pay-to'
+import { payToOnBillFor } from '@/lib/money/pay-to'
 import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
 import { payWaitsAt } from '@/lib/money/pay-waits'
 import { billDeliverySays } from '@/lib/notify/bill-delivery'
@@ -335,7 +335,7 @@ export async function GET(
     }
   }
 
-  const payTo = parties.vendor ? await payToOnBill(parties.vendor.id) : null
+  const payTo = parties.vendor ? await payToOnBillFor(parties.vendor.id, parties.client?.id ?? null) : null
 
   return NextResponse.json({
     data: {

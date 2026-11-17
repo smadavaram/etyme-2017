@@ -165,6 +165,7 @@ describe('every payment goes through one function, and the supplier is told ever
     await putBack()
     s.heldRun = await runFor(s.held)
     await prisma.remitTo.updateMany({ where: { companyId: s.heldVendor }, data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null } })
+    await prisma.bankCheck.deleteMany({ where: { remitTo: { companyId: s.heldVendor } } })
     const before = await prisma.notification.count({ where: { companyId: s.heldVendor, type: 'INVOICE' } })
 
     as(PAYROLL)

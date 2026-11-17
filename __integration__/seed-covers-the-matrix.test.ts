@@ -63,7 +63,9 @@ import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
 const RUNTIME: Record<string, string> = {
   // Layer 7, slice S0 (2026-11-16, records 86 and 87). Nothing writes these
   // until a person acts, and a seeded row would claim an act nobody did.
-  bankCheck: 'written when a paying client confirms a supplier’s bank details with a recorded call back; a seeded row would claim a client called somebody',
+  // BankCheck is seeded since 2026-11-17: each seeded payer's own check of
+  // the details it pays, the check the seed already stamped, with no call
+  // back recorded, so no row claims a client called somebody.
   bankChangeRequest: 'written when a supplier enters new bank details; the seed changes nobody’s bank',
   // Record 87 (2026-11-17). Nothing writes these until a person acts.
   remitToChoice: 'written when a supplier chooses which account one customer pays; the seed chooses for nobody, so every customer pays the default',

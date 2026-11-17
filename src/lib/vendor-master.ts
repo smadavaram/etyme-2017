@@ -253,7 +253,8 @@ export interface WalkBankMark {
 
 export type OldCheckPayer =
   | { remitToId: string; supplierId: string; payerId: string; from: 'VERIFIED_BY' | 'SUPPLIER_WALK'; carried: boolean }
-  | { remitToId: string; supplierId: string; payerId: null; why: 'NO_PAYER_ON_RECORD' | 'SEVERAL_WALKS' }
+  /** `ownChecks`: how many payers already hold their own check on the row, so the old one is not their only one. */
+  | { remitToId: string; supplierId: string; payerId: null; why: 'NO_PAYER_ON_RECORD' | 'SEVERAL_WALKS'; ownChecks: number }
 
 /**
  * Which payer made an old check that does not say, as far as the record
@@ -283,5 +284,5 @@ export function oldCheckPayer(row: OldCheckRow, walks: readonly WalkBankMark[], 
     const payerId = [...payers][0]
     return { ...base, payerId, from: 'SUPPLIER_WALK', carried: carriedFor.has(payerId) }
   }
-  return { ...base, payerId: null, why: payers.size > 1 ? 'SEVERAL_WALKS' : 'NO_PAYER_ON_RECORD' }
+  return { ...base, payerId: null, why: payers.size > 1 ? 'SEVERAL_WALKS' : 'NO_PAYER_ON_RECORD', ownChecks: carriedFor.size }
 }

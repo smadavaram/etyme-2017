@@ -7,7 +7,7 @@ import { codingReader } from '@/lib/money/coding-reader'
 import { leftAfterThisBill } from '@/lib/money/left-after-this-bill'
 import { ownBillIsTheIssuers, ownBillView } from '@/lib/money/own-bill-read'
 import { recordRefusal } from '@/lib/access-log'
-import { payToOnBill } from '@/lib/money/pay-to'
+import { payToOnBillFor } from '@/lib/money/pay-to'
 import { payToSays } from '@/lib/money/pay-to-words'
 
 /**
@@ -96,7 +96,7 @@ export async function GET(
   }
   noteMoneyRead(books, `the order and pay-to on ${invoice.number}`)
 
-  const [left, payTo] = await Promise.all([leftAfterThisBill(invoice), payToOnBill(parties.vendor.id)])
+  const [left, payTo] = await Promise.all([leftAfterThisBill(invoice), payToOnBillFor(parties.vendor.id, parties.client?.id ?? null)])
   return NextResponse.json({
     data: {
       ...ownBillView({

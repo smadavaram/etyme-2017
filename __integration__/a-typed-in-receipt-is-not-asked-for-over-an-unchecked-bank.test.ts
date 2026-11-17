@@ -57,6 +57,8 @@ describe('every reader of "may this typed-in receipt be paid" reads the supplier
 
   it('the same receipt is held, in the bank’s own sentence, once nobody has checked the supplier’s bank', async () => {
     await prisma.remitTo.updateMany({ where: { companyId: s.vendor }, data: { verifiedAt: null } })
+    // And no payer's own check on them (records 86 and 87): nobody checked.
+    await prisma.bankCheck.deleteMany({ where: { remitTo: { companyId: s.vendor } } })
     await prisma.supplierRequest.deleteMany({
       where: { companyId: s.nike, OR: [{ supplierCompanyId: s.vendor }, { firmCompanyId: s.vendor }] },
     })

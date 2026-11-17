@@ -40,6 +40,7 @@ describe('an invoice receipt held on the supplier’s bank details is held on th
 
   it('once nobody has checked the supplier’s bank details, the same receipt is one held row that says the bank is not checked', async () => {
     await prisma.remitTo.updateMany({ where: { companyId: s.pinnacle }, data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null } })
+    await prisma.bankCheck.deleteMany({ where: { remitTo: { companyId: s.pinnacle } } })
     await prisma.supplierRequest.updateMany({ where: { OR: [{ supplierCompanyId: s.pinnacle }, { firmCompanyId: s.pinnacle }] }, data: { checklist: [] } })
     const after = await read()
     const rows = after.decisions.filter((d) => d.entityId === s.receipt)

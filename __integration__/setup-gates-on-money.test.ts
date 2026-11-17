@@ -99,7 +99,9 @@ async function withUncheckedBank<T>(payerId: string, payeeId: string, f: () => P
     where: { companyId: payerId, OR: [{ supplierCompanyId: payeeId }, { firmCompanyId: payeeId }] },
     select: { id: true, checklist: true },
   })
+  const own = await prisma.bankCheck.findMany({ where: { payerCompanyId: payerId, remitTo: { companyId: payeeId } } })
   await prisma.remitTo.updateMany({ where: { companyId: payeeId }, data: { verifiedAt: null } })
+  await prisma.bankCheck.deleteMany({ where: { payerCompanyId: payerId, remitTo: { companyId: payeeId } } })
   for (const w of walks) {
     const list = Array.isArray(w.checklist) ? (w.checklist as any[]).map((i) => (i?.key === 'BANK' ? { ...i, state: 'SUPPLIED' } : i)) : w.checklist
     await prisma.supplierRequest.update({ where: { id: w.id }, data: { checklist: list as any } })
@@ -108,6 +110,7 @@ async function withUncheckedBank<T>(payerId: string, payeeId: string, f: () => P
     return await f()
   } finally {
     for (const r of remits) await prisma.remitTo.update({ where: { id: r.id }, data: { verifiedAt: r.verifiedAt } })
+    if (own.length) await prisma.bankCheck.createMany({ data: own })
     for (const w of walks) await prisma.supplierRequest.update({ where: { id: w.id }, data: { checklist: w.checklist as any } })
   }
 }

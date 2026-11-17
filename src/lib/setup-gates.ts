@@ -21,7 +21,6 @@ import { PARTY_SAYS, type Party } from '@/lib/document-stages/required-sets'
 import {
   NO_BILLING_ADDRESS, billingAddressGate, bankGate, paperChaseGate, type Gate, type BankCheckerNames, type PayerCheck,
 } from '@/lib/setup-gate-rules'
-import { payToRow } from '@/lib/money/pay-to'
 import { readCheckedFor } from '@/lib/vendor-master-read'
 
 export * from '@/lib/setup-gate-rules'
@@ -57,51 +56,36 @@ export async function mayIssueBill(issuerCompanyId: string, db: Db = prisma): Pr
  * payment is recorded to a firm (`recordInvoicePayment` in
  * lib/money/invoice-payment, the AP bill payment, a payment run's items),
  * never before payroll to a person.
+ *
+ * Records 86 and 87: answered per payer, by money's gate
+ * (`mayPayFirmFor` in lib/money/pay-gate). The row this payer pays and
+ * this payer's own confirmation decide; another payer's check, or an old
+ * check that names no payer, counts for nobody. Where the payee has no
+ * details on Etyme, this payer's supplier walk decides, as before.
+ * Imported at the call, because lib/money/pay-gate reads this file.
  */
-export async function mayPayFirm(payerCompanyId: string, payeeCompanyId: string, db: Db = prisma): Promise<Gate> {
-  const [payee, payTo, walks] = await Promise.all([
-    db.company.findUnique({ where: { id: payeeCompanyId }, select: { name: true } }),
-    // The row the payment goes to, through money's one reader, never
-    // "some checked row" (Layer 7 money review, 2026-11-16).
-    payToRow(payeeCompanyId, db),
-    db.supplierRequest.findMany({
-      where: { companyId: payerCompanyId, OR: [{ supplierCompanyId: payeeCompanyId }, { firmCompanyId: payeeCompanyId }] },
-      select: { checklist: true },
-      orderBy: { createdAt: 'desc' },
-      take: 3,
-    }),
-  ])
-  const states = walks.map((w) => (Array.isArray(w.checklist) ? (w.checklist as any[]).find((i) => i?.key === 'BANK')?.state ?? null : null))
-  const facts = {
-    payee: payee?.name ?? 'This firm',
-    remitOnFile: !!payTo,
-    remitVerified: !!payTo?.verifiedAt,
-    // The newest walk that carries a bank item says where it stands; an
-    // older walk's hold never stands in for the newest walk's answer.
-    walkBankState: states.find((s) => s != null) ?? null,
-  }
-  const open = bankGate(facts)
-  if (open.ok) return open
-  // Refused: say who checks at the paying firm, read the way money reads
-  // it for a held receipt, so the payment, the payment run and the receipt
-  // name the same people.
-  return bankGate({ ...facts, who: await bankCheckerNamesAt(payerCompanyId) })
+export async function mayPayFirm(payerCompanyId: string, payeeCompanyId: string, db: Db = prisma, now: Date = new Date()): Promise<Gate> {
+  const { mayPayFirmFor } = await import('@/lib/money/pay-gate')
+  return mayPayFirmFor(payerCompanyId, payeeCompanyId, db, now)
 }
 
 /**
  * Has this paying firm, itself, checked the details a payment to that
  * firm goes to? Record 86: each payer confirms for itself. Record 87: the
- * details are the ones that firm chose for this payer, else its default
- * (`readPayToFor` in lib/vendor-master-read). The answer is
- * `checkedByPayer`, which reads this payer's `BankCheck` first and the old
- * columns second.
- *
- * Not read by `mayPayFirm` yet: who may pay does not change in this
- * slice. The payment gate, the held receipt's check and the payment run's
- * file move onto it together, in money's next slice.
+ * details are the ones that firm chose for this payer, else its default.
+ * Read from this payer's own standing (`payerStandingAt` in
+ * lib/money/pay-gate), the same answer the payment gate gives: a change
+ * the supplier entered and this payer has not confirmed by call back, or
+ * one still inside its 72 hours, is not checked.
  */
-export async function bankCheckedBy(payerCompanyId: string, payeeCompanyId: string, db: Db = prisma): Promise<PayerCheck> {
-  return readCheckedFor(payerCompanyId, payeeCompanyId, db)
+export async function bankCheckedBy(payerCompanyId: string, payeeCompanyId: string, db: Db = prisma, now: Date = new Date()): Promise<PayerCheck> {
+  const { payerStandingAt } = await import('@/lib/money/pay-gate')
+  const [check, at] = await Promise.all([
+    readCheckedFor(payerCompanyId, payeeCompanyId, db),
+    payerStandingAt(payerCompanyId, payeeCompanyId, db, now),
+  ])
+  if (!check.checked || at.standing.open) return check
+  return { checked: false, why: at.standing.why === 'NO_DETAILS' ? 'NO_DETAILS' : at.standing.why === 'NOT_CHECKED' ? 'NOT_CHECKED' : 'DETAILS_CHANGED' }
 }
 
 /**

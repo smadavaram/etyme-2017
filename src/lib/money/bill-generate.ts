@@ -31,7 +31,7 @@
 import type { Prisma } from '@prisma/client'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
-import { payToOnBill } from '@/lib/money/pay-to'
+import { payToOnBillFor } from '@/lib/money/pay-to'
 import { completeCycles } from '@/lib/cycle-complete'
 import { sortForBill, expenseLine, expenseTotal, type LeftOff } from '@/lib/expense-billing'
 import { billsOnLeg, payersOwn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
@@ -1598,7 +1598,7 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
       // none written: the bill says the details are being confirmed, and
       // every screen that prints it reads the same row again when it is
       // read (`payToOnBill`), so a later change never prints the old one.
-      const payTo = (await payToOnBill(caller.company.id, tx)).row?.id ?? null
+      const payTo = (await payToOnBillFor(caller.company.id, billedTo.id, tx as unknown as typeof prisma)).row?.id ?? null
 
       // Create the invoice
       const invoice = await tx.invoice.create({

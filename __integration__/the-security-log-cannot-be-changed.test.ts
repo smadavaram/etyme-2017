@@ -120,9 +120,10 @@ describe('the bank check each payer makes for itself', () => {
     expect(await bankCheckedBy(b, s)).toEqual({ checked: false, why: 'NOT_CHECKED' })
   })
 
-  it('who may pay is unchanged in this slice: the gate still takes the old single check, while the reader says it was another payer’s', async () => {
+  it('an old check that names another client never lets this client pay, and the reader says it was another payer’s', async () => {
     await prisma.remitTo.update({ where: { id: remitToId }, data: { verifiedAt: new Date(), verifiedByCompanyId: a } })
-    expect(await mayPayFirm(b, s)).toEqual({ ok: true })
+    expect(await mayPayFirm(b, s)).toMatchObject({ ok: false, step: 'BANK' })
+    expect(await mayPayFirm(a, s)).toEqual({ ok: true })
     expect(await bankCheckedBy(b, s)).toEqual({ checked: false, why: 'ANOTHER_PAYER' })
   })
 
