@@ -23,6 +23,7 @@ import { twinFor, keepNote } from '@/app/api/companies/twins'
 import { askFirmToLink, askStanding, approvedAskSays } from './link-ask'
 import { firmTookPart } from './took-part'
 import { recordEvidence } from '../evidence'
+import { checkPayeeBank } from '@/lib/money/bank-check-read'
 
 /**
  * PATCH /api/supplier-requests/[id]
@@ -266,13 +267,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     const [updated] = await prisma.$transaction([
       prisma.supplierRequest.update({ where: { id }, data: { checklist: marked.checklist as unknown as object, state: 'IN_REVIEW' } }),
-      ...(bank?.remitToId
-        ? [prisma.remitTo.update({ where: { id: bank.remitToId }, data: { verifiedAt: now, verifiedById: caller.person.id, verifiedByCompanyId: companyId } })]
-        : []),
+      // Reopened: only this customer's own checks go, the old columns and
+      // the BankCheck row, never another payer's.
       ...(bank?.clear && firmId
-        ? [prisma.remitTo.updateMany({ where: { companyId: firmId, verifiedByCompanyId: companyId }, data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null } })]
+        ? [
+            prisma.bankCheck.deleteMany({ where: { payerCompanyId: companyId, remitTo: { companyId: firmId } } }),
+            prisma.remitTo.updateMany({ where: { companyId: firmId, verifiedByCompanyId: companyId }, data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null } }),
+          ]
         : []),
     ])
+
+    // Marked held: this customer's own BankCheck, written by the one writer
+    // money uses (it keeps the old columns for where they are empty). A
+    // waiver never reaches here with a remitToId.
+    if (bank?.remitToId && firmId) {
+      const checked = await checkPayeeBank({ payer: { id: companyId, name: desk!.companyName }, payee: { id: firmId, name: row.name }, by: { personId: caller.person.id, name: caller.person.name } })
+      if (!checked.ok && checked.code !== 'ALREADY_CHECKED') {
+        recorded = recorded ? { ...recorded, says: `${recorded.says} ${checked.says}` } : { written: 0, onRecord: false, says: checked.says }
+      }
+    }
 
     // Who verified it, and who waived it. The checklist carries the state,
     // the reason and the hour, but not the name — so a waived certificate
