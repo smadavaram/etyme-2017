@@ -285,3 +285,14 @@ export function oldCheckPayer(row: OldCheckRow, walks: readonly WalkBankMark[], 
   }
   return { ...base, payerId: null, why: payers.size > 1 ? 'SEVERAL_WALKS' : 'NO_PAYER_ON_RECORD' }
 }
+
+/**
+ * The one summary line of the old-checks report, said the same by the
+ * hand-run script and by the staff page. `held` is K: old checks that name
+ * no payer and have no payer's own `BankCheck`, so the supplier would be
+ * held for every customer once the per-customer bank rule is on.
+ */
+export function oldChecksSummary(n: { named: number; unplaced: number; held: number }, opts: { script?: boolean } = {}): string {
+  const base = `${n.named} old checks name their payer and are not carried yet; ${n.unplaced} name no payer; ${n.held} of those have no payer's own check either.`
+  return opts.script ? `${base} Run again with --write to carry them.` : base
+}

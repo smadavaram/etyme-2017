@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import type { Route } from 'next'
 import { readJson } from '@/lib/read-response'
 import { PageHead, Panel, LoadingState, RefusedState, ErrorState } from '@/components/ui'
 import { Field, Input, SubmitButton, FormMessage } from '@/components/ui/form'
@@ -171,6 +173,10 @@ export default function SuperadminPage() {
             ))}
           </ul>
         )}
+      </Panel>
+
+      <Panel title="Old bank checks" subtitle="Which suppliers would be held once the per-customer bank rule goes on. Read only.">
+        <Link href={'/dashboard/superadmin/bank-checks' as Route} className="text-[14px] text-etyme-action-press underline">Open the old bank checks report</Link>
       </Panel>
 
       {mail && <MailFailuresPanel mail={mail} />}

@@ -19,7 +19,8 @@
  * code this runs.
  */
 import { PrismaClient } from '@prisma/client'
-import { oldChecksReport, carryOverOldChecks } from '../src/lib/vendor-master-read'
+import { oldChecksReport, carryOverOldChecks, bankCheckReport } from '../src/lib/vendor-master-read'
+import { oldChecksSummary } from '../src/lib/vendor-master'
 
 async function main() {
   const write = process.argv.includes('--write')
@@ -37,7 +38,7 @@ async function main() {
     console.log(
       write
         ? `bank-check-carry-over: ${n.carried} of ${n.named} old checks written as the named payer's own; ${n.unplaced} name no payer and count for nobody.`
-        : `bank-check-carry-over: ${n.named} old checks name their payer and are not carried yet; ${n.unplaced} name no payer. Run again with --write to carry them.`,
+        : `bank-check-carry-over: ${oldChecksSummary({ named: n.named, unplaced: n.unplaced, held: (await bankCheckReport(db as never)).held }, { script: true })}`,
     )
   } finally {
     await db.$disconnect()
