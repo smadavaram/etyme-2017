@@ -653,6 +653,9 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
   for three days after. An Admin neither enters nor confirms one. Each
   release of money asks for its own fresh check inside Etyme; marking a
   run paid from the bank's file is reconciliation, logged.
+- **A client's codes are kept by Finance and the Owner** (2026-11-17 →
+  90): `codes.manage`, or the AP clerk where no Finance seat exists
+  (`mayMaintainCodes`); an Admin only by the Owner's grant.
 - **Etyme never moves money.** A payment run is a list. It leaves as a
   file for the client's own system; the confirmation marks receipts
   paid; the supplier is told the day it is paid.
