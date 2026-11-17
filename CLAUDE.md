@@ -665,8 +665,10 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
   Dec 27; a holiday added later never moves pay days already written; a
   public page prints the firm, never a person (an Owner may opt in); a
   W-2 week worked outside the US follows the work country's local
-  overtime rule, and is held and flagged only where that rule is not
-  known or configured yet. A bill to a client not on Etyme
+  overtime rule once the work location is moved there, and is held and
+  flagged only where that rule is not known or configured yet; a
+  business-visa trip moves nothing, and pay stays with the home
+  employment. A bill to a client not on Etyme
   shows the supplier's chosen account with "Confirm these details with
   [supplier] by phone before your first payment."
 - **Etyme never moves money.** A payment run is a list. It leaves as a

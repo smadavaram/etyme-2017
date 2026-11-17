@@ -52,6 +52,11 @@ answers to the four owner questions. Sharath is the Owner of Tapin.
    other decision that waited on the Owner. Sharath corrected the first
    wording of this answer the same day. A country rule is enforced only
    after regulatory confirms it with its source (CLAUDE.md, Papers).
+   Sharath added: a person on a business visa is usually not paid in that
+   country at all. Pay stays with the home employment, and the home rules
+   apply, unless the location of work is moved there. Local pay and local
+   rules attach when the work location is moved, never because of a
+   business-visa trip.
 
 **The bill question** (Sharath's answer: yes). For a client that is not on
 Etyme, the bill shows the supplier's chosen account, with the line:
