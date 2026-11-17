@@ -6,8 +6,9 @@
  * Thanksgiving Day, Nov 26, and Christmas Day, Dec 25."), says which were
  * already on the calendar, and where a pay day already written on a
  * placement falls on a day just added, it says so and what the Owner can
- * do today. No date moves here: whether an unpaid date moves when a
- * holiday is added is the founder's to decide, and has been asked.
+ * do today. No date moves here. The Owner decided (2026-11-17, docs/decisions/92,
+ * answer 2): a holiday added later never moves pay days already written;
+ * only periods not yet written take it.
  *
  * Pure. Dates are printed through lib/format-date, without the year,
  * because the year is the one the button names.

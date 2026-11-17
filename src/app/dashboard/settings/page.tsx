@@ -27,6 +27,7 @@ import { COMPANY_CODE_HELP, COST_OBJECT_KIND_WORDS } from '@/lib/counterparty'
 import { MODEL_CARD_SUBTITLE, ONLY_OWNER_OR_ADMIN, TYPE_UNCHANGED, wallSays, accountWord } from '@/components/settings/settings-says'
 import { NOTHING_CHANGED } from '@/components/settings/panel-bits'
 import { levelOf } from '@/lib/access-grant'
+import { PEOPLE_ON_PAGE_WORDS } from '@/components/settings/people-on-page-words'
 
 /**
  * How this company is set up.
@@ -63,6 +64,10 @@ interface Company {
   typeSet: { by: string | null; at: string } | null
   /** The website the firm typed in Setup → Your company, or null. */
   website?: string | null
+  /** Whether the public page prints the Owner, HR and billing contacts by name. */
+  showPeopleOnPage?: boolean
+  /** True for an Owner seat only; the box is drawn for nobody else. */
+  mayChangeShowPeople?: boolean
 }
 interface Role {
   id: string
@@ -534,6 +539,21 @@ function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: Sen
       </Panel>
 
       <TypePanel data={data} busy={busy} />
+
+      {c.mayChangeShowPeople && (
+        <Panel title="Your public page">
+          <label className="flex items-start gap-2 text-[13px] text-etyme-ink">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={c.showPeopleOnPage === true}
+              disabled={busy}
+              onChange={(e) => send('/api/settings', 'PATCH', { showPeopleOnPage: e.target.checked })}
+            />
+            <span>{PEOPLE_ON_PAGE_WORDS}</span>
+          </label>
+        </Panel>
+      )}
 
       {/* Beside the type, because the founder looked here for it
           (2026-11-03): the switch itself is the Ask Etyme tab's. */}

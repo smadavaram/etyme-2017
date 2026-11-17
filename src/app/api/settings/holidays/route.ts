@@ -105,8 +105,10 @@ export async function POST(request: NextRequest) {
     })
 
     // A pay day already written on one of this company's placements, not
-    // yet paid, on a day just added. Said, never moved: whether it moves
-    // is the founder's to decide.
+    // yet paid, on a day just added. Said, never moved: the Owner decided
+    // (2026-11-17, docs/decisions/92, answer 2) that a holiday added later
+    // does not move pay days already written; only periods not yet written
+    // take it.
     const onAdded = fresh.length === 0
       ? []
       : await prisma.cycle.findMany({

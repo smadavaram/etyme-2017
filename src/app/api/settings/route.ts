@@ -10,6 +10,7 @@ import { getTemplatePack, TEMPLATE_PACKS } from '@/lib/template-packs'
 import { SHIFT_CATEGORIES, SHIFT_WORDS, isShiftDirection, policyFrom } from '@/lib/cycle-shift'
 import { checkTeamsLink, teamsLinkStanding } from '@/lib/notify/teams-link'
 import { changeCompanyKind, isOwnerSeat } from './kind'
+import { setShowPeople } from './people-on-page'
 import { readCompanySeats, countsByRole, countSeats, peopleOf, roleHeldWords, peopleWords, NO_SEATS, type SeatCounts } from '@/lib/company-seats'
 import { joinSentenceFor } from '@/lib/join-words'
 import { roleCanDo } from '@/lib/company-roles'
@@ -93,6 +94,7 @@ export async function GET(request: NextRequest) {
         kind: true, supplierPosture: true, currency: true, templatePack: true, country: true,
         // Typed in Setup → Your company; the Company tab says where (fix list A6).
         website: true,
+        showPeopleOnPage: true,
         teamsWebhookUrl: true, networkVerifiedAt: true, siteLiveAt: true,
         outsideAccess: true, accountWalls: true,
         cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
@@ -168,6 +170,8 @@ export async function GET(request: NextRequest) {
     data: {
       company: company && {
         ...company,
+        // Drawn only for an Owner: the choice is the Owner's alone.
+        mayChangeShowPeople: mayChangeType,
         kindSetAt: company.kindSetAt?.toISOString() ?? null,
         typeSet: company.kindSetAt ? { by: typeSetBy?.name ?? null, at: company.kindSetAt.toISOString() } : null,
         networkVerifiedAt: company.networkVerifiedAt?.toISOString() ?? null,
@@ -329,6 +333,24 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       data: { kind: result.kind, supplierPosture: result.supplierPosture, rolesAdded: result.rolesAdded, changed: ['type'], message: result.message },
     })
+  }
+
+  // ── Whether the public page shows people by name ───────────────────
+  // The Owner's alone (answer 3, docs/decisions/92), asked before the
+  // settings gate so an Admin is told whose it is, and the refusal is logged.
+  if (body && typeof body === 'object' && 'showPeopleOnPage' in body) {
+    if (Object.keys(body).length > 1) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'Change whether the page shows people on its own, then the rest.', field: 'showPeopleOnPage' } },
+        { status: 422 }
+      )
+    }
+    const r = await setShowPeople({
+      companyId: caller.company.id, contextId: caller.context.id,
+      person: { id: caller.person.id, name: caller.person.name }, value: body.showPeopleOnPage,
+    })
+    if (!r.ok) return NextResponse.json({ error: { code: r.code, message: r.message, field: 'showPeopleOnPage' } }, { status: r.status })
+    return NextResponse.json({ data: { showPeopleOnPage: r.showPeopleOnPage, changed: ['showPeopleOnPage'], message: r.message } })
   }
 
   if (!hasPermission(caller.permissions, 'settings.manage')) {

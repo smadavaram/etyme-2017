@@ -930,6 +930,10 @@ model Company {
   /// approve route and the overtime decision read it before offering it.
   timeOffInLieu        Boolean   @default(false)
   siteLiveAt           DateTime? // the ninety second promise
+  /// Whether the public company page may print the Owner, HR and billing
+  /// contacts by name. False by default: the page shows the firm, never a
+  /// person (Owner's answer 3, docs/decisions/92). Only an Owner turns it on.
+  showPeopleOnPage     Boolean   @default(false)
   networkVerifiedAt    DateTime? // visibility to other companies waits for this
   /// Whether Ask Etyme may send free-text questions to a model for this
   /// company (founder, 2026-10-13, "The model boundary"). Off until the
