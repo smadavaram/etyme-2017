@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { accessActor, recordAccess } from '@/lib/access-log'
 import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { runFile, type RunFile, type RunFileLine } from '@/lib/money/run-file'
-import { payToRowsFor } from '@/lib/money/pay-to'
+import { payToRows } from '@/lib/money/pay-to'
 
 /**
  * Read an approved payment run for its file, and record the read.
@@ -63,10 +63,10 @@ export async function readRunFile(caller: Caller, companyId: string, runId: stri
   // and only where it is checked. Never an older checked row standing in
   // for a newer default nobody checked: that line is held by the gate.
   const vendorIds = [...new Set(run.items.map((i) => i.vendorBill.vendorCompanyId))]
-  const rows = await payToRowsFor(companyId, vendorIds)
+  const rows = await payToRows(vendorIds)
   const bankOf = new Map<string, RunFileLine['bank']>()
   for (const [companyId, r] of rows) {
-    bankOf.set(companyId, { bankName: r.bankName, accountName: r.accountName ?? r.legalName, accountLast4: r.accountLast4 })
+    if (r.verifiedAt) bankOf.set(companyId, { bankName: r.bankName, accountName: r.accountName ?? r.legalName, accountLast4: r.accountLast4 })
   }
 
   const lines: RunFileLine[] = []

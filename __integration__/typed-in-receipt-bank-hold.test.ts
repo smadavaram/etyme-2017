@@ -47,7 +47,6 @@ describe('a typed-in invoice receipt is held on the supplier’s bank until some
       where: { companyId: consultisId },
       data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null },
     })
-    await prisma.bankCheck.deleteMany({ where: { remitTo: { companyId: consultisId } } })
     await prisma.supplierRequest.deleteMany({
       where: { companyId: brightmoor.id, OR: [{ supplierCompanyId: consultisId }, { firmCompanyId: consultisId }] },
     })

@@ -9,7 +9,7 @@ import { partiesOf } from '@/lib/money/invoice-parties'
 import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
 import { codingReader, splitIsPayers } from '@/lib/money/coding-reader'
 import { recordRefusal } from '@/lib/access-log'
-import { payToOnBillFor } from '@/lib/money/pay-to'
+import { payToOnBill } from '@/lib/money/pay-to'
 import { payToSays } from '@/lib/money/pay-to-words'
 
 /**
@@ -363,7 +363,7 @@ export async function GET(
   // Where it is paid: the issuer's pay-to row as it stands now, and only
   // where it is checked (lib/money/pay-to `payToOnBill`), never the row
   // the bill was written with. The same fields as before, and no more.
-  const payTo = parties.vendor ? await payToOnBillFor(parties.vendor.id, parties.client?.id ?? null) : { row: null, entered: false }
+  const payTo = parties.vendor ? await payToOnBill(parties.vendor.id) : { row: null, entered: false }
   const remitTo = payTo.row && {
     legalName: payTo.row.legalName, addressLines: payTo.row.addressLines, country: payTo.row.country, taxId: payTo.row.taxId,
     paymentMethod: payTo.row.paymentMethod, bankName: payTo.row.bankName, accountLast4: payTo.row.accountLast4, routingLast4: payTo.row.routingLast4,

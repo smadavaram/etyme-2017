@@ -12,8 +12,7 @@
  *     so every seeded bill still sends and every seeded payment pays;
  *     its paper sets confirmed per party as the shipped defaults, by its
  *     first seat on the day it was born; its payment details checked,
- *     because every seeded firm that bills was paid long before today,
- *     and checked by each customer that pays it, as its own check;
+ *     because every seeded firm that bills was paid long before today;
  *     the legal name its payment details already print; its first seat as
  *     the owner in charge; its sites and its week recorded as set;
  *   - the four client programs (Northbend, Cavanaugh, Talvern, Corvane):
@@ -33,7 +32,6 @@ import { prisma as db } from '@/lib/db'
 import { defaultRequiredSets } from '@/lib/document-stages/required-sets'
 import { PROGRAMMES } from '@/lib/seed-programmes'
 import { CORVANE_SLUG } from '@/lib/seed-corvane'
-import { payToFor } from '@/lib/vendor-master'
 
 interface Ctx { prefix: string; slugs: readonly string[] }
 
@@ -42,7 +40,7 @@ function streetFor(i: number): string {
   return `${100 + ((i * 37) % 800)} Commerce Drive`
 }
 
-export async function seedSetupChecklists(ctx: Ctx): Promise<{ addresses: number; papers: number; checked: number; bankChecks: number; clients: number; remits: number }> {
+export async function seedSetupChecklists(ctx: Ctx): Promise<{ addresses: number; papers: number; checked: number; clients: number; remits: number }> {
   const firms = await db.company.findMany({
     where: { slug: { in: [...ctx.slugs] } },
     select: {
@@ -139,8 +137,6 @@ export async function seedSetupChecklists(ctx: Ctx): Promise<{ addresses: number
     where: { companyId: { in: firms.map((f) => f.id) }, verifiedAt: null },
     data: { verifiedAt: firms[0]?.createdAt ?? new Date() },
   })
-  // ...and checked by each customer that pays it, as that customer's own.
-  const bankChecks = await checkedByEachPayer(firms.map((f) => f.id), ctx.prefix)
 
   // ── Every firm: the legal name its payment details already carry, its
   //    owner in charge, and its sites and week as the seed set them ─────
@@ -196,7 +192,7 @@ export async function seedSetupChecklists(ctx: Ctx): Promise<{ addresses: number
     })
   }
 
-  return { addresses: addresses.count, papers: papers.count, checked: checked.count, bankChecks, clients: clients.length, remits: remitsMade.count }
+  return { addresses: addresses.count, papers: papers.count, checked: checked.count, clients: clients.length, remits: remitsMade.count }
 }
 
 /**
@@ -216,82 +212,4 @@ export async function confirmPaperSets(firms: readonly { id: string; kind: strin
     ),
     skipDuplicates: true,
   })
-}
-
-/**
- * Each seeded firm's payment details, checked by each customer that pays
- * it, as that customer's own check (records 86 and 87: each payer
- * confirms for itself, and a check that names no payer counts for
- * nobody). A customer pays a firm in the seed where an agreement, an
- * order, a line the firm sells, an invoice receipt or a line bought from
- * the firm says so. The check is on the row that customer pays
- * (`payToFor`), as it read when the seed checked it. Where one customer
- * alone pays a row, the old columns name it too.
- *
- * Only customers in the seeded world: never a check on a real firm's
- * behalf. A second seeding writes nothing. Returns the checks written.
- */
-async function checkedByEachPayer(firmIds: readonly string[], prefix: string): Promise<number> {
-  const ids = [...firmIds]
-  const [msas, orders, sells, receipts, buys] = await Promise.all([
-    db.masterAgreement.findMany({ where: { vendorId: { in: ids } }, select: { clientId: true, vendorId: true }, distinct: ['clientId', 'vendorId'] }),
-    db.workOrder.findMany({ where: { issuedToId: { in: ids } }, select: { issuedById: true, issuedToId: true }, distinct: ['issuedById', 'issuedToId'] }),
-    db.sellContract.findMany({ where: { companyId: { in: ids } }, select: { clientCompanyId: true, companyId: true }, distinct: ['clientCompanyId', 'companyId'] }),
-    db.vendorBill.findMany({ where: { vendorCompanyId: { in: ids } }, select: { companyId: true, vendorCompanyId: true }, distinct: ['companyId', 'vendorCompanyId'] }),
-    db.buyContract.findMany({ where: { vendorCompanyId: { in: ids } }, select: { companyId: true, vendorCompanyId: true }, distinct: ['companyId', 'vendorCompanyId'] }),
-  ])
-  const pairs: [payer: string, payee: string][] = [
-    ...msas.map((m) => [m.clientId, m.vendorId] as [string, string]),
-    ...orders.map((o) => [o.issuedById, o.issuedToId] as [string, string]),
-    ...sells.map((c) => [c.clientCompanyId, c.companyId] as [string, string]),
-    ...receipts.map((b) => [b.companyId, b.vendorCompanyId] as [string, string]),
-    ...buys.map((b) => [b.companyId, b.vendorCompanyId!] as [string, string]),
-  ].filter(([payer, payee]) => payer !== payee)
-  if (pairs.length === 0) return 0
-
-  // A customer counts only where it is a seeded firm.
-  const seeded = new Set(ids)
-  const outside = [...new Set(pairs.map(([payer]) => payer))].filter((id) => !seeded.has(id))
-  if (outside.length) {
-    const ours = await db.company.findMany({ where: { id: { in: outside }, slug: { startsWith: prefix } }, select: { id: true } })
-    for (const c of ours) seeded.add(c.id)
-  }
-  const payersOf = new Map<string, Set<string>>()
-  for (const [payer, payee] of pairs) {
-    if (!seeded.has(payer)) continue
-    if (!payersOf.has(payee)) payersOf.set(payee, new Set())
-    payersOf.get(payee)!.add(payer)
-  }
-
-  const payees = [...payersOf.keys()]
-  const [rows, choices] = await Promise.all([
-    db.remitTo.findMany({
-      where: { companyId: { in: payees } },
-      select: {
-        id: true, companyId: true, isDefault: true, createdAt: true,
-        bankName: true, accountName: true, accountLast4: true, routingLast4: true, verifiedAt: true, verifiedById: true,
-      },
-    }),
-    db.remitToChoice.findMany({ where: { supplierCompanyId: { in: payees } }, select: { supplierCompanyId: true, payerCompanyId: true, remitToId: true } }),
-  ])
-  const checks: { remitToId: string; payerCompanyId: string; bankName: string | null; accountName: string | null; accountLast4: string | null; routingLast4: string | null; checkedById: string | null; checkedAt: Date }[] = []
-  const payersOnRow = new Map<string, string[]>()
-  for (const [payee, payers] of payersOf) {
-    for (const payer of payers) {
-      const row = payToFor(payee, payer, rows, choices)
-      if (!row?.verifiedAt) continue
-      checks.push({
-        remitToId: row.id, payerCompanyId: payer,
-        bankName: row.bankName, accountName: row.accountName, accountLast4: row.accountLast4, routingLast4: row.routingLast4,
-        checkedById: row.verifiedById, checkedAt: row.verifiedAt,
-      })
-      payersOnRow.set(row.id, [...(payersOnRow.get(row.id) ?? []), payer])
-    }
-  }
-  const written = checks.length ? await db.bankCheck.createMany({ data: checks, skipDuplicates: true }) : { count: 0 }
-  for (const [remitToId, payers] of payersOnRow) {
-    if (payers.length !== 1) continue
-    await db.remitTo.updateMany({ where: { id: remitToId, verifiedByCompanyId: null }, data: { verifiedByCompanyId: payers[0] } })
-  }
-  return written.count
 }
