@@ -23,7 +23,7 @@ import { daysFor } from '@/lib/contract-links'
 import { wageLineFor, EXEMPT_SELECT } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
 import { payLineOn, judgedLine } from '@/lib/money/pay-line'
-import { heldWeeksFor, heldWeeksNote } from '@/lib/consultant-portfolio/held-weeks'
+import { heldWeeksFor, heldWeeksNote, heldAbroadNote } from '@/lib/consultant-portfolio/held-weeks'
 import { periodTermsFor, ORDER_HEADER_SELECT } from '@/lib/money/order-terms'
 import { hoursInMonth } from '@/lib/periods'
 import { paidByPayroll, workerPaidAs, ownCompanyBillsSays, isWorkersOwnPayLine } from '@/lib/money/paid-through'
@@ -636,6 +636,7 @@ export async function GET(request: NextRequest) {
     const weeks: (OwedWeek & { payer: string; label: string })[] = []
     // Weeks Payroll holds, by the employer holding them.
     const heldBy: { employer: string; line: number; days: string[] }[] = []
+    const heldAbroadNotes: string[] = []
     let unknownRate = 0
     // Of those, the weeks on her own firm's contract: the rate is hers to
     // record, so the note says so rather than sending her to an agency.
@@ -740,7 +741,9 @@ export async function GET(request: NextRequest) {
           now
         )
         if (heldWeeks.length > 0 && heldLine != null) {
-          heldBy.push({ employer: bc.company?.name ?? sell.company.name, line: heldLine, days: heldWeeks.map((h) => h.weekOf) })
+          const home = heldWeeks.filter((h) => !h.workedIn)
+          if (home.length > 0) heldBy.push({ employer: bc.company?.name ?? sell.company.name, line: heldLine, days: home.map((h) => h.weekOf) })
+          for (const h of heldWeeks) if (h.workedIn) heldAbroadNotes.push(heldAbroadNote(h.weekOf, h.workedIn))
         }
         for (const w of priced) {
           weeks.push({ ...w, payer: bc.company?.name ?? sell.company.name, label: `Week of ${shortDay(w.weekOf, now)}` })
@@ -770,6 +773,7 @@ export async function GET(request: NextRequest) {
     const heldNotes = heldBy
       .map((h) => heldWeeksNote(h.employer, [...h.days].sort().map((d) => shortDay(d, now)), h.line))
       .filter((x): x is string => x !== null)
+      .concat(heldAbroadNotes)
     // A run from before 2026-09-29 recorded no hours, so what it paid
     // cannot be taken off. Said, rather than showing its hours as owed.
     const unrecorded = [...paidBy.values()].some((b) => b.unrecorded.size > 0)

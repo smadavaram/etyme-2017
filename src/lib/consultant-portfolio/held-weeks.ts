@@ -22,6 +22,7 @@ import { paySheet } from '@/lib/money/pay-hours'
 import type { AcceptedCut } from '@/lib/periods'
 import type { CutOvertime } from '@/lib/cut-overtime-choice'
 import { weekStart } from '@/lib/overtime'
+import { formatDayLong } from '@/lib/format-date'
 
 export interface HeldSheet {
   id: string
@@ -60,7 +61,10 @@ export function heldWeeksFor(i: {
     for (const w of held) {
       const was = out.get(w.weekOf)
       out.set(w.weekOf, was
-        ? { weekOf: w.weekOf, workedHours: was.workedHours + w.workedHours, overHours: was.overHours + w.overHours }
+        ? {
+            weekOf: w.weekOf, workedHours: was.workedHours + w.workedHours, overHours: was.overHours + w.overHours,
+            ...(w.workedIn ?? was.workedIn ? { workedIn: (w.workedIn ?? was.workedIn) as string } : {}),
+          }
         : w)
     }
   }
@@ -73,8 +77,19 @@ export function heldWeeksFor(i: {
  * "Exempt" is the payroll person's word; she reads whether she is paid
  * overtime, which is what it decides.
  */
-export function heldWeekSays(employer: string, hours: number, line: number): string {
+export function heldWeekSays(
+  employer: string, hours: number, line: number, abroad?: { weekOf: string; workedIn: string },
+): string {
   const h = Math.round(hours * 100) / 100
+  // A week worked in a country with no overtime rule recorded: said with
+  // the week and the country, no figure, and no fault of hers.
+  if (abroad) {
+    return (
+      `Your week of ${formatDayLong(abroad.weekOf)} is on hold. ` +
+      `You worked ${h} hour${h === 1 ? '' : 's'} in ${abroad.workedIn}, and your employer is still setting the overtime rules there. ` +
+      `It is paid once they are set.`
+    )
+  }
   return (
     `${employer} is holding this week, ${h} hour${h === 1 ? '' : 's'}, until it records whether you are paid overtime for hours over ${line}. ` +
     `It is then paid once, with any overtime owed.`
@@ -89,4 +104,9 @@ export function heldWeeksNote(employer: string, days: readonly string[], line: n
   if (days.length === 0) return null
   const which = days.length === 1 ? `Your week of ${days[0]} is` : `${days.length} weeks are`
   return `${which} held until ${employer} records whether you are paid overtime for hours over ${line}.`
+}
+
+/** The line under "What you are owed" for a week held because the country has no overtime rule yet. */
+export function heldAbroadNote(weekOf: string, country: string): string {
+  return `Your week of ${formatDayLong(weekOf)} is on hold while your employer sets the overtime rules for ${country}.`
 }

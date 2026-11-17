@@ -219,4 +219,28 @@ describe('her page and the Payroll page read one held week the same way', () => 
       await prisma.workAssertion.updateMany({ where: { timesheetId: { in: ids }, role: 'EMPLOYER_ACCEPTANCE' }, data: { at: early } })
     }
   })
+  it('a worker whose week abroad is held reads which country, and that her employer is setting the overtime rules there, with no figure and nothing written', async () => {
+    await prisma.exemptAssertion.deleteMany({ where: { buyContractId: buyId, personId } })
+    const sell = await prisma.sellContract.findFirstOrThrow({ where: { personId, companyId: firmId }, select: { id: true, clientCompanyId: true } })
+    const site = await prisma.companyLocation.create({ data: { companyId: sell.clientCompanyId, name: 'Pune office', city: 'Pune', country: 'IN' } })
+    await prisma.sellContract.update({ where: { id: sell.id }, data: { workLocationId: site.id } })
+    const before = await Promise.all([prisma.timesheet.count(), prisma.exemptAssertion.count(), prisma.workAssertion.count()])
+    try {
+      const row = await payrollRow()
+      expect(row.heldWeeks[0]).toMatchObject({ weekOf: '2026-10-18', hours: 46 })
+      const { owed, oct18 } = await herPage()
+      expect(oct18.held).toBe(true)
+      expect(oct18.owedCents).toBeNull()
+      expect(oct18.says).toBe(
+        'Your week of October 18, 2026 is on hold. You worked 46 hours in India, and your employer is still setting the overtime rules there. It is paid once they are set.'
+      )
+      expect(oct18.says).not.toMatch(/\$|exempt|whether you are paid overtime/)
+      expect(owed.says).toContain('Your week of October 18, 2026 is on hold while your employer sets the overtime rules for India.')
+      expect(owed.says).not.toContain('2,070')
+      expect(await Promise.all([prisma.timesheet.count(), prisma.exemptAssertion.count(), prisma.workAssertion.count()])).toEqual(before)
+    } finally {
+      await prisma.sellContract.update({ where: { id: sell.id }, data: { workLocationId: null } })
+      await prisma.companyLocation.delete({ where: { id: site.id } })
+    }
+  })
 })

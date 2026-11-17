@@ -2072,7 +2072,7 @@ export interface OwedPayLine {
    * line the answer decides. A held week is never priced here: no
    * amount, no pay day, and it is in no "owed to you" total.
    */
-  held?: { weeks: ReadonlyArray<{ weekOf: string; workedHours: number }>; line: number }
+  held?: { weeks: ReadonlyArray<{ weekOf: string; workedHours: number; workedIn?: string }>; line: number }
 }
 
 // ── Her pay day, by her employer's own pay periods ──────────────────
@@ -2522,7 +2522,7 @@ export function owedByWeek(
           hours: null, ordinaryHours: null, overtimeHours: null, premiumCents: null,
           owedCents: null, stillOwedCents: null, unpaidHours: null, unpaidOvertimeHours: null,
           paidCents, paidHours, filedHours, dueOn: null, overdue: false, paidOn: w.paidOn, parts: null,
-          says: heldWeekSays(Employer, heldWeek.workedHours, line.held.line) + already,
+          says: heldWeekSays(Employer, heldWeek.workedHours, line.held.line, heldWeek.workedIn ? { weekOf, workedIn: heldWeek.workedIn } : undefined) + already,
         }
       }
 

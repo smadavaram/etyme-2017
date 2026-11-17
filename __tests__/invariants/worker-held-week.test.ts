@@ -181,11 +181,12 @@ describe('what was right before stays right', () => {
     expect(week.owedCents).toBe(207_000)
   })
 
-  it('a worker outside the US is never held on the US forty: her week of 46 at $45 reads $2,070.00 as before', () => {
+  it('a worker outside the US with no local overtime rule recorded is held, and her page names the country and no figure', () => {
     const { held, week } = herWeek(null, sheet(LONG_WEEK), { siteCountry: 'GB' })
-    expect(held).toEqual([])
-    expect(week.priced).toBe(true)
-    expect(week.owedCents).toBe(207_000)
+    expect(held).toEqual([{ weekOf: '2026-10-18', workedHours: 46, overHours: 6, workedIn: 'the UK' }])
+    expect(week.priced).toBe(false)
+    expect(week.owedCents).toBeNull()
+    expect(week.says).toContain('You worked 46 hours in the UK')
   })
 
   it('a firm paying by the month holds the same week the same way, and its 40-hour week falls due on its monthly pay day, Nov 6', () => {
