@@ -653,6 +653,11 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
   for three days after. An Admin neither enters nor confirms one. Each
   release of money asks for its own fresh check inside Etyme; marking a
   run paid from the bank's file is reconciliation, logged.
+- **The supplier keeps its own profile, as a procurement network does**
+  (founder, 2026-11-17 → 87): one profile shared with every customer,
+  a remit-to account chosen per customer, each customer approving the
+  supplier and every change for itself, and an approved change sent to
+  the customer's own system.
 - **A client's codes are kept by Finance and the Owner** (2026-11-17 →
   90): `codes.manage`, or the AP clerk where no Finance seat exists
   (`mayMaintainCodes`); an Admin only by the Owner's grant.

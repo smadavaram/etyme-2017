@@ -70,3 +70,42 @@ first. Then the order is:
   reads the system's reason.
 - Tax columns come before country date and number formats.
 - A line with no client code is held from the file and listed as held.
+
+### The supplier's own profile, the way a procurement network keeps it — 2026-11-17
+
+The founder asked whether the vendor master is self-managed, and answered:
+*"Do what [the procurement network he named] does."* (The network is named
+here by kind only, under the rule that no real company is named.) A
+procurement network keeps the vendor master like this, and Etyme now
+follows it:
+
+1. **The supplier keeps one profile of its own**: legal name, tax form
+   (W-9), addresses, and its remit-to bank accounts. It enters the profile
+   once, and every customer it trades with reads it. A customer never
+   types a supplier's details.
+2. **A supplier may keep more than one remit-to account and choose which
+   account each customer pays.** The payment, the run file and the bill
+   read the account chosen for that customer, falling back to the
+   supplier's default. This refines the one-row rule of record 85: there
+   is one row per customer, not one row for all customers.
+3. **Each customer registers and approves the supplier for itself**, in
+   its own workflow. That workflow is the existing four-role supplier walk
+   (department lead, Procurement, HR, Finance), with the customer's own
+   questions. One customer's approval never counts for another.
+4. **A change the supplier makes to its profile goes to every customer it
+   trades with, for that customer's approval**, as record 86 says for
+   bank details: a recorded call back, a second person, then three days.
+   Until a customer approves the change, that customer keeps paying under
+   the details it last approved, or holds payment where the bank changed.
+5. **An approved change goes to the customer's own system** as a
+   monitored message, so its vendor record in its accounting system is
+   updated (Layer 9). The message is a "supplier changed" message, keyed
+   by the customer's own vendor number for that supplier. It carries no
+   full account number. The customer's system confirms the bank on its own
+   side.
+6. **Payment advice comes back to the supplier**, which Layer 9 already
+   does.
+
+A worker's own W-4 and voided check stay as decided above: she enters
+them on her own page, her employer's HR or payroll checks them, and they
+go to the payroll provider.
