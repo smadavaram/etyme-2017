@@ -70,7 +70,8 @@ describe('a client sets the codes its own books use', () => {
   it('saving the company code writes a log row that says who changed it and never holds the code', async () => {
     const log = await prisma.automationLog.findFirstOrThrow({ where: { companyId: client.companyId, action: 'COMPANY_CODE_CHANGED' } })
     expect(log.summary).toContain('changed the company code')
-    expect(JSON.stringify(log)).not.toContain('1000')
+    expect(JSON.stringify({ summary: log.summary, reason: log.reason })).not.toContain('1000')
+    expect(Object.keys(log.payload as object)).toEqual(['by'])
     expect(log.payload).toMatchObject({ by: client.personId })
   })
 
