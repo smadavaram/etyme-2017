@@ -661,6 +661,13 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
 - **A client's codes are kept by Finance and the Owner** (2026-11-17 →
   90): `codes.manage`, or the AP clerk where no Finance seat exists
   (`mayMaintainCodes`); an Admin only by the Owner's grant.
+- **Owner's answers** (2026-11-17 → 92): the first pay-period Sunday is
+  Dec 27; a holiday added later never moves pay days already written; a
+  public page prints the firm, never a person (an Owner may opt in); a
+  W-2 week over 40 hours worked outside the US is held and flagged until
+  per-country overtime settings exist. A bill to a client not on Etyme
+  shows the supplier's chosen account with "Confirm these details with
+  [supplier] by phone before your first payment."
 - **Etyme never moves money.** A payment run is a list. It leaves as a
   file for the client's own system; the confirmation marks receipts
   paid; the supplier is told the day it is paid.
