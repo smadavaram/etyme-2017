@@ -526,6 +526,11 @@ const RULE_ATTRIBUTED = [
   // seating her on a second one (claimOrJoin, 2026-10-27). She started it,
   // so it has no rung; the row says why and that it cannot be undone.
   'FIRM_JOINED',
+  // Staff ran the carry-over of old bank checks by hand (record 87,
+  // 2026-11-17, scripts/bank-check-carry-over.ts): a check the record
+  // already placed with one payer is written as that payer's own. A
+  // person's act, never scheduled; the row says which record named it.
+  'BANK_CHECK_CARRIED_OVER',
   // The Owner changed what kind of company this is (a client, a supplier,
   // a one-person firm) from settings (2026-11-02). Her own act; the row
   // says from what to what, and she can change it back.

@@ -1215,6 +1215,16 @@ model Company {
   bankChangeRequests BankChangeRequest[]
   bankChecksMade     BankCheck[]
 
+  /// Which of a supplier's payment details each customer pays (record 87,
+  /// 2026-11-17): the choices this firm made as the supplier, and the ones
+  /// made for it as a payer.
+  remitToChoicesMade   RemitToChoice[]         @relation("remitToChoiceSupplier")
+  remitToChoicesForUs  RemitToChoice[]         @relation("remitToChoicePayer")
+  /// "Supplier changed" messages to this firm's own system, and about this
+  /// firm as the supplier (record 87, Layer 9).
+  supplierChangesToUs  SupplierChangeMessage[] @relation("supplierChangePayer")
+  supplierChangesAbout SupplierChangeMessage[] @relation("supplierChangeSupplier")
+
   @@index([listedById])
 }
 
@@ -6508,8 +6518,44 @@ model RemitTo {
   /// Each paying firm's own check of these details (record 86).
   bankChecks         BankCheck[]
   bankChangeRequests BankChangeRequest[]
+  /// The customers this firm chose to pay these details (record 87).
+  choices            RemitToChoice[]
 
   @@index([companyId, isDefault])
+}
+
+/// Which of a supplier's payment details one customer pays (record 87,
+/// 2026-11-17: "a supplier may keep more than one remit-to account and
+/// choose which account each customer pays"). One row per supplier and
+/// payer. No row: the payer pays the supplier's default, else the first
+/// entered (`payToFor` in lib/vendor-master).
+///
+/// A table, not a column on the register row: a pair may hold several
+/// register rows (a client that is also a prime), a customer may be one by
+/// agreement with no register row to hang a choice on, and writing a row
+/// only to hold a choice would give the payer a position.
+///
+/// The supplier's to write. A choice naming another firm's details is read
+/// as no choice.
+model RemitToChoice {
+  id                String   @id @default(cuid())
+  /// The firm that is paid, whose details these are.
+  supplierCompanyId String
+  supplier          Company  @relation("remitToChoiceSupplier", fields: [supplierCompanyId], references: [id], onDelete: Cascade)
+  /// The firm that pays them.
+  payerCompanyId    String
+  payer             Company  @relation("remitToChoicePayer", fields: [payerCompanyId], references: [id], onDelete: Cascade)
+  /// The details this payer pays. Removing them removes the choice, and
+  /// the payer falls back to the default.
+  remitToId         String
+  remitTo           RemitTo  @relation(fields: [remitToId], references: [id], onDelete: Cascade)
+  /// Who chose, and when. A record of a person, never followed.
+  chosenById        String?
+  chosenAt          DateTime @default(now())
+
+  @@unique([supplierCompanyId, payerCompanyId])
+  @@index([payerCompanyId])
+  @@index([remitToId])
 }
 
 // ─────────────────────────────────────────────
@@ -6603,7 +6649,9 @@ model BankChangeRequest {
   disownedAt          DateTime?
   disownedById        String?
 
-  checks BankCheck[]
+  checks                 BankCheck[]
+  /// The "supplier changed" messages this change sent to customers' systems.
+  supplierChangeMessages SupplierChangeMessage[]
 
   @@index([companyId, state])
   @@index([remitToId])
@@ -10874,4 +10922,52 @@ model BillFeedMessage {
   @@index([runId])
   @@index([vendorBillId])
   @@index([lineId])
+}
+
+/// One "supplier changed" message to a customer's own system (record 87,
+/// 2026-11-17), so its vendor record is updated once the customer approved
+/// the change. A sibling of `BillFeedMessage`, which is about invoice lines
+/// and always names a receipt. Keyed by the customer's own vendor number
+/// for the supplier; a customer with none is not sent one. Carries the
+/// bank and the last four digits only, never a full number: the customer's
+/// system confirms the bank on its own side.
+///
+/// States as the feed has them, without PAID: QUEUED · SENT · ACCEPTED ·
+/// REJECTED · FAILED · SUPERSEDED. Nothing writes it yet.
+model SupplierChangeMessage {
+  id String @id @default(cuid())
+
+  /// The paying company: the customer whose system this is.
+  companyId           String
+  company             Company            @relation("supplierChangePayer", fields: [companyId], references: [id], onDelete: Cascade)
+  /// The supplier whose record changed.
+  supplierCompanyId   String
+  supplier            Company            @relation("supplierChangeSupplier", fields: [supplierCompanyId], references: [id], onDelete: Cascade)
+  /// The change it carries.
+  bankChangeRequestId String?
+  bankChangeRequest   BankChangeRequest? @relation(fields: [bankChangeRequestId], references: [id], onDelete: SetNull)
+  /// The customer's own number for the supplier, as it read when the
+  /// message was made.
+  vendorNumber        String
+
+  /// OUT · IN
+  direction   String  @default("OUT")
+  state       String  @default("QUEUED")
+  /// Why, in words, where the state is a refusal or a failure.
+  reason      String?
+  /// The other system's reference for the update.
+  externalRef String?
+  attempts    Int     @default(1)
+
+  /// One message per customer, change, direction and generation.
+  idempotencyKey String @unique
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  sentAt     DateTime?
+  answeredAt DateTime?
+
+  @@index([companyId, state])
+  @@index([supplierCompanyId])
+  @@index([bankChangeRequestId])
 }

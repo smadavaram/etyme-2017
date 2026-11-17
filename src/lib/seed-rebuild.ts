@@ -104,6 +104,9 @@ export const DELETE_ORDER = [
   // The second check (Layer 7, record 86): a person's passkeys and
   // authenticator apps go before the person.
   'Passkey', 'AuthenticatorApp',
+  // Record 87: a customer's choice of account names the details and both
+  // firms; a "supplier changed" message names the change and both firms.
+  'RemitToChoice', 'SupplierChangeMessage',
   // A payer's check of a firm's bank details goes before the change it
   // answered, the details and both firms; the change before the details.
   'BankCheck', 'BankChangeRequest',
@@ -300,6 +303,8 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'BankCheck.callbackById': { as: 'RECORD' },
   'BankChangeRequest.enteredById': { as: 'RECORD' },
   'BankChangeRequest.disownedById': { as: 'RECORD' },
+  // Record 87: who chose which account a customer pays. A record of a person.
+  'RemitToChoice.chosenById': { as: 'RECORD' },
   'Passkey.credentialId': { as: 'RECORD' },
   'Passkey.revokedById': { as: 'RECORD' },
   'AuthenticatorApp.revokedById': { as: 'RECORD' },

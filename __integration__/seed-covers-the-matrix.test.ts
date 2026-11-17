@@ -65,6 +65,9 @@ const RUNTIME: Record<string, string> = {
   // until a person acts, and a seeded row would claim an act nobody did.
   bankCheck: 'written when a paying client confirms a supplier’s bank details with a recorded call back; a seeded row would claim a client called somebody',
   bankChangeRequest: 'written when a supplier enters new bank details; the seed changes nobody’s bank',
+  // Record 87 (2026-11-17). Nothing writes these until a person acts.
+  remitToChoice: 'written when a supplier chooses which account one customer pays; the seed chooses for nobody, so every customer pays the default',
+  supplierChangeMessage: 'written when a customer’s confirmed change is sent to its own system; nothing sends one yet, and the seed changes nobody’s bank',
   passkey: 'written when a person enrolls a passkey for the second check; the seed enrolls nobody',
   authenticatorApp: 'written when a person enrolls an authenticator app; the seed enrolls nobody',
   securityEvent: 'written by security events as they happen (a second check, a showing of bank details); the seed claims none happened',
