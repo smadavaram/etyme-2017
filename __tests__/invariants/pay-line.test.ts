@@ -131,11 +131,20 @@ describe('who the law’s forty does not reach', () => {
       const line = payLineFor({ ...base, where })
       expect(line).toMatchObject({ afterHours: null, reason: 'US_UNCONFIRMED' })
     }
-    const line = payLineFor({ ...base, where: { ...US, siteCountry: 'IN', payCurrency: 'INR' } })
+    const line = payLineFor({ ...base, where: { ...US, entityCountry: 'IN', payCurrency: 'INR' } })
     expect(payLineSays(line, { personName: 'Karthik Menon', employerName: 'Teleworld' }, weeklyWorked(FORTY_FIVE))).toContain(
-      "Teleworld's record says US wage law governs Karthik Menon's pay, but the work site is in India and pay is in INR, " +
+      "Teleworld's record says US wage law governs Karthik Menon's pay, but the entity that pays is in India and pay is in INR, " +
         "so the US 40-hour overtime line is not applied until somebody records which country's rules govern."
     )
+  })
+
+  it('a not-exempt worker whose work site is in a country with no overtime rule has the week held, never paid at straight time', () => {
+    // Walk, 2026-11-17: the sentence above once read "every hour is paid at straight time" for a site in India.
+    const line = payLineFor({ ...base, where: { ...US, siteCountry: 'IN', payCurrency: 'INR' } })
+    expect(line.heldAbroad).toBe('India')
+    const says = payLineSays(line, { personName: 'Karthik Menon', employerName: 'Teleworld' }, weeklyWorked(FORTY_FIVE))!
+    expect(says).toContain('Etyme has no overtime rule recorded for India')
+    expect(says).not.toContain('straight time')
   })
 
   it('reads a site or an entity recorded in the US as no evidence against the US', () => {

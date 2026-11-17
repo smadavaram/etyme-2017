@@ -148,12 +148,29 @@ describe('a week worked abroad where Etyme has no overtime rule is held, and a b
     expect(mine.totalApprovedHours).toBe(46)
   })
 
+  it('recording not exempt does not release a week worked in a country with no rule, and the row offers no exempt answer', async () => {
+    // Walk, 2026-11-17: "Not exempt" on this row paid the 46 abroad hours at the usual rate.
+    await recordNonexempt(abroad)
+    const mine = await row(abroad)
+    expect(mine.exemptStatus).toBe('NONEXEMPT')
+    expect(mine.heldHours).toBe(46)
+    expect(mine.exemptReleases).toBe(false)
+    expect(mine.exemptHeld).toContain('Recording whether Rhea Castellan is exempt does not release it.')
+    const paid = await run(abroad, 'process')
+    expect(paid.status, JSON.stringify(paid.body)).toBe(200)
+    expect(paid.body.data.details.find((x: any) => x.buyContractId === abroad.buyId).grossPay).toBe(0)
+    const f = await call(owner, payrollExport, 'GET', '/api/payroll/export?from=2026-06-07&to=2026-06-13&provider=GENERIC')
+    expect(f.body.data.lines.filter((l: any) => l.personName === 'Rhea Castellan')).toHaveLength(0)
+    expect(f.body.data.skipped.find((k: any) => k.personName === 'Rhea Castellan')?.action)
+      .toBe('Paid once Etyme records an overtime rule for India, or the work location is moved.')
+  })
+
   it('a held week is paid once, after the work location is moved, never twice', async () => {
     await prisma.sellContract.update({ where: { id: abroad.sellId }, data: { workLocationId: siteHome } })
     const mine = await row(abroad)
-    // At a US site nobody has said whether she is exempt: the older hold applies, not the country hold.
-    expect(mine.exemptHeld).not.toContain('worked in India')
-    // Recording the answer releases it, as before.
+    // At a US site with not exempt recorded: the country hold is gone.
+    expect(mine.exemptHeld ?? '').not.toContain('worked in India')
+    // Recording the answer again changes nothing; the move released it.
     await recordNonexempt(abroad)
     expect((await run(abroad, 'calculate')).status).toBe(200)
     const paid = await run(abroad, 'process')

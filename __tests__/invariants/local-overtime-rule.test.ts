@@ -51,9 +51,9 @@ describe('which overtime rule a week falls under, by the country where the work 
     expect(payLineFor(where({ siteCountry: 'IN', entityCountry: 'US', payCurrency: 'USD' })).heldAbroad).toBe('India')
   })
 
-  it('a person whose exempt answer is already recorded keeps today\'s behavior abroad: nothing is held', () => {
-    expect(held({ ...where({ siteCountry: 'IN' }), exemptStatus: 'EXEMPT' })).toEqual([])
-    expect(held({ ...where({ siteCountry: 'IN', wageRule: 'US_FLSA' }), exemptStatus: 'NONEXEMPT' })).toEqual([])
+  it('a person whose exempt answer is already recorded is still held abroad: the answer never releases a week worked where Etyme has no rule', () => {
+    expect(held({ ...where({ siteCountry: 'IN' }), exemptStatus: 'EXEMPT' })).toHaveLength(1)
+    expect(held({ ...where({ siteCountry: 'IN', wageRule: 'US_FLSA' }), exemptStatus: 'NONEXEMPT' })).toHaveLength(1)
   })
 
   it('a week at or under forty hours worked abroad is not held', () => {

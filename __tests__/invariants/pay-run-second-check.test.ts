@@ -192,12 +192,13 @@ describe('a week over 40 hours outside the US, for a person nobody has said is e
   // Monday Dec 14 to Friday Dec 18, 2026: 10 + 9 x 4 = 46 hours, all 46 x $96 = $4,416 at straight time.
   const days = { '2026-12-14': 10, '2026-12-15': 9, '2026-12-16': 9, '2026-12-17': 9, '2026-12-18': 9 }
 
-  it('a work site in India: the row says the US 40-hour line is not applied, nobody has said, and every hour is straight time', () => {
+  it('a work site in India, where Etyme has no overtime rule: the row says the week is held whether or not he is exempt, never straight time', () => {
+    // Walk, 2026-11-17: this sentence read "every hour is paid at straight time" while the week was held.
     const said = payLineSays(line({ siteCountry: 'IN' }), { personName: 'Ravi Kumar', employerName: 'Brightmoor Staffing' }, weeklyWorked(days))
     expect(said).toBe(
-      'Ravi Kumar worked 46 hours in the week of December 13, 2026. The US 40-hour overtime line is not applied, ' +
-        'because the work site is in India. Nobody has recorded whether Ravi Kumar is exempt, or which country\'s ' +
-        'overtime rules apply. Neither contract sets an overtime line, so every hour is paid at straight time.'
+      'Ravi Kumar worked 46 hours in the week of December 13, 2026 in India, and Etyme has no overtime rule recorded for India. ' +
+        'A week accepted over 40 hours is held, whether or not Ravi Kumar is exempt. ' +
+        'It is paid once a rule is recorded or the work location is moved.'
     )
     for (const n of words(said!)) expect(n).toBeLessThan(25)
   })

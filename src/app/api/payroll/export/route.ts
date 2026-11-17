@@ -9,8 +9,8 @@ import { priceByDay, rateInForce, ratePeriods } from '@/lib/contract-rate'
 import type { ExemptAssertion, ExemptionBasis, ExemptStatus, WageRuleName } from '@/lib/worker-classification'
 import { workedByWeek } from '@/lib/money/sheet-overtime'
 import { methodFor } from '@/lib/money/overtime-method'
-import { payLineFor, payLineSays, weeklyWorked, judgedLine } from '@/lib/money/pay-line'
-import { acceptanceForPay, payBands, payCut, paidDayMaps, straightTimeSays } from '@/lib/money/pay-hours'
+import { payLineFor, payLineSays, weeklyWorked, judgedLine, heldForExemption, heldAbroadSays } from '@/lib/money/pay-line'
+import { acceptanceForPay, payBands, payCut, paidDayMaps, paySheet, straightTimeSays } from '@/lib/money/pay-hours'
 import { cutOvertimeFor } from '@/lib/cut-overtime-choice'
 import { clientsDecisions } from '@/lib/money/client-overtime'
 import { topLegsOver } from '@/lib/money/client-overtime-read'
@@ -326,6 +326,24 @@ export async function GET(request: NextRequest) {
     const cutWeeks = new Map((cut?.weeks ?? []).map((w) => [w.weekOf, w]))
     const daysKnown = Object.keys((s.days as Record<string, number>) ?? {}).length > 0
 
+    // A week in this window worked in a country Etyme has no overtime rule
+    // for, accepted over the line: off the file whatever the exempt answer
+    // is, by the reader the run and the Payroll row use (walk, 2026-11-17:
+    // "Not exempt" paid 46 abroad hours at the usual rate).
+    const abroadHeld = payLine.heldAbroad && acceptance !== 'MANY' && daysKnown
+      ? heldForExemption({
+          line: payLine,
+          days: (s.days as Record<string, number>) ?? {},
+          leaveDays: (s.leaveDays as Record<string, number>) ?? {},
+          accepted: paySheet({
+            all: (s.days as Record<string, number>) ?? {}, mine: (s.days as Record<string, number>) ?? {},
+            leaveDays: (s.leaveDays as Record<string, number>) ?? {}, afterHours: payLine.afterHours,
+            accepted: acceptance, cutOvertime: cutRule,
+          }).accepted,
+          cutOvertime: cutRule,
+        }).filter((w) => w.workedIn && cutWeeks.has(w.weekOf))
+      : []
+
     // ── Each week at the rate in force over it ─────────────────────
     const periods = buy ? ratePeriods(rateRows.filter((r) => r.contractId === buy.id)) : []
     const recorded = candidate?.payRate ?? null
@@ -411,6 +429,9 @@ export async function GET(request: NextRequest) {
           ? `${s.sellContract.company?.name ?? 'The employer'} has more than one acceptance standing on ${s.person.name}'s ` +
             `week, and nothing says which of them governs, so it is not paid on a guess.`
           : null,
+      heldAbroad: abroadHeld.length > 0
+        ? { says: abroadHeld.map((w) => heldAbroadSays(s.person.name, w)).join(' '), country: payLine.heldAbroad as string }
+        : null,
       submittedHours: Number(s.totalHours),
       acceptedHours: acceptance && acceptance !== 'MANY' ? acceptance.hours : s.acceptedHours ? Number(s.acceptedHours) : null,
       employerAcceptedAt: s.employerAcceptedAt,

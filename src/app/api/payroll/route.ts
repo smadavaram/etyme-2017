@@ -952,6 +952,11 @@ export async function GET(request: NextRequest) {
         // is exempt from overtime, the hours held, and the sentence; with
         // what is recorded, so the row offers the step that releases it.
         exemptHeld,
+        // Whether recording the exempt answer releases anything held here:
+        // only a week held for want of it, never a week worked in a country
+        // with no overtime rule (lib/money/pay-line, `heldForExemption`).
+        // The row offers "Not exempt" / "Exempt…" only where this is true.
+        exemptReleases: heldInPeriod.some((w) => !w.workedIn),
         // Every hour held off this pay, for either reason; and of them, the
         // hours after the pay window ended, with their own sentence.
         heldHours,

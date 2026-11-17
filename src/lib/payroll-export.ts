@@ -214,6 +214,13 @@ export interface SheetToPay {
   weeksAreAccepted?: boolean
   /** Why the sheet cannot be paid as accepted, where it cannot. Left off, in this sentence. */
   cannotPay?: string | null
+  /**
+   * A week on the sheet worked in a country Etyme has no overtime rule
+   * for, accepted over the line (lib/money/pay-line, `heldForExemption`):
+   * the sentence, and the country. Left off whatever the exempt answer is,
+   * because the US answer says nothing about another country's law.
+   */
+  heldAbroad?: { says: string; country: string } | null
   employerAcceptedAt: Date | null
   /** Cents an hour from the buy leg. Null where nothing says what they are paid. */
   payRateCents: number | null
@@ -331,6 +338,16 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
         periodEnd: s.periodEnd,
         why: s.cannotPay,
         action: 'Withdraw all but one acceptance on the week, then run this again.',
+      })
+      continue
+    }
+
+    if (s.heldAbroad) {
+      skipped.push({
+        personName: s.personName,
+        periodEnd: s.periodEnd,
+        why: s.heldAbroad.says,
+        action: `Paid once Etyme records an overtime rule for ${s.heldAbroad.country}, or the work location is moved.`,
       })
       continue
     }

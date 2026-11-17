@@ -118,6 +118,8 @@ interface PayItem {
    * what is recorded (null where nothing is).
    */
   exemptHeld?: string | null
+  /** True where recording the exempt answer releases a held week; never for a week held abroad. */
+  exemptReleases?: boolean
   heldHours?: number
   /**
    * Each week held because it is after the pay window ended on a
@@ -998,7 +1000,10 @@ export default function PayrollPage() {
               {row.exemptHeld && (
                 <span className="block">
                   {row.exemptHeld}
-                  {mayRecordExempt && <ExemptAnswer row={row} onSaved={fetchPayroll} />}
+                  {/* Offered only where the answer releases a week: a week worked
+                      in a country with no overtime rule stays held whatever it
+                      is, and its sentence says so. */}
+                  {mayRecordExempt && row.exemptReleases && <ExemptAnswer row={row} onSaved={fetchPayroll} />}
                 </span>
               )}
               {/* A week after the pay window ended on a placement extended past
