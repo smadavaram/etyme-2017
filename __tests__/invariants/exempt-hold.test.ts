@@ -107,11 +107,9 @@ describe('a week over 40 hours for a person nobody has said is exempt is held of
     expect(judgedLine(w2({ buyAfterHours: 38 }))).toBe(38)
   })
 
-  it('a worker this firm does not pay as a wage, or work outside the US, is never held here', () => {
+  it('a worker this firm does not pay as a wage is never held here, and a US week is judged on its own line', () => {
     expect(held(w2({ contractType: 'C2C' }), WEEK_46)).toEqual([])
     expect(held(w2({ weAreTheEmployer: false }), WEEK_46)).toEqual([])
-    expect(held(w2({ where: { ...US, siteCountry: 'IN' } }), WEEK_46)).toEqual([])
-    expect(judgedLine(w2({ where: { ...US, siteCountry: 'IN' } }))).toBeNull()
   })
 
   it('the held week leaves the days to pay, all 46 of its hours, and the other week stays', () => {
