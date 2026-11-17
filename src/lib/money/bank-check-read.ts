@@ -3,17 +3,19 @@
  * what the supplier entered, and the check itself. The rules are in
  * lib/money/bank-check; this only reads and writes.
  *
- * The check writes the same three columns on the supplier's payment
- * details that the supplier walk's Finance item writes
- * (app/api/supplier-requests/[id]), so `mayPayFirm` in lib/setup-gates
- * passes on either, and a later change to the bank clears both
- * (`bankChange` in lib/money/remit-change).
+ * The check is this payer's own (record 86): a `BankCheck` row on the
+ * details this payer pays (`readPayToFor`, record 87), holding what was
+ * checked, so a later change to the bank voids it for this payer alone.
+ * The three old columns the supplier walk's Finance item writes are
+ * written too where they are empty, for the gate that still reads them
+ * (`mayPayFirm` in lib/setup-gates), and never over another payer's.
  */
 
 import { prisma } from '@/lib/db'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
-import { mayPayFirm } from '@/lib/setup-gates'
-import { payToRow } from '@/lib/money/pay-to'
+import { readPayToFor } from '@/lib/vendor-master-read'
+import { payerStandingAt, payerHeldSays } from '@/lib/money/pay-gate'
+import { bankCheckerNamesAt } from '@/lib/setup-gates'
 import {
   bankCheckers, bankHeldSays, bankCheckWrite, mayCheckBank,
   type BankHeld, type PayerSeat, type BankFactsShown,
@@ -37,11 +39,11 @@ export async function payerSeats(companyId: string): Promise<PayerSeat[]> {
 }
 
 /**
- * The payment details a check is made on: the row a payment goes to
- * (`payToRow` in lib/money/pay-to), the same row the gate asks about.
+ * The payment details a check is made on: the row this payer pays
+ * (`readPayToFor`, record 87), the same row the gate asks about.
  */
-async function payeeRemit(payeeId: string) {
-  return payToRow(payeeId)
+async function payeeRemit(payerId: string, payeeId: string) {
+  return readPayToFor(payeeId, payerId)
 }
 
 function factsOf(r: Awaited<ReturnType<typeof payeeRemit>>): BankFactsShown | null {
@@ -51,7 +53,7 @@ function factsOf(r: Awaited<ReturnType<typeof payeeRemit>>): BankFactsShown | nu
 
 /** What a held receipt says about the bank, to this reader (null: the twin, a queue line). */
 export async function bankHoldAt(a: { payer: Firm; payee: Firm; viewerId: string | null }): Promise<BankHeld> {
-  const [seats, remit] = await Promise.all([payerSeats(a.payer.id), payeeRemit(a.payee.id)])
+  const [seats, remit] = await Promise.all([payerSeats(a.payer.id), payeeRemit(a.payer.id, a.payee.id)])
   return bankHeldSays({
     payee: a.payee.name,
     payer: a.payer.name,
@@ -71,13 +73,40 @@ export type BankCheckResult =
  * the details are already checked.
  */
 export async function checkPayeeBank(a: { payer: Firm; payee: Firm; by: { personId: string; name: string }; at?: Date }): Promise<BankCheckResult> {
-  const gate = await mayPayFirm(a.payer.id, a.payee.id)
-  if (gate.ok) return { ok: false, status: 409, code: 'ALREADY_CHECKED', says: `${a.payee.name}’s bank details are already checked.` }
-  const [seats, remit] = await Promise.all([payerSeats(a.payer.id), payeeRemit(a.payee.id)])
+  const at = a.at ?? new Date()
+  // This payer's own standing, never another payer's check.
+  const { payTo, standing } = await payerStandingAt(a.payer.id, a.payee.id, prisma, at)
+  // Already checked by this payer, and the old columns the gate still
+  // reads agree. Where a walk cleared those columns, the check is written
+  // again so the hold can be lifted.
+  if (standing.open && payTo?.verifiedAt) return { ok: false, status: 409, code: 'ALREADY_CHECKED', says: `${a.payee.name}’s bank details are already checked.` }
+  // A change the supplier entered is confirmed with a call back, never by
+  // this check, and a confirmed one waits its 72 hours.
+  if (!standing.open && (standing.why === 'CHANGE_NOT_CONFIRMED' || standing.why === 'WAITING_72_HOURS' || standing.why === 'CHANGE_DISOWNED')) {
+    return { ok: false, status: 409, code: 'CHANGE_WAITS', says: payerHeldSays(a.payee.name, standing, await bankCheckerNamesAt(a.payer.id)) }
+  }
+  const [seats, remit] = await Promise.all([payerSeats(a.payer.id), payeeRemit(a.payer.id, a.payee.id)])
   const may = mayCheckBank(a.by.personId, bankCheckers(seats), a.payer.name)
   if (!may.ok) return { ok: false, status: 403, code: 'FORBIDDEN', says: may.says }
-  const write = bankCheckWrite({ payee: a.payee.name, payer: a.payer, by: a.by, facts: factsOf(remit), at: a.at ?? new Date() })
+  const write = bankCheckWrite({ payee: a.payee.name, payer: a.payer, by: a.by, facts: factsOf(remit), at })
   if (!write.ok || !remit) return { ok: false, status: 422, code: 'NO_BANK_DETAILS', says: write.says }
-  await prisma.remitTo.update({ where: { id: remit.id }, data: write.data })
+  const row = await prisma.remitTo.findUniqueOrThrow({
+    where: { id: remit.id },
+    select: { bankName: true, accountName: true, accountLast4: true, routingLast4: true },
+  })
+  const checked = { ...row, checkedById: a.by.personId, checkedAt: at }
+  await prisma.$transaction([
+    prisma.bankCheck.upsert({
+      where: { remitToId_payerCompanyId: { remitToId: remit.id, payerCompanyId: a.payer.id } },
+      create: { remitToId: remit.id, payerCompanyId: a.payer.id, ...checked },
+      update: {
+        ...checked,
+        callbackAt: null, callbackById: null, callbackNumber: null, callbackNumberSource: null, callbackSpokeWith: null,
+        callbackOutcome: null, bankChangeRequestId: null,
+      },
+    }),
+    // The old columns, only where nobody's check stands on them.
+    prisma.remitTo.updateMany({ where: { id: remit.id, verifiedAt: null }, data: write.data }),
+  ])
   return { ok: true, says: write.says }
 }

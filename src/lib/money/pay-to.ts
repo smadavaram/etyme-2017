@@ -93,3 +93,46 @@ export async function payToOnBill(
   const row = await db.remitTo.findFirst({ where: { companyId: issuerId }, orderBy: PAY_TO_ORDER, select: ON_BILL_SELECT })
   return { row: printedOnBill(row), entered: row != null }
 }
+
+// ── Per payer (records 86 and 87) ─────────────────────────────────────
+//
+// A bill prints the account the supplier chose for the bill's payer, else
+// its default (`readPayToFor` in lib/vendor-master-read), and only once
+// that payer itself confirmed it and its payment is open
+// (`payerStandingAt` in lib/money/pay-gate). Another payer's check never
+// prints an account. With no payer known, nothing is printed.
+
+/** What a bill this firm issued to this payer prints today. */
+export async function payToOnBillFor(
+  issuerId: string,
+  payerId: string | null,
+  db: typeof prisma = prisma,
+  now: Date = new Date(),
+): Promise<{ row: PayToOnBill | null; entered: boolean }> {
+  const { payerStandingAt } = await import('@/lib/money/pay-gate')
+  if (!payerId) {
+    const any = await db.remitTo.findFirst({ where: { companyId: issuerId }, select: { id: true } })
+    return { row: null, entered: any != null }
+  }
+  const at = await payerStandingAt(payerId, issuerId, db, now)
+  if (!at.payTo) return { row: null, entered: false }
+  if (!at.standing.open) return { row: null, entered: true }
+  const row = await db.remitTo.findUnique({ where: { id: at.payTo.id }, select: ON_BILL_SELECT })
+  return { row, entered: true }
+}
+
+/** For a payment run's file: the row this payer pays each firm, only where its payment is open. A firm with none is absent. */
+export async function payToRowsFor(
+  payerId: string,
+  companyIds: readonly string[],
+  db: typeof prisma = prisma,
+  now: Date = new Date(),
+): Promise<Map<string, PayToRow>> {
+  const { payerStandingAt } = await import('@/lib/money/pay-gate')
+  const out = new Map<string, PayToRow>()
+  for (const id of new Set(companyIds)) {
+    const at = await payerStandingAt(payerId, id, db, now)
+    if (at.payTo && at.standing.open) out.set(id, at.payTo)
+  }
+  return out
+}

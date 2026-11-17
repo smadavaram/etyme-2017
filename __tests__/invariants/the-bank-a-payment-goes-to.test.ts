@@ -48,7 +48,10 @@ describe('the payment gate reads the bank a payment goes to', () => {
     const gate = readFileSync('src/lib/setup-gates.ts', 'utf8')
     expect(gate).toContain('payToRow(payeeCompanyId, db)')
     expect(gate).not.toMatch(/remitTo\.findFirst\(\{\s*where:\s*\{\s*companyId:\s*payeeCompanyId,\s*verifiedAt/)
-    expect(readFileSync('src/lib/money/bank-check-read.ts', 'utf8')).toContain('return payToRow(payeeId)')
+    // The check from a held receipt reads the row this payer pays (record
+    // 87): the default where the supplier chose none for this payer, which
+    // is the row `payToRow` names.
+    expect(readFileSync('src/lib/money/bank-check-read.ts', 'utf8')).toContain('return readPayToFor(payeeId, payerId)')
     const file = readFileSync('src/lib/money/run-file-read.ts', 'utf8')
     expect(file).toContain('payToRows(vendorIds)')
     expect(file).not.toContain('verifiedAt: { not: null }')
