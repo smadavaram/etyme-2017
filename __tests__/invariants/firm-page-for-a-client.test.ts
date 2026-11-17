@@ -63,6 +63,7 @@ vi.mock('@/lib/db', () => {
 })
 
 import { publicSite } from '@/lib/public-site'
+import { GET as siteFeed } from '@/app/api/site/[slug]/route'
 import { POST as askFirm } from '@/app/api/site/[slug]/ask/route'
 import { firmContact, mayShowPublicly, FIRM_ASK_COPY, firmAskThanks } from '@/lib/public-site/firm-page'
 import { joinReply, joinReplyFor, joinReplyNoLetter, joinProblems, JOIN_BENCH_COPY, JOIN_EMAIL_NO_LETTER, TOO_MANY_SAYS } from '@/lib/public-site/join-bench'
@@ -82,7 +83,7 @@ function tapin(over: Row = {}): Row {
     siteLiveAt: new Date('2026-10-29T00:00:00Z'), networkVerifiedAt: null, domain: null, domainVerified: false,
     claimedAt: new Date('2026-10-17T00:00:00Z'), _count: { contexts: 3 },
     siteTagline: null, siteIntro: null, siteHeadings: null, siteWrittenBy: null,
-    phone: '(415) 555-0142', accountsEmail: 'Accounts@tapin.test',
+    phone: '(415) 555-0142', accountsEmail: 'Accounts@tapin.test', showPeopleOnPage: false,
     peopleInCharge: [
       { duty: 'OWNER', name: null, personId: 'sharath' },
       { duty: 'BILLING_CONTACT', name: 'Ravi Kalra', personId: null },
@@ -135,11 +136,7 @@ describe('a bench firm’s page, read by a client', () => {
     }
 
     expect(site.askBox).toBe(true)
-    expect(site.contact).toEqual({
-      phone: '(415) 555-0142',
-      accountsEmail: 'accounts@tapin.test',
-      people: [{ role: 'Owner', name: 'Sharath Madavaram' }, { role: 'Billing', name: 'Ravi Kalra' }],
-    })
+    expect(site.contact).toEqual({ phone: '(415) 555-0142', accountsEmail: 'accounts@tapin.test', people: [] })
     // A person's own address never reaches the page, even where it is known.
     expect(JSON.stringify(site)).not.toContain('sharath@etyme.com')
 
@@ -173,6 +170,50 @@ describe('a bench firm’s page, read by a client', () => {
     expect(site.contact).toBeNull()
     expect(site.askBox).toBe(true)
     expect(firmContact({ phone: ' ', accountsEmail: 'not an address', inCharge: [{ duty: 'HR', name: null, seatedName: null }] })).toBeNull()
+  })
+
+  it('a company page prints the firm\'s phone and accounts email and no person\'s name until the Owner opts in', async () => {
+    const site = (await publicSite('tapin'))!
+    expect(site.contact).toEqual({ phone: '(415) 555-0142', accountsEmail: 'accounts@tapin.test', people: [] })
+    for (const never of ['Sharath', 'Madavaram', 'Ravi', 'Kalra']) expect(JSON.stringify(site), never).not.toContain(never)
+    const page = readFileSync(join(process.cwd(), 'src/app/site/[slug]/page.tsx'), 'utf8')
+    // The block still draws its heading, phone and accounts rows with no person row.
+    expect(page).toContain('Contact {site.name}')
+    expect(page).toContain('contact.phone &&')
+    expect(page).toContain('contact.accountsEmail &&')
+  })
+
+  it('the public data feed carries no person\'s name until the Owner opts in', async () => {
+    const res = await siteFeed(new NextRequest('http://x/api/site/tapin'), { params: Promise.resolve({ slug: 'tapin' }) })
+    const body = JSON.stringify(await res.json())
+    for (const never of ['Sharath', 'Madavaram', 'Ravi', 'Kalra']) expect(body, never).not.toContain(never)
+    expect(body).toContain('accounts@tapin.test')
+  })
+
+  it('after the Owner opts in, the page shows the Owner, HR and billing contacts by name', async () => {
+    h.company = tapin({
+      showPeopleOnPage: true,
+      peopleInCharge: [
+        { duty: 'OWNER', name: null, personId: 'sharath' },
+        { duty: 'HR', name: 'Dana Whitfield', personId: null },
+        { duty: 'BILLING_CONTACT', name: 'Ravi Kalra', personId: null },
+      ],
+    })
+    const site = (await publicSite('tapin'))!
+    expect(site.contact!.people).toEqual([
+      { role: 'Owner', name: 'Sharath Madavaram' }, { role: 'HR', name: 'Dana Whitfield' }, { role: 'Billing', name: 'Ravi Kalra' },
+    ])
+  })
+
+  it('Tapin\'s public page shows the firm and no person', async () => {
+    h.company = tapin({ phone: null, accountsEmail: null })
+    const site = (await publicSite('tapin'))!
+    // Only people were set: nothing is invented, the firm is named, the Ask box and Join the bench stay.
+    expect(site.name).toBe('Tapin')
+    expect(site.contact).toBeNull()
+    expect(site.askBox).toBe(true)
+    expect(site.joinBench).toBe(true)
+    expect(JSON.stringify(site)).not.toContain('Sharath')
   })
 
   it('a client’s page, an MSP’s and an integrator’s carry no ask box for a client', async () => {

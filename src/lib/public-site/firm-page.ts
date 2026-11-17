@@ -168,6 +168,8 @@ export interface ContactInput {
    * place for it.
    */
   inCharge: { duty: string; name: string | null; seatedName: string | null }[]
+  /** The Owner's choice (docs/decisions/92). Anything but true prints no person. */
+  showPeople?: boolean
 }
 
 export interface FirmContact {
@@ -182,7 +184,7 @@ export function firmContact(c: ContactInput): FirmContact | null {
   const mail = normalEmail(c.accountsEmail)
   const accountsEmail = mail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail) ? mail : null
   const order: InChargeDuty[] = ['OWNER', 'HR', 'BILLING_CONTACT']
-  const people = order.flatMap((duty) => {
+  const people = c.showPeople !== true ? [] : order.flatMap((duty) => {
     const row = c.inCharge.find((r) => r.duty === duty)
     const name = tidy(row?.name ?? null) ?? tidy(row?.seatedName ?? null)
     return name ? [{ role: DUTY_SAYS[duty], name }] : []

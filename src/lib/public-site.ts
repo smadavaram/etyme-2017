@@ -265,6 +265,8 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       // The contact the firm set at setup. Never a CompanyInCharge email:
       // that is a person's own address.
       phone: true, accountsEmail: true,
+      // The Owner's choice, same column `showsPeople` reads (decisions/92).
+      showPeopleOnPage: true,
       peopleInCharge: { select: { duty: true, name: true, personId: true } },
       locations: {
         where: { isRemote: false },
@@ -282,13 +284,16 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
 
   const audience = audienceFor(company.kind)
 
-  const seatedIds = company.peopleInCharge.map((r) => r.personId).filter((x): x is string => !!x)
+  const showPeople = company.showPeopleOnPage === true
+  // Nobody is looked up, let alone printed, unless the Owner opted in.
+  const seatedIds = !showPeople ? [] : company.peopleInCharge.map((r) => r.personId).filter((x): x is string => !!x)
   const seated = seatedIds.length
     ? await prisma.person.findMany({ where: { id: { in: seatedIds } }, select: { id: true, name: true } })
     : []
   const contact = firmContact({
     phone: company.phone,
     accountsEmail: company.accountsEmail,
+    showPeople,
     inCharge: company.peopleInCharge.map((r) => ({
       duty: r.duty,
       name: r.name,
