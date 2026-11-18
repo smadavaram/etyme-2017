@@ -114,3 +114,4 @@ built, every release check, every walk and every deploy.
 | 96 | Model expectations: the cheap tier first, and what reaches neither — 2026-11-18 | 764 | [96-model-expectations-the-cheap-tier-first-and-what-reaches-neither-2026-11-18.md](96-model-expectations-the-cheap-tier-first-and-what-reaches-neither-2026-11-18.md) |
 | 97 | The Owner's answers and the email fixes shipped — 2026-11-18 | 466 | [97-the-owners-answers-and-the-email-fixes-shipped-2026-11-18.md](97-the-owners-answers-and-the-email-fixes-shipped-2026-11-18.md) |
 | 98 | Company agents come first — 2026-11-18 | 516 | [98-company-agents-come-first-2026-11-18.md](98-company-agents-come-first-2026-11-18.md) |
+| 99 | Sensitive numbers are masked until a reveal is granted — 2026-11-18 | 367 | [99-sensitive-numbers-are-masked-until-a-reveal-is-granted-2026-11-18.md](99-sensitive-numbers-are-masked-until-a-reveal-is-granted-2026-11-18.md) |

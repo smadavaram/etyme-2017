@@ -753,6 +753,11 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
 - **Who reads what.** A person reads only their own commissions. A
   client never sees a supplier's commissions or margin. A recruiter
   reads no margin unless the Owner grants it.
+- **A tax ID, bank details and a social security number are masked for
+  everyone** (founder, 2026-11-18 → 99). The Owner reveals one after a
+  fresh second check; anyone else asks, and reads it only inside the
+  window the Owner grants. A share outside is confirmed and attached to
+  the record. Every reveal and share is on the ledger.
 - **Bank details** are kept and shown as the bank, the account name and
   four digits. A bank change clears the bank check. A client is never
   asked for bank details.
