@@ -189,7 +189,7 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
     expect(p.body.data.backPay.totalCents).toBe(125 * 300 + 5 * 150)
   })
 
-  it('pays the same week at straight time, and says why, once the work is recorded at a site outside the US', async () => {
+  it('holds the same week, and says why, once the work location is moved to a country with no recorded overtime rule', async () => {
     const site = await prisma.companyLocation.create({
       data: { companyId: clientId, name: 'Pune delivery center', country: 'IN' } as any,
     })
@@ -197,8 +197,9 @@ describe('a nonexempt US worker is paid overtime after forty hours even where no
     const r = await call(owner, payroll, 'GET', `/api/payroll?period=2026-06&companyId=${firmId}`)
     const item = r.body.data.payItems.find((x: any) => x.buyContractId === buyId)
     expect(item.premiumCents).toBe(0)
-    expect(item.payLine).toContain('the work site is in India')
-    expect(item.payLine).toContain('the US 40-hour overtime line is not applied')
+    expect(item.payLine).toContain('Etyme has no overtime rule recorded for India')
+    expect(item.payLine).toContain('is held')
+    expect(item.payLine).not.toContain('straight time')
     await prisma.sellContract.update({ where: { id: sellId }, data: { workLocationId: null } })
   })
 })
