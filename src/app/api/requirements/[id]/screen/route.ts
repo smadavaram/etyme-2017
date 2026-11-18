@@ -1,13 +1,11 @@
 import { jobBandReadable } from '../band-readable'
 import { jobWorkCountry } from '@/lib/work-country'
 import { NextRequest, NextResponse } from 'next/server'
-import { modelFor } from '@/lib/model-ids'
-import Anthropic from '@anthropic-ai/sdk'
-import { getCallerContext } from '@/lib/api-context'
+import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { runLoop, lastVerdict, type Finding, type Step } from '@/lib/loop'
-import { evidencePrompt, evidenceCheck, type Evidenced } from '@/lib/checks'
+import { readSkillEvidence, stampModelRun, type SkillRead } from '@/lib/checks/skill-evidence'
 import { evaluateGovernance } from '@/lib/governance'
 import { assessFit } from '@/lib/candidate-fit'
 import { endClientFilter } from '@/lib/resolve-end-client'
@@ -33,10 +31,6 @@ import {
  * screening what its primes sent, and the layer cake means both happen on
  * the same day against the same person.
  */
-
-const anthropic = new Anthropic()
-const MODEL = modelFor('CHECK')
-
 
 export async function POST(
   request: NextRequest,
@@ -313,6 +307,8 @@ export async function POST(
     const cvText = s.resume?.textExtract ?? null
     const claimed = profile?.skills ?? []
 
+    let skillRead: SkillRead | null = null
+
     const steps: Step<Arriving>[] = [
       { code: 'RULES', checker: 'RULE', run: (a) => screenRules(a, now) },
       {
@@ -325,22 +321,19 @@ export async function POST(
         whenItCannotRun:
           'Could not check the CV against the claimed skills. Nobody has verified them.',
         run: async (): Promise<Finding | null> => {
-          if (!cvText || claimed.length === 0 || !process.env.ANTHROPIC_API_KEY) return null
+          if (!cvText || claimed.length === 0) return null
 
-          const response = await anthropic.messages.create({
-            model: MODEL,
-            max_tokens: 4000,
-            thinking: { type: 'adaptive' },
-            output_config: { effort: 'low' },
-            messages: [{ role: 'user', content: evidencePrompt(claimed, cvText) }],
+          // Through the boundary Ask Etyme uses: the company's switch and
+          // allowance, a masked CV, the prompt logged. Switch off or no key
+          // comes back unverified, never as a pass.
+          skillRead = await readSkillEvidence({
+            companyId,
+            personId: realPersonId(caller),
+            personName: s.person.name,
+            claimed,
+            cvText,
           })
-
-          const text = response.content.find((b) => b.type === 'text')
-          const raw = text && text.type === 'text' ? text.text : ''
-          const json = raw.match(/\[[\s\S]*\]/)
-          const answers: Evidenced[] = json ? JSON.parse(json[0]) : []
-
-          return evidenceCheck(claimed, answers, cvText)
+          return skillRead.finding
         },
       },
     ]
@@ -355,6 +348,10 @@ export async function POST(
       arriving,
       { companyId, recordId: s.id, attempt }
     )
+
+    await stampModelRun({
+      companyId, agent: 'submission.screen.skills_evidenced', recordId: s.id, attempt, read: skillRead,
+    })
 
     await prisma.submission.update({
       where: { id: s.id },

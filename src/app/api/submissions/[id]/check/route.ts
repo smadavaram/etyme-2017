@@ -1,15 +1,13 @@
 import { jobWorkCountry } from '@/lib/work-country'
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
-import { modelFor } from '@/lib/model-ids'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { record } from '@/lib/agent-run'
 import {
-  ruleChecks, evidencePrompt, evidenceCheck, marketCheck, MAX_ATTEMPTS,
-  type Package, type Evidenced,
+  ruleChecks, marketCheck, MAX_ATTEMPTS,
+  type Package,
 } from '@/lib/checks'
+import { readSkillEvidence, stampModelRun, unverifiedSkills, type SkillRead } from '@/lib/checks/skill-evidence'
 import { runLoop, lastVerdict, mayProceed, type Finding, type Step } from '@/lib/loop'
 import { band, warnAbout, WINDOW_DAYS, type Observation } from '@/lib/benchmark'
 
@@ -34,9 +32,6 @@ import { band, warnAbout, WINDOW_DAYS, type Observation } from '@/lib/benchmark'
  * point, and a person has to be able to review a sample of the model's
  * work later.
  */
-
-const anthropic = new Anthropic()
-const MODEL = modelFor('CHECK')
 
 export async function POST(
   request: NextRequest,
@@ -168,6 +163,8 @@ export async function POST(
     at: p.submittedAt,
   }))
 
+  let skillRead: SkillRead | null = null
+
   const steps: Step<Package>[] = [
     {
       code: 'RULES',
@@ -202,33 +199,23 @@ export async function POST(
         'Could not check the CV against the claimed skills this time. Nobody has verified them.',
       run: async (p): Promise<Finding | null> => {
         if (!cvText) {
-          return submission.resumeId
-            ? {
-                code: 'SKILLS_EVIDENCED',
-                checker: 'MODEL',
-                verdict: 'PASS',
-                unverified: true,
-                reason: 'The CV could not be read as text, so the skill claims are unchecked.',
-              }
-            : null
+          if (!submission.resumeId) return null
+          const f = unverifiedSkills('The CV could not be read as text, so the skill claims are unchecked.')
+          skillRead = { finding: f, model: null, usage: null, unverifiedBecause: f.reason }
+          return f
         }
 
-        if (p.claimedSkills.length === 0 || !process.env.ANTHROPIC_API_KEY) return null
-
-        const response = await anthropic.messages.create({
-          model: MODEL,
-          max_tokens: 4000,
-          thinking: { type: 'adaptive' },
-          output_config: { effort: 'low' },
-          messages: [{ role: 'user', content: evidencePrompt(p.claimedSkills, cvText) }],
+        // The company's switch and allowance, the mask and the prompt log
+        // are the boundary's (lib/checks/skill-evidence); no key or a
+        // switch that is off comes back unverified, never as a pass.
+        skillRead = await readSkillEvidence({
+          companyId,
+          personId: realPersonId(caller),
+          personName: p.personName,
+          claimed: p.claimedSkills,
+          cvText,
         })
-
-        const text = response.content.find((b) => b.type === 'text')
-        const raw = text && text.type === 'text' ? text.text : ''
-        const json = raw.match(/\[[\s\S]*\]/)
-        const answers: Evidenced[] = json ? JSON.parse(json[0]) : []
-
-        return evidenceCheck(p.claimedSkills, answers, cvText)
+        return skillRead.finding
       },
     },
   ]
@@ -238,6 +225,11 @@ export async function POST(
     pkg,
     { companyId, recordId: submission.id, attempt }
   )
+
+  // The model and its cost go on the ledger row the loop wrote.
+  await stampModelRun({
+    companyId, agent: 'submission.check.skills_evidenced', recordId: submission.id, attempt, read: skillRead,
+  })
 
   const state = outcome.state
 
