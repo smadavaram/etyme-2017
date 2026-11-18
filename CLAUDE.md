@@ -858,6 +858,10 @@ Full text → 12, 14, 24, 32, 35.
   failure there goes to a person. Confidential data never goes to the
   cheap provider directly without the tenant's opt-in. The owner pastes
   each key, after the report he asked for.
+- **Company agents come first** (founder, 2026-11-18 → 98): an agent for
+  each role, account manager, recruiter, HR, contracts, timesheets,
+  billing, invoice receipts and money flow, as acts in the role contract,
+  rules first. A recruiter's mail plugin and a worker's own agent wait.
 - **The voice.** Recommendation first. Names, not counts. One sentence
   per refusal, with the door. No apology words. The trade's phrasing:
   who applied, approve a timesheet, pay an invoice, on hold.
