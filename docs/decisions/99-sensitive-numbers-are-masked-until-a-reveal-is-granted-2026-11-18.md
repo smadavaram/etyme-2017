@@ -82,3 +82,20 @@ example "HR may reveal for I-9 and payroll setup"), he said: "Yes."
   second check, names its purpose, and is on the ledger.
 - Everything outside a standing grant is asked for and approved one
   request at a time.
+
+### A standing grant is cover, and it expires — 2026-11-18
+
+"More like back up. If one worker is not available for a week or a
+month we can grant access for that role and set it to expire in a
+month."
+- A standing grant is cover for somebody who is away. The Owner grants
+  a named person the role's purposes for a set time.
+- Every standing grant has an end date. It ends by itself on that day,
+  as a seat does on its end date. Recommended default: one month, and
+  never open-ended. Longer cover is a new grant.
+- The Owner may end it early. Each reveal under it still asks the
+  covering person's own second check and is on the ledger, with whose
+  cover it was.
+- The usual holder of a role (HR for I-9 and payroll setup) reveals for
+  her own role's purposes with her own second check. That is her job,
+  not a grant.
