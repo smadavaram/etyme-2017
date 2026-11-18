@@ -19,7 +19,7 @@ import { emit } from '@/lib/events'
 import { checkInvite } from '@/lib/account-lifecycle'
 import { doorOpen, issueSetPassword } from '@/lib/password-door'
 import { baseUrl } from '@/lib/signed-link'
-import { appUrl } from '@/lib/app-url'
+import { mailedUrl } from '@/lib/app-url'
 import { recordedBody } from '@/lib/notify/account-mail'
 import { hasEverCameIn } from '@/lib/notify/came-in'
 import { sendEmailNow } from '@/lib/notify/send-now'
@@ -260,7 +260,7 @@ export async function underInviteLock<T>(companyId: string, fn: () => Promise<T>
 
 /** The ready message for Copy invitation, from the company's mode. No token, ever. */
 export function copyTextFor(a: { inviterName: string; companyName: string; roleName: string | null; email: string; mode: EffectiveMode }): string {
-  return copyInvitation({ ...a, appUrl: appUrl(), mailLeaves: mailLeaves() })
+  return copyInvitation({ ...a, appUrl: mailedUrl(), mailLeaves: mailLeaves() })
 }
 
 // ── One invitation ─────────────────────────────────────────────────────

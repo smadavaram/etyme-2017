@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { appUrl } from '@/lib/supplier-link'
+import { mailedBase } from '@/lib/app-url'
 
 /**
  * One implementation of a signed link, for every page a stranger opens.
@@ -85,7 +85,6 @@ export function baseUrl(): string {
   // links, so NEXT_PUBLIC_APP_URL counts here too. appUrl() falls back to
   // localhost, which is a link to nowhere in a mail client — so with
   // nothing set this stays empty and the caller sends no link.
-  const said =
-    process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-  return said ? appUrl() : ''
+  // Through mailedBase: never the one-off deployment address on production.
+  return mailedBase()
 }

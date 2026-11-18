@@ -1,4 +1,4 @@
-import { appUrl } from '@/lib/supplier-link'
+import { mailedUrl } from '@/lib/app-url'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -421,7 +421,7 @@ export async function POST(request: NextRequest) {
       clocks: [],
     },
     now: new Date(),
-    url: `${appUrl()}/dashboard/privacy`,
+    url: `${mailedUrl()}/dashboard/privacy`,
   })
   await tellStaff(alert.subject, alert.body)
 

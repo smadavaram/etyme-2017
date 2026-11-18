@@ -46,7 +46,7 @@ import { emit } from '@/lib/events'
 import { hasEverCameIn } from '@/lib/notify/came-in'
 import { emailSender } from '@/lib/senders'
 import { sendEmailNow } from '@/lib/notify/send-now'
-import { appUrl } from '@/lib/supplier-link'
+import { mailedUrl } from '@/lib/app-url'
 import { createCompany } from '@/lib/company-create'
 import { recordAnswers } from '@/lib/setup-checklist-state'
 import { signUpAnswers } from '@/lib/setup-fill'
@@ -197,7 +197,7 @@ async function mail(personId: string, to: string, subject: string, lines: string
 }
 
 function link(path: string): string {
-  return `${appUrl()}${path}`
+  return `${mailedUrl()}${path}`
 }
 
 /**

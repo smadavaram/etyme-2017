@@ -30,6 +30,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     emailLink: emailLinkDoorOn(),
     emailSender: Boolean(process.env.RESEND_API_KEY && process.env.NOTIFY_FROM_EMAIL),
     anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
+    lastingAddress: Boolean(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL),
   }
   // Replies by email: the secret is named, never valued. A signed delivery
   // writes the same inbound message row a button answer does, so it

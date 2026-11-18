@@ -171,8 +171,8 @@ describe('the base address', () => {
     const br = read('src/app/api/breaches/route.ts')
     // Either the pure helper or lib/supplier-link's re-export of it; the
     // privacy page is a screen, so data-request takes the pure one.
-    expect(dr).toMatch(/import \{ appUrl \} from '@\/lib\/(app-url|supplier-link)'/)
-    expect(br).toContain('url: `${appUrl()}/dashboard/privacy`')
+    expect(dr).toMatch(/import \{ mailedUrl \} from '@\/lib\/(app-url|supplier-link)'/)
+    expect(br).toContain('url: `${mailedUrl()}/dashboard/privacy`')
     for (const f of [dr, br]) expect(f).not.toContain('NEXT_PUBLIC_APP_URL')
   })
 })

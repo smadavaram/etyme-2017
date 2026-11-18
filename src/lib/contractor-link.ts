@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
-import { appUrl } from '@/lib/supplier-link'
+import { mailedUrl } from '@/lib/app-url'
 
 /**
  * The person's own link.
@@ -17,7 +17,7 @@ export function newInviteToken(): string {
 }
 
 export function welcomeUrl(token: string): string {
-  return `${appUrl()}/welcome/${token}`
+  return `${mailedUrl()}/welcome/${token}`
 }
 
 /**

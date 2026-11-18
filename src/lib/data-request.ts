@@ -21,7 +21,7 @@
  * Owned by etyme-regulatory (`lib/data-request` in `lib/domains.ts`).
  */
 
-import { appUrl } from '@/lib/app-url'
+import { mailedUrl } from '@/lib/app-url'
 import { staffAddresses } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { HELD, NOT_USED } from '@/lib/legal'
@@ -813,7 +813,7 @@ export function reference(requestId: string): string {
 
 /** Every mailed link here is built from the one base address, the same the password door uses. */
 function baseUrl(): string {
-  return appUrl()
+  return mailedUrl()
 }
 
 export function withdrawUrl(requestId: string): string {

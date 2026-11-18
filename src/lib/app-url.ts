@@ -32,6 +32,28 @@ export function appUrl(): string {
 }
 
 /**
+ * The address a MAILED or COPIED link is built from (founder, 2026-11-18:
+ * an invitation's links pointed at a one-off deployment address behind
+ * the host's protection, which also dies at the next deploy). Never the
+ * per-deploy address where a lasting one exists: NEXTAUTH_URL, then
+ * NEXT_PUBLIC_APP_URL, then on the production deployment the project's
+ * production address, and only then, for a preview, its own address.
+ * appUrl() above is unchanged and stays the middleware's reader.
+ */
+export function mailedUrl(): string {
+  return fixedAppUrl() ?? appUrl()
+}
+
+/**
+ * Like mailedUrl(), but empty where nothing says where this deployment
+ * lives (so a caller sends no link rather than one to localhost).
+ */
+export function mailedBase(): string {
+  const said = fixedAppUrl() || process.env.VERCEL_URL
+  return said ? mailedUrl() : ''
+}
+
+/**
  * The deployment's lasting public address, or null where it has none.
  * NEXTAUTH_URL, then NEXT_PUBLIC_APP_URL, then, on the production
  * deployment only, the project's production address Vercel provides

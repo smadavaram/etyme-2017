@@ -1,5 +1,5 @@
 import { sign, read } from '@/lib/signed-link'
-import { appUrl } from '@/lib/supplier-link'
+import { mailedUrl } from '@/lib/app-url'
 
 /**
  * The sign-in door's link: `/answer/sign-in/<token>`, signed, naming the
@@ -33,7 +33,7 @@ export function readSignInDoor(token: string | undefined | null): { noticeId: st
  */
 export function signInDoorUrl(noticeId: string): string {
   try {
-    return `${appUrl().replace(/\/+$/, '')}/answer/sign-in/${signInDoorToken(noticeId)}`
+    return `${mailedUrl().replace(/\/+$/, '')}/answer/sign-in/${signInDoorToken(noticeId)}`
   } catch {
     return ''
   }

@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
-import { appUrl } from '@/lib/app-url'
+import { appUrl, mailedUrl } from '@/lib/app-url'
 import { formatDay } from '@/lib/format-date'
 
 /**
@@ -22,12 +22,12 @@ export function newApplyToken(): string {
 export { appUrl }
 
 export function applyUrl(token: string): string {
-  return `${appUrl()}/apply/${token}`
+  return `${mailedUrl()}/apply/${token}`
 }
 
 /** Where an approved firm takes its account. */
 export function claimUrl(token: string): string {
-  return `${appUrl()}/claim/${token}`
+  return `${mailedUrl()}/claim/${token}`
 }
 
 /**

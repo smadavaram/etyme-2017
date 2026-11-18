@@ -52,6 +52,8 @@ export interface ReadinessFacts {
     /** RESEND_API_KEY and NOTIFY_FROM_EMAIL both present. */
     emailSender: boolean
     anthropic: boolean
+    /** NEXTAUTH_URL (or NEXT_PUBLIC_APP_URL) is set. Absent where nothing measured it. */
+    lastingAddress?: boolean
   }
   /**
    * Whether every model id this build sends is one it supports, and the
@@ -216,6 +218,17 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
               says: `${count(f.secondCheck.passed, 'second check has', 'second checks have')} passed on this deployment.`,
             }
     )
+  }
+
+  // ── A lasting address for mailed links ───────────────────────────────
+  // Not required: nothing is blocked, but a link mailed without it can
+  // point at a one-off deployment address that stops working.
+  if (f.env.lastingAddress === false) {
+    edges.push({
+      key: 'address', name: 'Web address in emails', state: 'MISSING', required: false,
+      says: 'No lasting web address is set, so emailed links may point at an address that stops working at the next deploy.',
+      fix: 'Set NEXTAUTH_URL to the address people use, such as https://www.etyme.com, and redeploy.',
+    })
   }
 
   // ── Somebody outside can sign in ─────────────────────────────────────

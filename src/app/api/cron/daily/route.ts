@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { appUrl } from '@/lib/supplier-link'
+import { mailedUrl } from '@/lib/app-url'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { startRun, finishRun } from '@/lib/alerts'
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
   // when somebody calls it by hand and nothing here needs to know how any
   // of them are built.
   // The one base address every mailed link is built from (lib/supplier-link).
-  const base = appUrl()
+  const base = mailedUrl()
 
   const ran: any[] = []
   const broke: any[] = []
