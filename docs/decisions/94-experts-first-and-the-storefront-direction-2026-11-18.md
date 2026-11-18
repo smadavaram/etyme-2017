@@ -60,3 +60,16 @@ record and a person says yes. "Ease of life is the core."
 **What is running.** A static prototype of four screens: the door, the
 build, the published storefront and the share step. Nothing is built
 until he has seen it.
+
+### His answer on a week abroad — 2026-11-18
+
+"A week abroad does not matter. Salary is always in the home country
+unless the base is changed."
+- A trip, of any length, moves nothing: pay and overtime follow the home
+  employment. This is answer 4 of record 92, said again.
+- Only a changed base matters. The base is the work location on the
+  line, and only a person moves it. The hold reads that location and
+  nothing else, so a week of travel is never held.
+- Still open, for a line whose base was moved to a country with no
+  recorded rule: hold the whole week, as built, or pay straight time and
+  hold only the premium, as the advisers recommend.
