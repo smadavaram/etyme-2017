@@ -26,6 +26,6 @@ describe('the base address every link is built from', () => {
   })
 
   it('the privacy request library takes the base address from the pure helper', () => {
-    expect(read('src/lib/data-request.ts')).toMatch(/import \{ appUrl \} from '@\/lib\/app-url'/)
+    expect(read('src/lib/data-request.ts')).toMatch(/import \{ mailedUrl \} from '@\/lib\/app-url'/)
   })
 })
