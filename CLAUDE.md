@@ -471,6 +471,10 @@ Full text → 40, 11, 56, 68, 72.
   app are a draft week she confirms; an invoice without a PO passes the
   same one gate, approved first by the engagement owner; outside systems
   are labels on a setting, while the chat doors stay named on storefronts.
+- **A storefront starts from one sentence** (founder, 2026-11-18 → 94):
+  the Owner describes the firm, Etyme drafts it, one yes publishes. One
+  storefront, three shelves: staffing, contracting, consulting. Etyme
+  drafts each message and a person's yes sends it. 2017 is not a model.
 - **A template is a layout, never a look** (→ 79). A storefront renders in
   the tenant's own branding, kept as tenant settings, adopted or created
   on the Owner's yes; Etyme's own brand is at most "Runs on Etyme". Colors
@@ -1245,6 +1249,12 @@ and why, and stops.
 | `etyme-architect` | Schema, shared components, decisions crossing two domains |
 | `etyme-scout` | "Does this already exist and who owns it" — read only |
 | `etyme-release` | Deciding whether it ships — read only |
+
+**Experts first** (founder, 2026-11-18 → 94). A question reaches the
+founder only after the domain agents, run as read-only advisers, have
+answered it. What they settle the lead decides and records. What still
+reaches him is a brief: the choice, what the experts agree on, one
+recommendation.
 
 **Which model does which work** (founder, 2026-11-16 → 82). The lead
 stays on the strongest model. Workers run on the standard model by default, at most three at once,
