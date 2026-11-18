@@ -949,6 +949,10 @@ Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46, 66, 73, 76.
 - **The Owner decides who sees what**: a grant by company, team or
   person (`PermissionGrant`), narrowed at the query. Never across a
   company, never past segregation of duties.
+- **A role is requested, assigned and approved by three people**
+  (founder, 2026-11-18 → 100): a person or her manager asks, the Admin
+  assigns, the holder's manager approves, then it is live. Nobody takes
+  two steps. Not built yet.
 - **Team structure is one tree the Owner draws** (`OrgUnit`). A
   directory is read, never written.
 - **A company renames only a person it alone knows.**
