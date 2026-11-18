@@ -36,3 +36,14 @@ Every step is on the ledger with its name.
 
 **Not built.** Today an Admin or the Owner gives a role directly in
 Settings.
+
+### It is an option — 2026-11-18
+
+"This option should be there especially for large clients."
+- The three-step flow is a company setting, switched on by the Owner.
+  It is off by default: a small firm keeps giving a role directly in
+  Settings, as today.
+- With it on, no role goes live without its request, its assignment and
+  its approval. The direct way is refused in a sentence naming the flow.
+- Sensitive numbers keep their own rules (record 99) whichever way the
+  setting stands.
