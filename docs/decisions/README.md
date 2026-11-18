@@ -110,3 +110,4 @@ built, every release check, every walk and every deploy.
 | 92 | Microsoft and LinkedIn are ready, and the Owner's four answers — 2026-11-17 | 586 | [92-microsoft-and-linkedin-ready-and-the-owners-four-answers-2026-11-17.md](92-microsoft-and-linkedin-ready-and-the-owners-four-answers-2026-11-17.md) |
 | 93 | Learn the Vercel flows: Etyme does the wiring — 2026-11-17 | 419 | [93-learn-the-vercel-flows-etyme-does-the-wiring-2026-11-17.md](93-learn-the-vercel-flows-etyme-does-the-wiring-2026-11-17.md) |
 | 94 | Experts first, and the storefront direction — 2026-11-18 | 570 | [94-experts-first-and-the-storefront-direction-2026-11-18.md](94-experts-first-and-the-storefront-direction-2026-11-18.md) |
+| 95 | Tapin pays monthly, after the client's approved timesheet — 2026-11-18 | 525 | [95-tapin-pays-monthly-after-the-clients-approved-timesheet-2026-11-18.md](95-tapin-pays-monthly-after-the-clients-approved-timesheet-2026-11-18.md) |

@@ -635,6 +635,10 @@ Full text → 46, 47, 48, 41, 19, 55, 12, 20, 29, 35, 37, 64, 70, 71, 74.
 - **Payroll is run by pay period, and the period is the company's
   choice** (default every other week). Pay never goes out before it is
   worked out. Every hour is paid at the rate in force on the day worked.
+- **A small firm may pay once a month in arrears** (founder, 2026-11-18
+  → 95): the month's work, paid N days after it ends, on the client's
+  approved timesheet. Tapin does; every other week stays the default.
+  A W-2 schedule past a confirmed state limit warns and never blocks.
 - **A placement ended early takes the day it ended as its last day on
   site** (founder, 2026-11-16 → 78); the planned end stays in the log.
   An extension moves her pay window and row with it, or says why not.
