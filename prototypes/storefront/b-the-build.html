@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B · The build · prototype</title>
+<link rel="stylesheet" href="storefront.css"></head>
+<body>
+<div class="proto"><b>Prototype B</b> · The build, in the Owner's seat · demo firm, not a customer · drawn 2026-11-18 · not live</div>
+<div class="wrap">
+  <header class="hdr">
+    <a class="logo" href="#"><i></i>Etyme</a>
+    <div class="row"><span class="tag wait">Draft, not live</span><a class="btn fill" href="#publish">Publish</a></div>
+  </header>
+
+  <div class="build">
+    <!-- left: the conversation -->
+    <section class="chat" aria-label="Conversation">
+      <p class="lbl">Brightmoor Staffing · your page</p>
+
+      <div class="msg you"><p class="who">You</p>We place nurses, technicians and analysts with hospitals and plants. We also run one consulting offer.</div>
+
+      <div class="msg etyme"><p class="who">Etyme</p>I drew a page from your record. It shows Staffing and Consulting. Only people who said yes are on it, with no names and no rates.</div>
+
+      <div class="change">
+        <div class="head"><span class="lbl">Drawn from your record</span><span class="tag ok">Done</span></div>
+        <p class="small">Shelves: Staffing, Consulting. Colors and logo: from your settings. Address: brightmoor.etyme.com.</p>
+        <p class="xs muted" style="margin-top:6px">Contracting is off because no solo contractor has said yes yet.</p>
+      </div>
+
+      <div class="msg you"><p class="who">You</p>Lead with availability.</div>
+
+      <div class="change">
+        <div class="head"><span class="lbl">Change 1</span><div class="row" style="gap:8px"><span class="tag ok">Applied to the draft</span><a class="small" href="#">Undo</a></div></div>
+        <p class="small"><b>Each person card now starts with the date she is free.</b></p>
+        <div class="ba"><div>Before: role, then skills, then place, then date.</div><div class="after">After: date first, then role, skills and place.</div></div>
+      </div>
+
+      <div class="msg you"><p class="who">You</p>Shorter.</div>
+
+      <div class="change">
+        <div class="head"><span class="lbl">Change 2</span><div class="row" style="gap:8px"><span class="tag ok">Applied to the draft</span><a class="small" href="#">Undo</a></div></div>
+        <p class="small"><b>The sentence under the headline is cut to one line.</b></p>
+        <div class="ba"><div>Before: Staffing, contracting and consulting for hospitals and plants, from one team that knows both.</div><div class="after">After: People and projects for hospitals and plants.</div></div>
+      </div>
+
+      <div class="say"><span style="flex:1">Say what to change</span><span class="btn quiet small">Send</span></div>
+      <div class="row" style="gap:7px"><span class="chip">Add Contracting</span><span class="chip">Change a color</span><span class="chip">Move Consulting up</span><span class="chip">Show fewer cards</span></div>
+
+      <div class="publish" id="publish">
+        <p class="lbl">One yes puts it live</p>
+        <h3 style="margin-top:6px;font-size:17px">Publish brightmoor.etyme.com</h3>
+        <ul class="small muted" style="margin:8px 0 0;padding-left:18px">
+          <li>Hosting on Etyme is part of it.</li>
+          <li>The page is live at once and has its own link.</li>
+          <li>Your own web address is optional, and comes later.</li>
+          <li>You can take the page down any time.</li>
+        </ul>
+        <div class="row" style="margin-top:14px"><a class="btn fill" href="d-share-it.html">Publish</a><a class="btn" href="#">Not yet</a></div>
+      </div>
+    </section>
+
+    <!-- right: the live draft, in the tenant's branding -->
+    <section aria-label="Draft of your page">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px"><p class="lbl">Your page, as a visitor sees it</p><span class="xs muted">Updates as you ask</span></div>
+      <div class="frame">
+        <div class="bar"><span class="url">brightmoor.etyme.com · draft</span></div>
+        <div class="store">
+          <div class="inner">
+            <div class="s-top">
+              <span class="s-brand"><span class="s-mark">B</span>Brightmoor Staffing</span>
+              <span class="sbtn fill">Ask for them</span>
+            </div>
+            <div class="s-hero">
+              <h1>People and projects for hospitals and plants.</h1>
+              <div class="s-box">
+                <p class="area">I want to find a nurse who is free in January…</p>
+                <div class="row" style="justify-content:space-between;gap:8px;margin-top:6px">
+                  <div class="row" style="gap:6px"><span class="schip on">Find people</span><span class="schip">Scope a project</span></div>
+                  <span class="sbtn fill">Send</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="s-sec">
+              <p class="k">Staffing</p>
+              <h2>Who is free, and when</h2>
+              <div class="cards c2">
+                <div class="sc lead"><p class="avail">Free from Dec 7</p><p class="role">Occupational health nurse</p><div class="skills"><span>Employee health</span><span>OSHA recordkeeping</span></div><p class="meta">Denver area, CO</p><div class="act"><span class="sbtn fill">Ask for them</span></div></div>
+                <div class="sc lead"><p class="avail">Free from Jan 4</p><p class="role">Forming line maintenance technician</p><div class="skills"><span>Hydraulics</span><span>Preventive maintenance</span></div><p class="meta">Elmira, NY</p><div class="act"><span class="sbtn fill">Ask for them</span></div></div>
+              </div>
+            </div>
+
+            <div class="s-sec">
+              <p class="k">Consulting</p>
+              <h2>Plant readiness review</h2>
+              <p class="what">A review of maintenance records and staffing for one site.</p>
+              <div class="act" style="margin-top:12px"><span class="sbtn fill">Request a scope</span></div>
+            </div>
+
+            <div class="s-foot"><span>Demo, not a customer</span><span>Runs on Etyme</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body></html>
