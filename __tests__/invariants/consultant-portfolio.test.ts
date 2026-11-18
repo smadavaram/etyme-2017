@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   pageIsLive,
   availabilityOf,
@@ -314,5 +314,41 @@ describe('the sector a past client is said as', () => {
     expect(sectorOf('Harrow Plastics', 'UNCLASSIFIED')).toBeNull()
     expect(sectorOf('Northbend Athletic', 'CLIENT')).toBe('Enterprise')
     expect(sectorOf('Brightmoor Staffing', 'VENDOR')).toBe('Staffing firm')
+  })
+})
+
+describe('the worker\'s bio goes through the company\'s model switch', () => {
+  const door = (on: boolean) => {
+    const create = vi.fn(async () => ({
+      content: [{ type: 'text', text: '{"headline":"SAP FICO consultant","intro":"Six years on SAP FICO."}' }],
+      usage: { input_tokens: 300, output_tokens: 40 },
+    }))
+    const logPrompt = vi.fn(async () => ({ ok: true }))
+    return { create, logPrompt, door: { modelOn: async () => on, logPrompt, client: { messages: { create } } } }
+  }
+
+  it('a bio for a worker whose firm has the switch off never calls the model and is labeled RULES', async () => {
+    const d = door(false)
+    const w = await writeBioBest(input(), NOW, d.door)
+    expect(d.create).not.toHaveBeenCalled()
+    expect(w.writtenBy).toBe('RULES')
+  })
+
+  it('a bio with no door at all is written by rule', async () => {
+    expect((await writeBioBest(input(), NOW)).writtenBy).toBe('RULES')
+  })
+
+  it('with the switch on, the person\'s name is not in what is sent', async () => {
+    const d = door(true)
+    await writeBioBest(input({ name: 'Priya Natarajan' }), NOW, d.door)
+    expect(JSON.stringify(d.create.mock.calls[0])).not.toContain('Priya')
+  })
+
+  it('with the switch on, what left and what came back is logged and the bio says MODEL', async () => {
+    const d = door(true)
+    const w = await writeBioBest(input(), NOW, d.door)
+    expect(w.writtenBy).toBe('MODEL')
+    expect(d.logPrompt).toHaveBeenCalledTimes(1)
+    expect((d.logPrompt.mock.calls[0] as any)[0].tokensIn).toBe(300)
   })
 })

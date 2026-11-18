@@ -542,7 +542,7 @@ Rules that matter more than style:
   "results-driven" and "proven" are filler and read as filler.
 - If they have done little, say so plainly. Somebody with one engagement
   should read as somebody with one engagement.
-- Never name or hint at a client. Sectors only.
+- Never name or hint at a client. Sectors only. Never write the person's name.
 - American spelling. Every reader is a US enterprise.
 
 Return only JSON: {"headline":"...","intro":"..."}`
@@ -570,19 +570,43 @@ export function bioModelAvailable(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY)
 }
 
+/** The prompt log's purpose for a worker's bio. */
+export const BIO_PURPOSE = 'BIO'
+
+/**
+ * What the bio's model call goes through. The caller builds it from the
+ * company's switch (`modelOnFor`) and the prompt log (`recordModelPrompt`),
+ * so this file reaches no database. No door, or a door whose switch is off,
+ * is the rules.
+ */
+export interface BioDoor {
+  /** The company's own switch and allowance, asked now. */
+  modelOn(): Promise<boolean>
+  /** Log what left and what came back, masked. */
+  logPrompt(p: { model: string; maskedPrompt: string; maskedAnswer: string; tokensIn: number | null; tokensOut: number | null; realValues: string[] }): Promise<unknown>
+  /** For tests: the client that answers. */
+  client?: { messages: { create(args: any): Promise<any> } }
+}
+
 async function writeBioWithModel(
   input: PortfolioInput,
-  now: Date
+  now: Date,
+  door?: BioDoor,
 ): Promise<{ headline: string; intro: string } | null> {
   const key = process.env.ANTHROPIC_API_KEY
-  if (!key) return null
+  if (!door || (!key && !door.client)) return null
+  if (!(await door.modelOn())) return null
 
-  const { default: Anthropic } = await import('@anthropic-ai/sdk')
-  const client = new Anthropic({ apiKey: key })
+  let client = door.client
+  if (!client) {
+    const { default: Anthropic } = await import('@anthropic-ai/sdk')
+    client = new Anthropic({ apiKey: key })
+  }
 
   const built = buildPortfolio(input, now)
-  const prompt = `Name: ${input.name}
-Where: ${input.location ?? 'not stated'}
+  // The name never leaves: the headline sits under it on the page, so the
+  // model has no use for it. Nothing here is a rate or a client's name.
+  const prompt = `Where: ${input.location ?? 'not stated'}
 Skills they list: ${input.skills.join(', ') || 'not stated'}
 Years per skill, counted from real engagements: ${
     built.skills
@@ -599,18 +623,28 @@ Courses finished: ${input.completedTraining.map((t) => t.title).join(', ') || 'n
 Checks that are current: ${input.verified.join(', ') || 'none'}
 Availability: ${built.availability}`
 
+  const model = modelFor('READ')
   try {
     const res = await client.messages.create({
-      model: modelFor('READ'),
+      model,
       max_tokens: 800,
       system: BIO_SYSTEM,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const text = res.content
+    const text = (res.content as { type: string; text?: string }[])
       .filter((b) => b.type === 'text')
-      .map((b) => (b as { text: string }).text)
+      .map((b) => b.text ?? '')
       .join('')
+
+    await door.logPrompt({
+      model,
+      maskedPrompt: prompt,
+      maskedAnswer: text,
+      tokensIn: res.usage?.input_tokens ?? null,
+      tokensOut: res.usage?.output_tokens ?? null,
+      realValues: [input.name],
+    })
 
     return parseBio(text)
   } catch {
@@ -624,13 +658,16 @@ Availability: ${built.availability}`
  * Their words, however they can be written.
  *
  * Never returns nothing, and says which way it went — a page written by
- * rule should never be mistaken for one somebody wrote themselves.
+ * rule should never be mistaken for one somebody wrote themselves. The
+ * model is reached only through a door the caller built from the
+ * company's switch; without one, this is the rules.
  */
 export async function writeBioBest(
   input: PortfolioInput,
-  now: Date
+  now: Date,
+  door?: BioDoor,
 ): Promise<{ headline: string; intro: string; writtenBy: 'MODEL' | 'RULES' }> {
-  const fromModel = await writeBioWithModel(input, now)
+  const fromModel = await writeBioWithModel(input, now, door)
   if (fromModel) return { ...fromModel, writtenBy: 'MODEL' }
   return { ...writeBio({ ...input, headline: null }, now), writtenBy: 'RULES' }
 }

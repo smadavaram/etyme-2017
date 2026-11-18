@@ -6,6 +6,7 @@ import { sift, DEFAULT_SHORTLIST, type Candidate as Siftable } from '@/lib/bench
 import { range, rate } from '@/lib/money-display'
 import { record } from '@/lib/agent-run'
 import { poolFor } from '@/lib/match-pool'
+import { modelOnFor, modelSetUpHere, recordModelPrompt, type PromptToRecord } from '@/lib/model-boundary'
 
 /**
  * Match Engine — the core differentiator.
@@ -27,8 +28,6 @@ import { poolFor } from '@/lib/match-pool'
  * Returns structured Match records with factors, basis, confidence, unknowns.
  */
 
-const anthropic = new Anthropic()
-
 /**
  * Which model does the scoring.
  *
@@ -46,7 +45,7 @@ interface MatchFactor {
   detail?: string
 }
 
-interface MatchResult {
+export interface MatchResult {
   consultantId: string
   personId: string
   score: number // 0-100
@@ -56,7 +55,7 @@ interface MatchResult {
   unknowns: string | null
 }
 
-interface RequirementData {
+export interface RequirementData {
   id: string
   title: string
   skills: string[]
@@ -70,7 +69,7 @@ interface RequirementData {
   company?: { kind: string; homeCurrency?: string } | null
 }
 
-interface CandidateData {
+export interface CandidateData {
   consultantId: string
   personId: string
   personName: string
@@ -133,8 +132,8 @@ export function matchRowsFor(requirementId: string, results: readonly MatchResul
  */
 export async function runMatchEngine(
   requirementId: string,
-  options: { limit?: number; forceRefresh?: boolean; viewerCompanyId?: string } = {}
-): Promise<{ matches: MatchResult[]; basis: string }> {
+  options: { limit?: number; forceRefresh?: boolean; viewerCompanyId?: string; personId?: string | null } = {}
+): Promise<{ matches: MatchResult[]; basis: string; scoredBy?: 'MODEL' | 'RULES' }> {
   const limit = options.limit ?? 20
 
   // 1. Load the requirement
@@ -284,7 +283,10 @@ export async function runMatchEngine(
   }
 
   // 6. Score what survived
-  const matchResults = await scoreWithClaude(requirement, candidates, limit, sifted.considered)
+  const matchResults = await scoreWithClaude(requirement, candidates, limit, sifted.considered, {
+    viewerCompanyId,
+    personId: options.personId ?? null,
+  })
 
   // 6. Write Match records to the database, the whole run at once
   // (`matchRowsFor`, the page-timing pass of 2026-11-02: one upsert per
@@ -319,13 +321,102 @@ export async function runMatchEngine(
     }
   }
 
+  // Read from the rows themselves: the rules path is the only one that
+  // writes the "Deterministic scoring" basis, in this file.
+  const scoredBy: 'MODEL' | 'RULES' = matchResults.some((r) => !r.basis.startsWith('Deterministic scoring')) ? 'MODEL' : 'RULES'
   return {
     matches: matchResults,
+    scoredBy,
     // Says what the rules did as well as what the model did, so "only
     // three matched" is answerable without reading code.
-    basis: `${pool.says} ${sifted.summary} Scored against "${requirement.title}" (${requirement.skills.join(', ')}).`,
+    basis: `${pool.says} ${sifted.summary} Scored by ${scoredBy === 'MODEL' ? 'the model, masked, after the rules' : 'rules only'} against "${requirement.title}" (${requirement.skills.join(', ')}).`,
   }
 }
+
+/** The purpose a matching prompt is logged under. */
+export const MATCH_PURPOSE = 'MATCH'
+
+/** What one model call returns, as far as matching reads it. */
+export interface ModelAnswer {
+  text: string
+  usage?: { input_tokens?: number | null; output_tokens?: number | null; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | null
+}
+
+/** The doors scoring reaches through, handed in so a test holds each one. */
+export interface MatchModelDeps {
+  /** The company's own switch and the allowance behind it (`modelOnFor`). */
+  modelOn(companyId: string): Promise<boolean>
+  keySet(): boolean
+  call(args: { model: string; rules: string; candidates: string }): Promise<ModelAnswer>
+  logPrompt(p: PromptToRecord): Promise<unknown>
+  /** Whose name the prompt log carries: the asker, else a seat at the company. Null where there is none. */
+  actorFor(companyId: string, personId?: string | null): Promise<string | null>
+  record: typeof record
+}
+
+export const liveMatchDeps: MatchModelDeps = {
+  modelOn: modelOnFor,
+  keySet: modelSetUpHere,
+  async call({ model, rules, candidates }) {
+    const anthropic = new Anthropic()
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 8000,
+      // Adaptive thinking at low effort. This is a bounded judgment on
+      // fifteen rows, not an open problem, and effort is the dial that
+      // decides what it costs.
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'low' },
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: rules, cache_control: { type: 'ephemeral' } },
+            { type: 'text', text: candidates },
+          ],
+        },
+      ],
+    })
+    return { text: response.content[0].type === 'text' ? response.content[0].text : '', usage: response.usage }
+  },
+  logPrompt: recordModelPrompt,
+  async actorFor(companyId, personId) {
+    if (personId) return personId
+    // A nightly job has no asker. The log needs a person, so the company's
+    // longest-standing open seat carries it; with none, nothing is sent.
+    const seat = await prisma.context.findFirst({
+      where: { companyId, revokedAt: null, suspendedAt: null },
+      orderBy: { id: 'asc' },
+      select: { personId: true },
+    })
+    return seat?.personId ?? null
+  },
+  record,
+}
+
+export interface MatchGate { may: boolean; says: string }
+
+/**
+ * Whether matching may send anything to the model for a run. Every company
+ * whose data is in the prompt must have its switch on and its allowance
+ * open: the one running it, and the one whose job it is. The nightly job
+ * runs across every tenant, so this is asked per run and never once for
+ * all. Off by default; with no key nothing leaves either.
+ */
+export async function matchModelGate(
+  companyIds: readonly string[],
+  deps: Pick<MatchModelDeps, 'modelOn' | 'keySet'> = liveMatchDeps,
+): Promise<MatchGate> {
+  const ids = [...new Set(companyIds)]
+  if (!deps.keySet()) return { may: false, says: 'the model is not set up on this deployment' }
+  for (const id of ids) {
+    if (!(await deps.modelOn(id))) return { may: false, says: 'the company has not turned the model on, or its allowance is used' }
+  }
+  return { may: true, says: '' }
+}
+
+/** Rates are tokens before they leave; the answer is put back on the way in. */
+function rateToken(i: number): string { return `RATE_${i + 1}` }
 
 /**
  * Use Claude to semantically score candidates against a requirement.
@@ -334,28 +425,32 @@ export async function runMatchEngine(
  * that Next.js implies React, that "full-stack" covers both frontend and backend,
  * and that "AWS" partially satisfies "cloud infrastructure".
  */
-async function scoreWithClaude(
+export async function scoreWithClaude(
   req: RequirementData,
   candidates: CandidateData[],
   limit: number,
-  considered: number
+  considered: number,
+  opts: { viewerCompanyId?: string; personId?: string | null; deps?: MatchModelDeps } = {},
 ): Promise<MatchResult[]> {
-  // No key: score with arithmetic instead, and say so in the ledger.
-  //
-  // Recording nothing here would have been the worst of both. A week where
-  // the key was misconfigured would read as a week where the model got
-  // free, the cost-per-submission line would fall, and somebody would
-  // conclude the product had improved.
-  if (!process.env.ANTHROPIC_API_KEY) {
+  const deps = opts.deps ?? liveMatchDeps
+  const viewer = opts.viewerCompanyId ?? req.companyId
+
+  // The rules score unless the model is permitted for every company in the
+  // prompt. A degraded run is said so in the ledger and in the basis:
+  // recording nothing would read as a week where the model got free.
+  const gate = await matchModelGate([viewer, req.companyId], deps)
+  const actor = gate.may ? await deps.actorFor(viewer, opts.personId) : null
+  if (!gate.may || !actor) {
+    const why = !gate.may ? gate.says : 'no person at the company to carry the prompt log, so nothing was sent'
     const started = Date.now()
-    const results = scoreDeterministic(req, candidates, limit)
-    await record({
+    const results = scoreDeterministic(req, candidates, limit, why)
+    await deps.record({
       companyId: req.companyId,
       agent: 'match.score.deterministic',
       recordType: 'REQUIREMENT',
       recordId: req.id,
       verdict: 'PASS',
-      failReason: 'no ANTHROPIC_API_KEY — scored with rules, not the model',
+      failReason: `scored with rules, not the model: ${why}`,
       ms: Date.now() - started,
       consideredCount: considered,
       scoredCount: candidates.length,
@@ -370,16 +465,24 @@ async function scoreWithClaude(
   for (let i = 0; i < candidates.length; i += batchSize) {
     const batch = candidates.slice(i, i + batchSize)
 
-    const candidateList = batch.map((c, idx) => ({
-      idx,
-      name: c.personName,
-      skills: c.skills,
-      headline: c.headline,
-      location: c.location,
-      workAuth: c.workAuth,
-      rateFloor: c.rateFloor ? rate(c.rateFloor, req.company?.homeCurrency ?? 'USD') : null,
-      availableFrom: c.availableFrom?.toISOString().slice(0, 10) ?? null,
-    }))
+    // Names never leave: a candidate is its index. A rate floor is a token.
+    const floors = new Map<string, string>()
+    const candidateList = batch.map((c, idx) => {
+      let floor: string | null = null
+      if (c.rateFloor) {
+        floor = rateToken(idx)
+        floors.set(floor, rate(c.rateFloor, req.company?.homeCurrency ?? 'USD'))
+      }
+      return {
+        idx,
+        skills: c.skills,
+        location: c.location,
+        workAuth: c.workAuth,
+        rateFloor: floor,
+        availableFrom: c.availableFrom?.toISOString().slice(0, 10) ?? null,
+      }
+    })
+    const unmask = (t: string): string => t.replace(/\bRATE_\d+\b/g, (m) => floors.get(m) ?? m)
 
     // The prompt is built in two halves on purpose.
     //
@@ -396,7 +499,7 @@ REQUIREMENT:
 - Title: ${req.title}
 - Required Skills: ${req.skills.join(', ')}
 - Location: ${req.location ?? 'Not specified'}
-- Rate Range: ${req.billMin && req.billMax ? range(req.billMin, req.billMax, req.company?.homeCurrency ?? 'USD') : 'Not specified'}
+- Rate Range: ${req.billMin && req.billMax ? 'withheld (the plain rules already checked it)' : 'Not specified'}
 - Duration: ${req.months ? `${req.months} months` : 'Not specified'}
 - Start Date: ${req.startDate?.toISOString().slice(0, 10) ?? 'Not specified'}
 
@@ -405,6 +508,9 @@ one overlapping skill, their rate floor is under the ceiling, they are free
 in time, and their work authorization fits. Do not re-check any of that.
 Judge the thing rules cannot: how close the skills really are, and whether
 the claim is credible.
+
+Candidates are identified by idx only. A rateFloor shows as a token such as
+RATE_1, or null where unknown: never guess its value.
 
 For each candidate, return a JSON array. Each element must have:
 - idx: the candidate index
@@ -420,62 +526,55 @@ SCORING RULES:
 - Skill Match (weight ~0.45): Semantic matching. "React.js" = "React". "Next.js" implies React. "Full-stack" covers frontend+backend. Score partial overlaps proportionally.
 - Location (weight ~0.15): "Remote" matches anything. Same city = 100. Same state = 80. Same country = 60. Different country = 20. Both null = 50.
 - Availability (weight ~0.15): Available before start date = 100. Within 2 weeks after = 80. Within month = 50. Unknown = 40.
-- Rate Fit (weight ~0.15): Within range = 100. Floor above max = proportional penalty. Unknown = 50.
+- Rate Fit (weight ~0.15): The rules passed it. A token = 100. null = 50.
 - Work Auth (weight ~0.10): Match required auth if location is US. Unknown = 30.
 
 Return ONLY a JSON array, no other text.`
+    const candidatesText = `CANDIDATES:\n${JSON.stringify(candidateList, null, 2)}`
 
     const started = Date.now()
+    let answer: ModelAnswer | null = null
 
     try {
-      const response = await anthropic.messages.create({
-        model: MODEL,
-        max_tokens: 8000,
-        // Adaptive thinking at low effort. This is a bounded judgment on
-        // fifteen rows, not an open problem, and effort is the dial that
-        // decides what it costs.
-        thinking: { type: 'adaptive' },
-        output_config: { effort: 'low' },
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: rules,
-                cache_control: { type: 'ephemeral' },
-              },
-              {
-                type: 'text',
-                text: `CANDIDATES:\n${JSON.stringify(candidateList, null, 2)}`,
-              },
-            ],
-          },
-        ],
-      })
+      answer = await deps.call({ model: MODEL, rules, candidates: candidatesText })
 
       // Written whether it passed or failed. The runs that error are the
       // ones worth counting.
-      await record({
+      await deps.record({
         companyId: req.companyId,
         agent: 'match.score',
         recordType: 'REQUIREMENT',
         recordId: req.id,
         verdict: 'PASS',
         model: MODEL,
-        usage: response.usage,
+        usage: answer.usage,
         ms: Date.now() - started,
         consideredCount: considered,
         scoredCount: batch.length,
       })
 
-      const text = response.content[0].type === 'text' ? response.content[0].text : ''
+      // The prompt log, masked as it left: no name was in it, and each rate
+      // is a token. Asked by the viewer's company.
+      await deps.logPrompt({
+        companyId: viewer,
+        personId: actor,
+        provider: 'anthropic',
+        model: MODEL,
+        maskedPrompt: `${rules}\n\n${candidatesText}`,
+        maskedAnswer: answer.text,
+        tokensIn: answer.usage?.input_tokens ?? null,
+        tokensOut: answer.usage?.output_tokens ?? null,
+        purpose: MATCH_PURPOSE,
+        realValues: [...floors.values(), ...batch.map((c) => c.personName)],
+      })
+
+      const text = answer.text
 
       // Extract JSON from response (handle markdown code blocks)
       const jsonMatch = text.match(/\[[\s\S]*\]/)
       if (!jsonMatch) {
         console.error('Match engine: Could not parse Claude response, falling back to deterministic')
-        allResults.push(...scoreDeterministic(req, batch, batch.length))
+        allResults.push(...scoreDeterministic(req, batch, batch.length, 'the model answered in a shape that could not be read'))
         continue
       }
 
@@ -501,10 +600,10 @@ Return ONLY a JSON array, no other text.`
             label: f.label,
             value: Math.max(0, Math.min(100, Math.round(f.value))),
             weight: Math.max(0, Math.min(1, f.weight)),
-            detail: f.detail,
+            detail: f.detail === undefined ? undefined : unmask(f.detail),
           })),
-          basis: s.basis ?? `Matched against "${req.title}"`,
-          unknowns: s.unknowns ?? null,
+          basis: s.basis ? unmask(s.basis) : `Matched against "${req.title}"`,
+          unknowns: s.unknowns ? unmask(s.unknowns) : null,
         })
       }
     } catch (err: any) {
@@ -512,7 +611,7 @@ Return ONLY a JSON array, no other text.`
       // avoiding. The fallback is labeled in the ledger, so a week where
       // the key was wrong does not read as a week where the model got
       // cheaper.
-      await record({
+      await deps.record({
         companyId: req.companyId,
         agent: 'match.score',
         recordType: 'REQUIREMENT',
@@ -525,7 +624,7 @@ Return ONLY a JSON array, no other text.`
         scoredCount: batch.length,
       })
       console.error('Match engine: Claude API call failed, falling back to deterministic', err)
-      allResults.push(...scoreDeterministic(req, batch, batch.length))
+      allResults.push(...scoreDeterministic(req, batch, batch.length, 'the model call failed'))
     }
   }
 
@@ -539,10 +638,11 @@ Return ONLY a JSON array, no other text.`
  * or when the API call fails. Still produces structured Match records
  * with factors, basis, confidence, and unknowns.
  */
-function scoreDeterministic(
+export function scoreDeterministic(
   req: RequirementData,
   candidates: CandidateData[],
-  limit: number
+  limit: number,
+  why?: string,
 ): MatchResult[] {
   const results: MatchResult[] = []
 
@@ -684,7 +784,7 @@ function scoreDeterministic(
       score,
       confidence,
       factors,
-      basis: `Deterministic scoring against ${req.skills.length} required skills, ${candidates.length} candidates evaluated`,
+      basis: `Deterministic scoring against ${req.skills.length} required skills, ${candidates.length} candidates evaluated${why ? ` (rules only: ${why})` : ''}`,
       unknowns: unknownParts.length > 0 ? `Missing: ${unknownParts.join(', ')}` : null,
     })
   }

@@ -3,6 +3,7 @@ import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { writeBioBest } from '@/lib/consultant-portfolio'
 import { factsFor, ensureOwnPage } from '@/lib/portfolio-data'
+import { bioDoorFor } from '@/lib/consultant-portfolio/bio-door'
 
 /**
  * POST /api/me/portfolio/write — write the words for them.
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const written = await writeBioBest(facts, new Date())
+  const written = await writeBioBest(facts, new Date(), await bioDoorFor(person.id))
 
   await prisma.consultantProfile.update({
     where: { id: existing.id },
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       // Said plainly rather than quietly producing a lesser result.
       note: written.writtenBy === 'MODEL'
         ? 'Written from your own work. Edit any of it — nothing here is locked.'
-        : 'No writing key is set, so this is written from your work by rule. It is plainer, and everything in it is still true.',
+        : 'Written from your work by rule: none of your firms has turned the model on, or no key is set. It is plainer, and everything in it is still true.',
       message: 'Every number on your page stays live. Only these words are stored.',
     },
   })

@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { modelFor } from '@/lib/model-ids'
 import type { EntitySpec, FieldSpec } from '@/lib/importable'
+import { splitDelimited, tableShape } from '@/lib/model-boundary'
+import { record as recordRun, type RecordType, type Usage } from '@/lib/agent-run'
 
 /**
  * Reading what somebody sent, rather than matching column headings.
@@ -57,6 +59,97 @@ export interface ExtractionResult {
   note: string
   /** What it could not make sense of at all. */
   unread: string[]
+  /** The model that answered, and what it used. Absent where nothing was called. */
+  model?: string
+  usage?: Usage | null
+  /** The kinds of data cut out by rule before anything left (record 96, Lane C). */
+  removed?: LaneCKind[]
+}
+
+// ── Lane C: data that reaches no model, ever (record 96) ──────────────
+
+export type LaneCKind = 'SOCIAL_SECURITY' | 'DATE_OF_BIRTH' | 'BANK_DETAILS'
+
+export const LANE_C_WORDS: Record<LaneCKind, string> = {
+  SOCIAL_SECURITY: 'social security numbers',
+  DATE_OF_BIRTH: 'dates of birth',
+  BANK_DETAILS: 'bank details',
+}
+
+const CUT: Record<LaneCKind, string> = {
+  SOCIAL_SECURITY: '[removed: social security number]',
+  DATE_OF_BIRTH: '[removed: date of birth]',
+  BANK_DETAILS: '[removed: bank details]',
+}
+
+const SSN_HEADER = /\b(?:ssn|social security|national insurance|sin|national id|government id|passport)\b/i
+const DOB_HEADER = /\b(?:dob|date of birth|birth ?date|birthday|born)\b/i
+const BANK_HEADER = /\b(?:bank|routing|iban|swift|bic|aba|sort code|acct|account (?:number|no\.?|#))\b/i
+/** A client's own ledger codes are not a person's bank account. */
+const NOT_BANK = /\b(?:gl|ledger|cost|profit)\b/i
+
+const DATE_BODY =
+  String.raw`(?:\d{1,4}[/.\-]\d{1,2}[/.\-]\d{1,4}|\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]{3,9},?\s+\d{2,4}|[A-Za-z]{3,9}\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{2,4})`
+
+/** Shapes found anywhere in prose or in a cell. */
+const SHAPES: { kind: LaneCKind; re: RegExp }[] = [
+  { kind: 'SOCIAL_SECURITY', re: /(?<![\d-])\d{3}[-\s]\d{2}[-\s]\d{4}(?![\d-])/g },
+  { kind: 'SOCIAL_SECURITY', re: /\b(?:ssn|social security(?:\s+(?:number|no\.?|#))?)\s*[:#=-]?\s*\d{9}\b/gi },
+  { kind: 'DATE_OF_BIRTH', re: new RegExp(String.raw`\b(?:dob|d\.o\.b\.?|date of birth|birth ?date|born(?: on)?)\s*[:#=-]?\s*${DATE_BODY}`, 'gi') },
+  { kind: 'BANK_DETAILS', re: /\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,3})?\b/g },
+  { kind: 'BANK_DETAILS', re: /\b(?:routing|aba|swift|bic|sort code|iban|bank account|account|acct)(?:\s+(?:number|no\.?|num|#))?\s*[:#=-]?\s*[A-Z0-9][A-Z0-9 -]{5,33}[A-Z0-9]\b/gi },
+]
+
+/**
+ * Cut social security numbers, dates of birth and bank details out of a
+ * text by rule, before any call. The model is never asked to ignore them:
+ * they are not there. A table's cell under such a heading goes whatever it
+ * holds; a shape found in prose goes wherever it stands. Pure.
+ */
+export function withoutLaneC(text: string): { text: string; removed: LaneCKind[] } {
+  const found = new Set<LaneCKind>()
+  const shapes = (s: string): string => {
+    let out = s
+    for (const { kind, re } of SHAPES) {
+      out = out.replace(re, (m) => {
+        // "account" alone must carry digits to be a number, or ordinary prose is cut.
+        if (kind === 'BANK_DETAILS' && !/\d{4,}/.test(m.replace(/[\s-]/g, '')) && !/^[A-Z]{2}\d{2}/.test(m)) return m
+        found.add(kind)
+        return CUT[kind]
+      })
+    }
+    return out
+  }
+
+  const table = tableShape(text)
+  if (!table) return { text: shapes(text), removed: [...found] }
+
+  const headers = splitDelimited(table.lines[0], table.delim)
+  const kindOf = headers.map((h): LaneCKind | null => {
+    if (SSN_HEADER.test(h)) return 'SOCIAL_SECURITY'
+    if (DOB_HEADER.test(h)) return 'DATE_OF_BIRTH'
+    if (BANK_HEADER.test(h) && !NOT_BANK.test(h)) return 'BANK_DETAILS'
+    return null
+  })
+  const quote = (cell: string) => (cell.includes(table.delim) || cell.includes('"') ? `"${cell.replace(/"/g, '""')}"` : cell)
+  const rows = table.lines.slice(1).map((line) =>
+    splitDelimited(line, table.delim).map((cell, i) => {
+      const kind = kindOf[i]
+      if (kind && cell !== '') { found.add(kind); return CUT[kind] }
+      return shapes(cell)
+    }),
+  )
+  const out = [headers, ...rows].map((r) => r.map(quote).join(table.delim)).join('\n')
+  return { text: out, removed: [...found] }
+}
+
+/** What a call needs to be written on the ledger. Without it the call is still made, and still says what it used. */
+export interface ExtractContext {
+  companyId?: string
+  /** What the ledger row hangs on; the spec's key where not given. */
+  recordId?: string
+  /** For tests: the client that answers. */
+  client?: { messages: { create(args: any): Promise<any> } }
 }
 
 /** Whether the model path is available at all. */
@@ -107,13 +200,21 @@ Return only JSON of this shape:
  */
 export async function extractWithModel(
   spec: EntitySpec,
-  source: string,
-  maxRecords = 200
+  rawSource: string,
+  maxRecords = 200,
+  ctx: ExtractContext = {},
 ): Promise<ExtractionResult | null> {
   const key = process.env.ANTHROPIC_API_KEY
-  if (!key) return null
+  if (!key && !ctx.client) return null
 
-  const client = new Anthropic({ apiKey: key })
+  const client = ctx.client ?? new Anthropic({ apiKey: key })
+
+  // Lane C goes first, before the length cut and before any call: this data
+  // reaches no model (record 96). Every caller passes through here.
+  const { text: source, removed } = withoutLaneC(rawSource)
+  const cutNote = removed.length > 0
+    ? ` ${removed.map((k) => LANE_C_WORDS[k]).join(', ')} ${removed.length > 1 ? 'were' : 'was'} removed before reading and never sent.`
+    : ''
 
   // Trimmed rather than silently truncated. A file too big to read in one
   // pass should say so, not return the first half as if it were all of it.
@@ -133,26 +234,48 @@ ${trimmed}
 
 Return at most ${maxRecords} records.`
 
+  const model = modelFor('READ')
+  const started = Date.now()
+  const ledger = (verdict: 'PASS' | 'ERROR', usage: Usage | null, failReason: string | null, scored: number) =>
+    ctx.companyId
+      ? recordRun({
+          companyId: ctx.companyId,
+          agent: 'extract.read',
+          // The ledger's list has no import kind yet; the column is a string.
+          recordType: 'IMPORT' as RecordType,
+          recordId: ctx.recordId ?? spec.key,
+          verdict,
+          failReason,
+          model,
+          usage,
+          ms: Date.now() - started,
+          scoredCount: scored,
+        })
+      : Promise.resolve(null)
+
   try {
     const response = await client.messages.create({
-      model: modelFor('READ'),
+      model,
       max_tokens: 8000,
       system: SYSTEM,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
+    const text = (response.content as { type: string; text?: string }[])
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text ?? '')
       .join('')
 
+    const usage: Usage | null = response.usage ?? null
     const parsed = parseResponse(text)
+    await ledger('PASS', usage, parsed ? null : 'the answer could not be understood', parsed?.records.length ?? 0)
     if (!parsed) {
       return {
         method: 'MODEL',
         records: [],
         note: 'The reader returned something that could not be understood. Nothing was written.',
         unread: [text.slice(0, 200)],
+        model, usage, removed,
       }
     }
 
@@ -168,11 +291,13 @@ Return at most ${maxRecords} records.`
         problems: r.problems ?? [],
       })),
       note: wasTrimmed
-        ? `Read the first 60,000 characters. The rest was not looked at — split the file and load it again.`
-        : 'Read by the document reader, with confidence and a source quote on every value.',
+        ? `Read the first 60,000 characters. The rest was not looked at — split the file and load it again.${cutNote}`
+        : `Read by the document reader, with confidence and a source quote on every value.${cutNote}`,
       unread: parsed.unread ?? [],
+      model, usage, removed,
     }
   } catch (err) {
+    await ledger('ERROR', null, String((err as Error)?.message ?? err).slice(0, 300), 0)
     // Named rather than swallowed. "Import failed" sends somebody to
     // guess; "the reader is not answering" sends them to try again.
     return {
@@ -180,6 +305,8 @@ Return at most ${maxRecords} records.`
       records: [],
       note: `The document reader could not be reached: ${err instanceof Error ? err.message.slice(0, 120) : 'unknown error'}. Nothing was written.`,
       unread: [],
+      model,
+      removed,
     }
   }
 }
