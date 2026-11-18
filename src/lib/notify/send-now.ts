@@ -16,6 +16,7 @@
  */
 import { demoAddress, DEMO_ADDRESS_NOTE, reportMailRefused, type Sender } from '@/lib/notification-delivery'
 import { emailSender } from '@/lib/senders'
+import { dressLetter } from './letter-html'
 import { cleanProviderWords, isMailRefused, type MailFailure } from './mail-failure'
 
 /** The note a row keeps where this deployment has no email sender. */
@@ -25,6 +26,11 @@ export interface EmailToSend {
   to: string
   subject: string
   body: string
+  /**
+   * The HTML part. Left out, a letter that carries a link is dressed from
+   * its own text (`dressLetter`); null sends the text alone.
+   */
+  html?: string | null
   /** For the staff alert only; never put in the email. */
   companyId?: string | null
   personId?: string | null
@@ -66,7 +72,9 @@ export async function sendEmailNow(mail: EmailToSend, deps: SendNowDeps = {}): P
     }
   }
   try {
-    await sender.send(mail.to, mail.subject, mail.body)
+    const html = mail.html === undefined ? dressLetter(mail.subject, mail.body) : mail.html
+    if (html) await sender.send(mail.to, mail.subject, mail.body, null, html)
+    else await sender.send(mail.to, mail.subject, mail.body)
     return { left: true, state: 'SENT', at: now, note: null, failure: null }
   } catch (err) {
     const ctx = { companyId: mail.companyId ?? null, personId: mail.personId ?? null }

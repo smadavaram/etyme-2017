@@ -150,7 +150,8 @@ export function demoAddress(email: string | null | undefined): boolean {
 export interface Sender {
   channel: Channel
   /** `link` is the page in Etyme the notice is about, where there is one. */
-  send(to: string, title: string, body: string, link?: string | null): Promise<void>
+  /** `html` is an email's second part, beside `body` as text; other channels ignore it. */
+  send(to: string, title: string, body: string, link?: string | null, html?: string | null): Promise<void>
 }
 
 export interface DeliveryOutcome {

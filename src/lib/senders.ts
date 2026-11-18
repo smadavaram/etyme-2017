@@ -31,7 +31,7 @@ export function emailSender(): Sender | null {
 
   return {
     channel: 'EMAIL',
-    async send(to, title, body) {
+    async send(to, title, body, _link, html) {
       // The last guard, for callers that send directly rather than through
       // attemptDelivery: a reserved demo address is never handed to the
       // provider. The error carries the reason, so whoever records the
@@ -44,7 +44,7 @@ export function emailSender(): Sender | null {
             Authorization: `Bearer ${resend}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ from, to, subject: title, text: body }),
+          body: JSON.stringify({ from, to, subject: title, text: body, ...(html ? { html } : {}) }),
         }))
         if (!res.ok) throw await refusal('Resend', res)
         return
@@ -59,7 +59,7 @@ export function emailSender(): Sender | null {
           personalizations: [{ to: [{ email: to }] }],
           from: { email: from },
           subject: title,
-          content: [{ type: 'text/plain', value: body }],
+          content: [{ type: 'text/plain', value: body }, ...(html ? [{ type: 'text/html', value: html }] : [])],
         }),
       }))
       if (!res.ok) throw await refusal('SendGrid', res)
