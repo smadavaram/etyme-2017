@@ -73,3 +73,17 @@ unless the base is changed."
 - Still open, for a line whose base was moved to a country with no
   recorded rule: hold the whole week, as built, or pay straight time and
   hold only the premium, as the advisers recommend.
+
+### His limit on the storefront — 2026-11-18
+
+"Don't touch the Etyme home page. The storefront is only one of the
+tenant gateway products. The core is still their company contracts,
+globally, at one spot."
+- The home page stays as his brief of 2026-11-12 left it. No storefront
+  work edits it, and the storefront box never goes on it.
+- The storefront is one gateway a tenant may use, beside the others. It
+  is never the lead of the product, of a public page for clients, or of
+  the order of work.
+- The core stays the system of record: every contract a company has
+  with its contingent workers and suppliers, in every country, in one
+  place.

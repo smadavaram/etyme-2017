@@ -475,6 +475,7 @@ Full text → 40, 11, 56, 68, 72.
   the Owner describes the firm, Etyme drafts it, one yes publishes. One
   storefront, three shelves: staffing, contracting, consulting. Etyme
   drafts each message and a person's yes sends it. 2017 is not a model.
+  It is one tenant gateway, never the core, and never on Etyme's home page.
 - **A template is a layout, never a look** (→ 79). A storefront renders in
   the tenant's own branding, kept as tenant settings, adopted or created
   on the Owner's yes; Etyme's own brand is at most "Runs on Etyme". Colors
