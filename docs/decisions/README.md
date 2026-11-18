@@ -111,3 +111,4 @@ built, every release check, every walk and every deploy.
 | 93 | Learn the Vercel flows: Etyme does the wiring — 2026-11-17 | 419 | [93-learn-the-vercel-flows-etyme-does-the-wiring-2026-11-17.md](93-learn-the-vercel-flows-etyme-does-the-wiring-2026-11-17.md) |
 | 94 | Experts first, and the storefront direction — 2026-11-18 | 570 | [94-experts-first-and-the-storefront-direction-2026-11-18.md](94-experts-first-and-the-storefront-direction-2026-11-18.md) |
 | 95 | Tapin pays monthly, after the client's approved timesheet — 2026-11-18 | 525 | [95-tapin-pays-monthly-after-the-clients-approved-timesheet-2026-11-18.md](95-tapin-pays-monthly-after-the-clients-approved-timesheet-2026-11-18.md) |
+| 96 | Model expectations: the cheap tier first, and what reaches neither — 2026-11-18 | 764 | [96-model-expectations-the-cheap-tier-first-and-what-reaches-neither-2026-11-18.md](96-model-expectations-the-cheap-tier-first-and-what-reaches-neither-2026-11-18.md) |

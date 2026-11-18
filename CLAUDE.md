@@ -853,6 +853,11 @@ Full text → 12, 14, 24, 32, 35.
   come first. A cheap model is the default, and a stronger model only on
   a validator's reason. Restricted data reaches no model. Built in its
   own order, never ahead of stabilization.
+- **The cheap tier does the clerical work** (founder, 2026-11-18 → 96):
+  the stronger tier only when the cheap answer cannot be trusted, and a
+  failure there goes to a person. Confidential data never goes to the
+  cheap provider directly without the tenant's opt-in. The owner pastes
+  each key, after the report he asked for.
 - **The voice.** Recommendation first. Names, not counts. One sentence
   per refusal, with the door. No apology words. The trade's phrasing:
   who applied, approve a timesheet, pay an invoice, on hold.
