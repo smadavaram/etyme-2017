@@ -62,3 +62,13 @@ contracts, the accounting system, or a federal requirement."
   role, so HR does I-9 and payroll setup without a request each time.
   Each reveal still asks HR's own second check and is on the ledger. A
   rule slower than the workaround produces the workaround.
+
+He agreed that a client reading a worker's number is the riskiest case,
+and added two more purposes: "maybe a lawyer needs it, or the employee
+is moving to the client's employment."
+- A lawyer: a share to named counsel, for a stated matter, confirmed by
+  the Owner. The worker is told, unless counsel says the law forbids
+  telling her.
+- A worker moving to the client's employment: her numbers are hers. She
+  sends her own papers to her new employer from her own page, by her
+  own yes. The firm does not send them for her.
