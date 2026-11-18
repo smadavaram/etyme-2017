@@ -39,3 +39,26 @@ provider (records 81, 96).
   record, one seat.
 - A company with several Owners: any one may grant, and never to
   herself without the second check.
+
+### Who asks, and why — 2026-11-18
+
+He confirmed rule 3: the recruiter asks, the Owner approves, and the
+recruiter then receives it. And he widened who asks: "not only the
+recruiter but HR admin, or the account manager at the client, or the
+background check company, or E-Verify or I-9 verification, or
+contracts, the accounting system, or a federal requirement."
+
+- The reason is a purpose picked from a list, never free text alone:
+  I-9 and work authorization, the federal employment check, a
+  background check, payroll setup, a tax form, the accounting system, a
+  contract or a client's site requirement, a government requirement,
+  other (with words).
+- Two kinds of asker. A seat inside the firm reads the value inside a
+  window (rule 3). A party outside the firm (the client's account
+  manager, a background check provider, a government service, the
+  accounting system) never reads it in Etyme: it is a share (rule 4),
+  confirmed and attached to the record.
+- Recommended, for his yes: the Owner may grant a standing purpose to a
+  role, so HR does I-9 and payroll setup without a request each time.
+  Each reveal still asks HR's own second check and is on the ledger. A
+  rule slower than the workaround produces the workaround.
