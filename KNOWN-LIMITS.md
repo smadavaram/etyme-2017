@@ -506,8 +506,18 @@ digest `tellProgramOwnerOnTeams(companyId)`, the app package and
   the real values only so it can refuse a text that still holds one.
 - **The prompt log keeps the masked question and lines and the masked
   answer**, not the system instruction, which is a constant in `ask.ts`.
-- **The model is `claude-haiku-4-5`**, one constant (`SMALL_MODEL`),
-  the smallest model this deployment prices in `lib/agent-run`.
+- **The model ids are in one file, `lib/model-ids`**, by role: the small
+  model `claude-haiku-5-5` for Ask Etyme's free text, `claude-sonnet-5-5`
+  to read papers, and `claude-opus-5-5` to check and match. A deployment
+  may override a role with one environment variable. Each is priced there
+  (founder's figures of 2026-11-13); an id with no price is costed at
+  nothing and reads "price not configured", never at a made-up figure.
+- **No document checker called a model before the routing build**, and the
+  four calls that went out ungated (the CV evidence check, the job
+  screening, the nightly proactive match and the match engine) are now
+  gated: each asks the company's model switch and allowance first. With
+  the switch off or no key, the check is recorded as unverified with the
+  reason, and matching continues on rules alone.
 - **"Not now" changes nothing and is not recorded.** The question stays
   waiting and comes back with "What needs me today?". **Except on a
   drafted bill (2026-10-18):** there "Not now" is a recorded no, with

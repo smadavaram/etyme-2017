@@ -86,15 +86,51 @@ export function checkModelIds(env: Env = process.env): ModelIdCheck {
 
 /**
  * Dollars per million tokens, read by lib/agent-run's cost. Only ids whose
- * price was written down are here; an id that is not falls to the dearest
- * price there, because under-reporting cost is the direction that lets a
- * bad margin hide. The current ids are not priced yet: nobody has written
- * their price into this file from the provider's table.
+ * price was written down are here. An id that is not here has no price:
+ * `priceOf` says so (null) and the caller says "price not configured"
+ * rather than costing it at a made-up figure.
+ *
+ * Current ids (the founder's checked figures of 2026-11-13, against the
+ * provider list cached 2026-11-03), input / output / cache read:
+ *   small model           claude-haiku-5-5    0.10 / 0.50 / 0.01
+ *   read model            claude-sonnet-5-5   2.00 / 10.00 / 0.10
+ *   check-and-match model claude-opus-5-5     4.00 / 20.00 / 0.20
+ * The older ids stay for rows already costed against them.
  */
-export const MODEL_PRICES: Record<string, { in: number; out: number }> = {
+export interface ModelPrice { in: number; out: number; cacheRead?: number }
+
+export const MODEL_PRICES: Record<string, ModelPrice> = {
+  'claude-haiku-5-5': { in: 0.1, out: 0.5, cacheRead: 0.01 },
+  'claude-sonnet-5-5': { in: 2, out: 10, cacheRead: 0.1 },
+  'claude-opus-5-5': { in: 4, out: 20, cacheRead: 0.2 },
   'claude-opus-5': { in: 5, out: 25 },
   'claude-opus-4-8': { in: 5, out: 25 },
   'claude-sonnet-5': { in: 3, out: 15 },
   'claude-sonnet-4-6': { in: 3, out: 15 },
   'claude-haiku-4-5': { in: 1, out: 5 },
+}
+
+export const PRICE_NOT_CONFIGURED = 'price not configured'
+
+/** The price of a model id, or null where none was written down. Never a fallback. */
+export function priceOf(model: string): ModelPrice | null {
+  return Object.prototype.hasOwnProperty.call(MODEL_PRICES, model) ? MODEL_PRICES[model] : null
+}
+
+/**
+ * What one call cost in millionths of a dollar, or null where the model has
+ * no price (the caller says "price not configured"). Rounded up.
+ */
+export function costMicrosFor(
+  model: string,
+  usage: { input_tokens?: number | null; output_tokens?: number | null; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null },
+): number | null {
+  const p = priceOf(model)
+  if (!p) return null
+  const micros =
+    (usage.input_tokens ?? 0) * p.in +
+    (usage.output_tokens ?? 0) * p.out +
+    (usage.cache_read_input_tokens ?? 0) * (p.cacheRead ?? p.in * 0.1) +
+    (usage.cache_creation_input_tokens ?? 0) * p.in * 1.25
+  return Math.ceil(micros)
 }

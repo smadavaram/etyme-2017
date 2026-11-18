@@ -3,6 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { runMatchEngine } from '@/lib/match-engine'
+import { modelOnFor, modelSetUpHere } from '@/lib/model-boundary'
 
 /**
  * GET /api/cron/proactive-match
@@ -56,18 +57,28 @@ export async function GET(request: NextRequest) {
 
     const results: Array<{
       requirementId: string
+      companyId: string
       title: string
       matchesFound: number
     }> = []
+    // Per company: how many were matched with the model held back, and why.
+    const heldBack = new Map<string, number>()
 
     for (const req of unmatchedReqs) {
       try {
-        const matchResult = await runMatchEngine(req.id, { limit: 10 })
+        // Before any model call: this company's switch and allowance, read
+        // fresh for each job because the allowance is a running total. Held
+        // back, the job is still matched, by the rules alone. `rulesOnly`
+        // is the match engine's to honor (supply owns it).
+        const modelMay = modelSetUpHere() && (await modelOnFor(req.companyId))
+        if (!modelMay) heldBack.set(req.companyId, (heldBack.get(req.companyId) ?? 0) + 1)
+        const matchResult = await runMatchEngine(req.id, { limit: 10, ...(modelMay ? {} : { rulesOnly: true }) } as Parameters<typeof runMatchEngine>[1])
         const matchCount = matchResult.matches.length
 
         if (matchCount > 0) {
           results.push({
             requirementId: req.id,
+            companyId: req.companyId,
             title: req.title,
             matchesFound: matchCount,
           })
@@ -82,35 +93,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // AutomationLog
-    if (results.length > 0) {
-      const firstReq = unmatchedReqs[0]
+    // AutomationLog: one row under each company the job acted for.
+    const companyIds = Array.from(new Set(results.map((r) => r.companyId)))
+    for (const companyId of companyIds) {
+      const mine = unmatchedReqs.filter((r) => r.companyId === companyId)
+      const found = results.filter((r) => r.companyId === companyId)
+      const openMine = requirements.filter((r) => r.companyId === companyId).length
 
-      // ── Was this a model or was it arithmetic ───────────────────────
-      //
-      // This is the row that actually carries the claim. Of everything
-      // the system does unprompted, all but one is a date comparison or
-      // a count, and this is the one. So a buyer asking how much of the
-      // product is AI is really asking about this row, and it read "not
-      // recorded" — which is the honest answer to a question nobody had
-      // measured, and a poor one when the fact is already on file.
-      //
-      // Every scoring pass writes an AgentRun: a pass that called the
-      // model carries the model's name, a pass scored with arithmetic
-      // carries none. Counting the ones with a model inside this run's
-      // window is a recorded fact. Reading the basis prose and looking
-      // for the word would be a guess dressed as an answer, so it is
-      // not done — the same eight lines as `MATCH_RUN`, deliberately
-      // unchanged, because two spellings of this would drift.
-      //
-      // Across the whole scan rather than one requirement: a single run
-      // may score twenty roles, and if the model did any of them the
-      // model was involved. `decidedBy` is the spelling `lib/autonomy`
-      // reads; any other and the row goes on saying it does not know.
+      // Was this a model or was it arithmetic: every scoring pass writes an
+      // AgentRun, and one that called the model carries the model's name.
+      // Counting those inside this run's window, for this company's jobs
+      // only, is a recorded fact; reading prose for the word would be a guess.
       const byModel = await prisma.agentRun.count({
         where: {
           recordType: 'REQUIREMENT',
-          recordId: { in: unmatchedReqs.map((r) => r.id) },
+          recordId: { in: mine.map((r) => r.id) },
           agent: 'match.score',
           verdict: 'PASS',
           model: { not: null },
@@ -118,19 +115,23 @@ export async function GET(request: NextRequest) {
         },
       })
       const decidedBy: 'MODEL' | 'RULE' = byModel > 0 ? 'MODEL' : 'RULE'
+      const held = heldBack.get(companyId) ?? 0
 
       await prisma.automationLog.create({
         data: {
-          companyId: firstReq.companyId,
+          companyId,
           action: 'PROACTIVE_MATCH',
-          summary: `Proactive matching: scanned ${requirements.length} open requirements, ran matching on ${unmatchedReqs.length} unmatched, found candidates for ${results.length}`,
-          reason: 'Scheduled proactive match scan',
+          summary: `Proactive matching: scanned ${openMine} open requirements, ran matching on ${mine.length} unmatched, found candidates for ${found.length}`,
+          reason: held > 0
+            ? `Scheduled proactive match scan. For ${held} job${held === 1 ? '' : 's'} the model was not asked (no key, the company's switch is off, or its allowance is used), so the rules matched.`
+            : 'Scheduled proactive match scan',
           payload: {
-            totalOpen: requirements.length,
-            unmatched: unmatchedReqs.length,
-            matched: results.length,
+            totalOpen: openMine,
+            unmatched: mine.length,
+            matched: found.length,
             decidedBy,
-            results: results.slice(0, 10), // cap payload size
+            rulesOnlyJobs: held,
+            results: found.slice(0, 10).map(({ requirementId, title, matchesFound }) => ({ requirementId, title, matchesFound })),
           },
           reversible: false,
         },

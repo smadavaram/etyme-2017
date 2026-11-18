@@ -33,7 +33,7 @@ export function modelHealth(env: Env = process.env, limits: AllowanceLimits = al
     ? 'The Ask Etyme allowance is set.'
     : `No Ask Etyme allowance is set (both numbers, on the Superadmin screen or in the deployment's settings), so free text is open only for ${OPEN_BEFORE_LIMITS_NAME}.`
   const says = !keyPresent
-    ? 'No ANTHROPIC_API_KEY, so nothing is sent to a model; the rules answer and the CV evidence check reports itself as unverified.'
+    ? 'No ANTHROPIC_API_KEY, so nothing is sent to a model; the rules answer and the CV evidence check is recorded as unverified, with the reason, never as a pass.'
     : !ids.ok
       ? `The key is set, but ${ids.says}`
       : `The key is set and every model id is supported. ${allowance}`

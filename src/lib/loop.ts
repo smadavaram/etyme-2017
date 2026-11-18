@@ -36,6 +36,7 @@
 
 import { prisma } from '@/lib/db'
 import { record, type RecordType } from '@/lib/agent-run'
+import { modelOnFor, modelSetUpHere } from '@/lib/model-boundary'
 
 export type Checker = 'RULE' | 'MODEL' | 'HUMAN'
 
@@ -101,6 +102,29 @@ export interface Spec<T> {
 }
 
 export const DEFAULT_MAX_ATTEMPTS = 3
+
+/**
+ * Why a model step did not run, in the words a person reads. Pure.
+ * No key is named first: with no key the switch cannot matter.
+ */
+export function modelHeldSays(keyPresent: boolean, mayAsk: boolean): string | null {
+  if (!keyPresent) return 'No model key is set on this deployment, so the model did not check this. Nobody has verified it.'
+  if (!mayAsk) return "This company's model switch is off or its allowance is used, so the model did not check this. Nobody has verified it."
+  return null
+}
+
+/**
+ * Whether a company's model steps may run now, and if not the sentence.
+ * One door for every caller that would otherwise test the key by itself
+ * and return nothing, which the ledger read as a pass.
+ */
+export async function modelHeldFor(
+  companyId: string,
+  env: Record<string, string | undefined> = process.env,
+): Promise<string | null> {
+  const keyPresent = modelSetUpHere(env)
+  return modelHeldSays(keyPresent, keyPresent ? await modelOnFor(companyId) : false)
+}
 
 /**
  * Where a record stands.
@@ -187,9 +211,34 @@ export async function runLoop<T>(
   const models = spec.steps.filter((s) => s.checker === 'MODEL')
   const runIds = new Map<string, string | null>()
 
+  // A model step that cannot be asked is recorded as not run, never as a
+  // pass: no key, or the company's switch off. Read once, and only when
+  // there is a model step to ask about.
+  const held = rulesClean && models.length > 0 ? await modelHeldFor(ctx.companyId) : null
+
   if (rulesClean) {
     for (const step of models) {
       const started = Date.now()
+      if (held) {
+        await record({
+          companyId: ctx.companyId,
+          agent: `${spec.name}.${step.code.toLowerCase()}`,
+          recordType: spec.recordType,
+          recordId: ctx.recordId,
+          attempt: ctx.attempt,
+          verdict: 'ERROR',
+          failReason: `unverified: ${held}`,
+          ms: 0,
+        })
+        findings.push({
+          code: step.code,
+          checker: 'MODEL',
+          verdict: 'PASS',
+          unverified: true,
+          reason: held,
+        })
+        continue
+      }
       try {
         const f = await step.run(subject)
 

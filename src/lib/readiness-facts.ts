@@ -13,6 +13,7 @@ import { contactEmail } from '@/lib/data-request'
 import { countTeamsLinks, TEAMS_WORKFLOWS_SENT_NOTE, type TeamsFacts } from '@/lib/notify/teams-link'
 import { INBOUND_SECRET_ENV } from '@/lib/texts'
 import { teamsBotEdge, teamsBotFacts } from '@/lib/teams/readiness'
+import { fixedAppUrl } from '@/lib/app-url'
 import { modelHealth } from '@/lib/model-health'
 import { currentAllowanceLimits } from '@/lib/model-allowance'
 import { securityLogGuarded } from '@/lib/identity/security-ledger'
@@ -30,7 +31,8 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     emailLink: emailLinkDoorOn(),
     emailSender: Boolean(process.env.RESEND_API_KEY && process.env.NOTIFY_FROM_EMAIL),
     anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
-    lastingAddress: Boolean(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL),
+    // The same address mail uses, so the page and the mail agree.
+    lastingAddress: fixedAppUrl() !== null,
   }
   // Replies by email: the secret is named, never valued. A signed delivery
   // writes the same inbound message row a button answer does, so it
