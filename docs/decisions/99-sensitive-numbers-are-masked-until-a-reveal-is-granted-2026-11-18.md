@@ -72,3 +72,13 @@ is moving to the client's employment."
 - A worker moving to the client's employment: her numbers are hers. She
   sends her own papers to her new employer from her own page, by her
   own yes. The firm does not send them for her.
+
+### Standing grants — his yes, 2026-11-18
+
+Asked whether the Owner may grant a purpose to a role once (for
+example "HR may reveal for I-9 and payroll setup"), he said: "Yes."
+- The Owner grants a purpose to a role, and may withdraw it at any time.
+- Each reveal under a standing grant still asks that person's own
+  second check, names its purpose, and is on the ledger.
+- Everything outside a standing grant is asked for and approved one
+  request at a time.
