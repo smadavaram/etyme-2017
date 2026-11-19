@@ -117,3 +117,4 @@ built, every release check, every walk and every deploy.
 | 99 | Sensitive numbers are masked until a reveal is granted — 2026-11-18 | 367 | [99-sensitive-numbers-are-masked-until-a-reveal-is-granted-2026-11-18.md](99-sensitive-numbers-are-masked-until-a-reveal-is-granted-2026-11-18.md) |
 | 100 | A role is requested, assigned and approved by three people — 2026-11-18 | 330 | [100-a-role-is-requested-assigned-and-approved-by-three-people-2026-11-18.md](100-a-role-is-requested-assigned-and-approved-by-three-people-2026-11-18.md) |
 | 101 | The recruiter's niche, and the record as proof — 2026-11-18 | 320 | [101-the-recruiters-niche-and-the-record-as-proof-2026-11-18.md](101-the-recruiters-niche-and-the-record-as-proof-2026-11-18.md) |
+| 102 | The tester's list of 2026-11-18: what blocks real use | 545 | [102-the-testers-list-of-2026-11-18-what-blocks-real-use.md](102-the-testers-list-of-2026-11-18-what-blocks-real-use.md) |
