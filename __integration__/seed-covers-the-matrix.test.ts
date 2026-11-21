@@ -61,6 +61,8 @@ import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
  * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
+  // Record 102, item 1 (2026-11-21). A stranger's question from a firm's public page.
+  pageAsk: 'written when somebody outside Etyme asks a firm a question on its public page; a seeded row would claim a stranger wrote to the demo firm and left an address',
   // Layer 7, slice S0 (2026-11-16, records 86 and 87). Nothing writes these
   // until a person acts, and a seeded row would claim an act nobody did.
   bankCheck: 'written when a paying client confirms a supplier’s bank details with a recorded call back; a seeded row would claim a client called somebody',

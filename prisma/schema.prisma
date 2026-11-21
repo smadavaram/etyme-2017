@@ -283,6 +283,8 @@ model Person {
   ownershipDecided       OwnershipRequest[]    @relation("ownershipDecidedBy")
   ownerProofs            OwnerProof[]          @relation("ownerProofOf")
   ownerProofsRecorded    OwnerProof[]          @relation("ownerProofRecordedBy")
+  pageAsksTaken          PageAsk[]             @relation("pageAskAssignee")
+  pageAsksClosed         PageAsk[]             @relation("pageAskClosedBy")
   identityProvidersSet   IdentityProvider[]    @relation("identityProviderSetBy")
   scimTokensMade         ScimToken[]           @relation("scimTokenMadeBy")
   directoryGroupRolesSet DirectoryGroupRole[]  @relation("directoryGroupRoleSetBy")
@@ -954,6 +956,8 @@ model Company {
   signInPolicy          CompanySignInPolicy?
   ownershipRequests     OwnershipRequest[]
   ownerProofs           OwnerProof[]
+  /// Questions asked on this firm's public page (2026-11-21).
+  pageAsks              PageAsk[]
   identityProviders     IdentityProvider[]
   scimTokens            ScimToken[]
   directoryGroupRoles   DirectoryGroupRole[]
@@ -10756,6 +10760,52 @@ model OwnerProof {
 enum OwnerProofKind {
   DOMAIN
   PERSON
+}
+
+// ─────────────────────────────────────────────
+// A QUESTION ASKED ON A FIRM'S PUBLIC PAGE (2026-11-21, record 102, item 1)
+//
+// The public Ask box wrote only a per-seat notice, and nothing listed it
+// after the greeting showed it once: a real person's question was lost to
+// view. The question is now one record at the firm that was asked, listed,
+// searched and assigned. The asker is not a person on Etyme: a name, an
+// address to reply to and the words, kept for the firm's own people only.
+// ─────────────────────────────────────────────
+
+model PageAsk {
+  id                   String        @id @default(cuid())
+  /// The firm that was asked.
+  companyId            String
+  company              Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// The words, as typed.
+  asked                String
+  /// Where the answer goes. The asker's own address, kept for the firm.
+  replyTo              String
+  name                 String?
+  companyName          String?
+  status               PageAskStatus @default(OPEN)
+  /// The seat that took it. Null until somebody does.
+  assigneePersonId     String?
+  assignee             Person?       @relation("pageAskAssignee", fields: [assigneePersonId], references: [id], onDelete: SetNull)
+  assignedAt           DateTime?
+  answeredAt           DateTime?
+  closedAt             DateTime?
+  closedById           String?
+  closedBy             Person?       @relation("pageAskClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  /// The notice this record was made from, set only by the backfill of
+  /// questions stored before this table existed. A second run finds it.
+  sourceNotificationId String?       @unique
+  createdAt            DateTime      @default(now())
+
+  @@index([companyId, status, createdAt])
+  @@index([assigneePersonId])
+  @@index([closedById])
+}
+
+enum PageAskStatus {
+  OPEN
+  ANSWERED
+  CLOSED
 }
 
 // ─────────────────────────────────────────────

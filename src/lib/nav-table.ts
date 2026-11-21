@@ -430,6 +430,8 @@ const OUR_SCORECARD: NavItem = { label: 'Our scorecard', href: '/dashboard/my-st
 /** The job requests a supplier is working. "Jobs" on the menu, the founder's word of 2026-10-19; the machine name stays requirements. */
 const JOBS: NavItem = { label: 'Jobs', href: '/dashboard/requirements', icon: '◈', needs: ['requirements.read'] }
 const LEADS: NavItem = { label: 'Leads', href: '/dashboard/leads', icon: '⌁', pageCalls: ['openings', 'openings/**'] }
+/** What people asked on the firm's own public page (record 102, item 1). Only a staffing firm's page has an Ask box, so only a supplier's menu has the tab. */
+const QUESTIONS: NavItem = { label: 'Questions', href: '/dashboard/page-asks', icon: '?', needs: ['submissions.create'], pageCalls: ['page-asks', 'page-asks/**'] }
 const SHARED_WITH_YOU: NavItem = { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' }
 
 /**
@@ -671,7 +673,7 @@ const VENDOR_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY, OUR_SCORECARD]),
   tabbed('Network', [...FIRM_CANDIDATES, ...FIRM_COMPANIES]),
-  tabbed('Jobs', [JOBS, LEADS, SHARED_WITH_YOU]),
+  tabbed('Jobs', [JOBS, LEADS, QUESTIONS, SHARED_WITH_YOU]),
   tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
   tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),

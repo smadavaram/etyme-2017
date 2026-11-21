@@ -88,6 +88,9 @@ export const CONFIRM_PHRASE = 'delete the demo world'
  * from `Prisma.dmmf` and fails when a model is missing or out of order.
  */
 export const DELETE_ORDER = [
+  // A question asked on a firm's public page (2026-11-21) names the firm
+  // and the people who took or closed it, so it goes before both.
+  'PageAsk',
   // A permission the Owner gave (2026-11-08) names a role, a seat, a unit
   // and the people who gave and took it, so it goes before all of them.
   'PermissionGrant',
@@ -273,6 +276,8 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'MarketingLead.convertedCompanyId': { as: 'RECORD' },
   'Notification.companyId': { as: 'RECORD' },
   'Notification.entityId': { as: 'RECORD' },
+  // The notice a question's record was made from by the backfill (2026-11-21); a record of where it came from, kept where the notice is gone.
+  'PageAsk.sourceNotificationId': { as: 'RECORD' },
   // Who did it — on a row already owned through a foreign key.
   'Context.grantedById': { as: 'RECORD' },
   'Context.suspendedById': { as: 'RECORD' },
