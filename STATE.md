@@ -286,9 +286,18 @@ deploy, then stop. Done means the second firm's team runs it on Monday;
 the tester's retest on that tenant is acceptance. The calendar is in
 record 107.
 
-**The two mission numbers, as of 2026-11-21.** Consultants billing: not
-yet measured. Blended margin an hour: not yet measured. Both wait on
-the census (week 2). The target is 36 at $15 by 2027-11-21.
+**Standing release rule (owner, 2026-11-21).** Deploys happen on
+Saturday and Sunday only. There is no hotfix exception, not for money
+and not for security. Monday to Friday is for running and measuring: a
+defect found then is written below as NOT RELEASED, never fixed
+quietly, and takes the coming weekend's first slot.
+
+**Weekday findings, NOT RELEASED.** None yet.
+
+**The two mission numbers, as of 2026-11-21.** Consultants billing:
+BASELINE PENDING. Blended margin an hour: BASELINE PENDING. The
+baseline is an output of the week 2 census and is never estimated. The
+target is 36 at $15 by 2027-11-21.
 
 **Week 1, Nov 21–22: pack batch 1, primitives.** IN PROGRESS: scouted,
 nothing built. The Monday run: the decision queue is home, four seeded
@@ -297,6 +306,12 @@ items with owners and true ages.
   the handover's Batch 1; the decision queue is the signed-in home.
 - Built on record 105's reading: one tenant, legal entities as a layer.
 - Still waited on: the Vision UI file, for the two screens.
+- The release ask for the weekend (record 107) adds a Tapin load. The
+  four decision items, seven placements and three customers are entered
+  by a person on the screens after the deploy: NOT STARTED, the
+  tester's. Tapin's two money chains need the money loop of week 3 and
+  are NOT IN THIS RELEASE unless the owner rules otherwise. The
+  branding check is NOT CHECKED.
 - The rest of the handover's Batch 1 is DISPLACED, not dropped; the
   lead recommends week 3, with the remainder in week 4.
 

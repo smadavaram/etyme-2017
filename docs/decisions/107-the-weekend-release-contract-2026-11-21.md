@@ -73,3 +73,70 @@ one more thing: it takes the next weekend's first slot.
   regulatory.
 - *A standing rule the calendar meets.* Blended margin is drawn only
   for a seat that may read margin. The Monday report says so.
+
+### Amendment: releases only on Saturday and Sunday — owner's ruling, 2026-11-21
+
+"No releases Monday to Friday — only Saturday and Sunday." This
+replaces rule 5's exception.
+- A deploy happens on a Saturday or a Sunday, and on no other day.
+  There is no hotfix exception, not for money and not for security. A
+  defect found Monday to Friday is logged, and takes the coming
+  weekend's first slot.
+- Monday to Friday is for running and measuring. The second firm's team
+  works on what shipped. The tester checks behavior in production and
+  logs defects for the weekend. STATE.md records a weekday finding as
+  NOT RELEASED, never as a quiet fix.
+- The Monday run is unchanged. Weekdays are for running the business,
+  which is why releases are fenced to the weekend.
+
+### The release ask for weekend 1 — 2026-11-21
+
+From the tester, approved by the owner. Acceptance is the tester's
+retest in production, per tenant, on Sunday. The names, the figures
+and the four real questions in the ask stay outside the repository.
+
+**The second firm: pack batch 1, and nothing else.**
+1. Record, ledger, acting-entity stamp, decision-queue home, agent
+   control view.
+2. The decision queue holds the four real open items, each with its
+   owner named, its true age and its proof attached. One is about a
+   year old.
+3. STATE.md carries the two mission numbers as BASELINE PENDING. The
+   baseline is an output of the week 2 census and is never estimated.
+The Monday run: the decision queue is that tenant's home, and Monday's
+queue review runs off it.
+
+**Tapin: a load onto the same primitives, in the same release.**
+1. Its seven billing consultants as placement records: consultant,
+   client, agreed rate, start.
+2. Three customer records.
+3. A first money chain, historical and closed: October 2026 payroll.
+4. A first live chain, in draft mode: December 2026 payroll, with
+   timesheets in, states visible and discrepancies as decision items.
+   Nothing sends and no agent acts.
+5. A branding check: Tapin's loaded records render in Tapin's colors.
+The Monday run: Tapin's December payroll shows as one chain on the
+record. If the load cannot fit without touching the quality of the
+second firm's batch, it slips to week 2's first slot. The second
+firm's batch does not slip.
+
+**Not this weekend.** The census import and everything after it. Any
+Tapin agent. Any new feature for either tenant. Any change to the two
+deployed START HERE items beyond defects logged for week 2.
+
+**The lead's reading, said to the founder the same day.**
+- *Who loads.* Real records are never written into the repository, and
+  no agent writes production data. The four decision items, the seven
+  placements and the three customers are entered by a person on the
+  screens, after the deploy.
+- *Tapin items 1 and 2* need nothing new: the Contracts and Companies
+  screens exist. Acts taken after the deploy carry the three stamps.
+- *Tapin items 3 and 4 are not a load.* A money chain with states is
+  pack batch 3, which the calendar builds in week 3. Nothing built
+  today holds a chain. They cannot ship this weekend as "a load onto
+  week 1's primitives" without building part of week 3 early, which
+  the ask itself forbids. The lead's recommendation: they move with the
+  money loop, and week 3 opens on Tapin's two chains.
+- *Tapin item 5* is unchecked: whether the signed-in screens, and not
+  only the storefront, draw in a tenant's own colors is read from the
+  code before it is claimed.

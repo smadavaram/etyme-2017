@@ -444,8 +444,10 @@ Full text → 40, 11, 56, 68, 72.
 - **One item ships each weekend to 2027-02-14** (2026-11-21 → 107),
   from the pack (→ 105): one deploy, then stop. Done means the second
   firm's team runs it on Monday, and the tester's production retest is
-  acceptance. A failed item is next weekend's first. No midweek fix
-  but money integrity or security.
+  acceptance. A failed item is next weekend's first.
+- **Deploys happen on Saturday and Sunday only** (owner, 2026-11-21 →
+  107). No hotfix exception, not for money, not for security. A weekday
+  finding is logged NOT RELEASED and takes the weekend's first slot.
 - **The fix list is worked in layers, each its own deploy** (founder,
   2026-11-15). Tapin first, as the live tenant that runs its whole
   business on Etyme. A layer is built and deployed, the tester retests
