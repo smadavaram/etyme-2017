@@ -21,6 +21,7 @@ import { TEAMS_NOT_CONFIRMED } from '@/lib/team-structure/directory/words'
 import { WeekPanel } from '@/components/settings/week-panel'
 import { PayrollPanel, goToFirstPayDay } from '@/components/settings/payroll-panel'
 import { AskEtymePanel } from '@/components/settings/ask-etyme-panel'
+import { HomePagePanel } from '@/components/settings/home-page-panel'
 import { Chip, ErrorState, FormMessage, Lbl, LoadingState, PageHead, Panel } from '@/components/ui'
 import { SubmitButton } from '@/components/ui/form'
 import { COMPANY_CODE_HELP, COST_OBJECT_KIND_WORDS } from '@/lib/counterparty'
@@ -461,6 +462,7 @@ function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: Sen
 
   return (
     <>
+      <HomePagePanel />
       <Panel
         title="Who you are"
         subtitle={howYouCameIn(c, data.joins)}

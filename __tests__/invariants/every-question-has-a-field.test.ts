@@ -3,6 +3,8 @@ import { CPT_PAGE_FIELDS, CPT_PAGE_TYPE, petitionBody, readCptPage } from '@/lib
 import { factsFrom } from '@/lib/document-stages/worker-class-facts'
 import { employerNamedNote, workerClassStart } from '@/lib/document-stages/worker-class'
 import { readFileSync } from 'node:fs'
+import { openFields, openBody, readOpenAsk, decideBody, readDecideAsk, VERDICT_BUTTONS, type OpenTyped } from '@/lib/decision-queue'
+import { openRefusal, verdictRefusal } from '@/lib/decision-items'
 import { join } from 'node:path'
 import { BUILT_IN } from '@/lib/document-type'
 import { mayExamine } from '@/lib/document-request'
@@ -703,5 +705,35 @@ describe('the first sign-in "Your company" form asks for the name the onboarding
     const box = page.slice(page.indexOf('<Lbl>Company name</Lbl>'), page.indexOf('<Lbl>Which one are you?</Lbl>'))
     expect(box).toContain("{missingFor === 'COMPANY' && <p role=\"alert\"")
     expect(box).toContain('{COMPANY_NAME_MISSING}')
+  })
+})
+
+describe('the decision queue’s two forms (record 107, A2 and A3)', () => {
+  const ALL: OpenTyped = { question: 'Approve the renewal?', ownerPersonId: 'p1', openedOn: '2025-10-05', actingEntityId: 'e1', proof: 'The letter is on file.', proofLinks: [{ recordType: 'Company', recordId: 'c1' }] }
+  for (const hasEntities of [false, true]) {
+    it(`opening a decision ${hasEntities ? 'at a firm with entities' : 'at a firm with none'}, with every field the form draws filled in, is not refused for a field the form did not draw`, () => {
+      const typed: Partial<OpenTyped> = {}
+      for (const f of openFields(hasEntities)) (typed as any)[f] = ALL[f]
+      const read = readOpenAsk(openBody(typed), hasEntities)
+      expect(read.ok, !read.ok ? read.says : '').toBe(true)
+      if (read.ok) expect(openRefusal(read.ask, new Date('2026-11-21T12:00:00Z'))).toBeNull()
+    })
+    for (const b of VERDICT_BUTTONS) {
+      it(`pressing ${b.label} ${hasEntities ? 'at a firm with entities' : 'at a firm with none'}, with the reason and the entity the item draws filled in, is not refused for a field the item did not draw`, () => {
+        const read = readDecideAsk(decideBody(b.verdict, 'One line of reason.', hasEntities ? 'e1' : ''), hasEntities)
+        expect(read.ok, !read.ok ? read.says : '').toBe(true)
+        if (read.ok) expect(verdictRefusal('OPEN', read.ask.verdict, read.ask.reason)).toBeNull()
+      })
+    }
+  }
+
+  it('the form and the item post what the one description says, and the routes read it the same way', () => {
+    const form = readFileSync(join(process.cwd(), 'src/app/dashboard/decisions/queue.tsx'), 'utf8')
+    expect(form).toContain('JSON.stringify(openBody(f))')
+    expect(form).toContain('{hasEntities && (')
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/decisions/[id]/page.tsx'), 'utf8')
+    expect(page).toContain('JSON.stringify(decideBody(verdict, reason, entity))')
+    expect(readFileSync(join(process.cwd(), 'src/app/api/decision-items/route.ts'), 'utf8')).toContain('readOpenAsk(')
+    expect(readFileSync(join(process.cwd(), 'src/app/api/decision-items/[id]/route.ts'), 'utf8')).toContain('readDecideAsk(')
   })
 })

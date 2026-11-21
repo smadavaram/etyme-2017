@@ -8,6 +8,8 @@ import { amount } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
 import { chipsFor, emptyBook, decisionsAddress, type TypeFilter } from './chips'
+import { DecisionQueue } from './queue'
+import { QueueTabs } from './queue-tabs'
 import { PageHead, Stat, FilterChips, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 
 /**
@@ -147,7 +149,8 @@ function timeAgo(dateStr: string): string {
 
 // ── Page ─────────────────────────────────────────────
 
-export default function DecisionsPage() {
+/** The twin's and the workflow's cards, unchanged, in their own section under the queue. */
+function NeedsAttention() {
   const section = usePageSection('/dashboard/decisions')
   const session = useSession()
   const [decisions, setDecisions] = useState<Decision[]>([])
@@ -634,6 +637,22 @@ export default function DecisionsPage() {
           {toast.message}
         </div>
       )}
+    </>
+  )
+}
+
+/**
+ * The decision queue (record 107, A2): its two tabs, the firm's own
+ * decisions oldest first, then the cards above, as they were.
+ */
+export default function DecisionsPage() {
+  const section = usePageSection('/dashboard/decisions')
+  return (
+    <>
+      <PageHead eyebrow={section} title="Decisions" subtitle="What the firm owes a decision on, oldest first. Open one to approve it, send it back or reject it." />
+      <QueueTabs current="decisions" />
+      <DecisionQueue />
+      <NeedsAttention />
     </>
   )
 }

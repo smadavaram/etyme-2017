@@ -69,6 +69,7 @@ export function SectionPills() {
     seated: Boolean(id.seatedAtClient),
     worker: id.worker,
     permissions: id.permissions,
+    homePage: id.homePage,
   }).href
   const current = activeHref(sections, pathname, searchParams, home)
 

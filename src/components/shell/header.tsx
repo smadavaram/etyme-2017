@@ -516,6 +516,7 @@ export function Header({ title }: HeaderProps) {
     seated: Boolean(desk.seatedAtClient),
     worker: desk.worker,
     permissions: desk.permissions,
+    homePage: desk.homePage,
   }).href
 
   // Ask Etyme | Dashboard (founder, 2026-11-08, "One app, two tabs"):

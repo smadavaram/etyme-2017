@@ -27,6 +27,8 @@ export interface SessionCompany {
   name: string
   slug: string
   kind: CompanyKind
+  /** The firm's own home setting (→ 107): DECISIONS lands its seats on the decision queue. */
+  homePage?: 'DECISIONS' | null
 }
 
 /** Who the signed-in person is here. A consultant on a vendor's bench has
@@ -347,6 +349,7 @@ export function SessionProvider({
                 name: company.name,
                 slug: company.slug,
                 kind: normalizeKind(company.kind),
+                homePage: company.homePage === 'DECISIONS' ? 'DECISIONS' : null,
               }
             : null,
           roleName: active?.role?.name ?? null,

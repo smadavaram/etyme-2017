@@ -25,6 +25,8 @@ function readPerson(email: string) {
           company: {
             select: {
               id: true, name: true, slug: true, kind: true, homeCurrency: true,
+              // Where the firm's seats land (Company.homePage, → 107).
+              homePage: true,
               // How the company's people sign in, read the way the one
               // caller check reads it (seatCompanyPolicy), so an invited
               // public-address seat is narrowed here as it is on every route.

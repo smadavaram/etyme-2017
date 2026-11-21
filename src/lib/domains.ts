@@ -634,6 +634,10 @@ export const DOMAINS: Domain[] = [
       // person opens (2026-11-21 → 107). Every domain writes to the ledger
       // through the one writer; the schema under it queues here.
       'lib/record-ledger', 'lib/decision-items',
+      // The decision queue's routes and the record view (Flow A, A2 to A6):
+      // the open list, an item and its three acts, agent control and the
+      // firm's ledger, and one record with its whole history.
+      'lib/decision-queue', 'app/api/decision-items', 'app/api/records', 'app/dashboard/records',
       // The navigation table every menu, heading and landing reads. Pure,
       // so a server route may import it; the sidebar that draws it is a
       // client component and no route may import that.

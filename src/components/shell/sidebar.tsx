@@ -38,6 +38,7 @@ export function Sidebar({
   region = null,
   hat = null,
   earnsCommission = false,
+  homePage = null,
   pending = false,
   sheet = false,
   onDismiss,
@@ -71,6 +72,8 @@ export function Sidebar({
   hat?: Hat | null
   /** This person earns commission at this firm: "Your commissions" under Accounting. */
   earnsCommission?: boolean
+  /** The firm's own home setting (→ 107): its Dashboard link opens the decision queue. */
+  homePage?: 'DECISIONS' | null
   /** Session still loading — render the frame without nav items so the
    *  wrong company's navigation never flashes on screen. */
   pending?: boolean
@@ -99,6 +102,7 @@ export function Sidebar({
     seated: Boolean(seatedAtClient),
     worker,
     permissions,
+    homePage,
   }).href
 
   // The page being read, by the longest match across every page on the

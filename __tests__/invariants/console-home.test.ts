@@ -201,4 +201,14 @@ describe('a firm that chose the decision queue as its home', () => {
     expect(landingFor({ kind: 'VENDOR', worker: true, permissions: ['assignments.read', 'timesheets.read'], homePage: 'DECISIONS' })).not.toBe('/dashboard/decisions')
     expect(landingFor({ kind: 'CONSULTANT_CORP', homePage: 'DECISIONS' })).not.toBe('/dashboard/decisions')
   })
+
+  it('the dashboard, the menu, the header and the tab row all read the firm’s home setting, so a seat returns to the decision queue', () => {
+    for (const f of ['src/app/dashboard/page.tsx', 'src/components/shell/sidebar.tsx', 'src/components/shell/header.tsx', 'src/components/shell/section-pills.tsx']) {
+      const src = readFileSync(join(process.cwd(), f), 'utf8')
+      const call = src.slice(src.indexOf('consoleHome({'), src.indexOf('consoleHome({') + 300)
+      expect(call, f).toMatch(/homePage/)
+    }
+    // And the session carries it from /api/me.
+    expect(readFileSync(join(process.cwd(), 'src/app/api/me/route.ts'), 'utf8')).toMatch(/homePage: true/)
+  })
 })

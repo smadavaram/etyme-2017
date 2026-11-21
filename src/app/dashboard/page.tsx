@@ -157,6 +157,7 @@ export default function DashboardPage() {
       seated: Boolean(session.seat),
       worker: deskOf(session).worker,
       permissions: deskOf(session).permissions,
+      homePage: deskOf(session).homePage,
     })
     // Anybody whose console is not this page goes where signing in and
     // the demo door send them, through the one function the three doors
@@ -169,6 +170,7 @@ export default function DashboardPage() {
         worker: deskOf(session).worker,
         permissions: deskOf(session).permissions,
         region: session.region,
+        homePage: deskOf(session).homePage,
       }) as any)
       return
     }

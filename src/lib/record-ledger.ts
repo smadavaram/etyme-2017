@@ -99,3 +99,24 @@ export async function usageCount(companyId: string, from: Date, to: Date, db: Tx
   })
   return rows.map((r) => ({ agentKey: r.agentKey, count: r._count._all }))
 }
+
+export const LEDGER_PAGE_SIZE = 25
+
+/**
+ * The firm's whole ledger, newest first, one page at a time (page 1 is
+ * the newest). Read only inside its company; a count, never a price.
+ */
+export async function firmLedger(companyId: string, page: number = 1, db: Tx = prisma) {
+  const at = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1
+  const [rows, total] = await Promise.all([
+    db.recordAction.findMany({
+      where: { companyId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: (at - 1) * LEDGER_PAGE_SIZE,
+      take: LEDGER_PAGE_SIZE,
+      include: { person: { select: { name: true } }, actingEntity: { select: { name: true } } },
+    }),
+    db.recordAction.count({ where: { companyId } }),
+  ])
+  return { rows, page: at, pages: Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE)), total }
+}
