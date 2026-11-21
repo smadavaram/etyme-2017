@@ -20,12 +20,17 @@ const h = vi.hoisted(() => ({
   notices: [] as Row[],
   leads: [] as Row[],
   noticeCount: 0,
+  asks: [] as Row[],
+  askCount: 0,
+  askWriteFails: false,
+  askCountWhere: null as Row | null,
+  order: [] as string[],
   courses: [] as Row[],
 }))
 
 vi.mock('@/lib/alerts', () => ({ reportError: vi.fn() }))
 vi.mock('@/lib/notify', () => ({
-  notify: vi.fn(async (n: Row) => { h.notices.push(n); return { id: `n-${h.notices.length}` } }),
+  notify: vi.fn(async (n: Row) => { h.order.push('notice'); h.notices.push(n); return { id: `n-${h.notices.length}` } }),
 }))
 vi.mock('@/lib/db', () => {
   const prisma: Row = {
@@ -53,6 +58,13 @@ vi.mock('@/lib/db', () => {
       findMany: async () => h.bench,
     },
     notification: { count: async () => h.noticeCount },
+    pageAsk: {
+      count: async ({ where }: Row) => { h.askCountWhere = where; return h.askCount },
+      create: async ({ data }: Row) => {
+        if (h.askWriteFails) throw new Error('the database is away')
+        h.order.push('record'); h.asks.push(data); return { id: `ask-${h.asks.length}` }
+      },
+    },
     context: { findMany: async () => h.seats },
     marketingLead: {
       upsert: async (a: Row) => { h.leads.push(a); return { id: 'lead' } },
@@ -65,7 +77,7 @@ vi.mock('@/lib/db', () => {
 import { publicSite } from '@/lib/public-site'
 import { GET as siteFeed } from '@/app/api/site/[slug]/route'
 import { POST as askFirm } from '@/app/api/site/[slug]/ask/route'
-import { firmContact, mayShowPublicly, FIRM_ASK_COPY, firmAskThanks } from '@/lib/public-site/firm-page'
+import { firmContact, mayShowPublicly, FIRM_ASK_COPY, firmAskThanks, ASKS_PER_HOUR } from '@/lib/public-site/firm-page'
 import { joinReply, joinReplyFor, joinReplyNoLetter, joinProblems, JOIN_BENCH_COPY, JOIN_EMAIL_NO_LETTER, TOO_MANY_SAYS } from '@/lib/public-site/join-bench'
 import { NOBODY_READS } from '@/lib/public-site/firm-page'
 import {
@@ -108,6 +120,11 @@ beforeEach(() => {
   h.notices = []
   h.leads = []
   h.noticeCount = 0
+  h.asks = []
+  h.askCount = 0
+  h.askWriteFails = false
+  h.askCountWhere = null
+  h.order = []
   h.courses = []
 })
 
@@ -241,6 +258,7 @@ describe('the ask box on a firm’s page', () => {
     expect(h.notices[0].body).toContain('Write back to dana@northbend.example.')
     expect(h.notices.map((n) => n.data.pageAsk)).toEqual(['FIRST', 'COPY'])
     expect(h.leads).toHaveLength(0)
+    expect(h.asks).toHaveLength(1)
     const route = readFileSync(join(process.cwd(), 'src/app/api/site/[slug]/ask/route.ts'), 'utf8')
     expect(route).not.toMatch(/marketingLead|tellStaff/)
   })
@@ -254,11 +272,48 @@ describe('the ask box on a firm’s page', () => {
     expect(h.notices).toHaveLength(0)
   })
 
+  it('a question asked on a firm’s page is kept as one record before any seat is told', async () => {
+    const res = await ask({ email: 'Dana@Northbend.example', asked: 'A data engineer in Ohio from December.', name: 'Dana Whitfield', companyName: 'Northbend' })
+    expect(res.status).toBe(200)
+    expect(h.asks).toHaveLength(1)
+    expect(h.asks[0]).toMatchObject({ companyId: 'tapin', asked: 'A data engineer in Ohio from December.', replyTo: 'dana@northbend.example', name: 'Dana Whitfield', companyName: 'Northbend' })
+    // One record however many seats are told, and it comes first.
+    expect(h.notices).toHaveLength(2)
+    expect(h.order).toEqual(['record', 'notice', 'notice'])
+  })
+
+  it('where the record cannot be written, no seat is told and the visitor reads that it did not send', async () => {
+    h.askWriteFails = true
+    const res = await ask({ email: 'a@b.example', asked: 'Hello there' })
+    expect(res.status).toBe(500)
+    expect((await res.json()).error.message).toBe('That did not send. Try again in a minute.')
+    expect(h.notices).toHaveLength(0)
+  })
+
+  it('the hour’s cap counts kept questions', async () => {
+    h.askCount = 29
+    expect((await ask({ email: 'a@b.example', asked: 'Hello there' })).status).toBe(200)
+    expect(h.askCountWhere).toMatchObject({ companyId: 'tapin' })
+    expect(h.askCountWhere!.createdAt.gte).toBeInstanceOf(Date)
+    h.askCount = ASKS_PER_HOUR
+    h.notices = []
+    h.asks = []
+    h.noticeCount = 0
+    expect((await ask({ email: 'a@b.example', asked: 'Hello there' })).status).toBe(429)
+    expect(h.asks).toHaveLength(0)
+    expect(h.notices).toHaveLength(0)
+    // Notices no longer decide it: a firm told 30 times by copies is not capped by them.
+    h.askCount = 0
+    h.noticeCount = 500
+    expect((await ask({ email: 'a@b.example', asked: 'Hello there' })).status).toBe(200)
+  })
+
   it('a form filled by a script, or a page past its hour’s cap, sends nothing', async () => {
     expect((await ask({ email: 'a@b.example', asked: 'Hello there', company_website: 'x' })).status).toBe(422)
-    h.noticeCount = 30
+    h.askCount = ASKS_PER_HOUR
     expect((await ask({ email: 'a@b.example', asked: 'Hello there' })).status).toBe(429)
     expect(h.notices).toHaveLength(0)
+    expect(h.asks).toHaveLength(0)
   })
 
   it('a page that takes no questions refuses them on the route as well as on the screen', async () => {

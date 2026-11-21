@@ -489,8 +489,9 @@ export const NOT_USED = [
     'reads them. A document is signed here by attestation from the person’s own page, ' +
     'recorded with who attested and when.',
   'Any SMS provider. Text messages are composed and stored; nothing sends one.',
-  'Any analytics, advertising or session-replay service. There is no such dependency ' +
-    'in the application.',
+  'Any advertising or session-replay service. There is no such dependency in the ' +
+    'application. The one analytics package, Vercel Web Analytics, draws on the public ' +
+    'marketing pages only.',
 ] as const
 
 // ── The documents themselves ──────────────────────────────────────────
