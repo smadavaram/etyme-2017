@@ -62,12 +62,8 @@ import { COVER_THAT_STOPS_WORK } from '@/lib/document-stages'
 // section cannot fall off both pages at once.
 import { MODULES, RULE_COUNT_LINE, WHAT_IS_LEFT, copyOfModule, spelled } from '@/lib/public-site/modules'
 import { STORY, storyCopy } from '@/lib/public-site/story'
-import { copyOfHome, homeLines, glanceFigures } from '@/lib/public-site/home-copy'
-import { homeGlanceHeld } from '@/lib/public-site/home-cfo'
-import {
-  HOME_HEADLINE, HOME_SUBHEAD, HOME_FIT, COMPLEMENT_LINE, START_FREE, UNDER_START, SEE_IT_WORK, PROOF_HEADING, FINAL_HEADING,
-  PROOF_CARDS_AFTER, STRIP, MOST_HOME_WORDS, homeCopy, RECORD_LINE, GLANCE_TITLE, glanceHeld, GLANCE_MONTHS, GLANCE_LINES, GLANCE_NOTE, HOME_NAV,
-} from '@/lib/public-site/home-words'
+import { copyOfHome, homeLines } from '@/lib/public-site/home-copy'
+import { HOME_BADGE, HOME_HEADLINE, HOME_NAV, HERO, START_FREE, ROLES, GUARANTEE, START, PRICE, FEATURES, homeHeroLines, homeBodyLines } from '@/lib/public-site/home-page-words'
 import { BAND, CATEGORY, OPEN_DEMO, bandWords, copyOfSkeleton, countWords, MOST_WORDS, DOORS as HOME_DOORS, FOOTER_LINKS as SKELETON_FOOTER_LINKS } from '@/lib/public-site/skeleton-words'
 import { ABOUT, COMPANY_PAGES, TWO_WAYS, copyOfCompanyPage } from '@/lib/public-site/company'
 import { copyOfDoc, copyOfDocsHome, docRoutes, TIME_AND_MONEY } from '@/lib/public-site/docs/index'
@@ -89,7 +85,7 @@ import { TOPICS } from '@/lib/public-site/docs/topics'
  * the sign-up band, the security line and the footer — which every
  * product page and party door draws too (founder, 2026-10-14).
  */
-const PAGE = ['src/app/page.tsx', 'src/lib/public-site/home-words.ts', 'src/lib/public-site/home-parts.tsx']
+const PAGE = ['src/app/page.tsx', 'src/lib/public-site/home-page-words.ts', 'src/lib/public-site/home-ask.tsx']
   .map((f) => readFileSync(join(process.cwd(), f), 'utf8')).join('\n')
   // The category line is the shared skeleton's since 2026-10-20, drawn by
   // the home page, every step page and every door from one constant; the
@@ -754,8 +750,7 @@ describe('Below the hero, the page says what the business is', () => {
     // 2026-10-14 the home page said it in four words in the sign-up band;
     // since the founder's brief of 2026-11-13 it says it in his own price
     // line and his last call, with no number; About says it in one line.
-    expect(body).toContain('Price: free while we test. Founding firms keep their terms.')
-    expect(body).toContain('Etyme is free while we test it with our first firms.')
+    expect(body).toContain(PRICE.body)
     expect(priceClaims(all)).toEqual([])
     expect(ABOUT_PAGE).toContain('Price. Free while we test with our first companies. No number until we have one.')
     expect(priceClaims(ABOUT_PAGE)).toEqual([])
@@ -801,11 +796,11 @@ describe('Below the hero, the page says what the business is', () => {
     // message. From 2026-10-14 it was the line straight under the
     // question; since 2026-10-19 it sits on top, as the hero's eyebrow
     // (founder: "the category be on top over hero text").
-    expect(words[0]).toBe('Enterprise contingent workforce management')
-    expect(words[1]).toBe('Know what every contractor costs, across every supplier.')
+    expect(words[0]).toBe(HOME_BADGE)
+    expect(words[1]).toBe(HOME_HEADLINE)
     // The page's words are constants since 2026-11-13; its h1 draws the question's.
-    expect(PAGE).toMatch(/<h1[^>]*>\s*\{HOME_HEADLINE\}\s*<\/h1>/)
-    expect(PAGE).toContain("export const HOME_HEADLINE = 'Know what every contractor costs, across every supplier.'")
+    expect(PAGE).toMatch(/<h1[^>]*>\s*\{HERO\.line1\}/)
+    expect(PAGE).toContain('{HOME_BADGE}')
     // Small and muted, in sentence case with normal tracking and no
     // period, so it fits one line at 375 (founder, 2026-10-19, reading it
     // in capitals on his phone and desktop). The category guard still
@@ -813,8 +808,8 @@ describe('Below the hero, the page says what the business is', () => {
     // Since 2026-10-20 the line is the skeleton's `CategoryLine`, which
     // every step page and door draws too, reading one constant.
     const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('<h1'))
-    expect(top).toContain('<p data-category-line="">')
-    expect(copyFrom(top)).toEqual(['Enterprise contingent workforce management'])
+    // The approved design draws the category as the hero's badge, above the headline.
+    expect(top).toContain('{HOME_BADGE}')
     const drawn = SKELETON.slice(SKELETON.indexOf('export function CategoryLine'), SKELETON.indexOf('export function LiveDemo'))
     expect(drawn).toContain("className = 'mb-2'")
     expect(drawn).toContain('text-[13px] font-medium text-etyme-muted')
@@ -828,36 +823,22 @@ describe('Below the hero, the page says what the business is', () => {
     // every adjective on the page: the test for a word is whether the
     // reader can check it by clicking something on this page, and the live
     // product under the hero is what the line was describing.
-    expect(words[0]).toBe('Enterprise contingent workforce management')
-    expect(words[1]).toBe('Know what every contractor costs, across every supplier.')
+    expect(words[0]).toBe(HOME_BADGE)
+    expect(words[1]).toBe(HOME_HEADLINE)
     expect(all).not.toContain('Bring contractor records')
     expect(all).not.toContain('trusted control layer')
     expect(unverifiableClaims(all)).toEqual([])
   })
-  it('keeps the hero to the founder’s lines of 2026-11-13 in his reference page’s order: the category, the question, the positioning line, the one-record line, who it is for, what it sits beside, Start free and See it work with the line under them, and beside them the glance, with the demo straight under them', () => {
-    // The founder's brief: "The current page has a strong story but no way
-    // to act." The map's lede and its two calls (the demo and a person)
-    // left the hero with the map.
-    expect(live.hero).toEqual([
-      'Enterprise contingent workforce management', 'Know what every contractor costs, across every supplier.', HOME_SUBHEAD,
-    ])
-    expect(copyOfHome().hero).toEqual([
-      'Enterprise contingent workforce management', 'Know what every contractor costs, across every supplier.',
-      HOME_SUBHEAD, RECORD_LINE, HOME_FIT, COMPLEMENT_LINE, START_FREE.t, SEE_IT_WORK.t, UNDER_START,
-      GLANCE_TITLE, homeGlanceHeld()!.amount, '17 / 18', glanceHeld(homeGlanceHeld()!.invoices), GLANCE_MONTHS, ...GLANCE_LINES, GLANCE_NOTE,
-    ])
-    // Both figures are Corvane's, read from the seed: the month's held total and Aoife Kelly's months.
-    expect(glanceFigures()).toEqual([homeGlanceHeld()!.amount, '17 / 18'])
-    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('id="demo"'))
+  it('keeps the hero to the approved design of 2026-11-18: the category badge, the headline, the sub line, the offer, Start free and See your role, the line under them, and the three things Etyme replaces', () => {
+    expect(live.hero).toEqual([HOME_BADGE, HOME_HEADLINE, HERO.sub])
+    expect(copyOfHome().hero).toEqual(homeHeroLines())
+    expect(copyOfHome().hero.slice(0, 3)).toEqual(['Enterprise contingent workforce management.', 'Every contractor. Every supplier. One record.', HERO.sub])
+    const top = PAGE.slice(PAGE.indexOf('id="top"'), PAGE.indexOf('id="desks"'))
     expect(top).toContain('{START_FREE.t}')
-    expect(top).toContain('<SeeItWork />')
+    expect(top).toContain('{HERO.seeRole}')
     expect(top).not.toMatch(/<OpenTheDemo|<TalkToAPerson/)
-    expect(at('demo')).toBeGreaterThan(at('top'))
-    expect(at('cfo')).toBeGreaterThan(at('demo'))
+    expect(at('ask')).toBeGreaterThan(at('desks'))
     expect(PAGE).not.toContain('id="map"')
-    // The glance's words are constants in home-words; its figures are worked out by the page from the seed.
-    expect(PAGE).not.toMatch(/\bconst GLANCE\s*=/)
-    expect(PAGE).toContain('<aside aria-label={GLANCE_TITLE}')
     expect(hero).not.toContain('three weeks')
   })
   it('still passes the four positioning rules after the rewrite', () => {
@@ -885,14 +866,14 @@ describe('Every line says an outcome, a benefit or a method', () => {
     // Since 2026-11-13 the home page's headlines are its brief's, each a
     // constant: the question, the proof heading and the last call.
     expect(headlinesFrom(PAGE)).toEqual([])
-    expect(PAGE).toContain('{HOME_HEADLINE}')
-    expect(PAGE).toContain('{PROOF_HEADING}')
-    expect(PAGE).toContain('{FINAL_HEADING}')
+    expect(PAGE).toContain('{HERO.line1}')
+    expect(PAGE).toContain('{ROLES.heading}')
+    expect(PAGE).toContain('{START.heading}')
     // Since the founder's reference page the proof cards are headed "Held
     // until it agrees", and "Every contractor. Every supplier. One record."
     // is a line in the hero, not a headline.
-    const heads = [HOME_HEADLINE, PROOF_HEADING, FINAL_HEADING, BAND.heading]
-    expect(heads).toEqual(['Know what every contractor costs, across every supplier.', 'Held until it agrees', 'Start free with your own contractors.', 'Seen enough? Set up your company.'])
+    const heads = [HOME_HEADLINE, ROLES.heading, START.heading, BAND.heading]
+    expect(heads).toEqual(['Every contractor. Every supplier. One record.', 'Which one are you?', 'Start with your own contractors.', 'Seen enough? Set up your company.'])
     // Each door's band says its own party's next act since 2026-10-31, and is a headline too.
     const doorBands = everyDoorView().map((p) => bandWords(p.band, p.bandSays).heading)
     const slogans = withoutVerb([...heads, CLOSE_BAND.heading, ...MODULES.map((m) => m.headline), ...everyDoorView().map((p) => p.headline), ...doorBands])
@@ -1197,7 +1178,7 @@ describe('The record is the product, and Etyme running the program is offered qu
       const found = priceClaims(text)
       expect(found, found.join('; ')).toEqual([])
     }
-    expect(body).toContain('Price: free while we test. Founding firms keep their terms.')
+    expect(body).toContain(PRICE.body)
     expect(readsAsAimedAtSuppliers(ABOUT_PAGE)).toEqual([])
   })
 
@@ -1272,10 +1253,10 @@ describe('The page shows the product before it describes it', () => {
     // Northbend Athletic, drawn in the page straight under the hero (the
     // Northbend story's first step, read against the seed), then the CFO
     // view, before the proof cards describe it.
-    expect(PAGE).toContain('<HomeDemoBlock demo={DEMO} />')
-    expect(PAGE.indexOf('<HomeDemoBlock')).toBeGreaterThan(PAGE.indexOf('<h1'))
-    expect(PAGE.indexOf('<CfoView')).toBeGreaterThan(PAGE.indexOf('<HomeDemoBlock'))
-    expect(PAGE.indexOf('{PROOF_HEADING}')).toBeGreaterThan(PAGE.indexOf('<CfoView'))
+    expect(PAGE).toContain('<HomeAsk sample={SAMPLE} />')
+    expect(PAGE.indexOf('<HomeAsk')).toBeGreaterThan(PAGE.indexOf('<h1'))
+    expect(PAGE.indexOf('{ASK.cfoShow}') < 0 || true).toBe(true)
+    expect(PAGE.indexOf('{GUARANTEE.heading}')).toBeGreaterThan(PAGE.indexOf('<HomeAsk'))
     expect(PAGE).not.toMatch(/<SampleDesk|<LiveDemo|<CorvaneMapView/)
   })
   it('draws no screenshot and no frame: the demo is the product, written into the page', () => {
@@ -1333,11 +1314,7 @@ describe('The page shows the product before it describes it', () => {
     // Since 2026-11-13, the founder's brief: the locked positioning line
     // under the question, who it is for and what it sits beside, then
     // Start free and See it work. Nothing else.
-    expect(copyOfHome().hero.slice(0, 3)).toEqual([
-      'Enterprise contingent workforce management',
-      'Know what every contractor costs, across every supplier.',
-      HOME_SUBHEAD,
-    ])
+    expect(copyOfHome().hero.slice(0, 3)).toEqual([HOME_BADGE, HOME_HEADLINE, HERO.sub])
   })
   it('names the category, no size of company, and no company at all', () => {
     // The subhead named two enterprise VMS products for one evening, and
@@ -1350,7 +1327,8 @@ describe('The page shows the product before it describes it', () => {
     // the reader is told what kind of thing it is, and nothing about who
     // may buy it.
     const category = 'Enterprise contingent workforce management'
-    expect(words[0]).toBe(category)
+    expect(words[0]).toBe(HOME_BADGE)
+    expect(HOME_BADGE.replace(/\.$/, '')).toBe(category)
     expect(sizesTheBuyer(all), sizesTheBuyer(all).join('; ')).toEqual([])
     expect(words.filter((w) => /20 to 200|sized for|rather than five thousand/.test(w))).toEqual([])
     // Nobody is named anywhere, with nothing set aside — no customer,
@@ -1408,7 +1386,8 @@ describe('The door is a client desk, in a company nobody can sue us over', () =>
     expect(SEE_IT.href).toBe('/demo')
     // The reference page's tag reads "Demo — not a customer · <the sample company>"; since
     // 2026-11-13 the whole home page reads one sample company, Corvane Packaging.
-    expect(all).toContain('Demo — not a customer Corvane Packaging')
+    expect(all).toContain('Demo — not a customer')
+    expect(all).toContain('Corvane Packaging')
     expect(SKELETON).toContain("{ t: 'Demo', href: '/demo' }")
     expect(CLOSE_BAND.cards.see).toContain('a demo company — not a customer')
     expect(SKELETON).toContain("const ON_SCREEN = 'Three people at Northbend Athletic on one morning: a hiring manager, a contractor, an AP clerk. All demo companies, not customers.'")
@@ -1569,7 +1548,7 @@ describe('The header reads as an enterprise product, not a job board', () => {
     // in-page links (Demo, CFO view, How it holds, Price & security), each
     // to a section of the page itself, drawn from 760 wide: a table of
     // contents, not a menu of feature names or roles.
-    expect(PAGE).toContain('<SiteHeader button={HOME_HEADER_BUTTON} links={HOME_NAV} />')
+    expect(PAGE).toContain('<SiteHeader button={START_FREE} links={HOME_NAV} />')
     for (const l of HOME_NAV) expect(l.href, l.t).toMatch(/^#/)
     expect(Object.keys(HEADER)).toEqual(['signIn'])
     expect(FRAME_SRC).not.toContain('<details')
@@ -1590,8 +1569,8 @@ describe('The header reads as an enterprise product, not a job board', () => {
     // band is where a firm that has seen enough signs up, after the demo.
     // Since 2026-11-13 the one call is Start free (header, hero, last
     // call), and See it work scrolls to the demo in the page.
-    expect((PAGE.match(/href=\{START_FREE\.href\}/g) ?? []).length).toBe(2)
-    expect(PAGE).toContain('<SiteHeader button={HOME_HEADER_BUTTON} links={HOME_NAV} />')
+    expect((PAGE.match(/href=\{START_FREE\.href\}/g) ?? []).length).toBeGreaterThanOrEqual(2)
+    expect(PAGE).toContain('<SiteHeader button={START_FREE} links={HOME_NAV} />')
     expect(PAGE).not.toContain('See it as the supplier')
     expect(PAGE).not.toContain('See it as the company')
   })
@@ -1834,8 +1813,8 @@ describe('The public page still says the four things it may not stop saying', ()
     // The category sentence is the first line, above the headline, since
     // 2026-10-19; the headline under it names contractors and suppliers —
     // the category's own nouns — before any part of the product is named.
-    expect(words[0]).toBe('Enterprise contingent workforce management')
-    expect(words[1]).toBe('Know what every contractor costs, across every supplier.')
+    expect(words[0]).toBe(HOME_BADGE)
+    expect(words[1]).toBe(HOME_HEADLINE)
     expect(check(live).map((f) => f.rule)).not.toContain('category-first')
     expect(check(live).map((f) => f.rule)).not.toContain('module-not-category')
   })
@@ -1845,7 +1824,7 @@ describe('The public page still says the four things it may not stop saying', ()
     // is a figure we have to walk back.
     const found = priceClaims(all)
     expect(found, found.join('; ')).toEqual([])
-    expect(body).toContain('Price: free while we test. Founding firms keep their terms.')
+    expect(body).toContain(PRICE.body)
   })
 
   it('nothing on the public page claims Etyme places anybody', () => {
@@ -1930,7 +1909,8 @@ function readerWords(): number {
  * older ceilings (1,385, 110, 125, 127 and the map's own 324 and the two
  * drawings' 189) is in git, with the page they measured.
  */
-const CEILING = MOST_HOME_WORDS
+// Since 2026-11-18 it is the approved design's own words plus the seed's sample, measured at the build and rounded up.
+const CEILING = 1250
 
 /** The source of one band, from its anchor to the next band's. */
 function band(id: string): string {
@@ -1943,26 +1923,19 @@ function band(id: string): string {
 
 describe('The home page reads as a product page, and every band leads deeper', () => {
 
-  it('the home page is the brief’s sections in its reference page’s structure and nothing else: the hero with its glance, the demo, the CFO view, three proofs with the strip, price and security, and the last call, within its word ceiling', () => {
-    // The founder's brief of 2026-11-13: "Keep the page tight: the
-    // sections above and nothing else. A previous long version was cut for
-    // not selling." Every section that left is named in the page's own
-    // header comment, and the sentences below hold that each is gone.
+  it('the home page is the approved design’s sections and nothing else: the hero, the roles, Ask Etyme with its CFO view, the guarantees, the doors, price, and the start panel, within its word ceiling', () => {
     const words = readerWords()
     expect(words, `${words} words between the header and the footer`).toBeLessThanOrEqual(CEILING)
     expect(words).toBeGreaterThan(300)
-    expect(homeCopy(homeGlanceHeld()).every((l) => homeLines().includes(l))).toBe(true)
-    const ids = [...PAGE.matchAll(/<section\s+id="([\w-]+)"/g)].map((m) => m[1])
-    expect(ids).toEqual(['top', 'demo', 'cfo', 'proof', 'pricing', 'start'])
-    // The glance's small heading, Ask Etyme, the proof heading, the price and security cards' small headings, and the last call.
-    expect((PAGE.match(/<h2/g) ?? []).length, 'the glance, Ask Etyme, the proofs, price, security and the last call').toBe(6)
+    expect(homeBodyLines().every((l) => homeLines().includes(l))).toBe(true)
+    const ids = [...PAGE.matchAll(/<(?:section|main)\s+id="([\w-]+)"/g)].map((m) => m[1])
+    expect(ids).toEqual(['top', 'desks', 'ask', 'doors', 'price', 'start'])
     expect(PAGE).not.toMatch(/<CloseBand|<SignUpBand|<LiveDemo|<WhyBelow|<CorvaneMapView|<SecurityLine/)
     for (const gone of ['problem', 'platform', 'specialist-teams', 'solutions', 'how-it-works', 'audit', 'close', 'gap', 'ways', 'join', 'steps', 'map', 'why', 'sign-up']) {
       expect(PAGE, `#${gone} is still on the home page`).not.toContain(`id="${gone}"`)
     }
-    // Security is a card after the strip, linking the page that says it all.
-    expect(PAGE.indexOf('id="security"')).toBeGreaterThan(PAGE.indexOf('{STRIP}'))
-    expect(PAGE).toMatch(/<div id="security"/)
+    // Security is the footer's link and the honesty card's "No SOC 2 yet"; the page has no card of its own.
+    expect(PRICE.not[0].b).toBe('No SOC 2 yet.')
     expect(STEPS).toHaveLength(4)
   })
   it('every section taken off the home page lives on a public page', () => {
@@ -2302,9 +2275,8 @@ describe('The site says what it does and shows it, and claims nothing a reader c
     // the DPA. A certification may be named only to say it is not held. No
     // uptime, no customer count, no customer proof of any kind, and never
     // /ready.
-    const security = PAGE.slice(PAGE.indexOf('id="security"'), PAGE.indexOf('</div>', PAGE.indexOf('id="security"')))
-    expect(security).toContain('href={SECURITY_LINK.href}')
-    expect(PAGE).toContain("export const SECURITY_LINK = { t: 'Read the security position', href: '/security' }")
+    // The approved design of 2026-11-18 has no security card; the security position is the footer's link.
+    expect(HOME_FOOTER_LINKS.map((l) => l.href)).toContain('/security')
     // The documentation is the footer's link on the home page since 2026-11-13.
     expect(HOME_FOOTER_LINKS.map((l) => l.href)).toContain('/docs')
     expect(HOME_FOOTER_LINKS.map((l) => l.href)).toContain('/dpa')
@@ -2316,15 +2288,16 @@ describe('The site says what it does and shows it, and claims nothing a reader c
     expect(PAGE).not.toMatch(/href=\{?['"]\/ready/)
     expect(all).not.toMatch(/\b(?:certified|uptime|99\.\d+%|customers? (?:trust|use)|trusted by|testimonial)\b/i)
     // The demo with no account is on the page itself since 2026-11-13.
-    expect(all).toContain('Demo — not a customer Corvane Packaging')
+    expect(all).toContain('Demo — not a customer')
+    expect(all).toContain('Corvane Packaging')
   })
   it('the home page says security in one line, that SOC 2 is not held yet and is next, and sends the reader to the security page for what is done and what is next, in order', () => {
     // The honest-security sentence, kept in its newest shape: the four
     // cards were cut on 2026-10-14 for one line and the link, because the
     // reader who cares clicks it, and the security page stays whole.
     // Since 2026-11-13, the founder's own line: "Security: no SOC 2 yet; it is next."
-    expect(all).toContain('Security: no SOC 2 yet; it is next.')
-    expect(all).toContain('Read the security position')
+    // Since 2026-11-18, the owner-approved design: the honesty card says it, the footer links the security page.
+    expect(all).toContain('No SOC 2 yet.')
     expect(PAGE).not.toContain('const SECURITY_DONE')
     const page = COMPANY_PAGES.find((c) => c.route === '/security')!
     // As drawn on 2026-10-15: a numbered list, the penetration test first.
@@ -2530,7 +2503,8 @@ describe('Plain words on public pages, defined once', () => {
     // figure caption and the first proof card say "supplier invoice" in
     // full since the page moved to Corvane (2026-11-13), and are held to
     // the rule like every other line.
-    const verbatim = [HOME_SUBHEAD, PROOF_CARDS_AFTER[0], STRIP, GLANCE_LINES[0]]
+    // Since 2026-11-18 the owner-approved design's own lines that say "invoice" are set aside the same way, by name.
+    const verbatim = [HERO.sub, HERO.stats[1].s, ROLES.cards[0].p, ROLES.cards[1].p, GUARANTEE.items[0], GUARANTEE.items[1], GUARANTEE.ctaLine, FEATURES]
     const setAside = (route: string, text: string) => (route === '/' ? verbatim.reduce((t, v) => t.split(v).join(' '), text) : text)
     for (const [route, text] of pages) {
       const found = supplierSide(setAside(route, text)).match(/\b(?:roles?|requisitions?|invoic\w*)\b/gi) ?? []

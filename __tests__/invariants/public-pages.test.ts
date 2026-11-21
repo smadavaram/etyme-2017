@@ -248,8 +248,9 @@ describe('Every product page and party door is the home page’s shape, opened a
     // Drawn first in each selling view's hero.
     const home = read('src/app/page.tsx')
     const homeTop = home.slice(home.indexOf('id="top"'))
-    expect(homeTop.indexOf('<CategoryLine />')).toBeGreaterThan(0)
-    expect(homeTop.indexOf('<CategoryLine />')).toBeLessThan(homeTop.indexOf('<h1'))
+    // The approved design of 2026-11-18 draws the category as the hero's badge, above the headline.
+    expect(homeTop.indexOf('{HOME_BADGE}')).toBeGreaterThan(0)
+    expect(homeTop.indexOf('{HOME_BADGE}')).toBeLessThan(homeTop.indexOf('<h1'))
     const step = read('src/lib/public-site/module-page.tsx')
     const stepTop = step.slice(step.indexOf('id="top"'))
     expect(stepTop.indexOf('<CategoryLine')).toBeGreaterThan(0)
@@ -607,7 +608,7 @@ describe('One header and footer on every new page', () => {
     // (2026-10-14), with one setting since the founder's brief of
     // 2026-11-13: its one button, Start free.
     const home = read('src/app/page.tsx')
-    expect(home).toContain('<SiteHeader button={HOME_HEADER_BUTTON} links={HOME_NAV} />')
+    expect(home).toContain('<SiteHeader button={START_FREE} links={HOME_NAV} />')
     expect(home).not.toContain('const NAV_MENUS')
     const frame = read('src/lib/public-site/frame.tsx')
     expect(frame).not.toContain('onHome')
@@ -646,7 +647,7 @@ describe('One header and footer on every new page', () => {
     expect(passing).toEqual(['src/app/page.tsx'])
     // And the four in-page links, the same page alone, since his reference page the same day.
     expect(passing.filter((f) => /<SiteHeader[^>]*\blinks=/.test(read(f)))).toEqual(['src/app/page.tsx'])
-    expect(read('src/app/page.tsx')).toContain('<SiteHeader button={HOME_HEADER_BUTTON} links={HOME_NAV} />')
+    expect(read('src/app/page.tsx')).toContain('<SiteHeader button={START_FREE} links={HOME_NAV} />')
   })
 
   it('no public page puts Etyme in its own title, because the layout adds it to every tab', () => {

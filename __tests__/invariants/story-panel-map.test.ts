@@ -67,7 +67,8 @@ import {
 import { CorvaneMapView, DEMO_BEING_SET_UP } from '@/lib/public-site/corvane-map-view'
 import { demoRequest } from '@/lib/public-site/demo-link'
 import { homeCfo, homeCfoCopy, homeGlanceHeld, yearInMillions } from '@/lib/public-site/home-cfo'
-import { CFO_LABEL, glanceHeld, proofCards } from '@/lib/public-site/home-words'
+import { ASK } from '@/lib/public-site/home-page-words'
+const CFO_LABEL = ASK.cfoNote
 import { format, fromMinor } from '@/lib/money'
 
 const ROOT = process.cwd()
@@ -313,8 +314,9 @@ describe('Every figure on the map is the Corvane seed’s', () => {
         expect(src.includes(figure), `${figure} is typed into ${where}`).toBe(false)
       }
     }
-    expect(page).toContain('homeCfo()')
-    expect(page).toContain('homeGlanceHeld()')
+    // The page reads the sample, which reads the CFO view from the seed.
+    expect(page).toContain('homeSample()')
+    expect(read('src/lib/public-site/home-sample.ts')).toContain('homeCfo()')
   })
 })
 
@@ -415,17 +417,6 @@ describe('The home page’s CFO view is the Corvane seed’s, in short lines', (
     expect(heldUsd / month).toBeLessThan(0.006)
   })
 
-  it('the hero’s “At a glance” held figure and the first proof card are the CFO view’s held total, on as many supplier invoices as the seed holds, worked out from the seed', () => {
-    const g = homeGlanceHeld()!
-    expect(g).toEqual({ amount: usd(heldUsd), invoices: held.length })
-    expect(glanceHeld(g.invoices)).toBe(`billed over the signed hours on ${held.length} held supplier invoices this month`)
-    expect(proofCards(g)[0]).toBe(`${held.length} supplier invoices held this month — ${usd(heldUsd)} billed over the signed hours, each held until the hours agree.`)
-    expect(homeCfoCopy().some((l) => l.includes(`${usd(heldUsd)} over the signed hours`))).toBe(true)
-    // Where the seed holds none, the page draws no figure rather than a wrong one.
-    expect(read('src/app/page.tsx')).toContain('{HELD && (')
-    expect(read('src/app/page.tsx')).toContain('{proofCards(HELD).map(')
-  })
-
   it('what the page calls held is the supplier invoices, and the dollar figure beside them is called billed over the signed hours, never held, because each invoice is held whole and is worth several times its overage', () => {
     // Each held invoice receipt is held whole: everything it bills, worked out here from the seed's lines at the sample rates.
     const wholeUnits = (r: (typeof held)[number]) => r.lines.reduce((n, l) => n + l.billed, 0) * CORVANE_COUNTRIES[plantOf(r.plant).cc].rate
@@ -433,7 +424,7 @@ describe('The home page’s CFO view is the Corvane seed’s, in short lines', (
     expect(wholeUsd / heldUsd).toBeGreaterThan(3)
     // So no line puts the overage beside the word held as if it were the money held.
     const g = homeGlanceHeld()!
-    const lines = [glanceHeld(g.invoices), ...proofCards(g), ...homeCfoCopy()]
+    const lines = [...homeCfoCopy()]
     for (const l of lines) {
       expect(l, l).not.toContain(`${g.amount} held`)
       expect(l, l).not.toMatch(/held this month on/)
@@ -443,9 +434,8 @@ describe('The home page’s CFO view is the Corvane seed’s, in short lines', (
     expect(homeCfoCopy().some((l) => / over on one supplier invoice\.$/.test(l))).toBe(true)
   })
 
-  it('says Corvane Packaging is a sample company, not a customer, and that its figures use sample rates, under the lines', () => {
-    expect(CFO_LABEL).toBe('Corvane Packaging is a sample company, not a customer. Figures use sample rates.')
-    expect(CFO_LABEL).toContain(CORVANE_NAME)
+  it('says the CFO view’s figures are the demo’s, not a customer’s, under the lines', () => {
+    expect(CFO_LABEL).toContain('Demo figures — not a customer.')
   })
 
   it('names no real company, does not lead with AI, and says neither desk nor program office', () => {

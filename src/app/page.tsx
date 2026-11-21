@@ -1,211 +1,219 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { SiteHeader } from '@/lib/public-site/frame'
-import { CategoryLine, SkeletonFooter } from '@/lib/public-site/skeleton'
-import { homeDemo } from '@/lib/public-site/home-demo'
-import { homeCfo, homeGlanceHeld } from '@/lib/public-site/home-cfo'
-import { SeeItWork, HomeDemoBlock, CfoView } from '@/lib/public-site/home-parts'
-import { FILLED, FILLED_ON_INK, OUTLINE_ON_INK } from '@/lib/public-site/home-buttons'
+import { SkeletonFooter } from '@/lib/public-site/skeleton'
+import { homeSample } from '@/lib/public-site/home-sample'
+import { HomeAsk, RoleLink } from '@/lib/public-site/home-ask'
 import {
-  HOME_HEADLINE, HOME_SUBHEAD, RECORD_LINE, HOME_FIT_LEAD, HOME_FIT_REST, COMPLEMENT_LINE, START_FREE, UNDER_START,
-  HOME_NAV, GLANCE_TITLE, glanceHeld, GLANCE_MONTHS, GLANCE_LINES, GLANCE_NOTE,
-  PROOF_HEADING, PROOF_LABELS, proofCards, STRIP,
-  PRICE_TITLE, PRICE_LINE, PRICE_MORE, SECURITY_TITLE, SECURITY_LINE, SECURITY_LINK, SECURITY_MORE,
-  FINAL_HEADING, FINAL_LINE, SEE_IT_AGAIN, FALLBACK_LEAD, FALLBACK_ADDRESS, FALLBACK_TAIL, SAMPLE_NOTE, HOME_HEADER_BUTTON,
-} from '@/lib/public-site/home-words'
+  HOME_TITLE, HOME_BADGE, HOME_NAV, START_FREE, HERO, ROLES, ASK, GUARANTEE, FEATURES, DOORS, PRICE, START, SAMPLE_NOTE,
+} from '@/lib/public-site/home-page-words'
 
 /**
- * The front door, rebuilt for conversion to the founder's brief of
- * 2026-11-13 ("The current page has a strong story but no way to act"),
- * and brought the same day to the structure of the reference page that
- * brief names ("match its structure and copy"), section by section:
+ * The front door, the owner-approved design of 2026-11-18
+ * (`prototypes/homepage/approved-2026-11-18.html`), built in the repo's own
+ * tokens and parts. It replaces the 2026-11-12 and 2026-11-13 briefs'
+ * page: badge and the locked line in the hero, a role per card, Ask Etyme
+ * with a CFO view behind a button, the three guarantees on ink, the chat
+ * doors, price beside what Etyme does not do, and the start panel.
  *
- *   header      the wordmark; from 760 wide four in-page links (Demo, CFO
- *               view, How it holds, Price & security); Sign in; Start free
- *   #top        two columns from 900 wide: the category, the question, the
- *               locked line, "Every contractor. Every supplier. One
- *               record.", two ticked lines, Start free and See it work, the
- *               line under them; beside them "At a glance", what is billed
- *               over the signed hours on the held supplier invoices, and Aoife Kelly's
- *               17 of 18 months, both the seed's
- *   #demo       Ask Etyme at Corvane Packaging, a sample company
- *               (`lib/public-site/home-demo`, read from corvaneDemoFacts
- *               and the product's own spend arithmetic)
- *   #cfo        Corvane Packaging's CFO view, a card closed behind one button
- *
- * One sample company for the whole page since 2026-11-13 (founder: "we
- * are talking about companies spending 40-50 million a year; make the
- * numbers realistic"): the first number a buyer at that scale reads is
- * at their own scale. Northbend Athletic stays on every product page,
- * door, the documentation and /demo.
- *   #proof      "Held until it agrees", three cards, the strip on ink
- *   #pricing    price and security, two cards
- *   #start      the last call on ink, and the sample note
- *   then the one-row footer every public page shares
- *
- * Four things differ from the reference on purpose:
- *   - Etyme's own branding, not the reference's: the brand kit's colors,
- *     type and corners and the real logo (CLAUDE.md "Design system"; the
- *     founder, 2026-11-12: "Stick to the branding we had"). Its dark green
- *     panels are the kit's ink; never the logo's vivid green on a control.
- *   - The complement line names no vendor (`COMPLEMENT_LINE`).
- *   - Start free opens the sign-up that exists, never a mail link, and
- *     Sign in stays in the header.
- *   - The footer is the one row every public page draws; the reference's
- *     footer note is the last line of the last section (`SAMPLE_NOTE`).
- *
- * Every word is a constant in `lib/public-site/home-words`, which
- * `home-page.test.ts` and `positioning.test.ts` read. An old role tab's
- * address (`/?seat=operations`) still answers with this page.
+ * Every word is a constant in `lib/public-site/home-page-words`; the
+ * sample company's figures are the seed's (`lib/public-site/home-sample`).
+ * Light only. The header is the shared one, with the kit logo at 26px; the
+ * footer is the shared one (the 13 links and the © line), which also
+ * carries the marketing pages' analytics. Every sign-up button opens
+ * `/signup`.
  */
+export const metadata: Metadata = { title: { absolute: HOME_TITLE } }
+export const viewport: Viewport = { colorScheme: 'light' }
 
-/**
- * The title only. The description is the layout's, inherited, so the home
- * page and every other page say one sentence in a search result and a
- * link preview and cannot disagree. `site-description.test.ts` holds that
- * the home page declares none of its own.
- */
-export const metadata: Metadata = {
-  title: { absolute: 'Etyme | Enterprise contingent workforce management' },
-}
+const SAMPLE = homeSample()
 
-/** The demo, the CFO view and the glance's held figure, worked out once from the seed: plain data, the same on every request. */
-const DEMO = homeDemo()
-const CFO = homeCfo()
-const HELD = homeGlanceHeld()
+const GELASIO = { fontFamily: 'var(--font-gelasio), Georgia, serif' } as const
+const WRAP = 'mx-auto max-w-6xl px-4 sm:px-6'
+const H2 = 'text-[30px] font-semibold leading-[1.12] tracking-[-0.01em] sm:text-[40px]'
+const KICKER = 'mb-3 text-[13px] font-bold uppercase tracking-[0.12em] text-etyme-action-press'
+const PRIMARY = 'inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-full bg-etyme-action px-6 py-3 text-[16px] font-semibold text-white shadow-[0_6px_20px_rgba(82,40,255,.22)] hover:opacity-90'
+const SECONDARY = 'inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-full border border-etyme-rule px-6 py-3 text-[16px] font-semibold text-etyme-ink hover:border-etyme-ink'
+const CARD = 'rounded-[18px] border border-etyme-rule bg-etyme-raised'
 
-/** With no script the CFO view is shown open and its button is not drawn. */
-const NO_SCRIPT_CFO = '#cfo-view{display:block!important}[data-cfo-toggle]{display:none!important}'
-
-const SECTION_HEADING = 'text-balance font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-etyme-ink md:text-[32px]'
-const TEXT_LINK = 'text-etyme-action-press underline underline-offset-4 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-action/40'
-const CARD = 'min-w-0 rounded-lg border border-etyme-rule bg-etyme-raised p-5'
-const SMALL_HEAD = 'text-[12px] font-semibold uppercase tracking-[0.07em] text-etyme-faint'
-
-function Tick() {
+function Cta({ label, line, onInk = false }: { label: string; line: string; onInk?: boolean }) {
   return (
-    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="mt-0.5 shrink-0 text-etyme-action">
-      <path d="M20 6L9 17l-5-5" />
-    </svg>
+    <div className="mt-7 flex flex-wrap items-center gap-4">
+      <a href={START_FREE.href} className={PRIMARY}>{label}</a>
+      <p className={`text-[15px] ${onInk ? 'text-etyme-canvas/75' : 'text-etyme-muted'}`}>{line}</p>
+    </div>
   )
 }
 
+const ROLE_ICONS = [
+  <path key="a" d="M20 6 9 17l-5-5" />,
+  <g key="b"><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4Z" /></g>,
+  <g key="c"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></g>,
+]
+const DOOR_COLORS = ['bg-etyme-action', 'bg-etyme-verified', 'bg-etyme-ink']
+
 export default function LandingPage() {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-etyme-canvas">
-      <SiteHeader button={HOME_HEADER_BUTTON} links={HOME_NAV} />
-      <noscript><style>{NO_SCRIPT_CFO}</style></noscript>
+    <div className="min-h-screen overflow-x-hidden bg-etyme-canvas text-[17px] leading-[1.6] text-etyme-ink">
+      <SiteHeader button={START_FREE} links={HOME_NAV} />
 
-      <main className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* ── Hero: two columns from 900 wide; on a phone the glance sits under the left column ── */}
-        <section id="top" className="grid gap-8 pb-10 pt-10 min-[900px]:grid-cols-[1.15fr_0.85fr] min-[900px]:items-start min-[900px]:gap-12 md:pt-16">
-          <div className="min-w-0">
-            <CategoryLine />
-            <h1 className="text-balance font-serif text-[36px] font-normal leading-[1.05] tracking-[-0.02em] text-etyme-ink md:text-[54px]">
-              {HOME_HEADLINE}
+      <main id="top">
+        {/* Hero */}
+        <div className={WRAP}>
+          <div className="pb-2 pt-10 text-left sm:pt-16 sm:text-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-etyme-rule bg-etyme-raised px-3.5 py-1.5 text-[13.5px] font-semibold text-etyme-ink">
+              <i aria-hidden="true" className="inline-block h-2 w-2 flex-none rounded-full bg-etyme-action" />{HOME_BADGE}
+            </span>
+            <h1 className="mx-auto mt-5 max-w-[880px] text-[40px] font-bold leading-[1.12] tracking-[-0.01em] sm:text-[clamp(40px,6.2vw,68px)]" style={GELASIO}>
+              {HERO.line1} <em className="italic text-etyme-action-press">{HERO.line2}</em>
             </h1>
-            <p className="mt-5 max-w-[36em] text-[17px] leading-relaxed text-etyme-muted md:text-[18px]">{HOME_SUBHEAD}</p>
-            <p className="mt-5 font-serif text-[19px] leading-snug text-etyme-ink md:text-[20px]">{RECORD_LINE}</p>
-            <ul className="mt-5 grid gap-2.5 text-[15px] leading-snug text-etyme-muted">
-              <li className="flex gap-2.5"><Tick /><span><strong className="font-semibold text-etyme-ink">{HOME_FIT_LEAD}</strong> {HOME_FIT_REST}</span></li>
-              <li className="flex gap-2.5"><Tick /><span>{COMPLEMENT_LINE}</span></li>
-            </ul>
-            {/* Start free and See it work side by side, the line under both. */}
-            <div data-hero-calls="" className="mt-7 flex flex-wrap gap-3">
-              <a href={START_FREE.href} className={FILLED}>{START_FREE.t}</a>
-              <SeeItWork />
+            <p className="mx-auto mt-5 max-w-[720px] text-[19px] leading-[1.65] text-etyme-ink/85">{HERO.sub}</p>
+            <p className="mx-auto mt-4 max-w-[720px] rounded-xl border border-etyme-action/20 bg-etyme-action/10 px-[18px] py-3 text-left text-[16.5px] font-semibold sm:text-center">{HERO.offer}</p>
+            <div className="mt-7 flex flex-wrap gap-3 sm:justify-center">
+              <a href={START_FREE.href} className={`${PRIMARY} max-sm:flex-1`}>{START_FREE.t}</a>
+              <a href="#desks" className={`${SECONDARY} max-sm:flex-1`}>{HERO.seeRole}</a>
             </div>
-            <p className="mt-3.5 text-[14px] leading-snug text-etyme-muted">{UNDER_START}</p>
-          </div>
-
-          {/* At a glance: both figures are Corvane's, from the seed — what the
-              three-way check holds this month over the signed hours, and the
-              months of the contractor nearest the limit. A figure the seed
-              cannot support is left off. */}
-          <aside aria-label={GLANCE_TITLE} className="min-w-0 rounded-lg bg-etyme-ink p-5 text-etyme-canvas shadow-sm sm:p-6">
-            <h2 className="text-[12px] font-semibold uppercase tracking-[0.07em] text-etyme-canvas/75">{GLANCE_TITLE}</h2>
-            <dl className="mt-4 grid gap-4 min-[340px]:grid-cols-2">
-              {HELD && (
-                <div className="min-w-0">
-                  <dt className="sr-only">{glanceHeld(HELD.invoices)}</dt>
-                  <dd className="font-serif text-[24px] leading-none tabular-nums min-[420px]:text-[28px]">{HELD.amount}</dd>
-                  <dd className="mt-1.5 text-[13px] leading-snug text-etyme-canvas/80">{glanceHeld(HELD.invoices)}</dd>
+            <p className="mt-3.5 text-[14px] text-etyme-muted">{HERO.micro}</p>
+            <div aria-label="What Etyme replaces" className={`mx-auto mt-11 grid max-w-[760px] overflow-hidden text-left sm:grid-cols-3 ${CARD}`}>
+              {HERO.stats.map((s, i) => (
+                <div key={s.b} className={`px-5 py-[18px] ${i > 0 ? 'border-t border-etyme-rule sm:border-l sm:border-t-0' : ''}`}>
+                  <strong className="block text-[26px] font-semibold leading-[1.1]" style={GELASIO}>{s.b}</strong>
+                  <span className="mt-1 block text-[13.5px] leading-[1.45] text-etyme-muted">{s.s}</span>
                 </div>
-              )}
-              {DEMO.watch && (
-                <div className="min-w-0">
-                  <dt className="sr-only">{GLANCE_MONTHS}</dt>
-                  <dd className="font-serif text-[24px] leading-none tabular-nums min-[420px]:text-[28px]">{DEMO.watch.months} / {DEMO.watch.limit}</dd>
-                  <dd className="mt-1.5 text-[13px] leading-snug text-etyme-canvas/80">{GLANCE_MONTHS}</dd>
-                </div>
-              )}
-            </dl>
-            <ul className="mt-5 grid gap-3 border-t border-etyme-canvas/20 pt-4 text-[14px] leading-relaxed">
-              {GLANCE_LINES.map((l) => (
-                <li key={l} className="flex gap-2.5">
-                  <span aria-hidden="true" className="mt-[7px] h-2 w-2 shrink-0 rounded-full bg-etyme-attention" />
-                  <span>{l}</span>
-                </li>
               ))}
-            </ul>
-            <p className="mt-4 text-[12.5px] leading-snug text-etyme-canvas/70">{GLANCE_NOTE}</p>
-          </aside>
-        </section>
-
-        {/* ── Ask Etyme, at the sample company ── */}
-        <section id="demo" tabIndex={-1} aria-label="Ask Etyme, at a sample company" className="scroll-mt-20 pb-4 focus:outline-none">
-          <HomeDemoBlock demo={DEMO} />
-        </section>
-
-        {/* ── The CFO view, closed ── */}
-        <section id="cfo" aria-label="The CFO view, at a sample company" className="scroll-mt-20 pb-10">
-          <CfoView cfo={CFO} />
-        </section>
-
-        {/* ── Held until it agrees: three proofs, then the strip on ink ── */}
-        <section id="proof" className="scroll-mt-20 pb-10">
-          <h2 className={SECTION_HEADING}>{PROOF_HEADING}</h2>
-          <ul className="mt-4 grid gap-3 md:grid-cols-3">
-            {proofCards(HELD).map((c, i) => (
-              <li key={c} className={CARD}>
-                <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.06em] text-etyme-action-press">{PROOF_LABELS[i]}</p>
-                <p className="mt-2.5 text-[15px] font-semibold leading-snug text-etyme-ink">{c}</p>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 rounded-lg bg-etyme-ink p-5 text-[15px] leading-relaxed text-etyme-canvas">{STRIP}</p>
-        </section>
-
-        {/* ── Price and security: two cards side by side from 760 wide ── */}
-        <section id="pricing" aria-label="Price and security" className="grid scroll-mt-20 gap-3 pb-10 min-[760px]:grid-cols-2">
-          <div className={CARD}>
-            <h2 className={SMALL_HEAD}>{PRICE_TITLE}</h2>
-            <p className="mt-2.5 text-[15.5px] font-semibold leading-snug text-etyme-ink">{PRICE_LINE}</p>
-            <p className="mt-2 text-[14.5px] leading-snug text-etyme-muted">{PRICE_MORE}</p>
+            </div>
           </div>
-          <div id="security" className={CARD}>
-            <h2 className={SMALL_HEAD}>{SECURITY_TITLE}</h2>
-            <p className="mt-2.5 text-[15.5px] font-semibold leading-snug text-etyme-ink">{SECURITY_LINE}</p>
-            <p className="mt-2 text-[14.5px] leading-snug text-etyme-muted">
-              <a href={SECURITY_LINK.href} className={TEXT_LINK}>{SECURITY_LINK.t}</a>. {SECURITY_MORE}
-            </p>
+        </div>
+
+        {/* Roles */}
+        <section id="desks" className="scroll-mt-20 py-11 sm:py-16">
+          <div className={WRAP}>
+            <div className="max-w-[720px]">
+              <p className={KICKER}>{ROLES.kicker}</p>
+              <h2 className={H2} style={GELASIO}>{ROLES.heading}</h2>
+              <p className="mt-3.5 text-[17.5px] text-etyme-ink/85">{ROLES.lead}</p>
+            </div>
+            <div className="mt-8 grid gap-[18px] min-[860px]:grid-cols-3">
+              {ROLES.cards.map((c, i) => (
+                <article key={c.h} className={`flex flex-col px-6 py-[26px] ${CARD}`}>
+                  <div className="mb-3.5 flex items-center gap-3">
+                    <div aria-hidden="true" className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-etyme-action/10 text-etyme-action-press">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{ROLE_ICONS[i]}</svg>
+                    </div>
+                    <h3 className="text-[21px] font-semibold" style={GELASIO}>{c.h}</h3>
+                  </div>
+                  <p className="flex-1 text-[16px] text-etyme-ink/85">{c.p}</p>
+                  <div><RoleLink label={ROLES.link} ask={c.ask} /></div>
+                </article>
+              ))}
+            </div>
+            <Cta label={ROLES.cta} line={ROLES.ctaLine} />
           </div>
         </section>
 
-        {/* ── The last call, on ink ── */}
-        <section id="start" className="mb-6 rounded-lg bg-etyme-ink p-6 text-etyme-canvas md:p-10">
-          <h2 className="max-w-[14em] text-balance font-serif text-[30px] font-normal leading-tight tracking-[-0.02em] md:text-[34px]">{FINAL_HEADING}</h2>
-          <p className="mt-3 max-w-[36em] text-[16px] leading-relaxed text-etyme-canvas/90">{FINAL_LINE}</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a href={START_FREE.href} className={FILLED_ON_INK}>{START_FREE.t}</a>
-            <SeeItWork className={OUTLINE_ON_INK} label={SEE_IT_AGAIN} />
+        {/* Ask Etyme */}
+        <section id="ask" className="scroll-mt-20 pb-11 sm:pb-16">
+          <div className={WRAP}>
+            <div className="max-w-[720px]">
+              <p className={KICKER}>{ASK.kicker}</p>
+              <h2 className={H2} style={GELASIO}>{ASK.heading}</h2>
+              <p className="mt-3.5 text-[17.5px] text-etyme-ink/85">{ASK.lead}</p>
+            </div>
+            <HomeAsk sample={SAMPLE} />
+            <Cta label={ASK.cta} line={ASK.ctaLine} />
           </div>
-          <p className="mt-5 text-[14.5px] leading-snug text-etyme-canvas/85">
-            {FALLBACK_LEAD}{' '}
-            <a href={`mailto:${FALLBACK_ADDRESS}`} className="inline-block py-2 font-semibold underline underline-offset-[3px] rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-etyme-canvas/60">{FALLBACK_ADDRESS}</a>{' '}
-            {FALLBACK_TAIL}
+        </section>
+
+        {/* Guarantees, on the kit's ink */}
+        <section className="pb-2">
+          <div className={WRAP}>
+            <div className="rounded-[20px] bg-etyme-ink px-[22px] py-8 text-etyme-canvas sm:rounded-[28px] sm:px-10 sm:py-12">
+              <p className={`${KICKER} !text-etyme-canvas/75`}>{GUARANTEE.kicker}</p>
+              <h2 className="max-w-[640px] text-[30px] font-semibold leading-[1.12] sm:text-[44px]" style={GELASIO}>{GUARANTEE.heading}</h2>
+              <p className="mt-3.5 max-w-[620px] text-[17px] opacity-80">{GUARANTEE.sub}</p>
+              <ol className="mt-9 grid">
+                {GUARANTEE.items.map((t, i) => (
+                  <li key={t} className={`grid gap-1.5 py-[22px] sm:grid-cols-[64px_1fr] sm:gap-[18px] ${i > 0 ? 'border-t border-etyme-canvas/25' : 'pt-1.5'}`}>
+                    <span className="text-[30px] leading-[1.1] text-etyme-canvas/75" style={GELASIO}>{`0${i + 1}`}</span>
+                    <p className="max-w-[680px] text-[18px] leading-[1.6]">{t}</p>
+                  </li>
+                ))}
+              </ol>
+              <Cta label={GUARANTEE.cta} line={GUARANTEE.ctaLine} onInk />
+            </div>
+          </div>
+        </section>
+
+        {/* What is in it */}
+        <div className={`${WRAP} pt-11`}>
+          <p className={`${CARD} px-[26px] py-6 text-[17px] leading-[1.7] text-etyme-ink/85`}>
+            <strong className="font-semibold text-etyme-ink">{FEATURES.slice(0, 6)}</strong>{FEATURES.slice(6)}
           </p>
+        </div>
+
+        {/* Chat doors */}
+        <section id="doors" className="scroll-mt-20 py-11 sm:py-16">
+          <div className={WRAP}>
+            <div className="max-w-[720px]">
+              <p className={KICKER}>{DOORS.kicker}</p>
+              <h2 className={H2} style={GELASIO}>{DOORS.heading}</h2>
+            </div>
+            <div className="mt-7 grid gap-[18px] min-[760px]:grid-cols-3">
+              {DOORS.items.map((d, i) => (
+                <div key={d.h} className={`flex items-center gap-3.5 p-[22px] ${CARD}`}>
+                  <div aria-hidden="true" className={`flex h-[46px] w-[46px] flex-none items-center justify-center rounded-xl text-[15px] font-bold text-white ${DOOR_COLORS[i]}`}>{d.mark}</div>
+                  <div className="min-w-0"><h3 className="text-[18px] font-bold">{d.h}</h3><p className="mt-0.5 text-[14.5px] text-etyme-muted">{d.p}</p></div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-5 max-w-[720px] text-[16.5px] text-etyme-ink/85"><strong className="font-semibold text-etyme-ink">{DOORS.noteLead}</strong> {DOORS.note}</p>
+            <Cta label={DOORS.cta} line={DOORS.ctaLine} />
+          </div>
         </section>
-        <p className="mb-8 text-[13px] leading-snug text-etyme-muted">{SAMPLE_NOTE}</p>
+
+        {/* Price, and what Etyme does not do yet */}
+        <section id="price" className="scroll-mt-20 pb-11 sm:pb-16">
+          <div className={`${WRAP} grid gap-[18px] min-[820px]:grid-cols-[1.25fr_1fr]`}>
+            <div className="rounded-[18px] bg-etyme-action px-[30px] py-8 text-white">
+              <p className={`${KICKER} !text-white/80`}>{PRICE.kicker}</p>
+              <h2 className="mb-3.5 text-[34px] font-semibold leading-[1.12]" style={GELASIO}>{PRICE.heading}</h2>
+              <p className="text-[17.5px] leading-[1.65]">{PRICE.body}</p>
+              <a href={START_FREE.href} className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-white px-6 py-3 text-[16px] font-semibold text-etyme-action-press hover:opacity-90">{PRICE.button}</a>
+            </div>
+            <div className={`px-[30px] py-7 ${CARD}`}>
+              <h3 className="mb-3 text-[20px] font-semibold" style={GELASIO}>{PRICE.notHeading}</h3>
+              <ul className="list-disc pl-5 text-[15.5px] text-etyme-ink/85 marker:text-etyme-action">
+                {PRICE.not.map((n) => <li key={n.b} className="my-[7px]"><strong className="font-semibold text-etyme-ink">{n.b}</strong> {n.t}</li>)}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Start */}
+        <section id="start" className="scroll-mt-20 pb-11">
+          <div className={WRAP}>
+            <div className="grid gap-9 rounded-[22px] border border-etyme-rule bg-etyme-raised px-[22px] py-[26px] min-[860px]:grid-cols-[1fr_1.15fr] sm:p-[34px]">
+              <div>
+                <p className={KICKER}>{START.kicker}</p>
+                <h2 className="text-[28px] font-semibold leading-[1.12] sm:text-[38px]" style={GELASIO}>{START.heading}</h2>
+                <p className="mt-3.5 text-[16.5px] text-etyme-ink/85">{START.lead}</p>
+                <ul className="mt-5">
+                  {START.points.map((p) => (
+                    <li key={p} className="flex items-start gap-2.5 py-[7px] text-[15.5px] text-etyme-ink/85"><b aria-hidden="true" className="flex-none text-etyme-action-press">✓</b><span>{p}</span></li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex flex-col justify-center rounded-xl border border-etyme-rule bg-etyme-surface p-6">
+                <h3 className="text-[22px] font-semibold" style={GELASIO}>{START.panelHeading}</h3>
+                <p className="mt-2 text-[15.5px] text-etyme-ink/85">{START.panelLine}</p>
+                <a href={START_FREE.href} className={`${PRIMARY} mt-5 w-full`}>{START_FREE.t}</a>
+                <p className="mt-5 text-[15.5px]">
+                  {START.talkLead} <a href={`mailto:${START.address}`} className="inline-block py-2 font-semibold text-etyme-action-press underline underline-offset-4">{START.address}</a> {START.talkTail}
+                </p>
+              </div>
+            </div>
+            <p className="mt-6 text-[13px] leading-snug text-etyme-muted">{SAMPLE_NOTE}</p>
+          </div>
+        </section>
       </main>
 
       <SkeletonFooter />

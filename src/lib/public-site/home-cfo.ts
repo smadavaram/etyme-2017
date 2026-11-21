@@ -25,11 +25,13 @@
 import { CORVANE_PLANTS, CORVANE_RECEIPTS, CORVANE_COUNTRIES, corvaneContractors, corvaneHeldInReporting, receiptOverMinor } from '@/lib/seed-corvane'
 import { format, fromMinor } from '@/lib/money'
 import { daysToLimit, spendInDollars } from './corvane-map'
-import type { HomeHeld } from './home-words'
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 const spelled = (n: number) => (['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'][n] ?? String(n))
 const usd = (minor: number) => format(fromMinor(minor, 'USD'), { compact: true })
+
+/** The held supplier invoices' total over the signed hours, and how many. */
+export interface HomeHeld { amount: string; invoices: number }
 
 /** A figure drawn as a tile: the number, then what it counts. */
 export interface CfoTile { b: string; s: string }

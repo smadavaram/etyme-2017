@@ -87,7 +87,7 @@ describe('The public site counts its own clicks, first-party and with nothing pe
     // button, so it counts nothing (its Send and Not now post nothing).
     const page = read('src/app/page.tsx')
     expect(page).not.toContain('CountedLink')
-    expect(read('src/lib/public-site/home-parts.tsx')).not.toMatch(/count\(|fetch\(|sendBeacon/)
+    expect(read('src/lib/public-site/home-ask.tsx')).not.toMatch(/count\(|fetch\(|sendBeacon/)
     expect(read('src/lib/public-site/close-band.tsx')).toContain('event="demo_cta_clicked"')
     for (const f of ['src/lib/public-site/skeleton.tsx', 'src/lib/public-site/frame.tsx', 'src/lib/public-site/close-band.tsx', 'src/app/page.tsx']) {
       expect(read(f), f).not.toMatch(/audit_cta_clicked|audit_form_/)

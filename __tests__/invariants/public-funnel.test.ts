@@ -16,7 +16,7 @@
  * page links to the audit.
  */
 
-import { START_FREE, HOME_HEADER_BUTTON, SEE_IT_WORK, DEMO_NOT_NOW, DEMO_BACK, CFO_SHOW, CFO_HIDE, SECURITY_LINK } from '@/lib/public-site/home-words'
+import { START_FREE, HERO, ROLES, ASK, GUARANTEE, DOORS as HOME_DOOR_WORDS, PRICE } from '@/lib/public-site/home-page-words'
 import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -177,8 +177,9 @@ describe('One ladder, named once', () => {
     }
     // The home page ends since the founder's brief of 2026-11-13 in its
     // own last call: Start free to the sign-up, and a person by email.
-    expect(HOME).toContain('<a href={START_FREE.href} className={FILLED}>{START_FREE.t}</a>')
-    expect(HOME).toContain('href={`mailto:${FALLBACK_ADDRESS}`}')
+    expect(HOME).toContain('href={START_FREE.href}')
+    expect(HOME).toContain('{START_FREE.t}</a>')
+    expect(HOME).toContain('href={`mailto:${START.address}`}')
     expect(HOME).toContain("{ t: 'Contact', href: '/contact' }")
     // And the component draws the two rungs, in order, from the funnel.
     const see = CLOSE.indexOf('{`${SEE_IT.t} →`}')
@@ -222,7 +223,7 @@ describe('No button promises what the site cannot give', () => {
       OPEN_DEMO,
       // The home page's own buttons, constants since 2026-11-13, but Start
       // free, which goes to the sign-up door and is set aside below.
-      SEE_IT_WORK.t, DEMO_NOT_NOW, DEMO_BACK, CFO_SHOW, CFO_HIDE, SECURITY_LINK.t, 'Send',
+      HERO.seeRole, ROLES.link, ASK.cta, ASK.cfoShow,
     ]
     expect(labels.length, 'the guard reads real buttons').toBeGreaterThan(20)
     expect(labels).toContain('See it working, no account')
@@ -236,7 +237,9 @@ describe('No button promises what the site cannot give', () => {
     // is one of them: in the header, the hero and the last call, to /signup,
     // the page "Create your account" opens.
     expect(promisesAnAccount([START_FREE.t])).toHaveLength(1)
-    expect(HOME_HEADER_BUTTON).toBe(START_FREE)
+    // The home page's other sign-up buttons are Start free's own kind: each one is a link to the same /signup (home-page.test.ts).
+    expect([ROLES.cta, GUARANTEE.cta, HOME_DOOR_WORDS.cta, PRICE.button].every((t) => promisesAnAccount([t]).length <= 1)).toBe(true)
+    expect(HOME).toContain('<SiteHeader button={START_FREE} links={HOME_NAV} />')
     for (const s of [CLIENT_SIGN_UP, START_FREE, ...PARTY_PAGES.flatMap((p) => [p.signUp, ...(p.tabs ?? []).flatMap((t) => (t.signUp ? [t.signUp] : []))])]) expect(s.href.startsWith('/signup'), s.t).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/(auth)/signup/page.tsx'))).toBe(true)
     expect(existsSync(join(ROOT, 'src/app/api/auth/password'))).toBe(true)

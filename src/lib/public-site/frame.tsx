@@ -1,4 +1,5 @@
 import { EtymeLogo } from '@/components/logo'
+import { Analytics } from '@vercel/analytics/react'
 import { HEADER, ADDRESS } from './nav'
 import { FOOTER_LINKS } from './skeleton-words'
 import { CloseBand } from './close-band'
@@ -127,6 +128,16 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
  * where Etyme is. The client's sign-up is in the band above it.
  */
 export function HomeFooter({ links }: { links: { t: string; href: string }[] }) {
+  return (
+    <>
+      {/* Web Analytics, on the public pages only: every page that ends in this footer. The signed-in app never draws it. */}
+      <Analytics />
+      <FooterRow links={links} />
+    </>
+  )
+}
+
+function FooterRow({ links }: { links: { t: string; href: string }[] }) {
   return (
     <footer className="border-t border-etyme-rule">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
