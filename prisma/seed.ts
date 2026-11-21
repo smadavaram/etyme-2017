@@ -14,6 +14,13 @@
  * Run: npx tsx prisma/seed.ts
  */
 
+import { dataSealKeySet, lastFourOf, taxIdToWrite } from '../src/lib/sensitive'
+
+/** A seeded tax ID, sealed where the deployment has the data key, else its last four only (record 99). */
+function seedTaxId(plain: string) {
+  const w = dataSealKeySet() ? taxIdToWrite(plain) : null
+  return w?.ok ? w.data : { taxId: null, taxIdSealed: null, taxIdLast4: lastFourOf(plain) }
+}
 import { PrismaClient } from '@prisma/client'
 import { defaultPostureFor } from '../src/lib/walls'
 import { rolesFor } from '../src/lib/company-defaults'
@@ -769,7 +776,7 @@ async function main() {
       legalName: 'Techpeple Inc.',
       addressLines: ['2100 Ross Avenue, Suite 800', 'Dallas, TX 75201'],
       country: 'US',
-      taxId: '47-2938471',
+      ...seedTaxId('47-2938471'),
       paymentMethod: 'ACH',
       bankName: 'Wells Fargo',
       accountLast4: '4471',
@@ -784,7 +791,7 @@ async function main() {
       legalName: 'TechVista Consulting LLC',
       addressLines: ['500 Boylston Street, Floor 12', 'Boston, MA 02116'],
       country: 'US',
-      taxId: '81-4417392',
+      ...seedTaxId('81-4417392'),
       paymentMethod: 'WIRE',
       bankName: 'Bank of America',
       accountLast4: '9902',

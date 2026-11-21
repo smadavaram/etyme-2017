@@ -1,3 +1,4 @@
+import { taxIdShown } from '@/lib/sensitive'
 import { prisma } from '@/lib/db'
 
 /**
@@ -66,15 +67,23 @@ export function firstPerFirm<R extends { companyId: string }>(ordered: readonly 
 
 /** The fields a bill prints, beside the ones `payToRow` reads. */
 const ON_BILL_SELECT = {
-  ...PAY_TO_SELECT, paymentMethod: true, addressLines: true, country: true, taxId: true, routingLast4: true,
+  ...PAY_TO_SELECT, paymentMethod: true, addressLines: true, country: true, taxId: true, taxIdLast4: true, routingLast4: true,
 } as const
 
 export interface PayToOnBill extends PayToRow {
   paymentMethod: string
   addressLines: string[]
   country: string
+  /** Masked (record 99): the last four and dots, never the number. */
   taxId: string | null
   routingLast4: string | null
+}
+
+/** Pure: the row as a bill carries it, the tax ID masked (record 99). */
+function onBill<R extends { taxId: string | null; taxIdLast4: string | null }>(read: R | null): Omit<R, 'taxIdLast4'> | null {
+  if (!read) return null
+  const { taxIdLast4: _l, ...r } = read
+  return { ...r, taxId: taxIdShown(read) }
 }
 
 /** Pure: the row a bill prints, which is the pay-to row where it is checked, else none. */
@@ -90,8 +99,8 @@ export async function payToOnBill(
   issuerId: string,
   db: Db = prisma,
 ): Promise<{ row: PayToOnBill | null; entered: boolean }> {
-  const row = await db.remitTo.findFirst({ where: { companyId: issuerId }, orderBy: PAY_TO_ORDER, select: ON_BILL_SELECT })
-  return { row: printedOnBill(row), entered: row != null }
+  const read = await db.remitTo.findFirst({ where: { companyId: issuerId }, orderBy: PAY_TO_ORDER, select: ON_BILL_SELECT })
+  return { row: printedOnBill(onBill(read)), entered: read != null }
 }
 
 // ── Per payer (records 86 and 87) ─────────────────────────────────────
@@ -118,7 +127,7 @@ export async function payToOnBillFor(
   if (!at.payTo) return { row: null, entered: false }
   if (!at.standing.open) return { row: null, entered: true }
   const row = await db.remitTo.findUnique({ where: { id: at.payTo.id }, select: ON_BILL_SELECT })
-  return { row, entered: true }
+  return { row: onBill(row), entered: true }
 }
 
 /** For a payment run's file: the row this payer pays each firm, only where its payment is open. A firm with none is absent. */

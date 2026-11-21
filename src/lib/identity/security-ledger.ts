@@ -45,6 +45,11 @@ export const SECURITY_EVENTS = [
   'BANK_CHECKED',
   /** Full bank details shown, after a fresh second check (record 87). Never the details themselves. */
   'BANK_DETAILS_SHOWN',
+  // Sensitive numbers (record 99). Who, which record and why; never the number.
+  /** A full tax ID shown to an Owner, after a fresh second check. */
+  'SENSITIVE_REVEALED',
+  /** A reveal asked for and refused, written before the refusal is sent. */
+  'SENSITIVE_REVEAL_REFUSED',
 ] as const
 export type SecurityEventName = (typeof SECURITY_EVENTS)[number]
 
@@ -72,6 +77,8 @@ export const WRITTEN_BY: Record<SecurityEventName, string | null> = {
   BANK_CALLBACK_RECORDED: null,
   BANK_CHECKED: null,
   BANK_DETAILS_SHOWN: null,
+  SENSITIVE_REVEALED: 'src/app/api/settings/sensitive/reveal/route.ts',
+  SENSITIVE_REVEAL_REFUSED: 'src/app/api/settings/sensitive/reveal/route.ts',
 }
 
 export const SECURITY_SURFACES = ['WEB', 'TEAMS', 'STAFF', 'CRON', 'EMAIL_LINK'] as const

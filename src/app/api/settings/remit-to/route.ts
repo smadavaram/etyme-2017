@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isMasked, taxIdShown, taxIdToWrite } from '@/lib/sensitive'
 import { bankChange, type BankFacts } from '@/lib/money/remit-change'
 import { recordBankWrite } from './bank-log'
 import { getCallerContext } from '@/lib/api-context'
@@ -20,6 +21,12 @@ import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
  * holding the full number would make this table worth stealing, and it
  * buys nothing — the payment itself happens in a bank, not here.
  */
+
+/** A row as a reply carries it: the tax ID masked, the sealed value never. */
+function shownRow<R extends { taxId: string | null; taxIdLast4: string | null; taxIdSealed: string | null }>(r: R) {
+  const { taxIdSealed: _s, taxIdLast4: _l, ...rest } = r
+  return { ...rest, taxId: taxIdShown(r) }
+}
 
 async function guard(request: NextRequest, write: boolean) {
   const { caller, error } = await getCallerContext(request)
@@ -95,7 +102,7 @@ export async function GET(request: NextRequest) {
     where: { companyId: caller!.company!.id },
     orderBy: [{ isDefault: 'desc' }, { legalName: 'asc' }],
     select: {
-      id: true, legalName: true, addressLines: true, country: true, taxId: true,
+      id: true, legalName: true, addressLines: true, country: true, taxId: true, taxIdLast4: true,
       paymentMethod: true, bankName: true, accountLast4: true, routingLast4: true,
       isDefault: true,
       _count: { select: { invoices: true } },
@@ -104,7 +111,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: {
-      remitTos: rows.map((r) => ({ ...r, invoiceCount: r._count.invoices, _count: undefined })),
+      remitTos: rows.map(({ taxIdLast4: _l, ...r }) => ({ ...r, taxId: taxIdShown({ taxId: r.taxId, taxIdLast4: _l }), invoiceCount: r._count.invoices, _count: undefined })),
       canEdit: hasPermission(caller!.permissions, 'settings.manage'),
       // An invoice with no remit-to says nothing about where to pay it, and
       // the customer finds out by asking.
@@ -147,6 +154,9 @@ export async function POST(request: NextRequest) {
 
   const long = notFourDigits(body)
   if (long) return long
+  // A tax ID is written sealed, never whole (record 99, lib/sensitive).
+  const taxIdWrite = taxIdToWrite(body.taxId && !isMasked(body.taxId) ? String(body.taxId) : null)
+  if (!taxIdWrite.ok) return NextResponse.json({ error: { code: 'NOT_READY', message: taxIdWrite.says, field: 'taxId' } }, { status: 503 })
 
   const makeDefault = Boolean(body.isDefault) || (await prisma.remitTo.count({ where: { companyId } })) === 0
 
@@ -160,7 +170,7 @@ export async function POST(request: NextRequest) {
       legalName,
       addressLines: Array.isArray(body.addressLines) ? body.addressLines.map(String) : [],
       country: String(body.country ?? 'US').toUpperCase().slice(0, 2),
-      taxId: body.taxId ? String(body.taxId).trim() : null,
+      ...taxIdWrite.data,
       paymentMethod: method,
       bankName: body.bankName ? String(body.bankName).trim() : null,
       accountLast4: body.accountLast4 ? String(body.accountLast4) : null,
@@ -179,7 +189,7 @@ export async function POST(request: NextRequest) {
     after: remitTo, change: bankChange(null, remitTo),
   })
 
-  return NextResponse.json({ data: { remitTo, message: `${legalName} saved.` } }, { status: 201 })
+  return NextResponse.json({ data: { remitTo: shownRow(remitTo), message: `${legalName} saved.` } }, { status: 201 })
 }
 
 export async function PATCH(request: NextRequest) {
@@ -199,6 +209,10 @@ export async function PATCH(request: NextRequest) {
 
   const long = notFourDigits(body)
   if (long) return long
+  // A masked value sent back is no change; a new one is sealed (record 99).
+  const taxIdChanged = 'taxId' in body && !isMasked(body.taxId)
+  const taxIdWrite = taxIdToWrite(taxIdChanged && body.taxId ? String(body.taxId) : null)
+  if (taxIdChanged && !taxIdWrite.ok) return NextResponse.json({ error: { code: 'NOT_READY', message: taxIdWrite.says, field: 'taxId' } }, { status: 503 })
 
   if (body.isDefault === true) {
     await prisma.remitTo.updateMany({ where: { companyId, isDefault: true }, data: { isDefault: false } })
@@ -216,7 +230,7 @@ export async function PATCH(request: NextRequest) {
       ...(typeof body.legalName === 'string' && body.legalName.trim() ? { legalName: body.legalName.trim() } : {}),
       ...(Array.isArray(body.addressLines) ? { addressLines: body.addressLines.map(String) } : {}),
       ...(typeof body.country === 'string' ? { country: body.country.toUpperCase().slice(0, 2) } : {}),
-      ...('taxId' in body ? { taxId: body.taxId ? String(body.taxId).trim() : null } : {}),
+      ...(taxIdChanged && taxIdWrite.ok ? taxIdWrite.data : {}),
       // The bank, the account name, the last four and the routing digits
       // the edit carried, as typed (money's review, 2026-11-16: the new
       // digits cleared the check and were never saved).
@@ -234,7 +248,7 @@ export async function PATCH(request: NextRequest) {
     after: remitTo, change,
   })
 
-  return NextResponse.json({ data: { remitTo, message: change.cleared ? change.says : 'Saved.' } })
+  return NextResponse.json({ data: { remitTo: shownRow(remitTo), message: change.cleared ? change.says : 'Saved.' } })
 }
 
 export async function DELETE(request: NextRequest) {

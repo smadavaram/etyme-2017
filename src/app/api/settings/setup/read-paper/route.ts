@@ -1,3 +1,4 @@
+import { lastFourOf, masked, sealForForm } from '@/lib/sensitive'
 import { NextRequest, NextResponse } from 'next/server'
 import { setupDoor, refused } from '../door'
 import {
@@ -53,7 +54,11 @@ export async function POST(request: NextRequest) {
     data: {
       kind: rules.kind,
       paper: PAPER_WORDS[rules.kind],
-      values: values.map((v) => ({ ...v, label: FILL_FIELD_WORDS[v.field] })),
+      // A tax ID read off the paper leaves masked, with the number sealed
+      // for this company so Save can record it (record 99, lib/sensitive).
+      values: values.map((v) => v.field === 'taxId'
+        ? { ...v, value: masked(lastFourOf(v.value)) ?? '', quote: masked(lastFourOf(v.quote)) ?? '', sealed: sealForForm(door.caller.company.id, v.value), label: FILL_FIELD_WORDS[v.field] }
+        : { ...v, label: FILL_FIELD_WORDS[v.field] }),
       missing: rules.missing.filter((f) => !values.some((v) => v.field === f)).map((f) => FILL_FIELD_WORDS[f]),
       says: values.length
         ? `Read from your ${PAPER_WORDS[rules.kind]}. Check each value against the paper, then use it. Nothing is saved until you press Save.`

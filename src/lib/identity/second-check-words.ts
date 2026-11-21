@@ -33,6 +33,8 @@ export const CHECK_ACTS = {
   'second_check.add': 'add a passkey or authenticator app',
   'second_check.remove': 'remove a passkey or authenticator app',
   'second_check.reset': 'reset a colleague’s second check',
+  /** Record 99: an Owner shows a full tax ID, for that view only. */
+  'sensitive.reveal': 'show a full tax ID',
 } as const
 export type CheckAct = keyof typeof CHECK_ACTS
 

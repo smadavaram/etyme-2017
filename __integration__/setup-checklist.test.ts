@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 
@@ -43,6 +44,8 @@ const put = (item: string, body: unknown) => saveItem(req('PUT', `/api/settings/
 describe('the admin’s setup checklist', () => {
   beforeAll(async () => {
     await freshWorld()
+    // A tax ID is kept only sealed (record 99), so this deployment has a data key.
+    process.env.ETYME_DATA_SEAL_KEY ??= randomBytes(32).toString('base64')
     as(OWNER)
     const made = await json(await enter(req('POST', '/api/onboarding', { type: 'prime', name: 'Tapinwalk' })))
     expect(made.status, JSON.stringify(made.body)).toBe(201)
@@ -201,7 +204,8 @@ describe('the admin’s setup checklist', () => {
     const values = Object.fromEntries(read.body.data.values.map((v: any) => [v.field, v]))
     expect(values.legalName).toMatchObject({ value: 'Tapinwalk LLC', quote: 'Tapinwalk LLC', label: 'Legal name' })
     expect(values['legal.city'].value).toBe('Dallas')
-    expect(values.taxId.value).toBe('12-3456789')
+    // The tax ID leaves masked, sealed for Save (record 99).
+    expect(values.taxId.value).toBe('•••••6789')
     // Read and shown, never recorded: nothing changed on the company.
     const untouched = await prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { legalName: true, taxId: true } })
     expect(untouched).toEqual({ legalName: null, taxId: null })
@@ -210,12 +214,12 @@ describe('the admin’s setup checklist', () => {
 
     // The Owner presses Save: now it is recorded, saying it came from the W-9.
     const saved = await json(await put('company', {
-      legalName: 'Tapinwalk LLC', taxId: '12-3456789', currency: 'USD',
-      sources: { legalName: { source: 'PAPER', quote: 'Tapinwalk LLC' }, taxId: { source: 'PAPER', quote: '12-3456789' } },
+      legalName: 'Tapinwalk LLC', taxId: values.taxId.value, taxIdFromPaper: values.taxId.sealed, currency: 'USD',
+      sources: { legalName: { source: 'PAPER', quote: 'Tapinwalk LLC' }, taxId: { source: 'PAPER', quote: values.taxId.quote } },
     }))
     expect(saved.status, JSON.stringify(saved.body)).toBe(200)
-    const co = await prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { legalName: true, taxId: true } })
-    expect(co).toEqual({ legalName: 'Tapinwalk LLC', taxId: '12-3456789' })
+    const co = await prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { legalName: true, taxId: true, taxIdLast4: true } })
+    expect(co).toEqual({ legalName: 'Tapinwalk LLC', taxId: null, taxIdLast4: '6789' })
     expect(saved.body.data.detail.COMPANY.sources.legalName).toMatch(/^From your W-9, line 1: “Tapinwalk LLC”\. Confirmed by /)
   })
 

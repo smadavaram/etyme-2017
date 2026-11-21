@@ -1,5 +1,6 @@
 'use client'
 
+import { RevealNumber } from '@/components/step-up/reveal-number'
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
@@ -152,7 +153,9 @@ function CompanyItem(p: Props) {
     establishedYear: d.establishedYear,
     website: d.website || guess?.website || '',
     phone: d.phone,
+    // Masked as read (record 99): left as it is, Save keeps the number on file.
     taxId: d.taxId,
+    taxIdFromPaper: '',
     currency: d.currency,
     timeZone: d.timeZone,
   })
@@ -160,7 +163,7 @@ function CompanyItem(p: Props) {
     !d.website && guess ? { website: { source: 'DOMAIN', quote: guess.domain } } : {},
   )
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setF({ ...f, [k]: e.target.value })
+    setF({ ...f, [k]: e.target.value, ...(k === 'taxId' ? { taxIdFromPaper: '' } : {}) })
     setSources(({ [k]: _drop, ...rest }) => rest)
   }
   const from = (k: string) => {
@@ -181,6 +184,8 @@ function CompanyItem(p: Props) {
               (next as any)[v.field] = v.value
               src[v.field] = { source: 'PAPER', quote: v.quote }
             }
+            // The EIN arrives masked, with the number sealed for Save (record 99).
+            if (v.field === 'taxId') next.taxIdFromPaper = v.sealed ?? ''
           }
           setF(next); setSources(src)
         }}
@@ -197,7 +202,10 @@ function CompanyItem(p: Props) {
         <Field label="Established (year)"><Input inputMode="numeric" value={f.establishedYear} onChange={set('establishedYear')} placeholder="2019" /></Field>
         <Field label="Website" help={<From says={from('website')} />}><Input value={f.website} onChange={set('website')} placeholder="company.example" /></Field>
         <Field label="Phone"><Input value={f.phone} onChange={set('phone')} /></Field>
-        <Field label="EIN" help={<From says={from('taxId')} />}><Input value={f.taxId} onChange={set('taxId')} placeholder="12-3456789" /></Field>
+        <Field label="EIN" help={<>
+          <From says={from('taxId')} />
+          {d.taxIdRevealFor && f.taxId === d.taxId ? <> <RevealNumber field="COMPANY_TAX_ID" id={d.taxIdRevealFor} masked={d.taxId} /></> : null}
+        </>}><Input value={f.taxId} onChange={set('taxId')} placeholder="12-3456789" /></Field>
         <Field label="Currency" help={<From says={from('currency')} />}><Input value={f.currency} onChange={set('currency')} maxLength={3} /></Field>
         <Field label="Time zone" help={SETUP_TIME_ZONE_SAYS}><Input value={f.timeZone} onChange={set('timeZone')} placeholder="America/Chicago" /></Field>
       </div>
@@ -217,7 +225,7 @@ function CompanyItem(p: Props) {
 }
 
 /** "Fill from a paper": a W-9 or a certificate of insurance, read and shown, used only on a yes. */
-function PaperReader({ onUse }: { onUse: (values: { field: string; value: string; quote: string }[]) => void }) {
+function PaperReader({ onUse }: { onUse: (values: { field: string; value: string; quote: string; sealed?: string | null }[]) => void }) {
   const [openBox, setOpenBox] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)

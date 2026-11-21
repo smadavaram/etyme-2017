@@ -1,3 +1,5 @@
+import { taxIdShown, masked, lastFourOf } from '@/lib/sensitive'
+import { OWNER_ROLE } from '@/lib/owner-rules'
 /**
  * Everything the setup checklist draws, in one read: the list, and each
  * item's body with its defaults filled and where every answer came from.
@@ -24,11 +26,16 @@ import { readCompanySeats, peopleOf, countSeats, peopleWords, seatTotal } from '
 import { joinSentenceFor } from '@/lib/join-words'
 import { forwardingView, WHY, keptLine, RECIPES, CONSOLE_NOTE, NARROW, REPLACE_LINE, checkLine } from '@/lib/setup-forwarding'
 
+async function isOwnerHere(companyId: string, personId: string): Promise<boolean> {
+  const seat = await prisma.context.findFirst({ where: { companyId, personId, revokedAt: null, suspendedAt: null, role: { name: OWNER_ROLE } }, select: { id: true } })
+  return seat !== null
+}
+
 export async function readSetup(companyId: string, reader: { personId: string; email: string }) {
   const c = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
     select: {
-      id: true, name: true, slug: true, kind: true, domain: true, domainVerified: true, country: true, currency: true, entityType: true, taxId: true,
+      id: true, name: true, slug: true, kind: true, domain: true, domainVerified: true, country: true, currency: true, entityType: true, taxId: true, taxIdLast4: true,
       legalName: true, dba: true, establishedYear: true, website: true, logoUrl: true, phone: true,
       billingSameAsLegal: true, accountsEmail: true, teamsWebhookUrl: true, isDemo: true,
     },
@@ -90,7 +97,7 @@ export async function readSetup(companyId: string, reader: { personId: string; e
   const domainFill = fromWorkEmail(reader.email)
   const sources: Record<string, string> = {}
   for (const a of answers) {
-    sources[a.field] = sourceWords({ source: a.source as AnswerSource, quote: a.quote, by: nameOf(a.answeredById), at: a.answeredAt, paper: 'W-9', field: a.field })
+    sources[a.field] = sourceWords({ source: a.source as AnswerSource, quote: a.field === 'taxId' ? masked(lastFourOf(a.quote)) : a.quote, by: nameOf(a.answeredById), at: a.answeredAt, paper: 'W-9', field: a.field })
   }
   // The site Setup → Your company's Time zone box reads and writes: the
   // primary, or the first in this order where none is primary. The save
@@ -150,7 +157,10 @@ export async function readSetup(companyId: string, reader: { personId: string; e
         establishedYear: c.establishedYear ? String(c.establishedYear) : '',
         website: ownAnswer('website') ? c.website ?? '' : '',
         phone: c.phone ?? '',
-        taxId: c.taxId ?? '',
+        // Masked for everyone, the Owner included (record 99). The full
+        // number leaves only through /api/settings/sensitive/reveal.
+        taxId: taxIdShown(c) ?? '',
+        taxIdRevealFor: taxIdShown(c) && (await isOwnerHere(companyId, reader.personId)) ? c.id : null,
         currency: c.currency,
         country: c.country ?? 'US',
         countryName: countryName(c.country ?? 'US'),

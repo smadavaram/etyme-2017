@@ -198,6 +198,33 @@ try {
   record('search narrows a list', false, String(e.message).slice(0, 90))
 }
 
+// ── Flow: a tax ID is never shown whole (record 99, record 104 item 1) ──
+//
+// Production showed a tax ID unmasked. Open the setup checklist and the
+// bills as a seeded seat, watch every reply the page reads, and look for
+// a whole EIN (two digits, a dash, seven digits) on the page and in the
+// replies. Only the reveal route may carry one, after a second check.
+try {
+  console.log('\nFlow — a tax ID is masked on every screen and in every reply')
+  const { ctx, page } = await seatedAs(browser, 'BENCH')
+  const WHOLE = /\b\d{2}-\d{7}\b/
+  const leaks = []
+  page.on('response', async (r) => {
+    if (!r.url().includes('/api/') || r.url().includes('/api/settings/sensitive/reveal')) return
+    const body = await r.text().catch(() => '')
+    if (WHOLE.test(body)) leaks.push(new URL(r.url()).pathname)
+  })
+  for (const path of ['/dashboard/settings/setup', '/dashboard/invoices', '/dashboard/settings']) {
+    await goto(page, path)
+    const text = await page.evaluate(() => document.body.innerText ?? '')
+    if (WHOLE.test(text)) leaks.push(`${path} (on the page)`)
+  }
+  record('no screen or reply shows a whole tax ID', leaks.length === 0, leaks.join(', '))
+  await ctx.close()
+} catch (e) {
+  record('no screen or reply shows a whole tax ID', false, String(e.message).slice(0, 90))
+}
+
 await browser.close()
 
 const ok = results.filter((r) => r.ok).length

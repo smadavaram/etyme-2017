@@ -1,3 +1,4 @@
+import { isMasked, lastFourOf, masked, openFromForm, taxIdToWrite } from '@/lib/sensitive'
 import { joinSentenceFor } from '@/lib/join-words'
 import { recordIdentityEvent } from '@/lib/identity/ledger'
 import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
@@ -53,7 +54,9 @@ const str = (v: unknown, max = 200) => String(v ?? '').trim().slice(0, max)
 function sourceOf(body: any, field: string): AnswerToRecord {
   const s = body?.sources?.[field]
   const source: AnswerSource = SOURCES.includes(s?.source) ? s.source : 'PERSON'
-  return { field, source, quote: source === 'PERSON' ? null : str(s?.quote, 300) || null }
+  const quote = source === 'PERSON' ? null : str(s?.quote, 300) || null
+  // A tax ID's quote is kept masked: the words it was read from are the number.
+  return { field, source, quote: field === 'taxId' ? masked(lastFourOf(quote)) : quote }
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { item: string } }) {
@@ -87,12 +90,19 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
     if (str(body.establishedYear) && !year) return { ok: false, says: 'Type the year the company was established, as four digits.' }
     const website = str(body.website) ? plainWebsite(body.website) : null
     if (str(body.website) && !website) return { ok: false, says: 'Type the website as an address, like company.example.' }
-    const taxId = str(body.taxId) ? (plainEin(body.taxId) ?? str(body.taxId, 40)) : null
+    // A tax ID is written sealed and never whole (record 99, lib/sensitive).
+    // The box comes back masked, or empty, when nobody changed it: that
+    // keeps the number on file. A number read off her W-9 comes back
+    // sealed for this company (`taxIdFromPaper`), never as digits.
+    const fromPaper = openFromForm(c.id, body.taxIdFromPaper)
+    const typed = fromPaper ?? (str(body.taxId) && !isMasked(body.taxId) ? (plainEin(body.taxId) ?? str(body.taxId, 40)) : null)
+    const taxIdWrite = typed ? taxIdToWrite(typed) : null
+    if (taxIdWrite && !taxIdWrite.ok) return { ok: false, says: taxIdWrite.says }
     const currency = str(body.currency) ? knownCurrency(body.currency) : null
     if (str(body.currency) && !currency) return { ok: false, says: 'Type the currency as three letters, like USD.' }
     const before = await prisma.company.findUniqueOrThrow({
       where: { id: c.id },
-      select: { legalName: true, dba: true, entityType: true, establishedYear: true, website: true, phone: true, taxId: true, currency: true },
+      select: { legalName: true, dba: true, entityType: true, establishedYear: true, website: true, phone: true, taxId: true, taxIdLast4: true, currency: true },
     })
     // The Time zone box is the primary site's: read and written on the
     // same site the screen read it from (fix list G5). A zone nothing
@@ -107,16 +117,16 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
       where: { id: c.id },
       data: {
         legalName, dba: str(body.dba) || null, entityType: entityType || null, establishedYear: year,
-        website, phone: str(body.phone, 40) || null, taxId, ...(currency ? { currency } : {}),
+        website, phone: str(body.phone, 40) || null, ...(taxIdWrite?.ok ? taxIdWrite.data : {}), ...(currency ? { currency } : {}),
       },
     })
     if (typedZone && tzSite && (tzSite.timeZone ?? null) !== tz) {
       await prisma.companyLocation.update({ where: { id: tzSite.id }, data: { timeZone: tz } })
     }
-    const after: Record<string, unknown> = { legalName, dba: str(body.dba) || null, entityType: entityType || null, establishedYear: year, website, phone: str(body.phone, 40) || null, taxId, currency: currency ?? before.currency, timeZone: tz || null }
-    const was: Record<string, unknown> = { ...before, timeZone: tzSite?.timeZone ?? null }
+    const after: Record<string, unknown> = { legalName, dba: str(body.dba) || null, entityType: entityType || null, establishedYear: year, website, phone: str(body.phone, 40) || null, taxId: taxIdWrite?.ok ? taxIdWrite.data.taxIdLast4 : lastFourOf(before.taxIdLast4 ?? before.taxId), currency: currency ?? before.currency, timeZone: tz || null }
+    const was: Record<string, unknown> = { ...before, taxId: lastFourOf(before.taxIdLast4 ?? before.taxId), timeZone: tzSite?.timeZone ?? null }
     const fields = ['legalName', 'dba', 'entityType', 'establishedYear', 'website', 'phone', 'taxId', 'currency', 'timeZone']
-      .filter((f) => str(body[f]))
+      .filter((f) => (f === 'taxId' ? Boolean(typed) : str(body[f])))
     return { ok: true, answers: await keepWhereUnchanged(c.id, fields.map((f) => sourceOf(body, f)), (f) => String(was[f] ?? '') === String(after[f] ?? '')) }
   },
 
@@ -254,7 +264,7 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
       return { ok: false, says: 'Type the bank, the name on the account and at least the last four digits of the account, or press Skip for now.' }
     }
     const [co, legal, existing] = await Promise.all([
-      prisma.company.findUniqueOrThrow({ where: { id: c.id }, select: { name: true, legalName: true, country: true, taxId: true } }),
+      prisma.company.findUniqueOrThrow({ where: { id: c.id }, select: { name: true, legalName: true, country: true, taxIdSealed: true, taxIdLast4: true } }),
       prisma.companyAddress.findUnique({ where: { companyId_kind: { companyId: c.id, kind: 'LEGAL' } } }),
       prisma.remitTo.findFirst({ where: { companyId: c.id }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
     ])
@@ -274,7 +284,7 @@ const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Sa
         data: {
           companyId: c.id, legalName: co.legalName ?? co.name, isDefault: true, country: legal?.country ?? co.country ?? 'US',
           addressLines: legal ? [legal.street, [legal.city, legal.state, legal.postalCode].filter(Boolean).join(', ')].filter((x): x is string => !!x) : [],
-          taxId: co.taxId, ...data,
+          taxIdSealed: co.taxIdSealed, taxIdLast4: co.taxIdLast4, ...data,
         },
       })
     // The same row Settings → Payment details writes: the bank, the

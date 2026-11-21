@@ -94,7 +94,7 @@ describe('who may add a passkey or an app', () => {
   })
 
   it('a check is asked only for an act the list names', () => {
-    expect(Object.keys(CHECK_ACTS).sort()).toEqual(['second_check.add', 'second_check.remove', 'second_check.reset'])
+    expect(Object.keys(CHECK_ACTS).sort()).toEqual(['second_check.add', 'second_check.remove', 'second_check.reset', 'sensitive.reveal'])
     expect(isCheckAct('second_check.reset')).toBe(true)
     expect(isCheckAct('payment_run.approve')).toBe(false)
     expect(isCheckAct('toString')).toBe(false)

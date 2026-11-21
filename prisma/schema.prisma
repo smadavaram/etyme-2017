@@ -700,13 +700,18 @@ model Company {
 
   /// The currency this company reports in, whatever it bills or pays in.
   /// ISO country, for place-of-supply. Falls back to the primary location.
-  country   String?
+  country     String?
   /// VAT/GST registration. Needed on the CUSTOMER to test reverse charge —
   /// without it a cross-border EU B2B supply over-taxes at the supplier's
   /// own rate: wrong in the safer direction, and still wrong.
-  taxId     String?
+  taxId       String?
+  /// The tax ID, sealed (AES-256-GCM under ETYME_DATA_SEAL_KEY, lib/sensitive),
+  /// and its last four for the masked form (record 99). Every write fills
+  /// these and leaves `taxId` empty; scripts/seal-sensitive moves old rows.
+  taxIdSealed String?
+  taxIdLast4  String?
   /// The client issues its own invoices against approved work.
-  selfBills Boolean @default(false)
+  selfBills   Boolean @default(false)
 
   homeCurrency             String    @default("USD")
   /// A second reporting currency, kept alongside rather than instead of.
@@ -6499,7 +6504,10 @@ model RemitTo {
   legalName           String // the entity on the invoice, may differ from trading name
   addressLines        String[]
   country             String
-  taxId               String? // EIN / VAT / GST registration
+  taxId               String? // EIN / VAT / GST registration. Never written since record 99; see taxIdSealed.
+  /// The tax ID sealed and its last four (lib/sensitive, record 99).
+  taxIdSealed         String?
+  taxIdLast4          String?
   paymentMethod       String    @default("ACH") // ACH · WIRE · CHECK
   bankName            String?
   accountLast4        String? // display only — never the full number
