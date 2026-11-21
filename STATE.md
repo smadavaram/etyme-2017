@@ -307,6 +307,11 @@ person. NOT STARTED, with the rest of the money loop (pack batch 3).
 - 2026-11-21: the meter counts actions; the cap reads "Not set".
 - 2026-11-21: the public site from the prototypes is not in week 1; its
   slot is proposed with week 2's note.
+- 2026-11-21, on the owner's word: new workers run on the session's
+  own model, the strongest one, in place of the lower tier. Builders
+  already running finish as they started. Every committed step gets a
+  read-only review by several reviewers, each finding checked twice,
+  before the release check.
 
 ## The weekend release contract (record 107)
 
