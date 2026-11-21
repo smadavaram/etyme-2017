@@ -236,6 +236,13 @@ record 98.
 
 ## The second firm's execution pack (record 105)
 
+**In one sentence (record 106).** The second firm reaches one million
+dollars of profit in 2027 by converting its existing demand and bench
+at a tracked rate, holding agreed rates against drift, and collecting
+on one chain. The pack builds exactly that. Measure conversion, drift
+and the age of money owed from the ledger, and report them with each
+batch.
+
 NOT STARTED. It arrived on 2026-11-21 after the tranche was deployed.
 - The named pack and its day-one data are NOT in the repository, by the
   standing rules. Record 105 holds the structure only. A fresh session
