@@ -120,3 +120,4 @@ built, every release check, every walk and every deploy.
 | 102 | The tester's list of 2026-11-18: what blocks real use | 545 | [102-the-testers-list-of-2026-11-18-what-blocks-real-use.md](102-the-testers-list-of-2026-11-18-what-blocks-real-use.md) |
 | 103 | The owner-approved homepage and three tester fixes shipped — 2026-11-21 | 1146 | [103-the-owner-approved-homepage-and-three-tester-fixes-shipped-2026-11-21.md](103-the-owner-approved-homepage-and-three-tester-fixes-shipped-2026-11-21.md) |
 | 104 | The full pending-work list, handed over — 2026-11-21 | 1079 | [104-the-full-pending-work-list-handed-over-2026-11-21.md](104-the-full-pending-work-list-handed-over-2026-11-21.md) |
+| 105 | The second firm's execution pack, specifications v2 — 2026-11-21 | 1270 | [105-the-second-firms-execution-pack-specs-v2-2026-11-21.md](105-the-second-firms-execution-pack-specs-v2-2026-11-21.md) |

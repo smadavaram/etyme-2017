@@ -234,6 +234,21 @@ NOT STARTED. No specification has arrived. Nothing is to be built from
 an earlier one. The scout's inventory of the twin's fourteen acts is in
 record 98.
 
+## The second firm's execution pack (record 105)
+
+NOT STARTED. It arrived on 2026-11-21 after the tranche was deployed.
+- The named pack and its day-one data are NOT in the repository, by the
+  standing rules. Record 105 holds the structure only. A fresh session
+  that needs a name or a figure asks the tester for the pack; it never
+  writes one into a file, a test or a commit.
+- Its batch 1 (primitives: record, ledger, acting-entity stamp, decision
+  queue home, agent control view) is BLOCKED on: the Vision UI file; the
+  ruling on entities (record 105, point 1); and the ruling on order
+  against the handover's Batch 1 (point 5).
+- Its batches 2 to 7 are NOT STARTED. Batch 7, the digest scanner, also
+  waits on the mailbox ruling (point 2). Any pay-hold wording waits on
+  regulatory (point 3).
+
 ## Phase 6, the finish gate
 
 Not met. No batch has been retested.
@@ -267,3 +282,7 @@ Not met. No batch has been retested.
    whole week, as built, or only the premium (records 92, 94)?
 8. Whether the host's page analytics sets a cookie, for the privacy
    sentence.
+9. Entities: a sister firm inside one tenant as a linked legal entity,
+   or its own tenant with two seats (record 105, point 1)?
+10. Which comes first: the handover's Batch 1, or the pack's batch 1?
+11. May the digest scanner read mail, and by which door (point 2)?
