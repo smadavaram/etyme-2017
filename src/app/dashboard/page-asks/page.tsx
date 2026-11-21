@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
+import { formatDay } from '@/lib/format-date'
 import { readJson } from '@/lib/read-response'
 import { refusedBy } from '@/app/dashboard/program/own-refusal'
 import { PageHead, FilterChips, RefusedState, LoadingState, ErrorState, EmptyState, SubmitButton, FormMessage, Input } from '@/components/ui'
@@ -36,7 +37,7 @@ const FILTERS = [
 ] as const
 type Filter = (typeof FILTERS)[number]['key']
 
-const when = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+const when = (iso: string) => formatDay(iso)
 
 export default function PageAsksPage() {
   const section = usePageSection('/dashboard/page-asks')

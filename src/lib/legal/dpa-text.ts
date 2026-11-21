@@ -169,8 +169,8 @@ A service marked "where set up" is used only if it is configured.
 | Sub-processor | Purpose | Personal data it receives |
 |---|---|---|
 | Managed database host [to be named] | Stores all data in the Services, including resume files | All Customer Data |
-| Vercel | Hosts the Services and runs scheduled jobs | Everything in a page request and response, and standard request logs |
-| Anthropic (where set up) | An outside service that reads text. Used to suggest matching jobs, check a resume against claimed skills, read imported files, draft public profile pages, and answer typed questions about a Customer's own data where that Customer has turned this on | For matching: a Worker's name, skills, headline, location, work authorization type, minimum rate and date available. For a resume check: resume text and claimed skills. For an import: up to 60,000 characters of the file. For a profile page: the words on that page. For a typed question: the question and related entries, with names, rates, pay and amounts replaced by placeholders |
+| Vercel | Hosts the Services, runs scheduled jobs and runs page analytics on the public marketing pages | Everything in a page request and response, and standard request logs. For page analytics, page views of the public marketing pages |
+| Anthropic (where set up) | An outside service that reads text. Used to suggest matching jobs, check a resume against claimed skills, read imported files, draft public profile pages, and answer typed questions about a Customer's own data where that Customer has turned this on | For matching: a Worker's skills, location, work authorization type and date available; the name is never sent and the minimum rate is replaced by a placeholder. For a resume check: resume text and claimed skills. For an import: up to 60,000 characters of the file. For a profile page: the words on that page. For a typed question: the question and related entries, with names, rates, pay and amounts replaced by placeholders |
 | Resend or SendGrid (where set up) | Sends email | Name, email address and message content |
 | Mail server for sign-in links (where set up) [to be named] | Sends one-time sign-in links | Email address and the link |
 | Microsoft and Google (where set up) | Sign-in | Email address and the sign-in provider's account identifier |
@@ -179,8 +179,8 @@ A service marked "where set up" is used only if it is configured.
 Notes:
 
 - The typed-question feature is off for each Customer until someone at that Customer with authority turns it on. Each question sent and each answer received is logged, with placeholders in place of names and figures, and the Customer can read the log.
-- If no Anthropic key is set, matching uses fixed rules and says so, and the resume check does not run.
-- Etyme does not use file storage, e-signature, text-message, analytics, advertising or session-recording services.
+- If no Anthropic key is set, or the company has not turned the model on, matching uses fixed rules and says so, and a resume check that could not ask the model is recorded as unverified, never as passed.
+- Etyme does not use file storage, e-signature, text-message, advertising or session-recording services. Page analytics runs on the public marketing pages only, never in the signed-in product.
 
 ## Annex B — Security measures
 

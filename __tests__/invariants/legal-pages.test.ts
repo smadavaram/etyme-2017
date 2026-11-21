@@ -347,20 +347,38 @@ describe('What the three documents say is what the code does', () => {
     expect(read('src/lib/extract.ts')).toContain('source.length > 60_000')
   })
 
-  it('it uses no analytics, advertising or session-recording package, and the visit count is first-party with no name or cookie', () => {
+  it('it uses no advertising or session-recording package, one page-analytics package only on the public marketing pages, and the visit count is first-party with no name or cookie', () => {
     const pkg = JSON.parse(read('package.json'))
     const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })
     const tracking = deps.filter((d) =>
       /analytics|segment|mixpanel|posthog|amplitude|hotjar|fullstory|logrocket|heap|gtag|google-tag|clarity|plausible|datadog-rum|smartlook|mouseflow|sentry\/replay/i.test(d)
     )
-    expect(tracking, 'a tracking package the notice says is not used').toEqual([])
-    expect(PRIVACY).toMatch(/We do not use any advertising, analytics or session-recording service/)
-    expect(PRIVACY).toMatch(/We set no third-party cookies/)
+    expect(tracking, 'the one page-analytics package the notice names; anything else is not disclosed').toEqual(['@vercel/analytics'])
+
+    // It renders in the public footer and nowhere else: not in the signed-in app, not on a firm's own page.
+    const users = (function walk(dir: string): string[] {
+      return readdirSync(join(process.cwd(), dir), { withFileTypes: true }).flatMap((e) => {
+        const p = `${dir}/${e.name}`
+        if (e.isDirectory()) return walk(p)
+        return /\.(ts|tsx)$/.test(e.name) && read(p).includes('@vercel/analytics') ? [p] : []
+      })
+    })('src')
+    expect(users, 'analytics may be imported only by the public footer').toEqual(['src/lib/public-site/frame.tsx'])
+    const frame = read('src/lib/public-site/frame.tsx')
+    expect(frame).toContain("import { Analytics } from '@vercel/analytics/react'")
+    expect(frame).toMatch(/export function HomeFooter[\s\S]*<Analytics \/>/)
+    expect(read('src/app/site/[slug]/page.tsx')).not.toContain('HomeFooter')
+    expect(read('src/app/dashboard/layout.tsx')).not.toMatch(/Analytics|HomeFooter/)
+
+    expect(PRIVACY).toMatch(/We do not use any advertising or session-recording service/)
+    expect(PRIVACY).toMatch(/Our public marketing pages load Vercel Web Analytics/)
+    expect(PRIVACY).toMatch(/The signed-in product and each firm's public page carry none/)
+    expect(PRIVACY).not.toMatch(/We do not use any advertising, analytics/)
 
     const count = read('src/lib/public-site/count.ts')
     expect(count).toContain('sessionStorage')
     expect(count).not.toMatch(/document\.cookie/)
-    expect(PRIVACY).toMatch(/The public website count records no name, email address, IP address, browser details or cookie/)
+    expect(PRIVACY).toMatch(/The first-party public website count records no name, email address, IP address, browser details or cookie/)
   })
 
   it('every category the schedule knows is in the notice’s list of what is collected, and nothing about a person is left off', () => {

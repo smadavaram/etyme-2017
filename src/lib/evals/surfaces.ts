@@ -4,6 +4,7 @@ import {
 import {
   writeBio, writeBioBest, parseBio, type PortfolioInput,
 } from '@/lib/consultant-portfolio'
+import { readSkillEvidence } from '@/lib/checks/skill-evidence'
 import { parseResponse, needsConfirming, type ExtractedRecord } from '@/lib/extract'
 import {
   noInventedNumbers, avoids, mentions, neverMentions, atMost, saysSomething,
@@ -287,11 +288,62 @@ const matchScoring: Surface<string, { ok: boolean }> = {
   ],
 }
 
+// ── Checking a CV against the skills claimed for it ───────────────────
+//
+// With no key, or with the company's model off, the check must come back
+// unverified with a reason, never as a pass that looks verified. The
+// fake deps below are the states this deployment can be in.
+
+const noModel = { modelOn: async () => false, heldSays: async () => null, keySet: () => false }
+
+const skillEvidence: Surface<{ claimed: string[]; keySet: boolean }, { unverified: boolean | null; reason: string | null; asked: boolean }> = {
+  key: 'skill-evidence',
+  what: 'Checking a CV against the skills claimed for it',
+  fallback: 'RULES',
+  async run(input) {
+    let asked = false
+    const read = await readSkillEvidence(
+      { companyId: 'eval', personId: null, personName: 'Eval Person', claimed: input.claimed, cvText: 'Built services in Java.' },
+      {
+        ...noModel,
+        keySet: () => input.keySet,
+        call: async () => { asked = true; return { text: '', usage: {} as never } },
+        record: (async () => ({ ok: false })) as never,
+        modelId: () => 'eval',
+      }
+    )
+    return { unverified: read.finding ? read.finding.unverified === true : null, reason: read.unverifiedBecause, asked }
+  },
+  cases: [
+    {
+      name: 'with the model off for the company, the skills are said to be unchecked and the model is never asked',
+      input: { claimed: ['Java'], keySet: false },
+      checks: [
+        {
+          said: 'a check that could not ask the model is never a pass that reads as verified',
+          grade: (o) => (o.unverified && o.reason && !o.asked ? null : 'came back as verified, or asked the model, with the model off'),
+        },
+      ],
+    },
+    {
+      name: 'with no skills claimed there is nothing to check and nothing is said to be unverified',
+      input: { claimed: [], keySet: false },
+      checks: [
+        {
+          said: 'an empty claim is not reported as an unverified check',
+          grade: (o) => (o.unverified === null && !o.asked ? null : 'reported a check where nothing was claimed'),
+        },
+      ],
+    },
+  ],
+}
+
 export const SURFACES: readonly AnySurface[] = [
   siteVoice,
   consultantBio,
   documentReading,
   matchScoring,
+  skillEvidence,
 ]
 
 /**
@@ -307,4 +359,5 @@ export const COVERAGE: Record<string, string> = {
   'src/lib/consultant-portfolio.ts': 'consultant-bio',
   'src/lib/extract.ts': 'document-reading',
   'src/lib/match-engine.ts': 'match-scoring',
+  'src/lib/checks/skill-evidence.ts': 'skill-evidence',
 }

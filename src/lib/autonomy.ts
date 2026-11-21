@@ -576,6 +576,10 @@ const RULE_ATTRIBUTED = [
   'VENDOR_NUMBER_CHANGED',
   'CONTRACT_CODING_CHANGED',
   'PUBLIC_PAGE_PEOPLE_CHANGED',
+  // A person added somebody as the firm's own W-2 employee from Add
+  // consultant (2026-11). Their own act: the employment is the consent, so
+  // no bench listing is made, and the row says who added whom.
+  'EMPLOYEE_ADDED',
 ]
 for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
 
