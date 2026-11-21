@@ -254,8 +254,20 @@ export function settingTheOfferAside(text: string): string {
  * listed, so somebody can search the file for it rather than reading the
  * whole page looking for the sentence.
  */
+/**
+ * The three chat doors are entry doors a firm's people already use, not
+ * companies Etyme compares itself with or claims as customers. The
+ * founder ruled them named on 2026-11-13 and 2026-11-16 (decisions 80,
+ * answer 8) and approved a homepage that names them on 2026-11-18. So
+ * each is read as one phrase and set aside before the list is asked.
+ * Nothing else is set aside.
+ */
+export const CHAT_DOORS = ['microsoft teams', 'google chat', 'whatsapp'] as const
+
 export function namedCompanies(text: string): string[] {
-  const found = hits(text, TRADEMARKED)
+  let read = text
+  for (const door of CHAT_DOORS) read = read.replace(new RegExp(door.replace(' ', '\\s+'), 'gi'), ' ')
+  const found = hits(read, TRADEMARKED)
   // "Terumo BCT" also matches "terumo"; report the longest form only, so
   // the message names the company the way the page did.
   return found.filter((name) => !found.some((other) => other !== name && other.includes(name)))

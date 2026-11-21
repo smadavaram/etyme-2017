@@ -11,7 +11,7 @@ their clients."
 - A recruiter's value is her niche: the skills she knows, the people
   she knows, the clients who trust her. Etyme makes that niche visible
   and repeatable, so a small firm closes steadily. His own measure is
-  two closures a month across his two firms, Tapin and Cloudepa.
+  two closures a month across his two firms, Tapin and his second firm.
 - A network's profile is what a person claims. Etyme's record is what
   happened: placements, signed weeks, papers on file, a contract's end
   date. Sell proof, never reach.
@@ -26,7 +26,7 @@ their clients."
 1. One research pass on how the leading professional and staffing
    networks present these products today.
 2. One brief to him, with a recommendation for the storefront and for
-   Tapin's and Cloudepa's way to market.
+   his two firms' way to market.
 
 **His to settle before any of it is built.**
 - No experience letter is issued from the record until he decides. A
@@ -34,4 +34,4 @@ their clients."
 - Nothing compares a supplier's rates across clients, and nothing ranks
   a firm by who owns it.
 
-**Also learned that day.** Cloudepa is his second firm, beside Tapin.
+**Also learned that day.** He has a second firm beside Tapin. Its name is kept out of the repository, as every real company's is.

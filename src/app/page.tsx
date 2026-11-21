@@ -3,7 +3,7 @@ import { SiteHeader } from '@/lib/public-site/frame'
 import { SkeletonFooter } from '@/lib/public-site/skeleton'
 import { homeSample } from '@/lib/public-site/home-sample'
 import { HomeAsk, RoleLink } from '@/lib/public-site/home-ask'
-import {
+import { DOOR_SOON,
   HOME_TITLE, HOME_BADGE, HOME_NAV, START_FREE, HERO, ROLES, ASK, GUARANTEE, FEATURES, DOORS, PRICE, START, SAMPLE_NOTE,
 } from '@/lib/public-site/home-page-words'
 
@@ -161,7 +161,7 @@ export default function LandingPage() {
               {DOORS.items.map((d, i) => (
                 <div key={d.h} className={`flex items-center gap-3.5 p-[22px] ${CARD}`}>
                   <div aria-hidden="true" className={`flex h-[46px] w-[46px] flex-none items-center justify-center rounded-xl text-[15px] font-bold text-white ${DOOR_COLORS[i]}`}>{d.mark}</div>
-                  <div className="min-w-0"><h3 className="text-[18px] font-bold">{d.h}</h3><p className="mt-0.5 text-[14.5px] text-etyme-muted">{d.p}</p></div>
+                  <div className="min-w-0"><h3 className="text-[18px] font-bold">{d.h}{d.soon ? <span className="ml-2 align-middle rounded-full border border-etyme-rule px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-etyme-muted">{DOOR_SOON}</span> : null}</h3><p className="mt-0.5 text-[14.5px] text-etyme-muted">{d.p}</p></div>
                 </div>
               ))}
             </div>

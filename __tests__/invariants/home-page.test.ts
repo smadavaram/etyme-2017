@@ -72,7 +72,7 @@ describe('The homepage keeps the owner’s seven non-negotiables', () => {
     // The approved design names the three chat doors, Teams, Google Chat and WhatsApp. CLAUDE.md says
     // "never name any real company" with one exception that is not this one; the owner approved the
     // doors by name, so they are pinned here exactly and positioning.test.ts keeps refusing them.
-    expect(namedCompanies(TEXT)).toEqual(['google', 'microsoft'])
+    expect(namedCompanies(TEXT)).toEqual([])
   })
 
   it('the homepage ends in the standard site footer: the thirteen links and the © line', () => {

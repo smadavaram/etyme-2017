@@ -1346,7 +1346,8 @@ describe('The page shows the product before it describes it', () => {
     expect(sizesAgainstIncumbents(category)).toEqual([])
     // And the page's own title says the same thing. Its description is
     // the layout's, inherited — see site-description.test.ts.
-    expect(PAGE).toContain("title: { absolute: 'Etyme | Enterprise contingent workforce management' }")
+    expect(PAGE).toContain('title: { absolute: HOME_TITLE }')
+    expect(readFileSync(join(process.cwd(), 'src/lib/public-site/home-page-words.ts'), 'utf8')).toContain("'Etyme | Enterprise contingent workforce management'")
   })
 
   it('shows the hardest answer to believe as the screen that gives it, live in the demo rather than as a picture', () => {

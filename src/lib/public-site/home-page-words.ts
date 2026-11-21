@@ -76,13 +76,16 @@ export const GUARANTEE = {
 export const FEATURES =
   'In it: Jobs · Submissions · Timesheets · Invoices · Papers · Tenure · Suppliers. Suppliers and contractors join at no cost. Signs in with your work account. Exports to your accounting system.'
 
+/** Said on a door Etyme has not built yet: a public sentence is something the reader can check. */
+export const DOOR_SOON = 'Not live yet'
+
 export const DOORS = {
   kicker: 'No new app to learn',
   heading: 'Works where you work',
   items: [
-    { mark: 'T', h: 'Microsoft Teams', p: 'Approvals and alerts inside Teams, signed in through your work account.' },
-    { mark: 'G', h: 'Google Chat', p: 'The same record in Google Chat, signed in through your work account.' },
-    { mark: 'W', h: 'WhatsApp', p: 'Timesheet reminders and approvals where contractors actually reply.' },
+    { mark: 'T', h: 'Microsoft Teams', p: 'Approvals and alerts inside Teams, signed in through your work account.', soon: false },
+    { mark: 'G', h: 'Google Chat', p: 'The same record in Google Chat, signed in through your work account.', soon: true },
+    { mark: 'W', h: 'WhatsApp', p: 'Timesheet reminders and approvals where contractors actually reply.', soon: true },
   ],
   noteLead: 'The same record, in the chat your firm already uses.',
   note: 'Client tenants sign in only through their own identity provider — no password back door.',
