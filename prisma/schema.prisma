@@ -31,6 +31,8 @@ model Person {
   recordActions            RecordAction[]
   decisionsOwed            DecisionItem[]            @relation("decisionOwner")
   decisionsMade            DecisionItem[]            @relation("decisionDecidedBy")
+  /// Money chains for this person's placements (Flow B, → 105, 107).
+  moneyChains              MoneyChain[]
   decisionsSentBack        DecisionItem[]            @relation("decisionSentBackBy")
   /// Team structure (2026-11-09): leads named, changes made and undone.
   unitLeadsSet             OrgUnit[]                 @relation("unitLeadSetBy")
@@ -976,6 +978,8 @@ model Company {
   /// The record ledger and the decisions a person opened (2026-11-21 → 107).
   recordActions         RecordAction[]
   decisionItems         DecisionItem[]
+  /// Money chains, one per placement per period (Flow B, → 105, 107).
+  moneyChains           MoneyChain[]
   /// Where a signed-in seat at this firm lands. Null is the standing rule
   /// (lib/console-home); DECISIONS opens the decision queue (→ 107).
   homePage              HomePage?
@@ -1973,6 +1977,7 @@ model LegalEntity {
   /// Acts on the record done for this entity (the acting-entity stamp, → 107).
   actions      RecordAction[]
   decisions    DecisionItem[]
+  moneyChains  MoneyChain[]
 
   @@index([companyId])
 }
@@ -4444,6 +4449,8 @@ model SellContract {
   termsDifferAt     DateTime?
   adverseActions    AdverseAction[]
   commissions       ContractCommission[]
+  /// The money chain per period for this placement (Flow B, → 105, 107).
+  moneyChains       MoneyChain[]
 
   @@index([companyId, state])
   @@index([clientCompanyId])
@@ -11121,10 +11128,64 @@ model DecisionItem {
   sentBackBy         Person?       @relation("decisionSentBackBy", fields: [sentBackByPersonId], references: [id])
   sentBackAt         DateTime?
   createdAt          DateTime      @default(now())
+  /// The money chains this decision holds in dispute (Flow B).
+  disputedChains     MoneyChain[]
 
   @@index([companyId, state, openedOn])
   @@index([ownerPersonId])
   @@index([actingEntityId])
   @@index([decidedByPersonId])
   @@index([sentBackByPersonId])
+}
+
+/// The money loop (Flow B, 2026-11-21 → 105, 107). One chain per placement
+/// per period. Every amount is the one a person stated, with its currency,
+/// and is never worked out by Etyme. Each move is a RecordAction row.
+/// The placement is the SellContract: consultant, client, agreed rate, start.
+model MoneyChain {
+  id                   String          @id @default(cuid())
+  companyId            String
+  company              Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sellContractId       String
+  sellContract         SellContract    @relation(fields: [sellContractId], references: [id])
+  personId             String
+  person               Person          @relation(fields: [personId], references: [id])
+  periodStart          DateTime        @db.Date
+  periodEnd            DateTime        @db.Date
+  state                MoneyChainState @default(TIMESHEET_OWED)
+  /// The state it was in when it went DISPUTED; null otherwise.
+  stateBeforeDispute   MoneyChainState?
+  /// Stated amounts, integer cents, each in its own currency.
+  timesheetAmountCents Int?
+  timesheetCurrency    String?
+  invoicedAmountCents  Int?
+  invoicedCurrency     String?
+  paidAmountCents      Int?
+  paidCurrency         String?
+  /// Where a chain loaded as history came from, and the day it was true.
+  source               String?
+  asOf                 DateTime?       @db.Date
+  actingEntityId       String?
+  actingEntity         LegalEntity?    @relation(fields: [actingEntityId], references: [id])
+  disputeDecisionId    String?
+  disputeDecision      DecisionItem?   @relation(fields: [disputeDecisionId], references: [id])
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@unique([sellContractId, periodStart])
+  @@index([companyId, periodStart])
+  @@index([personId])
+  @@index([actingEntityId])
+  @@index([disputeDecisionId])
+}
+
+enum MoneyChainState {
+  TIMESHEET_OWED
+  TIMESHEET_RECEIVED
+  RECONCILED
+  INVOICED
+  PAYMENT_PENDING
+  PAID_UNCONFIRMED
+  CONFIRMED_CLOSED
+  DISPUTED
 }
