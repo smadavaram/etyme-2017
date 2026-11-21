@@ -1,0 +1,269 @@
+# STATE.md
+
+The state of every item in the handover of 2026-11-21
+(`docs/decisions/104-the-full-pending-work-list-handed-over-2026-11-21.md`).
+A fresh session reads CLAUDE.md, that handover and this file, and
+continues from here. Written 2026-11-21 after the START HERE tranche's
+deploy.
+
+**How to read it.**
+- DONE means built, release-checked, walked in a browser and deployed.
+  It is still a CLAIM until the tester's retest in Tapin production
+  passes. Nothing below has been retested yet.
+- BLOCKED names what it waits on.
+- NOT STARTED means no code was written for it in this tranche.
+- Production serves deploy commit `756963c8` (source `19c3c102a`) on
+  `www.etyme.com` and `etyme2040.vercel.app`, checked 2026-11-21 20:41
+  UTC. Deploys before it this week: `17f680c4` (2026-11-18),
+  `7aaf79cb` (2026-11-21).
+
+## How to work (for the next session)
+
+- Source branch: `claude/extract-rails-business-logic-s1pd8`. The deploy
+  is a gated replay to the product repository's `main`; the last
+  replayed source is `19c3c102a`. The replay and smoke scripts live in
+  the session scratchpad and are not in the repository: a fresh session
+  rebuilds them from "Release" in CLAUDE.md, or asks.
+- Release check, run in parts because the build machine restarts when
+  idle: `NODE_OPTIONS=--max-old-space-size=6144 npx tsc --noEmit`; the
+  whole unit suite; the integration suite split in three and run in the
+  foreground; `npx next build`. Then a walk in a browser by a reader who
+  did not build it. Then deploy, smoke, stop.
+- Workers: the strongest model at low effort. Schema and money work is
+  one builder at a time under the lead. Never `git stash` on the shared
+  tree.
+- A date-built test must make the world it needs (record 103).
+
+## START HERE
+
+| # | Item | State | Evidence, or what it waits on |
+|---|---|---|---|
+| 1 | Sensitive numbers masked | DONE in part (claim) | See below. |
+| 2 | Payroll shows the configured cycle | DONE (claim), one question open | See below. |
+| 3a | Home: decision queue | BLOCKED | The prototype file `etyme-vision-ui.html` did not arrive in the session. The owner said to build to those screens, not to the text alone. |
+| 3b | Home: agent control | BLOCKED | The same file, and the agent specifications of Phase 5. |
+| 4 | Two lists owed | DONE in part | The eight Layer 6 questions were given verbatim with a recommended answer each (from the prototype's notes; they are copied at the end of this file). The "four overclaiming screens" could not be given: no audit is filed under that name or number. Record 84 holds four labels reworded on 2026-11-16. Waiting on the tester's own list of screen names. |
+
+### Item 1, what is claimed
+
+Commits `ba427191e`, `cc5832baf`. Deployed in `756963c8`.
+- A tax ID is stored sealed (`taxIdSealed`, `taxIdLast4`; the plain
+  `taxId` column is left empty on every write) on `Company` and
+  `RemitTo`. Every reply shows dots and the last four, to everyone.
+- The one reader is `src/lib/sensitive.ts` (sealing, server only) and
+  `src/lib/sensitive-mask.ts` (masking, safe for a screen).
+- Screens and routes: Settings > Setup, the company step and its W-9
+  reader (`src/app/api/settings/setup/`,
+  `src/app/dashboard/settings/setup/items.tsx`); payment details
+  (`src/app/api/settings/remit-to/route.ts`); every bill view through
+  `src/lib/money/pay-to.ts`.
+- The Owner's reveal: a Show control
+  (`src/components/step-up/reveal-number.tsx`) and
+  `POST /api/settings/sensitive/reveal`, only after a fresh second
+  check. Every reveal and refusal is on the security log
+  (`SENSITIVE_REVEALED`, `SENSITIVE_REVEAL_REFUSED`), never the number.
+  An Admin is refused.
+- Bank details were already only bank, account name and last four. No
+  column holds a full account, a routing number or a social security
+  number; a test fails if one is added.
+- No model prompt reads a tax ID; a test guards it.
+- Walk: 593 page and data replies across six seats and three public
+  pages held no full number. The authenticator-app reveal was proven end
+  to end. With the data key unset, a new tax ID is refused in a
+  sentence.
+
+**Not built in item 1:**
+- Anyone but the Owner asking to see a number: the request, the
+  Owner's approval card, the granted window and its purposes (record 99,
+  rule 3). A non-Owner reads that it is not built yet.
+- Sharing outside the firm (record 99, rule 4).
+- Cover grants (record 99) and the three-step role option (record 100).
+
+**Not proven in item 1:** the passkey path of the reveal; the public
+company page and a client's view of a supplier's record (no such page
+was reachable on the seeded world); a model-written Ask Etyme answer;
+the reveal for a payment-details tax ID.
+
+**Waits on the owner (Phase 2 kind, a new key):**
+- `ETYME_DATA_SEAL_KEY` set on the host (32 bytes). Until then
+  production refuses to save a new tax ID, in a sentence. Existing ones
+  show masked.
+- Then `npx tsx scripts/seal-sensitive.ts` (counts only), then with
+  `--write`, against production with that key. Until it runs, tax IDs
+  typed before 2026-11-21 are still plain in the database, masked only
+  by the screens listed above.
+
+**Behavior change:** an empty tax ID box no longer clears the number.
+Nothing on that screen clears it.
+
+### Item 2, what is claimed
+
+Commit `10a489dfc`. Deployed in `756963c8`.
+- The cause was not an old cycle. Periods are counted forward and back
+  from the first Sunday, so today's work is in the period Nov 15 to
+  Nov 28. The picker did not reach Dec 27, and nothing on the page said
+  the periods were counted back from a Sunday still ahead.
+- Payroll (`src/app/dashboard/payroll/page.tsx`,
+  `src/app/api/payroll/route.ts`, `src/lib/money/pay-periods.ts`) now
+  opens on the period holding today, lists every period up to the first
+  one, and says: "<firm> counts its pay periods from the first period,
+  Dec 27, 2026 – Jan 9, 2027, worked out Wed, Jan 13, 2027 and paid Fri,
+  Jan 15, 2027. The periods before it are counted back from that
+  Sunday." with "Open the first period".
+- A pay day already written keeps its date when the first Sunday is set
+  or a holiday is added; tested and walked.
+
+**Open, the owner's to decide (a pay rule, not changed):** is work
+before Dec 27 paid in two-week periods counted back from Dec 27 (what
+ships), or on Tapin's old monthly cycle (record 95), with periods only
+from Dec 27?
+
+**Watch, from the walk:** a firm that changes its pay period after pay
+rows exist can show two different pay days for one person (stored rows
+against the page's periods). Seen on a firm switched by SQL; not
+confirmed on a firm that changed it through Settings.
+
+**Not confirmed:** Tapin's real company row was not read. If it lacks
+the Sunday or the every-other-week choice, the page lists by month.
+
+## Phase 1
+
+### Batch 1, money integrity
+
+| Item | State | Note |
+|---|---|---|
+| Sensitive numbers (START HERE 1) | DONE in part | Above. |
+| Payroll cycle display (START HERE 2) | DONE (claim) | Above. |
+| Whole cents everywhere | NOT STARTED | Not audited in this tranche. |
+| Invoice numbering, void, credit note releasing its lines | NOT STARTED | |
+| Pay periods written down | NOT STARTED | Periods are worked out, not stored. |
+| A ledger row for every money event | NOT STARTED | |
+| Over-bill exception with a second approver | NOT STARTED | |
+| One money rule on the Ask pay card, at draw and at press | NOT STARTED | |
+
+Batch 1 is NOT complete. Only the two START HERE items went out. The
+retest path named in the handover (the lifecycle money path, the named
+payment run, the pay-card cases) is not yet answerable.
+
+### Batch 2, the hiring chain
+
+| Item | State | Note |
+|---|---|---|
+| Availability, tier and consent on the candidate's record | NOT STARTED | |
+| The Offer record | NOT STARTED | None exists. |
+| Insurance-expiry gate with a renewal path | NOT STARTED | |
+| "Raise a bill" across several parties | NOT STARTED | |
+| Warning where an order's and a line's dates disagree | NOT STARTED | |
+| Own W-2 employee on Add consultant | DONE (claim) | Deployed `7aaf79cb`. Candidates > Add consultant > "Our own W-2 employee". Not in the handover's Batch 2 list; it was record 102, item 2. Adding many in a row is not counted against the hourly invitation limit. |
+| Add to Bench links to Add consultant | DONE (claim) | Deployed `7aaf79cb`. Record 102, item 6. |
+
+### Batch 3, identity, companies and mail
+
+| Item | State | Note |
+|---|---|---|
+| One person across several addresses (D3/D4) | NOT STARTED | Scouted: no merge code exists; nothing merges silently. The existing route is passing ownership. A staff merge tool would be new. |
+| Company profile fields (A6) | NOT STARTED | Scouted: website exists; description, industry, specialty, markets served do not. Needs the schema. |
+| Entity types (B3) | NOT STARTED | Scouted: asked only in a skippable setup step. |
+| Companies import (G7) | NOT STARTED | Scouted: reuse the import pipeline. |
+| Invitation resend, the provider's 403 (D1) | BLOCKED | On the owner or tester confirming the sending domain is verified at the mail provider. The code already says "Not sent" on a refusal. |
+| Mail outbox with visible retries | NOT STARTED | |
+| The second firm's 21 invitations | NOT TO BE TRIGGERED | Only after the tester verifies one test invitation end to end. |
+| Invitation email layout | DONE (claim) | Deployed `17f680c4`: one button, no printed address. |
+| Mailed links carry the lasting address | DONE (claim) | Deployed `17f680c4`. |
+
+### Batch 4, Ask Etyme
+
+| Item | State | Note |
+|---|---|---|
+| The model on the real tables, answers with links, Settings filled | BLOCKED | Phase 2: the owner's model key. Nothing that does not need the key was built in this tranche. |
+| Fixes before the key | DONE (claim) | Deployed `7aaf79cb`: the check, screening, matching, bio, nightly match and sheet import ask the company's switch, mask what leaves, and say "unverified". Tokens from matching, bio and skill-check calls are not counted toward the monthly allowance. |
+| Public Ask questions kept | DONE (claim) | Deployed `7aaf79cb`: a `PageAsk` record, the Questions tab under Jobs, a decision card. Questions stored before the deploy need `npx tsx scripts/backfill-page-asks.ts` (then `--write`) against production. |
+| The questionnaire at 90% | NOT STARTED | Baseline about 21 of 30 failing. |
+
+### Batch 5, surfaces
+
+| Item | State | Note |
+|---|---|---|
+| Approvals screen | NOT STARTED | |
+| Payment-run screen with a maker and a checker | NOT STARTED | |
+| Tenure display | NOT STARTED | |
+| Demo-seat gaps | NOT STARTED | |
+| The overclaiming screens reworded | BLOCKED | On the tester's list of screen names (START HERE 4). |
+
+### Homepage and legal
+
+| Item | State | Note |
+|---|---|---|
+| The public page | AS DEPLOYED, held | The 2026-11-18 design is live (`7aaf79cb`, record 103). The handover says that design was rejected. The owner ruled on 2026-11-21: "Leave the Nov 18 page live until the replacement." |
+| The replacement | BLOCKED | The tester says the replacement's target is the Decision Queue home of the Vision UI file, which did not arrive. Asked and unanswered: whether the queue replaces the signed-in home (the lead's reading) or the public address itself. No replacement was built, so no file was used as its base. No homepage change deploys until the Decision Queue home passes the retest in Tapin. |
+| Legal pages | DONE (claim) | Deployed `7aaf79cb`: the privacy policy and DPA name page analytics on public pages and the host as processor, and say what matching sends. Open: one awkward sentence about the analytics package's cookies. |
+| Page analytics | DONE (claim), waits on the owner | On public marketing pages only. Collects nothing until switched on in the host's project settings. |
+
+## Phase 2, the owner's own steps
+
+None is done as far as this session can see (names were checked by the
+tester on 2026-11-18, not by this session).
+
+| # | Step | Unblocks |
+|---|---|---|
+| 1 | Model key | Batch 4 |
+| 2 | Microsoft sign-in secret | The Microsoft button |
+| 3 | Professional-network sign-in secret | The candidates' button |
+| 4 | Mail delegation for the second firm | Agent email access (Phase 5) |
+| 5 | Backup of the second-check key | The owner's vault |
+| new | `ETYME_DATA_SEAL_KEY`, then the sealing script | Saving a tax ID in production; sealing the old ones |
+| new | Web analytics switched on at the host | Measuring the homepage |
+| new | The stored-questions script run against production | The questions asked before 2026-11-21 |
+
+## Phase 3, tenants
+
+NOT STARTED as build work. Tapin's real business is not on the record.
+Nothing was entered. The second firm's invitations were not resent.
+
+## Phase 4, the truth pass
+
+NOT STARTED. Layers 4 and 5 have not been retested in production. The
+gaps of Layers 7 to 10 are neither built nor relabeled beyond record 84.
+Layer 6 templates: a static prototype only (`prototypes/storefront/`,
+record 94). Demo data was not cleaned of real names. No pricing was
+built.
+
+## Phase 5, agents
+
+NOT STARTED. No specification has arrived. Nothing is to be built from
+an earlier one. The scout's inventory of the twin's fourteen acts is in
+record 98.
+
+## Phase 6, the finish gate
+
+Not met. No batch has been retested.
+
+## The eight Layer 6 questions, verbatim, with the answer recommended
+
+1. Should the tagline read "Data engineering consultants, ready to
+   interview" once a data engineer is shown? — Yes.
+2. Does "train → bench → profile → interview" stay off Tapin's page?
+   (Record 69.) — Yes.
+3. Is a pod a team, each person consenting, interviewed as one? — Yes.
+4. May a pods heading say "AI data readiness"? — No.
+5. Is hradmin@etyme.com Tapin's public contact? — No; the firm, not a
+   mailbox, unless the Owner opts in.
+6. Does the network board live inside the app? — Yes.
+7. Is Ask-first every new tenant's default? — No; it is Tapin's choice.
+8. Does a firm see only requirements from firms it already trades with?
+   (The prototype says yes.) — Yes.
+
+## Questions waiting on the owner or the tester
+
+1. Which page becomes the Decision Queue: the signed-in home, or the
+   public address?
+2. The Vision UI prototype file.
+3. The names of the four overclaiming screens.
+4. Work before Dec 27: two-week periods counted back, or the old
+   monthly cycle?
+5. Whether the sending domain is verified at the mail provider.
+6. The four pay defaults for monthly pay in arrears (record 95).
+7. A week at a changed base with no recorded overtime rule: hold the
+   whole week, as built, or only the premium (records 92, 94)?
+8. Whether the host's page analytics sets a cookie, for the privacy
+   sentence.
