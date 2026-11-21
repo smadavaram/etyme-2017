@@ -279,6 +279,35 @@ person. NOT STARTED, with the rest of the money loop (pack batch 3).
    reports against the mission. The blended margin is drawn only for a
    seat that may read margin. NOT STARTED.
 
+## Two rulings of 2026-11-21 (record 108)
+
+1. **Two homes.** The public home page is a marketing page built from
+   the prototypes in `prototypes/` (the approved page of 2026-11-18,
+   the storefront set, the two consoles, the demo, onboarding, the
+   stress test): storefront doors, then the demo, then onboarding. The
+   page of 2026-11-18 stays live until the replacement passes the
+   tester's retest. NOT STARTED, no weekend slot yet. The signed-in
+   home is the decision queue (Flow A2).
+2. **Who decides.** Build, release and architecture questions are the
+   tester's, through the pack, the contract and the flows. A gap is
+   decided by the lead and written here. The owner keeps money,
+   signing, people, outside sends and his standing gates.
+
+**Delegated decisions (the lead's, under ruling 2).**
+- 2026-11-21: a person types the real records on the screens after the
+  deploy; no agent writes production data.
+- 2026-11-21: proof on a decision is text plus record links; no upload
+  yet.
+- 2026-11-21: Flow B ships with Flow A only if green; else week 2 first.
+- 2026-11-21: tenant colors are two stored colors applied to the
+  shell's accent, built with Flow B.
+- 2026-11-21: the rest of the handover's Batch 1 goes to week 3, the
+  remainder to week 4.
+- 2026-11-21: the left column stays on the decision-queue home.
+- 2026-11-21: the meter counts actions; the cap reads "Not set".
+- 2026-11-21: the public site from the prototypes is not in week 1; its
+  slot is proposed with week 2's note.
+
 ## The weekend release contract (record 107)
 
 Thirteen weekend releases, 2026-11-21 to 2027-02-14. One item, one
@@ -361,8 +390,8 @@ Not met. No batch has been retested.
    whole week, as built, or only the premium (records 92, 94)?
 8. Whether the host's page analytics sets a cookie, for the privacy
    sentence.
-9. Entities: a sister firm inside one tenant as a linked legal entity,
-   or its own tenant with two seats (record 105, point 1)?
-10. ANSWERED by record 107: the pack's batch 1 first. Open in its
-    place: which weekend takes the rest of the handover's Batch 1?
+9. DECIDED by the lead (record 108): one tenant, legal entities as a
+   layer under it, as the pack says.
+10. ANSWERED by record 107: the pack's batch 1 first. The rest of
+    the handover's Batch 1: week 3, a delegated decision (record 108).
 11. May the digest scanner read mail, and by which door (point 2)?

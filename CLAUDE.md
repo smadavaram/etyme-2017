@@ -140,7 +140,9 @@ Full text → 03, 11, 36, 37, 59, 62, 63.
   that lets them. They get the hardest tests and the first seat at every
   release. Public pages lead with those two.
 - **The home page** is the owner-approved design of 2026-11-18 (→ 103),
-  which replaced the 2026-11-12 brief. The badge reads "Enterprise
+  which replaced the 2026-11-12 brief. Its replacement is built from
+  the prototypes in `prototypes/` and swaps in after the tester's
+  retest; the signed-in home is the decision queue (→ 108). The badge reads "Enterprise
   contingent workforce management." Light only. "Free" appears only in
   the hero offer, the price section and the Start free buttons. The
   standard footer. Sample figures are the seed's, labeled "Demo — not a
@@ -1287,6 +1289,11 @@ founder only after the domain agents, run as read-only advisers, have
 answered it. What they settle the lead decides and records. What still
 reaches him is a brief: the choice, what the experts agree on, one
 recommendation.
+
+**Build questions stop at the lead** (owner, 2026-11-21 → 108).
+Release, batching, architecture and acceptance follow the tester's
+documents; a gap is decided by the lead and written in STATE.md. The
+owner keeps money, signing, people, outside sends and his own gates.
 
 **Which model does which work** (2026-11-21 → 104, replacing 82).
 Workers run on the strongest model at low effort. Schema and money
