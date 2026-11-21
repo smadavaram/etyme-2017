@@ -66,7 +66,7 @@ describe('a rate typed on a supplier’s screen is stored in the firm’s curren
   it('Add consultant, Add to bench, What we need and the profile edit type rates in the firm’s currency', () => {
     const consultants = src('src/app/dashboard/consultants/page.tsx')
     expect(consultants).toContain('listingRates({ min: form.rateMin, max: form.rateMax }, null, currency)')
-    expect(consultants).toContain('addConsultantBody(form, rates, currency)')
+    expect(consultants).toContain('addConsultantBody({ ...form, ownEmployee: offerOwnEmployee && form.ownEmployee }, rates, currency)')
     expect(consultants).toContain('compact(row.payRateCents, firmCurrency)')
     expect(src('src/app/dashboard/bench/page.tsx')).toContain('listingRates({ min: rateMin, max: rateMax }, null, currency)')
     expect(src('src/app/dashboard/bench/what-we-need.tsx')).toContain('listingRates({ min, max }, null, currency)')

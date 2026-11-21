@@ -40,7 +40,7 @@ describe('a person a firm adds appears on Consultants at once, and the count, th
   })
 
   it('adding somebody reads the list again, so they are on it the moment the ask goes', () => {
-    expect(page).toMatch(/onCreated=\{\(says\) => \{ setAdded\(says\); fetchConsultants\(\) \}\}/)
+    expect(page).toMatch(/onCreated=\{\(says, copy\) => \{ setAdded\(says\); setAddedCopy\(copy \?\? null\); fetchConsultants\(\) \}\}/)
   })
 
   it('two people of one name keep their order between pages, so nobody is skipped or read twice', () => {

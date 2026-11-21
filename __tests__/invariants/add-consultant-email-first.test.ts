@@ -124,7 +124,7 @@ describe('the pay boxes are the last thing on Add consultant', () => {
     expect(heading).toBeGreaterThan(MODAL.indexOf('id="add-rate-max"'))
     expect(MODAL.indexOf(line)).toBeGreaterThan(heading)
     expect(MODAL.indexOf('id="add-terms-type"')).toBeGreaterThan(MODAL.indexOf(line))
-    expect(MODAL.indexOf('id="add-terms-currency"')).toBeLessThan(MODAL.indexOf('{savingSays(form.name, mailOn)}'))
+    expect(MODAL.indexOf('id="add-terms-currency"')).toBeLessThan(MODAL.indexOf('savingSays(form.name, mailOn)}'))
     // No input sits after the pay boxes.
     const after = MODAL.slice(MODAL.indexOf('id="add-terms-currency"'), MODAL.indexOf('<button type="submit"'))
     expect(after).not.toContain('<input')
@@ -162,7 +162,7 @@ describe('Add consultant at phone width', () => {
     // A press that did nothing and said nothing new (press walk l3a, 2026-11-15).
     expect(MODAL).toContain('disabled={submitting || !!match?.blocks}')
     const says = MODAL.indexOf('<p id="add-blocked-says"')
-    const button = MODAL.indexOf("{submitting ? 'Adding…' : 'Add and ask them'}")
+    const button = MODAL.indexOf("{submitting ? 'Adding…' : form.ownEmployee ? 'Add employee' : 'Add and ask them'}")
     expect(says).toBeGreaterThan(-1)
     expect(says).toBeLessThan(button)
     expect(MODAL.slice(says, says + 120)).toContain('{match.says}')

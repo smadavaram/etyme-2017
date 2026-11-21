@@ -104,7 +104,7 @@ describe('The add form says what is true before anybody presses the button', () 
     expect(savingSays('Jane Smith', true)).toBe(
       'Saving emails Jane Smith to ask if they will join your bench. Nobody outside your firm sees them, and nobody puts them forward, until they say yes.'
     )
-    const sentence = MODAL.indexOf('{savingSays(form.name, mailOn)}')
+    const sentence = MODAL.indexOf('savingSays(form.name, mailOn)}')
     const buttons = MODAL.indexOf('<button type="submit"')
     expect(sentence).toBeGreaterThan(-1)
     expect(sentence).toBeLessThan(buttons)
@@ -162,7 +162,7 @@ describe('Skills are entered as tags and sent as the same list', () => {
   it('the form submits the tags as an array, including a skill typed but not yet ended', async () => {
     // Since 2026-11-02 the body is built in one place the route's reader is
     // tested against (lib/consultant-portfolio/forms).
-    expect(MODAL_SRC()).toContain('body: JSON.stringify(addConsultantBody(form, rates, currency))')
+    expect(MODAL_SRC()).toContain('body: JSON.stringify(addConsultantBody({ ...form, ownEmployee: offerOwnEmployee && form.ownEmployee }, rates, currency))')
     expect(MODAL_SRC()).not.toContain("form.skills.split(',')")
     const { addConsultantBody } = await import('@/lib/consultant-portfolio/forms')
     const typed = { name: 'Asha Rao', email: 'asha@example.test', headline: '', skills: ['ACLS'], skillDraft: 'ICU nursing', location: '', workAuth: '', tier: 'MARKETING', termsEngagementType: '', termsPay: '', notes: '' }
