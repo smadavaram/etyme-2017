@@ -119,6 +119,7 @@ export default function StartPage() {
       role: state.seat?.role ?? null,
       permissions: state.seat?.permissions ?? [],
       region: state.seat?.region ?? null,
+      homePage: state.company?.homePage ?? null,
     })
   }, [state])
 

@@ -3369,6 +3369,27 @@ export const MATRIX: L1[] = [
             'src/app/api/settings/team-structure/door.ts', 'src/app/api/settings/team-structure/route.ts', 'src/app/api/settings/team-structure/directory/route.ts',
             'src/app/dashboard/settings/team-structure/page.tsx', 'src/app/dashboard/settings/team-structure/import-dialog.tsx', 'src/app/globals.css', 'src/lib/nav-table.ts', 'src/lib/seed-corvane.ts', 'src/lib/when.ts', 'src/lib/seed-rebuild.ts'],
           testedBy: ['__tests__/invariants/team-structure.test.ts', '__tests__/invariants/team-structure-directory.test.ts', '__tests__/invariants/team-structure-google.test.ts', '__integration__/team-structure.test.ts', '__integration__/team-structure-directory.test.ts', '__integration__/team-structure-google.test.ts'] },
+        { code: 'L3.6.3.14', name: 'The record ledger: every act on a record, with the entity, the person and the role she held', owner: 'Owner or Admin', status: P,
+          tasks: [
+            'Every act on a record is one row, written once and never changed: the legal entity acted for, the person, and the role or queue she held, copied at the time',
+            'The legal entity is chosen by the person acting, never read off an address or a signature, and is one of the company\u2019s own; a company with entities must name one',
+            'An act an agent drafted carries the agent and the rule version, and the ledger counts acts by agent as the usage meter, a count and never a price',
+            'A record\u2019s whole history is read from the ledger, oldest first',
+            'PARTIAL 2026-11-21 by etyme-architect (record 107, step 1): the model and its one writer and readers are built; no route or screen writes or draws it yet'
+          ],
+          implementedBy: ['prisma/schema.prisma', 'src/lib/record-ledger.ts'],
+          testedBy: ['__tests__/invariants/record-ledger.test.ts', '__integration__/record-ledger-and-decisions.test.ts'] },
+        { code: 'L3.6.3.15', name: 'Decision items a person opens, and the decision queue as a firm\u2019s home', owner: 'Owner or Admin', status: P,
+          tasks: [
+            'A person opens a decision in a sentence, names the seat that owes it, the entity it is for, the day it opened (never a day to come) and the proof, with links to records',
+            'Its age is counted in whole days from the day a person says it opened; a decision made by phone stays open until it is recorded',
+            'The owner, or the firm\u2019s Owner or Admin, approves, rejects with a reason, or sends it back with a reason; a send back keeps it open and its age counting; a closed decision is never decided again',
+            'Every open, approval, rejection and send back is a row on the ledger with the actor\u2019s own three stamps',
+            'A firm may choose the decision queue as its home; its working seats land there, and every other firm lands where it always did',
+            'PARTIAL 2026-11-21 by etyme-architect (record 107, step 1): the model, the rules and the landing are built; the queue route and page are the next builder\u2019s'
+          ],
+          implementedBy: ['prisma/schema.prisma', 'src/lib/decision-items.ts', 'src/lib/console-home.ts', 'src/lib/nav-table.ts', 'src/components/desk-home.ts'],
+          testedBy: ['__tests__/invariants/decision-items.test.ts', '__tests__/invariants/console-home.test.ts', '__integration__/record-ledger-and-decisions.test.ts'] },
       ]},
     ],
   },

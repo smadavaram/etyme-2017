@@ -18,7 +18,7 @@
 import { describe, it, expect } from 'vitest'
 import { consoleHome, readsOnlyOwnWork } from '@/lib/console-home'
 import { getNavForKind } from '@/components/shell/sidebar'
-import { pinnedOn } from '@/lib/nav-table'
+import { pinnedOn, landingFor } from '@/lib/nav-table'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -179,5 +179,26 @@ describe('a worker’s dashboard opens on their own work', () => {
       expect(call, f).toMatch(/worker/)
       expect(call, f).toMatch(/permissions/)
     }
+  })
+})
+
+describe('a firm that chose the decision queue as its home', () => {
+  it('a company with no home setting lands where it always did', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'GSI', 'MSP'] as const) {
+      expect(landingFor({ kind, permissions: ['*'], homePage: null })).toBe(landingFor({ kind, permissions: ['*'] }))
+      expect(consoleHome({ kind, permissions: ['*'], homePage: null }).href).toBe(consoleHome({ kind, permissions: ['*'] }).href)
+    }
+  })
+
+  it('a seat that works at a firm whose home is the decision queue lands on the decision queue', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'GSI', 'MSP'] as const) {
+      expect(landingFor({ kind, permissions: ['*'], homePage: 'DECISIONS' })).toBe('/dashboard/decisions')
+    }
+  })
+
+  it('a worker’s own page and a one-person firm do not move when the firm chose the decision queue', () => {
+    expect(landingFor({ kind: 'VENDOR', isConsultant: true, homePage: 'DECISIONS' })).not.toBe('/dashboard/decisions')
+    expect(landingFor({ kind: 'VENDOR', worker: true, permissions: ['assignments.read', 'timesheets.read'], homePage: 'DECISIONS' })).not.toBe('/dashboard/decisions')
+    expect(landingFor({ kind: 'CONSULTANT_CORP', homePage: 'DECISIONS' })).not.toBe('/dashboard/decisions')
   })
 })

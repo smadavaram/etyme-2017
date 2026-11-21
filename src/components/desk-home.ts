@@ -18,7 +18,7 @@
  */
 
 import { getNavForKind, landingFor, ASK_ETYME_HREF } from '@/lib/nav-table'
-import { consoleHome, type CompanyKind } from '@/lib/console-home'
+import { consoleHome, DECISIONS_HOME, type CompanyKind } from '@/lib/console-home'
 import { deskPageFor } from '@/lib/setup-steps'
 
 export function deskHome(seat: {
@@ -28,8 +28,11 @@ export function deskHome(seat: {
   permissions: readonly string[]
   /** The region this seat reads, where it sits on a REGION unit; it lands there. */
   region?: string | null
+  /** The firm's own home setting (`Company.homePage`, → 107). */
+  homePage?: 'DECISIONS' | null
 }): string {
-  const landing = landingFor({ kind: seat.kind, isConsultant: seat.isConsultant, permissions: seat.permissions, region: seat.region })
+  const landing = landingFor({ kind: seat.kind, isConsultant: seat.isConsultant, permissions: seat.permissions, region: seat.region, homePage: seat.homePage })
+  if (landing === DECISIONS_HOME) return landing
   if (seat.region && seat.kind === 'CLIENT') return landing
   if (landing === ASK_ETYME_HREF) return landing
   const home = consoleHome({ kind: seat.kind, isConsultant: seat.isConsultant, permissions: seat.permissions }).href

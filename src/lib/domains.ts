@@ -630,6 +630,10 @@ export const DOMAINS: Domain[] = [
       // demo door — three doors onto one question that had three
       // answers, one of which sent two suppliers into a buyer's program.
       'lib/console-home',
+      // The record ledger with its three stamps, and decision items a
+      // person opens (2026-11-21 → 107). Every domain writes to the ledger
+      // through the one writer; the schema under it queues here.
+      'lib/record-ledger', 'lib/decision-items',
       // The navigation table every menu, heading and landing reads. Pure,
       // so a server route may import it; the sidebar that draws it is a
       // client component and no route may import that.

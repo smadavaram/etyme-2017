@@ -27,6 +27,11 @@ model Person {
   createdAt    DateTime @default(now())
 
   credentials              Credential[]
+  /// The record ledger (2026-11-21 → 107): acts this person did, and decisions she owes or made.
+  recordActions            RecordAction[]
+  decisionsOwed            DecisionItem[]            @relation("decisionOwner")
+  decisionsMade            DecisionItem[]            @relation("decisionDecidedBy")
+  decisionsSentBack        DecisionItem[]            @relation("decisionSentBackBy")
   /// Team structure (2026-11-09): leads named, changes made and undone.
   unitLeadsSet             OrgUnit[]                 @relation("unitLeadSetBy")
   orgChangesMade           OrgChange[]               @relation("orgChangeActor")
@@ -968,6 +973,12 @@ model Company {
   directoryGroupRoles   DirectoryGroupRole[]
   externalIdentities    ExternalIdentity[]
   entities              LegalEntity[]
+  /// The record ledger and the decisions a person opened (2026-11-21 → 107).
+  recordActions         RecordAction[]
+  decisionItems         DecisionItem[]
+  /// Where a signed-in seat at this firm lands. Null is the standing rule
+  /// (lib/console-home); DECISIONS opens the decision queue (→ 107).
+  homePage              HomePage?
   docTemplates          DocTemplate[]
   msasAsVendor          MasterAgreement[]       @relation("vendor")
   msasAsClient          MasterAgreement[]       @relation("client")
@@ -1952,13 +1963,16 @@ model SiteHiringManager {
 
 // Infosys India and Infosys US: one Company, two employers.
 model LegalEntity {
-  id           String        @id @default(cuid())
+  id           String         @id @default(cuid())
   companyId    String
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name         String
   country      String
   currency     String
   buyContracts BuyContract[] // payroll runs through the legal entity
+  /// Acts on the record done for this entity (the acting-entity stamp, → 107).
+  actions      RecordAction[]
+  decisions    DecisionItem[]
 
   @@index([companyId])
 }
@@ -11032,4 +11046,85 @@ model SupplierChangeMessage {
   @@index([companyId, state])
   @@index([supplierCompanyId])
   @@index([bankChangeRequestId])
+}
+
+// ── The record ledger and decision items (2026-11-21 → 105, 107) ─────
+
+/// Where a signed-in seat at a firm lands, where the firm chose one.
+enum HomePage {
+  DECISIONS
+}
+
+/// One act on one record, append only. The record is any row, named by
+/// type and id, as TwinAction names it. The three stamps are written at
+/// the time and never changed: the legal entity acted for (chosen by the
+/// caller, never read off an address or a signature), the person, and
+/// the role or queue she held, copied as text. lib/record-ledger is the
+/// one writer and offers no update or delete.
+model RecordAction {
+  id             String       @id @default(cuid())
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  recordType     String
+  recordId       String
+  action         String
+  summary        String
+  actingEntityId String?
+  actingEntity   LegalEntity? @relation(fields: [actingEntityId], references: [id])
+  personId       String
+  person         Person       @relation(fields: [personId], references: [id])
+  heldAs         String
+  /// Set where an agent drafted the act; the meter counts by it.
+  agentKey       String?
+  ruleVersion    String?
+  createdAt      DateTime     @default(now())
+
+  @@index([companyId, recordType, recordId])
+  @@index([companyId, createdAt])
+  @@index([actingEntityId])
+  @@index([personId])
+}
+
+enum DecisionState {
+  OPEN
+  APPROVED
+  REJECTED
+}
+
+/// A decision a person opened for a seat to make. Its age counts from
+/// the day a person says it opened. A decision made by phone stays OPEN
+/// until it is recorded here. Closed by one verdict, APPROVED or
+/// REJECTED; a send back keeps it OPEN and its age counting.
+model DecisionItem {
+  id                 String        @id @default(cuid())
+  companyId          String
+  company            Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  question           String
+  ownerPersonId      String
+  ownerPerson        Person        @relation("decisionOwner", fields: [ownerPersonId], references: [id])
+  /// The legal entity it was opened for; same rule as the ledger.
+  actingEntityId     String?
+  actingEntity       LegalEntity?  @relation(fields: [actingEntityId], references: [id])
+  openedOn           DateTime      @db.Date
+  proof              String
+  /// The records the proof points at: [{ recordType, recordId }].
+  proofLinks         Json          @default("[]")
+  state              DecisionState @default(OPEN)
+  /// The verdict's note: optional on APPROVED, the reason on REJECTED.
+  verdictNote        String?
+  decidedByPersonId  String?
+  decidedBy          Person?       @relation("decisionDecidedBy", fields: [decidedByPersonId], references: [id])
+  decidedAt          DateTime?
+  /// The latest send back; each one is also a ledger row.
+  sentBackReason     String?
+  sentBackByPersonId String?
+  sentBackBy         Person?       @relation("decisionSentBackBy", fields: [sentBackByPersonId], references: [id])
+  sentBackAt         DateTime?
+  createdAt          DateTime      @default(now())
+
+  @@index([companyId, state, openedOn])
+  @@index([ownerPersonId])
+  @@index([actingEntityId])
+  @@index([decidedByPersonId])
+  @@index([sentBackByPersonId])
 }

@@ -35,7 +35,7 @@
 export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP' | 'UNCLASSIFIED'
 
 /** The three consoles this product has. */
-export type Console = '/dashboard' | '/dashboard/program' | '/dashboard/my-work' | typeof SOLO_TODAY
+export type Console = '/dashboard' | typeof DECISIONS_HOME | '/dashboard/program' | '/dashboard/my-work' | typeof SOLO_TODAY
 
 /**
  * Where a one-person firm opens: Ask Etyme, which her menu draws first.
@@ -51,7 +51,16 @@ export type Console = '/dashboard' | '/dashboard/program' | '/dashboard/my-work'
  */
 export const SOLO_TODAY = '/dashboard/conversations/etyme' as const
 
+/** The decision queue, for a firm whose home setting names it (→ 107). */
+export const DECISIONS_HOME = '/dashboard/decisions' as const
+
 export interface Reader {
+  /**
+   * The firm's own home setting (`Company.homePage`). Null or absent is
+   * the standing rule below; DECISIONS lands a seat that works at the
+   * firm on the decision queue.
+   */
+  homePage?: 'DECISIONS' | null
   /** What the firm is on the register. Null for somebody with no firm. */
   kind?: CompanyKind | null
   /** The seat is a CONSULTANT context — on a bench, of no firm. */
@@ -139,6 +148,13 @@ export function consoleHome(reader: Reader): Verdict {
       href: '/dashboard/my-work',
       says: 'A seat that sees only its own work opens on that work, not on the firm’s console.',
     }
+  }
+
+  // A firm that chose the decision queue as its home (2026-11-21 → 107).
+  // Only a seat that works at the firm reaches here: a worker's own page
+  // and a one-person firm's are decided above and do not move.
+  if (reader.homePage === 'DECISIONS') {
+    return { href: DECISIONS_HOME, says: 'A firm that chose the decision queue as its home opens on the decisions it owes.' }
   }
 
   if (kind === 'CLIENT') {

@@ -15,7 +15,7 @@
 
 import { hasAnyPermission, type Permission } from '@/lib/permissions'
 import { roleWords } from '@/lib/access-grant'
-import { readsOnlyOwnWork, OWN_WORK_READS, consoleHome, type Reader } from '@/lib/console-home'
+import { readsOnlyOwnWork, OWN_WORK_READS, consoleHome, DECISIONS_HOME, type Reader } from '@/lib/console-home'
 import { IMPORT_PERMISSIONS } from '@/lib/importable'
 import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
@@ -375,6 +375,11 @@ export function pinnedOn(sections: readonly NavSection[]): NavItem[] {
  * click from the chat.
  */
 export function landingFor(reader: Reader & { seatedAtClient?: string | null; region?: string | null }): string {
+  // A firm that chose the decision queue as home lands its working seats there (→ 107).
+  if (reader.homePage === 'DECISIONS') {
+    const home = consoleHome(reader).href
+    if (home === DECISIONS_HOME) return home
+  }
   const menu = getNavForKind(reader.kind ?? null, Boolean(reader.isConsultant), {
     worker: reader.worker,
     permissions: reader.permissions ?? undefined,
