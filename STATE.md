@@ -264,6 +264,21 @@ one field on a chain of money owed to the firm: where collected money
 was put (bench carry, operations or reserve), decided and recorded by a
 person. NOT STARTED, with the rest of the money loop (pack batch 3).
 
+**Owner's corrections, 2026-11-21 (record 106).**
+1. The loan is the sister firm's, not the second firm's. The second
+   firm is the creditor. The chain of money owed by the sister firm
+   carries a counterparty-risk flag; the pace of collection and any
+   further credit to it are decision-queue items, never routine chases.
+   NOT STARTED (pack batch 3).
+2. The mission: 36 consultants billing at an average margin of $15 an
+   hour by 2027-11-21 (about $1.0 million of gross profit). The two
+   headline measures on the agent control view and the trajectory report
+   are the count of consultants billing and the blended margin an hour.
+   Both read "not yet measured" until the census is loaded (pack batch
+   2). Quarter one is 2026-11-22 to 2027-02-19; the day-90 review
+   reports against the mission. The blended margin is drawn only for a
+   seat that may read margin. NOT STARTED.
+
 ## Phase 6, the finish gate
 
 Not met. No batch has been retested.

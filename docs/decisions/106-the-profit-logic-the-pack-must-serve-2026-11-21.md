@@ -82,3 +82,39 @@ checked.
   money: the field is a record of a decision, not an instruction to a
   bank.
 - Every guardrail of the pack stands unchanged.
+
+### Two corrections from the owner — 2026-11-21
+
+**1. The loan is the sister firm's.** The second firm is not the
+borrower. "No loan" is therefore a fact the owner states, not a
+supposition. The risk runs the other way: the second firm is the
+creditor, and its largest sum owed is owed by the firm that carries the
+loan.
+- In the money loop, that chain carries a counterparty-risk flag.
+- The pace of collection from that firm, and any further credit given
+  to it, are decision-queue items for a person, never routine chases.
+- Everything else in this record stands: bench carry, the rate
+  posture, and the field for where collected money was put.
+- The lender, the amounts and the people stay outside the repository.
+
+**2. The mission, in the owner's words.** Scale the second firm to 36
+consultants at an average margin of $15 an hour within 365 days, from
+2026-11-21 to 2027-11-21. 36 × $15 × about 1,880 billable hours is
+about $1.0 million of gross profit.
+- The two headline measures are the count of consultants billing and
+  the blended margin an hour. They lead the agent control view and the
+  trajectory report.
+- The baseline is an output of the census (pack batch 2), never an
+  assumption. Until the census is loaded, both read "not yet measured".
+- Quarter one is 2026-11-22 to 2027-02-19: the engine built and
+  measured, the ramp begun. The day-90 review reports against 36 at $15
+  by 2027-11-21, with the quarterly ramp drawn from the measured
+  baseline.
+- Each agent is judged by whether it moves one of the two measures:
+  more consultants billing, or margin held.
+
+**Where the headline meets a standing rule.** Margin is closed to most
+seats: the Account Manager reads no profit and loss, HR reads no money,
+and a recruiter reads no margin unless the Owner grants it. The blended
+margin is drawn only for a seat that may read margin; another seat
+sees the count and not the margin.
