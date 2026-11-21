@@ -57,3 +57,28 @@ of money owed.
 - A result measured at one tenant is that tenant's. It is named on a
   public page only with its consent, and only as a figure a reader can
   check.
+
+### The owner's planning assumption: no loan — 2026-11-21
+
+"Assume [the second firm] carries no loan, and perform on that basis."
+It is a planning assumption the owner gave, not a fact this record
+checked.
+- Collection is fuel, not defence. Money collected is working capital
+  to use, not a hole to fill. Any earlier framing of slow collection as
+  a threat to the firm's survival is struck. This record never carried
+  that framing.
+- The freed cash has a job: carrying strong W-2 consultants between
+  placements, so they are not placed at a poor rate to end a gap. That
+  protects the margin the model assumes, and keeps a verified bench
+  available when a requirement is matched.
+- The firm may walk away from a drifting rate. Holding a rate is a
+  choice it can afford.
+- The model's arithmetic stands. With no interest between gross margin
+  and profit, the review at day 90 reports operating profit directly.
+- *One field for the money loop* (record 105): a chain of money owed to
+  the firm records, once collected, where the money was put: bench
+  carry, operations, or reserve. A person decides that and records it
+  on the chain. The agent still only drafts. Etyme still never moves
+  money: the field is a record of a decision, not an instruction to a
+  bank.
+- Every guardrail of the pack stands unchanged.

@@ -256,6 +256,14 @@ NOT STARTED. It arrived on 2026-11-21 after the tranche was deployed.
   waits on the mailbox ruling (point 2). Any pay-hold wording waits on
   regulatory (point 3).
 
+**Owner's planning assumption, 2026-11-21 (record 106).** Plan the
+second firm as a company with no loan. Collection is working capital,
+with bench carry as its first use. The model's arithmetic stands; the
+day-90 review reports operating profit directly. The money loop gains
+one field on a chain of money owed to the firm: where collected money
+was put (bench carry, operations or reserve), decided and recorded by a
+person. NOT STARTED, with the rest of the money loop (pack batch 3).
+
 ## Phase 6, the finish gate
 
 Not met. No batch has been retested.
