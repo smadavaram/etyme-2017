@@ -373,6 +373,16 @@ describe('a week outside every pay window of a placement extended before today',
     expect(row.payStatus).toBe('HELD')
     expect(row.statusSays).toBe('Processed, week held')
     expect(row.windowHeld).toBe(heldWords())
+    // The month also holds the seeded people's own weeks, which fall in the current month on the day
+    // this runs and are not worked out. Pay never goes out before it is worked out, so work them out
+    // first; the file is then asked for the same way on every day of the year.
+    as(BRIGHTMOOR)
+    const page = await json(await payroll(req('GET', `/api/payroll?period=${behind.month}`)))
+    const waiting = page.body.data.payItems.filter((x: any) => x.payStatus === 'PENDING' && x.totalApprovedHours > 0).map((x: any) => x.buyContractId)
+    if (waiting.length > 0) {
+      const worked = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: waiting, action: 'calculate', period: behind.month })))
+      expect(worked.status, JSON.stringify(worked.body).slice(0, 400)).toBe(200)
+    }
     as(BRIGHTMOOR)
     const res = await payroll(req('GET', `/api/payroll?period=${behind.month}&format=csv`))
     expect(res.status).toBe(200)
