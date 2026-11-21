@@ -81,6 +81,14 @@ describe('Add to bench is never greyed without words', () => {
     expect(benchPage).toContain('{CHOOSE_FIRST_SAYS}')
   })
 
+  it('the bench dialog links to Add consultant beside "Choose somebody first" where the seat may add, and says who can where it may not', () => {
+    const line = benchPage.slice(benchPage.indexOf('{CHOOSE_FIRST_SAYS}'), benchPage.indexOf('{CHOOSE_FIRST_SAYS}') + 400)
+    expect(line).toContain('{mayAdd')
+    expect(line).toContain("href={'/dashboard/consultants?new=1' as Route}")
+    expect(line).toContain('Add consultant')
+    expect(line).toContain(': whoAdds}')
+  })
+
   it('pressing Add to bench with nobody chosen says to choose the person from the search results, and saves nothing', () => {
     expect(CHOOSE_FROM_RESULTS_SAYS).toBe('Choose the person from the search results.')
     const submit = benchPage.slice(benchPage.indexOf('async function handleSubmit'), benchPage.indexOf('const rates = listingRates'))

@@ -529,7 +529,12 @@ function AddBenchListingModal({ onClose, onCreated, listed, mayAdd, whoAdds }: {
             {/* Never greyed for want of a choice: the words say what is
                 missing, and pressing anyway says it again (batch five walk). */}
             {!selectedConsultant && (
-              <p className="mr-auto text-[12px] text-etyme-muted">{CHOOSE_FIRST_SAYS}</p>
+              <p className="mr-auto text-[12px] text-etyme-muted">
+                {CHOOSE_FIRST_SAYS}{' '}
+                {mayAdd
+                  ? <>Not in your list? <Link href={'/dashboard/consultants?new=1' as Route} className="text-etyme-action hover:underline">Add consultant</Link></>
+                  : whoAdds}
+              </p>
             )}
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
