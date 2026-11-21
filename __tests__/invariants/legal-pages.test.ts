@@ -334,16 +334,17 @@ describe('What the three documents say is what the code does', () => {
     expect(existsSync(join(ROOT, 'src/app/api/conversations/twin/mask.ts'))).toBe(true)
   })
 
-  it('matching sends a person’s name to the outside service, and without a key it uses fixed rules and the resume check does not run', () => {
-    expect(PRIVACY).toMatch(/For matching: a Worker's name, skills, headline, location, work authorization type, minimum rate and date available/)
-    expect(PRIVACY).toMatch(/If no Anthropic key is set, matching uses fixed rules and says so, and the resume check does not run/)
+  it('matching sends no name to the outside service, and without a key it uses fixed rules and a resume check is recorded as unverified', () => {
+    expect(PRIVACY).toMatch(/For matching: a Worker's skills, location, work authorization type and date available; the name is never sent/)
+    expect(PRIVACY).toMatch(/matching uses fixed rules and says so, and a resume check that could not ask that service is recorded as unverified, never as passed/)
     expect(PRIVACY).toMatch(/For an import: up to 60,000 characters of the file/)
 
     const engine = read('src/lib/match-engine.ts')
-    expect(engine).toContain('name: c.personName')
+    expect(engine).toContain('Names never leave: a candidate is its index')
+    expect(read('src/lib/checks/skill-evidence.ts')).toContain('unverifiedSkills')
     expect(engine).toContain('workAuth: c.workAuth')
-    expect(engine).toContain('no ANTHROPIC_API_KEY — scored with rules, not the model')
-    expect(read('src/app/api/submissions/[id]/check/route.ts')).toContain('evidencePrompt(p.claimedSkills, cvText)')
+    expect(engine).toContain('scored with rules, not the model')
+    expect(read('src/app/api/submissions/[id]/check/route.ts')).toContain('readSkillEvidence')
     expect(read('src/lib/extract.ts')).toContain('source.length > 60_000')
   })
 

@@ -118,7 +118,7 @@ Most automated actions are simple date checks, thresholds or counts.
 |---|---|---|
 | Managed database host [to be named] | Stores all information in the Services, including resume files | All information described in this notice |
 | Vercel | Hosts the Services, runs scheduled jobs and runs page analytics on the public marketing pages | Everything in a page request and response, and standard request logs. For page analytics, page views of the public marketing pages |
-| Anthropic (where set up) | An outside service that reads text. We use it to suggest matching jobs, check a resume against the skills claimed for it, read an imported file into structured entries, draft the words on a public profile page, and answer a typed question about a company's own data where that company has turned this on | For matching: a Worker's name, skills, headline, location, work authorization type, minimum rate and date available. For a resume check: the resume text and the skills claimed. For an import: up to 60,000 characters of the file. For a profile page: the words on that page. For a typed question: the question and related entries, with names of people and companies, rates, pay and amounts replaced by placeholders before sending |
+| Anthropic (where set up) | An outside service that reads text. We use it to suggest matching jobs, check a resume against the skills claimed for it, read an imported file into structured entries, draft the words on a public profile page, and answer a typed question about a company's own data where that company has turned this on | For matching: a Worker's skills, location, work authorization type and date available; the name is never sent and the minimum rate is replaced by a placeholder. For a resume check: the resume text and the skills claimed. For an import: up to 60,000 characters of the file. For a profile page: the words on that page. For a typed question: the question and related entries, with names of people and companies, rates, pay and amounts replaced by placeholders before sending |
 | Resend or SendGrid (where set up) | Sends email | Name, email address and the message |
 | Mail server for sign-in links (where set up) [to be named] | Sends one-time sign-in links | Email address and the link |
 | Microsoft and Google (where set up) | Sign-in only | Email address and the sign-in provider's account identifier |
@@ -126,7 +126,7 @@ Most automated actions are simple date checks, thresholds or counts.
 
 The question feature is off for each company until someone at that company with authority turns it on. Each question sent and each answer received is logged, with placeholders in place of names and figures, and the company can read that log.
 
-If no Anthropic key is set, matching uses fixed rules and says so, and the resume check does not run.
+If no Anthropic key is set, or the company has not turned that service on, matching uses fixed rules and says so, and a resume check that could not ask that service is recorded as unverified, never as passed.
 
 [To be confirmed by counsel: which providers need a signed data processing agreement, and what notice we give before adding one. None is recorded today.]
 

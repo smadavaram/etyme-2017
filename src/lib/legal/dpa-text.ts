@@ -179,7 +179,7 @@ A service marked "where set up" is used only if it is configured.
 Notes:
 
 - The typed-question feature is off for each Customer until someone at that Customer with authority turns it on. Each question sent and each answer received is logged, with placeholders in place of names and figures, and the Customer can read the log.
-- If no Anthropic key is set, or the company has not turned the model on, matching uses fixed rules and says so, and a resume check that could not ask the model is recorded as unverified, never as passed.
+- If no Anthropic key is set, or the company has not turned that service on, matching uses fixed rules and says so, and a resume check that could not ask that service is recorded as unverified, never as passed.
 - Etyme does not use file storage, e-signature, text-message, advertising or session-recording services. Page analytics runs on the public marketing pages only, never in the signed-in product.
 
 ## Annex B — Security measures
