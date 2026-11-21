@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import {
   periodHolding, periodsAround, periodsPayingBetween, periodAfter, periodBefore, paysByPeriod,
   periodWords, periodShownSays, calendarMonthSays, nothingToPaySays, payFileCsv, payFileName,
-  isDayKey, PAY_FILE_NOTE, PAY_FILE_COLUMNS, WHERE_FIRST_DAY_IS_SET, type PayFileRow,
+  isDayKey, periodsUntilFirst, firstPeriodAheadSays, PAY_FILE_NOTE, PAY_FILE_COLUMNS, WHERE_FIRST_DAY_IS_SET, type PayFileRow,
 } from '@/lib/money/pay-periods'
 import { DEFAULT_PAY_RHYTHM, checkFirstPeriodStart, type PayRhythm } from '@/lib/pay-dates'
 import { shiftToWorkingDay, localDayKey, DEFAULT_CYCLE_SHIFT } from '@/lib/cycle-shift'
@@ -301,5 +301,44 @@ describe('a holiday that comes back every year is the same calendar day in every
       // Fri Dec 25, 2026 moves back to Thu Dec 24, read through the one rule.
       expect(periodHolding('2026-12-06', biweekly('2026-12-06'), { holidays: keys })!.payOn, tz).toBe(oneRule('2026-12-25', ['2026-12-25']))
     }
+  })
+})
+
+describe('a first pay-period Sunday set ahead of today (Tapin, docs/decisions/104)', () => {
+  const r: PayRhythm = { ...DEFAULT_PAY_RHYTHM, payPeriod: 'BIWEEKLY', payFirstPeriodStart: '2026-12-27' }
+  const first = periodHolding('2026-12-27', r, { direction: 'BEFORE', daysOff: [0, 6] })!
+
+  it('the first period reads Dec 27 to Jan 9, worked out Jan 13, paid Jan 15', () => {
+    expect(first).toMatchObject({ start: '2026-12-27', end: '2027-01-09', calcOn: '2027-01-13', payOn: '2027-01-15' })
+  })
+
+  it('a day five weeks before the first Sunday falls in a period counted back from it', () => {
+    expect(periodHolding('2026-11-21', r)).toMatchObject({ start: '2026-11-15', end: '2026-11-28' })
+  })
+
+  it('the picker reaches the first period from the period holding today, and stops counting once it has begun', () => {
+    expect(periodsUntilFirst('2026-11-21', first, r)).toBe(3)
+    expect(periodsAround('2026-11-21', r, {}, { earlier: 0, later: 3 })!.map((p) => p.start)).toContain('2026-12-27')
+    expect(periodsUntilFirst('2026-12-27', first, r)).toBe(0)
+    expect(periodsUntilFirst('2027-03-01', first, r)).toBe(0)
+  })
+
+  it('a first Sunday set years ahead lists at most a year of periods to reach it', () => {
+    const far = { ...r, payFirstPeriodStart: '2030-01-06' }
+    expect(periodsUntilFirst('2026-11-21', periodHolding('2030-01-06', far)!, far)).toBe(26)
+  })
+
+  it('the page says which cycle it shows and from which date the new one starts, and says nothing once it has begun', () => {
+    expect(firstPeriodAheadSays('Tapin', first, '2026-11-21')).toBe(
+      'Tapin counts its pay periods from the first period, Dec 27, 2026 – Jan 9, 2027, worked out Wed, Jan 13, 2027 and paid Fri, Jan 15, 2027. The periods before it are counted back from that Sunday.',
+    )
+    expect(firstPeriodAheadSays('Tapin', first, '2026-12-27')).toBeNull()
+  })
+
+  it('the Payroll page draws the sentence with a way to open the first period', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/payroll/page.tsx'), 'utf8')
+    expect(page).toContain("setFirstPeriodSays(body.data?.firstPeriodSays ?? null)")
+    expect(page).toContain("setFirstPeriodStart(body.data?.firstPeriod?.start ?? null)")
+    expect(page).toContain('Open the first period')
   })
 })

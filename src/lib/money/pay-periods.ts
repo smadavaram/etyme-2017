@@ -116,6 +116,30 @@ export function pickerPeriods(
   ]
 }
 
+/**
+ * How many periods after the one holding `day` the first period is: 0
+ * where the first period holds the day or began before it. Capped, so a
+ * first Sunday set years ahead never lists years of periods.
+ */
+export function periodsUntilFirst(day: string, first: PayPeriodOn, r: PayRhythm, cap = 26): number {
+  if (first.start <= day) return 0
+  const step = r.payPeriod === 'WEEKLY' ? 7 : 14
+  const n = Math.round((Date.parse(`${first.start}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / DAY)
+  return Math.min(cap, Math.ceil(n / step))
+}
+
+/**
+ * Said over the Payroll page while the first period has not begun
+ * (Tapin, docs/decisions/104): which periods the page lists, and from
+ * which day the first one starts. Null once the first period has begun.
+ */
+export function firstPeriodAheadSays(companyName: string, first: PayPeriodOn, today: string): string | null {
+  if (first.start <= today) return null
+  return `${companyName} counts its pay periods from the first period, ${formatRange(first.start, first.end)}, ` +
+    `worked out ${formatDay(first.calcOn, { weekday: true })} and paid ${formatDay(first.payOn, { weekday: true })}. ` +
+    `The periods before it are counted back from that Sunday.`
+}
+
 /** A period on the picker that holds accepted hours nobody paid. */
 export function unpaidPeriodWords(p: PayPeriodOn): string {
   return `${periodWords(p)} · accepted hours not paid`

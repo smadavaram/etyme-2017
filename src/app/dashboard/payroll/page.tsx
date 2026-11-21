@@ -344,6 +344,10 @@ export default function PayrollPage() {
   const [heldSays, setHeldSays] = useState<string | null>(null)
   // Where the company's holiday calendar is empty, one sentence saying so.
   const [noHolidays, setNoHolidays] = useState<string | null>(null)
+  // While the first period has not begun: which periods are listed, and
+  // from which day the first one starts, with a way to open it.
+  const [firstPeriodSays, setFirstPeriodSays] = useState<string | null>(null)
+  const [firstPeriodStart, setFirstPeriodStart] = useState<string | null>(null)
   // Where the company still waits for a verified Owner: the gate's own
   // sentence and its link, said in Process's place.
   const [payWaits, setPayWaits] = useState<OwnerLine | null>(null)
@@ -402,6 +406,8 @@ export default function PayrollPage() {
       setPayFileWaits(body.data?.payFileWaits ?? null)
       setHeldSays(body.data?.heldSays ?? null)
       setNoHolidays(body.data?.noHolidays ?? null)
+      setFirstPeriodSays(body.data?.firstPeriodSays ?? null)
+      setFirstPeriodStart(body.data?.firstPeriod?.start ?? null)
       setPayWaits(body.data?.payWaits ?? null)
       if (!periodChosen) {
         setPeriodChosen(true)
@@ -865,6 +871,14 @@ export default function PayrollPage() {
       {/* Beside the company's pay periods and their pay days: an empty
           holiday calendar moves no pay day off a public holiday. */}
       {payPeriods && noHolidays && <p className="mb-2 text-[12.5px] text-etyme-attention">{noHolidays}</p>}
+      {payPeriods && firstPeriodSays && (
+        <p className="mb-2 text-[12.5px] text-etyme-muted">
+          {firstPeriodSays}
+          {firstPeriodStart && selectedPeriod !== firstPeriodStart && (
+            <> <button type="button" onClick={() => setSelectedPeriod(firstPeriodStart)} className="text-etyme-action hover:underline">Open the first period</button></>
+          )}
+        </p>
+      )}
       {/* Etyme moves no money and holds no W-4, bank account or tax number:
           the payroll provider does. Said once, beside the pay file. */}
       {payFileNote && !nothingToPay && <p className="mb-2 text-[12.5px] text-etyme-muted">{payFileNote}</p>}

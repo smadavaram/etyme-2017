@@ -26,7 +26,7 @@ import { companyPayPeriods } from '@/lib/money/company-pay-periods'
 import {
   periodsAround, periodHolding, periodLabel, periodWords, periodShownSays, calendarMonthSays,
   calendarMonthWaitsSays, firstDayStep, FIRST_DAY_HREF,
-  nothingToPaySays, isDayKey, payFileCsv, payFileWaits, MONTH_HAS_NO_PAY_FILE, noHolidaysSays, payFileName, monthPayFileName, PICK_A_MONTH_FOR_PAY_FILE, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, statusWithHeld, payStatusSays, heldAboveTableSays, type PayPeriodOn,
+  nothingToPaySays, isDayKey, payFileCsv, payFileWaits, MONTH_HAS_NO_PAY_FILE, noHolidaysSays, payFileName, monthPayFileName, PICK_A_MONTH_FOR_PAY_FILE, PAY_FILE_NOTE, pickerPeriods, unpaidPeriodWords, periodsUntilFirst, firstPeriodAheadSays, statusWithHeld, payStatusSays, heldAboveTableSays, type PayPeriodOn,
 } from '@/lib/money/pay-periods'
 import { PAY_PERIOD_WORDS } from '@/lib/pay-dates'
 import { mayOpen } from '@/lib/nav-table'
@@ -1123,7 +1123,13 @@ export async function GET(request: NextRequest) {
   // The company's own periods for the picker: the current one first, the
   // next, then the earlier ones. Null where pay is listed by month.
   // Then every earlier period that still holds accepted hours nobody paid.
-  const around = co.byPeriod ? periodsAround(todayKey, co.rhythm, co.rule, { earlier: 6, later: 1 }) : null
+  // A first Sunday set ahead of today (Tapin, docs/decisions/104): every
+  // period up to the first one is on the picker, so it can be opened.
+  const firstPeriod = co.byPeriod && co.rhythm.payFirstPeriodStart
+    ? periodHolding(co.rhythm.payFirstPeriodStart, co.rhythm, co.rule)
+    : null
+  const later = Math.max(1, firstPeriod ? periodsUntilFirst(todayKey, firstPeriod, co.rhythm) : 0)
+  const around = co.byPeriod ? periodsAround(todayKey, co.rhythm, co.rule, { earlier: 6, later }) : null
   const said = (p: PayPeriodOn) => ({ ...p, label: periodLabel(p), words: periodWords(p) })
   const payPeriods = around
     ? {
@@ -1162,6 +1168,10 @@ export async function GET(request: NextRequest) {
       periodSays: firstDay?.ask ? `${periodSays} ${firstDay.ask}` : periodSays,
       firstDayLink: firstDay?.link ?? null,
       payPeriods,
+      // The first period, and while it has not begun, the sentence saying
+      // which periods the page lists and from which day the first starts.
+      firstPeriod: firstPeriod ? { ...said(firstPeriod) } : null,
+      firstPeriodSays: firstPeriod ? firstPeriodAheadSays(companyName, firstPeriod, todayKey) : null,
       // Whether Calculate and Process may be offered on this view: on a
       // company that pays by its own periods, only on one of them.
       runsHere: co.byPeriod ? Boolean(shownPeriod) && !nothingToPay : true,
