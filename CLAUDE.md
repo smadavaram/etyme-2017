@@ -139,17 +139,15 @@ Full text → 03, 11, 36, 37, 59, 62, 63.
   exactly as the signed week says, and nobody starts without the paper
   that lets them. They get the hardest tests and the first seat at every
   release. Public pages lead with those two.
-- **The home page** (founder's brief, 2026-11-12). One call: Start free,
-  in the header, the hero and the end, opening sign-up. "See it work"
-  scrolls to the demo. The hero keeps the question "Know what every
-  contractor costs, across every supplier." and his locked line. The Ask
-  Etyme demo is drawn from the seed and labeled "Demo — not a customer";
-  its Send sends nothing. The CFO view (Corvane Packaging) is closed
-  behind a button. The price lines are his words and no agent adds a
-  number. The complement line reads "Sits alongside your HR and finance
-  systems. No rip-and-replace." until he says "name them". Never on the
-  page: a size range, "design partner", or a hint that Etyme pays
-  invoices on its own.
+- **The home page** is the owner-approved design of 2026-11-18 (→ 103),
+  which replaced the 2026-11-12 brief. The badge reads "Enterprise
+  contingent workforce management." Light only. "Free" appears only in
+  the hero offer, the price section and the Start free buttons. The
+  standard footer. Sample figures are the seed's, labeled "Demo — not a
+  customer". The three chat doors are named; one not built says "Not
+  live yet". The price lines are his words and no agent adds a number.
+  Never on the page: a size range, or a hint that Etyme pays invoices
+  on its own. Page analytics runs on public marketing pages only.
 - **The home page's figures are one sample company at a real buyer's
   scale** (2026-11-13): Corvane Packaging, about $43 million a year,
   every figure read from the seed. What is called held is the invoice;
