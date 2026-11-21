@@ -54,12 +54,14 @@ export interface AddConsultantTyped {
   /** The currency the pay is in: the firm's own unless the person stating it picked another. Blank, the firm's. */
   termsPayCurrency?: string
   notes: string
+  /** "Our own W-2 employee": seated at the firm, no bench listing, invited to sign in. */
+  ownEmployee?: boolean
 }
 
 /** Every field the Add consultant form draws, by the name its body carries. */
 export const ADD_CONSULTANT_FIELDS = [
   'name', 'email', 'headline', 'skills', 'location', 'workAuth', 'tier',
-  'rateMin', 'rateMax', 'termsEngagementType', 'termsPayRateCents', 'termsPayCurrency', 'notes',
+  'rateMin', 'rateMax', 'termsEngagementType', 'termsPayRateCents', 'termsPayCurrency', 'notes', 'ownEmployee',
 ] as const
 
 /** The body Add consultant posts. The rates come in cents from `listingRates`, which the form checks first. */
@@ -92,6 +94,7 @@ export function addConsultantBody(
       : null,
     termsPayCurrency: form.termsPay.trim() ? payCurrency : null,
     notes: form.notes.trim() || null,
+    ownEmployee: form.ownEmployee === true,
   }
 }
 

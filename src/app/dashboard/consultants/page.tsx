@@ -12,6 +12,7 @@ import { useSession } from '@/components/session-provider'
 import { ProfileEditor } from './profile-editor'
 import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
 import { addConsultantBody } from '@/lib/consultant-portfolio/forms'
+import { ownEmployeeOffered, OWN_EMPLOYEE_LABEL, OWN_EMPLOYEE_HELP, ownEmployeeSavingSays } from '@/lib/consultant-portfolio/own-employee'
 import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
 import { consultantsPageUrl, pagesAfterFirst } from '@/lib/consultant-portfolio/list-pages'
 import { wordFor, listingRates, ADD_TIER_OPTION, savingSays, addSkillTags, payShown, STANDING_WORD, rateBoxLabel, tierShown, TIER_BEFORE_YES, offersSend, sampleRowSays, type BenchStanding } from '@/lib/bench-filter'
@@ -96,13 +97,16 @@ function AddConsultantModal({
   onClose,
   onCreated,
   mailOn = false,
+  offerOwnEmployee = false,
   kept = [],
   onOpen,
   onResend,
 }: {
   onClose: () => void
-  onCreated: (says: string) => void
+  onCreated: (says: string, copyText?: string | null) => void
   mailOn?: boolean
+  /** Whether "Our own W-2 employee" is offered: never at a client (`ownEmployeeOffered`). */
+  offerOwnEmployee?: boolean
   /** The firm's own list, as the page loaded it: the only rows the early check reads. */
   kept?: Consultant[]
   /** Opens a person's record on this page. */
@@ -137,6 +141,7 @@ function AddConsultantModal({
     termsPayCurrency: '',
     // The firm's own note, kept on its listing and read by nobody else.
     notes: '',
+    ownEmployee: false,
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -201,7 +206,7 @@ function AddConsultantModal({
         headers: { 'Content-Type': 'application/json' },
         // What the form posts is built in one place the route's own
         // reader is tested against (`addConsultantBody`, lib/consultant-portfolio/forms).
-        body: JSON.stringify(addConsultantBody(form, rates, currency)),
+        body: JSON.stringify(addConsultantBody({ ...form, ownEmployee: offerOwnEmployee && form.ownEmployee }, rates, currency)),
       })
 
       if (!res.ok) {
@@ -219,7 +224,7 @@ function AddConsultantModal({
       }
 
       const body = await res.json().catch(() => ({}) as any)
-      onCreated(body.data?.message ?? `${form.name.trim()} is added.`)
+      onCreated(body.data?.message ?? `${form.name.trim()} is added.`, body.data?.copyText ?? null)
       onClose()
     } catch {
       setError('Network error. Please try again.')
@@ -428,6 +433,15 @@ function AddConsultantModal({
             />
           </div>
 
+          {offerOwnEmployee && (
+            <label className="flex items-start gap-2 text-sm text-etyme-ink">
+              <input type="checkbox" checked={form.ownEmployee}
+                onChange={(e) => setForm({ ...form, ownEmployee: e.target.checked })} className="mt-1" />
+              <span><span className="font-semibold">{OWN_EMPLOYEE_LABEL}</span><br /><span className="text-xs text-etyme-muted">{OWN_EMPLOYEE_HELP}</span></span>
+            </label>
+          )}
+
+          {!form.ownEmployee && (<>
           {/* Their bench listing: who sees them once they say yes, and at what rate. */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
@@ -504,6 +518,7 @@ function AddConsultantModal({
               {fieldErrors.termsPayCurrency && <p className="text-xs text-etyme-attention mt-1">{fieldErrors.termsPayCurrency}</p>}
             </div>
           </div>
+          </>)}
           {/* Said plainly, right above the one button, because saving
               sends an email (outside review, 2026-10-05), or, where none
               can leave, keeps the link for staff (walk l2a, 2026-11-15). */}
@@ -512,7 +527,7 @@ function AddConsultantModal({
               a press that did nothing (press walk l3a, 2026-11-15). */}
           {match?.blocks
             ? <p id="add-blocked-says" className="text-sm text-etyme-attention pt-2">{match.says}</p>
-            : <p className="text-sm text-etyme-ink pt-2">{savingSays(form.name, mailOn)}</p>}
+            : <p className="text-sm text-etyme-ink pt-2">{form.ownEmployee ? ownEmployeeSavingSays(form.name, mailOn) : savingSays(form.name, mailOn)}</p>}
 
           <div className="flex justify-end gap-3">
             <button type="button" onClick={onClose} className="btn-secondary">
@@ -520,7 +535,7 @@ function AddConsultantModal({
             </button>
             <button type="submit" disabled={submitting || !!match?.blocks} aria-describedby={match?.blocks ? 'add-blocked-says' : undefined}
               className="btn-primary disabled:opacity-50">
-              {submitting ? 'Adding…' : 'Add and ask them'}
+              {submitting ? 'Adding…' : form.ownEmployee ? 'Add employee' : 'Add and ask them'}
             </button>
           </div>
         </form>
@@ -1080,6 +1095,8 @@ export default function ConsultantsPage() {
   const [resending, setResending] = useState<string | null>(null)
   /** What adding somebody did, said once it is done. */
   const [added, setAdded] = useState<string | null>(null)
+  // The invitation to hand over where no email left (Copy invitation).
+  const [addedCopy, setAddedCopy] = useState<string | null>(null)
   const [selected, setSelected] = useState<Consultant | null>(null)
   const [hasCostPermission, setHasCostPermission] = useState(false)
   /**
@@ -1488,7 +1505,11 @@ export default function ConsultantsPage() {
       {added && (
         <p role="status" className="panel text-body-sm text-etyme-ink mb-6">
           {added}{' '}
-          <button className="text-etyme-action hover:underline" onClick={() => setAdded(null)}>Close</button>
+          {addedCopy && (
+            <button className="text-etyme-action hover:underline mr-2"
+              onClick={() => { void navigator.clipboard?.writeText(addedCopy); setAddedCopy(null) }}>Copy invitation</button>
+          )}
+          <button className="text-etyme-action hover:underline" onClick={() => { setAdded(null); setAddedCopy(null) }}>Close</button>
         </p>
       )}
 
@@ -1560,12 +1581,12 @@ export default function ConsultantsPage() {
 
       {/* Modals */}
       {showInvite && mayAdd && <InviteCandidatesDialog onClose={() => setShowInvite(false)} onDone={() => { void fetchConsultants() }} />}
-      {showAdd && mayAdd && <AddConsultantModal mailOn={mailOn}
+      {showAdd && mayAdd && <AddConsultantModal mailOn={mailOn} offerOwnEmployee={ownEmployeeOffered(readerKind)}
           kept={consultants}
           onOpen={(row) => setSelected(row)}
           onResend={(row, listingId) => { void resend(row, listingId) }}
           onClose={() => setShowAdd(false)}
-          onCreated={(says) => { setAdded(says); fetchConsultants() }}
+          onCreated={(says, copy) => { setAdded(says); setAddedCopy(copy ?? null); fetchConsultants() }}
         />}
       {selected && (
         <ConsultantDrawer

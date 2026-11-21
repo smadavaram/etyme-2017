@@ -444,7 +444,7 @@ describe('every question a bench or consultant route asks, its form has a field 
   })
 
   it('each screen posts the body built for it', () => {
-    expect(read('src/app/dashboard/consultants/page.tsx')).toContain('body: JSON.stringify(addConsultantBody(form, rates, currency))')
+    expect(read('src/app/dashboard/consultants/page.tsx')).toContain('body: JSON.stringify(addConsultantBody({ ...form, ownEmployee: offerOwnEmployee && form.ownEmployee }, rates, currency))')
     const editor = read('src/app/dashboard/consultants/profile-editor.tsx')
     expect(editor).toContain('profileEditBody(form, mayRate, currency)')
     expect(editor).toContain('firmViewEditBody(form)')

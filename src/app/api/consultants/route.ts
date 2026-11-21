@@ -6,6 +6,9 @@ import type { Prisma } from '@prisma/client'
 import { educationShown } from '@/lib/consultant-portfolio/education'
 import { addedSays, benchClosedSays, notAtACompany, benchStanding, consultantsReadBench } from '@/lib/bench-filter'
 import { addRefusalSays, askedAgainSays } from '@/lib/consultant-portfolio'
+import { employeeRole } from '@/lib/employee-role'
+import { ownEmployeeOffered, clientHasNoEmployeesSays, alreadyHasAccountSays, alreadySeatedSays, ownEmployeeAddedSays } from '@/lib/consultant-portfolio/own-employee'
+import { copyTextFor, modeOf, tryInvitationMail } from '@/app/api/access/invite/one'
 import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
 import { readAddConsultant } from '@/lib/consultant-portfolio/forms'
 import { mayAddConsultant, whoAddsSays } from '@/lib/consultant-portfolio/who-adds'
@@ -443,6 +446,117 @@ export async function POST(request: NextRequest) {
       { error: { code: read.code, message: read.message, field: read.field } },
       { status: 422 }
     )
+  }
+
+  // Our own W-2 employee: seated here, no bench listing, told and let in
+  // by the invitation letter (decisions 102, item 2).
+  if (body.ownEmployee === true) {
+    const kind = caller.company!.kind
+    if (!ownEmployeeOffered(kind)) {
+      return NextResponse.json(
+        { error: { code: 'CLIENT_HAS_NO_EMPLOYEES', message: clientHasNoEmployeesSays(caller.company!.name), field: 'ownEmployee' } },
+        { status: 422 }
+      )
+    }
+    try {
+      const firmName = caller.company!.name
+      const addr = String(email).trim().toLowerCase()
+      const typedName = String(name).trim()
+      const existing = await prisma.person.findFirst({
+        where: { primaryEmail: { equals: addr, mode: 'insensitive' } },
+        select: {
+          id: true, passwordHash: true,
+          _count: { select: { credentials: true, contexts: true } },
+          consultant: { select: { id: true, _count: { select: { listings: true } } } },
+        },
+      })
+      if (existing) {
+        const seatedHere = await prisma.context.findFirst({ where: { personId: existing.id, companyId, revokedAt: null }, select: { id: true } })
+        if (seatedHere) {
+          return NextResponse.json({ error: { code: 'ALREADY_SEATED', message: alreadySeatedSays(typedName, firmName), field: 'email' } }, { status: 409 })
+        }
+        const hasAccount = !!existing.passwordHash || existing._count.credentials > 0 || existing._count.contexts > 0 ||
+          (existing.consultant?._count.listings ?? 0) > 0
+        if (hasAccount) {
+          return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: alreadyHasAccountSays(addr), field: 'email' } }, { status: 409 })
+        }
+      }
+      const now = new Date()
+      const seat = await prisma.$transaction(async (tx) => {
+        const person = existing ?? await tx.person.create({ data: { primaryEmail: addr, name: typedName }, select: { id: true, passwordHash: true, _count: { select: { credentials: true, contexts: true } }, consultant: { select: { id: true, _count: { select: { listings: true } } } } } })
+        const profile = person.consultant
+          ? { id: person.consultant.id }
+          : await tx.consultantProfile.create({
+              data: {
+                personId: person.id,
+                headline: typeof headline === 'string' && headline.trim() ? headline.trim() : null,
+                skills: skills.map((s: unknown) => String(s)),
+                location: typeof location === 'string' && location.trim() ? location.trim() : null,
+                workAuth: workAuth || null,
+                availableFrom: availableFrom ? new Date(availableFrom) : null,
+                visibility: 'INTERNAL',
+              },
+              select: { id: true },
+            })
+        const roleId = await employeeRole(tx, companyId)
+        const context = await tx.context.create({
+          data: {
+            personId: person.id,
+            companyId,
+            type: 'EMPLOYEE',
+            roleId,
+            grantedById: caller.person.id,
+            invitedAt: now,
+            invitedById: caller.person.id,
+            source: 'INVITE',
+            grantReason: `Added as a W2 employee by ${caller.person.name} on ${now.toISOString().slice(0, 10)}`,
+          },
+          select: { id: true },
+        })
+        await tx.automationLog.create({
+          data: {
+            companyId,
+            action: 'EMPLOYEE_ADDED',
+            summary: `${caller.person.name} added ${typedName} as the firm's own W-2 employee`,
+            reason: 'Add consultant, "Our own W-2 employee": the employment is the consent, so no bench listing was made.',
+            payload: { personId: person.id, profileId: profile.id, contextId: context.id, createdBy: caller.person.id, door: 'ADD_CONSULTANT' },
+            reversible: true,
+          },
+        })
+        return { person, profile, contextId: context.id }
+      })
+      const mode = await modeOf(companyId)
+      const sent = await tryInvitationMail({
+        contextId: seat.contextId,
+        person: { id: seat.person.id, primaryEmail: addr, passwordHash: seat.person.passwordHash },
+        inviterName: caller.person.name,
+        company: { id: companyId, name: firmName },
+        roleName: 'Employee',
+        mode,
+        now,
+      })
+      return NextResponse.json(
+        {
+          data: {
+            ownEmployee: true,
+            consultant: { id: seat.profile.id, personId: seat.person.id, person: { id: seat.person.id, name: typedName, email: addr } },
+            contextId: seat.contextId,
+            listing: null,
+            mail: sent.mail,
+            // Offered whenever the letter did not leave: "Copy invitation", never "sent".
+            copyText: sent.mail.state === 'SENT' ? null : copyTextFor({ inviterName: caller.person.name, companyName: firmName, roleName: 'Employee', email: addr, mode }),
+            message: ownEmployeeAddedSays({ name: typedName, email: addr, mail: sent.mail.state, why: sent.mail.why }),
+          },
+        },
+        { status: 201 }
+      )
+    } catch (err) {
+      reportError('Adding an own employee failed:', err)
+      return NextResponse.json(
+        { error: { code: 'INTERNAL', message: 'They were not added. Please try again.' } },
+        { status: 500 }
+      )
+    }
   }
 
   // One ask, from either door (`askOntoBench`): somebody who already has
