@@ -113,3 +113,9 @@ draft and notify; no owner's key outstanding.
 - "The four overclaiming screens" and a numbered message audit are not
   in the record by that name. Record 84 holds four labels reworded on
   2026-11-16.
+
+### His answer on the homepage — 2026-11-21
+
+"Leave the Nov 18 page live until the replacement." The homepage of
+record 103 stays as deployed. It is not rolled back and not edited. The
+replacement is built when its file arrives.
