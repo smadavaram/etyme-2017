@@ -396,7 +396,7 @@ export const DOMAINS: Domain[] = [
       'lib/vendor-master', 'lib/vendor-master-read', 'scripts/bank-check-carry-over.ts',
       // Sensitive numbers (record 99): the one reader that masks, seals and
       // opens a tax ID, and the hand-run backfill that seals old rows.
-      'lib/sensitive.ts', 'lib/sensitive-backfill.ts', 'scripts/seal-sensitive.ts',
+      'lib/sensitive.ts', 'lib/sensitive-mask.ts', 'lib/sensitive-backfill.ts', 'scripts/seal-sensitive.ts',
       // The model boundary (2026-10-13): the per-company switch and the
       // log of what left. The masking at the edge is conversation's.
       'lib/model-boundary',

@@ -1,4 +1,4 @@
-import { taxIdShown } from '@/lib/sensitive'
+import { taxIdShown } from '@/lib/sensitive-mask'
 import { prisma } from '@/lib/db'
 
 /**

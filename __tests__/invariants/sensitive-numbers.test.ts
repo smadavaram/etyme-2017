@@ -95,6 +95,7 @@ function files(dir: string, out: string[] = []): string[] {
  */
 const MAY_NAME_THE_COLUMN: Record<string, string> = {
   'src/lib/sensitive.ts': 'The one reader: masks, seals and opens.',
+  'src/lib/sensitive-mask.ts': 'The masking half of the one reader, with no server-only import, so a screen may reach it.',
   'src/lib/sensitive-backfill.ts': 'Moves plain values to the sealed column.',
   'src/app/api/settings/sensitive/reveal/route.ts': 'The one reply that carries the full value, Owner only, after a second check.',
   'src/app/api/settings/setup/read.ts': 'Reads the plain column only to mask it (taxIdShown).',
