@@ -412,6 +412,12 @@ export const DOMAINS: Domain[] = [
       'lib/email-intake', 'app/api/email',
       // The number on the Ask Etyme mark, where the bell was (2026-10-13).
       'lib/owed-count',
+      // A question asked on a firm's public page, kept, listed, searched and
+      // taken (record 102, item 1, 2026-11-21): the record's library, its two
+      // routes, its list, and the hand-run backfill of questions stored as
+      // notices before the table existed. The public route that writes it is
+      // market's; the decision card is demand's and calls `pageAskDecisions`.
+      'lib/page-asks', 'app/api/page-asks', 'app/dashboard/page-asks', 'scripts/backfill-page-asks.ts',
       // A person on their own work is their own seat, whether or not a firm
       // seated them (simulation, 2026-10-20). Read by the one caller check.
       'lib/own-seat',
@@ -689,7 +695,7 @@ export const DOMAINS: Domain[] = [
       // One reader of a company's seats, and how people join a company,
       // said from what the code does (2026-11-12).
       'lib/company-seats', 'lib/join-words',
-      'lib/service-accounts', 'lib/import-mapper', 'lib/importable',
+      'lib/service-accounts', 'lib/import-mapper', 'lib/employee-role', 'lib/importable',
       'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-chain', 'lib/demo-volume', 'lib/demo-seed-client',
       'lib/demo-seed-consultant', 'lib/demo-session', 'lib/reserved-address',
       // Which desks the demo door can open at a seeded firm, and the

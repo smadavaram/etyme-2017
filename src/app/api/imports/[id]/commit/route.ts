@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { Prisma } from '@prisma/client'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { importRefusal, ownImport } from '../../door'
@@ -7,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { contractTypeOf, isOwnEmployeeRow, rateCents } from '@/lib/import-mapper'
 import { logAccess } from '@/lib/access-log'
+import { employeeRole } from '@/lib/employee-role'
 
 /**
  * POST /api/imports/:id/commit
@@ -390,20 +390,6 @@ export async function POST(
   }
 }
 
-/**
- * The role an imported W2 employee holds: their own work and their own
- * week, nothing else — the seeded integrators' engineers hold the same
- * two reads. Found by name, made once per firm, never a default role, so
- * `ensureDefaultRoles` leaves it alone.
- */
-async function employeeRole(tx: Prisma.TransactionClient, companyId: string): Promise<string> {
-  const found = await tx.role.findFirst({ where: { companyId, name: 'Employee' }, select: { id: true } })
-  if (found) return found.id
-  return (await tx.role.create({
-    data: { companyId, name: 'Employee', isDefault: false, permissions: ['assignments.read', 'timesheets.read'] },
-    select: { id: true },
-  })).id
-}
 
 /** What the page says once the import is in, in the trade's words. */
 function committedSentence(o: { employees: number; invited: number; alreadyOnEtyme: number; skipped: number; rolloffCount: number }): string {
