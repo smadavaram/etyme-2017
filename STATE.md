@@ -279,6 +279,27 @@ person. NOT STARTED, with the rest of the money loop (pack batch 3).
    reports against the mission. The blended margin is drawn only for a
    seat that may read margin. NOT STARTED.
 
+## The weekend release contract (record 107)
+
+Thirteen weekend releases, 2026-11-21 to 2027-02-14. One item, one
+deploy, then stop. Done means the second firm's team runs it on Monday;
+the tester's retest on that tenant is acceptance. The calendar is in
+record 107.
+
+**The two mission numbers, as of 2026-11-21.** Consultants billing: not
+yet measured. Blended margin an hour: not yet measured. Both wait on
+the census (week 2). The target is 36 at $15 by 2027-11-21.
+
+**Week 1, Nov 21–22: pack batch 1, primitives.** IN PROGRESS: scouted,
+nothing built. The Monday run: the decision queue is home, four seeded
+items with owners and true ages.
+- Settled by the contract: the pack's batch 1 goes before the rest of
+  the handover's Batch 1; the decision queue is the signed-in home.
+- Built on record 105's reading: one tenant, legal entities as a layer.
+- Still waited on: the Vision UI file, for the two screens.
+- The rest of the handover's Batch 1 is DISPLACED, not dropped; the
+  lead recommends week 3, with the remainder in week 4.
+
 ## Phase 6, the finish gate
 
 Not met. No batch has been retested.
@@ -300,8 +321,7 @@ Not met. No batch has been retested.
 
 ## Questions waiting on the owner or the tester
 
-1. Which page becomes the Decision Queue: the signed-in home, or the
-   public address?
+1. ANSWERED by record 107: the decision queue is the signed-in home.
 2. The Vision UI prototype file.
 3. The names of the four overclaiming screens.
 4. Work before Dec 27: two-week periods counted back, or the old
@@ -314,5 +334,6 @@ Not met. No batch has been retested.
    sentence.
 9. Entities: a sister firm inside one tenant as a linked legal entity,
    or its own tenant with two seats (record 105, point 1)?
-10. Which comes first: the handover's Batch 1, or the pack's batch 1?
+10. ANSWERED by record 107: the pack's batch 1 first. Open in its
+    place: which weekend takes the rest of the handover's Batch 1?
 11. May the digest scanner read mail, and by which door (point 2)?
