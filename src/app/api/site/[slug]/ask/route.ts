@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { reportError } from '@/lib/alerts'
 import { notify } from '@/lib/notify'
 import { ASK_ETYME_HREF } from '@/lib/nav-table'
+import { writePageAsk } from '@/lib/page-asks'
 import { publicSite } from '@/lib/public-site'
 import { looksScripted, normalEmail, tidy } from '@/lib/public-site/leads'
 import {
@@ -77,12 +78,10 @@ export async function POST(
       )
     }
 
-    const lastHour = await prisma.notification.count({
-      where: {
-        companyId: firm.id,
-        createdAt: { gte: new Date(Date.now() - 3_600_000) },
-        data: { path: ['pageAsk'], equals: 'FIRST' },
-      },
+    // One kept record per question (decisions 102, item 1), so the cap
+    // counts the records, not the notices.
+    const lastHour = await prisma.pageAsk.count({
+      where: { companyId: firm.id, createdAt: { gte: new Date(Date.now() - 3_600_000) } },
     })
     if (lastHour >= ASKS_PER_HOUR) {
       return NextResponse.json(
@@ -117,6 +116,24 @@ export async function POST(
     const asked = str('asked').trim()
     const email = normalEmail(str('email'))!
     const notice = firmAskNotice({ email, asked, name: tidy(str('name')), companyName: tidy(str('companyName')) })
+
+    // Kept first, once, as a record the firm can list, search and take
+    // (decisions 102, item 1). A question is never told to a seat without
+    // being kept: where the record cannot be written, nothing is sent.
+    try {
+      await writePageAsk({
+        companyId: firm.id,
+        asked,
+        replyTo: email,
+        name: tidy(str('name')),
+        companyName: tidy(str('companyName')),
+      })
+    } catch {
+      return NextResponse.json(
+        { error: { code: 'INTERNAL', message: 'That did not send. Try again in a minute.' } },
+        { status: 500 }
+      )
+    }
 
     // Written before the reply, so "sent" is said only once it is there.
     const written = await Promise.all(

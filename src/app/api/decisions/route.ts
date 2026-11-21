@@ -51,6 +51,7 @@ import { papersWaitingOn } from '@/lib/document-stages/arrived-papers'
 import { regionContracts } from '@/lib/region-scope'
 import { claimSays, currencyOfExpense, LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
 import { asksAddressedTo } from '@/lib/owner-asks'
+import { pageAskDecisions } from '@/lib/page-asks'
 import { ownerAskRow } from './owner-ask'
 import type { AskerAfter } from '@/lib/owner-rules'
 
@@ -1353,6 +1354,10 @@ export async function GET(request: NextRequest) {
 
   // ── Sort by urgency, then by created date ─────────
   const urgencyOrder: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 }
+  // A question asked on the firm's public page that nobody has taken
+  // (decisions 102, item 1). One card each, so it counts in the number.
+  decisions.push(...(await pageAskDecisions(caller)))
+
   decisions.sort((a, b) => {
     const urgDiff = (urgencyOrder[a.urgency] ?? 3) - (urgencyOrder[b.urgency] ?? 3)
     if (urgDiff !== 0) return urgDiff
