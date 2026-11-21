@@ -140,3 +140,75 @@ deployed START HERE items beyond defects logged for week 2.
 - *Tapin item 5* is unchecked: whether the signed-in screens, and not
   only the storefront, draw in a tenant's own colors is read from the
   code before it is claimed.
+
+### Week 1 as screen-to-screen flows — owner's direction, 2026-11-21
+
+Specifications are screen-to-screen flows. The build goes screen by
+screen against these numbers. The tester retests by screen number. A
+screen passes only if its state traces to a record, its actions work
+end to end in production, and the ledger entry shows in A5. Where a
+flow screen conflicts with an earlier text specification, the flow
+wins for week 1, and the conflict is written in STATE.md.
+
+**Flow A, the second firm: the decision queue.**
+- *A1 Sign-in* lands directly on A2. No dashboard, no tiles.
+- *A2 Decision queue (home).* A list, oldest first. A row is a
+  one-sentence question, its owner, its age in days, and the acting
+  entity. Week 1's rows are the four real items. A row opens A3.
+- *A3 Item.* The question on top. Under it the proof: linked records
+  and figures. Under the proof exactly three buttons: Approve, Send
+  back, Reject. Send back and Reject need a one-line reason typed on
+  the item. Send back returns to A2 with the reason attached and the
+  age still counting. Approve and Reject go to A4.
+- *A4 Decision recorded.* The item shows the decider (name and entity
+  stamp), the time, the decision and the reason. It leaves the queue
+  and shows in A5's ledger. No outcome exists only by phone.
+- *A5 Agent control* (a tab from A2). Each agent: its running state,
+  its actions today, its meter against its cap, its kill switch. Under
+  them the audit ledger: every action stamped with entity, person or
+  agent, and time. In week 1 no agent acts; the ledger is live and the
+  agent rows read "not enabled".
+- *A6 Record view* (from any proof link in A3). The record with its
+  full ledger history. Every counter anywhere traces to a record seen
+  here, or it does not ship.
+
+**Flow B, Tapin: the money loop.**
+- *B1 Sign-in* lands on the decision-queue home. Tapin's queue starts
+  empty except payroll discrepancies.
+- *B2 Consultants.* The seven billing consultants as placement
+  records: name, client, agreed rate, start, current chain state.
+- *B3 Placement record.* Consultant, client, rate history, documents,
+  and the period's state strip: timesheet owed, received, reconciled,
+  invoiced, payment pending, paid unconfirmed, confirmed closed, with
+  the current state marked.
+- *B4 The October 2026 chain*, historical and closed, with its ledger.
+- *B5 The December 2026 chain*, live, in draft mode. A timesheet's
+  arrival moves the state, recorded by hand or on import; no agent
+  acts. An amount mismatch is DISPUTED and a decision item in B1.
+- *B6 Payroll summary.* Each consultant's state for the period, the
+  total payable, and discrepancies as decision items with owners.
+- Tapin's own colors throughout.
+
+**Conflicts with standing text, flagged (the flow wins for week 1).**
+1. *Three buttons.* The standing rule is a card with Yes and Not now,
+   through one approval route. A3 has Approve, Send back, Reject. The
+   decision item is built to A3; the twin's own cards are unchanged.
+2. *A question that is not a yes or a no.* One of the four items asks
+   which of three courses to take. With three buttons, the question is
+   written as one proposed course, and the reason line carries the
+   rest. The lead recommends this wording at entry.
+3. *"No dashboard."* The seat lands on the decision queue. The left
+   column and its switch stay, or nobody could reach a record.
+4. *Meter and cap.* No price exists (free while testing). The meter is
+   a count of actions; the cap reads "not set".
+5. *A kill switch with no agent.* In week 1 each agent row reads "not
+   enabled", and no switch is drawn that would do nothing.
+6. *Tapin's colors on signed-in screens.* The design system gives every
+   signed-in screen Etyme's tokens, and no tenant colors are stored.
+   This is new building, not a load.
+7. *Flow B is the money loop*, which the calendar builds in week 3.
+   The ask's own clause applies: Flow A does not slip; Flow B ships
+   with it only if it is built and green in time, and otherwise takes
+   week 2's first slot. Tapin pays monthly (record 95) and that rule
+   is not built; B6's "total payable" is the sum a person entered on
+   the chain, never a figure Etyme worked out.

@@ -315,7 +315,21 @@ items with owners and true ages.
 - The rest of the handover's Batch 1 is DISPLACED, not dropped; the
   lead recommends week 3, with the remainder in week 4.
 
-## Phase 6, the finish gate
+**Week 1 by screen (record 107).** Each is NOT RETESTED until the
+tester passes it by number.
+- Flow A, the second firm: A1 sign-in lands on the queue · A2 queue ·
+  A3 item with Approve, Send back, Reject · A4 decision recorded · A5
+  agent control and ledger · A6 record view. IN PROGRESS.
+- Flow B, Tapin: B1 home · B2 consultants · B3 placement and state
+  strip · B4 October chain · B5 December chain · B6 payroll summary ·
+  Tapin's colors. NOT STARTED. It follows Flow A, and slips to week 2's
+  first slot if it is not green in time.
+- Conflicts where the flow won over standing text: seven, listed in
+  record 107 (three buttons; a three-way question; the left column
+  stays; the meter is a count with no price; no dead kill switch;
+  tenant colors are new building; Flow B is week 3's money loop).
+
+
 
 Not met. No batch has been retested.
 
