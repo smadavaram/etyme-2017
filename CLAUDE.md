@@ -437,6 +437,10 @@ Full text → 40, 11, 56, 68, 72.
   invite candidates, they onboard themselves, a contract starts on the
   fewest papers the rules allow, payroll runs in the next cycle. The
   coding block and the party pages wait behind it.
+- **The pending-work list of 2026-11-21 is the order of work** (→ 104):
+  five batches, each built, deployed once, then stopped for the tester's
+  retest in production. Nothing is done until the retest passes. Fix
+  what exists; an item not done in its batch is named, never swapped.
 - **The fix list is worked in layers, each its own deploy** (founder,
   2026-11-15). Tapin first, as the live tenant that runs its whole
   business on Etyme. A layer is built and deployed, the tester retests
@@ -1277,11 +1281,10 @@ answered it. What they settle the lead decides and records. What still
 reaches him is a brief: the choice, what the experts agree on, one
 recommendation.
 
-**Which model does which work** (founder, 2026-11-16 → 82). The lead
-stays on the strongest model. Workers run on the standard model by default, at most three at once,
-each on its own files. Strongest-model workers only for Layer 7 security and the
-model-routing lane tests. Each batch note says which model ran which
-piece; the model names are said in the note to the founder, not in the repository.
+**Which model does which work** (2026-11-21 → 104, replacing 82).
+Workers run on the strongest model at low effort. Schema and money
+work is sequential under the lead. Each batch note says which model ran
+which piece; model names are said to the founder, not in the repository.
 
 Work moves: scout → schema → spec as test names → build → release →
 preview URL. Different domains may run at the same time. Two agents in

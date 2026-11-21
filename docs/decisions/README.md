@@ -119,3 +119,4 @@ built, every release check, every walk and every deploy.
 | 101 | The recruiter's niche, and the record as proof — 2026-11-18 | 320 | [101-the-recruiters-niche-and-the-record-as-proof-2026-11-18.md](101-the-recruiters-niche-and-the-record-as-proof-2026-11-18.md) |
 | 102 | The tester's list of 2026-11-18: what blocks real use | 545 | [102-the-testers-list-of-2026-11-18-what-blocks-real-use.md](102-the-testers-list-of-2026-11-18-what-blocks-real-use.md) |
 | 103 | The owner-approved homepage and three tester fixes shipped — 2026-11-21 | 1146 | [103-the-owner-approved-homepage-and-three-tester-fixes-shipped-2026-11-21.md](103-the-owner-approved-homepage-and-three-tester-fixes-shipped-2026-11-21.md) |
+| 104 | The full pending-work list, handed over — 2026-11-21 | 1079 | [104-the-full-pending-work-list-handed-over-2026-11-21.md](104-the-full-pending-work-list-handed-over-2026-11-21.md) |
