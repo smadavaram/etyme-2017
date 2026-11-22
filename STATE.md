@@ -313,6 +313,22 @@ person. NOT STARTED, with the rest of the money loop (pack batch 3).
   read-only review by several reviewers, each finding checked twice,
   before the release check.
 
+## The sales-ready batch (record 110): IN PROGRESS, 2026-11-22
+
+For Monday morning, when the two operating firms' people start. Order:
+1. Staff sign-in for both tenants: one real test invitation each. A
+   PERSON's step in production. The path is being proven locally.
+2. Tapin's real records on the screens. A PERSON's step. A click path
+   is being written.
+3. The customer and client split (A1). BUILDING.
+4. The public face: four new segment pages, About, legal pages as
+   final, demo data cleaned, the email law. BUILDING. The home page and
+   page analytics are already live in the code; analytics is switched on
+   by a person in the host's settings.
+This is a second Sunday deploy, on the owner's direction. It does not
+go out on a weekday. Second batch after the retest: imports (A4), then
+the stabilization batch.
+
 ## The weekend release contract (record 107)
 
 Thirteen weekend releases, 2026-11-21 to 2027-02-14. One item, one

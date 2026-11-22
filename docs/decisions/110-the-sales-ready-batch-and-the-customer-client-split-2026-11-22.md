@@ -75,3 +75,32 @@ are reported as claims with screen and file names.
 - *The email law* touches the standing rule that no screen says mail
   went unless mail can leave, and it adds a ledger of sends. What cannot
   be built and proven tonight is named, never claimed.
+
+### Correction, the same day: whose teams, and the order
+
+"Sales and marketing teams" means the two operating firms' own people:
+Tapin's and the second firm's. They start on Monday morning, selling
+staffing and working their tenants in Etyme. So the order changes.
+Tenant readiness for the two firms comes first; the public face comes
+second, still by morning.
+
+1. Staff sign-in proven end to end for both tenants: one real test
+   invitation each, the link lands, the tenant is usable.
+2. Tapin's real business on the record: its seven billing consultants,
+   its three customers, and October's payroll.
+3. The customer and client split (A1) moves into the overnight batch.
+   The second firm's 33 loaded companies must classify correctly, payers
+   as customers and worksites as clients, before its people start.
+4. Then the public-face items 1 to 7, unchanged.
+
+The second batch, after the retest: the imports (A4), then the
+stabilization batch.
+
+**The lead's reading.**
+- Items 1 and 2 are done by a person in production. No agent signs in
+  there, sends from there or writes a real record, and no real record
+  enters the repository. The lead's part is that the screens they need
+  work, proven on a local copy, and a click path written for the tester.
+- Item 3 never relabels a row by itself. It gives each engagement its
+  payer and its worksite, shows three groups that sum to the total, and
+  flags every existing row for a person to classify.
