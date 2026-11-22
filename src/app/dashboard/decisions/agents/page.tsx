@@ -3,29 +3,30 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
-import { usePageSection } from '@/components/page-section'
+import { useFirstPageSection } from '@/components/page-section'
 import { PageHead, Panel, ErrorState, LoadingState } from '@/components/ui'
 import { QueueTabs } from '../queue-tabs'
+import { LedgerRows } from '@/components/ui/ledger-rows'
+import { QUEUE_EYEBROW_HREFS } from '@/lib/decision-queue'
 
 /**
  * Agent control (record 107, A5). The six agents, each "Not enabled",
  * its acts today, its meter as a count of actions and its cap "Not set".
  * No switch is drawn: in week 1 there is nothing for one to turn off.
- * Under them the firm's whole ledger, newest first, a page at a time.
+ * Under them the firm's whole ledger, newest first, a page at a time, for
+ * the seats that read it; any other seat reads who does.
  */
 
 interface Data {
   lines: string[]
   agents: { key: string; name: string; state: string; actionsToday: number; meter: string; cap: string }[]
-  ledger: { page: number; pages: number; total: number; rows: { id: string; at: string; summary: string; entityName: string | null; by: string; heldAs: string; href: string }[] }
-}
-
-function when(at: string) {
-  return new Date(at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+  /** Set for a seat that does not read the firm's ledger: who does, in a sentence. */
+  ledgerHidden: string | null
+  ledger: null | { page: number; pages: number; total: number; rows: { id: string; at: string; summary: string; entityName: string | null; by: string; heldAs: string; href: string }[] }
 }
 
 export default function AgentControlPage() {
-  const section = usePageSection('/dashboard/decisions')
+  const section = useFirstPageSection(QUEUE_EYEBROW_HREFS)
   const [page, setPage] = useState(1)
   const [data, setData] = useState<Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -75,33 +76,14 @@ export default function AgentControlPage() {
               </tbody>
             </table>
           </Panel>
+          {data.ledgerHidden && <p className="mt-6 text-[13px] text-etyme-muted">{data.ledgerHidden}</p>}
+          {data.ledger && (
           <div className="mt-6">
             <Panel title="Audit ledger" subtitle={`${data.ledger.total} ${data.ledger.total === 1 ? 'act' : 'acts'} on the record, newest first.`}>
               {data.ledger.rows.length === 0 ? (
                 <p className="text-[13px] text-etyme-muted py-2">Nothing has been done on the record yet.</p>
               ) : (
-                <table className="w-full text-[13px] tabular-nums">
-                  <thead>
-                    <tr className="text-left text-[12px] text-etyme-muted border-b border-etyme-rule">
-                      <th className="py-2 pr-3 font-normal">Time</th>
-                      <th className="py-2 pr-3 font-normal">Action</th>
-                      <th className="py-2 pr-3 font-normal">Entity</th>
-                      <th className="py-2 pr-3 font-normal">Person or agent</th>
-                      <th className="py-2 font-normal">Role held</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.ledger.rows.map((r) => (
-                      <tr key={r.id} className="border-b border-etyme-rule last:border-0 align-top">
-                        <td className="py-2 pr-3 whitespace-nowrap">{when(r.at)}</td>
-                        <td className="py-2 pr-3"><Link href={r.href as any} className="text-etyme-action hover:underline">{r.summary}</Link></td>
-                        <td className="py-2 pr-3">{r.entityName ?? '—'}</td>
-                        <td className="py-2 pr-3">{r.by}</td>
-                        <td className="py-2">{r.heldAs}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <LedgerRows rows={data.ledger.rows} />
               )}
               {data.ledger.pages > 1 && (
                 <div className="mt-3 flex gap-3 items-center text-[13px]">
@@ -112,6 +94,7 @@ export default function AgentControlPage() {
               )}
             </Panel>
           </div>
+          )}
         </>
       )}
     </>

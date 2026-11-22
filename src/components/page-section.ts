@@ -21,3 +21,18 @@ export function usePageSection(href: string): string | null {
   const session = useSession()
   return sectionForReader(sidebarPropsFrom(session), href)
 }
+
+/**
+ * The section of the first of these pages the reader's menu lists: for a
+ * page reached from Today, whose address is the program page at a client
+ * and the dashboard elsewhere (`QUEUE_EYEBROW_HREFS` in lib/decision-queue).
+ */
+export function useFirstPageSection(hrefs: readonly string[]): string | null {
+  const session = useSession()
+  const reader = sidebarPropsFrom(session)
+  for (const href of hrefs) {
+    const s = sectionForReader(reader, href)
+    if (s) return s
+  }
+  return null
+}

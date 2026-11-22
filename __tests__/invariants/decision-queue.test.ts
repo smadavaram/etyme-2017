@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest'
 import {
   mayOpenDecision, maySetHomePage, readOpenAsk, openBody, readDecideAsk, decideBody, agentRows, ageWords,
   ownPageOf, recordViewHref, readHomeAsk, FIRM_AGENTS, VERDICT_BUTTONS, PROOF_TYPES,
+  QUEUE_EYEBROW_HREFS, ledgerBeganSays, readNeeds,
 } from '@/lib/decision-queue'
+import { sectionOfHref } from '@/lib/page-framing'
+import { ledgerWhen } from '@/components/ui/ledger-rows'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { sidebarPropsFrom, deskOf } from '@/components/shell/sidebar-props'
 
 /** Record 107, Flow A: the decision queue's rules, without a database. */
@@ -112,5 +117,38 @@ describe('the session carries the firm’s home setting to the menu', () => {
     const session = { ...base, company: { id: 'c', name: 'MSP', slug: 'm', kind: 'MSP' as const, homePage: 'DECISIONS' as const }, seat: { clientId: 'k', clientName: 'Client', roleName: null, permissions: ['*'] } }
     expect(sidebarPropsFrom(session as any).homePage).toBeNull()
     expect(deskOf(session as any).homePage).toBeNull()
+  })
+})
+
+describe('how the queue’s pages are framed and drawn (the walk of Flow A)', () => {
+  const src = (f: string) => readFileSync(join(process.cwd(), f), 'utf8')
+  const pages = ['src/app/dashboard/decisions/page.tsx', 'src/app/dashboard/decisions/[id]/page.tsx', 'src/app/dashboard/decisions/agents/page.tsx', 'src/app/dashboard/records/[type]/[id]/page.tsx']
+
+  it('the queue, an item, agent control and the record view are headed Today, the page they are reached from', () => {
+    for (const kind of ['VENDOR', 'CLIENT', 'GSI', 'MSP'] as const) {
+      expect(QUEUE_EYEBROW_HREFS.map((h) => sectionOfHref(kind, h)).find(Boolean), kind).toBe('Today')
+    }
+    for (const f of pages) expect(src(f), f).toMatch(/useFirstPageSection\(QUEUE_EYEBROW_HREFS\)/)
+  })
+
+  it('at phone width a ledger row stacks as lines, so no column is cut off', () => {
+    const rows = src('src/components/ui/ledger-rows.tsx')
+    expect(rows).toMatch(/hidden sm:table/)
+    expect(rows).toMatch(/<ul className="sm:hidden/)
+    for (const f of [pages[2], pages[3]]) expect(src(f), f).toMatch(/<LedgerRows /)
+  })
+
+  it('an item’s history says the time of each act, not only the day', () => {
+    expect(ledgerWhen('2026-11-21T15:04:00Z')).toMatch(/\d{1,2}:\d{2}\s?[AP]M/)
+    expect(src(pages[1])).toMatch(/\{when\(r\.at\)\}/)
+  })
+
+  it('a record with no ledger rows says when the firm’s ledger began, or that it starts with the next act', () => {
+    expect(ledgerBeganSays(null)).toBe('The ledger starts with the next act on this record.')
+    expect(ledgerBeganSays(new Date('2026-11-21T10:00:00Z'))).toMatch(/^Your firm’s ledger began on November 21, 2026/)
+  })
+
+  it('a record view asks for the permission its own list asks for', () => {
+    expect([readNeeds('SellContract'), readNeeds('Person'), readNeeds('Invoice'), readNeeds('Company')]).toEqual(['assignments.read', 'consultants.read', 'invoices.read', null])
   })
 })

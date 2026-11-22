@@ -45,9 +45,24 @@ export function isRecordType(t: unknown): t is RecordType {
   return typeof t === 'string' && (RECORD_TYPES as readonly string[]).includes(t)
 }
 
-/** The permission a seat holds to read a record of this type, where one is needed beyond its seat. */
-export function readNeeds(type: RecordType): 'invoices.read' | null {
-  return type === 'Invoice' || type === 'VendorBill' ? 'invoices.read' : null
+/**
+ * The permission a seat holds to read a record of this type, where one is
+ * needed beyond a working seat: the one its own list asks for. A decision
+ * is read by the proof rule (`mayReadProof` in lib/decision-items). Pure.
+ */
+export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | null {
+  if (type === 'Invoice' || type === 'VendorBill') return 'invoices.read'
+  if (type === 'SellContract') return 'assignments.read'
+  if (type === 'Person') return 'consultants.read'
+  return null
+}
+
+/** What a seat that does not hold `readNeeds(type)` reads, in a sentence. Pure. */
+export function cannotReadSays(type: RecordType): string {
+  if (type === 'Invoice' || type === 'VendorBill') return 'Your seat cannot read bills or invoice receipts.'
+  if (type === 'SellContract') return 'Your seat cannot read contracts.'
+  if (type === 'Person') return 'Your seat cannot read people’s records.'
+  return 'Your seat cannot read this record.'
 }
 
 /** The record's own page, where it already has one. Pure. */
@@ -65,6 +80,25 @@ export function ownPageOf(type: RecordType, id: string): { href: string; words: 
 /** Where the record view for one record is. Pure. */
 export function recordViewHref(type: string, id: string): string {
   return `/dashboard/records/${encodeURIComponent(type)}/${encodeURIComponent(id)}`
+}
+
+/**
+ * The decision queue, an item, agent control and the record view are
+ * reached from Today, so their eyebrow is Today's: the page the tab row
+ * marks (lib/page-framing reads it off the reader's own menu). Today is
+ * the program page at a client and the dashboard elsewhere.
+ */
+export const QUEUE_EYEBROW_HREFS = ['/dashboard', '/dashboard/program'] as const
+
+/**
+ * What a record view with no ledger rows says: the ledger began on the
+ * day of the firm's first row, so older work is on the record's own page;
+ * or, at a firm with none yet, it starts with the next act. Pure.
+ */
+export function ledgerBeganSays(firstRowAt: Date | null): string {
+  if (!firstRowAt) return 'The ledger starts with the next act on this record.'
+  const d = firstRowAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  return `Your firm’s ledger began on ${d}, and nothing has been done on this record through it since. Its earlier history is on its own page.`
 }
 
 export const NOT_ON_YOUR_BOOK = 'That record is not on your firm’s book, so it cannot be opened here.'
@@ -196,6 +230,9 @@ export const BASELINE_LINES = {
   billing: 'Consultants billing: baseline pending',
   margin: 'Blended margin an hour: baseline pending',
 } as const
+
+/** What a seat that does not read the firm's ledger reads in its place. */
+export const LEDGER_IS_FOR = 'The firm’s ledger is read by its Owner and Admins, and by a seat that reads the activity log.'
 
 /** Each agent's row: its state, today's count of its acts, and its cap. Pure. */
 export function agentRows(counts: readonly { agentKey: string | null; count: number }[]) {

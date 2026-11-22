@@ -131,4 +131,24 @@ describe('the money chain, on the database', () => {
     expect(p.history.map((h) => h.chain.source)).toEqual(['October payroll sheet'])
     expect(p.history[0].ledger).toHaveLength(7)
   })
+
+  it('a chain is never disputed without its decision, and a decision never opened without its disputed chain', async () => {
+    const nov = { start: new Date('2026-11-01'), end: new Date('2026-11-30') }
+    const c = await openChain({ ...clerk(), sellContractId: w.cyLine.id, periodStart: nov.start, periodEnd: nov.end })
+    await advanceChain({ ...clerk(), chainId: c.id, to: 'TIMESHEET_RECEIVED', stated: usd(800000), disputeOwnerPersonId: w.owner.id })
+    await advanceChain({ ...clerk(), chainId: c.id, to: 'RECONCILED', disputeOwnerPersonId: w.owner.id })
+    // A dispute owed by somebody on the bench cannot open its decision, so the chain does not move either.
+    const bench = await person('Bo Bench')
+    await prisma.context.create({ data: { personId: bench.id, companyId: w.firm.id, type: 'CONSULTANT' } as any })
+    await expect(advanceChain({ ...clerk(), chainId: c.id, to: 'INVOICED', stated: usd(790000), disputeOwnerPersonId: bench.id })).rejects.toThrow(/working seat/)
+    const still = await prisma.moneyChain.findUniqueOrThrow({ where: { id: c.id } })
+    expect([still.state, still.invoicedAmountCents, still.disputeDecisionId]).toEqual(['RECONCILED', null, null])
+    const linked = async () => (await prisma.decisionItem.findMany({ where: { companyId: w.firm.id } })).filter((d) => (d.proofLinks as any[]).some((l) => l.recordId === c.id))
+    expect(await linked()).toHaveLength(0)
+    // Owed by a working seat, the dispute and its decision are written together.
+    const d = await advanceChain({ ...clerk(), chainId: c.id, to: 'INVOICED', stated: usd(790000), disputeOwnerPersonId: w.owner.id })
+    const items = await linked()
+    expect(items.map((i) => i.id)).toEqual([d.disputeDecisionId])
+    expect(d.state).toBe('DISPUTED')
+  })
 })

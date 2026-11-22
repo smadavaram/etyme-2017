@@ -375,8 +375,10 @@ export function pinnedOn(sections: readonly NavSection[]): NavItem[] {
  * click from the chat.
  */
 export function landingFor(reader: Reader & { seatedAtClient?: string | null; region?: string | null }): string {
-  // A firm that chose the decision queue as home lands its working seats there (→ 107).
-  if (reader.homePage === 'DECISIONS') {
+  // A firm that chose the decision queue as home lands its working seats there (→ 107),
+  // except a seat the queue would refuse: one that reads a single region,
+  // which lands where it always did (Ask Etyme, narrowed to its region).
+  if (reader.homePage === 'DECISIONS' && !reader.region) {
     const home = consoleHome(reader).href
     if (home === DECISIONS_HOME) return home
   }
@@ -1075,6 +1077,12 @@ export type SeatFacts = {
  * seat it always answered.
  */
 export type Hat = 'firm' | 'you'
+
+/**
+ * The door every sign-in passes, which reads the seat's own firm's home
+ * setting (`deskHome`); a seat switch and a password set land through it.
+ */
+export const START_HREF = '/start'
 
 /**
  * The cookie that remembers the hat on this device: `firm` or `you`,

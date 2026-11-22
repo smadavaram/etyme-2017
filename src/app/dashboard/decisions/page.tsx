@@ -1,6 +1,6 @@
 'use client'
 
-import { usePageSection } from '@/components/page-section'
+import { useFirstPageSection } from '@/components/page-section'
 import { useEffect, useState, useCallback } from 'react'
 import { DecideOvertime, type PendingWeek } from '../timesheets/decide-overtime'
 import Link from 'next/link'
@@ -9,6 +9,7 @@ import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
 import { chipsFor, emptyBook, decisionsAddress, type TypeFilter } from './chips'
 import { DecisionQueue } from './queue'
+import { QUEUE_EYEBROW_HREFS } from '@/lib/decision-queue'
 import { QueueTabs } from './queue-tabs'
 import { PageHead, Stat, FilterChips, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
 
@@ -80,6 +81,7 @@ function typeIcon(type: string): string {
     TWIN_QUESTION:      '✦',
     START_HELD:         '■',
     NO_AGREEMENT:       '§',
+    DECISION_ITEM:      '◆',
   }
   return map[type] ?? '●'
 }
@@ -104,6 +106,7 @@ function typeLabel(type: string): string {
     START_HELD:         'Start held',
     NO_AGREEMENT:       'No agreement',
     OWNER_ASK:          'Owner ask',
+    DECISION_ITEM:      'Decision',
   }
   return map[type] ?? type
 }
@@ -151,7 +154,7 @@ function timeAgo(dateStr: string): string {
 
 /** The twin's and the workflow's cards, unchanged, in their own section under the queue. */
 function NeedsAttention() {
-  const section = usePageSection('/dashboard/decisions')
+  const section = useFirstPageSection(QUEUE_EYEBROW_HREFS)
   const session = useSession()
   const [decisions, setDecisions] = useState<Decision[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -646,7 +649,7 @@ function NeedsAttention() {
  * decisions oldest first, then the cards above, as they were.
  */
 export default function DecisionsPage() {
-  const section = usePageSection('/dashboard/decisions')
+  const section = useFirstPageSection(QUEUE_EYEBROW_HREFS)
   return (
     <>
       <PageHead eyebrow={section} title="Decisions" subtitle="What the firm owes a decision on, oldest first. Open one to approve it, send it back or reject it." />

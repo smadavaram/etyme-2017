@@ -52,6 +52,7 @@ import { regionContracts } from '@/lib/region-scope'
 import { claimSays, currencyOfExpense, LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
 import { asksAddressedTo } from '@/lib/owner-asks'
 import { pageAskDecisions } from '@/lib/page-asks'
+import { decisionItemCards } from '@/lib/decision-items'
 import { ownerAskRow } from './owner-ask'
 import type { AskerAfter } from '@/lib/owner-rules'
 
@@ -1357,6 +1358,10 @@ export async function GET(request: NextRequest) {
   // A question asked on the firm's public page that nobody has taken
   // (decisions 102, item 1). One card each, so it counts in the number.
   decisions.push(...(await pageAskDecisions(caller)))
+  // An open decision item this seat owes (record 107, A2). One card each,
+  // linking to the item's page where its three buttons are, so the mark,
+  // the greeting, Today and Needs attention count it.
+  decisions.push(...(await decisionItemCards(caller)))
 
   decisions.sort((a, b) => {
     const urgDiff = (urgencyOrder[a.urgency] ?? 3) - (urgencyOrder[b.urgency] ?? 3)

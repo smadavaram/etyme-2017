@@ -21,7 +21,7 @@
 import type { MoneyChain, MoneyChainState } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { writeRecordAction, recordTimeline, LedgerRefusal } from '@/lib/record-ledger'
-import { openDecision } from '@/lib/decision-items'
+import { openDecision, firmToday } from '@/lib/decision-items'
 import { money } from '@/lib/order'
 import { formatDay } from '@/lib/format-date'
 
@@ -250,15 +250,18 @@ export async function advanceChain(input: Stamp & {
   const found = mismatch(amounts)
 
   if (found) {
-    const decision = await openDecision({
-      ...stampOf(input),
-      question: `${chain.person.name}, ${periodWords(chain)}: the amounts do not agree. Which amount is right?`,
-      ownerPersonId: input.disputeOwnerPersonId,
-      openedOn: new Date(),
-      proof: found,
-      proofLinks: [{ recordType: CHAIN_RECORD, recordId: chain.id }],
-    })
+    // The dispute and its decision are one write: a chain is never
+    // disputed without its decision, and a decision never opened without
+    // its disputed chain.
     return prisma.$transaction(async (tx) => {
+      const decision = await openDecision({
+        ...stampOf(input),
+        question: `${chain.person.name}, ${periodWords(chain)}: the amounts do not agree. Which amount is right?`,
+        ownerPersonId: input.disputeOwnerPersonId,
+        openedOn: await firmToday(input.companyId, new Date(), tx),
+        proof: found,
+        proofLinks: [{ recordType: CHAIN_RECORD, recordId: chain.id }],
+      }, undefined, tx)
       const moved = await tx.moneyChain.updateMany({
         where: { id: chain.id, state: chain.state },
         data: { state: 'DISPUTED', stateBeforeDispute: chain.state, disputeDecisionId: decision.id, ...(kind ? columns(kind, stated) : {}) },

@@ -11077,7 +11077,8 @@ model RecordAction {
   action         String
   summary        String
   actingEntityId String?
-  actingEntity   LegalEntity? @relation(fields: [actingEntityId], references: [id])
+  /// NoAction: an entity with ledger rows is never deleted, so the stamp is never blanked; a company's own cascade still removes both.
+  actingEntity   LegalEntity? @relation(fields: [actingEntityId], references: [id], onDelete: NoAction)
   personId       String
   person         Person       @relation(fields: [personId], references: [id])
   heldAs         String
@@ -11111,7 +11112,7 @@ model DecisionItem {
   ownerPerson        Person        @relation("decisionOwner", fields: [ownerPersonId], references: [id])
   /// The legal entity it was opened for; same rule as the ledger.
   actingEntityId     String?
-  actingEntity       LegalEntity?  @relation(fields: [actingEntityId], references: [id])
+  actingEntity       LegalEntity?  @relation(fields: [actingEntityId], references: [id], onDelete: NoAction)
   openedOn           DateTime      @db.Date
   proof              String
   /// The records the proof points at: [{ recordType, recordId }].
@@ -11166,7 +11167,7 @@ model MoneyChain {
   source               String?
   asOf                 DateTime?       @db.Date
   actingEntityId       String?
-  actingEntity         LegalEntity?    @relation(fields: [actingEntityId], references: [id])
+  actingEntity         LegalEntity?    @relation(fields: [actingEntityId], references: [id], onDelete: NoAction)
   disputeDecisionId    String?
   disputeDecision      DecisionItem?   @relation(fields: [disputeDecisionId], references: [id])
   createdAt            DateTime        @default(now())

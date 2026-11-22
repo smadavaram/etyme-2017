@@ -4,11 +4,11 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
-import { usePageSection } from '@/components/page-section'
+import { useFirstPageSection } from '@/components/page-section'
 import { PageHead, Panel, ErrorState, LoadingState } from '@/components/ui'
 import { Field, Input, Select, FormMessage } from '@/components/ui/form'
-import { VERDICT_BUTTONS, ageWords, decideBody, stateWords, type VerdictWord } from '@/lib/decision-queue'
-import { formatDay } from '@/lib/format-date'
+import { VERDICT_BUTTONS, QUEUE_EYEBROW_HREFS, ageWords, decideBody, stateWords, type VerdictWord } from '@/lib/decision-queue'
+import { ledgerWhen } from '@/components/ui/ledger-rows'
 
 /**
  * One decision (record 107, A3 and A4). The question on top, the proof
@@ -21,7 +21,9 @@ import { formatDay } from '@/lib/format-date'
 interface Item {
   id: string
   question: string
-  proof: string
+  proof: string | null
+  /** Set for a seat that does not read the proof: who does, in a sentence. */
+  proofHidden: string | null
   proofLinks: { recordType: string; recordId: string; label: string; name: string | null; href: string }[]
   state: string
   ownerName: string
@@ -35,12 +37,10 @@ interface Item {
   entities: { id: string; name: string }[]
 }
 
-function when(at: string) {
-  return new Date(at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
-}
+const when = ledgerWhen
 
 export default function DecisionItemPage() {
-  const section = usePageSection('/dashboard/decisions')
+  const section = useFirstPageSection(QUEUE_EYEBROW_HREFS)
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [item, setItem] = useState<Item | null>(null)
@@ -89,7 +89,8 @@ export default function DecisionItemPage() {
       />
 
       <Panel title="Proof">
-        <p className="text-[14px] text-etyme-ink whitespace-pre-line">{item.proof}</p>
+        {item.proofHidden && <p className="text-[14px] text-etyme-muted">{item.proofHidden}</p>}
+        {item.proof && <p className="text-[14px] text-etyme-ink whitespace-pre-line">{item.proof}</p>}
         {item.proofLinks.length > 0 && (
           <ul className="mt-3 text-[14px]">
             {item.proofLinks.map((l) => (
@@ -149,18 +150,18 @@ export default function DecisionItemPage() {
         <p className="mt-5 text-[14px] text-etyme-muted">Only {item.ownerName}, or the firm’s Owner or an Admin, decides this.</p>
       )}
 
-      <div className="mt-8">
+      {!item.proofHidden && <div className="mt-8">
         <Panel title="History">
           <ul className="text-[13px]">
             {item.timeline.map((r) => (
               <li key={r.id} className="py-1 border-b border-etyme-rule last:border-0">
-                <span className="tabular-nums text-etyme-muted">{formatDay(r.at)}</span> · {r.summary} · {r.personName}, {r.heldAs}{r.entityName ? `, for ${r.entityName}` : ''}
+                <span className="tabular-nums text-etyme-muted">{when(r.at)}</span> · {r.summary} · {r.personName}, {r.heldAs}{r.entityName ? `, for ${r.entityName}` : ''}
               </li>
             ))}
           </ul>
           <p className="mt-2 text-[13px]"><Link href={`/dashboard/records/DecisionItem/${item.id}` as any} className="text-etyme-action hover:underline">Open the record view</Link></p>
         </Panel>
-      </div>
+      </div>}
     </>
   )
 }

@@ -794,6 +794,8 @@ export async function POST(request: NextRequest) {
     landing: consoleHome({
       kind: (caller.company.kind ?? null) as CompanyKind | null,
       permissions: role.permissions,
+      // The firm's own home setting (→ 107), so the link opens where she lands.
+      homePage: (await prisma.company.findUnique({ where: { id: caller.company.id }, select: { homePage: true } }))?.homePage === 'DECISIONS' ? 'DECISIONS' : null,
     }).href,
   })
   void notify({

@@ -54,7 +54,7 @@ describe('the record ledger and decision items, on the database', () => {
     const ten = new Date(Date.now() - 10 * 86_400_000)
     w.newer = await openDecision({ ...stamp(), personId: w.am.id, heldAs: 'Accounts', question: 'Hold the supplier’s pay until the paper arrives?', ownerPersonId: w.owner.id, openedOn: new Date(Date.now() - 2 * 86_400_000), proof: 'Agreed by phone, not recorded yet.' })
     w.older = await openDecision({ ...stamp(), personId: w.am.id, heldAs: 'Accounts', question: 'Approve the rate change?', ownerPersonId: w.am.id, openedOn: ten, proof: 'Rate letter', proofLinks: [{ recordType: 'Company', recordId: w.firm.id }, { recordType: 'LegalEntity', recordId: w.entity.id }] })
-    const list = await listDecisions(w.firm.id, today)
+    const list = await listDecisions(w.firm.id, { now: today })
     expect(list.map((d) => d.id)).toEqual([w.older.id, w.newer.id])
     expect(list[0]).toMatchObject({ ownerName: 'Ravi Accounts', entityName: 'Ledger Firm LLC', ageDays: 10, state: 'OPEN' })
     expect(list[0].proofLinks).toHaveLength(2)
@@ -95,5 +95,15 @@ describe('the record ledger and decision items, on the database', () => {
       ['SENT_BACK', 'Ravi Accounts', 'Accounts', w.entity.id],
       ['REJECTED', 'Dana Owner', 'Owner', w.entity.id],
     ])
+  })
+
+  it('a legal entity with ledger rows or decisions is never deleted, so no stamp is blanked, and removing the whole company still removes both', async () => {
+    await expect(prisma.legalEntity.delete({ where: { id: w.entity.id } })).rejects.toThrow()
+    expect(await prisma.recordAction.count({ where: { actingEntityId: w.entity.id } })).toBeGreaterThan(0)
+    const gone = await prisma.company.create({ data: { name: `Gone Firm ${tag}`, slug: `gone-firm-${tag}`, kind: 'VENDOR' } })
+    const e = await prisma.legalEntity.create({ data: { companyId: gone.id, name: 'Gone Firm LLC', country: 'US', currency: 'USD' } })
+    await writeRecordAction(prisma, { companyId: gone.id, actingEntityId: e.id, recordType: 'Company', recordId: gone.id, action: 'NOTED', summary: 'Noted.', personId: w.am.id, heldAs: 'Accounts' })
+    await prisma.company.delete({ where: { id: gone.id } })
+    expect(await prisma.recordAction.count({ where: { companyId: gone.id } })).toBe(0)
   })
 })

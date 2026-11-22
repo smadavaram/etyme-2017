@@ -474,6 +474,13 @@ export async function DELETE(
         submissions: { none: {} },
         timesheets: { none: {} },
         sellContracts: { none: {} },
+        // A decision she owes, or any act on the record ledger, keeps the
+        // person row: those rows name her and are never rewritten (→ 107).
+        decisionsOwed: { none: {} },
+        decisionsMade: { none: {} },
+        decisionsSentBack: { none: {} },
+        recordActions: { none: {} },
+        moneyChains: { none: {} },
       },
     })
     return gone.count > 0

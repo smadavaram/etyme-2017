@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { recordTimeline } from '@/lib/record-ledger'
-import { DECISION_RECORD, ageInDays, decideDecision, mayDecide, type ProofLink } from '@/lib/decision-items'
+import { DECISION_RECORD, ageOf, firmZone, todayIn, decideDecision, mayDecide, mayReadProof, proofIsFor, type ProofLink } from '@/lib/decision-items'
 import { PROOF_TYPES, isRecordType, readDecideAsk, recordViewHref } from '@/lib/decision-queue'
 import { findOnBook } from '@/app/api/records/lookup'
 import { queueSeat, refused, refusalOf, logRefusal } from '../door'
@@ -32,6 +32,24 @@ export async function GET(request: NextRequest, { params }: Params) {
     await logRefusal(seat, { companyId: other?.companyId ?? seat.companyId }, `Refused a decision that is not on ${seat.caller.company!.name}’s queue (${id}).`)
     return refused(404, NOT_HERE)
   }
+  const zone = await firmZone(seat.companyId)
+  const ageDays = ageOf(item, todayIn(zone), zone)
+  const mayAct = item.state === 'OPEN' && mayDecide({ ownerPersonId: item.ownerPersonId, deciderPersonId: seat.personId, deciderRoleNames: [seat.roleName] }) === null
+  const actedBy = (await prisma.recordAction.findMany({
+    where: { companyId: seat.companyId, recordType: DECISION_RECORD, recordId: item.id, action: { in: ['SENT_BACK', 'APPROVED', 'REJECTED'] } },
+    select: { personId: true },
+  })).map((r) => r.personId)
+  if (!mayReadProof({ ownerPersonId: item.ownerPersonId, readerPersonId: seat.personId, readerRoleNames: [seat.roleName], actedBy })) {
+    // Another seat at the firm reads the question and who may read the proof; nothing else.
+    return NextResponse.json({
+      data: {
+        id: item.id, question: item.question, state: item.state, ownerName: item.ownerPerson.name,
+        entityName: item.actingEntity?.name ?? null, openedOn: item.openedOn, ageDays,
+        proofHidden: proofIsFor(item.ownerPerson.name), proof: null, proofLinks: [], timeline: [], decision: null,
+        sentBackReason: null, sentBackBy: null, sentBackAt: null, verdictNote: null, mayAct: false, entities: seat.entities,
+      },
+    })
+  }
   const links = ((item.proofLinks ?? []) as unknown as ProofLink[])
   const proofLinks = await Promise.all(links.map(async (l) => {
     const label = PROOF_TYPES.find((p) => p.type === l.recordType)?.label ?? 'A record'
@@ -42,12 +60,11 @@ export async function GET(request: NextRequest, { params }: Params) {
     id: r.id, action: r.action, summary: r.summary, at: r.createdAt, personName: r.person.name, entityName: r.actingEntity?.name ?? null, heldAs: r.heldAs,
   }))
   const closing = [...timeline].reverse().find((r) => r.action === 'APPROVED' || r.action === 'REJECTED') ?? null
-  const mayAct = item.state === 'OPEN' && mayDecide({ ownerPersonId: item.ownerPersonId, deciderPersonId: seat.personId, deciderRoleNames: [seat.roleName] }) === null
   return NextResponse.json({
     data: {
       id: item.id, question: item.question, proof: item.proof, proofLinks, state: item.state,
       ownerName: item.ownerPerson.name, entityName: item.actingEntity?.name ?? null,
-      openedOn: item.openedOn, ageDays: ageInDays(item.openedOn),
+      openedOn: item.openedOn, ageDays, proofHidden: null,
       sentBackReason: item.sentBackReason, sentBackBy: item.sentBackBy?.name ?? null, sentBackAt: item.sentBackAt,
       verdictNote: item.verdictNote,
       decision: closing ? { verdict: item.state, personName: closing.personName, entityName: closing.entityName, heldAs: closing.heldAs, at: closing.at, reason: item.verdictNote } : null,

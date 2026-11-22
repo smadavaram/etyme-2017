@@ -117,7 +117,8 @@ export function sidebarPropsFrom(
     region: session.region ?? null,
     hat: session.hat ?? null,
     earnsCommission: Boolean(session.earnsCommission),
-    homePage: session.seat ? null : session.company?.homePage ?? null,
+    // A seat that reads one region keeps its own home: the queue reads every region.
+    homePage: session.seat || session.region ? null : session.company?.homePage ?? null,
     pending: false,
   }
 }
@@ -190,7 +191,8 @@ export function deskOf(
     region: session.region ?? null,
     hat: session.hat ?? null,
     roleName: seat ? seat.roleName : (session.roleName ?? null),
-    homePage: seat ? null : session.company?.homePage ?? null,
+    // A seat that reads one region keeps its own home: the queue reads every region.
+    homePage: seat || session.region ? null : session.company?.homePage ?? null,
   }
 }
 

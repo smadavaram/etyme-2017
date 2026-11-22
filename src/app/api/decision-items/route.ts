@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
-import { listDecisions, openDecision } from '@/lib/decision-items'
-import { PROOF_TYPES, mayOpenDecision, readNeeds, readOpenAsk } from '@/lib/decision-queue'
+import { listDecisions, openDecision, ownersOnOffer } from '@/lib/decision-items'
+import { PROOF_TYPES, mayOpenDecision, readNeeds, readOpenAsk, cannotReadSays } from '@/lib/decision-queue'
 import { findOnBook } from '@/app/api/records/lookup'
 import { queueSeat, refused, refusalOf } from './door'
 
@@ -18,21 +17,16 @@ export async function GET(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
   const decided = request.nextUrl.searchParams.get('state') === 'decided'
-  const all = await listDecisions(seat.companyId)
-  const items = all
-    .filter((d) => (decided ? d.state !== 'OPEN' : d.state === 'OPEN'))
+  // Every working seat reads the rows; the proof is read on the item's page, by those it is for.
+  const items = (await listDecisions(seat.companyId, { state: decided ? 'decided' : 'open' }))
     .map((d) => ({
       id: d.id, question: d.question, ownerName: d.ownerName, entityName: d.entityName, ageDays: d.ageDays,
       openedOn: d.openedOn, state: d.state, sentBackReason: d.sentBackReason, sentBackBy: d.sentBackBy?.name ?? null,
       decidedBy: d.decidedBy?.name ?? null, decidedAt: d.decidedAt,
     }))
   const mayOpen = mayOpenDecision(seat.roleName) === null
-  const people = mayOpen
-    ? await prisma.person.findMany({
-        where: { contexts: { some: { companyId: seat.companyId, revokedAt: null } } },
-        select: { id: true, name: true }, orderBy: { name: 'asc' },
-      })
-    : []
+  // Exactly the people openDecision accepts as owner: a working seat at this firm.
+  const people = mayOpen ? await ownersOnOffer(seat.companyId) : []
   return NextResponse.json({
     data: {
       items, mayOpen, people, entities: seat.entities,
@@ -51,7 +45,7 @@ export async function POST(request: NextRequest) {
   // Every proof link is to a record on this firm's own book, and one this seat may read.
   for (const l of read.ask.proofLinks) {
     const needs = readNeeds(l.recordType)
-    if (needs && !hasPermission(seat.caller.permissions, needs)) return refused(403, 'Your seat cannot read bills or invoice receipts, so it cannot link one as proof.', 'proofLinks')
+    if (needs && !hasPermission(seat.caller.permissions, needs)) return refused(403, `${cannotReadSays(l.recordType)} So it cannot link one as proof.`, 'proofLinks')
     if (!(await findOnBook(seat.companyId, l.recordType, l.recordId))) return refused(422, 'A proof link points at a record that is not on your firm’s book. Choose one from the list.', 'proofLinks')
   }
   try {

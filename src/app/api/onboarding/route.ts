@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { REGION_UNIT_KIND } from '@/lib/region-scope'
 import { emit } from '@/lib/events'
-import { getSessionIdentity } from '@/lib/api-context'
+import { getSessionIdentity, getCallerContext } from '@/lib/api-context'
 import { checkDoor } from '@/lib/identity/read'
 import {
   typeByKey, slugFromDomain, guessCompanyName, COMPANY_TYPES,
@@ -95,7 +95,13 @@ export async function GET(request: NextRequest) {
   if (person && person.contexts.some(c => c.companyId)) {
     // A seat of their own before a bench that lists them: a candidate who
     // became a one-person firm is at her firm, not at the bench (item 21).
-    const c = person.contexts.find(x => x.companyId && x.type !== 'CONSULTANT') ?? person.contexts.find(x => x.companyId)!
+    // The seat this session opens (the account menu's pinned seat, else the
+    // caller check's default), so the home setting, kind and role read off
+    // the firm she is opening. Only where the caller check names none does
+    // the first firm seat stand in.
+    const { caller } = await getCallerContext(request, { narrowsToRegion: true })
+    const c = (caller ? person.contexts.find(x => x.id === caller.context.id && x.companyId) : undefined)
+      ?? person.contexts.find(x => x.companyId && x.type !== 'CONSULTANT') ?? person.contexts.find(x => x.companyId)!
     // The seat they hold, so /start can open their own desk rather than an
     // empty dashboard, and whether the company's setup is theirs to finish.
     const role = c.roleId

@@ -120,3 +120,49 @@ export async function recordsOnBook(companyId: string, type: ProofType, q: strin
     }
   }
 }
+
+export interface Fact { label: string; value: string }
+
+const day = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : null)
+
+/**
+ * A record's own key fields, drawn above its history on the record view
+ * (A6): its name, the parties and its dates. Read only after `findOnBook`
+ * found it on the firm's book. Days are calendar days (YYYY-MM-DD); the
+ * screen writes them out.
+ */
+export async function factsOf(type: RecordType, id: string): Promise<Fact[]> {
+  const f = (label: string, value: string | null | undefined): Fact[] => (value ? [{ label, value }] : [])
+  switch (type) {
+    case 'Company': {
+      const r = await prisma.company.findUnique({ where: { id }, select: { name: true, createdAt: true } })
+      return r ? [...f('Name', r.name), ...f('On Etyme since', day(r.createdAt))] : []
+    }
+    case 'Person': {
+      const r = await prisma.person.findUnique({ where: { id }, select: { name: true } })
+      return r ? f('Name', r.name) : []
+    }
+    case 'SellContract': {
+      const r = await prisma.sellContract.findUnique({
+        where: { id },
+        select: { state: true, startDate: true, endDate: true, person: { select: { name: true } }, company: { select: { name: true } }, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+      })
+      return r ? [
+        ...f('Consultant', r.person.name), ...f('Supplier', r.company.name), ...f('Client', r.clientCompany.name),
+        ...f('Works at', r.endClientCompany?.name), ...f('Starts', day(r.startDate)), ...f('Ends', day(r.endDate)),
+      ] : []
+    }
+    case 'VendorBill': {
+      const r = await prisma.vendorBill.findUnique({ where: { id }, select: { number: true, receivedAt: true, dueAt: true, vendorCompany: { select: { name: true } } } })
+      return r ? [...f('Their number', r.number), ...f('From', r.vendorCompany.name), ...f('Received', day(r.receivedAt)), ...f('Due', day(r.dueAt))] : []
+    }
+    case 'Invoice': {
+      const r = await prisma.invoice.findUnique({ where: { id }, select: { number: true, issuedAt: true, dueAt: true } })
+      return r ? [...f('Number', r.number), ...f('Sent', day(r.issuedAt)), ...f('Due', day(r.dueAt))] : []
+    }
+    case 'DecisionItem': {
+      const r = await prisma.decisionItem.findUnique({ where: { id }, select: { question: true, openedOn: true, state: true, ownerPerson: { select: { name: true } } } })
+      return r ? [...f('Question', r.question), ...f('Owed by', r.ownerPerson.name), ...f('Opened', day(r.openedOn))] : []
+    }
+  }
+}

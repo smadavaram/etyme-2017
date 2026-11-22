@@ -14,8 +14,13 @@ import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor, demoVisit } from '@/l
 import { countDemoStarted } from '@/lib/events'
 import { CANDIDATE_SEATS } from '@/app/demo/seats'
 import { workerRows, doorsFrom } from '@/app/demo/worker-doors'
-import { consoleHome } from '@/lib/console-home'
+import { consoleHome, DECISIONS_HOME } from '@/lib/console-home'
 import { landingFor, ASK_ETYME_HREF, BY_REGION_HREF } from '@/lib/nav-table'
+
+/** A firm's home setting as landingFor reads it (→ 107). */
+function homeSetting(c: { homePage?: string | null } | null | undefined): 'DECISIONS' | null {
+  return c?.homePage === 'DECISIONS' ? 'DECISIONS' : null
+}
 import { seatsHeldBy } from '@/lib/program-seat'
 import { companyPolicy } from '@/lib/identity/read'
 import { directoryOnlySays } from '@/lib/identity/policy'
@@ -287,7 +292,7 @@ export async function POST(request: NextRequest) {
           id: true, name: true,
           contexts: {
             where: { revokedAt: null, suspendedAt: null },
-            select: { type: true, company: { select: { id: true, name: true, kind: true } }, role: { select: { permissions: true } } },
+            select: { type: true, company: { select: { id: true, name: true, kind: true, homePage: true } }, role: { select: { permissions: true } } },
             orderBy: { grantedAt: 'desc' },
             take: 1,
           },
@@ -337,6 +342,7 @@ export async function POST(request: NextRequest) {
           // A person seat is always somebody the work is about.
           worker: true,
           permissions: seated.contexts[0].role?.permissions ?? [],
+          homePage: homeSetting(seated.contexts[0].company),
         }),
       },
     })
@@ -382,7 +388,7 @@ export async function POST(request: NextRequest) {
         primaryEmail: true,
         contexts: {
           where: { revokedAt: null, suspendedAt: null },
-          select: { type: true, company: { select: { id: true, name: true, kind: true } }, role: { select: { permissions: true } } },
+          select: { type: true, company: { select: { id: true, name: true, kind: true, homePage: true } }, role: { select: { permissions: true } } },
           orderBy: { grantedAt: 'desc' },
           take: 1,
         },
@@ -411,6 +417,7 @@ export async function POST(request: NextRequest) {
           isConsultant: !seat || seat.type === 'CONSULTANT',
           worker: true,
           permissions: seat?.role?.permissions ?? [],
+          homePage: homeSetting(seat?.company),
         }),
       },
     })
@@ -463,7 +470,7 @@ export async function POST(request: NextRequest) {
       company = await prisma.company.findUnique({
       where: { slug: asWorld },
       select: {
-        id: true, name: true, kind: true,
+        id: true, name: true, kind: true, homePage: true,
         contexts: {
           where: {
             revokedAt: null, NOT: { roleId: null },
@@ -623,14 +630,19 @@ export async function POST(request: NextRequest) {
         // landing. The desk pages below stay the answer for a seat with no
         // Conversations, and are one click away from the greeting.
         landing:
-          landingFor({
-            kind: company.kind as any,
-            permissions: company.contexts[0]?.role?.permissions ?? null,
-            seatedAtClient: seatedAt ?? null,
-            // A region seat's menu is its region's (lib/region-scope); it lands in Ask Etyme too.
-            region: regionOf(company.contexts[0]),
-          }) === ASK_ETYME_HREF ? ASK_ETYME_HREF
-          : desk ? deskLanding(desk, company.kind)
+          (() => {
+            const l = landingFor({
+              kind: company.kind as any,
+              permissions: company.contexts[0]?.role?.permissions ?? null,
+              seatedAtClient: seatedAt ?? null,
+              // A region seat's menu is its region's (lib/region-scope); it lands in Ask Etyme too.
+              region: regionOf(company.contexts[0]),
+              // The firm's own home setting (→ 107), as /start reads it.
+              homePage: homeSetting(company),
+            })
+            return l === ASK_ETYME_HREF || l === DECISIONS_HOME ? l : null
+          })()
+          ?? (desk ? deskLanding(desk, company.kind)
           // An integrator lands on Submissions rather than on its own
           // Today: putting somebody off its own payroll in front of a
           // client is the one thing that seat exists to demonstrate,
@@ -639,7 +651,7 @@ export async function POST(request: NextRequest) {
           // Everybody else lands on their own front door, decided once
           // in lib/console-home and read by /dashboard's own redirect
           // and the sidebar's Dashboard link as well.
-          : consoleHome({ kind: company.kind as any, seated: seatedAt !== null }).href,
+          : consoleHome({ kind: company.kind as any, seated: seatedAt !== null }).href),
       },
     })
     res.cookies.set(DEMO_COOKIE, sign(email), {

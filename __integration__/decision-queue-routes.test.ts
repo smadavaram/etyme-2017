@@ -176,8 +176,8 @@ describe('agent control and the ledger', () => {
     expect(owner.body.data.lines).toContain('Blended margin an hour: baseline pending')
   })
 
-  it('the audit ledger lists the firm’s acts newest first, each with its entity, person and role held', async () => {
-    as(w.am.primaryEmail)
+  it('the audit ledger lists the firm’s acts newest first, each with its entity, person and role held, for the firm’s Owner', async () => {
+    as(w.owner.primaryEmail)
     const res = await json(await agents.GET(req('GET', '/api/decision-items/agents')))
     const rows = res.body.data.ledger.rows
     expect(rows[0].summary).toBe('Approved: Letter received.')
