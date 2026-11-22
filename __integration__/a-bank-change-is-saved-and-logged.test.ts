@@ -82,7 +82,10 @@ describe('a bank change in Settings → Payment details', () => {
     expect(last.summary).toBe(`${s.firm.name} changed payment details for ${(await prisma.remitTo.findUniqueOrThrow({ where: { id: s.remitId } })).legalName}: Harborline Savings · Northwind Staffing LLC · ending 5582.`)
     expect(last.reason).toBe('Edited in settings. The bank changed, so the check on it was cleared.')
     expect(last.reversible).toBe(false)
-    expect(JSON.stringify(last)).not.toMatch(/\d{5,}/)
+    // No run of digits long enough to be an account number, in anything a
+    // person reads on the row. The row's own ids are left out: an id is
+    // random, and one that happens to hold five digits is not a bank number.
+    expect(JSON.stringify(Object.fromEntries(Object.entries(last).filter(([k]) => !/id$/i.test(k))))).not.toMatch(/\d{5,}/)
   })
 
   it('refuses a full account number in a sentence, and keeps the details as they were', async () => {
@@ -124,7 +127,10 @@ describe('a bank change in Setup → Bank details', () => {
     expect(last.reason).toBe('Entered in setup. The bank changed, so the check on it was cleared.')
     expect(last.reversible).toBe(false)
     expect(JSON.stringify(last)).not.toContain('000123459904')
-    expect(JSON.stringify(last)).not.toMatch(/\d{5,}/)
+    // No run of digits long enough to be an account number, in anything a
+    // person reads on the row. The row's own ids are left out: an id is
+    // random, and one that happens to hold five digits is not a bank number.
+    expect(JSON.stringify(Object.fromEntries(Object.entries(last).filter(([k]) => !/id$/i.test(k))))).not.toMatch(/\d{5,}/)
     const row = await prisma.remitTo.findUniqueOrThrow({ where: { id: s.remitId } })
     expect(row).toMatchObject({ accountLast4: '9904', routingLast4: '0077', verifiedAt: null })
   })
