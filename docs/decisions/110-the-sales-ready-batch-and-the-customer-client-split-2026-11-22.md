@@ -144,3 +144,33 @@ placement" already offers it. So nothing new is built for it tonight;
 the removal of the split keeps that field and that select as they were,
 and the test that holds the ruling forbids classifying a company, never
 the placement's end client.
+
+### The deploy — 2026-11-22, 23:34 UTC, a Sunday
+
+- Source 18f59d2b1, replayed from f988c05c3 as deploy commit 894a3e90,
+  pushed once. The second deploy of the weekend, on the owner's
+  direction. The last replayed source is now 18f59d2b1.
+- The release check on the final code: type check clean; 17,793 unit
+  tests; 3,902 tests against the database; the production build. One
+  overtime test failed once in a full run and passed alone; noted, not
+  explained.
+- Walks: one long walk said ships with faults; after the split was
+  removed, a short walk said ships.
+- Smoke on both hosts: health READY; the home page, the six segment
+  pages, the two standing doors, About, Security, the three legal
+  pages, Contact, demo, documentation, sign-in, sign-up and Tapin's page
+  answer; the Classify address answers 404; the inbound email door
+  answers 404; Privacy's title reads "Privacy Notice | Etyme" and shows
+  November 22, 2026; no draft notice on Terms.
+- The schema gains one table, the mail ledger, and nothing else.
+- NOT PROVEN: a real invitation leaving and its link landing; the
+  sending-domain panel with a real domain; analytics recording; the
+  demo tenant, which still holds the old names until a person rebuilds
+  it.
+- NOT TRUE YET of the email law: a yes before a scheduled notice; a
+  bounce webhook; two reminder paths outside the chase limit.
+- For the next weekend, from the walks: the audit ledger does not show
+  every act; an Admin holds payroll permissions in the default roles;
+  "Copy invitation" gives no way in without mail; Add a company saves
+  Kind "Client" whatever Kind was chosen with the client choice; a
+  vendor product named in two sample skills on a public page.

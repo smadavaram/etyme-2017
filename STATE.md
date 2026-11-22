@@ -313,7 +313,12 @@ person. NOT STARTED, with the rest of the money loop (pack batch 3).
   read-only review by several reviewers, each finding checked twice,
   before the release check.
 
-## The sales-ready batch (record 110): IN PROGRESS, 2026-11-22
+## The sales-ready batch (record 110): RELEASED, NOT RETESTED
+
+Deployed 2026-11-22 23:34 UTC as 894a3e90 from source 18f59d2b1 (the
+last replayed source). STOPPED for the tester's morning retest. What is
+not proven, not yet true and owed next weekend is at the foot of
+record 110. The text below is the plan as it stood before the deploy.
 
 For Monday morning, when the two operating firms' people start. Order:
 1. Staff sign-in for both tenants: one real test invitation each. A
