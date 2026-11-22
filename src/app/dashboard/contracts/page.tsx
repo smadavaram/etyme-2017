@@ -832,10 +832,9 @@ function ContractDetailDrawer({
   const drawerRateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
   const drawerCounterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
 
-  // Three-party: endClientName differs from counterpartyName
-  const hasThreeParty = contract.endClientName
-    && contract.counterpartyName
-    && contract.endClientName !== contract.counterpartyName
+  // Three-party: the line names an end client other than the company
+  // billed. `viaName` is that billed company, set only where they differ.
+  const hasThreeParty = Boolean(contract.endClientName && contract.viaName)
 
   const dateOpts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
 
@@ -1115,7 +1114,7 @@ function ContractDetailDrawer({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-etyme-muted">Bills via</span>
-                  <span className="text-sm text-etyme-muted">{contract.counterpartyName}</span>
+                  <span className="text-sm text-etyme-muted">{contract.viaName}</span>
                 </div>
               </div>
             </div>

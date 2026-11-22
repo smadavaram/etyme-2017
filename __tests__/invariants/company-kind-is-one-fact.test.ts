@@ -83,7 +83,7 @@ describe('customer and client are the same for every business', () => {
     expect(page).toContain("endClientCompanyId: '',")
     expect(page).toMatch(/if \(form\.endClientCompanyId\) \{\s+payload\.endClientCompanyId = form\.endClientCompanyId\s+\}/)
     // The contract's own panel shows the end client where one is named apart from the customer.
-    expect(page).toContain('&& contract.endClientName !== contract.counterpartyName')
+    expect(page).toContain('const hasThreeParty = Boolean(contract.endClientName && contract.viaName)')
     expect(page).toContain('<span className="text-xs font-semibold text-etyme-muted">End client</span>')
 
     // Naming an end client writes the line, and nothing on the company or the register.

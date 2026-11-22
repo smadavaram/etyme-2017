@@ -129,4 +129,16 @@ describe('a supplier’s Contracts page counts every line, not the route’s fir
     expect(page).toContain('contract={openContract}')
     expect(page).not.toContain('contract={selectedContract}')
   })
+
+  it('a placement whose end client differs from the company billed shows both on its open panel: End client, and Bills via', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
+    // The block is drawn from the billed company the row carries, never from
+    // two names that the row builder makes equal.
+    expect(page).toContain('const hasThreeParty = Boolean(contract.endClientName && contract.viaName)')
+    expect(page).not.toContain('contract.endClientName !== contract.counterpartyName')
+    const block = page.slice(page.indexOf('{hasThreeParty && ('))
+    expect(block.slice(0, 900)).toContain('End client')
+    expect(block.slice(0, 900)).toContain('Bills via')
+    expect(block.slice(0, 900)).toContain('{contract.viaName}')
+  })
 })
