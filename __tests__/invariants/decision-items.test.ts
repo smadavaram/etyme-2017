@@ -1,6 +1,6 @@
 /** Decision items a person opens (2026-11-21 → 107). The rules, with no database. */
 import { describe, it, expect } from 'vitest'
-import { ageInDays, ageOf, openRefusal, mayDecide, verdictRefusal, todayIn, seatAtFirm, mayReadProof, type FirmSeat } from '@/lib/decision-items'
+import { ageInDays, ageOf, openRefusal, mayDecide, verdictRefusal, todayIn, seatAtFirm, mayReadProof, proofIsFor, type FirmSeat } from '@/lib/decision-items'
 
 const today = new Date('2026-11-21T15:00:00Z')
 
@@ -98,5 +98,19 @@ describe('who may owe and decide a decision', () => {
     expect(mayReadProof({ ...base, readerPersonId: 'b', readerRoleNames: ['Admin'] })).toBe(true)
     expect(mayReadProof({ ...base, readerPersonId: 'c', readerRoleNames: ['HR'] })).toBe(true)
     expect(mayReadProof({ ...base, readerPersonId: 'd', readerRoleNames: ['Account Manager'] })).toBe(false)
+  })
+
+  it('the proof of a decision a disputed month opened is read only by a seat the proof rule allows that also reads payroll', () => {
+    const base = { ownerPersonId: 'a', actedBy: ['c'], aboutPayroll: true }
+    // Allowed by the proof rule and reading payroll: reads it.
+    expect(mayReadProof({ ...base, readerPersonId: 'a', readerRoleNames: ['AP & Payroll'], readsPayroll: true })).toBe(true)
+    expect(mayReadProof({ ...base, readerPersonId: 'b', readerRoleNames: ['Owner'], readsPayroll: true })).toBe(true)
+    // Allowed by the proof rule alone: an Admin, HR who sent it back, even its owner, from a seat that does not read payroll.
+    expect(mayReadProof({ ...base, readerPersonId: 'b', readerRoleNames: ['Admin'], readsPayroll: false })).toBe(false)
+    expect(mayReadProof({ ...base, readerPersonId: 'c', readerRoleNames: ['HR'], readsPayroll: false })).toBe(false)
+    expect(mayReadProof({ ...base, readerPersonId: 'a', readerRoleNames: ['Account Manager'], readsPayroll: false })).toBe(false)
+    // Reading payroll alone is not enough either.
+    expect(mayReadProof({ ...base, readerPersonId: 'd', readerRoleNames: ['AP & Payroll'], readsPayroll: true })).toBe(false)
+    expect(proofIsFor('Dana Owner', true)).toMatch(/They state payroll amounts, so each of them reads them only from a seat that reads payroll\.$/)
   })
 })

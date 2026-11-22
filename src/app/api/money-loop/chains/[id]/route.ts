@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { advanceChain, resolveDispute } from '@/lib/money/money-chain'
+import { ownersOnOffer, DECIDER_READS_PAYROLL } from '@/lib/decision-items'
 import { NO_SUCH_CHAIN, readAdvanceAsk, readResolveAsk, stateLabel } from '@/lib/money-loop'
 import { loopSeat, refuseLoop, refused, refusalOf, logRefusal, stampOf } from '../../door'
 
 /**
- * POST /api/money-loop/chains/[id] — one move on one chain, by a seat that runs payroll
+ * POST /api/money-loop/chains/[id] — one move on one consultant's month, by a seat that runs payroll
  *   { act: 'ADVANCE', to, amount, currency, actingEntityId, disputeOwnerPersonId }
  *   { act: 'RESOLVE', actingEntityId }
  *
@@ -14,7 +15,9 @@ import { loopSeat, refuseLoop, refused, refusalOf, logRefusal, stampOf } from '.
  * amount a person states where the move asks one; an amount that disagrees
  * with one already stated disputes the chain and opens a decision owed by
  * the person named. RESOLVE returns a disputed chain once that decision is
- * recorded. Another firm's chain is refused, logged first.
+ * recorded. Another firm's chain is refused, logged first. Who decides a
+ * disagreement is somebody whose working seat reads payroll, the picker's
+ * own list (`ownersOnOffer` holding `payroll.read`): nobody else is taken.
  */
 
 type Params = { params: Promise<{ id: string }> }
@@ -28,7 +31,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const chain = await prisma.moneyChain.findFirst({ where: { id, companyId: seat.companyId }, select: { id: true } })
   if (!chain) {
     const other = await prisma.moneyChain.findUnique({ where: { id }, select: { companyId: true } })
-    await logRefusal(seat, { companyId: other?.companyId ?? seat.companyId }, `Refused a move on a chain that is not ${seat.companyName}’s (${id}).`)
+    await logRefusal(seat, { companyId: other?.companyId ?? seat.companyId }, `Refused a move on a consultant’s month that is not ${seat.companyName}’s (${id}).`)
     return refused(404, NO_SUCH_CHAIN)
   }
   const body = await request.json().catch(() => ({}))
@@ -43,6 +46,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (body?.act !== 'ADVANCE') return refused(422, 'Say what to do with this month: move it forward, or return it from its dispute.', 'act')
     const read = readAdvanceAsk(body, hasEntities)
     if (!read.ok) return refused(422, read.says, read.field)
+    if (read.ask.disputeOwnerPersonId) {
+      const offered = await ownersOnOffer(seat.companyId, new Date(), prisma, 'payroll.read')
+      if (!offered.some((p) => p.id === read.ask.disputeOwnerPersonId)) return refused(422, DECIDER_READS_PAYROLL, 'disputeOwnerPersonId')
+    }
     const now = await advanceChain({
       ...stampOf(seat, read.ask.actingEntityId), chainId: chain.id, to: read.ask.to, stated: read.ask.stated,
       // A move that states no amount can find no disagreement; the rule still wants a name.

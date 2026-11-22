@@ -58,6 +58,6 @@ export function refusalOf(e: unknown): NextResponse {
 }
 
 /** A refused read, logged before the refusal is sent (lib/access-log, recordRefusal). */
-export async function logRefusal(seat: QueueSeat, subject: AccessSubject, reason: string, action: 'CONTRACT_VIEW' | 'PROFILE_VIEW' = 'CONTRACT_VIEW') {
+export async function logRefusal(seat: QueueSeat, subject: AccessSubject, reason: string, action: 'CONTRACT_VIEW' | 'PROFILE_VIEW' | 'PAYROLL_VIEW' = 'CONTRACT_VIEW') {
   await recordRefusal([subject], { actorPersonId: seat.personId, actorCompanyId: seat.companyId, action, reason })
 }

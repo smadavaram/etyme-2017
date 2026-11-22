@@ -102,21 +102,56 @@ export async function usageCount(companyId: string, from: Date, to: Date, db: Tx
 
 export const LEDGER_PAGE_SIZE = 25
 
+// ── Payroll records on the ledger ───────────────────────────────────
+
 /**
- * The firm's whole ledger, newest first, one page at a time (page 1 is
- * the newest). Read only inside its company; a count, never a price.
+ * A consultant's month from timesheet to payment (lib/money/money-chain).
+ * Its ledger lines state amounts, so a row whose record is one, and every
+ * row of a decision a disputed month opened, is read only by a seat
+ * holding `payroll.read`, everywhere a ledger is drawn.
  */
-export async function firmLedger(companyId: string, page: number = 1, db: Tx = prisma) {
+export const PAYROLL_RECORD = 'MoneyChain'
+export const PAYROLL_LEDGER_READS = 'payroll.read' as const
+
+/** Whether a decision's proof points at a payroll record. Pure. */
+export function aboutPayroll(proofLinks: unknown): boolean {
+  return Array.isArray(proofLinks) && proofLinks.some((l) => (l as { recordType?: unknown } | null)?.recordType === PAYROLL_RECORD)
+}
+
+/** The ledger rows on payroll records: a month's own, and those of a decision a disputed month opened. */
+export async function payrollRows(companyId: string, db: Tx = prisma): Promise<Prisma.RecordActionWhereInput> {
+  const decisions = await db.decisionItem.findMany({
+    where: { companyId, proofLinks: { array_contains: [{ recordType: PAYROLL_RECORD }] } },
+    select: { id: true },
+  })
+  return { OR: [{ recordType: PAYROLL_RECORD }, { recordType: 'DecisionItem', recordId: { in: decisions.map((d) => d.id) } }] }
+}
+
+/** What a seat that does not read payroll is told in place of those rows; null where none is left out. Pure. */
+export function payrollRowsHiddenSays(hidden: number): string | null {
+  if (hidden <= 0) return null
+  return `${hidden === 1 ? '1 act on a payroll record is' : `${hidden} acts on payroll records are`} not shown here. A seat that reads payroll reads ${hidden === 1 ? 'it' : 'them'}.`
+}
+
+/**
+ * The firm's ledger, newest first, one page at a time (page 1 is the
+ * newest). Read only inside its company; a count, never a price. A reader
+ * who does not read payroll is given no row on a payroll record: they are
+ * left out at the query, and `hidden` counts them.
+ */
+export async function firmLedger(companyId: string, page: number = 1, db: Tx = prisma, reader: { readsPayroll: boolean } = { readsPayroll: false }) {
   const at = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1
-  const [rows, total] = await Promise.all([
+  const where: Prisma.RecordActionWhereInput = reader.readsPayroll ? { companyId } : { companyId, NOT: await payrollRows(companyId, db) }
+  const [rows, total, all] = await Promise.all([
     db.recordAction.findMany({
-      where: { companyId },
+      where,
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: (at - 1) * LEDGER_PAGE_SIZE,
       take: LEDGER_PAGE_SIZE,
       include: { person: { select: { name: true } }, actingEntity: { select: { name: true } } },
     }),
-    db.recordAction.count({ where: { companyId } }),
+    db.recordAction.count({ where }),
+    reader.readsPayroll ? null : db.recordAction.count({ where: { companyId } }),
   ])
-  return { rows, page: at, pages: Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE)), total }
+  return { rows, page: at, pages: Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE)), total, hidden: all === null ? 0 : all - total }
 }

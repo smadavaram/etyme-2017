@@ -18,8 +18,11 @@ import { DecisionLink, MonthPicker, StateChip, dayWords, stated, type Amounts } 
  * One placement and its month (record 107, B3): the consultant, the
  * client, the agreed rate and its start, a link to the contract's own page
  * for its documents, the month's state strip with the current state
- * marked, the one form that makes the next move, and the chain's ledger.
- * Rate history is drawn only where a change is on record.
+ * marked, the one form that makes the next move, and the month's ledger.
+ * Rate history is drawn only where a change is on record. A month with no
+ * record says why in the route's own sentence (the contract ended on its
+ * last day, the month has not begun, or nobody has started it), and a
+ * month returned from a dispute keeps the link to its recorded decision.
  */
 
 interface Data {
@@ -35,6 +38,8 @@ interface Data {
     next: { to: string; button: string; amountLabel: string | null } | null
     dispute: { decisionId: string; open: boolean; ownerName: string } | null
   } | null
+  decided: { decisionId: string; says: string }[]
+  noMonthSays: string | null
   ledger: LedgerRow[]
   months: { month: string; label: string }[]
   mayRun: boolean
@@ -115,11 +120,7 @@ export default function PlacementMonthPage() {
       </div>
 
       <Panel title={data.monthWords} action={c ? <StateChip state={c.state} label={c.label} /> : undefined}>
-        {!c && (
-          <p className="text-[14px] text-etyme-muted">
-            {data.monthWords} is not opened for {p.consultant}. A seat that runs payroll opens the month on the consultants page, or loads a past month as closed on the month’s page.
-          </p>
-        )}
+        {!c && <p className="text-[14px] text-etyme-muted">{data.noMonthSays}</p>}
         {c && (
           <>
             <ol className="flex flex-wrap gap-1.5 text-[13px]" aria-label="Where this month stands">
@@ -139,9 +140,12 @@ export default function PlacementMonthPage() {
             {c.dispute && (
               <p className="mt-3 text-[14px] text-etyme-attention">
                 Disputed: two stated amounts do not agree. The decision is owed by {c.dispute.ownerName}.{' '}
-                <DecisionLink id={c.dispute.decisionId}>{c.dispute.open ? 'Open the decision' : 'Read the recorded decision'}</DecisionLink>
+                {c.dispute.open && <DecisionLink id={c.dispute.decisionId}>Open the decision</DecisionLink>}
               </p>
             )}
+            {data.decided.map((d) => (
+              <p key={d.decisionId} className="mt-3 text-[14px]"><DecisionLink id={d.decisionId}>{d.says}</DecisionLink></p>
+            ))}
             {said && <div className="mt-3"><FormMessage tone="ok">{said}</FormMessage></div>}
             {c.next && (
               <div className="mt-5">

@@ -27,7 +27,7 @@ beforeAll(async () => {
   w.firm = await prisma.company.create({ data: { name: `Chain Firm ${tag}`, slug: `chain-firm-${tag}`, kind: 'VENDOR' } })
   w.client = await prisma.company.create({ data: { name: `Chain Client ${tag}`, slug: `chain-client-${tag}`, kind: 'CLIENT' } as any })
   w.entity = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Chain Firm LLC', country: 'US', currency: 'USD' } })
-  const ownerRole = await prisma.role.create({ data: { companyId: w.firm.id, name: 'Owner', permissions: [] } })
+  const ownerRole = await prisma.role.create({ data: { companyId: w.firm.id, name: 'Owner', permissions: ['*'] } })
   const payRole = await prisma.role.create({ data: { companyId: w.firm.id, name: 'AP & Payroll', permissions: [] } })
   w.owner = await person('Dana Owner'); w.clerk = await person('Ravi Payroll')
   for (const [p, r] of [[w.owner, ownerRole], [w.clerk, payRole]]) {
@@ -39,15 +39,17 @@ beforeAll(async () => {
 
 const clerk = () => ({ companyId: w.firm.id, actingEntityId: w.entity.id, personId: w.clerk.id, heldAs: 'AP & Payroll' })
 const dec = { start: new Date('2026-12-01'), end: new Date('2026-12-31') }
+// The day each act below is done on, said out loud, so nothing here depends on the day the file runs.
+const IN_DEC = new Date('2026-12-10')
 
 describe('the money chain, on the database', () => {
   it('a live chain opens at timesheet owed for the placement’s own consultant', async () => {
-    w.chain = await openChain({ ...clerk(), sellContractId: w.anaLine.id, periodStart: dec.start, periodEnd: dec.end })
+    w.chain = await openChain({ ...clerk(), sellContractId: w.anaLine.id, periodStart: dec.start, periodEnd: dec.end }, IN_DEC)
     expect([w.chain.state, w.chain.personId]).toEqual(['TIMESHEET_OWED', w.ana.id])
   })
 
   it('a placement has one chain per period', async () => {
-    await expect(openChain({ ...clerk(), sellContractId: w.anaLine.id, periodStart: dec.start, periodEnd: dec.end })).rejects.toThrow(/already has a chain/)
+    await expect(openChain({ ...clerk(), sellContractId: w.anaLine.id, periodStart: dec.start, periodEnd: dec.end }, IN_DEC)).rejects.toThrow(/already has that month on record/)
   })
 
   it('a timesheet cannot be marked received without the amount it states', async () => {
@@ -69,6 +71,8 @@ describe('the money chain, on the database', () => {
     expect(item.ownerPersonId).toBe(w.owner.id)
     expect(item.proof).toMatch(/\$16,000\.00.*\$15,900\.00/)
     expect(item.proofLinks).toEqual([{ recordType: CHAIN_RECORD, recordId: w.chain.id }])
+    // One proposed course, the one taken when the month returns; the amounts are in the proof, never in the question.
+    expect(item.question).toBe('Ana Consultant, December 2026: the invoiced amount differs from the timesheet’s. Keep the timesheet’s amount and state the invoiced amount again?')
     w.decision = item
   })
 
@@ -99,7 +103,7 @@ describe('the money chain, on the database', () => {
 
   it('a chain loaded as history is closed, says its source and its as-of day, and its ledger rows carry today’s date', async () => {
     const before = Date.now() - 1000
-    const h = await loadClosedChain({ ...clerk(), sellContractId: w.anaLine.id, periodStart: new Date('2026-10-01'), periodEnd: new Date('2026-10-31'), source: 'October payroll sheet', asOf: new Date('2026-11-15'), amounts: { timesheet: usd(1500000), invoiced: usd(1500000), paid: usd(1500000) } })
+    const h = await loadClosedChain({ ...clerk(), sellContractId: w.anaLine.id, periodStart: new Date('2026-10-01'), periodEnd: new Date('2026-10-31'), source: 'October payroll sheet', asOf: new Date('2026-11-15'), amounts: { timesheet: usd(1500000), invoiced: usd(1500000), paid: usd(1500000) } }, IN_DEC)
     expect([h.state, h.source, h.asOf?.toISOString().slice(0, 10)]).toEqual(['CONFIRMED_CLOSED', 'October payroll sheet', '2026-11-15'])
     const rows = await recordTimeline(w.firm.id, CHAIN_RECORD, h.id)
     expect(rows).toHaveLength(7)
@@ -109,16 +113,41 @@ describe('the money chain, on the database', () => {
     }
   })
 
+  it('each of the seven rows of a history load says its own state, and the three that state an amount say the amount', async () => {
+    const h = await prisma.moneyChain.findFirstOrThrow({ where: { sellContractId: w.anaLine.id, periodStart: new Date('2026-10-01') } })
+    const said = (await recordTimeline(w.firm.id, CHAIN_RECORD, h.id)).map((r) => r.summary.split(' Loaded as history')[0])
+    expect(said).toEqual([
+      'Timesheet owed.', 'Timesheet received: $15,000.00 stated on the timesheet.', 'Reconciled.', 'Invoiced: $15,000.00 was invoiced.',
+      'Payment pending.', 'Paid, not confirmed: $15,000.00 was paid.', 'Confirmed and closed.',
+    ])
+  })
+
+  it('a month that has not begun cannot be opened, and nothing is written for it', async () => {
+    const jun = { periodStart: new Date('2027-06-01'), periodEnd: new Date('2027-06-30') }
+    await expect(openChain({ ...clerk(), sellContractId: w.benLine.id, ...jun }, IN_DEC)).rejects.toThrow('June 2027 has not begun. It can be started from Jun 1, 2027.')
+    expect(await prisma.moneyChain.count({ where: { sellContractId: w.benLine.id, periodStart: jun.periodStart } })).toBe(0)
+  })
+
+  it('a month that has not ended cannot be saved as paid and closed, and a past one is not true on a day before its last', async () => {
+    const amounts = { timesheet: usd(100), invoiced: usd(100), paid: usd(100) }
+    const load = (periodStart: string, periodEnd: string, asOf: string) =>
+      loadClosedChain({ ...clerk(), sellContractId: w.benLine.id, periodStart: new Date(periodStart), periodEnd: new Date(periodEnd), source: 'the payroll sheet', asOf: new Date(asOf), amounts }, IN_DEC)
+    await expect(load('2027-06-01', '2027-06-30', '2026-12-01')).rejects.toThrow(/^June 2027 has not ended/)
+    await expect(load('2026-12-01', '2026-12-31', '2026-12-05')).rejects.toThrow(/^December 2026 has not ended/)
+    await expect(load('2026-09-01', '2026-09-30', '2026-09-15')).rejects.toThrow('The day this history was true cannot be before the month’s last day, Sep 30, 2026.')
+    expect(await prisma.moneyChain.count({ where: { sellContractId: w.benLine.id } })).toBe(0)
+  })
+
   it('a historical chain whose three amounts disagree cannot be loaded as closed', async () => {
-    await expect(loadClosedChain({ ...clerk(), sellContractId: w.benLine.id, periodStart: new Date('2026-10-01'), periodEnd: new Date('2026-10-31'), source: 'October payroll sheet', asOf: new Date('2026-11-15'), amounts: { timesheet: usd(100), invoiced: usd(100), paid: usd(99) } }))
+    await expect(loadClosedChain({ ...clerk(), sellContractId: w.benLine.id, periodStart: new Date('2026-10-01'), periodEnd: new Date('2026-10-31'), source: 'October payroll sheet', asOf: new Date('2026-11-15'), amounts: { timesheet: usd(100), invoiced: usd(100), paid: usd(99) } }, IN_DEC))
       .rejects.toThrow(/cannot close/)
     expect(await prisma.moneyChain.count({ where: { sellContractId: w.benLine.id } })).toBe(0)
   })
 
   it('the period total never adds two currencies', async () => {
-    const b = await openChain({ ...clerk(), sellContractId: w.benLine.id, periodStart: dec.start, periodEnd: dec.end })
+    const b = await openChain({ ...clerk(), sellContractId: w.benLine.id, periodStart: dec.start, periodEnd: dec.end }, IN_DEC)
     await advanceChain({ ...clerk(), chainId: b.id, to: 'TIMESHEET_RECEIVED', stated: { cents: 50000000, currency: 'INR' }, disputeOwnerPersonId: w.owner.id })
-    await openChain({ ...clerk(), sellContractId: w.cyLine.id, periodStart: dec.start, periodEnd: dec.end })
+    await openChain({ ...clerk(), sellContractId: w.cyLine.id, periodStart: dec.start, periodEnd: dec.end }, IN_DEC)
     const s = await periodSummary(w.firm.id, dec.start)
     expect(s.statedTotals.map((t) => [t.currency, t.cents, t.label])).toEqual([['INR', 50000000, 'stated'], ['USD', 1600000, 'stated']])
     expect(s.counts).toMatchObject({ CONFIRMED_CLOSED: 1, TIMESHEET_RECEIVED: 1, TIMESHEET_OWED: 1 })
@@ -134,7 +163,7 @@ describe('the money chain, on the database', () => {
 
   it('a chain is never disputed without its decision, and a decision never opened without its disputed chain', async () => {
     const nov = { start: new Date('2026-11-01'), end: new Date('2026-11-30') }
-    const c = await openChain({ ...clerk(), sellContractId: w.cyLine.id, periodStart: nov.start, periodEnd: nov.end })
+    const c = await openChain({ ...clerk(), sellContractId: w.cyLine.id, periodStart: nov.start, periodEnd: nov.end }, IN_DEC)
     await advanceChain({ ...clerk(), chainId: c.id, to: 'TIMESHEET_RECEIVED', stated: usd(800000), disputeOwnerPersonId: w.owner.id })
     await advanceChain({ ...clerk(), chainId: c.id, to: 'RECONCILED', disputeOwnerPersonId: w.owner.id })
     // A dispute owed by somebody on the bench cannot open its decision, so the chain does not move either.

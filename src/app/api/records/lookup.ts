@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/db'
 import { invoiceBetween } from '@/lib/money/invoice-parties'
 import type { RecordType, ProofType } from '@/lib/decision-queue'
+import { amountsOf, periodWords } from '@/lib/money/money-chain'
+import { historySays, monthKeyOf, placementHref, seeMonth, stateLabel } from '@/lib/money-loop'
+import { money } from '@/lib/order'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * Which records are on a firm's book, by type (record 107, A2's proof
@@ -12,7 +16,8 @@ import type { RecordType, ProofType } from '@/lib/decision-queue'
  *  - a person: somebody seated at the firm, or on one of its contracts;
  *  - an invoice receipt: one the firm pays or issued;
  *  - a bill: one the firm is a party to (`invoiceBetween`);
- *  - a decision: one of the firm's own.
+ *  - a decision: one of the firm's own;
+ *  - a consultant's month from timesheet to payment: one of the firm's own.
  */
 function onBook(companyId: string, type: RecordType): Record<string, unknown> {
   switch (type) {
@@ -27,6 +32,7 @@ function onBook(companyId: string, type: RecordType): Record<string, unknown> {
     case 'VendorBill': return { OR: [{ companyId }, { vendorCompanyId: companyId }] }
     case 'Invoice': return invoiceBetween(companyId)
     case 'DecisionItem': return { companyId }
+    case 'MoneyChain': return { companyId }
   }
 }
 
@@ -60,7 +66,17 @@ export async function findOnBook(companyId: string, type: RecordType, id: string
       const r = await prisma.decisionItem.findFirst({ where, select: { id: true, question: true } })
       return r ? { id: r.id, name: r.question } : null
     }
+    case 'MoneyChain': {
+      const r = await prisma.moneyChain.findFirst({ where, select: { id: true, periodStart: true, periodEnd: true, person: { select: { name: true } } } })
+      return r ? { id: r.id, name: `${r.person.name}, ${periodWords(r)}` } : null
+    }
   }
+}
+
+/** Where a consultant's month is worked: that placement's month page, and whose month it is. Null where there is no such month. */
+export async function monthPageOf(id: string): Promise<{ href: string; words: string; personId: string } | null> {
+  const r = await prisma.moneyChain.findUnique({ where: { id }, select: { sellContractId: true, personId: true, periodStart: true, periodEnd: true } })
+  return r ? { href: placementHref(r.sellContractId, monthKeyOf(r.periodStart)), words: seeMonth(periodWords(r)), personId: r.personId } : null
 }
 
 /** Whose data a refused read was about, for the access log: the record's own firm or person, else null. */
@@ -84,6 +100,10 @@ export async function subjectOf(type: RecordType, id: string): Promise<{ company
     case 'DecisionItem': {
       const r = await prisma.decisionItem.findUnique({ where: { id }, select: { companyId: true } })
       return r ? { companyId: r.companyId } : null
+    }
+    case 'MoneyChain': {
+      const r = await prisma.moneyChain.findUnique({ where: { id }, select: { personId: true } })
+      return r ? { personId: r.personId } : null
     }
   }
 }
@@ -163,6 +183,18 @@ export async function factsOf(type: RecordType, id: string): Promise<Fact[]> {
     case 'DecisionItem': {
       const r = await prisma.decisionItem.findUnique({ where: { id }, select: { question: true, openedOn: true, state: true, ownerPerson: { select: { name: true } } } })
       return r ? [...f('Question', r.question), ...f('Owed by', r.ownerPerson.name), ...f('Opened', day(r.openedOn))] : []
+    }
+    case 'MoneyChain': {
+      // Read only after the route found a seat that reads payroll: these are the amounts people stated.
+      const r = await prisma.moneyChain.findUnique({ where: { id }, include: { person: { select: { name: true } }, sellContract: { select: { clientCompany: { select: { name: true } } } } } })
+      if (!r) return []
+      const a = amountsOf(r)
+      const stated = (s: { cents: number; currency: string } | null) => (s ? money(s.cents, s.currency) : 'Not stated yet')
+      return [
+        ...f('Consultant', r.person.name), ...f('Client', r.sellContract.clientCompany.name), ...f('Month', periodWords(r)),
+        ...f('State', stateLabel(r.state)), ...f('Stated on the timesheet', stated(a.timesheet)), ...f('Invoiced', stated(a.invoiced)), ...f('Paid', stated(a.paid)),
+        ...f('History', r.source && r.asOf ? historySays(r.source, formatDay(r.asOf)) : null),
+      ]
     }
   }
 }

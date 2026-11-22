@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
+import { aboutPayroll, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
 import { listDecisions, openDecision, ownersOnOffer } from '@/lib/decision-items'
 import { PROOF_TYPES, mayOpenDecision, readNeeds, readOpenAsk, cannotReadSays } from '@/lib/decision-queue'
 import { findOnBook } from '@/app/api/records/lookup'
@@ -18,10 +19,12 @@ export async function GET(request: NextRequest) {
   if (error) return error
   const decided = request.nextUrl.searchParams.get('state') === 'decided'
   // Every working seat reads the rows; the proof is read on the item's page, by those it is for.
+  // The reason a payroll decision was sent back with may state an amount, so a seat that does not read payroll reads none.
+  const readsPayroll = hasPermission(seat.caller.permissions, PAYROLL_LEDGER_READS)
   const items = (await listDecisions(seat.companyId, { state: decided ? 'decided' : 'open' }))
     .map((d) => ({
       id: d.id, question: d.question, ownerName: d.ownerName, entityName: d.entityName, ageDays: d.ageDays,
-      openedOn: d.openedOn, state: d.state, sentBackReason: d.sentBackReason, sentBackBy: d.sentBackBy?.name ?? null,
+      openedOn: d.openedOn, state: d.state, sentBackReason: aboutPayroll(d.proofLinks) && !readsPayroll ? null : d.sentBackReason, sentBackBy: d.sentBackBy?.name ?? null,
       decidedBy: d.decidedBy?.name ?? null, decidedAt: d.decidedAt,
     }))
   const mayOpen = mayOpenDecision(seat.roleName) === null

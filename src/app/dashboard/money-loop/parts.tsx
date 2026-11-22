@@ -42,10 +42,15 @@ export function MonthPicker({ month, onChange }: { month: string; onChange: (m: 
   )
 }
 
-/** The legal entity an act is done for, drawn only where the firm has any. */
-export function EntityField({ id, entities, value, onChange }: { id: string; entities: { id: string; name: string }[]; value: string; onChange: (v: string) => void }) {
+/**
+ * The legal entity an act is done for, drawn only where the firm has any.
+ * `error` is the route's sentence about it, shown on the box: a refusal
+ * for no entity chosen had nowhere to show, and Save looked dead (the
+ * walk of 2026-11-22).
+ */
+export function EntityField({ id, entities, value, onChange, error }: { id: string; entities: { id: string; name: string }[]; value: string; onChange: (v: string) => void; error?: string }) {
   return (
-    <Field label="The legal entity this is done for" id={id}>
+    <Field label="The legal entity this is done for" id={id} error={error}>
       <Select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">Choose an entity</option>
         {entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}

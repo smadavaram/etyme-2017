@@ -11,6 +11,8 @@ import { EntityField } from './parts'
  * draws what `advanceFields` names for the move and posts `advanceBody`:
  * the amount a person states and its currency where the move asks one, the
  * legal entity where the firm has any, and who decides a disagreement.
+ * Every refusal the route sends is shown: on the box it is about where
+ * the form drew that box, and under the form otherwise.
  */
 export function AdvanceForm({ chainId, next, currency, people, entities, onDone }: {
   chainId: string
@@ -56,9 +58,9 @@ export function AdvanceForm({ chainId, next, currency, people, entities, onDone 
           </Field>
         </div>
       )}
-      {draws.includes('actingEntityId') && <EntityField id="ml-entity" entities={entities} value={f.actingEntityId ?? ''} onChange={set('actingEntityId')} />}
+      {draws.includes('actingEntityId') && <EntityField id="ml-entity" entities={entities} value={f.actingEntityId ?? ''} onChange={set('actingEntityId')} error={at('actingEntityId')} />}
       {draws.includes('disputeOwnerPersonId') && (
-        <Field label="Who decides if this amount disagrees with one already stated" help="A disagreement opens a decision on the queue, owed by this person." id="ml-owner" error={at('disputeOwnerPersonId')}>
+        <Field label="Who decides if this amount disagrees with one already stated" help="A disagreement opens a decision on the queue, owed by this person. The list is the people whose seat reads payroll." id="ml-owner" error={at('disputeOwnerPersonId')}>
           <Select id="ml-owner" value={f.disputeOwnerPersonId ?? ''} onChange={(e) => set('disputeOwnerPersonId')(e.target.value)}>
             <option value="">Choose a person</option>
             {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -75,7 +77,8 @@ export function AdvanceForm({ chainId, next, currency, people, entities, onDone 
 export function ResolveForm({ chainId, entities, onDone }: { chainId: string; entities: { id: string; name: string }[]; onDone: (message: string) => void }) {
   const [entity, setEntity] = useState('')
   const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
+  const [err, setErr] = useState<{ says: string; field?: string } | null>(null)
+  const onEntity = entities.length > 0 && err?.field === 'actingEntityId'
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -86,7 +89,7 @@ export function ResolveForm({ chainId, entities, onDone }: { chainId: string; en
       }))
       onDone(body.data.message)
     } catch (e: any) {
-      setErr(e.message)
+      setErr({ says: e.message, field: e.field })
     } finally {
       setBusy(false)
     }
@@ -94,8 +97,8 @@ export function ResolveForm({ chainId, entities, onDone }: { chainId: string; en
 
   return (
     <form onSubmit={save} className="grid gap-4 max-w-[620px]">
-      {entities.length > 0 && <EntityField id="ml-resolve-entity" entities={entities} value={entity} onChange={setEntity} />}
-      {err && <FormMessage tone="error">{err}</FormMessage>}
+      {entities.length > 0 && <EntityField id="ml-resolve-entity" entities={entities} value={entity} onChange={setEntity} error={onEntity ? err!.says : undefined} />}
+      {err && !onEntity && <FormMessage tone="error">{err.says}</FormMessage>}
       <div><SubmitButton pending={busy}>Return this month from its dispute</SubmitButton></div>
     </form>
   )

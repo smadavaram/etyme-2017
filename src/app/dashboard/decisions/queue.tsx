@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
-import { readJson } from '@/lib/read-response'
+import { readJson, isRefusal } from '@/lib/read-response'
 import { Field, Input, Select, Textarea, SubmitButton, FormMessage } from '@/components/ui/form'
 import { Panel } from '@/components/ui'
 import { ageWords, openBody, type OpenTyped } from '@/lib/decision-queue'
@@ -12,6 +12,10 @@ import { ageWords, openBody, type OpenTyped } from '@/lib/decision-queue'
  * each a question, its owner, its age in days and the acting entity. A
  * row opens the item (A3). "Decided" finds the closed ones. The Owner or
  * an Admin opens a decision with the form below the list.
+ *
+ * `onAnswered` tells the page the door's first answer: null where it
+ * opened, or the refusal's sentence, which the page then draws alone.
+ * Nothing is drawn here for a refusal, and the chips wait for an answer.
  */
 
 interface Row {
@@ -34,20 +38,28 @@ interface QueueData {
   proofTypes: { type: string; label: string }[]
 }
 
-export function DecisionQueue() {
+export function DecisionQueue({ onAnswered }: { onAnswered?: (refused: string | null) => void }) {
   const [which, setWhich] = useState<'open' | 'decided'>('open')
   const [data, setData] = useState<QueueData | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [refused, setRefused] = useState(false)
 
   const load = useCallback(async () => {
     try {
       const body = await readJson(await fetch(`/api/decision-items?state=${which}`))
       setData(body.data); setErr(null)
+      onAnswered?.(null)
     } catch (e: any) {
+      // The door's refusal is the page's to draw, once and alone.
+      if (isRefusal(e) && onAnswered) { setRefused(true); onAnswered(e.message); return }
       setErr(e.message)
+      onAnswered?.(null)
     }
-  }, [which])
+  }, [which, onAnswered])
   useEffect(() => { load() }, [load])
+
+  if (refused) return null
+  if (!data && !err) return <p className="text-[13px] text-etyme-muted">Opening the decision queue…</p>
 
   return (
     <section className="mb-10" aria-label="Decision queue">
@@ -60,7 +72,6 @@ export function DecisionQueue() {
         ))}
       </div>
       {err && <FormMessage tone="error">{err}</FormMessage>}
-      {!data && !err && <p className="text-[13px] text-etyme-muted">Opening the decision queue…</p>}
       {data && data.items.length === 0 && (
         <p className="text-[14px] text-etyme-muted py-3">
           {which === 'open' ? 'Nothing is waiting on a decision. A decision appears here when the Owner or an Admin opens one.' : 'Nothing has been decided here yet.'}

@@ -26,7 +26,8 @@
 
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { writeRecordAction, stampRefusal, LedgerRefusal } from '@/lib/record-ledger'
+import { writeRecordAction, stampRefusal, LedgerRefusal, aboutPayroll, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
+import { hasPermission, type Permission } from '@/lib/permissions'
 import { OWNER_ROLE, ADMIN_ROLE } from '@/lib/owner-rules'
 import { seatByDate, type DatedSeat } from '@/lib/account-lifecycle'
 import { seatHasSignedIn } from '@/lib/access-grant'
@@ -121,19 +122,28 @@ export async function firmSeats(companyId: string, db: Db = prisma): Promise<Fir
   }))
 }
 
-/** The people who may be named owner of a decision: the owner picker's list, and exactly what `openDecision` accepts. */
-export async function ownersOnOffer(companyId: string, now: Date = new Date(), db: Db = prisma): Promise<{ id: string; name: string }[]> {
+/**
+ * The people who may be named owner of a decision: the owner picker's
+ * list, and exactly what `openDecision` accepts. With `holding`, only
+ * those whose working seat's role holds that permission: who decides a
+ * disagreement about payroll amounts reads payroll.
+ */
+export async function ownersOnOffer(companyId: string, now: Date = new Date(), db: Db = prisma, holding?: Permission): Promise<{ id: string; name: string }[]> {
   const seats = await firmSeats(companyId, db)
-  const ids = [...new Set(seats.filter((s) => seatAtFirm(s, seats, now) !== null).map((s) => s.personId))]
+  const ids = [...new Set(seats.filter((s) => seatAtFirm(s, seats, now) !== null && (!holding || hasPermission(s.rolePermissions, holding))).map((s) => s.personId))]
   if (ids.length === 0) return []
   return db.person.findMany({ where: { id: { in: ids } }, select: { id: true, name: true }, orderBy: { name: 'asc' } })
 }
 
-/** The role names of a person's seats that may decide at the firm; empty when none may. */
-async function decidingRoles(companyId: string, personId: string, now: Date, db: Db = prisma): Promise<(string | null)[]> {
+/** A person's seats that may decide at the firm; empty when none may. */
+async function decidingSeats(companyId: string, personId: string, now: Date, db: Db = prisma): Promise<FirmSeat[]> {
   const seats = await firmSeats(companyId, db)
-  return seats.filter((s) => s.personId === personId && seatAtFirm(s, seats, now) === 'DECIDES').map((s) => s.roleName)
+  return seats.filter((s) => s.personId === personId && seatAtFirm(s, seats, now) === 'DECIDES')
 }
+
+/** Who may be named to decide a disagreement about payroll amounts, in the sentence the route refuses anybody else with. */
+export const DECIDER_READS_PAYROLL = 'A disagreement about these amounts is decided by somebody whose seat reads payroll. Choose one of the people on the list.'
+export const PAYROLL_DECISION_NOT_YOURS = 'This decision is about payroll amounts. It is decided from a seat that reads payroll.'
 
 export const OWNER_NOT_WORKING =
   'A decision is owed by somebody with a working seat at this firm: not on its bench, not paused, and not ended.'
@@ -151,16 +161,25 @@ export function mayReadProof(input: {
   readerRoleNames: readonly (string | null)[]
   /** Everybody who sent it back or decided it, read off its ledger. */
   actedBy: readonly string[]
+  /** Its proof points at a payroll record (`aboutPayroll`), so the proof states amounts. */
+  aboutPayroll?: boolean
+  /** The reader's seat holds `payroll.read`. */
+  readsPayroll?: boolean
 }): boolean {
+  // Amounts are read by a seat that reads payroll, whoever else the reader is.
+  if (input.aboutPayroll && !input.readsPayroll) return false
   if (input.readerPersonId === input.ownerPersonId) return true
   if (input.readerRoleNames.some((n) => n === OWNER_ROLE || n === ADMIN_ROLE)) return true
   return input.actedBy.includes(input.readerPersonId)
 }
 
 /** Who may read the proof, in the one sentence another seat reads instead. */
-export function proofIsFor(ownerName: string): string {
-  return `The proof and the history are read by ${ownerName}, who owes this decision, by the firm’s Owner and Admins, and by whoever sent it back or decided it.`
+export function proofIsFor(ownerName: string, aboutPayroll = false): string {
+  const who = `The proof and the history are read by ${ownerName}, who owes this decision, by the firm’s Owner and Admins, and by whoever sent it back or decided it.`
+  return aboutPayroll ? `${who} They state payroll amounts, so each of them reads them only from a seat that reads payroll.` : who
 }
+
+export { aboutPayroll }
 
 /** Why it cannot be opened, in a sentence; null when it can. Pure. */
 export function openRefusal(input: { question: string; proof: string; openedOn: Date }, today: Date = new Date()): string | null {
@@ -274,11 +293,13 @@ export async function decideDecision(input: Stamp & { decisionId: string; verdic
   const stateRefusal = verdictRefusal(item.state, input.verdict, input.note)
   if (stateRefusal) throw new LedgerRefusal(stateRefusal)
   const now = new Date()
-  const roles = await decidingRoles(input.companyId, input.personId, now)
-  const who = roles.length === 0
+  const seats = await decidingSeats(input.companyId, input.personId, now)
+  const who = seats.length === 0
     ? NOT_YOURS
-    : mayDecide({ ownerPersonId: item.ownerPersonId, deciderPersonId: input.personId, deciderRoleNames: roles })
+    : mayDecide({ ownerPersonId: item.ownerPersonId, deciderPersonId: input.personId, deciderRoleNames: seats.map((s) => s.roleName) })
   if (who) throw new LedgerRefusal(who)
+  // Nobody decides amounts she may not read.
+  if (aboutPayroll(item.proofLinks) && !seats.some((s) => hasPermission(s.rolePermissions, PAYROLL_LEDGER_READS))) throw new LedgerRefusal(PAYROLL_DECISION_NOT_YOURS)
   const note = input.note?.trim() || null
   return prisma.$transaction(async (tx) => {
     // Only an item still OPEN moves, so two people deciding at once cannot both close it.

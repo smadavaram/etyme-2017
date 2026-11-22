@@ -4351,7 +4351,8 @@ export function queueCards(
       return {
         key: `${d.type}:${d.entityId}`,
         type: d.type,
-        title: `${queueName(d)}.`,
+        // A title that already ends its own sentence keeps its mark: a decision's question read "…further?." (the walk of 2026-11-22).
+        title: /[.!?]$/.test(queueName(d)) ? queueName(d) : `${queueName(d)}.`,
         fact: d.type === 'NO_AGREEMENT' ? lastSentence(d.subtitle)
           : d.type === LINK_REQUEST || d.type === JOIN_ASK || d.type === OWNER_ASK ? (d.subtitle ?? '')
           : d.type === 'TIMESHEET_APPROVAL' && d.flag ? `${factOf(d.subtitle)} ${d.flag.replace(/[.\s]*$/, '.')} Open it to approve with a reason.`.trim()

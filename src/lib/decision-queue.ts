@@ -10,6 +10,7 @@
 
 import { OWNER_ROLE, ADMIN_ROLE } from '@/lib/owner-rules'
 import { formatDayLong } from '@/lib/format-date'
+import { CANNOT_READ_MONTH_RECORD, LOOP_HREF, LOOP_READS } from '@/lib/money-loop'
 
 // ── Who may open one ────────────────────────────────────────────────
 
@@ -37,10 +38,15 @@ export const PROOF_TYPES = [
 ] as const
 
 export type ProofType = (typeof PROOF_TYPES)[number]['type']
-/** Everything the record view opens: the proof types, and a decision itself. */
-export type RecordType = ProofType | 'DecisionItem'
+/**
+ * Everything the record view opens: the proof types, a decision itself,
+ * and a consultant's month from timesheet to payment (a MoneyChain, the
+ * payroll record of lib/record-ledger). A month is never picked as proof
+ * by hand; a disputed month's own decision links to it.
+ */
+export type RecordType = ProofType | 'DecisionItem' | 'MoneyChain'
 
-export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem']
+export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem', 'MoneyChain']
 
 export function isRecordType(t: unknown): t is RecordType {
   return typeof t === 'string' && (RECORD_TYPES as readonly string[]).includes(t)
@@ -51,7 +57,8 @@ export function isRecordType(t: unknown): t is RecordType {
  * needed beyond a working seat: the one its own list asks for. A decision
  * is read by the proof rule (`mayReadProof` in lib/decision-items). Pure.
  */
-export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | null {
+export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | typeof LOOP_READS | null {
+  if (type === 'MoneyChain') return LOOP_READS
   if (type === 'Invoice' || type === 'VendorBill') return 'invoices.read'
   if (type === 'SellContract') return 'assignments.read'
   if (type === 'Person') return 'consultants.read'
@@ -60,6 +67,7 @@ export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read
 
 /** What a seat that does not hold `readNeeds(type)` reads, in a sentence. Pure. */
 export function cannotReadSays(type: RecordType): string {
+  if (type === 'MoneyChain') return CANNOT_READ_MONTH_RECORD
   if (type === 'Invoice' || type === 'VendorBill') return 'Your seat cannot read bills or invoice receipts.'
   if (type === 'SellContract') return 'Your seat cannot read contracts.'
   if (type === 'Person') return 'Your seat cannot read people’s records.'
@@ -75,6 +83,8 @@ export function ownPageOf(type: RecordType, id: string): { href: string; words: 
     case 'VendorBill': return { href: '/dashboard/ap', words: 'Open invoice receipts' }
     case 'Invoice': return { href: `/dashboard/invoices/${id}`, words: 'Open the bill' }
     case 'DecisionItem': return { href: `/dashboard/decisions/${id}`, words: 'Open the decision' }
+    // The month's own page needs its contract and month, which the route reads (`monthPageOf`); this is the page they are on.
+    case 'MoneyChain': return { href: LOOP_HREF, words: 'Open Timesheet to payment' }
   }
 }
 
@@ -159,7 +169,7 @@ export function readOpenAsk(body: unknown, hasEntities: boolean): { ok: true; as
     const o = (l ?? {}) as Record<string, unknown>
     const type = o.recordType
     const id = typeof o.recordId === 'string' ? o.recordId.trim() : ''
-    if (!isRecordType(type) || type === 'DecisionItem' || !id) {
+    if (!isRecordType(type) || type === 'DecisionItem' || type === 'MoneyChain' || !id) {
       return { ok: false, field: 'proofLinks', says: 'Each proof link names a kind of record from the list and the record itself.' }
     }
     links.push({ recordType: type, recordId: id })

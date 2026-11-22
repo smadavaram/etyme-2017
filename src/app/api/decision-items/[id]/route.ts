@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { recordTimeline } from '@/lib/record-ledger'
+import { recordTimeline, aboutPayroll, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
+import { hasPermission } from '@/lib/permissions'
 import { DECISION_RECORD, ageOf, firmZone, todayIn, decideDecision, mayDecide, mayReadProof, proofIsFor, type ProofLink } from '@/lib/decision-items'
 import { PROOF_TYPES, isRecordType, readDecideAsk, recordViewHref } from '@/lib/decision-queue'
 import { findOnBook } from '@/app/api/records/lookup'
@@ -13,7 +14,10 @@ import { isChainProof, chainProofLink } from '../../money-loop/proof-link'
  *
  * Record 107, Flow A. Send back and Reject need a one-line reason. The
  * decider picks the entity where the firm has any. The act and its ledger
- * row are lib/decision-items.
+ * row are lib/decision-items. A decision a disputed month opened states
+ * payroll amounts in its proof and history, so those are read only by a
+ * seat the proof rule allows that also reads payroll, and decided only
+ * from one.
  */
 
 type Params = { params: Promise<{ id: string }> }
@@ -35,18 +39,20 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
   const zone = await firmZone(seat.companyId)
   const ageDays = ageOf(item, todayIn(zone), zone)
-  const mayAct = item.state === 'OPEN' && mayDecide({ ownerPersonId: item.ownerPersonId, deciderPersonId: seat.personId, deciderRoleNames: [seat.roleName] }) === null
+  const payroll = aboutPayroll(item.proofLinks)
+  const readsPayroll = hasPermission(seat.caller.permissions, PAYROLL_LEDGER_READS)
+  const mayAct = item.state === 'OPEN' && (!payroll || readsPayroll) && mayDecide({ ownerPersonId: item.ownerPersonId, deciderPersonId: seat.personId, deciderRoleNames: [seat.roleName] }) === null
   const actedBy = (await prisma.recordAction.findMany({
     where: { companyId: seat.companyId, recordType: DECISION_RECORD, recordId: item.id, action: { in: ['SENT_BACK', 'APPROVED', 'REJECTED'] } },
     select: { personId: true },
   })).map((r) => r.personId)
-  if (!mayReadProof({ ownerPersonId: item.ownerPersonId, readerPersonId: seat.personId, readerRoleNames: [seat.roleName], actedBy })) {
+  if (!mayReadProof({ ownerPersonId: item.ownerPersonId, readerPersonId: seat.personId, readerRoleNames: [seat.roleName], actedBy, aboutPayroll: payroll, readsPayroll })) {
     // Another seat at the firm reads the question and who may read the proof; nothing else.
     return NextResponse.json({
       data: {
         id: item.id, question: item.question, state: item.state, ownerName: item.ownerPerson.name,
         entityName: item.actingEntity?.name ?? null, openedOn: item.openedOn, ageDays,
-        proofHidden: proofIsFor(item.ownerPerson.name), proof: null, proofLinks: [], timeline: [], decision: null,
+        proofHidden: proofIsFor(item.ownerPerson.name, payroll), proof: null, proofLinks: [], timeline: [], decision: null,
         sentBackReason: null, sentBackBy: null, sentBackAt: null, verdictNote: null, mayAct: false, entities: seat.entities,
       },
     })

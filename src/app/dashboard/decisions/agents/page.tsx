@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
-import { readJson } from '@/lib/read-response'
+import { readJson, isRefusal } from '@/lib/read-response'
 import { useFirstPageSection } from '@/components/page-section'
-import { PageHead, Panel, ErrorState, LoadingState } from '@/components/ui'
+import { PageHead, Panel, ErrorState, LoadingState, RefusedState } from '@/components/ui'
 import { QueueTabs } from '../queue-tabs'
 import { LedgerRows } from '@/components/ui/ledger-rows'
 import { QUEUE_EYEBROW_HREFS } from '@/lib/decision-queue'
@@ -14,7 +14,10 @@ import { QUEUE_EYEBROW_HREFS } from '@/lib/decision-queue'
  * its acts today, its meter as a count of actions and its cap "Not set".
  * No switch is drawn: in week 1 there is nothing for one to turn off.
  * Under them the firm's whole ledger, newest first, a page at a time, for
- * the seats that read it; any other seat reads who does.
+ * the seats that read it; any other seat reads who does. A seat that
+ * does not read payroll is told how many acts on payroll records it is
+ * not shown. A seat the door refuses reads the door's sentence once and
+ * nothing else.
  */
 
 interface Data {
@@ -22,7 +25,7 @@ interface Data {
   agents: { key: string; name: string; state: string; actionsToday: number; meter: string; cap: string }[]
   /** Set for a seat that does not read the firm's ledger: who does, in a sentence. */
   ledgerHidden: string | null
-  ledger: null | { page: number; pages: number; total: number; rows: { id: string; at: string; summary: string; entityName: string | null; by: string; heldAs: string; href: string }[] }
+  ledger: null | { page: number; pages: number; total: number; payrollHidden: string | null; rows: { id: string; at: string; summary: string; entityName: string | null; by: string; heldAs: string; href: string }[] }
 }
 
 export default function AgentControlPage() {
@@ -30,23 +33,27 @@ export default function AgentControlPage() {
   const [page, setPage] = useState(1)
   const [data, setData] = useState<Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [refused, setRefused] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
       const body = await readJson(await fetch(`/api/decision-items/agents?page=${page}`))
       setData(body.data); setErr(null)
     } catch (e: any) {
+      if (isRefusal(e)) { setRefused(e.message); return }
       setErr(e.message)
     }
   }, [page])
   useEffect(() => { load() }, [load])
+
+  if (refused) return <RefusedState says={refused} />
+  if (!data && !err) return <LoadingState says="Opening agent control…" />
 
   return (
     <>
       <PageHead eyebrow={section} title="Agent control" subtitle="What each agent may do, how much it did today, and every act on the record." />
       <QueueTabs current="agents" />
       {err && <ErrorState says={err} />}
-      {!data && !err && <LoadingState says="Opening agent control…" />}
       {data && (
         <>
           <ul className="mb-5 text-[14px] text-etyme-ink">
@@ -85,6 +92,7 @@ export default function AgentControlPage() {
               ) : (
                 <LedgerRows rows={data.ledger.rows} />
               )}
+              {data.ledger.payrollHidden && <p className="mt-3 text-[13px] text-etyme-muted">{data.ledger.payrollHidden}</p>}
               {data.ledger.pages > 1 && (
                 <div className="mt-3 flex gap-3 items-center text-[13px]">
                   <button className="btn-secondary text-[13px]" disabled={page <= 1} onClick={() => setPage(page - 1)}>Newer</button>

@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   mayOpenDecision, maySetHomePage, readOpenAsk, openBody, readDecideAsk, decideBody, agentRows, ageWords,
   ownPageOf, recordViewHref, readHomeAsk, FIRM_AGENTS, VERDICT_BUTTONS, PROOF_TYPES,
-  QUEUE_EYEBROW_HREFS, ledgerBeganSays, readNeeds,
+  QUEUE_EYEBROW_HREFS, ledgerBeganSays, readNeeds, isRecordType, cannotReadSays,
 } from '@/lib/decision-queue'
+import { queueCards } from '@/app/api/conversations/twin/ask'
+import { execSync } from 'child_process'
 import { sectionOfHref } from '@/lib/page-framing'
 import { ledgerWhen } from '@/components/ui/ledger-rows'
 import { readFileSync } from 'fs'
@@ -150,5 +152,56 @@ describe('how the queue’s pages are framed and drawn (the walk of Flow A)', ()
 
   it('a record view asks for the permission its own list asks for', () => {
     expect([readNeeds('SellContract'), readNeeds('Person'), readNeeds('Invoice'), readNeeds('Company')]).toEqual(['assignments.read', 'consultants.read', 'invoices.read', null])
+  })
+
+  it('a consultant’s month is a kind of record the record view opens, for a seat that reads payroll', () => {
+    expect(isRecordType('MoneyChain')).toBe(true)
+    expect(readNeeds('MoneyChain')).toBe('payroll.read')
+    expect(cannotReadSays('MoneyChain')).toBe('Your seat cannot read payroll records.')
+    // It is never picked as proof by hand: only a disputed month's own decision links to it.
+    expect(PROOF_TYPES.some((p) => (p.type as string) === 'MoneyChain')).toBe(false)
+    expect(readOpenAsk({ ...typed, proofLinks: [{ recordType: 'MoneyChain', recordId: 'm1' }] }, true).ok).toBe(false)
+    const route = src('src/app/api/records/[type]/[id]/route.ts')
+    expect(route).toContain('monthPageOf(id)')
+    const lookup = src('src/app/api/records/lookup.ts')
+    for (const fact of ['Consultant', 'Client', 'Month', 'State', 'Stated on the timesheet', 'Invoiced', 'Paid']) expect(lookup, fact).toContain(`f('${fact}'`)
+  })
+
+  it('every kind of record a ledger row is written on is a kind the record view opens, so no ledger line is a dead link', () => {
+    // Every file that writes to the ledger, and the record type each names.
+    const files = execSync("grep -rl 'writeRecordAction(' src", { encoding: 'utf8' }).trim().split('\n').filter((f) => !f.endsWith('lib/record-ledger.ts'))
+    const named = new Set<string>()
+    const consts: Record<string, string> = { CHAIN_RECORD: 'MoneyChain', DECISION_RECORD: 'DecisionItem' }
+    for (const f of files) {
+      const text = src(f)
+      for (const m of text.matchAll(/writeRecordAction\([\s\S]*?recordType: ('([A-Za-z]+)'|([A-Z_]+))/g)) named.add(m[2] ?? consts[m[3]] ?? m[3])
+    }
+    expect(named.size).toBeGreaterThanOrEqual(3)
+    for (const t of named) expect(isRecordType(t), t).toBe(true)
+  })
+
+  it('a seat the queue refuses reads the refusal once: no heading, no tabs, no chips and no second refusal under it', () => {
+    const page = src('src/app/dashboard/decisions/page.tsx')
+    expect(page).toContain("if (typeof door === 'object') return <RefusedState says={door.refused} />")
+    // The heading, the tabs and the cards under the queue are drawn only once the door has opened.
+    expect(page).toMatch(/\{door === 'OPEN' && \(\s*<>\s*<PageHead[^\n]*title="Decisions"/)
+    expect(page).toContain("{door === 'OPEN' && <NeedsAttention />}")
+    const queue = src('src/app/dashboard/decisions/queue.tsx')
+    expect(queue).toContain('if (isRefusal(e) && onAnswered) { setRefused(true); onAnswered(e.message); return }')
+    expect(queue).toContain('if (refused) return null')
+    const agents = src('src/app/dashboard/decisions/agents/page.tsx')
+    expect(agents.indexOf('if (refused) return <RefusedState says={refused} />')).toBeGreaterThan(0)
+    expect(agents.indexOf('if (refused) return <RefusedState says={refused} />')).toBeLessThan(agents.indexOf('<PageHead'))
+  })
+
+  it('a decision’s card keeps its question mark and gains no period after it', () => {
+    const card = (title: string) => queueCards({ total: 1, items: [{ type: 'DECISION_ITEM', title, subtitle: 'Open 438 days · Brightmoor Staffing LLC', entityId: 'd1', actionUrl: '/dashboard/decisions/d1' } as any] })[0]
+    expect(card('Write off the unpaid balance on the 2025 bill, rather than chase it further?').title).toBe('Write off the unpaid balance on the 2025 bill, rather than chase it further?')
+    expect(card('Renew the supplier agreement').title).toBe('Renew the supplier agreement.')
+  })
+
+  it('agent control tells a seat that does not read payroll how many acts on payroll records it is not shown', () => {
+    expect(src('src/app/dashboard/decisions/agents/page.tsx')).toContain('{data.ledger.payrollHidden && <p')
+    expect(src('src/app/api/decision-items/agents/route.ts')).toContain('payrollHidden: payrollRowsHiddenSays(ledger.hidden)')
   })
 })

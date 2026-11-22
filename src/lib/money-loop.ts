@@ -4,12 +4,15 @@
  * description: the state in the trade's words, the month a period is, what
  * each form draws and posts, and what its route reads back.
  *
- * The rules of a chain are lib/money/money-chain. Every amount here is the
+ * The rules of a month are lib/money/money-chain. Every amount here is the
  * one a person typed. Etyme works none of them out.
+ *
+ * A payroll clerk says "month" ("Rosa's November"). No sentence a person
+ * reads here says "chain"; that word is the machine's.
  */
 
 import { hasPermission } from '@/lib/permissions'
-import { formatMonthLong } from '@/lib/format-date'
+import { formatDay, formatMonthLong } from '@/lib/format-date'
 
 // ── Who reads, who writes ───────────────────────────────────────────
 
@@ -21,6 +24,8 @@ export const CANNOT_RUN_LOOP = 'Moving a consultant’s month forward is done by
 export const BENCH_SEAT_REFUSED_LOOP = 'This page is read by the people who run payroll at this firm. Your seat here is a place on its bench, so it does not open it.'
 export const NO_SUCH_CHAIN = 'There is no such month on a consultant’s record at this firm.'
 export const NO_SUCH_PLACEMENT = 'There is no such contract at this firm.'
+/** What a seat that does not read payroll reads in place of a month's record. */
+export const CANNOT_READ_MONTH_RECORD = 'Your seat cannot read payroll records.'
 
 export function mayReadLoop(permissions: readonly string[]): boolean {
   return hasPermission(permissions, LOOP_READS)
@@ -138,7 +143,11 @@ const currencyOf = (b: Record<string, unknown>) => { const c = str(b, 'currency'
 
 type Refused = { ok: false; says: string; field: string }
 
-// ── "Open this month's chains" ──────────────────────────────────────
+// ── "Start this month" ──────────────────────────────────────────────
+
+/** The button that creates the month's records, and the link that goes to the month's page. Two acts, two words. */
+export const START_MONTH = 'Start this month'
+export const seeMonth = (monthWords: string) => `See ${monthWords}`
 
 export interface OpenMonthTyped { month: string; actingEntityId: string }
 
@@ -278,13 +287,41 @@ export function readLoadAsk(body: unknown, hasEntities: boolean): { ok: true; as
 
 // ── Sentences the screens print ─────────────────────────────────────
 
-/** What a month with no chains waits on. Pure. */
+/** What a month nobody has started waits on. Pure. */
 export function emptyMonthSays(monthWords: string, livePlacements: number, mayRun: boolean): string {
   if (livePlacements === 0) return `Nobody was on a running contract in ${monthWords}, so there is no month to follow. A consultant appears here once a contract of hers has started.`
   const who = livePlacements === 1 ? '1 consultant is' : `${livePlacements} consultants are`
   return mayRun
-    ? `${who} on a running contract in ${monthWords}, and the month is not opened yet. Open it to start each one at “Timesheet owed”.`
-    : `${who} on a running contract in ${monthWords}, and the month is not opened yet. A seat that runs payroll opens it.`
+    ? `${who} on a running contract in ${monthWords}, and the month is not started yet. Start it to put each one at “Timesheet owed”.`
+    : `${who} on a running contract in ${monthWords}, and the month is not started yet. A seat that runs payroll starts it.`
+}
+
+/**
+ * What a consultant's page says for a month she has no record for: the
+ * contract ended before it, or starts after it, on its own day; the month
+ * has not begun (the rule's sentence); or nobody has started it yet. Pure.
+ */
+export function noMonthSays(input: { consultant: string; month: Month; start: Date | null; end: Date | null; notBegun: string | null }): string {
+  const { consultant, month } = input
+  if (input.end && input.end.getTime() < month.start.getTime()) {
+    return `${consultant}’s contract ended on ${formatDay(input.end)}, so there is no ${month.words} to follow.`
+  }
+  if (input.start && input.start.getTime() > month.end.getTime()) {
+    return `${consultant}’s contract starts on ${formatDay(input.start)}, so there is no ${month.words} to follow yet.`
+  }
+  if (input.notBegun) return input.notBegun
+  return `${month.words} has not been started for ${consultant}. A seat that runs payroll starts the month on the consultants page, or loads a past month as closed on the month’s page.`
+}
+
+/** "Decided by Dana Owner on Nov 22, 2026: Rejected" — a returned month keeps the link to its recorded decision. Pure. */
+export function decidedSays(by: string | null, dayWords: string | null, state: string): string {
+  const verdict = state === 'APPROVED' ? 'Approved' : 'Rejected'
+  return `Decided${by ? ` by ${by}` : ''}${dayWords ? ` on ${dayWords}` : ''}: ${verdict}`
+}
+
+/** How much of a currency's total is on disputed months: "$16,000.00 of this is on 1 disputed month." Pure. */
+export function disputedShareSays(amountWords: string, months: number): string {
+  return `${amountWords} of this is on ${months === 1 ? '1 disputed month' : `${months} disputed months`}.`
 }
 
 /** "Loaded as history from the payroll file, as of Nov 5, 2026." Pure. */

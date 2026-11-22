@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
-import { firmLedger, usageCount } from '@/lib/record-ledger'
+import { firmLedger, usageCount, payrollRowsHiddenSays, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
 import { BASELINE_LINES, LEDGER_IS_FOR, agentRows, dayAround, recordViewHref } from '@/lib/decision-queue'
 import { queueSeat } from '../door'
 
@@ -14,6 +14,9 @@ import { queueSeat } from '../door'
  * Under them the firm's whole ledger, newest first, a page at a time,
  * read only by the Owner, an Admin, or a seat that reads the activity log
  * (`governance.read`); any other seat reads the agents and the baseline.
+ * A row on a payroll record states amounts, so it is read only by a seat
+ * that reads payroll: for any other reader those rows are left out at the
+ * query, and one sentence says how many.
  */
 
 export async function GET(request: NextRequest) {
@@ -22,7 +25,8 @@ export async function GET(request: NextRequest) {
   const { from, to } = dayAround(new Date())
   const page = Number(request.nextUrl.searchParams.get('page') ?? '1')
   const readsLedger = seat.ownerOrAdmin || hasPermission(seat.caller.permissions, 'governance.read')
-  const [counts, ledger] = await Promise.all([usageCount(seat.companyId, from, to), readsLedger ? firmLedger(seat.companyId, page) : null])
+  const readsPayroll = hasPermission(seat.caller.permissions, PAYROLL_LEDGER_READS)
+  const [counts, ledger] = await Promise.all([usageCount(seat.companyId, from, to), readsLedger ? firmLedger(seat.companyId, page, undefined, { readsPayroll }) : null])
   const lines: string[] = [BASELINE_LINES.billing]
   if (hasPermission(seat.caller.permissions, 'margin.read')) lines.push(BASELINE_LINES.margin)
   return NextResponse.json({
@@ -32,6 +36,7 @@ export async function GET(request: NextRequest) {
       ledgerHidden: ledger ? null : LEDGER_IS_FOR,
       ledger: !ledger ? null : {
         page: ledger.page, pages: ledger.pages, total: ledger.total,
+        payrollHidden: payrollRowsHiddenSays(ledger.hidden),
         rows: ledger.rows.map((r) => ({
           id: r.id, at: r.createdAt, summary: r.summary, entityName: r.actingEntity?.name ?? null,
           by: r.agentKey ? `${r.agentKey} for ${r.person.name}` : r.person.name, heldAs: r.heldAs,
