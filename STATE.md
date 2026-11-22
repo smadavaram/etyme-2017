@@ -300,7 +300,7 @@ person. NOT STARTED, with the rest of the money loop (pack batch 3).
   yet.
 - 2026-11-21: Flow B ships with Flow A only if green; else week 2 first.
 - 2026-11-21: tenant colors are two stored colors applied to the
-  shell's accent, built with Flow B.
+  shell's accent. NOT BUILT in week 1; week 2's list.
 - 2026-11-21: the rest of the handover's Batch 1 goes to week 3, the
   remainder to week 4.
 - 2026-11-21: the left column stays on the decision-queue home.
@@ -333,37 +333,58 @@ BASELINE PENDING. Blended margin an hour: BASELINE PENDING. The
 baseline is an output of the week 2 census and is never estimated. The
 target is 36 at $15 by 2027-11-21.
 
-**Week 1, Nov 21–22: pack batch 1, primitives.** IN PROGRESS: scouted,
-nothing built. The Monday run: the decision queue is home, four seeded
-items with owners and true ages.
-- Settled by the contract: the pack's batch 1 goes before the rest of
-  the handover's Batch 1; the decision queue is the signed-in home.
-- Built on record 105's reading: one tenant, legal entities as a layer.
-- Still waited on: the Vision UI file, for the two screens.
-- The release ask for the weekend (record 107) adds a Tapin load. The
-  four decision items, seven placements and three customers are entered
-  by a person on the screens after the deploy: NOT STARTED, the
-  tester's. Tapin's two money chains need the money loop of week 3 and
-  are NOT IN THIS RELEASE unless the owner rules otherwise. The
-  branding check is NOT CHECKED.
-- The rest of the handover's Batch 1 is DISPLACED, not dropped; the
-  lead recommends week 3, with the remainder in week 4.
+**Week 1, Nov 21–22: RELEASED, NOT RETESTED (record 109).** Source
+428f4009f. Every line is a claim until the tester passes it by screen
+number in production.
 
-**Week 1 by screen (record 107).** Each is NOT RETESTED until the
-tester passes it by number.
-- Flow A, the second firm: A1 sign-in lands on the queue · A2 queue ·
-  A3 item with Approve, Send back, Reject · A4 decision recorded · A5
-  agent control and ledger · A6 record view. IN PROGRESS.
-- Flow B, Tapin: B1 home · B2 consultants · B3 placement and state
-  strip · B4 October chain · B5 December chain · B6 payroll summary ·
-  Tapin's colors. NOT STARTED. It follows Flow A, and slips to week 2's
-  first slot if it is not green in time.
-- Conflicts where the flow won over standing text: seven, listed in
-  record 107 (three buttons; a three-way question; the left column
-  stays; the meter is a count with no price; no dead kill switch;
-  tenant colors are new building; Flow B is week 3's money loop).
+| Screen | Claim | Retest |
+|---|---|---|
+| A1 | The Owner sets the decision queue as the first screen (Settings, Company) | NOT RETESTED |
+| A2 | The queue, oldest first, with owner, age and entity; "Open a decision" | NOT RETESTED |
+| A3 | Approve, Send back, Reject; a reason to send back or reject | NOT RETESTED |
+| A4 | The decision recorded with decider, entity, role, time, reason | NOT RETESTED |
+| A5 | Agent control: six agents "Not enabled"; the firm's ledger | NOT RETESTED |
+| A6 | A record with its ledger history | NOT RETESTED |
+| B1 | A disputed month is a decision on its owner's queue | NOT RETESTED |
+| B2 | Payroll, tab "Timesheet to payment": consultants and the month's state | NOT RETESTED |
+| B3 | A consultant's month: state strip, next move, ledger | NOT RETESTED |
+| B4 | A past month loaded as closed | NOT RETESTED |
+| B5, B6 | A month's page and the payroll summary | NOT RETESTED |
 
+**For the retest, in order.**
+1. Each tenant's Owner sets "First screen after sign-in" to the
+   decision queue. No agent sets it in production.
+2. A person types the real records on the screens: the four decision
+   items, Tapin's consultants and customers, October as a closed past
+   month, December once it begins (a month that has not begun cannot be
+   started, and a month that has not ended cannot be loaded as closed).
+3. A firm with legal entities chooses the entity on every act.
 
+**NOT IN THIS RELEASE.** Tapin's colors (a test pins Etyme's action
+colors; week 2's list). Any agent. A timesheet recorded on import.
+Monthly pay in arrears. A browser test that presses Save on the new
+forms.
+
+**Week 2's first items, found by the last walk and not fixed.**
+1. "…state no amount yet, and is left out" should read "are".
+2. A contract ending in the future reads "ended on".
+3. A decided dispute not yet returned still says "is owed by".
+4. The load form's date bubble hides the route's sentence, and the
+   entity box stays red after a choice.
+
+**Conflicts where the flow won over standing text.** Seven, in record
+107. Two more from the build: the dispute's question states no amount,
+because every working seat reads a question; and "Timesheet to
+payment" is the tab's name, because "money loop" is a builder's phrase.
+
+**Which model ran which piece.** The scout, the ledger and decision
+item, Flow A's screens, the month rules, the first walk and the first
+round of fixes: the second-strongest model. The review of step 1: not
+confirmed. Flow B's screens, both later walks, the money test and the
+Flow B fixes: the strongest model, set explicitly. The coordinator: the
+strongest model.
+
+## Phase 6, the finish gate
 
 Not met. No batch has been retested.
 
