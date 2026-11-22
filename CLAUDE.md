@@ -491,6 +491,10 @@ Full text → 40, 11, 56, 68, 72.
   the tenant's own branding, kept as tenant settings, adopted or created
   on the Owner's yes; Etyme's own brand is at most "Runs on Etyme". Colors
   that fail contrast are warned about, never changed.
+- **A tenant's website is made from its dashboard settings** (owner,
+  2026-11-22 → 111): template, branding, pages and content stored on
+  the tenant's record, built once as an engine. No tenant's site is a
+  one-off build. Not built yet.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
@@ -534,6 +538,10 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73, 75, 77.
   skills, availability and reasons, never a name or a rate, and its one
   act is "ask to add this firm". A bench is shared only between firms
   that already trade, one rung at a time.
+- **Customer and client are the same, and Kind is one fact** (owner,
+  2026-11-22 → 110). No screen classifies a company as one or the
+  other. The end client is the worksite, named on the placement only
+  where it differs from the company billed.
 - **A company can be recorded without classifying it** (2026-11-12).
   Kind and position are two facts. A position (Customer above us,
   Supplier below us) lives on the register row, is given by Extend and

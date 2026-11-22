@@ -331,6 +331,14 @@ This is a second Sunday deploy, on the owner's direction. It does not
 go out on a weekday. Second batch after the retest: imports (A4), then
 the stabilization batch.
 
+## Rulings of 2026-11-22, evening
+
+- **Lower models** (owner): workers on the lower tier at low effort; no
+  group review or long walk unless a trust flow changed.
+- **Tenant websites** (record 111): made from dashboard settings, one
+  engine, never a one-off build. NOT BUILT. Nothing in record 110's
+  batch built a tenant's site directly.
+
 ## The weekend release contract (record 107)
 
 Thirteen weekend releases, 2026-11-21 to 2027-02-14. One item, one
