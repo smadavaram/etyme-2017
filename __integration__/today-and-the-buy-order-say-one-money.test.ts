@@ -60,16 +60,23 @@ describe('Today says each draft’s own bill and the line reader’s signed-and-
     const lb = (await signedAndBilled([rosaLine.id])).get(rosaLine.id)!
     const weeks = lb.notBilled.weeks
     expect(weeks.length).toBeGreaterThan(0)
-    // The bill for the month her first accepted billable expense falls in:
-    // the generator bills one period at a time, and that month carries
-    // both her signed weeks and the expense.
+    // The bill for the month the billable expense Northbend accepted ends
+    // in: the generator bills one period at a time, and puts an expense on
+    // the bill whose dates hold the day its period ends (lib/money/
+    // bill-generate). The expense is found by the acceptance, and the month
+    // by its last day, never its first: seeded three days long and counted
+    // back from the day the world is born, it starts in one month and ends
+    // in the next on two days of every month.
     const expense = await prisma.expense.findFirstOrThrow({
-      where: { sellContractId: rosaLine.id, billable: true, invoiceId: null, status: 'APPROVED' },
-      orderBy: { periodStart: 'asc' },
-      select: { periodStart: true },
+      where: {
+        sellContractId: rosaLine.id, billable: true, invoiceId: null, status: 'APPROVED',
+        acceptances: { some: { status: 'ACCEPTED' } },
+      },
+      orderBy: [{ periodEnd: 'asc' }, { id: 'asc' }],
+      select: { periodEnd: true },
     })
-    const y = expense.periodStart.getUTCFullYear()
-    const m = expense.periodStart.getUTCMonth()
+    const y = expense.periodEnd.getUTCFullYear()
+    const m = expense.periodEnd.getUTCMonth()
     const day = (d: Date) => d.toISOString().slice(0, 10)
     as(BRIGHTMOOR_AR)
     const made = await json(await generate(req('POST', '/api/invoices/generate', {
