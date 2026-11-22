@@ -273,7 +273,10 @@ describe('6: a page heads with the section of the reader’s own menu, never a w
   for (const [file, href] of LISTS) {
     it(`${href} reads its heading from the reader’s own menu and draws none while the menu is loading`, () => {
       const page = src(file)
-      expect(page).toContain(`usePageSection('${href}')`)
+      // The decision queue is reached from Today, so it reads the first
+      // of the Today pages on the reader's menu (QUEUE_EYEBROW_HREFS).
+      if (href === '/dashboard/decisions') expect(page).toContain('useFirstPageSection(QUEUE_EYEBROW_HREFS)')
+      else expect(page).toContain(`usePageSection('${href}')`)
       // PageHead draws the eyebrow only when the menu gives one (shared-primitives).
       expect(page).toMatch(/\{section && <(p|Lbl)[^>]*>\{section\}<\/(p|Lbl)>\}|<PageHead\s+eyebrow=\{section\}/)
       expect(page).not.toMatch(TYPED)

@@ -53,7 +53,7 @@ export default function RecordViewPage() {
       {data.facts.length > 0 && (
         <div className="mb-6">
           <Panel title="The record">
-            <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px]">
+            <dl className="grid sm:grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px]">
               {data.facts.map((f) => (
                 <Fragment key={f.label}><dt className="text-etyme-muted">{f.label}</dt><dd className="tabular-nums">{shown(f.value)}</dd></Fragment>
               ))}

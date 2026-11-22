@@ -87,7 +87,7 @@ export default function PlacementMonthPage() {
       />
 
       <Panel title="The placement">
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px]">
+        <dl className="grid sm:grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px]">
           <dt className="text-etyme-muted">Consultant</dt><dd>{p.consultant}</dd>
           <dt className="text-etyme-muted">Client</dt><dd>{p.client}</dd>
           <dt className="text-etyme-muted">Agreed rate</dt>
@@ -130,7 +130,7 @@ export default function PlacementMonthPage() {
                 </li>
               ))}
             </ol>
-            <dl className="mt-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px] tabular-nums">
+            <dl className="mt-4 grid sm:grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px] tabular-nums">
               <dt className="text-etyme-muted">Stated on the timesheet</dt><dd>{stated(c.amounts.timesheet)}</dd>
               <dt className="text-etyme-muted">Invoiced</dt><dd>{stated(c.amounts.invoiced)}</dd>
               <dt className="text-etyme-muted">Paid</dt><dd>{stated(c.amounts.paid)}</dd>

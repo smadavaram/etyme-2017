@@ -88,6 +88,10 @@ export const CONFIRM_PHRASE = 'delete the demo world'
  * from `Prisma.dmmf` and fails when a model is missing or out of order.
  */
 export const DELETE_ORDER = [
+  // The money loop's month, a decision a person opened and the record
+  // ledger (2026-11-21) name a firm, a legal entity, people and a sell
+  // line, so they go before all of them; a month names its decision.
+  'MoneyChain', 'DecisionItem', 'RecordAction',
   // A question asked on a firm's public page (2026-11-21) names the firm
   // and the people who took or closed it, so it goes before both.
   'PageAsk',
@@ -222,6 +226,7 @@ export type LooseRole = 'OWNED' | 'LINK' | 'RECORD'
 export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   // The twin's ledger is history: who acted and about what, kept as it was.
   // The actor is a person's id or the twin's kind, so it is no row's key.
+  'RecordAction.recordId': { as: 'RECORD' },
   'TwinAction.actorId': { as: 'RECORD' },
   // Polymorphic by entityType — an invoice receipt, a person, a bill.
   'TwinAction.entityId': { as: 'RECORD' },

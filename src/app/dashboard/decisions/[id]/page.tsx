@@ -110,7 +110,7 @@ export default function DecisionItemPage() {
       {item.decision && (
         <div className="mt-5">
           <Panel title={`${stateWords(item.decision.verdict)} by ${item.decision.personName}`}>
-            <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px]">
+            <dl className="grid sm:grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-[14px]">
               <dt className="text-etyme-muted">Decided by</dt><dd>{item.decision.personName}</dd>
               <dt className="text-etyme-muted">For</dt><dd>{item.decision.entityName ?? 'The firm (no legal entity on record)'}</dd>
               <dt className="text-etyme-muted">As</dt><dd>{item.decision.heldAs}</dd>

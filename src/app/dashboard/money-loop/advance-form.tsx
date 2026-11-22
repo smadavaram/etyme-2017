@@ -47,7 +47,7 @@ export function AdvanceForm({ chainId, next, currency, people, entities, onDone 
   return (
     <form onSubmit={save} className="grid gap-4 max-w-[620px]">
       {draws.includes('amount') && (
-        <div className="grid grid-cols-[1fr_7rem] gap-3">
+        <div className="grid sm:grid-cols-[1fr_7rem] gap-3">
           <Field label={next.amountLabel} help="As it is written, such as 16000.00. Etyme works out no amount." id="ml-amount" error={at('amount')}>
             <Input id="ml-amount" inputMode="decimal" value={f.amount ?? ''} onChange={(e) => set('amount')(e.target.value)} />
           </Field>
