@@ -93,10 +93,11 @@ describe('The Companies list', () => {
     expect(companies).toContain('onClick={() => chooseFilter(t.key)}')
     expect(companies).toContain('const chooseFilter = (f: PositionFilter) => { setPressed({}); setPositionFilter(f) }')
     expect(companies).toContain('aria-pressed={positionFilter === t.key}')
-    expect(companies).toContain('{companyTilesShown(tiles).map((t) => (')
+    expect(companies).toContain('{companyTilesShown(tiles, totals).map((t) => (')
     // Every tile's filter is one a chip also offers.
     const tileKeys = [...companies.slice(companies.indexOf('function companyTilesShown'), companies.indexOf('function emptyUnder')).matchAll(/key: '([A-Z_]+)' as const/g)].map((m) => m[1])
-    expect(tileKeys).toEqual(['ALL', 'CUSTOMER', 'SUPPLIER', 'PRIME', 'MSP', 'NOT_CLASSIFIED', 'WORKS_WITH_YOU', 'NOT_LINKED'])
+    // Customers, Clients and Suppliers are three groups, and a company loaded as a client waits under Needs classifying (record 110, A1).
+    expect(tileKeys).toEqual(['ALL', 'CUSTOMER', 'CLIENT', 'SUPPLIER', 'NEEDS_CLASSIFYING', 'PRIME', 'MSP', 'NOT_CLASSIFIED', 'WORKS_WITH_YOU', 'NOT_LINKED'])
     for (const k of tileKeys) expect(companies).toMatch(new RegExp(`key: '${k}'(?: as const)?, label:`))
   })
 
@@ -107,7 +108,7 @@ describe('The Companies list', () => {
   })
 
   it('the words about a customer agreement sit beside the chip, so the table wraps rather than running past its box', () => {
-    expect(companies).toContain("<Chip key={p} tone={p === 'CUSTOMER' ? 'verified' : 'action'}>{POSITION_WORDS[p]}</Chip>")
+    expect(companies).toContain("<Chip key={x} tone={x === 'CUSTOMER' ? 'verified' : 'action'}>{GROUP_WORDS[x]}</Chip>")
     expect(companies).not.toMatch(/<Chip[^>]*>[^<]*no agreement signed yet/)
     expect(companies).toContain("'No agreement signed yet'")
   })

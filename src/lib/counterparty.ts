@@ -1195,3 +1195,303 @@ export const COST_OBJECT_KIND_WORDS: readonly { value: 'INTERNAL_ORDER' | 'PROJE
   { value: 'WBS_ELEMENT', label: 'WBS element' },
   { value: 'MATERIAL_CODE', label: 'Material code' },
 ]
+
+// ═════════════════════════════════════════════════════════════════════
+// CUSTOMERS, CLIENTS AND SUPPLIERS (record 110, A1, 2026-11-22)
+// ═════════════════════════════════════════════════════════════════════
+//
+// Three words, one each. A customer pays us: the firm the bill goes to.
+// A client is the end client: where our people work. A supplier
+// supplies us. One company can be the customer on one contract and the
+// client on another, so the role is read off each contract line first
+// (`SellContract.clientCompanyId` is who is billed; `endClientCompanyId`
+// is where the person works, and empty means the same company).
+//
+// Two sources, kept apart on every row: what the contracts say, and what
+// a person said on the register. A company of Kind CLIENT was loaded as
+// an end client, so its register row is never read as "customer" until a
+// person says so on the Classify page. Until then it needs classifying,
+// it is in no group, and what its contracts say is only a suggestion.
+// Nothing here writes to a row.
+
+/** The three groups. CLIENT is the end client: the worksite. */
+export type Group = 'CUSTOMER' | 'CLIENT' | 'SUPPLIER'
+export const GROUP_ORDER: readonly Group[] = ['CUSTOMER', 'CLIENT', 'SUPPLIER']
+export const GROUP_WORDS: Record<Group, string> = { CUSTOMER: 'Customer', CLIENT: 'Client', SUPPLIER: 'Supplier' }
+export const GROUP_MEANS: Record<Group, string> = {
+  CUSTOMER: 'pays us',
+  CLIENT: 'where our people work',
+  SUPPLIER: 'supplies us',
+}
+/** The two acts on the Classify page, in the words on their checkboxes. */
+export const SAY_CUSTOMER = 'Customer: pays us'
+export const SAY_CLIENT = 'Client: where our people work'
+export const NEEDS_CLASSIFYING = 'Needs classifying'
+/** The register row that says "end client". Written only by the classify act. */
+export const END_CLIENT_ROW = 'END_CLIENT'
+
+/**
+ * Whether a firm sells at all. A client only buys (CLAUDE.md, positions
+ * on a deal): it has suppliers and its own sites, so it has no customers
+ * group, no clients group and nothing to classify. Pure.
+ */
+export function sellsToSomebody(tenantKind: string | null | undefined): boolean {
+  return tenantKind !== 'CLIENT'
+}
+
+/** What the reading firm's own contract lines say about one company. */
+export interface OnContracts {
+  /** Sell lines that bill this company. */
+  billedOn: number
+  /** Sell lines whose worksite is this company, named or by default. */
+  worksiteOn: number
+  /** Of `worksiteOn`, the lines that name it as the end client. The rest name no end client, so the company billed is read as the worksite. */
+  worksiteNamedOn: number
+  /** Buy lines this company supplies the person on. */
+  suppliesOn: number
+}
+export const ON_NO_CONTRACT: OnContracts = { billedOn: 0, worksiteOn: 0, worksiteNamedOn: 0, suppliesOn: 0 }
+
+export interface GroupFacts {
+  kind: string | null
+  /** The register's positions, as `positionsOf` reads them. */
+  positions: readonly Position[]
+  /** The reader's own record holding no position (`isNotClassified`). */
+  notClassified: boolean
+  notLinked?: boolean
+  /** The reader's own company on its own list. */
+  own?: boolean
+  /** When a person said "Customer: pays us" (the stamp on the CLIENT row), or null. */
+  saidCustomerAt: Date | string | null
+  /** When a person said "Client: where our people work" (the END_CLIENT row), or null. */
+  saidClientAt: Date | string | null
+  onContracts: OnContracts
+}
+
+export interface GroupsRead {
+  /** What a person said on the register. */
+  said: Group[]
+  /** What the firm's own contract lines say. */
+  onContracts: Group[]
+  /** The groups the company is counted in: both sources together, and none while it needs classifying. */
+  groups: Group[]
+  /** Loaded as a client, and nobody has said yet whether it pays us or is where our people work. */
+  needsClassifying: boolean
+  notClassified: boolean
+  /** In none of the above: a prime or an MSP only, on the list through work alone, or not linked yet. */
+  other: 'PRIME_OR_MSP' | 'WORKS_WITH_YOU' | 'NOT_LINKED' | null
+  /** What the contracts suggest, in a sentence. */
+  suggestion: string
+}
+
+const contracts = (n: number) => `${n} ${n === 1 ? 'contract' : 'contracts'}`
+
+/** "Billed on 3 contracts. Worksite on 2 contracts." or "On no contract yet." Pure. */
+export function contractsSay(c: OnContracts, sells = true): string {
+  const parts: string[] = []
+  if (sells && c.billedOn > 0) parts.push(`Billed on ${contracts(c.billedOn)}.`)
+  if (sells && c.worksiteOn > 0) {
+    const byDefault = c.worksiteOn - c.worksiteNamedOn
+    parts.push(
+      byDefault === 0
+        ? `Worksite on ${contracts(c.worksiteOn)}.`
+        : c.worksiteNamedOn === 0
+          ? `Worksite on ${contracts(c.worksiteOn)}, because no other end client is named on ${byDefault === 1 ? 'it' : 'them'}.`
+          : `Worksite on ${contracts(c.worksiteOn)}: named on ${c.worksiteNamedOn}, and no other end client is named on ${byDefault}.`,
+    )
+  }
+  if (c.suppliesOn > 0) parts.push(`Supplies on ${contracts(c.suppliesOn)}.`)
+  return parts.length > 0 ? parts.join(' ') : 'On no contract yet.'
+}
+
+/**
+ * Which of the three one company is to the reading firm. Pure.
+ *
+ * `sells` is `sellsToSomebody` of the reading firm. A firm that only
+ * buys reads suppliers and nothing else.
+ */
+export function groupsOf(f: GroupFacts, sells: boolean): GroupsRead {
+  const loadedAsClient = sells && f.kind === 'CLIENT' && !f.own && !f.notLinked
+  const said: Group[] = []
+  const on: Group[] = []
+  if (sells) {
+    // A company loaded as a client is a customer only by a person's word.
+    if (f.kind === 'CLIENT' ? f.saidCustomerAt != null : f.positions.includes('CUSTOMER')) said.push('CUSTOMER')
+    if (f.saidClientAt != null) said.push('CLIENT')
+    if (f.onContracts.billedOn > 0) on.push('CUSTOMER')
+    if (f.onContracts.worksiteOn > 0) on.push('CLIENT')
+  }
+  if (f.positions.includes('SUPPLIER')) said.push('SUPPLIER')
+  if (f.onContracts.suppliesOn > 0) on.push('SUPPLIER')
+
+  const needsClassifying = loadedAsClient && !said.includes('CUSTOMER') && !said.includes('CLIENT')
+  const groups = needsClassifying ? [] : GROUP_ORDER.filter((g) => said.includes(g) || on.includes(g))
+  const none = groups.length === 0 && !needsClassifying
+  const notClassified = none && f.notClassified
+  const other = !none || notClassified
+    ? null
+    : f.notLinked ? 'NOT_LINKED'
+      : f.positions.includes('PRIME') || f.positions.includes('MSP') ? 'PRIME_OR_MSP'
+        : 'WORKS_WITH_YOU'
+  return { said, onContracts: on, groups, needsClassifying, notClassified, other, suggestion: contractsSay(f.onContracts, sells) }
+}
+
+export interface GroupTotals {
+  /** Whether the reading firm sells: false draws no Customers, no Clients and no Needs classifying. */
+  sells: boolean
+  total: number
+  customers: number
+  clients: number
+  suppliers: number
+  inTwo: number
+  inThree: number
+  needsClassifying: number
+  notClassified: number
+  primesOrMsps: number
+  worksWithYou: number
+  notLinked: number
+}
+
+/** The counts over one firm's Companies list. Every company is counted once in the total. Pure. */
+export function groupTotals(rows: readonly GroupsRead[], sells: boolean): GroupTotals {
+  const t: GroupTotals = { sells, total: rows.length, customers: 0, clients: 0, suppliers: 0, inTwo: 0, inThree: 0, needsClassifying: 0, notClassified: 0, primesOrMsps: 0, worksWithYou: 0, notLinked: 0 }
+  for (const r of rows) {
+    if (r.groups.includes('CUSTOMER')) t.customers++
+    if (r.groups.includes('CLIENT')) t.clients++
+    if (r.groups.includes('SUPPLIER')) t.suppliers++
+    if (r.groups.length === 2) t.inTwo++
+    if (r.groups.length === 3) t.inThree++
+    if (r.needsClassifying) t.needsClassifying++
+    if (r.notClassified) t.notClassified++
+    if (r.other === 'PRIME_OR_MSP') t.primesOrMsps++
+    if (r.other === 'WORKS_WITH_YOU') t.worksWithYou++
+    if (r.other === 'NOT_LINKED') t.notLinked++
+  }
+  return t
+}
+
+/**
+ * The total the counts add up to: each group, less a company counted in
+ * two (once) or in three (twice), plus every company in no group. Equal
+ * to `total` by construction, and a test holds it. Pure.
+ */
+export function groupsAddUpTo(t: GroupTotals): number {
+  return t.customers + t.clients + t.suppliers - t.inTwo - 2 * t.inThree
+    + t.needsClassifying + t.notClassified + t.primesOrMsps + t.worksWithYou + t.notLinked
+}
+
+/** "41 companies: 9 customers, 20 clients, 8 suppliers, 6 in two groups, 4 need classifying." Pure. */
+export function groupsAddUpSays(t: GroupTotals): string {
+  const n = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
+  const parts: string[] = []
+  if (t.sells) parts.push(n(t.customers, 'customer', 'customers'), n(t.clients, 'client', 'clients'))
+  parts.push(n(t.suppliers, 'supplier', 'suppliers'))
+  if (t.inTwo > 0) parts.push(`${t.inTwo} in two groups`)
+  if (t.inThree > 0) parts.push(`${t.inThree} in all three`)
+  if (t.needsClassifying > 0) parts.push(t.needsClassifying === 1 ? '1 needs classifying' : `${t.needsClassifying} need classifying`)
+  if (t.notClassified > 0) parts.push(`${t.notClassified} not classified`)
+  if (t.primesOrMsps > 0) parts.push(n(t.primesOrMsps, 'prime or MSP only', 'primes or MSPs only'))
+  if (t.worksWithYou > 0) parts.push(`${t.worksWithYou} on your list through work, with no position yet`)
+  if (t.notLinked > 0) parts.push(`${t.notLinked} not linked yet`)
+  return `${n(t.total, 'company', 'companies')}: ${parts.join(', ')}.`
+}
+
+/** One line of a picker: the company, and what to say beside its name where something must be said. */
+export interface PickerOption { id: string; name: string; note: string | null }
+
+/**
+ * Who a picker offers. "Who do we bill" offers customers; "where does she
+ * work" offers clients. A company that still needs classifying is offered
+ * last, and only with the words that say so. Sorted by name. Pure.
+ */
+export function pickerOptions(
+  what: 'BILL_TO' | 'WORKSITE',
+  rows: readonly { id: string; name: string; read: GroupsRead }[],
+): PickerOption[] {
+  const group: Group = what === 'BILL_TO' ? 'CUSTOMER' : 'CLIENT'
+  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)
+  return [
+    ...rows.filter((r) => r.read.groups.includes(group)).sort(byName).map((r) => ({ id: r.id, name: r.name, note: null })),
+    ...rows.filter((r) => r.read.needsClassifying).sort(byName).map((r) => ({ id: r.id, name: r.name, note: NEEDS_CLASSIFYING.toLowerCase() })),
+  ]
+}
+
+// ── The classify act: one form, two checkboxes ───────────────────────
+
+export interface ClassifyTyped { customer: boolean; client: boolean; actingEntityId: string }
+/** The fields the Classify row draws. The entity only at a firm that has legal entities. */
+export const classifyFields = (hasEntities: boolean): (keyof ClassifyTyped)[] =>
+  hasEntities ? ['customer', 'client', 'actingEntityId'] : ['customer', 'client']
+/** The body the Classify row posts. */
+export function classifyBody(typed: Partial<ClassifyTyped>): Record<string, unknown> {
+  return {
+    customer: typed.customer === true,
+    client: typed.client === true,
+    ...(typed.actingEntityId ? { actingEntityId: typed.actingEntityId } : {}),
+  }
+}
+
+/** What the classify route reads from a body, or the sentence it refuses with. Pure. */
+export function readClassifyAsk(body: unknown, hasEntities: boolean, name: string):
+  | { ok: true; customer: boolean; client: boolean; actingEntityId: string | null }
+  | { ok: false; says: string; field: string } {
+  const b = (body ?? {}) as Record<string, unknown>
+  if (typeof b.customer !== 'boolean' || typeof b.client !== 'boolean') {
+    return { ok: false, field: 'customer', says: `Say whether ${name} is a customer, a client or both.` }
+  }
+  if (!b.customer && !b.client) {
+    return { ok: false, field: 'customer', says: `Tick "${SAY_CUSTOMER}", "${SAY_CLIENT}" or both for ${name}.` }
+  }
+  const entity = typeof b.actingEntityId === 'string' && b.actingEntityId.trim() ? b.actingEntityId.trim() : null
+  if (hasEntities && !entity) {
+    return { ok: false, field: 'actingEntityId', says: 'This company has legal entities. Choose which one this is done for.' }
+  }
+  return { ok: true, customer: b.customer, client: b.client, actingEntityId: entity }
+}
+
+export const CLASSIFY_REFUSED = (firm: string) =>
+  `Classifying a company on ${firm}'s list is for the Owner, an Admin or whoever manages who you trade with. Ask them to do it, or ask them for that access.`
+
+/**
+ * Whether this seat may say what a company is, and whether the answer can
+ * be kept. Pure. Whether a new Customer position may be given at all is
+ * `mayExtend`'s to say, and the route asks it.
+ */
+export function mayClassify(ask: {
+  me: { id: string; name: string; kind: string | null }
+  permissions: readonly string[]
+  other: { id: string; name: string; kind: string }
+  positions: readonly Position[]
+  customer: boolean
+}): { ok: true } | { ok: false; status: number; code: string; says: string } {
+  if (!hasPermission(ask.permissions, 'vendors.manage')) {
+    return { ok: false, status: 403, code: 'FORBIDDEN', says: CLASSIFY_REFUSED(ask.me.name) }
+  }
+  if (!sellsToSomebody(ask.me.kind)) {
+    return {
+      ok: false, status: 422, code: 'ONLY_BUYS',
+      says: `${ask.me.name} buys from its suppliers and bills nobody, so it has no customers or end clients to name. Its suppliers are under Suppliers, and its own sites are under Settings, Sites.`,
+    }
+  }
+  if (ask.other.id === ask.me.id) {
+    return { ok: false, status: 422, code: 'OWN_COMPANY', says: `${ask.other.name} is your own company, so it is not classified.` }
+  }
+  // A customer by Extend, on a company that was not loaded as a client, is
+  // a position with work behind it: Remove on its drawer asks the rule
+  // that checks what hangs off it. This form never takes it off silently.
+  if (!ask.customer && ask.other.kind !== 'CLIENT' && ask.positions.includes('CUSTOMER')) {
+    return {
+      ok: false, status: 409, code: 'CUSTOMER_BY_EXTEND',
+      says: `${ask.other.name} is already your customer. To take that off, open it on Companies and use Remove. Tick "${SAY_CUSTOMER}" here to keep it.`,
+    }
+  }
+  return { ok: true }
+}
+
+/** The sentence the classify act writes on the ledger and answers with. Pure. */
+export function classifiedSays(who: string, company: string, said: { customer: boolean; client: boolean }): string {
+  const what = said.customer && said.client
+    ? 'a customer (pays us) and a client (where our people work)'
+    : said.customer ? 'a customer (pays us)' : 'a client (where our people work)'
+  return `${who} said ${company} is ${what}.`
+}

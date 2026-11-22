@@ -16,6 +16,9 @@ import { mayAddCompany, sameNameRefused, sameDomainRefused, namesakeSays, consum
 import { recordRefusal } from '@/lib/access-log'
 import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
 import { positionsFor } from './positions'
+import { groupsFor, totalsOver } from './groups'
+import { hasPermission } from '@/lib/permissions'
+import { sellsToSomebody } from '@/lib/counterparty'
 import { speaksForItself } from '@/lib/public-site/speaks'
 import { roleCanDo } from '@/lib/company-roles'
 
@@ -587,6 +590,14 @@ export async function GET(request: NextRequest) {
       .filter((c) => notLinkedYet({ ownSideOnly: sides?.ownSideOnly.has(c.id) ?? false, onEtyme: c.claimedAt != null || c._count.contexts > 0, mine: caller.company ? isMine(c, caller.company.id) : false }))
       .map((c) => c.id),
   )
+  // Customers, clients and suppliers (record 110, A1): what the reader's
+  // own contracts say and what a person said, from the one reader the
+  // tabs, the Classify page and the pickers read.
+  const groups = caller.company ? await groupsFor(caller.company, companies, at, notLinked) : new Map()
+  const groupOf = (id: string) => {
+    const g = groups.get(id)
+    return g ? { groups: g.groups, said: g.said, onContracts: g.onContracts, needsClassifying: g.needsClassifying, notClassified: g.notClassified, other: g.other, suggestion: g.suggestion } : null
+  }
   // The domain each of the reader's own records is known by: what it typed,
   // or the domain on the invitation it pasted, read now (nothing backfilled).
   const noted = caller.company ? await ownDomainsFor(caller.company.id, companies) : new Map()
@@ -604,6 +615,14 @@ export async function GET(request: NextRequest) {
         says: verdict.says,
         ...directoryCopy(caller.company?.kind as any ?? null),
       },
+      // How the list adds up, and whether this seat may classify. Null for
+      // a staff reader with no seat, who has no register.
+      groups: caller.company
+        ? {
+            ...totalsOver(groups.values(), caller.company.kind),
+            mayClassify: sellsToSomebody(caller.company.kind) && hasPermission(caller.permissions, 'vendors.manage'),
+          }
+        : null,
       companies: companies.map((c) => notLinked.has(c.id) ? {
         id: c.id,
         name: c.name,
@@ -627,6 +646,7 @@ export async function GET(request: NextRequest) {
         // The relationship to ask as: the reader's own register row, else a supplier (a job it sent).
         askAs: (at.get(c.id)?.positions ?? []).includes('CUSTOMER') ? 'CLIENT' : 'SUPPLIER',
         customerAgreement: null,
+        group: groupOf(c.id),
         may: NOTHING_TO_PRESS,
       } : ({
         id: c.id,
@@ -661,6 +681,7 @@ export async function GET(request: NextRequest) {
         customerAgreement: at.get(c.id)?.customerAgreement ?? null,
         notLinked: false,
         askAs: null,
+        group: groupOf(c.id),
         may: may.get(c.id) ?? NOTHING_TO_PRESS,
       })),
     },

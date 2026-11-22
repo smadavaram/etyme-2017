@@ -804,3 +804,47 @@ describe('the money loop’s forms (record 107, B2 to B5)', () => {
     expect(read('src/app/api/money-loop/route.ts')).toContain('readOpenMonthAsk(')
   })
 })
+
+// ── The Classify page (record 110, A1) ────────────────────────────────
+import { classifyFields, classifyBody, readClassifyAsk, SAY_CUSTOMER, SAY_CLIENT, type ClassifyTyped } from '@/lib/counterparty'
+
+describe('the Classify page: customer, client or both (record 110, A1)', () => {
+  const src = (f: string) => readFileSync(join(process.cwd(), f), 'utf8')
+  const ALL: ClassifyTyped = { customer: true, client: true, actingEntityId: 'e1' }
+  for (const hasEntities of [false, true]) {
+    const where = hasEntities ? 'at a firm with entities' : 'at a firm with none'
+    for (const [label, ticked] of [[SAY_CUSTOMER, { customer: true, client: false }], [SAY_CLIENT, { customer: false, client: true }], ['both', { customer: true, client: true }]] as const) {
+      it(`saving a row with “${label}” ticked ${where}, with every field the row draws filled in, is not refused for a field the row did not draw`, () => {
+        const typed: Partial<ClassifyTyped> = {}
+        for (const f of classifyFields(hasEntities)) (typed as any)[f] = f === 'actingEntityId' ? ALL[f] : ticked[f as 'customer' | 'client']
+        const ask = readClassifyAsk(classifyBody(typed), hasEntities, 'Pellam Foods')
+        expect(ask.ok, !ask.ok ? ask.says : '').toBe(true)
+      })
+    }
+  }
+
+  it('a row saved with neither box ticked is refused naming both boxes, and a firm with entities is asked for the entity the page draws', () => {
+    const none = readClassifyAsk(classifyBody({ customer: false, client: false }), false, 'Pellam Foods')
+    expect(none).toEqual({ ok: false, field: 'customer', says: 'Tick "Customer: pays us", "Client: where our people work" or both for Pellam Foods.' })
+    const noEntity = readClassifyAsk(classifyBody({ customer: true, client: false }), true, 'Pellam Foods')
+    expect(noEntity.ok).toBe(false)
+    if (!noEntity.ok) expect(noEntity.field).toBe('actingEntityId')
+  })
+
+  it('the row posts the one body, draws both boxes and the entity where there is one, and the route reads the same description', () => {
+    const page = src('src/app/dashboard/companies/classify/page.tsx')
+    expect(page).toContain('JSON.stringify(classifyBody({ customer, client, actingEntityId: entity }))')
+    expect(page).toContain('{SAY_CUSTOMER}')
+    expect(page).toContain('{SAY_CLIENT}')
+    expect(page).toContain('{hasEntities && (')
+    expect(page).toContain("classifyFields(hasEntities).includes('actingEntityId')")
+    expect(src('src/app/api/companies/[id]/classify/route.ts')).toContain('readClassifyAsk(body, entities.length > 0, other.name)')
+  })
+
+  it('the save button is never greyed without words: an empty row and a missing entity each say what to do', () => {
+    const page = src('src/app/dashboard/companies/classify/page.tsx')
+    expect(page).toContain('disabled={busy || nothing || needsEntity}')
+    expect(page).toContain('Tick one or both to save.')
+    expect(page).toContain('Choose the legal entity at the top of the page to save.')
+  })
+})

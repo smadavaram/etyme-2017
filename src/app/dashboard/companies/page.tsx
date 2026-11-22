@@ -9,7 +9,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
-import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, kindChoice, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, countedTwiceSays, noPositionTile, rowsUnderFilter, relationshipForKind, type Position } from '@/lib/counterparty'
+import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, kindChoice, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, noPositionTile, rowsUnderFilter, relationshipForKind, GROUP_WORDS, GROUP_ORDER, NEEDS_CLASSIFYING, type Position, type Group, type GroupsRead, type GroupTotals, groupTotals, groupsAddUpSays } from '@/lib/counterparty'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import { ADD_ANYWAY } from '@/lib/contacts'
 import { sitePlace } from '@/lib/site-rules'
@@ -66,6 +66,12 @@ interface Company {
   /** This firm recorded it and nobody there has claimed it. */
   mine: boolean
   customerAgreement: 'SIGNED' | 'UNSIGNED' | 'NONE' | null
+  /**
+   * Customer, client or supplier (record 110, A1), from the one reader the
+   * route reads: what this firm's own contracts say and what a person
+   * said, apart. Null for a reader with no seat at a company.
+   */
+  group?: GroupsRead | null
   /** What this reader may press on the row, as the routes would answer. */
   may: { extendToSupplier: boolean; extendToCustomer: boolean; setKind: boolean }
 }
@@ -97,17 +103,59 @@ function extendLine(name: string, as: 'SUPPLIER' | 'CUSTOMER'): string {
     : `Puts ${name} under Customers, with no agreement signed yet. It does not email them and does not change what kind of company they are.`
 }
 
-/** The positions as chips, or the words for a row that holds none. Never a bare dash. */
-function PositionChips({ row }: { row: Pick<Company, 'positions' | 'notClassified' | 'customerAgreement' | 'notLinked'> }) {
-  if (row.notClassified) return <Chip tone="attention">{NOT_CLASSIFIED}</Chip>
+/**
+ * The row's groups, from the route's one reader. Where the route sent none
+ * (a reader with no seat, or the drawer's own read), the same shape read
+ * off the positions, so one function answers every chip, tile and filter.
+ */
+function groupOfRow(row: Pick<Company, 'positions' | 'notClassified' | 'notLinked' | 'group'>): GroupsRead {
+  if (row.group) return row.group
   const none = noPositionTile({ positions: row.positions, notClassified: row.notClassified, notLinked: row.notLinked === true })
-  if (none === 'NOT_LINKED') return <Chip tone="passive">{NO_POSITION_WORDS.NOT_LINKED}</Chip>
-  if (none === 'WORKS_WITH_YOU') return <Chip tone="passive">{NO_POSITION_WORDS.WORKS_WITH_YOU}</Chip>
+  const said = GROUP_ORDER.filter((g) => g !== 'CLIENT' && row.positions.includes(g as Position))
+  return {
+    said, onContracts: [], groups: said, needsClassifying: false,
+    notClassified: said.length === 0 && none === 'NOT_CLASSIFIED',
+    other: said.length > 0 || none === 'NOT_CLASSIFIED' ? null : none === 'NOT_LINKED' ? 'NOT_LINKED' : none === 'WORKS_WITH_YOU' ? 'WORKS_WITH_YOU' : 'PRIME_OR_MSP',
+    suggestion: '',
+  }
+}
+
+/** A prime or an MSP: positions outside the three groups, shown beside them. */
+const otherPositions = (row: Pick<Company, 'positions'>) => row.positions.filter((p) => p === 'PRIME' || p === 'MSP')
+
+/**
+ * Where each group on a row comes from, kept apart: what the contracts
+ * say, and what a person said. Null for a row with nothing to say.
+ */
+function sourcesLine(g: GroupsRead): string | null {
+  if (!g.suggestion) return null
+  const words = (list: Group[]) => list.map((x) => GROUP_WORDS[x].toLowerCase()).join(', ')
+  return `Contracts: ${g.suggestion} A person said: ${g.said.length > 0 ? words(g.said) : 'nothing yet'}.`
+}
+
+/** The groups as chips, or the words for a row in none. Never a bare dash. */
+function PositionChips({ row }: { row: Pick<Company, 'positions' | 'notClassified' | 'customerAgreement' | 'notLinked' | 'group'> }) {
+  const g = groupOfRow(row)
+  if (g.needsClassifying) {
+    return (
+      <span className="inline-flex flex-wrap gap-1">
+        <Chip tone="attention">{NEEDS_CLASSIFYING}</Chip>
+        <span className="basis-full text-[11px] leading-snug text-etyme-muted">{g.suggestion}</span>
+      </span>
+    )
+  }
+  if (g.notClassified) return <Chip tone="attention">{NOT_CLASSIFIED}</Chip>
+  if (g.other === 'NOT_LINKED') return <Chip tone="passive">{NO_POSITION_WORDS.NOT_LINKED}</Chip>
+  if (g.other === 'WORKS_WITH_YOU') return <Chip tone="passive">{NO_POSITION_WORDS.WORKS_WITH_YOU}</Chip>
   return (
     <span className="inline-flex flex-wrap gap-1">
-      {row.positions.map((p) => (
-        <Chip key={p} tone={p === 'CUSTOMER' ? 'verified' : 'action'}>{POSITION_WORDS[p]}</Chip>
+      {g.groups.map((x) => (
+        <Chip key={x} tone={x === 'CUSTOMER' ? 'verified' : 'action'}>{GROUP_WORDS[x]}</Chip>
       ))}
+      {otherPositions(row).map((p) => (
+        <Chip key={p} tone="action">{POSITION_WORDS[p]}</Chip>
+      ))}
+      {sourcesLine(g) && <span className="basis-full text-[11px] leading-snug text-etyme-muted">{sourcesLine(g)}</span>}
       {/* Beside the chip, not inside it: a chip never wraps, and this one ran
           the table past its box at desktop width (walk, 2026-11-15). */}
       {agreementWords(row) && <span className="basis-full text-[11px] leading-snug text-etyme-muted">{agreementWords(row)}</span>}
@@ -122,11 +170,12 @@ function agreementWords(row: Pick<Company, 'positions' | 'customerAgreement'>): 
 }
 
 /** The words under "To you", for sorting, search and the export. */
-function toYouWords(row: Pick<Company, 'positions' | 'notClassified' | 'notLinked'>): string[] {
-  if (row.notClassified) return [NOT_CLASSIFIED]
-  const none = noPositionTile({ positions: row.positions, notClassified: row.notClassified, notLinked: row.notLinked === true })
-  if (none === 'NOT_LINKED' || none === 'WORKS_WITH_YOU') return [NO_POSITION_WORDS[none]]
-  return row.positions.map((p) => POSITION_WORDS[p])
+function toYouWords(row: Pick<Company, 'positions' | 'notClassified' | 'notLinked' | 'group'>): string[] {
+  const g = groupOfRow(row)
+  if (g.needsClassifying) return [NEEDS_CLASSIFYING]
+  if (g.notClassified) return [NOT_CLASSIFIED]
+  if (g.other === 'NOT_LINKED' || g.other === 'WORKS_WITH_YOU') return [NO_POSITION_WORDS[g.other]]
+  return [...g.groups.map((x) => GROUP_WORDS[x]), ...otherPositions(row).map((p) => POSITION_WORDS[p])]
 }
 
 /** Extend one company, one press; the route's sentence is handed back. */
@@ -359,7 +408,7 @@ interface Location {
   isPrimary: boolean
 }
 
-type PositionFilter = 'ALL' | Position | 'NOT_CLASSIFIED' | 'WORKS_WITH_YOU' | 'NOT_LINKED'
+type PositionFilter = 'ALL' | Position | 'CLIENT' | 'NEEDS_CLASSIFYING' | 'NOT_CLASSIFIED' | 'WORKS_WITH_YOU' | 'NOT_LINKED'
 
 // ── Kind chip mapping ─────────────────────────────────────
 
@@ -1566,16 +1615,19 @@ function CompanyDrawer({ company, onClose, onChanged, onAsked }: { company: Comp
  * The tiles over the list, each keyed by the filter its chip sets, so a
  * tile and its chip are one filter. Drawn only above zero where the chip is.
  */
-function companyTilesShown(t: ReturnType<typeof companyTiles>): { key: PositionFilter; label: string; count: number; sub: string }[] {
+function companyTilesShown(t: ReturnType<typeof companyTiles>, g: GroupTotals): { key: PositionFilter; label: string; count: number; sub: string }[] {
   return [
-    { key: 'ALL' as const, label: 'Total', count: t.total, sub: 'on your list' },
-    { key: 'CUSTOMER' as const, label: 'Customers', count: t.customers, sub: 'above you' },
-    { key: 'SUPPLIER' as const, label: 'Suppliers', count: t.suppliers, sub: 'below you' },
+    { key: 'ALL' as const, label: 'Total', count: g.total, sub: 'on your list' },
+    // A firm that only buys has suppliers and its own sites: no customers, no clients, nothing to classify.
+    ...(g.sells ? [{ key: 'CUSTOMER' as const, label: 'Customers', count: g.customers, sub: 'pay you' }] : []),
+    ...(g.sells ? [{ key: 'CLIENT' as const, label: 'Clients', count: g.clients, sub: 'where your people work' }] : []),
+    { key: 'SUPPLIER' as const, label: 'Suppliers', count: g.suppliers, sub: 'supply you' },
+    ...(g.needsClassifying > 0 ? [{ key: 'NEEDS_CLASSIFYING' as const, label: NEEDS_CLASSIFYING, count: g.needsClassifying, sub: 'loaded as clients' }] : []),
     ...(t.primes > 0 ? [{ key: 'PRIME' as const, label: 'Primes', count: t.primes, sub: 'your work flows through them' }] : []),
     ...(t.msps > 0 ? [{ key: 'MSP' as const, label: 'MSPs', count: t.msps, sub: 'run a program you work in' }] : []),
-    { key: 'NOT_CLASSIFIED' as const, label: 'Not classified', count: t.notClassified, sub: 'no position yet' },
-    ...(t.worksWithYou > 0 ? [{ key: 'WORKS_WITH_YOU' as const, label: 'Works with you', count: t.worksWithYou, sub: 'through work, no position yet' }] : []),
-    ...(t.notLinked > 0 ? [{ key: 'NOT_LINKED' as const, label: NO_POSITION_WORDS.NOT_LINKED, count: t.notLinked, sub: 'on Etyme, not linked with you' }] : []),
+    { key: 'NOT_CLASSIFIED' as const, label: 'Not classified', count: g.notClassified, sub: 'no position yet' },
+    ...(g.worksWithYou > 0 ? [{ key: 'WORKS_WITH_YOU' as const, label: 'Works with you', count: g.worksWithYou, sub: 'through work, no position yet' }] : []),
+    ...(g.notLinked > 0 ? [{ key: 'NOT_LINKED' as const, label: NO_POSITION_WORDS.NOT_LINKED, count: g.notLinked, sub: 'on Etyme, not linked with you' }] : []),
   ]
 }
 
@@ -1603,6 +1655,7 @@ export default function CompaniesPage() {
   // counted before the first read answers.
   const [refused, setRefused] = useState<string | null>(null)
   const [answered, setAnswered] = useState(false)
+  const [groupsRead, setGroupsRead] = useState<{ totals: GroupTotals; says: string; mayClassify: boolean } | null>(null)
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {
@@ -1633,6 +1686,8 @@ export default function CompaniesPage() {
 
       const body = await res.json()
       setCompanies(body.data?.companies ?? [])
+      // How the list adds up, counted by the route's one reader.
+      setGroupsRead(body.data?.groups ?? null)
       // What this list is, said by the route that scoped it, so the
       // heading and the rows cannot describe different things.
       setScope(body.data?.scope ?? null)
@@ -1679,10 +1734,18 @@ export default function CompaniesPage() {
   // extended to Customer counts under Customers, and a company of any
   // Kind extended to Supplier counts under Suppliers.
   const tileRow = (c: Company) => ({ positions: c.positions, notClassified: c.notClassified, notLinked: c.notLinked === true })
-  const holds = (c: Company, f: PositionFilter) =>
-    f === 'ALL' ? true
-      : f === 'NOT_CLASSIFIED' || f === 'WORKS_WITH_YOU' || f === 'NOT_LINKED' ? noPositionTile(tileRow(c)) === f
+  // Customers, Clients and Suppliers are the three groups (record 110,
+  // A1), read from the route's one reader; a Prime or an MSP is still a
+  // position on the register.
+  const holds = (c: Company, f: PositionFilter) => {
+    const g = groupOfRow(c)
+    return f === 'ALL' ? true
+      : f === 'CUSTOMER' || f === 'CLIENT' || f === 'SUPPLIER' ? g.groups.includes(f)
+      : f === 'NEEDS_CLASSIFYING' ? g.needsClassifying
+      : f === 'NOT_CLASSIFIED' ? g.notClassified
+      : f === 'WORKS_WITH_YOU' || f === 'NOT_LINKED' ? g.other === f
       : c.positions.includes(f)
+  }
   // What a press of Extend left on each row, kept on the row after the
   // list is read again (the buttons go once the position is held). A row
   // carrying one stays on a filtered list until its sentence is closed,
@@ -1702,11 +1765,16 @@ export default function CompaniesPage() {
   // you" (on the list through work, holding no position) and "Not linked
   // yet". One reader counts them all (`companyTiles` in lib/counterparty).
   const tiles = companyTiles(companies.map(tileRow))
-  const customerCount = tiles.customers
-  const supplierCount = tiles.suppliers
+  // The three groups, Needs classifying and Not classified are counted by
+  // the route's one reader (`groupTotals`), so the tiles, the tabs, the
+  // Classify page and the pickers agree. Where the route sent no counts,
+  // the same count over the rows drawn.
+  const totals: GroupTotals = groupsRead?.totals ?? groupTotals(companies.map(groupOfRow), true)
+  const customerCount = totals.customers
+  const supplierCount = totals.suppliers
   const primeCount = tiles.primes
   const mspCount = tiles.msps
-  const notClassifiedCount = tiles.notClassified
+  const notClassifiedCount = totals.notClassified
 
   function afterExtend(id: string) {
     return (as: 'SUPPLIER' | 'CUSTOMER', says: string) => {
@@ -1835,14 +1903,15 @@ export default function CompaniesPage() {
   const filterTabs: { key: PositionFilter; label: string; count: number }[] = [
     { key: 'ALL', label: 'All', count: companies.length },
     // Where each sits with you, read off your register, never its Kind.
-    { key: 'CUSTOMER', label: 'Customers', count: customerCount },
+    ...(totals.sells ? [{ key: 'CUSTOMER' as const, label: 'Customers', count: customerCount }, { key: 'CLIENT' as const, label: 'Clients', count: totals.clients }] : []),
     { key: 'SUPPLIER', label: 'Suppliers', count: supplierCount },
+    ...(totals.needsClassifying > 0 ? [{ key: 'NEEDS_CLASSIFYING' as const, label: NEEDS_CLASSIFYING, count: totals.needsClassifying }] : []),
     // A filter with nothing behind it is not offered.
     ...(primeCount > 0 ? [{ key: 'PRIME' as const, label: 'Primes', count: primeCount }] : []),
     ...(mspCount > 0 ? [{ key: 'MSP' as const, label: 'MSPs', count: mspCount }] : []),
     { key: 'NOT_CLASSIFIED', label: NOT_CLASSIFIED, count: notClassifiedCount },
-    ...(tiles.worksWithYou > 0 ? [{ key: 'WORKS_WITH_YOU' as const, label: 'Works with you', count: tiles.worksWithYou }] : []),
-    ...(tiles.notLinked > 0 ? [{ key: 'NOT_LINKED' as const, label: NO_POSITION_WORDS.NOT_LINKED, count: tiles.notLinked }] : []),
+    ...(totals.worksWithYou > 0 ? [{ key: 'WORKS_WITH_YOU' as const, label: 'Works with you', count: totals.worksWithYou }] : []),
+    ...(totals.notLinked > 0 ? [{ key: 'NOT_LINKED' as const, label: NO_POSITION_WORDS.NOT_LINKED, count: totals.notLinked }] : []),
   ]
   const filterWord = filterTabs.find((t) => t.key === positionFilter)?.label ?? ''
 
@@ -1874,9 +1943,9 @@ export default function CompaniesPage() {
       <LinkAsks onAnswered={handleCreated} reread={asksRead} />
 
       {/* Stats row, by position: what each is to you, never its Kind. */}
-      <div className={`${tiles.countedTwice > 0 ? 'mb-2' : 'mb-6'} grid grid-cols-2 gap-3 lg:grid-cols-4`}>
+      <div className="mb-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {/* Each tile filters the list as its chip does: one filter, two doors (walk, 2026-11-15). */}
-        {companyTilesShown(tiles).map((t) => (
+        {companyTilesShown(tiles, totals).map((t) => (
           <button
             key={t.key}
             type="button"
@@ -1888,7 +1957,18 @@ export default function CompaniesPage() {
           </button>
         ))}
       </div>
-      {tiles.countedTwice > 0 && <p className="mb-6 text-[12px] text-etyme-muted">{countedTwiceSays(tiles.countedTwice)}</p>}
+      {/* How the tiles add up to the total, in one line, from the same counts. */}
+      <p className="mb-6 text-[12px] text-etyme-muted">
+        {groupsRead?.says ?? groupsAddUpSays(totals)}
+        {groupsRead?.mayClassify && (
+          <>
+            {' '}
+            <Link href={'/dashboard/companies/classify' as Route} className="text-etyme-action hover:underline">
+              {totals.needsClassifying > 0 ? `Classify ${totals.needsClassifying === 1 ? 'it' : 'them'}` : 'Customer or client: change what a company is'}
+            </Link>
+          </>
+        )}
+      </p>
 
       {/* Data table with kind filter tabs */}
       <ListSurface<Company>
