@@ -111,7 +111,7 @@ describe('a menu is eleven links at most, and every other page is a tab of one o
     expect(tabsFor(vendor, '/dashboard/purchase-orders')!.tabs.map((t) => t.label)).toEqual(
       ['Sell contracts', 'Buy contracts', 'POs', 'Paperwork', 'Missing paperwork', 'Document requests', 'Screening packs', 'Compliance', 'Check queue']
     )
-    expect(tabsFor(vendor, '/dashboard/payroll')!.tabs.map((t) => t.label)).toEqual(['Payroll', 'Commissions'])
+    expect(tabsFor(vendor, '/dashboard/payroll')!.tabs.map((t) => t.label)).toEqual(['Payroll', 'Commissions', 'Timesheet to payment'])
     expect(tabsFor(vendor, '/dashboard/ar')!.tabs.map((t) => t.label)).toEqual(['Bills', 'AR'])
   })
 
@@ -1666,7 +1666,7 @@ describe('the money follows the founder’s process order, and a bench vendor is
     const tabs = (label: string) => vendor.find((s) => s.label === label)!.items.map((i) => [i.label, i.href])
     expect(tabs('Bills')).toEqual([['Bills', '/dashboard/invoices'], ['AR', '/dashboard/ar']])
     expect(tabs('Invoice receipts')).toEqual([['AP', '/dashboard/ap']])
-    expect(tabs('Payroll')).toEqual([['Payroll', '/dashboard/payroll'], ['Commissions', '/dashboard/payroll/commissions']])
+    expect(tabs('Payroll')).toEqual([['Payroll', '/dashboard/payroll'], ['Commissions', '/dashboard/payroll/commissions'], ['Timesheet to payment', '/dashboard/money-loop']])
     // The client's money noun is unchanged: what it receives, and what it owes on it.
     const client = getNavForKind('CLIENT', false).find((s) => s.label === 'Invoice receipts')!
     expect(client.items.map((i) => i.label)).toEqual(['Invoice receipts', 'AP', 'Budget', 'POs'])

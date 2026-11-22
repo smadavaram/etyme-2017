@@ -638,6 +638,11 @@ export const DOMAINS: Domain[] = [
       // the open list, an item and its three acts, agent control and the
       // firm's ledger, and one record with its whole history.
       'lib/decision-queue', 'app/api/decision-items', 'app/api/records', 'app/dashboard/records',
+      // The money loop's routes and screens (Flow B, B2 to B6): the
+      // consultants page, a placement's month, a month for everybody with
+      // its payroll summary, and the words all three share. The chain's
+      // own rules are money's (lib/money/money-chain).
+      'lib/money-loop', 'app/api/money-loop', 'app/dashboard/money-loop',
       // The navigation table every menu, heading and landing reads. Pure,
       // so a server route may import it; the sidebar that draws it is a
       // client component and no route may import that.

@@ -9,6 +9,7 @@
  */
 
 import { OWNER_ROLE, ADMIN_ROLE } from '@/lib/owner-rules'
+import { formatDayLong } from '@/lib/format-date'
 
 // ── Who may open one ────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ export const QUEUE_EYEBROW_HREFS = ['/dashboard', '/dashboard/program'] as const
  */
 export function ledgerBeganSays(firstRowAt: Date | null): string {
   if (!firstRowAt) return 'The ledger starts with the next act on this record.'
-  const d = firstRowAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+  const d = formatDayLong(firstRowAt)
   return `Your firm’s ledger began on ${d}, and nothing has been done on this record through it since. Its earlier history is on its own page.`
 }
 

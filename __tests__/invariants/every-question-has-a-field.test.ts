@@ -5,6 +5,11 @@ import { employerNamedNote, workerClassStart } from '@/lib/document-stages/worke
 import { readFileSync } from 'node:fs'
 import { openFields, openBody, readOpenAsk, decideBody, readDecideAsk, VERDICT_BUTTONS, type OpenTyped } from '@/lib/decision-queue'
 import { openRefusal, verdictRefusal } from '@/lib/decision-items'
+import {
+  STATE_STRIP, advanceBody, advanceFields, readAdvanceAsk, loadBody, loadFields, readLoadAsk, openMonthBody, openMonthFields, readOpenMonthAsk,
+  resolveBody, readResolveAsk, nextMove, type AdvanceTyped, type LoadTyped, type OpenMonthTyped,
+} from '@/lib/money-loop'
+import { advanceRefusal, loadRefusal, nextState } from '@/lib/money/money-chain'
 import { join } from 'node:path'
 import { BUILT_IN } from '@/lib/document-type'
 import { mayExamine } from '@/lib/document-request'
@@ -735,5 +740,67 @@ describe('the decision queue’s two forms (record 107, A2 and A3)', () => {
     expect(page).toContain('JSON.stringify(decideBody(verdict, reason, entity))')
     expect(readFileSync(join(process.cwd(), 'src/app/api/decision-items/route.ts'), 'utf8')).toContain('readOpenAsk(')
     expect(readFileSync(join(process.cwd(), 'src/app/api/decision-items/[id]/route.ts'), 'utf8')).toContain('readDecideAsk(')
+  })
+})
+
+describe('the money loop’s forms (record 107, B2 to B5)', () => {
+  const read = (f: string) => readFileSync(join(process.cwd(), f), 'utf8')
+  const ADVANCE: AdvanceTyped = { amount: '16,000.00', currency: 'USD', actingEntityId: 'e1', disputeOwnerPersonId: 'p1' }
+  const LOAD: LoadTyped = { sellContractId: 's1', source: 'the October payroll sheet', asOf: '2026-11-15', timesheetAmount: '15000', invoicedAmount: '15000.00', paidAmount: '15,000.00', currency: 'USD', actingEntityId: 'e1' }
+  const OPEN: OpenMonthTyped = { month: '2026-12', actingEntityId: 'e1' }
+
+  for (const hasEntities of [false, true]) {
+    const where = hasEntities ? 'at a firm with entities' : 'at a firm with none'
+    for (const from of STATE_STRIP.slice(0, -1)) {
+      const move = nextMove(from)!
+      it(`pressing “${move.button}” ${where}, with every field the form draws filled in, is not refused for a field the form did not draw`, () => {
+        const typed: Partial<AdvanceTyped> = {}
+        for (const f of advanceFields(move.to, hasEntities)) typed[f] = ADVANCE[f]
+        const ask = readAdvanceAsk(advanceBody(move.to, typed), hasEntities)
+        expect(ask.ok, !ask.ok ? ask.says : '').toBe(true)
+        if (ask.ok) {
+          expect(move.to).toBe(nextState(from))
+          expect(advanceRefusal(from, ask.ask.to, ask.ask.stated)).toBeNull()
+          // A move that states an amount names who decides a disagreement; no other move asks.
+          expect(ask.ask.disputeOwnerPersonId).toBe(move.amountLabel ? 'p1' : null)
+        }
+      })
+    }
+
+    it(`loading a past month as closed ${where}, with every field the form draws filled in, is not refused for a field the form did not draw`, () => {
+      const typed: Partial<LoadTyped> = {}
+      for (const f of loadFields(hasEntities)) typed[f] = LOAD[f]
+      const ask = readLoadAsk(loadBody(typed), hasEntities)
+      expect(ask.ok, !ask.ok ? ask.says : '').toBe(true)
+      if (ask.ok) expect(loadRefusal(ask.ask, new Date('2026-11-22T12:00:00Z'))).toBeNull()
+    })
+
+    it(`opening a month ${where}, and returning a disputed one, post what their routes read`, () => {
+      const typed: Partial<OpenMonthTyped> = {}
+      for (const f of openMonthFields(hasEntities)) typed[f] = OPEN[f]
+      expect(readOpenMonthAsk(openMonthBody(typed), hasEntities).ok).toBe(true)
+      expect(readResolveAsk(resolveBody(hasEntities ? 'e1' : ''), hasEntities).ok).toBe(true)
+    })
+  }
+
+  it('each form posts what the one description says, draws a box for every field it names, and its route reads it the same way', () => {
+    const advance = read('src/app/dashboard/money-loop/advance-form.tsx')
+    expect(advance).toContain('JSON.stringify(advanceBody(next.to, f))')
+    expect(advance).toContain('JSON.stringify(resolveBody(entity))')
+    for (const f of ['amount', 'actingEntityId', 'disputeOwnerPersonId']) expect(advance, f).toContain(`draws.includes('${f}')`)
+    expect(advance).toContain('id="ml-currency"')
+    const period = read('src/app/dashboard/money-loop/periods/[month]/page.tsx')
+    expect(period).toContain('JSON.stringify(loadBody(f))')
+    for (const f of ['sellContractId', 'source', 'asOf', 'currency']) expect(period, f).toContain(`at('${f}')`)
+    for (const f of ['timesheetAmount', 'invoicedAmount', 'paidAmount']) expect(period, f).toContain(`money('${f}'`)
+    expect(period).toContain("draws.includes('actingEntityId')")
+    const list = read('src/app/dashboard/money-loop/page.tsx')
+    expect(list).toContain('JSON.stringify(openMonthBody({ month: data.month, actingEntityId: entity }))')
+    expect(list).toContain('{hasEntities && <EntityField')
+    const chains = read('src/app/api/money-loop/chains/[id]/route.ts')
+    expect(chains).toContain('readAdvanceAsk(')
+    expect(chains).toContain('readResolveAsk(')
+    expect(read('src/app/api/money-loop/periods/[month]/route.ts')).toContain('readLoadAsk(')
+    expect(read('src/app/api/money-loop/route.ts')).toContain('readOpenMonthAsk(')
   })
 })

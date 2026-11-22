@@ -466,6 +466,9 @@ const AP: NavItem = { label: 'AP', href: '/dashboard/ap', icon: '◨', needs: ['
 const PAYROLL: NavItem = { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', needs: ['payroll.read'] }
 // What a recruiter earned on a placement.
 const COMMISSIONS: NavItem = { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', needs: ['payroll.read'] }
+// Each billing consultant's month, from timesheet owed to closed (record 107, Flow B).
+// Its route opens for payroll.read (app/api/money-loop/door).
+const MONEY_LOOP: NavItem = { label: 'Timesheet to payment', href: '/dashboard/money-loop', icon: '◫', needs: ['payroll.read'] }
 
 /**
  * The firm's own people, its candidates: the register first, the bench
@@ -666,7 +669,7 @@ const FIRM_CONTRACTS: NavItem[] = [
  */
 const FIRM_BILLS: NavItem[] = [BILLS, AR]
 const FIRM_RECEIPTS: NavItem[] = [AP]
-const FIRM_PAYROLL: NavItem[] = [PAYROLL, COMMISSIONS]
+const FIRM_PAYROLL: NavItem[] = [PAYROLL, COMMISSIONS, MONEY_LOOP]
 
 /**
  * A staffing vendor: Ask Etyme · Today · Network · Jobs · Submissions ·

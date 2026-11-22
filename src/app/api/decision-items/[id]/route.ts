@@ -5,6 +5,7 @@ import { DECISION_RECORD, ageOf, firmZone, todayIn, decideDecision, mayDecide, m
 import { PROOF_TYPES, isRecordType, readDecideAsk, recordViewHref } from '@/lib/decision-queue'
 import { findOnBook } from '@/app/api/records/lookup'
 import { queueSeat, refused, refusalOf, logRefusal } from '../door'
+import { isChainProof, chainProofLink } from '../../money-loop/proof-link'
 
 /**
  * GET  /api/decision-items/[id] — one decision, its proof, and the record of it (A3, A4)
@@ -52,6 +53,8 @@ export async function GET(request: NextRequest, { params }: Params) {
   }
   const links = ((item.proofLinks ?? []) as unknown as ProofLink[])
   const proofLinks = await Promise.all(links.map(async (l) => {
+    // A disputed month (Flow B): the consultant and the month, opening that placement's month.
+    if (isChainProof(l.recordType)) return chainProofLink(seat.companyId, seat.caller.permissions, l.recordId)
     const label = PROOF_TYPES.find((p) => p.type === l.recordType)?.label ?? 'A record'
     const found = isRecordType(l.recordType) ? await findOnBook(seat.companyId, l.recordType, l.recordId) : null
     return { recordType: l.recordType, recordId: l.recordId, label, name: found?.name ?? null, href: recordViewHref(l.recordType, l.recordId) }

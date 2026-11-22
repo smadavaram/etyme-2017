@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { clockFor, dayOfMomentFor, readerZone } from '@/lib/when'
 
 /**
  * Rows of the record ledger (record 107, A3 to A6): when, what, the entity
@@ -18,7 +19,8 @@ export interface LedgerRow {
 
 /** The moment of an act, with its time: "Nov 21, 2026, 3:04 PM". */
 export function ledgerWhen(at: string): string {
-  return new Date(at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+  const d = new Date(at), zone = readerZone()
+  return `${dayOfMomentFor(d, zone)}, ${clockFor(d, zone)}`
 }
 
 function What({ r }: { r: LedgerRow }) {
