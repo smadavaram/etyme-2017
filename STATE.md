@@ -320,7 +320,9 @@ For Monday morning, when the two operating firms' people start. Order:
    PERSON's step in production. The path is being proven locally.
 2. Tapin's real records on the screens. A PERSON's step. A click path
    is being written.
-3. The customer and client split (A1). BUILDING.
+3. The customer and client split (A1): CANCELED by the owner on
+   2026-11-22. Customer and client are the same; Kind stays one fact.
+   What had been built is removed before the deploy. NOT DEPLOYED.
 4. The public face: four new segment pages, About, legal pages as
    final, demo data cleaned, the email law. BUILDING. The home page and
    page analytics are already live in the code; analytics is switched on

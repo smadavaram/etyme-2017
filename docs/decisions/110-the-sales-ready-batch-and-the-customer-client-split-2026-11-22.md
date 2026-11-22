@@ -104,3 +104,26 @@ stabilization batch.
 - Item 3 never relabels a row by itself. It gives each engagement its
   payer and its worksite, shows three groups that sum to the total, and
   flags every existing row for a person to classify.
+
+### The owner's correction, the same day: there is no split
+
+"Customer and Client are the SAME for all businesses. There is no
+Customer/Client split in Etyme — do NOT build the A1 split (no separate
+payer vs worksite company roles, no data-model change for this, no
+reclassification of existing companies). Keep the single company
+record/Kind as it works today." The second firm's loaded companies stay
+exactly as labelled. This supersedes A1 above. Everything else in the
+batch stands, in the same order. The home page is confirmed live in
+production by the owner, and that item is done.
+
+**What happens to what was built.** The split had been built and
+committed (not deployed) before the correction arrived. It is removed
+before the deploy: the Classify page and its routes, the three groups
+on the Companies list, the two new choices on Add a company, the two
+pickers on Record a placement, and the two columns added to the
+register row. The screens return to how they worked on 2026-11-21.
+Production never held any of it.
+
+**Standing from now.** A company's Kind is one fact. No screen or route
+asks whether a company is a customer or a client apart from it, and a
+test holds that.
