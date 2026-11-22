@@ -344,6 +344,14 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
+## The agent activity spec (record 112): NOT STARTED
+
+Owner-approved 2026-11-22. Seven areas, each activity marked agent
+alone, agent prepares and a person decides, or a person. No agent runs
+today; the ledger, the decision queue, the control view, the month from
+timesheet to payment and the mail ledger exist. Open with the owner:
+may an agent send a chase alone, or does a person's yes send it.
+
 ## The weekend release contract (record 107)
 
 Thirteen weekend releases, 2026-11-21 to 2027-02-14. One item, one

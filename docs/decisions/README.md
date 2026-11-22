@@ -127,3 +127,4 @@ built, every release check, every walk and every deploy.
 | 109 | Week 1 released: the decision queue, and timesheet to payment — 2026-11-22 | 968 | [109-week-1-released-the-decision-queue-and-timesheet-to-payment-2026-11-22.md](109-week-1-released-the-decision-queue-and-timesheet-to-payment-2026-11-22.md) |
 | 110 | The sales-ready batch, and the customer and client split — 2026-11-22 | 728 | [110-the-sales-ready-batch-and-the-customer-client-split-2026-11-22.md](110-the-sales-ready-batch-and-the-customer-client-split-2026-11-22.md) |
 | 111 | Tenant websites come from the dashboard settings — 2026-11-22 | 238 | [111-tenant-websites-come-from-dashboard-settings-2026-11-22.md](111-tenant-websites-come-from-dashboard-settings-2026-11-22.md) |
+| 112 | The agent activity spec — 2026-11-22 | 684 | [112-the-agent-activity-spec-2026-11-22.md](112-the-agent-activity-spec-2026-11-22.md) |

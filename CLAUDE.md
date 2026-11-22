@@ -886,6 +886,11 @@ Full text → 12, 14, 24, 32, 35.
   each role, account manager, recruiter, HR, contracts, timesheets,
   billing, invoice receipts and money flow, as acts in the role contract,
   rules first. A recruiter's mail plugin and a worker's own agent wait.
+- **The agent activity spec judges every agent** (owner, 2026-11-22 →
+  112): done means its activities run in production, on the ledger and
+  metered. Every activity feeds the decision queue or closes a loop on
+  the ledger. Never an agent's: money, signing, a decision about a
+  person, publishing compliance copy.
 - **The voice.** Recommendation first. Names, not counts. One sentence
   per refusal, with the door. No apology words. The trade's phrasing:
   who applied, approve a timesheet, pay an invoice, on hold.
