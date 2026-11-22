@@ -344,6 +344,28 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
+## START HERE for the next session (record 113)
+
+The owner's order of 2026-11-22: a second-tier lead, third-tier
+workers. Seven workstreams, one per chain of record 112. Launch first:
+chains 4 and 5 for Tapin, on chain 7's surface. Deploy on a weekend
+only.
+
+| Chain | Live in production | By hand only | Not built |
+|---|---|---|---|
+| 1 Win work | Nothing | Job requests and submissions typed by a person | Digest scanner (waits on the mailbox ruling), census keeper, confirmation tracker |
+| 2 Fill it | Matching screens, model off | Submission and consent by a person | Match ranker as an agent, the chase on interview movement, the Offer record |
+| 3 Start them | Papers and the I-9 block on activation | A placement recorded by a person, with customer and end client | Contracts checklist, immigration checklist, the onboarding pack check |
+| 4 Run the week | Timesheets, week approval, payroll periods | A reminder sent by rule on a schedule | Chase agent, arrival closing its chase, payroll draft as an agent |
+| 5 Money loop | Bills, invoice receipts, the month from timesheet to payment | Every move and amount typed by a person | Invoice by an agent, reconciliation of payments, short-pay and drift flags, chasing money owed |
+| 6 Keep it legal | Tenure ledger and limits; the record ledger | Notices tracked nowhere | Notice posting log, the access file tracker, the watch as an agent |
+| 7 Run the firm | Decision queue, agent control view with six agents "Not enabled", the ledger | | A runner that acts as an agent, a switch per tenant, the meter against a cap, the weekly summary |
+
+First work, in order: (a) chain 7's runner, switch and meter; (b) the
+owner's answer on who sends a chase; (c) chain 5's reconciliation and
+chain 4's payroll draft, in sequence under the lead; (d) chain 4's
+chase beside them.
+
 ## The agent activity spec (record 112): NOT STARTED
 
 Owner-approved 2026-11-22. Seven areas, each activity marked agent

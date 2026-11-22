@@ -1308,10 +1308,12 @@ Release, batching, architecture and acceptance follow the tester's
 documents; a gap is decided by the lead and written in STATE.md. The
 owner keeps money, signing, people, outside sends and his own gates.
 
-**Which model does which work** (2026-11-21 → 104, replacing 82).
-Workers run on the strongest model at low effort. Schema and money
-work is sequential under the lead. Each batch note says which model ran
-which piece; model names are said to the founder, not in the repository.
+**Which model does which work** (owner, 2026-11-22 → 113, replacing
+104). The lead runs on the second tier and the workers on the third;
+the top tier is not the driver. Schema and money work is sequential
+under the lead. The build is seven workstreams, one per chain of the
+agent activity spec (→ 112); chains 4 and 5 for Tapin launch first, on
+chain 7's surface. Model names are said to the founder, not here.
 
 Work moves: scout → schema → spec as test names → build → release →
 preview URL. Different domains may run at the same time. Two agents in
