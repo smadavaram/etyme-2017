@@ -125,3 +125,4 @@ built, every release check, every walk and every deploy.
 | 107 | The weekend release contract — 2026-11-21 | 944 | [107-the-weekend-release-contract-2026-11-21.md](107-the-weekend-release-contract-2026-11-21.md) |
 | 108 | Two homes, and who decides build questions — 2026-11-21 | 595 | [108-two-homes-and-who-decides-build-questions-2026-11-21.md](108-two-homes-and-who-decides-build-questions-2026-11-21.md) |
 | 109 | Week 1 released: the decision queue, and timesheet to payment — 2026-11-22 | 968 | [109-week-1-released-the-decision-queue-and-timesheet-to-payment-2026-11-22.md](109-week-1-released-the-decision-queue-and-timesheet-to-payment-2026-11-22.md) |
+| 110 | The sales-ready batch, and the customer and client split — 2026-11-22 | 728 | [110-the-sales-ready-batch-and-the-customer-client-split-2026-11-22.md](110-the-sales-ready-batch-and-the-customer-client-split-2026-11-22.md) |
