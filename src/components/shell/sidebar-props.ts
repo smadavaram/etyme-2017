@@ -88,7 +88,7 @@ export function sidebarPropsFrom(
     // Never both at once: somebody whose seat already IS the consultant
     // seat reads CONSULTANT_NAV, which carries these pages already.
     worker: !isConsultant && session.isWorker,
-    // The label stays the firm's. He is Teleworld staff with a real
+    // The label stays the firm's. He is Tellisford staff with a real
     // seat, and calling him a consultant would be the mirror image of
     // the bug this fixes.
     companyName: session.company?.name,
@@ -203,7 +203,7 @@ export function deskOf(
  * seated in: the words Users & permissions says of the same person
  * (`NO_ROLE_LABEL`, fix list 2026-11-15, where one person read "Member"
  * here and "No role yet" there). Never the kind's own tagline, which read as
- * a role: "Integrator · Delivery" for Karthik Menon at Teleworld, who
+ * a role: "Integrator · Delivery" for Karthik Menon at Tellisford, who
  * holds no delivery role (walk 4, A3). A role the seat does not hold is
  * never named.
  */

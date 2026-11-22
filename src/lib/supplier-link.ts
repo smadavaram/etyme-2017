@@ -57,7 +57,8 @@ export async function sendClaim(input: { to: string; contactName: string | null;
   const letter = claimLetter(input)
   const out = await attemptDelivery(
     routeFor({ isConsultant: false, email: input.to, teamsWebhookUrl: null }),
-    input.to, letter.subject, letter.body, configuredSenders(), new Date()
+    input.to, letter.subject, letter.body, configuredSenders(), new Date(), null,
+    { mail: { template: 'supplier-claim-link' } },
   )
   return { state: out.state, note: out.note }
 }
@@ -90,7 +91,8 @@ export async function sendLink(input: { to: string; contactName: string | null; 
   const letter = linkLetter(input)
   const out = await attemptDelivery(
     routeFor({ isConsultant: false, email: input.to, teamsWebhookUrl: null }),
-    input.to, letter.subject, letter.body, configuredSenders(), new Date()
+    input.to, letter.subject, letter.body, configuredSenders(), new Date(), null,
+    { mail: { template: input.papersOnly ? 'supplier-papers-link' : 'supplier-apply-link' } },
   )
   return { state: out.state, note: out.note }
 }

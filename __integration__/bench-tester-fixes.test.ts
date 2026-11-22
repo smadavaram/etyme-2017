@@ -10,7 +10,7 @@ import { benchAt } from '@/app/api/today/reads'
  * The bench tester's findings of 2026-09-30, walked on the seeded world.
  */
 
-const TECHPEPLE = 'world-techpeple@demo.etyme.local'
+const TECWYN = 'world-tecwyn@demo.etyme.local'
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 let cloud: { id: string }
 
@@ -28,13 +28,13 @@ async function listFor(name: string, state: 'INVITED' | 'GRANTED', lapsed: boole
 
 beforeAll(async () => {
   await freshWorld()
-  cloud = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })
+  cloud = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' }, select: { id: true } })
 }, 600_000)
 
 describe('a bench invitation nobody has answered', () => {
   it('is counted apart from the people the firm markets, as waiting', async () => {
     await listFor('Lucia Ferreira', 'INVITED', false)
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     expect(r.body.data.totals.waiting).toBeGreaterThanOrEqual(1)
   })
@@ -42,7 +42,7 @@ describe('a bench invitation nobody has answered', () => {
   it('is listed as asked and never on the bench, so the bench total counts only the people who said yes', async () => {
     // The screen walk of 2026-10-22: somebody only invited read as on the
     // bench, with a tier and a free date, before she had said a word.
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     const onBench = [...r.body.data.tiers.MARKETING, ...r.body.data.tiers.RETAINED]
     expect(onBench.map((l: any) => l.consultant.person.name)).not.toContain('Lucia Ferreira')
@@ -54,7 +54,7 @@ describe('a bench invitation nobody has answered', () => {
 
   it('can be sent again, or its link copied, and somebody who said yes is sent nothing', async () => {
     const asked = await prisma.benchListing.findFirstOrThrow({ where: { companyId: cloud.id, state: 'INVITED', consultant: { person: { name: 'Lucia Ferreira' } } } })
-    as(TECHPEPLE)
+    as(TECWYN)
     const again = await json(await nudge(req('POST', `/api/bench/listings/${asked.id}/nudge`, {}), params(asked.id)))
     expect(again.status, JSON.stringify(again.body)).toBe(200)
     expect(await prisma.automationLog.count({ where: { action: 'BENCH_INVITATION_RESENT', companyId: cloud.id } })).toBe(1)
@@ -72,7 +72,7 @@ describe('a bench invitation nobody has answered', () => {
 describe('somebody whose chosen stay ended', () => {
   it('is on the firm’s bench with the day it ended, and the firm may ask them to renew', async () => {
     const ended = await listFor('Jonas Ended', 'GRANTED', true)
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     const row = r.body.data.ended.find((e: any) => e.name === 'Jonas Ended')
     expect(row.says).toMatch(/^Stay ended on .+ · ask to renew$/)
@@ -101,7 +101,7 @@ describe('matching', () => {
 
 describe('the Bench page counts the bench from the one shared list', () => {
   it('the Bench page\'s bench count is the number Consultants and Today read for the same firm', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const b = await json(await bench(req('GET', '/api/bench?scope=company')))
     const c = await json(await consultants(req('GET', '/api/consultants')))
     const today = await benchAt(cloud.id, new Date())

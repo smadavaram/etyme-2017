@@ -10,8 +10,8 @@ import {
  *
  * Found 2026-09-30: `GET /api/contracts?side=buy` gave every buy line's
  * pay rate to any staff seat, so Karthik Menon — a delivery engineer at
- * Teleworld who reads assignments and timesheets and no money — could
- * read what Teleworld pays each of his colleagues.
+ * Tellisford who reads assignments and timesheets and no money — could
+ * read what Tellisford pays each of his colleagues.
  */
 
 const perms = (kind: 'VENDOR' | 'GSI', name: string) => {
@@ -114,7 +114,7 @@ describe('the routes in money that print a pay figure ask the rule first', () =>
 import { mayReadBillRate, billTrail, BILL_WITHHELD_SAYS } from '@/lib/money/pay-visibility'
 
 describe('what a line bills at is read by the desks that price and bill it, and by the client that pays it', () => {
-  const FIRM = 'teleworld'
+  const FIRM = 'tellisford'
   const CLIENT = 'corveldt'
   const SUB = 'nimbus'
   const ours = { sellerId: FIRM, clientId: CLIENT }

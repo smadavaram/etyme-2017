@@ -25,11 +25,11 @@ const W2: WageLine = {
   payModel: 'FIXED_HOURLY',
   rule: 'US_FLSA',
   assertion: {
-    status: 'NONEXEMPT', basis: null, assertedByCompanyId: 'teleworld', assertedByCompanyName: 'Teleworld Solutions',
+    status: 'NONEXEMPT', basis: null, assertedByCompanyId: 'tellisford', assertedByCompanyName: 'Tellisford Solutions',
     assertedByName: null, assertedAt: d('2026-01-01'), note: null, reviewBy: null,
   },
   contractPremiumBps: 15_000,
-  employerName: 'Teleworld Solutions',
+  employerName: 'Tellisford Solutions',
   cutOvertime: 'ABOVE_THE_LINE',
 }
 const AT_89: RatePeriod[] = [{ id: 'r', rateCents: 8_900, fromDate: d('2026-01-01'), toDate: null, approvalState: 'APPROVED' }]

@@ -79,7 +79,7 @@ describe('recording a company with only its name', () => {
     expect(c).toEqual({ domain: null, domainVerified: false, website: 'rivermark.example' })
     expect((await listed()).find((x) => x.id === id)).toMatchObject({ domain: null, notedDomain: 'rivermark.example' })
     // Another firm reading the directory is never shown the note.
-    as(`world-techpeple${D}`)
+    as(`world-tecwyn${D}`)
     expect(JSON.stringify((await json(await companies.GET(req('GET', '/api/companies?records=1')))).body)).not.toContain('rivermark.example')
     as(OWNER)
   })

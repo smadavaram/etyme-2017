@@ -124,10 +124,10 @@ describe('the routes carry it through', () => {
 
 // ── A firm in the middle of a chain (2026-10-19) ─────────────────────
 
-/** Northbend Athletic ← Computer Systems ← Techpeple, who employs Helena. */
+/** Northbend Athletic ← Computer Systems ← Tecwyn, who employs Helena. */
 const LEGS: Leg[] = [
   { sellContractId: 'cs-line', sellerId: 'cs', sellerName: 'Computer Systems', payerId: 'nb', payerName: 'Northbend Athletic', agreement: null },
-  { sellContractId: 'tp-line', sellerId: 'tp', sellerName: 'Techpeple', payerId: 'cs', payerName: 'Computer Systems', agreement: null },
+  { sellContractId: 'tp-line', sellerId: 'tp', sellerName: 'Tecwyn', payerId: 'cs', payerName: 'Computer Systems', agreement: null },
 ]
 
 describe('a firm in the middle of a chain bills its client for an expense (the founder, 2026-10-19)', () => {
@@ -138,15 +138,15 @@ describe('a firm in the middle of a chain bills its client for an expense (the f
   })
 
   it('a firm in the middle bills its client for an expense at what the client accepted, on its own line, once', () => {
-    // Techpeple has already billed it to Computer Systems: its column reads INVOICED, with Techpeple's bill on it.
+    // Tecwyn has already billed it to Computer Systems: its column reads INVOICED, with Tecwyn's bill on it.
     const r = sortForBill([helena({ status: 'INVOICED', invoiceId: 'tp-bill', own: { kind: 'ACCEPTED', cents: 24_000 } })])
     expect(r.leftOff).toEqual([])
     const l = expenseLine(r.on[0])
     expect(l).toMatchObject({ sellContractId: 'cs-line', amountCents: 24_000 })
     // The line names the person and what it was for, never the firm below Computer Systems.
     expect(l.description).toBe('Helena Marsh — Travel expense: Train to the Tualatin site for the cut-over (accepted $240.00 of $250.00)')
-    expect(l.description).not.toContain('Techpeple')
-    // Paid to Techpeple already makes no difference either: the employer's column is the employer's rung.
+    expect(l.description).not.toContain('Tecwyn')
+    // Paid to Tecwyn already makes no difference either: the employer's column is the employer's rung.
     expect(billableNow([helena({ status: 'PAID', invoiceId: 'tp-bill' })]).map((e) => e.id)).toEqual(['e1'])
   })
 
@@ -170,21 +170,21 @@ describe('a firm in the middle of a chain bills its client for an expense (the f
     const travel = { category: 'TRAVEL', billable: true }
     expect(billsOnLeg(travel, LEGS, 'cs-line')).toEqual({ bills: true, says: null })
     expect(billsOnLeg(travel, LEGS, 'tp-line')).toEqual({ bills: true, says: null })
-    // Techpeple carried it as its own cost: Computer Systems is not billed it, so does not bill it on.
+    // Tecwyn carried it as its own cost: Computer Systems is not billed it, so does not bill it on.
     const own = billsOnLeg({ category: 'TRAVEL', billable: false }, LEGS, 'cs-line')
     expect(own.bills).toBe(false)
-    expect(own.says).toBe('Techpeple recorded this travel expense as its own cost, and no agreement between Computer Systems and Techpeple says which expenses are billable.')
+    expect(own.says).toBe('Tecwyn recorded this travel expense as its own cost, and no agreement between Computer Systems and Tecwyn says which expenses are billable.')
     // A stop two rungs down names Computer Systems' own supplier, never the firm below it.
     const deep: Leg[] = [
       LEGS[0],
       { ...LEGS[1], sellContractId: 'tp-line', agreement: null },
       {
-        sellContractId: 'sub-line', sellerId: 'sub', sellerName: 'Quillon Staffing', payerId: 'tp', payerName: 'Techpeple',
-        agreement: { id: 'a', kinds: [], said: true, clientName: 'Techpeple', vendorName: 'Quillon Staffing' },
+        sellContractId: 'sub-line', sellerId: 'sub', sellerName: 'Quillon Staffing', payerId: 'tp', payerName: 'Tecwyn',
+        agreement: { id: 'a', kinds: [], said: true, clientName: 'Tecwyn', vendorName: 'Quillon Staffing' },
       },
     ]
     const far = billsOnLeg(travel, deep, 'cs-line')
-    expect(far).toEqual({ bills: false, says: 'Techpeple does not bill it to Computer Systems, so Northbend Athletic does not pay for it.' })
+    expect(far).toEqual({ bills: false, says: 'Tecwyn does not bill it to Computer Systems, so Northbend Athletic does not pay for it.' })
     expect(far.says).not.toContain('Quillon')
   })
 })
@@ -192,10 +192,10 @@ describe('a firm in the middle of a chain bills its client for an expense (the f
 describe('the payer reads an expense’s billability the way the bill does', () => {
   it('the receipt form and the typed-in check judge an expense’s billability on the whole chain, as the bill does', () => {
     const travel = { category: 'TRAVEL', billable: true }
-    // Northbend ← Computer Systems ← Techpeple ← Quillon Staffing, whose agreement with Techpeple bills no expense.
+    // Northbend ← Computer Systems ← Tecwyn ← Quillon Staffing, whose agreement with Tecwyn bills no expense.
     const quillon: Leg = {
-      sellContractId: 'sub-line', sellerId: 'sub', sellerName: 'Quillon Staffing', payerId: 'tp', payerName: 'Techpeple',
-      agreement: { id: 'a', kinds: [], said: true, clientName: 'Techpeple', vendorName: 'Quillon Staffing' },
+      sellContractId: 'sub-line', sellerId: 'sub', sellerName: 'Quillon Staffing', payerId: 'tp', payerName: 'Tecwyn',
+      agreement: { id: 'a', kinds: [], said: true, clientName: 'Tecwyn', vendorName: 'Quillon Staffing' },
     }
     const deep: Leg[] = [...LEGS, quillon]
     // Read on Computer Systems' line alone, the expense would be billable; the bill reads the whole chain and leaves it off.
@@ -204,13 +204,13 @@ describe('the payer reads an expense’s billability the way the bill does', () 
     expect(paying.bills).toBe(billsOnLeg(travel, deep, 'cs-line').bills)
     // Said to Northbend, it names Computer Systems and nobody below it.
     expect(paying.says).toBe('The firm that supplies Computer Systems does not bill it for this travel expense, so Northbend Athletic does not pay for it.')
-    expect(paying.says).not.toMatch(/Techpeple|Quillon/)
+    expect(paying.says).not.toMatch(/Tecwyn|Quillon/)
     // Where every leg bills it, the payer pays for it, as the bill carries it.
     expect(billsToPayer(travel, LEGS, 'tp-line', LEGS[1])).toEqual({ bills: true, says: null })
     // A stop on the supplier's own leg is that leg's sentence, naming the two of them.
     expect(billsToPayer({ category: 'TRAVEL', billable: false }, LEGS, 'tp-line', LEGS[1])).toEqual({
       bills: false,
-      says: 'Techpeple recorded this travel expense as its own cost, and no agreement between Computer Systems and Techpeple says which expenses are billable.',
+      says: 'Tecwyn recorded this travel expense as its own cost, and no agreement between Computer Systems and Tecwyn says which expenses are billable.',
     })
     // With no chain through the supplier's line, the supplier's leg decides, then the employer's own flag.
     expect(billsToPayer({ category: 'TRAVEL', billable: false }, [], null, null)).toEqual({ bills: false, says: null })
@@ -226,14 +226,14 @@ describe('the payer reads an expense’s billability the way the bill does', () 
 
 describe('billed and paid are read per rung', () => {
   const lines: ExpenseBillLine[] = [
-    // Techpeple's bill of it to Computer Systems, paid.
+    // Tecwyn's bill of it to Computer Systems, paid.
     { sellerId: 'tp', payerId: 'cs', payerName: 'Computer Systems', number: 'IN_TP_001', status: 'PAID' },
     // Computer Systems' bill of it to Northbend, sent.
     { sellerId: 'cs', payerId: 'nb', payerName: 'Northbend Athletic', number: 'IN_CS_004', status: 'SUBMITTED' },
   ]
 
   it('a rung reads an expense as billed or paid only from its own line, never from a rung below', () => {
-    // Northbend: billed to it by Computer Systems; Techpeple's paid bill below is not its to read.
+    // Northbend: billed to it by Computer Systems; Tecwyn's paid bill below is not its to read.
     const nb = rungBilled('nb', lines)
     expect(nb).toEqual({ byReader: null, toReader: { number: 'IN_CS_004', state: 'BILLED' } })
     expect(rungStatus(nb)).toBe('INVOICED')
@@ -242,7 +242,7 @@ describe('billed and paid are read per rung', () => {
     const cs = rungBilled('cs', lines)
     expect(billedWords(cs)).toEqual(['billed to you on IN_TP_001, paid', 'billed to Northbend Athletic on IN_CS_004'])
     expect(rungStatus(cs)).toBe('INVOICED')
-    // Before Computer Systems bills it on, Northbend reads it as approved, whatever Techpeple did below.
+    // Before Computer Systems bills it on, Northbend reads it as approved, whatever Tecwyn did below.
     const early = rungBilled('nb', [lines[0]])
     expect(early).toEqual({ byReader: null, toReader: null })
     expect(rungStatus(early)).toBe('APPROVED')
@@ -263,7 +263,7 @@ describe('billed and paid are read per rung', () => {
 
   it('the where-it-stands row says “billed to Northbend Athletic on IN_…” only on the reader’s own rung', () => {
     const expense = {
-      id: 'e1', companyId: 'tp', companyName: 'Techpeple', personId: 'helena', personName: 'Helena Marsh',
+      id: 'e1', companyId: 'tp', companyName: 'Tecwyn', personId: 'helena', personName: 'Helena Marsh',
       category: 'TRAVEL', billable: true, status: 'INVOICED', totalCents: 25_000, currency: 'USD', periodStart: new Date('2026-09-09T00:00:00Z'),
     }
     const acceptances = [
@@ -273,11 +273,11 @@ describe('billed and paid are read per rung', () => {
     const read = (id: string, name: string) =>
       rowFor({ expense, legsTopFirst: LEGS, acceptances, reader: { id, name }, personId: 'someone', billed: rungBilled(id, lines) }).line
     expect(read('cs', 'Computer Systems')).toBe(
-      'Approved by Techpeple · accepted by Northbend Athletic $250.00 · accepted by you $250.00 · billed to you on IN_TP_001, paid · billed to Northbend Athletic on IN_CS_004'
+      'Approved by Tecwyn · accepted by Northbend Athletic $250.00 · accepted by you $250.00 · billed to you on IN_TP_001, paid · billed to Northbend Athletic on IN_CS_004'
     )
     expect(read('nb', 'Northbend Athletic')).toBe('Approved by the employer · accepted by you $250.00 · accepted by Computer Systems $250.00 · billed to you on IN_CS_004')
     expect(read('nb', 'Northbend Athletic')).not.toContain('IN_TP_001')
-    expect(read('tp', 'Techpeple')).toBe(
+    expect(read('tp', 'Tecwyn')).toBe(
       'Approved by you · accepted by Northbend Athletic $250.00 · accepted by Computer Systems $250.00 · billed to Computer Systems on IN_TP_001, paid'
     )
   })

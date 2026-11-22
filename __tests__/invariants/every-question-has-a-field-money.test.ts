@@ -19,7 +19,7 @@ const ROUTE = readFileSync(join(process.cwd(), 'src/app/api/contracts/[id]/activ
 const PAGE = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
 const PANEL = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/activate-panel.tsx'), 'utf8')
 
-const PAPERS: StartWarning = { code: 'DOCUMENTS_WARN', says: 'Priya Raman has no background check on file.' }
+const PAPERS: StartWarning = { code: 'DOCUMENTS_WARN', says: 'Priya Ramesh has no background check on file.' }
 const RULE: StartWarning = { code: 'GOVERNANCE_WARN', says: 'This rate is 12% over the band for the job.', detail: { evaluations: [] } }
 
 /** The start's own reading of what the dialog posts. */

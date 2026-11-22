@@ -82,21 +82,21 @@ describe('what it refuses to guess', () => {
 
 describe('finding the name', () => {
   it('skips a Curriculum Vitae heading', () => {
-    expect(readName(['CURRICULUM VITAE', 'Anita Desai', 'SAP FICO Lead'], null)).toBe('Anita Desai')
+    expect(readName(['CURRICULUM VITAE', 'Anita Dalvi', 'SAP FICO Lead'], null)).toBe('Anita Dalvi')
   })
 
   it('does not mistake the job title for the person', () => {
-    expect(readName(['Senior SAP Consultant', 'Anita Desai'], null)).toBe('Anita Desai')
+    expect(readName(['Senior SAP Consultant', 'Anita Dalvi'], null)).toBe('Anita Dalvi')
   })
 
   it('does not mistake a contact line for the person', () => {
-    expect(readName(['anita@x.com', 'Anita Desai'], 'anita@x.com')).toBe('Anita Desai')
+    expect(readName(['anita@x.com', 'Anita Dalvi'], 'anita@x.com')).toBe('Anita Dalvi')
   })
 
   it('falls back to the address when the CV starts with prose', () => {
     // Last resort, and flagged as one — better than an empty field the
     // recruiter has to notice is empty.
-    expect(readName(['A dedicated professional with...'], 'anita.desai@x.com')).toBe('Anita Desai')
+    expect(readName(['A dedicated professional with...'], 'anita.dalvi@x.com')).toBe('Anita Dalvi')
   })
 
   it('will not invent a name from a single-word address', () => {
@@ -130,11 +130,11 @@ describe('finding the skills', () => {
 
 describe('finding the place', () => {
   it('reads a city and a state', () => {
-    expect(readLocation(['Anita Desai', 'Denver, CO · anita@x.com'])).toBe('Denver, CO')
+    expect(readLocation(['Anita Dalvi', 'Denver, CO · anita@x.com'])).toBe('Denver, CO')
   })
 
   it('reads remote as a place, because to a client it is one', () => {
-    expect(readLocation(['Anita Desai', 'Remote'])).toBe('Remote')
+    expect(readLocation(['Anita Dalvi', 'Remote'])).toBe('Remote')
   })
 })
 
@@ -182,9 +182,9 @@ import { readEducation } from '@/lib/cv-reader'
 import { educationAfterResume, educationOf, correctEducation } from '@/lib/consultant-portfolio/education'
 import { readFileSync as readSource } from 'node:fs'
 
-const NURSE_CV = `Priya Raman
+const NURSE_CV = `Priya Ramesh
 ICU Registered Nurse
-Austin, TX · priya.raman@example.com
+Austin, TX · priya.ramesh@example.com
 
 EXPERIENCE
 Charge nurse, Seton Medical Center, 2016–present

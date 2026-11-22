@@ -96,7 +96,7 @@ const UNPAID_SHOWN = 6
 
 // ── Helpers ──────────────────────────────────────────
 
-/** "Ravi Subramanian, Omar Haddad and 3 more". */
+/** "Ravi Subbarayan, Omar Haddad and 3 more". */
 function namesLine(names: readonly string[], shown = 4): string {
   const unique = [...new Set(names)]
   if (unique.length <= shown) return unique.join(', ')

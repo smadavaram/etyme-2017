@@ -3,8 +3,8 @@
  *
  * Sign-up walk, round five (2026-10-08), problem 8. Two refusals turned
  * an id into a name across tenants: Timesheets answered Karthik, at
- * Teleworld, "Helena Marsh's timesheet is not part of your seat" for a
- * Techpeple worker Teleworld has no tie to, and the terms page told Mo,
+ * Tellisford, "Helena Marsh's timesheet is not part of your seat" for a
+ * Tecwyn worker Tellisford has no tie to, and the terms page told Mo,
  * a Member at Northbend, who a submission was for. A refusal that names
  * is right for a colleague the reader already knows; it is a leak when
  * the name is looked up from an id the reader typed.
@@ -17,7 +17,7 @@
  *   · a buy line the reader's company pays the person on
  *     (`BuyContract.companyId`, the person among its candidates).
  * A firm that pays somebody on its own buy line with no seat for them
- * (Teleworld and Marcus Whitfield) knows their name; a firm with no line
+ * (Tellisford and Marcus Whitfield) knows their name; a firm with no line
  * and no seat is told "That …". Being the client on somebody else's sell
  * line, or the end client, is not one of the ties: a sub-vendor's person
  * stays unnamed to a firm it has no line with.

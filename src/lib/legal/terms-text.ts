@@ -10,13 +10,17 @@
  *
  * A change here is a change to a legal document. Change the words only
  * on the founder's word or to correct a fact, and say which.
+ *
+ * Published as final 2026-11-22, on the owner's word (record 110). The
+ * draft notice above the title came off, the effective date was set, and
+ * every bracketed point counsel had not decided came off the page: a
+ * fact inside one stays as a plain sentence, and a clause nobody has
+ * decided is not on the page at all. No answer was written for counsel.
  */
-export const TERMS_SOURCE = `> **Notice:** This document is a draft and has not yet been reviewed by legal counsel. Text in square brackets marks a point counsel must decide before publication.
+export const TERMS_SOURCE = `# Terms of Service
 
-# Terms of Service
-
-**Effective date:** [to be set on publication]
-**Last updated:** October 15, 2026
+**Effective date:** November 22, 2026
+**Last updated:** November 22, 2026
 
 These Terms of Service ("Terms") are an agreement between Etyme Inc. ("Etyme", "we", "us") and you. Etyme's address is 3201 Yorktown Ave, Ste. 110B, Durham, NC 27713, and you can reach us at support@etyme.com.
 
@@ -43,8 +47,6 @@ You may use the Services if:
 
 A company account must be opened with a work email address. A personal email address from a consumer provider (such as Gmail or Yahoo) cannot open a company account. A Worker may use a personal email address.
 
-[To be confirmed by counsel: minimum age, and any countries or persons excluded.]
-
 ## 3. Accounts and company access
 
 **Business Users.** Business Users sign in with their employer's Microsoft or Google account, with an email link, or with an email address and password. A Business User's access belongs to the Customer that granted it. An owner or administrator at that Customer can suspend or end it at any time.
@@ -65,8 +67,6 @@ A company account must be opened with a work email address. A personal email add
 - **Not a decision-maker on whether a person may work.** The Services record that a check took place, such as an I-9, a background check or a drug screen, with who ran it, when, and when it expires. Etyme does not run these checks and does not issue a "cleared to work" result. The decision belongs to the employer or Client that is legally responsible for it.
 - **Not a decision-maker on employment status.** Etyme does not decide whether a person is an employee or an independent contractor, or whether an employee is exempt from overtime. The Services record what a company states, with its reason. Where pay alone rules out an overtime exemption, the Services say so. They never conclude that a person is exempt.
 - **Not a party to your deals.** Etyme is not a party to any agreement, order or contract between Customers or between a Customer and a Worker.
-
-[To be confirmed by counsel: whether operating the Services makes Etyme an employment agency or similar regulated business in any jurisdiction.]
 
 ## 5. Customer responsibilities
 
@@ -121,8 +121,6 @@ Each automated action is logged with a plain-English reason and a note saying wh
 
 The Services are free while they are being tested. No price has been set. Any price, and the terms that go with it, will be given to you in writing before it applies to you.
 
-[To be confirmed by counsel: whether a price applies only once the Customer accepts it.]
-
 ## 10. Data
 
 **Customer Data belongs to the Customer.** As between Etyme and a Customer, the Customer owns its Customer Data.
@@ -137,19 +135,13 @@ The Services are free while they are being tested. No price has been set. Any pr
 
 **Return of data at the end.** A Customer can ask for its data when it leaves. We do not yet offer an automatic export of a Customer's data, because shared records need a decision about what goes with them. Until then we will answer the request by hand.
 
-[To be confirmed by counsel: the scope and timing of data return and deletion after termination.]
-
 ## 11. Confidentiality
 
 Each party will keep the other's non-public business information confidential and use it only for these Terms. This does not apply to information that is public, already known, independently developed, or that must be disclosed by law.
 
-[To be confirmed by counsel: full confidentiality terms, including duration.]
-
 ## 12. Availability and support
 
 We do not promise any level of uptime or availability. We record errors and alert our staff when they happen.
-
-[To be confirmed by counsel and commercial terms: service levels, support hours and response times.]
 
 ## 13. Suspension and termination
 
@@ -157,39 +149,17 @@ We do not promise any level of uptime or availability. We record errors and aler
 
 **By a Worker.** A Worker may close their account by asking to be forgotten, as described in our Privacy Notice.
 
-**By us.** [To be confirmed by counsel: when Etyme may suspend or end an account, the notice given, and what happens to fees and data on termination.]
-
 **What survives.** Ending access does not delete records that other companies rely on or that the law requires to be kept.
 
 ## 14. Disclaimers
 
-[To be confirmed by counsel: warranty disclaimer wording.]
+The Services record and calculate information that Customers and Workers provide. We do not check that this information is true. Match scores and suggestions are advisory.
 
-Without limiting counsel's wording: the Services record and calculate information that Customers and Workers provide. We do not check that this information is true. Match scores and suggestions are advisory.
-
-## 15. Limitation of liability
-
-[To be confirmed by counsel: limitation of liability, including any cap and exclusions.]
-
-## 16. Indemnities
-
-[To be confirmed by counsel: whether either party gives an indemnity, and its scope.]
-
-## 17. Governing law and disputes
-
-[To be confirmed by counsel: governing law, venue and dispute resolution.]
-
-## 18. Changes to these Terms
+## 15. Changes to these Terms
 
 We will update the "Last updated" date when we change these Terms.
 
-[To be confirmed by counsel: how and how far in advance we notify Customers and Workers of material changes.]
-
-## 19. General
-
-[To be confirmed by counsel: assignment, entire agreement, severability, notices, force majeure and other general terms.]
-
-## 20. Contact us
+## 16. Contact us
 
 Etyme Inc.
 3201 Yorktown Ave, Ste. 110B

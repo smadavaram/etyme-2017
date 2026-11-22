@@ -40,8 +40,8 @@ const WEEK = {
   periodEnd: new Date('2026-11-07T00:00:00.000Z'),
   days: { '2026-11-02': 8, '2026-11-03': 8, '2026-11-04': 8, '2026-11-05': 8, '2026-11-06': 8 } as Record<string, number>,
 }
-/** Helena Marsh's week as it is filed: on Techpeple's line to Computer Systems, worked at Northbend. */
-const HELENA_LINE = { companyId: 'techpeple', clientCompanyId: 'computer-systems', endClientCompanyId: 'northbend' }
+/** Helena Marsh's week as it is filed: on Tecwyn's line to Computer Systems, worked at Northbend. */
+const HELENA_LINE = { companyId: 'tecwyn', clientCompanyId: 'computer-systems', endClientCompanyId: 'northbend' }
 const NO_LINE = { afterHours: null, multiplierBps: 15_000 }
 
 describe('the Timesheets page says every amount in its line’s own money', () => {

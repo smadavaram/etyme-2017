@@ -7,7 +7,7 @@ import { GET as section, POST as billIt } from '@/app/api/contracts/weeks/[times
  * "Bill this week" on the seeded world. Rosa Delgado's signed week of
  * Mar 29 at Brightmoor, never billed: Imelda Santoro, Brightmoor's
  * Accounts Receivable, drafts it from the week. Helena Marsh's Oct 4–10
- * week: Computer Systems has sent its bill, and Techpeple's own bill for
+ * week: Computer Systems has sent its bill, and Tecwyn's own bill for
  * it is already an invoice receipt at Computer Systems, so it is offered
  * no second bill.
  */
@@ -73,7 +73,7 @@ describe('an approved week’s page and its bill', () => {
   })
 
   it('a week the firm above already holds from this firm is offered no second bill, and each rung reads its own bill', async () => {
-    as('world-techpeple@demo.etyme.local')
+    as('world-tecwyn@demo.etyme.local')
     const tp = await read(helenaWeek)
     expect(tp.body.data.mayBill).toBe(false)
     expect(tp.body.data.says).toMatch(/already on invoice .+, which Computer Systems Inc recorded from you, so it is not billed again\.$/)

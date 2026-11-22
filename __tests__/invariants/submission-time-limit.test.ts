@@ -16,7 +16,7 @@ const day = (iso: string) => new Date(`${iso}T00:00:00Z`)
 const daysBefore = (n: number) => new Date(NOW.getTime() - n * 86_400_000)
 
 const LIMIT_18: TimeLimitRules = { capMonths: 18, capMode: 'BLOCK', breakDays: 90, breakMode: 'BLOCK' }
-const base = { personName: 'Priya Raman', clientName: 'Northbend Athletic', now: NOW }
+const base = { personName: 'Priya Ramesh', clientName: 'Northbend Athletic', now: NOW }
 const job = (months: number | null, startDate: Date | null = null) => ({ startDate, months })
 
 describe('the client’s time limit, at the door where a person is put forward', () => {
@@ -180,7 +180,7 @@ describe('the client’s time limit, at the door where a person is put forward',
 })
 
 describe('work authorization, warned at submission and refused at activation', () => {
-  const who = { personName: 'Priya Raman', now: NOW }
+  const who = { personName: 'Priya Ramesh', now: NOW }
 
   it('a person with no work authorization on record is warned about, and the submission still goes through', () => {
     const v = workAuthAtSubmission({ ...who, rows: [], startsOn: null })
@@ -242,7 +242,7 @@ describe('sponsorship, checked where the work is done, at the put-forward', () =
     workAuthCite: 'We do not sponsor work visas for this role',
   }
   const priya = {
-    personName: 'Priya Raman',
+    personName: 'Priya Ramesh',
     needsSponsorship: true as boolean | null,
     saidAt: new Date('2026-10-12T15:00:00Z'),
     quote: 'I will need an H-1B transfer',
@@ -258,7 +258,7 @@ describe('sponsorship, checked where the work is done, at the put-forward', () =
     expect(v.says).toBe(
       'Priya said on Oct 12, 2026 they will need sponsorship ("I will need an H-1B transfer"); ' +
         'this job offers none: "We do not sponsor work visas for this role". ' +
-        'Priya Raman is not put forward, so no interview is booked. Ask the client whether it will sponsor, or put forward somebody who needs none.'
+        'Priya Ramesh is not put forward, so no interview is booked. Ask the client whether it will sponsor, or put forward somebody who needs none.'
     )
   })
 

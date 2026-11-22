@@ -53,7 +53,7 @@ beforeAll(async () => {
     select: { id: true, billRate: true, engagementId: true, personId: true, clientCompanyId: true, companyId: true, company: { select: { slug: true } } },
   })
   s.top = lines.find((l) => l.company.slug === 'world-computer-systems')
-  s.bottom = lines.find((l) => l.company.slug === 'world-techpeple')
+  s.bottom = lines.find((l) => l.company.slug === 'world-tecwyn')
   if (!s.top || !s.bottom) throw new Error('The seeded world holds no chain for Helena Marsh.')
   s.issuer = s.top.companyId
 

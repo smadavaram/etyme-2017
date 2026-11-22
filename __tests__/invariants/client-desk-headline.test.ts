@@ -21,10 +21,10 @@ describe('the sentence at the top of a client’s Today page is one sentence wit
     expect(deskHeadline([]).total).toBe(0)
   })
 
-  it('names both things: "Two things need you: Ingrid Sørensen’s start, and Teleworld’s missing agreement."', () => {
-    const said = deskHeadline([start('Ingrid Sørensen'), agreement('Teleworld')])
+  it('names both things: "Two things need you: Ingrid Sørensen’s start, and Tellisford’s missing agreement."', () => {
+    const said = deskHeadline([start('Ingrid Sørensen'), agreement('Tellisford')])
     expect(said.total).toBe(2)
-    expect(said.says).toBe("Two things need you: Ingrid Sørensen’s start, and Teleworld’s missing agreement.")
+    expect(said.says).toBe("Two things need you: Ingrid Sørensen’s start, and Tellisford’s missing agreement.")
   })
 
   it('one thing is named on its own: "One thing needs you: Ingrid Sørensen’s start."', () => {
@@ -32,8 +32,8 @@ describe('the sentence at the top of a client’s Today page is one sentence wit
   })
 
   it('three things are each named, with a comma before the last "and"', () => {
-    expect(deskHeadline([week('Lucía Fernández'), start('Ingrid Sørensen'), agreement('Teleworld')]).says).toBe(
-      "Three things need you: Lucía Fernández’s week, Ingrid Sørensen’s start, and Teleworld’s missing agreement."
+    expect(deskHeadline([week('Lucía Fernández'), start('Ingrid Sørensen'), agreement('Tellisford')]).says).toBe(
+      "Three things need you: Lucía Fernández’s week, Ingrid Sørensen’s start, and Tellisford’s missing agreement."
     )
   })
 
@@ -46,7 +46,7 @@ describe('the sentence at the top of a client’s Today page is one sentence wit
 
   it('past three things it names the first two and says "and n more"', () => {
     const said = deskHeadline([
-      week('Lucía Fernández'), start('Ingrid Sørensen'), agreement('Teleworld'), week('Helena Marsh'),
+      week('Lucía Fernández'), start('Ingrid Sørensen'), agreement('Tellisford'), week('Helena Marsh'),
     ])
     expect(said.total).toBe(4)
     expect(said.says).toBe("Four things need you: Lucía Fernández’s week, Ingrid Sørensen’s start, and 2 more.")
@@ -70,7 +70,7 @@ describe('the sentence at the top of a client’s Today page is one sentence wit
   })
 
   it('the sentence carries no count without a name: never "1 start is held up by paperwork."', () => {
-    const says = deskHeadline([start('Ingrid Sørensen'), agreement('Teleworld')]).says
+    const says = deskHeadline([start('Ingrid Sørensen'), agreement('Tellisford')]).says
     expect(says).not.toContain('held up by paperwork')
     expect(says).not.toContain('people on site with no agreement on file')
     expect(says.split('. ').length).toBe(1)
@@ -94,14 +94,14 @@ describe('the sentence at the top of a client’s Today page is one sentence wit
   it('a held start and a missing agreement carry the name the headline says them by', () => {
     const rows = deskRows(
       deskItems({
-        startingSoon: [{ contractId: 'c1', person: { name: 'Ingrid Sørensen' }, vendor: { name: 'Teleworld' }, paperwork: { outcome: 'BLOCK', says: 'x', fix: null } }],
-        vendors: [{ id: 'v1', name: 'Teleworld', agreement: false, headcount: 1 }],
+        startingSoon: [{ contractId: 'c1', person: { name: 'Ingrid Sørensen' }, vendor: { name: 'Tellisford' }, paperwork: { outcome: 'BLOCK', says: 'x', fix: null } }],
+        vendors: [{ id: 'v1', name: 'Tellisford', agreement: false, headcount: 1 }],
       }),
       new Map(),
       new Date('2026-10-19T12:00:00Z')
     )
     expect(rows.map((r) => r.type)).toEqual(['START_HELD', 'NO_AGREEMENT'])
-    expect(deskHeadline(rows).says).toBe("Two things need you: Ingrid Sørensen’s start, and Teleworld’s missing agreement.")
+    expect(deskHeadline(rows).says).toBe("Two things need you: Ingrid Sørensen’s start, and Tellisford’s missing agreement.")
   })
 })
 
@@ -119,7 +119,7 @@ describe('a held start says what is missing once', () => {
   it('the row says it in place of the clearance’s sentence, which names the person a second time', () => {
     const [row] = deskItems({
       startingSoon: [{
-        contractId: 'c1', person: { name: 'Ingrid Sørensen' }, vendor: { name: 'Teleworld' },
+        contractId: 'c1', person: { name: 'Ingrid Sørensen' }, vendor: { name: 'Tellisford' },
         paperwork: {
           outcome: 'BLOCK',
           says: 'Ingrid Sørensen cannot start without proof of right to work (I-9, checked with E-Verify).',
@@ -130,7 +130,7 @@ describe('a held start says what is missing once', () => {
       vendors: [],
     })
     expect(row.says).toBe('Cannot start without an I-9 (proof of right to work). Get it on file, then activate.')
-    expect(row.who).toBe('Ingrid Sørensen — through Teleworld')
+    expect(row.who).toBe('Ingrid Sørensen — through Tellisford')
   })
 
   it('two missing papers are "them", and what the client’s own order asked for still says who asked', () => {

@@ -76,9 +76,9 @@ describe('6 · the Bench page is its refusal alone, with no heading or prose abo
   })
 
   it('a worker at an integrator who may not open the bench reads the same one sentence, not "People you employ"', () => {
-    // Karthik Menon at Teleworld Solutions.
-    const says = benchPageClosed({ loading: false, company: { name: 'Teleworld Solutions' }, client, readsBench: false, readsProfit: false })
-    expect(says).toBe(benchClosedSays('Teleworld Solutions'))
+    // Karthik Menon at Tellisford Solutions.
+    const says = benchPageClosed({ loading: false, company: { name: 'Tellisford Solutions' }, client, readsBench: false, readsProfit: false })
+    expect(says).toBe(benchClosedSays('Tellisford Solutions'))
     expect(says).not.toContain('People you employ')
   })
 

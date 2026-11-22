@@ -3,11 +3,11 @@
  * Pure: no database, no clock.
  *
  * Sign-up walk, round seven (2026-10-08), problem 5. Karthik Menon, a W2
- * worker at Teleworld with no desk, opened Submissions and for three
+ * worker at Tellisford with no desk, opened Submissions and for three
  * seconds read the firm's sentence — "Candidates you submitted to client
  * job requests" — under a "+ Submit" button he cannot use. When the read
  * came back the button went, but the firm's sentence stayed, above "These
- * are the times you were put forward by Teleworld Solutions." He
+ * are the times you were put forward by Tellisford Solutions." He
  * submitted nobody.
  *
  * Who is reading is known only once the list's own read has answered:

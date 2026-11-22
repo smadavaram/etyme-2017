@@ -53,9 +53,9 @@ describe('problem 6: Missing paperwork is not read by a seat that reads only its
   })
 
   it('the refusal is a sentence that says what the seat does read, and names a desk rather than a permission key', () => {
-    const says = ownLinesRefusal({ kind: 'GSI', company: 'Teleworld Solutions' })
+    const says = ownLinesRefusal({ kind: 'GSI', company: 'Tellisford Solutions' })
     expect(says.startsWith('You read the contract lines that name you, under Your work.')).toBe(true)
-    expect(says).toContain('Teleworld Solutions')
+    expect(says).toContain('Tellisford Solutions')
     expect(namesAPermission(says), says).toBe(false)
   })
 

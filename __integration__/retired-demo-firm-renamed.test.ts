@@ -75,13 +75,13 @@ describe('A demo firm whose name was retired is renamed in place on the next see
   it('a world seeded with the old name is renamed in place on the next seeding, and nothing named CloudEPA is left', async () => {
     expect(await prisma.company.findUnique({ where: { slug: PREFIX + firm.fromSlug } })).toBeNull()
     const renamed = await prisma.company.findMany({ where: { slug: PREFIX + firm.toSlug } })
-    expect(renamed.map((c) => c.name)).toEqual(['Techpeple'])
+    expect(renamed.map((c) => c.name)).toEqual(['Tecwyn'])
     expect(await stillSays(firm.fromSlug)).toEqual([])
   })
 
   it('makes no second firm and no second person: the seeding after the rename finds every row it wrote before', async () => {
     expect(await census()).toEqual(before)
-    expect(await prisma.company.count({ where: { name: 'Techpeple' } })).toBe(1)
+    expect(await prisma.company.count({ where: { name: 'Tecwyn' } })).toBe(1)
   })
 
   it('moves the firm’s seated people to the new addresses, owner and desks alike', async () => {

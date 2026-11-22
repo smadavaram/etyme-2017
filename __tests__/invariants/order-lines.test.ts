@@ -45,7 +45,7 @@ const ORDER = {
   sellerNumber: 'SO-0913',
 }
 
-const SELL_LINE = { side: 'SELL' as const, personName: 'Priya Raman', siteName: 'Tualatin, OR' }
+const SELL_LINE = { side: 'SELL' as const, personName: 'Priya Ramesh', siteName: 'Tualatin, OR' }
 
 describe('a line has a name, and it is the person and the place', () => {
   it('the client reads the paper it raised as a purchase order, and this line as line two of five', () => {
@@ -65,11 +65,11 @@ describe('a line has a name, and it is the person and the place', () => {
   })
 
   it('a line is named by the person and the site, and never by a contract id', () => {
-    expect(lineName(SELL_LINE)).toBe('Priya Raman — Tualatin, OR')
-    expect(lineName({ ...SELL_LINE, siteName: null })).toBe('Priya Raman')
+    expect(lineName(SELL_LINE)).toBe('Priya Ramesh — Tualatin, OR')
+    expect(lineName({ ...SELL_LINE, siteName: null })).toBe('Priya Ramesh')
     const described = describeLine({ order: ORDER, companyId: CLIENT, line: SELL_LINE, place: { position: 2, of: 5 } })
     expect(described.says).not.toMatch(/c[a-z0-9]{24}/)
-    expect(described.says).toContain('Priya Raman')
+    expect(described.says).toContain('Priya Ramesh')
   })
 
   it('a count nobody loaded is left off rather than guessed — “line 2”, never “line 2 of 1”', () => {
@@ -85,7 +85,7 @@ describe('what each side of the trade is for', () => {
   })
 
   it('a buy line below a sub-vendor is paid against that firm’s invoice, received and matched', () => {
-    const line = { side: 'BUY' as const, personName: 'Priya Raman', paidToName: 'Veritan Talent' }
+    const line = { side: 'BUY' as const, personName: 'Priya Ramesh', paidToName: 'Veritan Talent' }
     expect(paidBy(line)).toBe('INVOICE_RECEIPT')
     expect(lineDoes(line, 'BUYER')).toContain("Veritan Talent's invoice")
   })
@@ -113,7 +113,7 @@ describe('a line with no document behind it says so, in a sentence', () => {
     const described = describeLine({
       order: null,
       companyId: SUPPLIER,
-      line: { side: 'BUY', personName: 'Priya Raman', paidToName: 'Pinnacle Staffing' },
+      line: { side: 'BUY', personName: 'Priya Ramesh', paidToName: 'Pinnacle Staffing' },
     })
     expect(described.says).toContain('The order you raise to Pinnacle Staffing attaches here.')
   })
@@ -171,14 +171,14 @@ describe('somebody taking over a seat joins the document, and does not start a n
   const at = { startsOn: new Date('2026-06-01'), endsOn: new Date('2026-12-31') }
 
   it('the person who takes over a seat is a line on the same order as the person who left it', () => {
-    const next = nextLineOnSameDocument({ old, header, ...at, outgoingName: 'Priya Raman', incomingName: 'Ravi Menon' })
+    const next = nextLineOnSameDocument({ old, header, ...at, outgoingName: 'Priya Ramesh', incomingName: 'Ravi Menon' })
     expect(next.workOrderId).toBe('wo-1')
     expect(next.says).toContain('PO-4471')
     expect(next.says).toContain('the same document')
   })
 
   it('the new line is billed on the document’s rhythm, not on the old line’s copy of it', () => {
-    const next = nextLineOnSameDocument({ old, header, ...at, outgoingName: 'Priya Raman', incomingName: 'Ravi Menon' })
+    const next = nextLineOnSameDocument({ old, header, ...at, outgoingName: 'Priya Ramesh', incomingName: 'Ravi Menon' })
     expect(next.billFrequency).toBe('BIWEEKLY')
     expect(next.billAnchor).toBe('CONTRACT')
     expect(next.billStraddle).toBe('END')
@@ -187,7 +187,7 @@ describe('somebody taking over a seat joins the document, and does not start a n
   })
 
   it('the dates stay the person’s, because a line is a person and a document is not', () => {
-    const next = nextLineOnSameDocument({ old, header, ...at, outgoingName: 'Priya Raman', incomingName: 'Ravi Menon' })
+    const next = nextLineOnSameDocument({ old, header, ...at, outgoingName: 'Priya Ramesh', incomingName: 'Ravi Menon' })
     expect(next.startDate).toEqual(at.startsOn)
     expect(next.endDate).toEqual(at.endsOn)
   })
@@ -219,7 +219,7 @@ describe('somebody taking over a seat joins the document, and does not start a n
       old: { ...old, workOrderId: null },
       header: null,
       ...at,
-      outgoingName: 'Priya Raman',
+      outgoingName: 'Priya Ramesh',
       incomingName: 'Ravi Menon',
     })
     expect(next.workOrderId).toBeNull()

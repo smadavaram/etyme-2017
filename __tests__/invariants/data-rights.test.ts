@@ -103,14 +103,14 @@ describe('what a person is shown about what is held', () => {
 describe('the compliance desk is one page and four kinds of firm open it', () => {
   it('a client reads about its own sites and a supplier about the people it employs', () => {
     expect(deskFraming('CLIENT', 'Northbend Athletic').says).toContain('your sites')
-    const supplier = deskFraming('VENDOR', 'Techpeple')
-    expect(supplier.says).toContain('Techpeple')
+    const supplier = deskFraming('VENDOR', 'Tecwyn')
+    expect(supplier.says).toContain('Tecwyn')
     expect(supplier.says).toContain('employs or lists')
     expect(supplier.says).not.toContain('your sites')
   })
 
   it('an integrator is described as placing people as well as employing them, because it does both', () => {
-    expect(deskFraming('GSI', 'Teleworld Solutions').says).toContain('employs or places')
+    expect(deskFraming('GSI', 'Tellisford Solutions').says).toContain('employs or places')
   })
 
   it('an MSP with no seat anywhere is told a role in the client’s program is the client’s to grant, and who can grant it', () => {

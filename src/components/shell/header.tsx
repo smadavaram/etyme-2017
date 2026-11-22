@@ -444,7 +444,7 @@ export function noPageMatchSays(query: string, pages: readonly SearchResult[]): 
   return parts
 }
 
-/** First letters of the first two words of a name, e.g. "Anita Desai" → "AD". */
+/** First letters of the first two words of a name, e.g. "Anita Dalvi" → "AD". */
 function initials(name: string | undefined): string {
   if (!name) return '·'
   const parts = name.trim().split(/\s+/).filter(Boolean)

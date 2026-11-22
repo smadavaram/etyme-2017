@@ -408,7 +408,7 @@ describe('an expense waiting on this firm to accept it', () => {
 
   it('the card names the firm directly below and nothing else about who raised the expense', () => {
     const card = expenseAcceptanceDecision(helenasTrain, now)
-    expect(`${card.title} ${card.subtitle}`).not.toMatch(/Techpeple/)
+    expect(`${card.title} ${card.subtitle}`).not.toMatch(/Tecwyn/)
     // The row reads `from`, money's "the firm directly below", and no
     // other field of the expense names a firm.
     expect(row).toContain('from ${e.from}')

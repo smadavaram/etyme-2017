@@ -83,7 +83,7 @@ function plural(n: number, one: string, many: string): string {
 
 /**
  * What one row of the queue is about, said as a noun phrase: whose it is
- * and what it is. "Ingrid Sørensen's start", "Teleworld's missing
+ * and what it is. "Ingrid Sørensen's start", "Tellisford's missing
  * agreement", "the HCM integration lead job request".
  *
  * `whose` is a person or a firm and takes the possessive; where nobody
@@ -147,7 +147,7 @@ export function namedFor(row: QueueRow): Named {
       : { whose: null, what: 'a job request', whats: 'job requests' }
   }
   const thing = THING[type]
-  // "Ingrid Sørensen — through Teleworld" names the person first; every
+  // "Ingrid Sørensen — through Tellisford" names the person first; every
   // "Approve timesheet — Omar Haddad" names them after the dash.
   const who = type === 'START_HELD'
     ? title.split(' — ')[0]?.trim()
@@ -200,7 +200,7 @@ function list(parts: string[]): string {
  * It read "2 things need you. 1 start is held up by paperwork. 1 supplier
  * has people on site with no agreement on file." — three sentences, and
  * not one name a program manager could act on without reading further.
- * Now: "Two things need you: Ingrid Sørensen's start, and Teleworld's
+ * Now: "Two things need you: Ingrid Sørensen's start, and Tellisford's
  * missing agreement." Up to three things are each named; past three the
  * first two are named and the rest are "and n more". The same person's
  * or firm's same kind of thing is said once ("Marcus Oyelaran's five

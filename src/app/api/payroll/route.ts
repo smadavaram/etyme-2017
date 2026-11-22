@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
   // Every buy contract that is working, and every one that stopped and
   // may still have a period on this run. This read working contracts
   // only, so a placement that ended dropped off the runs for the months
-  // it worked — Karthik Menon read as nobody on Teleworld's payroll for
+  // it worked — Karthik Menon read as nobody on Tellisford's payroll for
   // the three months he was paid for. Which stopped ones are actually
   // shown is `onPayrollFor`'s answer, below (lib/money/payroll-rows).
   const since = shownPeriod

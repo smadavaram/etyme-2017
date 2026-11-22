@@ -2,7 +2,7 @@
  * Who a caller is to a person's terms with a firm. Pure: no database.
  *
  * Sign-up walk, round six (2026-10-08), problem 1. Karthik Menon is
- * Teleworld's own W2 engineer with no desk. "Your terms" is on every
+ * Tellisford's own W2 engineer with no desk. "Your terms" is on every
  * worker's menu, so the one door lets a desk-less seat through to
  * `submissions/[id]/terms`, and the route then asked only "is this caller at
  * the submitting firm?". So he read Felix Brenner's pay, Deepa Varma's,

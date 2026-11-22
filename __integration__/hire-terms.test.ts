@@ -35,7 +35,7 @@ const D = '@demo.etyme.local'
 const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}` }
 const BRIGHTMOOR = `world-brightmoor${D}`
 const PRIME = `world-computer-systems${D}`
-const SUB = `world-techpeple${D}`
+const SUB = `world-tecwyn${D}`
 const BENCH = `world-pinnacle${D}`
 const MARISOL = 'marisol.quintero@seed.etyme.invalid'
 const ANA = 'ana.ruiz.terms@seed.etyme.invalid'
@@ -68,7 +68,7 @@ async function raise(title: string) {
 describe('hire terms: Marisol Quintero at Brightmoor, the audit’s own case', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-brightmoor', 'world-computer-systems', 'world-techpeple', 'world-pinnacle']) {
+    for (const slug of ['world-nike', 'world-brightmoor', 'world-computer-systems', 'world-tecwyn', 'world-pinnacle']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }
     it_.marisol = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: MARISOL } })).id
@@ -262,13 +262,13 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
     await prisma.context.create({
       data: { personId: ana.id, companyId: co['world-pinnacle'], type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' },
     })
-    // Pinnacle supplies Techpeple: the rung below the sub.
-    if (!(await prisma.masterAgreement.findFirst({ where: { clientId: co['world-techpeple'], vendorId: co['world-pinnacle'] } }))) {
-      await prisma.masterAgreement.create({ data: { clientId: co['world-techpeple'], vendorId: co['world-pinnacle'], paymentTerms: 30 } })
+    // Pinnacle supplies Tecwyn: the rung below the sub.
+    if (!(await prisma.masterAgreement.findFirst({ where: { clientId: co['world-tecwyn'], vendorId: co['world-pinnacle'] } }))) {
+      await prisma.masterAgreement.create({ data: { clientId: co['world-tecwyn'], vendorId: co['world-pinnacle'], paymentTerms: 30 } })
     }
   })
 
-  it('Northbend sends a job to Computer Systems, which sends it to Techpeple, which sends it to Pinnacle', async () => {
+  it('Northbend sends a job to Computer Systems, which sends it to Tecwyn, which sends it to Pinnacle', async () => {
     it_.top = await raise('Commissioning engineer')
     as(NIKE.programme)
     const a = await call(distribute, 'POST', `/api/requisitions/${it_.top}/distribute`, it_.top, {
@@ -277,8 +277,8 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
     expect(a.body?.error, JSON.stringify(a.body)).toBeUndefined()
 
     for (const [who, from, to, slot] of [
-      [PRIME, 'world-computer-systems', 'world-techpeple', 'primeRole'],
-      [SUB, 'world-techpeple', 'world-pinnacle', 'subRole'],
+      [PRIME, 'world-computer-systems', 'world-tecwyn', 'primeRole'],
+      [SUB, 'world-tecwyn', 'world-pinnacle', 'subRole'],
     ] as const) {
       as(who)
       const r = await json(await recordRole(req('POST', '/api/requirements', {
@@ -295,7 +295,7 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
     }
   })
 
-  it('Pinnacle submits Ana to Techpeple at $115, Techpeple passes her to Computer Systems at $130, and Computer Systems to Northbend at $150', async () => {
+  it('Pinnacle submits Ana to Tecwyn at $115, Tecwyn passes her to Computer Systems at $130, and Computer Systems to Northbend at $150', async () => {
     as(BENCH)
     const r = await json(await submitCandidates(req('POST', '/api/submissions', {
       requirementId: it_.subRole, personIds: [it_.ana], rate: 11_500, fromCompanyId: co['world-pinnacle'],
@@ -347,7 +347,7 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
     })
     const firstAt = (pred: (n: (typeof since)[number]) => boolean) => since.findIndex(pred)
     const prime = firstAt((n) => n.companyId === co['world-computer-systems'])
-    const sub = firstAt((n) => n.companyId === co['world-techpeple'])
+    const sub = firstAt((n) => n.companyId === co['world-tecwyn'])
     const bench = firstAt((n) => n.companyId === co['world-pinnacle'])
     const person = firstAt((n) => n.personId === it_.ana)
     expect([prime, sub, bench, person].every((i) => i >= 0), JSON.stringify(since.map((n) => n.title))).toBe(true)
@@ -360,7 +360,7 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
     expect(subNotice.body).toMatch(/^Computer Systems Inc has a client decision: .* at the \$130\/hr you asked\./)
     expect(subNotice.body).not.toMatch(/\$150|\$115|Northbend/)
     const benchNotice = since[bench]
-    expect(benchNotice.body).toMatch(/^Techpeple has a client decision: .* at the \$115\/hr you asked\./)
+    expect(benchNotice.body).toMatch(/^Tecwyn has a client decision: .* at the \$115\/hr you asked\./)
     expect(benchNotice.body).not.toMatch(/\$150|\$130|Northbend|Computer Systems/)
     expect(since[person].body).toMatch(/through Pinnacle/)
     expect(since[person].body).not.toMatch(/\$/)
@@ -381,7 +381,7 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
     it_.benchLine = b.body.data.contractId
 
     const primeBuy = await prisma.buyContractCandidate.findFirstOrThrow({ where: { personId: it_.ana, buyContract: { companyId: co['world-computer-systems'] } } })
-    const subBuy = await prisma.buyContractCandidate.findFirstOrThrow({ where: { personId: it_.ana, buyContract: { companyId: co['world-techpeple'] } } })
+    const subBuy = await prisma.buyContractCandidate.findFirstOrThrow({ where: { personId: it_.ana, buyContract: { companyId: co['world-tecwyn'] } } })
     expect([primeBuy.payRate, subBuy.payRate]).toEqual([13_000, 11_500])
     // Hop 0 is not written: Pinnacle holds her listing, not her employment.
     expect(await prisma.buyContract.count({ where: { companyId: co['world-pinnacle'], candidates: { some: { personId: it_.ana } } } })).toBe(0)

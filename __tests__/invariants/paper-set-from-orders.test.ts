@@ -20,7 +20,7 @@ import {
  */
 
 const CLIENT = 'co-northbend'
-const SUPPLIER = 'co-techpeple'
+const SUPPLIER = 'co-tecwyn'
 
 describe('who may change what an order asks for on paper', () => {
   it('the buyer’s program manager or compliance officer may change what its order asks for', () => {

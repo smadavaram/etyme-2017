@@ -47,7 +47,7 @@ import { POST as runPayroll } from '@/app/api/payroll/run/route'
 const D = '@demo.etyme.local'
 const BRIGHTMOOR = `world-brightmoor${D}`
 const CS = `world-computer-systems${D}`
-const TECHPEPLE = `world-techpeple${D}`
+const TECWYN = `world-tecwyn${D}`
 
 const it_: Record<string, any> = {}
 
@@ -300,11 +300,11 @@ describe('a week signed at a premium, as far as the invoice', () => {
  * signed the week, at the pair's own rate.
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
- * employed by Techpeple. Northbend signs a forty-five hour week and
+ * employed by Tecwyn. Northbend signs a forty-five hour week and
  * decides, on its own leg, that the five over its line of forty are worth
  * double time to it. Computer Systems' bill to Northbend carries that
- * double time; Techpeple's bill to Computer Systems carries the same five
- * hours at the multiplier on Techpeple's own contract with Computer
+ * double time; Tecwyn's bill to Computer Systems carries the same five
+ * hours at the multiplier on Tecwyn's own contract with Computer
  * Systems — never Northbend's.
  */
 describe('a sub-vendor’s bill sent on the platform prices the overtime the client decided, at its own contract’s rate', () => {
@@ -314,7 +314,7 @@ describe('a sub-vendor’s bill sent on the platform prices the overtime the cli
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
     const first = await prisma.timesheet.findFirstOrThrow({ where: { personId: helena.id }, orderBy: { periodStart: 'asc' } })
     const cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
-    const techpeple = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
+    const tecwyn = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' } })
     const hoursLeg = await prisma.sellContract.findUniqueOrThrow({ where: { id: first.sellContractId } })
     const top = await prisma.sellContract.findFirstOrThrow({ where: { personId: helena.id, companyId: cs.id } })
     // Northbend's line with Computer Systems is forty hours.
@@ -338,7 +338,7 @@ describe('a sub-vendor’s bill sent on the platform prices the overtime the cli
     for (const [companyId, role, rateCents] of [
       [top.clientCompanyId, 'CLIENT_APPROVAL', top.billRate],
       [cs.id, 'PASS_THROUGH', hoursLeg.billRate],
-      [techpeple.id, 'EMPLOYER_ACCEPTANCE', hoursLeg.billRate],
+      [tecwyn.id, 'EMPLOYER_ACCEPTANCE', hoursLeg.billRate],
     ] as const) {
       await prisma.workAssertion.create({ data: { timesheetId: sheet.id, companyId, role, hours: 45, rateCents, state: 'LIVE', byId: signer.id } })
     }
@@ -360,11 +360,11 @@ describe('a sub-vendor’s bill sent on the platform prices the overtime the cli
       periodEnd: h.sheet.periodEnd.toISOString().slice(0, 10),
     })))
     expect(made.status, JSON.stringify(made.body)).toBe(201)
-    return prisma.invoiceLine.findFirstOrThrow({ where: { timesheetId: h.sheet.id, sellContractId: who === TECHPEPLE ? h.hoursLeg.id : h.top.id } })
+    return prisma.invoiceLine.findFirstOrThrow({ where: { timesheetId: h.sheet.id, sellContractId: who === TECWYN ? h.hoursLeg.id : h.top.id } })
   }
 
-  it('Techpeple’s bill to Computer Systems carries the five hours Northbend decided, at Techpeple’s own multiplier, and the three-way check passes it', async () => {
-    const line = await billFor(TECHPEPLE, h.hoursLeg.engagementId)
+  it('Tecwyn’s bill to Computer Systems carries the five hours Northbend decided, at Tecwyn’s own multiplier, and the three-way check passes it', async () => {
+    const line = await billFor(TECWYN, h.hoursLeg.engagementId)
     const rate = h.hoursLeg.billRate
     const premium = Math.round((5 * rate * (h.hoursLeg.overtimeMultiplierBps - 10_000)) / 10_000)
     expect(Number(line.hours)).toBe(45)
@@ -552,9 +552,9 @@ describe('the expenses page reads each expense as the firm reading it, and the A
   })
 
   it('a middle firm’s list shows its supplier’s expense on a line it pays, and the client’s names nobody below its own supplier', async () => {
-    // Helena Marsh: Northbend Athletic ← Computer Systems ← Techpeple, who employs her.
+    // Helena Marsh: Northbend Athletic ← Computer Systems ← Tecwyn, who employs her.
     const line = await prisma.sellContract.findFirstOrThrow({
-      where: { person: { name: 'Helena Marsh' }, company: { slug: 'world-techpeple' } },
+      where: { person: { name: 'Helena Marsh' }, company: { slug: 'world-tecwyn' } },
       select: { id: true, companyId: true, personId: true, company: { select: { name: true } }, clientCompany: { select: { name: true } } },
     })
     const flight = (await raise(line, 'TRAVEL', 412.5)).id
@@ -580,12 +580,12 @@ describe('the expenses page reads each expense as the firm reading it, and the A
  * relaxed to (expenseId, sellContractId) the same day).
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
- * employed by Techpeple. Techpeple approves her $250 train fare to
- * reimburse her; Northbend accepts it, then Computer Systems. Techpeple
+ * employed by Tecwyn. Tecwyn approves her $250 train fare to
+ * reimburse her; Northbend accepts it, then Computer Systems. Tecwyn
  * bills it to Computer Systems and Computer Systems bills it to
  * Northbend, each on its own line, each matched against its own payer's
  * acceptance; Northbend pays Computer Systems and Computer Systems pays
- * Techpeple. The expense's own status is Techpeple's rung's; every rung
+ * Tecwyn. The expense's own status is Tecwyn's rung's; every rung
  * above reads billed and paid from its own lines.
  */
 describe('Helena Marsh’s train fare is billed up the chain a rung at a time and paid down it', () => {
@@ -620,7 +620,7 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
 
   beforeAll(async () => {
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
-    const tpLine = await prisma.sellContract.findFirstOrThrow({ where: { personId: helena.id, company: { slug: 'world-techpeple' } } })
+    const tpLine = await prisma.sellContract.findFirstOrThrow({ where: { personId: helena.id, company: { slug: 'world-tecwyn' } } })
     const csLine = await prisma.sellContract.findFirstOrThrow({ where: { personId: helena.id, company: { slug: 'world-computer-systems' } } })
     // A day no week is filed on under either firm's engagement, so each bill is for the train fare alone.
     const lines = await prisma.sellContract.findMany({ where: { engagementId: { in: [tpLine.engagementId, csLine.engagementId].filter((x): x is string => !!x) } }, select: { id: true } })
@@ -651,7 +651,7 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
   }, 240_000)
 
   it('the employer’s bill of the same expense to the middle firm is a separate line and both pass their own check', async () => {
-    // Before Techpeple bills it here, Computer Systems' invoice receipt form offers it, at what Computer Systems accepted.
+    // Before Tecwyn bills it here, Computer Systems' invoice receipt form offers it, at what Computer Systems accepted.
     const buy = await prisma.buyContract.findFirstOrThrow({
       where: { companyId: w.csLine.companyId, vendorCompanyId: w.tpLine.companyId, candidates: { some: { personId: w.tpLine.personId } } },
     })
@@ -663,11 +663,11 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     }
     expect(await offered()).toMatchObject({ amountMinor: 25_000 })
 
-    const tp = await billFor(TECHPEPLE, w.tpLine.engagementId)
+    const tp = await billFor(TECWYN, w.tpLine.engagementId)
     expect(tp.status, JSON.stringify(tp.body)).toBe(201)
     const tpLine = await prisma.invoiceLine.findFirstOrThrow({ where: { expenseId: w.train, sellContractId: w.tpLine.id } })
     expect(tpLine.amountCents).toBe(25_000)
-    // Techpeple's own bill is the employer's rung: the expense's column names it.
+    // Tecwyn's own bill is the employer's rung: the expense's column names it.
     expect(await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).toMatchObject({ status: 'INVOICED', invoiceId: tpLine.invoiceId })
     w.tpBill = tpLine.invoiceId
 
@@ -677,7 +677,7 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     expect(lines.map((l) => l.sellContractId)).toEqual([w.tpLine.id, w.csLine.id])
     w.csBill = lines[1].invoiceId
 
-    await send(TECHPEPLE, w.tpBill)
+    await send(TECWYN, w.tpBill)
     await send(CS, w.csBill)
     // Sent here, it is not offered to be typed in a second time.
     expect(await offered()).toBeNull()
@@ -698,7 +698,7 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     expect(Number(bill.total)).toBe(250)
     // Drawn on the order Computer Systems' line is on, as any bill on that line is.
     expect(bill.workOrderId).toBe(w.csLine.workOrderId)
-    // Billing it on Computer Systems' line does not move Techpeple's column.
+    // Billing it on Computer Systems' line does not move Tecwyn's column.
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).invoiceId).toBe(w.tpBill)
     // Once: a second run finds nothing left to bill.
     const again = await billFor(CS, w.csLine.engagementId)
@@ -710,7 +710,7 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     const csNumber = (await prisma.invoice.findUniqueOrThrow({ where: { id: w.csBill } })).number
     const tpNumber = (await prisma.invoice.findUniqueOrThrow({ where: { id: w.tpBill } })).number
 
-    // Northbend pays Computer Systems. Techpeple has not been paid, and its column says so.
+    // Northbend pays Computer Systems. Tecwyn has not been paid, and its column says so.
     const nb = await pay(NIKE_AP, w.csBill)
     expect(nb.status, JSON.stringify(nb.body)).toBeLessThan(300)
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).status).toBe('INVOICED')
@@ -719,7 +719,7 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     expect(top.status).toBe('PAID')
     expect(top.chain.line).toBe(`Approved by the employer · accepted by you $250.00 · accepted by Computer Systems Inc $250.00 · billed to you on ${csNumber}, paid`)
     expect(JSON.stringify(top)).not.toContain(tpNumber)
-    expect(JSON.stringify(top)).not.toContain('Techpeple')
+    expect(JSON.stringify(top)).not.toContain('Tecwyn')
 
     const mid = await rowAs(CS)
     expect(mid.status).toBe('PAID')
@@ -727,16 +727,16 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     expect(mid.chain.line).toContain(`billed to Northbend Athletic on ${csNumber}, paid`)
     expect(mid.chain.line).not.toContain(`${tpNumber}, paid`)
 
-    const bottom = await rowAs(TECHPEPLE)
+    const bottom = await rowAs(TECWYN)
     expect(bottom.status).toBe('INVOICED')
     expect(bottom.chain.line).toContain(`billed to Computer Systems Inc on ${tpNumber}`)
     expect(bottom.chain.line).not.toContain(csNumber)
 
-    // Computer Systems pays Techpeple: now the employer's rung is paid too.
+    // Computer Systems pays Tecwyn: now the employer's rung is paid too.
     const paid = await pay(CS, w.tpBill)
     expect(paid.status, JSON.stringify(paid.body)).toBeLessThan(300)
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).status).toBe('PAID')
-    expect((await rowAs(TECHPEPLE)).chain.line).toContain(`billed to Computer Systems Inc on ${tpNumber}, paid`)
+    expect((await rowAs(TECWYN)).chain.line).toContain(`billed to Computer Systems Inc on ${tpNumber}, paid`)
     // And the client's own reading did not move with it.
     expect((await rowAs(NIKE_AP)).chain.line).not.toContain(tpNumber)
   })

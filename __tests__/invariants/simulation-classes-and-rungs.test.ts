@@ -80,10 +80,10 @@ describe('The report says how many rungs each award walked', () => {
     const r = rungCount([
       { rungs: 1 }, { rungs: 2 }, { rungs: 2 }, { rungs: 3 },
       { rungs: 4, personName: 'Ravi Kumar', jobTitle: 'Data engineer', clientName: 'Northbend Athletic' },
-      { rungs: 5, says: 'Linnea Qadri, Techpeple to Brightmoor to Northbend' },
+      { rungs: 5, says: 'Linnea Qadri, Tecwyn to Brightmoor to Northbend' },
     ])!
     expect(r.byRungs).toEqual({ '1': 1, '2': 2, '3': 1, '4+': 2 })
-    expect(r.chain).toEqual(['Ravi Kumar for Data engineer at Northbend Athletic', 'Linnea Qadri, Techpeple to Brightmoor to Northbend'])
+    expect(r.chain).toEqual(['Ravi Kumar for Data engineer at Northbend Athletic', 'Linnea Qadri, Tecwyn to Brightmoor to Northbend'])
     expect(rungLines(r).join('\n')).toContain('| 4+ | 2 |')
   })
 

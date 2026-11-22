@@ -81,8 +81,8 @@ describe('the link itself', () => {
 
 describe('what the invitation says', () => {
   const msg = inviteText({
-    personName: 'Ravi Patel',
-    vendorName: 'Techpeple',
+    personName: 'Ravi Purohit',
+    vendorName: 'Tecwyn',
     url: 'https://etyme.example/bench-invite/abc',
   })
 
@@ -111,8 +111,8 @@ describe('what the invitation says', () => {
 
   it('the invitation names the pay terms the firm stated, in the firm\'s own voice', () => {
     const withTerms = inviteText({
-      personName: 'Ravi Patel',
-      vendorName: 'Techpeple',
+      personName: 'Ravi Purohit',
+      vendorName: 'Tecwyn',
       url: 'https://etyme.example/bench-invite/abc',
       terms: {
         engagementType: 'W2' as never,
@@ -135,7 +135,7 @@ describe('what the invitation says', () => {
     expect(msg.body).toMatch(
       /Nothing happens until you say yes\. We have not stated any pay terms yet, so saying yes agrees only that we may put you forward\./,
     )
-    const nullTerms = inviteText({ personName: 'Ravi Patel', vendorName: 'Techpeple', url: 'u', terms: null })
+    const nullTerms = inviteText({ personName: 'Ravi Purohit', vendorName: 'Tecwyn', url: 'u', terms: null })
     expect(nullTerms.body).toMatch(/saying yes agrees only that we may put you forward/)
     expect(nullTerms.body).not.toMatch(/agree our pay terms/)
   })
@@ -147,8 +147,8 @@ describe('what the invitation says', () => {
     // and the moment a vendor suspects disintermediation the benches
     // stop being uploaded.
     const prose = msg.body.split('\n').filter((l) => !l.startsWith('http')).join('\n')
-    expect(prose).toMatch(/Techpeple here/)
-    expect(msg.subject).toContain('Techpeple')
+    expect(prose).toMatch(/Tecwyn here/)
+    expect(msg.subject).toContain('Tecwyn')
     expect(prose).not.toMatch(/Etyme/i)
     expect(msg.subject).not.toMatch(/Etyme/i)
   })

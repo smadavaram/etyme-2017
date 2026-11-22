@@ -27,7 +27,7 @@ function clean(overrides: Partial<MatchInput> = {}): MatchInput {
   return {
     invoice: { id: 'inv1', totalCents: 1_040_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
     lines: [{
-      id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman',
+      id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh',
       hours: 80, rateCents: 13_000, amountCents: 1_040_000,
     }],
     timesheets: {
@@ -75,7 +75,7 @@ describe('Nobody is paid for hours nobody approved', () => {
 
   it('a line with no timesheet at all fails', () => {
     const r = threeWayMatch(clean({
-      lines: [{ id: 'l1', timesheetId: null, personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_040_000 }],
+      lines: [{ id: 'l1', timesheetId: null, personName: 'Priya Ramesh', hours: 80, rateCents: 13_000, amountCents: 1_040_000 }],
     }))
     expect(r.matched).toBe(false)
     expect(failed(r, 'RECEIPT')?.reason).toContain('No line')
@@ -100,7 +100,7 @@ describe('Nobody is paid for hours nobody approved', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 2_080_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
       lines: [
-        { id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
+        { id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
         { id: 'l2', timesheetId: 'ts2', personName: 'Marcus Webb', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
       ],
       timesheets: {
@@ -126,8 +126,8 @@ describe('The same work is never billed twice', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 2_080_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
       lines: [
-        { id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
-        { id: 'l2', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
+        { id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
+        { id: 'l2', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
       ],
     }))
     expect(r.matched).toBe(false)
@@ -164,7 +164,7 @@ describe('Billed hours and rates must be the ones agreed', () => {
   it('billing more hours than were approved fails, and says both numbers', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 1_170_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 90, rateCents: 13_000, amountCents: 1_170_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 90, rateCents: 13_000, amountCents: 1_170_000 }],
     }))
     expect(r.matched).toBe(false)
     expect(failed(r, 'QUANTITY')?.reason).toContain('billed 90h, approved 80h')
@@ -173,7 +173,7 @@ describe('Billed hours and rates must be the ones agreed', () => {
   it('billing fewer hours than approved also fails — it is still a mismatch', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 910_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 70, rateCents: 13_000, amountCents: 910_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 70, rateCents: 13_000, amountCents: 910_000 }],
     }))
     expect(failed(r, 'QUANTITY')).toBeDefined()
   })
@@ -181,7 +181,7 @@ describe('Billed hours and rates must be the ones agreed', () => {
   it('billing above the contracted rate fails, and says both rates', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 1_200_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 15_000, amountCents: 1_200_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 15_000, amountCents: 1_200_000 }],
     }))
     expect(r.matched).toBe(false)
     expect(failed(r, 'PRICE')?.reason).toContain('billed $150.00/hr, contracted $130.00/hr')
@@ -191,7 +191,7 @@ describe('Billed hours and rates must be the ones agreed', () => {
     // The unit bug this codebase already had, arriving on an invoice.
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 104_000_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 1_300_000, amountCents: 104_000_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 1_300_000, amountCents: 104_000_000 }],
     }))
     expect(r.matched).toBe(false)
     expect(failed(r, 'PRICE')).toBeDefined()
@@ -205,7 +205,7 @@ describe('The arithmetic has to hold', () => {
   it('a line that does not multiply out fails', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 1_050_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_050_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 13_000, amountCents: 1_050_000 }],
     }))
     expect(r.matched).toBe(false)
     expect(failed(r, 'EXTENSION')?.reason).toContain('80h × $130.00 is $10,400.00, billed $10,500.00')
@@ -215,7 +215,7 @@ describe('The arithmetic has to hold', () => {
     // 7.33h × $133.33 = 977.3089 cents-ish; a single cent either way is fine.
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 97_731, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 7.33, rateCents: 13_333, amountCents: 97_731 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 7.33, rateCents: 13_333, amountCents: 97_731 }],
       timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 7.33, contractRateCents: 13_333, periodStart: WORKED_FROM, periodEnd: WORKED_TO } },
     }))
     expect(r.matched).toBe(true)
@@ -224,7 +224,7 @@ describe('The arithmetic has to hold', () => {
   it('two cents of drift is a real difference and is reported', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 97_733, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 7.33, rateCents: 13_333, amountCents: 97_733 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 7.33, rateCents: 13_333, amountCents: 97_733 }],
       timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 7.33, contractRateCents: 13_333, periodStart: WORKED_FROM, periodEnd: WORKED_TO } },
     }))
     expect(failed(r, 'EXTENSION')).toBeDefined()
@@ -336,7 +336,7 @@ describe('A failed match explains itself to whoever has to fix it', () => {
   it('a failure points at the lines involved so they can be found', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 1_200_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 15_000, amountCents: 1_200_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 15_000, amountCents: 1_200_000 }],
     }))
     expect(failed(r, 'PRICE')?.lines).toEqual(['l1'])
   })
@@ -377,7 +377,7 @@ describe('An AP clerk can resolve a variance, but not invent one', () => {
   function hoursQuery(overrides?: any) {
     return clean({
       invoice: { id: 'inv1', totalCents: 1_170_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 90, rateCents: 13_000, amountCents: 1_170_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 90, rateCents: 13_000, amountCents: 1_170_000 }],
       ...overrides,
     })
   }
@@ -407,7 +407,7 @@ describe('An AP clerk can resolve a variance, but not invent one', () => {
     // month. The fix is an effective-dated contract amendment.
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 1_200_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 15_000, amountCents: 1_200_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 15_000, amountCents: 1_200_000 }],
       overrides: waiver('PRICE'),
     }))
     expect(r.matched).toBe(false)
@@ -444,7 +444,7 @@ describe('An AP clerk can resolve a variance, but not invent one', () => {
   it('arithmetic cannot be waived', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 1_050_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_050_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 13_000, amountCents: 1_050_000 }],
       overrides: [
         { code: 'EXTENSION' as any, reason: 'x', byName: 'Y', at: new Date() },
         { code: 'HEADER_TOTAL' as any, reason: 'x', byName: 'Y', at: new Date() },
@@ -472,8 +472,8 @@ describe('An expense on the invoice is witnessed by the payer’s own acceptance
   const withExpense = (status: string, totalCents = 41_250, acceptedCents?: number | null) => clean({
     invoice: { id: 'inv1', totalCents: 1_081_250, periodStart: PERIOD_START, periodEnd: PERIOD_END },
     lines: [
-      { id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
-      { id: 'l2', timesheetId: null, expenseId: 'e1', personName: 'Priya Raman', hours: 0, rateCents: 0, amountCents: 41_250 },
+      { id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
+      { id: 'l2', timesheetId: null, expenseId: 'e1', personName: 'Priya Ramesh', hours: 0, rateCents: 0, amountCents: 41_250 },
     ],
     expenses: { e1: { id: 'e1', status, totalCents, ...(acceptedCents === undefined ? {} : { acceptedCents }) } },
   })
@@ -513,7 +513,7 @@ describe('A milestone on the invoice is witnessed by the client’s acceptance',
   const withMilestone = (status: string, amountCents = 500_000) => clean({
     invoice: { id: 'inv1', totalCents: 1_540_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
     lines: [
-      { id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
+      { id: 'l1', timesheetId: 'ts1', personName: 'Priya Ramesh', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
       { id: 'l3', timesheetId: null, milestoneId: 'm1', personName: 'Milestone', hours: 0, rateCents: 0, amountCents: 500_000 },
     ],
     milestones: { m1: { id: 'm1', status, amountCents } },

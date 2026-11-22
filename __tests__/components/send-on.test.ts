@@ -83,17 +83,17 @@ describe('the margin line under the rate box', () => {
     // The onward rate never travels back down the chain. Saying so on the
     // screen where the number is typed beats hoping somebody read the
     // documentation.
-    expect(marginNote(14800, 13000, 'Techpeple Inc.'))
-      .toBe('$18/hr yours. Techpeple Inc. does not see this.')
+    expect(marginNote(14800, 13000, 'Tecwyn Inc.'))
+      .toBe('$18/hr yours. Tecwyn Inc. does not see this.')
   })
 
   it('says plainly when there is nothing in it', () => {
-    expect(marginNote(13000, 13000, 'Techpeple Inc.'))
+    expect(marginNote(13000, 13000, 'Tecwyn Inc.'))
       .toMatch(/nothing in it for you/)
   })
 
   it('warns when the onward rate is below what was quoted', () => {
-    expect(marginNote(12000, 13000, 'Techpeple Inc.'))
+    expect(marginNote(12000, 13000, 'Tecwyn Inc.'))
       .toBe('That is $10/hr below what you were quoted.')
   })
 })

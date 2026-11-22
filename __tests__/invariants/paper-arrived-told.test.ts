@@ -31,7 +31,7 @@ describe('a worker’s own paper is told to the roles whose work papers are', ()
   })
 
   it('a worker’s own I-9 upload tells HR and the compliance officer once each and nobody else', async () => {
-    const told = await paperExaminersAt('teleworld', 'ifeoma')
+    const told = await paperExaminersAt('tellisford', 'ifeoma')
     expect(told.sort()).toEqual(['comp', 'farah'])
   })
 

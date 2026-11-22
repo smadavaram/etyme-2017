@@ -3,7 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as readDecisions } from '@/app/api/decisions/route'
 
 /**
- * The worker tester opened Karthik Menon's dashboard — Teleworld's own
+ * The worker tester opened Karthik Menon's dashboard — Tellisford's own
  * W2 engineer — and read "Rolloff in 18d — Felix Brenner · Northbend
  * Athletic · $132/hr": a colleague's last day and the firm's bill rate
  * for him. The rolloff rows were gated on assignments.read, which every
@@ -11,7 +11,7 @@ import { GET as readDecisions } from '@/app/api/decisions/route'
  */
 
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
-const OWNER = 'world-teleworld@demo.etyme.local'
+const OWNER = 'world-tellisford@demo.etyme.local'
 
 const rolloffs = async (email: string) => {
   as(email)
@@ -23,11 +23,11 @@ const rolloffs = async (email: string) => {
 describe('a colleague’s rolloff and rate stay with the desks that run the work', () => {
   beforeAll(async () => {
     await freshWorld()
-    // The seeded world has Felix Brenner rolling off Teleworld's book.
+    // The seeded world has Felix Brenner rolling off Tellisford's book.
     const felix = await prisma.sellContract.findFirst({
-      where: { company: { slug: 'world-teleworld' }, person: { name: 'Felix Brenner' }, state: 'IN_PROGRESS' },
+      where: { company: { slug: 'world-tellisford' }, person: { name: 'Felix Brenner' }, state: 'IN_PROGRESS' },
     })
-    expect(felix, 'the world seeds Felix Brenner on Teleworld’s book').not.toBeNull()
+    expect(felix, 'the world seeds Felix Brenner on Tellisford’s book').not.toBeNull()
   }, 240_000)
 
   it('an engineer who reads only his own work sees no colleague’s rolloff and no rate', async () => {

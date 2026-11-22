@@ -137,7 +137,7 @@ describe('cash flow’s figures', () => {
   })
 
   it('invoice receipts due are what Accounts payable says is still owed on each, at its due date', () => {
-    const row = { id: 'r', number: 'R-1', supplierName: 'Techpeple', currency: 'USD', totalMinor: 400_000, paidMinor: 100_000, dueAt: d('2026-11-20'), status: 'SUBMITTED' }
+    const row = { id: 'r', number: 'R-1', supplierName: 'Tecwyn', currency: 'USD', totalMinor: 400_000, paidMinor: 100_000, dueAt: d('2026-11-20'), status: 'SUBMITTED' }
     const paidOff = { ...row, id: 'p', paidMinor: 400_000 }
     const due = [row, paidOff].map((r) => ({ currency: r.currency, at: r.dueAt, minor: owedOn(r) })).filter((f) => f.minor > 0)
     const cf = cashFlow(seller({ receiptsDue: due }), 'month', 'week', NOW)

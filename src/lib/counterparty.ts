@@ -218,8 +218,8 @@ export interface AddVerdict {
  * (`isDemo: false`), with Karthik granted **Owner, permissions `*`**.
  * Because a person's contexts are read most-recently-granted first,
  * that seat then outranked his employer's, and every page he opened
- * read "Walk test — functional review" instead of Teleworld Solutions.
- * No confirmation, no refusal, no "you already work at Teleworld".
+ * read "Walk test — functional review" instead of Tellisford Solutions.
+ * No confirmation, no refusal, no "you already work at Tellisford".
  *
  * Two different acts wear one button:
  *
@@ -262,12 +262,12 @@ export function mayAddCompany(ask: AddAsk): AddVerdict {
   }
 
   const relationship = String(ask.relationship ?? '')
-  if (!(relationship in RELATIONSHIPS)) {
+  if (!(relationship in ADDED_AS)) {
     return {
       ok: false,
       ownsIt: false,
       says:
-        `Say what this firm is to ${ask.seatedAt.name} — a client, a supplier, a prime or an ` +
+        `Say what this firm is to ${ask.seatedAt.name}: a customer, a client, a supplier, a prime or an ` +
         `MSP. A company on the register with no relationship on it is a name ` +
         `nothing can point at.`,
     }
@@ -277,9 +277,41 @@ export function mayAddCompany(ask: AddAsk): AddVerdict {
     ok: true,
     ownsIt: false,
     says:
-      `Recorded on ${ask.seatedAt.name}'s Companies list as a ${RELATIONSHIPS[relationship as Relationship].label.toLowerCase()}. ` +
+      `Recorded on ${ask.seatedAt.name}'s Companies list as ${ADDED_AS[relationship as AddedAs]}. ` +
       `You are not seated there: a firm you trade with is not a firm you own.`,
   }
+}
+
+/**
+ * What Add a company's "What are they to you?" may be answered with, as
+ * the register row it writes, and the words the reply says it in (record
+ * 110, A1). CLIENT is the row of the firm that pays us, so it reads
+ * "customer"; END_CLIENT is the worksite.
+ */
+export type AddedAs = Relationship | 'END_CLIENT'
+const ADDED_AS: Record<AddedAs, string> = {
+  CLIENT: 'a customer',
+  END_CLIENT: 'a client',
+  SUPPLIER: 'a supplier',
+  PRIME: 'a prime',
+  MSP: 'an MSP',
+}
+
+/** The choices under "What are they to you?", in the order the form draws them. */
+export const ADD_AS_CHOICES: readonly { value: AddedAs; words: string }[] = [
+  { value: 'CLIENT', words: 'A customer: they pay us' },
+  { value: 'END_CLIENT', words: 'A client: where our people work' },
+  { value: 'SUPPLIER', words: 'A supplier: we buy from them' },
+  { value: 'PRIME', words: 'A prime: our work flows through them' },
+  { value: 'MSP', words: 'An MSP: they run the program we work in' },
+]
+
+/** What "What are they to you?" says under the box, for the choice made. Pure. */
+export function addAsMeans(value: string): string | null {
+  if (value === 'CLIENT') return 'It is under Customers at once. If your people also work there, tick Client on its row later.'
+  if (value === 'END_CLIENT') return 'It is under Clients at once: a place your people work. Nothing is billed to it unless you also make it a customer.'
+  if (value === 'PRIME') return 'Once you bill them on a contract, or say they pay you, they are under Customers too.'
+  return null
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -1324,7 +1356,11 @@ export function groupsOf(f: GroupFacts, sells: boolean): GroupsRead {
   if (f.positions.includes('SUPPLIER')) said.push('SUPPLIER')
   if (f.onContracts.suppliesOn > 0) on.push('SUPPLIER')
 
-  const needsClassifying = loadedAsClient && !said.includes('CUSTOMER') && !said.includes('CLIENT')
+  // A prime that pays the firm is a customer (record 110, A1): somebody
+  // said it is a prime, and our own contract bills it, so nothing is left
+  // to ask. A prime that is neither billed nor said stays "prime only".
+  const primeBilled = f.positions.includes('PRIME') && f.onContracts.billedOn > 0
+  const needsClassifying = loadedAsClient && !said.includes('CUSTOMER') && !said.includes('CLIENT') && !primeBilled
   const groups = needsClassifying ? [] : GROUP_ORDER.filter((g) => said.includes(g) || on.includes(g))
   const none = groups.length === 0 && !needsClassifying
   const notClassified = none && f.notClassified
@@ -1396,8 +1432,51 @@ export function groupsAddUpSays(t: GroupTotals): string {
   return `${n(t.total, 'company', 'companies')}: ${parts.join(', ')}.`
 }
 
+/** Who said a company is a customer or a client, and when. */
+export interface SaidStamp { at: string; byName: string | null }
+
+/**
+ * Where each group a company is in comes from, one line per group, for
+ * its drawer: "Customer: said by Nadia Larkfield on Nov 22, 2026; billed
+ * on 2 contracts." What a person said and what the contracts say stay
+ * apart in the sentence. `day` words a stamp's moment for the reader. Pure.
+ */
+export function groupsComeFrom(
+  read: Pick<GroupsRead, 'groups' | 'said'>,
+  on: OnContracts,
+  stamps: Partial<Record<Group, SaidStamp | null>>,
+  day: (iso: string) => string,
+): { group: Group; says: string }[] {
+  return read.groups.map((group) => {
+    const parts: string[] = []
+    const stamp = stamps[group]
+    if (stamp) parts.push(`said by ${stamp.byName ?? 'somebody at your firm'} on ${day(stamp.at)}`)
+    else if (read.said.includes(group)) parts.push(`on your list as a ${GROUP_WORDS[group].toLowerCase()}`)
+    if (group === 'CUSTOMER' && on.billedOn > 0) parts.push(`billed on ${contracts(on.billedOn)}`)
+    if (group === 'CLIENT' && on.worksiteOn > 0) parts.push(`worksite on ${contracts(on.worksiteOn)}`)
+    if (group === 'SUPPLIER' && on.suppliesOn > 0) parts.push(`supplies on ${contracts(on.suppliesOn)}`)
+    return { group, says: `${GROUP_WORDS[group]}: ${parts.join('; ')}.` }
+  })
+}
+
 /** One line of a picker: the company, and what to say beside its name where something must be said. */
-export interface PickerOption { id: string; name: string; note: string | null }
+export interface PickerOption { id: string; name: string; note: string | null; /** False for the firm's own record of a company not on Etyme. */ onEtyme?: boolean }
+
+/** What "Record a placement" says where the firm has nobody to bill yet. */
+export const NO_CUSTOMERS_SAYS = 'No customers yet. Add one from Companies: they do not need to be on Etyme.'
+/** The empty choice of the end client picker: she works at the firm that is billed. */
+export const SAME_AS_CUSTOMER = 'Same as the customer'
+
+/**
+ * An option as a person reads it in a picker: the name, and in brackets
+ * what must be said beside it. "Pellam Foods (needs classifying)". A
+ * company only on the firm's own list says so, because a bill to a firm
+ * not on Etyme goes by email. Pure.
+ */
+export function pickerLabel(o: PickerOption): string {
+  const beside = [o.onEtyme === false ? 'not on Etyme yet' : null, o.note].filter(Boolean)
+  return beside.length > 0 ? `${o.name} (${beside.join(', ')})` : o.name
+}
 
 /**
  * Who a picker offers. "Who do we bill" offers customers; "where does she
@@ -1487,6 +1566,24 @@ export function mayClassify(ask: {
   }
   return { ok: true }
 }
+
+/**
+ * Which legal entity an act at one of the three doors is done for (Add a
+ * company, the clients door, Extend to Customer). A firm with none names
+ * none. A firm with one acts for it. A firm with several must be told
+ * which: until it is, the door writes what it wrote before, nothing is
+ * stamped, and `SAY_WHICH_ENTITY` is added to the reply.
+ * Pure.
+ */
+export function entityForSaying(own: readonly string[], asked: string | null | undefined): { ok: true; id: string | null } | { ok: false } {
+  const a = typeof asked === 'string' && asked.trim() ? asked.trim() : null
+  if (a) return own.includes(a) ? { ok: true, id: a } : { ok: false }
+  if (own.length === 0) return { ok: true, id: null }
+  if (own.length === 1) return { ok: true, id: own[0] }
+  return { ok: false }
+}
+export const SAY_WHICH_ENTITY = (company: string) =>
+  `Your firm has more than one legal entity, so ${company} is not under Customers or Clients yet. Open it on Companies, choose the entity and tick what it is.`
 
 /** The sentence the classify act writes on the ledger and answers with. Pure. */
 export function classifiedSays(who: string, company: string, said: { customer: boolean; client: boolean }): string {

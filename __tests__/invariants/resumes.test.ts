@@ -20,7 +20,7 @@ function version(over: Partial<Version> = {}): Version {
   return {
     id: 'v1',
     label: 'SAP FICO 2026',
-    fileName: 'anita-desai.pdf',
+    fileName: 'anita-dalvi.pdf',
     sizeBytes: 220_000,
     isCurrent: true,
     createdAt: NOW,
@@ -73,7 +73,7 @@ describe('what may be uploaded', () => {
 
 describe('naming it', () => {
   it('uses the file name, tidied', () => {
-    expect(labelFor('anita_desai-SAP_FICO.pdf', NOW)).toBe('anita desai SAP FICO')
+    expect(labelFor('anita_dalvi-SAP_FICO.pdf', NOW)).toBe('anita dalvi SAP FICO')
   })
 
   it('falls back to a date when the file name says nothing', () => {
@@ -82,7 +82,7 @@ describe('naming it', () => {
 })
 
 describe('who may put a CV on somebody’s file', () => {
-  const owner = { personId: 'anita', listedTo: ['techpeple'] }
+  const owner = { personId: 'anita', listedTo: ['tecwyn'] }
 
   it('lets the person', () => {
     expect(mayUpload({ personId: 'anita', companyId: null }, owner).ok).toBe(true)
@@ -92,7 +92,7 @@ describe('who may put a CV on somebody’s file', () => {
     // A recruiter holding the CV before the person has an account is the
     // ordinary way this starts. Refusing it means the document lives in an
     // inbox instead.
-    expect(mayUpload({ personId: 'recruiter', companyId: 'techpeple' }, owner).ok).toBe(true)
+    expect(mayUpload({ personId: 'recruiter', companyId: 'tecwyn' }, owner).ok).toBe(true)
   })
 
   it('refuses an agency they never joined', () => {
@@ -103,14 +103,14 @@ describe('who may put a CV on somebody’s file', () => {
 })
 
 describe('who may open one', () => {
-  const owner = { personId: 'anita', listedTo: ['techpeple'] }
+  const owner = { personId: 'anita', listedTo: ['tecwyn'] }
 
   it('lets the person, always', () => {
     expect(mayRead({ personId: 'anita', companyId: null }, owner, []).ok).toBe(true)
   })
 
   it('lets the agency representing them', () => {
-    expect(mayRead({ personId: 'rec', companyId: 'techpeple' }, owner, []).ok).toBe(true)
+    expect(mayRead({ personId: 'rec', companyId: 'tecwyn' }, owner, []).ok).toBe(true)
   })
 
   it('lets a client who was actually sent it', () => {
@@ -126,8 +126,8 @@ describe('who may open one', () => {
 
   it('refuses an agency after the listing is gone, unless it was sent to them', () => {
     const gone = { personId: 'anita', listedTo: [] }
-    expect(mayRead({ personId: 'rec', companyId: 'techpeple' }, gone, []).ok).toBe(false)
-    expect(mayRead({ personId: 'rec', companyId: 'techpeple' }, gone, ['techpeple']).ok).toBe(true)
+    expect(mayRead({ personId: 'rec', companyId: 'tecwyn' }, gone, []).ok).toBe(false)
+    expect(mayRead({ personId: 'rec', companyId: 'tecwyn' }, gone, ['tecwyn']).ok).toBe(true)
   })
 })
 
@@ -173,7 +173,7 @@ describe('a submission with no CV', () => {
   it('says so plainly instead of refusing', () => {
     // A recruiter working a role at eight at night should not be stopped by
     // a missing file — but the client will ask, so it is said loudly.
-    const said = missingNote('Anita Desai')
+    const said = missingNote('Anita Dalvi')
     expect(said).toMatch(/no CV on file/)
     expect(said).toMatch(/the client will ask/)
   })

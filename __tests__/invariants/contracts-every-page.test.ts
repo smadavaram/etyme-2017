@@ -114,7 +114,13 @@ describe('a supplier’s Contracts page counts every line, not the route’s fir
   it('the Contracts page reads the list and the client picker through every page, never one bare fetch', () => {
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
     expect(page).toContain("readEveryContractPage(asked, fetchPage)")
-    expect(page).toContain("readEveryContractPage('sell', fetchPage)")
+    // The picker no longer reads contract pages at all (record 110, A1): who
+    // can be billed comes from the one reader behind the Companies list,
+    // which reads every sell line of the firm with no page limit.
+    expect(page).toContain("fetch('/api/companies/groups?for=bill-to'),")
+    const reader = readFileSync(join(process.cwd(), 'src/app/api/companies/groups.ts'), 'utf8')
+    const lines = reader.slice(reader.indexOf('db.sellContract.findMany({'), reader.indexOf('db.buyContract.findMany('))
+    expect(lines).not.toMatch(/\btake\b|\bskip\b/)
     expect(page).not.toMatch(/fetch\(`\/api\/contracts\?side=/)
     expect(page).not.toContain("fetch('/api/contracts?side=sell&limit=100')")
   })

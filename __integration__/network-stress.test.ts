@@ -150,11 +150,11 @@ describe(`a six-company chain works ${TOTAL.toLocaleString()} transactions over 
   }, 120_000)
 
   it('a corporate domain is recorded as verified, unlike a consumer one', async () => {
-    // The whole business-user path turns on this. If Oxford registers
+    // The whole business-user path turns on this. If Orlestone registers
     // like a gmail consultant, every governance rule downstream is
     // pointed at a company that does not know its own domain.
-    const c = await prisma.company.findUniqueOrThrow({ where: { id: w.companyId['Oxford Corp'] } })
-    expect(c.domain).toBe('oxfordcorp.com')
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: w.companyId['Orlestone Corp'] } })
+    expect(c.domain).toBe('orlestonecorp.example')
   })
 
   it('the chain is wired: client to MSP to GSI to sub to bench vendor', async () => {
@@ -165,15 +165,15 @@ describe(`a six-company chain works ${TOTAL.toLocaleString()} transactions over 
       })))
       expect([200, 201, 409], `${fromName}->${toName}: ${JSON.stringify(r.body)}`).toContain(r.status)
     }
-    await link('Oxford Corp', 'Yoh Services', 'SUPPLIER')
-    await link('Yoh Services', 'Oxford Corp', 'CLIENT')
-    await link('Yoh Services', 'Teleworld Solutions', 'SUPPLIER')
-    await link('Teleworld Solutions', 'Yoh Services', 'CLIENT')
-    await link('Teleworld Solutions', 'Insight Global', 'SUPPLIER')
-    await link('Insight Global', 'Teleworld Solutions', 'CLIENT')
+    await link('Orlestone Corp', 'Yarrow Services', 'SUPPLIER')
+    await link('Yarrow Services', 'Orlestone Corp', 'CLIENT')
+    await link('Yarrow Services', 'Tellisford Solutions', 'SUPPLIER')
+    await link('Tellisford Solutions', 'Yarrow Services', 'CLIENT')
+    await link('Tellisford Solutions', 'Ingleby Global', 'SUPPLIER')
+    await link('Ingleby Global', 'Tellisford Solutions', 'CLIENT')
     for (const bv of benchVendors()) {
-      await link('Insight Global', bv.name, 'SUPPLIER')
-      await link(bv.name, 'Insight Global', 'CLIENT')
+      await link('Ingleby Global', bv.name, 'SUPPLIER')
+      await link(bv.name, 'Ingleby Global', 'CLIENT')
     }
   }, 120_000)
 
@@ -250,7 +250,7 @@ async function oneTransaction(day: number) {
 }
 
 async function postRequirement(day: number) {
-  // Any of the four Oxford managers, so the approval chain sees more
+  // Any of the four Orlestone managers, so the approval chain sees more
   // than one requester.
   const client = firm('CLIENT')
   const manager = pick(client.people)
@@ -341,7 +341,7 @@ async function signContract(day: number) {
     json(await createContract(req('POST', '/api/contracts', {
       personId: c.personId,
       companyId: vendorId,
-      clientCompanyId: w.companyId['Insight Global'],
+      clientCompanyId: w.companyId['Ingleby Global'],
       billRate: bill,
       billCurrency: 'USD',
       startDate: iso(dayOf(day)),
@@ -352,7 +352,7 @@ async function signContract(day: number) {
   )
   const id = r.body?.data?.sellContract?.id ?? r.body?.data?.contract?.id
   if (!id) return
-  w.contracts.push({ id, personId: c.personId, vendorId, clientId: w.companyId['Insight Global'] })
+  w.contracts.push({ id, personId: c.personId, vendorId, clientId: w.companyId['Ingleby Global'] })
   await act('contract.activate', day, async () =>
     json(await activateContract(
       req('POST', `/api/contracts/${id}/activate`, { action: 'activate' }),

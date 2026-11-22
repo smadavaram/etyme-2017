@@ -191,7 +191,7 @@ export function byClient<T>(rows: readonly T[], clientOf: (r: T) => string): { c
 }
 
 /**
- * "Rosa Delgado, 30 weeks · Ravi Subramanian, 1 week": whose weeks a
+ * "Rosa Delgado, 30 weeks · Ravi Subbarayan, 1 week": whose weeks a
  * client's unbilled figure is made of, each person once, in the order
  * they first appear.
  */

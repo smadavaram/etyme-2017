@@ -12,24 +12,24 @@ import { joinLetterLead } from '@/lib/public-site/join-bench'
  * prime sends a client's job down to its sub-vendor, and the sub-vendor
  * puts a bench person forward on it.
  *
- * Brightmoor Staffing is the prime here and Consultis the sub-vendor it
- * buys from (the seeded chain nordway → brightmoor → consultis).
+ * Brightmoor Staffing is the prime here and Conisby the sub-vendor it
+ * buys from (the seeded chain nordway → brightmoor → conisby).
  */
 
 const D = '@demo.etyme.local'
 const ACCOUNT_MANAGER = `world-brightmoor-account${D}`   // Marisa Delacroix
 const RECRUITER = `world-brightmoor-recruiter${D}`       // Tobias Ferrand
-const CONSULTIS = `world-consultis${D}`
+const CONISBY = `world-conisby${D}`
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 
 let nike = ''
-let consultis = ''
+let conisby = ''
 let job = ''
 
 beforeAll(async () => {
   await freshWorld()
   nike = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })).id
-  consultis = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-consultis' } })).id
+  conisby = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-conisby' } })).id
 }, 600_000)
 
 describe('a prime sends a job it was sent down to its sub-vendor', () => {
@@ -44,7 +44,7 @@ describe('a prime sends a job it was sent down to its sub-vendor', () => {
     // A recruiter finds and submits people; sending a job down is not hers.
     as(RECRUITER)
     const refused = await json(await distribute(req('POST', `/api/requisitions/${job}/distribute`, {
-      vendors: [{ companyId: consultis, payMin: 9_000, payMax: 11_000 }],
+      vendors: [{ companyId: conisby, payMin: 9_000, payMax: 11_000 }],
     }), params(job)))
     expect(refused.status).toBe(403)
     expect(refused.body.error.message).toBe(
@@ -54,34 +54,34 @@ describe('a prime sends a job it was sent down to its sub-vendor', () => {
 
     as(ACCOUNT_MANAGER)
     const sent = await json(await distribute(req('POST', `/api/requisitions/${job}/distribute`, {
-      vendors: [{ companyId: consultis, payMin: 9_000, payMax: 11_000 }],
+      vendors: [{ companyId: conisby, payMin: 9_000, payMax: 11_000 }],
     }), params(job)))
     expect(sent.status, JSON.stringify(sent.body)).toBe(200)
     expect(sent.body.data.summary.sent).toBe(1)
-    const inv = await prisma.requirementInvitation.findFirstOrThrow({ where: { requirementId: job, toCompanyId: consultis } })
+    const inv = await prisma.requirementInvitation.findFirstOrThrow({ where: { requirementId: job, toCompanyId: conisby } })
     // $90 to $110 an hour, kept in cents.
     expect([inv.payMin, inv.payMax]).toEqual([9_000, 11_000])
   })
 
   it('a sub-vendor puts a bench person forward from the job it was sent', async () => {
-    // Somebody on Consultis's bench by their own yes, never put forward anywhere.
+    // Somebody on Conisby's bench by their own yes, never put forward anywhere.
     const listing = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
-        companyId: consultis, state: 'GRANTED', revokedAt: null, askFirst: false, staysUntil: null,
-        consultant: { person: { submissions: { none: {} }, contexts: { none: { companyId: consultis, type: 'EMPLOYEE' } } } },
+        companyId: conisby, state: 'GRANTED', revokedAt: null, askFirst: false, staysUntil: null,
+        consultant: { person: { submissions: { none: {} }, contexts: { none: { companyId: conisby, type: 'EMPLOYEE' } } } },
       },
       select: { consultant: { select: { personId: true } } },
     })
     const personId = listing.consultant.personId
 
-    as(CONSULTIS)
+    as(CONISBY)
     const r = await json(await submit(req('POST', '/api/submissions', {
-      requirementId: job, personIds: [personId], rate: 10_000, fromCompanyId: consultis,
+      requirementId: job, personIds: [personId], rate: 10_000, fromCompanyId: conisby,
     })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.results[0].status, JSON.stringify(r.body.data.results[0])).toBe('created')
     const row = await prisma.submission.findFirstOrThrow({ where: { requirementId: job, personId } })
-    expect(row.fromCompanyId).toBe(consultis)
+    expect(row.fromCompanyId).toBe(conisby)
     // To the prime that sent the job, never round it to the client.
     const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' } })
     expect(row.toCompanyId).toBe(brightmoor.id)
@@ -92,19 +92,19 @@ describe('a prime sends a job it was sent down to its sub-vendor', () => {
 
 describe('what another party waits on a firm for', () => {
   it('a link request and a join request are on the one decisions list, so Today and the mark agree', async () => {
-    // A firm Consultis does not trade with yet asks to link as its client.
+    // A firm Conisby does not trade with yet asks to link as its client.
     const tapwell = await prisma.company.create({ data: { name: 'Tapwell Bench', slug: 'tapwell-bench-decisions', kind: 'VENDOR', currency: 'USD' } })
     const asker = await prisma.person.create({ data: { name: 'Sharad Tapwell', primaryEmail: 'sharad@tapwell.invalid' } })
     const link = await prisma.tradeLinkRequest.create({
-      data: { fromCompanyId: tapwell.id, toCompanyId: consultis, relationship: 'CLIENT', askedById: asker.id },
+      data: { fromCompanyId: tapwell.id, toCompanyId: conisby, relationship: 'CLIENT', askedById: asker.id },
     })
-    // Somebody asks from Consultis's own page to join its bench.
+    // Somebody asks from Conisby's own page to join its bench.
     await askOntoBench({
-      firm: { id: consultis, name: 'Consultis' }, name: 'Asha Rao', email: 'asha.rao@join.invalid',
-      by: null, letterLead: joinLetterLead('Consultis'),
+      firm: { id: conisby, name: 'Conisby' }, name: 'Asha Rao', email: 'asha.rao@join.invalid',
+      by: null, letterLead: joinLetterLead('Conisby'),
     })
 
-    as(CONSULTIS)
+    as(CONISBY)
     const r = await json(await decisionsGet(req('GET', '/api/decisions')))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const rows = r.body.data.decisions as any[]

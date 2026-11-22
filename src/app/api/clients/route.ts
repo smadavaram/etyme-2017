@@ -13,10 +13,11 @@ import { clientInviteLetter } from '@/lib/reaching-out'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
 import { claimUrl as claimLinkFor } from '@/lib/supplier-link'
-import { mayInviteRecorded, namesakeSays, consumerDomainSays, identityDomain, notedDomain, readTypedDomain } from '@/lib/counterparty'
+import { mayInviteRecorded, namesakeSays, consumerDomainSays, identityDomain, notedDomain, readTypedDomain, SAY_WHICH_ENTITY } from '@/lib/counterparty'
 import { twinFor, keepNote } from '../companies/twins'
 import { recordedNotClassified } from '../companies/positions'
-import { writeCustomerPosition } from '../companies/positions'
+import { writeCustomerPosition, positionsFor, sayWhatItIs } from '../companies/positions'
+import { groupsFor } from '../companies/groups'
 
 /**
  * GET   /api/clients — who this firm sells to, and which of them are here
@@ -98,6 +99,21 @@ export async function GET(request: NextRequest) {
     if (!byId.has(c.id)) byId.set(c.id, { ...c, signedAt: null })
   }
 
+  // Read through the one reader (record 110, A1): a company loaded as a
+  // client is nobody's customer until a person says so, so it is not on
+  // this list. It is counted, so a screen can say how many are waiting.
+  const listed = await prisma.company.findMany({
+    where: { id: { in: [...byId.keys()] } },
+    select: { id: true, kind: true, claimedAt: true, listedById: true },
+  })
+  const read = await groupsFor(
+    { id: companyId, kind: caller.company!.kind },
+    listed,
+    await positionsFor(companyId, listed),
+  )
+  const waiting = [...byId.keys()].filter((id) => read.get(id)?.needsClassifying)
+  for (const id of waiting) byId.delete(id)
+
   const rows = [...byId.values()].map((c) => ({
     id: c.id,
     name: c.name,
@@ -113,6 +129,8 @@ export async function GET(request: NextRequest) {
     data: {
       clients: rows.sort((a, b) => a.name.localeCompare(b.name)),
       offSystem: rows.filter((r) => !r.onEtyme).length,
+      /** Loaded as clients, and nobody has said yet what each is: on Companies, Classify. */
+      needClassifying: waiting.length,
       canList: hasPermission(caller.permissions, 'assignments.write'),
     },
   })
@@ -148,6 +166,9 @@ export async function POST(request: NextRequest) {
 
   const companyId = caller.company!.id
   const body = await request.json().catch(() => ({}))
+  // Listing a client here is a person saying "this company pays us"
+  // (record 110, A1): said once, stamped with who and when.
+  const saidBy = { id: caller.person.id, name: caller.person.name, roleId: caller.context.roleId ?? null }
 
   const name = String(body.name ?? '').trim()
   // The domain box, read as Add a company reads it (2026-11-15): an email
@@ -182,11 +203,12 @@ export async function POST(request: NextRequest) {
   // book (review, 2026-11-13).
   if (firm && firm.id !== companyId && (await workTogether(companyId, firm.id))) {
     await writeCustomerPosition(prisma, { me: companyId, otherId: firm.id, byId: caller.person.id })
+    const stamped = await sayWhatItIs(prisma, { me: companyId, other: firm, by: saidBy, customer: true, client: false, actingEntityId: body.actingEntityId })
     return NextResponse.json({
       data: {
         client: { id: firm.id, name: firm.name },
         linked: true,
-        message: `${firm.name} is on Etyme and already works with you, so your register points at their own record. No copy was made.`,
+        message: `${firm.name} is on Etyme and already works with you, so your register points at their own record. No copy was made.${stamped ? '' : ` ${SAY_WHICH_ENTITY(firm.name)}`}`,
       },
     })
   }
@@ -254,6 +276,8 @@ export async function POST(request: NextRequest) {
   // the register row (Partnership died of exactly this omission). One
   // function, the one Extend to Customer writes through.
   const msa = { id: (await writeCustomerPosition(prisma, { me: companyId, otherId: client.id, byId: caller.person.id })).msaId }
+  // So it is a Customer at once and never reads "Needs classifying".
+  const stamped = await sayWhatItIs(prisma, { me: companyId, other: client, by: saidBy, customer: true, client: false, actingEntityId: body.actingEntityId })
   // What was typed is kept: the domain as this firm's own note (never the
   // claim column), and the entity type, only on this firm's own record
   // nobody has claimed, and only into an empty box.
@@ -325,7 +349,8 @@ export async function POST(request: NextRequest) {
         // Email, never Teams: a firm that has never heard of us has no
         // channel here, and would not want one before it decides.
         routeFor({ isConsultant: false, email: made.email, teamsWebhookUrl: null }),
-        made.email, letter.subject, letter.body, configuredSenders(), new Date(),
+        made.email, letter.subject, letter.body, configuredSenders(), new Date(), null,
+        { companyId, mail: { template: 'client-invitation', recordType: 'Company', recordId: client.id, actorPersonId: caller.person.id } },
       )
       invite = { email: made.email, delivery: { state: out.state, note: out.note } }
     }
@@ -357,6 +382,7 @@ export async function POST(request: NextRequest) {
         message:
           `${client.name} is on your register. You can record the contracts you already ` +
           `hold with them, and the purchase orders they handed you, today. ` +
+          (stamped ? '' : `${SAY_WHICH_ENTITY(client.name)} `) +
           (verdict.reuse ? `${verdict.says} ` : '') +
           (namesake ? `${namesake} ` : '') +
           (box.says ? `${box.says} ` : '') +

@@ -18,11 +18,11 @@ function listing(over: Record<string, unknown> = {}) {
     rateMin: 9000,
     rateMax: 11000,
     grantedAt: '2026-01-01T00:00:00.000Z',
-    company: { id: 'co_1', name: 'Techpeple', slug: 'world-techpeple' },
+    company: { id: 'co_1', name: 'Tecwyn', slug: 'world-tecwyn' },
     consultant: {
       id: 'cp_1',
       personId: 'p_1',
-      person: { id: 'p_1', name: 'Priya Raman', email: 'priya@seed.etyme.invalid' },
+      person: { id: 'p_1', name: 'Priya Ramesh', email: 'priya@seed.etyme.invalid' },
       headline: 'SAP FICO consultant',
       skills: ['ERP finance', 'General ledger'],
       location: 'Tualatin, OR',
@@ -42,7 +42,7 @@ describe('the bench answer has one reader', () => {
   it('reads every person the bench route actually sent, with their skills', () => {
     const r = readBench(answer([listing(), listing({ id: 'bl_2', consultant: { ...listing().consultant, id: 'cp_2', personId: 'p_2', person: { id: 'p_2', name: 'Helena Marsh', email: 'h@seed.etyme.invalid' }, skills: ['ERP finance', 'General ledger', 'Central finance'] } })]))
     expect(r.ok).toBe(true)
-    expect(r.rows.map((x) => x.name)).toEqual(['Priya Raman', 'Helena Marsh'])
+    expect(r.rows.map((x) => x.name)).toEqual(['Priya Ramesh', 'Helena Marsh'])
     expect(r.rows[1].skills).toEqual(['ERP finance', 'General ledger', 'Central finance'])
   })
 

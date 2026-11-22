@@ -218,7 +218,7 @@ const SHEET = [
 ].join('\n')
 
 const PROSE =
-  'Hi team, please add Helena Marsh (helena.marsh@example.com, 503-555-0142). She asks $98/hr and is paid 45 an hour by Techpeple today.'
+  'Hi team, please add Helena Marsh (helena.marsh@example.com, 503-555-0142). She asks $98/hr and is paid 45 an hour by Tecwyn today.'
 
 function fakeDeps(on: boolean, opts: { setUp?: boolean } = {}) {
   const sent: string[] = []
@@ -226,7 +226,7 @@ function fakeDeps(on: boolean, opts: { setUp?: boolean } = {}) {
   const deps: ReadDeps = {
     modelOn: async () => on,
     readerSetUp: () => opts.setUp ?? true,
-    vocab: async () => ({ firms: ['Techpeple'], people: [] }),
+    vocab: async () => ({ firms: ['Tecwyn'], people: [] }),
     record: async (p) => { logged.push(p); return { ok: true } },
     // A reader that answers the way the model does: it copies the tokens
     // it was handed into the fields it was asked for.
@@ -254,7 +254,7 @@ function fakeDeps(on: boolean, opts: { setUp?: boolean } = {}) {
   return { deps, sent, logged }
 }
 
-const REAL = ['Helena Marsh', 'Helena', 'Marsh', 'helena.marsh@example.com', '503', '0142', '$98', '98.00', 'Techpeple', 'Omar', '45 an hour']
+const REAL = ['Helena Marsh', 'Helena', 'Marsh', 'helena.marsh@example.com', '503', '0142', '$98', '98.00', 'Tecwyn', 'Omar', '45 an hour']
 
 describe('an import under the model boundary', () => {
   it('an import reads a document with the model only where the company turned the model on, and says so in a sentence otherwise', async () => {
@@ -300,7 +300,7 @@ describe('an import under the model boundary', () => {
       expect(Number(r.rows[0]['Rate floor'])).toBe(98)
     }
     // The pay in words, the firm and the phone are tokens in prose too.
-    const m = maskForModel(PROSE, { firms: ['Techpeple'] })
+    const m = maskForModel(PROSE, { firms: ['Tecwyn'] })
     expect(m.masked).toMatch(/FIRM_\d+/)
     expect(m.masked).toMatch(/PHONE_\d+/)
     expect(m.unmask(m.masked)).toBe(PROSE)

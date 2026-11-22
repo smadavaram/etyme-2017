@@ -145,14 +145,14 @@ describe('a seeded worker reads her own pay the way her employer would have left
     }
   })
 
-  it('Karthik’s weeks in the months before this one are paid by a Teleworld payroll run, and his page says so', async () => {
+  it('Karthik’s weeks in the months before this one are paid by a Tellisford payroll run, and his page says so', async () => {
     const now = monthOf(iso(seedToday()))
     const weeks = await weeksOf('karthik.menon')
     const pastDays = weeks.flatMap((t) => Object.keys(t.days as Record<string, number>)).filter((d) => monthOf(d) < now)
     expect(pastDays.length).toBeGreaterThan(0)
 
     const runs = await prisma.automationLog.findMany({
-      where: { action: 'PAYROLL_RUN', company: { slug: 'world-teleworld' } },
+      where: { action: 'PAYROLL_RUN', company: { slug: 'world-tellisford' } },
       select: { payload: true },
     })
     const paid = new Set(runs.flatMap((r) => ((r.payload as any).contracts ?? []).flatMap((c: any) => (c.paid ?? []).map((l: any) => l.day))))
@@ -236,7 +236,7 @@ describe('a seeded worker reads her own pay the way her employer would have left
   it('Karthik’s placement runs three months, every month of it has a pay day, and no pay day comes before the hours it pays', async () => {
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email('karthik.menon') } })
     const sell = await prisma.sellContract.findFirstOrThrow({
-      where: { personId: person.id, company: { slug: 'world-teleworld' } },
+      where: { personId: person.id, company: { slug: 'world-tellisford' } },
       include: { buyLinks: { include: { buyContract: { include: { buyCycles: { where: { kind: 'SALARY_PAY' }, orderBy: { dueOn: 'asc' } } } } } } },
     })
     const start = sell.startDate

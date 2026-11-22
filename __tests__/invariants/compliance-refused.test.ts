@@ -18,13 +18,13 @@ import { documentSetDoor, SET_OPENED_FROM } from '@/app/dashboard/documents/requ
 
 /**
  * The browser walk opened /dashboard/compliance as Karthik Menon, a
- * delivery engineer at Teleworld Solutions whose desk does not read it.
+ * delivery engineer at Tellisford Solutions whose desk does not read it.
  * The refusal sentence was there — under a subtitle reading "verification
  * status at …. Every cleared", six figures reading 0 and five tabs. A
  * zero says "nothing on file". The truth was "not yours to see".
  */
 
-const says = complianceRefusal('Teleworld Solutions', ['Owner'])
+const says = complianceRefusal('Tellisford Solutions', ['Owner'])
 
 describe('a refused compliance page', () => {
   it('a refused compliance page shows the refusal and no figures', () => {
@@ -33,7 +33,7 @@ describe('a refused compliance page', () => {
     // it, because a heading over a refusal reads as a page that loaded.
     expect(html).toContain('data-state="refused"')
     expect(html).not.toContain('<h1')
-    expect(html).toContain('Ask your Owner at Teleworld Solutions')
+    expect(html).toContain('Ask your Owner at Tellisford Solutions')
     expect(html).not.toMatch(/>\s*0\s*</)
     expect(html).not.toMatch(/Clear rate|Total checks|Evaluations|Policies|Verifications|Classification|Visas/)
   })

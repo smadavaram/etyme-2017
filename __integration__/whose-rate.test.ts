@@ -11,7 +11,7 @@ import { GET as budget } from '@/app/api/program/budget/route'
  * A client should see its own numbers, and only its own.
  *
  * Northbend Athletic buys Helena Marsh from Computer Systems at $145/hr. Computer
- * Systems buys her from Techpeple at $118/hr. Both sell contracts name
+ * Systems buys her from Tecwyn at $118/hr. Both sell contracts name
  * Northbend Athletic as the end client — that is how the same person, bought through
  * a chain, aggregates into one tenure ledger, and it is also how
  * Northbend Athletic's own timesheet list came to print $118 beside a role it pays
@@ -30,7 +30,7 @@ import { GET as budget } from '@/app/api/program/budget/route'
 const D = '@demo.etyme.local'
 const NIKE_HIRING = `world-nike-hiring${D}`
 
-const HELENA_SUB_RATE = 11800 // Techpeple → Computer Systems
+const HELENA_SUB_RATE = 11800 // Tecwyn → Computer Systems
 const HELENA_TOP_RATE = 14500 // Computer Systems → Northbend Athletic
 
 let helenaId = ''
@@ -261,7 +261,7 @@ describe('what a client has spent is counted at the desk that signed for it', ()
     const acceptedCents = accepted.reduce((n, a) => n + a.acceptedCents, 0)
     expect(acceptedCents).toBe(57_600)
 
-    // Helena's weeks hang off Techpeple's leg, which no cost center is
+    // Helena's weeks hang off Tecwyn's leg, which no cost center is
     // allocated, so the budget missed every one of them: $18k against
     // the $35,800 the client had signed for.
     expect(signed).toBeGreaterThan(0)
@@ -269,10 +269,10 @@ describe('what a client has spent is counted at the desk that signed for it', ()
   })
 
   it('a sub-vendor\u2019s bill for the same week does not read as billed to the client on its budget', async () => {
-    // Every rung bills the same signed week on its own line: Techpeple
+    // Every rung bills the same signed week on its own line: Tecwyn
     // to Computer Systems, Computer Systems to Northbend. Only the second
     // is Northbend's bill. Take one of Helena's weeks, set Northbend's
-    // line on it aside, and give it instead a paid bill from Techpeple to
+    // line on it aside, and give it instead a paid bill from Tecwyn to
     // Computer Systems. Northbend has still been billed nothing for that
     // week and has paid nothing for it, and its budget must say so.
     as(NIKE_HIRING)

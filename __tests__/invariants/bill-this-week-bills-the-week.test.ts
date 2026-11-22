@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 /**
  * The release walk of 2026-11-03, fault M1: Helena Marsh's Oct 25–31 week
- * at Techpeple was already on TECH-vv0wk-10, the invoice receipt Computer
- * Systems recorded from Techpeple. "Bill this week" was drawn, and the
+ * at Tecwyn was already on TECH-vv0wk-10, the invoice receipt Computer
+ * Systems recorded from Tecwyn. "Bill this week" was drawn, and the
  * press drafted IN_I7JW7Y_002 for $412.60 holding only her travel
  * expense, with no hours. The check that finds the earlier bill now runs
  * before the button is drawn, and a press that would bill none of the
@@ -42,7 +42,7 @@ const expenseOnly = {
   body: { data: {} },
 }
 const caller = {
-  company: { id: 'techpeple', name: 'Techpeple' },
+  company: { id: 'tecwyn', name: 'Tecwyn' },
   person: { id: 'bhavesh', name: 'Bhavesh' },
   permissions: ['invoices.issue'],
 }

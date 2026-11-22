@@ -17,7 +17,7 @@ const PELLWRIGHT_RECRUITER = `world-pellwright-recruiter${D}`
 const PELLWRIGHT_FINANCE = `world-pellwright-finance${D}`
 const SUNDARA = `world-sundara${D}`
 const NORTHBEND = `world-nike${D}`
-const INGRID = `world-teleworld-delivery-portland${D}`
+const INGRID = `world-tellisford-delivery-portland${D}`
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 const listingsOf = (body: any): any[] => Object.values(body.data?.tiers ?? {}).flat() as any[]
 
@@ -107,7 +107,7 @@ describe('What we need', () => {
   })
 })
 
-describe('Teleworld’s Our bench', () => {
+describe('Tellisford’s Our bench', () => {
   it('reads Felix Brenner’s skills from his own record, plainly, now that the seed writes them there', async () => {
     as(INGRID)
     const r = await json(await ourBench(req('GET', '/api/bench/ours')))

@@ -20,7 +20,7 @@ import {
 
 function facts(over: Partial<SiteFacts> = {}): SiteFacts {
   return {
-    name: 'Techpeple Inc.',
+    name: 'Tecwyn Inc.',
     kind: 'VENDOR',
     posture: 'PRIME',
     skills: ['SAP FICO', 'S/4HANA', 'ABAP'],

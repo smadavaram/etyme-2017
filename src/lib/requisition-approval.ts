@@ -592,7 +592,7 @@ export function overTheLimitSays(o: {
 
 /**
  * A name's possessive, as a person writes it: "Northbend's spend", but
- * "Apps' spend" and "Teleworld Solutions' spend" — a name ending in s
+ * "Apps' spend" and "Tellisford Solutions' spend" — a name ending in s
  * takes the apostrophe alone. The approval reasons read "Apps's spend"
  * until a tester walked a unit called Apps (2026-10-03). Same rule as
  * `possessive` in supply's lib/internal-moves, kept here rather than
@@ -600,7 +600,7 @@ export function overTheLimitSays(o: {
  *
  * `mark` keeps a sentence's own apostrophe, straight or curly. Shared by
  * the compliance, document and time-limit sentences since a tester read
- * "Teleworld Solutions's" on 2026-10-03.
+ * "Tellisford Solutions's" on 2026-10-03.
  */
 export function possessive(name: string, mark: "'" | '’' = "'"): string {
   const n = name.trim()

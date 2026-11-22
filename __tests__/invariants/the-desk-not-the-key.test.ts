@@ -110,10 +110,10 @@ describe('a refusal names the desk, not the key', () => {
 
   it('names the desks by their own names — "AP & Payroll or Finance", never "the AP & Payroll’s or the Finance’s"', () => {
     const says = askTheDesk({
-      doing: 'Approving a pay run', needs: 'payroll.approve', kind: 'GSI', companyName: 'Teleworld Solutions',
+      doing: 'Approving a pay run', needs: 'payroll.approve', kind: 'GSI', companyName: 'Tellisford Solutions',
     })
     expect(desksHolding('payroll.approve', 'GSI')).toEqual(['AP & Payroll', 'Finance'])
-    expect(says).toContain('Approving a pay run is done by AP & Payroll or Finance at Teleworld Solutions.')
+    expect(says).toContain('Approving a pay run is done by AP & Payroll or Finance at Tellisford Solutions.')
     expect(says).not.toMatch(/’s or |the [A-Z][^ ]*’s/)
   })
 

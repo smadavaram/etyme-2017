@@ -65,7 +65,7 @@ export function mayBillWeek(i: {
  * says why they are left off, never drafted.
  *
  * The release walk of 2026-11-03 (fault M1): Helena Marsh's Oct 25–31 week
- * at Techpeple was already on TECH-vv0wk-10, which Computer Systems
+ * at Tecwyn was already on TECH-vv0wk-10, which Computer Systems
  * recorded; the button was drawn, and the press drafted a $412.60 bill
  * holding only her travel expense.
  */

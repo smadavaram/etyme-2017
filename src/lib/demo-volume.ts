@@ -135,10 +135,10 @@ const FIRST = [
   'Felix', 'Lakshmi', 'Jonas', 'Amara', 'Nikhil', 'Sofia', 'Karthik', 'Leila',
 ]
 const LAST = [
-  'Raman', 'Osei', 'Mehta', 'Whitfield', 'Subramanian', 'Castillo', 'Okonkwo',
-  'Kulkarni', 'Lindqvist', 'Nair', 'Demir', 'Beaumont', 'Joshi', 'Adeyemi',
-  'Halloran', 'Rangan', 'Balogun', 'Lindgren', 'Balakrishnan', 'Park', 'Hassan',
-  'Ferreira', 'Iyer', 'Farouk', 'Novak', 'Desai', 'Rahimi', 'Weber', 'Pillai',
+  'Ramesh', 'Osei', 'Mehta', 'Whitfield', 'Subbarayan', 'Castillo', 'Okonkwo',
+  'Kulkarni', 'Lindqvist', 'Nair', 'Dalkiran', 'Beaumont', 'Joshi', 'Adeyemi',
+  'Halloran', 'Rangan', 'Balogun', 'Lundmark', 'Balakrishnan', 'Park', 'Hassan',
+  'Ferreira', 'Iyer', 'Farouk', 'Novak', 'Dalvi', 'Rahimi', 'Weber', 'Panicker',
   'Berg', 'Nwosu', 'Reddy', 'Costa', 'Menon', 'Haddad',
 ]
 

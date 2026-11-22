@@ -35,7 +35,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: { code: 'VALIDATION', message: 'Ask for bill-to or worksite.', field: 'for' } }, { status: 422 })
     }
     // A firm that only buys bills nobody and places nobody at a client.
-    const options = sells ? pickerOptions(asked === 'bill-to' ? 'BILL_TO' : 'WORKSITE', list.rows) : []
+    const onEtyme = new Map(list.rows.map((r) => [r.id, r.onEtyme]))
+    const options = sells
+      ? pickerOptions(asked === 'bill-to' ? 'BILL_TO' : 'WORKSITE', list.rows).map((o) => ({ ...o, onEtyme: onEtyme.get(o.id) === true }))
+      : []
     return NextResponse.json({ data: { for: asked, options } })
   }
 

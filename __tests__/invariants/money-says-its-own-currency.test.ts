@@ -173,7 +173,7 @@ describe('a pay line recorded by hand says its own currency', () => {
   it('a placement bought from a supplier in rupees says the rate in rupees', async () => {
     const { recordedLine } = await import('@/lib/money/recorded-line')
     const r = recordedLine({
-      boughtFrom: { id: 'sup', name: 'Sundara' }, payRateCents: 150_000, personName: 'Ravi Kumar', firmName: 'Teleworld',
+      boughtFrom: { id: 'sup', name: 'Sundara' }, payRateCents: 150_000, personName: 'Ravi Kumar', firmName: 'Tellisford',
       ownCompany: null, currency: 'INR',
     })
     expect(r.ok && r.says).toContain('₹1,500')

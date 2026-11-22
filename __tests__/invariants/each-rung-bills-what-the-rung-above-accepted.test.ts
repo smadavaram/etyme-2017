@@ -22,8 +22,8 @@ import { proposeRun, type PayableBill } from '@/lib/ap-delay'
  *   3. A week the paying firm has not accepted blocks the invoice receipt
  *      that includes it. No "approve anyway with a reason".
  *
- * Northbend Athletic ← Computer Systems ← Techpeple, Helena Marsh. Her
- * week of September 13 is filed once, on Techpeple's contract.
+ * Northbend Athletic ← Computer Systems ← Tecwyn, Helena Marsh. Her
+ * week of September 13 is filed once, on Tecwyn's contract.
  */
 
 const D = (s: string) => new Date(`${s}T00:00:00.000Z`)
@@ -31,9 +31,9 @@ const DAYS = { '2026-09-14': 8, '2026-09-15': 8, '2026-09-16': 8, '2026-09-17': 
 
 const NORTHBEND: Signature = { companyId: 'northbend', role: 'CLIENT_APPROVAL', hours: 40 }
 const CS = (hours: number, over: Partial<Signature> = {}): Signature => ({ companyId: 'cs', role: 'PASS_THROUGH', hours, ...over })
-const TECHPEPLE = (hours: number): Signature => ({ companyId: 'techpeple', role: 'EMPLOYER_ACCEPTANCE', hours })
+const TECWYN = (hours: number): Signature => ({ companyId: 'tecwyn', role: 'EMPLOYER_ACCEPTANCE', hours })
 
-const CHAIN = { companyId: 'techpeple', clientCompanyId: 'cs', endClientCompanyId: 'northbend' }
+const CHAIN = { companyId: 'tecwyn', clientCompanyId: 'cs', endClientCompanyId: 'northbend' }
 
 function week(signed: Signature[], over: Partial<RungWeek> = {}): RungWeek {
   return {
@@ -50,8 +50,8 @@ function week(signed: Signature[], over: Partial<RungWeek> = {}): RungWeek {
 
 const STRAIGHT: Worked = { partial: false, overtimeHours: 0, pendingHours: 0, bankedHours: 0 }
 
-/** Techpeple billing Computer Systems: the payer is Computer Systems. */
-const techpepleBills = (w: RungWeek, worked: Worked = STRAIGHT, afterHours: number | null = 40) =>
+/** Tecwyn billing Computer Systems: the payer is Computer Systems. */
+const tecwynBills = (w: RungWeek, worked: Worked = STRAIGHT, afterHours: number | null = 40) =>
   whatTheRungBills({ payerCompanyId: 'cs', payerName: 'Computer Systems', week: w, worked, afterHours })
 
 /** Computer Systems billing Northbend: the payer is the client. */
@@ -59,8 +59,8 @@ const csBills = (w: RungWeek, worked: Worked = STRAIGHT) =>
   whatTheRungBills({ payerCompanyId: 'northbend', payerName: 'Northbend Athletic', week: w, worked, afterHours: 40 })
 
 describe('a firm bills only the hours the firm above it accepted', () => {
-  it('Techpeple bills Computer Systems for the thirty-eight hours Computer Systems accepted, not the forty Helena worked', () => {
-    const r = techpepleBills(week([NORTHBEND, CS(38)]))
+  it('Tecwyn bills Computer Systems for the thirty-eight hours Computer Systems accepted, not the forty Helena worked', () => {
+    const r = tecwynBills(week([NORTHBEND, CS(38)]))
     expect(r.kind).toBe('CUT')
     expect(r.kind === 'CUT' && r.accepted).toEqual({ hours: 38, from: null, to: null })
     expect(r.kind === 'CUT' && r.says).toBe(
@@ -68,20 +68,20 @@ describe('a firm bills only the hours the firm above it accepted', () => {
     )
   })
 
-  it('Techpeple bills the week as worked, overtime and all, where Computer Systems accepted every hour', () => {
-    expect(techpepleBills(week([NORTHBEND, CS(40)])).kind).toBe('AS_WORKED')
+  it('Tecwyn bills the week as worked, overtime and all, where Computer Systems accepted every hour', () => {
+    expect(tecwynBills(week([NORTHBEND, CS(40)])).kind).toBe('AS_WORKED')
     expect(
-      techpepleBills(week([NORTHBEND, CS(45)], { totalHours: 45 }), { ...STRAIGHT, overtimeHours: 5 }).kind
+      tecwynBills(week([NORTHBEND, CS(45)], { totalHours: 45 }), { ...STRAIGHT, overtimeHours: 5 }).kind
     ).toBe('AS_WORKED')
   })
 
-  it('Techpeple’s own acceptance of what it pays Helena is not Computer Systems’ acceptance, so it bills nothing on it', () => {
-    const r = techpepleBills(week([NORTHBEND, TECHPEPLE(40)]))
+  it('Tecwyn’s own acceptance of what it pays Helena is not Computer Systems’ acceptance, so it bills nothing on it', () => {
+    const r = tecwynBills(week([NORTHBEND, TECWYN(40)]))
     expect(r.kind).toBe('WAITING')
   })
 
-  it('a week Computer Systems has not accepted is left off Techpeple’s bill, in a sentence naming the firm, the person and the week', () => {
-    const r = techpepleBills(week([NORTHBEND]))
+  it('a week Computer Systems has not accepted is left off Tecwyn’s bill, in a sentence naming the firm, the person and the week', () => {
+    const r = tecwynBills(week([NORTHBEND]))
     expect(r).toEqual({
       kind: 'WAITING',
       says:
@@ -151,7 +151,7 @@ const sheetOf = (days: Record<string, number>, leaveDays: Record<string, number>
 /** What the rung bills for the week: the verdict, then the days priced by it. */
 function priced(days: Record<string, number>, signed: Signature, decisions: Decision[] = [], leaveDays: Record<string, number> = {}) {
   const sheet = sheetOf(days, leaveDays)
-  const r = techpepleBills(week([NORTHBEND, signed], { days, totalHours: sheet.totalHours, periodStart: sheet.periodStart, periodEnd: sheet.periodEnd }), STRAIGHT, 40)
+  const r = tecwynBills(week([NORTHBEND, signed], { days, totalHours: sheet.totalHours, periodStart: sheet.periodStart, periodEnd: sheet.periodEnd }), STRAIGHT, 40)
   if (r.kind !== 'CUT') throw new Error(`expected a cut, got ${r.kind}`)
   return { rung: r, billed: billableInPeriod(sheet, SEPTEMBER, 'END', RATE, LINE, decisions, r.accepted)! }
 }
@@ -307,7 +307,7 @@ describe('a partial acceptance is priced on the days it covers', () => {
 
 describe('what rule 4 does not reach is still left off and said, rather than guessed at', () => {
   it('two acceptances from the payer on one week are left off, because nothing says which governs', () => {
-    const r = techpepleBills(week([NORTHBEND, CS(16), CS(24)]))
+    const r = tecwynBills(week([NORTHBEND, CS(16), CS(24)]))
     expect(r).toEqual({
       kind: 'HELD',
       says:
@@ -317,24 +317,24 @@ describe('what rule 4 does not reach is still left off and said, rather than gue
   })
 
   it('more hours accepted than worked, on a week with an overtime line past which they would fall, is left off', () => {
-    expect(techpepleBills(week([NORTHBEND, CS(42)]), STRAIGHT, 40).kind).toBe('HELD')
-    expect(techpepleBills(week([NORTHBEND, CS(47)], { totalHours: 45 }), { ...STRAIGHT, overtimeHours: 5 }).kind).toBe('HELD')
+    expect(tecwynBills(week([NORTHBEND, CS(42)]), STRAIGHT, 40).kind).toBe('HELD')
+    expect(tecwynBills(week([NORTHBEND, CS(47)], { totalHours: 45 }), { ...STRAIGHT, overtimeHours: 5 }).kind).toBe('HELD')
   })
 
   it('more hours accepted than worked on a straight, whole week is billed straight, as it was before', () => {
-    const r = techpepleBills(week([NORTHBEND, CS(42)]), STRAIGHT, null)
+    const r = tecwynBills(week([NORTHBEND, CS(42)]), STRAIGHT, null)
     expect(r.kind === 'STRAIGHT' && r.hours).toBe(42)
   })
 
   it('more hours accepted than were worked on only some of the days is left off', () => {
-    const r = techpepleBills(week([NORTHBEND, CS(30, { coversFrom: D('2026-09-14'), coversTo: D('2026-09-16') })]))
+    const r = tecwynBills(week([NORTHBEND, CS(30, { coversFrom: D('2026-09-14'), coversTo: D('2026-09-16') })]))
     expect(r.kind).toBe('HELD')
     expect(r.kind === 'HELD' && r.says).toMatch(/more than the 24 worked on them/)
   })
 })
 
 describe('a firm bills upward on the client’s signature', () => {
-  it('the receipt behind Computer Systems’ bill to Northbend is Northbend’s signature, before Computer Systems or Techpeple has accepted anything', () => {
+  it('the receipt behind Computer Systems’ bill to Northbend is Northbend’s signature, before Computer Systems or Tecwyn has accepted anything', () => {
     const r = receiptFor('northbend', week([NORTHBEND]))
     expect(r).toEqual({ signed: true, hours: 40, straight: false, cut: null })
   })
@@ -345,8 +345,8 @@ describe('a firm bills upward on the client’s signature', () => {
     })
   })
 
-  it('the receipt behind Techpeple’s bill to Computer Systems is Computer Systems’ signature and nobody else’s', () => {
-    expect(receiptFor('cs', week([NORTHBEND, TECHPEPLE(40)])).signed).toBe(false)
+  it('the receipt behind Tecwyn’s bill to Computer Systems is Computer Systems’ signature and nobody else’s', () => {
+    expect(receiptFor('cs', week([NORTHBEND, TECWYN(40)])).signed).toBe(false)
     expect(receiptFor('cs', week([NORTHBEND, CS(38)]))).toMatchObject({ signed: true, hours: 38, cut: { hours: 38 } })
   })
 
@@ -364,7 +364,7 @@ describe('a firm bills upward on the client’s signature', () => {
 })
 
 describe('a week the paying firm has not accepted blocks the invoice receipt that includes it', () => {
-  const CS_BUY = 'cs-buys-from-techpeple'
+  const CS_BUY = 'cs-buys-from-tecwyn'
   const CS_LINKS = [{ buyContractId: CS_BUY, sellContractId: 'cs-sells-to-northbend', effectiveFrom: D('2026-03-01'), effectiveTo: null }]
   const payable = (start: string, signed: { companyId: string; role: string; hours: number; rateCents: number }[]): PayableWeek => ({
     id: `week-${start}`,
@@ -424,7 +424,7 @@ describe('a week the paying firm has not accepted blocks the invoice receipt tha
     expect(result.matched).toBe(false)
 
     const [queued] = exceptionQueue(
-      [{ id: 'b', reference: 'CE-1', counterparty: 'Techpeple', currency: 'USD', amountCents: 4_720_00, receivedAt: D('2026-09-21'), result }],
+      [{ id: 'b', reference: 'CE-1', counterparty: 'Tecwyn', currency: 'USD', amountCents: 4_720_00, receivedAt: D('2026-09-21'), result }],
       D('2026-09-22')
     )
     expect(queued.hardFailures).toContain('RECEIPT')
@@ -433,7 +433,7 @@ describe('a week the paying firm has not accepted blocks the invoice receipt tha
 
   it('an invoice over a week nobody accepted never goes into a payment run, whatever its status says', () => {
     const bill: PayableBill = {
-      id: 'b', number: 'CE-1', vendorCompanyId: 'techpeple', vendorName: 'Techpeple', currency: 'USD',
+      id: 'b', number: 'CE-1', vendorCompanyId: 'tecwyn', vendorName: 'Tecwyn', currency: 'USD',
       totalCents: 4_720_00, paidCents: 0, dueAt: D('2026-09-20'), status: 'APPROVED',
       notAccepted: 'Computer Systems has not accepted Helena Marsh’s week of September 13. Accept it first, then pay this invoice.',
     }

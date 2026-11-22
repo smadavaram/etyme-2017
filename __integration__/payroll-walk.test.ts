@@ -10,14 +10,14 @@ import { POST as assertHours } from '@/app/api/timesheets/[id]/assert/route'
 import { RATE_CHANGE_PERSON } from '@/lib/seed-rate-change'
 
 /**
- * The payroll screens, walked on the seeded world as Teleworld and
+ * The payroll screens, walked on the seeded world as Tellisford and
  * Brightmoor — the four things a browser walk found on 2026-09-30.
  * The pure rules are in __tests__/invariants/payroll-walk.test.ts; this
  * is the same sentences against the real routes and the real seed.
  */
 
 const D = '@demo.etyme.local'
-const TELEWORLD = `world-teleworld${D}`
+const TELLISFORD = `world-tellisford${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
 const ym = (d: Date) => d.toISOString().slice(0, 7)
 
@@ -33,7 +33,7 @@ let karthik: { start: Date; end: Date; pays: { dueOn: Date; completedAt: Date | 
 beforeAll(async () => {
   await freshWorld()
   const bc = await prisma.buyContract.findFirstOrThrow({
-    where: { candidates: { some: { person: { name: 'Karthik Menon' } } }, company: { name: 'Teleworld Solutions' } },
+    where: { candidates: { some: { person: { name: 'Karthik Menon' } } }, company: { name: 'Tellisford Solutions' } },
     select: { startDate: true, endDate: true, state: true, buyCycles: { where: { kind: 'SALARY_PAY' }, select: { dueOn: true, completedAt: true } } },
   })
   expect(bc.state).toBe('ENDED')
@@ -46,27 +46,27 @@ describe('a placement that has ended is still on the payroll for the months it w
     for (let d = new Date(karthik.start); d <= karthik.end; d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))) months.push(ym(d))
     expect(months).toHaveLength(3)
     for (const m of months) {
-      const data = await rows(TELEWORLD, m)
+      const data = await rows(TELLISFORD, m)
       const row = data.payItems.find((p) => p.person.name === 'Karthik Menon')
-      expect(row, `Karthik Menon on Teleworld's ${m} run`).toBeTruthy()
+      expect(row, `Karthik Menon on Tellisford's ${m} run`).toBeTruthy()
       expect(row.totalApprovedHours).toBeGreaterThan(0)
       expect(data.summary.byContractType.W2.count).toBeGreaterThanOrEqual(1)
     }
   })
 
   it('a month whose pay day the run has already settled reads as processed, not pending', async () => {
-    const data = await rows(TELEWORLD, ym(karthik.end))
+    const data = await rows(TELLISFORD, ym(karthik.end))
     expect(data.payItems.find((p) => p.person.name === 'Karthik Menon').payStatus).toBe('PROCESSED')
   })
 
   it('an ended placement is not on the run for the month after its last day', async () => {
     const after = new Date(Date.UTC(karthik.end.getUTCFullYear(), karthik.end.getUTCMonth() + 1, 1))
-    const data = await rows(TELEWORLD, ym(after))
+    const data = await rows(TELLISFORD, ym(after))
     expect(data.payItems.find((p) => p.person.name === 'Karthik Menon')).toBeUndefined()
   })
 
   it('an ended placement whose last month is paid is not a row on the view of every period', async () => {
-    const data = await rows(TELEWORLD)
+    const data = await rows(TELLISFORD)
     expect(data.payItems.find((p) => p.person.name === 'Karthik Menon')).toBeUndefined()
   })
 })
@@ -74,11 +74,11 @@ describe('a placement that has ended is still on the payroll for the months it w
 describe('payroll pays our own employees, and the invoice receipt pays everybody else', () => {
   it('payroll never pays a worker paid through their own company; the invoice receipt does', async () => {
     const bm = await rows(BRIGHTMOOR)
-    expect(bm.payItems.find((p) => p.person.name === 'Ravi Subramanian')).toBeUndefined()
-    const ravi = (bm as any).paidElsewhere.find((p: any) => p.person.name === 'Ravi Subramanian')
-    expect(ravi.says).toBe('Ravi Subramanian is paid through Consultis’s invoice — see Invoice receipts.')
+    expect(bm.payItems.find((p) => p.person.name === 'Ravi Subbarayan')).toBeUndefined()
+    const ravi = (bm as any).paidElsewhere.find((p: any) => p.person.name === 'Ravi Subbarayan')
+    expect(ravi.says).toBe('Ravi Subbarayan is paid through Conisby’s invoice — see Invoice receipts.')
 
-    const tw = await rows(TELEWORLD)
+    const tw = await rows(TELLISFORD)
     expect(tw.payItems.find((p) => p.person.name === 'Marcus Whitfield')).toBeUndefined()
     expect(tw.summary.byContractType.C2C.count).toBe(0)
   })
@@ -86,14 +86,14 @@ describe('payroll pays our own employees, and the invoice receipt pays everybody
   it('the same week is never paid twice, once by payroll and once by invoice receipt', async () => {
     const company = await prisma.company.findFirstOrThrow({ where: { name: 'Brightmoor Staffing' } })
     const line = await prisma.buyContract.findFirstOrThrow({
-      where: { companyId: company.id, candidates: { some: { person: { name: 'Ravi Subramanian' } } } },
+      where: { companyId: company.id, candidates: { some: { person: { name: 'Ravi Subbarayan' } } } },
       select: { id: true },
     })
     const before = await prisma.automationLog.count({ where: { companyId: company.id, action: 'PAYROLL_RUN' } })
     as(BRIGHTMOOR)
     const r = await json(await runPayroll(req('POST', '/api/payroll/run', { buyContractIds: [line.id], action: 'process' })))
     expect(r.status).toBe(422)
-    expect(r.body.error.message).toBe('Ravi Subramanian is paid through Consultis’s invoice — see Invoice receipts.')
+    expect(r.body.error.message).toBe('Ravi Subbarayan is paid through Conisby’s invoice — see Invoice receipts.')
     expect(await prisma.automationLog.count({ where: { companyId: company.id, action: 'PAYROLL_RUN' } })).toBe(before)
   })
 
@@ -105,8 +105,8 @@ describe('payroll pays our own employees, and the invoice receipt pays everybody
 })
 
 describe('deposit deadlines follow the pay days on the lines', () => {
-  it('Teleworld’s deposit dates are the days Karthik Menon was paid, one a month, not a date for every week', async () => {
-    as(TELEWORLD)
+  it('Tellisford’s deposit dates are the days Karthik Menon was paid, one a month, not a date for every week', async () => {
+    as(TELLISFORD)
     const year = new Date().getUTCFullYear()
     const r = await json(await statutory(req('GET', `/api/payroll/statutory?year=${year}`)))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -157,8 +157,8 @@ describe('a worker placed mid-month with no week filed in it', () => {
 })
 
 describe('wages count in the year they were paid', () => {
-  it('Karthik Menon’s W-2 wages are what Teleworld’s runs paid him, in the year they ran, and the screen says the rule', async () => {
-    as(TELEWORLD)
+  it('Karthik Menon’s W-2 wages are what Tellisford’s runs paid him, in the year they ran, and the screen says the rule', async () => {
+    as(TELLISFORD)
     // Every weekday of three whole months at $89, all paid by runs in one
     // year: the year his last run was pressed, read off the world — on a
     // world born on 1 January that is last year, not this one.
@@ -263,15 +263,15 @@ describe('1099 and corp-to-corp payments count in the year they were paid', () =
 
   it('an invoice receipt not yet paid counts in no year, and Brightmoor is told it is waiting', async () => {
     const p = await pack(year)
-    expect(p.summaries.find((s: any) => s.personName === 'Consultis')).toBeUndefined()
-    expect(p.receiptsWaitingSays).toMatch(/Consultis/)
+    expect(p.summaries.find((s: any) => s.personName === 'Conisby')).toBeUndefined()
+    expect(p.receiptsWaitingSays).toMatch(/Conisby/)
     // The seeded receipt now holds only the weeks Brightmoor accepted (2026-09-30).
     expect(p.receiptsWaitingSays).toMatch(/\$4,160\.00/)
   })
 
   it('a paid date that has not happened yet is refused in a sentence, and the invoice receipt stays unpaid', async () => {
     const company = await prisma.company.findFirstOrThrow({ where: { name: 'Brightmoor Staffing' } })
-    const bill = await prisma.vendorBill.findFirstOrThrow({ where: { companyId: company.id, vendorCompany: { name: 'Consultis' } } })
+    const bill = await prisma.vendorBill.findFirstOrThrow({ where: { companyId: company.id, vendorCompany: { name: 'Conisby' } } })
     as(BRIGHTMOOR)
     const r = await json(await payReceipt(req('PATCH', '/api/ap/bills', { id: bill.id, paidAt: `${year + 1}-01-06T00:00:00Z` })))
     expect(r.status, JSON.stringify(r.body)).toBe(422)
@@ -281,22 +281,22 @@ describe('1099 and corp-to-corp payments count in the year they were paid', () =
 
   it('a corp-to-corp supplier’s invoice paid in January counts toward the next year, and never this one', async () => {
     const company = await prisma.company.findFirstOrThrow({ where: { name: 'Brightmoor Staffing' } })
-    const bill = await prisma.vendorBill.findFirstOrThrow({ where: { companyId: company.id, vendorCompany: { name: 'Consultis' } } })
+    const bill = await prisma.vendorBill.findFirstOrThrow({ where: { companyId: company.id, vendorCompany: { name: 'Conisby' } } })
     as(BRIGHTMOOR)
     // Paid through the route today: it counts in this year.
     const r = await json(await payReceipt(req('PATCH', '/api/ap/bills', { id: bill.id })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect((await pack(year)).summaries.find((s: any) => s.personName === 'Consultis')?.grossCents).toBe(bill.totalCents)
+    expect((await pack(year)).summaries.find((s: any) => s.personName === 'Conisby')?.grossCents).toBe(bill.totalCents)
     // The route refuses a day that has not happened (above), so the row is
     // dated as the same payment made next January would be stored, and the
     // year it counts in is read from that day and nothing else.
     await prisma.vendorBill.update({ where: { id: bill.id }, data: { paidAt: new Date(`${year + 1}-01-06T00:00:00Z`) } })
 
-    expect((await pack(year)).summaries.find((s: any) => s.personName === 'Consultis')).toBeUndefined()
+    expect((await pack(year)).summaries.find((s: any) => s.personName === 'Conisby')).toBeUndefined()
     const next = await pack(year + 1)
-    const c = next.summaries.find((s: any) => s.personName === 'Consultis')
+    const c = next.summaries.find((s: any) => s.personName === 'Conisby')
     expect(c.grossCents).toBe(bill.totalCents)
     expect(c.form).toBe('NONE')
-    expect(next.receiptsWaitingSays ?? '').not.toMatch(/Consultis/)
+    expect(next.receiptsWaitingSays ?? '').not.toMatch(/Conisby/)
   })
 })

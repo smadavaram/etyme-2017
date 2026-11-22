@@ -399,7 +399,7 @@ export type Health = 'LOSS' | 'THIN' | 'FINE'
  * say a hundred per cent and mean nothing.
  *
  * `NOTHING_YET` is a placement where no hours have been billed at all.
- * Found on 2026-09-26 walking Teleworld Solutions: both its placements
+ * Found on 2026-09-26 walking Tellisford Solutions: both its placements
  * read `revenueCents: 0`, `marginPct: null` and were chipped **THIN** on
  * the screen, because `marginPct == null` fell through to the thin
  * branch. "Thin" is a judgment about a margin, and there was no margin to

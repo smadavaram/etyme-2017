@@ -23,7 +23,7 @@ const API = join(__dirname, '..', '..', 'src', 'app', 'api')
 const read = (...p: string[]) => readFileSync(join(API, ...p), 'utf8')
 
 function contract(over: Partial<ContractInput> = {}): ContractInput {
-  return { id: 'c1', personName: 'Ravi Patel', billRateCents: 13000, payRateCents: 10000, live: true, ...over }
+  return { id: 'c1', personName: 'Ravi Purohit', billRateCents: 13000, payRateCents: 10000, live: true, ...over }
 }
 
 describe('the agreements screen and what we pay', () => {
@@ -100,7 +100,7 @@ describe('the timesheets list and what a week bills at', () => {
 })
 
 describe('the chain of approvals on a week and what the worker is paid', () => {
-  const EMPLOYER = 'teleworld'
+  const EMPLOYER = 'tellisford'
   const CLIENT = 'corveldt'
   const filed: FiledParties = [EMPLOYER, CLIENT]
   const employerLeg = { companyId: EMPLOYER, role: 'EMPLOYER_ACCEPTANCE' as const }
@@ -131,7 +131,7 @@ describe('the chain of approvals on a week and what the worker is paid', () => {
 
   it('a withheld leg keeps its hours and loses only its rate, and says it was withheld', () => {
     const assertion = { id: 'a', companyId: EMPLOYER, role: 'EMPLOYER_ACCEPTANCE', hours: 40, rateCents: 6000 } as unknown as Assertion
-    const seen = legAsSeen({ companyId: EMPLOYER, readsWorkerPay: false }, { ...employerLeg, companyName: 'Teleworld', says: '', assertion }, filed)
+    const seen = legAsSeen({ companyId: EMPLOYER, readsWorkerPay: false }, { ...employerLeg, companyName: 'Tellisford', says: '', assertion }, filed)
     expect(seen.assertion?.hours).toBe(40)
     expect(seen.assertion?.rateCents).toBeNull()
     expect(seen.rateWithheld).toBe(true)
@@ -140,7 +140,7 @@ describe('the chain of approvals on a week and what the worker is paid', () => {
   it('what the week costs in pay is withheld with the rate it is made from', () => {
     const legs = [
       { ...clientLeg, companyName: 'Corveldt', says: '', assertion: { hours: 40, rateCents: 9000 } as unknown as Assertion },
-      { ...employerLeg, companyName: 'Teleworld', says: '', assertion: { hours: 40, rateCents: 6000 } as unknown as Assertion },
+      { ...employerLeg, companyName: 'Tellisford', says: '', assertion: { hours: 40, rateCents: 6000 } as unknown as Assertion },
     ] as Leg[]
     const p = { billableHours: 40, payableHours: 40, billableCents: 360000, payableCents: 240000, waitingOn: [], complete: true, says: '' } as Position
     const seen = positionAsSeen({ companyId: EMPLOYER, readsWorkerPay: false }, p, legs, filed)

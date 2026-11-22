@@ -3,7 +3,7 @@
  *
  * ── The finding this exists to close ─────────────────────────────────
  *
- * Walked on 2026-09-26 as Teleworld Solutions, a systems integrator with
+ * Walked on 2026-09-26 as Tellisford Solutions, a systems integrator with
  * two placements. Two screens on one menu answered the same question two
  * different ways:
  *
@@ -13,7 +13,7 @@
  * Neither was right, and the reasons were different.
  *
  * **Profitability showed nothing** because it grouped by `projectOrderId`
- * and Teleworld has tagged nothing to a master contract. CLAUDE.md says
+ * and Tellisford has tagged nothing to a master contract. CLAUDE.md says
  * the roll-up is optional *by design* — "a company tags lines to one when
  * it wants to see contract profitability" — and that a pair is not,
  * because `ContractLink` is written by the award. So the product's stated
@@ -29,8 +29,8 @@
  * contains the contracts it *sells* and the contracts where it is the
  * client — `payerScope` returns `OR: [companyId, clientCompanyId]` for a
  * GSI, correctly, because a prime both sells and buys. So the mean of
- * "active sell rates" was the mean of Teleworld's own bill rate ($142)
- * and its sub-vendor's bill rate to Teleworld ($116) — its own cost,
+ * "active sell rates" was the mean of Tellisford's own bill rate ($142)
+ * and its sub-vendor's bill rate to Tellisford ($116) — its own cost,
  * counted as its own revenue. (142 + 116) / 2 = 129; 129 − 116 = 13;
  * 13 / 129 = 10.077% → 10.1%, exactly the figure on the screen.
  *

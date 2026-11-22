@@ -271,15 +271,15 @@ describe('Alumni detail formatting', () => {
   }
 
   it('the detail field for placed alumni says On contract here', () => {
-    expect(formatDetail('placed', 'TechVista')).toBe('On contract here')
+    expect(formatDetail('placed', 'Tarnvista')).toBe('On contract here')
   })
 
   it('the detail field names the current vendor for available alumni', () => {
-    expect(formatDetail('available', 'TechVista')).toBe('Available now · TechVista')
+    expect(formatDetail('available', 'Tarnvista')).toBe('Available now · Tarnvista')
   })
 
   it('the detail field names the last vendor for ended alumni', () => {
-    expect(formatDetail('ended', 'Techpeple')).toBe('Released · Techpeple')
+    expect(formatDetail('ended', 'Tecwyn')).toBe('Released · Tecwyn')
   })
 })
 

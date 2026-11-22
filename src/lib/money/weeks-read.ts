@@ -8,13 +8,13 @@
  * placement at Computer Systems read "No weeks filed yet" beside 200
  * hours accepted and $23,200 invoiced, and Computer Systems' Timesheets
  * list had no row for her. Nothing dropped her weeks; they were never on
- * that line. In a chain the worker files once, on her own rung (Techpeple's
+ * that line. In a chain the worker files once, on her own rung (Tecwyn's
  * line to Computer Systems, CLAUDE.md 2026-09-28), and every rung above
  * bills the same signed week from there. The bill generator and the books
  * read the week at the bottom of the ladder (`whereHoursLive` in
  * lib/work-chain); the placement card read `placement.timesheets`, the
  * weeks hanging on Computer Systems' own line, which are none, and the
- * Timesheets list scoped weeks by the line's seller, which is Techpeple.
+ * Timesheets list scoped weeks by the line's seller, which is Tecwyn.
  * So the money said 200 hours and the hours said nothing.
  *
  * ── The rule ─────────────────────────────────────────────────────────

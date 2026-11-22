@@ -15,9 +15,9 @@ const ctx: NoticeContext = {
   round: 2,
   stage: 'Technical',
   role: 'Workday integrator',
-  consultant: { id: 'p-priya', name: 'Priya Raman' },
+  consultant: { id: 'p-priya', name: 'Priya Ramesh' },
   client: { id: 'c-nike', name: 'Northbend Athletic' },
-  vendor: { id: 'c-techpeple', name: 'Techpeple' },
+  vendor: { id: 'c-tecwyn', name: 'Tecwyn' },
   requesterId: 'p-dana',
   vendorStaffIds: ['p-bench', 'p-recruiter'],
   slotCount: 3,
@@ -41,7 +41,7 @@ describe('when a client proposes a round', () => {
 
   it('says which client, which round, what for, and how many times were offered', () => {
     const [vendor] = noticesFor('PROPOSED', ctx)
-    expect(vendor.title).toBe('Northbend Athletic wants to interview Priya Raman for Workday integrator')
+    expect(vendor.title).toBe('Northbend Athletic wants to interview Priya Ramesh for Workday integrator')
     expect(vendor.body).toContain('Technical, round 2, for Workday integrator')
     expect(vendor.body).toContain('3 times offered')
   })
@@ -64,7 +64,7 @@ describe('when the supplier confirms', () => {
   it('the person who asked hears, with the time that stuck', () => {
     const notices = noticesFor('CONFIRMED', ctx)
     expect(to('CONFIRMED')).toEqual(['p-dana'])
-    expect(notices[0].title).toBe('Techpeple confirmed Priya Raman')
+    expect(notices[0].title).toBe('Tecwyn confirmed Priya Ramesh')
     expect(notices[0].body).toMatch(/Tue, Sep 15, 10:00\s?AM UTC/)
   })
 })
@@ -124,7 +124,7 @@ describe('when nobody turns up', () => {
   it('the side that did turn up is told who did not', () => {
     const notices = noticesFor('NO_SHOW', { ...ctx, noShowBy: 'CONSULTANT' })
     expect(to('NO_SHOW', { ...ctx, noShowBy: 'CONSULTANT' })).toEqual(['p-bench', 'p-dana', 'p-recruiter'])
-    expect(notices[0].body).toContain('Priya Raman did not turn up')
+    expect(notices[0].body).toContain('Priya Ramesh did not turn up')
   })
 
   it('a client that did not turn up is not told about itself', () => {

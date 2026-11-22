@@ -119,8 +119,8 @@ describe('Vendor distribution calculation', () => {
   }
 
   const contractors: Contractor[] = [
-    { name: 'A', vendor: 'TechVista', billRate: 10000, endDate: '2027-01-01', state: 'IN_PROGRESS', pendingTimesheets: 0 },
-    { name: 'B', vendor: 'TechVista', billRate: 12000, endDate: '2027-01-01', state: 'IN_PROGRESS', pendingTimesheets: 0 },
+    { name: 'A', vendor: 'Tarnvista', billRate: 10000, endDate: '2027-01-01', state: 'IN_PROGRESS', pendingTimesheets: 0 },
+    { name: 'B', vendor: 'Tarnvista', billRate: 12000, endDate: '2027-01-01', state: 'IN_PROGRESS', pendingTimesheets: 0 },
     { name: 'C', vendor: 'CloudStaff', billRate: 9500, endDate: '2027-01-01', state: 'IN_PROGRESS', pendingTimesheets: 0 },
   ]
 
@@ -131,20 +131,20 @@ describe('Vendor distribution calculation', () => {
 
   it('calculates average rate per vendor', () => {
     const dist = vendorDistribution(contractors)
-    const techVista = dist.find(v => v.name === 'TechVista')!
+    const techVista = dist.find(v => v.name === 'Tarnvista')!
     expect(techVista.avgRate).toBe(11000) // (10000 + 12000) / 2
   })
 
   it('calculates monthly spend per vendor', () => {
     const dist = vendorDistribution(contractors)
-    const techVista = dist.find(v => v.name === 'TechVista')!
+    const techVista = dist.find(v => v.name === 'Tarnvista')!
     expect(techVista.totalMonthlySpend).toBe(35200) // (10000 + 12000) * 160 / 100
   })
 
   it('returns vendor share as percentage of total headcount', () => {
     const dist = vendorDistribution(contractors)
     const total = dist.reduce((s, v) => s + v.headcount, 0)
-    const techVista = dist.find(v => v.name === 'TechVista')!
+    const techVista = dist.find(v => v.name === 'Tarnvista')!
     const pct = Math.round((techVista.headcount / total) * 100)
     expect(pct).toBe(67) // 2 of 3
   })

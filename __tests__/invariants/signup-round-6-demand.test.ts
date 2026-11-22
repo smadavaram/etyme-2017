@@ -20,7 +20,7 @@ const src = (p: string) => readFileSync(join(process.cwd(), 'src', p), 'utf8')
 const WORKER = ['assignments.read', 'timesheets.read']
 const role = (kind: 'VENDOR' | 'GSI', name: string) => rolesFor(kind).find((r) => r.name === name)!.permissions as string[]
 const at = (permissions: string[] | null, over: Partial<Parameters<typeof termsStanding>[0]> = {}) =>
-  termsStanding({ callerPersonId: 'karthik', callerCompanyId: 'teleworld', permissions, personId: 'felix', firmId: 'teleworld', ...over })
+  termsStanding({ callerPersonId: 'karthik', callerCompanyId: 'tellisford', permissions, personId: 'felix', firmId: 'tellisford', ...over })
 
 describe('1: a person’s terms are read by the person and by the firm’s desk, never by every seat at the firm', () => {
   it('the person the submission names reads their own terms, even from a seat with no desk', () => {
@@ -58,8 +58,8 @@ describe('1: a person’s terms are read by the person and by the firm’s desk,
   })
 
   it('the refusal a colleague reads names nobody and no permission key', () => {
-    const says = colleaguesTermsRefused('Teleworld Solutions')
-    expect(says).toBe('Somebody else’s terms is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    const says = colleaguesTermsRefused('Tellisford Solutions')
+    expect(says).toBe('Somebody else’s terms is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     expect(namesAPermission(says)).toBe(false)
   })
 
@@ -81,7 +81,7 @@ describe('2: a filled job request is priced at the rung the reader pays', () => 
   const day = (d: string) => new Date(`2026-${d}T00:00:00Z`)
   const lines = [
     { id: 'top', personId: 'helena', companyId: 'computer-systems', clientCompanyId: 'northbend', billRate: 14_500, createdAt: day('03-16') },
-    { id: 'below', personId: 'helena', companyId: 'techpeple', clientCompanyId: 'computer-systems', billRate: 11_800, createdAt: day('10-08') },
+    { id: 'below', personId: 'helena', companyId: 'tecwyn', clientCompanyId: 'computer-systems', billRate: 11_800, createdAt: day('10-08') },
   ]
   const sub = { personId: 'helena', fromCompanyId: 'computer-systems', toCompanyId: 'northbend' }
 
@@ -140,8 +140,8 @@ describe('4: a withheld rate is not a zero and not a missing rate', () => {
   })
 
   it('a seat reading only its own weeks is told they are its own, not "hours your people worked"', () => {
-    expect(ownWeeksSays('Teleworld Solutions')).toBe(
-      'These are your own weeks at Teleworld Solutions. Your colleagues’ weeks and what the client is billed are read by the people who approve timesheets and send bills.'
+    expect(ownWeeksSays('Tellisford Solutions')).toBe(
+      'These are your own weeks at Tellisford Solutions. Your colleagues’ weeks and what the client is billed are read by the people who approve timesheets and send bills.'
     )
     // Round seven, problem 5: through listHead, which also waits for the read.
     expect(src('app/dashboard/timesheets/page.tsx')).toMatch(/listHead\(\{ readOnce, ownSays, firmSays: framing\.subtitle \}\)/)

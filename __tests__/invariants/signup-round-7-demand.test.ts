@@ -20,7 +20,7 @@ describe('5: a worker never reads the firm’s words or its Submit button, befor
   })
 
   it('once the route says the seat reads only its own rows, the heading sentence is the route’s own', () => {
-    const own = ownSubmissionsSays('Teleworld Solutions')
+    const own = ownSubmissionsSays('Tellisford Solutions')
     const head = listHead({ readOnce: true, ownSays: own, firmSays: FIRM })
     expect(head).toEqual({ state: 'OWN', says: own })
     expect(JSON.stringify(head)).not.toContain('Candidates you submitted')

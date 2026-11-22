@@ -212,7 +212,7 @@ export function chainOf(job: { extra?: Record<string, unknown> }): ChainPlan | n
   return c && typeof c === 'object' ? (c as ChainPlan) : null
 }
 
-/** "Talvern Medical ← Brightmoor ← Techpeple ← Halcyon Bench", read from the client down. */
+/** "Talvern Medical ← Brightmoor ← Tecwyn ← Halcyon Bench", read from the client down. */
 export function chainWords(c: Pick<ChainPlan, 'client' | 'prime' | 'sub' | 'bench'>): string {
   return [c.client, c.prime, c.sub, c.bench].map((f) => f.name).join(' ← ')
 }
@@ -367,7 +367,7 @@ export type RungBucket = '1' | '2' | '3' | '4+'
 /**
  * The run's awards counted by the rungs each walked, and the four-rung
  * ones named ("Ravi Kumar for Data engineer at Northbend Athletic
- * (Northbend Athletic ← Brightmoor ← Techpeple ← Tapin)"), for the
+ * (Northbend Athletic ← Brightmoor ← Tecwyn ← Tapin)"), for the
  * report (scripts/simulate/tallies.ts). An award with no `rungs` on it
  * was not counted and is left out, never read as one rung. Pure.
  */

@@ -7,9 +7,9 @@ import { billedElsewhere, alreadyOnABill, alreadyReceived } from '@/lib/money/bi
  * A bill never covers hours already on a bill to the same firm, however
  * that bill was made.
  *
- * Walked 2026-09-30 as Techpeple: Generate billed Computer Systems $16,992
+ * Walked 2026-09-30 as Tecwyn: Generate billed Computer Systems $16,992
  * for 144 hours, and its check said nothing had been billed before —
- * while Computer Systems already held Techpeple's invoice INV-CPRLJK for
+ * while Computer Systems already held Tecwyn's invoice INV-CPRLJK for
  * Aug 29 – Sep 26, covering 120 of them. $14,160 owed twice.
  */
 
@@ -72,16 +72,16 @@ describe('a bill never covers hours already on a bill to the same firm, however 
 describe('an invoice receipt is refused where a bill the supplier generated here already holds its hours', () => {
   const generated = {
     number: 'IN_W1ZA7E_001',
-    vendorName: 'Techpeple',
+    vendorName: 'Tecwyn',
     lines: [{ personId: 'helena', personName: 'Helena Marsh', days: helena.days }],
   }
 
-  it('recording Techpeple’s invoice for Aug 29 – Sep 26 after its generated bill holds Aug 31 – Sep 4 is refused in a sentence', () => {
+  it('recording Tecwyn’s invoice for Aug 29 – Sep 26 after its generated bill holds Aug 31 – Sep 4 is refused in a sentence', () => {
     const r = alreadyOnABill({ periodStart: '2026-08-29', periodEnd: '2026-09-26', personIds: ['helena'] }, [generated])
     expect(r?.bills).toEqual(['IN_W1ZA7E_001'])
     expect(r?.says).toBe(
-      'Helena Marsh’s hours for Aug 31 – Sep 4 are already on Techpeple’s bill IN_W1ZA7E_001, so recording this invoice would owe them twice. ' +
-        'Pay that bill, or ask Techpeple to cancel it first.'
+      'Helena Marsh’s hours for Aug 31 – Sep 4 are already on Tecwyn’s bill IN_W1ZA7E_001, so recording this invoice would owe them twice. ' +
+        'Pay that bill, or ask Tecwyn to cancel it first.'
     )
   })
 
@@ -96,12 +96,12 @@ describe('an invoice receipt is refused where a bill the supplier generated here
 
 describe('the same week cannot be received twice under two invoice numbers', () => {
   const week = { personName: 'Helena Marsh', days: { '2026-10-05': 8, '2026-10-06': 8, '2026-10-07': 8, '2026-10-08': 8, '2026-10-09': 8 }, periodStart: '2026-10-04', periodEnd: '2026-10-10' }
-  const tpA = { number: 'TP-A', vendorName: 'Techpeple', periodStart: '2026-10-04', periodEnd: '2026-10-10', receivedAt: '2026-10-12T00:00:00.000Z' }
+  const tpA = { number: 'TP-A', vendorName: 'Tecwyn', periodStart: '2026-10-04', periodEnd: '2026-10-10', receivedAt: '2026-10-12T00:00:00.000Z' }
 
   it('a receipt for a week another receipt from the same supplier already holds is refused, naming the earlier receipt and the week', () => {
     const r = alreadyReceived({ periodStart: '2026-10-04', periodEnd: '2026-10-10' }, [week], [tpA])
     expect(r?.number).toBe('TP-A')
-    expect(r?.says).toBe('Helena Marsh’s week of Oct 4 is already on Techpeple’s invoice TP-A, received Oct 12, 2026, so this invoice would owe it twice. Paying the same work twice is not a judgment call, so nobody can wave it through.')
+    expect(r?.says).toBe('Helena Marsh’s week of Oct 4 is already on Tecwyn’s invoice TP-A, received Oct 12, 2026, so this invoice would owe it twice. Paying the same work twice is not a judgment call, so nobody can wave it through.')
   })
 
   it('two receipts whose periods meet only on a day nobody worked hold different work', () => {

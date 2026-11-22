@@ -15,10 +15,10 @@ import type { Relationship } from '@/lib/counterparty'
 import { mayAddCompany, sameNameRefused, sameDomainRefused, namesakeSays, consumerDomainSays, identityDomain, readTypedDomain, NEVER_EMAILS, mayExtend, maySetRecordedKind, isMine, notLinkedYet, notedDomain } from '@/lib/counterparty'
 import { recordRefusal } from '@/lib/access-log'
 import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
-import { positionsFor } from './positions'
+import { positionsFor, sayWhatItIs } from './positions'
 import { groupsFor, totalsOver } from './groups'
 import { hasPermission } from '@/lib/permissions'
-import { sellsToSomebody } from '@/lib/counterparty'
+import { sellsToSomebody, END_CLIENT_ROW, SAY_WHICH_ENTITY } from '@/lib/counterparty'
 import { speaksForItself } from '@/lib/public-site/speaks'
 import { roleCanDo } from '@/lib/company-roles'
 
@@ -218,19 +218,29 @@ export async function POST(request: NextRequest) {
       if (!look.together) {
         const says = onEtymeAskToLinkSays(asWord)
         await refusedFound(seatedCaller, firm.id, says)
-        return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: as } }, { status: 409 })
+        // A worksite is not a side of a trade: the box asks which to link as.
+        return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: as === END_CLIENT_ROW ? null : as } }, { status: 409 })
       }
-      await prisma.counterparty.upsert({
-        where: { companyId_otherCompanyId_relationship: { companyId: mine.id, otherCompanyId: firm.id, relationship: as } },
-        update: {},
-        create: { companyId: mine.id, otherCompanyId: firm.id, relationship: as, status: 'ACTIVE', createdById: seatedCaller.person.id },
+      // "They pay us" and "our people work there" are said once, here
+      // (record 110, A1): stamped with who and when, and on the ledger.
+      const stamped = await prisma.$transaction(async (tx) => {
+        if (as !== END_CLIENT_ROW) {
+          await tx.counterparty.upsert({
+            where: { companyId_otherCompanyId_relationship: { companyId: mine.id, otherCompanyId: firm.id, relationship: as } },
+            update: {},
+            create: { companyId: mine.id, otherCompanyId: firm.id, relationship: as, status: 'ACTIVE', createdById: seatedCaller.person.id },
+          })
+        }
+        return as === 'CLIENT' || as === END_CLIENT_ROW
+          ? sayWhatItIs(tx, { me: mine.id, other: firm, by: saidBy(seatedCaller), customer: as === 'CLIENT', client: as === END_CLIENT_ROW, actingEntityId: body?.actingEntityId })
+          : true
       })
       return NextResponse.json({
         data: {
           company: { id: firm.id, name: firm.name, slug: firm.slug, kind: firm.kind },
           linked: true,
           says: `${firm.name} is on Etyme and already works with you, so your register points at their own record. No copy was made.`,
-          message: `${firm.name} is on your Companies list.`,
+          message: `${firm.name} is on your Companies list.${stamped ? '' : ` ${SAY_WHICH_ENTITY(firm.name)}`}`,
         },
       })
     }
@@ -406,11 +416,23 @@ export async function POST(request: NextRequest) {
           },
         })
       }
+      // A person who says it once is not asked twice (record 110, A1):
+      // "a customer: they pay us" stamps the row just written, "a client:
+      // where our people work" writes the end client's row, each with who
+      // and when and the ledger row the Classify page writes. So the
+      // company is under Customers or Clients at once, whatever its Kind.
+      const stamped = (relationship === 'CLIENT' || relationship === END_CLIENT_ROW) && ownCompanyId && ownCompanyId !== company.id
+        ? await sayWhatItIs(tx, {
+            me: ownCompanyId, other: company, by: saidBy(seatedCaller!),
+            customer: relationship === 'CLIENT', client: relationship === END_CLIENT_ROW, actingEntityId: body?.actingEntityId,
+          })
+        : true
 
-      return { company, roles, person, context, seatedAs: made.seatedAs, kept }
+      return { company, roles, person, context, seatedAs: made.seatedAs, kept, stamped }
     }, { timeout: 20_000 })
     const typedDomain = typeof body?.domain === 'string' ? body.domain.trim() : ''
     const after = [
+      result.stamped ? null : SAY_WHICH_ENTITY(result.company.name),
       namesake,
       domainSays,
       !adding.ownsIt && typedDomain && !identityDomain(typedDomain) && notedDomain(typedDomain) ? consumerDomainSays(notedDomain(typedDomain)!) : null,
@@ -517,7 +539,7 @@ export async function GET(request: NextRequest) {
   //
   // This handed every authenticated caller the whole directory: every
   // company, its slug, its domain. The walk of 2026-09-21 read all
-  // twenty-seven to Northbend Athletic's program manager, to Techpeple's
+  // twenty-seven to Northbend Athletic's program manager, to Tecwyn's
   // owner two rungs down somebody else's chain, and to a one-person
   // nursing corporation. The rule and the reasoning are in
   // `lib/directory-scope`; what is gathered here is the evidence for it.
@@ -596,7 +618,7 @@ export async function GET(request: NextRequest) {
   const groups = caller.company ? await groupsFor(caller.company, companies, at, notLinked) : new Map()
   const groupOf = (id: string) => {
     const g = groups.get(id)
-    return g ? { groups: g.groups, said: g.said, onContracts: g.onContracts, needsClassifying: g.needsClassifying, notClassified: g.notClassified, other: g.other, suggestion: g.suggestion } : null
+    return g ? { groups: g.groups, said: g.said, onContracts: g.onContracts, needsClassifying: g.needsClassifying, notClassified: g.notClassified, other: g.other, suggestion: g.suggestion, contracts: g.contracts, stamps: g.stamps } : null
   }
   // The domain each of the reader's own records is known by: what it typed,
   // or the domain on the invitation it pasted, read now (nothing backfilled).
@@ -621,6 +643,8 @@ export async function GET(request: NextRequest) {
         ? {
             ...totalsOver(groups.values(), caller.company.kind),
             mayClassify: sellsToSomebody(caller.company.kind) && hasPermission(caller.permissions, 'vendors.manage'),
+            // The legal entities a classify act may be done for; none at most firms.
+            entities: await prisma.legalEntity.findMany({ where: { companyId: caller.company.id }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
           }
         : null,
       companies: companies.map((c) => notLinked.has(c.id) ? {
@@ -743,6 +767,11 @@ async function rowActs(
     out.set(c.id, { extendToSupplier: ask('SUPPLIER'), extendToCustomer: ask('CUSTOMER'), setKind: kindVerdict.ok })
   }
   return out
+}
+
+/** The person saying what a company is, as `sayWhatItIs` stamps her. */
+function saidBy(caller: import('@/lib/api-context').CallerContext) {
+  return { id: caller.person.id, name: caller.person.name, roleId: caller.context.roleId ?? null }
 }
 
 /** Which kind of reader is asking, in `lib/directory-scope`'s words. */

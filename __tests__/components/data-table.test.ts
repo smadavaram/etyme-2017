@@ -62,7 +62,7 @@ describe('DataTable sort logic', () => {
 
 describe('DataTable search filter', () => {
   const consultants = [
-    { name: 'Ravi Patel', skills: ['SAP MM', 'SAP ABAP'], location: 'Dallas' },
+    { name: 'Ravi Purohit', skills: ['SAP MM', 'SAP ABAP'], location: 'Dallas' },
     { name: 'Priya Sharma', skills: ['SAP FICO', 'Python'], location: 'Chicago' },
     { name: 'Ajay Kumar', skills: ['.NET', 'Azure'], location: 'Dallas' },
   ]
@@ -75,7 +75,7 @@ describe('DataTable search filter', () => {
   it('filters by name', () => {
     const filtered = consultants.filter(r => searchFilter(r, 'ravi'))
     expect(filtered).toHaveLength(1)
-    expect(filtered[0].name).toBe('Ravi Patel')
+    expect(filtered[0].name).toBe('Ravi Purohit')
   })
 
   it('filters by skill', () => {

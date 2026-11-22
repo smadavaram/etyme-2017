@@ -40,7 +40,7 @@ import { everyDoorView, copyOfPartyPage } from '@/lib/public-site/parties'
 import type { MapView, RoleMap } from '@/lib/public-site/corvane-map'
 import type { FirmTuesday } from '@/lib/money/firm-today'
 import {
-  teleworldMap, brightmoorMap, techpepleMap, helenaMap, byrneMap, aptivaMap, doorMap, doorSeatHref, doorSeatOf,
+  tellisfordMap, brightmoorMap, tecwynMap, helenaMap, byrneMap, aptivaMap, doorMap, doorSeatHref, doorSeatOf,
   copyOfDoorMap, defaultCopyOfDoorMap, DOOR_MAPS, DOOR_SEATS, ON_THE_DEMO, READ_LIVE,
 } from '@/lib/public-site/door-maps'
 import {
@@ -116,9 +116,9 @@ const FULL_BRIGHTMOOR: DoorFacts = {
       { name: 'A Fifth Person', at: 'Another Client', hours: 40, amount: 516_000 },
     ],
   })),
-  receipt: { number: SEED.BILLS_FROM_BELOW.techpeple.number, from: 'Techpeple', totalMinor: 1_888_000, dueInDays: 25 },
+  receipt: { number: SEED.BILLS_FROM_BELOW.tecwyn.number, from: 'Tecwyn', totalMinor: 1_888_000, dueInDays: 25 },
 }
-const FULL_TELEWORLD: DoorFacts = {
+const FULL_TELLISFORD: DoorFacts = {
   firm: firmLive(tuesday({
     people: [{ name: 'Felix Brenner', at: 'Northbend Athletic', rate: 13_200 }],
     weeks: [
@@ -154,8 +154,8 @@ const FULL_PROGRAM: DoorFacts = { ...NO_FACTS, program: programLive(PROGRAM_INVO
 
 describe('Every value a door map copies from the seed is the value the seed file writes', () => {
 
-  it('Teleworld’s three running lines are the seed’s: Felix Brenner off in 18 days and free then, Amara Nwosu off in 25 and kept until 45, Deepa Varma on Harlow Health for 240', () => {
-    for (const l of SEED.TELEWORLD_LINES) {
+  it('Tellisford’s three running lines are the seed’s: Felix Brenner off in 18 days and free then, Amara Nwosu off in 25 and kept until 45, Deepa Varma on Harlow Health for 240', () => {
+    for (const l of SEED.TELLISFORD_LINES) {
       const release = l.release ? `, release: \\{ keepUntil: ${l.release.keepUntil} \\}` : ','
       const re = new RegExp(
         `person: '${esc(l.person)}', client: '${l.client}', site: \\{[^}]*city: '${esc(l.city)}'[^}]*\\},\\s*` +
@@ -163,41 +163,41 @@ describe('Every value a door map copies from the seed is the value the seed file
       )
       expect(MOVES, l.person).toMatch(re)
     }
-    expect((MOVES.match(/^\s+person: '/gm) ?? []).length, 'the map reads every line the seed writes').toBe(SEED.TELEWORLD_LINES.length)
+    expect((MOVES.match(/^\s+person: '/gm) ?? []).length, 'the map reads every line the seed writes').toBe(SEED.TELLISFORD_LINES.length)
   })
 
-  it('the firms and the people in their seats are the seed’s: Teleworld’s owner, Brightmoor’s four, Techpeple’s owner and recruiter, Teleworld’s AP & Payroll clerk and its own four people', () => {
+  it('the firms and the people in their seats are the seed’s: Tellisford’s owner, Brightmoor’s four, Tecwyn’s owner and recruiter, Tellisford’s AP & Payroll clerk and its own four people', () => {
     for (const [slug, name] of Object.entries(SEED.FIRM_NAMES)) expect(WORLD, slug).toMatch(new RegExp(`slug: '${slug}',\\s+name: '${esc(name)}',`))
     for (const [slug, who] of Object.entries(SEED.FIRST_SEAT)) expect(WORLD, slug).toMatch(new RegExp(`slug: '${slug}',\\s+name: '[^']+',[^}]*who: '${esc(who)}' \\}`))
     const team = WORLD.slice(WORLD.indexOf('const SUPPLIER_TEAM'), WORLD.indexOf('const BENCH_FIRM_TEAM'))
     for (const [desk, name] of Object.entries(SEED.BRIGHTMOOR_TEAM)) expect(team, desk).toMatch(new RegExp(`desk: '${desk}',\\s+role: '[^']+',\\s+name: '${esc(name)}'`))
     const bench = WORLD.slice(WORLD.indexOf('const BENCH_FIRM_TEAM'), WORLD.indexOf('let supplierDesks'))
-    expect(bench).toMatch(new RegExp(`desk: 'recruiter',\\s+role: 'Recruiter',\\s+name: '${SEED.TECHPEPLE_RECRUITER}'`))
-    expect(WORLD).toMatch(new RegExp(`firm: 'teleworld',\\s+clerk: '${SEED.TELEWORLD_PAYROLL}'`))
-    const staff = WORLD.slice(WORLD.indexOf("{ slug: 'teleworld', team: ["), WORLD.indexOf("{ slug: 'sundara', team: ["))
-    expect([...staff.matchAll(/name: '([^']+)'/g)].map((m) => m[1])).toEqual([...SEED.TELEWORLD_STAFF])
+    expect(bench).toMatch(new RegExp(`desk: 'recruiter',\\s+role: 'Recruiter',\\s+name: '${SEED.TECWYN_RECRUITER}'`))
+    expect(WORLD).toMatch(new RegExp(`firm: 'tellisford',\\s+clerk: '${SEED.TELLISFORD_PAYROLL}'`))
+    const staff = WORLD.slice(WORLD.indexOf("{ slug: 'tellisford', team: ["), WORLD.indexOf("{ slug: 'sundara', team: ["))
+    expect([...staff.matchAll(/name: '([^']+)'/g)].map((m) => m[1])).toEqual([...SEED.TELLISFORD_STAFF])
   })
 
   it('Karthik Menon’s ended line, Corveldt’s open job, Meera Balakrishnan’s second round and Ifeoma Balogun’s screen and I-9 are the seed’s', () => {
     const k = SEED.KARTHIK_LINE
     expect(DOORS).toMatch(new RegExp(
-      `personId: karthik\\.id,\\s+sellerSlug: 'teleworld',\\s+clientSlug: '${k.client}',[\\s\\S]*?role: '${k.job}',\\s+` +
+      `personId: karthik\\.id,\\s+sellerSlug: 'tellisford',\\s+clientSlug: '${k.client}',[\\s\\S]*?role: '${k.job}',\\s+` +
       `skills: \\[${k.skills.map((x) => `'${esc(x)}'`).join(', ')}\\],[\\s\\S]*?billRate: ${us(k.bill)},`,
     ))
     const j = SEED.CORVELDT_JOB
     expect(WORLD).toMatch(new RegExp(`title: '${esc(j.title)}'`))
     // Read from the seed's own export since 2026-10-28.
     expect(PAYROLL_INVITATION_BAND.payMin).toBe(j.payMin)
-    expect(PAYROLL_INVITATION_BAND.payMax.teleworld).toBe(j.payMax)
+    expect(PAYROLL_INVITATION_BAND.payMax.tellisford).toBe(j.payMax)
     expect(WORLD).toMatch(new RegExp(`role: '${esc(j.title)}'[^\\n]*\\n\\s*loc: '${j.city}, KS'`))
     const meera = WORLD.slice(WORLD.indexOf(`name: '${SEED.MEERA.name}'`))
-    expect(WORLD).toMatch(new RegExp(`client: '${j.client}', prime: 'teleworld', bench: '${SEED.MEERA.bench}',\\s+name: '${SEED.MEERA.name}'`))
+    expect(WORLD).toMatch(new RegExp(`client: '${j.client}', prime: 'tellisford', bench: '${SEED.MEERA.bench}',\\s+name: '${SEED.MEERA.name}'`))
     expect(meera.slice(0, meera.indexOf('name:', 10))).toMatch(new RegExp(`round: ${SEED.MEERA.round}, stage: '\\w+', mode: '\\w+', state: 'CONFIRMED',\\s+inDays: ${SEED.MEERA.inDays},`))
     const i = SEED.IFEOMA
-    expect(WORLD).toMatch(new RegExp(`role: '${i.job}'[\\s\\S]{0,160}prime: '${i.prime}', bench: 'techpeple',\\s+name: '${i.name}'`))
+    expect(WORLD).toMatch(new RegExp(`role: '${i.job}'[\\s\\S]{0,160}prime: '${i.prime}', bench: 'tecwyn',\\s+name: '${i.name}'`))
     const ifeoma = WORLD.slice(WORLD.indexOf(`name: '${i.name}'`))
     expect(ifeoma.slice(0, ifeoma.indexOf('name:', 10))).toMatch(new RegExp(`round: 1, stage: 'SCREEN', mode: 'PHONE', state: 'CONFIRMED',\\s+inDays: ${i.screenInDays},`))
-    expect(DOORS).toMatch(new RegExp(`companySlug: 'techpeple',\\s+name: 'I-9[^']*',[\\s\\S]{0,120}personId: ifeoma\\.id,\\s+sentDaysAgo: ${i.i9AskedDaysAgo},`))
+    expect(DOORS).toMatch(new RegExp(`companySlug: 'tecwyn',\\s+name: 'I-9[^']*',[\\s\\S]{0,120}personId: ifeoma\\.id,\\s+sentDaysAgo: ${i.i9AskedDaysAgo},`))
   })
 
   it('Rosa Delgado’s job, Marisol Quintero’s ask onto Brightmoor’s bench and the two invoices from below are the seed’s', () => {
@@ -255,16 +255,16 @@ describe('Every value a door map copies from the seed is the value the seed file
   })
 })
 
-// ── Teleworld Solutions: the integrators' door ────────────────────────
+// ── Tellisford Solutions: the integrators' door ────────────────────────
 
-describe('The integrators’ map is Teleworld Solutions’ own book, read as its four roles', () => {
-  const M = teleworldMap(NO_FACTS)
-  const felix = SEED.TELEWORLD_LINES[0]
-  const amara = SEED.TELEWORLD_LINES[1]
-  const deepa = SEED.TELEWORLD_LINES[2]
+describe('The integrators’ map is Tellisford Solutions’ own book, read as its four roles', () => {
+  const M = tellisfordMap(NO_FACTS)
+  const felix = SEED.TELLISFORD_LINES[0]
+  const amara = SEED.TELLISFORD_LINES[1]
+  const deepa = SEED.TELLISFORD_LINES[2]
 
-  it('the bar counts Teleworld’s 4 own people, 3 on client sites and 1 between projects', () => {
-    expect(M.bar).toBe('Teleworld Solutions · a sample integrator · 4 people of its own · 3 on client sites · 1 between projects')
+  it('the bar counts Tellisford’s 4 own people, 3 on client sites and 1 between projects', () => {
+    expect(M.bar).toBe('Tellisford Solutions · a sample integrator · 4 people of its own · 3 on client sites · 1 between projects')
   })
 
   it('the four tabs are the two delivery managers by city, HR and AP & Payroll, each seated by the seed’s own name', () => {
@@ -272,7 +272,7 @@ describe('The integrators’ map is Teleworld Solutions’ own book, read as its
     expect(view(M, 'tualatin').signed).toContain(MOVE_DESKS.portland.name)
     expect(view(M, 'sanjose').signed).toContain(MOVE_DESKS.sanJose.name)
     expect(view(M, 'hr').signed).toContain(MOVE_DESKS.hr.name)
-    expect(view(M, 'payroll').signed).toContain(SEED.TELEWORLD_PAYROLL)
+    expect(view(M, 'payroll').signed).toContain(SEED.TELLISFORD_PAYROLL)
   })
 
   it('Ingrid Solberg reads Felix Brenner off Northbend Athletic in 18 days and free then, Amara Nwosu off in 25 and kept until 45, and $40,960 a month: $132 and $124 an hour at 160 hours', () => {
@@ -288,11 +288,11 @@ describe('The integrators’ map is Teleworld Solutions’ own book, read as its
     expect(cells(v)).toEqual(expect.arrayContaining(['$132', '$86', '$124', '$81', 'in 18 days', 'in 25 days']))
   })
 
-  it('Rahul Deshpande reads Karthik Menon free now, Felix Brenner free in 18 days, Corveldt Aerospace’s DO-178C job at $130–$145 and Meera Balakrishnan’s second round in 2 days', () => {
+  it('Rahul Dandekar reads Karthik Menon free now, Felix Brenner free in 18 days, Corveldt Aerospace’s DO-178C job at $130–$145 and Meera Balakrishnan’s second round in 2 days', () => {
     const v = view(M, 'sanjose')
     expect(v.headline).toBe(
       'Karthik Menon is free now, and Felix Brenner is free in 18 days. ' +
-      'Corveldt Aerospace’s DO-178C verification engineer job is open to Teleworld Solutions at $130–$145.',
+      'Corveldt Aerospace’s DO-178C verification engineer job is open to Tellisford Solutions at $130–$145.',
     )
     expect(stat(v, 'Your people on site').sub).toBe(`${deepa.person}, ${nameOf(deepa.client)}`)
     expect(stat(v, 'Interview booked').sub).toBe('Meera Balakrishnan, round 2 in 2 days')
@@ -317,11 +317,11 @@ describe('The integrators’ map is Teleworld Solutions’ own book, read as its
   })
 })
 
-// ── Brightmoor Staffing and Techpeple: the suppliers' door ────────────
+// ── Brightmoor Staffing and Tecwyn: the suppliers' door ────────────
 
-describe('The suppliers’ map is Brightmoor’s book on Prime vendor and Techpeple’s on Sub-vendor and Bench vendor', () => {
+describe('The suppliers’ map is Brightmoor’s book on Prime vendor and Tecwyn’s on Sub-vendor and Bench vendor', () => {
   const B = brightmoorMap(NO_FACTS)
-  const T = techpepleMap(NO_FACTS)
+  const T = tecwynMap(NO_FACTS)
 
   it('Brightmoor’s four tabs are its owner, account manager, accounts receivable and AP & Payroll, each the person the seed seats there', () => {
     expect(B.views.map((v) => v.tab)).toEqual(['Owner', 'Account manager', 'Accounts receivable', 'AP & Payroll'])
@@ -371,8 +371,8 @@ describe('The suppliers’ map is Brightmoor’s book on Prime vendor and Techpe
     expect(view(B, 'ar').headline).toContain('Omar Haddad’s bill to Northbend Athletic is paid.')
   })
 
-  it('Techpeple’s owner bills Computer Systems Inc $118 and pays Helena Marsh $90, and its recruiter’s seat shows no rate at all', () => {
-    expect(HELENA.via).toEqual(['nike', 'computer-systems', 'techpeple'])
+  it('Tecwyn’s owner bills Computer Systems Inc $118 and pays Helena Marsh $90, and its recruiter’s seat shows no rate at all', () => {
+    expect(HELENA.via).toEqual(['nike', 'computer-systems', 'tecwyn'])
     expect(HELENA.rates).toEqual([14_500, 11_800, 9_000])
     const owner = view(T, 'owner')
     expect(stat(owner, 'You bill').value).toBe('$118')
@@ -383,7 +383,7 @@ describe('The suppliers’ map is Brightmoor’s book on Prime vendor and Techpe
     expect(copyOfDoorMap({ ...T, views: [recruiter] }).join(' ')).not.toMatch(/\$\d/)
   })
 
-  it('Techpeple’s recruiter reads Ifeoma Balogun put forward to Computer Systems Inc, her phone screen in 3 days and her I-9 asked 6 days ago', () => {
+  it('Tecwyn’s recruiter reads Ifeoma Balogun put forward to Computer Systems Inc, her phone screen in 3 days and her I-9 asked 6 days ago', () => {
     expect(view(T, 'recruiter').headline).toBe(
       'Ifeoma Balogun is put forward to Computer Systems Inc for an Epic Beaker analyst job. ' +
       'Her phone screen is in 3 days, and her I-9 was asked for 6 days ago.',
@@ -464,9 +464,9 @@ describe('The MSPs’ map is Cavanaugh Glassworks’ program, read from the seat
     expect(stat(v, 'Submissions').sub).toBe('$90–$110 an hour')
   })
 
-  it('no supplier’s liability cover is drawn, because Halcyon Talent’s is written first by its own Meridian Bank chain and the program’s twelve days never land', () => {
+  it('no supplier’s liability cover is drawn, because Halcyon Talent’s is written first by its own Merrowfield Bank chain and the program’s twelve days never land', () => {
     expect(CAV.cover.halcyon.gl).toBe(12)
-    expect(WORLD).toMatch(/via: \['meridian-bank', 'halcyon'\]/)
+    expect(WORLD).toMatch(/via: \['merrowfield-bank', 'halcyon'\]/)
     for (const w of copyOfDoorMap(M)) expect(w, w).not.toMatch(/\bcover\b|\binsur/i)
   })
 
@@ -507,16 +507,16 @@ describe('The MSPs’ map is Cavanaugh Glassworks’ program, read from the seat
 // ── The workers' door ─────────────────────────────────────────────────
 
 describe('The workers’ map is one person’s own page per tab', () => {
-  it('Helena Marsh’s newest week is 40 hours waiting for Marcus Oyelaran and owed $3,600 once Techpeple accepts it; six months in, and the time limit counted the way the block counts it', () => {
+  it('Helena Marsh’s newest week is 40 hours waiting for Marcus Oyelaran and owed $3,600 once Tecwyn accepts it; six months in, and the time limit counted the way the block counts it', () => {
     const v = helenaMap().views[0]
     expect(Object.values(week(1).days).reduce((a, b) => a + b, 0)).toBe(40)
     expect(40 * HELENA.rates[2]).toBe(360_000)
-    expect(v.headline).toBe('Your newest week, 40 hours, waits for Marcus Oyelaran at Northbend Athletic. Once Techpeple accepts it, $3,600 is owed to you.')
+    expect(v.headline).toBe('Your newest week, 40 hours, waits for Marcus Oyelaran at Northbend Athletic. Once Tecwyn accepts it, $3,600 is owed to you.')
     expect(stat(v, 'Months here').value).toBe(String(monthsOf(HELENA.startedDaysAgo + 1)))
     expect(stat(v, 'Months here').sub).toBe(`${daysFor(NORTHBEND.governance.tenureCapMonths) - (HELENA.startedDaysAgo + 1)} days to the time limit`)
     expect(HELENA.weeks).toEqual({ approved: 3, awaiting: 1 })
     expect(v.rows.map((r) => r[2].t)).toEqual(['waiting for Marcus', 'signed', 'signed', 'signed'])
-    expect(v.caption).toContain('Northbend Athletic, then Computer Systems Inc, then Techpeple, who employs you.')
+    expect(v.caption).toContain('Northbend Athletic, then Computer Systems Inc, then Tecwyn, who employs you.')
     // Earlier weeks are signed; whether each is paid is on her page, not said here.
     for (const w of copyOfDoorMap(helenaMap())) expect(w, w).not.toMatch(/\bpaid\b/i)
   })
@@ -547,11 +547,11 @@ describe('The workers’ map is one person’s own page per tab', () => {
 
 describe('The live figures are read, bounded, and never guessed', () => {
   it('with no live read, every live figure says it is on the demo, and no sum of signed weeks or invoice is drawn', () => {
-    for (const m of [teleworldMap(NO_FACTS), brightmoorMap(NO_FACTS), techpepleMap(NO_FACTS)]) {
+    for (const m of [tellisfordMap(NO_FACTS), brightmoorMap(NO_FACTS), tecwynMap(NO_FACTS)]) {
       const live = m.views.flatMap((v) => v.stats).filter((s) => /Signed, not billed|Billing this month|Invoice receipt|Your invoice|On a drafted bill/.test(s.label) && s.value === '—')
       for (const s of live) expect(s.sub, s.label).toContain(ON_THE_DEMO)
     }
-    expect(view(teleworldMap(NO_FACTS), 'payroll').headline).not.toMatch(/not billed|invoice/)
+    expect(view(tellisfordMap(NO_FACTS), 'payroll').headline).not.toMatch(/not billed|invoice/)
     expect(view(brightmoorMap(NO_FACTS), 'owner').headline).not.toMatch(/not billed/)
   })
 
@@ -565,9 +565,9 @@ describe('The live figures are read, bounded, and never guessed', () => {
     const ar = view(brightmoorMap(FULL_BRIGHTMOOR), 'ar')
     expect(ar.headline).toContain('1 week is on a drafted bill waiting for your yes.')
     expect(ar.rows[0].map((c) => c.t)).toEqual(['Rosa Delgado', 'Northbend Athletic', '30 weeks', '$134,400', 'signed, bill it'])
-    const pay = view(teleworldMap(FULL_TELEWORLD), 'payroll')
+    const pay = view(tellisfordMap(FULL_TELLISFORD), 'payroll')
     expect(pay.headline).toContain('Nimbus Talent’s invoice NT-2026-1190, $4,640, is received and due in 25 days.')
-    expect(view(techpepleMap(FULL_BRIGHTMOOR), 'owner').headline).toContain('Your invoice CE-2026-0418 to Computer Systems Inc, $18,880, is due in 25 days.')
+    expect(view(tecwynMap(FULL_BRIGHTMOOR), 'owner').headline).toContain('Your invoice CE-2026-0418 to Computer Systems Inc, $18,880, is due in 25 days.')
   })
 
   it('a total in another currency, or with a week the generator would leave off, is not said as one dollar figure', () => {
@@ -592,7 +592,7 @@ describe('The live figures are read, bounded, and never guessed', () => {
     ({ id: `id-${slug}`, slug, domain: null, seatEmails: [`world-x@demo.etyme.local`, 'rosa.delgado@seed.etyme.invalid'], ...over })
 
   it('each door reads its own firm by its demo slug and the invoice from below by the number and payer the seed wrote, and counts days to its due day', async () => {
-    expect(LIVE_READS.integrators.firm).toBe('world-teleworld')
+    expect(LIVE_READS.integrators.firm).toBe('world-tellisford')
     expect(LIVE_READS.suppliers.firm).toBe('world-brightmoor')
     const asked: string[] = []
     const reader: FactsReader = {
@@ -601,7 +601,7 @@ describe('The live figures are read, bounded, and never guessed', () => {
       receipt: async (payerId, number) => { asked.push(`${payerId} ${number}`); return { totalCents: 464_000, dueAt: new Date('2026-11-22T00:00:00Z'), vendorName: 'Nimbus Talent' } },
     }
     const f = await doorFacts('integrators', reader, 500, new Date('2026-10-28T15:00:00Z'))
-    expect(asked.sort()).toEqual(['id-world-teleworld NT-2026-1190', 'world-teleworld', 'world-teleworld'])
+    expect(asked.sort()).toEqual(['id-world-tellisford NT-2026-1190', 'world-tellisford', 'world-tellisford'])
     expect(f.receipt).toEqual({ number: 'NT-2026-1190', from: 'Nimbus Talent', totalMinor: 464_000, dueInDays: 25 })
     expect(f.firm).toBeNull()
   })
@@ -681,19 +681,19 @@ describe('Each door draws its own map under the hero, in its own roles, at its o
   const draw = (slug: 'integrators' | 'suppliers' | 'contractors' | 'program-offices', q: { tab?: string; seat?: string } = {}) =>
     renderToStaticMarkup(createElement(PartyPageView, { slug, params: { searchParams: q } }))
 
-  it('the integrators’ door draws Teleworld, the suppliers’ door Brightmoor on Prime vendor and Techpeple on Sub-vendor and Bench vendor, the workers’ door one person per tab, and the MSPs’ door Aptiva in Cavanaugh’s program', () => {
+  it('the integrators’ door draws Tellisford, the suppliers’ door Brightmoor on Prime vendor and Tecwyn on Sub-vendor and Bench vendor, the workers’ door one person per tab, and the MSPs’ door Aptiva in Cavanaugh’s program', () => {
     expect(Object.fromEntries(Object.entries(DOOR_MAPS).map(([k, v]) => [k, v.map]))).toEqual({
-      '/for/integrators': 'teleworld',
+      '/for/integrators': 'tellisford',
       '/for/suppliers': 'brightmoor',
-      '/for/suppliers?tab=sub': 'techpeple',
-      '/for/suppliers?tab=bench': 'techpeple',
+      '/for/suppliers?tab=sub': 'tecwyn',
+      '/for/suppliers?tab=bench': 'tecwyn',
       '/for/contractors': 'helena',
       '/for/contractors?tab=solo': 'byrne',
       '/for/program-offices': 'aptiva',
     })
-    expect(draw('integrators')).toContain(teleworldMap(NO_FACTS).bar)
+    expect(draw('integrators')).toContain(tellisfordMap(NO_FACTS).bar)
     expect(draw('suppliers')).toContain(brightmoorMap(NO_FACTS).bar.replace(/&/g, '&amp;'))
-    expect(draw('suppliers', { tab: 'sub' })).toContain(techpepleMap(NO_FACTS).bar)
+    expect(draw('suppliers', { tab: 'sub' })).toContain(tecwynMap(NO_FACTS).bar)
     expect(draw('contractors', { tab: 'solo' })).toContain(byrneMap().bar)
     expect(draw('program-offices')).toContain(aptivaMap(NO_FACTS).bar)
     expect(draw('program-offices', { seat: 'ap' })).toMatch(/data-map-seat="ap" class=/)
@@ -713,7 +713,7 @@ describe('Each door draws its own map under the hero, in its own roles, at its o
     }
   })
 
-  it('Sub-vendor opens Techpeple at its owner and Bench vendor at its recruiter, the people their panels play', () => {
+  it('Sub-vendor opens Tecwyn at its owner and Bench vendor at its recruiter, the people their panels play', () => {
     expect(DOOR_MAPS['/for/suppliers?tab=sub'].seat).toBe('owner')
     expect(DOOR_MAPS['/for/suppliers?tab=bench'].seat).toBe('recruiter')
     expect(draw('suppliers', { tab: 'bench' })).toMatch(/data-map-seat="recruiter" class=/)
@@ -724,8 +724,8 @@ describe('Each door draws its own map under the hero, in its own roles, at its o
     expect(doorSeatHref('/for/integrators', 'tualatin', 'tualatin')).toBe('/for/integrators')
     expect(doorSeatHref('/for/integrators', 'hr', 'tualatin')).toBe('/for/integrators?seat=hr')
     expect(doorSeatHref('/for/suppliers?tab=sub', 'recruiter', 'owner')).toBe('/for/suppliers?tab=sub&seat=recruiter')
-    expect(doorSeatOf('techpeple', 'owner', 'nonsense')).toBe('owner')
-    expect(doorSeatOf('techpeple', 'owner', ['recruiter'])).toBe('recruiter')
+    expect(doorSeatOf('tecwyn', 'owner', 'nonsense')).toBe('owner')
+    expect(doorSeatOf('tecwyn', 'owner', ['recruiter'])).toBe('recruiter')
     const html = draw('suppliers', { tab: 'sub', seat: 'recruiter' })
     expect(html).toContain('href="/for/suppliers?tab=sub&amp;seat=recruiter"')
     expect(html).toContain('href="/for/suppliers?tab=sub"')
@@ -734,12 +734,12 @@ describe('Each door draws its own map under the hero, in its own roles, at its o
     expect(html).toMatch(/aria-current="true"[^>]*>Recruiter</)
     expect(html).toMatch(/data-map-seat="recruiter" class=/)
     expect(html).toMatch(/data-map-seat="owner" hidden=""/)
-    // The door's own tabs still link without a seat.
-    expect(html).toContain('href="/for/suppliers?tab=bench"')
+    // The door's own tabs still link without a seat, to each tab's plain address (2026-11-22).
+    expect(html).toContain('href="/for/bench"')
   })
 
   it('every “Open the demo as” on a map seats a desk the demo door knows, as the person the map names', () => {
-    for (const m of [teleworldMap(NO_FACTS), brightmoorMap(NO_FACTS), techpepleMap(NO_FACTS)]) {
+    for (const m of [tellisfordMap(NO_FACTS), brightmoorMap(NO_FACTS), tecwynMap(NO_FACTS)]) {
       for (const v of m.views) {
         const t = v.demo.target as { as: string; desk: string; who?: string; seat: string }
         expect(v.demo.label).toBe(`Open the demo as ${t.seat}`)
@@ -763,7 +763,7 @@ describe('Each door draws its own map under the hero, in its own roles, at its o
       for (const role of ['Supplier Manager', 'Coordinator']) expect(Object.values(DESK_ROLES).flat()).not.toContain(role)
     }
     // The two delivery managers share a desk, so each link names its person.
-    const tw = teleworldMap(NO_FACTS)
+    const tw = tellisfordMap(NO_FACTS)
     expect((view(tw, 'tualatin').demo.target as { who: string }).who).toBe(MOVE_DESKS.portland.name)
     expect((view(tw, 'sanjose').demo.target as { who: string }).who).toBe(MOVE_DESKS.sanJose.name)
     expect((helenaMap().views[0].demo.target as { person: string }).person).toBe('helena-marsh')
@@ -774,10 +774,10 @@ describe('Each door draws its own map under the hero, in its own roles, at its o
 // ── What a door may say ──────────────────────────────────────────────
 
 const EVERY_MAP: [string, RoleMap, string][] = [
-  ['/for/integrators', teleworldMap(FULL_TELEWORLD), 'tualatin'],
+  ['/for/integrators', tellisfordMap(FULL_TELLISFORD), 'tualatin'],
   ['/for/suppliers', brightmoorMap(FULL_BRIGHTMOOR), 'owner'],
-  ['/for/suppliers?tab=sub', techpepleMap(FULL_BRIGHTMOOR), 'owner'],
-  ['/for/suppliers?tab=bench', techpepleMap(FULL_BRIGHTMOOR), 'recruiter'],
+  ['/for/suppliers?tab=sub', tecwynMap(FULL_BRIGHTMOOR), 'owner'],
+  ['/for/suppliers?tab=bench', tecwynMap(FULL_BRIGHTMOOR), 'recruiter'],
   ['/for/contractors', helenaMap(), 'worker'],
   ['/for/contractors?tab=solo', byrneMap(), 'solo'],
   ['/for/program-offices', aptivaMap(FULL_PROGRAM), 'pm'],

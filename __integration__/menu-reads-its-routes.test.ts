@@ -11,7 +11,7 @@ import { POST as confirmStart } from '@/app/api/onboarding/confirm-start/route'
 
 /**
  * The menu hides a link its route refuses, so the route has to refuse.
- * Karthik Menon, a Teleworld delivery engineer holding
+ * Karthik Menon, a Tellisford delivery engineer holding
  * assignments.read and timesheets.read, was shown Automation,
  * Integrations, Import and Setup — and every one of them opened for him,
  * the journal export included. Each now asks for the permission its
@@ -21,7 +21,7 @@ import { POST as confirmStart } from '@/app/api/onboarding/confirm-start/route'
 type Seat = { id: string; personId: string; email: string }
 let karthik: Seat
 let owner: Seat
-let teleworldId = ''
+let tellisfordId = ''
 
 async function call(seat: Seat, fn: any, method: string, url: string, body?: unknown, params?: unknown) {
   as(seat.email)
@@ -36,15 +36,15 @@ describe("a delivery engineer's menu and the routes behind it agree", () => {
       where: { person: { name: 'Karthik Menon' }, type: 'EMPLOYEE', revokedAt: null },
       include: { person: true, role: true },
     })
-    teleworldId = k.companyId!
+    tellisfordId = k.companyId!
     // The seat the walk found: two read permissions and nothing else.
     const role = await prisma.role.create({
-      data: { companyId: teleworldId, name: 'Delivery engineer (menu test)', permissions: ['assignments.read', 'timesheets.read'] },
+      data: { companyId: tellisfordId, name: 'Delivery engineer (menu test)', permissions: ['assignments.read', 'timesheets.read'] },
     })
     await prisma.context.update({ where: { id: k.id }, data: { roleId: role.id } })
     karthik = { id: k.id, personId: k.personId, email: k.person.primaryEmail }
     const ctxs = await prisma.context.findMany({
-      where: { companyId: teleworldId, type: 'EMPLOYEE', role: { isNot: null } },
+      where: { companyId: tellisfordId, type: 'EMPLOYEE', role: { isNot: null } },
       include: { role: true, person: true },
     })
     const o = ctxs.find((c) => c.role!.permissions.includes('*'))!
@@ -61,13 +61,13 @@ describe("a delivery engineer's menu and the routes behind it agree", () => {
     ]
     for (const r of refusals) {
       expect(r.status).toBe(403)
-      expect(r.body.error.message).toMatch(/Teleworld/)
+      expect(r.body.error.message).toMatch(/Tellisford/)
       expect(r.body.error.message).not.toMatch(/\b[a-z]+\.(read|write|issue|manage)\b/)
     }
   })
 
   it("nobody who happens to be signed in can send the company's journal to its books", async () => {
-    const sent = () => prisma.journalEntry.count({ where: { companyId: teleworldId, exportedAt: { not: null } } })
+    const sent = () => prisma.journalEntry.count({ where: { companyId: tellisfordId, exportedAt: { not: null } } })
     const before = await sent()
     const r = await call(karthik, exportPost, 'POST', '/api/integrations/export', { system: 'CSV' })
     expect(r.status).toBe(403)
@@ -76,13 +76,13 @@ describe("a delivery engineer's menu and the routes behind it agree", () => {
 
   it('a delivery engineer cannot reverse what the system did, nor confirm somebody else started on site', async () => {
     const entry = await prisma.automationLog.create({
-      data: { companyId: teleworldId, action: 'TEST_ACTION', summary: 'A test entry', reason: 'Menu test', payload: {}, reversible: true },
+      data: { companyId: tellisfordId, action: 'TEST_ACTION', summary: 'A test entry', reason: 'Menu test', payload: {}, reversible: true },
     })
     const r = await call(karthik, reverse, 'POST', `/api/automation/${entry.id}/reverse`, undefined, { id: entry.id })
     expect(r.status).toBe(403)
     expect((await prisma.automationLog.findUniqueOrThrow({ where: { id: entry.id } })).reversedAt).toBeNull()
 
-    const line = await prisma.sellContract.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: teleworldId, startConfirmedAt: null } })
+    const line = await prisma.sellContract.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: tellisfordId, startConfirmedAt: null } })
     if (line) {
       const c = await call(karthik, confirmStart, 'POST', '/api/onboarding/confirm-start', { contractId: line.id })
       expect(c.status).toBe(403)

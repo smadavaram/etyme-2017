@@ -5,15 +5,15 @@
  * against the world they claim to describe. A seat that names a company
  * the seed does not build is a demo page that 404s on a click, and the
  * founder found exactly that: he was told to open /demo and sit at
- * Teleworld, and Teleworld was not on the page at all.
+ * Tellisford, and Tellisford was not on the page at all.
  *
  * Everything here is true of the seeded world (lib/seed-world,
  * lib/seed-programmes) and `__integration__/demo-seats.test.ts` walks
  * every slug below into a real company of the kind the words claim.
  *
  * `slug` is the company slug in the seeded world — the seed writes every
- * firm with a `world-` prefix, so `teleworld` in the seed list is
- * `world-teleworld` here, which is what POST /api/demo accepts.
+ * firm with a `world-` prefix, so `tellisford` in the seed list is
+ * `world-tellisford` here, which is what POST /api/demo accepts.
  *
  * The slugs and the names deliberately disagree. Three of these firms
  * were named after real enterprises, which on a public page reads as
@@ -163,7 +163,7 @@ export interface ClientDesk {
   /** What is on that desk when they get there. */
   waiting: string
   /**
-   * The person at the desk, where more than one holds it. Teleworld seats
+   * The person at the desk, where more than one holds it. Tellisford seats
    * two delivery managers, and the move between them is the story: one
    * releases in Tualatin, the other takes the person in San Jose. A desk
    * key alone opens whoever was seated first, so the second was out of
@@ -287,8 +287,8 @@ export const SUPPLIER_SEATS: Program[] = [
       'vendor below, and keeps the difference in rate.',
   },
   {
-    slug: 'world-techpeple',
-    name: 'Techpeple',
+    slug: 'world-tecwyn',
+    name: 'Tecwyn',
     where: 'Sub-vendor',
     industry: 'IT consulting · finance and lab systems',
     waiting: 'Its consultant is shortlisted, with a screening call booked.',
@@ -407,8 +407,8 @@ export const PROGRAM_OFFICE_SEATS: Program[] = [
  */
 export const INTEGRATOR_SEATS: Program[] = [
   {
-    slug: 'world-teleworld',
-    name: 'Teleworld Solutions',
+    slug: 'world-tellisford',
+    name: 'Tellisford Solutions',
     where: 'Systems integrator',
     industry: 'IT services · aerospace software',
     waiting:
@@ -416,15 +416,15 @@ export const INTEGRATOR_SEATS: Program[] = [
       'Submit him with no bench listing.',
     about:
       'Sunil Raghavan runs delivery and sells people from his own payroll. Four are between ' +
-      'projects; Karthik left an avionics project {karthikLeft}. Teleworld buys the engineer ' +
+      'projects; Karthik left an avionics project {karthikLeft}. Tellisford buys the engineer ' +
       'still on that project from a bench vendor, whose invoice is unpaid.',
     // The integrator's own moves are walked from a delivery manager's
     // desk: the testers could not reach one from this page (2026-10-03).
     desks: [
       { desk: 'delivery', who: 'Ingrid Solberg', label: 'Delivery manager, Tualatin',
         waiting: 'Ingrid Solberg is releasing people from the Tualatin project. Flag who comes off, and when.' },
-      { desk: 'delivery', who: 'Rahul Deshpande', label: 'Delivery manager, San Jose',
-        waiting: 'Rahul Deshpande needs one person in San Jose. Ask Ingrid, hold one, and place them.' },
+      { desk: 'delivery', who: 'Rahul Dandekar', label: 'Delivery manager, San Jose',
+        waiting: 'Rahul Dandekar needs one person in San Jose. Ask Ingrid, hold one, and place them.' },
       { desk: '', label: 'Owner',
         waiting: 'Everything, including a job to submit Karthik to with no bench listing.' },
     ],
@@ -628,6 +628,6 @@ export function fillDoors<T extends Program>(seats: T[], facts: DoorFacts, today
 export const FIRST_SUPPLIERS: string[] = [
   'world-brightmoor',
   'world-computer-systems',
-  'world-techpeple',
+  'world-tecwyn',
   'world-sorrelwood',
 ]

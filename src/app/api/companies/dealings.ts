@@ -105,7 +105,7 @@ export async function dealingsWithSides(
   // and its name is the prime's to keep unless the caller's agreement
   // with that prime requires disclosure (lib/chain-names). Listing it
   // here printed a sub-vendor on the client's Companies page with the
-  // term off: Northbend Athletic read Techpeple, Computer Systems' sub,
+  // term off: Northbend Athletic read Tecwyn, Computer Systems' sub,
   // on 2026-09-30.
   const below = sells.filter((c) => c.companyId !== me && c.clientCompanyId !== me)
   for (const c of sells) {

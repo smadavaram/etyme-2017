@@ -44,7 +44,7 @@ import { twinFor, keepNote, ownDomainsFor } from '@/app/api/companies/twins'
  * invisible to the network, and is never counted as a company that chose
  * to be here. And where the firm is already on the platform under its own
  * name, the client is attached to the real one rather than a second copy
- * — the second client to list Techpeple must reach the same Techpeple.
+ * — the second client to list Tecwyn must reach the same Tecwyn.
  */
 
 export async function GET(request: NextRequest) {
@@ -421,8 +421,8 @@ export async function POST(request: NextRequest) {
     // ── Which company this is, in three steps ───────────────────────
     //
     // 1. The real firm, already here under its own name and having
-    //    proved the domain. Attach to it — a second copy of Techpeple is
-    //    worse than no Techpeple: two scorecards, two histories, and a
+    //    proved the domain. Attach to it — a second copy of Tecwyn is
+    //    worse than no Tecwyn: two scorecards, two histories, and a
     //    consultant who is a duplicate of themselves.
     //
     // 2. A shell this same client already listed for that domain. Two
@@ -430,8 +430,8 @@ export async function POST(request: NextRequest) {
     //
     // 3. Otherwise a new shell — and it gets no `domain` at all. That
     //    column is globally unique and a pasted address proves nothing:
-    //    a client typing "techpeple.example" must not be able to take the
-    //    domain from the real Techpeple, be handed it, or collide with a
+    //    a client typing "tecwyn.example" must not be able to take the
+    //    domain from the real Tecwyn, be handed it, or collide with a
     //    stranger's sandbox. The domain is recorded on the invitation
     //    and moves onto the company when somebody signs in and claims it.
     //    The caller's own note of it (`website`, by `keepNote`) is kept
@@ -661,7 +661,9 @@ export async function POST(request: NextRequest) {
         letter.subject,
         letter.body,
         configuredSenders(),
-        new Date()
+        new Date(),
+        null,
+        { companyId, mail: { template: 'supplier-invitation', recordType: 'Company', recordId: supplier.id, actorPersonId: caller.person.id } },
       )
       delivery = { state: out.state, note: out.note }
       if (out.state === 'SENT') emailed++

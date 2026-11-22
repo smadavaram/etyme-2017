@@ -14,14 +14,14 @@ import { GET as listContracts, POST as writeContract } from '@/app/api/contracts
  * the prime gave it, read Sell contracts under the Buy contracts tab, and
  * an order raised by hand had no lines.
  *
- *   Computer Systems   the prime, on Etyme. Buys from Techpeple.
- *   Techpeple          the sub-vendor, on Etyme. Sells to Computer Systems.
- *   Halvard Partners   a prime not on Etyme, on Techpeple's register.
+ *   Computer Systems   the prime, on Etyme. Buys from Tecwyn.
+ *   Tecwyn          the sub-vendor, on Etyme. Sells to Computer Systems.
+ *   Halvard Partners   a prime not on Etyme, on Tecwyn's register.
  *   Auralis Software   on Etyme, trades with nobody here.
  */
 
 const CS = 'owner@cs.test'
-const TP = 'owner@techpeple.test'
+const TP = 'owner@tecwyn.test'
 const co = { cs: '', tp: '', halvard: '', auralis: '' }
 const who = { tpOwner: '', omar: '' }
 const ids = { csOrder: '', halvardOrder: '' }
@@ -42,7 +42,7 @@ async function company(name: string, slug: string, kind: any, email: string | nu
 beforeAll(async () => {
   await resetDatabase()
   co.cs = (await company('Computer Systems', 'computer-systems', 'VENDOR', CS)).companyId
-  const tp = await company('Techpeple', 'techpeple', 'VENDOR', TP)
+  const tp = await company('Tecwyn', 'tecwyn', 'VENDOR', TP)
   co.tp = tp.companyId
   who.tpOwner = tp.personId
   co.auralis = (await company('Auralis Software', 'auralis-software', 'VENDOR', 'owner@auralis.test')).companyId
@@ -51,7 +51,7 @@ beforeAll(async () => {
   })
   co.halvard = halvard.id
 
-  // The two primes on Techpeple's register, and Techpeple on Computer
+  // The two primes on Tecwyn's register, and Tecwyn on Computer
   // Systems' as a supplier, with the unsigned placeholder the suppliers
   // route writes beside it.
   for (const [companyId, otherCompanyId, relationship] of [
@@ -61,9 +61,9 @@ beforeAll(async () => {
   }
   await prisma.masterAgreement.create({ data: { vendorId: co.tp, clientId: co.cs, paymentTerms: 30 } })
 
-  const omar = await prisma.person.create({ data: { name: 'Omar Haddad', primaryEmail: 'omar@techpeple.test' } })
+  const omar = await prisma.person.create({ data: { name: 'Omar Haddad', primaryEmail: 'omar@tecwyn.test' } })
   who.omar = omar.id
-  await prisma.context.create({ data: { personId: omar.id, companyId: co.tp, type: 'EMPLOYEE', grantReason: 'Techpeple employee' } })
+  await prisma.context.create({ data: { personId: omar.id, companyId: co.tp, type: 'EMPLOYEE', grantReason: 'Tecwyn employee' } })
 })
 
 describe('a sub-vendor records its agreement with a prime', () => {
@@ -71,7 +71,7 @@ describe('a sub-vendor records its agreement with a prime', () => {
     as(TP)
     const r = await json(await recordAgreement(req('POST', '/api/contracts/agreements', {
       otherCompanyId: co.cs, callerSells: true, paymentTerms: 45, paymentTermsFrom: 'INVOICE_DATE',
-      billFrequency: 'WEEKLY', currency: 'USD', executedFileUrl: 'https://files.example/techpeple-cs-msa.pdf',
+      billFrequency: 'WEEKLY', currency: 'USD', executedFileUrl: 'https://files.example/tecwyn-cs-msa.pdf',
     })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     // The placeholder the suppliers route wrote is filled in, not doubled.
@@ -80,13 +80,13 @@ describe('a sub-vendor records its agreement with a prime', () => {
     expect(r.body.data.message).toContain('billed weekly, net 45 from the invoice date, in USD')
     expect(await prisma.masterAgreement.count({ where: { vendorId: co.tp, clientId: co.cs } })).toBe(1)
     const row = await prisma.masterAgreement.findFirstOrThrow({ where: { vendorId: co.tp, clientId: co.cs } })
-    expect(row).toMatchObject({ paymentTerms: 45, paymentTermsFrom: 'INVOICE_DATE', billFrequency: 'WEEKLY', executedFileName: 'techpeple-cs-msa.pdf' })
+    expect(row).toMatchObject({ paymentTerms: 45, paymentTermsFrom: 'INVOICE_DATE', billFrequency: 'WEEKLY', executedFileName: 'tecwyn-cs-msa.pdf' })
     const trail = await prisma.masterAgreementVersion.findMany({ where: { agreementId: row.id }, orderBy: { version: 'asc' } })
     expect(trail.map((v) => v.action)).toEqual(['RECORDED', 'RECORDED'])
     expect(trail[1].changedById).toBe(who.tpOwner)
     expect(trail[1].paymentTerms).toBe(45)
 
-    for (const [email, other, role] of [[TP, 'Computer Systems', 'VENDOR'], [CS, 'Techpeple', 'CLIENT']] as const) {
+    for (const [email, other, role] of [[TP, 'Computer Systems', 'VENDOR'], [CS, 'Tecwyn', 'CLIENT']] as const) {
       as(email)
       const list = await json(await readAgreements(req('GET', '/api/program/agreements')))
       const mine = (list.body.data.agreements as any[]).find((a) => a.id === row.id)
@@ -138,7 +138,7 @@ describe('the order a prime gives a sub-vendor', () => {
     // The agreement set the terms the order did not state.
     expect(raised.body.data.order.paymentTerms).toBe(45)
 
-    // Techpeple writes its line onto that order by name.
+    // Tecwyn writes its line onto that order by name.
     as(TP)
     const line = await json(await writeContract(req('POST', '/api/contracts', {
       personId: who.omar, companyId: co.tp, clientCompanyId: co.cs, billRate: 9000,
@@ -172,10 +172,10 @@ describe('the order a prime gives a sub-vendor', () => {
 
   it('the firm\u2019s own line on an order shows what it bills at only to a desk that prices or bills it', async () => {
     const role = await prisma.role.create({ data: { companyId: co.tp, name: 'Reads orders', permissions: ['invoices.read'] } })
-    const p = await prisma.person.create({ data: { name: 'Tess Reader', primaryEmail: 'reader@techpeple.test' } })
+    const p = await prisma.person.create({ data: { name: 'Tess Reader', primaryEmail: 'reader@tecwyn.test' } })
     await prisma.context.create({ data: { personId: p.id, companyId: co.tp, roleId: role.id, type: 'EMPLOYEE', grantReason: 'reads orders only' } })
 
-    as('reader@techpeple.test')
+    as('reader@tecwyn.test')
     const seen = (await json(await listOrders(req('GET', '/api/purchase-orders')))).body.data.orders
       .find((o: any) => o.id === ids.csOrder)
     const omar = seen.lines.find((l: any) => l.personName === 'Omar Haddad')

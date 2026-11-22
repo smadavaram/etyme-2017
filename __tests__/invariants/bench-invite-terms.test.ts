@@ -23,16 +23,16 @@ const listing = (over: Partial<{ termsEngagementType: string | null; termsPayRat
 
 describe('the terms on the invitation link', () => {
   it('a listing stating W2 at $90 reads, on the link, that the firm would pay $90/hr as its employee and that a yes agrees it', () => {
-    const t = inviteTerms(listing({ termsEngagementType: 'W2', termsPayRateCents: 9_000 }), 'Techpeple')
-    expect(t.says).toBe('Techpeple says it would pay you $90/hr, as its employee (W2), when it places you. Saying yes agrees these terms.')
+    const t = inviteTerms(listing({ termsEngagementType: 'W2', termsPayRateCents: 9_000 }), 'Tecwyn')
+    expect(t.says).toBe('Tecwyn says it would pay you $90/hr, as its employee (W2), when it places you. Saying yes agrees these terms.')
     expect(t.seen).toEqual({ engagementType: 'W2', payRateCents: 9_000, payCurrency: 'USD' })
   })
 
   it('a listing with no terms says so, and that a yes agrees only that they may put the person forward', () => {
-    const t = inviteTerms(listing(), 'Techpeple')
+    const t = inviteTerms(listing(), 'Tecwyn')
     expect(t.shown).toBeNull()
     expect(t.seen).toBeNull()
-    expect(t.says).toBe('Techpeple has not stated any pay terms yet. Saying yes agrees only that they may put you forward. It agrees no pay.')
+    expect(t.says).toBe('Tecwyn has not stated any pay terms yet. Saying yes agrees only that they may put you forward. It agrees no pay.')
   })
 
   it('terms the person already agreed read as agreed, not as a question', () => {
@@ -46,17 +46,17 @@ describe('the terms on the invitation link', () => {
       listing({ termsEngagementType: 'W2', termsPayRateCents: 0 }),
       listing({ termsEngagementType: 'SOMETHING', termsPayRateCents: 9_000 }),
     ]) {
-      expect(inviteTerms(odd, 'Techpeple').seen).toBeNull()
+      expect(inviteTerms(odd, 'Tecwyn').seen).toBeNull()
     }
   })
 
   it('what the link sends back with the yes is exactly what agrees the terms, and nothing else does', () => {
     const l = listing({ termsEngagementType: 'W2', termsPayRateCents: 9_000 })
-    const seen = inviteTerms(l, 'Techpeple').seen
-    const yes = agreeingTerms(l, seen, 'Techpeple', NOW)
+    const seen = inviteTerms(l, 'Tecwyn').seen
+    const yes = agreeingTerms(l, seen, 'Tecwyn', NOW)
     expect(yes).toMatchObject({ ok: true, agreed: true, data: { termsAgreedAt: NOW } })
-    expect(agreeingTerms(l, null, 'Techpeple', NOW).ok).toBe(false)
-    expect(agreeingTerms(l, { engagementType: 'W2', payRateCents: 8_000 }, 'Techpeple', NOW).ok).toBe(false)
+    expect(agreeingTerms(l, null, 'Tecwyn', NOW).ok).toBe(false)
+    expect(agreeingTerms(l, { engagementType: 'W2', payRateCents: 8_000 }, 'Tecwyn', NOW).ok).toBe(false)
   })
 })
 

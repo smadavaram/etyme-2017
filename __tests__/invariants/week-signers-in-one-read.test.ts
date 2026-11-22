@@ -14,7 +14,7 @@ const h = vi.hoisted(() => ({ queries: 0, ladderCalls: 0 }))
 // Omar's direct to Cavanaugh, and Ravi's at Talvern through a prime whose
 // client names an end client.
 const contracts: Record<string, Rung> = {
-  'sc-helena-sub': { sellContractId: 'sc-helena-sub', companyId: 'techpeple', clientCompanyId: 'brightmoor', endClientCompanyId: null, supplierSellContractId: null },
+  'sc-helena-sub': { sellContractId: 'sc-helena-sub', companyId: 'tecwyn', clientCompanyId: 'brightmoor', endClientCompanyId: null, supplierSellContractId: null },
   'sc-helena-top': { sellContractId: 'sc-helena-top', companyId: 'brightmoor', clientCompanyId: 'northbend', endClientCompanyId: null, supplierSellContractId: 'sc-helena-sub' },
   'sc-omar': { sellContractId: 'sc-omar', companyId: 'pinnacle', clientCompanyId: 'cavanaugh', endClientCompanyId: null, supplierSellContractId: null },
   'sc-ravi': { sellContractId: 'sc-ravi', companyId: 'tapin', clientCompanyId: 'aptiva', endClientCompanyId: 'talvern', supplierSellContractId: null },
@@ -25,7 +25,7 @@ const above: Record<string, Rung[]> = {
   'sc-ravi': [contracts['sc-ravi']],
 }
 const weeks: Record<string, string> = { 'ts-helena': 'sc-helena-sub', 'ts-omar': 'sc-omar', 'ts-ravi': 'sc-ravi' }
-const names: Record<string, string> = { northbend: 'Northbend Athletic', cavanaugh: 'Cavanaugh Glassworks', talvern: 'Talvern Medical', brightmoor: 'Brightmoor Staffing', techpeple: 'Techpeple', pinnacle: 'Pinnacle', tapin: 'Tapin', aptiva: 'Aptiva' }
+const names: Record<string, string> = { northbend: 'Northbend Athletic', cavanaugh: 'Cavanaugh Glassworks', talvern: 'Talvern Medical', brightmoor: 'Brightmoor Staffing', tecwyn: 'Tecwyn', pinnacle: 'Pinnacle', tapin: 'Tapin', aptiva: 'Aptiva' }
 
 const weekRow = (id: string) => {
   const sc = contracts[weeks[id]]

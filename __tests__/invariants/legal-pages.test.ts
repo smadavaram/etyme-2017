@@ -11,7 +11,6 @@ import {
   NOT_ABOUT_A_PERSON,
   OLD_ANCHORS,
   anchorsOn,
-  counselPointsIn,
   sectionOf,
   tableIn,
   wordsOf,
@@ -39,7 +38,12 @@ import { STAY_CHOICES } from '@/lib/bench-stay'
  *   — every claim in it that the code can answer, the code answers the
  *     same way: the services named, the periods kept, what erasure does,
  *     the numbers on sign-in and clean-up;
- *   — the reader can see what is not decided, and can find every section.
+ *   — the reader can find every section.
+ *
+ * Since 2026-11-22 the three are published as final, on the owner's word
+ * (record 110). The draft notice and every bracketed point counsel had
+ * not decided are off the page, and these tests hold that neither comes
+ * back: no notice, no bracket, no draft wording, and an effective date.
  *
  * A privacy notice that misdescribes what a system holds is worse than
  * no notice: it is a written misrepresentation, and the first security
@@ -101,42 +105,78 @@ describe('The three legal pages are the text the founder approved, published who
     expect(TERMS_OF_SERVICE.title).toBe('Terms of Service')
     expect(DATA_PROCESSING_ADDENDUM.title).toBe('Data Processing Addendum')
     expect(PRIVACY_NOTICE.sections).toHaveLength(17)
-    expect(TERMS_OF_SERVICE.sections).toHaveLength(20)
+    expect(TERMS_OF_SERVICE.sections).toHaveLength(16)
   })
 
   it('a line the reader would see differently from how it was written stops the build instead of dropping a word', () => {
-    expect(() => inline('An open [bracket that never closes')).toThrow(/Unclosed \[/)
     expect(() => inline('A **strong run that never ends')).toThrow(/Unclosed \*\*/)
-    expect(() => parseLegal('> **Notice:** draft\n\n# T\n\n## 1. A\n\n| a | b |\n|---|---|\n| only one |\n')).toThrow(
-      /1 cells under 2 headings/
-    )
-    expect(() => parseLegal('# No notice\n')).toThrow(/draft notice/)
+    expect(() => parseLegal('# T\n\n## 1. A\n\n| a | b |\n|---|---|\n| only one |\n')).toThrow(/1 cells under 2 headings/)
+    expect(() => parseLegal('No title\n')).toThrow(/opens on its title/)
   })
 
-  it('every legal page says on its face, above its title, that it is a draft not yet reviewed by counsel', () => {
+  it('no legal page carries a draft notice above its title, and a text that opens on one stops the build', () => {
     for (const page of LEGAL_PAGES) {
-      const notice = page.notice.map((r) => r.text).join('')
-      expect(notice, page.href).toMatch(/This document is a draft and has not yet been reviewed by legal counsel/)
-      expect(notice, page.href).toMatch(/Text in square brackets marks a point counsel must decide/)
+      expect(page.source.trimStart().startsWith(`# ${page.title}\n`), `${page.href} does not open on its title`).toBe(true)
+      expect(page.source, page.href).not.toMatch(/^> /m)
+      expect('notice' in page, page.href).toBe(false)
     }
-    const notice = DOCUMENT.indexOf('<Runs line={doc.notice} />')
-    expect(notice, 'the notice is not drawn').toBeGreaterThan(-1)
-    expect(notice, 'the notice must come before the title').toBeLessThan(DOCUMENT.indexOf('{doc.title}'))
+    expect(() => parseLegal('> **Notice:** This document is a draft.\n\n# T\n')).toThrow(/carries no notice above its title/)
+    // The renderer draws no note and no marked text.
+    expect(DOCUMENT).not.toMatch(/role="note"|<mark|data-counsel|doc\.notice|attention-wash/)
   })
 
-  it('every point counsel has not decided is drawn as marked text, so a reader sees what is undecided', () => {
+  it('no legal page holds a bracketed point somebody has still to decide, and a text that holds one stops the build', () => {
     for (const page of LEGAL_PAGES) {
-      const points = counselPointsIn(page)
-      // Every bracket in the approved text is one marked run, whole.
-      const brackets = (page.source.match(/\[/g) ?? []).length
-      expect(points.length, page.href).toBe(brackets)
-      expect(points.length, `${page.href} has no open point — this check has lost its subject`).toBeGreaterThan(5)
-      for (const p of points) expect(p, page.href).toMatch(/^\[[^\]]+\]$/)
+      expect(page.source, page.href).not.toMatch(/[[\]]/)
+      expect(wordsOf(page), page.href).not.toMatch(/to be confirmed|to be set on publication|host to be named/i)
     }
-    // The notice's own "square brackets" is a word, not a point.
-    expect(PRIVACY_NOTICE.notice.some((r) => r.counsel)).toBe(false)
-    // And the renderer draws a counsel run as a mark on a light wash.
-    expect(DOCUMENT).toMatch(/if \(r\.counsel\)[\s\S]{0,120}<mark[\s\S]{0,80}bg-etyme-attention-wash/)
+    expect(() => inline('A sentence [to be confirmed by somebody] and the rest')).toThrow(/A square bracket marks an undecided point/)
+    expect(() => inline('A stray ] alone')).toThrow(/A square bracket marks an undecided point/)
+  })
+
+  it('no legal page, its browser title or its description says draft, counsel or still to be decided', () => {
+    for (const page of LEGAL_PAGES) {
+      const meta = read(`src/app/${page.key}/page.tsx`)
+      for (const [where, text] of [
+        [page.href, wordsOf(page)],
+        [`${page.href} metadata`, meta],
+      ] as const) {
+        // "draft" survives only as the verb for what the text-reading service does to a profile page.
+        expect(text.replace(/draft(?:s)? (?:the words on a )?public profile pages?/g, ''), where).not.toMatch(/\bdrafts?\b/i)
+        expect(text, where).not.toMatch(/\bcounsel\b/i)
+        expect(text, where).not.toMatch(/still to be decided|not yet (?:been )?reviewed|before publication/i)
+      }
+    }
+  })
+
+  it('each legal page is in force from November 22, 2026, and says it was last updated that day', () => {
+    for (const page of LEGAL_PAGES) {
+      expect(page.dates.map((d) => [d.label, d.value.map((r) => r.text).join('')]), page.href).toEqual([
+        ['Effective date', 'November 22, 2026'],
+        ['Last updated', 'November 22, 2026'],
+      ])
+    }
+    expect(DOCUMENT).toContain('doc.dates.map((d) => (')
+  })
+
+  it('a fact that sat inside a bracket is still said, as a plain sentence', () => {
+    expect(PRIVACY).toContain('No signed data processing agreement with these service providers is recorded today.')
+    expect(DPA).toContain("No confidentiality commitment signed by Etyme's staff is recorded today.")
+    expect(DPA).toContain('No data processing agreement with a sub-processor is recorded today.')
+    expect(DPA).toContain('No live address for reporting security issues.')
+    expect(PRIVACY).toContain('We may disclose information if the law requires it.')
+    expect(TERMS).toContain('The Services record and calculate information that Customers and Workers provide. We do not check that this information is true.')
+  })
+
+  it('a clause nobody has decided is not on the page under a heading with nothing beneath it', () => {
+    const headings = LEGAL_PAGES.flatMap((p) => p.sections.map((s) => s.heading)).join('\n')
+    expect(headings).not.toMatch(/Limitation of liability|Indemnities|Governing law|General$|Liability$|Order of precedence/m)
+    expect(TERMS).not.toMatch(/\bBy us\./)
+    // The sections that are left count up with no gap.
+    for (const page of LEGAL_PAGES) {
+      const numbers = page.sections.map((s) => /^(\d+)\./.exec(s.heading)?.[1]).filter(Boolean).map(Number)
+      expect(numbers, page.href).toEqual(numbers.map((_, i) => i + 1))
+    }
   })
 
   it('every section is open: nothing is folded, summarized or kept behind a click', () => {
@@ -246,18 +286,18 @@ describe('What the three documents say is what the code does', () => {
     expect(annex, 'the DPA and the notice must list the same services').toEqual(privacy)
 
     const evidence: Record<string, () => void> = {
-      'Managed database host [to be named]': () => expect(read('prisma/schema.prisma')).toContain('env("DATABASE_URL")'),
+      'Managed database host': () => expect(read('prisma/schema.prisma')).toContain('env("DATABASE_URL")'),
       Vercel: () => expect(existsSync(join(ROOT, 'vercel.json'))).toBe(true),
       'Anthropic (where set up)': () => {
         const pkg = JSON.parse(read('package.json'))
         expect(pkg.dependencies['@anthropic-ai/sdk']).toBeDefined()
       },
       'Resend or SendGrid (where set up)': () => {
-        const senders = read('src/lib/senders.ts')
+        const senders = read('src/lib/notify/mail-door.ts')
         expect(senders).toContain('api.resend.com')
         expect(senders).toContain('api.sendgrid.com')
       },
-      'Mail server for sign-in links (where set up) [to be named]': () =>
+      'Mail server for sign-in links (where set up)': () =>
         expect(read('src/lib/auth.ts')).toContain('server: process.env.EMAIL_SERVER'),
       'Microsoft and Google (where set up)': () => {
         const auth = read('src/lib/auth.ts')

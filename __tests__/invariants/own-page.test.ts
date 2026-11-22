@@ -30,7 +30,7 @@ describe('a page of your own is for the person the work is about, not only for s
   it('a prime’s own employee has a page of their own, without joining anybody’s bench', () => {
     const karthik = {
       ...NOBODY,
-      employers: ['Teleworld Solutions'],
+      employers: ['Tellisford Solutions'],
       placements: 1,
       submissions: 1,
       paidEngagements: 1,
@@ -39,11 +39,11 @@ describe('a page of your own is for the person the work is about, not only for s
 
     expect(verdict.ok).toBe(true)
     expect(verdict.because).toBe('EMPLOYED')
-    expect(verdict.says).toContain('Teleworld Solutions employs you')
+    expect(verdict.says).toContain('Tellisford Solutions employs you')
   })
 
   it('tells an employee that their employer needs no listing, rather than asking them for one', () => {
-    const verdict = ownPage({ ...NOBODY, employers: ['Teleworld Solutions'], placements: 1 })
+    const verdict = ownPage({ ...NOBODY, employers: ['Tellisford Solutions'], placements: 1 })
 
     expect(verdict.says).toContain('need no listing')
     expect(verdict.says.toLowerCase()).not.toContain('join a bench')
@@ -109,7 +109,7 @@ describe('a page of your own is for the person the work is about, not only for s
   })
 
   it('opens the page the moment a firm first puts somebody forward, before any placement exists', () => {
-    expect(ownPage({ ...NOBODY, submissions: 1, employers: ['Teleworld Solutions'] }).ok).toBe(true)
+    expect(ownPage({ ...NOBODY, submissions: 1, employers: ['Tellisford Solutions'] }).ok).toBe(true)
   })
 
   it('a profile that already exists is never taken away from somebody who has stopped working', () => {
@@ -123,7 +123,7 @@ describe('nothing about an employee becomes public until they turn it on themsel
   })
 
   it('says so out loud to every person it is offered to, whichever way they got here', () => {
-    const employed = ownPage({ ...NOBODY, employers: ['Teleworld Solutions'], placements: 1 })
+    const employed = ownPage({ ...NOBODY, employers: ['Tellisford Solutions'], placements: 1 })
     const listed = ownPage({ ...NOBODY, benches: ['Brightmoor Staffing'], hasProfile: true })
     const placed = ownPage({ ...NOBODY, placements: 1 })
 
@@ -135,9 +135,9 @@ describe('nothing about an employee becomes public until they turn it on themsel
 
 describe('who has you names the firm that employs somebody instead of saying nobody does', () => {
   it('an employee on no bench is told which firm staffs them', () => {
-    const said = whoHasYouNote({ benches: 0, employers: ['Teleworld Solutions'] })
+    const said = whoHasYouNote({ benches: 0, employers: ['Tellisford Solutions'] })
 
-    expect(said).toContain('Teleworld Solutions employs and staffs you directly')
+    expect(said).toContain('Tellisford Solutions employs and staffs you directly')
     expect(said).toContain('tells you rather than asks')
   })
 
@@ -156,7 +156,7 @@ describe('who has you names the firm that employs somebody instead of saying nob
   })
 
   it('reads a list of firms the way a person would say it out loud', () => {
-    expect(joinNames(['Teleworld Solutions'])).toBe('Teleworld Solutions')
+    expect(joinNames(['Tellisford Solutions'])).toBe('Tellisford Solutions')
     expect(joinNames(['A', 'B'])).toBe('A and B')
     expect(joinNames(['A', 'B', 'C'])).toBe('A, B and C')
     expect(joinNames([])).toBe('')
@@ -164,14 +164,14 @@ describe('who has you names the firm that employs somebody instead of saying nob
 })
 
 describe('the firm that employs somebody may hold their CV, because the employment is the consent', () => {
-  const owner = { personId: 'karthik', listedTo: [], employedBy: ['teleworld'] }
+  const owner = { personId: 'karthik', listedTo: [], employedBy: ['tellisford'] }
 
   it('an integrator may add a CV for its own W2, who is on no bench to be listed on', () => {
-    expect(mayUpload({ personId: 'recruiter', companyId: 'teleworld' }, owner).ok).toBe(true)
+    expect(mayUpload({ personId: 'recruiter', companyId: 'tellisford' }, owner).ok).toBe(true)
   })
 
   it('an integrator may open its own W2’s CV, so it has something to submit him with', () => {
-    expect(mayRead({ personId: 'recruiter', companyId: 'teleworld' }, owner, []).ok).toBe(true)
+    expect(mayRead({ personId: 'recruiter', companyId: 'tellisford' }, owner, []).ok).toBe(true)
   })
 
   it('a firm that neither employs them nor holds a listing is refused in a sentence', () => {
@@ -189,7 +189,7 @@ describe('the firm that employs somebody may hold their CV, because the employme
     const listed = { personId: 'helena', listedTo: ['brightmoor'] }
 
     expect(mayUpload({ personId: 'recruiter', companyId: 'brightmoor' }, listed).ok).toBe(true)
-    expect(mayUpload({ personId: 'recruiter', companyId: 'teleworld' }, listed).ok).toBe(false)
+    expect(mayUpload({ personId: 'recruiter', companyId: 'tellisford' }, listed).ok).toBe(false)
   })
 })
 

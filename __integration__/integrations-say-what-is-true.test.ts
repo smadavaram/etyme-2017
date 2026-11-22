@@ -11,12 +11,12 @@ import { as, req, json, prisma, freshWorld } from './harness'
 
 const exportRoute = await import('@/app/api/integrations/export/route')
 
-const OWNER = 'world-techpeple@demo.etyme.local'
+const OWNER = 'world-tecwyn@demo.etyme.local'
 let firm = ''
 
 beforeAll(async () => {
   await freshWorld()
-  firm = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })).id
+  firm = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' }, select: { id: true } })).id
   as(OWNER)
 }, 600_000)
 

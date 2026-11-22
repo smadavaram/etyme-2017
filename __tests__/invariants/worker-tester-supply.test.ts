@@ -16,11 +16,11 @@ import { hrNotice } from '@/lib/internal-moves'
 
 const src = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8')
 
-// Helena Marsh: Northbend Athletic ← Computer Systems Inc ← Techpeple.
+// Helena Marsh: Northbend Athletic ← Computer Systems Inc ← Tecwyn.
 const HELENA: WeekSigner[] = [
   { companyId: 'nb', name: 'Northbend Athletic', role: 'CLIENT_APPROVAL' },
   { companyId: 'cs', name: 'Computer Systems Inc', role: 'PASS_THROUGH' },
-  { companyId: 'ce', name: 'Techpeple', role: 'EMPLOYER_ACCEPTANCE' },
+  { companyId: 'ce', name: 'Tecwyn', role: 'EMPLOYER_ACCEPTANCE' },
 ]
 
 describe('one week has one state, the same on every tile and row', () => {
@@ -32,9 +32,9 @@ describe('one week has one state, the same on every tile and row', () => {
 
   it('a week still waiting on any firm is never also counted as approved', () => {
     // Helena's Sep 21 week was "approved", "waiting on approval" and
-    // "waiting on Techpeple" at once. Approved weeks now count only weeks
+    // "waiting on Tecwyn" at once. Approved weeks now count only weeks
     // every firm has accepted; the waiting card counts the rest.
-    const card = signedWeeksCard({ notBilled: 0, employed: { paid: 0, owed: 3, unknown: 0, employer: 'Techpeple' } })
+    const card = signedWeeksCard({ notBilled: 0, employed: { paid: 0, owed: 3, unknown: 0, employer: 'Tecwyn' } })
     expect(card).toEqual({ label: 'Approved weeks', value: 3, note: '3 owed to you' })
     const waiting = waitingCard([
       weekState({ status: 'SUBMITTED', billed: false, waitingOn: 'Computer Systems Inc', pay: null }),
@@ -54,7 +54,7 @@ describe('one week has one state, the same on every tile and row', () => {
       value: 3,
       note: '1 with Computer Systems Inc · 2 with Northbend Athletic',
     })
-    expect(card.note).not.toContain('Techpeple')
+    expect(card.note).not.toContain('Tecwyn')
   })
 
   it('a week paid in full reads paid in Your hours, never approved', () => {
@@ -134,13 +134,13 @@ describe('approval by email is offered only where it can work', () => {
 describe('the filing card names everybody who signs, in order', () => {
   it('a chain of three reads the client first, then each firm below in turn', () => {
     expect(signingOrder(HELENA)).toBe(
-      'After you send, Northbend Athletic approves them first. Then Computer Systems Inc and Techpeple accept them, in that order.'
+      'After you send, Northbend Athletic approves them first. Then Computer Systems Inc and Tecwyn accept them, in that order.'
     )
   })
 
   it('a client buying straight from her employer reads two names', () => {
     expect(signingOrder([HELENA[0], HELENA[2]])).toBe(
-      'After you send, Northbend Athletic approves them first. Then Techpeple accepts them.'
+      'After you send, Northbend Athletic approves them first. Then Tecwyn accepts them.'
     )
   })
 
@@ -152,7 +152,7 @@ describe('the filing card names everybody who signs, in order', () => {
 })
 
 describe('Ending soon, as a client and as a supplier reads it', () => {
-  const line = { billRate: 13_200, companyId: 'teleworld', clientCompanyId: 'northbend' }
+  const line = { billRate: 13_200, companyId: 'tellisford', clientCompanyId: 'northbend' }
 
   it('the page prints the rate, never the code that should have printed it', () => {
     const page = src('app/dashboard/rolloff/page.tsx')
@@ -170,11 +170,11 @@ describe('Ending soon, as a client and as a supplier reads it', () => {
   })
 
   it('a supplier desk without the price permission reads no bill rate', () => {
-    expect(rateOnEndingSoon({ companyId: 'teleworld', permissions: ['consultants.read'] }, line)).toBeNull()
+    expect(rateOnEndingSoon({ companyId: 'tellisford', permissions: ['consultants.read'] }, line)).toBeNull()
   })
 
   it('the supplier’s price desk reads what it charges', () => {
-    expect(rateOnEndingSoon({ companyId: 'teleworld', permissions: ['margin.read'] }, line)).toBe(13_200)
+    expect(rateOnEndingSoon({ companyId: 'tellisford', permissions: ['margin.read'] }, line)).toBe(13_200)
   })
 
   it('a client is offered extend, backfill or let it end — never claim, back on bench or lost', () => {
@@ -193,12 +193,12 @@ describe('Ending soon, as a client and as a supplier reads it', () => {
   })
 
   it('only the firm whose contract it is may claim its rolloff, and anybody else is told whose it is', () => {
-    const own = { companyId: 'teleworld', companyName: 'Teleworld Solutions' }
-    expect(mayWorkRolloff({ companyId: 'teleworld', isConsultantSeat: false }, own)).toEqual({ ok: true })
+    const own = { companyId: 'tellisford', companyName: 'Tellisford Solutions' }
+    expect(mayWorkRolloff({ companyId: 'tellisford', isConsultantSeat: false }, own)).toEqual({ ok: true })
     const client = mayWorkRolloff({ companyId: 'northbend', isConsultantSeat: false }, own)
     expect(client.ok).toBe(false)
-    if (!client.ok) expect(client.says).toBe('Only Teleworld Solutions works this offboarding, because the contract is theirs.')
-    expect(mayWorkRolloff({ companyId: 'teleworld', isConsultantSeat: true }, own).ok).toBe(false)
+    if (!client.ok) expect(client.says).toBe('Only Tellisford Solutions works this offboarding, because the contract is theirs.')
+    expect(mayWorkRolloff({ companyId: 'tellisford', isConsultantSeat: true }, own).ok).toBe(false)
   })
 
   it('the claim route asks where the caller sits, not only who is signed in', () => {
@@ -207,7 +207,7 @@ describe('Ending soon, as a client and as a supplier reads it', () => {
     expect(route).not.toContain('getSessionEmail')
   })
 
-  it('Teleworld’s Northbend project is at the Tualatin site, where every other Northbend job is', () => {
+  it('Tellisford’s Northbend project is at the Tualatin site, where every other Northbend job is', () => {
     const seed = src('lib/seed-internal-moves.ts')
     expect(seed).not.toMatch(/city: 'Portland'/)
     expect(seed).toContain("site: { name: 'Tualatin site', city: 'Tualatin', state: 'OR' }")
@@ -242,11 +242,11 @@ describe('a week paid at more than one rate says so', () => {
 describe('what a firm and its HR desk are told about the bench', () => {
   it('HR told of a move onto a manager’s own project reads who was placed, by name', () => {
     const n = hrNotice('MOVE', {
-      personName: 'Amara Nwosu', firmName: 'Teleworld Solutions', actorName: 'Rahul Deshpande',
+      personName: 'Amara Nwosu', firmName: 'Tellisford Solutions', actorName: 'Rahul Dandekar',
       forTitle: 'ERP finance migration', toClient: 'Harlow Health', toCity: 'San Jose',
       startsOn: new Date('2026-11-16T00:00:00Z'), movedAs: 'LINE',
     })
-    expect(n.body).toMatch(/^Rahul Deshpande placed Amara Nwosu on ERP finance migration at Harlow Health in San Jose, starting /)
+    expect(n.body).toMatch(/^Rahul Dandekar placed Amara Nwosu on ERP finance migration at Harlow Health in San Jose, starting /)
   })
 
   it('a firm told about a person’s bench stay is told as bench news, which opens the bench, never as a submission', () => {

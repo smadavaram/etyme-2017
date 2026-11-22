@@ -951,7 +951,8 @@ export async function sendApprovalLink(
   })
   const delivery = await attemptDelivery(
     routeFor({ isConsultant: false, email: approver.email, teamsWebhookUrl: null }),
-    approver.email, letter.subject, letter.body, configuredSenders(), now
+    approver.email, letter.subject, letter.body, configuredSenders(), now, null,
+    { companyId: r.companyId ?? c.employerId, mail: { template: 'week-approval-link', recordType: 'Timesheet', recordId: timesheetId, actorPersonId: r.personId } },
   )
 
   // Somebody asked for it, so it is not unprompted — but an email to a

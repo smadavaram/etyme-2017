@@ -104,7 +104,7 @@ import { join as joinPermit } from 'node:path'
 
 describe('a round is never booked past a refusal on the permit', () => {
   const base = {
-    personName: 'Priya Raman',
+    personName: 'Priya Ramesh',
     workAuth: 'H1B' as string | null,
     needsSponsorship: null as boolean | null,
     saidAt: null as Date | null,

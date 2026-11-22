@@ -515,7 +515,7 @@ export async function POST(request: NextRequest) {
   // its period is the span of everything it bills, so an expense dated a
   // fortnight earlier stretched it over weeks it does not bill and the
   // intake refused hours the receipt never claimed (walk, 2026-10-19:
-  // Priya Raman's week of Oct 8 with her Sep 24 travel). A receipt with
+  // Priya Ramesh's week of Oct 8 with her Sep 24 travel). A receipt with
   // lines and no hours line holds no week; its expense or milestone is
   // checked against the supplier's bills by the line check.
   const hourLineIds = lines ? lines.flatMap((l) => (l.timesheetId ? [l.timesheetId] : [])) : []
@@ -814,7 +814,7 @@ export async function PATCH(request: NextRequest) {
   // And no money to a firm whose bank details nobody checked: the same
   // gate the screen's Pay button reads (`keyedPayGateNow`), so a receipt
   // the screen holds is never paid here (walk 7, 2026-11-08: $4,160 went
-  // to Consultis with its bank unchecked, because this door asked only
+  // to Conisby with its bank unchecked, because this door asked only
   // the three-way check). The sentence names who checks.
   const gate = await keyedPayGateNow(bill, vendorName, check, caller.isService ? null : caller.person.id)
   if (!gate.ok) {

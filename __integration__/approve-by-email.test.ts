@@ -26,16 +26,16 @@ async function seatedAt(clientId: string): Promise<string> {
  * The founder, 2026-09-30.
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
- * employed by Techpeple. Her seeded week of the 17th is filed and nobody has
+ * employed by Tecwyn. Her seeded week of the 17th is filed and nobody has
  * signed it. Dana Whitfield approves it from a link, with no account; then
- * Computer Systems and Techpeple accept it in turn, exactly as they would
+ * Computer Systems and Tecwyn accept it in turn, exactly as they would
  * have after a signature in Etyme.
  */
 
 const D = '@demo.etyme.local'
 const NIKE = `world-nike-hiring${D}`
 const CS = `world-computer-systems${D}`
-const TECHPEPLE = `world-techpeple${D}`
+const TECWYN = `world-tecwyn${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
 const HELENA = 'helena.marsh@seed.etyme.invalid'
 const DANA = { approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.test' }
@@ -231,7 +231,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(letter.text).not.toMatch(/\$|rate/i)
     // The client's approver is told the firm it pays, never the one below it.
     expect(letter.text).toContain('Helena Marsh at Computer Systems Inc asked us')
-    expect(letter.text).not.toContain('Techpeple')
+    expect(letter.text).not.toContain('Tecwyn')
     it_.token = letter.text.match(/\/answer\/week\/([A-Za-z0-9_-]+)/)![1]
 
     const row = await prisma.weekApproval.findFirstOrThrow({ where: { timesheetId: it_.week }, include: { contracts: true } })
@@ -251,7 +251,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(r.body.data.personName).toBe('Helena Marsh')
     expect(r.body.data.clientName).toBe('Northbend Athletic')
     expect(r.body.data.approveRefused).toBeNull()
-    expect(JSON.stringify(r.body)).not.toContain('Techpeple')
+    expect(JSON.stringify(r.body)).not.toContain('Tecwyn')
     expect(JSON.stringify(r.body)).not.toMatch(/rate|cents|\$/i)
     // A read is logged without holding up the reader, so the row lands just after the response.
     await vi.waitFor(async () => expect(await prisma.accessLog.count({ where: { subjectId: it_.helena, action: 'APPROVAL_LINK_VIEW', allowed: true } })).toBe(1))
@@ -300,13 +300,13 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(r.body.error.message).toBe('This link is not one of ours, or it has been replaced. Ask whoever sent it for a new one.')
   })
 
-  it('then each lower rung accepts in turn: Techpeple must wait for Computer Systems, and nobody is accepted for', async () => {
+  it('then each lower rung accepts in turn: Tecwyn must wait for Computer Systems, and nobody is accepted for', async () => {
     const csId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })).id
     const w = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week }, select: { periodStart: true, periodEnd: true } })
     const told = await prisma.notification.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { title: `Helena Marsh’s week of ${weekSays(w.periodStart, w.periodEnd)} is yours to accept`, companyId: csId } })
     expect(told?.body).toMatch(/^Northbend Athletic signed .+ Approved by email: Dana Whitfield/)
 
-    as(TECHPEPLE)
+    as(TECWYN)
     const early = await sign(it_.week)
     expect(early.status).toBe(409)
     expect(early.body.error.message).toBe('Computer Systems Inc has not accepted this week yet. It comes to you once they have.')
@@ -314,7 +314,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     as(CS)
     const cs = await sign(it_.week)
     expect(cs.body?.error, JSON.stringify(cs.body)).toBeUndefined()
-    as(TECHPEPLE)
+    as(TECWYN)
     const last = await sign(it_.week)
     expect(last.body?.error, JSON.stringify(last.body)).toBeUndefined()
 
@@ -323,7 +323,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(row.assertions.filter((a) => a.state === 'LIVE').map((a) => `${a.company.name}:${a.role}`).sort()).toEqual([
       'Computer Systems Inc:PASS_THROUGH',
       'Northbend Athletic:CLIENT_APPROVAL',
-      'Techpeple:EMPLOYER_ACCEPTANCE',
+      'Tecwyn:EMPLOYER_ACCEPTANCE',
     ])
   })
 
@@ -335,13 +335,13 @@ describe('a client approves a week by email, and the proof travels down the chai
     expect(a.words).toBe(`Approved by email: Dana Whitfield, ${today()}`)
     expect(a.contracts.map((c: any) => c.id)).toEqual([it_.top])
     expect(JSON.stringify(client.body)).not.toContain(it_.bottom)
-    expect(JSON.stringify(client.body)).not.toContain('Techpeple')
+    expect(JSON.stringify(client.body)).not.toContain('Tecwyn')
 
     as(CS)
     const prime = await read(it_.week)
     expect(prime.body.data.approvals[0].contracts.map((c: any) => c.id)).toEqual([it_.top, it_.bottom])
 
-    as(TECHPEPLE)
+    as(TECWYN)
     const sub = await read(it_.week)
     expect(sub.body.data.approvals[0].contracts.map((c: any) => c.id)).toEqual([it_.bottom])
 
@@ -363,7 +363,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     const shown = await read(seeded.timesheetId)
     expect(shown.body.data.approvals[0].words).toMatch(/^Approved by email: Marcus Oyelaran, .+ — evidence attached$/)
 
-    for (const who of [NIKE, CS, TECHPEPLE, HELENA]) {
+    for (const who of [NIKE, CS, TECWYN, HELENA]) {
       as(who)
       const res = await openFile(req('GET', `/api/week-approvals/${seeded.id}/file`), { params: Promise.resolve({ id: seeded.id }) })
       expect(res.status, who).toBe(200)

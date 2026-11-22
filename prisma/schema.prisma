@@ -11200,3 +11200,58 @@ enum MoneyChainState {
   CONFIRMED_CLOSED
   DISPUTED
 }
+
+// ── The mail ledger (record 110, 2026-11-22) ─────────────────────────
+
+/// One attempt to send one email, append only. lib/notify/mail-door is
+/// the one writer and offers no update or delete. A row is written for
+/// every attempt, whatever came of it: sent, failed delivery, refused by
+/// a rule of the door, no sender set up, or a demo address.
+///
+/// The addresses are other people's. No relation is drawn on purpose, so
+/// no include on a company, a person or a record brings them along; a
+/// reader goes through lib/notify/mail-door and says which record it may
+/// already read. The letter's body is never kept: it may carry a one-time
+/// link, which lives in the mailbox and nowhere else.
+model MailSend {
+  id              String   @id @default(cuid())
+  /// The tenant the mail was sent for. Null for Etyme's own mail: a
+  /// sign-in or password link, a letter to Etyme's staff.
+  companyId       String?
+  /// The legal entity acted for, where the caller chose one.
+  actingEntityId  String?
+  /// The person whose act sent it. Null where no person's act did.
+  actorPersonId   String?
+  /// The role or queue she held, copied as text at the time.
+  heldAs          String?
+  /// Set where an agent drafted the letter.
+  agentKey        String?
+  /// The record the mail is about, named by type and id.
+  recordType      String?
+  recordId        String?
+  /// The From address used: the configured verified sender.
+  fromAddress     String
+  /// The recipients as sent. The first addressed party is in To; every
+  /// other is in BCC. CC is never used.
+  toAddresses     String[]
+  bccAddresses    String[]
+  subject         String
+  /// The letter's template or rule, and its version.
+  template        String
+  templateVersion String
+  /// True for a reminder about a record; the door limits these.
+  chase           Boolean  @default(false)
+  /// SENT · FAILED_DELIVERY · REFUSED · NOT_CONFIGURED · DEMO_SKIPPED
+  outcome         String
+  /// Why it did not leave: the door's sentence, or the provider's
+  /// status and cleaned words. Null where it left.
+  note            String?
+  provider        String?
+  /// The provider's id for the message, for a delivery report to match.
+  providerMessageId String?
+  createdAt       DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([recordType, recordId, createdAt])
+  @@index([outcome, createdAt])
+}

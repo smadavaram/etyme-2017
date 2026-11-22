@@ -26,7 +26,7 @@ const WEEK: DayHours[] = [
 ]
 const FLSA = { multiplierBps: 15_000, floorBps: 15_000 }
 
-const payer = { mayReadCost: true, isPayer: true, personName: 'Priya Natarajan' }
+const payer = { mayReadCost: true, isPayer: true, personName: 'Priya Nagarkar' }
 
 describe("choosing a pay line's overtime method", () => {
   it("a firm's overtime method is recorded with who chose it and why", () => {
@@ -49,7 +49,7 @@ describe("choosing a pay line's overtime method", () => {
       if (v.ok) continue
       expect(v.status).toBe(422)
       expect(v.field).toBe('reason')
-      expect(v.says).toContain("Say why overtime for Priya Natarajan should not be paid at the US regular rate, the law's default.")
+      expect(v.says).toContain("Say why overtime for Priya Nagarkar should not be paid at the US regular rate, the law's default.")
     }
     expect('because'.length).toBeLessThan(MIN_REASON)
   })
@@ -72,7 +72,7 @@ describe("choosing a pay line's overtime method", () => {
     expect(v.ok).toBe(false)
     if (v.ok) return
     expect(v.status).toBe(403)
-    expect(v.says).toBe('Only the firm that pays Priya Natarajan can choose how their overtime is priced.')
+    expect(v.says).toBe('Only the firm that pays Priya Nagarkar can choose how their overtime is priced.')
   })
 
   it('refuses a method that is not one of the three, and names the three', () => {

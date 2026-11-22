@@ -38,7 +38,7 @@ import { WhereItStands } from './where-it-stands'
  */
 interface ChainView {
   state: 'OWN' | 'YOURS' | 'WAITING' | 'ACCEPTED' | 'SENT_BACK' | 'NOT_BILLABLE'
-  /** "Approved by Techpeple · accepted by Northbend Athletic $412.50 · waiting on you" */
+  /** "Approved by Tecwyn · accepted by Northbend Athletic $412.50 · waiting on you" */
   line: string | null
   /** What this firm may accept now, in cents; null where it may not. */
   upToCents: number | null

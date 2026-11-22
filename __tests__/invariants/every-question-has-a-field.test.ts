@@ -479,7 +479,7 @@ describe('the screen walk’s papers, on the build after it', () => {
   const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
   it('a firm’s own name for the I-9 is read as the I-9 wherever a paper is credited, so accepting it asks for the document shown, and an I-94 or another form is never read as one', () => {
-    // Techpeple's own paper for Ifeoma Balogun: before, it read as no type,
+    // Tecwyn's own paper for Ifeoma Balogun: before, it read as no type,
     // so Accept drew no field, stamped it examined and recorded no I-9.
     for (const name of ['I-9, with the document it is completed from', 'Form I-9', 'I-9', 'Employment Eligibility Verification (Form I-9)']) {
       expect(typeKeyForTemplate(name, STRICT, { guess: false }), name).toBe('I9_EVERIFY')
@@ -846,5 +846,55 @@ describe('the Classify page: customer, client or both (record 110, A1)', () => {
     expect(page).toContain('disabled={busy || nothing || needsEntity}')
     expect(page).toContain('Tick one or both to save.')
     expect(page).toContain('Choose the legal entity at the top of the page to save.')
+  })
+})
+
+// ── Record a placement: who is billed and where she works (record 110, A1) ──
+
+describe('Record a placement: the customer and the end client (record 110, A1)', () => {
+  const src = (f: string) => readFileSync(join(process.cwd(), f), 'utf8')
+  const form = src('src/app/dashboard/contracts/page.tsx')
+  const route = src('src/app/api/contracts/route.ts')
+
+  it('the route refuses a placement with nobody to bill, and the form has the “Customer (bill to)” box that answers it', () => {
+    expect(route).toContain("if (!clientCompanyId) return errResponse('clientCompanyId is required', 'clientCompanyId')")
+    expect(form).toContain('<label className={labelClass}>Customer (bill to) *</label>')
+    expect(form).toContain('clientCompanyId: form.clientCompanyId,')
+    // The box is filled from who can be billed, so what it posts is a company the route can name.
+    expect(form).toContain("fetch('/api/companies/groups?for=bill-to'),")
+  })
+
+  it('the end client is optional at the route, and the form sends it only when a worksite other than the customer is chosen', () => {
+    expect(route).toContain('endClientCompanyId: endClientCompanyId ?? null,')
+    expect(form).toContain('<option value="">{SAME_AS_CUSTOMER}</option>')
+    expect(form).toMatch(/if \(form\.endClientCompanyId\) \{\s*payload\.endClientCompanyId = form\.endClientCompanyId\s*\}/)
+    expect(form).toContain("fetch('/api/companies/groups?for=worksite'),")
+  })
+
+  it('the pickers’ route answers both questions the form asks and refuses any other in a sentence', () => {
+    const groups = src('src/app/api/companies/groups/route.ts')
+    expect(groups).toContain("if (asked !== 'bill-to' && asked !== 'worksite') {")
+    expect(groups).toContain("message: 'Ask for bill-to or worksite.', field: 'for'")
+  })
+})
+
+// ── Add a company: what are they to you (record 110, A1) ───────────────
+import { ADD_AS_CHOICES, mayAddCompany } from '@/lib/counterparty'
+
+describe('Add a company: every choice under “What are they to you?” is one its route takes', () => {
+  it('each choice the form offers is accepted by the rule the route asks, for a seat that manages who the firm trades with', () => {
+    for (const c of ADD_AS_CHOICES) {
+      const v = mayAddCompany({ seatedAt: { id: 'me', name: 'Larkfield Staffing' }, permissions: ['vendors.manage'], relationship: c.value, kind: 'VENDOR' })
+      expect(v.ok, c.words).toBe(true)
+    }
+  })
+
+  it('the customer choice posts to the clients door and every other choice posts what was chosen', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/companies/page.tsx'), 'utf8')
+    expect(page).toContain("const isClient = !recording && form.relationship === 'CLIENT'")
+    expect(page).toContain("? await fetch('/api/clients', {")
+    expect(page).toContain('...(recording ? {} : { relationship: form.relationship }),')
+    // The route writes the end client's row for the choice that names it.
+    expect(readFileSync(join(process.cwd(), 'src/app/api/companies/route.ts'), 'utf8')).toContain("customer: relationship === 'CLIENT', client: relationship === END_CLIENT_ROW, actingEntityId: body?.actingEntityId,")
   })
 })

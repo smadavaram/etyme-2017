@@ -390,14 +390,14 @@ describe('the supplier’s twin drafts the bill and asks before it goes out (fou
   it('the supplier’s twin reads staffing firms, integrators and one-person corporations, and never a census or a visitor’s own demo', async () => {
     T().company = [
       { id: 'brightmoor', kind: 'VENDOR', isCensusSandbox: false, isDemo: false },
-      { id: 'teleworld', kind: 'GSI', isCensusSandbox: false, isDemo: false },
+      { id: 'tellisford', kind: 'GSI', isCensusSandbox: false, isDemo: false },
       { id: 'nurse-llc', kind: 'CONSULTANT_CORP', isCensusSandbox: false, isDemo: false },
       { id: 'northbend', kind: 'CLIENT', isCensusSandbox: false, isDemo: false },
       { id: 'maren', kind: 'MSP', isCensusSandbox: false, isDemo: false },
       { id: 'census-box', kind: 'VENDOR', isCensusSandbox: true, isDemo: false },
       { id: 'visitor-box', kind: 'VENDOR', isCensusSandbox: false, isDemo: true },
     ]
-    expect((await suppliersToRun()).sort()).toEqual(['brightmoor', 'nurse-llc', 'teleworld'])
+    expect((await suppliersToRun()).sort()).toEqual(['brightmoor', 'nurse-llc', 'tellisford'])
   })
 })
 
@@ -437,10 +437,10 @@ describe('The nightly run reads every firm once, in one queue', () => {
   })
 
   it('a supplier\u2019s twin acts for its owner, else its admin, whatever order the seats were granted in', () => {
-    const seats = [seat('brightmoor', 'ada', 'Admin'), seat('brightmoor', 'jenna', 'Owner'), seat('techpeple', 'raj', 'Admin'), seat('techpeple', 'x', 'Recruiter')]
-    const got = firstSeated(seats, ['brightmoor', 'techpeple'], SUPPLIER_TWIN_ROLES, 'Owner (nobody seated)')
+    const seats = [seat('brightmoor', 'ada', 'Admin'), seat('brightmoor', 'jenna', 'Owner'), seat('tecwyn', 'raj', 'Admin'), seat('tecwyn', 'x', 'Recruiter')]
+    const got = firstSeated(seats, ['brightmoor', 'tecwyn'], SUPPLIER_TWIN_ROLES, 'Owner (nobody seated)')
     expect([got.get('brightmoor')?.personId, got.get('brightmoor')?.role]).toEqual(['jenna', 'Owner'])
-    expect([got.get('techpeple')?.personId, got.get('techpeple')?.role]).toEqual(['raj', 'Admin'])
+    expect([got.get('tecwyn')?.personId, got.get('tecwyn')?.role]).toEqual(['raj', 'Admin'])
   })
 
   it('a nightly run starts the next firm the moment any worker is free, so the suppliers never wait for the slowest client', async () => {

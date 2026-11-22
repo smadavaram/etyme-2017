@@ -168,8 +168,8 @@ function keyedTx(row: { totalCents: number; paidCents: number; status: string },
 }
 
 const KEYED: KeyedPaymentInput = {
-  billId: 'vb-1', payerCompanyId: 'brightmoor', payerName: 'Brightmoor Staffing', vendorCompanyId: 'consultis',
-  vendorName: 'Consultis', number: 'CON-77', currency: 'EUR', amountCents: 416_000, expectPaidCents: 0,
+  billId: 'vb-1', payerCompanyId: 'brightmoor', payerName: 'Brightmoor Staffing', vendorCompanyId: 'conisby',
+  vendorName: 'Conisby', number: 'CON-77', currency: 'EUR', amountCents: 416_000, expectPaidCents: 0,
   paidAt: new Date('2026-11-12T00:00:00Z'), payerReference: 'SEPA-1', etymeReference: null, runId: null,
   method: 'ACH', appliedById: 'desmond', appliedByName: 'Desmond Achebe',
 }
@@ -188,7 +188,7 @@ describe('a typed-in receipt paid through the one write', () => {
   it('a second press on a receipt already paid writes no payment and hands back nothing to tell', async () => {
     const { tx, writes } = keyedTx({ totalCents: 416_000, paidCents: 0, status: 'APPROVED' }, 0)
     const out = await recordKeyedPayment(tx, KEYED)
-    expect(out).toEqual({ ok: false, says: 'Consultis’s invoice CON-77 was paid or changed while this was read. Nothing was written again.' })
+    expect(out).toEqual({ ok: false, says: 'Conisby’s invoice CON-77 was paid or changed while this was read. Nothing was written again.' })
     expect(writes).toEqual([])
   })
 })
@@ -197,14 +197,14 @@ describe('the typed-in receipt’s write reads its gates again and touches only 
   it('the paid figure is written only on the payer’s own receipt from that supplier, in the currency it was read in', async () => {
     const { tx, wheres } = keyedTx({ totalCents: 416_000, paidCents: 0, status: 'APPROVED' })
     await recordKeyedPayment(tx, KEYED)
-    expect(wheres[0]).toMatchObject({ id: 'vb-1', companyId: 'brightmoor', vendorCompanyId: 'consultis', currency: 'EUR', paidCents: 0 })
+    expect(wheres[0]).toMatchObject({ id: 'vb-1', companyId: 'brightmoor', vendorCompanyId: 'conisby', currency: 'EUR', paidCents: 0 })
   })
 
   it('a bank check taken back between the press and the write stops the money, in the gate’s own sentence, and writes nothing but the refused payment', async () => {
-    bankGate.mockResolvedValue({ ok: false, says: 'Consultis’s bank details are not checked. Ask Rosalind Tay to check them, then pay.' })
+    bankGate.mockResolvedValue({ ok: false, says: 'Conisby’s bank details are not checked. Ask Rosalind Tay to check them, then pay.' })
     const { tx, writes } = keyedTx({ totalCents: 416_000, paidCents: 0, status: 'APPROVED' })
     const out = await recordKeyedPayment(tx, KEYED)
-    expect(out).toEqual({ ok: false, says: 'Consultis’s bank details are not checked. Ask Rosalind Tay to check them, then pay.' })
+    expect(out).toEqual({ ok: false, says: 'Conisby’s bank details are not checked. Ask Rosalind Tay to check them, then pay.' })
     expect(writes).toEqual(['automationLog.create:PAYMENT_REFUSED'])
   })
 
@@ -233,9 +233,9 @@ describe('a notice that fails is never said as nobody to tell', () => {
   })
 
   it('the sentence says we could not tell a firm whose notice failed, and nobody on Etyme only where nobody is there', () => {
-    expect(toldSays([{ vendorName: 'Consultis', told: -1 }])).toBe('We could not tell Consultis it was paid, so tell them yourself.')
-    expect(toldSays([{ vendorName: 'Consultis', told: 0 }])).toBe('Consultis has nobody on Etyme to tell, so tell them yourself.')
-    expect(toldSays([{ vendorName: 'Consultis', told: 2 }])).toBe('Consultis is told, in the app and by email where email can leave.')
+    expect(toldSays([{ vendorName: 'Conisby', told: -1 }])).toBe('We could not tell Conisby it was paid, so tell them yourself.')
+    expect(toldSays([{ vendorName: 'Conisby', told: 0 }])).toBe('Conisby has nobody on Etyme to tell, so tell them yourself.')
+    expect(toldSays([{ vendorName: 'Conisby', told: 2 }])).toBe('Conisby is told, in the app and by email where email can leave.')
     expect(toldSays([{ vendorName: 'A', told: 1 }, { vendorName: 'B', told: -1 }, { vendorName: 'C', told: 0 }]))
       .toBe('We could not tell B it was paid, so tell them yourself. C has nobody on Etyme to tell, so tell them yourself.')
   })
@@ -292,7 +292,7 @@ describe('a company waiting for a verified Owner sees the sentence and no Pay co
   it('a typed-in receipt’s Pay is not offered, and its door carries the gate’s sentence and the link to Prove ownership', () => {
     const doors = receiptDoors(
       {
-        number: 'CON-77', vendorName: 'Consultis', status: 'APPROVED', currency: 'USD', totalCents: 416_000, paidCents: 0,
+        number: 'CON-77', vendorName: 'Conisby', status: 'APPROVED', currency: 'USD', totalCents: 416_000, paidCents: 0,
         paymentCount: 0, inRun: null, checks: [], hard: null, waivers: [],
       } as never,
       { mayPay: true, mayWaive: true, mayRecord: true, paySays: null, waiveSays: null, recordSays: null } as never,

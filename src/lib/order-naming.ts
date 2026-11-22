@@ -298,7 +298,7 @@ export interface LineDescription {
   reference: string | null
   /** "Purchase order PO-4471, line 2 of 5", or the sentence where there is none. */
   heading: string
-  /** "Priya Raman — Tualatin". */
+  /** "Priya Ramesh — Tualatin". */
   name: string
   /** What the line is for, in the reader's own words. */
   does: string

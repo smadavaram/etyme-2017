@@ -87,8 +87,8 @@ export function notStaffSays(caller: CallerContext, surface: string): string {
   if (!caller.context.companyId || !name) {
     return 'You are not signed in at a company. Your own work is under Your work.'
   }
-  // Company names routinely end in a full stop — "Techpeple Inc." — and a
-  // refusal reading "Techpeple Inc.. You are" looks like the bug it is.
+  // Company names routinely end in a full stop — "Tecwyn Inc." — and a
+  // refusal reading "Tecwyn Inc.. You are" looks like the bug it is.
   const where = name.replace(/\.$/, '')
   return `${surface} belongs to ${where}. You are on their bench, not on their staff — your own work is under Your work.`
 }

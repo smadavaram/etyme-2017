@@ -210,7 +210,7 @@ describe('the mismatch notice names the receipt and the supplier (walk three, it
 
 const week = (over: Partial<SentWeek>): SentWeek => ({
   id: 'ts', periodStart: '2026-09-27', periodEnd: '2026-10-03', hours: 40, stage: 'OWED', waitingOn: null, client: 'Northbend Athletic',
-  employer: 'Techpeple', approvedBy: null, stillOwedMinor: 144000, owedHours: 16, currency: 'USD', dueOn: '2026-11-09', overdue: false, paidOn: null, ...over,
+  employer: 'Tecwyn', approvedBy: null, stillOwedMinor: 144000, owedHours: 16, currency: 'USD', dueOn: '2026-11-09', overdue: false, paidOn: null, ...over,
 })
 
 describe('a worker’s jobs and split weeks (walk three, item 10)', () => {
@@ -221,7 +221,7 @@ describe('a worker’s jobs and split weeks (walk three, item 10)', () => {
 
   it('a week split over two pay days says the hours already paid and when, beside what is owed for the rest', () => {
     const w = week({ partPaid: { hours: 24, on: '2026-10-09' } })
-    expect(weekStandsSays(w)).toBe('Your week of Sep 27–Oct 3 is accepted by Techpeple. 24 hours were paid on Oct 9; $1,440.00 for the other 16 hours is owed to you, due Nov 9.')
+    expect(weekStandsSays(w)).toBe('Your week of Sep 27–Oct 3 is accepted by Tecwyn. 24 hours were paid on Oct 9; $1,440.00 for the other 16 hours is owed to you, due Nov 9.')
     expect(stageWord(w)).toBe('Owed to you, due Nov 9; 24 hours paid Oct 9')
   })
 })

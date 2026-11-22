@@ -223,8 +223,8 @@ describe('A client extends a placement to a day they choose, and says why', () =
   })
 
   it('when papers ending first stop the extension, the route’s own sentence is shown, and a box opens only where a reason can let it go ahead', () => {
-    const asks = readExtendRefusal({ error: { code: 'PAPERS_NEED_A_REASON', message: 'Techpeple’s insurance runs out on Jan 15, before the new last day. Give a reason to go ahead.', field: 'reason' } })
-    expect(asks).toEqual({ says: 'Techpeple’s insurance runs out on Jan 15, before the new last day. Give a reason to go ahead.', asks: 'reason' })
+    const asks = readExtendRefusal({ error: { code: 'PAPERS_NEED_A_REASON', message: 'Tecwyn’s insurance runs out on Jan 15, before the new last day. Give a reason to go ahead.', field: 'reason' } })
+    expect(asks).toEqual({ says: 'Tecwyn’s insurance runs out on Jan 15, before the new last day. Give a reason to go ahead.', asks: 'reason' })
     const limit = readExtendRefusal({ error: { code: 'TIME_LIMIT_REASON', message: 'This goes past the time limit. Give a reason to go ahead.', field: 'limitReason' } })
     expect(limit.asks).toBe('limitReason')
     const blocked = readExtendRefusal({ error: { code: 'PAPERS_BLOCK', message: 'Helena Marsh’s work authorization ends on Dec 1, before the new last day.' } })

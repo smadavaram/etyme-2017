@@ -136,7 +136,7 @@ export function slugFor(position: Position, n: number, name: string): string {
 // ── Names ─────────────────────────────────────────────────────────────
 //
 // Invented pools, not the demo material's: the demo pools combine into
-// people the hand-written world already has (Priya Raman, Karthik
+// people the hand-written world already has (Priya Ramesh, Karthik
 // Menon), and a generated namesake on a screen beside them is a puzzle.
 
 export const FIRST_NAMES: readonly string[] = [

@@ -15,19 +15,19 @@ import { GET as placement } from '@/app/api/placements/[id]/route'
  */
 describe('what is due, on the thread', () => {
   let sellId: string
-  let techpeple: string
+  let tecwyn: string
   let harlow: string
 
   beforeAll(async () => {
     await freshWorld()
 
-    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
-    techpeple = 'world-techpeple@demo.etyme.local'
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
+    tecwyn = 'world-tecwyn@demo.etyme.local'
     harlow = 'world-harlow-health@demo.etyme.local'
 
-    // Found by its facts: Techpeple's line whose work is at Harlow Health,
+    // Found by its facts: Tecwyn's line whose work is at Harlow Health,
     // the client this file reads as. An unordered first row stopped being
-    // that line when the seed gave Techpeple a second line, at Northbend,
+    // that line when the seed gave Tecwyn a second line, at Northbend,
     // and Harlow then opened a line it is a stranger to (404).
     const harlowCo = await prisma.company.findFirstOrThrow({ where: { slug: 'world-harlow-health' }, select: { id: true } })
     const s = await prisma.sellContract.findFirstOrThrow({
@@ -48,7 +48,7 @@ describe('what is due, on the thread', () => {
   }
 
   it('the supplier sees hours, pay and bill on its own placement', async () => {
-    const r = await open(techpeple)
+    const r = await open(tecwyn)
     expect(r.status).toBe(200)
     expect(r.body.data.timeline.hours.length).toBeGreaterThan(0)
     expect(r.body.data.timeline.pay.length).toBeGreaterThan(0)
@@ -64,7 +64,7 @@ describe('what is due, on the thread', () => {
   })
 
   it('every item is labeled in words, never as the engine\'s kind name', async () => {
-    const r = await open(techpeple)
+    const r = await open(tecwyn)
     const t = r.body.data.timeline
     for (const d of [...t.hours, ...t.pay, ...t.bill]) {
       expect(d.label, d.kind).not.toMatch(/_/)
@@ -73,7 +73,7 @@ describe('what is due, on the thread', () => {
   })
 
   it('the next thing to do is the earliest cycle not yet done', async () => {
-    const r = await open(techpeple)
+    const r = await open(tecwyn)
     const t = r.body.data.timeline
     const all = [...t.hours, ...t.pay, ...t.bill].filter((d: { done: boolean }) => !d.done)
     const earliest = all.map((d: { dueOn: string }) => d.dueOn).sort()[0]
@@ -82,14 +82,14 @@ describe('what is due, on the thread', () => {
   })
 
   it('the checklist is on the thread, reads what the order asked for, and warns in words on a certificate never filed', async () => {
-    const r = await open(techpeple)
+    const r = await open(tecwyn)
     const c = r.body.data.checklist
     expect(['PASS', 'WARN', 'BLOCK']).toContain(c.outcome)
     expect(typeof c.says).toBe('string')
     expect(c.items.length).toBeGreaterThan(0)
     // The seeded person has an I-9 and a background check, the supplier's
     // cover is on file and checked. Since 2026-09-21 the thread reads the
-    // line's own required set: this placement's order asks Techpeple for a
+    // line's own required set: this placement's order asks Tecwyn for a
     // certificate of good standing that was never filed, so the honest
     // verdict is a warning naming it, never a silent pass. The NDA is the
     // shipped default nobody wrote on an order, so it is listed and moves

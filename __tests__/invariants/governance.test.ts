@@ -190,31 +190,31 @@ describe('Governance enforcement — Addendum E', () => {
 
   describe('tenure cap', () => {
     it('a consultant with 6 months at a client with an 18-month cap passes', () => {
-      const result = evaluateTenureCap('Ravi Patel', 183, 18)
+      const result = evaluateTenureCap('Ravi Purohit', 183, 18)
       expect(result.outcome).toBe('PASS')
     })
 
     it('a consultant at 75% of the tenure cap receives a warning', () => {
-      const result = evaluateTenureCap('Ravi Patel', 411, 18) // ~13.5 months = 75%
+      const result = evaluateTenureCap('Ravi Purohit', 411, 18) // ~13.5 months = 75%
       expect(result.outcome).toBe('WARN')
       expect(result.reason).toContain('of 18 months')
     })
 
     it('a consultant who exceeds the tenure cap is blocked', () => {
-      const result = evaluateTenureCap('Ravi Patel', 580, 18) // ~19 months
+      const result = evaluateTenureCap('Ravi Purohit', 580, 18) // ~19 months
       expect(result.outcome).toBe('BLOCK')
       expect(result.reason).toContain('tenure')
       expect(result.reason).toContain('time limit: 18')
     })
 
     it('a WARN enforcement mode tenure cap can be overridden', () => {
-      const result = evaluateTenureCap('Ravi Patel', 580, 18, 'WARN')
+      const result = evaluateTenureCap('Ravi Purohit', 580, 18, 'WARN')
       expect(result.outcome).toBe('WARN')
       expect(result.overridable).toBe(true)
     })
 
     it('a BLOCK enforcement mode tenure cap cannot be overridden', () => {
-      const result = evaluateTenureCap('Ravi Patel', 580, 18, 'BLOCK')
+      const result = evaluateTenureCap('Ravi Purohit', 580, 18, 'BLOCK')
       expect(result.outcome).toBe('BLOCK')
       expect(result.overridable).toBe(false)
     })
@@ -245,18 +245,18 @@ describe('Governance enforcement — Addendum E', () => {
     })
 
     it('a person inside their break period is blocked', () => {
-      const result = evaluateBreakInService('Ravi Patel', 15, 30) // 15 of 30 days
+      const result = evaluateBreakInService('Ravi Purohit', 15, 30) // 15 of 30 days
       expect(result.outcome).toBe('BLOCK')
       expect(result.reason).toContain('15 of 30')
     })
 
     it('a person who completed their break period passes', () => {
-      const result = evaluateBreakInService('Ravi Patel', 45, 30) // 45 > 30 days
+      const result = evaluateBreakInService('Ravi Purohit', 45, 30) // 45 > 30 days
       expect(result.outcome).toBe('PASS')
     })
 
     it('a person exactly at the break boundary passes', () => {
-      const result = evaluateBreakInService('Ravi Patel', 30, 30) // exactly 30
+      const result = evaluateBreakInService('Ravi Purohit', 30, 30) // exactly 30
       expect(result.outcome).toBe('PASS')
     })
 

@@ -13,7 +13,7 @@ import { linesBilled } from '@/lib/money/order-ledger'
 import { signedAndBilled, rollUp } from '@/lib/money/signed-unbilled'
 
 /**
- * Walk 8 on the seeded world: Helena Marsh's week, filed on Techpeple's
+ * Walk 8 on the seeded world: Helena Marsh's week, filed on Tecwyn's
  * line to Computer Systems and worked at Northbend, accepted for fewer
  * hours by Computer Systems; and a Corvane week in dong. Rows are found by
  * their facts, never by a calendar day.
@@ -22,7 +22,7 @@ import { signedAndBilled, rollUp } from '@/lib/money/signed-unbilled'
 const D = '@demo.etyme.local'
 const NIKE = `world-nike-hiring${D}`
 const CS = `world-computer-systems${D}`
-const TECHPEPLE = `world-techpeple${D}`
+const TECWYN = `world-tecwyn${D}`
 const PROGRAM = `world-nike-programme${D}`
 
 const sign = async (id: string, body: unknown = {}) =>
@@ -68,7 +68,7 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
 
   it('the acceptance reply prices the accepted hours', () => {
     expect(s.reply.message).toContain(`${s.filed - 2}`)
-    // A straight week: the accepted hours at Techpeple's rate, in whole units.
+    // A straight week: the accepted hours at Tecwyn's rate, in whole units.
     expect(s.reply.billAmount).toBe(((s.filed - 2) * s.rate) / 100)
   })
 
@@ -78,8 +78,8 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
     expect(mine.accepted).toMatchObject({ hours: s.filed - 2, filed: s.filed })
     expect(mine.accepted.says).toMatch(/^You accepted .* Friday training session/)
     expect(mine.overtime.billableCents).toBe((s.filed - 2) * s.rate)
-    // Techpeple bills Computer Systems on the hours Computer Systems accepted.
-    as(TECHPEPLE)
+    // Tecwyn bills Computer Systems on the hours Computer Systems accepted.
+    as(TECWYN)
     const theirs = await row(s.week)
     expect(theirs.accepted).toMatchObject({ hours: s.filed - 2 })
     expect(theirs.accepted.says).toMatch(/^Computer Systems/)

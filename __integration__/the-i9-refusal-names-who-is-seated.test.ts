@@ -10,7 +10,7 @@ import { POST as record } from '@/app/api/compliance/verifications/route'
  * batch's press). It named HR and a compliance officer whether or not the
  * firm had either; a firm with neither was sent to nobody.
  *
- *   Teleworld, a seeded integrator. An Accounts Receivable seat is added.
+ *   Tellisford, a seeded integrator. An Accounts Receivable seat is added.
  *   With every seat that records checks paused, it is refused the I-9 in
  *   a sentence naming the Owner, the one of the two it has seated. Then an HR seat is added,
  *   and the same refusal names HR.
@@ -19,7 +19,7 @@ import { POST as record } from '@/app/api/compliance/verifications/route'
 const AR = 'ar.i9-refusal@seed.etyme.invalid'
 const HR = 'hr.i9-refusal@seed.etyme.invalid'
 
-let teleworld = ''
+let tellisford = ''
 let contractId = ''
 
 async function seatAt(companyId: string, roleName: string, name: string, email: string) {
@@ -39,16 +39,16 @@ const recordI9 = () =>
 
 beforeAll(async () => {
   await freshWorld()
-  teleworld = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-teleworld' } })).id
-  // A line Teleworld sells, for a person Teleworld itself employs, so the
-  // I-9 is Teleworld's to record and only the seat decides the answer.
-  const own = await prisma.context.findMany({ where: { companyId: teleworld, type: 'EMPLOYEE' }, select: { personId: true } })
+  tellisford = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-tellisford' } })).id
+  // A line Tellisford sells, for a person Tellisford itself employs, so the
+  // I-9 is Tellisford's to record and only the seat decides the answer.
+  const own = await prisma.context.findMany({ where: { companyId: tellisford, type: 'EMPLOYEE' }, select: { personId: true } })
   const line = await prisma.sellContract.findFirstOrThrow({
-    where: { companyId: teleworld, personId: { in: own.map((c) => c.personId) } },
+    where: { companyId: tellisford, personId: { in: own.map((c) => c.personId) } },
     select: { id: true },
   })
   contractId = line.id
-  await seatAt(teleworld, 'Accounts Receivable', 'Dana Whitfield', AR)
+  await seatAt(tellisford, 'Accounts Receivable', 'Dana Whitfield', AR)
 })
 
 describe('a seat that may not record an I-9 is told who at its own firm may', () => {
@@ -57,7 +57,7 @@ describe('a seat that may not record an I-9 is told who at its own firm may', ()
     // has nobody seated who may: the case this sentence is about.
     const records = desksHolding(['consultants.write', 'privacy.manage'], 'GSI').filter((d) => !['Owner', 'Admin'].includes(d))
     await prisma.context.updateMany({
-      where: { companyId: teleworld, revokedAt: null, suspendedAt: null, role: { name: { in: records } } },
+      where: { companyId: tellisford, revokedAt: null, suspendedAt: null, role: { name: { in: records } } },
       data: { suspendedAt: new Date() },
     })
     as(AR)
@@ -70,7 +70,7 @@ describe('a seat that may not record an I-9 is told who at its own firm may', ()
   })
 
   it('once HR is seated here, the same refusal names HR, in one sentence with the door', async () => {
-    await seatAt(teleworld, 'HR', 'Mara Quist', HR)
+    await seatAt(tellisford, 'HR', 'Mara Quist', HR)
     as(AR)
     const { status, body } = await json(await recordI9())
     expect(status).toBe(403)

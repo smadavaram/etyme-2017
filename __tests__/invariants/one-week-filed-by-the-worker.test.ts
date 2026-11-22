@@ -33,10 +33,10 @@ const week = (over: Partial<OnFile> = {}): OnFile => ({
   id: 'w1', status: 'APPROVED', periodStart: '2026-09-14', periodEnd: '2026-09-20', actedOn: false, ...over,
 })
 
-// Helena: Techpeple employs her and sells her to Computer Systems, which
+// Helena: Tecwyn employs her and sells her to Computer Systems, which
 // sells her to Northbend Athletic.
 const HELENA: WorkRung[] = [
-  { id: 'techpeple-rung', personId: 'helena', companyId: 'techpeple', clientCompanyId: 'cs', state: 'IN_PROGRESS', startDate: '2026-03-12', endDate: '2027-03-07' },
+  { id: 'tecwyn-rung', personId: 'helena', companyId: 'tecwyn', clientCompanyId: 'cs', state: 'IN_PROGRESS', startDate: '2026-03-12', endDate: '2027-03-07' },
   { id: 'cs-rung', personId: 'helena', companyId: 'cs', clientCompanyId: 'northbend', state: 'IN_PROGRESS', startDate: '2026-03-12', endDate: '2027-03-07' },
 ]
 
@@ -51,12 +51,12 @@ describe('only the worker files, and only on their own rung', () => {
   })
 
   it('a week on the employer’s rung is the worker’s to file', () => {
-    expect(rungVerdict(HELENA, 'techpeple-rung', TODAY)).toBeNull()
+    expect(rungVerdict(HELENA, 'tecwyn-rung', TODAY)).toBeNull()
   })
 
   it('a week filed on the worker’s own placement more than 14 days after it ended is refused with the day it ended, never as the wrong contract', () => {
     const ended = HELENA.map((r) => ({ ...r, state: 'ENDED', endDate: '2026-09-01' }))
-    const v = rungVerdict(ended, 'techpeple-rung', TODAY)
+    const v = rungVerdict(ended, 'tecwyn-rung', TODAY)
     expect(v && !v.ok && v.code).toBe('NOT_TAKING_HOURS')
     expect(v && !v.ok && v.says).toBe(
       'This placement ended on Sep 1, 2026, and its last weeks could be filed for 14 days after that. ' +
@@ -69,22 +69,22 @@ describe('only the worker files, and only on their own rung', () => {
 
   it('a placement that is not running takes no hours', () => {
     const paused = HELENA.map((r) => ({ ...r, state: 'SUSPENDED' }))
-    const v = rungVerdict(paused, 'techpeple-rung', TODAY)
+    const v = rungVerdict(paused, 'tecwyn-rung', TODAY)
     expect(v && !v.ok && v.code).toBe('NOT_TAKING_HOURS')
   })
 
   it('the rung a worker files on is the rung every rung above bills from, so the week the client signs at the top is the one week below it', () => {
     const own = rungsToFile(HELENA, TODAY).map((r) => r.id)
-    expect(own).toEqual(['techpeple-rung'])
+    expect(own).toEqual(['tecwyn-rung'])
     const ladder: Rung[] = [
-      { sellContractId: 'cs-rung', companyId: 'cs', buyContractId: 'cs-buy', supplierSellContractId: 'techpeple-rung' },
-      { sellContractId: 'techpeple-rung', companyId: 'techpeple', buyContractId: 'techpeple-buy', supplierSellContractId: null },
+      { sellContractId: 'cs-rung', companyId: 'cs', buyContractId: 'cs-buy', supplierSellContractId: 'tecwyn-rung' },
+      { sellContractId: 'tecwyn-rung', companyId: 'tecwyn', buyContractId: 'tecwyn-buy', supplierSellContractId: null },
     ]
-    expect(whereHoursLive('cs-rung', ladder)).toBe('techpeple-rung')
-    expect(mayBill('cs-rung', 'techpeple-rung', ladder)).toBe(true)
+    expect(whereHoursLive('cs-rung', ladder)).toBe('tecwyn-rung')
+    expect(mayBill('cs-rung', 'tecwyn-rung', ladder)).toBe(true)
     // And never the other way: a week on the prime's rung is nothing the
     // employer below could bill.
-    expect(mayBill('techpeple-rung', 'cs-rung', ladder)).toBe(false)
+    expect(mayBill('tecwyn-rung', 'cs-rung', ladder)).toBe(false)
   })
 })
 

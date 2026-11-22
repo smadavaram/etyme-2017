@@ -126,11 +126,11 @@ describe('the role is optional', () => {
 
 describe('adding a contact is on the activity log', () => {
   it('the row says who added whom at which company, that nothing was sent, and that it cannot be undone', () => {
-    const at = contactRecordedLog({ byName: 'Priya Raman', name: 'Dana Whitfield', atName: 'Harborline Tech', ownFirm: false })
-    expect(at.summary).toBe('Priya Raman added Dana Whitfield at Harborline Tech to Contacts')
+    const at = contactRecordedLog({ byName: 'Priya Ramesh', name: 'Dana Whitfield', atName: 'Harborline Tech', ownFirm: false })
+    expect(at.summary).toBe('Priya Ramesh added Dana Whitfield at Harborline Tech to Contacts')
     expect(at.reason).toBe('Added by hand to this company’s own contacts. Nothing was sent to them.')
     expect(at.reversible).toBe(false)
-    const own = contactRecordedLog({ byName: 'Priya Raman', name: 'Sam Ortiz', atName: 'Northwind Staffing', ownFirm: true })
+    const own = contactRecordedLog({ byName: 'Priya Ramesh', name: 'Sam Ortiz', atName: 'Northwind Staffing', ownFirm: true })
     expect(own.reason).toBe('Added by hand as a colleague at this firm. Nothing was sent to them, and it gives them no login.')
   })
 

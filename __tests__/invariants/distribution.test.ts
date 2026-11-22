@@ -151,7 +151,7 @@ describe('The blind key lets two rivals find a collision without learning anythi
 
 const cand = (over: Partial<Candidate> = {}): Candidate => ({
   personId: 'ravi',
-  name: 'Ravi Patel',
+  name: 'Ravi Purohit',
   email: 'ravi@example.com',
   phone: '555-0100',
   currentEmployer: 'Northwind Contracting',
@@ -198,7 +198,7 @@ describe('A consultant goes up the chain unnamed until there is a right to repre
   it('names them once the right to represent is signed', () => {
     const d = marketUp(cand(), hop({ rightToRepresent: true }), SALT)
     expect(d.payload.named).toBe(true)
-    expect(d.payload.name).toBe('Ravi Patel')
+    expect(d.payload.name).toBe('Ravi Purohit')
     expect(d.payload.resumeUrl).toBe('/r/full.pdf')
   })
 

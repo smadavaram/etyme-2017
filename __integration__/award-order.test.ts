@@ -128,7 +128,7 @@ beforeAll(async () => {
 
   who.rosa = await worker('Rosa Iqbal', 'rosa@veritan.invalid', co.veritan, veritan.roleId)
   who.dev = await worker('Dev Anand', 'dev@veritan.invalid', co.veritan, veritan.roleId)
-  who.chained = await worker('Priya Raman', 'priya@marrow.invalid', co.marrow, marrow.roleId)
+  who.chained = await worker('Priya Ramesh', 'priya@marrow.invalid', co.marrow, marrow.roleId)
   who.unpriced = await worker('Sam Oyelaran', 'sam@veritan.invalid', co.veritan, veritan.roleId)
 
   // Two seats on one requisition, with a budget finance stated: the
@@ -498,7 +498,7 @@ describe('A prime buys below the line it sells', () => {
     const logged = await prisma.automationLog.findFirstOrThrow({
       where: { companyId: co.auralis, action: 'PURCHASE_ORDER_RAISED' },
     })
-    expect(logged.summary).toContain('Priya Raman')
+    expect(logged.summary).toContain('Priya Ramesh')
     const atClient = await prisma.automationLog.count({
       where: { companyId: co.northbend, action: 'PURCHASE_ORDER_RAISED' },
     })

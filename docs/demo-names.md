@@ -198,3 +198,95 @@ firm's phone number and address. It stays in history at its commit.
 `lib/demo-seed-client` hold a supplier named `Cloudepa Systems`. They
 are removed after thirty days unused (`lib/sandbox-expiry`); new ones
 say Techpeple.
+
+## Safe to show outside, 2026-11-22
+
+**Why:** the owner asked for a demo tenant that is safe to show to a
+buyer (record 110): no real person's name in invented data, no real
+firm's name, and no typos. Every seed was read again, by name.
+
+### Firms
+
+| Old | Role | New | Why |
+|---|---|---|---|
+| Techpeple | Bench vendor (sub-vendor) | **Tecwyn** (Tecwyn Inc.) | The name chosen on 2026-10-04 was a misspelling. Its plain correction is too close to a real firm's name, so the firm has an invented one. |
+| Teleworld Solutions | Integrator | **Tellisford Solutions** | A real company holds the name. |
+| Consultis | Bench vendor | **Conisby** | A real company holds the name. |
+| Meridian Bank | Client | **Merrowfield Bank** | A real bank holds the name. |
+| Oxford Corp, Yoh Services, Insight Global | The visitor's own demo chain (`lib/demo-chain`) | **Orlestone Corp**, **Yarrow Services**, **Ingleby Global** | Taken from a real calling list. |
+| Techni Power | Calling-list fixture only | **Tarnhow Power** | Taken from a real calling list. |
+| TechVista Consulting, Ravensbourne Systems | Legacy seed (`prisma/seed.ts`) | **Tarnvista Consulting**, **Ravenmoor Systems** | The two this sheet called low priority on 2026-09-17. |
+| Umpqua Bank, Wells Fargo | A seeded supplier's bank | **Bellrock Bank** | Real banks. Bellrock was already the world's invented bank. |
+| Cincinnati Insurance, The Hartford, Travelers | A seeded certificate's insurer | **Lakeshore Casualty**, **Granite Mutual Insurance**, **Pinecrest Indemnity** | Real insurers. The three were already the generated world's invented ones. |
+| Sterling, HireRight, First Advantage, Checkr | A seeded background check's provider | **Stonegate Screening**, **Harrowline Checks**, **Fairmark Screening**, **Clearwell Checks** | Real screening companies. A seeded verdict under a real provider's name reads as that provider's verdict. |
+
+**The four firms in the seeded world moved their slugs too**, on the
+2026-10-04 precedent: `world-tecwyn`, `world-tellisford`,
+`world-conisby`, `world-merrowfield-bank`. `lib/seed-renames` carries
+all four, so a world seeded before today is renamed in place on its next
+seeding: the firm, its people's addresses, and the old name in every
+row of the demo world, cost center codes included
+(`__integration__/demo-firms-renamed-in-place.test.ts`).
+
+### People
+
+Seventeen seeded people carried a name a public figure holds. Each has
+an invented surname and the same initials. A person's name on a row that
+already exists is not rewritten by a seeding, so the live demo reads the
+new names only after it is rebuilt (`docs/deploying.md`).
+
+| Old | New |
+|---|---|
+| Anita Desai | Anita Dalvi |
+| Ravi Patel | Ravi Purohit |
+| Priya Raman | Priya Ramesh |
+| Priya Natarajan | Priya Nagarkar |
+| Priya Anand | Priya Ambekar |
+| Ravi Subramanian | Ravi Subbarayan |
+| Rahul Deshpande | Rahul Dandekar |
+| Nadia Petrova | Nadia Pavlenko |
+| Lakshmi Narayanan | Lakshmi Nagarajan |
+| Hardik Patel | Hardik Parekh |
+| Harish Pillai | Harish Panicker |
+| Peter Lindgren | Peter Lundmark |
+| Olivier Renard | Olivier Rambert |
+| Owen Bradley | Owen Brackley |
+| Yusuf Demir | Yusuf Dalkiran |
+| Piotr Zielinski | Piotr Zborowski |
+| Rodrigo Teixeira | Rodrigo Tavares |
+
+The visitor's own demo draws names from two pools (`lib/demo-volume`).
+Six surnames in the pool changed with the table, so it cannot draw a
+retired name again.
+
+**The calling-list fixture** (`__integration__/fixtures/network.ts`)
+held the firms, people and work addresses of a real calling list. Every
+firm, person and address in it is invented now, at `.example`.
+
+### The wall
+
+`__tests__/invariants/seeded-names-are-invented.test.ts` reads every
+seed file for the retired people and the retired banks, insurers,
+screening companies and calling-list firms. It holds each name as a
+hash, so the guard does not put a real person's name back in the code.
+The four world firms are on `RETIRED` in `demo-names.test.ts`.
+
+### Not done, and why
+
+- **Product names in seeded skills and titles.** The world seed still
+  says Epic, Allen-Bradley, Rockwell FactoryTalk, Siemens PCS 7, Boomi
+  and Minitab, and the legacy seed names several more. A skill is what a
+  recruiter searches by, and the matching tests pin these. The owner's
+  ask was people, firms and typos.
+- **Names nobody could check.** No agent can search the web for a
+  name. The other invented firms in the world were read and none is
+  known to be a real firm's name; a person should search each before a
+  large demo. The same holds for the new names on this sheet.
+- **The older records** in `docs/decisions/` and `docs/results/`, the
+  prototypes, `src/lib/matrix.ts`, `docs/delivery-matrix.html`,
+  `docs/security-posture.md`, `LEGACY_RULES.md` and two comments in
+  `prisma/schema.prisma` still spell the old names. They are records, or
+  another owner's files.
+- **Worked examples outside the seeds.** Unit fixtures, code comments
+  and the simulation name real screening companies and insurers as
+  examples. None is seeded into the demo.

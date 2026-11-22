@@ -11,13 +11,13 @@ import { readWeekChain, needsSigningInEtyme } from '@/lib/week-approval'
  * email" is sent from.
  *
  * Seeded: Helena Marsh's oldest signed week at Northbend Athletic, through
- * Computer Systems Inc and Techpeple, approved by Marcus Oyelaran by email
- * with his reply attached by Techpeple's desk.
+ * Computer Systems Inc and Tecwyn, approved by Marcus Oyelaran by email
+ * with his reply attached by Tecwyn's desk.
  */
 
 const D = '@demo.etyme.local'
 const NIKE = `world-nike-hiring${D}`
-const TECHPEPLE = `world-techpeple${D}`
+const TECWYN = `world-tecwyn${D}`
 const HELENA = 'helena.marsh@seed.etyme.invalid'
 
 const letters: { to: string; subject: string; text: string }[] = []
@@ -74,7 +74,7 @@ describe('the timesheet list says who approved a week by email', () => {
     as(NIKE)
     const t = await row(it_.seeded)
     expect(`${t.approvedBy} ${t.signature.says}`).not.toMatch(/\$|rate/i)
-    expect(`${t.approvedBy} ${t.signature.says}`).not.toContain('Techpeple')
+    expect(`${t.approvedBy} ${t.signature.says}`).not.toContain('Tecwyn')
   })
 
   it('every week on the list links to its own page, where “Approve by email” is sent from', async () => {
@@ -84,7 +84,7 @@ describe('the timesheet list says who approved a week by email', () => {
   })
 
   it('the supplier that attached the evidence reads the same sentence on its own list', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const t = await row(it_.seeded)
     expect(t.approvedBy).toMatch(/^Approved by email: Marcus Oyelaran, .+ — evidence attached$/)
   })
@@ -123,14 +123,14 @@ describe('the timesheet list says who approved a week by email', () => {
     const chain = (await readWeekChain(waiting.id))!
     expect(chain.ladder).toHaveLength(2)
     expect(needsSigningInEtyme(chain)).toBeNull()
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await sendOrAttach(req('POST', '/api/week-approvals', {
       timesheetId: waiting.id, how: 'LINK', approverName: 'Dana Whitfield', approverEmail: 'dana.whitfield@northbend.test',
     })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const letter = letters.find((l) => l.to === 'dana.whitfield@northbend.test')!
     expect(letter.text).toContain('Helena Marsh’s supplier asked us to send you the week to approve. If anything in it looks wrong, ask Computer Systems Inc.')
-    expect(letter.text).not.toContain('Techpeple')
+    expect(letter.text).not.toContain('Tecwyn')
     expect(letter.text).not.toContain('side of this placement')
     expect(letter.text).not.toMatch(/\$|rate/i)
   })

@@ -21,7 +21,7 @@ const TODAY = d('2026-10-01')
 const MANAGER = ['assignments.write', 'consultants.read']
 const reader = (over: Partial<Parameters<typeof mayReadOurBench>[0]> = {}) =>
   mayReadOurBench({
-    companyName: 'Teleworld Solutions', companyKind: 'GSI', permissions: MANAGER,
+    companyName: 'Tellisford Solutions', companyKind: 'GSI', permissions: MANAGER,
     roleName: 'Delivery Manager', consultantSeat: false, ...over,
   })
 
@@ -47,7 +47,7 @@ describe('who reads Our bench', () => {
     const v = reader({ permissions: ['assignments.read', 'timesheets.read'], roleName: 'Validation Engineer' })
     expect(v.ok).toBe(false)
     if (!v.ok) expect(v.message).toBe(
-      'Our bench at Teleworld Solutions is read by the managers who staff its projects and by HR. Your seat (Validation Engineer) is neither.'
+      'Our bench at Tellisford Solutions is read by the managers who staff its projects and by HR. Your seat (Validation Engineer) is neither.'
     )
   })
 
@@ -179,11 +179,11 @@ describe('reserving somebody for a position', () => {
   it('a second manager cannot reserve somebody already held, and is told who holds them and until when', () => {
     const v = checkHold({
       ...base, callerId: 'omar',
-      standing: { heldById: 'rahul', heldByName: 'Rahul Deshpande', forTitle: 'ERP finance migration at Harlow Health', until: d('2026-10-15') },
+      standing: { heldById: 'rahul', heldByName: 'Rahul Dandekar', forTitle: 'ERP finance migration at Harlow Health', until: d('2026-10-15') },
     })
     expect(v.ok).toBe(false)
     if (!v.ok) expect(v.message).toBe(
-      'Felix Brenner is held by Rahul Deshpande for ERP finance migration at Harlow Health until Oct 15, 2026. Ask Rahul Deshpande, or wait until then.'
+      'Felix Brenner is held by Rahul Dandekar for ERP finance migration at Harlow Health until Oct 15, 2026. Ask Rahul Dandekar, or wait until then.'
     )
   })
 
@@ -233,7 +233,7 @@ describe('confirming the day and placing', () => {
 
   const place = {
     personName: 'Felix Brenner', callerId: 'rahul',
-    hold: { heldById: 'rahul', heldByName: 'Rahul Deshpande', until: d('2026-10-15'), live: 'LIVE' as string | null },
+    hold: { heldById: 'rahul', heldByName: 'Rahul Dandekar', until: d('2026-10-15'), live: 'LIVE' as string | null },
     release: { rollsOffOn: d('2026-10-19'), keepUntil: null as Date | null, confirmedAt: d('2026-10-01') as Date | null, releaserName: 'Ingrid Solberg' },
     latestLineEnd: d('2026-10-19') as Date | null, openEndedLine: false, startAsked: null as Date | null, today: TODAY,
   }
@@ -253,7 +253,7 @@ describe('confirming the day and placing', () => {
   it('only the manager holding somebody may place them', () => {
     const v = checkPlace({ ...place, callerId: 'omar' })
     expect(v.ok).toBe(false)
-    if (!v.ok) expect(v.message).toBe('Rahul Deshpande holds Felix Brenner, so Rahul Deshpande places them.')
+    if (!v.ok) expect(v.message).toBe('Rahul Dandekar holds Felix Brenner, so Rahul Dandekar places them.')
   })
 
   it('nobody is placed without a hold', () => {
@@ -286,7 +286,7 @@ describe('confirming the day and placing', () => {
 
 describe('what people are told', () => {
   const facts = {
-    personName: 'Felix Brenner', firmName: 'Teleworld Solutions', actorName: 'Rahul Deshpande',
+    personName: 'Felix Brenner', firmName: 'Tellisford Solutions', actorName: 'Rahul Dandekar',
     fromClient: 'Northbend Athletic', fromCity: 'Portland', toClient: 'Harlow Health', toCity: 'San Jose',
     forTitle: 'ERP finance migration at Harlow Health', startsOn: d('2026-10-20'), movedAs: 'LINE' as const,
     rollsOffOn: d('2026-10-19'), until: d('2026-10-15'),
@@ -296,7 +296,7 @@ describe('what people are told', () => {
     const n = personNotice('MOVE', facts)
     expect(n.title).toBe('Your next project: Harlow Health in San Jose, from Oct 20, 2026')
     expect(n.body).toContain('This moves you from Portland to San Jose.')
-    expect(n.body).toContain('Your employer stays Teleworld Solutions')
+    expect(n.body).toContain('Your employer stays Tellisford Solutions')
   })
 
   it('a move within one city does not mention a city change', () => {
@@ -358,7 +358,7 @@ describe('a row on Our bench', () => {
   })
 
   it('the holder is offered Place only once the releasing manager has confirmed', () => {
-    const held = { ...felix, hold: { id: 'h1', heldById: 'rahul', heldByName: 'Rahul Deshpande', forTitle: 'ERP migration', until: d('2026-10-15') } }
+    const held = { ...felix, hold: { id: 'h1', heldById: 'rahul', heldByName: 'Rahul Dandekar', forTitle: 'ERP migration', until: d('2026-10-15') } }
     expect(ourBenchRow(held, { personId: 'rahul', as: 'MANAGER' }).may.place).toBe(false)
     const confirmed = { ...held, release: { ...held.release!, confirmedAt: TODAY } }
     expect(ourBenchRow(confirmed, { personId: 'rahul', as: 'MANAGER' }).may.place).toBe(true)

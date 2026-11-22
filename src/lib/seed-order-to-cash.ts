@@ -101,7 +101,7 @@ const whole = (cents: number) => cents / 100
  *
  * It was "four weeks at the rate" — 160 hours over day -32 to day -4 —
  * whatever had been accepted or billed, so INV-CPRLJK held a week
- * Computer Systems had not accepted and overlapped bills Techpeple had
+ * Computer Systems had not accepted and overlapped bills Tecwyn had
  * already been paid on (2026-09-30).
  *
  * Only the weeks after the last one already billed are taken, so the
@@ -585,7 +585,7 @@ export async function seedOrderToCash(
     //
     // The gap between `deliveredAt` and `acceptedAt` is the interesting
     // part and the reason both columns exist.
-    const gsi = ctx.firmBySlug.get('teleworld')
+    const gsi = ctx.firmBySlug.get('tellisford')
     const aero = ctx.firmBySlug.get('corveldt')
     if (gsi && aero) {
       const number = `PO-${day(0).getUTCFullYear()}-MS-${gsi.id.slice(-4).toUpperCase()}`
@@ -650,7 +650,7 @@ export async function seedOrderToCash(
               orderId: order.id, name: m.name, amountCents: m.amountCents,
               dueOn: day(m.dueOn), sortOrder: m.sortOrder, status: m.status,
               deliveredAt: m.deliveredOn == null ? null : day(m.deliveredOn),
-              deliveredById: m.deliveredOn == null ? null : ctx.seatBySlug.get('teleworld')?.personId ?? null,
+              deliveredById: m.deliveredOn == null ? null : ctx.seatBySlug.get('tellisford')?.personId ?? null,
               acceptedAt: m.acceptedOn == null ? null : day(m.acceptedOn),
               acceptedById: m.acceptedOn == null ? null : by?.id ?? null,
               note: m.note ?? null,

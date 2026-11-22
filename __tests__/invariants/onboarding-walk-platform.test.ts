@@ -157,10 +157,10 @@ describe('a firm already on Etyme', () => {
 
 describe('two firms already on Etyme link', () => {
   it('a link request names the relationship from the asker\u2019s side and the other side reads it from theirs', () => {
-    // Teleworld says Quarrybrook is its prime; Quarrybrook reads Teleworld as its supplier, the Companies list's word.
-    const sides = { asker: { name: 'Teleworld Solutions', kind: 'GSI' }, other: { name: 'Quarrybrook Staffing', kind: 'VENDOR' }, relationship: 'PRIME' as const }
+    // Tellisford says Quarrybrook is its prime; Quarrybrook reads Tellisford as its supplier, the Companies list's word.
+    const sides = { asker: { name: 'Tellisford Solutions', kind: 'GSI' }, other: { name: 'Quarrybrook Staffing', kind: 'VENDOR' }, relationship: 'PRIME' as const }
     expect(askerReads(sides)).toBe('You asked Quarrybrook Staffing to link as your prime. Nothing is on either Companies list until they say yes.')
-    expect(readerReads({ ...sides, askedBy: 'Ravi Kalathil' }).title).toBe('Teleworld Solutions asks to link as your supplier')
+    expect(readerReads({ ...sides, askedBy: 'Ravi Kalathil' }).title).toBe('Tellisford Solutions asks to link as your supplier')
     // A client asking a supplier is that supplier's client; a prime asking its sub is its prime.
     expect(mirrorOf('SUPPLIER', 'CLIENT')).toBe('CLIENT')
     expect(mirrorOf('SUPPLIER', 'VENDOR')).toBe('PRIME')
@@ -171,11 +171,11 @@ describe('two firms already on Etyme link', () => {
   })
 
   it('a link is asked once per pair, never of oneself, and only by whoever keeps the list of companies', () => {
-    const base: LinkAsk = { asker: { id: 'a', kind: 'VENDOR', name: 'Teleworld' }, other: { id: 'b', kind: 'VENDOR', name: 'Quarrybrook' }, relationship: 'PRIME', mayManage: true, linked: false, open: null }
+    const base: LinkAsk = { asker: { id: 'a', kind: 'VENDOR', name: 'Tellisford' }, other: { id: 'b', kind: 'VENDOR', name: 'Quarrybrook' }, relationship: 'PRIME', mayManage: true, linked: false, open: null }
     expect(mayAskToLink(base).ok).toBe(true)
     const code = (o: Partial<LinkAsk>) => { const v = mayAskToLink({ ...base, ...o }); return v.ok ? 'OK' : v.code }
     expect(code({ mayManage: false })).toBe('NOT_YOURS_TO_ASK')
-    expect(code({ other: { id: 'a', kind: 'VENDOR', name: 'Teleworld' } })).toBe('OWN_COMPANY')
+    expect(code({ other: { id: 'a', kind: 'VENDOR', name: 'Tellisford' } })).toBe('OWN_COMPANY')
     expect(code({ open: { fromCompanyId: 'a' } })).toBe('ALREADY_ASKED')
     expect(code({ open: { fromCompanyId: 'b' } })).toBe('THEY_ASKED')
     expect(code({ linked: true })).toBe('ALREADY_LINKED')

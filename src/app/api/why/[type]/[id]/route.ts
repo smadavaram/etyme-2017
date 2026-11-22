@@ -139,7 +139,7 @@ export async function GET(
 
       // ── The subject is read off the verdict, never before it ────────
       //
-      // "Priya Raman's placement through Techpeple" was built from the
+      // "Priya Ramesh's placement through Tecwyn" was built from the
       // record the moment it was fetched and sent whatever the verdict
       // said — so the sentence explaining that somebody may not read a
       // placement handed them the placement. The same shape leaked a
@@ -259,7 +259,7 @@ async function supplierAsSeenBy(
     companyName: r.company.name, clientCompanyId: r.clientCompanyId,
   })
 
-  // The phrase, because this lands inside a sentence: "Priya Raman's
+  // The phrase, because this lands inside a sentence: "Priya Ramesh's
   // placement through the firm supplied through Computer Systems".
   return nameForClient(
     asRung(c),

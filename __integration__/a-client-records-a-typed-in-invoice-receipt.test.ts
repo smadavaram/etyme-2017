@@ -28,7 +28,7 @@ describe('a client’s AP clerk records a typed-in invoice receipt from a suppli
     await freshWorld()
     s.nike = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id
     s.cs = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-computer-systems' } })).id
-    s.techpeple = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })).id
+    s.tecwyn = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })).id
   })
 
   it('a client’s AP clerk recording a typed-in invoice receipt is offered the suppliers it pays, with the person on each line', async () => {
@@ -56,20 +56,20 @@ describe('a client’s AP clerk records a typed-in invoice receipt from a suppli
         .map((x) => x.companyId)
     )
     for (const sup of suppliers) expect(paysOn.has(sup.id), sup.name).toBe(true)
-    // Techpeple employs Helena below Computer Systems; Northbend pays Computer Systems, never Techpeple.
-    expect(suppliers.some((x) => x.id === s.techpeple)).toBe(false)
+    // Tecwyn employs Helena below Computer Systems; Northbend pays Computer Systems, never Tecwyn.
+    expect(suppliers.some((x) => x.id === s.tecwyn)).toBe(false)
     // And nobody else's line is opened by naming its id.
-    const below = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: s.techpeple, clientCompanyId: s.cs } })
+    const below = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: s.tecwyn, clientCompanyId: s.cs } })
     expect((await options(`?sellContractId=${below.id}`)).status).toBe(404)
   })
 
   it('a firm that pays sub-vendors is offered its own buy lines as before', async () => {
     as(CS)
     const suppliers = (await options()).body.data.suppliers as any[]
-    const techpeple = suppliers.find((x) => x.id === s.techpeple)
-    expect(techpeple).toBeTruthy()
-    expect(techpeple.lines.length).toBeGreaterThan(0)
-    for (const l of techpeple.lines) {
+    const tecwyn = suppliers.find((x) => x.id === s.tecwyn)
+    expect(tecwyn).toBeTruthy()
+    expect(tecwyn.lines.length).toBeGreaterThan(0)
+    for (const l of tecwyn.lines) {
       expect(l.buyContractId).toBeTruthy()
       expect(l.sellContractId).toBeNull()
     }

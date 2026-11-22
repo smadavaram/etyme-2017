@@ -301,7 +301,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
 
   it('a three-way match reads the premium the approver signed rather than calling it bad arithmetic', () => {
     const line = {
-      id: 'l1', timesheetId: 'ts-1', personName: 'Priya Raman',
+      id: 'l1', timesheetId: 'ts-1', personName: 'Priya Ramesh',
       hours: 45, rateCents: RATE, amountCents: 40 * RATE + 5 * RATE * 1.5,
     }
     const input = {
@@ -342,7 +342,7 @@ describe('what an invoice may bill for a week that went over the line', () => {
     // historical invoice changes verdict because this code shipped.
     const result = threeWayMatch({
       invoice: { id: 'inv-2', totalCents: 400_000, periodStart: SEPTEMBER.start, periodEnd: SEPTEMBER.end, contractPeriod: null },
-      lines: [{ id: 'l1', timesheetId: 'ts-2', personName: 'Priya Raman', hours: 40, rateCents: RATE, amountCents: 400_000 }],
+      lines: [{ id: 'l1', timesheetId: 'ts-2', personName: 'Priya Ramesh', hours: 40, rateCents: RATE, amountCents: 400_000 }],
       timesheets: {
         'ts-2': {
           id: 'ts-2', status: 'APPROVED', approvedHours: 40,

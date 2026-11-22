@@ -65,7 +65,7 @@ const FIRMS = seededFirms()
 
 /**
  * How a firm is recognized in a sentence: its full name, or its first
- * word where that word is its own ("Brightmoor", "Teleworld"). A first
+ * word where that word is its own ("Brightmoor", "Tellisford"). A first
  * word that is an ordinary English word is not enough on its own.
  */
 const ORDINARY = new Set(['Computer'])

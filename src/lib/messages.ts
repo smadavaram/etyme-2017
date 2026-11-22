@@ -34,6 +34,7 @@ import { emailSender } from '@/lib/senders'
 import { reportMailRefused } from '@/lib/notification-delivery'
 import { isMailRefused } from '@/lib/notify/mail-failure'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
+import type { MailAbout } from '@/lib/notify/mail-door'
 import { choicesBlock } from '@/lib/reply-link'
 import { NO_ADDRESS_REASON } from '@/lib/notify/check-in-rows'
 import type { Kind } from '@/lib/texts'
@@ -50,6 +51,10 @@ export interface Outbound {
   body: string
   aboutType?: 'SUBMISSION' | 'LISTING' | null
   aboutId?: string | null
+  /** Who pressed the button, for the mail ledger. Absent where a scheduled job sent it. */
+  byPersonId?: string | null
+  /** True for a reminder about `aboutId`: the mail door lets one go in its window. */
+  chase?: boolean
 }
 
 export interface Sent {
@@ -104,7 +109,11 @@ export async function send(m: Outbound): Promise<Sent> {
   }
 
   try {
-    await deliver(m.to, m.subject, body)
+    await deliver(m.to, m.subject, body, {
+      companyId: m.companyId, template: `message-${m.kind.toLowerCase()}`,
+      recordType: m.aboutType ?? 'TextMessage', recordId: m.aboutId ?? row.id,
+      actorPersonId: m.byPersonId ?? null, chase: m.chase === true,
+    })
     return await settle(row.id, 'SENT', 'Sent.')
   } catch (err: any) {
     return await settle(row.id, 'FAILED', String(err?.message ?? err).slice(0, 200))
@@ -140,11 +149,11 @@ async function settle(id: string, status: Status, reason: string): Promise<Sent>
  * There is no second email integration here: two ways to send an email
  * means two things to keep in credentials, and one of them rots.
  */
-async function deliver(to: string, subject: string, body: string): Promise<void> {
+async function deliver(to: string, subject: string, body: string, about: MailAbout): Promise<void> {
   const sender = emailSender()
   if (!sender) throw new Error('No email provider configured')
   try {
-    await sender.send(to, subject, body)
+    await sender.send(to, subject, body, null, null, about)
   } catch (err) {
     // A refused send is a broken edge: Etyme's staff hear (one email an
     // hour), and the provider's cleaned words go on the row as the reason.

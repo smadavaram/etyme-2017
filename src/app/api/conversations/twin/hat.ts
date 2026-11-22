@@ -61,7 +61,7 @@ export function youOffered(f: HatFacts): boolean {
  *   opens it (`hatOf`). Where the menu offers no You hat it is greeted as
  *   a worker, as before, because it has nothing of the firm's to read.
  *   Reversed on the fourth screen walk, 2026-11-03: the earlier call
- *   greeted such a seat as a worker in either hat, so in the Teleworld hat
+ *   greeted such a seat as a worker in either hat, so in the Tellisford hat
  *   Karthik still read his own week and the worker's chips.
  * - Any other firm seat is greeted as the person only where the cookie
  *   says "you" and the account menu offers them the You hat.
@@ -84,7 +84,7 @@ export function firmHatWithNothing(f: HatFacts): boolean {
 }
 
 /**
- * "Nothing of Teleworld Solutions's is addressed to you; your own work is under You."
+ * "Nothing of Tellisford Solutions's is addressed to you; your own work is under You."
  * A seat with no role hears, after it, who gives her one (`noRoleYetSays`
  * in ./no-role); a seat with a role reads the line alone, as before.
  */

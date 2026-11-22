@@ -18,6 +18,7 @@ import { demoAddress, DEMO_ADDRESS_NOTE, reportMailRefused, type Sender } from '
 import { emailSender } from '@/lib/senders'
 import { dressLetter } from './letter-html'
 import { cleanProviderWords, isMailRefused, type MailFailure } from './mail-failure'
+import { isMailHeld, type MailAbout } from './mail-door'
 
 /** The note a row keeps where this deployment has no email sender. */
 export const NOT_SET_UP_NOTE = 'No email provider set up, so this was recorded and not sent.'
@@ -34,6 +35,8 @@ export interface EmailToSend {
   /** For the staff alert only; never put in the email. */
   companyId?: string | null
   personId?: string | null
+  /** What the mail ledger records this email was for (lib/notify/mail-door). */
+  about?: MailAbout | null
 }
 
 export type EmailSent =
@@ -73,10 +76,16 @@ export async function sendEmailNow(mail: EmailToSend, deps: SendNowDeps = {}): P
   }
   try {
     const html = mail.html === undefined ? dressLetter(mail.subject, mail.body) : mail.html
-    if (html) await sender.send(mail.to, mail.subject, mail.body, null, html)
+    const about = mail.about ? { ...mail.about, companyId: mail.about.companyId ?? mail.companyId ?? null } : null
+    if (html || about) await sender.send(mail.to, mail.subject, mail.body, null, html || null, ...(about ? [about] : []))
     else await sender.send(mail.to, mail.subject, mail.body)
     return { left: true, state: 'SENT', at: now, note: null, failure: null }
   } catch (err) {
+    // A rule of the mail door held it: Etyme's own sentence, and nothing
+    // for staff to mend, so nobody is alerted.
+    if (isMailHeld(err)) {
+      return { left: false, state: 'FAILED', at: null, note: err.message, failure: { kind: 'HELD', status: null, provider: null, words: err.message } }
+    }
     const ctx = { companyId: mail.companyId ?? null, personId: mail.personId ?? null }
     await report(err, ctx).catch(() => {})
     if (isMailRefused(err)) {

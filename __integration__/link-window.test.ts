@@ -25,7 +25,7 @@ beforeAll(async () => {
   const company = await prisma.company.create({
     data: { name: 'Midweek Swap Ltd', slug: 'midweek-swap', kind: 'VENDOR', currency: 'USD' },
   })
-  const person = await prisma.person.create({ data: { name: 'Anita Desai', primaryEmail: 'anita@midweek.test' } })
+  const person = await prisma.person.create({ data: { name: 'Anita Dalvi', primaryEmail: 'anita@midweek.test' } })
   const owner = await prisma.person.create({ data: { name: 'Owner', primaryEmail: VENDOR } })
   const role = await prisma.role.create({
     data: { companyId: company.id, name: 'Owner', permissions: ['*'], isDefault: true },

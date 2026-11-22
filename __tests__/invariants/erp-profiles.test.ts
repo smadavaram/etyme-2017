@@ -23,7 +23,7 @@ function line(over: Partial<CodedLine> = {}): CodedLine {
     invoiceNumber: 'INV-2026-0412',
     invoiceDate: '2026-08-01',
     dueDate: '2026-08-31',
-    vendor: 'Techpeple Inc.',
+    vendor: 'Tecwyn Inc.',
     billTo: 'Talvern Medical',
     poNumber: 'PO-9001',
     personName: 'John Martinez',
@@ -139,7 +139,7 @@ describe('refusing to write a file that would be rejected', () => {
 })
 
 describe('the file itself', () => {
-  const lines = [line({ amount: 60 }), line({ amount: 40, personName: 'Ravi Patel' })]
+  const lines = [line({ amount: 60 }), line({ amount: 40, personName: 'Ravi Purohit' })]
 
   it('uses the delimiter the system expects', () => {
     // SAP wants semicolons; a comma file is rejected on sight.
@@ -161,11 +161,11 @@ describe('the file itself', () => {
   it('quotes a value containing the delimiter rather than splitting the row', () => {
     const r = render(
       profileById('ORACLE_AP')!,
-      [line({ vendor: 'Techpeple, Inc.', amount: 100 })],
+      [line({ vendor: 'Tecwyn, Inc.', amount: 100 })],
       100
     )
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.result.content).toContain('"Techpeple, Inc."')
+    if (r.ok) expect(r.result.content).toContain('"Tecwyn, Inc."')
   })
 
   it('writes an empty cell rather than the word null when a field is absent', () => {

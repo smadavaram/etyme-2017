@@ -59,7 +59,7 @@ export function YourExpense({ on, currency }: { on: ExpenseOn[]; currency?: stri
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(verdict.body),
       })
-      // The route's own sentence, refusal or not: "Filed. Techpeple
+      // The route's own sentence, refusal or not: "Filed. Tecwyn
       // approves it before it is paid back to you."
       const j = await readJson(res)
       setFlash(j.data?.message ?? 'Filed.')

@@ -92,10 +92,10 @@ describe('Consultants availability status', () => {
 
 describe('Consultants tier filtering', () => {
   const consultants = [
-    { id: '1', name: 'Ravi Patel', tier: 'RETAINED', skills: ['SAP BRIM'] },
+    { id: '1', name: 'Ravi Purohit', tier: 'RETAINED', skills: ['SAP BRIM'] },
     { id: '2', name: 'Priya Sharma', tier: 'MARKETING', skills: ['Azure'] },
     { id: '3', name: 'John Smith', tier: 'RETAINED', skills: ['Java'] },
-    { id: '4', name: 'Anita Desai', tier: null, skills: ['React'] },
+    { id: '4', name: 'Anita Dalvi', tier: null, skills: ['React'] },
   ]
 
   it('shows all consultants when no tier filter applied', () => {
@@ -125,7 +125,7 @@ describe('Consultants tier filtering', () => {
 
 describe('Consultants search filter', () => {
   const consultants = [
-    { name: 'Ravi Patel', email: 'ravi@techpeple.example', skills: ['SAP BRIM', 'S/4HANA'], location: 'Dallas, TX', headline: 'Senior SAP Consultant', workAuth: 'H1B' },
+    { name: 'Ravi Purohit', email: 'ravi@tecwyn.example', skills: ['SAP BRIM', 'S/4HANA'], location: 'Dallas, TX', headline: 'Senior SAP Consultant', workAuth: 'H1B' },
     { name: 'Priya Sharma', email: 'priya@tcs.com', skills: ['Azure', '.NET'], location: 'Remote', headline: 'Cloud Engineer', workAuth: 'US_CITIZEN' },
   ]
 
@@ -140,11 +140,11 @@ describe('Consultants search filter', () => {
   it('searches by name', () => {
     const filtered = consultants.filter((c) => searchFilter(c, 'ravi'))
     expect(filtered).toHaveLength(1)
-    expect(filtered[0].name).toBe('Ravi Patel')
+    expect(filtered[0].name).toBe('Ravi Purohit')
   })
 
   it('searches by email', () => {
-    const filtered = consultants.filter((c) => searchFilter(c, 'techpeple'))
+    const filtered = consultants.filter((c) => searchFilter(c, 'tecwyn'))
     expect(filtered).toHaveLength(1)
   })
 

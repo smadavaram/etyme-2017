@@ -169,16 +169,16 @@ describe('the one action on a row', () => {
   })
 
   it('a supplier’s person goes forward in the firm’s own name, bought from the supplier at the supplier’s own rate', () => {
-    const a = actionFor({ entry: entry({ reach: 'PANEL', firmId: 'techpeple' }), viewer: { companyId: 'prime', buyer: false } })
-    expect(a).toMatchObject({ kind: 'SUBMIT', fromCompanyId: 'prime', offeredBy: 'techpeple', payRate: 11_000, rate: null })
+    const a = actionFor({ entry: entry({ reach: 'PANEL', firmId: 'tecwyn' }), viewer: { companyId: 'prime', buyer: false } })
+    expect(a).toMatchObject({ kind: 'SUBMIT', fromCompanyId: 'prime', offeredBy: 'tecwyn', payRate: 11_000, rate: null })
   })
 
   it('an integrator’s own employee goes forward as its own employee, at the rate it last billed them', () => {
     const a = actionFor({
-      entry: entry({ reach: 'OWN', employee: true, firmId: 'teleworld', rateMin: null, rateMax: null }),
-      viewer: { companyId: 'teleworld', buyer: false },
+      entry: entry({ reach: 'OWN', employee: true, firmId: 'tellisford', rateMin: null, rateMax: null }),
+      viewer: { companyId: 'tellisford', buyer: false },
       lastBillRate: 13_800,
     })
-    expect(a).toMatchObject({ kind: 'SUBMIT', as: 'INTERNAL', rate: 13_800, fromCompanyId: 'teleworld' })
+    expect(a).toMatchObject({ kind: 'SUBMIT', as: 'INTERNAL', rate: 13_800, fromCompanyId: 'tellisford' })
   })
 })

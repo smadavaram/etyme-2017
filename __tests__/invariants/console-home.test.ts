@@ -4,7 +4,7 @@
  * The browser walk of 2026-09-21 opened `/dashboard` as thirty-eight
  * seats and three of them were shown somebody else's product. The worst
  * was an integrator: `kind === 'GSI'` sat in the same redirect as CLIENT
- * and MSP, so Teleworld Solutions, Sundara Systems and a Sundara
+ * and MSP, so Tellisford Solutions, Sundara Systems and a Sundara
  * validation engineer holding two read permissions each opened Corveldt
  * Aerospace's own program dashboard — "2 contractors on site through 2
  * suppliers. $43,680 this month." Two competing suppliers reading the

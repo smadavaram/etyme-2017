@@ -139,7 +139,7 @@ describe('where an answer came from', () => {
     expect(sourceWords({ source: 'PAPER', quote: '12-3456789', by: 'Sharath Madavaram', at, paper: 'W-9', field: 'taxId' }))
       .toMatch(/^From your W-9, Part I: /)
     expect(sourceWords({ source: 'IMPORT', quote: 'Tapin LLC', by: 'Sharath Madavaram', at })).toMatch(/^From your file: “Tapin LLC”\. Confirmed by /)
-    expect(sourceWords({ source: 'PERSON', by: 'Priya Raman', at, field: 'phone' })).toBe('Typed by Priya Raman, Oct 29, 2026.')
+    expect(sourceWords({ source: 'PERSON', by: 'Priya Ramesh', at, field: 'phone' })).toBe('Typed by Priya Ramesh, Oct 29, 2026.')
     expect(sourceWords({ source: 'PERSON', quote: 'Tapin', by: 'Sharath Madavaram', at, field: 'etymeAddress' }))
       .toBe('Made from the company name Sharath Madavaram typed: “Tapin”, Oct 29, 2026.')
 

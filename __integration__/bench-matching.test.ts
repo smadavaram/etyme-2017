@@ -31,7 +31,7 @@ const PROCUREMENT = `world-nike-procurement${D}`
 const CS = `world-computer-systems${D}`
 const PINNACLE = `world-pinnacle${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
-const TELEWORLD = `world-teleworld${D}`
+const TELLISFORD = `world-tellisford${D}`
 const SEED = '@seed.etyme.invalid'
 const MATEO = `mateo.villanueva${SEED}`
 const TAMSIN = `tamsin.okoro${SEED}`
@@ -78,7 +78,7 @@ beforeAll(async () => {
   s.northbend = job.companyId
   s.orchid = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-orchid' } })).id
   s.cs = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-computer-systems' } })).id
-  s.techpeple = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })).id
+  s.tecwyn = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })).id
 }, 240_000)
 
 describe('a client’s job request is matched with bench, suppliers first', () => {
@@ -180,19 +180,19 @@ describe('a client’s job request is matched with bench, suppliers first', () =
   })
 
   it('a sub-vendor below the client’s prime is never suggested to the client, even when the person agreed', async () => {
-    // A Techpeple consultant — Techpeple supplies Northbend only through
+    // A Tecwyn consultant — Tecwyn supplies Northbend only through
     // Computer Systems — who fits the job and said yes to being shown.
     const l = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' },
-      where: { companyId: s.techpeple, tier: 'MARKETING', state: 'GRANTED', revokedAt: null },
+      where: { companyId: s.tecwyn, tier: 'MARKETING', state: 'GRANTED', revokedAt: null },
       select: { id: true, consultantId: true, consultant: { select: { person: { select: { name: true } } } } },
     })
     await prisma.consultantProfile.update({ where: { id: l.consultantId }, data: { skills: ['HCM integration', 'Payroll interfaces'], rateFloor: 9_000 } })
     await prisma.benchListing.update({ where: { id: l.id }, data: { showInMatches: true, rateMin: 10_500, rateMax: 11_200 } })
-    s.techpeplePerson = l.consultant.person.name
+    s.tecwynPerson = l.consultant.person.name
     await rematch(HIRING, s.job)
     const data = await matchesAs(HIRING, s.job)
-    expect(data.matches.some((m: any) => m.firm.name === 'Techpeple')).toBe(false)
-    expect(JSON.stringify(data)).not.toContain(s.techpeplePerson)
+    expect(data.matches.some((m: any) => m.firm.name === 'Tecwyn')).toBe(false)
+    expect(JSON.stringify(data)).not.toContain(s.tecwynPerson)
   })
 })
 
@@ -202,9 +202,9 @@ describe('a supplier the job was sent to matches its own pool', () => {
     expect(run.matchCount).toBeGreaterThan(0)
     const data = await matchesAs(CS, s.job)
     expect(data.viewer).toMatchObject({ buyer: false, raiser: false, suggests: false })
-    const m = rowFor(data, s.techpeplePerson)
-    expect(m).toMatchObject({ reach: 'PANEL', firm: { name: 'Techpeple' } })
-    expect(m.action).toMatchObject({ kind: 'SUBMIT', fromCompanyId: s.cs, offeredBy: s.techpeple, payRate: 11_200, rate: null })
+    const m = rowFor(data, s.tecwynPerson)
+    expect(m).toMatchObject({ reach: 'PANEL', firm: { name: 'Tecwyn' } })
+    expect(m.action).toMatchObject({ kind: 'SUBMIT', fromCompanyId: s.cs, offeredBy: s.tecwyn, payRate: 11_200, rate: null })
     // Its own supplier's rate is its own deal.
     expect(m.rate).toEqual({ min: 10_500, max: 11_200 })
     // Nothing from a firm Computer Systems does not trade with.
@@ -215,9 +215,9 @@ describe('a supplier the job was sent to matches its own pool', () => {
   })
 
   it('adding a match to the application sends the supplier’s real rate, never a placeholder', async () => {
-    // Computer Systems puts Techpeple's person forward in its own name, at
-    // its own rate, buying them from Techpeple at what Techpeple asked.
-    const person = await prisma.person.findFirstOrThrow({ where: { name: s.techpeplePerson } })
+    // Computer Systems puts Tecwyn's person forward in its own name, at
+    // its own rate, buying them from Tecwyn at what Tecwyn asked.
+    const person = await prisma.person.findFirstOrThrow({ where: { name: s.tecwynPerson } })
     as(CS)
     const r = await json(await submit(req('POST', '/api/submissions', {
       requirementId: s.job, personIds: [person.id], rate: 13_000,
@@ -229,7 +229,7 @@ describe('a supplier the job was sent to matches its own pool', () => {
     expect(top.fromCompanyId).toBe(s.cs)
     expect(top.rate).toBe(13_000)
     const below = await prisma.submission.findUniqueOrThrow({ where: { id: top.parentSubmissionId! } })
-    expect(below.fromCompanyId).toBe(s.techpeple)
+    expect(below.fromCompanyId).toBe(s.tecwyn)
     expect(below.rate).toBe(11_200)
 
     // Pinnacle, asked a moment ago, answers from its own matches: its own
@@ -258,12 +258,12 @@ describe('a supplier the job was sent to matches its own pool', () => {
       where: { title: 'DO-178C verification engineer', company: { slug: 'world-corveldt' } },
       select: { id: true },
     })
-    await rematch(TELEWORLD, avionics.id)
-    const m = rowFor(await matchesAs(TELEWORLD, avionics.id), 'Karthik Menon')
+    await rematch(TELLISFORD, avionics.id)
+    const m = rowFor(await matchesAs(TELLISFORD, avionics.id), 'Karthik Menon')
     expect(m).toMatchObject({ reach: 'OWN', employee: true })
     expect(m.standing).toContain('between projects')
     expect(m.action).toMatchObject({ kind: 'SUBMIT', as: 'INTERNAL' })
-    as(TELEWORLD)
+    as(TELLISFORD)
     const r = await json(await submit(req('POST', '/api/submissions', {
       requirementId: avionics.id, personIds: [karthik.id], rate: m.action.rate ?? 14_100, fromCompanyId: m.action.fromCompanyId,
     })))

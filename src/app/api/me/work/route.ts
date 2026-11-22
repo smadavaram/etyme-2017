@@ -298,7 +298,7 @@ export async function GET(request: NextRequest) {
   // and offered to send an open one, and nothing let them write one —
   // so a consultant's view was read-only and every approval downstream
   // waited on a week somebody else typed. In a chain only the bottom
-  // rung takes hours (`rungsToFile`), so Helena files on Techpeple's
+  // rung takes hours (`rungsToFile`), so Helena files on Tecwyn's
   // contract and never on the one Computer Systems sells to Northbend.
   const today = now.toISOString().slice(0, 10)
   const toFile = rungsToFile(
@@ -1007,7 +1007,7 @@ export async function GET(request: NextRequest) {
           id: c.id,
           // The whole chain, in order, from the site down to whoever pays
           // them: "Northbend Athletic · through Computer Systems ·
-          // employed by Techpeple".
+          // employed by Tecwyn".
           chain: l.says,
           through: l.through,
           payer: l.employer,

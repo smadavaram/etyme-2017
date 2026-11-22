@@ -82,8 +82,8 @@ describe('asking is not granting', () => {
   })
 
   it('a person a firm asked to market reads the question first on their own page, one line per firm', () => {
-    expect(askedLines([{ company: 'Techpeple' }, { company: 'Nimbus Talent' }])).toEqual([
-      'Techpeple has asked to market you. Say yes or no',
+    expect(askedLines([{ company: 'Tecwyn' }, { company: 'Nimbus Talent' }])).toEqual([
+      'Tecwyn has asked to market you. Say yes or no',
       'Nimbus Talent has asked to market you. Say yes or no',
     ])
     expect(askedLines([])).toEqual([])

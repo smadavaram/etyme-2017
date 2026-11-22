@@ -92,7 +92,7 @@ describe('each desk verifies its own paperwork', () => {
 
 describe('the vendor’s link', () => {
   it('names the client, says what is needed in the trade’s words, and needs no sign-up', () => {
-    const l = linkLetter({ contactName: 'Priya Natarajan', firmName: 'Veritan Talent', clientName: 'Northbend Athletic', token: 'abc' })
+    const l = linkLetter({ contactName: 'Priya Nagarkar', firmName: 'Veritan Talent', clientName: 'Northbend Athletic', token: 'abc' })
     expect(l.subject).toBe('Northbend Athletic: what Procurement needs from Veritan Talent')
     expect(l.body).toContain('Priya,')
     expect(l.body).toContain(applyUrl('abc'))

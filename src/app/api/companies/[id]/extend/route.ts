@@ -6,9 +6,9 @@ import { recordRefusal } from '@/lib/access-log'
 import { workTogether } from '@/lib/company-create'
 import { dealsWith, NOT_ON_YOUR_LIST } from '../../dealing'
 import { dealingsWithSides } from '../../dealings'
-import { notLinkedYet, isMine, mayEditRecord, mayExtend, mayRemovePosition, maySetRecordedKind, readExtendAs, workEndsAt, POSITION_WORDS, KINDS_TO_SET, type ExtendAs } from '@/lib/counterparty'
+import { notLinkedYet, isMine, mayEditRecord, mayExtend, mayRemovePosition, maySetRecordedKind, readExtendAs, workEndsAt, POSITION_WORDS, KINDS_TO_SET, SAY_WHICH_ENTITY, type ExtendAs } from '@/lib/counterparty'
 import { mayOpen } from '@/lib/nav-table'
-import { positionsFor, writeCustomerPosition, writeSupplierPosition, workOnPosition, removePosition, historyOf, agreementKeepsPosition } from '../../positions'
+import { positionsFor, writeCustomerPosition, writeSupplierPosition, workOnPosition, removePosition, historyOf, agreementKeepsPosition, sayWhatItIs } from '../../positions'
 
 /**
  * GET    /api/companies/:id/extend — where this company sits with you, and its history on your list
@@ -192,11 +192,19 @@ export async function POST(request: NextRequest, { params }: Params) {
   })
   if (!verdict.ok) return refuse(caller, other.id, verdict.status, verdict.code, verdict.says, verdict.field)
 
+  // Extend to Customer is a person saying "this company pays us" (record
+  // 110, A1): said once, so the row is stamped with who and when and the
+  // ledger row the Classify page writes is written with it.
+  let stamped = true
   if (!verdict.already) {
-    await prisma.$transaction(async (tx) => {
+    stamped = await prisma.$transaction(async (tx) => {
       const msa = verdict.as === 'CUSTOMER'
         ? await writeCustomerPosition(tx, { me: me.id, otherId: other.id, byId: caller.person.id })
         : (await writeSupplierPosition(tx, { me: me.id, otherId: other.id, byId: caller.person.id }), null)
+      const said = verdict.as !== 'CUSTOMER' || await sayWhatItIs(tx, {
+        me: me.id, other, by: { id: caller.person.id, name: caller.person.name, roleId: caller.context.roleId ?? null },
+        customer: true, client: false, actingEntityId: body?.actingEntityId,
+      })
       await tx.automationLog.create({
         data: {
           companyId: me.id,
@@ -213,10 +221,12 @@ export async function POST(request: NextRequest, { params }: Params) {
           reversible: false,
         },
       })
+      return said
     })
   }
   const after = await readOne(me.id, other)
-  return NextResponse.json({ data: { companyId: other.id, kind: other.kind, ...after, changed: !verdict.already, message: verdict.says } }, { status: verdict.already ? 200 : 201 })
+  const message = stamped ? verdict.says : `${verdict.says} ${SAY_WHICH_ENTITY(other.name)}`
+  return NextResponse.json({ data: { companyId: other.id, kind: other.kind, ...after, changed: !verdict.already, message } }, { status: verdict.already ? 200 : 201 })
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {

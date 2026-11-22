@@ -514,10 +514,10 @@ function columnWordOf(groups: ReadonlyArray<{ heading: string | null; links: Rea
  *
  * Sign-up walk, round seven, problem 3. Nine pages asked for their
  * eyebrow with the company kind alone, and the answer was read off the
- * company's whole menu — so Karthik Menon, Teleworld's own engineer whose
+ * company's whole menu — so Karthik Menon, Tellisford's own engineer whose
  * menu is Today and You, opened Contracts and read "Operate", and Sam, a
  * Member at Brightmoor, opened Submissions and read "Sell". Each word was
- * true of Teleworld's or Brightmoor's owner and false of the person
+ * true of Tellisford's or Brightmoor's owner and false of the person
  * looking at it.
  *
  * `pageFraming` called without a reader comes here. Without the reader,
@@ -561,7 +561,7 @@ export function headingEveryReaderSees(
  * for the company's whole menu, while the sidebar asked it for the menu
  * this person is actually shown: trimmed to the desks they hold, cut to
  * what is addressed to them where they hold none, and "You" where the
- * work is about them. So Karthik Menon — Teleworld's own engineer, whose
+ * work is about them. So Karthik Menon — Tellisford's own engineer, whose
  * menu is his own work — opened Contracts and read "Operate", Submissions
  * and read "Deliver", Reports and read "Grow": three words over pages his
  * menu does not list, from a menu he is never shown. A Member at a client

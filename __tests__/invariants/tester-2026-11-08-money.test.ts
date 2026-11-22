@@ -92,7 +92,7 @@ describe('the bank check, where the client has no Finance seat (tester item 2)',
 })
 
 describe('one reader of a line’s weeks (tester item 4, Helena Marsh)', () => {
-  // Northbend ← Computer Systems ← Techpeple ← Helena: the weeks are filed on Techpeple's line.
+  // Northbend ← Computer Systems ← Tecwyn ← Helena: the weeks are filed on Tecwyn's line.
   const rungs: Rung[] = [
     { sellContractId: 'csi-to-northbend', companyId: 'csi', buyContractId: 'csi-buys', supplierSellContractId: 'tech-to-csi' },
     { sellContractId: 'tech-to-csi', companyId: 'tech', buyContractId: 'tech-pays-helena', supplierSellContractId: null },

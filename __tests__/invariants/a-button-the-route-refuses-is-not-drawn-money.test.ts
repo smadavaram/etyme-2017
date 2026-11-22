@@ -20,7 +20,7 @@ import { askSupplierBody } from '@/app/dashboard/invoices/ask-body'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const yours = (decidedBy: string | null): StandsView => ({
-  state: 'YOURS', line: 'Approved by Techpeple · waiting on you', upToCents: 23_400, notBillableSays: null, decidedBy,
+  state: 'YOURS', line: 'Approved by Tecwyn · waiting on you', upToCents: 23_400, notBillableSays: null, decidedBy,
 })
 const draw = (view: StandsView) =>
   renderToStaticMarkup(createElement(WhereItStands, { view, money: (c: number) => `$${(c / 100).toFixed(2)}`, busy: false, onDecide: async () => true }))

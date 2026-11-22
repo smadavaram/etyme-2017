@@ -114,11 +114,11 @@ describe('every figure on a firm’s Today page names the people behind it', () 
 
   it('who is where groups people by client in the order of the client’s name, and each client’s weeks name each person once', () => {
     const groups = byClient(
-      [{ at: 'Northbend Athletic', n: 'Omar Haddad' }, { at: 'Nordway Retail', n: 'Ravi Subramanian' }, { at: 'Northbend Athletic', n: 'Rosa Delgado' }],
+      [{ at: 'Northbend Athletic', n: 'Omar Haddad' }, { at: 'Nordway Retail', n: 'Ravi Subbarayan' }, { at: 'Northbend Athletic', n: 'Rosa Delgado' }],
       (r) => r.at
     )
     expect(groups.map((g) => [g.client, g.rows.map((r) => r.n)])).toEqual([
-      ['Nordway Retail', ['Ravi Subramanian']],
+      ['Nordway Retail', ['Ravi Subbarayan']],
       ['Northbend Athletic', ['Omar Haddad', 'Rosa Delgado']],
     ])
     expect(weeksByPerson([{ personName: 'Karthik Menon' }, { personName: 'Marcus Whitfield' }, { personName: 'Karthik Menon' }]))

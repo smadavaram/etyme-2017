@@ -92,6 +92,9 @@ export const DELETE_ORDER = [
   // ledger (2026-11-21) name a firm, a legal entity, people and a sell
   // line, so they go before all of them; a month names its decision.
   'MoneyChain', 'DecisionItem', 'RecordAction',
+  // The ledger of every email attempt (2026-11-22) names a firm and the
+  // person who acted by id alone, so it goes before both.
+  'MailSend',
   // A question asked on a firm's public page (2026-11-21) names the firm
   // and the people who took or closed it, so it goes before both.
   'PageAsk',
@@ -227,6 +230,16 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   // The twin's ledger is history: who acted and about what, kept as it was.
   // The actor is a person's id or the twin's kind, so it is no row's key.
   'RecordAction.recordId': { as: 'RECORD' },
+  // Who said what a company is to the firm; the ledger row holds the stamp.
+  'Counterparty.classifiedById': { as: 'RECORD' },
+  // An email attempt belongs to the firm it was sent for, or to the person
+  // who acted where no firm is named; the rest is history as it was sent.
+  'MailSend.companyId': { as: 'OWNED', to: ['Company'] },
+  'MailSend.actorPersonId': { as: 'OWNED', to: ['Person'] },
+  'MailSend.actingEntityId': { as: 'RECORD' },
+  'MailSend.recordId': { as: 'RECORD' },
+  // The mail provider's own id for the message, not a row here.
+  'MailSend.providerMessageId': { as: 'RECORD' },
   'TwinAction.actorId': { as: 'RECORD' },
   // Polymorphic by entityType — an invoice receipt, a person, a bill.
   'TwinAction.entityId': { as: 'RECORD' },

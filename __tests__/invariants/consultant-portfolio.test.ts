@@ -41,7 +41,7 @@ function eng(over: Partial<Engagement> = {}): Engagement {
 
 function input(over: Partial<PortfolioInput> = {}): PortfolioInput {
   return {
-    name: 'Anita Desai',
+    name: 'Anita Dalvi',
     headline: null,
     skills: ['SAP FICO', 'S/4HANA', 'Kubernetes'],
     location: 'Denver, CO',
@@ -56,11 +56,11 @@ function input(over: Partial<PortfolioInput> = {}): PortfolioInput {
 
 describe('whether the page is shown at all', () => {
   it('stays off until they turn it on, so nobody is published by accident', () => {
-    expect(pageIsLive({ slug: 'anita-desai', pageLiveAt: null })).toBe(false)
+    expect(pageIsLive({ slug: 'anita-dalvi', pageLiveAt: null })).toBe(false)
   })
 
   it('is on once they have an address and have turned it on', () => {
-    expect(pageIsLive({ slug: 'anita-desai', pageLiveAt: NOW })).toBe(true)
+    expect(pageIsLive({ slug: 'anita-dalvi', pageLiveAt: NOW })).toBe(true)
   })
 
   it('is off with no address, because there is nowhere for it to be', () => {
@@ -72,7 +72,7 @@ describe('whether the page is shown at all', () => {
     // inside the platform. It is usually set by the agency, on a bench
     // listing, and it is not consent to be named on the open internet.
     // Every seeded consultant is VERIFIED and none of them has a page.
-    expect(pageIsLive({ slug: 'anita-desai', pageLiveAt: null })).toBe(false)
+    expect(pageIsLive({ slug: 'anita-dalvi', pageLiveAt: null })).toBe(false)
   })
 })
 
@@ -198,17 +198,17 @@ describe('what the page shows', () => {
 
 describe('their address', () => {
   it('accepts an ordinary name', () => {
-    expect(checkSlug('anita-desai', new Set()).value).toBe('anita-desai')
+    expect(checkSlug('anita-dalvi', new Set()).value).toBe('anita-dalvi')
   })
 
   it('turns spaces into hyphens rather than refusing', () => {
-    expect(checkSlug('Anita Desai', new Set()).value).toBe('anita-desai')
+    expect(checkSlug('Anita Dalvi', new Set()).value).toBe('anita-dalvi')
   })
 
   it('refuses one already taken, because it is never reissued', () => {
     // An old link landing on a stranger's portfolio is worse than a dead
     // one.
-    expect(checkSlug('anita-desai', new Set(['anita-desai'])).ok).toBe(false)
+    expect(checkSlug('anita-dalvi', new Set(['anita-dalvi'])).ok).toBe(false)
   })
 
   it('keeps back the ones that are ours', () => {
@@ -225,7 +225,7 @@ describe('their address', () => {
 
 describe('their address changing', () => {
   it('suggests one from their name, so nobody stares at an empty box', () => {
-    expect(suggestAddress('Anita Desai')).toBe('anita-desai')
+    expect(suggestAddress('Anita Dalvi')).toBe('anita-dalvi')
   })
 
   it('handles a name with accents rather than dropping the letters', () => {
@@ -243,7 +243,7 @@ describe('their address changing', () => {
   it('refuses an address somebody used before, not only one in use', () => {
     // The old address is kept forever so a link on a CV still finds them.
     // Handing it to a stranger would point that link at the wrong person.
-    expect(checkSlug('anita-desai', new Set(['anita-desai'])).ok).toBe(false)
+    expect(checkSlug('anita-dalvi', new Set(['anita-dalvi'])).ok).toBe(false)
   })
 })
 
@@ -340,7 +340,7 @@ describe('the worker\'s bio goes through the company\'s model switch', () => {
 
   it('with the switch on, the person\'s name is not in what is sent', async () => {
     const d = door(true)
-    await writeBioBest(input({ name: 'Priya Natarajan' }), NOW, d.door)
+    await writeBioBest(input({ name: 'Priya Nagarkar' }), NOW, d.door)
     expect(JSON.stringify(d.create.mock.calls[0])).not.toContain('Priya')
   })
 

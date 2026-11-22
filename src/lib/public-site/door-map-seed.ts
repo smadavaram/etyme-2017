@@ -3,9 +3,9 @@
  *
  * The home page's map reads Corvane Packaging from `lib/seed-corvane`,
  * which exports every row it writes. The three doors' maps read firms
- * seeded before that habit: Teleworld Solutions' two projects
- * (`lib/seed-internal-moves`, its `LINES`), Brightmoor's and Techpeple's
- * seated people and Teleworld's own staff (`lib/seed-world`, inside
+ * seeded before that habit: Tellisford Solutions' two projects
+ * (`lib/seed-internal-moves`, its `LINES`), Brightmoor's and Tecwyn's
+ * seated people and Tellisford's own staff (`lib/seed-world`, inside
  * `seedWorld`), Karthik Menon's and Colleen Byrne's lines and the two
  * bills from below (`lib/seed-doors`, as arguments inside `seedDoors`).
  * Those files are the architect's and supply's, so market cannot export
@@ -31,9 +31,9 @@
 
 /** A firm's name as the seed writes it (`FIRMS` in lib/seed-world), by slug. */
 export const FIRM_NAMES = {
-  teleworld: 'Teleworld Solutions',
+  tellisford: 'Tellisford Solutions',
   brightmoor: 'Brightmoor Staffing',
-  techpeple: 'Techpeple',
+  tecwyn: 'Tecwyn',
   'computer-systems': 'Computer Systems Inc',
   nimbus: 'Nimbus Talent',
   halcyon: 'Halcyon Talent',
@@ -45,9 +45,9 @@ export const FIRM_NAMES = {
 
 /** The person in each firm's first seat (`FIRMS[].who` in lib/seed-world): its owner. */
 export const FIRST_SEAT = {
-  teleworld: 'Sunil Raghavan',
+  tellisford: 'Sunil Raghavan',
   brightmoor: 'Jenna Okafor',
-  techpeple: 'Bhavesh Nair',
+  tecwyn: 'Bhavesh Nair',
   aptiva: 'Rashida Coleman',
 } as const
 
@@ -59,8 +59,8 @@ export const BRIGHTMOOR_TEAM = {
   finance: 'Rosalind Tay',
 } as const
 
-/** Techpeple's recruiter (`BENCH_FIRM_TEAM` in lib/seed-world). */
-export const TECHPEPLE_RECRUITER = 'Linnea Qadri'
+/** Tecwyn's recruiter (`BENCH_FIRM_TEAM` in lib/seed-world). */
+export const TECWYN_RECRUITER = 'Linnea Qadri'
 
 /**
  * Aptiva Workforce's three people beside its program manager
@@ -73,14 +73,14 @@ export const APTIVA_TEAM = {
   ap: 'Hollis Banerjee',
 } as const
 
-/** Teleworld's AP & Payroll clerk (`MIDDLE_FIRM_AP` in lib/seed-world). */
-export const TELEWORLD_PAYROLL = 'Ravi Kalathil'
+/** Tellisford's AP & Payroll clerk (`MIDDLE_FIRM_AP` in lib/seed-world). */
+export const TELLISFORD_PAYROLL = 'Ravi Kalathil'
 
-/** Teleworld's own employees, in the seed's order (`PAYROLL` in lib/seed-world). */
-export const TELEWORLD_STAFF = ['Karthik Menon', 'Amara Nwosu', 'Felix Brenner', 'Deepa Varma'] as const
+/** Tellisford's own employees, in the seed's order (`PAYROLL` in lib/seed-world). */
+export const TELLISFORD_STAFF = ['Karthik Menon', 'Amara Nwosu', 'Felix Brenner', 'Deepa Varma'] as const
 
-/** One of Teleworld's running lines on its two projects (`LINES` in lib/seed-internal-moves). */
-export interface TeleworldLine {
+/** One of Tellisford's running lines on its two projects (`LINES` in lib/seed-internal-moves). */
+export interface TellisfordLine {
   person: string
   /** The client's slug, read through `WORLD_CLIENTS` for its name. */
   client: string
@@ -96,7 +96,7 @@ export interface TeleworldLine {
   release?: { keepUntil: number | null }
 }
 
-export const TELEWORLD_LINES: readonly TeleworldLine[] = [
+export const TELLISFORD_LINES: readonly TellisfordLine[] = [
   { person: 'Felix Brenner', client: 'nike', city: 'Tualatin', job: 'Retail finance systems consultant', bill: 13_200, pay: 8_600, start: -120, end: 18, release: { keepUntil: null } },
   { person: 'Amara Nwosu', client: 'nike', city: 'Tualatin', job: 'Retail data engineer', bill: 12_400, pay: 8_100, start: -90, end: 25, release: { keepUntil: 45 } },
   { person: 'Deepa Varma', client: 'harlow-health', city: 'San Jose', job: 'ERP finance migration — integration architect', bill: 14_800, pay: 9_700, start: -60, end: 240 },
@@ -111,7 +111,7 @@ export const KARTHIK_LINE = {
   bill: 13_600,
 } as const
 
-/** Corveldt Aerospace's open job, as its invitation to Teleworld states it (`payroll-invitations` in lib/seed-world). */
+/** Corveldt Aerospace's open job, as its invitation to Tellisford states it (`payroll-invitations` in lib/seed-world). */
 export const CORVELDT_JOB = {
   title: 'DO-178C verification engineer',
   client: 'corveldt',
@@ -120,7 +120,7 @@ export const CORVELDT_JOB = {
   payMax: 14_500,
 } as const
 
-/** The candidate Teleworld has in for that job, from Nimbus Talent's bench (`LIVE` in lib/seed-world). */
+/** The candidate Tellisford has in for that job, from Nimbus Talent's bench (`LIVE` in lib/seed-world). */
 export const MEERA = {
   name: 'Meera Balakrishnan',
   bench: 'nimbus',
@@ -128,7 +128,7 @@ export const MEERA = {
   inDays: 2,
 } as const
 
-/** Ifeoma Balogun, Techpeple's, put forward to Computer Systems Inc (`LIVE` in lib/seed-world; the I-9 ask in lib/seed-doors). */
+/** Ifeoma Balogun, Tecwyn's, put forward to Computer Systems Inc (`LIVE` in lib/seed-world; the I-9 ask in lib/seed-doors). */
 export const IFEOMA = {
   name: 'Ifeoma Balogun',
   job: 'Epic Beaker analyst',
@@ -162,6 +162,6 @@ export const BYRNE = {
 
 /** The two invoices from below the doors read (`billFromBelow` in lib/seed-doors): who received it, from whom, its number, due in days. */
 export const BILLS_FROM_BELOW = {
-  nimbus: { payer: 'teleworld', vendor: 'nimbus', number: 'NT-2026-1190', dueIn: 25 },
-  techpeple: { payer: 'computer-systems', vendor: 'techpeple', number: 'CE-2026-0418', dueIn: 25 },
+  nimbus: { payer: 'tellisford', vendor: 'nimbus', number: 'NT-2026-1190', dueIn: 25 },
+  tecwyn: { payer: 'computer-systems', vendor: 'tecwyn', number: 'CE-2026-0418', dueIn: 25 },
 } as const

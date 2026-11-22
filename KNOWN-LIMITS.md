@@ -1190,7 +1190,7 @@ Settings → Sign-in and LinkedIn. Every shortcut, mock and untested path.
    password and read timesheets; raising a bill was refused; after the
    Owner revoked the seat (regulatory's route), the next request answered
    401: the last seat's sessions ended.
-4. Techpeple's seat read its own eight weeks; a Brightmoor week it is not
+4. Tecwyn's seat read its own eight weeks; a Brightmoor week it is not
    party to was absent from its list and 404 by id.
 5. Settings → Sign-in's activity read back LOGIN_SUCCEEDED,
    USER_PROVISIONED, USER_DEPROVISIONED, LOGIN_REFUSED_SSO_ONLY,

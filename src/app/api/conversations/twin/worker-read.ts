@@ -51,7 +51,7 @@ async function bodyOf(res: Response): Promise<any | null> {
   return (await res.json().catch(() => null))?.data ?? null
 }
 
-/** How the bottom firm stands to her, read off the last part of her chain line ("employed by Techpeple"). */
+/** How the bottom firm stands to her, read off the last part of her chain line ("employed by Tecwyn"). */
 export function tieOfChain(chain: string): Tie {
   const last = chain.split(' · ').pop() ?? ''
   return last.startsWith('employed by ') ? 'EMPLOYED' : last.startsWith('paid by ') ? 'PAID' : null

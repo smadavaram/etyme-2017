@@ -4,7 +4,7 @@ import { yearEndPack, blankShortWages, type PayPosting } from '@/lib/payroll-exp
 /**
  * A W-2 figure is never shown short of what the runs paid.
  *
- * Walked 2026-09-30 as Techpeple: the bureau panel said 2026 W-2 wages
+ * Walked 2026-09-30 as Tecwyn: the bureau panel said 2026 W-2 wages
  * were $720 for Helena Marsh, on assignment since March and paid every
  * month by a payroll run. The runs paid; only one day had a wage posting
  * behind it, and the W-2 read the postings.
@@ -41,8 +41,8 @@ describe('a W-2 figure is never shown short of what the payroll runs paid', () =
 
   it('a person a run paid with no posting at all is named, never left off in silence', () => {
     const { short } = blankShortWages(yearEndPack([], 2026), [
-      { personId: 'priya', personName: 'Priya Raman', currency: 'USD', paidCents: 1_000_000 },
+      { personId: 'priya', personName: 'Priya Ramesh', currency: 'USD', paidCents: 1_000_000 },
     ])
-    expect(short[0].says).toMatch(/^Payroll runs paid Priya Raman \$10,000\.00 USD in 2026 with no wage posting behind it/)
+    expect(short[0].says).toMatch(/^Payroll runs paid Priya Ramesh \$10,000\.00 USD in 2026 with no wage posting behind it/)
   })
 })

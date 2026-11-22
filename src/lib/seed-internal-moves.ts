@@ -3,7 +3,7 @@
  * between its projects (CLAUDE.md, "How an integrator's people move
  * between its projects", 2026-09-30).
  *
- * Teleworld Solutions runs two client projects in two cities:
+ * Tellisford Solutions runs two client projects in two cities:
  *
  *   Tualatin   Northbend Athletic's retail finance systems, managed by
  *              Ingrid Solberg. Felix Brenner (ERP finance) comes off it in
@@ -11,17 +11,17 @@
  *              (data) comes off in twenty-five, and Ingrid is keeping her
  *              until day forty-five — "staying with me until".
  *   San Jose   Harlow Health's ERP finance migration, managed by Rahul
- *              Deshpande. Deepa Varma is on it for eight more months, and
+ *              Dandekar. Deepa Varma is on it for eight more months, and
  *              the project runs under Harlow Health's order, which is the
  *              position Rahul holds somebody for.
  *
- * And Farah Haddad at Teleworld's HR desk, who is told of every step and
+ * And Farah Haddad at Tellisford's HR desk, who is told of every step and
  * approves none of them. Karthik Menon, already between projects since
  * his Corveldt placement ended, is on Our bench beside them.
  *
  * Nothing is held, confirmed or moved here: those are the acts the demo
  * exists to show. Runs before the order-to-cash layer, which raises the
- * order each running line sits on — Harlow Health's to Teleworld among
+ * order each running line sits on — Harlow Health's to Tellisford among
  * them — so a second seeding writes nothing. Every date counts from the
  * world's own day (`lib/seed-days`).
  */
@@ -36,7 +36,7 @@ import type { SeedContext } from '@/lib/seed-pipeline'
 const emailOf = (name: string) =>
   `${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
 
-/** The two projects, by the unit that delivers each inside Teleworld. */
+/** The two projects, by the unit that delivers each inside Tellisford. */
 // The founder's example said Portland; the project sits at Northbend
 // Athletic's one site, in Tualatin, where every other Northbend job is
 // seeded. A client read "Portland, OR" on its Ending soon beside
@@ -45,10 +45,10 @@ const emailOf = (name: string) =>
 export const PORTLAND_PROJECT = 'Northbend Athletic — retail finance systems, Tualatin'
 export const SAN_JOSE_PROJECT = 'Harlow Health — ERP finance migration, San Jose'
 
-/** Staff seated at Teleworld for this story, and the address each signs in on. */
+/** Staff seated at Tellisford for this story, and the address each signs in on. */
 export const MOVE_DESKS = {
   portland: { name: 'Ingrid Solberg', role: 'Delivery Manager', desk: 'delivery-portland', unit: PORTLAND_PROJECT },
-  sanJose: { name: 'Rahul Deshpande', role: 'Delivery Manager', desk: 'delivery-sanjose', unit: SAN_JOSE_PROJECT },
+  sanJose: { name: 'Rahul Dandekar', role: 'Delivery Manager', desk: 'delivery-sanjose', unit: SAN_JOSE_PROJECT },
   hr: { name: 'Farah Haddad', role: 'HR', desk: 'hr', unit: null },
 } as const
 
@@ -85,16 +85,16 @@ const LINES: Line[] = [
 ]
 
 export async function seedInternalMoves(ctx: SeedContext): Promise<{ lines: number; releases: number }> {
-  const teleworld = ctx.firmBySlug.get('teleworld')
-  if (!teleworld) return { lines: 0, releases: 0 }
+  const tellisford = ctx.firmBySlug.get('tellisford')
+  if (!tellisford) return { lines: 0, releases: 0 }
   const out = { lines: 0, releases: 0 }
 
-  // The two projects, each a unit inside Teleworld its manager sits on.
+  // The two projects, each a unit inside Tellisford its manager sits on.
   const unitId = new Map<string, string>()
   for (const name of [PORTLAND_PROJECT, SAN_JOSE_PROJECT]) {
     const u =
-      (await db.orgUnit.findFirst({ where: { companyId: teleworld.id, name }, select: { id: true } })) ??
-      (await db.orgUnit.create({ data: { companyId: teleworld.id, name, kind: 'PROJECT' }, select: { id: true } }))
+      (await db.orgUnit.findFirst({ where: { companyId: tellisford.id, name }, select: { id: true } })) ??
+      (await db.orgUnit.create({ data: { companyId: tellisford.id, name, kind: 'PROJECT' }, select: { id: true } }))
     unitId.set(name, u.id)
   }
 
@@ -103,19 +103,19 @@ export async function seedInternalMoves(ctx: SeedContext): Promise<{ lines: numb
   for (const name of ['Delivery Manager', 'HR']) {
     const seed = rolesFor('GSI').find((r) => r.name === name)!
     const r =
-      (await db.role.findFirst({ where: { companyId: teleworld.id, name }, select: { id: true } })) ??
-      (await db.role.create({ data: { companyId: teleworld.id, name, permissions: seed.permissions, isDefault: false }, select: { id: true } }))
+      (await db.role.findFirst({ where: { companyId: tellisford.id, name }, select: { id: true } })) ??
+      (await db.role.create({ data: { companyId: tellisford.id, name, permissions: seed.permissions, isDefault: false }, select: { id: true } }))
     roleId.set(name, r.id)
   }
 
   const staff = new Map<string, string>()
   for (const d of Object.values(MOVE_DESKS)) {
-    const email = `${ctx.prefix}teleworld-${d.desk}@${ctx.domain}`
+    const email = `${ctx.prefix}tellisford-${d.desk}@${ctx.domain}`
     const p = await db.person.upsert({ where: { primaryEmail: email }, update: { name: d.name }, create: { name: d.name, primaryEmail: email } })
-    if (!(await db.context.findFirst({ where: { personId: p.id, companyId: teleworld.id } }))) {
+    if (!(await db.context.findFirst({ where: { personId: p.id, companyId: tellisford.id } }))) {
       await db.context.create({
         data: {
-          personId: p.id, companyId: teleworld.id, roleId: roleId.get(d.role)!, type: 'EMPLOYEE', persona: d.unit ? 'MANAGER' : 'INDIVIDUAL',
+          personId: p.id, companyId: tellisford.id, roleId: roleId.get(d.role)!, type: 'EMPLOYEE', persona: d.unit ? 'MANAGER' : 'INDIVIDUAL',
           orgUnitId: d.unit ? unitId.get(d.unit)! : null,
           grantReason: d.unit ? `Delivery manager — ${d.unit}` : 'HR — the firm’s own people',
         },
@@ -132,7 +132,7 @@ export async function seedInternalMoves(ctx: SeedContext): Promise<{ lines: numb
     // What they work in, on their own record, so matching can weigh them
     // when they come off the project. Matching reads an employee's skills
     // from their consultant profile and nothing else, and nobody lists a
-    // firm's own employee, so until this the seeded Teleworld people read
+    // firm's own employee, so until this the seeded Tellisford people read
     // "no skills on record". Written only where nothing is there yet: a
     // person who said their own skills on their own page keeps them.
     const own = await db.consultantProfile.findUnique({ where: { personId: person.id }, select: { id: true, skills: true } })
@@ -161,13 +161,13 @@ export async function seedInternalMoves(ctx: SeedContext): Promise<{ lines: numb
       }))
 
     let sell = await db.sellContract.findFirst({
-      where: { companyId: teleworld.id, personId: person.id, requirementId: requirement.id },
+      where: { companyId: tellisford.id, personId: person.id, requirementId: requirement.id },
       select: { id: true, startDate: true, endDate: true },
     })
     if (!sell) {
       sell = await db.sellContract.create({
         data: {
-          companyId: teleworld.id, clientCompanyId: client.id, endClientCompanyId: client.id, personId: person.id,
+          companyId: tellisford.id, clientCompanyId: client.id, endClientCompanyId: client.id, personId: person.id,
           requirementId: requirement.id, workLocationId: site.id, deliveryUnitId: unitId.get(l.unit)!,
           billRate: l.bill, billCurrency: 'USD', paymentTerms: 45, state: 'IN_PROGRESS',
           startDate: day(l.start), endDate: day(l.end), startConfirmedAt: day(l.start),
@@ -176,7 +176,7 @@ export async function seedInternalMoves(ctx: SeedContext): Promise<{ lines: numb
       })
       const buy = await db.buyContract.create({
         data: {
-          companyId: teleworld.id, vendorCompanyId: null, payCurrency: 'USD', contractType: 'W2', state: 'IN_PROGRESS',
+          companyId: tellisford.id, vendorCompanyId: null, payCurrency: 'USD', contractType: 'W2', state: 'IN_PROGRESS',
           startDate: day(l.start), endDate: day(l.end), workOrderId: null,
         },
         select: { id: true, contractType: true, vendorCompanyId: true },
@@ -191,7 +191,7 @@ export async function seedInternalMoves(ctx: SeedContext): Promise<{ lines: numb
     if (!(await db.submission.findFirst({ where: { requirementId: requirement.id, personId: person.id } }))) {
       await db.submission.create({
         data: {
-          requirementId: requirement.id, personId: person.id, fromCompanyId: teleworld.id, toCompanyId: client.id,
+          requirementId: requirement.id, personId: person.id, fromCompanyId: tellisford.id, toCompanyId: client.id,
           // The firm's own employee, so the kind is INTERNAL — computed
           // from ownership everywhere else; this is what that looks like.
           kind: 'INTERNAL', rate: l.bill, status: 'PLACED', checkState: 'SENT',
@@ -203,7 +203,7 @@ export async function seedInternalMoves(ctx: SeedContext): Promise<{ lines: numb
     if (l.release && !(await db.projectRelease.findUnique({ where: { sellContractId: sell.id } }))) {
       await db.projectRelease.create({
         data: {
-          companyId: teleworld.id, personId: person.id, sellContractId: sell.id,
+          companyId: tellisford.id, personId: person.id, sellContractId: sell.id,
           releasedById: staff.get(MOVE_DESKS.portland.name)!,
           rollsOffOn: day(l.end),
           keepUntil: l.release.keepUntil != null ? day(l.release.keepUntil) : null,

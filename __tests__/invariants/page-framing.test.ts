@@ -837,7 +837,7 @@ describe('sign-up walk, round three: the do-not-return list is headed by the rea
  * a sentence here, asked through the same facts the sidebar is drawn from.
  */
 describe('sign-up walk, round six: a page is headed only by a section the reader’s own menu lists it under', () => {
-  // Teleworld's own W2 engineer: an integrator seat holding only the two
+  // Tellisford's own W2 engineer: an integrator seat holding only the two
   // reads of his own work, and the person the placement is about.
   const KARTHIK: ReaderIdentity = {
     companyKind: 'GSI', isConsultant: false, worker: true,

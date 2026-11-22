@@ -1358,7 +1358,7 @@ export function readersFor(
       // week already on an invoice the payer recorded from this firm is
       // left off by money's rule (lib/money/billed-elsewhere), and a week a
       // draft holds is still counted and named as on that draft. Found by
-      // the walk of 2026-10-22: the chat told Techpeple to bill Helena
+      // the walk of 2026-10-22: the chat told Tecwyn to bill Helena
       // Marsh's Sep 20–26 week that Computer Systems already held as
       // INV-NTB82Y.
       const tuesday = await firmTuesday(company.id)

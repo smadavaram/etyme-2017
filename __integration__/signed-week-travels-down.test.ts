@@ -9,15 +9,15 @@ import { weekSays } from '@/app/api/timesheets/chain-turn'
  * The signed week travels down the chain, on the seeded world.
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
- * employed by Techpeple. Her seeded week of 17 September is filed and
- * unsigned. Before this, Computer Systems had no step on it and Techpeple
+ * employed by Tecwyn. Her seeded week of 17 September is filed and
+ * unsigned. Before this, Computer Systems had no step on it and Tecwyn
  * could accept it before Northbend had signed.
  */
 
 const D = '@demo.etyme.local'
 const NIKE = `world-nike-hiring${D}`
 const CS = `world-computer-systems${D}`
-const TECHPEPLE = `world-techpeple${D}`
+const TECWYN = `world-tecwyn${D}`
 
 const sign = async (id: string, body: unknown = {}) =>
   json(await approve(req('POST', `/api/timesheets/${id}/approve`, body), { params: Promise.resolve({ id }) }))
@@ -54,8 +54,8 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
     it_.hours = Number(week.totalHours)
   }, 240_000)
 
-  it('Techpeple cannot accept Helena’s week before anybody above it has signed', async () => {
-    as(TECHPEPLE)
+  it('Tecwyn cannot accept Helena’s week before anybody above it has signed', async () => {
+    as(TECWYN)
     const r = await sign(it_.week)
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('NOT_YOUR_TURN')
@@ -79,21 +79,21 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
     expect(row.status).toBe('SUBMITTED')
 
     const told = await toldAt('world-computer-systems', await yoursToAccept(it_.week))
-    expect(told?.body).toMatch(/^Northbend Athletic signed .+ Accept what you pay Techpeple for it; nobody below you pays on this week until you do\.$/)
+    expect(told?.body).toMatch(/^Northbend Athletic signed .+ Accept what you pay Tecwyn for it; nobody below you pays on this week until you do\.$/)
     expect(told?.channel).toBe('EMAIL')
     as(CS)
     expect(await onQueue(it_.week)).toBe(true)
   })
 
-  it('Techpeple still cannot accept, because Computer Systems has not, and the week is not on its desk yet', async () => {
-    as(TECHPEPLE)
+  it('Tecwyn still cannot accept, because Computer Systems has not, and the week is not on its desk yet', async () => {
+    as(TECWYN)
     const r = await sign(it_.week)
     expect(r.status).toBe(409)
     expect(r.body.error.message).toBe('Computer Systems Inc has not accepted this week yet. It comes to you once they have.')
     expect(await onQueue(it_.week)).toBe(false)
   })
 
-  it('Computer Systems accepts what it pays Techpeple, on the same week, and Techpeple is told', async () => {
+  it('Computer Systems accepts what it pays Tecwyn, on the same week, and Tecwyn is told', async () => {
     as(CS)
     const r = await sign(it_.week)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -101,9 +101,9 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
     expect(passed.map((a) => a.company.name)).toEqual(['Computer Systems Inc'])
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week } })).status).toBe('SUBMITTED')
 
-    const told = await toldAt('world-techpeple', await yoursToAccept(it_.week))
+    const told = await toldAt('world-tecwyn', await yoursToAccept(it_.week))
     expect(told?.body).toMatch(/^Computer Systems Inc accepted .+ Accept what you pay Helena Marsh for it;/)
-    as(TECHPEPLE)
+    as(TECWYN)
     expect(await onQueue(it_.week)).toBe(true)
   })
 
@@ -114,8 +114,8 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
     expect(r.body.error.message).toBe('Already accepted.')
   })
 
-  it('Techpeple accepts last, and the one week is approved with a signature from every rung — no copy on any rung', async () => {
-    as(TECHPEPLE)
+  it('Tecwyn accepts last, and the one week is approved with a signature from every rung — no copy on any rung', async () => {
+    as(TECWYN)
     const r = await sign(it_.week)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const row = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week }, include: { assertions: { include: { company: true } } } })
@@ -124,7 +124,7 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
     expect(row.assertions.filter((a) => a.state === 'LIVE').map((a) => `${a.company.name}:${a.role}`).sort()).toEqual([
       'Computer Systems Inc:PASS_THROUGH',
       'Northbend Athletic:CLIENT_APPROVAL',
-      'Techpeple:EMPLOYER_ACCEPTANCE',
+      'Tecwyn:EMPLOYER_ACCEPTANCE',
     ])
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
     expect(await prisma.timesheet.count({ where: { personId: helena.id, periodStart: row.periodStart } })).toBe(1)
@@ -135,13 +135,13 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
 /**
  * The founder, 2026-10-19: below the top of a chain, which hours are
  * overtime is the client's decision when it signed the week, carried
- * down. Computer Systems and Techpeple accept Helena's heavy week without
+ * down. Computer Systems and Tecwyn accept Helena's heavy week without
  * being asked about its overtime; each reads what Northbend decided, on
  * its own line; and an answer either sends anyway is refused.
  *
  * Every contract on the chain draws a forty-hour line, so before this
  * Computer Systems was stopped and asked to decide the five hours on the
- * contract it pays Techpeple on.
+ * contract it pays Tecwyn on.
  */
 describe('below the top of a chain, the client decided the overtime', () => {
   const ot: Record<string, any> = {}
@@ -154,14 +154,14 @@ describe('below the top of a chain, the client decided the overtime', () => {
       select: { sellLinks: { select: { sellContractId: true } } },
     })
     const top = above.sellLinks[0].sellContractId
-    // Northbend's line with Computer Systems, and Techpeple's with Computer
+    // Northbend's line with Computer Systems, and Tecwyn's with Computer
     // Systems: both at forty, both offering time and a half.
     for (const id of [top, hoursOn]) {
       await prisma.sellContract.update({ where: { id }, data: { overtimeAfterHours: 40, overtimeMultiplierBps: 15_000 } })
     }
 
     // A forty-five hour week, nine a day Monday to Friday, a month before
-    // any of hers, filed on Techpeple's contract as every week of hers is.
+    // any of hers, filed on Tecwyn's contract as every week of hers is.
     const earliest = await prisma.timesheet.findFirstOrThrow({ where: { sellContractId: hoursOn }, orderBy: { periodStart: 'asc' } })
     const sunday = new Date(earliest.periodStart.getTime() - 28 * 86_400_000)
     sunday.setUTCDate(sunday.getUTCDate() - sunday.getUTCDay())
@@ -198,7 +198,7 @@ describe('below the top of a chain, the client decided the overtime', () => {
     as(CS)
     const card = (await queue()).find((d: any) => d.entityType === 'TIMESHEET' && d.entityId === ot.week)
     // The card says what Northbend decided, on the line Computer Systems
-    // pays Techpeple on — time and a half — never Northbend's double time.
+    // pays Tecwyn on — time and a half — never Northbend's double time.
     expect(card?.clientDecided).toBe('Northbend Athletic decided 5 hours at time and a half.')
 
     const r = await sign(ot.week, { note })
@@ -217,7 +217,7 @@ describe('below the top of a chain, the client decided the overtime', () => {
   })
 
   it('an overtime answer from a rung below the top is refused in a sentence', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await sign(ot.week, {
       note,
       overtime: [{ weekOf: ot.sunday, treatment: 'SAME_RATE' }],
@@ -227,20 +227,20 @@ describe('below the top of a chain, the client decided the overtime', () => {
     expect(r.body.error.message).toBe(
       'Northbend Athletic decided the overtime on this week when it signed it, so accept the week without an overtime answer of your own.'
     )
-    // Refused before anything was written: Techpeple has not accepted.
+    // Refused before anything was written: Tecwyn has not accepted.
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: ot.week } })).employerAcceptedAt).toBeNull()
   })
 
   it('the employer is told the client’s decision when the week reaches it, and accepts without being asked', async () => {
-    const techpeple = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
+    const tecwyn = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' } })
     let told = null
     for (let i = 0; i < 30 && !told; i++) {
-      told = await prisma.notification.findFirst({ where: { companyId: techpeple.id, entityId: ot.week, title: await yoursToAccept(ot.week) } })
+      told = await prisma.notification.findFirst({ where: { companyId: tecwyn.id, entityId: ot.week, title: await yoursToAccept(ot.week) } })
       if (!told) await new Promise((r) => setTimeout(r, 100))
     }
     expect(told?.body).toMatch(/ Northbend Athletic decided 5 hours at time and a half\.$/)
 
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await sign(ot.week, { note })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.clientDecided).toBe('Northbend Athletic decided 5 hours at time and a half.')

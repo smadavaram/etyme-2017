@@ -9,7 +9,7 @@ import { desksThatHold, complianceRefusal } from '@/lib/walls'
  * A firm's own compliance page is every colleague's visa, I-9 and
  * background result in one place. Until 2026-09-30 its route asked for
  * no permission, so any seat at the firm opened it — on the seeded world
- * including Karthik Menon, a Teleworld delivery engineer holding
+ * including Karthik Menon, a Tellisford delivery engineer holding
  * `assignments.read` and `timesheets.read`. It now asks for the key the
  * desks that read the firm's own rules hold, and a program office's seat
  * was already asked for: `governance.read`.
@@ -59,14 +59,14 @@ describe('who opens a firm\'s own compliance page', () => {
 })
 
 describe('what somebody refused the compliance page is told', () => {
-  const teleworld = rolesFor('GSI').map((r) => ({ name: r.name, permissions: r.permissions }))
+  const tellisford = rolesFor('GSI').map((r) => ({ name: r.name, permissions: r.permissions }))
 
   it('a delivery engineer is told who to ask, by the desk names his own firm uses', () => {
-    const says = complianceRefusal('Teleworld Solutions', desksThatHold(teleworld, 'governance.read'))
+    const says = complianceRefusal('Tellisford Solutions', desksThatHold(tellisford, 'governance.read'))
     expect(says).toBe(
-      'The compliance page at Teleworld Solutions shows other people\'s visas, I-9s and background results, ' +
+      'The compliance page at Tellisford Solutions shows other people\'s visas, I-9s and background results, ' +
         'and your role does not read them. Ask your Compliance Officer, HR, Admin or Owner at ' +
-        'Teleworld Solutions if you need something from it.'
+        'Tellisford Solutions if you need something from it.'
     )
   })
 
@@ -90,7 +90,7 @@ describe('what somebody refused the compliance page is told', () => {
   })
 
   it('the refusal never shows a permission key or a code', () => {
-    const says = complianceRefusal('Teleworld Solutions', desksThatHold(teleworld, 'governance.read'))
+    const says = complianceRefusal('Tellisford Solutions', desksThatHold(tellisford, 'governance.read'))
     expect(says).not.toMatch(/governance\.read|FORBIDDEN|[a-z]+\.[a-z]+/)
   })
 

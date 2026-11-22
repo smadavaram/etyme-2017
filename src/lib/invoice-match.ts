@@ -235,7 +235,7 @@ export type MatchWithLines = MatchResult & {
  * person, and every rung above bills them at its own rate — so the
  * week's contract is the wrong place to read what a line should cost. It
  * carried the sub's rate: Helena Marsh's $145 line to Northbend Athletic
- * was held to Techpeple's $118 wherever no opening rate-history row
+ * was held to Tecwyn's $118 wherever no opening rate-history row
  * happened to mask it. The line's own contract is read for the rate; the
  * week's, for who the hours are filed with.
  */
@@ -486,10 +486,10 @@ function matchFrom(invoice: LoadedInvoice, facts: SharedFacts, opts: MatchFor = 
   // against `Timesheet.status`, which turns APPROVED only once the
   // employer at the bottom has accepted. That column held Computer
   // Systems' bill to Northbend, raised on Northbend's signature, until
-  // Techpeple two rungs below it had signed.
+  // Tecwyn two rungs below it had signed.
   //
   // The hours checked are the payer's accepted hours, at every rung:
-  // Techpeple's bill for forty where Computer Systems accepted thirty-eight
+  // Tecwyn's bill for forty where Computer Systems accepted thirty-eight
   // fails the hours check, and so does Computer Systems' bill for forty
   // where Northbend signed thirty-eight.
   const receiptOf = (l: (typeof invoice.invoiceLines)[number]) => {

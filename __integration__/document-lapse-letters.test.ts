@@ -157,11 +157,11 @@ describe('when a document a line depends on runs out, every party it costs is to
     const told = await tellDocumentLapses(await documentsToChase(now), now)
 
     // The seeded chain that is three rungs deep: Harlow Health buys from
-    // Computer Systems Inc, which buys from Techpeple, which employs the
+    // Computer Systems Inc, which buys from Tecwyn, which employs the
     // person standing on Harlow's site.
     const client = await firm('world-harlow-health')
     const prime = await firm('world-computer-systems')
-    const sub = await firm('world-techpeple')
+    const sub = await firm('world-tecwyn')
 
     const bottom = await prisma.sellContract.findFirstOrThrow({
       where: { companyId: sub.id, clientCompanyId: prime.id, state: 'IN_PROGRESS' },

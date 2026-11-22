@@ -148,7 +148,7 @@ describe('the dictionary is the company’s, and validity has a floor', () => {
     })
 
     const verdict = contractClearance({
-      personName: 'Priya Raman',
+      personName: 'Priya Ramesh',
       personVerifications: [
         { type: 'I9_EVERIFY', status: 'CLEAR' },
         { type: 'BACKGROUND_CHECK', status: 'CLEAR', expiresAt: day(300) },
@@ -173,7 +173,7 @@ describe('the dictionary is the company’s, and validity has a floor', () => {
       select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
     })
     const verdict = contractClearance({
-      personName: 'Priya Raman',
+      personName: 'Priya Ramesh',
       personVerifications: [
         { type: 'I9_EVERIFY', status: 'CLEAR' },
         { type: 'BACKGROUND_CHECK', status: 'CLEAR', expiresAt: day(300) },

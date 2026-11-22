@@ -344,7 +344,7 @@ describe('A typed-in invoice receipt is paid on the same check as a platform inv
   })
 
   it('the same work on an earlier receipt fails the duplicate check in a sentence naming that receipt, and nobody may waive it', () => {
-    const says = 'Helena Marsh’s week of Oct 4 is already on Techpeple’s invoice TP-A, received Oct 12, 2026, so this invoice would owe it twice.'
+    const says = 'Helena Marsh’s week of Oct 4 is already on Tecwyn’s invoice TP-A, received Oct 12, 2026, so this invoice would owe it twice.'
     const r = matchVendorBill(input({ bill: { ...input().bill, duplicateOfBillId: 'TP-A', duplicateSays: says } }))
     const dup = r.checks.find((c) => c.code === 'DUPLICATE')!
     expect(dup.outcome).toBe('FAIL')
@@ -444,7 +444,7 @@ describe('A typed-in invoice receipt is matched line by line, like a platform in
   })
 
   it('work an earlier receipt already holds, or one expense named twice, fails the duplicate check, and nobody may waive it', () => {
-    const says = 'Helena Marsh’s expense of $250.00 is already on Techpeple’s invoice TP-9, received Aug 10, 2026, so this invoice would owe it twice.'
+    const says = 'Helena Marsh’s expense of $250.00 is already on Tecwyn’s invoice TP-9, received Aug 10, 2026, so this invoice would owe it twice.'
     const expenseLine = { id: 'line-2', timesheetId: null, expenseId: 'ex-1', personName: 'Helena Marsh', hours: 0, rateCents: 0, amountCents: 25_000 }
     const approved = { 'ex-1': { id: 'ex-1', status: 'APPROVED', totalCents: 25_000 } }
     const held = receipt([expenseLine], { expenses: approved, heldElsewhere: says })
@@ -533,7 +533,7 @@ describe('The Accounts payable screen offers on an invoice receipt only what its
     mayPay: false, paySays: 'Recording a payment is not part of your role.',
   }
   const held = (over: Partial<ReceiptFacts> = {}): ReceiptFacts => ({
-    number: 'CE-HM-L1', vendorName: 'Techpeple', status: 'DISPUTED', currency: 'USD',
+    number: 'CE-HM-L1', vendorName: 'Tecwyn', status: 'DISPUTED', currency: 'USD',
     totalCents: 495_600, paidCents: 0, paymentCount: 0, inRun: null,
     checks: [
       { code: 'QUANTITY', outcome: 'FAIL', reason: 'Helena Marsh: billed 42h, approved 40h', name: 'The hours billed are the hours signed' },
@@ -541,7 +541,7 @@ describe('The Accounts payable screen offers on an invoice receipt only what its
     ],
     hard: null, waivers: [], ...over,
   })
-  const refusedGate = { ok: false, says: 'Techpeple’s invoice CE-HM-L1 for $4,956.00 does not pass the check now: Helena Marsh: billed 42h, approved 40h.' }
+  const refusedGate = { ok: false, says: 'Tecwyn’s invoice CE-HM-L1 for $4,956.00 does not pass the check now: Helena Marsh: billed 42h, approved 40h.' }
 
   it('a held invoice receipt offers Waive with a reason only on a check somebody may waive, and only to a role that pays', () => {
     const d = receiptDoors(held(), PAYS, refusedGate)
@@ -576,14 +576,14 @@ describe('The Accounts payable screen offers on an invoice receipt only what its
     const d = receiptDoors(held({ status: 'APPROVED', paidCents: 100_000, paymentCount: 1 }), PAYS, { ok: true })
     expect(d.cancel).toEqual({
       offered: false,
-      says: '$1,000.00 has been paid on Techpeple’s invoice CE-HM-L1, so it is not cancelled. Money that went out is undone with Techpeple, not by taking the receipt off the record.',
+      says: '$1,000.00 has been paid on Tecwyn’s invoice CE-HM-L1, so it is not cancelled. Money that went out is undone with Tecwyn, not by taking the receipt off the record.',
     })
   })
 
   it('an invoice receipt in a payment run waiting to be released offers no Cancel until the run is cancelled', () => {
     const d = receiptDoors(held({ inRun: { status: 'APPROVED' } }), PAYS, refusedGate)
     expect(d.cancel.offered).toBe(false)
-    expect(d.cancel.says).toBe('Techpeple’s invoice CE-HM-L1 is in a payment run that is approved and waiting to be released. Cancel the run first, then this receipt.')
+    expect(d.cancel.says).toBe('Tecwyn’s invoice CE-HM-L1 is in a payment run that is approved and waiting to be released. Cancel the run first, then this receipt.')
   })
 
   it('a waived difference names who waived it and why, the total it was waived at, and that it no longer covers the receipt if the total changes', () => {
@@ -612,13 +612,13 @@ describe('The Accounts payable screen offers on an invoice receipt only what its
 
   it('a paid invoice receipt says who paid whom, when, how and the reference', () => {
     expect(paymentSays({
-      paidBy: 'Computer Systems', paidTo: 'Techpeple', amountMinor: 495_600, currency: 'USD',
+      paidBy: 'Computer Systems', paidTo: 'Tecwyn', amountMinor: 495_600, currency: 'USD',
       at: new Date('2026-10-18T12:00:00Z'), method: 'Wire', reference: 'CS-8102', recordedBy: 'Dana Park',
-    })).toBe('Computer Systems paid Techpeple $4,956.00 on Oct 18, 2026 by Wire, reference CS-8102. Recorded by Dana Park.')
+    })).toBe('Computer Systems paid Tecwyn $4,956.00 on Oct 18, 2026 by Wire, reference CS-8102. Recorded by Dana Park.')
     expect(paymentSays({
-      paidBy: 'Computer Systems', paidTo: 'Techpeple', amountMinor: 100, currency: 'USD',
+      paidBy: 'Computer Systems', paidTo: 'Tecwyn', amountMinor: 100, currency: 'USD',
       at: new Date('2026-10-18T12:00:00Z'), method: null, reference: null, recordedBy: null,
-    })).toBe('Computer Systems paid Techpeple $1.00 on Oct 18, 2026.')
+    })).toBe('Computer Systems paid Tecwyn $1.00 on Oct 18, 2026.')
   })
 
   it('a line picked from an accepted week is filled with the hours accepted at the agreed rate, and its amount is the two multiplied, in whole cents', () => {
@@ -652,7 +652,7 @@ describe('The Accounts payable screen offers on an invoice receipt only what its
  *
  * Helena Marsh's week of August 2, 2026: Monday to Friday at nine hours,
  * forty-five in all. Northbend Athletic's line is forty, and Northbend
- * signed the five hours over it at double time on its own leg. Techpeple
+ * signed the five hours over it at double time on its own leg. Tecwyn
  * invoices Computer Systems at $100 an hour, and their own line says time
  * and a half.
  */
@@ -669,7 +669,7 @@ describe('A sub-vendor’s overtime is the client’s decision, at the pair’s 
   const RATE = 10_000
   const sheet = (rows: DecisionRow[]): PricedLine['timesheet'] => ({
     id: 'ts-ot', periodStart: new Date('2026-08-02T00:00:00Z'), periodEnd: new Date('2026-08-08T00:00:00Z'),
-    totalHours: 45, days, leaveDays: {}, sellContractId: 'sc-techpeple',
+    totalHours: 45, days, leaveDays: {}, sellContractId: 'sc-tecwyn',
     overtimeDecisions: rows.map((r) => ({ ...r, accrualBps: r.accrualBps ?? 10_000 })),
     sellContract: { overtimeAfterHours: null, overtimeMultiplierBps: 15_000, billStraddle: 'START', requirement: null },
   } as PricedLine['timesheet'])
@@ -717,8 +717,8 @@ describe('A sub-vendor’s overtime is the client’s decision, at the pair’s 
   })
 
   it('a premium line for hours the client did not decide as overtime is refused', () => {
-    // Computer Systems answered on Techpeple's leg; Northbend answered nothing.
-    const theirsOnly = [decided({ sellContractId: 'sc-techpeple', decidedByCompanyId: 'co-computer-systems', appliedBps: 15_000 })]
+    // Computer Systems answered on Tecwyn's leg; Northbend answered nothing.
+    const theirsOnly = [decided({ sellContractId: 'sc-tecwyn', decidedByCompanyId: 'co-computer-systems', appliedBps: 15_000 })]
     expect(carriedOvertime(theirsOnly, TOP, 15_000)).toMatchObject({ ok: true, decisions: [] })
     const w = working(theirsOnly)
     expect(w).toBeNull()
@@ -742,7 +742,7 @@ describe('A sub-vendor’s overtime is the client’s decision, at the pair’s 
   })
 
   it('an answer the end client gave on the leg the hours are filed on is still the client’s answer', () => {
-    const onHoursLeg = [decided({ sellContractId: 'sc-techpeple' })]
+    const onHoursLeg = [decided({ sellContractId: 'sc-tecwyn' })]
     expect(clientsDecisions(onHoursLeg, TOP)).toHaveLength(1)
     expect(working(onHoursLeg)!.premiumCents).toBe(25_000)
   })
@@ -780,13 +780,13 @@ describe('A sub-vendor’s overtime is the client’s decision, at the pair’s 
 })
 
 describe('one expense billed at two rungs, each matched against its own payer’s acceptance (2026-10-19)', () => {
-  // Helena Marsh's $250 train fare: Techpeple bills Computer Systems, and
+  // Helena Marsh's $250 train fare: Tecwyn bills Computer Systems, and
   // Computer Systems bills Northbend Athletic, each on its own line.
   const bill = (id: string, acceptedCents: number | null, amountCents = 25_000) => threeWayMatch({
     invoice: { id, totalCents: amountCents, periodStart: new Date('2026-09-01T00:00:00Z'), periodEnd: new Date('2026-09-30T00:00:00Z') },
     lines: [{ id: `${id}-l1`, timesheetId: null, expenseId: 'train', personName: 'Helena Marsh', hours: 0, rateCents: 0, amountCents }],
     timesheets: {},
-    // The employer's column reads INVOICED once Techpeple has billed it; the receipt is each payer's own acceptance.
+    // The employer's column reads INVOICED once Tecwyn has billed it; the receipt is each payer's own acceptance.
     expenses: { train: { id: 'train', status: 'INVOICED', totalCents: 25_000, acceptedCents } },
     po: null,
     poRequired: false,

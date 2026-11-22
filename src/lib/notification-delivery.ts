@@ -22,6 +22,7 @@
 
 import { teamsLinkKind, RETIRED_LINK_ROUTE_REASON, TEAMS_WORKFLOWS_SENT_NOTE } from '@/lib/notify/teams-link'
 import { isMailRefused, type MailFailure } from '@/lib/notify/mail-failure'
+import type { MailAbout } from '@/lib/notify/mail-door'
 
 export type Channel = 'IN_APP' | 'EMAIL' | 'TEAMS'
 /**
@@ -151,7 +152,8 @@ export interface Sender {
   channel: Channel
   /** `link` is the page in Etyme the notice is about, where there is one. */
   /** `html` is an email's second part, beside `body` as text; other channels ignore it. */
-  send(to: string, title: string, body: string, link?: string | null, html?: string | null): Promise<void>
+  /** `about` is what the mail ledger records an email was for (lib/notify/mail-door); other channels ignore it. */
+  send(to: string, title: string, body: string, link?: string | null, html?: string | null, about?: MailAbout | null): Promise<void>
 }
 
 export interface DeliveryOutcome {
@@ -170,6 +172,8 @@ export interface DeliveryOutcome {
 export interface DeliveryContext {
   companyId?: string | null
   personId?: string | null
+  /** What the mail ledger records an email was for: the template, the record, who acted. */
+  mail?: MailAbout | null
 }
 
 /**
@@ -188,6 +192,12 @@ export async function reportMailRefused(err: unknown, ctx: DeliveryContext = {})
   } catch {
     // Telling staff is best-effort; the row keeps the reason either way.
   }
+}
+
+/** What the door is told an email is for: the caller's own words, and the tenant where it gave only that. */
+function mailAbout(ctx: DeliveryContext): MailAbout | null {
+  if (ctx.mail) return { ...ctx.mail, companyId: ctx.mail.companyId ?? ctx.companyId ?? null }
+  return ctx.companyId ? { companyId: ctx.companyId, template: '' } : null
 }
 
 /**
@@ -245,7 +255,8 @@ export async function attemptDelivery(
   }
 
   try {
-    await sender.send(destination, title, body, link)
+    if (route.channel === 'EMAIL') await sender.send(destination, title, body, link, null, mailAbout(ctx))
+    else await sender.send(destination, title, body, link)
     return {
       state: 'SENT',
       // A post a Workflows link accepted records the note /ready counts

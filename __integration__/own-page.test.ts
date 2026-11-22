@@ -11,7 +11,7 @@ import { portfolioOf } from '@/lib/portfolio-data'
 /**
  * Karthik Menon opens his own page.
  *
- * He is Teleworld Solutions' own W2 — an integrator's employee, staffed
+ * He is Tellisford Solutions' own W2 — an integrator's employee, staffed
  * by the firm that employs him, on nobody's bench because nobody asks an
  * employee's permission to be assigned. The demo door was seeded that way
  * on purpose, and the whole consultant surface assumed a bench, so the
@@ -48,7 +48,7 @@ describe('a prime’s own employee has a page of their own', () => {
   it('is told his employer staffs him directly, instead of being sent to find an agency', async () => {
     const res = await page(KARTHIK)
 
-    expect(res.body.data.standing).toContain('Teleworld Solutions employs you')
+    expect(res.body.data.standing).toContain('Tellisford Solutions employs you')
     expect(res.body.data.standing).toContain('need no listing')
   })
 
@@ -118,8 +118,8 @@ describe('a prime’s own employee has a page of their own', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.data.benches).toEqual([])
-    expect(res.body.data.employers).toEqual(['Teleworld Solutions'])
-    expect(res.body.data.note).toContain('Teleworld Solutions employs and staffs you directly')
+    expect(res.body.data.employers).toEqual(['Tellisford Solutions'])
+    expect(res.body.data.note).toContain('Tellisford Solutions employs and staffs you directly')
   })
 
   it('the rest of his own surface answers him too — his work, his pipeline, his CV list', async () => {
@@ -165,15 +165,15 @@ describe('a prime’s own employee has a page of their own', () => {
   it('the firm that employs him may hold his CV, because the employment is the consent', async () => {
     const [employer, stranger] = await Promise.all([
       prisma.context.findFirst({ orderBy: { id: 'asc' },
-        where: { revokedAt: null, company: { name: 'Teleworld Solutions' }, person: { primaryEmail: { not: KARTHIK } } },
+        where: { revokedAt: null, company: { name: 'Tellisford Solutions' }, person: { primaryEmail: { not: KARTHIK } } },
         select: { id: true, person: { select: { primaryEmail: true } } },
       }),
       prisma.context.findFirst({ orderBy: { id: 'asc' },
-        where: { revokedAt: null, company: { kind: 'VENDOR', name: { not: 'Teleworld Solutions' } } },
+        where: { revokedAt: null, company: { kind: 'VENDOR', name: { not: 'Tellisford Solutions' } } },
         select: { id: true, person: { select: { primaryEmail: true } } },
       }),
     ])
-    expect(employer, 'Teleworld should have a desk of its own').not.toBe(null)
+    expect(employer, 'Tellisford should have a desk of its own').not.toBe(null)
 
     const karthik = await prisma.person.findUnique({ where: { primaryEmail: KARTHIK }, select: { id: true } })
 

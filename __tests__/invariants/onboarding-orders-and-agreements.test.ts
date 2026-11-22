@@ -49,7 +49,7 @@ describe('an order and its first line', () => {
   it('an order raised by hand, by either end, asks for its first line on the same screen', () => {
     const seller = afterHeader({ end: 'SELLER', isClient: false, counterpartyName: 'Computer Systems', noun: 'sales order', number: 'CS-PO-77', linesAttached: 0 })
     expect(seller).toMatchObject({ kind: 'ASK_FIRST_LINE', line: 'SELL' })
-    const buyer = afterHeader({ end: 'BUYER', isClient: false, counterpartyName: 'Techpeple', noun: 'purchase order', number: 'BM-PO-W18', linesAttached: 0 })
+    const buyer = afterHeader({ end: 'BUYER', isClient: false, counterpartyName: 'Tecwyn', noun: 'purchase order', number: 'BM-PO-W18', linesAttached: 0 })
     expect(buyer).toMatchObject({ kind: 'ASK_FIRST_LINE', line: 'BUY' })
     for (const next of [seller, buyer]) {
       expect(next.says).toContain('who works on it, at what rate, at which site, from when')
@@ -66,31 +66,31 @@ describe('an order and its first line', () => {
   })
 
   it('an order that picked up running placements says they are its lines now and asks for nothing', () => {
-    const next = afterHeader({ end: 'BUYER', isClient: false, counterpartyName: 'Techpeple', noun: 'purchase order', number: 'PO-9', linesAttached: 2 })
+    const next = afterHeader({ end: 'BUYER', isClient: false, counterpartyName: 'Tecwyn', noun: 'purchase order', number: 'PO-9', linesAttached: 2 })
     expect(next.kind).toBe('HAS_LINES')
     expect(next.says).toContain('2 placements')
   })
 
   it('a buy line goes only on an open purchase order this firm raised to the firm it pays, and is refused in a sentence otherwise', () => {
-    const line = { buyerId: 'bm', buyerName: 'Brightmoor', supplierId: 'tp', supplierName: 'Techpeple' }
+    const line = { buyerId: 'bm', buyerName: 'Brightmoor', supplierId: 'tp', supplierName: 'Tecwyn' }
     const order = { id: 'o', number: 'BM-PO-W18', issuedById: 'bm', issuedToId: 'tp', status: 'OPEN' }
     expect(mayPinBuyLine(order, line).ok).toBe(true)
     const notOurs = mayPinBuyLine({ ...order, issuedById: 'x' }, line)
     if (!notOurs.ok) expect(notOurs.says).toContain('not a purchase order Brightmoor raised')
     else throw new Error('should refuse')
     const otherSupplier = mayPinBuyLine({ ...order, issuedToId: 'y' }, { ...line, issuedToName: 'Veritan' })
-    if (!otherSupplier.ok) expect(otherSupplier.says).toContain('to Veritan, not to Techpeple')
+    if (!otherSupplier.ok) expect(otherSupplier.says).toContain('to Veritan, not to Tecwyn')
     else throw new Error('should refuse')
     expect(mayPinBuyLine({ ...order, status: 'CANCELLED' }, line).ok).toBe(false)
   })
 
   it('a line pinned to an order lands on that order, and an order between other firms, or closed, is refused in a sentence', () => {
-    const line = { sellerId: 'sub', sellerName: 'Techpeple', buyerId: 'prime', buyerName: 'Computer Systems' }
+    const line = { sellerId: 'sub', sellerName: 'Tecwyn', buyerId: 'prime', buyerName: 'Computer Systems' }
     const order = { id: 'o', number: 'CS-PO-77', issuedById: 'prime', issuedToId: 'sub', status: 'OPEN', issuedByName: 'Computer Systems' }
     expect(mayPinToOrder(order, line).ok).toBe(true)
     const notOurs = mayPinToOrder({ ...order, issuedToId: 'someone' }, line)
     expect(notOurs.ok).toBe(false)
-    if (!notOurs.ok) expect(notOurs.says).toContain('not an order Techpeple received')
+    if (!notOurs.ok) expect(notOurs.says).toContain('not an order Tecwyn received')
     const otherClient = mayPinToOrder({ ...order, issuedById: 'x', issuedByName: 'Northbend' }, line)
     if (!otherClient.ok) expect(otherClient.says).toContain('from Northbend, not from Computer Systems')
     else throw new Error('should refuse')
@@ -135,7 +135,7 @@ describe('recording an agreement', () => {
     billFrequency: null, effectiveDate: null, expiresAt: null, signedAt: null, executedFileName: null,
     signatures: 0, versions: 0,
   }
-  const sub = { id: 'sub', name: 'Techpeple' }
+  const sub = { id: 'sub', name: 'Tecwyn' }
   const prime = { id: 'prime', name: 'Computer Systems', claimedAt: new Date('2026-01-01') }
 
   it('a sub-vendor records its agreement with a prime from Companies, and both firms read it', () => {
@@ -175,10 +175,10 @@ describe('recording an agreement', () => {
   })
 
   it('an agreement\u2019s terms are refused in a sentence when the net days, what they run from, the rhythm, the currency or the signed copy\u2019s link are not ones anything can use', () => {
-    const ok = readAgreementTerms({ paymentTerms: '45', paymentTermsFrom: 'invoice_date', billFrequency: 'weekly', currency: 'usd', executedFileUrl: 'https://files.example/msa-techpeple.pdf' })
+    const ok = readAgreementTerms({ paymentTerms: '45', paymentTermsFrom: 'invoice_date', billFrequency: 'weekly', currency: 'usd', executedFileUrl: 'https://files.example/msa-tecwyn.pdf' })
     expect(ok.ok).toBe(true)
     if (ok.ok) {
-      expect(ok.terms).toMatchObject({ paymentTerms: 45, paymentTermsFrom: 'INVOICE_DATE', billFrequency: 'WEEKLY', currency: 'USD', executedFileName: 'msa-techpeple.pdf' })
+      expect(ok.terms).toMatchObject({ paymentTerms: 45, paymentTermsFrom: 'INVOICE_DATE', billFrequency: 'WEEKLY', currency: 'USD', executedFileName: 'msa-tecwyn.pdf' })
     }
     // What the agreement records is what every bill between the two reads.
     if (ok.ok) {
@@ -212,7 +212,7 @@ describe('recording an agreement', () => {
 
 describe('who an agreement or an order can be recorded with', () => {
   it('with nobody to record an agreement with, the form says to link with the firm first', () => {
-    expect(firmsToPick([{ id: 'self', name: 'Techpeple' }], 'self')).toEqual([])
+    expect(firmsToPick([{ id: 'self', name: 'Tecwyn' }], 'self')).toEqual([])
     expect(LINK_FIRST_SAYS).toBe('Ask the firm to link with you first, from Companies.')
     expect(LINK_FIRST_HREF).toBe('/dashboard/companies')
     for (const file of ['src/app/dashboard/purchase-orders/agreements.tsx', 'src/app/dashboard/purchase-orders/record-order.tsx']) {
@@ -226,7 +226,7 @@ describe('who an agreement or an order can be recorded with', () => {
   })
 
   it('a firm is offered once, by name, and never itself', () => {
-    const rows = [{ id: 'b', name: 'Computer Systems' }, { id: 'self', name: 'Techpeple' }, { id: 'a', name: 'Brightmoor' }, { id: 'b', name: 'Computer Systems' }]
+    const rows = [{ id: 'b', name: 'Computer Systems' }, { id: 'self', name: 'Tecwyn' }, { id: 'a', name: 'Brightmoor' }, { id: 'b', name: 'Computer Systems' }]
     expect(firmsToPick(rows, 'self').map((r) => r.name)).toEqual(['Brightmoor', 'Computer Systems'])
   })
 })

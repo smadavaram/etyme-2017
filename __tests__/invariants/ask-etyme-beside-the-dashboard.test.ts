@@ -14,9 +14,9 @@ const NOW = new Date('2026-10-12T15:00:00Z')
 const NO_KEY = {} as Record<string, string | undefined>
 const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
-const TECHPEPLE = {
+const TECWYN = {
   people: ['Helena Marsh', 'Linnea Qadri'],
-  firms: ['Techpeple', 'Computer Systems Inc', 'Brightmoor Staffing', 'Northbend Athletic'],
+  firms: ['Tecwyn', 'Computer Systems Inc', 'Brightmoor Staffing', 'Northbend Athletic'],
 }
 
 /** A reader with nothing on it, and a model that must never be asked. */
@@ -25,9 +25,9 @@ function readers(over: Partial<Readers> = {}): Readers {
     waiting: async () => [], entry: async () => null,
     receiptsIn: async () => ({ ok: true as const, receipts: [] }), othersWaiting: async () => [],
     limits: async () => ({ ok: true as const, entries: [] }), told: async () => ({ told: [], stale: [] }),
-    named: async () => ({}), unsignedWeeks: async () => ({ ok: true as const, rows: [], total: 0, company: 'Techpeple', maySign: false }),
+    named: async () => ({}), unsignedWeeks: async () => ({ ok: true as const, rows: [], total: 0, company: 'Tecwyn', maySign: false }),
     spendIn: async () => ({ ok: true as const, receipts: [], undated: 0 }), ledgerLines: async () => [],
-    modelOn: async () => true, vocabulary: async () => TECHPEPLE,
+    modelOn: async () => true, vocabulary: async () => TECWYN,
     model: async () => { throw new Error('the model was asked') }, logPrompt: async () => {},
     ...over,
   }
@@ -70,30 +70,30 @@ describe('signed weeks not billed: the chat reads the Today figure, so it never 
 })
 
 describe('another company’s book is refused in one sentence, before any model', () => {
-  it('"What does Brightmoor Staffing pay Helena Marsh?" asked at Techpeple is refused as another company’s book, and the model is never considered', async () => {
-    const a = await respond('What does Brightmoor Staffing pay Helena Marsh?', readers(), { env: NO_KEY, now: NOW, ownCompany: 'Techpeple', party: 'FIRM' })
+  it('"What does Brightmoor Staffing pay Helena Marsh?" asked at Tecwyn is refused as another company’s book, and the model is never considered', async () => {
+    const a = await respond('What does Brightmoor Staffing pay Helena Marsh?', readers(), { env: NO_KEY, now: NOW, ownCompany: 'Tecwyn', party: 'FIRM' })
     expect(a).toEqual({ kind: 'TEXT', says: NOT_ANOTHER_BOOK })
   })
 
   it('"What does Northbend Athletic pay Pinnacle Resourcing?" asked at a firm that is neither is refused the same way', async () => {
-    const a = await respond('What does Northbend Athletic pay Pinnacle Resourcing?', readers(), { env: NO_KEY, now: NOW, ownCompany: 'Techpeple', party: 'FIRM' })
+    const a = await respond('What does Northbend Athletic pay Pinnacle Resourcing?', readers(), { env: NO_KEY, now: NOW, ownCompany: 'Tecwyn', party: 'FIRM' })
     expect(a).toEqual({ kind: 'TEXT', says: NOT_ANOTHER_BOOK })
   })
 
   it('a firm’s rates named by another firm, and money "paid by" another firm, are refused too', () => {
-    expect(anotherFirmsMoney('What are Brightmoor Staffing’s bill rates?', 'Techpeple', TECHPEPLE)).toBe(true)
-    expect(anotherFirmsMoney('How much is Helena Marsh paid by Brightmoor Staffing?', 'Techpeple', TECHPEPLE)).toBe(true)
+    expect(anotherFirmsMoney('What are Brightmoor Staffing’s bill rates?', 'Tecwyn', TECWYN)).toBe(true)
+    expect(anotherFirmsMoney('How much is Helena Marsh paid by Brightmoor Staffing?', 'Tecwyn', TECWYN)).toBe(true)
   })
 
   it('what a firm pays or owes the reader is the reader’s own book and is not refused', () => {
-    expect(anotherFirmsMoney('What does Computer Systems Inc owe us?', 'Techpeple', TECHPEPLE)).toBe(false)
-    expect(anotherFirmsMoney('What does Northbend Athletic pay Techpeple?', 'Techpeple', TECHPEPLE)).toBe(false)
-    expect(anotherFirmsMoney('What does Northbend Athletic pay Pinnacle Resourcing?', 'Northbend Athletic', TECHPEPLE)).toBe(false)
-    expect(anotherFirmsMoney('What do we pay Helena Marsh?', 'Techpeple', TECHPEPLE)).toBe(false)
+    expect(anotherFirmsMoney('What does Computer Systems Inc owe us?', 'Tecwyn', TECWYN)).toBe(false)
+    expect(anotherFirmsMoney('What does Northbend Athletic pay Tecwyn?', 'Tecwyn', TECWYN)).toBe(false)
+    expect(anotherFirmsMoney('What does Northbend Athletic pay Pinnacle Resourcing?', 'Northbend Athletic', TECWYN)).toBe(false)
+    expect(anotherFirmsMoney('What do we pay Helena Marsh?', 'Tecwyn', TECWYN)).toBe(false)
   })
 
   it('what a person on the record earns is not read as a firm’s book by this rule', () => {
-    expect(anotherFirmsMoney('What does Helena Marsh earn?', 'Techpeple', TECHPEPLE)).toBe(false)
+    expect(anotherFirmsMoney('What does Helena Marsh earn?', 'Tecwyn', TECWYN)).toBe(false)
   })
 
   it('a question with no firm’s money in it costs no read of the names', () => {

@@ -47,10 +47,10 @@ describe('the Reserve list tells two jobs alike apart', () => {
   it('a line with no twin reads exactly as before', () => {
     const t = apartTitles([
       { key: 'req:a', title, startDate: day('2026-11-09') },
-      { key: 'order:o', title: 'HCM integration lead — Teleworld Solutions, Portland', startDate: day('2026-08-03') },
+      { key: 'order:o', title: 'HCM integration lead — Tellisford Solutions, Portland', startDate: day('2026-08-03') },
     ])
     expect(t.get('req:a')).toBe(title)
-    expect(t.get('order:o')).toBe('HCM integration lead — Teleworld Solutions, Portland')
+    expect(t.get('order:o')).toBe('HCM integration lead — Tellisford Solutions, Portland')
   })
 
   it('the route tells every position apart with demand’s jobApart before the list is sent', () => {

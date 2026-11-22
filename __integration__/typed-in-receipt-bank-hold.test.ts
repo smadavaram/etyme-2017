@@ -9,8 +9,8 @@ import { GET as receipts } from '@/app/api/ap/receipts/route'
  * A typed-in invoice receipt is held on the supplier's bank, on the seeded
  * world, through the real route.
  *
- * Walk 7, 2026-11-08: Brightmoor's AP & Payroll seat opened Consultis'
- * typed-in receipt INV-IHMDQC with Consultis' bank details unchecked, saw
+ * Walk 7, 2026-11-08: Brightmoor's AP & Payroll seat opened Conisby'
+ * typed-in receipt INV-IHMDQC with Conisby' bank details unchecked, saw
  * no hold and no "Ask Rosalind Tay", pressed Pay, and $4,160 left. The
  * ordinary invoice receipt held the same payment; this door did not ask.
  */
@@ -19,7 +19,7 @@ const PAYROLL = 'world-brightmoor-payroll@demo.etyme.local'
 const FINANCE = 'world-brightmoor-finance@demo.etyme.local'
 
 let billId = ''
-let consultisId = ''
+let conisbyId = ''
 
 describe('a typed-in invoice receipt is held on the supplier’s bank until somebody checks it', () => {
   beforeAll(async () => {
@@ -27,11 +27,11 @@ describe('a typed-in invoice receipt is held on the supplier’s bank until some
     const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
     // Found by its facts, never by a generated number (the template rebuilt on
     // 2026-11-09 renumbered every seeded receipt): Brightmoor's typed-in
-    // receipt from Consultis, open, that passes the three-way check while
-    // Consultis' bank is still checked.
-    const consultis = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-consultis' }, select: { id: true } })
+    // receipt from Conisby, open, that passes the three-way check while
+    // Conisby' bank is still checked.
+    const conisby = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-conisby' }, select: { id: true } })
     const open = await prisma.vendorBill.findMany({
-      where: { companyId: brightmoor.id, vendorCompanyId: consultis.id, status: { in: ['RECEIVED', 'APPROVED'] }, paidCents: 0 },
+      where: { companyId: brightmoor.id, vendorCompanyId: conisby.id, status: { in: ['RECEIVED', 'APPROVED'] }, paidCents: 0 },
       select: { id: true, vendorCompanyId: true },
       orderBy: { createdAt: 'asc' },
     })
@@ -39,16 +39,16 @@ describe('a typed-in invoice receipt is held on the supplier’s bank until some
     for (const b of open) {
       if ((await mayPayKeyedReceipt(b.id))?.ok) { bill = b; break }
     }
-    if (!bill) throw new Error('The seeded world holds no open typed-in receipt from Consultis to Brightmoor that passes the check.')
+    if (!bill) throw new Error('The seeded world holds no open typed-in receipt from Conisby to Brightmoor that passes the check.')
     billId = bill.id
-    consultisId = bill.vendorCompanyId
-    // Staged as the walk staged it: Consultis' bank details not checked.
+    conisbyId = bill.vendorCompanyId
+    // Staged as the walk staged it: Conisby' bank details not checked.
     await prisma.remitTo.updateMany({
-      where: { companyId: consultisId },
+      where: { companyId: conisbyId },
       data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null },
     })
     await prisma.supplierRequest.deleteMany({
-      where: { companyId: brightmoor.id, OR: [{ supplierCompanyId: consultisId }, { firmCompanyId: consultisId }] },
+      where: { companyId: brightmoor.id, OR: [{ supplierCompanyId: conisbyId }, { firmCompanyId: conisbyId }] },
     })
   }, 600_000)
 
@@ -82,7 +82,7 @@ describe('a typed-in invoice receipt is held on the supplier’s bank until some
 
     const checked = await json(await payBill(req('PATCH', '/api/ap/bills', { id: billId, act: 'check-bank' })))
     expect(checked.status).toBe(200)
-    const remit = await prisma.remitTo.findFirstOrThrow({ where: { companyId: consultisId, verifiedAt: { not: null } }, select: { verifiedById: true } })
+    const remit = await prisma.remitTo.findFirstOrThrow({ where: { companyId: conisbyId, verifiedAt: { not: null } }, select: { verifiedById: true } })
     expect(remit.verifiedById).toBeTruthy()
 
     as(PAYROLL)
@@ -92,7 +92,7 @@ describe('a typed-in invoice receipt is held on the supplier’s bank until some
   })
 
   it('the person who does not check a bank is refused the check in a sentence', async () => {
-    await prisma.remitTo.updateMany({ where: { companyId: consultisId }, data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null } })
+    await prisma.remitTo.updateMany({ where: { companyId: conisbyId }, data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null } })
     as(PAYROLL)
     const { status, body } = await json(await payBill(req('PATCH', '/api/ap/bills', { id: billId, act: 'check-bank' })))
     expect(status).toBe(403)

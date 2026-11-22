@@ -126,7 +126,7 @@ export const PROBES: readonly Probe[] = [
   { party: 'supplier', role: 'accounts receivable', kinds: ['VENDOR'], seat: 'ar', prefer: ['world-brightmoor'] },
   { party: 'supplier', role: 'AP & payroll', kinds: ['VENDOR'], seat: 'payroll', prefer: ['world-brightmoor'] },
   { party: 'supplier', role: 'HR', kinds: ['VENDOR'], seat: 'hr', prefer: ['world-brightmoor'] },
-  { party: 'integrator', role: 'delivery manager', kinds: ['GSI'], seat: 'delivery', prefer: ['world-teleworld'] },
+  { party: 'integrator', role: 'delivery manager', kinds: ['GSI'], seat: 'delivery', prefer: ['world-tellisford'] },
   { party: 'MSP', role: 'seated in a client’s program', kinds: ['MSP'], seat: 'owner', prefer: ['world-aptiva'], seatedOnly: true },
   { party: 'one-person firm', role: 'owner', kinds: ['CONSULTANT_CORP'], seat: 'owner', prefer: ['world-byrne-critical-care'] },
   { party: 'worker', role: 'worker', kinds: null, seat: 'person', prefer: ['person/helena-marsh', 'person/karthik-menon'] },

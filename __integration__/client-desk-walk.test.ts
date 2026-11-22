@@ -32,7 +32,7 @@ const D = '@demo.etyme.local'
 const HIRING = `world-nike-hiring${D}`
 const PROGRAMME = `world-nike-programme${D}`
 const PRIME = `world-computer-systems${D}`
-const SUB = `world-techpeple${D}`
+const SUB = `world-tecwyn${D}`
 const AP = `world-nike-ap${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
 const COMPLIANCE = `world-nike-compliance${D}`
@@ -337,11 +337,11 @@ describe('two totals that sat side by side count the same thing', () => {
 })
 
 describe('a sub-vendor’s name is the prime’s to keep', () => {
-  it('the premise: Northbend buys Helena Marsh through Computer Systems, which buys her from Techpeple, and their agreement discloses nobody', async () => {
+  it('the premise: Northbend buys Helena Marsh through Computer Systems, which buys her from Tecwyn, and their agreement discloses nobody', async () => {
     const cs = await prisma.company.findFirstOrThrow({ where: { slug: 'world-computer-systems' }, select: { id: true } })
-    const techpeple = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })
+    const tecwyn = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' }, select: { id: true } })
     s.cs = cs.id
-    s.techpeple = techpeple.id
+    s.tecwyn = tecwyn.id
     const terms = await prisma.masterAgreement.findMany({ where: { clientId: s.northbend, vendorId: cs.id }, select: { disclosesSubVendors: true } })
     expect(terms.length).toBeGreaterThan(0)
     expect(terms.every((t) => !t.disclosesSubVendors)).toBe(true)
@@ -353,26 +353,26 @@ describe('a sub-vendor’s name is the prime’s to keep', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const names = (r.body.data.suppliers as any[]).map((x) => x.name)
     expect(names).toContain('Computer Systems Inc')
-    expect(JSON.stringify(r.body)).not.toContain('Techpeple')
+    expect(JSON.stringify(r.body)).not.toContain('Tecwyn')
   })
 
   it('a job request cannot be released to a firm the client reaches only through its prime, and the refusal names nobody', async () => {
     as(PROGRAMME)
     const r = await json(
       await release(
-        req('POST', `/api/requisitions/${s.job}/distribute`, { vendors: [{ companyId: s.techpeple }] }),
+        req('POST', `/api/requisitions/${s.job}/distribute`, { vendors: [{ companyId: s.tecwyn }] }),
         withId(s.job)
       )
     )
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('NOT_YOUR_SUPPLIER')
-    expect(r.body.error.message).not.toContain('Techpeple')
-    expect(await prisma.requirementInvitation.count({ where: { requirementId: s.job, toCompanyId: s.techpeple } })).toBe(0)
+    expect(r.body.error.message).not.toContain('Tecwyn')
+    expect(await prisma.requirementInvitation.count({ where: { requirementId: s.job, toCompanyId: s.tecwyn } })).toBe(0)
   })
 
   it('a client never reads the name of a firm below its prime on its timesheets — a signed week waits on the firm it pays', async () => {
     const week = await prisma.timesheet.findFirstOrThrow({
-      where: { status: 'SUBMITTED', clientApprovedAt: null, person: { name: 'Helena Marsh' }, sellContract: { companyId: s.techpeple } },
+      where: { status: 'SUBMITTED', clientApprovedAt: null, person: { name: 'Helena Marsh' }, sellContract: { companyId: s.tecwyn } },
       select: { id: true },
     })
     as(HIRING)
@@ -382,7 +382,7 @@ describe('a sub-vendor’s name is the prime’s to keep', () => {
     as(HIRING)
     const r = await json(await listTimesheets(req('GET', '/api/timesheets?limit=50')))
     expect(r.status).toBe(200)
-    expect(JSON.stringify(r.body)).not.toContain('Techpeple')
+    expect(JSON.stringify(r.body)).not.toContain('Tecwyn')
     const row = r.body.data.timesheets.find((t: any) => t.id === week.id)
     expect(row.signature.youSigned).toBe(true)
     expect(row.signature.waitingOn).toBe('Computer Systems Inc')
@@ -444,7 +444,7 @@ describe('a job request says what the job is, and what its approval checked', ()
 describe('a job travels down the chain through the prime’s own record of it', () => {
   it('a prime cannot release the client’s own job request, and is told whose it is', async () => {
     as(PRIME)
-    const r = await json(await release(req('POST', `/api/requisitions/${s.job}/distribute`, { vendors: [{ companyId: s.techpeple }] }), withId(s.job)))
+    const r = await json(await release(req('POST', `/api/requisitions/${s.job}/distribute`, { vendors: [{ companyId: s.tecwyn }] }), withId(s.job)))
     expect(r.status).toBe(403)
     expect(r.body.error.message).toContain('Only the raising company')
   })
@@ -458,7 +458,7 @@ describe('a job travels down the chain through the prime’s own record of it', 
     expect(own.status, JSON.stringify(own.body)).toBeLessThan(300)
     const id = own.body.data.requirement.id
     as(PRIME)
-    const sent = await json(await release(req('POST', `/api/requisitions/${id}/distribute`, { vendors: [{ companyId: s.techpeple, payMin: 9_000, payMax: 10_500 }] }), withId(id)))
+    const sent = await json(await release(req('POST', `/api/requisitions/${id}/distribute`, { vendors: [{ companyId: s.tecwyn, payMin: 9_000, payMax: 10_500 }] }), withId(id)))
     expect(sent.body?.error, JSON.stringify(sent.body)).toBeUndefined()
 
     as(SUB)
@@ -470,7 +470,7 @@ describe('a job travels down the chain through the prime’s own record of it', 
   it('the client still reads no name below its prime after the job went down the chain', async () => {
     as(PROGRAMME)
     const r = await json(await supplierRegister(req('GET', '/api/suppliers')))
-    expect(JSON.stringify(r.body)).not.toContain('Techpeple')
+    expect(JSON.stringify(r.body)).not.toContain('Tecwyn')
   })
 })
 
@@ -533,7 +533,7 @@ describe('time off is never taken in place of overtime pay, and the approval say
 
 describe('an expense Northbend pays for waits on its AP clerk to accept it', () => {
   // Helena Marsh works at Northbend through Computer Systems, employed by
-  // Techpeple. Techpeple approved a train fare she spent on the job; each
+  // Tecwyn. Tecwyn approved a train fare she spent on the job; each
   // firm that pays for it accepts it before it pays, Northbend first
   // (the founder, 2026-10-19, decision 1).
   const e: Record<string, any> = {}
@@ -547,16 +547,16 @@ describe('an expense Northbend pays for waits on its AP clerk to accept it', () 
 
   beforeAll(async () => {
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
-    const techpeple = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
+    const tecwyn = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' } })
     const cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
     const line = await prisma.sellContract.findFirstOrThrow({
-      where: { personId: helena.id, companyId: techpeple.id, clientCompanyId: cs.id, state: 'IN_PROGRESS' },
+      where: { personId: helena.id, companyId: tecwyn.id, clientCompanyId: cs.id, state: 'IN_PROGRESS' },
       select: { id: true },
     })
     const day = new Date()
     e.id = (await prisma.expense.create({
       data: {
-        companyId: techpeple.id, sellContractId: line.id, personId: helena.id, category: 'TRAVEL',
+        companyId: tecwyn.id, sellContractId: line.id, personId: helena.id, category: 'TRAVEL',
         billable: true, description: 'Train to the Tualatin site for the cut-over', periodStart: day, periodEnd: day,
         items: [], total: 250, status: 'APPROVED', approvedAt: day,
       },
@@ -571,11 +571,11 @@ describe('an expense Northbend pays for waits on its AP clerk to accept it', () 
     expect(card.subtitle).toBe('$250.00 · Travel · from Computer Systems Inc')
     expect(card.actionUrl).toBe('/dashboard/expenses')
     // The firm Northbend pays, never the one that employs her below it.
-    expect(`${card.title} ${card.subtitle}`).not.toContain('Techpeple')
+    expect(`${card.title} ${card.subtitle}`).not.toContain('Tecwyn')
   })
 
   it('a firm with nothing to accept sees no such card', async () => {
-    // Techpeple raised it: its own approval was the yes, and it never accepts its own.
+    // Tecwyn raised it: its own approval was the yes, and it never accepts its own.
     expect(cardFor(await queue(SUB))).toBeUndefined()
     // Computer Systems pays for it too, but not before Northbend has accepted it.
     expect(cardFor(await queue(PRIME))).toBeUndefined()
@@ -602,7 +602,7 @@ describe('an expense Northbend pays for waits on its AP clerk to accept it', () 
     expect(cardFor(await queue(AP))).toBeUndefined()
     const next = cardFor(await queue(PRIME))
     expect(next, 'the card on Computer Systems’ queue').toBeTruthy()
-    expect(next.subtitle).toBe('$250.00 · Travel · from Techpeple')
+    expect(next.subtitle).toBe('$250.00 · Travel · from Tecwyn')
   })
 })
 
@@ -634,7 +634,7 @@ describe('the Today headline is one sentence with the names in it, and says the 
     }
   })
 
-  it('the program manager’s sentence names the start paperwork holds and the supplier with no agreement: "Two things need you: Ingrid Sørensen’s start, and Teleworld Solutions’ missing agreement."', async () => {
+  it('the program manager’s sentence names the start paperwork holds and the supplier with no agreement: "Two things need you: Ingrid Sørensen’s start, and Tellisford Solutions’ missing agreement."', async () => {
     const { possessive } = await import('@/app/dashboard/program/needs-you')
     const { queue } = await read(PROGRAMME)
     const held = queue.decisions.filter((d: any) => d.type === 'START_HELD')
@@ -644,7 +644,7 @@ describe('the Today headline is one sentence with the names in it, and says the 
       for (const d of held) expect(queue.says).toContain(`${possessive(d.named.whose)} start`)
       for (const d of noPaper) expect(queue.says).toContain(`${possessive(d.named.whose)} missing agreement`)
     }
-    expect(queue.says).toBe("Two things need you: Ingrid Sørensen’s start, and Teleworld Solutions’ missing agreement.")
+    expect(queue.says).toBe("Two things need you: Ingrid Sørensen’s start, and Tellisford Solutions’ missing agreement.")
   })
 
   it('a held start’s row says what is missing once, and never names the person a second time', async () => {

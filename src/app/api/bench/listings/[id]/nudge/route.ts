@@ -82,6 +82,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const sent = await send({
     companyId: listing.companyId, personId: person.id, kind: 'LINK', to: person.primaryEmail,
     subject: letter.subject, body: letter.body, aboutType: 'LISTING', aboutId: listing.id,
+    // A reminder about this listing: the mail door lets one go to her in its window.
+    byPersonId: caller.person.id, chase: true,
   })
   // The row says what the send did: "sent again" only where the email
   // went, a try where it did not (fix list D1, 2026-11-15). This door has

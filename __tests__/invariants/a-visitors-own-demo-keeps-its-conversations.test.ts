@@ -21,7 +21,7 @@ import { CLIENT_SIGN_UP } from '@/lib/public-site/skeleton-words'
  */
 
 const RESERVED = 'a1b2c3d4e5f6@demo.etyme.local'
-const sandbox = { id: 'co-sandbox', name: 'Oxford Corp', isDemo: true }
+const sandbox = { id: 'co-sandbox', name: 'Orlestone Corp', isDemo: true }
 const world = { id: 'co-world', name: 'Pinnacle Staffing', isDemo: false }
 
 const seat = (over: Partial<ThreadSeat> & { email?: string } = {}): ThreadSeat => {

@@ -28,7 +28,7 @@ import {
   REFERENCE, TIME_AND_MONEY, WHO_DOES_WHAT, docSlugs, docRoutes, copyOfDoc, copyOfDocsHome,
 } from '@/lib/public-site/docs/index'
 import { modulePage } from '@/lib/public-site/module-page'
-import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt, everyDoorView, tabHref } from '@/lib/public-site/parties'
+import { PARTY_PAGES, copyOfPartyPage, partyAt as doorAt, everyDoorView, segmentAt, segmentView, tabHref } from '@/lib/public-site/parties'
 import { storyChromeCopy } from '@/lib/public-site/story'
 import { BAND, CATEGORY, CLIENT_SIGN_UP, DOORS, FOOTER_LINKS as SKELETON_FOOTER, ON_SCREEN_DOOR, OPEN_DEMO, MOST_WORDS, MOST_STEP_WORDS, bandWords, countWords } from '@/lib/public-site/skeleton-words'
 import { EMBED_STEPS } from '@/lib/sample-seat'
@@ -61,6 +61,9 @@ function copyOf(route: string): Copy | null {
   if (route === '/docs') return copyOfDocsHome()
   if (route.startsWith('/docs/')) return copyOfDoc(route.slice('/docs/'.length))
   if (route.startsWith('/for/')) {
+    // A segment page is one tab of its door at a plain address (2026-11-22).
+    const seg = segmentAt(route.slice('/for/'.length))
+    if (seg) return copyOfPartyPage(doorAt(seg.door)!, seg.tab)
     // A door's tab is its own address, `/for/suppliers?tab=sub`, and is
     // read as a page of its own (founder, 2026-10-16).
     const [slug, query] = route.slice('/for/'.length).split('?tab=')
@@ -83,7 +86,8 @@ const NEW_PAGES = PUBLIC_PAGES.filter((p) => ['MODULE', 'DOCS', 'COMPANY', 'PART
  * each read by every guard below, not only the tab a reader meets first.
  */
 const withTabs = <P extends { route: string; kind: string }>(p: P): P[] =>
-  p.kind === 'PARTY' ? everyDoorView().filter((v) => v.route === p.route).map((v) => ({ ...p, route: v.href })) : [p]
+  p.kind !== 'PARTY' || segmentAt(p.route.slice('/for/'.length)) ? [p]
+    : everyDoorView().filter((v) => v.route === p.route).map((v) => ({ ...p, route: v.href }))
 
 const all = (c: Copy) => [...c.hero, ...c.body].join(' ')
 
@@ -159,7 +163,9 @@ describe('No public page says what we agreed never to say', () => {
     // read, so on a door the fold is read through the panel's bar.
     for (const p of NEW_PAGES.flatMap(withTabs)) {
       const page = copyOf(p.route)!
-      const door = p.kind === 'PARTY' ? doorAt(p.route.slice('/for/'.length).split('?')[0])! : null
+      const slug = p.route.slice('/for/'.length).split('?')[0]
+      const seg = p.kind === 'PARTY' ? segmentAt(slug) : null
+      const door = seg ? segmentView(seg) : p.kind === 'PARTY' ? doorAt(slug)! : null
       const c = door ? { hero: [...page.hero, ...storyChromeCopy(door.story)], body: page.body } : page
       const miss = check(c).filter((f) => f.rule === 'category-first' || f.rule === 'module-not-category')
       expect(miss, `${p.route} never says what category it is in its first lines`).toEqual([])
@@ -201,7 +207,8 @@ describe('No public page says what we agreed never to say', () => {
       expect(offersTheProgramOffice(all(c)).length, `${p.route} offers to run the program more than once`).toBeLessThanOrEqual(1)
       expect(offersTheProgramOffice(c.hero.join(' ')), `${p.route} offers to run the program in its headline`).toEqual([])
     }
-    expect(offersTheProgramOffice(all(copyOfCompanyPage(ABOUT)))).toHaveLength(1)
+    // About made the offer once until 2026-11-22 (docs/decisions/110, item 4).
+    expect(offersTheProgramOffice(all(copyOfCompanyPage(ABOUT)))).toEqual([])
   })
 
   it('every sentence a buyer reads on a module or company page is short enough to read once', () => {
@@ -319,7 +326,8 @@ describe('Every product page and party door is the home page’s shape, opened a
     // past the cap, the prime vendor's tab and the MSPs' door; his lines
     // are not trimmed to fit, and the count is pinned here so neither
     // grows by a word without this test saying so.
-    expect(SKELETON_PAGES).toHaveLength(8)
+    // Four step pages, four doors, and the four segment pages of 2026-11-22.
+    expect(SKELETON_PAGES).toHaveLength(12)
     for (const p of SKELETON_PAGES.flatMap(withTabs)) {
       const c = copyOf(p.route)!
       const n = countWords([...c.hero, ...c.body])
@@ -568,18 +576,23 @@ describe('Security, About and Contact say only what can be checked', () => {
     expect(read('src/lib/public-site/company-page.tsx')).toContain('<Ask source="HOME_PAGE" />')
   })
 
-  it('about is five lines: what we build, what every supplier gets alike, the two ways, the price, and where we are', () => {
+  it('about is four lines: what we build, what every supplier gets alike, the price, and where we are', () => {
     const lines = ABOUT.blocks.flatMap((b) => b.lines ?? [])
-    expect(lines.map((l) => l.lead)).toEqual(['What we build.', 'The same for every supplier.', 'Two ways to use it.', 'Price.', 'Where we are.'])
+    expect(lines.map((l) => l.lead)).toEqual(['What we build.', 'The same for every supplier.', 'Price.', 'Where we are.'])
     expect(all(copyOfCompanyPage(ABOUT))).toContain('A supplier’s rates are never shown to another supplier. Every look at a person’s record is logged.')
     expect(all(copyOfCompanyPage(ABOUT))).not.toContain('never runs a bench')
   })
 
-  it('about offers to run the program once, quietly, in the founder’s two labels', () => {
-    expect(offersTheProgramOffice(all(copyOfCompanyPage(ABOUT)))).toEqual([
-      'Or Etyme runs it for you: Etyme as MSP provider.',
-    ])
-    expect(all(copyOfCompanyPage(ABOUT))).toContain('Your team runs it: Etyme as VMS software.')
+  it('about never calls Etyme VMS software, a vendor management system or an MSP provider, and never says how an MSP would be paid', () => {
+    // The owner's sales-ready batch of 2026-11-22 (docs/decisions/110, item
+    // 4) took two things off About, word for word: the line "Two ways to
+    // use it. Your team runs it: Etyme as VMS software. Or Etyme runs it
+    // for you: Etyme as MSP provider." and the price line's last sentence.
+    const about = all(copyOfCompanyPage(ABOUT))
+    expect(offersTheProgramOffice(about)).toEqual([])
+    expect(about).not.toMatch(/\bVMS\b|\bMSP\b|vendor management system/i)
+    expect(about).not.toContain('paid by suppliers')
+    expect(about).toContain('Price. Free while we test with our first companies. No number until we have one.')
   })
 
   it('the spend-audit landing page with invented numbers is not brought across', () => {
@@ -801,10 +814,10 @@ describe('Four doors for the parties who are not the client, reached by link and
       // Her job is on the bar above; the line names her and her firm, so
       // the tab stays at 165 words with the category line on top (2026-10-20).
       '/for/suppliers': 'You are watching Marisa Delacroix at Brightmoor Staffing, a demo company, not a customer.',
-      '/for/suppliers?tab=sub': 'You are watching Bhavesh Nair, owner of Techpeple, a demo company, not a customer.',
-      '/for/suppliers?tab=bench': 'You are watching Linnea Qadri, recruiter at Techpeple, a demo company, not a customer.',
+      '/for/suppliers?tab=sub': 'You are watching Bhavesh Nair, owner of Tecwyn, a demo company, not a customer.',
+      '/for/suppliers?tab=bench': 'You are watching Linnea Qadri, recruiter at Tecwyn, a demo company, not a customer.',
       '/for/program-offices': `You are watching Rashida Coleman, program manager at Aptiva Workforce, in Cavanaugh Glassworks’ program. ${ON_SCREEN_DOOR}`,
-      '/for/integrators': 'You are watching Sunil Raghavan, delivery manager at Teleworld Solutions, a demo company, not a customer.',
+      '/for/integrators': 'You are watching Sunil Raghavan, delivery manager at Tellisford Solutions, a demo company, not a customer.',
       '/for/contractors': 'You are watching Helena Marsh, a contractor at Northbend Athletic, a demo company, not a customer.',
       '/for/contractors?tab=solo': 'You are watching Colleen Byrne, ICU travel nurse and owner of Byrne Critical Care LLC, a demo company, not a customer.',
     })
@@ -911,10 +924,10 @@ describe('Four doors for the parties who are not the client, reached by link and
     // Every other door and tab plays its own party's person (2026-10-19).
     expect(Object.fromEntries(everyDoorView().map((v) => [v.href, [v.story, v.step]]))).toEqual({
       '/for/suppliers': ['brightmoor', 'submit'],
-      '/for/suppliers?tab=sub': ['techpeple-sub', 'approve'],
-      '/for/suppliers?tab=bench': ['techpeple-bench', 'submit'],
+      '/for/suppliers?tab=sub': ['tecwyn-sub', 'approve'],
+      '/for/suppliers?tab=bench': ['tecwyn-bench', 'submit'],
       '/for/program-offices': ['aptiva', 'source'],
-      '/for/integrators': ['teleworld', 'submit'],
+      '/for/integrators': ['tellisford', 'submit'],
       '/for/contractors': ['helena', 'approve'],
       '/for/contractors?tab=solo': ['byrne', 'pay'],
     })
@@ -940,15 +953,15 @@ describe('Four doors for the parties who are not the client, reached by link and
     expect(existsSync(join(ROOT, 'src/app/dashboard/program/page.tsx'))).toBe(true)
   })
 
-  it('the MSPs’ door no longer offers Etyme’s own team, as the founder drew it on 2026-10-16, and About still names the two ways to run a program', () => {
+  it('the MSPs’ door no longer offers Etyme’s own team, as the founder drew it on 2026-10-16, and since 2026-11-22 About makes no such offer either', () => {
     // Until 2026-10-16 the door's third line was "Etyme as VMS software:
     // you run it. Etyme as MSP provider: Etyme’s own team runs it." The
-    // founder's drawing replaced the three lines; the offer stays once,
-    // quietly, on About, under his two labels.
+    // founder's drawing replaced the three lines; the offer stayed once on
+    // About until the owner's sales-ready batch (docs/decisions/110).
     const p = doorAt('program-offices')!
     expect(offersTheProgramOffice(all(copyOfPartyPage(p)))).toEqual([])
     expect(p.lines.join(' ')).not.toContain('MSP provider')
-    expect(offersTheProgramOffice(all(copyOfCompanyPage(ABOUT)))).toHaveLength(1)
+    expect(offersTheProgramOffice(all(copyOfCompanyPage(ABOUT)))).toEqual([])
   })
 
   it('a door’s headline is a statement in its party’s own words, not a question, as the founder chose on 2026-10-16', () => {
@@ -1011,10 +1024,10 @@ describe('Four doors for the parties who are not the client, reached by link and
     // lines); the bar and the line under the panel say who you open as.
     expect(Object.fromEntries(everyDoorView().map((v) => [v.href, v.demo]))).toEqual({
       '/for/suppliers': { target: { as: 'world-brightmoor', desk: 'account', screen: '/dashboard', seat: 'the account manager' } },
-      '/for/suppliers?tab=sub': { target: { as: 'world-techpeple', desk: '', screen: '/dashboard/timesheets', seat: 'Techpeple’s owner' } },
-      '/for/suppliers?tab=bench': { target: { as: 'world-techpeple', desk: 'recruiter', screen: '/dashboard/bench', seat: 'Techpeple’s recruiter' } },
+      '/for/suppliers?tab=sub': { target: { as: 'world-tecwyn', desk: '', screen: '/dashboard/timesheets', seat: 'Tecwyn’s owner' } },
+      '/for/suppliers?tab=bench': { target: { as: 'world-tecwyn', desk: 'recruiter', screen: '/dashboard/bench', seat: 'Tecwyn’s recruiter' } },
       '/for/program-offices': { target: { as: 'world-aptiva', desk: '', screen: '/dashboard/program', seat: 'Aptiva Workforce’s program manager' } },
-      '/for/integrators': { target: { as: 'world-teleworld', desk: 'delivery', screen: '/dashboard/bench', seat: 'a delivery manager' } },
+      '/for/integrators': { target: { as: 'world-tellisford', desk: 'delivery', screen: '/dashboard/bench', seat: 'a delivery manager' } },
       '/for/contractors': { target: { person: 'helena-marsh', seat: 'Helena Marsh' } },
       '/for/contractors?tab=solo': { target: { person: 'colleen-byrne', seat: 'Colleen Byrne' } },
     })
@@ -1025,13 +1038,13 @@ describe('Four doors for the parties who are not the client, reached by link and
     for (const v of everyDoorView()) expect(copyOfPartyPage(v, v.tab?.key).body, v.href).toContain(OPEN_DEMO)
     // Each seat is one the demo door gives: a seeded firm and a desk it knows, or a person on the demo page.
     const seats = read('src/app/demo/seats.ts')
-    for (const slug of ['world-brightmoor', 'world-techpeple', 'world-aptiva', 'world-teleworld']) expect(seats, slug).toContain(`slug: '${slug}'`)
+    for (const slug of ['world-brightmoor', 'world-tecwyn', 'world-aptiva', 'world-tellisford']) expect(seats, slug).toContain(`slug: '${slug}'`)
     for (const person of ['helena-marsh', 'colleen-byrne']) expect(seats, person).toContain(`slug: '${person}'`)
     expect(read('src/lib/demo-desks.ts')).toContain("recruiter: ['Recruiter']")
-    // Techpeple's recruiter is Linnea Qadri, and its first seat is its owner, Bhavesh Nair.
+    // Tecwyn's recruiter is Linnea Qadri, and its first seat is its owner, Bhavesh Nair.
     const world = read('src/lib/seed-world.ts')
     expect(world).toContain("{ desk: 'recruiter',  role: 'Recruiter',        name: 'Linnea Qadri' }")
-    expect(world).toMatch(/slug: 'techpeple',\s*name: 'Techpeple',\s*kind: 'VENDOR',\s*seat: 'Bench sales', who: 'Bhavesh Nair'/)
+    expect(world).toMatch(/slug: 'tecwyn',\s*name: 'Tecwyn',\s*kind: 'VENDOR',\s*seat: 'Bench sales', who: 'Bhavesh Nair'/)
     // A person's seat posts the person, and goes where the door says that person lands.
     expect(demoRequest({ person: 'helena-marsh', seat: 'Helena Marsh' })).toEqual({ url: '/api/demo', body: { person: 'helena-marsh' }, then: null })
     expect(read('src/lib/public-site/demo-link.tsx')).toContain("req.then ?? answer?.data?.landing ?? '/dashboard'")

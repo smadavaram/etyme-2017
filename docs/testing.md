@@ -116,11 +116,11 @@ the same worker:
 
 | | |
 |---|---|
-| **Oxford Corp** | the client — buys, never learns who the sub-vendor is |
-| **Yoh Services** | the MSP — runs the programme, is invoiced, never touches a CV |
-| **Teleworld** | the GSI — delivers with its own people and bought ones |
-| **Insight Global** | the sub-vendor — holds the paper on somebody it did not source |
-| **Consultis, Techni Power** | the bench vendors — sourced them, furthest from the money |
+| **Orlestone Corp** | the client — buys, never learns who the sub-vendor is |
+| **Yarrow Services** | the MSP — runs the programme, is invoiced, never touches a CV |
+| **Tellisford** | the GSI — delivers with its own people and bought ones |
+| **Ingleby Global** | the sub-vendor — holds the paper on somebody it did not source |
+| **Conisby, Tarnhow Power** | the bench vendors — sourced them, furthest from the money |
 
 Four of the nine people share one domain, so the client has four hiring
 managers. Addendum E says governance is table stakes for a client with

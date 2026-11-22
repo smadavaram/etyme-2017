@@ -14,18 +14,18 @@ import { rolesFor } from '@/lib/company-defaults'
 
 /**
  * The founder's example, walked on the seeded world (2026-09-30): Ingrid
- * Solberg manages Teleworld's Tualatin project at Northbend Athletic and
- * has flagged Felix Brenner rolling off; Rahul Deshpande manages its San
+ * Solberg manages Tellisford's Tualatin project at Northbend Athletic and
+ * has flagged Felix Brenner rolling off; Rahul Dandekar manages its San
  * Jose project at Harlow Health, sees Felix on Our bench, asks, reserves
  * and — once Ingrid confirms the day — places him on his own project's
  * order. Farah Haddad at HR is told of every step and approves none.
  */
 
 const D = '@demo.etyme.local'
-const INGRID = `world-teleworld-delivery-portland${D}`
-const RAHUL = `world-teleworld-delivery-sanjose${D}`
-const FARAH = `world-teleworld-hr${D}`
-const OWNER = `world-teleworld${D}`
+const INGRID = `world-tellisford-delivery-portland${D}`
+const RAHUL = `world-tellisford-delivery-sanjose${D}`
+const FARAH = `world-tellisford-hr${D}`
+const OWNER = `world-tellisford${D}`
 const NORTHBEND = `world-nike${D}`
 const HARLOW = `world-harlow-health${D}`
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
@@ -47,9 +47,9 @@ async function read(email: string) {
 
 beforeAll(async () => {
   await freshWorld()
-  const teleworld = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })
+  const tellisford = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' }, select: { id: true } })
   ids = {
-    teleworld: teleworld.id,
+    tellisford: tellisford.id,
     felix: await personId(FELIX),
     amara: await personId('amara.nwosu@seed.etyme.invalid'),
     deepa: await personId('deepa.varma@seed.etyme.invalid'),
@@ -128,25 +128,25 @@ describe('who may read Our bench', () => {
     expect(r.status).toBe(403)
     expect(r.body.data).toBeUndefined()
     expect(r.body.error.code).toBe('NO_DESK')
-    expect(r.body.error.message).toContain('is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(r.body.error.message).toContain('is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     expect(r.body.error.message).not.toMatch(/[a-z]+\.(read|write)/)
     expect(await prisma.accessLog.count({ where: { actorPersonId: ids.karthik, allowed: false, at: { gte: since } } })).toBeGreaterThan(0)
   })
 
   it('a desk at the firm that neither staffs projects nor is HR cannot read Our bench, and is told who does', async () => {
-    const role = await prisma.role.findFirst({ where: { companyId: ids.teleworld, name: 'Accounts Receivable' }, select: { id: true } })
+    const role = await prisma.role.findFirst({ where: { companyId: ids.tellisford, name: 'Accounts Receivable' }, select: { id: true } })
       ?? await prisma.role.create({
-        data: { companyId: ids.teleworld, name: 'Accounts Receivable', permissions: rolesFor('GSI').find((x) => x.name === 'Accounts Receivable')!.permissions as string[], isDefault: false },
+        data: { companyId: ids.tellisford, name: 'Accounts Receivable', permissions: rolesFor('GSI').find((x) => x.name === 'Accounts Receivable')!.permissions as string[], isDefault: false },
         select: { id: true },
       })
     const clerk = await prisma.person.upsert({
-      where: { primaryEmail: 'ar.desk@teleworld-moves.invalid' }, update: {},
-      create: { name: 'Imani Cole', primaryEmail: 'ar.desk@teleworld-moves.invalid' },
+      where: { primaryEmail: 'ar.desk@tellisford-moves.invalid' }, update: {},
+      create: { name: 'Imani Cole', primaryEmail: 'ar.desk@tellisford-moves.invalid' },
     })
-    if (!(await prisma.context.findFirst({ where: { personId: clerk.id, companyId: ids.teleworld } }))) {
-      await prisma.context.create({ data: { personId: clerk.id, companyId: ids.teleworld, roleId: role.id, type: 'EMPLOYEE', grantReason: 'Seated for the Our bench sentence' } })
+    if (!(await prisma.context.findFirst({ where: { personId: clerk.id, companyId: ids.tellisford } }))) {
+      await prisma.context.create({ data: { personId: clerk.id, companyId: ids.tellisford, roleId: role.id, type: 'EMPLOYEE', grantReason: 'Seated for the Our bench sentence' } })
     }
-    const r = await read('ar.desk@teleworld-moves.invalid')
+    const r = await read('ar.desk@tellisford-moves.invalid')
     expect(r.status).toBe(403)
     expect(r.body.error.message).toContain('read by the managers who staff its projects and by HR')
   })
@@ -164,7 +164,7 @@ describe('who may read Our bench', () => {
 
 describe('flagging', () => {
   it('a manager on another project cannot flag somebody he does not manage', async () => {
-    const line = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids.felix, companyId: ids.teleworld, state: 'IN_PROGRESS' } })
+    const line = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids.felix, companyId: ids.tellisford, state: 'IN_PROGRESS' } })
     as(RAHUL)
     const r = await json(await flag(req('POST', '/api/bench/ours/flag', { sellContractId: line.id, rollsOffOn: iso(line.endDate!) })))
     expect(r.status).toBe(403)
@@ -172,18 +172,18 @@ describe('flagging', () => {
   })
 
   it('the San Jose manager flags his own engineer, and the Tualatin manager then sees her on Our bench', async () => {
-    const line = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids.deepa, companyId: ids.teleworld, state: 'IN_PROGRESS' } })
+    const line = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids.deepa, companyId: ids.tellisford, state: 'IN_PROGRESS' } })
     as(RAHUL)
     const f = await json(await flag(req('POST', '/api/bench/ours/flag', { sellContractId: line.id, rollsOffOn: iso(line.endDate!) })))
     expect(f.status, JSON.stringify(f.body)).toBe(201)
     const r = await read(INGRID)
     const deepa = r.body.data.rows.find((x: any) => x.name === 'Deepa Varma')
-    expect(deepa.releaser.name).toBe('Rahul Deshpande')
+    expect(deepa.releaser.name).toBe('Rahul Dandekar')
     expect(deepa.freeOn).toBe(iso(new Date(line.endDate!.getTime() + DAY)))
   })
 
   it('a roll-off after the contract ends is refused, because a flag is not an extension', async () => {
-    const line = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids.deepa, companyId: ids.teleworld, state: 'IN_PROGRESS' } })
+    const line = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids.deepa, companyId: ids.tellisford, state: 'IN_PROGRESS' } })
     as(RAHUL)
     const r = await json(await flag(req('POST', '/api/bench/ours/flag', { sellContractId: line.id, rollsOffOn: iso(new Date(line.endDate!.getTime() + 10 * DAY)) })))
     expect(r.status).toBe(409)
@@ -197,7 +197,7 @@ describe('asking, holding, confirming and placing', () => {
     const r = await json(await ask(req('POST', `/api/bench/ours/${ids.felix}/ask`, { message: 'Is Felix free from the 20th for sure? I have a San Jose seat.' }), params({ personId: ids.felix })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     const thread = await prisma.conversation.findUniqueOrThrow({ where: { id: r.body.data.conversationId } })
-    expect(thread.companyId).toBe(ids.teleworld)
+    expect(thread.companyId).toBe(ids.tellisford)
     expect(thread.withCompanyId).toBeNull()
     const who = (thread.participants as any[]).map((p) => p.personId)
     expect(who).toContain(ids.ingrid)
@@ -217,13 +217,13 @@ describe('asking, holding, confirming and placing', () => {
     as(OWNER)
     const second = await json(await hold(req('POST', '/api/bench/ours/holds', { personId: ids.felix, sellContractId: order.sellContractId })))
     expect(second.status).toBe(409)
-    expect(second.body.error.message).toMatch(/^Felix Brenner is held by Rahul Deshpande for .+ until .+\. Ask Rahul Deshpande, or wait until then\.$/)
+    expect(second.body.error.message).toMatch(/^Felix Brenner is held by Rahul Dandekar for .+ until .+\. Ask Rahul Dandekar, or wait until then\.$/)
   })
 
   it('the database admits one live hold per person, whatever a route does', async () => {
     await expect(
       prisma.projectHold.create({
-        data: { companyId: ids.teleworld, personId: ids.felix, heldById: ids.ingrid, forTitle: 'x', until: new Date(Date.now() + 5 * DAY) },
+        data: { companyId: ids.tellisford, personId: ids.felix, heldById: ids.ingrid, forTitle: 'x', until: new Date(Date.now() + 5 * DAY) },
       })
     ).rejects.toThrow()
   })
@@ -257,7 +257,7 @@ describe('asking, holding, confirming and placing', () => {
   })
 
   it('the releasing manager confirms the date and the receiving manager places the person on his project’s order, starting the day after', async () => {
-    const old = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids.felix, companyId: ids.teleworld, state: 'IN_PROGRESS' } })
+    const old = await prisma.sellContract.findFirstOrThrow({ where: { personId: ids.felix, companyId: ids.tellisford, state: 'IN_PROGRESS' } })
     const oldEnd = old.endDate!
     const heldFor = await prisma.projectHold.findUniqueOrThrow({ where: { id: ids.hold } })
     const seat = await prisma.sellContract.findUniqueOrThrow({ where: { id: heldFor.forSellContractId! } })
@@ -341,7 +341,7 @@ describe('a hold released, and somebody put forward to a client’s job request'
       },
     })
     await prisma.requirementInvitation.create({
-      data: { requirementId: job.id, fromCompanyId: harlow.id, toCompanyId: ids.teleworld, expiresAt: new Date(Date.now() + 10 * DAY), status: 'SENT' },
+      data: { requirementId: job.id, fromCompanyId: harlow.id, toCompanyId: ids.tellisford, expiresAt: new Date(Date.now() + 10 * DAY), status: 'SENT' },
     })
     // The owner holds every desk, submitting among them.
     as(OWNER)
@@ -351,7 +351,7 @@ describe('a hold released, and somebody put forward to a client’s job request'
     expect(p.status, JSON.stringify(p.body)).toBe(201)
     const sub = await prisma.submission.findUniqueOrThrow({ where: { id: p.body.data.submissionId } })
     expect(sub.kind).toBe('INTERNAL')
-    expect(sub.fromCompanyId).toBe(ids.teleworld)
+    expect(sub.fromCompanyId).toBe(ids.tellisford)
     expect(sub.personId).toBe(ids.karthik)
   })
 })
@@ -361,7 +361,7 @@ describe('HR, the trail and matching', () => {
     const told = await prisma.notification.findMany({ where: { personId: ids.farah, type: 'ROLLOFF', channel: 'EMAIL' }, select: { title: true } })
     const titles = told.map((t) => t.title)
     expect(titles.some((t) => t.startsWith('Deepa Varma rolls off'))).toBe(true)
-    expect(titles.some((t) => t.startsWith('Rahul Deshpande is holding Felix Brenner'))).toBe(true)
+    expect(titles.some((t) => t.startsWith('Rahul Dandekar is holding Felix Brenner'))).toBe(true)
     expect(titles.some((t) => t.startsWith('Ingrid Solberg confirmed Felix Brenner comes off'))).toBe(true)
     expect(titles.some((t) => t.startsWith('Felix Brenner moves to Harlow Health in San Jose'))).toBe(true)
     expect(titles.some((t) => t.startsWith('The hold on Karthik Menon was released'))).toBe(true)
@@ -369,7 +369,7 @@ describe('HR, the trail and matching', () => {
   })
 
   it('every step writes an automation row saying who did it and that nobody approved it', async () => {
-    const acts = await prisma.automationLog.findMany({ where: { companyId: ids.teleworld, action: { startsWith: 'PROJECT_' } }, select: { action: true, reason: true } })
+    const acts = await prisma.automationLog.findMany({ where: { companyId: ids.tellisford, action: { startsWith: 'PROJECT_' } }, select: { action: true, reason: true } })
     const names = new Set(acts.map((a) => a.action))
     for (const a of ['PROJECT_RELEASE_FLAGGED', 'PROJECT_HOLD_TAKEN', 'PROJECT_RELEASE_CONFIRMED', 'PROJECT_MOVE_PLACED', 'PROJECT_HOLD_RELEASED', 'PROJECT_MOVE_SUBMITTED']) {
       expect(names.has(a), a).toBe(true)
@@ -393,11 +393,11 @@ describe('HR, the trail and matching', () => {
     const facts = { id: job.id, companyId: job.companyId, payerCompanyId: job.payerCompanyId, endClientCompanyId: job.endClientCompanyId }
     const amara = await prisma.projectRelease.findFirstOrThrow({ where: { personId: ids.amara } })
 
-    const today = await poolFor(facts, ids.teleworld, { suggest: false })
+    const today = await poolFor(facts, ids.tellisford, { suggest: false })
     // Amara's contract ends inside the month, but Ingrid keeps her past it.
     expect(today.entries.map((e) => e.personId)).not.toContain(ids.amara)
 
-    const nearer = await poolFor(facts, ids.teleworld, { suggest: false, now: new Date(amara.keepUntil!.getTime() - 20 * DAY) })
+    const nearer = await poolFor(facts, ids.tellisford, { suggest: false, now: new Date(amara.keepUntil!.getTime() - 20 * DAY) })
     const entry = nearer.entries.find((e) => e.personId === ids.amara)
     expect(entry?.employee).toBe(true)
     expect(entry?.standing).toContain('free from then')
@@ -414,7 +414,7 @@ describe('a delivery manager and a client\u2019s job request', () => {
       },
     })
     await prisma.requirementInvitation.create({
-      data: { requirementId: job.id, fromCompanyId: harlow.id, toCompanyId: ids.teleworld, expiresAt: new Date(Date.now() + 10 * DAY), status: 'SENT' },
+      data: { requirementId: job.id, fromCompanyId: harlow.id, toCompanyId: ids.tellisford, expiresAt: new Date(Date.now() + 10 * DAY), status: 'SENT' },
     })
     as(RAHUL)
     const h = await json(await hold(req('POST', '/api/bench/ours/holds', { personId: ids.karthik, requirementId: job.id })))
@@ -423,6 +423,6 @@ describe('a delivery manager and a client\u2019s job request', () => {
     expect(p.status, JSON.stringify(p.body)).toBe(201)
     const sub = await prisma.submission.findUniqueOrThrow({ where: { id: p.body.data.submissionId } })
     expect(sub.kind).toBe('INTERNAL')
-    expect(sub.fromCompanyId).toBe(ids.teleworld)
+    expect(sub.fromCompanyId).toBe(ids.tellisford)
   })
 })

@@ -112,7 +112,7 @@ function northbendOnSite() {
     ...TENURE_DEMO.lines.filter((l) => l.state === 'IN_PROGRESS').map((l) => ({ person: TENURE_DEMO.person, firm: l.via, bill: l.rates[0] })),
     { person: RATE_CHANGE_PERSON.name, firm: 'brightmoor', bill: RATE_CHANGE_RATES.bill },
     ...[...moves.matchAll(/person: '([^']+)', client: 'nike'[\s\S]*?bill: ([\d_]+),[\s\S]*?end: (-?\d+)/g)]
-      .filter((m) => Number(m[3]) > 0).map((m) => ({ person: m[1], firm: 'teleworld', bill: Number(m[2].replace(/_/g, '')) })),
+      .filter((m) => Number(m[3]) > 0).map((m) => ({ person: m[1], firm: 'tellisford', bill: Number(m[2].replace(/_/g, '')) })),
   ]
 }
 /** The world seed's placements and the names given them, read off its source: neither is exported. */
@@ -249,10 +249,10 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     expect(s.chat[1].status).toEqual({ pill: 'wait', t: `Waiting for ${nike.people.hiring}`, then: { pill: 'ok', t: `Signed by ${nike.people.hiring} ✓` } })
     expect(s.chat.some((m) => m.card)).toBe(false)
     // Then down the chain: the firm Northbend pays, then her employer, the bottom rung.
-    expect(helena.via).toEqual(['nike', 'computer-systems', 'techpeple'])
+    expect(helena.via).toEqual(['nike', 'computer-systems', 'tecwyn'])
     expect(s.chat[2].text).toBe(`Signed, just now. ${firm(helena.via[1])} accepts the same 40 hours next, then your employer, who pays you. Nobody types your week in again.`)
     // The client never reads the firm below the one it pays, on this panel or any other Northbend step.
-    for (const st of STORY) expect(sayAll(st), st.chip).not.toContain(firm('techpeple'))
+    for (const st of STORY) expect(sayAll(st), st.chip).not.toContain(firm('tecwyn'))
     expect(s.table.rows.map((r) => r.map(text))).toEqual([
       [WEEK_WORDS[0], '40', nike.people.hiring, 'Waiting'],
       [WEEK_WORDS[1], '40', nike.people.hiring, 'Accepted'],
@@ -542,11 +542,11 @@ describe('The MSP door’s story is Aptiva Workforce’s seat in Cavanaugh Glass
  *   drawing                              seed, and so the panel
  *   Brightmoor "3 people billing ·       "3 people billing": the seed holds both,
  *   2 clients"                           and the door's 165-word cap holds one
- *   Techpeple's bench: Meera             Grace Lindqvist and Peter Halloran;
+ *   Tecwyn's bench: Meera             Grace Lindqvist and Peter Halloran;
  *   Balakrishnan, Ifeoma Balogun,        Meera is Nimbus Talent's and Tobias
  *   Tobias Lindgren                      Lindgren Sahasra Infotech's; Ifeoma is
- *                                        Techpeple's, already put forward
- *   a bench shown "to a firm that        shown to the firms Techpeple sells to:
+ *                                        Tecwyn's, already put forward
+ *   a bench shown "to a firm that        shown to the firms Tecwyn sells to:
  *   asked"                               no seeded firm has asked (no BenchWant)
  *   Felix Brenner Nov 2, Amara Nwosu     no dates: both count from the day the
  *   Nov 9                                world was born; "a week later" is the
@@ -572,10 +572,10 @@ describe('Each door plays its own party’s person, every name and figure the se
   it('each door and tab plays its own story at the step its person acts on', () => {
     expect(Object.fromEntries(everyDoorView().map((v) => [v.href, [v.story, v.step]]))).toEqual({
       '/for/suppliers': ['brightmoor', 'submit'],
-      '/for/suppliers?tab=sub': ['techpeple-sub', 'approve'],
-      '/for/suppliers?tab=bench': ['techpeple-bench', 'submit'],
+      '/for/suppliers?tab=sub': ['tecwyn-sub', 'approve'],
+      '/for/suppliers?tab=bench': ['tecwyn-bench', 'submit'],
       '/for/program-offices': ['aptiva', 'source'],
-      '/for/integrators': ['teleworld', 'submit'],
+      '/for/integrators': ['tellisford', 'submit'],
       '/for/contractors': ['helena', 'approve'],
       '/for/contractors?tab=solo': ['byrne', 'pay'],
     })
@@ -615,18 +615,18 @@ describe('Each door plays its own party’s person, every name and figure the se
     const atNorthbend = northbendOnSite().filter((o) => o.firm === 'brightmoor').map((o) => o.person)
     expect(atNorthbend.sort()).toEqual(['Omar Haddad', 'Rosa Delgado'])
     const elsewhere = WORLD_PLACEMENTS.map((via, i) => ({ via, person: WORLD_NAMES[i] })).filter((p) => p.via.includes('brightmoor'))
-    expect(elsewhere.map((p) => [p.person, p.via[0]])).toEqual([['Ravi Subramanian', 'nordway']])
+    expect(elsewhere.map((p) => [p.person, p.via[0]])).toEqual([['Ravi Subbarayan', 'nordway']])
     // Lucía's and the time-limit person's Brightmoor lines have ended.
     expect(nike.placements.filter((p) => p.via[1] === 'brightmoor' && p.state !== 'IN_PROGRESS').every((p) => p.state === 'ENDED')).toBe(true)
     expect(TENURE_DEMO.lines.find((l) => l.via === 'brightmoor')!.state).toBe('ENDED')
     expect(STORIES.brightmoor.bar.rest).toBe(`a sample supplier · ${atNorthbend.length + elsewhere.length} people billing`)
   })
 
-  it('a sub-vendor is Bhavesh Nair, Techpeple’s owner, accepting Helena Marsh’s 40 hours after the client and the prime, and billing the prime for the same hours', () => {
-    expect(WORLD).toMatch(/slug: 'techpeple',\s*name: 'Techpeple',\s*kind: 'VENDOR',\s*seat: 'Bench sales', who: 'Bhavesh Nair'/)
-    const st = only('techpeple-sub')
+  it('a sub-vendor is Bhavesh Nair, Tecwyn’s owner, accepting Helena Marsh’s 40 hours after the client and the prime, and billing the prime for the same hours', () => {
+    expect(WORLD).toMatch(/slug: 'tecwyn',\s*name: 'Tecwyn',\s*kind: 'VENDOR',\s*seat: 'Bench sales', who: 'Bhavesh Nair'/)
+    const st = only('tecwyn-sub')
     expect(st.who).toBe('Bhavesh Nair, owner')
-    expect(helena.via).toEqual(['nike', 'computer-systems', 'techpeple'])
+    expect(helena.via).toEqual(['nike', 'computer-systems', 'tecwyn'])
     const [, primeRate, pay] = helena.rates
     expect(st.chat[1].text).toBe(`Helena Marsh’s 40 hours at ${firm('nike')}. ${nike.people.hiring} signed them, and ${firm('computer-systems')} accepted them.`)
     expect(st.chat[1].card).toEqual({ t: 'Accept Helena Marsh’s week?', s: `40 hours · ${money(40 * pay)} to pay her`, yes: 'Accept' })
@@ -642,23 +642,23 @@ describe('Each door plays its own party’s person, every name and figure the se
     ])
   })
 
-  it('a bench vendor is Linnea Qadri, Techpeple’s recruiter, reading who on its bench its partners see, each by their own yes', () => {
+  it('a bench vendor is Linnea Qadri, Tecwyn’s recruiter, reading who on its bench its partners see, each by their own yes', () => {
     expect(WORLD).toContain("{ desk: 'recruiter',  role: 'Recruiter',        name: 'Linnea Qadri' }")
-    const st = only('techpeple-bench')
+    const st = only('tecwyn-bench')
     expect(st.who).toBe('Linnea Qadri, recruiter')
     // The bench nobody has placed: the names after the placements, a firm each in turn.
     const vendors = WORLD.match(/const benchVendors = \[([^\]]+)\]/)![1].split(',').map((x) => x.trim().replace(/'/g, ''))
     const bench = WORLD_NAMES.slice(WORLD_PLACEMENTS.length).map((name, i) => ({ name, firm: vendors[i % vendors.length], i }))
-    const techpeple = bench.filter((b) => b.firm === 'techpeple')
-    expect(techpeple.map((b) => b.name)).toEqual(['Grace Lindqvist', 'Peter Halloran'])
-    // Marketed: shown to the firms Techpeple trades with, by the person's own grant.
+    const tecwyn = bench.filter((b) => b.firm === 'tecwyn')
+    expect(tecwyn.map((b) => b.name)).toEqual(['Grace Lindqvist', 'Peter Halloran'])
+    // Marketed: shown to the firms Tecwyn trades with, by the person's own grant.
     expect(WORLD).toMatch(/consultantId: profile\.id, companyId: co\.id, tier: 'MARKETING', state: 'GRANTED'/)
     expect(st.chat[1].text).toBe('Grace Lindqvist and Peter Halloran. Each said yes to being shown to the firms we sell to.')
-    // Ifeoma is Techpeple's, put forward to Computer Systems for Harlow Health's job, screen booked, I-9 asked.
+    // Ifeoma is Tecwyn's, put forward to Computer Systems for Harlow Health's job, screen booked, I-9 asked.
     const live = WORLD.slice(WORLD.indexOf("role: 'Epic Beaker analyst'"), WORLD.indexOf("role: 'Python market risk developer'"))
-    expect(live).toMatch(/prime: 'computer-systems', bench: 'techpeple',\s*name: 'Ifeoma Balogun'/)
+    expect(live).toMatch(/prime: 'computer-systems', bench: 'tecwyn',\s*name: 'Ifeoma Balogun'/)
     expect(live).toMatch(/stage: 'SCREEN', mode: 'PHONE', state: 'CONFIRMED'/)
-    expect(DOORS_SEED).toMatch(/companySlug: 'techpeple',\s*name: 'I-9, with the document it is completed from',\s*needsSignature: true/)
+    expect(DOORS_SEED).toMatch(/companySlug: 'tecwyn',\s*name: 'I-9, with the document it is completed from',\s*needsSignature: true/)
     expect(st.chat[2].text).toBe(`Ifeoma Balogun is put forward to ${firm('computer-systems')} for an Epic Beaker analyst job. Her phone screen is booked. Her I-9 is not signed yet.`)
     // The seed's other two in flight are other firms' bench, so the panel does not claim them.
     expect(WORLD).toMatch(/bench: 'sahasra',\s*name: 'Tobias Lindgren'/)
@@ -666,22 +666,22 @@ describe('Each door plays its own party’s person, every name and figure the se
     for (const not of ['Tobias Lindgren', 'Meera Balakrishnan']) expect(sayAll(st)).not.toContain(not)
     const skills = (i: number) => (WORLD.slice(WORLD.indexOf('const PLACEMENTS: Placement[] = [')).match(/skills: \[([^\]]+)\]/g)![i]).replace(/skills: \[|\]|'/g, '').split(',').map((x) => x.trim()).join(', ')
     expect(rows(st)).toEqual([
-      ['Grace Lindqvist', skills(techpeple[0].i % WORLD_PLACEMENTS.length), 'Shown to partners'],
-      ['Peter Halloran', skills(techpeple[1].i % WORLD_PLACEMENTS.length), 'Shown to partners'],
+      ['Grace Lindqvist', skills(tecwyn[0].i % WORLD_PLACEMENTS.length), 'Shown to partners'],
+      ['Peter Halloran', skills(tecwyn[1].i % WORLD_PLACEMENTS.length), 'Shown to partners'],
       ['Ifeoma Balogun', 'Epic, Beaker, LIS', 'I-9 not signed'],
     ])
   })
 
-  it('an integrator is Sunil Raghavan, Teleworld’s delivery manager, putting its own employee Karthik Menon forward, with the two coming off Northbend’s project after him', () => {
-    expect(WORLD).toMatch(/slug: 'teleworld',\s*name: 'Teleworld Solutions',\s*kind: 'GSI',\s*seat: 'Delivery manager', who: 'Sunil Raghavan'/)
-    const st = only('teleworld')
+  it('an integrator is Sunil Raghavan, Tellisford’s delivery manager, putting its own employee Karthik Menon forward, with the two coming off Northbend’s project after him', () => {
+    expect(WORLD).toMatch(/slug: 'tellisford',\s*name: 'Tellisford Solutions',\s*kind: 'GSI',\s*seat: 'Delivery manager', who: 'Sunil Raghavan'/)
+    const st = only('tellisford')
     expect(st.who).toBe('Sunil Raghavan, delivery manager')
-    // Karthik: Teleworld's own W2, his Corveldt line ended, the open DO-178C job not given to him by the seed.
-    expect(DOORS_SEED).toMatch(/sellerSlug: 'teleworld',\s*clientSlug: 'corveldt',\s*buyFromId: null,\s*contractType: 'W2'/)
+    // Karthik: Tellisford's own W2, his Corveldt line ended, the open DO-178C job not given to him by the seed.
+    expect(DOORS_SEED).toMatch(/sellerSlug: 'tellisford',\s*clientSlug: 'corveldt',\s*buyFromId: null,\s*contractType: 'W2'/)
     expect(DOORS_SEED).toMatch(/skills: \['DO-178C', 'LDRA', 'Embedded C'\][\s\S]{0,200}state: 'ENDED'/)
     expect(DOORS_SEED).toContain('Deliberately not the open DO-178C seat.')
     const job = WORLD.slice(WORLD.indexOf("role: 'DO-178C verification engineer'"))
-    expect(job).toMatch(/^role: 'DO-178C verification engineer', skills: \['DO-178C', 'Embedded C', 'LDRA'\],\s*loc: 'Wichita, KS',\s*client: 'corveldt', prime: 'teleworld'/)
+    expect(job).toMatch(/^role: 'DO-178C verification engineer', skills: \['DO-178C', 'Embedded C', 'LDRA'\],\s*loc: 'Wichita, KS',\s*client: 'corveldt', prime: 'tellisford'/)
     expect(st.chat[0].text).toBe(`Who on our bench matches ${firm('corveldt')}’s DO-178C verification engineer job?`)
     expect(st.chat[1].card).toEqual({ t: 'Put Karthik Menon forward?', s: `DO-178C verification engineer · ${firm('corveldt')} · Wichita, KS`, yes: 'Put forward' })
     // The two flagged at Northbend, a week apart, both by Ingrid Solberg.
@@ -692,12 +692,12 @@ describe('Each door plays its own party’s person, every name and figure the se
     expect(MOVE_DESKS.portland.name).toBe('Ingrid Solberg')
     expect(moves).toMatch(/person: 'Amara Nwosu'[\s\S]*?release: \{ keepUntil: 45 \}/)
     expect(st.chat[2].text).toBe(`Felix Brenner comes off ${firm('nike')}’s project first, then Amara Nwosu a week later. Ingrid Solberg flagged them both.`)
-    // 4 on site through Teleworld: its three moves still running, and one through the world's Corveldt chain.
+    // 4 on site through Tellisford: its three moves still running, and one through the world's Corveldt chain.
     const running = [...moves.matchAll(/person: '([^']+)', client: '[^']+'[\s\S]*?end: (-?\d+)/g)].filter((m) => Number(m[2]) > 0).map((m) => m[1])
-    const chain = WORLD_PLACEMENTS.map((via, i) => ({ via, person: WORLD_NAMES[i] })).filter((p) => p.via.includes('teleworld')).map((p) => p.person)
+    const chain = WORLD_PLACEMENTS.map((via, i) => ({ via, person: WORLD_NAMES[i] })).filter((p) => p.via.includes('tellisford')).map((p) => p.person)
     expect(running).toEqual(['Felix Brenner', 'Amara Nwosu', 'Deepa Varma'])
     expect(chain).toEqual(['Marcus Whitfield'])
-    expect(STORIES.teleworld.bar.rest).toBe(`a sample integrator and supplier · ${running.length + chain.length} people on site`)
+    expect(STORIES.tellisford.bar.rest).toBe(`a sample integrator and supplier · ${running.length + chain.length} people on site`)
   })
 
   it('a worker is Helena Marsh on her own Ask Etyme: the home page’s Timesheets step, the same words', () => {
@@ -730,7 +730,7 @@ describe('Each door plays its own party’s person, every name and figure the se
   })
 
   it('every door story is one step in the Northbend story’s shape, with the four chips on its bar and its person first', () => {
-    for (const key of ['brightmoor', 'techpeple-sub', 'techpeple-bench', 'teleworld', 'helena', 'byrne'] as StoryKey[]) {
+    for (const key of ['brightmoor', 'tecwyn-sub', 'tecwyn-bench', 'tellisford', 'helena', 'byrne'] as StoryKey[]) {
       const st = only(key)
       const same = STORY.find((x) => x.chip === st.chip)!
       expect([st.n, st.embed], key).toEqual([same.n, same.embed])
@@ -803,16 +803,16 @@ describe('The panel plays the four steps and is never blank', () => {
     // The founder read the doors on a 390 phone on 2026-10-20. Helena's
     // bar became "contractor" and Colleen's "owner"; measured at 375 with
     // Playwright, "Brightmoor Staffing · Marisa Delacroix, account manager"
-    // was 10 pixels over, Aptiva's line 3 and Teleworld's 1, so those three
+    // was 10 pixels over, Aptiva's line 3 and Tellisford's 1, so those three
     // show the job alone on a phone. Every other story's name and job fit.
     const phone = Object.fromEntries(Object.entries(STORIES).map(([k, st]) => [k, [...new Set(st.steps.map((x) => x.phone ?? x.who))]]))
     expect(phone).toEqual({
       northbend: ['Marcus Oyelaran, hiring manager', 'Helena Marsh, contractor', 'Renata Kowal, AP clerk'],
       aptiva: ['program manager'],
       brightmoor: ['account manager'],
-      'techpeple-sub': ['Bhavesh Nair, owner'],
-      'techpeple-bench': ['Linnea Qadri, recruiter'],
-      teleworld: ['delivery manager'],
+      'tecwyn-sub': ['Bhavesh Nair, owner'],
+      'tecwyn-bench': ['Linnea Qadri, recruiter'],
+      tellisford: ['delivery manager'],
       helena: ['Helena Marsh, contractor'],
       byrne: ['Colleen Byrne, owner'],
     })
@@ -830,7 +830,7 @@ describe('The panel plays the four steps and is never blank', () => {
     expect(src).toContain('rounded-full bg-etyme-verified')
     const home = panel(2)
     expect(home).toContain(NORTHBEND_PEOPLE.worker)
-    const door = renderToStaticMarkup(createElement(StoryPanel, { start: storyIndex('approve'), story: 'techpeple-sub' }))
+    const door = renderToStaticMarkup(createElement(StoryPanel, { start: storyIndex('approve'), story: 'tecwyn-sub' }))
     expect(door).toContain('Bhavesh Nair, owner')
     for (const name of STEP_NAMES) expect(door, name).toContain(name)
     // One step to press on a door; the other three are names.

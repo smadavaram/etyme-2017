@@ -21,8 +21,8 @@
  * her weeks and runs her pay, and the rise is proposed by one desk and
  * approved by another, as the approval route insists.
  *
- * Not Techpeple, though it was offered: Techpeple sells only to the prime
- * above it, and a direct line from Techpeple to Northbend would be the
+ * Not Tecwyn, though it was offered: Tecwyn sells only to the prime
+ * above it, and a direct line from Tecwyn to Northbend would be the
  * sub going round its prime — the one thing the prime's NDA exists to
  * stop, on the same client whose door shows that story.
  *
@@ -262,7 +262,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
   // warns, both on the person and ordered by her employer.
   for (const v of [
     { type: 'I9_EVERIFY' as const, provider: 'E-Verify', expiresAt: null },
-    { type: 'BACKGROUND_CHECK' as const, provider: 'Sterling', expiresAt: plus(d.start, 730), orderedByCompanyId: firm.id, orderedAt: plus(d.start, -12) },
+    { type: 'BACKGROUND_CHECK' as const, provider: 'Stonegate Screening', expiresAt: plus(d.start, 730), orderedByCompanyId: firm.id, orderedAt: plus(d.start, -12) },
   ]) {
     if (await db.verification.findFirst({ where: { personId: person.id, type: v.type } })) continue
     await db.verification.create({

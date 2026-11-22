@@ -54,7 +54,7 @@ const WEEK: WeekOfHours = { weekOf: '2026-03-09', regularHours: 40, leaveHours: 
 
 function position(over: Partial<WagePosition> = {}): WagePosition {
   return {
-    personName: 'Priya Raman',
+    personName: 'Priya Ramesh',
     contractType: 'W2',
     weAreTheEmployer: true,
     pay: HOURLY,
@@ -229,8 +229,8 @@ describe('payroll refuses what it cannot classify, and pays what it can', () => 
   })
 
   it('the refusal names the person, the week, the hours and who has to act', () => {
-    const says = saysCannotClassify('Priya Raman', '2026-03-09', 5, 'Brightmoor Staffing')
-    expect(says).toContain('Priya Raman')
+    const says = saysCannotClassify('Priya Ramesh', '2026-03-09', 5, 'Brightmoor Staffing')
+    expect(says).toContain('Priya Ramesh')
     expect(says).toContain('March 9')
     expect(says).toContain('5 hours')
     expect(says).toContain('over 40')

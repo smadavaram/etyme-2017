@@ -2,7 +2,7 @@
  * Whether a seat reads its firm's contract lines, or only the ones that
  * name its holder.
  *
- * Karthik Menon, a delivery engineer at Teleworld, opened Contracts and
+ * Karthik Menon, a delivery engineer at Tellisford, opened Contracts and
  * read his employer's lines — every colleague's placement, client and
  * bill rate. A seat that does none of the work contracts are read for
  * (placing people, reading job requests, bills, consultants, governance

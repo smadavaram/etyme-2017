@@ -9,7 +9,7 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { dayOfMomentFor, readerZone } from '@/lib/when'
 import { refusalSentence } from '@/lib/refusal-words'
 import { kindWord } from '@/lib/parties'
-import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, kindChoice, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, noPositionTile, rowsUnderFilter, relationshipForKind, GROUP_WORDS, GROUP_ORDER, NEEDS_CLASSIFYING, type Position, type Group, type GroupsRead, type GroupTotals, groupTotals, groupsAddUpSays } from '@/lib/counterparty'
+import { NOT_CLASSIFIED, NEVER_EMAILS, NOT_CLASSIFIED_KIND_LABEL, kindChoice, POSITION_WORDS, NO_POSITION_WORDS, domainCell, addressCell, companyTiles, noPositionTile, rowsUnderFilter, relationshipForKind, GROUP_WORDS, GROUP_ORDER, NEEDS_CLASSIFYING, ADD_AS_CHOICES, addAsMeans, groupsComeFrom, ON_NO_CONTRACT, SAY_CUSTOMER, SAY_CLIENT, classifyBody, classifyFields, type Position, type Group, type GroupsRead, type GroupTotals, type OnContracts, type SaidStamp, groupTotals, groupsAddUpSays } from '@/lib/counterparty'
 import { NO_WAY_TO_REACH } from '@/lib/contact-reach'
 import { ADD_ANYWAY } from '@/lib/contacts'
 import { sitePlace } from '@/lib/site-rules'
@@ -71,7 +71,7 @@ interface Company {
    * route reads: what this firm's own contracts say and what a person
    * said, apart. Null for a reader with no seat at a company.
    */
-  group?: GroupsRead | null
+  group?: (GroupsRead & { contracts?: OnContracts; stamps?: { CUSTOMER: SaidStamp | null; CLIENT: SaidStamp | null } }) | null
   /** What this reader may press on the row, as the routes would answer. */
   may: { extendToSupplier: boolean; extendToCustomer: boolean; setKind: boolean }
 }
@@ -480,8 +480,10 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
     invite: false,
   })
   const recording = form.kind === 'UNCLASSIFIED'
-  // A client a supplier writes down is a client, whatever the Kind box
-  // said, and it is not given an Etyme address until somebody there joins.
+  // "A customer: they pay us" goes through the clients door, whatever the
+  // Kind box said, and it is not given an Etyme address until somebody
+  // there joins. The door stamps who said it and when, so it is under
+  // Customers at once (record 110, A1).
   const isClient = !recording && form.relationship === 'CLIENT'
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -699,11 +701,11 @@ function AddCompanyModal({ onClose, onCreated, onOpenExisting }: {
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
-                <option value="SUPPLIER">A supplier — we buy from them</option>
-                <option value="CLIENT">A client — they buy from us</option>
-                <option value="PRIME">A prime — our work flows through them</option>
-                <option value="MSP">An MSP — they run the program we work in</option>
+                {/* One reader's words (record 110, A1): a customer pays us, a client is where our people work. */}
+                {ADD_AS_CHOICES.map((c) => <option key={c.value} value={c.value}>{c.words}</option>)}
               </select>
+              {/* What the choice does, and that a second role can be given later. */}
+              {addAsMeans(form.relationship) && <p className="mt-1 text-[12px] text-etyme-muted">{addAsMeans(form.relationship)}</p>}
             </div>
             )}
             {/* Kept on every door, a client's too (2026-11-15): never a box whose answer is thrown away. */}
@@ -1083,12 +1085,103 @@ function EditRecord({ company, onSaved }: { company: Company; onSaved: (says: st
   )
 }
 
+/** Whether this seat may say what a company is, and the legal entities it may say it for. */
+interface MayClassify { may: boolean; entities: { id: string; name: string }[]; /** A firm that only buys has suppliers and nothing to classify. */ sells: boolean }
+
+/**
+ * Customer, client, supplier: which of the three this company is, and
+ * where each comes from, kept apart (record 110, A1): what a person said,
+ * with the name and the day, and what this firm's own contracts say.
+ * Under it, for a seat that may, the same two checkboxes as the Classify
+ * page, saved through the same route, so a company can be given a second
+ * role here. Drawn from the list row, which the route's one reader filled.
+ */
+function CustomerOrClient({ company, classify, onSaved }: { company: Company; classify: MayClassify; onSaved: (says: string) => void | Promise<void> }) {
+  const g = groupOfRow(company)
+  const [customer, setCustomer] = useState(g.said.includes('CUSTOMER'))
+  const [client, setClient] = useState(g.said.includes('CLIENT'))
+  const [entity, setEntity] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; says: string } | null>(null)
+  const lines = groupsComeFrom(g, company.group?.contracts ?? ON_NO_CONTRACT, company.group?.stamps ?? {}, (iso) => dayOfMomentFor(new Date(iso), readerZone()))
+  const hasEntities = classify.entities.length > 0
+  const needsEntity = classifyFields(hasEntities).includes('actingEntityId') && !entity
+  const nothing = !customer && !client
+
+  async function save() {
+    setBusy(true)
+    setMessage(null)
+    try {
+      const res = await fetch(`/api/companies/${encodeURIComponent(company.id)}/classify`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(classifyBody({ customer, client, actingEntityId: entity })),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) { setMessage({ tone: 'error', says: refusalSentence(body.error?.message, { what: 'Classifying a company' }) || `${company.name} was not saved. Try again in a minute.` }); return }
+      const says = body.data?.message ?? 'Saved.'
+      setMessage({ tone: 'ok', says })
+      await onSaved(says)
+    } catch {
+      setMessage({ tone: 'error', says: 'Network error. Please try again.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <p className="eyebrow mb-2">Customer, client, supplier</p>
+      {g.needsClassifying && (
+        <p className="mb-2 text-sm text-etyme-ink">
+          <Chip tone="attention">{NEEDS_CLASSIFYING}</Chip>{' '}
+          It was loaded as a client, and nobody has said yet whether it pays you or is where your people work.
+        </p>
+      )}
+      {lines.length > 0 ? (
+        <ul className="space-y-1">
+          {lines.map((l) => <li key={l.group} className="break-words text-sm text-etyme-ink">{l.says}</li>)}
+        </ul>
+      ) : (
+        !g.needsClassifying && <p className="text-sm text-etyme-muted">Not a customer, a client or a supplier of yours yet.</p>
+      )}
+      {g.suggestion && (g.needsClassifying || lines.length === 0) && <p className="mt-1 text-[12px] text-etyme-muted">Your contracts: {g.suggestion}</p>}
+      {classify.may && (
+        <div className="mt-3 space-y-2">
+          <label className="flex items-center gap-2 text-[13px] text-etyme-ink">
+            <input type="checkbox" checked={customer} onChange={(e) => setCustomer(e.target.checked)} />
+            {SAY_CUSTOMER}
+          </label>
+          <label className="flex items-center gap-2 text-[13px] text-etyme-ink">
+            <input type="checkbox" checked={client} onChange={(e) => setClient(e.target.checked)} />
+            {SAY_CLIENT}
+          </label>
+          {hasEntities && (
+            <Field label="Done for" help="The legal entity this answer is recorded for.">
+              <Select value={entity} onChange={(e) => setEntity(e.target.value)}>
+                <option value="">Choose a legal entity…</option>
+                {classify.entities.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </Select>
+            </Field>
+          )}
+          <button type="button" className="btn-secondary text-[13px]" disabled={busy || nothing || needsEntity} onClick={save}>
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+          {/* Never a greyed button without words. */}
+          {nothing && <p className="text-[12px] text-etyme-faint">Tick one or both to save.</p>}
+          {!nothing && needsEntity && <p className="text-[12px] text-etyme-faint">Choose the legal entity to save.</p>}
+          {message && <FormMessage tone={message.tone}>{message.says}</FormMessage>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /**
  * Where this company sits with the reader, its Kind, and what was done to
  * it here, read from GET /api/companies/:id/extend. Every button is one the
  * route takes; a removal it would refuse is said in its own sentence.
  */
-function PositionsPanel({ company, onChanged, onClose }: { company: Company; onChanged: (says: string) => void; onClose: () => void }) {
+function PositionsPanel({ company, classify, onChanged, onClose }: { company: Company; classify: MayClassify; onChanged: (says: string) => void; onClose: () => void }) {
   const [read, setRead] = useState<DrawerRead | null>(null)
   const [unread, setUnread] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -1154,6 +1247,7 @@ function PositionsPanel({ company, onChanged, onClose }: { company: Company; onC
   return (
     <div className="space-y-6">
       {read.may.edit && <EditRecord company={company} onSaved={async (says) => { await load(); onChanged(says) }} />}
+      {classify.sells && <CustomerOrClient company={company} classify={classify} onSaved={async (says) => { await load(); onChanged(says) }} />}
       <div>
         <p className="eyebrow mb-2">Positions</p>
         {read.notClassified && (
@@ -1357,7 +1451,7 @@ function CompanyContacts({ company }: { company: Company }) {
   )
 }
 
-function CompanyDrawer({ company, onClose, onChanged, onAsked }: { company: Company; onClose: () => void; onChanged: (says: string) => void; onAsked?: () => void }) {
+function CompanyDrawer({ company, classify, onClose, onChanged, onAsked }: { company: Company; classify: MayClassify; onClose: () => void; onChanged: (says: string) => void; onAsked?: () => void }) {
   // Escape closes the drawer, as it closes every dialog (walk, 2026-11-15).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -1435,7 +1529,7 @@ function CompanyDrawer({ company, onClose, onChanged, onAsked }: { company: Comp
               <AskToLink row={company} onAsked={onAsked} />
             </div>
           ) : (
-            <PositionsPanel company={company} onChanged={onChanged} onClose={onClose} />
+            <PositionsPanel company={company} classify={classify} onChanged={onChanged} onClose={onClose} />
           )}
 
           {/* Asked only of a customer: the route answers for a client on the register and nothing else. */}
@@ -1655,7 +1749,7 @@ export default function CompaniesPage() {
   // counted before the first read answers.
   const [refused, setRefused] = useState<string | null>(null)
   const [answered, setAnswered] = useState(false)
-  const [groupsRead, setGroupsRead] = useState<{ totals: GroupTotals; says: string; mayClassify: boolean } | null>(null)
+  const [groupsRead, setGroupsRead] = useState<{ totals: GroupTotals; says: string; mayClassify: boolean; entities?: { id: string; name: string }[] } | null>(null)
 
   // Open the add modal when navigated with ?new=1
   useEffect(() => {
@@ -1943,7 +2037,7 @@ export default function CompaniesPage() {
       <LinkAsks onAnswered={handleCreated} reread={asksRead} />
 
       {/* Stats row, by position: what each is to you, never its Kind. */}
-      <div className="mb-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-2 hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">
         {/* Each tile filters the list as its chip does: one filter, two doors (walk, 2026-11-15). */}
         {companyTilesShown(tiles, totals).map((t) => (
           <button
@@ -1957,6 +2051,27 @@ export default function CompaniesPage() {
           </button>
         ))}
       </div>
+      {/* At phone width the same counts stack as lines, one under another:
+          the words wrap, the number sits at the end of its own line, and
+          nothing is cut off or scrolls sideways (as LedgerRows stacks). */}
+      <ul className="mb-2 rounded-panel border border-etyme-rule bg-etyme-surface sm:hidden">
+        {companyTilesShown(tiles, totals).map((t) => (
+          <li key={t.key} className="border-b border-etyme-rule last:border-0">
+            <button
+              type="button"
+              aria-pressed={positionFilter === t.key}
+              onClick={() => chooseFilter(t.key)}
+              className={`flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left ${positionFilter === t.key ? 'bg-etyme-sunk' : ''}`}
+            >
+              <span className="min-w-0 break-words">
+                <span className="text-[14px] font-semibold text-etyme-ink">{t.label}</span>
+                <span className="text-[12px] text-etyme-muted"> · {t.sub}</span>
+              </span>
+              <span className="shrink-0 font-serif text-[20px] tabular-nums text-etyme-ink">{t.count}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
       {/* How the tiles add up to the total, in one line, from the same counts. */}
       <p className="mb-6 text-[12px] text-etyme-muted">
         {groupsRead?.says ?? groupsAddUpSays(totals)}
@@ -2033,7 +2148,7 @@ export default function CompaniesPage() {
           onOpenExisting={(id) => { const c = companies.find((x) => x.id === id); if (c) setSelected(c) }}
         />
       )}
-      {selected && <CompanyDrawer company={selected} onClose={() => setSelected(null)} onChanged={(says) => { setToast(says); void fetchCompanies() }} onAsked={askSent} />}
+      {selected && <CompanyDrawer company={selected} classify={{ may: groupsRead?.mayClassify === true, entities: groupsRead?.entities ?? [], sells: totals.sells }} onClose={() => setSelected(null)} onChanged={(says) => { setToast(says); void fetchCompanies() }} onAsked={askSent} />}
 
       {/* Toast */}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}

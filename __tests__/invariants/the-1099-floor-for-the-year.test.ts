@@ -70,7 +70,7 @@ describe('a gross paid in another currency', () => {
 
   it('a rupee gross with no rate of the company’s own is not checked, and the person is on the list with no form', () => {
     for (const rateOf of [null, ownNecRateOf({ ...OWN, sample: true }, rateFor as never, yearEnd(2026))]) {
-      const pack = yearEndPack([pay(25_000_000, 2026, 'INR')], 2026, { rateOf, companyName: 'Teleworld' })
+      const pack = yearEndPack([pay(25_000_000, 2026, 'INR')], 2026, { rateOf, companyName: 'Tellisford' })
       const s = pack.summaries[0]
       expect(s.notChecked).toBe(true)
       expect(s.form).toBe('NONE')

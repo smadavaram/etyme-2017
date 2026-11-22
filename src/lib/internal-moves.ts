@@ -648,7 +648,7 @@ export function jobOnly(forTitle: string | null | undefined, client: string | nu
   return t
 }
 
-/** "Teleworld Solutions’", "Harlow Health’s": a name ending in s takes the apostrophe alone. */
+/** "Tellisford Solutions’", "Harlow Health’s": a name ending in s takes the apostrophe alone. */
 export function possessive(name: string): string {
   return /s$/i.test(name.trim()) ? `${name.trim()}’` : `${name.trim()}’s`
 }
@@ -762,7 +762,7 @@ export interface OurBenchFacts {
   /**
    * The skills on the job request of their current placement, or their
    * last — read where their own record names none. An integrator's own
-   * engineers often have no profile of their own, so every Teleworld row
+   * engineers often have no profile of their own, so every Tellisford row
    * read "no skills on record" over people placed on jobs that name their
    * skills (bench tester, 2026-10-03). Said as the job's, never as theirs.
    */

@@ -103,11 +103,11 @@ describe('what a line requires, and where the answer came from', () => {
   })
 
   it('a W2 line asks the worker for an I-9 and asks no supplier for insurance', () => {
-    const items = effectiveRequirements({ shape: 'W2', names: { WORKER: 'Priya Raman' } })
+    const items = effectiveRequirements({ shape: 'W2', names: { WORKER: 'Priya Ramesh' } })
 
     const i9 = items.find((i) => i.key === 'I9_EVERIFY')!
     expect(i9.owedBy).toBe('WORKER')
-    expect(i9.owedByName).toBe('Priya Raman')
+    expect(i9.owedByName).toBe('Priya Ramesh')
     expect(i9.blocks).toBe(true)
 
     expect(items.map((i) => i.key)).not.toContain('INSURANCE_GL')

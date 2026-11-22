@@ -23,7 +23,7 @@ const ON = new Date('2026-11-08T00:00:00Z')
 const D = (n: number) => new Date(ON.getTime() + n * 86_400_000)
 const US = { country: 'US', offshore: false }
 const base = (over: Partial<WorkerClassFacts>): WorkerClassFacts => ({
-  personName: 'Priya Raman', cls: 'H1B', workCountry: US, on: ON, employerName: 'Brightmoor Staffing', employerCompanyId: 'co-brightmoor', ...over,
+  personName: 'Priya Ramesh', cls: 'H1B', workCountry: US, on: ON, employerName: 'Brightmoor Staffing', employerCompanyId: 'co-brightmoor', ...over,
 })
 
 describe('the H-1B rule reads the firm that petitioned by id', () => {
@@ -40,10 +40,10 @@ describe('the H-1B rule reads the firm that petitioned by id', () => {
 
   it('a petition recorded before the column is read by the name its filing wrote, as before', () => {
     const f = factsFrom({
-      personName: 'Priya Raman', workAuth: 'H1B', employerName: 'Brightmoor Staffing', employerCompanyId: 'co-brightmoor', permits: [], i94: [],
-      petitions: [{ type: 'H1B', status: 'ACTIVE', filedAt: D(-300), approvedAt: D(-200), expiresAt: D(700), events: [{ eventType: 'FILED', notes: employerNamedNote('Techpeple Inc') }] }],
+      personName: 'Priya Ramesh', workAuth: 'H1B', employerName: 'Brightmoor Staffing', employerCompanyId: 'co-brightmoor', permits: [], i94: [],
+      petitions: [{ type: 'H1B', status: 'ACTIVE', filedAt: D(-300), approvedAt: D(-200), expiresAt: D(700), events: [{ eventType: 'FILED', notes: employerNamedNote('Tecwyn Inc') }] }],
     })
-    expect(f.petitions).toEqual([{ petitionerCompanyId: null, petitionerName: 'Techpeple Inc', status: 'ACTIVE', filedAt: D(-300), expiresAt: D(700) }])
+    expect(f.petitions).toEqual([{ petitionerCompanyId: null, petitionerName: 'Tecwyn Inc', status: 'ACTIVE', filedAt: D(-300), expiresAt: D(700) }])
     expect(workerClassStart({ ...f, workCountry: US, on: ON }).findings.map((x) => x.rule)).toEqual(['H1B_OTHER_PETITIONER'])
   })
 

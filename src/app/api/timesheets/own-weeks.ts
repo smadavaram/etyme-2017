@@ -2,7 +2,7 @@
  * Whether a seat reads its firm's weeks, or only the weeks that name its
  * holder.
  *
- * Karthik Menon is Teleworld's own W2 engineer. His seat holds the two
+ * Karthik Menon is Tellisford's own W2 engineer. His seat holds the two
  * reads every delivery engineer holds — the work he is on and his own
  * hours — and no desk that administers anybody. He opened Timesheets and
  * read every colleague's week, and `personId=` asking for a colleague

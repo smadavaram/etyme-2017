@@ -10,10 +10,10 @@ import { degreeReading, fileHash, sameName, sameSchool, type DegreeOnPaper } fro
  */
 
 const ON = new Date('2026-11-03T12:00:00Z')
-const PRIYA = 'Priya Raman'
+const PRIYA = 'Priya Ramesh'
 const RIGHT: DegreeOnPaper = {
   institution: 'University of Pune', qualification: 'Bachelor of Engineering', fieldOfStudy: 'Computer Science',
-  nameOnDocument: 'Priya Raman', year: 2016,
+  nameOnDocument: 'Priya Ramesh', year: 2016,
 }
 const RESUME = [{ school: 'Pune University', qualification: 'B.E. Engineering', year: 2016 }]
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
@@ -35,9 +35,9 @@ describe('a degree is read against the record', () => {
   })
 
   it('a certificate in another person’s name is said, and a middle name left off is not another person', () => {
-    expect(degreeReading({ paper: { ...RIGHT, nameOnDocument: 'Anita Desai' }, personName: PRIYA, resume: RESUME, on: ON }).findings.map((f) => f.code)).toEqual(['NAME_DIFFERS'])
-    expect(sameName('Priya S. Raman', 'Priya Raman')).toBe(true)
-    expect(sameName('Priyá Raman', 'priya raman')).toBe(true)
+    expect(degreeReading({ paper: { ...RIGHT, nameOnDocument: 'Anita Dalvi' }, personName: PRIYA, resume: RESUME, on: ON }).findings.map((f) => f.code)).toEqual(['NAME_DIFFERS'])
+    expect(sameName('Priya S. Ramesh', 'Priya Ramesh')).toBe(true)
+    expect(sameName('Priyá Ramesh', 'priya ramesh')).toBe(true)
   })
 
   it('a school the résumé does not name for the same degree is said, and the same school written two ways is not', () => {
@@ -52,13 +52,13 @@ describe('a degree is read against the record', () => {
   })
 
   it('the same file already filed for somebody else is said to HR with the other name', () => {
-    const r = degreeReading({ paper: RIGHT, personName: PRIYA, resume: RESUME, sameFileFor: ['Anita Desai'], on: ON })
-    expect(r.findings).toEqual([{ code: 'SAME_FILE', says: 'This file was already filed by Anita Desai. Both records keep it; check which is right.' }])
+    const r = degreeReading({ paper: RIGHT, personName: PRIYA, resume: RESUME, sameFileFor: ['Anita Dalvi'], on: ON })
+    expect(r.findings).toEqual([{ code: 'SAME_FILE', says: 'This file was already filed by Anita Dalvi. Both records keep it; check which is right.' }])
   })
 
   it('a provider’s verification clears every warning on the degree', () => {
     const r = degreeReading({
-      paper: { ...RIGHT, year: 2028, nameOnDocument: 'Anita Desai' }, personName: PRIYA, resume: RESUME, sameFileFor: ['Anita Desai'],
+      paper: { ...RIGHT, year: 2028, nameOnDocument: 'Anita Dalvi' }, personName: PRIYA, resume: RESUME, sameFileFor: ['Anita Dalvi'],
       verifiedBy: { provider: 'WES', reference: 'WES-7781', on: new Date('2026-10-30T00:00:00Z') }, on: ON,
     })
     expect(r.findings).toEqual([])

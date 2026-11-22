@@ -70,7 +70,7 @@ describe('Submissions status filter', () => {
 
 describe('Submissions direction toggle', () => {
   const submission = {
-    fromCompany: { id: 'vendor-1', name: 'Techpeple Inc.' },
+    fromCompany: { id: 'vendor-1', name: 'Tecwyn Inc.' },
     toCompany: { id: 'client-1', name: 'Accenture' },
   }
 
@@ -83,7 +83,7 @@ describe('Submissions direction toggle', () => {
   it('received direction shows the vendor (fromCompany) as counterparty', () => {
     const direction: string = 'received'
     const counterparty = direction === 'sent' ? submission.toCompany.name : submission.fromCompany.name
-    expect(counterparty).toBe('Techpeple Inc.')
+    expect(counterparty).toBe('Tecwyn Inc.')
   })
 })
 
@@ -93,9 +93,9 @@ describe('Submissions search filter', () => {
   const submissions = [
     {
       id: '1',
-      person: { id: 'p1', name: 'Ravi Patel' },
+      person: { id: 'p1', name: 'Ravi Purohit' },
       requirement: { id: 'r1', title: 'SAP BRIM Consultant', skills: ['SAP BRIM', 'Revenue Accounting'] },
-      fromCompany: { id: 'v1', name: 'Techpeple' },
+      fromCompany: { id: 'v1', name: 'Tecwyn' },
       toCompany: { id: 'c1', name: 'Infosys' },
       kind: 'BENCH',
       status: 'SUBMITTED',
@@ -123,7 +123,7 @@ describe('Submissions search filter', () => {
   it('searches by consultant name', () => {
     const filtered = submissions.filter((r) => searchFilter(r, 'ravi'))
     expect(filtered).toHaveLength(1)
-    expect(filtered[0].person.name).toBe('Ravi Patel')
+    expect(filtered[0].person.name).toBe('Ravi Purohit')
   })
 
   it('searches by requirement title', () => {

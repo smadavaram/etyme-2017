@@ -84,7 +84,7 @@ describe('A client sends twelve contractors and gets one page back', () => {
         option: 'TEMPLATE',
         status: 'RECEIVED',
         assignedStaffEmail: STAFF,
-        agreementAcceptedBy: 'Priya Raman, General Counsel',
+        agreementAcceptedBy: 'Priya Ramesh, General Counsel',
         agreementAcceptedAt: new Date(),
         agreementVersion: '2026-09',
         filesReceivedAt: new Date(),

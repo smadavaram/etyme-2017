@@ -187,7 +187,7 @@ describe('removing a person outright', () => {
 
 describe('inviting somebody', () => {
   it('welcomes an invitation to your own domain — it tells them and seats them with a role before they arrive', () => {
-    const v = checkInvite('newperson@techpeple.example', 'techpeple.example', false)
+    const v = checkInvite('newperson@tecwyn.example', 'tecwyn.example', false)
     expect(v.ok).toBe(true)
     expect(v.outsider).toBe(false)
     expect(v.reason).toMatch(/seats them with the role you chose/i)
@@ -196,13 +196,13 @@ describe('inviting somebody', () => {
   it('allows an invitation to somebody outside the domain', () => {
     // The case the domain rule cannot cover: a contractor on their own
     // address, somebody at a subsidiary.
-    const v = checkInvite('advisor@lawfirm.com', 'techpeple.example', false)
+    const v = checkInvite('advisor@lawfirm.com', 'tecwyn.example', false)
     expect(v.ok).toBe(true)
     expect(v.outsider).toBe(true)
   })
 
   it('says out loud that an invitation is a hole in the domain rule', () => {
-    const v = checkInvite('advisor@lawfirm.com', 'techpeple.example', false)
+    const v = checkInvite('advisor@lawfirm.com', 'tecwyn.example', false)
     expect(v.reason).toMatch(/only get in because you asked them/i)
   })
 
@@ -217,15 +217,15 @@ describe('inviting somebody', () => {
   })
 
   it('refuses somebody who already has a seat', () => {
-    expect(checkInvite('ravi@techpeple.example', 'other.com', true).ok).toBe(false)
+    expect(checkInvite('ravi@tecwyn.example', 'other.com', true).ok).toBe(false)
   })
 
   it('refuses something that is not an address', () => {
-    expect(checkInvite('not-an-email', 'techpeple.example', false).ok).toBe(false)
+    expect(checkInvite('not-an-email', 'tecwyn.example', false).ok).toBe(false)
   })
 
   it('is case-insensitive about the domain, because people type capitals', () => {
-    const v = checkInvite('New.Person@Techpeple.Example', 'techpeple.example', false)
+    const v = checkInvite('New.Person@Tecwyn.Example', 'tecwyn.example', false)
     expect(v.ok).toBe(true)
     expect(v.outsider).toBe(false)
   })

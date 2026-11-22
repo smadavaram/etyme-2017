@@ -13,10 +13,10 @@
  * ── What it was ───────────────────────────────────────────────────────
  *
  * Two signatures on the week: the client's and the employer's. In
- * Northbend ← Computer Systems ← Techpeple (Helena Marsh), Computer
- * Systems — who pays Techpeple for every hour — had no step at all: the
+ * Northbend ← Computer Systems ← Tecwyn (Helena Marsh), Computer
+ * Systems — who pays Tecwyn for every hour — had no step at all: the
  * approve route put it on the employer's branch and refused it, "Only the
- * company that pays this person can accept these hours." And Techpeple
+ * company that pays this person can accept these hours." And Tecwyn
  * could accept before Northbend had signed, on purpose (`maySign`), so a
  * sub-vendor could run payroll on a week its client never agreed.
  *

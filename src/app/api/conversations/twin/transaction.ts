@@ -254,8 +254,8 @@ export function asksAboutFirmMoney(text: string, own?: OwnBook): boolean {
  * charges or earns, or what its rates are, where the reader is not the
  * other party (founder, 2026-10-18: it never goes beyond the
  * transaction). "What does Brightmoor Staffing pay Helena Marsh?" asked
- * at Techpeple is Brightmoor's book; "What does Computer Systems owe
- * us?" is Techpeple's own.
+ * at Tecwyn is Brightmoor's book; "What does Computer Systems owe
+ * us?" is Tecwyn's own.
  */
 export function anotherFirmsMoney(text: string, own: OwnBook, names: ReaderNames): boolean {
   const ask = firmMoneyAsk(text, own)

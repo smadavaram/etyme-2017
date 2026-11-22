@@ -663,7 +663,7 @@ export async function poolFor(
 
   // Somebody on a bench listing who is placed and billing past the job's
   // start is not free for it, whatever the listing says (bench tester,
-  // 2026-09-30: Helena Marsh and Priya Raman were offered while on site
+  // 2026-09-30: Helena Marsh and Priya Ramesh were offered while on site
   // with "Free date not on record"). Somebody rolling off before it is,
   // and their free date is the day after, so the row and its reasons say
   // one thing.

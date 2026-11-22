@@ -485,14 +485,14 @@ describe('The program team names a desk per unit and says what is missing', () =
  * The list printed `approvals[0].reason` — whichever row the read path
  * happened to return first. On a $1,152,000 requisition waiting on two
  * names the release walk read "Within the plan — 5 of 6 approved heads.
- * HR (Priya Natarajan) not needed." beside an Approve button: a true
+ * HR (Priya Nagarkar) not needed." beside an Approve button: a true
  * sentence about a desk that had stood down, read as the reason
  * somebody was being asked.
  */
 describe('The line on a requisition names the desk that is actually waiting', () => {
   const chain = [
     { id: 'a', rank: 1, stage: 'SOURCING', outcome: 'AUTO_CLEARED', reason: 'Within the going rate.', decidedAt: '2026-09-20', approver: null },
-    { id: 'b', rank: 1, stage: 'ROLE', outcome: 'PENDING', reason: '6 heads against the plan — over it.', decidedAt: null, approver: { id: 'p1', name: 'Priya Natarajan' } },
+    { id: 'b', rank: 1, stage: 'ROLE', outcome: 'PENDING', reason: '6 heads against the plan — over it.', decidedAt: null, approver: { id: 'p1', name: 'Priya Nagarkar' } },
     { id: 'c', rank: 2, stage: 'FINAL', outcome: 'PENDING', reason: 'Over $250k.', decidedAt: null, approver: { id: 'p2', name: 'Robert Ashby' } },
   ]
 
@@ -512,7 +512,7 @@ describe('The line on a requisition names the desk that is actually waiting', ()
 
   it('names the other desk when two are waiting at the same rank', () => {
     const both = [
-      { id: 'b', rank: 1, stage: 'ROLE', outcome: 'PENDING', reason: 'Is this a role?', decidedAt: null, approver: { id: 'p1', name: 'Priya Natarajan' } },
+      { id: 'b', rank: 1, stage: 'ROLE', outcome: 'PENDING', reason: 'Is this a role?', decidedAt: null, approver: { id: 'p1', name: 'Priya Nagarkar' } },
       { id: 'd', rank: 1, stage: 'SOURCING', outcome: 'PENDING', reason: 'Who may supply it?', decidedAt: null, approver: { id: 'p3', name: 'Derek Halvorsen' } },
     ]
     const lead = headlineRow(both)!
@@ -526,7 +526,7 @@ describe('The line on a requisition names the desk that is actually waiting', ()
 
   it('leads with the refusal on a chain somebody stopped', () => {
     const stopped = [
-      { id: 'a', rank: 1, stage: 'ROLE', outcome: 'APPROVED', reason: 'In the plan.', decidedAt: '2026-09-20', approver: { id: 'p1', name: 'Priya Natarajan' } },
+      { id: 'a', rank: 1, stage: 'ROLE', outcome: 'APPROVED', reason: 'In the plan.', decidedAt: '2026-09-20', approver: { id: 'p1', name: 'Priya Nagarkar' } },
       { id: 'b', rank: 2, stage: 'FINAL', outcome: 'REJECTED', reason: 'Not this quarter.', decidedAt: '2026-09-21', approver: { id: 'p2', name: 'Robert Ashby' } },
     ]
     expect(headlineRow(stopped)!.row.reason).toBe('Not this quarter.')

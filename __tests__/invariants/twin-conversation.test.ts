@@ -400,11 +400,11 @@ describe('the twin’s conversation answers from the ledger by rules before any 
   })
 
   it('a role a firm named itself, like a job title, is said as the role the seat holds and never as a place: “as Validation Engineer”, never “in validation engineer”', () => {
-    expect(seatSays({ role: 'Validation Engineer', company: 'Teleworld Solutions', sample: true }))
-      .toBe('You are signed in at Teleworld Solutions as Validation Engineer, a sample company.')
-    expect(seatSays({ role: 'Data Engineer', company: 'Teleworld Solutions', sample: false })).not.toMatch(/You are in /)
+    expect(seatSays({ role: 'Validation Engineer', company: 'Tellisford Solutions', sample: true }))
+      .toBe('You are signed in at Tellisford Solutions as Validation Engineer, a sample company.')
+    expect(seatSays({ role: 'Data Engineer', company: 'Tellisford Solutions', sample: false })).not.toMatch(/You are in /)
     // A seat with no role reads "No role yet", as every screen says of the same person.
-    expect(seatSays({ role: '  ', company: 'Teleworld Solutions', sample: false })).toBe('You are signed in at Teleworld Solutions, with no role yet.')
+    expect(seatSays({ role: '  ', company: 'Tellisford Solutions', sample: false })).toBe('You are signed in at Tellisford Solutions, with no role yet.')
     // A team keeps "in": Accounts Receivable, AP & Payroll.
     expect(seatSays({ role: 'Accounts Receivable', company: 'Brightmoor', sample: false })).toBe('You are in accounts receivable at Brightmoor.')
     expect(seatSays({ role: 'AP & Payroll', company: 'Brightmoor', sample: false })).toBe('You are in AP & payroll at Brightmoor.')
@@ -1166,16 +1166,16 @@ describe('Ask Etyme never goes beyond the transaction', () => {
 
 // ── Ask Etyme for a worker (founder, 2026-10-16: the same Ask Etyme, inside her own pages) ──
 
-/** Helena Marsh, on Techpeple's bench, on site at Northbend Athletic through Computer Systems Inc, read on Monday Oct 19, 2026. */
+/** Helena Marsh, on Tecwyn's bench, on site at Northbend Athletic through Computer Systems Inc, read on Monday Oct 19, 2026. */
 function helena(over: Partial<WorkerFacts> = {}): WorkerFacts {
   const week = (id: string, start: string, end: string, stage: SentWeek['stage'], o: Partial<SentWeek> = {}): SentWeek => ({
-    id, periodStart: start, periodEnd: end, hours: 40, stage, waitingOn: null, client: 'Northbend Athletic', employer: 'Techpeple',
+    id, periodStart: start, periodEnd: end, hours: 40, stage, waitingOn: null, client: 'Northbend Athletic', employer: 'Tecwyn',
     approvedBy: null, stillOwedMinor: null, owedHours: null, currency: null, dueOn: null, overdue: false, paidOn: null, ...o,
   })
   return {
-    seat: 'CONSULTANT', seatAt: 'Techpeple',
+    seat: 'CONSULTANT', seatAt: 'Tecwyn',
     placements: [{
-      site: 'Northbend Athletic', through: ['Computer Systems Inc'], employer: 'Techpeple', tie: 'EMPLOYED', live: true, endDate: '2027-03-28',
+      site: 'Northbend Athletic', through: ['Computer Systems Inc'], employer: 'Tecwyn', tie: 'EMPLOYED', live: true, endDate: '2027-03-28',
       payRateMinor: 9000, payCurrency: 'USD', rateNote: null,
     }],
     toFile: [
@@ -1187,7 +1187,7 @@ function helena(over: Partial<WorkerFacts> = {}): WorkerFacts {
     sent: [
       // Signed by the client, not yet accepted by her employer: waiting, never owed.
       week('ts-oct4', '2026-10-04', '2026-10-10', 'WAITING_FOR_EMPLOYER', { waitingOn: 'Computer Systems Inc' }),
-      // Accepted by Techpeple, the firm that pays her: owed, with its pay day.
+      // Accepted by Tecwyn, the firm that pays her: owed, with its pay day.
       week('ts-sep27', '2026-09-27', '2026-10-03', 'OWED', { stillOwedMinor: 360000, owedHours: 40, currency: 'USD', dueOn: '2026-11-09' }),
       week('ts-sep20', '2026-09-20', '2026-09-26', 'PAID', { paidOn: '2026-10-09' }),
     ],
@@ -1197,7 +1197,7 @@ function helena(over: Partial<WorkerFacts> = {}): WorkerFacts {
     runningOut: [],
     interviews: [],
     stays: [],
-    consent: { benches: [{ firm: 'Techpeple', since: 'Mar 2, 2026', stay: 'You stay on Techpeple’s bench until you cancel.' }], asking: [], employers: [] },
+    consent: { benches: [{ firm: 'Tecwyn', since: 'Mar 2, 2026', stay: 'You stay on Tecwyn’s bench until you cancel.' }], asking: [], employers: [] },
     unread: [],
     ...over,
   }
@@ -1221,7 +1221,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     expect(a.kind).toBe('WORKER')
     expect(a.greeting).toBe(true)
     // The chain by name, every firm, no rate.
-    expect(a.where).toEqual(['You work at Northbend Athletic through Computer Systems Inc, employed by Techpeple.'])
+    expect(a.where).toEqual(['You work at Northbend Athletic through Computer Systems Inc, employed by Tecwyn.'])
     // What needs her: the week that ended and is not filed, first.
     expect(a.recommend?.says).toBe('File your week of Oct 11–17 for Northbend Athletic.')
     expect(a.says).toBe('One thing needs you: your week of Oct 11–17. Checked just now.')
@@ -1233,9 +1233,9 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     expect(everything(a)).not.toContain(NEVER_FILES)
     // Where her weeks stand, then what is owed and when, then the rule; the close and the boundary come last.
     expect(a.more.map((l) => l.says)).toEqual([
-      'Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Techpeple.',
-      '$3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet.',
-      'A week is owed to you once Techpeple accepts it, not when the client signs it.',
+      'Your week of Oct 4–10 is signed by Northbend Athletic. It waits for Computer Systems Inc to accept it, then Tecwyn.',
+      '$3,600.00 is owed to you, for 40 hours Tecwyn accepted and has not paid yet.',
+      'A week is owed to you once Tecwyn accepts it, not when the client signs it.',
     ])
     expect((a.tail ?? []).map((l) => l.says)).toEqual([WORKER_CLOSE, WORKER_BOUNDARY])
     // No rate of any rung: not hers ($90 an hour, said only when she asks), and never a firm's.
@@ -1269,7 +1269,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     expect(none.says).toBe(`${FILE_IT_YOURSELF} Every week you can file is filed.`)
     expect(none.links).toEqual([{ label: 'Open Your work', href: '/dashboard/my-work' }])
     // Signing is the client's and her employer's, never Etyme's.
-    expect((await respondWorker('Approve my timesheet', { facts })).says).toBe('Etyme never signs a week. You file it, Northbend Athletic approves it, and Techpeple accepts it.')
+    expect((await respondWorker('Approve my timesheet', { facts })).says).toBe('Etyme never signs a week. You file it, Northbend Athletic approves it, and Tecwyn accepts it.')
     // And no file under Ask Etyme writes a week: no POST to her filing route, no timesheet written.
     const root = join(process.cwd(), 'src')
     for (const f of ['app/api/conversations/twin/worker.ts', 'app/api/conversations/twin/worker-read.ts', 'app/api/conversations/twin/route.ts', 'app/dashboard/conversations/ask-etyme.tsx']) {
@@ -1281,11 +1281,11 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
 
   it('a worker asks what she is owed and reads the employer’s acceptance, never the client’s signature, as the moment it became owed', async () => {
     const a = await respondWorker('What am I owed?', { facts: async () => helena() })
-    expect(a.says).toBe('$3,600.00 is owed to you, for 40 hours Techpeple accepted and has not paid yet. Checked just now.')
+    expect(a.says).toBe('$3,600.00 is owed to you, for 40 hours Tecwyn accepted and has not paid yet. Checked just now.')
     expect(a.more.map((l) => l.says)).toEqual([
       'The next pay day for it is Nov 9.',
       'One week you sent, 40 hours, is not owed yet. It waits for Computer Systems Inc.',
-      'A week is owed to you once Techpeple accepts it, not when the client signs it.',
+      'A week is owed to you once Tecwyn accepts it, not when the client signs it.',
     ])
     // The week the client signed is in no amount; the accepted one is, with its pay day; the paid one says paid.
     expect(a.table?.rows.map((r) => r.cells)).toEqual([
@@ -1299,12 +1299,12 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
     expect(signedOnly.says).toBe('Nothing is owed to you right now. Checked just now.')
     // A part already paid is not owed again: the amount is for the unpaid hours.
     const part = owedSays({ ...helena(), sent: [{ ...helena().sent[1], stillOwedMinor: 144000, owedHours: 16 }] })
-    expect(part.says).toBe('$1,440.00 is owed to you, for 16 hours Techpeple accepted and has not paid yet.')
+    expect(part.says).toBe('$1,440.00 is owed to you, for 16 hours Tecwyn accepted and has not paid yet.')
   })
 
   it('a worker is told only her own rate, and what one firm charges another for her is refused in one sentence', async () => {
     const facts = async () => helena()
-    expect((await respondWorker('What is my rate?', { facts })).says).toBe('At Northbend Athletic, Techpeple pays you $90.00 an hour.')
+    expect((await respondWorker('What is my rate?', { facts })).says).toBe('At Northbend Athletic, Tecwyn pays you $90.00 an hour.')
     for (const q of ['What does Northbend pay for me?', 'What is the bill rate for me?', 'What markup does Computer Systems make on me?']) {
       expect((await respondWorker(q, { facts })).says, q).toBe(NOT_THEIR_RATE)
     }
@@ -1320,12 +1320,12 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
       toFile: [],
       papers: [{ id: 'doc-1', name: 'Non-disclosure agreement', todo: 'sign', askedBy: 'Northbend Athletic', dueOn: '2026-10-23', stopsWork: false, href: '/dashboard/my-work/paperwork' }],
       interviews: [{ id: 'iv-1', role: 'ERP finance lead', with: 'Cavanaugh Glassworks', round: 1, waitingOnYou: true, booked: false }],
-      stays: [{ listingId: 'bl-1', firm: 'Techpeple', endsOn: '2026-10-25', ended: false, days: 60 }],
+      stays: [{ listingId: 'bl-1', firm: 'Tecwyn', endsOn: '2026-10-25', ended: false, days: 60 }],
     })
     const a = workerToday(f)
     expect(a.cards.map((c) => [c.act, c.title, c.button, c.href])).toEqual([
       ['INTERVIEW', 'Cavanaugh Glassworks asked to interview you for ERP finance lead.', 'Answer interview', '/dashboard/my-work#interview-iv-1'],
-      ['RENEW', 'Your stay on Techpeple’s bench ends on Oct 25.', 'Renew for 60 days', '/dashboard/my-benches'],
+      ['RENEW', 'Your stay on Tecwyn’s bench ends on Oct 25.', 'Renew for 60 days', '/dashboard/my-benches'],
     ])
     expect(a.cards[1].listingId).toBe('bl-1')
     expect(a.papers?.says).toBe('One paper is asked of you: your non-disclosure agreement.')
@@ -1333,7 +1333,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
       ['PAPER', 'Non-disclosure agreement for Northbend Athletic', 'Sign', '/dashboard/my-work/paperwork'],
     ])
     expect(a.recommend?.says).toBe('Answer Cavanaugh Glassworks’ interview request for ERP finance lead.')
-    expect(a.says).toBe('Three things need you: Cavanaugh Glassworks’ interview request, your stay on Techpeple’s bench and your non-disclosure agreement. Checked just now.')
+    expect(a.says).toBe('Three things need you: Cavanaugh Glassworks’ interview request, your stay on Tecwyn’s bench and your non-disclosure agreement. Checked just now.')
     // A paper that stops her work stays with the week, first.
     const stops = workerToday(helena({ toFile: [], papers: [{ ...f.papers[0], stopsWork: true }] }))
     expect(stops.cards.map((c) => c.act)).toEqual(['PAPER'])
@@ -1397,7 +1397,7 @@ describe('Ask Etyme for a worker: her own work, from her own pages, by rules', (
       returned: [{ periodStart: '2026-09-13', periodEnd: '2026-09-19', site: 'Northbend Athletic', reason: 'Tuesday reads 14 hours' }],
       sent: [{
         id: 'ts-draft', periodStart: '2026-09-06', periodEnd: '2026-09-12', hours: 40, stage: 'NOT_SENT', waitingOn: null, client: 'Northbend Athletic',
-        employer: 'Techpeple', approvedBy: null, stillOwedMinor: null, owedHours: null, currency: null, dueOn: null, overdue: false, paidOn: null,
+        employer: 'Tecwyn', approvedBy: null, stillOwedMinor: null, owedHours: null, currency: null, dueOn: null, overdue: false, paidOn: null,
       }],
     })
     expect(cardsFor(three)).toHaveLength(3)
@@ -1449,9 +1449,9 @@ describe('every first screen names a person and the step in front of them (found
           entityType: 'SELL_CONTRACT', entityId: 'sc-ingrid', dueDate: '2026-10-22T00:00:00.000Z', actionUrl: '/dashboard/placements/sc-ingrid',
         },
         {
-          type: 'NO_AGREEMENT', title: 'Teleworld Solutions', named: { whose: 'Teleworld Solutions', what: 'missing agreement', whats: 'missing agreements' },
-          subtitle: '2 people are on site through Teleworld Solutions, and no agreement with them is on file. Put one on file.',
-          entityType: 'COMPANY', entityId: 'c-teleworld', dueDate: null, actionUrl: '/dashboard/program/agreements',
+          type: 'NO_AGREEMENT', title: 'Tellisford Solutions', named: { whose: 'Tellisford Solutions', what: 'missing agreement', whats: 'missing agreements' },
+          subtitle: '2 people are on site through Tellisford Solutions, and no agreement with them is on file. Put one on file.',
+          entityType: 'COMPANY', entityId: 'c-tellisford', dueDate: null, actionUrl: '/dashboard/program/agreements',
         },
       ],
     },
@@ -1459,11 +1459,11 @@ describe('every first screen names a person and the step in front of them (found
   const quiet = { waiting: async () => [], othersWaiting: async () => [], limits: async () => ({ ok: false as const, says: 'no' }), spendIn: async () => ({ ok: false as const, says: 'no' }) }
 
   it('the greeting’s first line is the decisions queue’s own sentence with the names in it — the one the mark and the program page read — then “Open the list” and when it looked', async () => {
-    const queue = queueFrom({ data: { ...NORTHBEND_QUEUE.data, says: 'Two things need you: Ingrid Sørensen’s start, and Teleworld Solutions’ missing agreement.' } })!
+    const queue = queueFrom({ data: { ...NORTHBEND_QUEUE.data, says: 'Two things need you: Ingrid Sørensen’s start, and Tellisford Solutions’ missing agreement.' } })!
     expect(queue.total).toBe(2)
     const hello = await today(readers(quiet), { now: NOW, greeting: true, needs: async () => queue })
     if (hello.kind !== 'NEEDS') throw new Error('not a greeting')
-    expect(hello.says).toBe('Two things need you: Ingrid Sørensen’s start, and Teleworld Solutions’ missing agreement. Open the list. Checked just now.')
+    expect(hello.says).toBe('Two things need you: Ingrid Sørensen’s start, and Tellisford Solutions’ missing agreement. Open the list. Checked just now.')
     expect(hello.saysLinks).toEqual([{ text: OPEN_THE_LIST, href: DECISIONS_HREF }])
     expect(voiceBreaks(hello.says)).toEqual([])
     // Never a count with no names, where the queue gave its rows.
@@ -1471,7 +1471,7 @@ describe('every first screen names a person and the step in front of them (found
     // The cards under it still name the step: who cannot start, on which day, without which paper.
     expect(hello.queue!.map((c) => c.title)).toEqual([
       'Ingrid Sørensen cannot start on Oct 22 without an I-9.',
-      'Teleworld Solutions has two people on site with no agreement on file.',
+      'Tellisford Solutions has two people on site with no agreement on file.',
     ])
   })
 
@@ -1481,14 +1481,14 @@ describe('every first screen names a person and the step in front of them (found
     if (hello.kind !== 'NEEDS') throw new Error('not a greeting')
     expect(hello.says).toBe(
       'Two things need you: Ingrid Sørensen cannot start on Oct 22 without an I-9; ' +
-      'Teleworld Solutions has two people on site with no agreement on file. Open the list. Checked just now.')
+      'Tellisford Solutions has two people on site with no agreement on file. Open the list. Checked just now.')
     expect(voiceBreaks(hello.says)).toEqual([])
   })
 
   it('past three things, the first three are named and the rest are said as “and n more”', () => {
     const rows: QueueRead = {
       total: 5,
-      items: ['Helena Marsh', 'Omar Haddad', 'Lucía Fernández', 'Tobias Lindqvist', 'Priya Raman'].map((name, i) => ({
+      items: ['Helena Marsh', 'Omar Haddad', 'Lucía Fernández', 'Tobias Lindqvist', 'Priya Ramesh'].map((name, i) => ({
         type: 'TIMESHEET_APPROVAL', title: `Approve timesheet — ${name}`, whose: name, subtitle: '40h · through Pinnacle Resourcing · Oct 11 – Oct 17', entityId: `ts-${i}`,
       })),
     }
@@ -1504,7 +1504,7 @@ describe('every first screen names a person and the step in front of them (found
       items: [
         { type: 'TIMESHEET_APPROVAL', title: 'Approve timesheet — Helena Marsh', subtitle: '40h · through Pinnacle Resourcing · Oct 11 – Oct 17', entityId: 'ts-1', actionUrl: '/dashboard/timesheets?id=ts-1' },
         { type: 'TIMESHEET_APPROVAL', title: 'Accept timesheet — Omar Haddad', subtitle: '45h · from Brightmoor Staffing · week of Oct 11 · signed above you', entityId: 'ts-2', actionUrl: '/dashboard/timesheets?id=ts-2' },
-        { type: 'EXPENSE_APPROVAL', title: 'Review expense — Priya Raman', subtitle: '$790.40 · TRAVEL · Billable · Computer Systems Inc', entityId: 'ex-1', actionUrl: '/dashboard/expenses' },
+        { type: 'EXPENSE_APPROVAL', title: 'Review expense — Priya Ramesh', subtitle: '$790.40 · TRAVEL · Billable · Computer Systems Inc', entityId: 'ex-1', actionUrl: '/dashboard/expenses' },
         { type: 'EXPENSE_ACCEPTANCE', title: 'Accept expense — Rosa Delgado', subtitle: '$234.00 · Travel · from Brightmoor Staffing', entityId: 'ex-2', actionUrl: '/dashboard/expenses' },
         ...queueFrom(NORTHBEND_QUEUE)!.items,
         // The twin's own question is drawn as its own card, with Yes and Not now, never twice.
@@ -1514,10 +1514,10 @@ describe('every first screen names a person and the step in front of them (found
     expect(cards.map((c) => [c.title, c.fact, c.act?.label ?? 'Open', c.act?.url ?? c.href])).toEqual([
       ['Helena Marsh’s timesheet waits for your approval.', '40 hours, through Pinnacle Resourcing, Oct 11 – Oct 17.', 'Approve timesheet', '/api/timesheets/ts-1/approve'],
       ['Omar Haddad’s timesheet waits for you to accept it.', '45 hours, from Brightmoor Staffing, week of Oct 11, signed above you.', 'Accept timesheet', '/api/timesheets/ts-2/approve'],
-      ['Priya Raman’s expense waits for your approval.', '$790.40, Travel, Billable, Computer Systems Inc.', 'Approve expense', '/api/expenses/actions'],
+      ['Priya Ramesh’s expense waits for your approval.', '$790.40, Travel, Billable, Computer Systems Inc.', 'Approve expense', '/api/expenses/actions'],
       ['Rosa Delgado’s expense waits for you to accept it.', '$234.00, Travel, from Brightmoor Staffing.', 'Accept expense', '/api/expenses/ex-2/accept'],
       ['Ingrid Sørensen cannot start on Oct 22 without an I-9.', 'Cannot start without an I-9 (proof of right to work). Get it on file, then activate.', 'Open', '/dashboard/placements/sc-ingrid'],
-      ['Teleworld Solutions has two people on site with no agreement on file.', 'Put one on file.', 'Open', '/dashboard/program/agreements'],
+      ['Tellisford Solutions has two people on site with no agreement on file.', 'Put one on file.', 'Open', '/dashboard/program/agreements'],
     ])
     // The bodies are the ones the decisions page and Timesheets already send.
     expect(cards[2].act!.body).toEqual({ action: 'approve', expenseIds: ['ex-1'] })
@@ -1594,7 +1594,7 @@ describe('every first screen names a person and the step in front of them (found
       body: `${who} at Northbend Athletic — Oct 19, 2026`, cycleKind: kind, dueOn: monday,
     })
     const thursday = new Date('2026-10-15T15:00:00Z')
-    const five = ['Helena Marsh', 'Omar Haddad', 'Lucía Fernández', 'Tobias Lindqvist', 'Priya Raman'].map((w, i) => due(`n-${i}`, w))
+    const five = ['Helena Marsh', 'Omar Haddad', 'Lucía Fernández', 'Tobias Lindqvist', 'Priya Ramesh'].map((w, i) => due(`n-${i}`, w))
     expect(sinceSays(five, 0, { now: thursday }).map((l) => l.says)).toEqual([
       SINCE_HEADING, 'You have five weeks to approve by Monday: Helena Marsh, Omar Haddad, Lucía Fernández and two more.',
     ])

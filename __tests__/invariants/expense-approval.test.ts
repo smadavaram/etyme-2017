@@ -19,7 +19,7 @@ import { mayFileOwnExpense, billableOnFiling, type ExpenseRung } from '@/lib/mon
 
 const NOW = new Date('2026-08-29T10:00:00Z')
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000)
-const NAMES = { client: 'Calder Manufacturing', employer: 'Techpeple' }
+const NAMES = { client: 'Calder Manufacturing', employer: 'Tecwyn' }
 
 function expense(over: Partial<Expense> = {}): Expense {
   return {
@@ -100,13 +100,13 @@ describe('the two agreements', () => {
     expect(g.mayReimburse).toBe(true)
     expect(g.mayBill).toBe(false)
     expect(g.says).toBe(
-      'Techpeple will reimburse $240.00. Not billable until Calder Manufacturing agrees.'
+      'Tecwyn will reimburse $240.00. Not billable until Calder Manufacturing agrees.'
     )
   })
 
   it('says who it is waiting on when only the client has agreed', () => {
     const g = gates(expense({ clientApprovedAt: NOW }), [], NAMES)
-    expect(g.says).toBe('Calder Manufacturing agreed $240.00. Waiting on Techpeple to reimburse.')
+    expect(g.says).toBe('Calder Manufacturing agreed $240.00. Waiting on Tecwyn to reimburse.')
   })
 
   it('shows both numbers where the employer reimburses less', () => {
@@ -162,15 +162,15 @@ describe('sending one back', () => {
 // The employer approves an expense for reimbursement; each firm above
 // accepts it before it pays it, the client first and then down the
 // chain, nobody accepting their own. Northbend Athletic ← Computer
-// Systems ← Techpeple, who employs Helena Marsh.
+// Systems ← Tecwyn, who employs Helena Marsh.
 
 const helenaExpense = (over: Partial<ExpenseOnRecord> = {}): ExpenseOnRecord => ({
-  id: 'ex1', companyId: 'techpeple', companyName: 'Techpeple', personId: 'helena', personName: 'Helena Marsh',
+  id: 'ex1', companyId: 'tecwyn', companyName: 'Tecwyn', personId: 'helena', personName: 'Helena Marsh',
   category: 'TRAVEL', billable: true, status: 'APPROVED', totalCents: 41_250, currency: 'USD',
   periodStart: new Date('2026-10-12T00:00:00Z'), ...over,
 })
 const top: Leg = { sellContractId: 'cs-sell', sellerId: 'cs', sellerName: 'Computer Systems', payerId: 'northbend', payerName: 'Northbend Athletic', agreement: null }
-const bottom: Leg = { sellContractId: 'tp-sell', sellerId: 'techpeple', sellerName: 'Techpeple', payerId: 'cs', payerName: 'Computer Systems', agreement: null }
+const bottom: Leg = { sellContractId: 'tp-sell', sellerId: 'tecwyn', sellerName: 'Tecwyn', payerId: 'cs', payerName: 'Computer Systems', agreement: null }
 const LEGS = [top, bottom]
 const accepted = (companyId: string, cents: number): AcceptanceRow => ({ companyId, status: 'ACCEPTED', acceptedCents: cents, reason: null, createdAt: new Date('2026-10-14T00:00:00Z') })
 const decide = (firm: { id: string; name: string }, over: Partial<Parameters<typeof mayDecide>[0]> = {}) =>
@@ -193,9 +193,9 @@ describe('an expense is accepted by each firm that pays it, the client first', (
   })
 
   it('a firm never accepts its own expense', () => {
-    const own = decide({ id: 'techpeple', name: 'Techpeple' })
+    const own = decide({ id: 'tecwyn', name: 'Tecwyn' })
     expect(own).toMatchObject({ ok: false, status: 403, code: 'OWN_EXPENSE' })
-    expect((own as any).says).toMatch(/approving it was Techpeple agreeing to reimburse Helena Marsh\. The firms above accept it before they pay it, and Techpeple does not accept its own\.$/)
+    expect((own as any).says).toMatch(/approving it was Tecwyn agreeing to reimburse Helena Marsh\. The firms above accept it before they pay it, and Tecwyn does not accept its own\.$/)
     // Nor the person who spent the money, wherever they sit.
     expect(decide(NB, { personId: 'helena' })).toMatchObject({ ok: false, code: 'OWN_EXPENSE' })
   })
@@ -207,7 +207,7 @@ describe('an expense is accepted by each firm that pays it, the client first', (
   it('an expense its employer has not approved is accepted by nobody above, and the sentence does not name the employer to the client', () => {
     const r = decide(NB, { expense: helenaExpense({ status: 'SUBMITTED' }) })
     expect(r).toMatchObject({ ok: false, code: 'NOT_APPROVED' })
-    expect((r as any).says).not.toContain('Techpeple')
+    expect((r as any).says).not.toContain('Tecwyn')
   })
 
   it('the client accepts up to the approved amount, and each firm below up to what the firm above accepted', () => {
@@ -243,10 +243,10 @@ describe('an expense is accepted by each firm that pays it, the client first', (
   })
 
   it('which kinds are billable comes from the agreement where it says, and from the employer’s own flag only where it is silent', () => {
-    const said = (kinds: string[]): Leg => ({ ...bottom, agreement: { id: 'm', kinds, said: true, clientName: 'Computer Systems', vendorName: 'Techpeple' } })
+    const said = (kinds: string[]): Leg => ({ ...bottom, agreement: { id: 'm', kinds, said: true, clientName: 'Computer Systems', vendorName: 'Tecwyn' } })
     expect(legBills({ category: 'TRAVEL', billable: false }, said(['TRAVEL'])).bills).toBe(true)
-    expect(legBills({ category: 'TRAVEL', billable: true }, said([])).says).toBe('The agreement between Computer Systems and Techpeple makes no expense billable, so Computer Systems does not pay for this travel expense.')
-    const silent: Leg = { ...bottom, agreement: { id: 'm', kinds: ['TRAVEL'], said: false, clientName: 'Computer Systems', vendorName: 'Techpeple' } }
+    expect(legBills({ category: 'TRAVEL', billable: true }, said([])).says).toBe('The agreement between Computer Systems and Tecwyn makes no expense billable, so Computer Systems does not pay for this travel expense.')
+    const silent: Leg = { ...bottom, agreement: { id: 'm', kinds: ['TRAVEL'], said: false, clientName: 'Computer Systems', vendorName: 'Tecwyn' } }
     expect(legBills({ category: 'MEALS', billable: true }, silent).bills).toBe(true)
     expect(legBills({ category: 'TRAVEL', billable: false }, silent).bills).toBe(false)
   })
@@ -254,7 +254,7 @@ describe('an expense is accepted by each firm that pays it, the client first', (
 
 // ── The expenses page, as each firm reads it ─────────────────────────
 
-const TP = { id: 'techpeple', name: 'Techpeple' }
+const TP = { id: 'tecwyn', name: 'Tecwyn' }
 const row = (reader: { id: string; name: string }, over: Partial<Parameters<typeof rowFor>[0]> = {}) =>
   rowFor({ expense: helenaExpense(), legsTopFirst: LEGS, acceptances: [], reader, personId: 'someone', ...over })
 
@@ -262,15 +262,15 @@ describe('the expenses page reads where an expense stands, in the trade’s word
   it('a middle firm’s row reads approved by its own supplier, accepted by the firm above with the amount, and waiting on it', () => {
     const r = row(CSF, { acceptances: [accepted('northbend', 41_250)] })
     expect(r.visible).toBe(true)
-    expect(r.line).toBe('Approved by Techpeple · accepted by Northbend Athletic $412.50 · waiting on you')
+    expect(r.line).toBe('Approved by Tecwyn · accepted by Northbend Athletic $412.50 · waiting on you')
     expect(r.state).toBe('YOURS')
     expect(r.upToCents).toBe(41_250)
-    expect(r.counterparty).toEqual({ name: 'Techpeple', role: 'SUPPLIER' })
+    expect(r.counterparty).toEqual({ name: 'Tecwyn', role: 'SUPPLIER' })
   })
 
   it('a middle firm waits on the firm above, and is offered nothing to accept until it has', () => {
     const r = row(CSF)
-    expect(r.line).toBe('Approved by Techpeple · waiting on Northbend Athletic')
+    expect(r.line).toBe('Approved by Tecwyn · waiting on Northbend Athletic')
     expect(r.state).toBe('WAITING')
     expect(r.upToCents).toBeNull()
   })
@@ -283,7 +283,7 @@ describe('the expenses page reads where an expense stands, in the trade’s word
     expect(after.line).toBe('Approved by the employer · accepted by you $412.50 · waiting on Computer Systems')
     expect(after.state).toBe('ACCEPTED')
     expect(after.upToCents).toBeNull()
-    expect(JSON.stringify([before, after])).not.toContain('Techpeple')
+    expect(JSON.stringify([before, after])).not.toContain('Tecwyn')
   })
 
   it('the employer’s own row reads approved by you, and every firm above it by name', () => {
@@ -302,7 +302,7 @@ describe('the expenses page reads where an expense stands, in the trade’s word
 
   it('a client’s expenses page reads billable kinds from the agreement, not the supplier’s flag', () => {
     const travelOnly: Leg = { ...top, agreement: { id: 'msa', kinds: ['TRAVEL'], said: true, clientName: 'Northbend Athletic', vendorName: 'Computer Systems' } }
-    const listed = row(NB, { legsTopFirst: [travelOnly, { ...bottom, agreement: { id: 'm2', kinds: ['TRAVEL'], said: true, clientName: 'Computer Systems', vendorName: 'Techpeple' } }], expense: helenaExpense({ billable: false }) })
+    const listed = row(NB, { legsTopFirst: [travelOnly, { ...bottom, agreement: { id: 'm2', kinds: ['TRAVEL'], said: true, clientName: 'Computer Systems', vendorName: 'Tecwyn' } }], expense: helenaExpense({ billable: false }) })
     expect(listed).toMatchObject({ visible: true, billable: true, state: 'YOURS', notBillableSays: null })
 
     const meals = row(NB, { legsTopFirst: [travelOnly, bottom], expense: helenaExpense({ category: 'MEALS', billable: true }) })
@@ -379,7 +379,7 @@ describe('the worker hears once that an expense was accepted, when every firm th
 
 describe('a worker files their own expense; nobody else files it for them', () => {
   const rung = (over: Partial<ExpenseRung>): ExpenseRung => ({
-    id: 'tp-sell', personId: 'helena', companyId: 'techpeple', companyName: 'Techpeple', clientCompanyId: 'cs', state: 'IN_PROGRESS', ...over,
+    id: 'tp-sell', personId: 'helena', companyId: 'tecwyn', companyName: 'Tecwyn', clientCompanyId: 'cs', state: 'IN_PROGRESS', ...over,
   })
   const own = rung({})
   const above = rung({ id: 'cs-sell', companyId: 'cs', companyName: 'Computer Systems', clientCompanyId: 'northbend' })
@@ -406,7 +406,7 @@ describe('a worker files their own expense; nobody else files it for them', () =
     const r = mayFileOwnExpense({ callerPersonId: 'helena', line: above, rungs: RUNGS })
     expect(r).toMatchObject({ ok: false, status: 422, code: 'NOT_YOUR_RUNG' })
     expect((r as any).says).toBe(
-      'File it on your placement with Techpeple, which approves it. ' +
+      'File it on your placement with Tecwyn, which approves it. ' +
         'This line is Computer Systems’s, and an expense filed here would never reach your employer.'
     )
   })
@@ -426,15 +426,15 @@ describe('a worker files their own expense; nobody else files it for them', () =
 
 describe('whether a worker’s own expense bills the firm above is the agreement’s, never the worker’s (founder, 2026-10-19)', () => {
   const leg = (agreement: Leg['agreement']): Leg => ({
-    sellContractId: 'tp-sell', sellerId: 'techpeple', sellerName: 'Techpeple', payerId: 'cs', payerName: 'Computer Systems', agreement,
+    sellContractId: 'tp-sell', sellerId: 'tecwyn', sellerName: 'Tecwyn', payerId: 'cs', payerName: 'Computer Systems', agreement,
   })
-  const said = (kinds: string[]): Leg['agreement'] => ({ id: 'msa', kinds, said: true, clientName: 'Computer Systems', vendorName: 'Techpeple' })
+  const said = (kinds: string[]): Leg['agreement'] => ({ id: 'msa', kinds, said: true, clientName: 'Computer Systems', vendorName: 'Tecwyn' })
 
   it('an agreement that lists travel makes a travel expense billable, and the worker is told the firm above is billed', () => {
     const v = billableOnFiling({ category: 'TRAVEL', leg: leg(said(['TRAVEL', 'MEALS'])) })
     expect(v).toEqual({
       billable: true, from: 'AGREEMENT',
-      says: 'The agreement between Computer Systems and Techpeple makes travel expenses billable, so Computer Systems is billed for it once it is accepted.',
+      says: 'The agreement between Computer Systems and Tecwyn makes travel expenses billable, so Computer Systems is billed for it once it is accepted.',
     })
   })
 
@@ -442,20 +442,20 @@ describe('whether a worker’s own expense bills the firm above is the agreement
     const v = billableOnFiling({ category: 'TRAVEL', leg: leg(said(['MEALS'])) })
     expect(v.billable).toBe(false)
     expect(v.from).toBe('AGREEMENT')
-    expect(v.says).toBe('The agreement between Computer Systems and Techpeple does not list travel expenses as billable, so Computer Systems does not pay for this one.')
+    expect(v.says).toBe('The agreement between Computer Systems and Tecwyn does not list travel expenses as billable, so Computer Systems does not pay for this one.')
   })
 
   it('an agreement that says no expense is billable keeps every kind off the bill', () => {
     const v = billableOnFiling({ category: 'EQUIPMENT', leg: leg(said([])) })
     expect(v.billable).toBe(false)
-    expect(v.says).toBe('The agreement between Computer Systems and Techpeple makes no expense billable, so Computer Systems does not pay for this equipment expense.')
+    expect(v.says).toBe('The agreement between Computer Systems and Tecwyn makes no expense billable, so Computer Systems does not pay for this equipment expense.')
   })
 
   it('an agreement that does not say stores not billable, and says the employer decides whether the firm above is billed', () => {
-    const v = billableOnFiling({ category: 'TRAVEL', leg: leg({ id: 'msa', kinds: ['TRAVEL'], said: false, clientName: 'Computer Systems', vendorName: 'Techpeple' }) })
+    const v = billableOnFiling({ category: 'TRAVEL', leg: leg({ id: 'msa', kinds: ['TRAVEL'], said: false, clientName: 'Computer Systems', vendorName: 'Tecwyn' }) })
     expect(v).toEqual({
       billable: false, from: 'NOT_DECIDED',
-      says: 'The agreement between Computer Systems and Techpeple does not say which expenses are billable, so Techpeple decides whether Computer Systems is billed for it. For now it is recorded as Techpeple’s own cost.',
+      says: 'The agreement between Computer Systems and Tecwyn does not say which expenses are billable, so Tecwyn decides whether Computer Systems is billed for it. For now it is recorded as Tecwyn’s own cost.',
     })
   })
 
@@ -463,7 +463,7 @@ describe('whether a worker’s own expense bills the firm above is the agreement
     const v = billableOnFiling({ category: 'TRAVEL', leg: leg(null) })
     expect(v.billable).toBe(false)
     expect(v.from).toBe('NOT_DECIDED')
-    expect(v.says).toBe('No agreement between Computer Systems and Techpeple says which expenses are billable, so Techpeple decides whether Computer Systems is billed for it. For now it is recorded as Techpeple’s own cost.')
+    expect(v.says).toBe('No agreement between Computer Systems and Tecwyn says which expenses are billable, so Tecwyn decides whether Computer Systems is billed for it. For now it is recorded as Tecwyn’s own cost.')
   })
 
   it('an expense filed as not decided reads as the employer’s own cost on the chain, so it never reaches the bill', () => {

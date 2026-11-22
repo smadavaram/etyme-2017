@@ -296,7 +296,7 @@ export async function seedSectorSuppliers(ctx: SeedContext): Promise<SectorSeed>
       { type: 'I9_EVERIFY', provider: 'E-Verify', issuedAt: plus(start, -8), expiresAt: null, result: { outcome: 'CLEAR' } },
       // The employer ordered the report; the screening company rendered
       // the verdict. Recorded as theirs.
-      { type: 'BACKGROUND_CHECK', provider: 'Sterling', issuedAt: plus(start, -8), expiresAt: plus(start, 365),
+      { type: 'BACKGROUND_CHECK', provider: 'Stonegate Screening', issuedAt: plus(start, -8), expiresAt: plus(start, 365),
         orderedByCompanyId: firm.id, orderedAt: plus(start, -12), result: { outcome: 'CLEAR' } },
     ]
     if (s.license) {

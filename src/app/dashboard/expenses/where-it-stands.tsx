@@ -7,7 +7,7 @@ import { useState } from 'react'
  * turn it is may do: accept it, or send it back with a reason.
  *
  * The line is the route's (`rowFor` in lib/money/expense-acceptance) —
- * "Approved by Techpeple · accepted by Northbend Athletic $412.50 ·
+ * "Approved by Tecwyn · accepted by Northbend Athletic $412.50 ·
  * waiting on you" — and names nobody below the reader's own supplier.
  * Both buttons go through the one route that records a firm's decision,
  * `POST /api/expenses/:id/accept`, the same one the decisions queue uses,

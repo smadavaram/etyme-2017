@@ -224,7 +224,7 @@ describe('A judgment somebody made, and the date they said they would remake it'
         counterparty: { ...supplier, riskLevel: 'OK', riskReviewBy: promised },
         covers: [{ type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: daysFromNow(300) }],
         settlements: settled(ENOUGH_SETTLEMENTS, 0, 'THEIRS'),
-        owner: { name: 'Priya Raman', role: 'Procurement' },
+        owner: { name: 'Priya Ramesh', role: 'Procurement' },
       }),
       NOW
     )
@@ -242,7 +242,7 @@ describe('A judgment somebody made, and the date they said they would remake it'
       input({
         covers: [{ type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: daysFromNow(300) }],
         settlements: settled(ENOUGH_SETTLEMENTS, 0, 'THEIRS'),
-        owner: { name: 'Priya Raman', role: 'Procurement' },
+        owner: { name: 'Priya Ramesh', role: 'Procurement' },
       }),
       NOW
     )
@@ -269,8 +269,8 @@ describe('The verdict warns, names somebody, and never stops the work', () => {
     expect(nobody.owner).toBeNull()
     expect(nobody.ownerSays).toContain('No named owner')
 
-    const owned = supplierRisk(input({ owner: { name: 'Priya Raman', role: 'Procurement' } }), NOW)
-    expect(owned.ownerSays).toContain('Priya Raman')
+    const owned = supplierRisk(input({ owner: { name: 'Priya Ramesh', role: 'Procurement' } }), NOW)
+    expect(owned.ownerSays).toContain('Priya Ramesh')
     expect(owned.ownerSays).toContain(owned.reviewBy.toISOString().slice(0, 10))
   })
 
@@ -339,7 +339,7 @@ describe('The watchlist, in the order somebody should read it', () => {
         counterparty: { ...supplier, id: 'c', name: 'Charlie' },
         covers: [{ type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: daysFromNow(300) }],
         settlements: settled(ENOUGH_SETTLEMENTS, 0, 'THEIRS'),
-        owner: { name: 'Priya Raman', role: 'Procurement' },
+        owner: { name: 'Priya Ramesh', role: 'Procurement' },
       }),
       NOW
     )

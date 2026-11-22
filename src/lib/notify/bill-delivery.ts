@@ -356,7 +356,9 @@ async function deliver(w: Read, a: { byPersonId: string | null; resend: boolean;
       })
       const outcome = await attemptDelivery(
         routeFor({ isConsultant: false, email: c.email, teamsWebhookUrl: null }),
-        c.email, letter.subject, letter.body, configuredSenders(), a.now
+        c.email, letter.subject, letter.body, configuredSenders(), a.now, null,
+        // A send again is a chase about this bill: the door lets one go to an address in its window.
+        { companyId: supplier.id, mail: { template: 'bill', recordType: 'Invoice', recordId: bill.id, actorPersonId: a.byPersonId, chase: a.resend } },
       )
       to.push({ address: c.email, via: 'EMAIL', state: outcome.state, note: outcome.note, name: c.name })
     }

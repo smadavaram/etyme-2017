@@ -13,7 +13,7 @@ import { GET as listOrders } from '@/app/api/purchase-orders/route'
  * those two screens.
  */
 
-const supplier = 'world-techpeple@demo.etyme.local'
+const supplier = 'world-tecwyn@demo.etyme.local'
 const day = (d: Date) => d.toISOString().slice(0, 10)
 
 describe('a placement extended to the day somebody picked', () => {
@@ -27,7 +27,7 @@ describe('a placement extended to the day somebody picked', () => {
 
   beforeAll(async () => {
     await freshWorld()
-    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
     const s = await prisma.sellContract.findFirstOrThrow({
       where: { companyId: co.id, state: 'IN_PROGRESS', endDate: { not: null } },
       include: { buyLinks: true },

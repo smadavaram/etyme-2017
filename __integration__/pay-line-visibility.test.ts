@@ -16,8 +16,8 @@ import { GET as readCommissions, POST as runCommissions } from '@/app/api/payrol
 /**
  * Who reads what a person is paid, walked on the seeded world.
  *
- * Found 2026-09-30: Karthik Menon, a delivery engineer on Teleworld
- * Solutions' own payroll, opened Buy contracts and read what Teleworld
+ * Found 2026-09-30: Karthik Menon, a delivery engineer on Tellisford
+ * Solutions' own payroll, opened Buy contracts and read what Tellisford
  * pays each of his colleagues. His seat reads assignments and timesheets
  * and nothing about money.
  *
@@ -27,7 +27,7 @@ import { GET as readCommissions, POST as runCommissions } from '@/app/api/payrol
 
 type Seat = { id: string; personId: string; email: string }
 
-let teleworldId = ''
+let tellisfordId = ''
 let karthik: Seat
 let payroll: Seat
 let hr: Seat
@@ -48,39 +48,39 @@ async function seatAt(companyId: string, name: string): Promise<Seat> {
   return { id: c.id, personId: c.personId, email: c.person.primaryEmail }
 }
 
-describe('what each person at Teleworld is paid is read by the payroll desk, not the delivery team', () => {
+describe('what each person at Tellisford is paid is read by the payroll desk, not the delivery team', () => {
   beforeAll(async () => {
     await freshWorld()
 
-    const teleworld = await prisma.company.findFirstOrThrow({ where: { name: 'Teleworld Solutions' } })
-    teleworldId = teleworld.id
-    karthik = await seatAt(teleworldId, 'Karthik Menon')
+    const tellisford = await prisma.company.findFirstOrThrow({ where: { name: 'Tellisford Solutions' } })
+    tellisfordId = tellisford.id
+    karthik = await seatAt(tellisfordId, 'Karthik Menon')
 
-    // Teleworld seats no payroll desk on the seeded world, so one is seated
+    // Tellisford seats no payroll desk on the seeded world, so one is seated
     // here under the GSI's own AP & Payroll role — the permissions a real
-    // Teleworld would hold, from lib/company-defaults.
-    await ensureDefaultRoles(teleworldId, 'GSI')
-    const role = await prisma.role.findFirstOrThrow({ where: { companyId: teleworldId, name: 'AP & Payroll' } })
+    // Tellisford would hold, from lib/company-defaults.
+    await ensureDefaultRoles(tellisfordId, 'GSI')
+    const role = await prisma.role.findFirstOrThrow({ where: { companyId: tellisfordId, name: 'AP & Payroll' } })
     const who = await prisma.person.create({
-      data: { name: 'Teleworld Payroll', primaryEmail: 'payroll@teleworld-walk.invalid' },
+      data: { name: 'Tellisford Payroll', primaryEmail: 'payroll@tellisford-walk.invalid' },
     })
     const ctx = await prisma.context.create({
-      data: { personId: who.id, companyId: teleworldId, roleId: role.id, type: 'EMPLOYEE', grantReason: 'pay-line walk' },
+      data: { personId: who.id, companyId: tellisfordId, roleId: role.id, type: 'EMPLOYEE', grantReason: 'pay-line walk' },
     })
     payroll = { id: ctx.id, personId: who.id, email: who.primaryEmail }
 
-    // A desk that reads people and runs no pay: Teleworld's own HR seat.
+    // A desk that reads people and runs no pay: Tellisford's own HR seat.
     // Karthik's seat holds no desk, so the one door refuses him the pay
     // screens before they read anything; the screens' own sentences are
     // asserted on this seat.
     const hrSeat = await prisma.context.findFirstOrThrow({
-      where: { companyId: teleworldId, revokedAt: null, person: { primaryEmail: 'world-teleworld-hr@demo.etyme.local' } },
+      where: { companyId: tellisfordId, revokedAt: null, person: { primaryEmail: 'world-tellisford-hr@demo.etyme.local' } },
       include: { person: true },
     })
     hr = { id: hrSeat.id, personId: hrSeat.personId, email: hrSeat.person.primaryEmail }
 
     const colleagueLine = await prisma.buyContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      where: { companyId: teleworldId, candidates: { some: { personId: { not: karthik.personId }, payRate: { gt: 0 } } } },
+      where: { companyId: tellisfordId, candidates: { some: { personId: { not: karthik.personId }, payRate: { gt: 0 } } } },
       include: { candidates: true },
     })
     colleagueBuyId = colleagueLine.id
@@ -122,7 +122,7 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
     const r = await call(payroll, listContracts, '/api/contracts?side=buy&limit=50')
     expect(r.status).toBe(200)
     const stored = await prisma.buyContractCandidate.findMany({
-      where: { buyContract: { companyId: teleworldId } },
+      where: { buyContract: { companyId: tellisfordId } },
       select: { buyContractId: true, personId: true, payRate: true },
     })
     const lines = r.body.data.contracts as any[]
@@ -149,7 +149,7 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
     expect(r.status).toBe(403)
     expect(r.body.data).toBeUndefined()
     expect(r.body.error.code).toBe('NO_DESK')
-    expect(r.body.error.message).toContain('is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(r.body.error.message).toContain('is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     expect(r.body.error.message).not.toMatch(/consultants\.cost|[a-z]+\.(read|write)/)
   })
 
@@ -165,7 +165,7 @@ describe('what each person at Teleworld is paid is read by the payroll desk, not
     const r = await call(karthik, exportPayroll, '/api/payroll/export')
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('NO_DESK')
-    expect(r.body.error.message).toBe('Payroll is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(r.body.error.message).toBe('Payroll is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     const h = await call(hr, exportPayroll, '/api/payroll/export')
     expect(h.status).toBe(403)
     expect(h.body.error.message).toContain('only the people who run payroll may download it')
@@ -338,14 +338,14 @@ describe('what a line bills at is read by the desks that price and bill it, and 
   })
 
   it('the Accounts Receivable desk reads every rate its firm bills', async () => {
-    const role = await prisma.role.findFirstOrThrow({ where: { companyId: teleworldId, name: 'Accounts Receivable' } })
-    const who = await prisma.person.create({ data: { name: 'Teleworld AR', primaryEmail: 'ar@teleworld-walk.invalid' } })
+    const role = await prisma.role.findFirstOrThrow({ where: { companyId: tellisfordId, name: 'Accounts Receivable' } })
+    const who = await prisma.person.create({ data: { name: 'Tellisford AR', primaryEmail: 'ar@tellisford-walk.invalid' } })
     const ctx = await prisma.context.create({
-      data: { personId: who.id, companyId: teleworldId, roleId: role.id, type: 'EMPLOYEE', grantReason: 'bill-rate walk' },
+      data: { personId: who.id, companyId: tellisfordId, roleId: role.id, type: 'EMPLOYEE', grantReason: 'bill-rate walk' },
     })
     const ar = { id: ctx.id, personId: who.id, email: who.primaryEmail }
     const r = await call(ar, listContracts, '/api/contracts?side=sell&limit=50')
-    const ours = (r.body.data.contracts as any[]).filter((l) => l.companyId === teleworldId)
+    const ours = (r.body.data.contracts as any[]).filter((l) => l.companyId === tellisfordId)
     expect(ours.length).toBeGreaterThan(0)
     for (const l of ours) {
       const stored = await prisma.sellContract.findUniqueOrThrow({ where: { id: l.id }, select: { billRate: true } })

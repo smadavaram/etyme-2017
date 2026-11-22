@@ -12,7 +12,7 @@ import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-con
  */
 
 const rival = { isSubject: false, companyId: 'rival-staffing' }
-const theirs = { isSubject: true, companyId: 'techpeple' }
+const theirs = { isSubject: true, companyId: 'tecwyn' }
 const stranger = { isSubject: false, companyId: null }
 
 describe('where else a shared consultant works', () => {
@@ -88,7 +88,7 @@ describe('which benches a viewer may see', () => {
     // The whole point of being on several benches is that none of them is
     // told about the others. 2017 solved this by forbidding the second
     // bench outright.
-    expect(maySeeListing(rival, 'techpeple')).toBe(false)
+    expect(maySeeListing(rival, 'tecwyn')).toBe(false)
   })
 
   it('shows the person every bench they are on', () => {

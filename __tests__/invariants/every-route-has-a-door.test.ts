@@ -10,7 +10,7 @@ import { join, relative, dirname, resolve, sep } from 'node:path'
  * before the route reads anything. Routes that authenticated with
  * `getSessionEmail` alone never met it. The import routes took a
  * `companyId` from the body, and a Member at Northbend Athletic imported
- * a person and a live $150/hr contract into Teleworld Solutions; a
+ * a person and a live $150/hr contract into Tellisford Solutions; a
  * candidate with no company read another import's rows with rates. A
  * company's locations answered any company's sites to anybody signed in.
  *

@@ -44,13 +44,13 @@ describe('"Your terms" under You', () => {
 describe('which placement the link opens', () => {
   const subs = [
     { id: 'old', fromCompanyId: 'brightmoor', requirementId: 'r1' },
-    { id: 'new', fromCompanyId: 'techpeple', requirementId: 'r2' },
+    { id: 'new', fromCompanyId: 'tecwyn', requirementId: 'r2' },
   ]
 
   it('the link opens the first placement whose line has not started and whose terms are not on record', () => {
     const lines = [
       { id: 'L1', companyId: 'brightmoor', requirementId: 'r1', state: 'DRAFT' },
-      { id: 'L2', companyId: 'techpeple', requirementId: 'r2', state: 'DRAFT' },
+      { id: 'L2', companyId: 'tecwyn', requirementId: 'r2', state: 'DRAFT' },
     ]
     expect(pendingTermsHref(subs, lines, (id) => id === 'L1')).toBe('/dashboard/submissions/new/terms')
   })

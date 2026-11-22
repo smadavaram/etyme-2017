@@ -34,16 +34,16 @@ describe('18 · one counterparty is said in a sentence, never drawn as a concent
   })
 
   it('a client buying through one supplier is told so in a sentence, with no share and no warning', () => {
-    const c = concentration({ dimension: 'SUPPLIER', unit: 'MONEY', exposures: usd([['Techpeple', 80_000_00]]) })
+    const c = concentration({ dimension: 'SUPPLIER', unit: 'MONEY', exposures: usd([['Tecwyn', 80_000_00]]) })
     expect(c.topSharePct).toBeNull()
     expect(c.breach).toBeNull()
-    expect(c.says).toContain('All of the supply comes through Techpeple')
+    expect(c.says).toContain('All of the supply comes through Tecwyn')
     expect(c.says).not.toMatch(/100|hundred/)
   })
 
   it('one supplier counted in people says it supplies everybody, not a share of money', () => {
-    const c = concentration({ dimension: 'SUPPLIER', unit: 'PEOPLE', exposures: [{ id: 's', name: 'Techpeple', amountMinor: 4 }] })
-    expect(c.says).toContain('Techpeple supplies everybody on the books')
+    const c = concentration({ dimension: 'SUPPLIER', unit: 'PEOPLE', exposures: [{ id: 's', name: 'Tecwyn', amountMinor: 4 }] })
+    expect(c.says).toContain('Tecwyn supplies everybody on the books')
     expect(c.breach).toBeNull()
   })
 
@@ -59,7 +59,7 @@ describe('18 · one counterparty is said in a sentence, never drawn as a concent
 
   it('a client with too few suppliers is told it has a short list, never a small book', () => {
     const report = concentrationReport([
-      concentration({ dimension: 'SUPPLIER', unit: 'MONEY', exposures: usd([['Techpeple', 1_000_00]]) }),
+      concentration({ dimension: 'SUPPLIER', unit: 'MONEY', exposures: usd([['Tecwyn', 1_000_00]]) }),
     ])
     expect(report.says).toContain('Too few suppliers')
     expect(report.says).not.toContain('book')

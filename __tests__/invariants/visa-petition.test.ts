@@ -12,7 +12,7 @@ import { applyMove, byCalendar, statusWord, MOVES } from '@/lib/visa-petition'
  */
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
-const priya = { personName: 'Priya Raman', type: 'H1B' }
+const priya = { personName: 'Priya Ramesh', type: 'H1B' }
 const d = (s: string) => new Date(`${s}T00:00:00Z`)
 
 describe('the moves, in the order the process goes', () => {
@@ -21,7 +21,7 @@ describe('the moves, in the order the process goes', () => {
   })
   it('a request for evidence is recorded, then answered, and the petition is still waiting', () => {
     expect(applyMove('FILED', 'RFE', priya)).toMatchObject({ ok: true, status: 'RFE', event: 'RFE_ISSUED' })
-    expect(applyMove('RFE', 'RFE_ANSWERED', priya)).toMatchObject({ ok: true, status: 'RFE', event: 'RFE_RESPONDED', says: "Priya Raman's H1B: evidence sent." })
+    expect(applyMove('RFE', 'RFE_ANSWERED', priya)).toMatchObject({ ok: true, status: 'RFE', event: 'RFE_RESPONDED', says: "Priya Ramesh's H1B: evidence sent." })
   })
   it('an approval comes with the date it runs out, or it is not recorded', () => {
     expect(applyMove('RFE', 'APPROVED', priya)).toMatchObject({ ok: false, code: 'DATE_REQUIRED' })
@@ -35,7 +35,7 @@ describe('the moves, in the order the process goes', () => {
   it('a move that is not next is refused in a sentence that says what is', () => {
     const v = applyMove('FILED', 'STAMPED', priya)
     expect(v.ok).toBe(false)
-    if (!v.ok) expect(v.message).toBe("Priya Raman's H1B is filed. From here it can be request for evidence received, or approved, or denied.")
+    if (!v.ok) expect(v.message).toBe("Priya Ramesh's H1B is filed. From here it can be request for evidence received, or approved, or denied.")
   })
   it('a denied or expired petition is over', () => {
     expect(applyMove('DENIED', 'APPROVED', priya)).toMatchObject({ ok: false })

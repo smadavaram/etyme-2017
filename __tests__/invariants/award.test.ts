@@ -19,7 +19,7 @@ function facts(over: Partial<AwardFacts> = {}): AwardFacts {
     headcount: 2,
     alreadyAwarded: 0,
     personAlreadyAwarded: false,
-    personName: 'Ravi Patel',
+    personName: 'Ravi Purohit',
     requisitionApprovalState: 'AUTO_APPROVED',
     requisitionStatus: 'OPEN',
     awardedRateCents: 10_500,
@@ -104,7 +104,7 @@ describe('The legally grounded gates stop an award, and nobody can wave them thr
 
   it('a tenure cap breach blocks the placement', () => {
     const d = assessAward(facts({
-      governance: { blocks: ['Ravi Patel has 18 of 18 months at Talvern Medical across all vendors'], warnings: [] },
+      governance: { blocks: ['Ravi Purohit has 18 of 18 months at Talvern Medical across all vendors'], warnings: [] },
     }))
     expect(d.decision).toBe('BLOCKED')
     expect(check(d, 'GOVERNANCE')?.outcome).toBe('BLOCK')
@@ -120,7 +120,7 @@ describe('The legally grounded gates stop an award, and nobody can wave them thr
 
   it('lapsed supplier insurance blocks the placement', () => {
     const d = assessAward(facts({
-      governance: { blocks: ['Techpeple Inc. general liability cover lapsed on 2026-08-01'], warnings: [] },
+      governance: { blocks: ['Tecwyn Inc. general liability cover lapsed on 2026-08-01'], warnings: [] },
     }))
     expect(d.decision).toBe('BLOCKED')
   })
@@ -260,7 +260,7 @@ describe('Awarding a person creates both sides of the deal, not just the price',
 
   it('a firm’s own employee is written at the pay they are on today, because the employment is the consent', () => {
     const b = buySide({
-      awardedCompanyId: 'teleworld',
+      awardedCompanyId: 'tellisford',
       suppliedByCompanyId: null,
       suppliedRateCents: 12_000,
       employedByAwardedFirm: true,
@@ -276,7 +276,7 @@ describe('Awarding a person creates both sides of the deal, not just the price',
 
   it('an employee with no pay on record is not written at nothing — the firm states the pay first', () => {
     const b = buySide({
-      awardedCompanyId: 'teleworld',
+      awardedCompanyId: 'tellisford',
       suppliedByCompanyId: null,
       suppliedRateCents: 12_000,
       employedByAwardedFirm: true,

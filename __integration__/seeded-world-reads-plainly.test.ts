@@ -49,9 +49,9 @@ describe('the seeded world reads plainly to somebody walking it for the first ti
     expect(listing.company.slug).toBe('world-brightmoor')
   })
 
-  it('Techpeple, a bench firm, seats a recruiter and a resource manager besides its owner, each on the role’s own permissions', async () => {
+  it('Tecwyn, a bench firm, seats a recruiter and a resource manager besides its owner, each on the role’s own permissions', async () => {
     const seats = await prisma.context.findMany({
-      where: { company: { slug: 'world-techpeple' }, revokedAt: null, type: 'EMPLOYEE' },
+      where: { company: { slug: 'world-tecwyn' }, revokedAt: null, type: 'EMPLOYEE' },
       select: { role: { select: { name: true, permissions: true } } },
     })
     const roles = seats.map((s) => s.role?.name)
@@ -66,7 +66,7 @@ describe('the seeded world reads plainly to somebody walking it for the first ti
     const karthik = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'karthik.menon@seed.etyme.invalid' } })
     const { start, end } = karthikWindow(seedToday())
     const sheets = await prisma.timesheet.findMany({
-      where: { personId: karthik.id, sellContract: { company: { slug: 'world-teleworld' } } },
+      where: { personId: karthik.id, sellContract: { company: { slug: 'world-tellisford' } } },
       select: { status: true },
     })
     expect(sheets.length).toBe(calendarWeeks(start, end).length)

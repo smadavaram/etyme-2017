@@ -362,7 +362,7 @@ export function bestMatchPerPerson(candidates: Candidate[]): Map<string, Match> 
  * Phone, because it should be decisive and currently is not. `compare`
  * pushes a decisive signal for a shared mobile and then discards it in
  * the name-mismatch return a few lines later, so two records for one
- * person under "Ravi Patel" and "Ravikumar Patel" with the same number
+ * person under "Ravi Purohit" and "Ravikumar Patel" with the same number
  * score zero. That is the exact cross-vendor case tenure aggregation
  * rests on, and it is a defect worth fixing on its own terms — not
  * quietly, inside a performance change, because it alters who gets

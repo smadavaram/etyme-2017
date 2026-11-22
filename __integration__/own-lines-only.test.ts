@@ -7,7 +7,7 @@ import { namesAPermission } from '@/lib/refusal-words'
 
 /**
  * A delivery engineer reads the contract lines that name him, never his
- * employer's whole book. Karthik Menon, Teleworld's own W2, opened
+ * employer's whole book. Karthik Menon, Tellisford's own W2, opened
  * Contracts on 2026-09-30 and read every colleague's placement.
  */
 

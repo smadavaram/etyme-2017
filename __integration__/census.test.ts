@@ -202,7 +202,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
   it('the agreement is accepted by name, the edition is written down, and the link is minted at that moment and runs out a fortnight later', async () => {
     const res = await json(await acceptAgreement(req('POST', '/api/census/agree', {
       id: northbendId,
-      acceptedBy: 'Priya Raman, General Counsel',
+      acceptedBy: 'Priya Ramesh, General Counsel',
       workEmail: 'dana.whitlock@northbend.test',
     })))
     expect(res.status).toBe(200)
@@ -211,7 +211,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
 
     const row = await prisma.censusRequest.findUniqueOrThrow({ where: { id: northbendId } })
     expect(row.status).toBe('AGREED')
-    expect(row.agreementAcceptedBy).toBe('Priya Raman, General Counsel')
+    expect(row.agreementAcceptedBy).toBe('Priya Ramesh, General Counsel')
     expect(row.agreementVersion).toBeTruthy()
     const fortnight = Math.round((row.uploadExpires!.getTime() - row.agreementAcceptedAt!.getTime()) / DAY)
     expect(fortnight).toBe(UPLOAD_WINDOW_DAYS)
@@ -219,7 +219,7 @@ describe('A client asks for a contractor census, and the file goes on the day we
 
   it('accepting twice hands back the link that exists rather than minting a second one nobody can revoke', async () => {
     const res = await json(await acceptAgreement(req('POST', '/api/census/agree', {
-      id: northbendId, acceptedBy: 'Priya Raman, General Counsel',
+      id: northbendId, acceptedBy: 'Priya Ramesh, General Counsel',
     })))
     expect(res.status).toBe(200)
     expect(res.body.data.uploadToken).toBe(northbendToken)

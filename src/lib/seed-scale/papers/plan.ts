@@ -87,8 +87,8 @@ const addMonths = (d: Date, m: number) => new Date(Date.UTC(d.getUTCFullYear(), 
 const earliest = (a: Date, b: Date) => (a.getTime() <= b.getTime() ? a : b)
 const pkey = (p: PersonPlan, rest: string) => `papers/person/${String(p.n).padStart(4, '0')}/${rest}`
 
-/** The screening companies the firms order from: the same four the simulation orders from. */
-export const PROVIDERS = ['Sterling', 'HireRight', 'First Advantage', 'Checkr'] as const
+/** Invented screening companies. A real provider's name on a seeded verdict reads as a claim about that provider. */
+export const PROVIDERS = ['Stonegate Screening', 'Harrowline Checks', 'Fairmark Screening', 'Clearwell Checks'] as const
 
 /** What a screening company writes, copied as written. The simulation's own words. */
 export const PROVIDER_SAYS: Record<'CLEAR' | 'CONDITIONAL' | 'FLAGGED', string> = {

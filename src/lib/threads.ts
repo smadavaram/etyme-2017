@@ -232,7 +232,7 @@ export function sideOf(thread: ThreadSides, companyId: string | null | undefined
 /**
  * A seat with no desk, for conversations: it holds no permission at
  * all, or only the reads that show a worker their own work — their
- * lines and their weeks (Karthik Menon at Teleworld). Such a seat is
+ * lines and their weeks (Karthik Menon at Tellisford). Such a seat is
  * not a desk that works the firm's deals, so the firm's commercial
  * threads are not its reading. Null is "not known yet" and is never
  * read as a seat with no desk.

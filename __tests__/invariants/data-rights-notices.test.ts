@@ -16,7 +16,7 @@ import {
 
 const plain = (s: string) => s.replace(/[  ]/g, ' ')
 
-const priya = { name: 'Priya Raman', audience: 'candidate' as const }
+const priya = { name: 'Priya Ramesh', audience: 'candidate' as const }
 const now = new Date('2026-09-19T09:00:00Z')
 
 describe('an export lands with the person who asked for it', () => {
@@ -178,13 +178,13 @@ describe('when the erasure has run', () => {
     reference: 'DR-2026-118',
     completedOn: new Date('2026-10-03T09:00:00Z'),
     categories: categoriesFor('candidate'),
-    replyTo: 'priya.raman.personal@gmail.example',
+    replyTo: 'priya.ramesh.personal@gmail.example',
     contactEmail: 'privacy@etyme.example',
   }
 
   it('the letter goes to the address they gave when they asked, because the account address is a marker now', () => {
     const n = erasureCompleteNotice(done)
-    expect(n.to).toBe('priya.raman.personal@gmail.example')
+    expect(n.to).toBe('priya.ramesh.personal@gmail.example')
     expect(n.body).toContain('We are writing to this address because you gave it when you asked')
     expect(n.body).toContain('the last message Etyme will send you')
   })
@@ -200,7 +200,7 @@ describe('when the erasure has run', () => {
 
 describe('the companies that held the person are told, and asked for nothing', () => {
   const base = {
-    person: { name: 'Priya Raman' },
+    person: { name: 'Priya Ramesh' },
     reference: 'DR-2026-118',
     completedOn: new Date('2026-10-03T09:00:00Z'),
     contactEmail: 'privacy@etyme.example',
@@ -222,8 +222,8 @@ describe('the companies that held the person are told, and asked for nothing', (
   it('a company hears on Teams with email behind it, and the card names the person it is about', () => {
     const n = erasureHolderNotice({ ...base, company: { name: 'Veritan Talent', holding: 'SUPPLIER' } })
     expect(n.channels).toEqual(['TEAMS', 'EMAIL'])
-    expect(n.card?.title).toBe('Priya Raman has been forgotten')
-    expect(n.subject).toContain('Priya Raman')
+    expect(n.card?.title).toBe('Priya Ramesh has been forgotten')
+    expect(n.subject).toContain('Priya Ramesh')
   })
 })
 
@@ -247,7 +247,7 @@ describe('nothing a person reads is written in the system own words', () => {
       contactEmail: 'privacy@etyme.example',
     }),
     erasureHolderNotice({
-      company: { name: 'Veritan Talent', holding: 'EMPLOYER' }, person: { name: 'Priya Raman' },
+      company: { name: 'Veritan Talent', holding: 'EMPLOYER' }, person: { name: 'Priya Ramesh' },
       reference: 'DR-2026-118', completedOn: new Date('2026-10-03T09:00:00Z'),
       contactEmail: 'privacy@etyme.example',
     }),
@@ -293,7 +293,7 @@ describe('a letter with no privacy address names nobody rather than printing a p
       ...base, completedOn: new Date('2026-10-03T09:00:00Z'), replyTo: 'priya@gmail.example', contactEmail: null,
     }),
     erasureHolderNotice({
-      person: { name: 'Priya Raman' }, reference: 'DR-2026-118', completedOn: new Date('2026-10-03T09:00:00Z'),
+      person: { name: 'Priya Ramesh' }, reference: 'DR-2026-118', completedOn: new Date('2026-10-03T09:00:00Z'),
       company: { name: 'Veritan Talent', holding: 'SUPPLIER' }, contactEmail: null,
     }),
   ]

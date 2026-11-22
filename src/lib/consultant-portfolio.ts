@@ -716,7 +716,7 @@ export function checkBioEdit(field: 'headline' | 'intro', value: string): { ok: 
  * Every talent screen in the product read bench *listings*, and you do
  * not ask your own W2 for permission to staff them. So a staffing vendor
  * — whose people mostly are listings — looked right, and an integrator
- * looked empty: Teleworld Solutions holds five live EMPLOYEE seats and
+ * looked empty: Tellisford Solutions holds five live EMPLOYEE seats and
  * its own Consultants page read "TOTAL 0 consultants" while its Bench
  * page was bare under the heading "Your own team".
  *
@@ -736,7 +736,7 @@ export function checkBioEdit(field: 'headline' | 'intro', value: string): { ok: 
  * validation engineer from the firm's owner. What tells them apart is a
  * contract with their name on it. Where there is none, this says so in
  * those words and refuses to call the person available — which is the
- * honest answer for four of Teleworld's five, and a far better one than
+ * honest answer for four of Tellisford's five, and a far better one than
  * counting the owner as bench capacity.
  *
  * ── What is deliberately not derived ─────────────────────────────────
@@ -1496,7 +1496,7 @@ export function pipelineSays(
 //
 // Founder, 2026-09-28: "Worker knows the complete chain." Their page
 // listed every rung as a placement of its own, so Helena read Northbend
-// Athletic twice — once as Techpeple's contract, once as Computer
+// Athletic twice — once as Tecwyn's contract, once as Computer
 // Systems'. One placement is one line naming every firm between her and
 // the client, in order. The NDA keeping a sub-vendor's name from the
 // client is about the client; the worker is employed through that firm
@@ -1525,7 +1525,7 @@ export interface PlacementLine<T extends ChainRung = ChainRung> {
   through: string[]
   /** The firm at the bottom, which pays the worker. */
   employer: string
-  /** "Northbend Athletic · through Computer Systems · employed by Techpeple" */
+  /** "Northbend Athletic · through Computer Systems · employed by Tecwyn" */
   says: string
 }
 
@@ -1708,7 +1708,7 @@ export function notAWorker(input: {
 // ── What became of the weeks the client signed ─────────────────────────
 //
 // The summary on Your work read "Approved, not billed 14 — your vendor
-// bills these" to Karthik Menon, who is Teleworld's own W2. Nobody bills
+// bills these" to Karthik Menon, who is Tellisford's own W2. Nobody bills
 // him: his employer bills the client and pays him by payroll. What
 // matters to an employee about a signed week is the other half of "who
 // owes what, and when" (CLAUDE.md, 2026-09-29): paid, owed to him once
@@ -1761,7 +1761,7 @@ export interface SummaryCard {
  * A week the client signed and a firm below has not accepted yet is not
  * here. It is waiting, and the waiting card counts it (`waitingCard`).
  * Until 2026-10-03 it was counted on both, and Helena Marsh's Sep 21 week
- * read as approved, as waiting on approval, and as "waiting on Techpeple"
+ * read as approved, as waiting on approval, and as "waiting on Tecwyn"
  * while it was with Computer Systems Inc — one week, three states.
  */
 export function signedWeeksCard(s: SignedWeeks): SummaryCard {
@@ -1789,7 +1789,7 @@ export function signedWeeksCard(s: SignedWeeks): SummaryCard {
 //
 // The worker tester, 2026-10-03, on Helena Marsh's page: the Sep 21 week
 // was counted as approved, as waiting on approval, and as "waiting on
-// Techpeple", while the section below said it was with Computer Systems
+// Tecwyn", while the section below said it was with Computer Systems
 // Inc. And Rosa Delgado's paid weeks read "approved" in Your hours under a
 // section that said "Paid". Each reader had worked the state out its own
 // way. This is the one way: the tiles, the pay section and Your hours all
@@ -1875,8 +1875,8 @@ export function waitingCard(states: ReadonlyArray<WeekState>): SummaryCard {
 /**
  * Who signs her hours after she sends them, in the order they sign:
  * "After you send, Northbend Athletic approves them first. Then Computer
- * Systems Inc and Techpeple accept them, in that order." The filing card
- * said "Techpeple and the client each sign them", which left out the firm
+ * Systems Inc and Tecwyn accept them, in that order." The filing card
+ * said "Tecwyn and the client each sign them", which left out the firm
  * between and put the client last (worker tester, 2026-10-03).
  */
 export function signingOrder(signers: ReadonlyArray<WeekSigner>): string {

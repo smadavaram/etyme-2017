@@ -543,7 +543,7 @@ describe('the words for a degree and the start', () => {
   const all = [
     W.degreeYearDiffers({ certificateYear: 2016, resumeYear: 2019 }),
     W.degreeYearAhead({ certificateYear: 2028, on: new Date('2026-11-03T00:00:00Z') }),
-    W.degreeNameDiffers({ printedName: 'R. Mehta', personName: 'Priya Raman' }),
+    W.degreeNameDiffers({ printedName: 'R. Mehta', personName: 'Priya Ramesh' }),
     W.degreeSchoolDiffers({ certificateSchool: 'Pune University', resumeSchool: 'Anna University' }),
     W.degreeNotWhatTheJobAsks({ jobTitle: 'ICU nurse', required: 'a nursing degree', onPaper: 'a degree in biology' }),
     W.sameFileFiledBefore({ otherPersonName: 'Rahul Mehta' }),
@@ -564,8 +564,8 @@ describe('the words for a degree and the start', () => {
     expect(W.START_QUESTION).toBe('Is the person who started the person you interviewed?')
     expect(W.notThePersonInterviewed({ saidBy: 'Dana Whitfield' }))
       .toBe('Dana Whitfield says the person who started is not the person interviewed. The start is on hold until HR confirms who is on site.')
-    const n = W.notThePersonNotice({ saidBy: 'Dana Whitfield', personName: 'Priya Raman', jobTitle: 'Java developer' })
-    expect(n.title).toBe('Start on hold: Priya Raman, Java developer')
+    const n = W.notThePersonNotice({ saidBy: 'Dana Whitfield', personName: 'Priya Ramesh', jobTitle: 'Java developer' })
+    expect(n.title).toBe('Start on hold: Priya Ramesh, Java developer')
     // Each warning to HR ends on what to do.
     for (const s of all.slice(0, 4)) expect(s.endsWith(W.DEGREE_DOORS)).toBe(true)
     expect(W.degreeVerifiedBy({ provider: 'Sterling', reference: '4471', on: new Date('2026-03-12T00:00:00Z') })).toBe('Sterling verified the degree on Mar 12, 2026, reference 4471. Nothing more to do on it.')

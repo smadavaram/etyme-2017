@@ -14,7 +14,7 @@ import { QUEUE_OPENS_FOR, CANNOT_SEE_QUEUE, isAboutAPerson } from '@/lib/review'
  * CLAUDE.md: "A menu entry the route will refuse is a menu entry that
  * lies" — and the other half of it, a menu entry the route will NOT
  * refuse is a page any seat opens. On the seeded world Karthik Menon, a
- * Teleworld delivery engineer who staffs nobody, sells nobody and sees no
+ * Tellisford delivery engineer who staffs nobody, sells nobody and sees no
  * money, was shown Suppliers and the Check queue and could read both.
  *
  * The gates are walked here through every default role of every kind of

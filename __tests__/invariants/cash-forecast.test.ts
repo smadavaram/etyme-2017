@@ -165,7 +165,7 @@ describe('what is expected out', () => {
   })
 
   it('a sub-vendor’s invoice is expected at its line’s rate and hours on its receipt dates, due on the line’s terms', () => {
-    const sub = line({ name: 'Priya Raman', rateMinor: 8_000, cycleDates: [d('2026-11-23')], terms: { anchor: 'INVOICE_DATE', days: 15 } })
+    const sub = line({ name: 'Priya Ramesh', rateMinor: 8_000, cycleDates: [d('2026-11-23')], terms: { anchor: 'INVOICE_DATE', days: 15 } })
     const f = cashForecast(seller({ subVendors: [sub] }), 'week', TODAY)
     const row = f.currencies[0].rows.find((r) => r.key === '2026-12-06')!
     expect(row.figures.subVendors).toBe(40 * 8_000)

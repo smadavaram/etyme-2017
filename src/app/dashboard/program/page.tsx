@@ -526,7 +526,7 @@ function ProgramToday() {
   const counts = deskCounts({ decisions: queue })
   // One sentence with the names in it, built from the same rows the count
   // is (`deskHeadline`): "Two things need you: Ingrid Sørensen's start,
-  // and Teleworld's missing agreement."
+  // and Tellisford's missing agreement."
   const said = deskHeadline(queue)
   const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
 

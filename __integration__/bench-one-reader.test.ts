@@ -25,7 +25,7 @@ import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
  */
 
 const D = '@demo.etyme.local'
-const TECHPEPLE = `world-techpeple${D}`
+const TECWYN = `world-tecwyn${D}`
 const DAY = 86_400_000
 const midnight = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
 
@@ -67,7 +67,7 @@ async function lineAtHarborline(personId: string, startDate: Date, endDate: Date
 
 beforeAll(async () => {
   await freshWorld()
-  firm = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })).id
+  firm = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' }, select: { id: true } })).id
   harborline = (await prisma.company.create({ data: { name: 'Harborline Tech', slug: 'harborline-bench-reader', kind: 'VENDOR', currency: 'USD' } })).id
   client = (await prisma.company.create({ data: { name: 'Quillmoor Foods', slug: 'quillmoor-bench-reader', kind: 'CLIENT', currency: 'USD' } })).id
 
@@ -112,7 +112,7 @@ describe('one reader of who is on the bench', () => {
   })
 
   it('who is on the bench reads the same on Today, Candidates and Bench', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const t = await json(await today(req('GET', '/api/today')))
     expect(t.status, JSON.stringify(t.body).slice(0, 300)).toBe(200)
     const c = await json(await consultants(req('GET', '/api/consultants')))
@@ -129,7 +129,7 @@ describe('one reader of who is on the bench', () => {
   })
 
   it('nothing about the other firm’s line is returned on our Today page: not its firm, its client, its rate or its dates', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const t = await json(await today(req('GET', '/api/today')))
     const said = JSON.stringify(t.body)
     expect(said).not.toContain('Harborline Tech')
@@ -145,7 +145,7 @@ describe('one reader of who is on the bench', () => {
 
 describe('a person whose only line has ended reads the same on Today, Candidates and Bench', () => {
   async function threePages() {
-    as(TECHPEPLE)
+    as(TECWYN)
     const t = await json(await today(req('GET', '/api/today')))
     expect(t.status, JSON.stringify(t.body).slice(0, 300)).toBe(200)
     const c = await json(await consultants(req('GET', '/api/consultants')))
@@ -179,7 +179,7 @@ describe('Today says who was asked onto the bench and has not answered', () => {
     const person = await prisma.person.create({ data: { name: 'Yusuf Adeyemi', primaryEmail: 'yusuf.adeyemi@northwind-staffing.example' } })
     const profile = await prisma.consultantProfile.create({ data: { personId: person.id, skills: ['Spark'] } })
     await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: firm, tier: 'MARKETING', state: 'INVITED', invitedAt: new Date() } })
-    as(TECHPEPLE)
+    as(TECWYN)
     const t = await json(await today(req('GET', '/api/today')))
     const c = await json(await consultants(req('GET', '/api/consultants')))
     expect(t.body.data.benchAsked).toBeGreaterThanOrEqual(1)
@@ -201,7 +201,7 @@ describe('an import keeps the firm’s own words on the records it makes', () =>
     importId = imp.id
     const parsed = { name: 'Lena Okafor', email: 'lena.okafor@northwind-staffing.example', contractType: 'C2C', skills: ['Airflow'], headline: 'Data engineer' }
     await prisma.importRow.create({ data: { importId, raw: parsed as object, parsed: parsed as object, issues: [] } })
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await commitImport(req('POST', `/api/imports/${importId}/commit`), { params: Promise.resolve({ id: importId }) }))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
   })
@@ -221,7 +221,7 @@ describe('an import keeps the firm’s own words on the records it makes', () =>
     })
     expect(made).toBe(1)
     await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: harborline, tier: 'MARKETING', state: 'INVITED', invitedAt: new Date() } })
-    const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: TECHPEPLE } })
+    const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: TECWYN } })
     const reads = await firmReadsAt({ companyId: firm, callerPersonId: owner.id, consultantIds: [profile.id] })
     expect(reads.get(profile.id)?.onlyTyped).toBe(false)
   })
@@ -233,7 +233,7 @@ describe('a people sheet asks whose record it is the way every reader asks', () 
     const profile = await prisma.consultantProfile.create({ data: { personId: person.id, headline: 'Her own title', skills: ['Snowflake'] } })
     await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: harborline, tier: 'MARKETING', state: 'GRANTED', invitedAt: new Date(Date.now() - 60 * DAY), grantedAt: new Date(Date.now() - 50 * DAY), revokedAt: new Date(Date.now() - 10 * DAY) } })
     const ours = await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: firm, tier: 'MARKETING', state: 'INVITED', invitedAt: new Date() } })
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await loadSheet(req('POST', '/api/imports/sheets', {
       entity: 'CONSULTANTS', commit: true,
       rows: [{ Name: 'Sana Iqbal', Email: 'sana.iqbal@harborline-tech.example', Title: 'Our words for her' }],

@@ -407,8 +407,8 @@ describe('the owner-only exception', () => {
 })
 
 describe('the twin’s question says who and what', () => {
-  it('a question to pay an invoice receipt is titled with the supplier and the number: "Pay Techpeple’s invoice INV-1042?"', () => {
-    expect(questionTitle('invoice_receipt.approve', 'Invoice', { number: 'INV-1042', supplierName: 'Techpeple' })).toBe('Pay Techpeple’s invoice INV-1042?')
+  it('a question to pay an invoice receipt is titled with the supplier and the number: "Pay Tecwyn’s invoice INV-1042?"', () => {
+    expect(questionTitle('invoice_receipt.approve', 'Invoice', { number: 'INV-1042', supplierName: 'Tecwyn' })).toBe('Pay Tecwyn’s invoice INV-1042?')
   })
 
   it('a question to send a bill is titled with the number and the customer: "Send bill INV-2209 to Northbend Athletic?"', () => {
@@ -440,13 +440,13 @@ describe('the twin’s question says who and what', () => {
     T().vendorBill.push({ id: 'bill-1', companyId: CLIENT, status: 'RECEIVED', buyContractId: null })
     const asked = await act({
       ...base, action: 'invoice_receipt.approve', entity: { type: 'VendorBill', id: 'bill-1' },
-      payload: { number: 'INV-1042', supplierName: 'Techpeple' },
+      payload: { number: 'INV-1042', supplierName: 'Tecwyn' },
     })
     expect(asked.outcome).toBe('AWAITING_APPROVAL')
     await vi.waitFor(() => expect(h.notifyBulk).toHaveBeenCalled())
     const sent = (h.notifyBulk.mock.calls[0] as unknown as [{ title: string; entityId: string }[]])[0]
     expect(sent.length).toBeGreaterThan(0)
-    for (const n of sent) expect(n.title).toBe('Pay Techpeple’s invoice INV-1042?')
+    for (const n of sent) expect(n.title).toBe('Pay Tecwyn’s invoice INV-1042?')
   })
 })
 

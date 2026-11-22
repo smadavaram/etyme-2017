@@ -1422,7 +1422,7 @@ export async function GET(request: NextRequest) {
       total: decisions.length,
       /**
        * The one sentence for this seat, with the names in it: "Two things
-       * need you: Ingrid Sørensen's start, and Teleworld's missing
+       * need you: Ingrid Sørensen's start, and Tellisford's missing
        * agreement." Built from these rows (`deskHeadline`), so the
        * program page's headline, the Ask Etyme mark and the greeting can
        * say one number and one sentence.

@@ -9,10 +9,10 @@ import { publicSite } from '@/lib/public-site'
  * that started: a line running, paused or ended.
  *
  * The seeded firm is Vertex Global. Its sell lines in the seed, by hand:
- *   running  Meridian Bank, Cavanaugh Glassworks, Talvern Medical  = 3
+ *   running  Merrowfield Bank, Cavanaugh Glassworks, Talvern Medical  = 3
  *   ended    Cavanaugh Glassworks, Talvern Medical                  = 2
  *   draft    Talvern Medical                                        = 1
- * Placements are 3 + 2 = 5, not 6. Clients are Meridian Bank,
+ * Placements are 3 + 2 = 5, not 6. Clients are Merrowfield Bank,
  * Cavanaugh Glassworks and Talvern Medical = 3. Working now is 3.
  */
 

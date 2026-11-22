@@ -2,12 +2,12 @@
  * What a seat with no desk may do on the buying side. Pure: no database.
  *
  * Sign-up walk, round five (2026-10-08), problems 3 and 4. Karthik Menon
- * is Teleworld's own W2 validation engineer. His seat holds the two reads
+ * is Tellisford's own W2 validation engineer. His seat holds the two reads
  * every worker holds — the work he is on and his own hours — and no desk.
- * From his own menu he read all six of Teleworld's submissions with each
+ * From his own menu he read all six of Tellisford's submissions with each
  * colleague's rate, read the client's rate band on Shared with you, and
  * put a stranger in front of Corveldt Aerospace by pasting a CV, which
- * landed the stranger on Teleworld's bench. A worker is somebody the work
+ * landed the stranger on Tellisford's bench. A worker is somebody the work
  * is about, not a desk that sells.
  *
  * ── The predicate ────────────────────────────────────────────────────

@@ -11,8 +11,8 @@ import {
  *
  * Three kinds of host reach us:
  *
- *   techpeple.etyme.com        a company's address
- *   talent.techpeple.example   a domain they own, pointed here
+ *   tecwyn.etyme.com        a company's address
+ *   talent.tecwyn.example   a domain they own, pointed here
  *   etyme.com, localhost      the platform itself
  *
  * The host is read here and passed down as a header, so every page and
@@ -181,7 +181,7 @@ export async function middleware(request: NextRequest) {
   // and not kept.
   //
   // Rewritten rather than redirected, so the address in the bar stays
-  // theirs. A company sending somebody to techpeple.etyme.com should not
+  // theirs. A company sending somebody to tecwyn.etyme.com should not
   // watch it turn into an etyme.com URL in front of them.
   const path = request.nextUrl.pathname
 

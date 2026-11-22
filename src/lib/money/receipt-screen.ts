@@ -214,7 +214,7 @@ export interface PaymentFacts {
   recordedBy: string | null
 }
 
-/** "Computer Systems paid Techpeple $4,956.00 on Oct 18, 2026 by Wire, reference CS-8102. Recorded by Dana Park." */
+/** "Computer Systems paid Tecwyn $4,956.00 on Oct 18, 2026 by Wire, reference CS-8102. Recorded by Dana Park." */
 export function paymentSays(p: PaymentFacts): string {
   return (
     `${p.paidBy} paid ${p.paidTo} ${amount(p.amountMinor, p.currency)} on ${formatDay(p.at)}` +

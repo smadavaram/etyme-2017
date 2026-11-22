@@ -46,7 +46,7 @@ export function ownContractsSay(count: number): string {
  * Missing paperwork for a seat that reads only its own lines.
  *
  * Sign-up walk, round five, problem 6. Karthik Menon, a delivery
- * engineer at Teleworld, opened Missing paperwork and read colleagues by
+ * engineer at Tellisford, opened Missing paperwork and read colleagues by
  * name with money beside them — "Felix Brenner … Northbend Athletic
  * $21,120". The queue is the firm's: every placement missing a link,
  * priced by what is billed against the gap. A seat that administers no

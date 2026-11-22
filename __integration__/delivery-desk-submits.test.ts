@@ -6,28 +6,28 @@ import { POST as submit } from '@/app/api/submissions/route'
  * A delivery manager puts the firm's own employee forward — decided by
  * the founder 2026-09-30 (CLAUDE.md, the integrator bench).
  *
- * Rahul Deshpande is Teleworld's delivery manager for San Jose. He holds
+ * Rahul Dandekar is Tellisford's delivery manager for San Jose. He holds
  * `assignments.write` and not `submissions.create`. Felix Brenner is a
- * Teleworld employee coming off his project. Northbend Athletic's HCM
- * integration lead is sent to Teleworld. Rahul may put Felix forward, as
- * INTERNAL; he may not put forward anybody Teleworld does not employ.
+ * Tellisford employee coming off his project. Northbend Athletic's HCM
+ * integration lead is sent to Tellisford. Rahul may put Felix forward, as
+ * INTERNAL; he may not put forward anybody Tellisford does not employ.
  */
 
 const D = '@demo.etyme.local'
-const RAHUL = `world-teleworld-delivery-sanjose${D}`
+const RAHUL = `world-tellisford-delivery-sanjose${D}`
 const s: Record<string, string> = {}
 
 beforeAll(async () => {
   await freshWorld()
-  s.teleworld = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' } })).id
+  s.tellisford = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' } })).id
   const job = await prisma.requirement.findFirstOrThrow({
     where: { title: 'HCM integration lead', company: { slug: 'world-nike' } },
     select: { id: true, companyId: true },
   })
   s.job = job.id
   await prisma.requirementInvitation.upsert({
-    where: { requirementId_toCompanyId: { requirementId: job.id, toCompanyId: s.teleworld } },
-    create: { requirementId: job.id, fromCompanyId: job.companyId, toCompanyId: s.teleworld, status: 'SENT', expiresAt: new Date(Date.now() + 14 * 86_400_000) },
+    where: { requirementId_toCompanyId: { requirementId: job.id, toCompanyId: s.tellisford } },
+    create: { requirementId: job.id, fromCompanyId: job.companyId, toCompanyId: s.tellisford, status: 'SENT', expiresAt: new Date(Date.now() + 14 * 86_400_000) },
     update: {},
   })
   s.felix = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'felix.brenner@seed.etyme.invalid' } })).id
@@ -37,7 +37,7 @@ beforeAll(async () => {
 describe('a delivery manager and the firm’s own people', () => {
   it('the premise: Rahul holds the delivery desk and not the recruiting desk', async () => {
     const seat = await prisma.context.findFirstOrThrow({
-      where: { person: { primaryEmail: RAHUL }, companyId: s.teleworld, revokedAt: null },
+      where: { person: { primaryEmail: RAHUL }, companyId: s.tellisford, revokedAt: null },
       select: { role: { select: { permissions: true } } },
     })
     expect(seat.role?.permissions).toContain('assignments.write')
@@ -47,28 +47,28 @@ describe('a delivery manager and the firm’s own people', () => {
   it('a delivery manager puts the firm’s own employee forward on a client’s job request', async () => {
     as(RAHUL)
     const r = await json(await submit(req('POST', '/api/submissions', {
-      requirementId: s.job, personIds: [s.felix], rate: 12_500, fromCompanyId: s.teleworld,
+      requirementId: s.job, personIds: [s.felix], rate: 12_500, fromCompanyId: s.tellisford,
     })))
     expect(r.status, JSON.stringify(r.body)).toBeLessThan(300)
     expect(r.body.data.results[0].status, JSON.stringify(r.body)).toBe('created')
     const sub = await prisma.submission.findFirstOrThrow({ where: { requirementId: s.job, personId: s.felix } })
     expect(sub.kind).toBe('INTERNAL')
-    expect(sub.fromCompanyId).toBe(s.teleworld)
+    expect(sub.fromCompanyId).toBe(s.tellisford)
   })
 
   it('a delivery manager cannot put forward somebody the firm does not employ, and is told who can', async () => {
     as(RAHUL)
     const r = await json(await submit(req('POST', '/api/submissions', {
-      requirementId: s.job, personIds: [s.tamsin], rate: 12_500, fromCompanyId: s.teleworld,
+      requirementId: s.job, personIds: [s.tamsin], rate: 12_500, fromCompanyId: s.tellisford,
     })))
     const item = r.body.data.results[0]
     expect(item.status).toBe('error')
     expect(item.code).toBe('NOT_YOUR_EMPLOYEE')
     expect(item.error).toBe(
-      'Tamsin Okoro is not employed by Teleworld Solutions, so a delivery manager cannot put them forward. ' +
+      'Tamsin Okoro is not employed by Tellisford Solutions, so a delivery manager cannot put them forward. ' +
       'Somebody the firm does not employ needs their own consent and a bench listing — ask a recruiter, a resource manager or the account manager to submit them.'
     )
-    expect(await prisma.submission.count({ where: { requirementId: s.job, personId: s.tamsin, fromCompanyId: s.teleworld } })).toBe(0)
+    expect(await prisma.submission.count({ where: { requirementId: s.job, personId: s.tamsin, fromCompanyId: s.tellisford } })).toBe(0)
     const trail = await prisma.accessLog.findFirstOrThrow({ where: { subjectId: s.tamsin, action: 'SUBMIT', allowed: false }, orderBy: { at: 'desc' } })
     expect(trail.reason).toContain('Refused to a delivery manager')
   })

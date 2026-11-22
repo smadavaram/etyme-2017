@@ -108,7 +108,7 @@ export type StatedVerdict =
        * The same terms once they stand: the person agreed them, or the
        * firm already employs her and the employment is the consent.
        * "Employs" is said only here, never before the yes (screen walk,
-       * 2026-11-02: "Techpeple employs Dana Walker at $85/hr" read on a
+       * 2026-11-02: "Tecwyn employs Dana Walker at $85/hr" read on a
        * bench ask she had not answered).
        */
       agreedSays: string

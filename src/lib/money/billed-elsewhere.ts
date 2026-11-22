@@ -9,9 +9,9 @@
  * records it as an invoice receipt it was sent — a `VendorBill`, which
  * carries a period and a total and no lines. Generation only asked the
  * first: "not yet billed by us" meant no `InvoiceLine` of ours on the
- * week. So on 2026-09-30 Techpeple pressed Generate and billed Computer
+ * week. So on 2026-09-30 Tecwyn pressed Generate and billed Computer
  * Systems $16,992 for 144 hours, and its own check said "Nothing here has
- * been billed before" — while Computer Systems already held Techpeple's
+ * been billed before" — while Computer Systems already held Tecwyn's
  * invoice INV-CPRLJK for Aug 29 – Sep 26, approved, covering 120 of those
  * hours. $14,160 owed twice.
  *
@@ -178,7 +178,7 @@ export interface AcceptedWeekRead {
  * The same supplier's work, received twice: a week this receipt bills
  * that another live receipt on the same buy line already holds.
  *
- * Release walk, 2026-10-18: Techpeple's $4,720 week for Helena Marsh was
+ * Release walk, 2026-10-18: Tecwyn's $4,720 week for Helena Marsh was
  * received under TP-A, then again under TP-A2, and both were paid — the
  * number was the only thing the intake compared. A typed-in receipt
  * carries a period and a total and no lines, so the week is found from

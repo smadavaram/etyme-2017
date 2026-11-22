@@ -213,8 +213,8 @@ export async function POST(request: NextRequest) {
   //
   // But only back to the SAME seat. This resumed whatever the cookie
   // held regardless of what was just picked, so the first click seated
-  // somebody as Oxford Corp and every later click — MSP, integrator,
-  // prime, bench — silently landed them back in Oxford Corp's book. The
+  // somebody as Orlestone Corp and every later click — MSP, integrator,
+  // prime, bench — silently landed them back in Orlestone Corp's book. The
   // seat picker was a form whose answer was thrown away. A different
   // seat is an explicit intent and gets a workspace of its own; the old
   // one is reaped with the rest.
@@ -431,9 +431,9 @@ export async function POST(request: NextRequest) {
 
   // ── The seeded world ────────────────────────────────────────────
   //
-  // `{ as: "world-techpeple" }` takes a seat in the twenty-firm market
+  // `{ as: "world-tecwyn" }` takes a seat in the twenty-firm market
   // scripts/seed-world.mjs builds, rather than minting another private
-  // five-company copy. That is what makes signing in as Techpeple and
+  // five-company copy. That is what makes signing in as Tecwyn and
   // signing in as Harlow Health two views of the same placement instead
   // of two unrelated worlds with the same placeholder names.
   //
@@ -459,7 +459,7 @@ export async function POST(request: NextRequest) {
     // desk": that fell through to the first seat granted, the Owner.
     const { desk, unknown: unknownDesk } = deskAsked((body as any)?.desk)
     // Which person at that desk, where more than one holds it — the two
-    // delivery managers at Teleworld. Read only with a desk.
+    // delivery managers at Tellisford. Read only with a desk.
     const who = desk ? whoAsked((body as any)?.who) : null
     // The same two sentences the private path gives below. This lookup
     // used to throw straight out of the handler, so a database that was

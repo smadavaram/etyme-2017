@@ -405,7 +405,7 @@ export const W9_LINE: Readonly<Record<string, string>> = {
  *   "From your work email’s domain: “tapin.com”. Confirmed by Sharath Madavaram, Oct 28, 2026."
  *   "From your W-9, line 1: “Tapin LLC”. Confirmed by Sharath Madavaram, Oct 28, 2026."
  *   "From your file: “Tapin LLC”. Confirmed by …"
- *   "Typed by Priya Raman, Oct 28, 2026."
+ *   "Typed by Priya Ramesh, Oct 28, 2026."
  *
  * Only what a person typed reads "Typed by"; a guess a person accepted
  * still says where the guess came from, and who accepted it.

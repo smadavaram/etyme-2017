@@ -21,7 +21,7 @@ import { sendOnRefusalSays } from '@/app/dashboard/submissions/send-on-words'
  *      always refuses.
  *   3. Pressing Approve on a week already signed answered "Timesheet is
  *      APPROVED, can only approve from SUBMITTED".
- *   4. "Techpeple employs Dana Walker at $85/hr" was said on a bench ask,
+ *   4. "Tecwyn employs Dana Walker at $85/hr" was said on a bench ask,
  *      before she had said yes to anything.
  *   5. "Send on →" and "Message <supplier>" were drawn on every row for an
  *      MSP seated in a client's program, and refused on every press.
@@ -173,24 +173,24 @@ describe('pressing Approve on a week that cannot be signed now', () => {
 // ── 4. Terms before the yes ───────────────────────────────────────────
 
 describe('a firm’s terms, before and after the person’s yes', () => {
-  const who = { personName: 'Dana Walker', firmName: 'Techpeple', ownCompany: null, statedById: 'p-owner', now: new Date('2026-11-02T12:00:00Z') }
+  const who = { personName: 'Dana Walker', firmName: 'Tecwyn', ownCompany: null, statedById: 'p-owner', now: new Date('2026-11-02T12:00:00Z') }
 
   it('a bench ask states the terms as offered, never as employment', () => {
     const r = listingTermsFrom({ engagementType: 'W2', payRateCents: 8_500 }, who)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.says).toBe('Techpeple offers Dana Walker $85/hr as its employee. Dana Walker sees these terms when they are asked, and agrees them only by saying yes.')
+    expect(r.says).toBe('Tecwyn offers Dana Walker $85/hr as its employee. Dana Walker sees these terms when they are asked, and agrees them only by saying yes.')
     expect(r.says).not.toContain('employs')
   })
 
   it('once she agreed them, the same terms read as employment', () => {
     const l = listingTerms({
       engagementType: 'W2', payRateCents: 8_500, statedAt: new Date('2026-10-01'), statedById: 'p-owner', agreedAt: new Date('2026-10-02'),
-      personName: 'Dana Walker', firmName: 'Techpeple', ownCompany: null,
+      personName: 'Dana Walker', firmName: 'Tecwyn', ownCompany: null,
     })
-    expect(l.state === 'AGREED' && l.says).toBe('Techpeple employs Dana Walker at $85/hr. Dana Walker agreed these terms on Techpeple’s bench listing.')
-    const v = checkStatedTerms({ engagementType: 'W2', payRateCents: 8_500, personName: 'Dana Walker', firmName: 'Techpeple', ownCompany: null })
-    expect(v.ok && v.agreedSays).toBe('Techpeple employs Dana Walker at $85/hr.')
+    expect(l.state === 'AGREED' && l.says).toBe('Tecwyn employs Dana Walker at $85/hr. Dana Walker agreed these terms on Tecwyn’s bench listing.')
+    const v = checkStatedTerms({ engagementType: 'W2', payRateCents: 8_500, personName: 'Dana Walker', firmName: 'Tecwyn', ownCompany: null })
+    expect(v.ok && v.agreedSays).toBe('Tecwyn employs Dana Walker at $85/hr.')
   })
 
   it('the terms page says employment only to somebody the firm already employs, and offers terms to everybody else', () => {
@@ -201,7 +201,7 @@ describe('a firm’s terms, before and after the person’s yes', () => {
 
 // ── 5. Send on and Message on the Candidates page ─────────────────────
 
-const ROW: DoorRow = { id: 's1', fromCompanyId: 'techpeple', toCompanyId: 'cavanaugh', status: 'SUBMITTED', rate: 9_000, forwardedAt: null }
+const ROW: DoorRow = { id: 's1', fromCompanyId: 'tecwyn', toCompanyId: 'cavanaugh', status: 'SUBMITTED', rate: 9_000, forwardedAt: null }
 
 describe('Send on, on the Candidates page', () => {
   const holds = sendOnActor({ companyId: 'cavanaugh', companyName: 'Cavanaugh Glassworks', permissions: ['submissions.read', 'submissions.create'], kind: 'CLIENT' })
@@ -253,10 +253,10 @@ describe('Send on, on the Candidates page', () => {
 describe('Message <supplier>, on the Candidates page', () => {
   const cavanaugh = { id: 'cavanaugh', name: 'Cavanaugh Glassworks' }
   const aptiva = { id: 'aptiva', name: 'Aptiva Workforce' }
-  const techpeple = { id: 'techpeple', name: 'Techpeple' }
+  const tecwyn = { id: 'tecwyn', name: 'Tecwyn' }
   const facts = {
     kind: 'SUBMISSION' as const, id: 's1', roleTitle: 'Batch process engineer', candidateName: 'Uchenna Lindgren',
-    toCompanyId: 'cavanaugh', fromCompanyId: 'techpeple', fromCompanyName: 'Techpeple',
+    toCompanyId: 'cavanaugh', fromCompanyId: 'tecwyn', fromCompanyName: 'Tecwyn',
   }
 
   it('Message is never drawn for a seat the route will refuse', () => {
@@ -271,9 +271,9 @@ describe('Message <supplier>, on the Candidates page', () => {
   })
 
   it('the list offers Message exactly where the conversations route would open the thread', () => {
-    for (const me of [cavanaugh, aptiva, techpeple]) {
+    for (const me of [cavanaugh, aptiva, tecwyn]) {
       const offered = messageDoor({ companyId: me.id, consultantSeat: false }, { ...ROW, kind: 'NETWORK' }).open
-      expect(offered).toBe(whoMayOpen(facts, me, techpeple).ok)
+      expect(offered).toBe(whoMayOpen(facts, me, tecwyn).ok)
     }
     expect(SUBS_ROUTE).toContain('message: messageDoor(messageBy, s),')
     expect(SUBS_PAGE).toContain("(direction === 'received' ? row.message?.open === true : true) && (")
@@ -287,7 +287,7 @@ describe('Message <supplier>, on the Candidates page', () => {
     // A seat at another client writes nothing for Cavanaugh's candidates.
     expect(messageDoor({ companyId: 'aptiva', consultantSeat: false, seat: { ...writes, clientCompanyId: 'northbend' } }, { ...ROW, kind: 'NETWORK' }).open).toBe(false)
     // The button agrees with the route: a writing seat opens the client's thread.
-    expect(whoMayOpen(facts, aptiva, techpeple, { seatedAt: cavanaugh, seatWrites: true }).ok).toBe(true)
+    expect(whoMayOpen(facts, aptiva, tecwyn, { seatedAt: cavanaugh, seatWrites: true }).ok).toBe(true)
     // The route hands the seat it read once for the request, never one per row.
     expect(SUBS_ROUTE).toContain('seat: desk?.seat ? { clientCompanyId: desk.seat.clientCompany.id, permissions: desk.seat.role.permissions } : null,')
   })
@@ -474,8 +474,8 @@ describe('a firm below the top accepting a week is told what it bills and how th
 
   it('a firm that pays a sub-vendor is told the sub-vendor’s invoice is checked against the week', async () => {
     const { acceptedSays, paidBelowFrom } = await import('@/app/api/timesheets/accepted-says')
-    expect(acceptedSays({ hours: 40, billMinor: null, currency: 'USD', billsName: null, paidBelow: { kind: 'SUPPLIER', supplierName: 'Techpeple' } }))
-      .toBe("Accepted 40h; Techpeple's invoice is checked against it.")
+    expect(acceptedSays({ hours: 40, billMinor: null, currency: 'USD', billsName: null, paidBelow: { kind: 'SUPPLIER', supplierName: 'Tecwyn' } }))
+      .toBe("Accepted 40h; Tecwyn's invoice is checked against it.")
     // An employer's buy line with a vendor on it is the vendor's invoice, not payroll.
     expect(paidBelowFrom({ vendorName: 'Nimbus Talent', contractType: 'C2C' }, 'Omar Haddad'))
       .toEqual({ kind: 'SUPPLIER', supplierName: 'Nimbus Talent' })

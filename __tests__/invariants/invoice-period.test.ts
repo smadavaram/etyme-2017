@@ -33,7 +33,7 @@ function input(over: Partial<MatchInput> = {}): MatchInput {
       {
         id: 'l1',
         timesheetId: 'ts1',
-        personName: 'Anita Desai',
+        personName: 'Anita Dalvi',
         hours: 40,
         rateCents: 13000,
         amountCents: 520_000,
@@ -99,7 +99,7 @@ describe('is the work in the period being billed', () => {
         },
       })
     )
-    expect(check(r, 'PERIOD')!.reason).toMatch(/Anita Desai/)
+    expect(check(r, 'PERIOD')!.reason).toMatch(/Anita Dalvi/)
     expect(check(r, 'PERIOD')!.reason).toMatch(/Feb 2, 2026 to Feb 8, 2026/)
   })
 

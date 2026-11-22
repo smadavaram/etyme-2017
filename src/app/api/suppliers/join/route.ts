@@ -39,7 +39,7 @@ async function sideIsMine(id: string, companyId: string, mySeats: Set<string>): 
  * GET  /api/suppliers/join — pairs that look like one firm twice
  * POST /api/suppliers/join — fold one into the other
  *
- * Two clients each list Techpeple. Neither knows the other did,
+ * Two clients each list Tecwyn. Neither knows the other did,
  * so there are two supplier records with the same domain. That is the
  * right default — a merge that happens silently at sign-in is how a firm
  * loses a year of history — but somebody has to be able to fix it.

@@ -1105,7 +1105,7 @@ export default function ConsultantsPage() {
    * `/api/consultants` reads `ConsultantProfile`, which exists only once
    * somebody has been onboarded as a consultant. An integrator's own W2
    * has no such row and needs none — the employment is the consent to
-   * staff them — so Teleworld Solutions read "TOTAL 0 consultants" while
+   * staff them — so Tellisford Solutions read "TOTAL 0 consultants" while
    * holding five live employee seats.
    *
    * Their home is the payroll tab on Bench, which is where the roster is

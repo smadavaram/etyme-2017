@@ -509,7 +509,7 @@ describe('one letter per person per night, about the papers that are theirs to a
   function twentyLapses() {
     const out = []
     for (let i = 0; i < 20; i++) {
-      const firm = ['Pinnacle Resourcing', 'Teleworld Solutions', 'Brightmoor Staffing', 'Vertex Global'][i % 4]
+      const firm = ['Pinnacle Resourcing', 'Tellisford Solutions', 'Brightmoor Staffing', 'Vertex Global'][i % 4]
       const name = ['Tobias Lindqvist', 'Felix Brenner', 'Omar Haddad', 'Amara Nwosu', 'Rosa Delgado'][i % 5]
       const d = doc({
         id: `doc${i}`,
@@ -552,7 +552,7 @@ describe('one letter per person per night, about the papers that are theirs to a
     // The client's two desks and one desk at each of the four firms; the
     // owner, the AP clerk and the hiring manager were never in the cast.
     expect(new Set(readers)).toEqual(
-      new Set(['officer', 'program-manager', ...['Pinnacle Resourcing', 'Teleworld Solutions', 'Brightmoor Staffing', 'Vertex Global'].map((f) => `desk-at-${f}`)])
+      new Set(['officer', 'program-manager', ...['Pinnacle Resourcing', 'Tellisford Solutions', 'Brightmoor Staffing', 'Vertex Global'].map((f) => `desk-at-${f}`)])
     )
     // Every fact made it into exactly the letter of the person it was for.
     expect(night.reduce((n, l) => n + l.facts.length, 0)).toBe(facts.length)

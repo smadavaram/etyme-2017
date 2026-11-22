@@ -31,9 +31,9 @@ const verdict = (
   extraHeld = signedNda
 ) =>
   contractClearance({
-    personName: 'Priya Raman',
+    personName: 'Priya Ramesh',
     personVerifications,
-    supplierName: 'Techpeple',
+    supplierName: 'Tecwyn',
     supplierCertificates,
     clientName: 'Harlow Health',
     on,
@@ -144,7 +144,7 @@ describe('what is already on file', () => {
 describe('what it says', () => {
   it('the verdict names what is missing and what to do, in one sentence', () => {
     const v = verdict([])
-    expect(v.says).toMatch(/Priya Raman cannot start without/)
+    expect(v.says).toMatch(/Priya Ramesh cannot start without/)
     expect(v.fix).toMatch(/on file, then activate/)
   })
 
@@ -250,7 +250,7 @@ describe('the start reads the country where the work is done', () => {
 
   it('a W2 line at a US site asks for the I-9 as before', () => {
     const v = contractClearance({
-      personName: 'Priya Raman', personVerifications: [clear('BACKGROUND_CHECK', inDays(300))], supplierName: 'Techpeple',
+      personName: 'Priya Ramesh', personVerifications: [clear('BACKGROUND_CHECK', inDays(300))], supplierName: 'Tecwyn',
       supplierCertificates: insured, clientName: 'Harlow Health', on, extraHeld: signedNda, workCountry: at('US'),
     })
     expect(v.outcome).toBe('BLOCK')
@@ -278,7 +278,7 @@ describe('the start reads the country where the work is done', () => {
     const wc = workCountryOf({ workMode: 'REMOTE', siteCountry: 'US', personCountry: 'US' })
     expect(wc).toMatchObject({ country: 'US', offshore: false })
     const v = contractClearance({
-      personName: 'Dana Ruiz', personVerifications: [clear('BACKGROUND_CHECK', inDays(300))], supplierName: 'Techpeple',
+      personName: 'Dana Ruiz', personVerifications: [clear('BACKGROUND_CHECK', inDays(300))], supplierName: 'Tecwyn',
       supplierCertificates: insured, clientName: 'Harlow Health', on, extraHeld: signedNda, workCountry: wc,
     })
     expect(v.blocking.map((b) => b.key)).toContain('I9_EVERIFY')

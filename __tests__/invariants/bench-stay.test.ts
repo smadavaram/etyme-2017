@@ -68,12 +68,12 @@ describe('how long a person stays on a bench', () => {
   })
 
   it('the stay is said in one plain sentence', () => {
-    expect(staySays(stayFields(null, granted), 'Techpeple', granted)).toBe("You stay on Techpeple's bench until you cancel.")
-    expect(staySays(stayFields(15, granted), 'Techpeple', granted)).toBe("You stay on Techpeple's bench until October 16, 2026 (15 days). After that it ends by itself.")
+    expect(staySays(stayFields(null, granted), 'Tecwyn', granted)).toBe("You stay on Tecwyn's bench until you cancel.")
+    expect(staySays(stayFields(15, granted), 'Tecwyn', granted)).toBe("You stay on Tecwyn's bench until October 16, 2026 (15 days). After that it ends by itself.")
   })
 
   it('the reminder carries the one-tap renew link and says what was sent stays as it is', () => {
-    const t = reminderText({ personName: 'Grace Lindqvist', firm: 'Techpeple', until: new Date('2026-10-16T00:00:00Z'), days: 15, url: 'https://x/bench-invite/abc' })
+    const t = reminderText({ personName: 'Grace Lindqvist', firm: 'Tecwyn', until: new Date('2026-10-16T00:00:00Z'), days: 15, url: 'https://x/bench-invite/abc' })
     expect(t.body).toContain('https://x/bench-invite/abc')
     expect(t.body).toContain('Anything already sent stays as it is.')
   })
@@ -102,7 +102,7 @@ describe('a firm whose name ends in s is written the way a person would write it
     expect(all).toContain("Marcus Reyes' ")
   })
 
-  it('a firm whose name does not end in s still reads "Techpeple\'s bench"', () => {
-    expect(staySays(stayFields(null, granted), 'Techpeple', granted)).toContain("Techpeple's bench")
+  it('a firm whose name does not end in s still reads "Tecwyn\'s bench"', () => {
+    expect(staySays(stayFields(null, granted), 'Tecwyn', granted)).toContain("Tecwyn's bench")
   })
 })

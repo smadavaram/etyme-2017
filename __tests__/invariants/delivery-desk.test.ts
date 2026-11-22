@@ -9,8 +9,8 @@ const DOOR = readFileSync(join(process.cwd(), 'src/app/api/submissions/route.ts'
 
 describe('a delivery manager puts forward only the firm’s own people', () => {
   it('the refusal names the person, the firm and the recruiting desk that can submit them', () => {
-    expect(deliveryDeskSays('Tamsin Okoro', 'Teleworld Solutions')).toBe(
-      'Tamsin Okoro is not employed by Teleworld Solutions, so a delivery manager cannot put them forward. ' +
+    expect(deliveryDeskSays('Tamsin Okoro', 'Tellisford Solutions')).toBe(
+      'Tamsin Okoro is not employed by Tellisford Solutions, so a delivery manager cannot put them forward. ' +
       'Somebody the firm does not employ needs their own consent and a bench listing — ask a recruiter, a resource manager or the account manager to submit them.'
     )
   })

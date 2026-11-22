@@ -27,8 +27,8 @@ import { GET as compliance } from '@/app/api/compliance/route'
  *
  * It did not. The demo route resumed whatever workspace the cookie
  * already held regardless of which seat had just been picked, so the
- * first click seated a visitor as Oxford Corp and every later click —
- * MSP, integrator, prime, bench — silently put them back in Oxford
+ * first click seated a visitor as Orlestone Corp and every later click —
+ * MSP, integrator, prime, bench — silently put them back in Orlestone
  * Corp's book. The seat picker was a form whose answer was thrown away,
  * and the founder's report was exactly right: "it shows Oxford client
  * for everything".
@@ -218,21 +218,21 @@ describe('every seat on the demo page opens', () => {
     }
   })
 
-  it('seats the visitor at Teleworld Solutions, an integrator, and nowhere else', async () => {
-    const { body } = await sit('world-teleworld')
-    expect(body.companyName).toBe('Teleworld Solutions')
+  it('seats the visitor at Tellisford Solutions, an integrator, and nowhere else', async () => {
+    const { body } = await sit('world-tellisford')
+    expect(body.companyName).toBe('Tellisford Solutions')
     expect(body.kind).toBe('GSI')
   })
 
   it('puts them at the delivery manager’s desk, because that is the desk that submits', async () => {
-    const { body, cookie } = await sit('world-teleworld')
-    expect(body.companyName).toBe('Teleworld Solutions')
+    const { body, cookie } = await sit('world-tellisford')
+    expect(body.companyName).toBe('Tellisford Solutions')
     const who = await whoIsSitting(cookie!)
     expect(who).toBe('Sunil Raghavan')
   })
 
   it('lands that desk in Ask Etyme, which the integrator’s own navigation draws first (founder, 2026-10-12)', async () => {
-    const { body } = await sit('world-teleworld')
+    const { body } = await sit('world-tellisford')
     const menu = getNavForKind('GSI', false)
     const hrefs = [...pinnedOn(menu), ...menu.flatMap((s) => s.items)].map((i) => i.href)
     expect(hrefs, `landed on ${body.landing}`).toContain(body.landing)
@@ -240,7 +240,7 @@ describe('every seat on the demo page opens', () => {
   })
 
   it('shows that desk Karthik, Amara, Felix and Deepa under “On our payroll”', async () => {
-    as('world-teleworld@demo.etyme.local')
+    as('world-tellisford@demo.etyme.local')
     const r = await json(await ownPeople(req('GET', '/api/submissions/own-people')))
     const names = r.body.data.people.map((p: any) => p.name)
     for (const name of ['Karthik Menon', 'Amara Nwosu', 'Felix Brenner', 'Deepa Varma']) {
@@ -249,39 +249,39 @@ describe('every seat on the demo page opens', () => {
   })
 
   it('has an open client role on the same form for one of them to be submitted to', async () => {
-    as('world-teleworld@demo.etyme.local')
+    as('world-tellisford@demo.etyme.local')
     const r = await json(await requirements(req('GET', '/api/requirements?status=OPEN&limit=50')))
     const titles = (r.body.data?.requirements ?? []).map((x: any) => x.title)
     expect(titles, JSON.stringify(titles)).toContain('DO-178C verification engineer')
   })
 
-  it('seats Sundara Systems at its own delivery manager, never at Teleworld’s', async () => {
+  it('seats Sundara Systems at its own delivery manager, never at Tellisford’s', async () => {
     const { body, cookie } = await sit('world-sundara')
     expect(body.companyName).toBe('Sundara Systems')
     expect(body.kind).toBe('GSI')
     expect(await whoIsSitting(cookie!)).toBe('Lakshmi Iyer')
   })
 
-  it('asking for the AP desk at Techpeple says nobody holds AP & Payroll there and names the desks that are seated, owner first', async () => {
-    // Techpeple is a bench firm of three: an owner, a recruiter and a
+  it('asking for the AP desk at Tecwyn says nobody holds AP & Payroll there and names the desks that are seated, owner first', async () => {
+    // Tecwyn is a bench firm of three: an owner, a recruiter and a
     // resource manager. It pays nobody below it, so it has no AP desk.
-    const res = await demo(req('POST', '/api/demo', { as: 'world-techpeple', desk: 'ap' }) as NextRequest)
+    const res = await demo(req('POST', '/api/demo', { as: 'world-tecwyn', desk: 'ap' }) as NextRequest)
     expect(res.status).toBe(404)
     const err = (await res.json()).error
-    expect(err.message).toMatch(/^Nobody holds the AP & Payroll role at Techpeple in the demo; these roles are seated: Owner/)
+    expect(err.message).toMatch(/^Nobody holds the AP & Payroll role at Tecwyn in the demo; these roles are seated: Owner/)
     expect(err.message).toContain('Recruiter')
     expect(err.message).toContain('Resource Manager')
     expect(err.message).not.toMatch(/nobody is seated/i)
     // And the door the sentence points at does open.
-    const { body } = await sit('world-techpeple')
-    expect(body.companyName).toBe('Techpeple')
+    const { body } = await sit('world-tecwyn')
+    expect(body.companyName).toBe('Tecwyn')
   })
 
-  it('asking for the AP desk at Teleworld seats its AP & Payroll clerk, because an integrator pays the firms below it', async () => {
-    const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'ap' }) as NextRequest)
+  it('asking for the AP desk at Tellisford seats its AP & Payroll clerk, because an integrator pays the firms below it', async () => {
+    const res = await demo(req('POST', '/api/demo', { as: 'world-tellisford', desk: 'ap' }) as NextRequest)
     expect(res.status).toBe(200)
     const body = (await res.json()).data
-    expect(body.companyName).toBe('Teleworld Solutions')
+    expect(body.companyName).toBe('Tellisford Solutions')
     expect(body.role).toBe('AP & Payroll')
     const m = new RegExp(`${DEMO_COOKIE}=([^;]+)`).exec(res.headers.get('set-cookie') ?? '')
     expect(await whoIsSitting(m![1])).toBe('Ravi Kalathil')
@@ -299,11 +299,11 @@ describe('every seat on the demo page opens', () => {
     }
   })
 
-  it('the demo door seats a delivery manager — each of Teleworld’s two, by name, on the firm’s own bench', async () => {
-    const delivery = INTEGRATOR_SEATS.find((s) => s.slug === 'world-teleworld')!.desks!.filter((d) => d.desk === 'delivery')
-    expect(delivery.map((d) => d.who)).toEqual(['Ingrid Solberg', 'Rahul Deshpande'])
+  it('the demo door seats a delivery manager — each of Tellisford’s two, by name, on the firm’s own bench', async () => {
+    const delivery = INTEGRATOR_SEATS.find((s) => s.slug === 'world-tellisford')!.desks!.filter((d) => d.desk === 'delivery')
+    expect(delivery.map((d) => d.who)).toEqual(['Ingrid Solberg', 'Rahul Dandekar'])
     for (const d of delivery) {
-      const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: d.desk, who: d.who }) as NextRequest)
+      const res = await demo(req('POST', '/api/demo', { as: 'world-tellisford', desk: d.desk, who: d.who }) as NextRequest)
       expect(res.status, d.who).toBe(200)
       const body = (await res.json()).data
       expect(body.role).toBe('Delivery Manager')
@@ -315,30 +315,30 @@ describe('every seat on the demo page opens', () => {
     }
   })
 
-  it('the Teleworld door says how many days ago Karthik left, read from his last contract on the record', async () => {
+  it('the Tellisford door says how many days ago Karthik left, read from his last contract on the record', async () => {
     const { karthikLastDay } = await import('@/app/demo/door-facts')
     const { fillDoors } = await import('@/app/demo/seats')
     const last = await karthikLastDay()
-    expect(last, 'Karthik Menon has no ended contract at Teleworld').not.toBeNull()
+    expect(last, 'Karthik Menon has no ended contract at Tellisford').not.toBeNull()
     const today = new Date()
-    const [door] = fillDoors(INTEGRATOR_SEATS.filter((s) => s.slug === 'world-teleworld'), { karthikLastDay: last }, today)
+    const [door] = fillDoors(INTEGRATOR_SEATS.filter((s) => s.slug === 'world-tellisford'), { karthikLastDay: last }, today)
     const days = Math.round((Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) -
       Date.UTC(last!.getUTCFullYear(), last!.getUTCMonth(), last!.getUTCDate())) / 86_400_000)
     expect(door.about).toContain(`Karthik left an avionics project ${days} days ago.`)
   })
 
   it('asking for somebody who does not hold the desk takes no seat, and names who does', async () => {
-    const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'delivery', who: 'Nobody Here' }) as NextRequest)
+    const res = await demo(req('POST', '/api/demo', { as: 'world-tellisford', desk: 'delivery', who: 'Nobody Here' }) as NextRequest)
     expect(res.status).toBe(404)
     expect(res.headers.get('set-cookie') ?? '').not.toContain(DEMO_COOKIE)
     const err = (await res.json()).error
-    expect(err.message).toMatch(/^Nobody Here does not hold the Delivery Manager role at Teleworld Solutions in the demo, so no seat was taken\./)
+    expect(err.message).toMatch(/^Nobody Here does not hold the Delivery Manager role at Tellisford Solutions in the demo, so no seat was taken\./)
     expect(err.message).toContain('Ingrid Solberg')
-    expect(err.message).toContain('Rahul Deshpande')
+    expect(err.message).toContain('Rahul Dandekar')
   })
 
   it('asking for a desk that does not exist takes no seat at all, rather than sitting the visitor as the Owner', async () => {
-    const res = await demo(req('POST', '/api/demo', { as: 'world-teleworld', desk: 'owner' }) as NextRequest)
+    const res = await demo(req('POST', '/api/demo', { as: 'world-tellisford', desk: 'owner' }) as NextRequest)
     expect(res.status).toBe(400)
     expect(res.headers.get('set-cookie') ?? '').not.toContain(DEMO_COOKIE)
     const err = (await res.json()).error
@@ -702,7 +702,7 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
     // client's compliance desk.
     expect(PROGRAM_OFFICE_SEATS).toHaveLength(2)
     expect(ALL_SEATS.map((s) => s.slug)).toContain('world-aptiva')
-    expect(ALL_SEATS.map((s) => s.slug)).toContain('world-techpeple')
+    expect(ALL_SEATS.map((s) => s.slug)).toContain('world-tecwyn')
   })
 
   it('names something waiting on both sides of every supplying firm’s book, not only on the side it sells from', () => {
@@ -782,24 +782,24 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
   }, 30_000)
 
   it('gives the sub-vendor a prime above it and its own consultant below, and never the prime’s client', async () => {
-    const techpeple = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
+    const tecwyn = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
     const harlow = await prisma.company.findFirstOrThrow({ where: { slug: 'world-harlow-health' } })
     // It sells to the prime, never to the hospital.
-    const sells = await prisma.sellContract.findMany({ where: { companyId: techpeple.id } })
+    const sells = await prisma.sellContract.findMany({ where: { companyId: tecwyn.id } })
     expect(sells.length).toBeGreaterThan(0)
     for (const s of sells) {
       expect(s.clientCompanyId, 'a sub-vendor billing the client directly').not.toBe(harlow.id)
     }
     // And a paper it is chasing its own consultant for.
     const asked = await prisma.docInstance.findMany({
-      where: { template: { companyId: techpeple.id }, status: 'SENT' },
+      where: { template: { companyId: tecwyn.id }, status: 'SENT' },
       include: { template: true },
     })
     expect(asked.length, 'a bench vendor chasing nobody for anything').toBeGreaterThan(0)
   })
 
   it('leaves the prime and the integrator a bill from the firm below, so the buy side of each is not an empty page', async () => {
-    for (const slug of ['world-computer-systems', 'world-teleworld']) {
+    for (const slug of ['world-computer-systems', 'world-tellisford']) {
       const co = await prisma.company.findFirstOrThrow({ where: { slug } })
       const bills = await prisma.vendorBill.findMany({ where: { companyId: co.id, paidAt: null } })
       expect(bills.length, `${slug} owes nobody anything`).toBeGreaterThan(0)

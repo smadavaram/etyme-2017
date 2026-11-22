@@ -126,8 +126,8 @@ describe('a visa petition on the bench, filing to running out', () => {
     // The payroll half still offers the people a firm employs and the work
     // names, having granted nothing: a firm files a petition for somebody
     // it employs, and a BenchListing is consent to be marketed, which is a
-    // different question. Teleworld's W2s are on placements.
-    as('world-teleworld@demo.etyme.local')
+    // different question. Tellisford's W2s are on placements.
+    as('world-tellisford@demo.etyme.local')
     const twBench = await json(await bench(req('GET', '/api/bench?scope=company')))
     const twPayroll = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     const tw = peopleOnBooks(readBench(twBench.body), twPayroll.body)

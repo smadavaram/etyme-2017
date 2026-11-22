@@ -54,7 +54,7 @@ import { demoEmail } from '@/lib/password'
  *
  * It lives on this route because it is the same screen's question — a
  * delivery manager at an integrator opens Bench to find out who is free,
- * and at that firm the answer is mostly its own payroll. Teleworld
+ * and at that firm the answer is mostly its own payroll. Tellisford
  * Solutions holds five live EMPLOYEE seats and read "TOTAL 0
  * consultants" on its own Consultants page, because every talent surface
  * read listings.

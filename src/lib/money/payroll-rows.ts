@@ -5,7 +5,7 @@
  * Found by a browser walk of the seeded world on 2026-09-30:
  *
  * - The screen read active contracts only. Karthik Menon worked June to
- *   August for Teleworld, was paid for all three months, and the screen
+ *   August for Tellisford, was paid for all three months, and the screen
  *   said "W-2 employees 0" for every one of them, because his placement
  *   had ended by the time anybody looked. A placement that ended is still
  *   on the runs for the periods it worked.

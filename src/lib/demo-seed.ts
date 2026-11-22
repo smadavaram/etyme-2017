@@ -38,8 +38,8 @@ import { defaultPostureFor } from '@/lib/walls'
 export const DEMO_DAYS = 30
 
 const CONSULTANTS = [
-  { name: 'Anita Desai', headline: 'ERP Finance Lead', skills: ['ERP finance', 'General ledger', 'ABAP'], rate: 11000, location: 'Denver, CO', auth: 'US_CITIZEN' },
-  { name: 'Ravi Patel', headline: 'Senior Billing Systems Consultant', skills: ['Convergent invoicing', 'Revenue Accounting', 'Billing systems'], rate: 12500, location: 'Remote', auth: 'H1B' },
+  { name: 'Anita Dalvi', headline: 'ERP Finance Lead', skills: ['ERP finance', 'General ledger', 'ABAP'], rate: 11000, location: 'Denver, CO', auth: 'US_CITIZEN' },
+  { name: 'Ravi Purohit', headline: 'Senior Billing Systems Consultant', skills: ['Convergent invoicing', 'Revenue Accounting', 'Billing systems'], rate: 12500, location: 'Remote', auth: 'H1B' },
   { name: 'Meera Krishnan', headline: 'Data Engineer', skills: ['Cloud data warehouse', 'Python', 'Databricks'], rate: 9500, location: 'Austin, TX', auth: 'GC' },
   { name: 'David Chen', headline: 'DevOps / SRE', skills: ['Kubernetes', 'Terraform', 'AWS'], rate: 10500, location: 'Remote', auth: 'US_CITIZEN' },
   { name: 'Priya Sharma', headline: 'Azure Cloud Architect', skills: ['Azure', 'Terraform', '.NET'], rate: 13000, location: 'Dallas, TX', auth: 'US_CITIZEN' },

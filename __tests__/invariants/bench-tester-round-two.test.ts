@@ -156,20 +156,20 @@ describe('8 · only a placement is a move', () => {
 describe('9 · a person put forward reads the client’s name where the client belongs', () => {
   it('Karthik reads Corveldt Aerospace as the client and the job as the job, once each', () => {
     const n = personNotice('MOVE', {
-      personName: '', firmName: 'Teleworld Solutions', actorName: 'Ingrid Solberg',
+      personName: '', firmName: 'Tellisford Solutions', actorName: 'Ingrid Solberg',
       forTitle: 'DO-178C verification engineer', toClient: 'Corveldt Aerospace', toCity: 'Wichita', movedAs: 'SUBMISSION',
     })
     expect(n.title).toBe('You are put forward to Corveldt Aerospace in Wichita')
     expect(n.body).toBe(
-      'Teleworld Solutions has put you forward to Corveldt Aerospace for DO-178C verification engineer, as its own employee. ' +
-        'You start there only if Corveldt Aerospace chooses you; your employer stays Teleworld Solutions.'
+      'Tellisford Solutions has put you forward to Corveldt Aerospace for DO-178C verification engineer, as its own employee. ' +
+        'You start there only if Corveldt Aerospace chooses you; your employer stays Tellisford Solutions.'
     )
   })
 
   it('a hold’s title that already names the client is not given the client twice', () => {
     expect(jobOnly('ERP finance migration at Harlow Health', 'Harlow Health')).toBe('ERP finance migration')
     const n = hrNotice('MOVE', {
-      personName: 'Amara Nwosu', firmName: 'Teleworld Solutions', actorName: 'Rahul Deshpande',
+      personName: 'Amara Nwosu', firmName: 'Tellisford Solutions', actorName: 'Rahul Dandekar',
       forTitle: 'ERP finance migration at Harlow Health', toClient: 'Harlow Health', toCity: 'San Jose',
       startsOn: d('2026-11-15'), movedAs: 'LINE',
     })
@@ -303,8 +303,8 @@ describe('15 · keeping somebody past their contract says the gap', () => {
 
 describe('17 · adding a consultant says what it did, and one set of words for the tiers', () => {
   it('adding somebody says the ask went by email and that nobody is put forward until they say yes', () => {
-    expect(addedSays({ name: 'Rhea Castellano', firm: 'Techpeple', tier: 'MARKETING', emailed: true })).toBe(
-      'Rhea Castellano is added. Techpeple has emailed them to ask if they will join its bench. ' +
+    expect(addedSays({ name: 'Rhea Castellano', firm: 'Tecwyn', tier: 'MARKETING', emailed: true })).toBe(
+      'Rhea Castellano is added. Tecwyn has emailed them to ask if they will join its bench. ' +
         'Once they say yes they are shown to your partners. Nobody is put forward until they say yes.'
     )
   })
@@ -388,7 +388,7 @@ describe('22 · the Reserve list names each job once', () => {
   it('a firm’s own resold copy is dropped where the job it was sent is on the list', () => {
     const reqs = [
       { id: 'corveldt', mirroredFromId: null },
-      { id: 'teleworld-copy', mirroredFromId: 'corveldt' },
+      { id: 'tellisford-copy', mirroredFromId: 'corveldt' },
       { id: 'other', mirroredFromId: 'not-sent-to-us' },
     ]
     expect(onePerJob(reqs).map((r) => r.id)).toEqual(['corveldt', 'other'])
@@ -403,7 +403,7 @@ describe('23 · the small words', () => {
   })
 
   it('a firm’s name ending in s takes the apostrophe alone', () => {
-    expect(possessive('Teleworld Solutions')).toBe('Teleworld Solutions’')
+    expect(possessive('Tellisford Solutions')).toBe('Tellisford Solutions’')
     expect(possessive('Harlow Health')).toBe('Harlow Health’s')
     expect(src('src/app/dashboard/bench/our-bench.tsx')).toContain('{possessive(firmName)} managers')
   })

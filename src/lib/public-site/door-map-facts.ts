@@ -102,8 +102,8 @@ export const NO_FACTS: DoorFacts = { firm: null, receipt: null }
 
 /** The doors with live figures, and whose book and which invoice each reads. */
 export const LIVE_READS = {
-  integrators: { firm: 'world-teleworld', receipt: BILLS_FROM_BELOW.nimbus },
-  suppliers: { firm: 'world-brightmoor', receipt: BILLS_FROM_BELOW.techpeple },
+  integrators: { firm: 'world-tellisford', receipt: BILLS_FROM_BELOW.nimbus },
+  suppliers: { firm: 'world-brightmoor', receipt: BILLS_FROM_BELOW.tecwyn },
 } as const
 
 /**

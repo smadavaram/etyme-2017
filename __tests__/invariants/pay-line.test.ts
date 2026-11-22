@@ -132,8 +132,8 @@ describe('who the law’s forty does not reach', () => {
       expect(line).toMatchObject({ afterHours: null, reason: 'US_UNCONFIRMED' })
     }
     const line = payLineFor({ ...base, where: { ...US, entityCountry: 'IN', payCurrency: 'INR' } })
-    expect(payLineSays(line, { personName: 'Karthik Menon', employerName: 'Teleworld' }, weeklyWorked(FORTY_FIVE))).toContain(
-      "Teleworld's record says US wage law governs Karthik Menon's pay, but the entity that pays is in India and pay is in INR, " +
+    expect(payLineSays(line, { personName: 'Karthik Menon', employerName: 'Tellisford' }, weeklyWorked(FORTY_FIVE))).toContain(
+      "Tellisford's record says US wage law governs Karthik Menon's pay, but the entity that pays is in India and pay is in INR, " +
         "so the US 40-hour overtime line is not applied until somebody records which country's rules govern."
     )
   })
@@ -142,7 +142,7 @@ describe('who the law’s forty does not reach', () => {
     // Walk, 2026-11-17: the sentence above once read "every hour is paid at straight time" for a site in India.
     const line = payLineFor({ ...base, where: { ...US, siteCountry: 'IN', payCurrency: 'INR' } })
     expect(line.heldAbroad).toBe('India')
-    const says = payLineSays(line, { personName: 'Karthik Menon', employerName: 'Teleworld' }, weeklyWorked(FORTY_FIVE))!
+    const says = payLineSays(line, { personName: 'Karthik Menon', employerName: 'Tellisford' }, weeklyWorked(FORTY_FIVE))!
     expect(says).toContain('Etyme has no overtime rule recorded for India')
     expect(says).not.toContain('straight time')
   })
@@ -268,7 +268,7 @@ describe('overtime a client was billed and the worker was not paid, because nobo
   it('two currencies are said side by side and never added', () => {
     const r = overtimeNotPaid([
       { timesheetId: 't1', personName: 'Omar Haddad', currency: 'USD', premiumMinor: 33_000, weeks: ['2026-09-06'] },
-      { timesheetId: 't2', personName: 'Priya Raman', currency: 'INR', premiumMinor: 900_000, weeks: ['2026-09-06'] },
+      { timesheetId: 't2', personName: 'Priya Ramesh', currency: 'INR', premiumMinor: 900_000, weeks: ['2026-09-06'] },
     ])
     expect(r.totals).toEqual([{ currency: 'USD', amountMinor: 33_000 }, { currency: 'INR', amountMinor: 900_000 }])
     expect(r.says).toMatch(/\$330\.00 and ₹9,000(\.00)? of premium/)

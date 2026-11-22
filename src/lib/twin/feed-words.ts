@@ -136,7 +136,7 @@ const text = (x: string | null | undefined): string | null => (typeof x === 'str
 /**
  * The notice that puts the twin's question to a person, as one question
  * in the trade's words: who and what, never "Ask Etyme is asking you to
- * decide" (handoffs station, 2026-10-20). "Pay Techpeple’s invoice
+ * decide" (handoffs station, 2026-10-20). "Pay Tecwyn’s invoice
  * INV-1042?", "Send bill INV-2209 to Northbend Athletic?". A fact the
  * ledger does not carry is left out of the sentence, never guessed. Pure.
  */

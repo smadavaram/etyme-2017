@@ -16,22 +16,22 @@ import { corvaneSeatEmail } from '@/lib/seed-corvane'
  */
 
 const CORVANE_OWNER = corvaneSeatEmail('owner', 'demo.etyme.local')
-const TECHPEPLE = 'world-techpeple@demo.etyme.local'
+const TECWYN = 'world-tecwyn@demo.etyme.local'
 let corvaneId = ''
-let techpepleId = ''
+let tecwynId = ''
 
 async function listFor(name: string, email: string) {
   const person = await prisma.person.create({ data: { name, primaryEmail: email } })
   const profile = await prisma.consultantProfile.create({ data: { personId: person.id, skills: ['Validation'] } })
   return prisma.benchListing.create({
-    data: { consultantId: profile.id, companyId: techpepleId, tier: 'MARKETING', state: 'INVITED', invitedAt: new Date() },
+    data: { consultantId: profile.id, companyId: tecwynId, tier: 'MARKETING', state: 'INVITED', invitedAt: new Date() },
   })
 }
 
 beforeAll(async () => {
   await freshWorld()
   corvaneId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-corvane' }, select: { id: true } })).id
-  techpepleId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })).id
+  tecwynId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' }, select: { id: true } })).id
 }, 600_000)
 
 describe('Supplier scorecards on the seeded client, which has contracts and has sent no job on Etyme', () => {
@@ -81,7 +81,7 @@ describe('A sample person on Bench', () => {
   it('the bench route marks somebody at an address no email can reach as a sample person, and somebody reachable as not', async () => {
     const sample = await listFor('Lena Marsh', 'lena.marsh@northwind-staffing.example')
     const reachable = await listFor('Tomas Ruel', 'tomas.ruel@harborline-tech.test')
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await bench(req('GET', '/api/bench?scope=company') as NextRequest))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const reading = readBench(r.body)

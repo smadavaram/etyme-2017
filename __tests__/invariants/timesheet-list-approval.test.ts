@@ -10,7 +10,7 @@ import {
  * keep").
  *
  * Helena Marsh works at Northbend Athletic. Northbend pays Computer
- * Systems Inc; Computer Systems buys her from Techpeple, which employs her.
+ * Systems Inc; Computer Systems buys her from Tecwyn, which employs her.
  * Northbend's approver may be told Computer Systems and nobody below it.
  */
 
@@ -32,7 +32,7 @@ describe('who asked for the letter to the client’s approver', () => {
     expect(l.body).toContain(
       'Helena Marsh’s supplier asked us to send you the week to approve. If anything in it looks wrong, ask Computer Systems Inc.'
     )
-    expect(l.body).not.toContain('Techpeple')
+    expect(l.body).not.toContain('Tecwyn')
     expect(l.body).not.toContain('timesheet desk')
     expect(l.body).not.toContain('side of this placement')
   })
@@ -57,8 +57,8 @@ describe('who asked for the letter to the client’s approver', () => {
   })
 
   it('the sentence that says who asked is one sentence for each case', () => {
-    expect(whoAskedSentence({ kind: 'NAMED', name: 'Priya Raman', firm: 'Computer Systems Inc' }, 'Helena Marsh'))
-      .toBe('Priya Raman at Computer Systems Inc asked us to send you the week to approve.')
+    expect(whoAskedSentence({ kind: 'NAMED', name: 'Priya Ramesh', firm: 'Computer Systems Inc' }, 'Helena Marsh'))
+      .toBe('Priya Ramesh at Computer Systems Inc asked us to send you the week to approve.')
   })
 })
 

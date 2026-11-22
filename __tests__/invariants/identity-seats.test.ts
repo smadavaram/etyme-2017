@@ -55,7 +55,7 @@ const prisma: any = {
       seatRow('ctx-priya', 'p-priya', ['timesheets.read'], true),
     ]),
     findUnique: vi.fn(async () => ({
-      person: { id: 'p-priya', name: 'Priya Raman', primaryEmail: 'priya@corvane.example' },
+      person: { id: 'p-priya', name: 'Priya Ramesh', primaryEmail: 'priya@corvane.example' },
       role: { name: 'HR' },
     })),
     update: vi.fn(async () => { timeline.push('context.update'); return {} }),
@@ -196,7 +196,7 @@ describe('taking a seat away ends the person’s sessions when it was their last
       expect(r).toMatchObject({ actorCompanyId: 'corvane', actorPersonId: 'p-owner', subjectId: 'p-priya', allowed: true })
       expect(readIdentityReason(r.reason), r.action).toMatchObject({ policy: 'HYBRID', surface: 'WEB' })
     }
-    expect(readIdentityReason(rows[0].reason)!.says).toContain('Margaret Osei ended Priya Raman’s seat at Corvane Packaging (HR): Left the company'.replace('’', "'"))
+    expect(readIdentityReason(rows[0].reason)!.says).toContain('Margaret Osei ended Priya Ramesh’s seat at Corvane Packaging (HR): Left the company'.replace('’', "'"))
   })
 
   it('putting a seat back writes no identity event and ends nothing', async () => {

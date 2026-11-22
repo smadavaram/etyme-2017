@@ -17,7 +17,7 @@ import { MIN_REASON } from '@/lib/overtime-method-choice'
  * reader; the arithmetic is money's.
  */
 
-const payer = { mayReadCost: true, isPayer: true, personName: 'Priya Natarajan' }
+const payer = { mayReadCost: true, isPayer: true, personName: 'Priya Nagarkar' }
 
 describe('choosing how overtime is paid when fewer hours are accepted', () => {
   it("a firm's choice to keep a cut week's overtime is recorded with who chose it, when and why", () => {
@@ -40,7 +40,7 @@ describe('choosing how overtime is paid when fewer hours are accepted', () => {
       if (v.ok) continue
       expect(v.status).toBe(422)
       expect(v.field).toBe('reason')
-      expect(v.says).toContain("Say why Priya Natarajan should keep the week's overtime when fewer hours are accepted.")
+      expect(v.says).toContain("Say why Priya Nagarkar should keep the week's overtime when fewer hours are accepted.")
     }
     expect('because'.length).toBeLessThan(MIN_REASON)
   })
@@ -64,7 +64,7 @@ describe('choosing how overtime is paid when fewer hours are accepted', () => {
     expect(v.ok).toBe(false)
     if (v.ok) return
     expect(v.status).toBe(403)
-    expect(v.says).toBe('Only the firm that pays Priya Natarajan can choose how their overtime is paid when fewer hours are accepted.')
+    expect(v.says).toBe('Only the firm that pays Priya Nagarkar can choose how their overtime is paid when fewer hours are accepted.')
   })
 
   it('a choice that is neither of the two is refused, and the two are named', () => {

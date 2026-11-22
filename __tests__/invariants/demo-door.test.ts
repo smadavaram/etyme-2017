@@ -82,7 +82,7 @@ describe('the demo door opens on the client', () => {
   })
 
   it('shows four suppliers before the fold and keeps every other firm and every person one click away under it', () => {
-    expect(FIRST_SUPPLIERS).toEqual(['world-brightmoor', 'world-computer-systems', 'world-techpeple', 'world-sorrelwood'])
+    expect(FIRST_SUPPLIERS).toEqual(['world-brightmoor', 'world-computer-systems', 'world-tecwyn', 'world-sorrelwood'])
     for (const slug of FIRST_SUPPLIERS) expect(SUPPLIER_SEATS.map((s) => s.slug)).toContain(slug)
     // The fold draws every supplier not shown above it, both MSPs, both
     // integrators and all six people: a cut of words, never of doors.
@@ -136,7 +136,7 @@ describe('the desks on a client door', () => {
       ...CLIENT_DESKS.map((d) => d.desk),
       ...SUPPLIER_DESKS.map((d) => d.desk),
       // And a firm door's own row, where it seats more than one desk —
-      // Teleworld's delivery manager since 2026-10-03.
+      // Tellisford's delivery manager since 2026-10-03.
       ...[...SUPPLIER_SEATS, ...PROGRAM_OFFICE_SEATS, ...INTEGRATOR_SEATS].flatMap((f) => (f.desks ?? []).map((d) => d.desk)),
     ])
     for (const desk of known.filter((d) => !WAITING_FOR_A_DOOR.includes(d))) {

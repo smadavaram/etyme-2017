@@ -42,7 +42,7 @@ const PROCUREMENT = `world-nike-procurement${D}`
 
 let brightmoor = ''
 let isDemo = false
-let techpeple = ''
+let tecwyn = ''
 let stranger = ''
 let jobId = ''
 
@@ -68,7 +68,7 @@ beforeAll(async () => {
   const b = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true, isDemo: true } })
   brightmoor = b.id
   isDemo = b.isDemo
-  techpeple = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })).id
+  tecwyn = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' }, select: { id: true } })).id
   // A firm that signed up on its own and has never dealt with Brightmoor or Northbend.
   stranger = (await prisma.company.create({
     data: { name: 'Hollowell Talent', slug: `hollowell-talent-${Date.now()}`, kind: 'VENDOR', currency: 'USD', claimedAt: new Date(), isDemo } as any,
@@ -274,18 +274,18 @@ describe('a firm on Etyme is never tied to you from your side alone, on the dema
   })
 
   it('a job cannot be sent to a firm on the seeded world the sender has never traded with', async () => {
-    // Techpeple has never traded with Brightmoor on the seeded world.
+    // Tecwyn has never traded with Brightmoor on the seeded world.
     as(OWNER)
-    const r = await send([{ companyId: techpeple }])
+    const r = await send([{ companyId: tecwyn }])
     expect(r.status).toBe(403)
-    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: techpeple, requirementId: jobId } })).toBe(0)
+    expect(await prisma.requirementInvitation.count({ where: { toCompanyId: tecwyn, requirementId: jobId } })).toBe(0)
   })
 
   it('a person cannot be sent on to a firm on Etyme the sender does not deal with: answered as no company by that id, logged first, and nothing lands on that firm’s books', async () => {
     as(OWNER)
     const person = await prisma.person.create({ data: { name: 'Wren Castellane', primaryEmail: 'wren.castellane.walk@example.invalid' } })
     const sub = await prisma.submission.create({
-      data: { requirementId: jobId, personId: person.id, fromCompanyId: techpeple, toCompanyId: brightmoor, rate: 9000, status: 'SUBMITTED', kind: 'NETWORK' },
+      data: { requirementId: jobId, personId: person.id, fromCompanyId: tecwyn, toCompanyId: brightmoor, rate: 9000, status: 'SUBMITTED', kind: 'NETWORK' },
       select: { id: true },
     })
     const before = await refusalsAbout(stranger)

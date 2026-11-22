@@ -97,7 +97,7 @@ function finding(who, url, why, detail) {
  *
  * Nothing sticks out, so the overflow check passes — but the page head
  * is a desktop row (title left, actions right) that never stacks, and on
- * a phone the title gets whatever is left after the buttons: "Oxford
+ * a phone the title gets whatever is left after the buttons: "Orlestone
  * Corp" on two lines and its subtitle one word per line. The prototype
  * stacks these (.split → column under 900px). Reported when the first
  * heading's column is under two thirds of the row it sits in and the

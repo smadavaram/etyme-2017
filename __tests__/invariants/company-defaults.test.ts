@@ -185,12 +185,12 @@ describe('guessing the country from the email domain', () => {
 
 describe('the whole starting kit', () => {
   it('gives a US vendor a pack, a holiday calendar, roles and a location', () => {
-    const d = defaultsFor('VENDOR', 'Techpeple Inc.', 'techpeple.example')
+    const d = defaultsFor('VENDOR', 'Tecwyn Inc.', 'tecwyn.example')
     expect(d.templatePack).toBe('US_IT')
     expect(d.country).toBe('US')
     expect(d.seedHolidays).toBe(true)
     expect(d.roles.length).toBeGreaterThan(1)
-    expect(d.primaryLocationName).toContain('Techpeple Inc.')
+    expect(d.primaryLocationName).toContain('Tecwyn Inc.')
   })
 
   it('seeds the right country’s calendar, not America’s', () => {

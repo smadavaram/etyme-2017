@@ -15,13 +15,17 @@
  * conversation (founder, 2026-10-18), which is personal information the
  * text did not name. The change is two cells of the table in section 3 and the
  * "Last updated" date, and nothing else.
+ *
+ * Published as final 2026-11-22, on the owner's word (record 110). The
+ * draft notice above the title came off, the effective date was set, and
+ * every bracketed point counsel had not decided came off the page: a
+ * fact inside one stays as a plain sentence, and a clause nobody has
+ * decided is not on the page at all. No answer was written for counsel.
  */
-export const DPA_SOURCE = `> **Notice:** This document is a draft and has not yet been reviewed by legal counsel. Text in square brackets marks a point counsel must decide before publication.
+export const DPA_SOURCE = `# Data Processing Addendum
 
-# Data Processing Addendum
-
-**Effective date:** [to be set on publication]
-**Last updated:** October 19, 2026
+**Effective date:** November 22, 2026
+**Last updated:** November 22, 2026
 
 This Data Processing Addendum ("DPA") forms part of the Terms of Service between Etyme Inc. ("Etyme", "we", "us") and the Customer that accepts it. Etyme's address is 3201 Yorktown Ave, Ste. 110B, Durham, NC 27713, and you can reach us at support@etyme.com.
 
@@ -37,8 +41,6 @@ This DPA covers how Etyme handles personal data in Customer Data when it provide
 
 The same information can fall under both. For example, a Worker keeps their own profile, and a Client reads that Worker's total time on its sites.
 
-[To be confirmed by counsel: whether Etyme acts as a processor, a controller, or both, for each kind of data. The rest of this DPA states the facts so that either answer can be applied without changing them. Where this DPA says "processor obligations", it describes what Etyme does for data it holds on a Customer's behalf.]
-
 ## 2. Subject matter, duration, nature and purpose
 
 | Item | Description |
@@ -47,8 +49,6 @@ The same information can fall under both. For example, a Worker keeps their own 
 | Duration | For as long as the Customer has an account, and after that for as long as the retention schedule in the Privacy Notice requires for each category. Some periods are minimums set by law and run for years. Some categories have no period set |
 | Nature | Storage, organization, retrieval, sharing with the other companies in the same engagement, and analysis for matching and compliance |
 | Purpose | To provide, secure and support the Services for the Customer |
-
-[To be confirmed by counsel: retention after termination.]
 
 ## 3. Categories of data subjects and personal data
 
@@ -62,19 +62,15 @@ The same information can fall under both. For example, a Worker keeps their own 
 
 **Sensitive data.** Work authorization type, visa petition history, I-9 and E-Verify records, background check, education check and drug screening results, and a bar recorded against a named person with a reason may be sensitive in some jurisdictions. Etyme holds checks as records that a check took place: who ran it, when, its reference and its expiry. Etyme runs none of these checks and does not reach a conclusion about the person.
 
-[To be confirmed by counsel: which of these are special category or sensitive data in each jurisdiction, and whether any may not be held in some places.]
-
 ## 4. Etyme's obligations
 
 ### 4.1 Instructions
 
 Etyme processes Customer Data to provide the Services as the Customer configures and uses them, and as described in the Terms of Service and Privacy Notice.
 
-[To be confirmed by counsel: the documented-instructions clause, and what Etyme does if it believes an instruction breaks the law.]
-
 ### 4.2 Confidentiality of personnel
 
-[To be confirmed: the confidentiality commitments Etyme's staff sign. None is recorded today.]
+No confidentiality commitment signed by Etyme's staff is recorded today.
 
 Etyme staff who open a named person's information through the Services are logged the same way as any other user.
 
@@ -86,9 +82,7 @@ Etyme maintains the measures in Annex B. Annex B also lists the measures that ar
 
 Etyme uses the sub-processors listed in Annex A. The list is kept up to date with the services the Services actually call.
 
-[To be confirmed by counsel: the notice period before Etyme adds or replaces a sub-processor, how notice is given, and the Customer's right to object.]
-
-[To be confirmed: the data processing agreements in place with each sub-processor. None is recorded today.]
+No data processing agreement with a sub-processor is recorded today.
 
 ### 4.5 Help with data subject requests
 
@@ -101,8 +95,6 @@ Etyme helps the Customer answer requests from individuals in these ways:
 - **Legal holds.** If the Customer places a legal hold that names the person, the erasure waits until the hold is lifted. The person is told a hold applies, without the Customer's case details.
 - **Refusals.** If part of a request cannot be met, the reason is recorded in plain words.
 - **Correction and objection** requests are handled by hand.
-
-[To be confirmed by counsel: the response time Etyme commits to when it assists the Customer.]
 
 ### 4.6 Personal data breaches
 
@@ -117,8 +109,6 @@ Each breach record includes:
 
 A deadline is empty until someone decides one applies. The Services do not set one by default. An automated check runs each night. It warns the responsible person a day before each deadline, and every day after a deadline is missed. A breach cannot be closed while a deadline has passed with no notice recorded.
 
-[To be confirmed by counsel: the period within which Etyme will notify the Customer of a breach, and what the notice will contain.]
-
 Not yet in place: a breach severity scale, a rehearsed breach response plan, and a named breach contact at each Customer held in advance.
 
 ### 4.7 Deletion or return at the end
@@ -126,8 +116,6 @@ Not yet in place: a breach severity scale, a rehearsed breach response plan, and
 A Customer can raise a request about its own records when it leaves, and the request carries a deadline like any other. The intended approach is to anonymize a departing Customer's company information rather than delete it, so records shared with other companies still add up. That step is not yet built.
 
 Etyme does not yet offer an automatic export of a Customer's data. Some records belong to more than one company, such as a contract between two companies or the days a Worker spent on a Client's site. Until it is decided which of these go with an export, Etyme will answer a return request by hand.
-
-[To be confirmed by counsel: the period for return and deletion after termination, and which shared records are returned.]
 
 ### 4.8 Audits
 
@@ -140,25 +128,9 @@ On request, Etyme can show the Customer:
 - the software code and its automated tests; and
 - a written description of its security controls and their gaps.
 
-[To be confirmed: whether Etyme will offer code review to Customers, and on what terms.]
-
-[To be confirmed by counsel: the Customer's audit rights, notice, frequency and cost.]
-
 ## 5. International transfers
 
 The Services run as a single system with one database. They do not keep data in a particular country or region.
-
-[To be confirmed: the country and region where Etyme's database and hosting run.]
-
-[To be confirmed by counsel: the transfer mechanism, such as standard contractual clauses or the UK addendum, or a regional deployment.]
-
-## 6. Liability
-
-[To be confirmed by counsel: how liability under this DPA relates to the limitation of liability in the Terms of Service.]
-
-## 7. Order of precedence and term
-
-[To be confirmed by counsel: order of precedence between this DPA, the Terms of Service and any standard contractual clauses, and the term of this DPA.]
 
 ---
 
@@ -168,13 +140,13 @@ A service marked "where set up" is used only if it is configured.
 
 | Sub-processor | Purpose | Personal data it receives |
 |---|---|---|
-| Managed database host [to be named] | Stores all data in the Services, including resume files | All Customer Data |
+| Managed database host | Stores all data in the Services, including resume files | All Customer Data |
 | Vercel | Hosts the Services, runs scheduled jobs and runs page analytics on the public marketing pages | Everything in a page request and response, and standard request logs. For page analytics, page views of the public marketing pages |
 | Anthropic (where set up) | An outside service that reads text. Used to suggest matching jobs, check a resume against claimed skills, read imported files, draft public profile pages, and answer typed questions about a Customer's own data where that Customer has turned this on | For matching: a Worker's skills, location, work authorization type and date available; the name is never sent and the minimum rate is replaced by a placeholder. For a resume check: resume text and claimed skills. For an import: up to 60,000 characters of the file. For a profile page: the words on that page. For a typed question: the question and related entries, with names, rates, pay and amounts replaced by placeholders |
 | Resend or SendGrid (where set up) | Sends email | Name, email address and message content |
-| Mail server for sign-in links (where set up) [to be named] | Sends one-time sign-in links | Email address and the link |
+| Mail server for sign-in links (where set up) | Sends one-time sign-in links | Email address and the link |
 | Microsoft and Google (where set up) | Sign-in | Email address and the sign-in provider's account identifier |
-| Microsoft Teams (where set up) | Delivers notices and approval requests to a Customer's Teams channel or chat | The notice or request text, which may include a person's name and the item to approve [to be confirmed: listed as a sub-processor] |
+| Microsoft Teams (where set up) | Delivers notices and approval requests to a Customer's Teams channel or chat | The notice or request text, which may include a person's name and the item to approve |
 
 Notes:
 
@@ -215,5 +187,5 @@ Notes:
 10. No security headers beyond the hosting platform's defaults.
 11. No virus scanning of uploaded files.
 12. No named security officer, formal review of staff access, staff background checks, or security training.
-13. No live address for reporting security issues. [To be confirmed: security contact address.]
+13. No live address for reporting security issues.
 `

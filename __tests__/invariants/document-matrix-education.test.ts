@@ -13,7 +13,7 @@ describe('the documents matrix carries the education cases', () => {
       'every field right',
       'warned: a graduation year that has not come yet',
       'warned: a year the résumé contradicts',
-      'The certificate is in the name Anita Desai',
+      'The certificate is in the name Anita Dalvi',
       'warned: the same file already filed for somebody else',
       'WES’s verification recorded verbatim',
       'told in words',
@@ -35,7 +35,7 @@ describe('the documents matrix carries the education cases', () => {
   it('the sentence beside the paper is read from the route’s own answer, and HR records what is printed', () => {
     expect(degreeSaid({ ok: true, json: { data: { degree: { says: 'The certificate says 2028…' } } } })).toBe('The certificate says 2028…')
     expect(degreeSaid({ ok: true, json: { data: {} } })).toBeNull()
-    expect(printedFields({ name: 'Priya Raman', school: 'University of Pune', qualification: 'B.E.', year: 2016 }))
-      .toEqual({ institution: 'University of Pune', qualification: 'B.E.', nameOnDocument: 'Priya Raman', year: '2016' })
+    expect(printedFields({ name: 'Priya Ramesh', school: 'University of Pune', qualification: 'B.E.', year: 2016 }))
+      .toEqual({ institution: 'University of Pune', qualification: 'B.E.', nameOnDocument: 'Priya Ramesh', year: '2016' })
   })
 })

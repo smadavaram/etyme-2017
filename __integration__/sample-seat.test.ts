@@ -92,7 +92,7 @@ describe('the shared sample seat the home page frames', () => {
     for (const step of EMBED_STEPS) pages[step] = renderToStaticMarkup(await EmbedStepPage({ params: { step } }))
     expect(pages.overview).toContain('Helena Marsh')
     expect(pages.source).toContain('HCM integration lead')
-    expect(pages.source).toContain('Teleworld Solutions')
+    expect(pages.source).toContain('Tellisford Solutions')
     expect(pages.submit).toContain('Daniel Okafor')
     expect(pages.approve).toContain('Omar Haddad')
     expect(pages.approve).toContain('45h claimed on a 40h-a-week job.')

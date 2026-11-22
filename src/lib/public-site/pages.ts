@@ -26,7 +26,7 @@
 
 import { STEP_PAGES } from './docs/process'
 import { TOPICS, topicRoute } from './docs/topics'
-import { PARTY_PAGES } from './parties'
+import { PARTY_PAGES, SEGMENT_PAGES } from './parties'
 import { FOLDED } from './folded'
 
 export type PageKind =
@@ -120,6 +120,14 @@ export const PUBLIC_PAGES: PublicPage[] = [
     title: p.eyebrow,
     kind: 'PARTY' as const,
     routeFile: `${SITE_GROUP}${p.route}/page.tsx`,
+  })),
+
+  // The four segment pages of 2026-11-22: one tab of a door, at a plain address.
+  ...SEGMENT_PAGES.map((s) => ({
+    route: s.route,
+    title: s.eyebrow,
+    kind: 'PARTY' as const,
+    routeFile: `${SITE_GROUP}${s.route}/page.tsx`,
   })),
 
   { route: '/terms', title: 'Terms of service', kind: 'LEGAL', routeFile: 'src/app/terms/page.tsx' },

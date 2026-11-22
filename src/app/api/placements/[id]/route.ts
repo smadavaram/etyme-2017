@@ -422,7 +422,7 @@ export async function GET(
   //
   // The firm below the supplier, and their asking price, which is the
   // supplier's own cost. A client reading this thread was shown both —
-  // "Techpeple put them forward to you" over a rate that is the prime's
+  // "Tecwyn put them forward to you" over a rate that is the prime's
   // margin minus one subtraction. Not fetched at all unless the reader
   // is the firm that bought.
   const sentOnBy =
@@ -918,7 +918,7 @@ export async function GET(
     .then(async (doors) => {
       if (isSupplier) return doors
       // A reader above the supplier never reads a firm below it in a door
-      // (release pass 41: "Techpeple orders Drug screening" reached
+      // (release pass 41: "Tecwyn orders Drug screening" reached
       // Northbend). Every firm on the person's lines other than the
       // supplier it pays and itself is below, unless its agreement with
       // the prime names the sub (`shown`, the payload's one rule).

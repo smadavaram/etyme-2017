@@ -87,7 +87,8 @@ function ClassifyRow({ row, entity, hasEntities, onSaved }: { row: Row; entity: 
             </p>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        {/* At phone width the two boxes and Save stack under the name, one per line; side by side from a small tablet up. */}
+        <div className="flex w-full flex-col items-start gap-y-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
           <label className="inline-flex items-center gap-2 text-[13px] text-etyme-ink">
             <input type="checkbox" checked={customer} onChange={(e) => setCustomer(e.target.checked)} />
             {SAY_CUSTOMER}
@@ -102,9 +103,9 @@ function ClassifyRow({ row, entity, hasEntities, onSaved }: { row: Row; entity: 
         </div>
       </div>
       {/* Never a greyed button without words. */}
-      {nothing && <p className="mt-1 text-right text-[12px] text-etyme-faint">Tick one or both to save.</p>}
-      {!nothing && needsEntity && <p className="mt-1 text-right text-[12px] text-etyme-faint">Choose the legal entity at the top of the page to save.</p>}
-      {saved && <div className="mt-1 text-right"><FormMessage tone={saved.tone}>{saved.says}</FormMessage></div>}
+      {nothing && <p className="mt-1 sm:text-right text-[12px] text-etyme-faint">Tick one or both to save.</p>}
+      {!nothing && needsEntity && <p className="mt-1 sm:text-right text-[12px] text-etyme-faint">Choose the legal entity at the top of the page to save.</p>}
+      {saved && <div className="mt-1 sm:text-right"><FormMessage tone={saved.tone}>{saved.says}</FormMessage></div>}
     </li>
   )
 }

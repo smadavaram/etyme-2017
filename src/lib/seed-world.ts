@@ -2,20 +2,20 @@
  * One market, twenty firms, seen from every side.
  *
  * Every demo built a private five-company copy per visitor, so signing in
- * as Techpeple and signing in as Harlow Health showed two unrelated worlds
+ * as Tecwyn and signing in as Harlow Health showed two unrelated worlds
  * with the same placeholder names. Nothing lined up, because nothing was
  * the same data.
  *
- * This builds one world instead. A consultant Techpeple sourced sits at
+ * This builds one world instead. A consultant Tecwyn sourced sits at
  * Harlow Health through Computer Systems, and each of those three firms
  * sees its own true side of that one placement:
  *
  *   Harlow Health      a contractor on site, supplied by Computer
- *                      Systems, at $138/hr. It never learns Techpeple
+ *                      Systems, at $138/hr. It never learns Tecwyn
  *                      exists.
- *   Computer Systems   sells at $138, buys from Techpeple at $112,
+ *   Computer Systems   sells at $138, buys from Tecwyn at $112,
  *                      keeps $26.
- *   Techpeple           sells to Computer Systems at $112, pays the
+ *   Tecwyn           sells to Computer Systems at $112, pays the
  *                      consultant $86, keeps $26. It cannot see what
  *                      Harlow Health pays.
  *
@@ -107,11 +107,11 @@ export interface Firm {
   seatless?: true
 }
 /** The VP who owns the money at each client, by name. */
-const VP_NAMES: Record<string, string> = {'harlow-health': 'Marianne Cole', 'meridian-bank': 'Theo Lindsay', 'corveldt': 'Helga Brandt', 'nordway': 'Sigrid Hansen', 'nike': 'Dana Whitfield', 'corning': 'Robert Ashby', 'terumo-bct': 'Elena Vasquez'}
+const VP_NAMES: Record<string, string> = {'harlow-health': 'Marianne Cole', 'merrowfield-bank': 'Theo Lindsay', 'corveldt': 'Helga Brandt', 'nordway': 'Sigrid Hansen', 'nike': 'Dana Whitfield', 'corning': 'Robert Ashby', 'terumo-bct': 'Elena Vasquez'}
 
 export const FIRMS: readonly Firm[] = [
   { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Program manager', who: 'Grace Whitmore' },
-  { slug: 'meridian-bank',    name: 'Meridian Bank',        kind: 'CLIENT',  seat: 'Contingent program', who: 'Daniel Achebe' },
+  { slug: 'merrowfield-bank',    name: 'Merrowfield Bank',        kind: 'CLIENT',  seat: 'Contingent program', who: 'Daniel Achebe' },
   { slug: 'corveldt',         name: 'Corveldt Aerospace',   kind: 'CLIENT',  seat: 'Engineering resourcing', who: 'Ines Marquardt' },
   { slug: 'nordway',          name: 'Nordway Retail',       kind: 'CLIENT',  seat: 'Workforce office', who: 'Olav Brekke' },
 
@@ -124,9 +124,9 @@ export const FIRMS: readonly Firm[] = [
   { slug: 'terumo-bct',       name: 'Talvern Medical',      kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Naomi Feldman' },
 
   { slug: 'aptiva',           name: 'Aptiva Workforce',     kind: 'MSP',     seat: 'Program manager', who: 'Rashida Coleman' },
-  { slug: 'kestrel',          name: 'Kestrel MSP',          kind: 'MSP',     seat: 'Program manager', who: 'Piotr Zielinski' },
+  { slug: 'kestrel',          name: 'Kestrel MSP',          kind: 'MSP',     seat: 'Program manager', who: 'Piotr Zborowski' },
 
-  { slug: 'teleworld',        name: 'Teleworld Solutions',  kind: 'GSI',     seat: 'Delivery manager', who: 'Sunil Raghavan' },
+  { slug: 'tellisford',        name: 'Tellisford Solutions',  kind: 'GSI',     seat: 'Delivery manager', who: 'Sunil Raghavan' },
   { slug: 'sundara',          name: 'Sundara Systems',      kind: 'GSI',     seat: 'Delivery manager', who: 'Lakshmi Iyer' },
 
   { slug: 'computer-systems', name: 'Computer Systems Inc', kind: 'VENDOR',  seat: 'Account manager', who: 'Victor Hale' },
@@ -136,11 +136,11 @@ export const FIRMS: readonly Firm[] = [
   { slug: 'pinnacle',         name: 'Pinnacle Resourcing',  kind: 'VENDOR',  seat: 'Account manager', who: 'Ruth Calloway' },
   { slug: 'arcadia',          name: 'Arcadia Tech Group',   kind: 'VENDOR',  seat: 'Account manager', who: 'Owen Bradshaw' },
 
-  { slug: 'techpeple',         name: 'Techpeple',             kind: 'VENDOR',  seat: 'Bench sales', who: 'Bhavesh Nair' },
-  { slug: 'consultis',        name: 'Consultis',            kind: 'VENDOR',  seat: 'Bench sales', who: 'Teresa Lindqvist' },
+  { slug: 'tecwyn',         name: 'Tecwyn',             kind: 'VENDOR',  seat: 'Bench sales', who: 'Bhavesh Nair' },
+  { slug: 'conisby',        name: 'Conisby',            kind: 'VENDOR',  seat: 'Bench sales', who: 'Teresa Lindqvist' },
   { slug: 'nimbus',           name: 'Nimbus Talent',        kind: 'VENDOR',  seat: 'Bench sales', who: 'Kofi Asante' },
   { slug: 'sahasra',          name: 'Sahasra Infotech',     kind: 'VENDOR',  seat: 'Bench sales', who: 'Anjali Deshmukh' },
-  { slug: 'orchid',           name: 'Orchid Systems',       kind: 'VENDOR',  seat: 'Bench sales', who: 'Yusuf Demir' },
+  { slug: 'orchid',           name: 'Orchid Systems',       kind: 'VENDOR',  seat: 'Bench sales', who: 'Yusuf Dalkiran' },
   // The one firm here that is not here. Pinnacle buys an HCM integration
   // lead from Bluecrest and pays it; Bluecrest never joined, so the
   // chain below Pinnacle stops, accounts payable says the float is
@@ -222,17 +222,17 @@ interface Placement {
 }
 const PLACEMENTS: Placement[] = [
   { role: 'ERP finance consultant',     skills: ['ERP finance', 'General ledger'], loc: 'San Jose, CA',
-    routedBy: 'aptiva',  via: ['harlow-health', 'computer-systems', 'techpeple'], rates: [13800, 11200, 8600] },
+    routedBy: 'aptiva',  via: ['harlow-health', 'computer-systems', 'tecwyn'], rates: [13800, 11200, 8600] },
   { role: 'Epic Ambulatory analyst',    skills: ['Epic', 'Ambulatory'],        loc: 'Madison, WI',
     via: ['harlow-health', 'computer-systems'],                                  rates: [11500, 8400] },
   { role: 'Java microservices engineer',skills: ['Java', 'Spring Boot', 'AWS'],loc: 'Charlotte, NC',
-    via: ['meridian-bank', 'vertex-global', 'sahasra'],                          rates: [12600, 10200, 7900] },
+    via: ['merrowfield-bank', 'vertex-global', 'sahasra'],                          rates: [12600, 10200, 7900] },
   { role: 'Avionics test engineer',     skills: ['DO-178C', 'Embedded C'],     loc: 'Wichita, KS',
-    via: ['corveldt', 'teleworld', 'nimbus'],                                    rates: [14200, 11600, 9100] },
+    via: ['corveldt', 'tellisford', 'nimbus'],                                    rates: [14200, 11600, 9100] },
   { role: 'Retail systems consultant',  skills: ['Retail merchandising', 'PL/SQL'], loc: 'Columbus, OH',
-    routedBy: 'kestrel', via: ['nordway', 'brightmoor', 'consultis'],            rates: [12900, 10400, 8100] },
+    routedBy: 'kestrel', via: ['nordway', 'brightmoor', 'conisby'],            rates: [12900, 10400, 8100] },
   { role: 'Murex support analyst',      skills: ['Murex', 'FX'],               loc: 'Jersey City, NJ',
-    via: ['meridian-bank', 'halcyon'],                                           rates: [13400, 9800] },
+    via: ['merrowfield-bank', 'halcyon'],                                           rates: [13400, 9800] },
   { role: 'PLM systems engineer',       skills: ['Teamcenter', 'PLM'],         loc: 'Everett, WA',
     via: ['corveldt', 'sundara', 'orchid'],                                      rates: [13100, 10700, 8300] },
   { role: 'HCM integration lead',       skills: ['HCM integration', 'Payroll interfaces'], loc: 'Minneapolis, MN',
@@ -240,9 +240,9 @@ const PLACEMENTS: Placement[] = [
 ]
 
 const NAMES: string[] = [
-  'Priya Raman', 'Daniel Osei', 'Anjali Mehta', 'Marcus Whitfield',
-  'Ravi Subramanian', 'Elena Castillo', 'Thomas Okonkwo', 'Sneha Kulkarni',
-  'Grace Lindqvist', 'Arjun Nair', 'Yusuf Demir', 'Claire Beaumont',
+  'Priya Ramesh', 'Daniel Osei', 'Anjali Mehta', 'Marcus Whitfield',
+  'Ravi Subbarayan', 'Elena Castillo', 'Thomas Okonkwo', 'Sneha Kulkarni',
+  'Grace Lindqvist', 'Arjun Nair', 'Yusuf Dalkiran', 'Claire Beaumont',
   'Vikram Joshi', 'Naomi Adeyemi', 'Peter Halloran', 'Divya Rangan',
 ]
 
@@ -531,7 +531,7 @@ export interface Live {
 export const LIVE: readonly Live[] = [
   {
     role: 'Epic Beaker analyst', skills: ['Epic', 'Beaker', 'LIS'], loc: 'Madison, WI',
-    client: 'harlow-health', prime: 'computer-systems', bench: 'techpeple',
+    client: 'harlow-health', prime: 'computer-systems', bench: 'tecwyn',
     name: 'Ifeoma Balogun', band: [11000, 13000], primeRate: 12400, benchRate: 9900,
     rounds: [
       {
@@ -544,7 +544,7 @@ export const LIVE: readonly Live[] = [
   {
     role: 'Python market risk developer', skills: ['Python', 'Pandas', 'Market risk'],
     loc: 'Charlotte, NC',
-    client: 'meridian-bank', prime: 'vertex-global', bench: 'sahasra',
+    client: 'merrowfield-bank', prime: 'vertex-global', bench: 'sahasra',
     name: 'Tobias Lindgren', band: [12000, 14000], primeRate: 13200, benchRate: 10400,
     rounds: [
       {
@@ -561,7 +561,7 @@ export const LIVE: readonly Live[] = [
   {
     role: 'DO-178C verification engineer', skills: ['DO-178C', 'Embedded C', 'LDRA'],
     loc: 'Wichita, KS',
-    client: 'corveldt', prime: 'teleworld', bench: 'nimbus',
+    client: 'corveldt', prime: 'tellisford', bench: 'nimbus',
     name: 'Meera Balakrishnan', band: [13000, 15000], primeRate: 14100, benchRate: 11300,
     rounds: [
       {
@@ -592,7 +592,7 @@ export interface Staffer {
   practice: string
 }
 export const PAYROLL: readonly { slug: string; team: readonly Staffer[] }[] = [
-  { slug: 'teleworld', team: [
+  { slug: 'tellisford', team: [
     { name: 'Karthik Menon',   discipline: 'Validation Engineer',   practice: 'Delivery — avionics software assurance practice' },
     { name: 'Amara Nwosu',     discipline: 'Data Engineer',         practice: 'Delivery — data platform practice' },
     { name: 'Felix Brenner',   discipline: 'ERP Finance Consultant', practice: 'Delivery — ERP finance practice' },
@@ -600,8 +600,8 @@ export const PAYROLL: readonly { slug: string; team: readonly Staffer[] }[] = [
   ]},
   { slug: 'sundara', team: [
     { name: 'Aditi Ramaswamy', discipline: 'Validation Engineer',   practice: 'Delivery — safety-critical software practice' },
-    { name: 'Olivier Renard',  discipline: 'Data Engineer',         practice: 'Delivery — manufacturing data practice' },
-    { name: 'Harish Pillai',   discipline: 'ERP Finance Consultant', practice: 'Delivery — plant maintenance practice' },
+    { name: 'Olivier Rambert',  discipline: 'Data Engineer',         practice: 'Delivery — manufacturing data practice' },
+    { name: 'Harish Panicker',   discipline: 'ERP Finance Consultant', practice: 'Delivery — plant maintenance practice' },
     { name: 'Beatriz Salgado', discipline: 'PLM Systems Engineer',  practice: 'Delivery — Teamcenter practice' },
   ]},
 ]
@@ -629,7 +629,7 @@ export const SUPPLIER_TEAM: readonly { desk: string; role: string; name: string 
 ]
 
 
-/** Techpeple's two desks besides its owner (see below). */
+/** Tecwyn's two desks besides its owner (see below). */
 export const BENCH_FIRM_TEAM: readonly { desk: string; role: string; name: string }[] = [
   { desk: 'recruiter',  role: 'Recruiter',        name: 'Linnea Qadri' },
   { desk: 'resourcing', role: 'Resource Manager', name: 'Mateo Brandvold' },
@@ -641,7 +641,7 @@ export const MIDDLE_FIRM_AP: readonly { firm: string; clerk: string }[] = [
   { firm: 'computer-systems', clerk: 'Lorna Whitcombe' },
   { firm: 'vertex-global',    clerk: 'Callum Dravecky' },
   { firm: 'pinnacle',         clerk: 'Ingrid Halvorsen' },
-  { firm: 'teleworld',        clerk: 'Ravi Kalathil' },
+  { firm: 'tellisford',        clerk: 'Ravi Kalathil' },
   { firm: 'sundara',          clerk: 'Meenakshi Raman' },
 ]
 
@@ -651,7 +651,7 @@ export const MIDDLE_FIRM_AP: readonly { firm: string; clerk: string }[] = [
  * carry for the DO-178C job (the payroll-invitations step below): under the
  * client's own ceiling, and not the same for both. In cents.
  */
-export const PAYROLL_INVITATION_BAND = { payMin: 13_000, payMax: { teleworld: 14_500, sundara: 14_000 } } as const
+export const PAYROLL_INVITATION_BAND = { payMin: 13_000, payMax: { tellisford: 14_500, sundara: 14_000 } } as const
 
 
 /**
@@ -1162,7 +1162,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     // a background check is point in time and that passing on somebody
     // else's report is a regulated act of its own — and a row that
     // cannot say whose report it is cannot answer that at all.
-    { personId: person.id, type: 'BACKGROUND_CHECK', provider: 'Sterling', expiresAt: day(250),
+    { personId: person.id, type: 'BACKGROUND_CHECK', provider: 'Stonegate Screening', expiresAt: day(250),
       orderedByCompanyId: employer.id, orderedAt: day(-96) },
     { companyId: employer.id, type: 'INSURANCE_GL', provider: 'Hartford', expiresAt: day(200), validFrom: day(-165) },
     { companyId: employer.id, type: 'INSURANCE_WC', provider: 'Hartford', expiresAt: day(200), validFrom: day(-165) },
@@ -1472,7 +1472,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // has nobody to grant it to. Halcyon takes the sixth slot so the
   // rotation is the same length and everybody else lands where they did.
   await step('bench', async () => {
-    const benchVendors = ['techpeple', 'consultis', 'nimbus', 'sahasra', 'orchid', 'halcyon']
+    const benchVendors = ['tecwyn', 'conisby', 'nimbus', 'sahasra', 'orchid', 'halcyon']
     for (const [i, name] of NAMES.slice(PLACEMENTS.length).entries()) {
       const co = firmBySlug.get(benchVendors[i % benchVendors.length])!
       const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
@@ -1726,7 +1726,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
     }
   })
 
-  // Somebody at Sundara who staffs its practices (2026-10-20). Teleworld
+  // Somebody at Sundara who staffs its practices (2026-10-20). Tellisford
   // seats two delivery managers (lib/seed-internal-moves); Sundara seated
   // only its owner and its payroll clerk, so the simulation found nobody
   // there who could flag an engineer coming off a project or put one of
@@ -1755,7 +1755,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // payroll. Corveldt's DO-178C verification engineer is open and
   // Corveldt chose which suppliers see it, so without an invitation the
   // submit door refuses both integrators with NOT_INVITED and the picker
-  // leads nowhere. Both already supply Corveldt — Teleworld on avionics,
+  // leads nowhere. Both already supply Corveldt — Tellisford on avionics,
   // Sundara on PLM — and Karthik Menon and Aditi Ramaswamy are the two
   // people on this list who could do the work.
   await step('payroll-invitations', async () => {
@@ -1765,14 +1765,14 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
       select: { id: true },
     })
     if (avionics) {
-      for (const slug of ['teleworld', 'sundara']) {
+      for (const slug of ['tellisford', 'sundara']) {
         const to = firmBySlug.get(slug)!
         if (await db.requirementInvitation.findFirst({ where: { requirementId: avionics.id, toCompanyId: to.id } })) continue
         await db.requirementInvitation.create({
           data: {
             requirementId: avionics.id, fromCompanyId: corveldt.id, toCompanyId: to.id,
             // Under the client's own ceiling, and not the same for both.
-            payMin: PAYROLL_INVITATION_BAND.payMin, payMax: PAYROLL_INVITATION_BAND.payMax[slug as 'teleworld' | 'sundara'],
+            payMin: PAYROLL_INVITATION_BAND.payMin, payMax: PAYROLL_INVITATION_BAND.payMax[slug as 'tellisford' | 'sundara'],
             expiresAt: day(12), status: 'SENT', createdAt: day(-9),
           },
         })
@@ -1965,29 +1965,29 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
       }
     }
 
-    // A bench firm's own two desks. Techpeple had only its owner seated,
+    // A bench firm's own two desks. Tecwyn had only its owner seated,
     // so the bench vendor's recruiting and resourcing could not be walked
     // as the people who do them (a tester, 2026-09-30). Two desks, not
     // nine: a bench firm of this size is an owner, a recruiter who finds
     // people and a resource manager who decides who goes where.
-    const techpeple = firmBySlug.get('techpeple')
-    if (techpeple) {
+    const tecwyn = firmBySlug.get('tecwyn')
+    if (tecwyn) {
       for (const d of BENCH_FIRM_TEAM) {
         const seed = rolesFor('VENDOR').find((r) => r.name === d.role)!
         const role =
-          (await db.role.findFirst({ where: { companyId: techpeple.id, name: d.role }, select: { id: true } })) ??
+          (await db.role.findFirst({ where: { companyId: tecwyn.id, name: d.role }, select: { id: true } })) ??
           (await db.role.create({
-            data: { companyId: techpeple.id, name: d.role, permissions: seed.permissions, isDefault: false },
+            data: { companyId: tecwyn.id, name: d.role, permissions: seed.permissions, isDefault: false },
             select: { id: true },
           }))
-        const email = `${PREFIX}techpeple-${d.desk}@${DOMAIN}`
+        const email = `${PREFIX}tecwyn-${d.desk}@${DOMAIN}`
         const who = await db.person.upsert({
           where: { primaryEmail: email }, update: { name: d.name }, create: { name: d.name, primaryEmail: email },
         })
-        if (!(await db.context.findFirst({ where: { personId: who.id, companyId: techpeple.id } }))) {
+        if (!(await db.context.findFirst({ where: { personId: who.id, companyId: tecwyn.id } }))) {
           await db.context.create({
             data: {
-              personId: who.id, companyId: techpeple.id, roleId: role.id, type: 'EMPLOYEE',
+              personId: who.id, companyId: tecwyn.id, roleId: role.id, type: 'EMPLOYEE',
               grantReason: `Seeded supplier seat — ${d.role}`,
             },
           })
@@ -2192,7 +2192,7 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // standing and the order-to-cash layer for the same two reasons.
   await step('sector-suppliers', () => seedSectorSuppliers(ctx))
   // An integrator's people moving between its projects (2026-09-30,
-  // lib/seed-internal-moves): Teleworld's Portland and San Jose projects
+  // lib/seed-internal-moves): Tellisford's Portland and San Jose projects
   // and the two people flagged off the first. Before the order-to-cash
   // layer for the same reason as the two above: it raises the order the
   // San Jose project runs under.

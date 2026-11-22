@@ -349,7 +349,7 @@ export async function seedBenchProfit(ctx: SeedContext): Promise<NicheSeed> {
     }
     for (const v of [
       { type: 'I9_EVERIFY' as const, provider: 'E-Verify', expiresAt: null as Date | null },
-      { type: 'BACKGROUND_CHECK' as const, provider: 'Sterling', expiresAt: plus(start, 365) as Date | null },
+      { type: 'BACKGROUND_CHECK' as const, provider: 'Stonegate Screening', expiresAt: plus(start, 365) as Date | null },
     ]) {
       if (await db.verification.findFirst({ where: { personId: person.id, type: v.type } })) continue
       await db.verification.create({

@@ -94,14 +94,14 @@ describe('4: a seat with no desk reads only the submissions that name it, and no
   })
 
   it('the refusal for somebody else’s submissions names nobody and no permission key', () => {
-    const says = othersSubmissionsRefused('Teleworld Solutions')
-    expect(says).toBe('Somebody else’s submissions is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    const says = othersSubmissionsRefused('Tellisford Solutions')
+    expect(says).toBe('Somebody else’s submissions is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     expect(namesAPermission(says)).toBe(false)
   })
 
   it('the line over a desk-less seat’s own submissions says whose they are and that rates are the recruiting desk’s', () => {
-    expect(ownSubmissionsSays('Teleworld Solutions')).toBe(
-      'These are the times you were put forward by Teleworld Solutions. Your colleagues’ submissions and every rate are read by the recruiters.'
+    expect(ownSubmissionsSays('Tellisford Solutions')).toBe(
+      'These are the times you were put forward by Tellisford Solutions. Your colleagues’ submissions and every rate are read by the recruiters.'
     )
   })
 
@@ -128,13 +128,13 @@ describe('4: a seat with no desk reads only the submissions that name it, and no
 
 describe('8: a refusal names a person only where the reader already knows them', () => {
   it('a timesheet refused for somebody the reader’s company does not know reads "That timesheet"', () => {
-    expect(colleaguesWeeksRefused(null, 'Teleworld Solutions')).toBe(
-      'That timesheet is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.'
+    expect(colleaguesWeeksRefused(null, 'Tellisford Solutions')).toBe(
+      'That timesheet is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.'
     )
   })
 
   it('a colleague at the reader’s own company is still named', () => {
-    expect(colleaguesWeeksRefused('Felix Brenner', 'Teleworld Solutions')).toMatch(/^Felix Brenner’s timesheet is not part of your seat/)
+    expect(colleaguesWeeksRefused('Felix Brenner', 'Tellisford Solutions')).toMatch(/^Felix Brenner’s timesheet is not part of your seat/)
   })
 
   it('the timesheets route looks the name up only through the reader’s own company', () => {
@@ -142,12 +142,12 @@ describe('8: a refusal names a person only where the reader already knows them',
   })
 
   it('a firm names a person it pays or bills for, and nobody it has no line with', () => {
-    const ties = knownBy('marcus', 'teleworld')
+    const ties = knownBy('marcus', 'tellisford')
     // Its own seat, its own sell line, its own buy line — each on the reader's company, and nothing wider.
     expect(ties).toEqual({
-      seat: { personId: 'marcus', companyId: 'teleworld', revokedAt: null },
-      billsFor: { personId: 'marcus', companyId: 'teleworld' },
-      paysFor: { personId: 'marcus', buyContract: { companyId: 'teleworld' } },
+      seat: { personId: 'marcus', companyId: 'tellisford', revokedAt: null },
+      billsFor: { personId: 'marcus', companyId: 'tellisford' },
+      paysFor: { personId: 'marcus', buyContract: { companyId: 'tellisford' } },
     })
     const door = src('app/api/submissions/name-if-known.ts')
     expect(door).toMatch(/prisma\.context\.findFirst\(\{ where: ties\.seat/)

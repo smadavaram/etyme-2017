@@ -94,7 +94,7 @@ beforeAll(async () => {
     })
   }
 
-  const priya = await prisma.person.create({ data: { name: 'Priya Raman', primaryEmail: 'priya@person.test' } })
+  const priya = await prisma.person.create({ data: { name: 'Priya Ramesh', primaryEmail: 'priya@person.test' } })
   who.priya = priya.id
   // She signs in as herself, to agree her own terms with the supplier.
   await prisma.context.create({ data: { personId: priya.id, type: 'CONSULTANT' } })
@@ -131,13 +131,13 @@ describe('The award is the handoff, and both desks hear about it in their own wo
     it_.contract = r.body.data.contractId
 
     const toPaperer = await noticeFor(who.paperer, it_.contract)
-    expect(toPaperer.title).toContain('Paper the contract — Priya Raman')
+    expect(toPaperer.title).toContain('Paper the contract — Priya Ramesh')
     expect(toPaperer.body).toContain('$135/hr')
     // Email as well as in the app, like every other desk notice.
     expect(toPaperer.channel).toBe('EMAIL')
 
     const toSeller = await noticeFor(who.seller, it_.contract)
-    expect(toSeller.title).toContain('Won — Priya Raman')
+    expect(toSeller.title).toContain('Won — Priya Ramesh')
     expect(toSeller.body).not.toContain('Paper the contract')
   })
 
@@ -174,7 +174,7 @@ describe('The award is the handoff, and both desks hear about it in their own wo
     const q = await json(await decisionQueue(req('GET', '/api/decisions')))
     const row = q.body.data.decisions.find((d: { type: string }) => d.type === 'CONTRACT_PAPERING')
     expect(row, JSON.stringify(q.body.data.counts)).toBeTruthy()
-    expect(row.title).toBe('Paper the contract — Priya Raman')
+    expect(row.title).toBe('Paper the contract — Priya Ramesh')
     expect(row.subtitle).toContain('awarded today, still a draft')
     expect(row.subtitle).toContain('Northbend Athletic')
     expect(row.actionUrl).toBe(`/dashboard/placements/${it_.contract}`)
@@ -203,7 +203,7 @@ describe('The award is the handoff, and both desks hear about it in their own wo
 
     const row = q.body.data.decisions.find((d: { type: string }) => d.type === 'CONTRACT_START')
     expect(row).toBeTruthy()
-    expect(row.title).toBe('Start Priya Raman at Northbend Athletic')
+    expect(row.title).toBe('Start Priya Ramesh at Northbend Athletic')
     expect(row.subtitle).toContain('papered today, not started')
   })
 

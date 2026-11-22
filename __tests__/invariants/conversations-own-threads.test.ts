@@ -35,7 +35,7 @@ describe('who reads only the threads that name them', () => {
     expect(readsOnlyOwnThreads({ consultant: false, permissions: [], holdsProgramSeat: true })).toBe(false)
   })
 
-  it('a worker seated with only the reads of their own work — their lines and their weeks — reads only the threads they are on, like Karthik Menon at Teleworld', () => {
+  it('a worker seated with only the reads of their own work — their lines and their weeks — reads only the threads they are on, like Karthik Menon at Tellisford', () => {
     const karthik = ['assignments.read', 'timesheets.read']
     expect(readsOnlyOwnThreads({ consultant: false, permissions: karthik, holdsProgramSeat: false })).toBe(true)
     expect(readsOnlyOwnThreads({ consultant: false, permissions: ['timesheets.read'], holdsProgramSeat: false })).toBe(true)

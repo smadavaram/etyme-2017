@@ -15,27 +15,27 @@ const DOMAIN = 'demo.etyme.local'
 const old = PREFIX + firm.fromSlug
 
 describe('A retired demo firm is renamed to the founder’s choice', () => {
-  it('the demo firm is now called Techpeple, at world-techpeple, for the reason the founder gave', () => {
-    expect(firm.toName).toBe('Techpeple')
-    expect(firm.toSlug).toBe('techpeple')
+  it('the demo firm is now called Tecwyn, at world-tecwyn, for the reason the founder gave', () => {
+    expect(firm.toName).toBe('Tecwyn')
+    expect(firm.toSlug).toBe('tecwyn')
     expect(firm.on).toBe('2026-10-04')
     expect(firm.why).toBe('a real company of that name asked for its own tenancy, 2026-10-04')
   })
 
   it('the world seed seats the firm under the new slug and the new name, and never the old', () => {
     const seed = readFileSync(join(process.cwd(), 'src/lib/seed-world.ts'), 'utf8')
-    expect(seed).toMatch(/slug: 'techpeple',\s+name: 'Techpeple'/)
+    expect(seed).toMatch(/slug: 'tecwyn',\s+name: 'Tecwyn'/)
     expect(seed.toLowerCase()).not.toContain(firm.fromSlug)
   })
 })
 
 describe('A seeded address moves to the new slug, and nobody real is touched', () => {
   it('the firm’s owner address moves to the new slug', () => {
-    expect(renamedEmail(`${old}@${DOMAIN}`, firm, PREFIX, DOMAIN)).toBe(`world-techpeple@${DOMAIN}`)
+    expect(renamedEmail(`${old}@${DOMAIN}`, firm, PREFIX, DOMAIN)).toBe(`world-tecwyn@${DOMAIN}`)
   })
 
   it('a desk at the firm keeps its desk name and moves to the new slug', () => {
-    expect(renamedEmail(`${old}-ap@${DOMAIN}`, firm, PREFIX, DOMAIN)).toBe(`world-techpeple-ap@${DOMAIN}`)
+    expect(renamedEmail(`${old}-ap@${DOMAIN}`, firm, PREFIX, DOMAIN)).toBe(`world-tecwyn-ap@${DOMAIN}`)
   })
 
   it('an address at any other domain is somebody real and is never moved', () => {
@@ -50,7 +50,7 @@ describe('A seeded address moves to the new slug, and nobody real is touched', (
 })
 
 describe('Every spelling of the old name in a sentence becomes the new one', () => {
-  it('the old name, its capitalized and upper-case forms, the slug and the address all read as Techpeple', () => {
+  it('the old name, its capitalized and upper-case forms, the slug and the address all read as Tecwyn', () => {
     const upper = firm.fromName.toUpperCase()
     const capital = firm.fromName[0] + firm.fromName.slice(1).toLowerCase()
     const said = renameInText(
@@ -60,14 +60,14 @@ describe('Every spelling of the old name in a sentence becomes the new one', () 
       PREFIX
     )
     expect(said).toBe(
-      `Techpeple sells to Computer Systems. Techpeple Systems. TECHPEPLE-1. ` +
-        `Sign in as world-techpeple-ap@${DOMAIN}. The slug is techpeple.`
+      `Tecwyn sells to Computer Systems. Tecwyn Systems. TECWYN-1. ` +
+        `Sign in as world-tecwyn-ap@${DOMAIN}. The slug is tecwyn.`
     )
     expect(said.toLowerCase()).not.toContain(firm.fromSlug)
   })
 
-  it('reads the address before the bare name, so world-techpeple is never half renamed', () => {
-    expect(renamePairs(firm, PREFIX)[0]).toEqual([old, 'world-techpeple'])
+  it('reads the address before the bare name, so world-tecwyn is never half renamed', () => {
+    expect(renamePairs(firm, PREFIX)[0]).toEqual([old, 'world-tecwyn'])
   })
 
   it('a sentence that never named the firm is left exactly as it was', () => {

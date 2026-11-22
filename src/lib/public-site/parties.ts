@@ -2,6 +2,7 @@ import type { EmbedStep } from '@/lib/sample-seat'
 import type { DemoTarget, PersonTarget } from './flow'
 import { CATEGORY, copyOfSkeleton, ON_SCREEN_DOOR, OPEN_DEMO, watching, type BandKind, type BandWords } from './skeleton-words'
 import type { StoryKey } from './story'
+import { FIRM_NAMES } from './door-map-seed'
 
 /**
  * The four party doors: suppliers and bench firms, program offices,
@@ -62,8 +63,8 @@ import type { StoryKey } from './story'
  * named person from the seed, at the step that party acts on, and the line
  * under the panel names them. So a tab now swaps the panel too: Marisa
  * Delacroix at Brightmoor Staffing for a prime vendor, Bhavesh Nair at
- * Techpeple for a sub-vendor, Linnea Qadri on Techpeple's bench, Sunil
- * Raghavan at Teleworld Solutions, Helena Marsh for a worker, Colleen
+ * Tecwyn for a sub-vendor, Linnea Qadri on Tecwyn's bench, Sunil
+ * Raghavan at Tellisford Solutions, Helena Marsh for a worker, Colleen
  * Byrne for a solopreneur; the MSPs' door keeps Aptiva Workforce and names
  * Rashida Coleman. The caption that said "your client's screen" is gone
  * with the client's screen; the line names whose screen it is. The words
@@ -190,6 +191,13 @@ const SUPPLIER_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup?type=prime
 const SUB_VENDOR_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup?type=sub' }
 const BENCH_SIGN_UP = { t: 'Sign up as a supplier', href: '/signup?type=bench' }
 
+/**
+ * The demo firm the Sub-vendor and Bench vendor tabs play, by the name the
+ * seed gives it (`FIRM_NAMES` in ./door-map-seed, read back out of the seed
+ * by a test). Never typed here, so a rename in the seed is one line there.
+ */
+const SUB_FIRM = FIRM_NAMES.tecwyn
+
 export const SUPPLIERS: PartyPage = withTabs({
   slug: 'suppliers',
   route: '/for/suppliers',
@@ -229,11 +237,11 @@ export const SUPPLIERS: PartyPage = withTabs({
     label: 'Sub-vendor',
     headline: 'Bill from the same approved week as your prime.',
     purpose: 'Your rates and your people stay yours.',
-    story: 'techpeple-sub',
+    story: 'tecwyn-sub',
     step: 'approve',
-    panelLabel: watching('Bhavesh Nair, owner', 'of Techpeple'),
-    // Techpeple's first seat, its owner: the demo door seats a firm's first seat when no desk is named.
-    demo: { target: { as: 'world-techpeple', desk: '', screen: '/dashboard/timesheets', seat: 'Techpeple’s owner' } },
+    panelLabel: watching('Bhavesh Nair, owner', `of ${SUB_FIRM}`),
+    // Tecwyn's first seat, its owner: the demo door seats a firm's first seat when no desk is named.
+    demo: { target: { as: 'world-tecwyn', desk: '', screen: '/dashboard/timesheets', seat: `${SUB_FIRM}’s owner` } },
     lines: [
       'Put your people forward. Accept the week your prime approved, then bill from it.',
       'Your prime and your people.',
@@ -252,10 +260,10 @@ export const SUPPLIERS: PartyPage = withTabs({
     label: 'Bench vendor',
     headline: 'Your whole bench in front of every firm you sell to, at once.',
     purpose: 'Each person by their own consent.',
-    story: 'techpeple-bench',
+    story: 'tecwyn-bench',
     step: 'submit',
-    panelLabel: watching('Linnea Qadri, recruiter', 'at Techpeple'),
-    demo: { target: { as: 'world-techpeple', desk: 'recruiter', screen: '/dashboard/bench', seat: 'Techpeple’s recruiter' } },
+    panelLabel: watching('Linnea Qadri, recruiter', `at ${SUB_FIRM}`),
+    demo: { target: { as: 'world-tecwyn', desk: 'recruiter', screen: '/dashboard/bench', seat: `${SUB_FIRM}’s recruiter` } },
     lines: [
       'Mark who is shown to your partners. Each person says yes first.',
       'You, and every firm you sell to.',
@@ -307,8 +315,8 @@ export const INTEGRATORS: PartyPage = {
   headline: 'Staff your next project with your own people first.',
   purpose: 'Buy outside only for the gap.',
   step: 'submit',
-  story: 'teleworld',
-  label: watching('Sunil Raghavan, delivery manager', 'at Teleworld Solutions'),
+  story: 'tellisford',
+  label: watching('Sunil Raghavan, delivery manager', 'at Tellisford Solutions'),
   lines: [
     'Flag who rolls off, and when. Another manager reserves them for an open seat.',
     'Your project managers. HR is told of every move.',
@@ -320,7 +328,7 @@ export const INTEGRATORS: PartyPage = {
     heading: 'Seen enough? Put your own people on Etyme.',
     line: 'Import them from a file, or add them one by one. Then flag who rolls off. Free while we are testing.',
   },
-  demo: { target: { as: 'world-teleworld', desk: 'delivery', screen: '/dashboard/bench', seat: 'a delivery manager' } },
+  demo: { target: { as: 'world-tellisford', desk: 'delivery', screen: '/dashboard/bench', seat: 'a delivery manager' } },
 }
 
 export const CONTRACTORS: PartyPage = withTabs({
@@ -379,6 +387,62 @@ export const PARTY_PAGES: PartyPage[] = [SUPPLIERS, PROGRAM_OFFICES, INTEGRATORS
 
 export function partyAt(slug: string): PartyPage | null {
   return PARTY_PAGES.find((p) => p.slug === slug) ?? null
+}
+
+/**
+ * ── Six segment pages, each at a plain address, 2026-11-22 ───────────
+ *
+ * The owner's sales-ready batch (docs/decisions/110) asks for six pages a
+ * salesperson can send by address alone: prime vendors, sub-vendors, bench
+ * vendors, solopreneurs, integrators and contractors. Two are standing
+ * doors (`/for/integrators`, `/for/contractors`). The other four are below.
+ *
+ * Each of the four is one tab of a standing door, drawn at an address of
+ * its own. The words are that tab's, the founder's of 2026-10-16: the same
+ * party is never told two different things at two addresses. The four
+ * doors stay, and `?tab=` still opens a tab. A door's tab row now links to
+ * the plain address, so each page is reached from the door it belongs to.
+ */
+export type SegmentSlug = 'prime-vendors' | 'subvendors' | 'bench' | 'solopreneurs'
+
+export interface Segment {
+  slug: SegmentSlug
+  route: `/for/${SegmentSlug}`
+  /** The party, said the way they say it: the browser tab's title. */
+  eyebrow: string
+  /** The standing door this page belongs to, and the tab of it that it draws. */
+  door: PartySlug
+  tab: string
+}
+
+export const SEGMENT_PAGES: Segment[] = [
+  { slug: 'prime-vendors', route: '/for/prime-vendors', eyebrow: 'For prime vendors', door: 'suppliers', tab: 'prime' },
+  { slug: 'subvendors', route: '/for/subvendors', eyebrow: 'For sub-vendors', door: 'suppliers', tab: 'sub' },
+  { slug: 'bench', route: '/for/bench', eyebrow: 'For bench vendors', door: 'suppliers', tab: 'bench' },
+  { slug: 'solopreneurs', route: '/for/solopreneurs', eyebrow: 'For solopreneurs', door: 'contractors', tab: 'solo' },
+]
+
+/** The six addresses of the sales-ready batch, in the owner's order: four segment pages and two standing doors. */
+export const SEGMENT_ROUTES = [
+  '/for/prime-vendors', '/for/subvendors', '/for/bench', '/for/solopreneurs', '/for/integrators', '/for/contractors',
+] as const
+
+export function segmentAt(slug: string): Segment | null {
+  return SEGMENT_PAGES.find((s) => s.slug === slug) ?? null
+}
+
+/** A segment page as its reader meets it: its door's tab, at the segment's own address. */
+export function segmentView(s: Segment): PartyPage & { tab: DoorTab | null; href: string } {
+  return { ...doorTab(partyAt(s.door)!, s.tab), href: s.route }
+}
+
+/**
+ * Where a door's tab row sends a reader: the tab's plain address where it
+ * has one, else the door's own (`tabHref`). `tabHref` stays the key every
+ * map and guard reads a tab by.
+ */
+export function tabAddress(p: PartyPage, key: string): string {
+  return SEGMENT_PAGES.find((s) => s.door === p.slug && s.tab === key)?.route ?? tabHref(p, key)
 }
 
 /** The address of one tab: the door's own for the first, `?tab=` for the rest. */

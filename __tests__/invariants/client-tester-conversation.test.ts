@@ -164,7 +164,7 @@ const job: FilledJob = { requirementId: 'req-hcm', filledBy: 'Northbend Athletic
 const priya: StoodDown = {
   submissionId: 'sub-priya',
   supplierId: 'c-pinnacle',
-  personName: 'Priya Raman',
+  personName: 'Priya Ramesh',
   submitterId: 'p-recruiter',
   deskIds: ['p-owner', 'p-recruiter', 'p-account'],
   roundCalledOff: false,
@@ -172,10 +172,10 @@ const priya: StoodDown = {
 
 describe('a supplier whose candidate was not chosen is told when the job is filled', () => {
   it('says in one sentence who filled which job and that their candidate was not chosen, then the one thing to do', () => {
-    const said = notChosenSaid(job, 'Priya Raman')
-    expect(said.title).toBe('Priya Raman was not chosen for HCM integration lead')
+    const said = notChosenSaid(job, 'Priya Ramesh')
+    expect(said.title).toBe('Priya Ramesh was not chosen for HCM integration lead')
     expect(said.body).toBe(
-      'Northbend Athletic filled the HCM integration lead job with another candidate; Priya Raman was not chosen. Please let Priya know.'
+      'Northbend Athletic filled the HCM integration lead job with another candidate; Priya Ramesh was not chosen. Please let Priya know.'
     )
   })
 

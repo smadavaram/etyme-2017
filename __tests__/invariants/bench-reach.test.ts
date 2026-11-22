@@ -149,7 +149,7 @@ describe('the doors that write a listing', () => {
 
 describe('A bench is shared only with a firm the sharer already trades with (2026-10-20)', () => {
   const ties = {
-    self: 'techpeple',
+    self: 'tecwyn',
     panel: new Set(['sub-below']),
     trading: new Set(['computer-systems']),
     blocked: new Set(['blocked-firm']),

@@ -4,7 +4,7 @@
  *
  * Moved out of `app/api/demo/route.ts` on 2026-09-30 so the refusal is
  * a sentence a test can read. The browser walk that moved it: asking for
- * the AP desk at Teleworld Solutions was answered "nobody is seated at
+ * the AP desk at Tellisford Solutions was answered "nobody is seated at
  * any desk there yet", while the owner's desk at the same firm opened.
  * Two things were wrong. The list of held desks counted only the
  * fourteen keyed desks, so a firm whose people hold other roles —

@@ -40,13 +40,13 @@ import { mayAddConsultant, whoAddsSays, ADDS_CONSULTANTS } from '@/lib/consultan
 import { POST as addConsultant } from '@/app/api/consultants/route'
 
 const read = (f: string) => readFileSync(join(process.cwd(), f), 'utf8')
-const TELEWORLD = { id: 'teleworld', name: 'Teleworld', kind: 'GSI' }
+const TELLISFORD = { id: 'tellisford', name: 'Tellisford', kind: 'GSI' }
 const role = (name: string) => {
   const r = rolesFor('GSI').find((x) => x.name === name)
   if (!r) throw new Error(`no ${name} at an integrator`)
   return [...r.permissions] as string[]
 }
-const seat = (name: string) => ({ person: { id: `seat-${name}` }, company: TELEWORLD, permissions: role(name) })
+const seat = (name: string) => ({ person: { id: `seat-${name}` }, company: TELLISFORD, permissions: role(name) })
 const add = () =>
   addConsultant(
     new NextRequest('http://x/api/consultants', {
@@ -95,7 +95,7 @@ describe('Add consultant is offered only to the seats its route takes', () => {
     const body = await res.json()
     expect(body.error.code).toBe('FORBIDDEN')
     expect(body.error.message).toBe(
-      'Adding a consultant is done by Recruiter, Resource Manager or HR at Teleworld, among other roles there. ' +
+      'Adding a consultant is done by Recruiter, Resource Manager or HR at Tellisford, among other roles there. ' +
         'Ask one of them, or ask whoever manages roles there to add it to your role.'
     )
     expect(h.asked).toBe(0)

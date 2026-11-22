@@ -445,7 +445,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   it('a person supplied through a prime and a bench vendor is counted once, not once per rung', async () => {
     as(NIKE.compliance)
     const r = await json(await tenure(req('GET', '/api/tenure')))
-    // Helena Marsh: Northbend Athletic ← Computer Systems ← Techpeple, 200 days. Two
+    // Helena Marsh: Northbend Athletic ← Computer Systems ← Tecwyn, 200 days. Two
     // contracts, one person, one stretch.
     const helena = r.body.data.people.find((p: any) => p.name === 'Helena Marsh')
     expect(helena.contractCount).toBe(2)
@@ -468,7 +468,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     expect(helena.firms.parts[0]).toContain('and one firm below them')
     expect(helena.firms.withheld).toBe(1)
     expect(helena.firms.says).not.toMatch(/Computer Systems[^()]*,\s*Supplied through Computer Systems/)
-    expect(JSON.stringify(helena)).not.toContain('Techpeple')
+    expect(JSON.stringify(helena)).not.toContain('Tecwyn')
   })
 
   it('the cross-vendor chip means two firms the client pays, not two rungs of one chain', async () => {
@@ -495,7 +495,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     const helena = r.body.data.alumni.find((a: any) => a.name === 'Helena Marsh')
     expect(helena, 'Helena worked here, so she is on the alumni list').toBeTruthy()
 
-    // Northbend Athletic ← Computer Systems ← Techpeple. The list named
+    // Northbend Athletic ← Computer Systems ← Tecwyn. The list named
     // the firm it pays and, beside it, the withheld firm below — whose
     // name IS the prime's — so the row read "Computer Systems Inc,
     // Supplied through Computer Systems Inc": one firm, apparently
@@ -505,7 +505,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     expect(helena.firms.parts[0], 'the count is said out loud').toContain('and one firm below them')
     expect(helena.firms.withheld).toBe(1)
     expect(helena.firms.says).not.toMatch(/Computer Systems[^()]*,\s*Supplied through Computer Systems/)
-    expect(JSON.stringify(helena), 'the firm below the rung Northbend pays is never named').not.toContain('Techpeple')
+    expect(JSON.stringify(helena), 'the firm below the rung Northbend pays is never named').not.toContain('Tecwyn')
 
     // And no list of rungs beside it for the next screen to comma-join.
     expect(helena.vendors, 'the raw per-rung array is gone').toBeUndefined()
@@ -526,7 +526,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
 
     as(`world-corning-hiring${D}`)
     const c = await json(await alumni(req('GET', '/api/alumni')))
-    const nadia = c.body.data.alumni.find((a: any) => a.name === 'Nadia Petrova')
+    const nadia = c.body.data.alumni.find((a: any) => a.name === 'Nadia Pavlenko')
     expect(nadia.canReengage).toBe(true)
   })
 

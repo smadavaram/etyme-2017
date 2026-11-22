@@ -25,7 +25,7 @@ import {
 function contract(over: Partial<ContractInput> = {}): ContractInput {
   return {
     id: 'c1',
-    personName: 'Ravi Patel',
+    personName: 'Ravi Purohit',
     billRateCents: 13000,
     payRateCents: 10000,
     live: true,

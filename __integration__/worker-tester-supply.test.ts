@@ -11,7 +11,7 @@ import { paperRows, workStops } from '@/app/dashboard/my-work/paperwork-rows'
 
 /**
  * The worker tester's walk of 2026-10-03, on the seeded Helena Marsh:
- * Northbend Athletic ← Computer Systems Inc ← Techpeple, who employs her.
+ * Northbend Athletic ← Computer Systems Inc ← Tecwyn, who employs her.
  *
  * One week must read one way everywhere on her page, the filing card must
  * name every firm that signs in order, and the row must offer approval by
@@ -46,10 +46,10 @@ describe('on the seeded Helena Marsh, one week reads one way on every tile and r
     await freshWorld()
   })
 
-  it('the filing card names Northbend Athletic first, then Computer Systems Inc, then Techpeple', async () => {
+  it('the filing card names Northbend Athletic first, then Computer Systems Inc, then Tecwyn', async () => {
     const d = await page()
     expect(d.filing[0].signs).toBe(
-      'After you send, Northbend Athletic approves them first. Then Computer Systems Inc and Techpeple accept them, in that order.'
+      'After you send, Northbend Athletic approves them first. Then Computer Systems Inc and Tecwyn accept them, in that order.'
     )
   })
 
@@ -67,7 +67,7 @@ describe('on the seeded Helena Marsh, one week reads one way on every tile and r
     const d = await page()
     expect(row(d, id).state.word).toBe('waiting on Computer Systems Inc')
     expect(d.summary.waiting.note).toContain('with Computer Systems Inc')
-    expect(d.summary.waiting.note).not.toContain('Techpeple')
+    expect(d.summary.waiting.note).not.toContain('Tecwyn')
     // Counted once, on the waiting card, and never also as approved.
     expect(d.summary.awaitingApproval).toBe(before.summary.awaitingApproval + 1)
     expect(d.summary.signed.value).toBe(before.summary.signed.value)
@@ -181,10 +181,10 @@ describe('Colleen Byrne’s Your work, as the owner of the firm that holds her r
     expect(card.signs).toBe('After you send, Harlow Health approves them first. Then Halcyon Talent accepts them.')
     for (const f of d.filing) expect(f.signs ?? '').not.toContain('Byrne Critical Care LLC')
     // A firm with somebody else to accept still names itself: Helena's
-    // employer, Techpeple, accepts last.
+    // employer, Tecwyn, accepts last.
     as(HELENA)
     const helena = await json(await myWork(req('GET', '/api/me/work')))
-    expect(helena.body.data.filing[0].signs).toContain('Techpeple')
+    expect(helena.body.data.filing[0].signs).toContain('Tecwyn')
   })
 
   it('Helena Marsh, whose rate another firm pays, keeps her rate and is offered no contract link', async () => {

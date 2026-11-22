@@ -10,7 +10,7 @@ import { recordRefusal } from '@/lib/access-log'
  * Sign-up walk, round five, problem 1 (2026-10-08). Every import route
  * checked only that somebody was signed in and took `companyId` from the
  * body. A Member at Northbend Athletic, with no desk, imported a person
- * into Teleworld Solutions: the person was put on Teleworld's bench
+ * into Tellisford Solutions: the person was put on Tellisford's bench
  * without consenting and given a live sell line at $150/hr. A candidate
  * with no company read another import's rows, pay and bill rates
  * included.

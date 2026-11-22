@@ -10,16 +10,16 @@ import { GET as myBenches } from '@/app/api/me/benches/route'
 /**
  * The bench's doors onto a pay rate, walked on the seeded world.
  *
- * Karthik Menon is a delivery engineer on Teleworld Solutions' own
+ * Karthik Menon is a delivery engineer on Tellisford Solutions' own
  * payroll. His seat reads assignments and timesheets and nothing about
- * money, so he must not read what Teleworld pays a colleague — not from
+ * money, so he must not read what Tellisford pays a colleague — not from
  * the bench burn and not from the colleague's rate history — and must go
  * on reading his own pay on his own work page.
  */
 
 type Seat = { id: string; personId: string; email: string }
 
-let teleworldId = ''
+let tellisfordId = ''
 let karthik: Seat
 let payroll: Seat
 let delivery: Seat
@@ -41,10 +41,10 @@ async function seatAt(companyId: string, name: string): Promise<Seat> {
 }
 
 async function seatAs(roleName: string, name: string, email: string): Promise<Seat> {
-  const role = await prisma.role.findFirstOrThrow({ where: { companyId: teleworldId, name: roleName } })
+  const role = await prisma.role.findFirstOrThrow({ where: { companyId: tellisfordId, name: roleName } })
   const who = await prisma.person.create({ data: { name, primaryEmail: email } })
   const ctx = await prisma.context.create({
-    data: { personId: who.id, companyId: teleworldId, roleId: role.id, type: 'EMPLOYEE', grantReason: 'supply pay-doors walk' },
+    data: { personId: who.id, companyId: tellisfordId, roleId: role.id, type: 'EMPLOYEE', grantReason: 'supply pay-doors walk' },
   })
   return { id: ctx.id, personId: who.id, email }
 }
@@ -54,38 +54,38 @@ const PAY_TRAIL = (actor: string, subject: string, allowed: boolean) =>
     where: { actorPersonId: actor, subjectId: subject, action: 'PAYROLL_VIEW', allowed },
   })
 
-describe("a colleague's pay at Teleworld is read by the payroll desk, and a worker still reads their own", () => {
+describe("a colleague's pay at Tellisford is read by the payroll desk, and a worker still reads their own", () => {
   beforeAll(async () => {
     await freshWorld()
 
-    const teleworld = await prisma.company.findFirstOrThrow({ where: { name: 'Teleworld Solutions' } })
-    teleworldId = teleworld.id
-    karthik = await seatAt(teleworldId, 'Karthik Menon')
+    const tellisford = await prisma.company.findFirstOrThrow({ where: { name: 'Tellisford Solutions' } })
+    tellisfordId = tellisford.id
+    karthik = await seatAt(tellisfordId, 'Karthik Menon')
 
-    // Teleworld seats neither desk on the seeded world, so each is seated
+    // Tellisford seats neither desk on the seeded world, so each is seated
     // here under the GSI's own default role.
-    await ensureDefaultRoles(teleworldId, 'GSI')
+    await ensureDefaultRoles(tellisfordId, 'GSI')
     // The default AP & Payroll desk reads pay but not the consultant
     // register, and both routes ask for the register first. So the payroll
     // desk here is the one a firm widens to both — AP & Payroll's own
     // permissions plus consultants.read — and still without the price
     // desk's margin.read.
-    const ap = await prisma.role.findFirstOrThrow({ where: { companyId: teleworldId, name: 'AP & Payroll' } })
+    const ap = await prisma.role.findFirstOrThrow({ where: { companyId: tellisfordId, name: 'AP & Payroll' } })
     await prisma.role.create({
       data: {
-        companyId: teleworldId, name: 'Payroll Lead',
+        companyId: tellisfordId, name: 'Payroll Lead',
         permissions: [...new Set([...ap.permissions, 'consultants.read'])],
       },
     })
-    payroll = await seatAs('Payroll Lead', 'Teleworld Payroll', 'payroll@teleworld-supply-walk.invalid')
-    delivery = await seatAs('Delivery Manager', 'Teleworld Delivery', 'delivery@teleworld-supply-walk.invalid')
+    payroll = await seatAs('Payroll Lead', 'Tellisford Payroll', 'payroll@tellisford-supply-walk.invalid')
+    delivery = await seatAs('Delivery Manager', 'Tellisford Delivery', 'delivery@tellisford-supply-walk.invalid')
 
-    // A colleague Teleworld pays, with a consultant profile to open.
+    // A colleague Tellisford pays, with a consultant profile to open.
     const line = await prisma.buyContractCandidate.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: {
         personId: { not: karthik.personId },
         payRate: { gt: 0 },
-        buyContract: { companyId: teleworldId, state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] } },
+        buyContract: { companyId: tellisfordId, state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] } },
       },
     })
     colleagueId = line.personId
@@ -101,7 +101,7 @@ describe("a colleague's pay at Teleworld is read by the payroll desk, and a work
     const r = await call(karthik, burn, '/api/bench/burn')
     expect(r.status).toBe(403)
     expect(r.body.error.message).not.toMatch(/consultants\.|Requires/)
-    expect(r.body.error.message).toMatch(/Teleworld Solutions/)
+    expect(r.body.error.message).toMatch(/Tellisford Solutions/)
   })
 
   it("a delivery engineer cannot read a colleague's rate history at all", async () => {
@@ -144,22 +144,22 @@ describe("a colleague's pay at Teleworld is read by the payroll desk, and a work
   })
 
   it('a desk that reads pay sees the bench burn, and everybody on it is on the access trail as read', async () => {
-    // Teleworld keeps no paid bench on the seeded world; Techpeple does.
-    const cloud = await prisma.company.findFirstOrThrow({ where: { name: 'Techpeple' } })
+    // Tellisford keeps no paid bench on the seeded world; Tecwyn does.
+    const cloud = await prisma.company.findFirstOrThrow({ where: { name: 'Tecwyn' } })
     await ensureDefaultRoles(cloud.id, cloud.kind as any)
     const owner = await prisma.role.findFirstOrThrow({ where: { companyId: cloud.id, name: 'Owner' } })
-    const who = await prisma.person.create({ data: { name: 'Techpeple Owner Walk', primaryEmail: 'owner@techpeple-supply-walk.invalid' } })
+    const who = await prisma.person.create({ data: { name: 'Tecwyn Owner Walk', primaryEmail: 'owner@tecwyn-supply-walk.invalid' } })
     const ctx = await prisma.context.create({
       data: { personId: who.id, companyId: cloud.id, roleId: owner.id, type: 'EMPLOYEE', grantReason: 'supply pay-doors walk' },
     })
     const seat = { id: ctx.id, personId: who.id, email: who.primaryEmail }
 
-    // Everybody Techpeple pays on the seeded world is placed and billing,
+    // Everybody Tecwyn pays on the seeded world is placed and billing,
     // which costs the bench nothing (burn reads `burnOf` since the bench
     // tester, 2026-09-30, found Helena Marsh counted as $66k of burn while
     // on site at Northbend). So one person is put on its paid bench here:
     // listed, paid, and on no placement.
-    const sitter = await prisma.person.create({ data: { name: 'Bench Sitter Walk', primaryEmail: 'sitter@techpeple-supply-walk.invalid' } })
+    const sitter = await prisma.person.create({ data: { name: 'Bench Sitter Walk', primaryEmail: 'sitter@tecwyn-supply-walk.invalid' } })
     const profile = await prisma.consultantProfile.create({ data: { personId: sitter.id, skills: ['ERP finance'] } })
     await prisma.benchListing.create({
       data: { consultantId: profile.id, companyId: cloud.id, tier: 'RETAINED', state: 'GRANTED', grantedAt: new Date(Date.now() - 20 * 86_400_000) },

@@ -3,7 +3,7 @@ import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as myWork } from '@/app/api/me/work/route'
 
 /**
- * Karthik Menon's own page on the seeded world: Teleworld Solutions' own
+ * Karthik Menon's own page on the seeded world: Tellisford Solutions' own
  * W2 at Corveldt Aerospace, three whole months, ended. Found on a browser
  * walk, 2026-09-30, reading "your vendor bills these" and "from 2026-06-01".
  */
@@ -26,11 +26,11 @@ describe("an employee's own page, on the seeded world", () => {
     expect(card.note.toLowerCase()).not.toContain('bill')
   })
 
-  it("Karthik's signed weeks read as paid, owed to him or waiting on Teleworld, and add up to the card's number", () => {
+  it("Karthik's signed weeks read as paid, owed to him or waiting on Tellisford, and add up to the card's number", () => {
     const card = data.summary.signed
     expect(card.label).toBe('Approved weeks')
     expect(card.value).toBeGreaterThan(0)
-    expect(card.note).toMatch(/paid|owed to you|waiting on Teleworld/)
+    expect(card.note).toMatch(/paid|owed to you|waiting on Tellisford/)
     const counted = [...card.note.matchAll(/(\d+) /g)].reduce((n: number, m: RegExpMatchArray) => n + Number(m[1]), 0)
     expect(counted).toBe(card.value)
   })

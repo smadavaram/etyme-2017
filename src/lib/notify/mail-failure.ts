@@ -34,8 +34,11 @@ export type MailProvider = 'Resend' | 'SendGrid'
  *   DOWN        the provider answered 500 or above, or did not answer
  *   NOT_SET_UP  this deployment has no email sender
  *   DEMO        a reserved demo address; nothing is sent to one, on purpose
+ *   HELD        a rule of Etyme's own mail door held it (lib/notify/mail-door):
+ *               CC, too many recipients, another sender, a chase too soon.
+ *               The words are Etyme's own sentence, and a person reads them.
  */
-export type MailFailureKind = 'REFUSED' | 'BUSY' | 'DOWN' | 'NOT_SET_UP' | 'DEMO'
+export type MailFailureKind = 'REFUSED' | 'BUSY' | 'DOWN' | 'NOT_SET_UP' | 'DEMO' | 'HELD'
 
 export interface MailFailure {
   kind: MailFailureKind
@@ -110,6 +113,41 @@ export function failureNote(f: Pick<MailFailure, 'provider' | 'status' | 'words'
   return words ? `${head}: ${words}` : head
 }
 
+// ── The mail door's own sentences (record 110, 2026-11-22) ───────────
+//
+// Kept here, pure, so the door (lib/notify/mail-door) writes them and
+// `failureFromNote` reads them back off a row as HELD, never as "the
+// email sender did not answer".
+
+/** The most people one email may go to. Past it the send is a bulk send, and refused. */
+export const MAIL_MAX_RECIPIENTS = 10
+/** A chase about one record goes to one address at most once in this many hours. */
+export const CHASE_WINDOW_HOURS = 24
+
+export const NO_CC_SAYS = 'An email from Etyme never uses CC, so this was not sent. Every recipient after the first goes as BCC.'
+export const NOBODY_NAMED_SAYS = 'This email names nobody to send it to, so nothing was sent.'
+export const OTHER_SENDER_SAYS = 'Etyme sends only from its verified sender address. This email named another address, so it was not sent.'
+export const CHASE_UNCHECKED_SAYS = 'Etyme could not check when this record was last chased, so nothing was sent. Try again in a few minutes.'
+
+export function tooManySays(count: number): string {
+  return `This email names ${count} recipients, and one email goes to at most ${MAIL_MAX_RECIPIENTS}. Nothing was sent. Send it record by record.`
+}
+
+/** What a second chase inside the window is told. `again` is when the next may go. */
+export function chaseTooSoonSays(again: Date): string {
+  const at = again.toISOString().slice(0, 16).replace('T', ' ')
+  return `A reminder about this record was emailed in the last ${CHASE_WINDOW_HOURS} hours, so this one was not sent. The next can go after ${at} UTC.`
+}
+
+const HELD_NOTES = [NO_CC_SAYS, NOBODY_NAMED_SAYS, OTHER_SENDER_SAYS, CHASE_UNCHECKED_SAYS]
+const HELD_SHAPES = [/^This email names \d+ recipients, and one email goes to at most \d+\./, /^A reminder about this record was emailed in the last \d+ hours,/]
+
+/** Whether a row's note is one of the door's own sentences. */
+export function heldByTheDoor(note: string | null | undefined): boolean {
+  const n = (note ?? '').trim()
+  return HELD_NOTES.includes(n) || HELD_SHAPES.some((r) => r.test(n))
+}
+
 const NOTE_ANSWERED = /^(Resend|SendGrid) answered (\d{3})(?::\s?([\s\S]*))?$/
 const NOTE_SILENT = /^(Resend|SendGrid) did not answer(?::\s?([\s\S]*))?$/
 // Rows written before 2026-11-12 said only the status.
@@ -122,6 +160,7 @@ const NOTE_OLD = /^(Resend|SendGrid) returned (\d{3})$/
  */
 export function failureFromNote(note: string | null | undefined): MailFailure {
   const n = (note ?? '').trim()
+  if (heldByTheDoor(n)) return { kind: 'HELD', status: null, provider: null, words: n }
   let m = NOTE_ANSWERED.exec(n)
   if (m) {
     const status = Number(m[2])
@@ -141,8 +180,11 @@ export function failureFromNote(note: string | null | undefined): MailFailure {
  * The sentence a company's own person reads. Never the provider's words,
  * its name or a status code: those are for Etyme's staff.
  */
-export function mailFailureSays(f: Pick<MailFailure, 'kind'>): string {
+export function mailFailureSays(f: Pick<MailFailure, 'kind'> & { words?: string | null }): string {
   switch (f.kind) {
+    case 'HELD':
+      // Etyme's own sentence, never a provider's: it says what to do.
+      return f.words && heldByTheDoor(f.words) ? f.words : 'Etyme’s email rules held this email, so nothing was sent.'
     case 'REFUSED':
       return 'Etyme’s email sender refused it, so nothing was sent. Etyme has been told.'
     case 'BUSY':

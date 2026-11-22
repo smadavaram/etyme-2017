@@ -15,13 +15,17 @@
  * conversation (founder, 2026-10-18), which is personal information the
  * text did not name. The change is a row in sections 3 and 10 and four words in section 11 and the
  * "Last updated" date, and nothing else.
+ *
+ * Published as final 2026-11-22, on the owner's word (record 110). The
+ * draft notice above the title came off, the effective date was set, and
+ * every bracketed point counsel had not decided came off the page: a
+ * fact inside one stays as a plain sentence, and a clause nobody has
+ * decided is not on the page at all. No answer was written for counsel.
  */
-export const PRIVACY_SOURCE = `> **Notice:** This document is a draft and has not yet been reviewed by legal counsel. Text in square brackets marks a point counsel must decide before publication.
+export const PRIVACY_SOURCE = `# Privacy Notice
 
-# Privacy Notice
-
-**Effective date:** [to be set on publication]
-**Last updated:** October 19, 2026
+**Effective date:** November 22, 2026
+**Last updated:** November 22, 2026
 
 Etyme Inc. ("Etyme", "we", "us") provides software that companies use to manage contract workers and the staffing suppliers who provide them. Our address is 3201 Yorktown Ave, Ste. 110B, Durham, NC 27713, and you can reach us at support@etyme.com.
 
@@ -50,8 +54,6 @@ We serve two groups of people, and our relationship with each is different.
 **Workers.** A Worker has their own account, signed in with their own email address. The account belongs to the Worker, not to a Supplier that invited them. It stays with the Worker if they move between Suppliers.
 
 When we hold a Client's records about its own workforce, we act on that Client's behalf. When a Worker keeps their own profile and decides who may see it, no Customer instructed that. Our legal role may differ in the two cases.
-
-[To be confirmed by counsel: whether Etyme is a controller or a processor (or a "business" or "service provider") for each kind of data described in this notice.]
 
 ## 3. Information we collect
 
@@ -96,8 +98,6 @@ We use personal information to:
 
 We do not use personal information for advertising, and we do not sell it.
 
-[To be confirmed by counsel: the legal basis for each use, by jurisdiction, including whether a Worker's permission to be shown to a Supplier is "consent" in the legal sense.]
-
 ## 5. Automated features
 
 Some steps happen automatically. For example, the Services end a contract after its last day, expire an invitation nobody answered, approve a timesheet that falls within a Customer's limits, and flag a visa that is close to its expiry date. Each automated action is logged with a plain-English reason and a note saying whether it can be undone. Customers can read these logs.
@@ -105,8 +105,6 @@ Some steps happen automatically. For example, the Services end a contract after 
 Most automated actions are simple date checks, thresholds or counts.
 
 **A person always decides awards, rejections and bars.** No automated result, and no output of the outside service in Section 6, awards a job to anyone, rejects anyone, or bars anyone. A match score always shows the factors behind it, the basis, how confident it is, and what it could not assess.
-
-[To be confirmed by counsel: whether any processing amounts to automated decision-making that requires a specific notice or opt-out.]
 
 ## 6. Who receives information
 
@@ -116,21 +114,21 @@ Most automated actions are simple date checks, thresholds or counts.
 
 | Service provider | Purpose | What it receives |
 |---|---|---|
-| Managed database host [to be named] | Stores all information in the Services, including resume files | All information described in this notice |
+| Managed database host | Stores all information in the Services, including resume files | All information described in this notice |
 | Vercel | Hosts the Services, runs scheduled jobs and runs page analytics on the public marketing pages | Everything in a page request and response, and standard request logs. For page analytics, page views of the public marketing pages |
 | Anthropic (where set up) | An outside service that reads text. We use it to suggest matching jobs, check a resume against the skills claimed for it, read an imported file into structured entries, draft the words on a public profile page, and answer a typed question about a company's own data where that company has turned this on | For matching: a Worker's skills, location, work authorization type and date available; the name is never sent and the minimum rate is replaced by a placeholder. For a resume check: the resume text and the skills claimed. For an import: up to 60,000 characters of the file. For a profile page: the words on that page. For a typed question: the question and related entries, with names of people and companies, rates, pay and amounts replaced by placeholders before sending |
 | Resend or SendGrid (where set up) | Sends email | Name, email address and the message |
-| Mail server for sign-in links (where set up) [to be named] | Sends one-time sign-in links | Email address and the link |
+| Mail server for sign-in links (where set up) | Sends one-time sign-in links | Email address and the link |
 | Microsoft and Google (where set up) | Sign-in only | Email address and the sign-in provider's account identifier |
-| Microsoft Teams (where set up) | Delivers notices and approval requests to a Customer's Teams channel or chat | The text of the notice or request, which may include a person's name and the item to approve [to be confirmed: listed as a sub-processor] |
+| Microsoft Teams (where set up) | Delivers notices and approval requests to a Customer's Teams channel or chat | The text of the notice or request, which may include a person's name and the item to approve |
 
 The question feature is off for each company until someone at that company with authority turns it on. Each question sent and each answer received is logged, with placeholders in place of names and figures, and the company can read that log.
 
 If no Anthropic key is set, or the company has not turned that service on, matching uses fixed rules and says so, and a resume check that could not ask that service is recorded as unverified, never as passed.
 
-[To be confirmed by counsel: which providers need a signed data processing agreement, and what notice we give before adding one. None is recorded today.]
+No signed data processing agreement with these service providers is recorded today.
 
-**Legal and safety.** We may disclose information if the law requires it. [To be confirmed by counsel: wording for legal requests, business transfers and protection of rights.]
+**Legal and safety.** We may disclose information if the law requires it.
 
 ## 7. What we do not do
 
@@ -192,8 +190,6 @@ Every period below is a minimum set by US federal law. Some states require longe
 - Demo accounts that nobody uses for 30 days are deleted automatically.
 - We do not delete the information of a person who has simply stopped using the Services.
 
-[To be confirmed by counsel: state-law retention periods, and whether inactive records should be deleted after a set time.]
-
 ## 11. Your rights and how to use them
 
 Anyone who is signed in can use these rights from their own data page. You do not need a Customer's permission.
@@ -217,8 +213,6 @@ Anyone who is signed in can use these rights from their own data page. You do no
 **Requests by email.** You can also send a request to support@etyme.com or to a company that holds your information. A compliance officer at that company logs it, and the deadline counts from the day it arrived.
 
 **Deadlines.** We track each request against the deadline set by the law that applies: for example, one calendar month under the EU and UK GDPR, or 45 days under the California Consumer Privacy Act. If we do not know which law applies, we use whichever deadline comes first.
-
-[To be confirmed by counsel: the response time we commit to, the rights available in each jurisdiction, identity verification, and appeal rights.]
 
 ## 12. Security
 
@@ -246,27 +240,17 @@ Anyone who is signed in can use these rights from their own data page. You do no
 
 The Services run as a single system with one database. They do not keep information in a particular country or region.
 
-[To be confirmed: the country and region where our database and hosting run.]
-
-[To be confirmed by counsel: the legal mechanism for transfers of personal information out of the EU, the UK and other countries.]
-
 ## 14. Children
 
 The Services are built for businesses and for adults seeking work. They do not check a user's age.
-
-[To be confirmed by counsel: minimum age and the statement on children's information.]
 
 ## 15. Sensitive information
 
 Some information we hold may be sensitive under the law of some places, such as immigration status and background check results. We hold these as records that a check took place, with the provider, date and expiry. We do not reach our own conclusion about the person.
 
-[To be confirmed by counsel: which fields are sensitive in each jurisdiction, and whether any may not be stored in some places.]
-
 ## 16. Changes to this notice
 
 We will update the "Last updated" date when we change this notice.
-
-[To be confirmed by counsel: how and how far in advance we notify users of material changes.]
 
 ## 17. Contact us
 

@@ -11,7 +11,7 @@ import { POST as extend } from '@/app/api/contracts/[id]/extend/route'
  * seeded line's own end, so the person is inside the limit today and
  * any line running months past that end crosses it.
  */
-const SUPPLIER = 'world-techpeple@demo.etyme.local'
+const SUPPLIER = 'world-tecwyn@demo.etyme.local'
 const MONTH_NAME = /(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec) \d{1,2}, \d{4}/
 
 describe('a contract booked past the client’s time limit', () => {
@@ -19,7 +19,7 @@ describe('a contract booked past the client’s time limit', () => {
 
   beforeAll(async () => {
     await freshWorld()
-    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
     // Found by its facts, never by row order: a running line whose end
     // client has no time limit of its own yet, so the one set below is the
     // only one that can decide. An unordered pick took whichever line the
@@ -37,7 +37,7 @@ describe('a contract booked past the client’s time limit', () => {
       })).map((r) => r.policy.companyId),
     )
     const free = lines.find((l) => !capped.has(l.endClientCompanyId ?? l.clientCompanyId))
-    if (!free) throw new Error('The seeded world holds no running Techpeple line whose end client has no time limit of its own.')
+    if (!free) throw new Error('The seeded world holds no running Tecwyn line whose end client has no time limit of its own.')
     sell = free
     const clientId = sell.endClientCompanyId ?? sell.clientCompanyId
     const theirs = await prisma.sellContract.findMany({

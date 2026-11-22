@@ -84,7 +84,7 @@ describe('a job sent to a supplier is told by name, and opens a thread with it (
   it('every supplier a job is sent to has its own people told, however many people the first supplier has', () => {
     const seats = [
       ...Array.from({ length: 12 }, (_, i) => ({ personId: `b${i}`, companyId: 'brightmoor' })),
-      { personId: 'sunil', companyId: 'teleworld' },
+      { personId: 'sunil', companyId: 'tellisford' },
     ]
     const told = toldPerFirm(seats, 10)
     expect(told.filter((s) => s.companyId === 'brightmoor')).toHaveLength(10)

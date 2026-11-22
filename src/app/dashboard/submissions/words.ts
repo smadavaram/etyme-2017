@@ -99,7 +99,7 @@ export function submittedOn(iso: string | null | undefined): string {
  * An integrator holds two rows for one client job — the client's own,
  * and its resold copy that its sub-vendors answer. The dialog offered
  * both under identical words, and picking the copy was refused with
- * "Teleworld Solutions is not among" the suppliers Teleworld chose: the
+ * "Tellisford Solutions is not among" the suppliers Tellisford chose: the
  * firm told it is not a supplier to itself. A firm never submits to its
  * own job request, so the copy is not offered.
  */

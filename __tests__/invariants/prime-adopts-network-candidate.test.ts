@@ -15,16 +15,16 @@ import {
  * A prime puts forward somebody its network offered it.
  *
  * Break #4 on the founder's list. Computer Systems read Grace Lindqvist on
- * Bench → Your network, offered by Techpeple, and could not put her on the
+ * Bench → Your network, offered by Tecwyn, and could not put her on the
  * requisition Northbend Athletic had released to it: the submit door looked
  * only for a listing Computer Systems itself held and said "the consultant
- * must grant a listing first", which she had, to Techpeple. These sentences
+ * must grant a listing first", which she had, to Tecwyn. These sentences
  * say when a network offer is consent enough, and what is written.
  */
 
-const techpeple = (over: Partial<Offer> = {}): Offer => ({
-  companyId: 'techpeple',
-  companyName: 'Techpeple',
+const tecwyn = (over: Partial<Offer> = {}): Offer => ({
+  companyId: 'tecwyn',
+  companyName: 'Tecwyn',
   tier: 'MARKETING',
   state: 'GRANTED',
   revokedAt: null,
@@ -43,32 +43,32 @@ const ask = (offers: Offer[], over: { requested?: string | null; payRateCents?: 
 
 describe('a prime puts forward somebody its network offered it', () => {
   it('a prime may put forward a person a sub-vendor offered its network, and the sub-vendor is who it buys them from', () => {
-    const v = ask([techpeple()])
-    expect(v).toEqual({ ok: true, offeredBy: { companyId: 'techpeple', companyName: 'Techpeple' } })
+    const v = ask([tecwyn()])
+    expect(v).toEqual({ ok: true, offeredBy: { companyId: 'tecwyn', companyName: 'Tecwyn' } })
   })
 
   it('a person a sub-vendor keeps on its retained bench is no offer, and the prime is told to ask that sub-vendor', () => {
-    const v = ask([techpeple({ tier: 'RETAINED' })])
+    const v = ask([tecwyn({ tier: 'RETAINED' })])
     expect(v.ok).toBe(false)
     if (!v.ok) {
       expect(v.code).toBe('NOT_OFFERED_TO_NETWORK')
-      expect(v.says).toContain('Techpeple keeps Grace Lindqvist on its own bench')
+      expect(v.says).toContain('Tecwyn keeps Grace Lindqvist on its own bench')
     }
   })
 
   it('a listing the consultant never granted, declined or took back is no offer at all', () => {
-    for (const o of [techpeple({ state: 'INVITED' }), techpeple({ state: 'DECLINED' }), techpeple({ revokedAt: new Date() })]) {
-      const v = ask([o], { requested: 'techpeple' })
+    for (const o of [tecwyn({ state: 'INVITED' }), tecwyn({ state: 'DECLINED' }), tecwyn({ revokedAt: new Date() })]) {
+      const v = ask([o], { requested: 'tecwyn' })
       expect(v.ok).toBe(false)
       if (!v.ok) {
         expect(v.code).toBe('NO_CONSENT')
-        expect(v.says).toContain('has not agreed to be marketed by Techpeple')
+        expect(v.says).toContain('has not agreed to be marketed by Tecwyn')
       }
     }
   })
 
   it('a firm that is not on the prime’s network has offered it nobody', () => {
-    const v = ask([techpeple({ onOurNetwork: false })])
+    const v = ask([tecwyn({ onOurNetwork: false })])
     expect(v.ok).toBe(false)
     if (!v.ok) expect(v.code).toBe('NOT_ON_YOUR_NETWORK')
   })
@@ -86,29 +86,29 @@ describe('a prime puts forward somebody its network offered it', () => {
   })
 
   it('where two sub-vendors offered the same person, the prime is asked which, never guessed for', () => {
-    const v = ask([techpeple(), techpeple({ companyId: 'brightmoor', companyName: 'Brightmoor' })])
+    const v = ask([tecwyn(), tecwyn({ companyId: 'brightmoor', companyName: 'Brightmoor' })])
     expect(v.ok).toBe(false)
     if (!v.ok) {
       expect(v.code).toBe('WHICH_SUPPLIER')
-      expect(v.options?.map((o) => o.companyId)).toEqual(['techpeple', 'brightmoor'])
+      expect(v.options?.map((o) => o.companyId)).toEqual(['tecwyn', 'brightmoor'])
     }
-    const named = ask([techpeple(), techpeple({ companyId: 'brightmoor', companyName: 'Brightmoor' })], { requested: 'brightmoor' })
+    const named = ask([tecwyn(), tecwyn({ companyId: 'brightmoor', companyName: 'Brightmoor' })], { requested: 'brightmoor' })
     expect(named).toEqual({ ok: true, offeredBy: { companyId: 'brightmoor', companyName: 'Brightmoor' } })
   })
 
   it('a sub-vendor the prime names must be one that actually offered the person', () => {
-    const v = ask([techpeple()], { requested: 'somebody-else' })
+    const v = ask([tecwyn()], { requested: 'somebody-else' })
     expect(v.ok).toBe(false)
     if (!v.ok) expect(v.code).toBe('NOT_OFFERED')
   })
 
   it('the rate the prime pays the sub-vendor is required, because the award pays it and nothing may guess it', () => {
     for (const payRateCents of [null, 0, -100, 90.5]) {
-      const v = ask([techpeple()], { payRateCents })
+      const v = ask([tecwyn()], { payRateCents })
       expect(v.ok).toBe(false)
       if (!v.ok) {
         expect(v.code).toBe('NO_PAY_RATE')
-        expect(v.says).toContain('what Techpeple charges you for Grace Lindqvist')
+        expect(v.says).toContain('what Tecwyn charges you for Grace Lindqvist')
       }
     }
   })
@@ -126,10 +126,10 @@ describe('a prime puts forward somebody its network offered it', () => {
 
   it('the person is told who put them forward and which firm holding their consent offered them', () => {
     const s = tellAdoptedPerson({
-      ourName: 'Computer Systems', supplierName: 'Techpeple', clientName: 'Northbend Athletic', roleTitle: 'Supply planning analyst',
+      ourName: 'Computer Systems', supplierName: 'Tecwyn', clientName: 'Northbend Athletic', roleTitle: 'Supply planning analyst',
     })
     expect(s).toContain('Computer Systems put you forward to Northbend Athletic for Supply planning analyst')
-    expect(s).toContain('Techpeple, who you agreed may market you, offered you to them')
+    expect(s).toContain('Tecwyn, who you agreed may market you, offered you to them')
   })
 
   it('the sub-vendor is told its person went forward, where, and at what rate it will be paid, and never the prime’s price', () => {
@@ -144,12 +144,12 @@ describe('a prime puts forward somebody its network offered it', () => {
 })
 
 describe('the sub-vendor’s walls still stand, said to the prime', () => {
-  const who = { supplierName: 'Techpeple', personName: 'Grace Lindqvist', clientName: 'Northbend Athletic' }
+  const who = { supplierName: 'Tecwyn', personName: 'Grace Lindqvist', clientName: 'Northbend Athletic' }
 
   it('a person who asks to be asked first is not put forward by the prime until the sub-vendor has asked them', () => {
     const s = supplierWallSays({ ok: false, code: 'ASK_FIRST', message: 'x' }, who)
     expect(s?.code).toBe('ASK_FIRST')
-    expect(s?.says).toContain('Ask Techpeple to ask them about Northbend Athletic')
+    expect(s?.says).toContain('Ask Tecwyn to ask them about Northbend Athletic')
   })
 
   it('a sub-vendor’s own do-not-return list is never read out to the prime', () => {
@@ -157,7 +157,7 @@ describe('the sub-vendor’s walls still stand, said to the prime', () => {
       { ok: false, code: 'ON_OUR_DNR_LIST', message: 'Somebody here put this person on your do-not-return list' },
       who
     )
-    expect(s?.says).toBe('Techpeple cannot offer Grace Lindqvist at the moment. Ask Techpeple.')
+    expect(s?.says).toBe('Tecwyn cannot offer Grace Lindqvist at the moment. Ask Tecwyn.')
     expect(s?.says).not.toMatch(/do-not-return/)
   })
 

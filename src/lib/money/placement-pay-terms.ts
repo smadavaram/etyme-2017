@@ -102,7 +102,7 @@ export async function placementPayTermsMany(keys: readonly PayTermsKey[]): Promi
  * A week is filed once, on the employer's line at the bottom of a chain
  * (lib/work-chain). So a line higher up has no sheets of its own: Computer
  * Systems' line to Northbend Athletic carries none of Helena Marsh's
- * weeks, which are filed on Techpeple's. This reads the sheets from the
+ * weeks, which are filed on Tecwyn's. This reads the sheets from the
  * bottom of the line's ladder, and keys each one's signatures to what this
  * rung bills and costs on (`rungView` in lib/money/hop-ledger): the payer's
  * acceptance on this rung as the billing signature, this firm's own

@@ -13,7 +13,7 @@ import { completeCycle } from '@/lib/cycle-complete'
  */
 
 const D = '@demo.etyme.local'
-const SUPPLIER = `world-techpeple${D}`
+const SUPPLIER = `world-tecwyn${D}`
 const s: Record<string, any> = {}
 const day = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null)
 const lineCycles = () =>
@@ -26,7 +26,7 @@ const lineCycles = () =>
 describe('the last regular period runs through the contract’s end date, on the seeded world', () => {
   beforeAll(async () => {
     await freshWorld()
-    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
     const line = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: co.id, state: 'IN_PROGRESS', endDate: { not: null }, sellCycles: { some: { periodEnd: { not: null } } } },
       include: { buyLinks: true },

@@ -190,9 +190,9 @@ describe('The Submit dialog offers people the firm staffs and jobs it may answer
   it('a firm’s own resold copy of a client’s job is not offered to submit to', () => {
     const jobs = [
       { id: 'client', company: { id: 'corveldt' } },
-      { id: 'copy', company: { id: 'teleworld' } },
+      { id: 'copy', company: { id: 'tellisford' } },
     ]
-    expect(jobsToSubmitTo(jobs, 'teleworld').map((j) => j.id)).toEqual(['client'])
+    expect(jobsToSubmitTo(jobs, 'tellisford').map((j) => j.id)).toEqual(['client'])
   })
 
   it('the owner, HR and a delivery manager run the firm and are not offered as candidates', () => {

@@ -212,8 +212,8 @@ describe('The Submit dialog offers a client’s job once, never the firm’s own
   })
 
   it('the job list tells a firm which of its own jobs is a copy, and tells nobody else', () => {
-    const copy = row({ id: 'copy', companyId: 'teleworld', company: { id: 'teleworld', name: 'Teleworld' }, mirroredFromId: 'orig' })
-    expect(requirementForReader(copy, 'teleworld').mirroredFromId).toBe('orig')
+    const copy = row({ id: 'copy', companyId: 'tellisford', company: { id: 'tellisford', name: 'Tellisford' }, mirroredFromId: 'orig' })
+    expect(requirementForReader(copy, 'tellisford').mirroredFromId).toBe('orig')
     expect(requirementForReader(copy, 'someone-else').mirroredFromId).toBeNull()
   })
 

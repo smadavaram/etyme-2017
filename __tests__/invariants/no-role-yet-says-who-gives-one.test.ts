@@ -150,8 +150,8 @@ describe('where the greeting says it', () => {
   })
 
   it('a seat with a role reads the firm hat’s line exactly as before', () => {
-    expect(nothingOfTheFirm('Teleworld Solutions')).toBe('Nothing of Teleworld Solutions’ is addressed to you; your own work is under You, in the account menu.')
-    expect(nothingOfTheFirm('Teleworld Solutions', false, null)).toBe(nothingOfTheFirm('Teleworld Solutions'))
+    expect(nothingOfTheFirm('Tellisford Solutions')).toBe('Nothing of Tellisford Solutions’ is addressed to you; your own work is under You, in the account menu.')
+    expect(nothingOfTheFirm('Tellisford Solutions', false, null)).toBe(nothingOfTheFirm('Tellisford Solutions'))
   })
 
   it('a firm’s own employee with no role and no work reads who gives her a role under the headline', () => {

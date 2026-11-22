@@ -19,6 +19,8 @@ const companies = await import('@/app/api/companies/route')
 const groupsRoute = await import('@/app/api/companies/groups/route')
 const classifyRoute = await import('@/app/api/companies/[id]/classify/route')
 const clients = await import('@/app/api/clients/route')
+const extendRoute = await import('@/app/api/companies/[id]/extend/route')
+const contracts = await import('@/app/api/contracts/route')
 
 const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
@@ -71,8 +73,10 @@ beforeAll(async () => {
   await prisma.context.create({ data: { personId: owner.id, type: 'EMPLOYEE', companyId: small, roleId: role.id } })
 }, 600_000)
 
+let site = ''
+
 describe('a small staffing firm: the role is read off each contract', () => {
-  let prime = '', site = '', both = '', loaded = '', sub = ''
+  let prime = '', both = '', loaded = '', sub = ''
 
   beforeAll(async () => {
     prime = await kept('Tallis Consulting Group', 'tallis-split-walk', 'VENDOR', 'CLIENT')
@@ -248,6 +252,198 @@ describe('a small staffing firm: the role is read off each contract', () => {
   })
 })
 
+describe('a small staffing firm: a person who says it once is not asked twice', () => {
+  const NADIA = 'Nadia Larkfield'
+  const ledgerOf = (id: string) => prisma.recordAction.findMany({ where: { companyId: small, recordType: 'Company', recordId: id, action: 'COMPANY_CLASSIFIED' }, orderBy: { createdAt: 'asc' } })
+  const extend = async (id: string, as: 'CUSTOMER' | 'SUPPLIER') =>
+    json(await extendRoute.POST(req('POST', `/api/companies/${id}/extend`, { as }) as any, { params: { id } }))
+
+  it('a company added as "A customer: they pay us" is a customer at once, with who said it and when, and is on the ledger', async () => {
+    as(SMALL_OWNER)
+    const before = (await list()).groups.totals
+    const made = await json(await clients.POST(req('POST', '/api/clients', { name: 'Coldwater Systems Group' })))
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    const id = made.body.data.client.id
+    const read = await list()
+    const row = read.companies.find((c) => c.id === id)
+    expect(row.group.needsClassifying).toBe(false)
+    expect(row.group.groups).toEqual(['CUSTOMER'])
+    expect(row.group.said).toEqual(['CUSTOMER'])
+    expect(row.group.stamps.CUSTOMER.byName).toBe(NADIA)
+    expect(new Date(row.group.stamps.CUSTOMER.at).getTime()).toBeGreaterThan(Date.now() - 60_000)
+    expect(read.groups.totals.customers).toBe(before.customers + 1)
+    expect(read.groups.totals.needsClassifying).toBe(before.needsClassifying)
+    expect(groupsAddUpTo(read.groups.totals)).toBe(read.companies.length)
+    // The same ledger row the Classify page writes.
+    const ledger = await ledgerOf(id)
+    expect(ledger.map((l) => l.summary)).toEqual([`${NADIA} said Coldwater Systems Group is a customer (pays us).`])
+    expect(ledger[0].heldAs).toBe('Owner')
+    // She can be billed today, with nothing said beside her name about classifying.
+    expect((await picker('bill-to')).find((o) => o.id === id)).toMatchObject({ note: null, onEtyme: false })
+    expect((await picker('worksite')).map((o) => o.id)).not.toContain(id)
+  })
+
+  it('a company added as "A client: where our people work" is under Clients at once, and is not a customer', async () => {
+    as(SMALL_OWNER)
+    const made = await json(await companies.POST(req('POST', '/api/companies', { name: 'Ferrow Valley Hospital', kind: 'CLIENT', relationship: 'END_CLIENT' })))
+    expect(made.status, JSON.stringify(made.body)).toBe(200)
+    expect(made.body.data.says).toContain("Recorded on Larkfield Staffing's Companies list as a client.")
+    const id = made.body.data.company.id
+    const row = await rowOf(id)
+    expect(row.group.needsClassifying).toBe(false)
+    expect(row.group.groups).toEqual(['CLIENT'])
+    expect(row.group.stamps.CLIENT.byName).toBe(NADIA)
+    // Saying where people work bills nobody.
+    expect(row.positions).not.toContain('CUSTOMER')
+    expect((await ledgerOf(id)).map((l) => l.summary)).toEqual([`${NADIA} said Ferrow Valley Hospital is a client (where our people work).`])
+    expect((await picker('worksite')).find((o) => o.id === id)?.note).toBeNull()
+    expect((await picker('bill-to')).map((o) => o.id)).not.toContain(id)
+  })
+
+  it('a placement is recorded on the first try, billed to the customer just added and worked at the client just added', async () => {
+    as(SMALL_OWNER)
+    const customer = (await prisma.company.findFirstOrThrow({ where: { name: 'Coldwater Systems Group', listedById: small } })).id
+    const worksite = (await prisma.company.findFirstOrThrow({ where: { name: 'Ferrow Valley Hospital', listedById: small } })).id
+    const nadia = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: SMALL_OWNER } })
+    // What the form posts: the two ids its pickers offered.
+    expect((await picker('bill-to')).map((o) => o.id)).toContain(customer)
+    expect((await picker('worksite')).map((o) => o.id)).toContain(worksite)
+    const r = await json(await contracts.POST(req('POST', '/api/contracts', {
+      personId: nadia.id, companyId: small, clientCompanyId: customer, endClientCompanyId: worksite,
+      billRate: 9000, billCurrency: 'USD', startDate: '2026-10-19', payRate: 7000, payCurrency: 'USD', contractType: 'W2',
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    // Each now says where it comes from: the person's word and the contract, apart.
+    const c = await rowOf(customer)
+    expect(c.group.groups).toEqual(['CUSTOMER'])
+    expect(c.group.contracts).toMatchObject({ billedOn: 1, worksiteOn: 0 })
+    const w = await rowOf(worksite)
+    expect(w.group.groups).toEqual(['CLIENT'])
+    expect(w.group.contracts).toMatchObject({ billedOn: 0, worksiteOn: 1, worksiteNamedOn: 1 })
+    // With "Same as the customer", the customer is where she works too.
+    const second = await json(await contracts.POST(req('POST', '/api/contracts', {
+      personId: nadia.id, companyId: small, clientCompanyId: customer,
+      billRate: 9500, billCurrency: 'USD', startDate: '2027-03-01', payRate: 7200, payCurrency: 'USD', contractType: 'W2',
+    })))
+    expect(second.body?.error, JSON.stringify(second.body)).toBeUndefined()
+    expect((await rowOf(customer)).group.groups).toEqual(['CUSTOMER', 'CLIENT'])
+  })
+
+  it('a company of any kind added with "they pay us" on the Companies door is stamped the same way', async () => {
+    as(SMALL_OWNER)
+    const made = await json(await companies.POST(req('POST', '/api/companies', { name: 'Dunmere Consulting Partners', kind: 'VENDOR', relationship: 'CLIENT' })))
+    expect(made.status, JSON.stringify(made.body)).toBe(200)
+    const id = made.body.data.company.id
+    const row = await rowOf(id)
+    expect(row.group.groups).toEqual(['CUSTOMER'])
+    expect(row.group.stamps.CUSTOMER.byName).toBe(NADIA)
+    expect(await ledgerOf(id)).toHaveLength(1)
+  })
+
+  it('Extend to Customer on a company recorded without classifying it makes it a customer at once, said by the person who pressed it', async () => {
+    as(SMALL_OWNER)
+    const recorded = await kept('Sedge Hollow Brewing', 'sedge-hollow-split-walk', 'UNCLASSIFIED', null)
+    // And one loaded as a client that holds no row at all: it needs classifying until somebody says.
+    const loadedBare = await kept('Ivel Marsh Utilities', 'ivel-marsh-split-walk', 'CLIENT', null)
+    expect((await rowOf(loadedBare)).group.needsClassifying).toBe(true)
+    for (const [id, name] of [[recorded, 'Sedge Hollow Brewing'], [loadedBare, 'Ivel Marsh Utilities']] as const) {
+      const r = await extend(id, 'CUSTOMER')
+      expect(r.status, JSON.stringify(r.body)).toBe(201)
+      const row = await rowOf(id)
+      expect(row.group.needsClassifying, name).toBe(false)
+      expect(row.group.groups, name).toEqual(['CUSTOMER'])
+      expect(row.group.stamps.CUSTOMER.byName, name).toBe(NADIA)
+      expect((await ledgerOf(id)).map((l) => l.summary), name).toEqual([`${NADIA} said ${name} is a customer (pays us).`])
+    }
+    // Extend to Supplier says nothing about who pays, so it writes no such row.
+    const sub = await kept('Brackwater Technical', 'brackwater-split-walk', 'UNCLASSIFIED', null)
+    expect((await extend(sub, 'SUPPLIER')).status).toBe(201)
+    expect(await ledgerOf(sub)).toHaveLength(0)
+  })
+
+  it('the company’s history lists the classify act from the record ledger, with who and when', async () => {
+    as(SMALL_OWNER)
+    const id = (await prisma.company.findUniqueOrThrow({ where: { slug: 'sedge-hollow-split-walk' } })).id
+    const r = await json(await extendRoute.GET(req('GET', `/api/companies/${id}/extend`) as any, { params: { id } }))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const said = r.body.data.history.find((h: any) => h.action === 'COMPANY_CLASSIFIED')
+    expect(said).toMatchObject({ summary: `${NADIA} said Sedge Hollow Brewing is a customer (pays us).`, byName: NADIA, undoSays: 'Can be changed under Customer or client' })
+    // Beside the act that gave the position, newest first.
+    expect(r.body.data.history.map((h: any) => h.action)).toContain('COMPANY_EXTENDED')
+    const times = r.body.data.history.map((h: any) => h.at)
+    expect([...times].sort().reverse()).toEqual(times)
+  })
+
+  it('the clients list never shows a company that still needs classifying as a customer, and says how many wait', async () => {
+    as(SMALL_OWNER)
+    const waiting = await kept('Oakhanger Mutual', 'oakhanger-split-walk', 'CLIENT', 'CLIENT')
+    const r = await json(await clients.GET(req('GET', '/api/clients')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const names = r.body.data.clients.map((c: any) => c.name)
+    expect(names).not.toContain('Oakhanger Mutual')
+    expect(names).toContain('Coldwater Systems Group')
+    expect(names).toContain('Sedge Hollow Brewing')
+    expect(r.body.data.needClassifying).toBe((await list()).groups.totals.needsClassifying)
+    expect(r.body.data.needClassifying).toBeGreaterThanOrEqual(1)
+    // Said once on the Classify page, it is on the list.
+    expect((await classify(waiting, { customer: true, client: false })).status).toBe(200)
+    expect((await json(await clients.GET(req('GET', '/api/clients')))).body.data.clients.map((c: any) => c.name)).toContain('Oakhanger Mutual')
+  })
+
+  it('a prime that is billed on a contract is counted under Customers, and one neither billed nor said is "prime or MSP only"', async () => {
+    as(SMALL_OWNER)
+    const paid = await kept('Halewood Delivery Partners', 'halewood-split-walk', 'CLIENT', null)
+    const idle = await kept('Morrow Field Associates', 'morrow-field-split-walk', 'VENDOR', null)
+    await prisma.counterparty.createMany({ data: [paid, idle].map((otherCompanyId) => ({ companyId: small, otherCompanyId, relationship: 'PRIME', status: 'ACTIVE' })) })
+    await line('Ilse Brandt', 'ilse.brandt', paid, site)
+    const read = await list()
+    const p = read.companies.find((c) => c.id === paid)
+    expect(p.group.groups).toEqual(['CUSTOMER'])
+    expect(p.group.needsClassifying).toBe(false)
+    expect(p.group.other).toBeNull()
+    const i = read.companies.find((c) => c.id === idle)
+    expect(i.group.groups).toEqual([])
+    expect(i.group.other).toBe('PRIME_OR_MSP')
+    expect(read.groups.totals.primesOrMsps).toBe(1)
+    expect(read.groups.says).toContain('1 prime or MSP only')
+    expect(groupsAddUpTo(read.groups.totals)).toBe(read.companies.length)
+    expect((await picker('bill-to')).find((o) => o.id === paid)?.note).toBeNull()
+  })
+})
+
+describe('a firm with more than one legal entity', () => {
+  const OWNER_TWO = 'owner.split-walk@marrowlane-staffing.example'
+  let firm = ''
+  let entities: string[] = []
+
+  beforeAll(async () => {
+    const f = await prisma.company.create({ data: { name: 'Marrow Lane Staffing', slug: 'marrow-lane-split-walk', kind: 'VENDOR', currency: 'USD', claimedAt: new Date(), isDemo: true } })
+    firm = f.id
+    const role = await prisma.role.create({ data: { companyId: firm, name: 'Owner', permissions: ['*'], isDefault: true } })
+    const owner = await prisma.person.create({ data: { name: 'Petra Marrow', primaryEmail: OWNER_TWO } })
+    await prisma.context.create({ data: { personId: owner.id, type: 'EMPLOYEE', companyId: firm, roleId: role.id } })
+    entities = await Promise.all(['Marrow Lane Staffing LLC', 'Marrow Lane Staffing Canada Inc'].map(async (name, n) =>
+      (await prisma.legalEntity.create({ data: { companyId: firm, name, country: n === 0 ? 'US' : 'CA', currency: n === 0 ? 'USD' : 'CAD' } })).id))
+  })
+
+  it('is told to choose the entity, and the company is not stamped or put on the ledger until it does', async () => {
+    as(OWNER_TWO)
+    const made = await json(await clients.POST(req('POST', '/api/clients', { name: 'Tarn Bridge Outfitters' })))
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    expect(made.body.data.message).toContain('Your firm has more than one legal entity, so Tarn Bridge Outfitters is not under Customers or Clients yet. Open it on Companies, choose the entity and tick what it is.')
+    const id = made.body.data.client.id
+    expect((await rowOf(id)).group.needsClassifying).toBe(true)
+    expect(await prisma.recordAction.count({ where: { companyId: firm, recordId: id } })).toBe(0)
+    // Said with the entity it is done for, it is stamped for that entity.
+    const second = await json(await clients.POST(req('POST', '/api/clients', { name: 'Wren Abbey Logistics', actingEntityId: entities[1] })))
+    expect(second.status, JSON.stringify(second.body)).toBe(201)
+    expect(second.body.data.message).not.toContain('legal entity')
+    expect((await rowOf(second.body.data.client.id)).group.groups).toEqual(['CUSTOMER'])
+    const row = await prisma.recordAction.findFirstOrThrow({ where: { companyId: firm, recordId: second.body.data.client.id } })
+    expect(row.actingEntityId).toBe(entities[1])
+  })
+})
+
 describe('the seeded world: Brightmoor Staffing', () => {
   it('every seeded company of Kind client on its list needs classifying, and none is counted as a customer', async () => {
     as(OWNER)
@@ -266,13 +462,19 @@ describe('the seeded world: Brightmoor Staffing', () => {
     expect(g.totals).toEqual(read.groups.totals)
   })
 
-  it('a client listed through the clients door reads "On no contract yet" and needs classifying', async () => {
+  it('a client listed through the clients door reads "On no contract yet", is a customer at once and never needs classifying', async () => {
     as(OWNER)
+    const before = (await list()).groups.totals
     const made = await json(await clients.POST(req('POST', '/api/clients', { name: 'Ashgrove Paper Mills' })))
     expect(made.status, JSON.stringify(made.body)).toBeLessThan(300)
-    const row = (await list()).companies.find((c) => c.name === 'Ashgrove Paper Mills')
-    expect(row.group.needsClassifying).toBe(true)
+    const after = await list()
+    const row = after.companies.find((c) => c.name === 'Ashgrove Paper Mills')
+    expect(row.group.needsClassifying).toBe(false)
+    expect(row.group.groups).toEqual(['CUSTOMER'])
     expect(row.group.suggestion).toBe('On no contract yet.')
+    // One more customer, and nobody new waiting to be classified.
+    expect(after.groups.totals.customers).toBe(before.customers + 1)
+    expect(after.groups.totals.needsClassifying).toBe(before.needsClassifying)
     const said = await classify(row.id, { customer: true, client: true })
     expect(said.status, JSON.stringify(said.body)).toBe(200)
     expect((await rowOf(row.id)).group.groups).toEqual(['CUSTOMER', 'CLIENT'])

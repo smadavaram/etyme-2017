@@ -16,15 +16,15 @@ import { rolesFor } from '@/lib/company-defaults'
 
 const src = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
-// Northbend Athletic buys Helena from Computer Systems, which buys her from Techpeple.
-const N = 'northbend', CS = 'computer-systems', CE = 'techpeple'
+// Northbend Athletic buys Helena from Computer Systems, which buys her from Tecwyn.
+const N = 'northbend', CS = 'computer-systems', CE = 'tecwyn'
 const chain = {
   ladder: [
     { sellContractId: 'top', companyId: CS, clientCompanyId: N },
     { sellContractId: 'bottom', companyId: CE, clientCompanyId: CS },
   ],
   clientId: N,
-  names: new Map([[N, 'Northbend Athletic'], [CS, 'Computer Systems Inc'], [CE, 'Techpeple']]),
+  names: new Map([[N, 'Northbend Athletic'], [CS, 'Computer Systems Inc'], [CE, 'Tecwyn']]),
   week: { personId: 'helena' },
 } as unknown as WeekChain
 const reader = (companyId: string | null, personId = `someone-at-${companyId}`): Reader =>
@@ -47,7 +47,7 @@ describe('the week page shows who signed, and why a flagged week was signed', ()
 
   it('the client is never shown the sub-vendor’s signature, and the withholding is logged', () => {
     const { shown, logged } = signaturesSeen(reader(N), chain, rows, now)
-    expect(JSON.stringify(shown)).not.toContain('Techpeple')
+    expect(JSON.stringify(shown)).not.toContain('Tecwyn')
     expect(logged.map((l) => l.allowed)).toEqual([true, true, false])
   })
 
@@ -112,10 +112,10 @@ describe('the integrator’s moves can be walked from /demo', () => {
     expect(DESK_ROLES.delivery).toEqual(['Delivery Manager'])
   })
 
-  it('Teleworld Solutions offers both its delivery managers’ desks, by name, beside the owner’s', () => {
-    const teleworld = INTEGRATOR_SEATS.find((f) => f.slug === 'world-teleworld')!
-    expect(teleworld.desks?.map((d) => d.desk)).toEqual(['delivery', 'delivery', ''])
-    expect(teleworld.desks?.map((d) => d.who ?? null)).toEqual(['Ingrid Solberg', 'Rahul Deshpande', null])
+  it('Tellisford Solutions offers both its delivery managers’ desks, by name, beside the owner’s', () => {
+    const tellisford = INTEGRATOR_SEATS.find((f) => f.slug === 'world-tellisford')!
+    expect(tellisford.desks?.map((d) => d.desk)).toEqual(['delivery', 'delivery', ''])
+    expect(tellisford.desks?.map((d) => d.who ?? null)).toEqual(['Ingrid Solberg', 'Rahul Dandekar', null])
   })
 
   it('the delivery manager lands on the firm’s own people', () => {

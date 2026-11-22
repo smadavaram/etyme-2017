@@ -69,14 +69,14 @@ describe('1 · a firm asks somebody who already has an account, never makes a se
 
 describe('2 · after a yes there is a way onward', () => {
   it('after a yes, a person with no account is offered her own page in one click', () => {
-    const next = afterYes({ firm: 'Techpeple', email: 'ike.danso@example.com', hasAccount: false })
+    const next = afterYes({ firm: 'Tecwyn', email: 'ike.danso@example.com', hasAccount: false })
     expect(next.label).toBe('Make your own page')
     expect(next.href).toBe('/signup?as=candidate&email=ike.danso%40example.com')
     expect(next.next).toContain('You need no account for that.')
   })
 
   it('after a yes, a person who already has an account is sent to sign in, not to sign up again', () => {
-    const next = afterYes({ firm: 'Techpeple', email: 'maya@example.com', hasAccount: true })
+    const next = afterYes({ firm: 'Tecwyn', email: 'maya@example.com', hasAccount: true })
     expect(next.label).toBe('Sign in to your page')
     expect(next.href).toBe('/login')
   })
@@ -111,7 +111,7 @@ describe('3 · staff are not roster', () => {
 
 describe('4 · a roll-off with no project line', () => {
   const base = {
-    personName: 'Rahul Deshpande', firmName: 'Teleworld Solutions',
+    personName: 'Rahul Dandekar', firmName: 'Tellisford Solutions',
     rollsOffOn: day('2026-11-14'), keepUntil: null, today: day('2026-10-27'),
     manages: true, employed: true,
   }
@@ -120,7 +120,7 @@ describe('4 · a roll-off with no project line', () => {
     const v = checkFlagWithoutLine(base)
     expect(v.ok).toBe(true)
     if (v.ok) {
-      expect(v.says).toBe('Rahul Deshpande comes off on Nov 14, 2026: no project line, free from Nov 15, 2026.')
+      expect(v.says).toBe('Rahul Dandekar comes off on Nov 14, 2026: no project line, free from Nov 15, 2026.')
       expect(v.freeOn.toISOString().slice(0, 10)).toBe('2026-11-15')
     }
   })
@@ -134,7 +134,7 @@ describe('4 · a roll-off with no project line', () => {
     expect(checkFlagWithoutLine({ ...base, rollsOffOn: day('2026-10-20') })).toMatchObject({ ok: false, code: 'IN_THE_PAST' })
     expect(checkFlagWithoutLine({ ...base, keepUntil: day('2026-11-01') })).toMatchObject({ ok: false, code: 'KEEP_BEFORE_ROLLOFF' })
     const hr = checkFlagWithoutLine({ ...base, manages: false })
-    expect(hr.ok === false && hr.message).toBe('Flagging who comes off a project is for a delivery or project manager at Teleworld Solutions. HR is told; it does not flag.')
+    expect(hr.ok === false && hr.message).toBe('Flagging who comes off a project is for a delivery or project manager at Tellisford Solutions. HR is told; it does not flag.')
     expect(checkFlagWithoutLine({ ...base, employed: false })).toMatchObject({ ok: false, code: 'NOT_YOUR_PROJECT' })
   })
 })
@@ -213,7 +213,7 @@ describe('7 · a roll-off with no project line, read everywhere', () => {
   it('every read of a roll-off’s project line survives a release with none', () => {
     expect(releaseFrom(null)).toEqual({ client: null, city: null })
     expect(releaseFrom(undefined)).toEqual({ client: null, city: null })
-    expect(releaseFrom({ clientCompany: { name: 'Teleworld Client' }, endClientCompany: { name: 'Corveldt Aerospace' }, workLocation: null, requirement: { location: 'Portland, Oregon' } }))
+    expect(releaseFrom({ clientCompany: { name: 'Tellisford Client' }, endClientCompany: { name: 'Corveldt Aerospace' }, workLocation: null, requirement: { location: 'Portland, Oregon' } }))
       .toEqual({ client: 'Corveldt Aerospace', city: 'Portland' })
     for (const f of ROUTES) {
       const src = read(f)
@@ -227,7 +227,7 @@ describe('7 · a roll-off with no project line, read everywhere', () => {
 
   it('a release with no line reads "no project line, free from <date>" on Our bench', () => {
     const row = ourBenchRow({
-      personId: 'p', name: 'Rahul Deshpande', seat: null, skills: [], place: null,
+      personId: 'p', name: 'Rahul Dandekar', seat: null, skills: [], place: null,
       release: { id: 'r', rollsOffOn: day('2026-11-14'), keepUntil: null, confirmedAt: null, releaserId: 'm', releaserName: 'Ingrid Solberg', lineless: true },
       current: null, mayNameProject: true, lastEnded: null, hold: null, moving: null, today: day('2026-10-27'),
     }, { personId: 'm', as: 'MANAGER' })
@@ -236,8 +236,8 @@ describe('7 · a roll-off with no project line, read everywhere', () => {
   })
 
   it('HR and the person are told of a release with no line in whole sentences, "the project" standing for the client nobody named', () => {
-    const facts = { personName: 'Rahul Deshpande', firmName: 'Teleworld Solutions', actorName: 'Ingrid Solberg', fromClient: null, fromCity: null, rollsOffOn: day('2026-11-14') }
-    expect(hrNotice('FLAG', facts).title).toBe('Rahul Deshpande rolls off the project on Nov 14, 2026')
+    const facts = { personName: 'Rahul Dandekar', firmName: 'Tellisford Solutions', actorName: 'Ingrid Solberg', fromClient: null, fromCity: null, rollsOffOn: day('2026-11-14') }
+    expect(hrNotice('FLAG', facts).title).toBe('Rahul Dandekar rolls off the project on Nov 14, 2026')
     expect(hrNotice('CONFIRM', facts).body).toBe('From the project. Nothing is asked of you.')
     expect(personNotice('FLAG', facts).title).not.toMatch(/undefined|null/)
   })

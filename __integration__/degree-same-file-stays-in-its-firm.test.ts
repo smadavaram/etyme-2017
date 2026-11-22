@@ -10,7 +10,7 @@ import { SAME_FILE_ELSEWHERE } from '@/lib/document-stages/degree'
 /**
  * Walk 8, item 7 (2026-11-09), on the seeded world. Ingrid Sørensen is
  * Pinnacle Resourcing's, on its line to Northbend Athletic. Helena Marsh
- * is Techpeple's, under Computer Systems; Pinnacle holds nothing of
+ * is Tecwyn's, under Computer Systems; Pinnacle holds nothing of
  * hers. Lucía Fernández is on Pinnacle's own running line. The walker
  * filed the same bytes for all of them, and Pinnacle's HR read Helena's
  * name. Pinnacle may read Lucía's name and never Helena's, and the degree
@@ -104,7 +104,7 @@ describe('the same degree file stays inside the reading firm’s walls', () => {
     for (const n of notices) {
       expect(n.body).toContain(SAME_FILE_ELSEWHERE)
       expect(n.body).not.toContain('Helena')
-      expect(n.body).not.toMatch(/Techpeple|Computer Systems/)
+      expect(n.body).not.toMatch(/Tecwyn|Computer Systems/)
     }
     ctx.firstNotice = notices[0]
   })

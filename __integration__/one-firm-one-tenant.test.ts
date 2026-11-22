@@ -30,7 +30,7 @@ import { GET as bench } from '@/app/api/bench/route'
 
 const D = '@demo.etyme.local'
 const NORTHBEND_OWNER = `world-nike${D}`
-const TELEWORLD_OWNER = `world-teleworld${D}`
+const TELLISFORD_OWNER = `world-tellisford${D}`
 const QUARRY_OWNER = 'maeve.oduya@quarrybrook.example'
 const PALLISER_OWNER = 'tomas.reyes@palliser.example'
 const co: Record<string, string> = {}
@@ -80,7 +80,7 @@ async function eventually(read: () => Promise<number>, want: number): Promise<nu
 
 beforeAll(async () => {
   await freshWorld()
-  for (const slug of ['world-nike', 'world-teleworld', 'world-corning', 'world-terumo-bct']) {
+  for (const slug of ['world-nike', 'world-tellisford', 'world-corning', 'world-terumo-bct']) {
     co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
   }
   who.northbendOwner = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND_OWNER } })).id
@@ -160,7 +160,7 @@ describe('one firm, one tenant', () => {
   })
 
   it('a claim link to a company nobody has said the kind of is never folded into a firm, and says to ask the firm that sent it', async () => {
-    const { shellId, token } = await approvalShell('world-teleworld', 'unsorted@quarrybrook.example')
+    const { shellId, token } = await approvalShell('world-tellisford', 'unsorted@quarrybrook.example')
     await prisma.company.update({ where: { id: shellId }, data: { kind: 'UNCLASSIFIED' } })
 
     const r = await claimOrJoin(token, { personId: who.quarryOwner, email: QUARRY_OWNER })
@@ -168,7 +168,7 @@ describe('one firm, one tenant', () => {
     if (r.kind === 'REFUSED') expect(r.says).toContain('Nobody has said what kind of company Quarrybrook Staffing is yet')
     expect(await prisma.company.findUnique({ where: { id: shellId } })).not.toBeNull()
     expect((await prisma.supplierInvite.findUniqueOrThrow({ where: { token } })).state).toBe('PENDING')
-    // Off Teleworld's list again, so the later sentences read its list as before.
+    // Off Tellisford's list again, so the later sentences read its list as before.
     await prisma.counterparty.deleteMany({ where: { otherCompanyId: shellId } })
     await prisma.companyContact.deleteMany({ where: { atCompanyId: shellId } })
     await prisma.company.update({ where: { id: shellId }, data: { listedById: null } })
@@ -210,21 +210,21 @@ describe('one firm, one tenant', () => {
   })
 
   it('adding a counterparty that is already on Etyme never makes a private copy, says who they are, and links only where the two already work together', async () => {
-    // Teleworld adds Quarrybrook as its prime, by its Etyme address. They have
-    // never traded, so no copy and no link: Quarrybrook adds Teleworld instead.
-    as(TELEWORLD_OWNER)
+    // Tellisford adds Quarrybrook as its prime, by its Etyme address. They have
+    // never traded, so no copy and no link: Quarrybrook adds Tellisford instead.
+    as(TELLISFORD_OWNER)
     const before = await prisma.company.count({ where: { name: { contains: 'Quarrybrook' } } })
     // (The records the claim sentences left at other clients are counted in `before`; nothing here adds one.)
     const refused = await call(addCompany, 'POST', '/api/companies', undefined, { name: 'Quarrybrook Staffing', kind: 'VENDOR', relationship: 'PRIME', address: 'quarrybrook' })
     expect(refused.status).toBe(409)
     expect(refused.body.error.code).toBe('ALREADY_ON_ETYME')
-    // Said with no id, name or Etyme address of a firm Teleworld does not work with (review, 2026-11-13).
+    // Said with no id, name or Etyme address of a firm Tellisford does not work with (review, 2026-11-13).
     expect(refused.body.error.message).toContain('That company is on Etyme already, so no copy of it was made')
     expect(refused.body.error.message).toContain('Ask them to link, as your prime')
     expect(refused.body.error.message).not.toContain('quarrybrook.etyme.com')
     expect(refused.body.error.companyId).toBeUndefined()
     expect(refused.body.error.address).toBeUndefined()
-    expect(await prisma.accessLog.count({ where: { actorCompanyId: co['world-teleworld'], subjectCompanyId: co.quarrybrook, allowed: false } })).toBeGreaterThan(0)
+    expect(await prisma.accessLog.count({ where: { actorCompanyId: co['world-tellisford'], subjectCompanyId: co.quarrybrook, allowed: false } })).toBeGreaterThan(0)
     expect(await prisma.company.count({ where: { name: { contains: 'Quarrybrook' } } })).toBe(before)
 
     // A name and nothing else, and a firm on Etyme holds it: asked, never guessed.
@@ -237,15 +237,15 @@ describe('one firm, one tenant', () => {
     expect(sameName.body.error.companyId).toBeUndefined()
     expect(await prisma.company.count({ where: { name: { contains: 'Quarrybrook' } } })).toBe(before)
 
-    // Once Quarrybrook has put Teleworld on its own register, adding it links.
+    // Once Quarrybrook has put Tellisford on its own register, adding it links.
     await prisma.counterparty.create({
-      data: { companyId: co.quarrybrook, otherCompanyId: co['world-teleworld'], relationship: 'SUPPLIER', status: 'ACTIVE', createdById: who.quarryOwner },
+      data: { companyId: co.quarrybrook, otherCompanyId: co['world-tellisford'], relationship: 'SUPPLIER', status: 'ACTIVE', createdById: who.quarryOwner },
     })
     const linked = await call(addCompany, 'POST', '/api/companies', undefined, { name: 'Quarrybrook Staffing', kind: 'VENDOR', relationship: 'PRIME', address: 'quarrybrook' })
     expect(linked.status, JSON.stringify(linked.body)).toBe(200)
     expect(linked.body.data.linked).toBe(true)
     expect(linked.body.data.says).toContain('No copy was made')
-    expect(await prisma.counterparty.count({ where: { companyId: co['world-teleworld'], otherCompanyId: co.quarrybrook, relationship: 'PRIME' } })).toBe(1)
+    expect(await prisma.counterparty.count({ where: { companyId: co['world-tellisford'], otherCompanyId: co.quarrybrook, relationship: 'PRIME' } })).toBe(1)
     expect(await prisma.company.count({ where: { name: { contains: 'Quarrybrook' } } })).toBe(before)
   })
 })
@@ -323,14 +323,14 @@ describe('an integrator imports its people', () => {
   beforeAll(async () => {
     const imp = await prisma.import.create({
       data: {
-        companyId: co['world-teleworld'], kind: 'PEOPLE', fileName: 'teleworld-staff.csv',
+        companyId: co['world-tellisford'], kind: 'PEOPLE', fileName: 'tellisford-staff.csv',
         mapping: { mappings: [], unmapped: [], warnings: [], refused: [] }, rowCount: 3, issueCount: 0,
       },
     })
     importId = imp.id
     const rows = [
-      { name: 'Oluwaseun Adeyemi', email: 'oluwaseun.adeyemi@teleworld-import.example', contractType: 'W2', skills: ['SAP FICO'], startDate: '2026-11-02T00:00:00.000Z' },
-      { name: 'Marta Lindgren', email: 'marta.lindgren@teleworld-import.example', contractType: 'W2', skills: ['Kafka'] },
+      { name: 'Oluwaseun Adeyemi', email: 'oluwaseun.adeyemi@tellisford-import.example', contractType: 'W2', skills: ['SAP FICO'], startDate: '2026-11-02T00:00:00.000Z' },
+      { name: 'Marta Lindgren', email: 'marta.lindgren@tellisford-import.example', contractType: 'W2', skills: ['Kafka'] },
       { name: 'Dev Kapoor', email: 'dev.kapoor@kapoor-consulting.example', contractType: 'C2C', skills: ['Snowflake'] },
     ]
     for (const parsed of rows) {
@@ -339,26 +339,26 @@ describe('an integrator imports its people', () => {
   })
 
   it('the review says what the import will write before anything is written', async () => {
-    as(TELEWORLD_OWNER)
+    as(TELLISFORD_OWNER)
     const r = await call(importRows, 'GET', `/api/imports/${importId}/rows`, importId)
     expect(r.status).toBe(200)
     expect(r.body.data.plan.employees).toBe(2)
     expect(r.body.data.plan.contractors).toBe(1)
     expect(r.body.data.plan.says).toContain('on your payroll as your own employees (W2)')
     expect(r.body.data.plan.button).toBe('Import 3 people')
-    expect(await prisma.person.count({ where: { primaryEmail: { endsWith: '@teleworld-import.example' } } })).toBe(0)
+    expect(await prisma.person.count({ where: { primaryEmail: { endsWith: '@tellisford-import.example' } } })).toBe(0)
   })
 
   it('an integrator’s W2 rows import as its own employees, never as a bench listing', async () => {
-    as(TELEWORLD_OWNER)
+    as(TELLISFORD_OWNER)
     const r = await call(commitImport, 'POST', `/api/imports/${importId}/commit`, importId)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.employees).toBe(2)
     expect(r.body.data.message).toContain('2 people are on your payroll as your own employees')
 
-    for (const email of ['oluwaseun.adeyemi@teleworld-import.example', 'marta.lindgren@teleworld-import.example']) {
+    for (const email of ['oluwaseun.adeyemi@tellisford-import.example', 'marta.lindgren@tellisford-import.example']) {
       const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: email }, include: { consultant: { include: { listings: true } } } })
-      const seats = await prisma.context.findMany({ where: { personId: person.id, companyId: co['world-teleworld'] }, include: { role: true } })
+      const seats = await prisma.context.findMany({ where: { personId: person.id, companyId: co['world-tellisford'] }, include: { role: true } })
       expect(seats).toHaveLength(1)
       expect(seats[0].type).toBe('EMPLOYEE')
       expect(seats[0].role?.name).toBe('Employee')
@@ -374,7 +374,7 @@ describe('an integrator imports its people', () => {
 
   it('a contractor row an import brings in is asked to join the bench, never put on it by the import', async () => {
     const dev = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'dev.kapoor@kapoor-consulting.example' }, include: { consultant: { include: { listings: true } } } })
-    const listing = dev.consultant!.listings.find((l) => l.companyId === co['world-teleworld'])!
+    const listing = dev.consultant!.listings.find((l) => l.companyId === co['world-tellisford'])!
     expect(listing.state).toBe('INVITED')
     expect(listing.invitedAt).not.toBeNull()
     expect(dev.consultant!.visibility).toBe('INTERNAL')
@@ -384,7 +384,7 @@ describe('an integrator imports its people', () => {
 describe('the claim route joins a firm already on Etyme', () => {
   it('a claim link taken by somebody already seated at a firm on the same domain joins that firm through the claim route', async () => {
     const { POST: claim } = await import('@/app/api/claim/[token]/route')
-    const { shellId, token } = await approvalShell('world-teleworld')
+    const { shellId, token } = await approvalShell('world-tellisford')
     as(QUARRY_OWNER)
     const r = await json(await claim(req('POST', `/api/claim/${token}`), { params: Promise.resolve({ token }) }))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
@@ -398,7 +398,7 @@ describe('the claim route joins a firm already on Etyme', () => {
   it('a join the claim route cannot make safely is refused as a conflict in a sentence, and nobody is seated', async () => {
     const { POST: claim } = await import('@/app/api/claim/[token]/route')
     // A second invitation from the same client goes to a colleague's address on the same domain.
-    const { shellId, token } = await approvalShell('world-teleworld', 'billing@quarrybrook.example')
+    const { shellId, token } = await approvalShell('world-tellisford', 'billing@quarrybrook.example')
     await prisma.costCenter.create({ data: { companyId: shellId, code: 'QB-200', name: 'Quarrybrook delivery' } })
     await prisma.costCenter.create({ data: { companyId: co.quarrybrook, code: 'QB-200', name: 'Delivery two' } })
     as(QUARRY_OWNER)

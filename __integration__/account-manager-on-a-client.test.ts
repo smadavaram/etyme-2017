@@ -21,7 +21,7 @@ beforeAll(async () => {
   northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
   marisa = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: ACCOUNT }, select: { id: true } })).id
   tobias = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: RECRUITER }, select: { id: true } })).id
-  stranger = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-techpeple@demo.etyme.local' }, select: { id: true } })).id
+  stranger = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-tecwyn@demo.etyme.local' }, select: { id: true } })).id
 }, 600_000)
 
 const read = async (email: string) => {

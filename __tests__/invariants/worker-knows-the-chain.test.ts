@@ -17,30 +17,30 @@ const rung = (o: Partial<ChainRung> & Pick<ChainRung, 'id' | 'companyId' | 'clie
   personId: 'helena', state: 'IN_PROGRESS', startDate: '2026-03-12', endDate: '2027-03-07', endClientName: null, ...o,
 })
 
-const techpeple = rung({ id: 'b', companyId: 'techpeple', clientCompanyId: 'cs', companyName: 'Techpeple', clientName: 'Computer Systems', endClientName: 'Northbend Athletic' })
+const tecwyn = rung({ id: 'b', companyId: 'tecwyn', clientCompanyId: 'cs', companyName: 'Tecwyn', clientName: 'Computer Systems', endClientName: 'Northbend Athletic' })
 const cs = rung({ id: 't', companyId: 'cs', clientCompanyId: 'nike', companyName: 'Computer Systems', clientName: 'Northbend Athletic', endClientName: 'Northbend Athletic' })
 const employed = (): Tie => 'EMPLOYED'
 
 describe('where you work, as the worker reads it', () => {
   it('a chain of two rungs is one placement, not two', () => {
-    expect(placementLines([cs, techpeple], employed)).toHaveLength(1)
+    expect(placementLines([cs, tecwyn], employed)).toHaveLength(1)
   })
 
   it('the placement names the client, every firm between, and the employer, in order', () => {
-    const [l] = placementLines([cs, techpeple], employed)
-    expect(l.says).toBe('Northbend Athletic · through Computer Systems · employed by Techpeple')
+    const [l] = placementLines([cs, tecwyn], employed)
+    expect(l.says).toBe('Northbend Athletic · through Computer Systems · employed by Tecwyn')
     expect(l.own.id).toBe('b')
   })
 
   it('a chain of three names both firms between, nearest the client first', () => {
-    const sub = rung({ id: 's', companyId: 'nimbus', clientCompanyId: 'techpeple', companyName: 'Nimbus Talent', clientName: 'Techpeple', endClientName: 'Northbend Athletic' })
-    const [l] = placementLines([cs, techpeple, sub], employed)
-    expect(l.says).toBe('Northbend Athletic · through Computer Systems · through Techpeple · employed by Nimbus Talent')
+    const sub = rung({ id: 's', companyId: 'nimbus', clientCompanyId: 'tecwyn', companyName: 'Nimbus Talent', clientName: 'Tecwyn', endClientName: 'Northbend Athletic' })
+    const [l] = placementLines([cs, tecwyn, sub], employed)
+    expect(l.says).toBe('Northbend Athletic · through Computer Systems · through Tecwyn · employed by Nimbus Talent')
   })
 
   it('a placement with no chain names the client and whoever pays them', () => {
-    const direct = rung({ id: 'd', companyId: 'techpeple', clientCompanyId: 'nike', companyName: 'Techpeple', clientName: 'Northbend Athletic' })
-    expect(placementLines([direct], employed)[0].says).toBe('Northbend Athletic · employed by Techpeple')
+    const direct = rung({ id: 'd', companyId: 'tecwyn', clientCompanyId: 'nike', companyName: 'Tecwyn', clientName: 'Northbend Athletic' })
+    expect(placementLines([direct], employed)[0].says).toBe('Northbend Athletic · employed by Tecwyn')
   })
 
   it('somebody paid through their own company reads "paid by", not "employed by"', () => {
@@ -52,8 +52,8 @@ describe('where you work, as the worker reads it', () => {
   })
 
   it('where nothing on the record says how the bottom firm pays them, the line says "through" rather than guessing', () => {
-    const direct = rung({ id: 'd', companyId: 'techpeple', clientCompanyId: 'nike', companyName: 'Techpeple', clientName: 'Northbend Athletic' })
-    expect(placementLines([direct], () => null)[0].says).toBe('Northbend Athletic · through Techpeple')
+    const direct = rung({ id: 'd', companyId: 'tecwyn', clientCompanyId: 'nike', companyName: 'Tecwyn', clientName: 'Northbend Athletic' })
+    expect(placementLines([direct], () => null)[0].says).toBe('Northbend Athletic · through Tecwyn')
     expect(tieOf(null)).toBeNull()
   })
 
@@ -65,15 +65,15 @@ describe('where you work, as the worker reads it', () => {
 
   it('two placements at the same client through different firms are two lines', () => {
     const later = rung({ id: 'x', companyId: 'vertex', clientCompanyId: 'nike', companyName: 'Vertex Global', clientName: 'Northbend Athletic', startDate: '2027-04-01', endDate: null })
-    expect(placementLines([cs, techpeple, later], employed).map((l) => l.says)).toEqual([
-      'Northbend Athletic · through Computer Systems · employed by Techpeple',
+    expect(placementLines([cs, tecwyn, later], employed).map((l) => l.says)).toEqual([
+      'Northbend Athletic · through Computer Systems · employed by Tecwyn',
       'Northbend Athletic · employed by Vertex Global',
     ])
   })
 
   it('a rung the walk cannot place is still shown on its own, never dropped', () => {
     const twin = rung({ id: 't2', companyId: 'cs', clientCompanyId: 'nike', companyName: 'Computer Systems', clientName: 'Northbend Athletic' })
-    const lines = placementLines([cs, twin, techpeple], employed)
+    const lines = placementLines([cs, twin, tecwyn], employed)
     const shown = lines.flatMap((l) => l.rungs.map((r) => r.id)).sort()
     expect(shown).toEqual(['b', 't', 't2'])
   })

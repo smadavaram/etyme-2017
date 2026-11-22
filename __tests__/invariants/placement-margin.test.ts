@@ -8,7 +8,7 @@ import {
 //
 // Marcus Whitfield's real seeded numbers, because a fixture that is the
 // world's own numbers is a fixture somebody can check against a screen:
-// Teleworld Solutions bills Corveldt Aerospace $142/hr and buys him from
+// Tellisford Solutions bills Corveldt Aerospace $142/hr and buys him from
 // Nimbus Talent at $116/hr, corp-to-corp.
 
 const sell = (over: Partial<SellLine> = {}): SellLine => ({
@@ -163,7 +163,7 @@ describe('revenue does not need a cost', () => {
   })
 
   it('revenue counts the lines a firm sells and never the line its own supplier sells to it', () => {
-    // The Teleworld case, as the route now loads it: only the firm's own
+    // The Tellisford case, as the route now loads it: only the firm's own
     // sell lines reach here, so its supplier's $116/hr line billing it is
     // simply not a pair. One live placement at $142/hr is $22,720 a month
     // at 160 hours, not the $41,280 the Reports page read.

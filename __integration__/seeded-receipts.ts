@@ -46,21 +46,21 @@ export async function pinnacleReceiptsAtNorthbend(): Promise<{ clean: string; he
 
 /**
  * Helena Marsh's week that Computer Systems has billed upward and that
- * Techpeple's own invoice for is an invoice receipt at Computer Systems,
+ * Tecwyn's own invoice for is an invoice receipt at Computer Systems,
  * found by those facts, never by a calendar day: the seeded weeks are
  * counted from the template's own day, so "the week of October 4" is a
  * different week on a template built on a Monday.
  */
 export async function helenasDoublyBilledWeek(): Promise<string> {
-  const [helena, cs, techpeple] = await Promise.all([
+  const [helena, cs, tecwyn] = await Promise.all([
     prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' }, select: { id: true } }),
     prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' }, select: { id: true } }),
-    prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } }),
+    prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' }, select: { id: true } }),
   ])
-  // Techpeple's invoices as Computer Systems recorded them: a receipt covers
+  // Tecwyn's invoices as Computer Systems recorded them: a receipt covers
   // the days inside its period, which is how the Bills page reads it.
   const receipts = await prisma.vendorBill.findMany({
-    where: { companyId: cs.id, vendorCompanyId: techpeple.id, status: { not: 'CANCELLED' }, periodStart: { not: null }, periodEnd: { not: null } },
+    where: { companyId: cs.id, vendorCompanyId: tecwyn.id, status: { not: 'CANCELLED' }, periodStart: { not: null }, periodEnd: { not: null } },
     select: { periodStart: true, periodEnd: true },
   })
   const weeks = await prisma.timesheet.findMany({
@@ -73,6 +73,6 @@ export async function helenasDoublyBilledWeek(): Promise<string> {
     select: { id: true, periodStart: true, periodEnd: true },
   })
   const week = weeks.find((w) => receipts.some((r) => r.periodStart! <= w.periodStart && w.periodEnd <= r.periodEnd!)) ?? null
-  if (!week) throw new Error('The seeded world holds no week of Helena Marsh billed by Computer Systems and received from Techpeple.')
+  if (!week) throw new Error('The seeded world holds no week of Helena Marsh billed by Computer Systems and received from Tecwyn.')
   return week.id
 }

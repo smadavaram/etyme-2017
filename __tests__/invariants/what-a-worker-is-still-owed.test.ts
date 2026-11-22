@@ -256,7 +256,7 @@ describe('a refusal that names several certificates says what is true of each', 
 
   it('names the one that ran out and the one that is not on file in the same sentence, because one instruction cannot cover both', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Teleworld Solutions',
+      supplierName: 'Tellisford Solutions',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: new Date('2025-03-03T00:00:00Z'), expiresAt: new Date('2026-03-03T00:00:00Z'), verifiedAt: on },
         { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-01-01T00:00:00Z'), verifiedAt: on },
@@ -266,14 +266,14 @@ describe('a refusal that names several certificates says what is true of each', 
     })
     expect(gate.outcome).toBe('BLOCK')
     expect(gate.says).toBe(
-      'Nobody can be submitted through Teleworld Solutions: its certificate of general liability insurance ' +
+      'Nobody can be submitted through Tellisford Solutions: its certificate of general liability insurance ' +
         'ran out on March 3 and its certificate of good standing is not on file.'
     )
   })
 
   it('never tells a firm to renew a certificate it has never had, because there is nothing to renew', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Teleworld Solutions',
+      supplierName: 'Tellisford Solutions',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: new Date('2025-03-03T00:00:00Z'), expiresAt: new Date('2026-03-03T00:00:00Z'), verifiedAt: on },
         { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-01-01T00:00:00Z'), verifiedAt: on },
@@ -287,7 +287,7 @@ describe('a refusal that names several certificates says what is true of each', 
 
   it('says a policy that has not begun does not start until the day it starts, beside whatever else is wrong', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Teleworld Solutions',
+      supplierName: 'Tellisford Solutions',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: on, validFrom: new Date('2026-10-12T00:00:00Z'), expiresAt: new Date('2027-10-12T00:00:00Z'), verifiedAt: on },
         { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, expiresAt: new Date('2027-01-01T00:00:00Z'), verifiedAt: on },
@@ -301,7 +301,7 @@ describe('a refusal that names several certificates says what is true of each', 
 
   it('keeps the sentence it already had where every certificate has the same thing wrong with it', () => {
     const gate = supplierCoverGate({
-      supplierName: 'Teleworld Solutions',
+      supplierName: 'Tellisford Solutions',
       certificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: on, validFrom: new Date('2026-10-12T00:00:00Z'), expiresAt: new Date('2027-10-12T00:00:00Z'), verifiedAt: on },
         { type: 'INSURANCE_WC', status: 'CLEAR', issuedAt: on, validFrom: new Date('2026-10-12T00:00:00Z'), expiresAt: new Date('2027-10-12T00:00:00Z'), verifiedAt: on },

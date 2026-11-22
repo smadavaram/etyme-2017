@@ -25,7 +25,7 @@ const ON = new Date('2026-11-08T00:00:00Z')
 const D = (n: number) => new Date(ON.getTime() + n * 86_400_000)
 const US = { country: 'US', offshore: false }
 const base = (over: Partial<WorkerClassFacts>): WorkerClassFacts => ({
-  personName: 'Priya Raman', cls: null, workCountry: US, on: ON, employerName: 'Brightmoor Staffing', ...over,
+  personName: 'Priya Ramesh', cls: null, workCountry: US, on: ON, employerName: 'Brightmoor Staffing', ...over,
 })
 
 describe('the rule for each class of worker, with its source', () => {
@@ -62,10 +62,10 @@ describe('the rule for each class of worker, with its source', () => {
 
   it('a CPT student starts only for the employer the I-20 names, and within the school’s dates', () => {
     expect(workerClassStart(base({ cls: 'F1_CPT', cpt: [] })).rule).toBe('CPT_NONE')
-    const other = workerClassStart(base({ cls: 'F1_CPT', cpt: [{ employerNamed: 'Techpeple Inc', from: D(-10), to: D(100) }] }))
+    const other = workerClassStart(base({ cls: 'F1_CPT', cpt: [{ employerNamed: 'Tecwyn Inc', from: D(-10), to: D(100) }] }))
     expect(other.verdict).toBe('BLOCK')
     expect(other.rule).toBe('CPT_OTHER_EMPLOYER')
-    expect(other.says).toContain('Techpeple Inc, not Brightmoor Staffing')
+    expect(other.says).toContain('Tecwyn Inc, not Brightmoor Staffing')
     const out = workerClassStart(base({ cls: 'F1_CPT', cpt: [{ employerNamed: 'Brightmoor Staffing LLC', from: D(-100), to: D(-3) }] }))
     expect(out.rule).toBe('CPT_OUTSIDE_DATES')
     expect(workerClassStart(base({ cls: 'F1_CPT', cpt: [{ employerNamed: 'Brightmoor Staffing, LLC', from: D(-1), to: D(100) }] })).verdict).toBe('PASS')
@@ -98,13 +98,13 @@ describe('the rule for each class of worker, with its source', () => {
   })
 
   it('an H-1B filed by another firm warns, and clears once the employer’s own transfer petition is filed', () => {
-    const other = workerClassStart(base({ cls: 'H1B', petitions: [{ petitionerName: 'Techpeple Inc', status: 'ACTIVE', filedAt: D(-400) }] }))
+    const other = workerClassStart(base({ cls: 'H1B', petitions: [{ petitionerName: 'Tecwyn Inc', status: 'ACTIVE', filedAt: D(-400) }] }))
     expect(other.verdict).toBe('WARN')
-    expect(other.says).toContain('filed by Techpeple Inc, not Brightmoor Staffing')
+    expect(other.says).toContain('filed by Tecwyn Inc, not Brightmoor Staffing')
     expect(other.source).toContain('214(n)')
     const moved = workerClassStart(base({
       cls: 'H1B',
-      petitions: [{ petitionerName: 'Techpeple Inc', status: 'ACTIVE', filedAt: D(-400) }, { petitionerName: 'Brightmoor Staffing', status: 'FILED', filedAt: D(-3) }],
+      petitions: [{ petitionerName: 'Tecwyn Inc', status: 'ACTIVE', filedAt: D(-400) }, { petitionerName: 'Brightmoor Staffing', status: 'FILED', filedAt: D(-3) }],
     }))
     expect(moved.verdict).toBe('PASS')
   })
@@ -115,13 +115,13 @@ describe('the rule for each class of worker, with its source', () => {
 
   it('a TN admission that ran out refuses, and a TN for another employer only warns because its paragraph is not confirmed', () => {
     expect(workerClassStart(base({ cls: 'TN', i94: [{ admitUntil: D(-2), classOfAdmission: 'TN' }] })).verdict).toBe('BLOCK')
-    expect(workerClassStart(base({ cls: 'TN', i94: [{ admitUntil: D(200), classOfAdmission: 'TN', employerNamed: 'Techpeple Inc' }] })).verdict).toBe('WARN')
+    expect(workerClassStart(base({ cls: 'TN', i94: [{ admitUntil: D(200), classOfAdmission: 'TN', employerNamed: 'Tecwyn Inc' }] })).verdict).toBe('WARN')
   })
 
   it('a firm’s legal suffix never makes two names one firm, and part of a name never does either', () => {
     expect(sameFirm('Brightmoor Staffing, Inc.', 'brightmoor staffing')).toBe(true)
-    expect(sameFirm('Tech', 'Techpeple')).toBe(false)
-    expect(sameFirm(null, 'Techpeple')).toBe(false)
+    expect(sameFirm('Tech', 'Tecwyn')).toBe(false)
+    expect(sameFirm(null, 'Tecwyn')).toBe(false)
   })
 })
 

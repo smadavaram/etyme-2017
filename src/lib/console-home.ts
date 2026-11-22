@@ -9,7 +9,7 @@
  * own "Dashboard" link pointed at. Three places, one question, and the
  * browser walk of 2026-09-21 found all three wrong at once:
  *
- *   · An integrator — Teleworld Solutions, Sundara Systems, and a
+ *   · An integrator — Tellisford Solutions, Sundara Systems, and a
  *     validation engineer holding two read permissions — opened
  *     `/dashboard` and was shown **Corveldt Aerospace's own program**:
  *     "2 contractors on site through 2 suppliers. $43,680 this month."
@@ -88,7 +88,7 @@ export const OWN_WORK_READS: ReadonlySet<string> = new Set(['assignments.read', 
 /**
  * The seat reads nothing at the firm beyond its holder's own work.
  *
- * Karthik Menon, Teleworld's validation engineer, opened Teleworld's
+ * Karthik Menon, Tellisford's validation engineer, opened Tellisford's
  * Today and read "2 items need your attention", a recruiter's target
  * and the firm's pipeline revenue — none of it his work (worker tester,
  * 2026-10-03). A seat that holds more than these two reads staffs,

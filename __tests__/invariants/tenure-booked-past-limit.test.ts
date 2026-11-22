@@ -137,9 +137,9 @@ describe('words a person reads on the compliance pages', () => {
     expect(sentencePhrases([{ key: 'I9_EVERIFY', label: 'I-9 and E-Verify' }])).toEqual(['an I-9'])
   })
 
-  it('writes Teleworld Solutions’ with the apostrophe alone, and Pinnacle Resourcing’s with an s', () => {
-    expect(possessive('Teleworld Solutions', '’')).toBe('Teleworld Solutions’')
+  it('writes Tellisford Solutions’ with the apostrophe alone, and Pinnacle Resourcing’s with an s', () => {
+    expect(possessive('Tellisford Solutions', '’')).toBe('Tellisford Solutions’')
     expect(possessive('Pinnacle Resourcing', '’')).toBe('Pinnacle Resourcing’s')
-    expect(possessive('Teleworld Solutions')).toBe("Teleworld Solutions'")
+    expect(possessive('Tellisford Solutions')).toBe("Tellisford Solutions'")
   })
 })

@@ -6,14 +6,14 @@
  * **Reading.** `/dashboard/companies` — headed "Manage vendor, client,
  * MSP, and GSI companies on the platform" — listed all twenty-seven
  * companies, with slug and domain, to Northbend Athletic's program
- * manager, to Techpeple's owner two rungs down somebody else's chain,
+ * manager, to Tecwyn's owner two rungs down somebody else's chain,
  * and to Colleen Byrne's one-person nursing corporation.
  *
  * **Writing.** Karthik Menon, an integrator's own W2 with two read
  * permissions, clicked "Add company" and got a real company with
  * himself as Owner holding `*`. Contexts are read most-recently-granted
  * first, so that seat outranked his employer's and every page he opened
- * afterwards read "Walk test — functional review" instead of Teleworld
+ * afterwards read "Walk test — functional review" instead of Tellisford
  * Solutions.
  */
 
@@ -70,7 +70,7 @@ describe('a company sees the firms it trades with, and no stranger', () => {
 
 describe('adding a firm you trade with does not make you its owner', () => {
   const employee = {
-    seatedAt: { id: 't', name: 'Teleworld Solutions' },
+    seatedAt: { id: 't', name: 'Tellisford Solutions' },
     permissions: ['assignments.read', 'timesheets.read'],
     relationship: 'SUPPLIER',
   }

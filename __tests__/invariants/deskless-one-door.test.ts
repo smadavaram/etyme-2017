@@ -186,7 +186,7 @@ describe('the allowlist is the menu’s, never a second list', () => {
 })
 
 /**
- * Sign-up walk, round five, problems 3–7. Karthik Menon, Teleworld's own
+ * Sign-up walk, round five, problems 3–7. Karthik Menon, Tellisford's own
  * W2 engineer, holds two reads — `assignments.read` and
  * `timesheets.read` — and no desk. The door read "no desk" as "no
  * permission at all", so he read every submission his firm made with its
@@ -194,7 +194,7 @@ describe('the allowlist is the menu’s, never a second list', () => {
  * counterparties and contacts, and a thread he was not on.
  */
 describe('a seat holding only the reads of its own work holds no desk (round five)', () => {
-  const KARTHIK = { contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'], companyName: 'Teleworld Solutions', companyKind: 'GSI' }
+  const KARTHIK = { contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'], companyName: 'Tellisford Solutions', companyKind: 'GSI' }
 
   it('the reads of a worker’s own work are not a desk; anything that acts on the firm’s book or reads across it is', () => {
     expect(isDeskless(['assignments.read', 'timesheets.read'])).toBe(true)
@@ -221,7 +221,7 @@ describe('a seat holding only the reads of its own work holds no desk (round fiv
     for (const path of ['/api/submissions', '/api/invitations', '/api/companies', '/api/contacts', '/api/loose-ends', '/api/requirements', '/api/consultants']) {
       const v = desklessDoor({ ...KARTHIK, path })
       expect(v.open, path).toBe(false)
-      if (!v.open) expect(v.says).toMatch(/is not part of your seat at Teleworld Solutions\. Ask your company’s owner if you need it\.$/)
+      if (!v.open) expect(v.says).toMatch(/is not part of your seat at Tellisford Solutions\. Ask your company’s owner if you need it\.$/)
     }
   })
 
@@ -247,7 +247,7 @@ describe('a seat holding only the reads of its own work holds no desk (round fiv
     for (const path of calls) {
       const v = desklessDoor({ ...KARTHIK, path })
       expect(v.open, path).toBe(false)
-      if (!v.open) expect(v.says, path).toBe('Bench is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+      if (!v.open) expect(v.says, path).toBe('Bench is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     }
   })
 
@@ -273,7 +273,7 @@ describe('a seat holding only the reads of its own work holds no desk (round fiv
 })
 
 describe('a desk-less worker opens his own week from his own page, and nobody else’s (round six)', () => {
-  const KARTHIK = { contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'], companyName: 'Teleworld Solutions', companyKind: 'GSI' }
+  const KARTHIK = { contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'], companyName: 'Tellisford Solutions', companyKind: 'GSI' }
   const LIB = readFileSync(join(process.cwd(), 'src/lib/week-approval.ts'), 'utf8')
 
   it('the "Open this week" link on Your work reaches the week’s route through the door, and the evidence on it too', () => {
@@ -318,7 +318,7 @@ describe('withheld is not missing: a colleague’s placement is not part of the 
 })
 
 describe('round seven: the door names the page, opens a worker’s own signed paper, and tells a stranger nothing is there', () => {
-  const KARTHIK = { contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'], companyName: 'Teleworld Solutions', companyKind: 'GSI' }
+  const KARTHIK = { contextType: 'EMPLOYEE', permissions: ['assignments.read', 'timesheets.read'], companyName: 'Tellisford Solutions', companyKind: 'GSI' }
 
   it('Karthik Menon opens the file of a paper he signed: the door lets the documents file route answer him, and it reads the person the paper is about', () => {
     // Problem 9. The route's own rule (standingOn) gives the person a

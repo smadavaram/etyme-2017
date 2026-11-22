@@ -279,6 +279,7 @@ export async function makeSignInLink(caller: Caller, personId: string, now: Date
   const sent = await sendEmailNow({
     to: g.person.primaryEmail, subject, body: [...lines, '', link].join('\n'),
     companyId: g.company.id, personId: g.person.id,
+    about: { template: 'sign-in-link', recordType: 'Notification', recordId: notice.id, actorPersonId: caller.person.id },
   }, { now })
   const state: AccountMailState = sent.state === 'DEMO_SKIPPED' ? 'NOT_CONFIGURED' : sent.state
   const note: string | null = sent.note

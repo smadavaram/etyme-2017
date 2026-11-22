@@ -1,21 +1,22 @@
 /**
- * A real five-party supply chain, from a real calling list.
+ * A five-party supply chain, in the shape of a recruiter's calling list.
  *
- * The names, addresses and domains come from a sample American client
- * calling list a recruiter actually worked. Using it rather than
- * invented data matters for one reason: the domains are corporate, so
- * every one of these people is a *business user* under CLAUDE.md — the
- * population that signs in through a work tenant and is reached on
- * Teams. Seeding the simulation with gmail addresses would have tested
- * the wrong auth path for every actor in it.
+ * Every firm, person, address and domain here is invented (2026-11-22).
+ * The list once held the names a real calling list held, and a real
+ * person's name does not belong in a fixture. The shape is kept for one
+ * reason: the domains are corporate, so every one of these people is a
+ * *business user* under CLAUDE.md — the population that signs in
+ * through a work tenant and is reached on Teams. Seeding the simulation
+ * with consumer addresses would have tested the wrong auth path for
+ * every actor in it.
  *
  * Four of the nine share one domain, which is what makes this list
  * useful: Addendum E says governance is table stakes for any client
  * with more than one hiring manager, and a single-manager fixture can
  * never exercise an approval chain.
  *
- * The chain, top to bottom — every hop is a real relationship in this
- * industry and each one has a different view of the same worker:
+ * The chain, top to bottom — every hop is a relationship this
+ * industry has and each one has a different view of the same worker:
  *
  *   CLIENT       buys, and never learns who the sub-vendor is
  *   MSP          runs the program, is invoiced, never touches a CV
@@ -45,55 +46,55 @@ export const NETWORK: Firm[] = [
   {
     party: 'CLIENT',
     kind: 'CLIENT',
-    name: 'Oxford Corp',
-    domain: 'oxfordcorp.com',
+    name: 'Orlestone Corp',
+    domain: 'orlestonecorp.example',
     // Four hiring managers, which is the whole reason this firm is the
     // client: one manager cannot produce a rate variance or a
     // segregation-of-duties problem, and four can.
     people: [
-      { name: 'Doug Kampert', email: 'doug_kampert@oxfordcorp.com' },
-      { name: 'Bradley Carlson', email: 'bradley_carlson@oxfordcorp.com' },
-      { name: 'Patrick Melton', email: 'patrick_melton@oxfordcorp.com' },
-      { name: 'Tj Whitley', email: 'tj_whitley@oxfordcorp.com' },
+      { name: 'Dale Kirkham', email: 'dale_kirkham@orlestonecorp.example' },
+      { name: 'Brandon Calloway', email: 'brandon_calloway@orlestonecorp.example' },
+      { name: 'Paul Merrin', email: 'paul_merrin@orlestonecorp.example' },
+      { name: 'Tess Wharton', email: 'tess_wharton@orlestonecorp.example' },
     ],
   },
   {
     party: 'MSP',
     kind: 'MSP',
-    name: 'Yoh Services',
-    domain: 'yoh.com',
-    people: [{ name: 'Marcus Thomas', email: 'marcus.thomas@yoh.com' }],
+    name: 'Yarrow Services',
+    domain: 'yarrowservices.example',
+    people: [{ name: 'Milan Thackeray', email: 'milan.thackeray@yarrowservices.example' }],
   },
   {
     party: 'GSI',
     kind: 'GSI',
-    name: 'Teleworld Solutions',
-    domain: 'teleworldsolutions.com',
-    people: [{ name: 'Kelly Friend', email: 'kelly.friend@teleworldsolutions.com' }],
+    name: 'Tellisford Solutions',
+    domain: 'tellisfordsolutions.example',
+    people: [{ name: 'Kira Fenn', email: 'kira.fenn@tellisfordsolutions.example' }],
   },
   {
     party: 'SUB_VENDOR',
     kind: 'VENDOR',
-    name: 'Insight Global',
-    domain: 'insightglobal.net',
-    people: [{ name: 'Steve Resnik', email: 'steve.resnik@insightglobal.net' }],
+    name: 'Ingleby Global',
+    domain: 'inglebyglobal.example',
+    people: [{ name: 'Stefan Rowe', email: 'stefan.rowe@inglebyglobal.example' }],
   },
   {
     party: 'BENCH_VENDOR',
     kind: 'VENDOR',
-    name: 'Consultis',
-    domain: 'consultis.com',
-    people: [{ name: 'Starr Elliott', email: 'starre@consultis.com' }],
+    name: 'Conisby',
+    domain: 'conisby.example',
+    people: [{ name: 'Sunniva Ellis', email: 'sunnivae@conisby.example' }],
   },
   {
     party: 'BENCH_VENDOR',
     kind: 'VENDOR',
-    name: 'Techni Power',
-    domain: 'technipower.com',
+    name: 'Tarnhow Power',
+    domain: 'tarnhowpower.example',
     // A second bench vendor, so the same consultant can sit on two
     // benches. Cross-vendor tenure is the product's sharpest claim and
     // one bench vendor cannot test it.
-    people: [{ name: 'Nicole Winecoff', email: 'nicole.winecoff@technipower.com' }],
+    people: [{ name: 'Nadine Wickham', email: 'nadine.wickham@tarnhowpower.example' }],
   },
 ]
 

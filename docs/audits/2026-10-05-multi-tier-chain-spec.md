@@ -32,7 +32,7 @@ work starts.
 The defects, grouped
 #Defect observedTypeFixed in
 1Sub-vendor profit uses the prime's client rate 
-(Techpeple shows $145 for a $118 sale)
+(Tecwyn shows $145 for a $118 sale)
 StructuralSections 3, 4
 2Prime profit omits bought-in consultants (CSI shows 
 2 of 4 placements)
@@ -71,19 +71,19 @@ One placement is seen by up to five companies. The app holds the money facts for
 (rate, billed value, paid status) in records that more than one company reads, and it reads them 
 without first asking whose agreement the number belongs to.
 Evidence
-•Techpeple sells Helena Marsh to Computer Systems Inc (CSI) at $118/hr. Its profit screen 
+•Tecwyn sells Helena Marsh to Computer Systems Inc (CSI) at $118/hr. Its profit screen 
 shows $29,000 billed, split $11,600 and $17,400 by month: exactly 80 and 120 hours at $145, 
 the rate CSI charges Northbend. Margin shows 54.6%; its own payroll screen shows 24%.
 •Sahasra Infotech sells Tomasz Nowak to Vertex Global at $103/hr. Its profit screen shows 
 $20,480 billed. That fits 160 hours at $128 and does not fit $103. I did not see Vertex's rate to 
 the client, so $128 is inferred. Same pattern on a second chain.
-•CSI's profit screen lists only its two employees. Helena and Priya, both bought from Techpeple 
+•CSI's profit screen lists only its two employees. Helena and Priya, both bought from Tecwyn 
 and both billed by CSI, are absent. CSI shows minus 6.2% on Profitability and 22.5% on 
 Reports.
 •Sundara Systems' sell-contract list shows each bought consultant twice: its own sell line and its 
 supplier's sell line marked "via Sundara Systems". Active contracts reads 8 where 4 are real.
-•Techpeple shows two invoices to CSI as paid. CSI's chain view says CSI has not yet paid 
-Techpeple.
+•Tecwyn shows two invoices to CSI as paid. CSI's chain view says CSI has not yet paid 
+Tecwyn.
 Likely cause (to confirm in code)
 The order or master contract that revenue posts to appears to be created once per placement and 
 owned by the company at the bottom of the chain, the employer. Accepted hours are valued at the 
@@ -96,8 +96,8 @@ Etyme multi-tier chain: fix specification · page 2
 A placement is one person working at one end client. It carries an ordered list of hops. A hop is one 
 commercial agreement between one seller and one buyer. Helena's placement has three:
 HopSellerBuyerRatePaper
-0Helena MarshTechpeple$90 payEmployment, W2, paid by payroll
-1TechpepleCSI$118Techpeple's sell contract and CSI's 
+0Helena MarshTecwyn$90 payEmployment, W2, paid by payroll
+1TecwynCSI$118Tecwyn's sell contract and CSI's 
 purchase order: one record
 2CSINorthbend Athletic$145CSI's sell contract and Northbend's 
 purchase order: one record
@@ -133,12 +133,12 @@ hours multiplied by the rate of the hop being viewed.
 ViewerSees for Helena's 40-hour weekSource
 Northbend$5,800 costHop 2 at $145
 CSI$5,800 revenue, $4,720 costHops 2 and 1
-Techpeple$4,720 revenue, $3,600 costHops 1 and 0
+Tecwyn$4,720 revenue, $3,600 costHops 1 and 0
 Helena$3,600 owedHop 0 at $90
 4. Fix 1: profitability per tier
 Observed
 Company and personScreen showsShould showWhy it is wrong
-Techpeple, Helena$29,000 billed, 54.6%$23,600 on 200 hours, 
+Tecwyn, Helena$29,000 billed, 54.6%$23,600 on 200 hours, 
 about 24%
 Valued at CSI's $145
 Sahasra, Tomasz$20,480 billed, 42.8%$16,480 if 160 hoursValued above its own 
@@ -179,11 +179,11 @@ are stored on orders, rebuild them from accepted timesheets and delete the store
 cannot disagree again.
 5. Fix 2: one invoice, two views
 Observed
-•Techpeple shows invoices IN-8Z5A45 for August and September as paid. CSI's chain view 
-says CSI has not yet paid Techpeple.
+•Tecwyn shows invoices IN-8Z5A45 for August and September as paid. CSI's chain view 
+says CSI has not yet paid Tecwyn.
 •CSI's headline reads "we owe $41,520" and the aging buckets under it total $4,720. The note 
 says the headline includes two receipts keyed in by hand.
-•CSI holds a receipt for Helena's earlier weeks. Techpeple's own bill list has no bill for them.
+•CSI holds a receipt for Helena's earlier weeks. Tecwyn's own bill list has no bill for them.
 •The chain view pairs a supplier invoice with a client bill by taking "the largest overlapping bill", 
 and says the pairing is inferred.
 Rule
@@ -320,7 +320,7 @@ the contract bills monthly and the month has closed.
 One test covers every form.
 •One bill number format. Generated bills read IN_1AJA4X_001; seeded ones read IN-
 8Z5A45-20260801.
-•The engagement picker names who is billed. The server already returns "Techpeple bills 
+•The engagement picker names who is billed. The server already returns "Tecwyn bills 
 Computer Systems Inc"; the form shows only the end client.
 9. Fix 6: status, notifications and smaller defects
 ObservedLikely causeFix
@@ -369,7 +369,7 @@ Probably another session in
 the same browser
 Confirm; make a seat change in one 
 tab visible in the others
-Techpeple's contracts name 
+Tecwyn's contracts name 
 Northbend and Harlow as end 
 clients; the demo says the sub 
 never learns the hospital

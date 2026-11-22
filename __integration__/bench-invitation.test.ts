@@ -53,13 +53,13 @@ beforeAll(async () => {
   })
 
   const person = await prisma.person.create({
-    data: { name: 'Ravi Patel', primaryEmail: 'ravi@invite-flow.test' },
+    data: { name: 'Ravi Purohit', primaryEmail: 'ravi@invite-flow.test' },
   })
   personId = person.id
   const ravi = await prisma.consultantProfile.create({
     data: { personId, skills: ['Java'], location: 'Dallas, Texas', visibility: 'VERIFIED' },
   })
-  await listedOnceAndTakenBack(ravi.id, 'Ravi Patel')
+  await listedOnceAndTakenBack(ravi.id, 'Ravi Purohit')
 
   const client = await prisma.company.create({
     data: { name: 'A Client', slug: 'invite-flow-client', kind: 'CLIENT', currency: 'USD' },

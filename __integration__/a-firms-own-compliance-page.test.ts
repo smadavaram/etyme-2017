@@ -10,11 +10,11 @@ import { GET as compliance } from '@/app/api/compliance/route'
  * Until 2026-09-30 `GET /api/compliance` asked for no permission, so a
  * seat was enough — and every staffer of every firm holds one. On the
  * seeded world that put every colleague's visa, I-9 and background
- * result in front of Karthik Menon, a Teleworld delivery engineer.
+ * result in front of Karthik Menon, a Tellisford delivery engineer.
  *
- *   Karthik Menon      Teleworld's own W2, a delivery engineer. Refused,
+ *   Karthik Menon      Tellisford's own W2, a delivery engineer. Refused,
  *                      told which desk to ask.
- *   Teleworld's        seated here out of the product's own role set,
+ *   Tellisford's        seated here out of the product's own role set,
  *   compliance officer because the world seed gives a supplier only its
  *   and HR             owner. Both open the page.
  *   Northbend's        a client desk that signs weeks and does not read
@@ -25,11 +25,11 @@ import { GET as compliance } from '@/app/api/compliance/route'
  */
 
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
-const TW_COMPLIANCE = 'compliance.teleworld@seed.etyme.invalid'
-const TW_HR = 'hr.teleworld@seed.etyme.invalid'
-const TW_AR = 'ar.teleworld@seed.etyme.invalid'
+const TW_COMPLIANCE = 'compliance.tellisford@seed.etyme.invalid'
+const TW_HR = 'hr.tellisford@seed.etyme.invalid'
+const TW_AR = 'ar.tellisford@seed.etyme.invalid'
 
-const co = { teleworld: '', northbend: '' }
+const co = { tellisford: '', northbend: '' }
 const who = { karthik: '', hiringManager: '', hiringManagerEmail: '', officerEmail: '' }
 
 async function eventually<T>(read: () => Promise<T>, done: (v: T) => boolean, tries = 60): Promise<T> {
@@ -65,12 +65,12 @@ async function deskAt(companyId: string, roleName: string): Promise<{ email: str
 
 beforeAll(async () => {
   await freshWorld()
-  co.teleworld = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-teleworld' } })).id
+  co.tellisford = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-tellisford' } })).id
   co.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id
   who.karthik = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK } })).id
-  await seatAt(co.teleworld, 'GSI', 'Compliance Officer', 'Nalini Rao', TW_COMPLIANCE)
-  await seatAt(co.teleworld, 'GSI', 'HR', 'Owen Tallis', TW_HR)
-  await seatAt(co.teleworld, 'GSI', 'Accounts Receivable', 'Imani Cole', TW_AR)
+  await seatAt(co.tellisford, 'GSI', 'Compliance Officer', 'Nalini Rao', TW_COMPLIANCE)
+  await seatAt(co.tellisford, 'GSI', 'HR', 'Owen Tallis', TW_HR)
+  await seatAt(co.tellisford, 'GSI', 'Accounts Receivable', 'Imani Cole', TW_AR)
   const hm = await deskAt(co.northbend, 'Hiring Manager')
   who.hiringManager = hm.personId
   who.hiringManagerEmail = hm.email
@@ -78,9 +78,9 @@ beforeAll(async () => {
 }, 300_000)
 
 describe('a firm\'s own compliance page', () => {
-  it('Karthik Menon holds a seat at Teleworld whose desk does not read the firm\'s rules', async () => {
+  it('Karthik Menon holds a seat at Tellisford whose desk does not read the firm\'s rules', async () => {
     const seat = await prisma.context.findFirstOrThrow({
-      where: { personId: who.karthik, companyId: co.teleworld },
+      where: { personId: who.karthik, companyId: co.tellisford },
       select: { role: { select: { permissions: true } } },
     })
     expect(seat.role?.permissions ?? []).not.toContain('governance.read')
@@ -94,7 +94,7 @@ describe('a firm\'s own compliance page', () => {
     expect(status).toBe(403)
     expect(body.data).toBeUndefined()
     expect(body.error.code).toBe('NO_DESK')
-    expect(body.error.message).toBe('Compliance is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(body.error.message).toBe('Compliance is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     expect(body.error.message).not.toMatch(/governance\.read|FORBIDDEN/)
     const refused = await prisma.accessLog.count({ where: { actorPersonId: who.karthik, allowed: false, at: { gte: since } } })
     expect(refused).toBeGreaterThan(0)
@@ -108,7 +108,7 @@ describe('a firm\'s own compliance page', () => {
     const says: string = body.error.message
     expect(says).toContain('visas, I-9s and background results')
     expect(says).toContain('Ask your Compliance Officer, HR')
-    expect(says).toContain('Teleworld')
+    expect(says).toContain('Tellisford')
     expect(says).not.toMatch(/governance\.read|FORBIDDEN/)
   })
 

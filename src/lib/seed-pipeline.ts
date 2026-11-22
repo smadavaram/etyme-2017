@@ -177,7 +177,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
   // and a company's block, which keeps the row on the register and out of
   // every list except its own.
   const marked = consultants[2]
-  const formerEmployer = ctx.firmBySlug.get('meridian-bank')
+  const formerEmployer = ctx.firmBySlug.get('merrowfield-bank')
   if (marked && formerEmployer) {
     if (!(await db.doNotSubmit.findFirst({ where: { personId: marked.personId, companyId: formerEmployer.id } }))) {
       await db.doNotSubmit.create({
@@ -294,7 +294,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
   // honestly be said instead is carried in `inferredClient`.
   const chasers: { slug: string; seats: { title: string; skills: string[]; loc: string; inferred: string; status: string; lastSeen: number; adverts: { source: string; postedBy: string; rate: number | null; strength: string | null; because: string[] }[] }[] }[] = [
     {
-      slug: 'techpeple',
+      slug: 'tecwyn',
       seats: [
         {
           title: 'ERP finance consultant', skills: ['ERP finance', 'General ledger'], loc: 'San Jose, CA',
@@ -377,7 +377,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
   //
   // Every score comes from `runMatchEngine`. A bare number is a bug, and
   // the only way to be sure is never to write one by hand.
-  const benchFirms = ['techpeple', 'sahasra', 'nimbus']
+  const benchFirms = ['tecwyn', 'sahasra', 'nimbus']
   for (const slug of benchFirms) {
     const firm = ctx.firmBySlug.get(slug)
     if (!firm) continue

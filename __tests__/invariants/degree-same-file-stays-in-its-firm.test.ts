@@ -8,7 +8,7 @@ import { mayFileOwnPaper, ownPaperFields, ownPaperMenu } from '@/lib/document-st
 /**
  * Walk 8, item 7 (2026-11-09): Pinnacle Resourcing's HR read "This file
  * was already filed by Helena Marsh … by Samuel Adeyinka", two workers at
- * other firms (Techpeple under Computer Systems, and Halcyon), because
+ * other firms (Tecwyn under Computer Systems, and Halcyon), because
  * the duplicate-file check named everybody the same bytes were filed for.
  * Nothing read from one company reaches another: a person the reading
  * firm already holds on its own record (its employee, a person on its own
@@ -65,7 +65,7 @@ describe('the same degree file, read by one firm', () => {
     const r = await atPinnacle([HELENA])
     expect(r.says).toContain(SAME_FILE_ELSEWHERE)
     expect(r.says).not.toContain('Helena')
-    expect(r.says).not.toMatch(/Techpeple|Computer Systems|Halcyon/)
+    expect(r.says).not.toMatch(/Tecwyn|Computer Systems|Halcyon/)
     expect(r.findings.map((f) => f.code)).toEqual(['SAME_FILE'])
     expect(r.doors.map((d) => d.kind)).toEqual(['TRANSCRIPT', 'PROVIDER', 'SEND_BACK'])
   })

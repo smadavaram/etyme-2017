@@ -20,9 +20,9 @@ import {
 function viewer(over: Partial<Viewer> = {}): Viewer {
   return {
     personId: 'priya',
-    name: 'Priya Anand',
-    companyId: 'ravensbourne',
-    companyName: 'Ravensbourne Systems',
+    name: 'Priya Ambekar',
+    companyId: 'ravenmoor',
+    companyName: 'Ravenmoor Systems',
     outsideAccess: 'NAMED_ONLY',
     permissions: ['assignments.read', 'consultants.read', 'requirements.read'],
     orgUnitId: 'retail',
@@ -34,7 +34,7 @@ function viewer(over: Partial<Viewer> = {}): Viewer {
 
 const CONTRACT = {
   personId: 'meera',
-  companyId: 'ravensbourne',
+  companyId: 'ravenmoor',
   clientCompanyId: 'nike',
   endClientCompanyId: null,
   deliveryUnitId: 'retail',
@@ -107,8 +107,8 @@ describe('why somebody can see a placement', () => {
 })
 
 describe('why somebody can see a person', () => {
-  const ON_OUR_BENCH = { personId: 'anita', listedTo: ['ravensbourne'], worksAt: [] }
-  const SOMEBODY_ELSES = { personId: 'anita', listedTo: ['techpeple'], worksAt: [] }
+  const ON_OUR_BENCH = { personId: 'anita', listedTo: ['ravenmoor'], worksAt: [] }
+  const SOMEBODY_ELSES = { personId: 'anita', listedTo: ['tecwyn'], worksAt: [] }
 
   it('credits the consultant’s own choice, not the company’s permission', () => {
     const w = whyConsultant(viewer(), ON_OUR_BENCH)
@@ -142,7 +142,7 @@ describe('why somebody can see a person', () => {
   it('never names a stranger’s bench as the reason', () => {
     // Which agency holds them is the thing the wall exists to keep quiet.
     const w = whyConsultant(viewer(), SOMEBODY_ELSES)
-    expect(JSON.stringify(w)).not.toMatch(/techpeple/i)
+    expect(JSON.stringify(w)).not.toMatch(/tecwyn/i)
   })
 })
 
@@ -151,7 +151,7 @@ describe('why somebody can see a piece of demand', () => {
     companyId: 'terumo',
     openToNetwork: false,
     status: 'OPEN',
-    invited: ['techpeple'],
+    invited: ['tecwyn'],
     endClientVisible: false,
   }
 
@@ -160,7 +160,7 @@ describe('why somebody can see a piece of demand', () => {
   })
 
   it('lets an invited supplier read it, and hides the band', () => {
-    const w = whyRequirement(viewer({ companyId: 'techpeple', outsideAccess: 'ALLOWED' }), REQ)
+    const w = whyRequirement(viewer({ companyId: 'tecwyn', outsideAccess: 'ALLOWED' }), REQ)
     expect(w.visible).toBe(true)
     expect(w.hidden.map((h) => h.field)).toContain('billMin, billMax')
   })
@@ -181,16 +181,16 @@ describe('why somebody can see a piece of demand', () => {
   })
 
   it('still refuses a delivery employee at a walled firm, network or not', () => {
-    const w = whyRequirement(viewer({ companyId: 'ravensbourne' }), { ...REQ, openToNetwork: true })
+    const w = whyRequirement(viewer({ companyId: 'ravenmoor' }), { ...REQ, openToNetwork: true })
     expect(w.visible).toBe(false)
     expect(w.fix).toMatch(/network\.read/)
   })
 
   it('hides the end client until the firm holding it says otherwise', () => {
-    const w = whyRequirement(viewer({ companyId: 'techpeple', outsideAccess: 'ALLOWED' }), REQ)
+    const w = whyRequirement(viewer({ companyId: 'tecwyn', outsideAccess: 'ALLOWED' }), REQ)
     expect(w.hidden.map((h) => h.field)).toContain('endClientCompany')
     const shown = whyRequirement(
-      viewer({ companyId: 'techpeple', outsideAccess: 'ALLOWED' }),
+      viewer({ companyId: 'tecwyn', outsideAccess: 'ALLOWED' }),
       { ...REQ, endClientVisible: true }
     )
     expect(shown.hidden.map((h) => h.field)).not.toContain('endClientCompany')

@@ -1711,7 +1711,7 @@ export async function GET(request: NextRequest) {
   //
   // Round five, problem 4. Karthik Menon's seat reads his own work and his
   // own hours and nothing else, and this list handed him all six of
-  // Teleworld's submissions with each colleague's rate. A seat holding no
+  // Tellisford's submissions with each colleague's rate. A seat holding no
   // desk now reads the submissions that name its holder, whichever way
   // they faced, with no rate on them; asking for somebody else's is
   // refused without naming them, and logged where the person exists.

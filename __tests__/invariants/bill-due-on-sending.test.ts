@@ -1,6 +1,6 @@
 /**
  * When a bill is due, read on the day it is sent (browser walk,
- * 2026-10-22). The supplier's twin offered Teleworld a bill "Due Sep 14,
+ * 2026-10-22). The supplier's twin offered Tellisford a bill "Due Sep 14,
  * 2026" and, once sent, it read "38 days late" on its first day. Terms are
  * the agreement's (founder, 2026-10-18), so the rule is two sentences:
  * the days run from the day the bill is sent unless the agreement says
@@ -16,11 +16,11 @@ const day = (d: Date) => d.toISOString().slice(0, 10)
 const AUG_15 = new Date('2026-08-15T00:00:00.000Z')
 const OCT_22 = new Date('2026-10-22T00:00:00.000Z')
 
-function teleworld(paymentTermsFrom: string | null, issuedAt = OCT_22) {
+function tellisford(paymentTermsFrom: string | null, issuedAt = OCT_22) {
   return billDue({
     line: null,
     engagementAgreement: { paymentTerms: 30, paymentTermsFrom, client: { name: 'Northbend Athletic' } },
-    companyName: 'Teleworld',
+    companyName: 'Tellisford',
     customerName: 'Northbend Athletic',
     periodEnd: AUG_15,
     issuedAt,
@@ -29,7 +29,7 @@ function teleworld(paymentTermsFrom: string | null, issuedAt = OCT_22) {
 
 describe('a bill is dated by its agreement on the day it is sent', () => {
   it('where nobody said what the net days run from, they run from the day the bill is sent', () => {
-    const { due, pastDue, terms_ } = teleworld(null)
+    const { due, pastDue, terms_ } = tellisford(null)
     expect(terms_.paymentTermsFrom.value).toBe('INVOICE_DATE')
     expect(terms_.paymentTermsFrom.because).toMatch(/run from the day the bill is sent/)
     expect(day(due.dueAt)).toBe('2026-11-21')
@@ -37,23 +37,23 @@ describe('a bill is dated by its agreement on the day it is sent', () => {
   })
 
   it('where the agreement says the days run from the end of the work period, its date stands even when it has passed', () => {
-    const { due, terms_ } = teleworld('PERIOD_END')
+    const { due, terms_ } = tellisford('PERIOD_END')
     expect(terms_.paymentTermsFrom.value).toBe('PERIOD_END')
     expect(terms_.paymentTermsFrom.source).toBe('AGREEMENT')
     expect(day(due.dueAt)).toBe('2026-09-14')
   })
 
   it('a bill the agreement makes past due on the day it is sent says how many days, in the due sentence the card shows', () => {
-    const { due, pastDue } = teleworld('PERIOD_END')
+    const { due, pastDue } = tellisford('PERIOD_END')
     expect(pastDue).toEqual({ daysPast: 38, says: expect.stringMatching(/38 days past due the day it arrives/) })
     expect(due.says).toMatch(/^Due Sep 14, 2026 — net 30 from the end of the work period, Aug 15, 2026\. That date has passed: sent Oct 22, 2026, it is 38 days past due the day it arrives\.$/)
   })
 
   it('a bill that falls due on the very day it is sent says so, and one with days left says nothing extra', () => {
-    const onTheDay = teleworld('PERIOD_END', new Date('2026-09-14T00:00:00.000Z'))
+    const onTheDay = tellisford('PERIOD_END', new Date('2026-09-14T00:00:00.000Z'))
     expect(onTheDay.pastDue?.daysPast).toBe(0)
     expect(onTheDay.due.says).toMatch(/falls due the day it arrives/)
-    const early = teleworld('PERIOD_END', new Date('2026-08-20T00:00:00.000Z'))
+    const early = tellisford('PERIOD_END', new Date('2026-08-20T00:00:00.000Z'))
     expect(early.pastDue).toBeNull()
     expect(early.due.says).not.toMatch(/past due|falls due the day/)
   })
@@ -66,11 +66,11 @@ describe('a bill is dated by its agreement on the day it is sent', () => {
   })
 
   it('an anchor any document gave is kept as given; only silence becomes the day the bill is sent', () => {
-    const nobody = resolveBillingTerms({ company: { name: 'Teleworld' }, agreement: null, contract: null })
+    const nobody = resolveBillingTerms({ company: { name: 'Tellisford' }, agreement: null, contract: null })
     expect(nobody.paymentTermsFrom.value).toBe('PERIOD_END')
     expect(sendingAnchor(nobody.paymentTermsFrom).value).toBe('INVOICE_DATE')
     const said = resolveBillingTerms({
-      company: { name: 'Teleworld' },
+      company: { name: 'Tellisford' },
       agreement: { paymentTermsFrom: 'PERIOD_END', counterpartyName: 'Northbend Athletic' },
       contract: null,
     })
@@ -78,7 +78,7 @@ describe('a bill is dated by its agreement on the day it is sent', () => {
   })
 
   it("the twin's question says when the bill falls due before it asks to send it", () => {
-    const { due } = teleworld('PERIOD_END')
+    const { due } = tellisford('PERIOD_END')
     const q = sendQuestion({
       invoiceNumber: 'INV-0042', customerName: 'Northbend Athletic', periodLabel: 'August 1–15, 2026',
       totalSays: '$7,840.00', hours: 80, dueSays: due.says,

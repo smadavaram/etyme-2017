@@ -1484,7 +1484,7 @@ export function hatsFor(input: {
  * `*` and not as a list — that is what every seeded owner in the world
  * carries, and what `lib/permissions` has always meant by it. Comparing
  * strings here meant the menu and the routes disagreed for exactly the
- * people who can do the most: Techpeple's owner was shown no
+ * people who can do the most: Tecwyn's owner was shown no
  * Requirements, no Bench, no Invoices and no Payroll, while every one of
  * those routes let him straight in. Found on the browser walk for the
  * privacy desk, 2026-09-19 — the vendor's own owner could not see a link
@@ -1550,13 +1550,13 @@ export function getNavForKind(
   // an MSP staffs a client with its own W2, who needs no bench listing
   // because the employment contract already said it. Karthik Menon is
   // that person on the seeded world, and the shell forced a choice it
-  // had no business forcing: his only context is EMPLOYEE at Teleworld,
-  // so he read Teleworld's whole integrator menu and the four pages
+  // had no business forcing: his only context is EMPLOYEE at Tellisford,
+  // so he read Tellisford's whole integrator menu and the four pages
   // that are actually his — his work, his page, who has him — appeared
   // nowhere at all. The demo door dropped him on /dashboard/my-work and
   // nothing in his own navigation pointed back to it.
   //
-  // He is an employee of Teleworld with a real seat, and he is the
+  // He is an employee of Tellisford with a real seat, and he is the
   // person the work is about. Appending rather than substituting was the
   // reading true of both until 2026-11-03, when the founder made them two
   // hats, switched in the account menu: both are still his, one at a time.
@@ -1670,7 +1670,7 @@ function withTermsAfterYourWork(sections: NavSection[], termsHref: string | null
  *
  * Sign-up walk, round five (2026-10-08), problems 3–7. The door read
  * "desk-less" as "holds no permission at all", so Karthik Menon —
- * Teleworld's own W2 engineer, seated with exactly those two reads —
+ * Tellisford's own W2 engineer, seated with exactly those two reads —
  * was treated as a desk: he read every submission his firm made with
  * its rate, the client's rate band, a colleague's placement by id, the
  * firm's counterparties and contacts, and a commercial thread he was

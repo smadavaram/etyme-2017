@@ -376,7 +376,7 @@ describe('A worker sees what is being asked of her', () => {
     // each other — and one of them said somebody had sent it to her.
     const rows = paperRows({
       papers: [
-        { id: 'doc-1', kind: 'DOCUMENT', name: 'Non-disclosure agreement', askedBy: 'Techpeple', word: 'On file' },
+        { id: 'doc-1', kind: 'DOCUMENT', name: 'Non-disclosure agreement', askedBy: 'Tecwyn', word: 'On file' },
         { id: 'doc-1', kind: 'OUTSTANDING', name: 'Non-disclosure agreement', status: 'AWAITING_REVIEW', received: true, word: 'Sent — waiting for somebody to check it' },
       ],
     })
@@ -393,7 +393,7 @@ describe('A worker sees what is being asked of her', () => {
     const flipped = paperRows({
       papers: [
         { id: 'doc-1', kind: 'OUTSTANDING', name: 'Non-disclosure agreement', status: 'MISSING', word: 'Not on file', openAskAt: '/api/me/papers', documentTypeKey: 'NDA' },
-        { id: 'doc-1', kind: 'DOCUMENT', name: 'Non-disclosure agreement', askedBy: 'Techpeple', word: 'On file' },
+        { id: 'doc-1', kind: 'DOCUMENT', name: 'Non-disclosure agreement', askedBy: 'Tecwyn', word: 'On file' },
       ],
     })
     expect(flipped).toHaveLength(1)

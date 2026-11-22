@@ -228,7 +228,7 @@ export function Sidebar({
               {demo && companyName && <DemoChip />}
               <div className="text-[12px] font-medium text-etyme-ink truncate">
                 {/* A company, or the person themselves. This said
-                    "Techpeple Inc." for anybody with no firm — a design
+                    "Tecwyn Inc." for anybody with no firm — a design
                     placeholder that survived into production and named a
                     bench vendor from the seeded world under the page of a
                     consultant who has never heard of it. */}

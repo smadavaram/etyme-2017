@@ -31,7 +31,7 @@ const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
 
 let brightmoor = ''
-let techpeple = ''
+let tecwyn = ''
 let recordId = ''
 let jobId = ''
 
@@ -43,7 +43,7 @@ const supplierIds = async () =>
 beforeAll(async () => {
   await freshWorld()
   brightmoor = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })).id
-  techpeple = (await prisma.company.findFirstOrThrow({ where: { slug: { startsWith: 'world-techpeple' } }, select: { id: true } })).id
+  tecwyn = (await prisma.company.findFirstOrThrow({ where: { slug: { startsWith: 'world-tecwyn' } }, select: { id: true } })).id
   as(OWNER)
   const r = await record('Corrigan Search Partners')
   expect(r.status).toBe(201)
@@ -74,7 +74,7 @@ describe('a company not classified yet, on the demand side', () => {
   it('a person cannot be sent on to a company not classified yet; the refusal says to extend it to Customer and no submission is written to it', async () => {
     const person = await prisma.person.create({ data: { name: 'Odile Farrant', primaryEmail: 'odile.farrant.walk@example.invalid' } })
     const sub = await prisma.submission.create({
-      data: { requirementId: jobId, personId: person.id, fromCompanyId: techpeple, toCompanyId: brightmoor, rate: 9000, status: 'SUBMITTED', kind: 'NETWORK' },
+      data: { requirementId: jobId, personId: person.id, fromCompanyId: tecwyn, toCompanyId: brightmoor, rate: 9000, status: 'SUBMITTED', kind: 'NETWORK' },
       select: { id: true },
     })
     const r = await json(
@@ -167,7 +167,7 @@ describe('a company not classified yet, on the demand side', () => {
     expect(k.status, JSON.stringify(k.body)).toBe(200)
     const person = await prisma.person.create({ data: { name: 'Petra Lindgren', primaryEmail: 'petra.lindgren.walk@example.invalid' } })
     const sub = await prisma.submission.create({
-      data: { requirementId: jobId, personId: person.id, fromCompanyId: techpeple, toCompanyId: brightmoor, rate: 9000, status: 'SUBMITTED', kind: 'NETWORK' },
+      data: { requirementId: jobId, personId: person.id, fromCompanyId: tecwyn, toCompanyId: brightmoor, rate: 9000, status: 'SUBMITTED', kind: 'NETWORK' },
       select: { id: true },
     })
     const r = await json(

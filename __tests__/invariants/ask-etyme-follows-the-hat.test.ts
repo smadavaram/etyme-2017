@@ -103,8 +103,8 @@ describe('"Since you last looked" says each notice in the hat it belongs to', ()
 })
 
 /**
- * The fourth screen walk, 2026-11-03: Karthik Menon, Teleworld's own
- * engineer placed at Corveldt, switched to the Teleworld hat and Ask
+ * The fourth screen walk, 2026-11-03: Karthik Menon, Tellisford's own
+ * engineer placed at Corveldt, switched to the Tellisford hat and Ask
  * Etyme still read his own week and the worker's chips, and listed
  * colleagues' paper uploads. This reverses the call of f7692126c that a
  * seat with no role of its own is greeted as a worker in either hat.
@@ -120,8 +120,8 @@ describe('Karthik Menon, an integrator’s own engineer with no role on the firm
     expect(youOffered(f)).toBe(true)
     expect(greetsAsYou(f)).toBe(false)
     expect(firmHatWithNothing(f)).toBe(true)
-    expect(nothingOfTheFirm('Teleworld')).toBe('Nothing of Teleworld’s is addressed to you; your own work is under You, in the account menu.')
-    expect(nothingOfTheFirm('Teleworld Solutions')).toBe('Nothing of Teleworld Solutions’ is addressed to you; your own work is under You, in the account menu.')
+    expect(nothingOfTheFirm('Tellisford')).toBe('Nothing of Tellisford’s is addressed to you; your own work is under You, in the account menu.')
+    expect(nothingOfTheFirm('Tellisford Solutions')).toBe('Nothing of Tellisford Solutions’ is addressed to you; your own work is under You, in the account menu.')
     expect(ROUTE).toMatch(/if \(await inFirmHatWithNothing\(caller, request\)\) return nothingOfTheFirmGreeting\(caller, request\)/)
     // No chips, and no number but an Owner ask addressed to him: nothing
     // of the firm's book is his to decide, but taking over as Owner is (2026-11-12).

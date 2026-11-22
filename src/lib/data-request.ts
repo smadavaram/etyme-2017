@@ -1478,7 +1478,7 @@ export async function sendCensusLetter(letter: Notice): Promise<CensusLetterSent
   }
 
   try {
-    await sender.send(to, letter.subject, letter.body)
+    await sender.send(to, letter.subject, letter.body, null, null, { template: 'census-letter' })
     return { to, subject: letter.subject, sent: true, staffInstruction: null, note: null }
   } catch (err) {
     return handToStaff(`the email sender refused — ${String((err as Error)?.message ?? err).slice(0, 160)}.`)

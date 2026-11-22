@@ -18,7 +18,7 @@ import { GET as compliance } from '@/app/api/compliance/route'
  * What it left behind is this. With the named read refused, a prime's
  * only remaining door is `/api/compliance` with nothing on it, which
  * resolves to its own company — and the query underneath asked
- * `endClientFilter`, which means "who works at *this* site". Techpeple's
+ * `endClientFilter`, which means "who works at *this* site". Tecwyn's
  * people work at Harlow Health's site, not at Computer Systems'. So the
  * page a prime is left with answered: nobody, no supplier, no cover.
  *
@@ -31,8 +31,8 @@ import { GET as compliance } from '@/app/api/compliance/route'
  * ── The chain this walks ─────────────────────────────────────────────
  *
  *   Harlow Health      the client, pays Computer Systems
- *   Computer Systems   the prime, pays Techpeple
- *   Techpeple           the sub, employs the person
+ *   Computer Systems   the prime, pays Tecwyn
+ *   Tecwyn           the sub, employs the person
  */
 
 const D = '@demo.etyme.local'
@@ -44,20 +44,20 @@ const co = { prime: '', sub: '', client: '' }
 beforeAll(async () => {
   await freshWorld()
   co.prime = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-computer-systems' } })).id
-  co.sub = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })).id
+  co.sub = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })).id
   co.client = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-harlow-health' } })).id
 
   // The shape the sentences below depend on, asserted rather than
   // assumed: the sub sells to the prime, and the work is at the client.
-  // Found by its facts: Techpeple's line to Computer Systems for work at
-  // Harlow Health. Techpeple sells to Computer Systems for Northbend too,
+  // Found by its facts: Tecwyn's line to Computer Systems for work at
+  // Harlow Health. Tecwyn sells to Computer Systems for Northbend too,
   // so an unordered first row could be either (release pass 47).
   const leg = await prisma.sellContract.findFirst({
     where: { companyId: co.sub, clientCompanyId: co.prime, endClientCompanyId: co.client },
     orderBy: { startDate: 'asc' },
     select: { endClientCompanyId: true },
   })
-  expect(leg, 'the seeded world no longer has Techpeple selling to Computer Systems for work at Harlow Health').not.toBeNull()
+  expect(leg, 'the seeded world no longer has Tecwyn selling to Computer Systems for work at Harlow Health').not.toBeNull()
   expect(leg!.endClientCompanyId).toBe(co.client)
 }, 240_000)
 
@@ -68,15 +68,15 @@ describe('a prime reads its own supply chain on its own compliance page', () => 
     expect(status).toBe(200)
 
     const firms = body.data.verifications.companies
-    const techpeple = firms.find((f: any) => f.companyId === co.sub)
-    expect(techpeple, 'the firm the prime pays was missing from its own compliance page').toBeTruthy()
+    const tecwyn = firms.find((f: any) => f.companyId === co.sub)
+    expect(tecwyn, 'the firm the prime pays was missing from its own compliance page').toBeTruthy()
     // Its own counterparty, so its own name — nothing is withheld from
     // the firm that signed the contract.
-    expect(techpeple.nameWithheld).toBe(false)
-    expect(techpeple.name).toContain('Techpeple')
-    expect(techpeple.cover).not.toBeNull()
-    expect(['PASS', 'WARN', 'BLOCK']).toContain(techpeple.cover.outcome)
-    expect(techpeple.cover.says.length).toBeGreaterThan(20)
+    expect(tecwyn.nameWithheld).toBe(false)
+    expect(tecwyn.name).toContain('Tecwyn')
+    expect(tecwyn.cover).not.toBeNull()
+    expect(['PASS', 'WARN', 'BLOCK']).toContain(tecwyn.cover.outcome)
+    expect(tecwyn.cover.says.length).toBeGreaterThan(20)
   })
 
   it('shows the people that firm has on site, so their paperwork can be read', async () => {
@@ -165,6 +165,6 @@ describe('a prime reads its own supply chain on its own compliance page', () => 
     expect(sub, 'the sub is still counted at the client').toBeTruthy()
     expect(sub.nameWithheld, 'a sub-vendor’s name is the prime’s to keep').toBe(true)
     expect(sub.suppliedThrough).toContain('Computer Systems')
-    expect(JSON.stringify(body)).not.toContain('Techpeple')
+    expect(JSON.stringify(body)).not.toContain('Tecwyn')
   })
 })

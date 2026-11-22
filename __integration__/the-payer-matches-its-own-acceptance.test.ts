@@ -20,20 +20,20 @@ import { acceptanceChain } from '@/lib/money/expense-acceptance'
  * accepted, on the seeded chain.
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems,
- * employed by Techpeple. Her week is filed once, on Techpeple's contract.
- * When Techpeple invoices Computer Systems, the receipt is Computer
+ * employed by Tecwyn. Her week is filed once, on Tecwyn's contract.
+ * When Tecwyn invoices Computer Systems, the receipt is Computer
  * Systems' own PASS_THROUGH acceptance — the founder's rule that no rung
  * pays on a week it has not accepted. Before this, the match read only
  * EMPLOYER_ACCEPTANCE, and only on a contract linked to Computer Systems'
  * buy contract, which carries no hours: the invoice matched nothing
  * whoever had signed, and the one signature it looked for was
- * Techpeple's own.
+ * Tecwyn's own.
  */
 
 const D = '@demo.etyme.local'
 const NIKE = `world-nike-hiring${D}`
 const CS = `world-computer-systems${D}`
-const TECHPEPLE = `world-techpeple${D}`
+const TECWYN = `world-tecwyn${D}`
 
 const sign = async (id: string, body: unknown = {}) =>
   json(await approve(req('POST', `/api/timesheets/${id}/approve`, body), { params: Promise.resolve({ id }) }))
@@ -44,7 +44,7 @@ const invoice = async (number: string, hours: number, extra: Record<string, unkn
   json(
     await recordBill(
       req('POST', '/api/ap/bills', {
-        vendorCompanyId: s.techpeple,
+        vendorCompanyId: s.tecwyn,
         number,
         buyContractId: s.buy,
         periodStart: s.from,
@@ -63,7 +63,7 @@ const pay = async (id: string, extra: Record<string, unknown> = {}) =>
   json(await payBill(req('PATCH', '/api/ap/bills', { id, ...extra })))
 
 const idOf = async (number: string) =>
-  (await prisma.vendorBill.findFirstOrThrow({ where: { companyId: s.cs, vendorCompanyId: s.techpeple, number } })).id
+  (await prisma.vendorBill.findFirstOrThrow({ where: { companyId: s.cs, vendorCompanyId: s.tecwyn, number } })).id
 
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 
@@ -84,15 +84,15 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
       orderBy: { periodStart: 'desc' },
     })
     const cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
-    const techpeple = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' } })
+    const tecwyn = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' } })
     const buy = await prisma.buyContract.findFirstOrThrow({
-      where: { companyId: cs.id, vendorCompanyId: techpeple.id, candidates: { some: { personId: helena.id } } },
+      where: { companyId: cs.id, vendorCompanyId: tecwyn.id, candidates: { some: { personId: helena.id } } },
       include: { candidates: true },
     })
     Object.assign(s, {
       week: week.id,
       hours: Number(week.totalHours),
-      techpeple: techpeple.id,
+      tecwyn: tecwyn.id,
       cs: cs.id,
       buy: buy.id,
       order: buy.workOrderId,
@@ -109,7 +109,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     expect(s.hours).toBe(40)
   }, 240_000)
 
-  it('an invoice from Techpeple to Computer Systems cannot be recorded while nobody has signed the week, and the refusal names the week and who must accept it', async () => {
+  it('an invoice from Tecwyn to Computer Systems cannot be recorded while nobody has signed the week, and the refusal names the week and who must accept it', async () => {
     as(CS)
     const r = await invoice('CE-HM-0', 40)
     expect(r.status).toBe(422)
@@ -128,7 +128,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     const r = await invoice('CE-HM-1', 40)
     expect(r.status).toBe(422)
     expect(r.body.error.code).toBe('WEEK_NOT_ACCEPTED')
-    expect(await prisma.vendorBill.count({ where: { companyId: s.cs, vendorCompanyId: s.techpeple, number: { startsWith: 'CE-HM' } } })).toBe(0)
+    expect(await prisma.vendorBill.count({ where: { companyId: s.cs, vendorCompanyId: s.tecwyn, number: { startsWith: 'CE-HM' } } })).toBe(0)
   })
 
   it('Computer Systems accepts thirty-eight of Helena’s forty hours, with its reason, as its own pass-through acceptance', async () => {
@@ -140,9 +140,9 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     expect(Number(mine.hours)).toBe(38)
   })
 
-  it('Techpeple’s invoice for the thirty-eight hours Computer Systems accepted matches, before Techpeple has accepted anything itself', async () => {
-    const techpepleSigned = await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: s.techpeple } })
-    expect(techpepleSigned).toBe(0)
+  it('Tecwyn’s invoice for the thirty-eight hours Computer Systems accepted matches, before Tecwyn has accepted anything itself', async () => {
+    const tecwynSigned = await prisma.workAssertion.count({ where: { timesheetId: s.week, companyId: s.tecwyn } })
+    expect(tecwynSigned).toBe(0)
 
     as(CS)
     const r = await invoice('CE-HM-2', 38)
@@ -157,7 +157,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     const r = await invoice('CE-HM-3', 40)
     expect(r.status, JSON.stringify(r.body)).toBe(409)
     expect(r.body.error.code).toBe('ALREADY_RECEIVED')
-    expect(r.body.error.message).toMatch(/^Helena Marsh\u2019s week of [A-Z][a-z]+ \d+ is already on Techpeple\u2019s invoice CE-HM-2, received [A-Z][a-z]+ \d+, \d{4}, so this invoice would owe it twice\./)
+    expect(r.body.error.message).toMatch(/^Helena Marsh\u2019s week of [A-Z][a-z]+ \d+ is already on Tecwyn\u2019s invoice CE-HM-2, received [A-Z][a-z]+ \d+, \d{4}, so this invoice would owe it twice\./)
     expect(await prisma.vendorBill.count({ where: { companyId: s.cs, number: 'CE-HM-3' } })).toBe(0)
   })
 
@@ -176,11 +176,11 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
     expect(await closed()).toBe(before)
   })
 
-  it('once Techpeple has accepted too, the exception queue re-matches Techpeple’s invoices on Computer Systems’ own acceptance and finds a receipt behind each', async () => {
-    as(TECHPEPLE)
+  it('once Tecwyn has accepted too, the exception queue re-matches Tecwyn’s invoices on Computer Systems’ own acceptance and finds a receipt behind each', async () => {
+    as(TECWYN)
     const r = await sign(s.week)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect((await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: s.week, companyId: s.techpeple, state: 'LIVE' } })).role).toBe('EMPLOYER_ACCEPTANCE')
+    expect((await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: s.week, companyId: s.tecwyn, state: 'LIVE' } })).role).toBe('EMPLOYER_ACCEPTANCE')
 
     as(CS)
     const q = await json(await exceptions(req('GET', '/api/ap/bills')))
@@ -214,7 +214,7 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
     const r = await pay(id)
     expect(r.status, JSON.stringify(r.body)).toBe(409)
     expect(r.body.error.code).toBe('MATCH_FAILED')
-    expect(r.body.error.message).toMatch(/^Techpeple\u2019s invoice CE-HM-3 for \$[\d,.]+ does not pass the check now: /)
+    expect(r.body.error.message).toMatch(/^Tecwyn\u2019s invoice CE-HM-3 for \$[\d,.]+ does not pass the check now: /)
     const after = await prisma.vendorBill.findUniqueOrThrow({ where: { id } })
     expect(after.status).toBe('DISPUTED')
     expect(after.paidCents).toBe(0)
@@ -248,7 +248,7 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
     const paid = await pay(await idOf('CE-HM-4'))
     expect(paid.status).toBe(409)
     // Waivable, and so said: an exception with a reason, or a corrected invoice.
-    expect(paid.body.error.message).toMatch(/Record an exception with a reason on it if the difference should be paid, or ask Techpeple for a corrected invoice\.$/)
+    expect(paid.body.error.message).toMatch(/Record an exception with a reason on it if the difference should be paid, or ask Tecwyn for a corrected invoice\.$/)
   })
 
   it('a payment larger than what is still owed on a typed-in receipt is refused', async () => {
@@ -268,20 +268,20 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
     expect(r.body.data.bill.status).toBe('PAID')
     expect(r.body.data.payment).toMatchObject({
       amountMinor: 38 * s.rate, currency: 'USD', method: 'ACH', reference: 'CS-7781',
-      paidBy: 'Computer Systems Inc', paidTo: 'Techpeple',
+      paidBy: 'Computer Systems Inc', paidTo: 'Tecwyn',
     })
     expect(r.body.data.payment.recordedBy).toBeTruthy()
     const log = await prisma.automationLog.findFirstOrThrow({
       where: { action: 'PAYMENT_RECORDED', payload: { path: ['vendorBillId'], equals: id } },
     })
     expect(log.companyId).toBe(s.cs)
-    expect((log.payload as any).paidTo.companyId).toBe(s.techpeple)
+    expect((log.payload as any).paidTo.companyId).toBe(s.tecwyn)
     expect((log.payload as any).paidCents).toBe(38 * s.rate)
     expect(await prisma.cycle.count({ where: { buyContractId: s.buy, completedAt: { not: null } } })).toBe(closedBefore)
     // And a payment row on the record, naming the receipt it settles.
     const payment = await prisma.payment.findFirstOrThrow({ where: { vendorBillId: id } })
     expect(payment).toMatchObject({
-      invoiceId: null, payerCompanyId: s.cs, receivedByCompanyId: s.techpeple,
+      invoiceId: null, payerCompanyId: s.cs, receivedByCompanyId: s.tecwyn,
       currency: 'USD', method: 'ACH', reference: 'CS-7781',
     })
     expect(Math.round(Number(payment.amount) * 100)).toBe(38 * s.rate)
@@ -293,13 +293,13 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
     as(CS)
     const r = await invoice('CE-HM-5', 38)
     expect(r.status, JSON.stringify(r.body)).toBe(409)
-    expect(r.body.error.message).toMatch(/already on Techpeple\u2019s invoice CE-HM-4/)
+    expect(r.body.error.message).toMatch(/already on Tecwyn\u2019s invoice CE-HM-4/)
   })
 
   it('a second receipt for the same week let in before this rule is refused at payment, naming the receipt already paid', async () => {
     const twin = await prisma.vendorBill.create({
       data: {
-        companyId: s.cs, vendorCompanyId: s.techpeple, number: 'CE-HM-6', buyContractId: s.buy, workOrderId: s.order,
+        companyId: s.cs, vendorCompanyId: s.tecwyn, number: 'CE-HM-6', buyContractId: s.buy, workOrderId: s.order,
         periodStart: new Date(s.from), periodEnd: new Date(s.to), currency: 'USD', totalCents: 38 * s.rate,
         receivedAt: new Date(Date.now() - 86_400_000), dueAt: new Date(Date.now() - 3_600_000), status: 'APPROVED',
       },
@@ -308,7 +308,7 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
     as(CS)
     const r = await pay(twin.id)
     expect(r.status, JSON.stringify(r.body)).toBe(409)
-    expect(r.body.error.message).toMatch(/already on Techpeple\u2019s invoice CE-HM-4/)
+    expect(r.body.error.message).toMatch(/already on Tecwyn\u2019s invoice CE-HM-4/)
   })
 
   it('a payment run leaves out a receipt the check refuses, with the reason', async () => {
@@ -317,7 +317,7 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const left = r.body.data.proposed.excluded.find((e: any) => e.billId === s.twin)
     expect(left?.reason).toBe('MATCH_FAILED')
-    expect(left?.says).toMatch(/already on Techpeple\u2019s invoice CE-HM-4/)
+    expect(left?.says).toMatch(/already on Tecwyn\u2019s invoice CE-HM-4/)
   })
 
   it('a receipt in an approved payment run that no longer passes the check stops the run being released', async () => {
@@ -342,9 +342,9 @@ describe('a typed-in invoice receipt is paid on the same check as a platform inv
  * A typed-in receipt has lines, exceptions and a cancel door (2026-10-18).
  *
  * Helena's next week, October 11, is signed by all three firms, Computer
- * Systems accepting the whole forty. Techpeple's invoices for it are typed
+ * Systems accepting the whole forty. Tecwyn's invoices for it are typed
  * in line by line: the week, an expense Helena incurred on the job, and a
- * milestone on Computer Systems' order to Techpeple.
+ * milestone on Computer Systems' order to Tecwyn.
  */
 describe('a typed-in receipt is matched line by line, its differences waived with a reason, and a mis-keyed one cancelled', () => {
   const t: Record<string, any> = {}
@@ -355,7 +355,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     return json(
       await recordBill(
         req('POST', '/api/ap/bills', {
-          vendorCompanyId: s.techpeple,
+          vendorCompanyId: s.tecwyn,
           number,
           buyContractId: s.buy,
           periodStart: t.from,
@@ -390,7 +390,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
       },
     })
     Object.assign(t, { week: sheet.id, from: sheet.periodStart.toISOString(), to: sheet.periodEnd.toISOString(), helena: helena.id })
-    for (const who of [NIKE, CS, TECHPEPLE]) {
+    for (const who of [NIKE, CS, TECWYN]) {
       as(who)
       const r = await sign(sheet.id)
       expect(r.body?.error, `${who}: ${JSON.stringify(r.body)}`).toBeUndefined()
@@ -402,26 +402,26 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     const expense = (billable: boolean, status: string) =>
       prisma.expense.create({
         data: {
-          companyId: s.techpeple, sellContractId: last.sellContractId, personId: helena.id, category: 'TRAVEL',
+          companyId: s.tecwyn, sellContractId: last.sellContractId, personId: helena.id, category: 'TRAVEL',
           billable, description: 'Train to the Tualatin site for the cut-over', periodStart: plus(last.periodStart, 9),
           periodEnd: plus(last.periodStart, 9), items: [], total: 250, status,
         },
       })
     t.expense = (await expense(true, 'SUBMITTED')).id
     t.ownCost = (await expense(false, 'APPROVED')).id
-    // A milestone on Computer Systems' own order to Techpeple, delivered and not yet accepted.
+    // A milestone on Computer Systems' own order to Tecwyn, delivered and not yet accepted.
     t.milestone = (await prisma.orderMilestone.create({
       data: { orderId: s.order, name: 'Data migration sign-off', amountCents: 150_000, status: 'DELIVERED', deliveredAt: new Date() },
     })).id
   }, 240_000)
 
-  it('the form offers the weeks Computer Systems accepted on Techpeple’s buy line, with the hours accepted and the agreed rate beside each, and nothing it has not approved', async () => {
+  it('the form offers the weeks Computer Systems accepted on Tecwyn’s buy line, with the hours accepted and the agreed rate beside each, and nothing it has not approved', async () => {
     as(CS)
     const suppliers = await json(await receiptOptions(req('GET', '/api/ap/receipts/options')))
     expect(suppliers.status, JSON.stringify(suppliers.body)).toBe(200)
-    const techpeple = suppliers.body.data.suppliers.find((x: any) => x.id === s.techpeple)
-    expect(techpeple?.lines.map((l: any) => l.buyContractId)).toContain(s.buy)
-    expect(techpeple.lines.find((l: any) => l.buyContractId === s.buy)).toMatchObject({ rateMinor: s.rate, currency: 'USD', people: ['Helena Marsh'] })
+    const tecwyn = suppliers.body.data.suppliers.find((x: any) => x.id === s.tecwyn)
+    expect(tecwyn?.lines.map((l: any) => l.buyContractId)).toContain(s.buy)
+    expect(tecwyn.lines.find((l: any) => l.buyContractId === s.buy)).toMatchObject({ rateMinor: s.rate, currency: 'USD', people: ['Helena Marsh'] })
 
     const r = await json(await receiptOptions(req('GET', `/api/ap/receipts/options?buyContractId=${s.buy}`)))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
@@ -438,7 +438,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
 
     // Only whoever records invoice receipts reads the form, and the supplier
     // never reads the payer's buy line.
-    as(TECHPEPLE)
+    as(TECWYN)
     expect([403, 404]).toContain((await json(await receiptOptions(req('GET', `/api/ap/receipts/options?buyContractId=${s.buy}`)))).status)
   })
 
@@ -474,12 +474,12 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     const r = await receive('CE-HM-K2', [week(40)], 40 * s.rate)
     expect(r.status, JSON.stringify(r.body)).toBe(409)
     expect(r.body.error.code).toBe('ALREADY_RECEIVED')
-    expect(r.body.error.message).toMatch(/^Helena Marsh’s week of [A-Z][a-z]+ \d+ is already on Techpeple’s invoice CE-HM-K1,/)
+    expect(r.body.error.message).toMatch(/^Helena Marsh’s week of [A-Z][a-z]+ \d+ is already on Tecwyn’s invoice CE-HM-K1,/)
   })
 
   it('a mis-keyed receipt is cancelled with a reason and its week can be received again', async () => {
     expect((await cancel('CE-HM-K1', '')).status, 'a reason is required').toBe(422)
-    const c = await cancel('CE-HM-K1', 'Keyed against the wrong invoice number; Techpeple’s invoice is CE-HM-L1.')
+    const c = await cancel('CE-HM-K1', 'Keyed against the wrong invoice number; Tecwyn’s invoice is CE-HM-L1.')
     expect(c.status, JSON.stringify(c.body)).toBe(200)
     const k1 = await prisma.vendorBill.findUniqueOrThrow({ where: { id: await idOf('CE-HM-K1') }, include: { lines: true } })
     // Kept on the record, with its line, and never revived.
@@ -488,7 +488,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     const log = await prisma.automationLog.findFirstOrThrow({
       where: { action: 'INVOICE_RECEIPT_CANCELLED', payload: { path: ['vendorBillId'], equals: k1.id } },
     })
-    expect(log.reason).toBe('Keyed against the wrong invoice number; Techpeple’s invoice is CE-HM-L1.')
+    expect(log.reason).toBe('Keyed against the wrong invoice number; Tecwyn’s invoice is CE-HM-L1.')
     expect(log.reversible).toBe(false)
     expect((await cancel('CE-HM-K1')).status, 'a cancelled receipt is not cancelled twice').toBe(409)
 
@@ -510,7 +510,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     as(CS)
     const refused = await pay(id)
     expect(refused.status).toBe(409)
-    expect(refused.body.error.message).toMatch(/^Techpeple’s invoice CE-HM-L1 for \$[\d,.]+ does not pass the check now: Helena Marsh: billed 42h, approved 40h\. Record an exception with a reason on it/)
+    expect(refused.body.error.message).toMatch(/^Tecwyn’s invoice CE-HM-L1 for \$[\d,.]+ does not pass the check now: Helena Marsh: billed 42h, approved 40h\. Record an exception with a reason on it/)
 
     // The rate, the same work twice, a week nobody accepted and a bare
     // total are nobody's to wave through, whatever the reason.
@@ -519,7 +519,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     expect(price.body.error.code).toBe('NOT_OVERRIDABLE')
     expect((await waiveAs(CS, 'CE-HM-L1', 'QUANTITY', 'ok')).status, 'a reason is a sentence').toBe(422)
     // The supplier is never the one to waive a check on what it billed.
-    expect((await waiveAs(TECHPEPLE, 'CE-HM-L1', 'QUANTITY')).status).toBe(404)
+    expect((await waiveAs(TECWYN, 'CE-HM-L1', 'QUANTITY')).status).toBe(404)
 
     const w = await waiveAs(CS, 'CE-HM-L1', 'QUANTITY')
     expect(w.status, JSON.stringify(w.body)).toBe(200)
@@ -559,11 +559,11 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     expect(paid.body.data.bill.status).toBe('PAID')
   })
 
-  it('a payment on a typed-in receipt is not cash Techpeple has to place on its receivables', async () => {
+  it('a payment on a typed-in receipt is not cash Tecwyn has to place on its receivables', async () => {
     const id = await idOf('CE-HM-L1')
     const p = await prisma.payment.findFirstOrThrow({ where: { vendorBillId: id } })
-    expect(p.receivedByCompanyId).toBe(s.techpeple)
-    as(TECHPEPLE)
+    expect(p.receivedByCompanyId).toBe(s.tecwyn)
+    as(TECWYN)
     const r = await json(await unappliedCash(req('GET', '/api/ar/payments')))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(JSON.stringify(r.body)).not.toContain(p.id)
@@ -587,15 +587,15 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     expect(paid.status).toBe('PAID')
     expect(paid.lines).toEqual([expect.objectContaining({ kind: 'HOURS', hours: 42, rateMinor: s.rate, amountMinor: 42 * s.rate })])
     expect(paid.lines[0].says).toMatch(/^Helena Marsh · week of /)
-    expect(paid.payments[0]).toMatch(/^Computer Systems[^.]* paid Techpeple \$[\d,.]+ on [A-Z][a-z]{2} \d+, \d{4} by WIRE, reference CS-8102\. Recorded by /)
+    expect(paid.payments[0]).toMatch(/^Computer Systems[^.]* paid Tecwyn \$[\d,.]+ on [A-Z][a-z]{2} \d+, \d{4} by WIRE, reference CS-8102\. Recorded by /)
     expect(paid.doors.waivers).toEqual([expect.objectContaining({ code: 'QUANTITY', live: true, reason: 'Two hours of handover the client asked for in writing.' })])
     expect(paid.doors.pay).toEqual({ offered: false, says: null })
     expect(paid.doors.cancel.offered).toBe(false)
-    expect(paid.doors.cancel.says).toMatch(/has been paid on Techpeple’s invoice CE-HM-L1, so it is not cancelled/)
+    expect(paid.doors.cancel.says).toMatch(/has been paid on Tecwyn’s invoice CE-HM-L1, so it is not cancelled/)
 
     const cancelled = row('CE-HM-K1')
     expect(cancelled.status).toBe('CANCELLED')
-    expect(cancelled.cancelled).toMatch(/: “Keyed against the wrong invoice number; Techpeple’s invoice is CE-HM-L1\.”$/)
+    expect(cancelled.cancelled).toMatch(/: “Keyed against the wrong invoice number; Tecwyn’s invoice is CE-HM-L1\.”$/)
     expect(cancelled.doors.cancel).toEqual({ offered: false, says: null })
 
     // Held by the duplicate rule, in a run waiting to be released: nobody
@@ -603,11 +603,11 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     const twin = row('CE-HM-6')
     expect(twin.doors.failing.find((f: any) => f.code === 'DUPLICATE')).toMatchObject({ waivable: false, waive: { offered: false, says: 'Nobody can wave this through.' } })
     expect(twin.doors.pay.offered).toBe(false)
-    expect(twin.doors.pay.says).toMatch(/already on Techpeple’s invoice CE-HM-4/)
+    expect(twin.doors.pay.says).toMatch(/already on Tecwyn’s invoice CE-HM-4/)
     expect(twin.doors.cancel.says).toMatch(/is in a payment run that is approved and waiting to be released\. Cancel the run first, then this receipt\.$/)
 
     // The supplier reads its own book, never the payer's receipts.
-    as(TECHPEPLE)
+    as(TECWYN)
     const theirs = await json(await receiptsList(req('GET', '/api/ap/receipts')))
     expect(JSON.stringify(theirs.body)).not.toContain('CE-HM-L1')
   })
@@ -632,12 +632,12 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
 
     const ownCost = await receive('CE-HM-E1', expenseLine(t.ownCost), 25_000, noPeriod)
     expect(ownCost.status).toBe(422)
-    // The agreement between the two firms is silent, so Techpeple's own flag decides.
-    expect(ownCost.body.error.message).toMatch(/^Line 1 bills Helena Marsh’s travel expense of .*, which is not billable on this leg: Techpeple recorded this travel expense as its own cost, and the agreement between Computer Systems Inc and Techpeple does not say which expenses are billable\./)
+    // The agreement between the two firms is silent, so Tecwyn's own flag decides.
+    expect(ownCost.body.error.message).toMatch(/^Line 1 bills Helena Marsh’s travel expense of .*, which is not billable on this leg: Tecwyn recorded this travel expense as its own cost, and the agreement between Computer Systems Inc and Tecwyn does not say which expenses are billable\./)
 
     await prisma.expense.update({ where: { id: t.expense }, data: { status: 'APPROVED', approvedAt: new Date() } })
 
-    // Approved by Techpeple to reimburse Helena is not accepted by
+    // Approved by Tecwyn to reimburse Helena is not accepted by
     // Computer Systems, which pays for it (the founder, 2026-10-19).
     const unaccepted = await receive('CE-HM-E1', expenseLine(t.expense), 25_000, noPeriod)
     expect(unaccepted.status).toBe(422)
@@ -647,11 +647,11 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
       as(who)
       return json(await acceptExpense(req('POST', `/api/expenses/${t.expense}/accept`, body), params(t.expense)))
     }
-    // Computer Systems cannot accept before Northbend, and Techpeple never accepts its own.
+    // Computer Systems cannot accept before Northbend, and Tecwyn never accepts its own.
     const early = await accept(CS)
     expect(early.status, JSON.stringify(early.body)).toBe(409)
     expect(early.body.error.message).toMatch(/^Northbend Athletic accepts Helena Marsh’s travel expense of .* first, then Computer Systems Inc\. It has not yet\.$/)
-    const own = await accept(TECHPEPLE)
+    const own = await accept(TECWYN)
     expect(own.status).toBe(403)
     expect(own.body.error.code).toBe('OWN_EXPENSE')
     expect((await accept(NIKE)).status).toBe(200)
@@ -672,7 +672,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
 
     const twice = await receive('CE-HM-E2', expenseLine(t.expense), 25_000, noPeriod)
     expect(twice.status).toBe(409)
-    expect(twice.body.error.message).toMatch(/^Helena Marsh’s expense of \$250\.00 is already on Techpeple’s invoice CE-HM-E1,/)
+    expect(twice.body.error.message).toMatch(/^Helena Marsh’s expense of \$250\.00 is already on Tecwyn’s invoice CE-HM-E1,/)
 
     // And at the moment money leaves: an expense rejected since is not paid.
     await prisma.expense.update({ where: { id: t.expense }, data: { status: 'REJECTED' } })
@@ -726,9 +726,9 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
   // than any of Helena's on the record. Every firm signs it. Northbend
   // decides on its own leg — Computer Systems' contract to it — that the
   // five over its line of forty are worth double time to Northbend.
-  // Techpeple invoices Computer Systems on Computer Systems' buy line,
+  // Tecwyn invoices Computer Systems on Computer Systems' buy line,
   // whose own multiplier is the pair's.
-  const overtimeWeek = async (o: { accepted?: number; clientDecides?: boolean; csDecidesOnTechpeple?: boolean } = {}) => {
+  const overtimeWeek = async (o: { accepted?: number; clientDecides?: boolean; csDecidesOnTecwyn?: boolean } = {}) => {
     const first = await prisma.timesheet.findFirstOrThrow({ where: { personId: t.helena }, orderBy: { periodStart: 'asc' } })
     const plus = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000)
     const days: Record<string, number> = {}
@@ -746,7 +746,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     for (const [companyId, role, hours, rateCents] of [
       [top.clientCompanyId, 'CLIENT_APPROVAL', 45, top.billRate],
       [s.cs, 'PASS_THROUGH', o.accepted ?? 45, hoursLeg.billRate],
-      [s.techpeple, 'EMPLOYER_ACCEPTANCE', 45, s.rate],
+      [s.tecwyn, 'EMPLOYER_ACCEPTANCE', 45, s.rate],
     ] as const) {
       await prisma.workAssertion.create({ data: { timesheetId: sheet.id, companyId, role, hours, rateCents, state: 'LIVE', byId: someone.id } })
     }
@@ -759,12 +759,12 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
         },
       })
     }
-    if (o.csDecidesOnTechpeple) {
+    if (o.csDecidesOnTecwyn) {
       await prisma.overtimeDecision.create({
         data: {
           timesheetId: sheet.id, sellContractId: hoursLeg.id, weekOf: sheet.periodStart,
           treatment: 'PREMIUM', overtimeHours: 5, afterHours: 40, multiplierBps: 15_000, appliedBps: 15_000,
-          decidedById: someone.id, decidedByCompanyId: s.cs, reason: 'Computer Systems’ own answer on Techpeple’s leg.',
+          decidedById: someone.id, decidedByCompanyId: s.cs, reason: 'Computer Systems’ own answer on Tecwyn’s leg.',
         },
       })
     }
@@ -781,7 +781,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     const w = await overtimeWeek()
     const straight = 45 * s.rate
     const pairs = Math.round(5 * w.premiumPerHour)
-    // Northbend's double time is a price on its own leg, not Techpeple's.
+    // Northbend's double time is a price on its own leg, not Tecwyn's.
     const clients = 5 * s.rate
     const atTheClientsRate = await receive('CE-HM-OT1', w.line(45, straight + clients), straight + clients, w.period)
     expect(atTheClientsRate.status, JSON.stringify(atTheClientsRate.body)).toBe(422)
@@ -803,8 +803,8 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
   })
 
   it('a premium line for hours the client did not decide as overtime is refused', async () => {
-    // Computer Systems answered on Techpeple's leg; Northbend decided nothing.
-    const w = await overtimeWeek({ clientDecides: false, csDecidesOnTechpeple: true })
+    // Computer Systems answered on Tecwyn's leg; Northbend decided nothing.
+    const w = await overtimeWeek({ clientDecides: false, csDecidesOnTecwyn: true })
     const straight = 45 * s.rate
     const premium = Math.round(5 * w.premiumPerHour)
     const r = await receive('CE-HM-OT2', w.line(45, straight + premium), straight + premium, w.period)
@@ -847,7 +847,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     const r = await json(await runAct(req('PATCH', '/api/ap/payment-runs', { id: run.id, action: 'pay', reference: 'ACH-RUN-1', paidOn: new Date().toISOString().slice(0, 10) })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const p = await prisma.payment.findFirstOrThrow({ where: { vendorBillId: id } })
-    expect(p).toMatchObject({ payerCompanyId: s.cs, receivedByCompanyId: s.techpeple, method: 'PAYMENT_RUN', reference: 'ACH-RUN-1' })
+    expect(p).toMatchObject({ payerCompanyId: s.cs, receivedByCompanyId: s.tecwyn, method: 'PAYMENT_RUN', reference: 'ACH-RUN-1' })
     expect(Math.round(Number(p.amount) * 100)).toBe(150_000)
   })
 })
@@ -858,7 +858,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
  * just as done — and nothing closed it.
  */
 describe('a supplier’s bill sent on the platform closes the payer’s receipt date on its buy line', () => {
-  it('when Techpeple sends its bill for Helena’s week on Etyme, Computer Systems’ date for that invoice receipt closes', async () => {
+  it('when Tecwyn sends its bill for Helena’s week on Etyme, Computer Systems’ date for that invoice receipt closes', async () => {
     const first = await prisma.timesheet.findFirstOrThrow({ where: { personId: (await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })).id }, orderBy: { periodStart: 'asc' } })
     const plus = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000)
     const days: Record<string, number> = {}
@@ -874,7 +874,7 @@ describe('a supplier’s bill sent on the platform closes the payer’s receipt 
         days, totalHours: 40, status: 'SUBMITTED', submittedAt: new Date(),
       },
     })
-    for (const who of [NIKE, CS, TECHPEPLE]) {
+    for (const who of [NIKE, CS, TECWYN]) {
       as(who)
       const r = await sign(sheet.id)
       expect(r.body?.error, `${who}: ${JSON.stringify(r.body)}`).toBeUndefined()
@@ -886,7 +886,7 @@ describe('a supplier’s bill sent on the platform closes the payer’s receipt 
     const before = await open()
 
     const contract = await prisma.sellContract.findUniqueOrThrow({ where: { id: sheet.sellContractId } })
-    as(TECHPEPLE)
+    as(TECWYN)
     const made = await json(await generate(req('POST', '/api/invoices/generate', {
       engagementId: contract.engagementId,
       periodStart: sheet.periodStart.toISOString().slice(0, 10),
@@ -926,13 +926,13 @@ describe('the invoice receipt form offers a week only where the check would take
   }
 
   beforeAll(async () => {
-    // Priya Raman's buy line at Computer Systems, as seeded: one week
-    // inside a receipt typed in as a total, the rest on bills Techpeple sent.
+    // Priya Ramesh's buy line at Computer Systems, as seeded: one week
+    // inside a receipt typed in as a total, the rest on bills Tecwyn sent.
     const buy = await prisma.buyContract.findFirstOrThrow({
       where: {
         company: { name: 'Computer Systems Inc' },
-        vendorCompany: { name: 'Techpeple' },
-        candidates: { some: { person: { name: 'Priya Raman' } } },
+        vendorCompany: { name: 'Tecwyn' },
+        candidates: { some: { person: { name: 'Priya Ramesh' } } },
       },
       select: { id: true, vendorCompanyId: true },
     })
@@ -994,6 +994,6 @@ describe('the invoice receipt form offers a week only where the check would take
     const r = await preview([{ timesheetId: w.timesheetId, hours: w.hoursAccepted, rateCents: w.rateMinor, amountCents: w.hoursAccepted * w.rateMinor }], w.hoursAccepted * w.rateMinor)
     expect(r.status, JSON.stringify(r.body)).toBe(409)
     expect(r.body.error.code).toBe('ALREADY_BILLED')
-    expect(r.body.error.message).toMatch(new RegExp(`^Priya Raman’s hours for .+ are already on Techpeple’s bill .*${w.heldBy}`))
+    expect(r.body.error.message).toMatch(new RegExp(`^Priya Ramesh’s hours for .+ are already on Tecwyn’s bill .*${w.heldBy}`))
   })
 })

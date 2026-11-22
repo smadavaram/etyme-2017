@@ -557,7 +557,7 @@ export default function BenchPage() {
   const companyKind = useCompanyKind()
 
   // An integrator, a prime or a program office staffs work mostly from
-  // its own payroll, so that is where its Bench page opens. Teleworld
+  // its own payroll, so that is where its Bench page opens. Tellisford
   // Solutions read a bare screen under "Your own team" while holding five
   // live employee seats, because this page only ever asked for listings.
   //

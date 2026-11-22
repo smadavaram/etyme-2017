@@ -115,7 +115,7 @@ describe('a notice to a business user, on each kind of saved Teams link', () => 
       companyId: retiredCo,
       type: 'TIMESHEET',
       title: 'A week is waiting for you',
-      body: 'Priya Raman filed 38 hours for the week ending Oct 3. Approve it or send it back.',
+      body: 'Priya Ramesh filed 38 hours for the week ending Oct 3. Approve it or send it back.',
       channel: 'TEAMS',
     })
     const row = await settled(created!.id)

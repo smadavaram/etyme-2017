@@ -12,7 +12,7 @@ import { isWorkersOwnPayLine, ownPayLineWhere } from '@/lib/money/paid-through'
  * consultant's rate history, the worker's own work page and `/api/me`.
  * The rule: a pay figure is read by the desks that run pay
  * (`consultants.cost`) or by the person it pays. Karthik Menon — a
- * delivery engineer at Teleworld who reads assignments and timesheets —
+ * delivery engineer at Tellisford who reads assignments and timesheets —
  * is the seat that must not read a colleague's pay.
  */
 

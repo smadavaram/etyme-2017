@@ -6,14 +6,14 @@
  *
  * The outside chain audit of 2026-10-05 (docs/audits/2026-10-05-multi-
  * tier-chain-spec.md, sections 2–4), confirmed against the code. In
- * Northbend Athletic ← Computer Systems ← Techpeple ← Helena Marsh, the
- * week is filed once, on Techpeple's line. `postAssertion` booked the
+ * Northbend Athletic ← Computer Systems ← Tecwyn ← Helena Marsh, the
+ * week is filed once, on Tecwyn's line. `postAssertion` booked the
  * client's signature as REVENUE to the firm that owns the filing line —
- * Techpeple — at the rate the signature carried, which was Computer
+ * Tecwyn — at the rate the signature carried, which was Computer
  * Systems' $145. And it posted nothing at all for Computer Systems'
- * acceptance in the middle. So Techpeple's profit read $29,000 billed on
+ * acceptance in the middle. So Tecwyn's profit read $29,000 billed on
  * 200 hours at somebody else's price, and Computer Systems' profit did
- * not list Helena or Priya Raman, whom it buys in and bills, at all.
+ * not list Helena or Priya Ramesh, whom it buys in and bills, at all.
  *
  * ── The rule ─────────────────────────────────────────────────────────
  *
@@ -208,7 +208,7 @@ export function hopsAround(
  * The placement page and the profitability screen price a week through
  * `priceSheets` (lib/money/placement-earned), which bills on the client's
  * signature and costs on the employer's. On a direct placement those are
- * the rung's two signatures. In a chain they are not: Techpeple's line is
+ * the rung's two signatures. In a chain they are not: Tecwyn's line is
  * billed on Computer Systems' acceptance, and Computer Systems' line is
  * costed on its own. So each signature is re-keyed to the question the
  * rung asks of it —

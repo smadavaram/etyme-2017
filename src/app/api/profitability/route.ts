@@ -28,7 +28,7 @@ import {
  *
  * ── The pair is what a placement is; the roll-up is optional ─────────
  *
- * Corrected 2026-09-26, on a walk of Teleworld Solutions. `by=order`
+ * Corrected 2026-09-26, on a walk of Tellisford Solutions. `by=order`
  * grouped strictly by `projectOrderId`, so a firm that had tagged nothing
  * to a master contract read an empty page while `/dashboard/reports`
  * computed a margin from the same two placements two clicks away.
@@ -442,7 +442,7 @@ export async function GET(request: NextRequest) {
   // ── The order view with no postings: read the pairs ─────────────────
   //
   // This used to return an empty list and the note below, which is true
-  // about postings and reads as "nothing has happened here". Teleworld
+  // about postings and reads as "nothing has happened here". Tellisford
   // Solutions had two placements, two `ContractLink` rows and a margin
   // worth 18.3% when this said nothing at all.
   if (by === 'order') {
@@ -500,7 +500,7 @@ export async function GET(request: NextRequest) {
   // Every placement this firm sells — its own employees and the people it
   // buys in — priced on its own rates from the signatures on the rungs it
   // is party to (lib/money/margin). Computer Systems' line to Northbend
-  // carries none of Helena Marsh's weeks, which are filed on Techpeple's;
+  // carries none of Helena Marsh's weeks, which are filed on Tecwyn's;
   // it read nothing here until 2026-10-06 and reads her now, at its own
   // $145 against its own $118.
   const contracts = await prisma.sellContract.findMany({

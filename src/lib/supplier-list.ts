@@ -26,7 +26,7 @@
  * A supplier's identity. Where the only thing on a line is a gmail
  * address, we do not invent a company name from the local part —
  * "ravi.menon@gmail.com" is a person, and a supplier record called
- * "Ravi Menon" that later turns out to be Techpeple is a mess
+ * "Ravi Menon" that later turns out to be Tecwyn is a mess
  * somebody has to unpick by hand. It comes back needing a name.
  */
 
@@ -37,7 +37,7 @@ import { domainOfEmail } from '@/lib/company-domains'
 // ── Who may open the supplier register ───────────────────────────────
 //
 // `GET /api/suppliers` asked for nothing past being staff, so every seat
-// at a firm was shown Suppliers — a Teleworld delivery engineer who
+// at a firm was shown Suppliers — a Tellisford delivery engineer who
 // staffs nobody, sells nobody and sees no money among them. The register
 // names every firm this company buys from, who at each was invited, what
 // each still owes on paper and where each stands; it is the working list
@@ -243,7 +243,7 @@ export function companyDomain(email: string): string | null {
 /**
  * A company name from a domain, where there is nothing better.
  *
- * "techpeple.example" → "Techpeple". "vertex-talent.io" → "Vertex Talent". It
+ * "tecwyn.example" → "Tecwyn". "vertex-talent.io" → "Vertex Talent". It
  * is a guess and it is shown to somebody who can correct it in one
  * keystroke, which is the only reason it is allowed to guess at all.
  */

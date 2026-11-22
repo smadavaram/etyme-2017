@@ -2,7 +2,7 @@
  * Seed script — populates realistic demo data for all working surfaces.
  *
  * Creates:
- *   - 1 vendor company (Techpeple Inc.) with roles, a founder user
+ *   - 1 vendor company (Tecwyn Inc.) with roles, a founder user
  *   - 1 client company (Talvern Medical)
  *   - 8 consultants with varied skills, work auth, availability
  *   - 6 requirements with varied statuses
@@ -130,9 +130,9 @@ async function main() {
   // ── Companies ──────────────────────────────────
   const vendor = await prisma.company.create({
     data: {
-      name: 'Techpeple Inc.',
-      slug: 'techpeple',
-      domain: 'techpeple.example',
+      name: 'Tecwyn Inc.',
+      slug: 'tecwyn',
+      domain: 'tecwyn.example',
       domainVerified: true,
       kind: 'VENDOR',
       outsideAccess: defaultPostureFor('VENDOR'),
@@ -177,9 +177,9 @@ async function main() {
   // another's staffing.
   const gsi = await prisma.company.create({
     data: {
-      name: 'Ravensbourne Systems',
-      slug: 'ravensbourne',
-      domain: 'ravensbourne.example',
+      name: 'Ravenmoor Systems',
+      slug: 'ravenmoor',
+      domain: 'ravenmoor.example',
       domainVerified: true,
       kind: 'GSI',
       supplierPosture: 'PRIME',
@@ -221,7 +221,7 @@ async function main() {
   await prisma.companyLocation.create({
     data: {
       companyId: vendor.id,
-      name: 'Techpeple Inc. — head office',
+      name: 'Tecwyn Inc. — head office',
       city: 'Edison',
       state: 'NJ',
       country: 'US',
@@ -369,9 +369,9 @@ async function main() {
   // ── Second vendor (for cross-vendor tenure demo) ──
   const vendor2 = await prisma.company.create({
     data: {
-      name: 'TechVista Consulting',
-      slug: 'techvista',
-      domain: 'techvista.example',
+      name: 'Tarnvista Consulting',
+      slug: 'tarnvista',
+      domain: 'tarnvista.example',
       domainVerified: true,
       kind: 'VENDOR',
       outsideAccess: defaultPostureFor('VENDOR'),
@@ -502,7 +502,7 @@ async function main() {
 
   // ── The delivery firm's own accounts, and the wall between them ──
   //
-  // Ravensbourne runs two client accounts. A delivery manager on one can
+  // Ravenmoor runs two client accounts. A delivery manager on one can
   // read their own account and nothing of the other's staffing, rates or
   // rolloffs — the client's data rather than the firm's, and their master
   // agreement says as much. The contractor desk sits on no account, which
@@ -535,13 +535,13 @@ async function main() {
   const gsiPeople = [
     // Somebody has to own the walls, or the settings screen is read-only
     // for everybody and the demo shows a company nobody administers.
-    { name: 'Elena Marsh',  email: 'e.marsh@ravensbourne.example',  role: 'Owner',            unit: null },
+    { name: 'Elena Marsh',  email: 'e.marsh@ravenmoor.example',  role: 'Owner',            unit: null },
     // Two delivery managers, each walled to their own account and neither
     // able to see the outside market.
-    { name: 'Priya Anand',  email: 'p.anand@ravensbourne.example',  role: 'Delivery Manager', unit: 'retail' },
-    { name: 'Tom Rhys',     email: 't.rhys@ravensbourne.example',   role: 'Delivery Manager', unit: 'medical' },
+    { name: 'Priya Ambekar',  email: 'p.anand@ravenmoor.example',  role: 'Delivery Manager', unit: 'retail' },
+    { name: 'Tom Rhys',     email: 't.rhys@ravenmoor.example',   role: 'Delivery Manager', unit: 'medical' },
     // The contractor desk. Firm-wide, and the only people here who can.
-    { name: 'Aisha Bello',  email: 'a.bello@ravensbourne.example',  role: 'Contractor Sourcing',  unit: null },
+    { name: 'Aisha Bello',  email: 'a.bello@ravenmoor.example',  role: 'Contractor Sourcing',  unit: null },
   ]
 
   const gsiStaff: Record<string, { id: string }> = {}
@@ -693,7 +693,7 @@ async function main() {
       companyId: vendor.id,
       type: 'INSURANCE_GL',
       status: 'CLEAR',
-      provider: 'The Hartford',
+      provider: 'Granite Mutual Insurance',
       issuedAt: new Date(Date.now() - 330 * day),
       // Inside the default 120-day window — procurement should see this.
       expiresAt: new Date(Date.now() + 35 * day),
@@ -707,7 +707,7 @@ async function main() {
       companyId: vendor.id,
       type: 'INSURANCE_WC',
       status: 'CLEAR',
-      provider: 'The Hartford',
+      provider: 'Granite Mutual Insurance',
       issuedAt: new Date(Date.now() - 300 * day),
       expiresAt: new Date(Date.now() + 96 * day),
       uploadedById: founder.id,
@@ -719,12 +719,12 @@ async function main() {
   // ── Purchase orders — one per leg of the chain ──
   // Talvern raises a PO to each supplier it actually pays. In the layer-cake
   // case that is the MSP, not the sub-vendor: GlobalStaff then raises its
-  // own PO to Techpeple. A single PO on the end client would be the wrong
+  // own PO to Tecwyn. A single PO on the end client would be the wrong
   // reference for whoever's AP is paying.
   const poStart = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000)
   const poEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
 
-  const poTalvernToTechpeple = await prisma.workOrder.create({
+  const poTalvernToTecwyn = await prisma.workOrder.create({
     data: {
       number: 'PO-2026-4417',
       issuedById: client.id,
@@ -738,7 +738,7 @@ async function main() {
     },
   })
 
-  const poTalvernToTechVista = await prisma.workOrder.create({
+  const poTalvernToTarnvista = await prisma.workOrder.create({
     data: {
       number: 'PO-2026-4482',
       issuedById: client.id,
@@ -752,8 +752,8 @@ async function main() {
     },
   })
 
-  // The MSP's own PO down to the sub-vendor — the leg Techpeple invoices.
-  const poMspToTechpeple = await prisma.workOrder.create({
+  // The MSP's own PO down to the sub-vendor — the leg Tecwyn invoices.
+  const poMspToTecwyn = await prisma.workOrder.create({
     data: {
       number: 'GS-PO-88213',
       issuedById: msp.id,
@@ -770,15 +770,15 @@ async function main() {
   // ── Remit-to — where each vendor is paid ──
   // Only the last four digits are stored. Full account and routing numbers
   // must never live in this table; they belong in a payment provider vault.
-  const techpepleRemit = await prisma.remitTo.create({
+  const tecwynRemit = await prisma.remitTo.create({
     data: {
       companyId: vendor.id,
-      legalName: 'Techpeple Inc.',
+      legalName: 'Tecwyn Inc.',
       addressLines: ['2100 Ross Avenue, Suite 800', 'Dallas, TX 75201'],
       country: 'US',
       ...seedTaxId('47-2938471'),
       paymentMethod: 'ACH',
-      bankName: 'Wells Fargo',
+      bankName: 'Bellrock Bank',
       accountLast4: '4471',
       routingLast4: '0248',
       isDefault: true,
@@ -788,7 +788,7 @@ async function main() {
   await prisma.remitTo.create({
     data: {
       companyId: vendor2.id,
-      legalName: 'TechVista Consulting LLC',
+      legalName: 'Tarnvista Consulting LLC',
       addressLines: ['500 Boylston Street, Floor 12', 'Boston, MA 02116'],
       country: 'US',
       ...seedTaxId('81-4417392'),
@@ -802,14 +802,14 @@ async function main() {
 
   // ── People & Consultant Profiles ───────────────
   const consultantData = [
-    { name: 'Ravi Patel',       email: 'ravi@techpeple.example',    headline: 'Senior SAP BRIM Consultant',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA', 'ABAP'],    location: 'Dallas, TX',     workAuth: 'H1B',        availDays: -30, tier: 'RETAINED' as const,  rateMin: 11000, rateMax: 13000 },
-    { name: 'Priya Sharma',     email: 'priya@techpeple.example',   headline: 'Azure Cloud Architect',          skills: ['Azure', '.NET', 'Terraform', 'Kubernetes'],              location: 'Remote',         workAuth: 'US_CITIZEN', availDays: -10, tier: 'RETAINED' as const,  rateMin: 14000, rateMax: 16000 },
-    { name: 'Anita Desai',      email: 'anita@techpeple.example',   headline: 'SAP SD/MM Functional Lead',      skills: ['SAP SD', 'SAP MM', 'SAP S/4HANA', 'Integration'],       location: 'Chicago, IL',    workAuth: 'GC',         availDays: 7,   tier: 'RETAINED' as const,  rateMin: 10000, rateMax: 12500, page: 'anita-desai' },
-    { name: 'Vikram Reddy',     email: 'vikram@techpeple.example',  headline: 'Full Stack Developer',           skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],          location: 'Austin, TX',     workAuth: 'OPT',        availDays: -5,  tier: 'MARKETING' as const, rateMin: 8000,  rateMax: 10000 },
-    { name: 'Meera Krishnan',   email: 'meera@techpeple.example',   headline: 'Data Engineer — Snowflake',      skills: ['Snowflake', 'dbt', 'Python', 'Airflow'],                 location: 'Remote',         workAuth: 'H1B',        availDays: 21,  tier: 'RETAINED' as const,  rateMin: 12000, rateMax: 14000 },
-    { name: 'John Martinez',    email: 'john@techpeple.example',    headline: 'ServiceNow Developer',           skills: ['ServiceNow', 'ITSM', 'JavaScript', 'REST APIs'],         location: 'Denver, CO',     workAuth: 'US_CITIZEN', availDays: -60, tier: 'MARKETING' as const, rateMin: 9000,  rateMax: 11000 },
-    { name: 'Kavitha Nair',     email: 'kavitha@techpeple.example', headline: 'SAP SuccessFactors Consultant',  skills: ['SuccessFactors', 'SAP HCM', 'Employee Central'],         location: 'Atlanta, GA',    workAuth: 'GC',         availDays: 14,  tier: 'RETAINED' as const,  rateMin: 11500, rateMax: 13500 },
-    { name: 'David Chen',       email: 'david@techpeple.example',   headline: 'DevOps / SRE Lead',              skills: ['AWS', 'Docker', 'Kubernetes', 'CI/CD', 'Prometheus'],     location: 'San Francisco',  workAuth: 'US_CITIZEN', availDays: -2,  tier: 'RETAINED' as const,  rateMin: 15000, rateMax: 18000, page: 'david-chen' },
+    { name: 'Ravi Purohit',       email: 'ravi@tecwyn.example',    headline: 'Senior SAP BRIM Consultant',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA', 'ABAP'],    location: 'Dallas, TX',     workAuth: 'H1B',        availDays: -30, tier: 'RETAINED' as const,  rateMin: 11000, rateMax: 13000 },
+    { name: 'Priya Sharma',     email: 'priya@tecwyn.example',   headline: 'Azure Cloud Architect',          skills: ['Azure', '.NET', 'Terraform', 'Kubernetes'],              location: 'Remote',         workAuth: 'US_CITIZEN', availDays: -10, tier: 'RETAINED' as const,  rateMin: 14000, rateMax: 16000 },
+    { name: 'Anita Dalvi',      email: 'anita@tecwyn.example',   headline: 'SAP SD/MM Functional Lead',      skills: ['SAP SD', 'SAP MM', 'SAP S/4HANA', 'Integration'],       location: 'Chicago, IL',    workAuth: 'GC',         availDays: 7,   tier: 'RETAINED' as const,  rateMin: 10000, rateMax: 12500, page: 'anita-dalvi' },
+    { name: 'Vikram Reddy',     email: 'vikram@tecwyn.example',  headline: 'Full Stack Developer',           skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],          location: 'Austin, TX',     workAuth: 'OPT',        availDays: -5,  tier: 'MARKETING' as const, rateMin: 8000,  rateMax: 10000 },
+    { name: 'Meera Krishnan',   email: 'meera@tecwyn.example',   headline: 'Data Engineer — Snowflake',      skills: ['Snowflake', 'dbt', 'Python', 'Airflow'],                 location: 'Remote',         workAuth: 'H1B',        availDays: 21,  tier: 'RETAINED' as const,  rateMin: 12000, rateMax: 14000 },
+    { name: 'John Martinez',    email: 'john@tecwyn.example',    headline: 'ServiceNow Developer',           skills: ['ServiceNow', 'ITSM', 'JavaScript', 'REST APIs'],         location: 'Denver, CO',     workAuth: 'US_CITIZEN', availDays: -60, tier: 'MARKETING' as const, rateMin: 9000,  rateMax: 11000 },
+    { name: 'Kavitha Nair',     email: 'kavitha@tecwyn.example', headline: 'SAP SuccessFactors Consultant',  skills: ['SuccessFactors', 'SAP HCM', 'Employee Central'],         location: 'Atlanta, GA',    workAuth: 'GC',         availDays: 14,  tier: 'RETAINED' as const,  rateMin: 11500, rateMax: 13500 },
+    { name: 'David Chen',       email: 'david@tecwyn.example',   headline: 'DevOps / SRE Lead',              skills: ['AWS', 'Docker', 'Kubernetes', 'CI/CD', 'Prometheus'],     location: 'San Francisco',  workAuth: 'US_CITIZEN', availDays: -2,  tier: 'RETAINED' as const,  rateMin: 15000, rateMax: 18000, page: 'david-chen' },
   ]
 
   const now = new Date()
@@ -1419,7 +1419,7 @@ async function main() {
 
   await prisma.benchListing.create({
     data: {
-      consultantId: profiles[2].id, // Anita Desai
+      consultantId: profiles[2].id, // Anita Dalvi
       companyId: secondVendor.id,
       tier: 'MARKETING',
       rateMin: 10500,
@@ -1509,7 +1509,7 @@ async function main() {
         workLocationId: c.locId,
         hiringManagerId: c.mgr ? managers[c.mgr].id : null,
         orgUnitId: c.unit ? orgUnits[c.unit].id : null,
-        workOrderId: c.clientId === client.id ? poTalvernToTechpeple.id : null,
+        workOrderId: c.clientId === client.id ? poTalvernToTecwyn.id : null,
       },
     })
     sellContracts.push(sc)
@@ -1527,7 +1527,7 @@ async function main() {
     }
   }
 
-  // Three-party contract: Techpeple bills GlobalStaff MSP, consultant works at Talvern Medical
+  // Three-party contract: Tecwyn bills GlobalStaff MSP, consultant works at Talvern Medical
   // personIdx 7 = David Chen (DevOps/SRE Lead)
   const mspContractStart = new Date(now)
   mspContractStart.setDate(mspContractStart.getDate() - 60)
@@ -1548,15 +1548,15 @@ async function main() {
       workLocationId: locAnnArbor.id,     // works at Ann Arbor site
       hiringManagerId: managers.castellano.id,
       orgUnitId: orgUnits.infra.id,
-      // Techpeple invoices the MSP against the MSP's PO, not Talvern's.
-      workOrderId: poMspToTechpeple.id,
+      // Tecwyn invoices the MSP against the MSP's PO, not Talvern's.
+      workOrderId: poMspToTecwyn.id,
     },
   })
   sellContracts.push(mspContract)
 
   // ── The delivery firm's own placements, one per account ────────
   //
-  // Two contractors, two client accounts, one wall. Priya Anand on the
+  // Two contractors, two client accounts, one wall. Priya Ambekar on the
   // retail account can read the first and not the second; Tom Rhys on the
   // medical account can read the second and not the first. Aisha Bello on
   // the contractor desk sits on no account and reads both, which is what
@@ -1598,15 +1598,15 @@ async function main() {
     ],
   })
 
-  // ── TechVista contractors at Talvern (Addendum E rate variance) ──
+  // ── Tarnvista contractors at Talvern (Addendum E rate variance) ──
   // Different managers sourced the same skills from a second vendor at
   // different rates. This is the condition the org view surfaces: nobody
   // has seen these side by side, because they live in separate inboxes.
   const tvContractorData = [
-    { name: 'Elena Fischer',  email: 'elena@techvista.example',  headline: 'SAP MM / SD Consultant',   skills: ['SAP MM', 'SAP SD', 'S/4HANA'],           billRate: 14800, mgr: 'whitfield', unit: 'mfgFinance',   loc: locHQ.id,      startDays: -150, endDays: 120 },
-    { name: 'Owen Bradley',   email: 'owen@techvista.example',   headline: 'Data Engineer',            skills: ['Snowflake', 'Python', 'dbt'],            billRate: 11200, mgr: 'whitfield', unit: 'mfgFinance',   loc: locRemote.id,  startDays: -100, endDays: 200 },
-    { name: 'Aisha Mahmood',  email: 'aisha@techvista.example',  headline: 'Cloud Platform Engineer',  skills: ['AWS', 'Kubernetes', 'Terraform'],        billRate: 13800, mgr: 'ramaswamy', unit: 'dataPlatform', loc: locRemote.id,  startDays: -70,  endDays: 240 },
-    { name: 'Peter Lindgren', email: 'peter@techvista.example',  headline: 'Validation / CSV Lead',    skills: ['CSV', 'Process Validation', 'FDA'],      billRate: 9600,  mgr: 'okafor',    unit: 'quality',      loc: locAnnArbor.id, startDays: -220, endDays: 90 },
+    { name: 'Elena Fischer',  email: 'elena@tarnvista.example',  headline: 'SAP MM / SD Consultant',   skills: ['SAP MM', 'SAP SD', 'S/4HANA'],           billRate: 14800, mgr: 'whitfield', unit: 'mfgFinance',   loc: locHQ.id,      startDays: -150, endDays: 120 },
+    { name: 'Owen Brackley',   email: 'owen@tarnvista.example',   headline: 'Data Engineer',            skills: ['Snowflake', 'Python', 'dbt'],            billRate: 11200, mgr: 'whitfield', unit: 'mfgFinance',   loc: locRemote.id,  startDays: -100, endDays: 200 },
+    { name: 'Aisha Mahmood',  email: 'aisha@tarnvista.example',  headline: 'Cloud Platform Engineer',  skills: ['AWS', 'Kubernetes', 'Terraform'],        billRate: 13800, mgr: 'ramaswamy', unit: 'dataPlatform', loc: locRemote.id,  startDays: -70,  endDays: 240 },
+    { name: 'Peter Lundmark', email: 'peter@tarnvista.example',  headline: 'Validation / CSV Lead',    skills: ['CSV', 'Process Validation', 'FDA'],      billRate: 9600,  mgr: 'okafor',    unit: 'quality',      loc: locAnnArbor.id, startDays: -220, endDays: 90 },
   ]
 
   for (const t of tvContractorData) {
@@ -1645,7 +1645,7 @@ async function main() {
         workLocationId: t.loc,
         hiringManagerId: managers[t.mgr].id,
         orgUnitId: orgUnits[t.unit].id,
-        workOrderId: poTalvernToTechVista.id,
+        workOrderId: poTalvernToTarnvista.id,
       },
     })
     sellContracts.push(sc)
@@ -1702,12 +1702,12 @@ async function main() {
     buyContracts.push(buyContract)
   }
 
-  // ── A real subcontract: Techpeple buys Elena's replacement from TechVista ──
+  // ── A real subcontract: Tecwyn buys Elena's replacement from Tarnvista ──
   // This is the one case where a buy contract and a purchase order describe
-  // the same relationship. The buy contract carries the RATE Techpeple pays
-  // TechVista; the PO carries the CEILING TechVista may bill against. Linked
+  // the same relationship. The buy contract carries the RATE Tecwyn pays
+  // Tarnvista; the PO carries the CEILING Tarnvista may bill against. Linked
   // so the two records cannot drift apart.
-  const poTechpepleToTechVista = await prisma.workOrder.create({
+  const poTecwynToTarnvista = await prisma.workOrder.create({
     data: {
       number: 'CLD-PO-2211',
       issuedById: vendor.id,
@@ -1732,13 +1732,13 @@ async function main() {
   const subcontract = await prisma.buyContract.create({
     data: {
       companyId: vendor.id,
-      vendorCompanyId: vendor2.id, // buying FROM TechVista, not employing
+      vendorCompanyId: vendor2.id, // buying FROM Tarnvista, not employing
       payCurrency: 'USD',
       contractType: 'C2C',
       state: 'IN_PROGRESS',
       startDate: subStart,
       endDate: subEnd,
-      workOrderId: poTechpepleToTechVista.id,
+      workOrderId: poTecwynToTarnvista.id,
       candidates: {
         create: [
           {
@@ -1947,8 +1947,8 @@ async function main() {
         paid: inv.paid,
         dueAt,
         status: inv.status,
-        workOrderId: inv.engId === eng2.id ? null : poTalvernToTechpeple.id,
-        remitToId: techpepleRemit.id,
+        workOrderId: inv.engId === eng2.id ? null : poTalvernToTecwyn.id,
+        remitToId: tecwynRemit.id,
       },
     })
     invoiceRecords.push(invoice)
@@ -2036,7 +2036,7 @@ async function main() {
     })
   }
 
-  // An invoice on the MSP leg: Techpeple bills GlobalStaff for David Chen,
+  // An invoice on the MSP leg: Tecwyn bills GlobalStaff for David Chen,
   // who sits at Talvern. Its coding carries TALVERN's cost centres — because
   // that is whose budget he burns — while the bill-to is GlobalStaff, who
   // will code their own onward invoice differently. The coding export
@@ -2082,8 +2082,8 @@ async function main() {
       paid: 0,
       dueAt: mspInvDue,
       status: 'ISSUED',
-      workOrderId: poMspToTechpeple.id,
-      remitToId: techpepleRemit.id,
+      workOrderId: poMspToTecwyn.id,
+      remitToId: tecwynRemit.id,
     },
   })
   invoiceRecords.push(mspInvoice)
@@ -2332,16 +2332,16 @@ async function main() {
       messages: [
         { authorIdx: -1, body: 'Requirement created and distributed to 3 vendors.', type: 'SYSTEM', daysAgo: 30 },
         { authorIdx: 0, body: 'I have two strong BRIM candidates available immediately — Ravi and Anita. Both have 5+ years on S/4HANA.', type: 'TEXT', daysAgo: 29 },
-        { authorIdx: -1, body: 'Ravi Patel submitted at $130/hr.', type: 'SYSTEM', daysAgo: 28 },
-        { authorIdx: -1, body: 'Anita Desai submitted at $120/hr.', type: 'SYSTEM', daysAgo: 27 },
+        { authorIdx: -1, body: 'Ravi Purohit submitted at $130/hr.', type: 'SYSTEM', daysAgo: 28 },
+        { authorIdx: -1, body: 'Anita Dalvi submitted at $120/hr.', type: 'SYSTEM', daysAgo: 27 },
       ],
     },
     {
       topic: 'CONTRACT',
       topicId: sellContracts[0].id,
-      title: 'Anita Desai — Talvern Medical (SAP SD/MM)',
+      title: 'Anita Dalvi — Talvern Medical (SAP SD/MM)',
       messages: [
-        { authorIdx: -1, body: 'Sell contract created: Anita Desai → Talvern Medical at $120/hr.', type: 'SYSTEM', daysAgo: 60 },
+        { authorIdx: -1, body: 'Sell contract created: Anita Dalvi → Talvern Medical at $120/hr.', type: 'SYSTEM', daysAgo: 60 },
         { authorIdx: 2, body: 'Hi team, just wanted to confirm my start date is next Monday. I have completed the I-9 and background check.', type: 'TEXT', daysAgo: 55 },
         { authorIdx: -1, body: 'All verifications passed. Contract moved to IN_PROGRESS.', type: 'SYSTEM', daysAgo: 54 },
         { authorIdx: 0, body: 'Anita, please submit timesheets by Friday EOD. The approval cycle is biweekly.', type: 'TEXT', daysAgo: 50 },
@@ -2350,9 +2350,9 @@ async function main() {
     {
       topic: 'CONTRACT',
       topicId: sellContracts[2].id,
-      title: 'Ravi Patel — Northbend Athletic (Cloud Platform)',
+      title: 'Ravi Purohit — Northbend Athletic (Cloud Platform)',
       messages: [
-        { authorIdx: -1, body: 'Sell contract created: Ravi Patel → Northbend Athletic Inc. at $135/hr.', type: 'SYSTEM', daysAgo: 120 },
+        { authorIdx: -1, body: 'Sell contract created: Ravi Purohit → Northbend Athletic Inc. at $135/hr.', type: 'SYSTEM', daysAgo: 120 },
         { authorIdx: 0, body: 'Ravi is performing exceptionally. Northbend Athletic has requested an extension through Q1 2027.', type: 'TEXT', daysAgo: 10 },
         { authorIdx: -1, body: 'Rate confirmation: $135/hr maintained for extension period.', type: 'RATE_CONFIRMATION', daysAgo: 9 },
       ],
@@ -2427,16 +2427,16 @@ async function main() {
   // BUILD.md §6.2: "type × channel routing including Teams and email digests"
   const notificationData = [
     { type: 'SUBMISSION', title: 'Priya Sharma shortlisted', body: 'Priya Sharma has been shortlisted for Azure Cloud Architect at Talvern Medical.', daysAgo: 0.1, status: 'UNREAD' },
-    { type: 'TIMESHEET', title: 'Timesheet due tomorrow', body: 'Anita Desai has not submitted her timesheet for the period ending Aug 15.', daysAgo: 0.5, status: 'UNREAD' },
+    { type: 'TIMESHEET', title: 'Timesheet due tomorrow', body: 'Anita Dalvi has not submitted her timesheet for the period ending Aug 15.', daysAgo: 0.5, status: 'UNREAD' },
     { type: 'INVOICE', title: 'Invoice INV-2026-003 past due', body: 'Invoice INV-2026-003 for Talvern Medical SAP BRIM Migration is 15 days past due. Outstanding: $12,000.', daysAgo: 1, status: 'UNREAD' },
-    { type: 'EXPENSE', title: 'Expense submitted for approval', body: 'Anita Desai submitted a client dinner expense of $312.50 for your review.', daysAgo: 2, status: 'UNREAD' },
-    { type: 'CONTRACT', title: 'Contract extension requested', body: 'Northbend Athletic Inc. has requested an extension for Ravi Patel through Q1 2027 at $135/hr.', daysAgo: 3, status: 'READ' },
+    { type: 'EXPENSE', title: 'Expense submitted for approval', body: 'Anita Dalvi submitted a client dinner expense of $312.50 for your review.', daysAgo: 2, status: 'UNREAD' },
+    { type: 'CONTRACT', title: 'Contract extension requested', body: 'Northbend Athletic Inc. has requested an extension for Ravi Purohit through Q1 2027 at $135/hr.', daysAgo: 3, status: 'READ' },
     { type: 'ROLLOFF', title: 'Rolloff alert: John Martinez', body: 'John Martinez at Talvern Medical ends in 14 days. No redeployment claim yet.', daysAgo: 3, status: 'UNREAD' },
     { type: 'EXPENSE', title: 'Expense approved', body: 'Your DFW→DEN travel expense of $1,801.00 has been approved and queued for invoicing.', daysAgo: 5, status: 'READ' },
     { type: 'CONVERSATION', title: 'New message in SAP BRIM requirement', body: 'Sharath Madavaram: I have two strong BRIM candidates available immediately.', daysAgo: 6, status: 'READ' },
     { type: 'SYSTEM', title: 'Payroll processed', body: 'Biweekly payroll cycle completed. 4 consultants processed, total gross: $18,400.', daysAgo: 7, status: 'READ' },
-    { type: 'SUBMISSION', title: 'Rate negotiation', body: 'Talvern Medical has counter-offered $125/hr for Anita Desai (you submitted at $120/hr).', daysAgo: 8, status: 'READ' },
-    { type: 'TIMESHEET', title: 'Timesheet approved', body: 'Ravi Patel timesheet for Jul 28 – Aug 10 approved. 80 hours at $135/hr.', daysAgo: 10, status: 'READ' },
+    { type: 'SUBMISSION', title: 'Rate negotiation', body: 'Talvern Medical has counter-offered $125/hr for Anita Dalvi (you submitted at $120/hr).', daysAgo: 8, status: 'READ' },
+    { type: 'TIMESHEET', title: 'Timesheet approved', body: 'Ravi Purohit timesheet for Jul 28 – Aug 10 approved. 80 hours at $135/hr.', daysAgo: 10, status: 'READ' },
     { type: 'INVOICE', title: 'Payment received', body: 'Northbend Athletic Inc. payment of $16,200 received for INV-2026-001. Invoice fully paid.', daysAgo: 12, status: 'READ' },
   ]
 
@@ -2673,9 +2673,9 @@ async function main() {
   const automationData = [
     {
       action: 'COMPANY_CREATED',
-      summary: `Company Techpeple Inc. created with ${vendorRoles.length} default roles`,
+      summary: `Company Tecwyn Inc. created with ${vendorRoles.length} default roles`,
       reason: 'Onboarding: new company created via OAuth sign-in',
-      payload: { companyId: vendor.id, slug: 'techpeple', roles: vendorRoles.length },
+      payload: { companyId: vendor.id, slug: 'tecwyn', roles: vendorRoles.length },
       reversible: false,
       daysAgo: 45,
     },
@@ -2819,12 +2819,12 @@ async function main() {
 
   // ── Alumni people (for cross-vendor tenure demo) ────────
   // These are people who worked at Talvern Medical through different vendors
-  // and whose contracts have ended. Some came through TechVista.
+  // and whose contracts have ended. Some came through Tarnvista.
 
   const alumniData = [
-    { name: 'Marcus Bell',     email: 'marcus@techvista.example',   headline: 'SAP FICO · CO-PA',       skills: ['SAP FICO', 'CO-PA', 'Product Costing'], location: 'Denver, CO',  workAuth: 'US_CITIZEN' },
-    { name: 'Sarah Lindqvist', email: 'sarah@techvista.example',    headline: 'Regulatory Affairs',      skills: ['Regulatory Affairs', 'FDA', 'ISO 13485'], location: 'Boulder, CO', workAuth: 'GC' },
-    { name: 'Tomás Ferreira',  email: 'tomas@techvista.example',    headline: 'Automation · PLC',        skills: ['PLC', 'Automation', 'SCADA', 'MES'],   location: 'Fort Collins, CO', workAuth: 'US_CITIZEN' },
+    { name: 'Marcus Bell',     email: 'marcus@tarnvista.example',   headline: 'SAP FICO · CO-PA',       skills: ['SAP FICO', 'CO-PA', 'Product Costing'], location: 'Denver, CO',  workAuth: 'US_CITIZEN' },
+    { name: 'Sarah Lindqvist', email: 'sarah@tarnvista.example',    headline: 'Regulatory Affairs',      skills: ['Regulatory Affairs', 'FDA', 'ISO 13485'], location: 'Boulder, CO', workAuth: 'GC' },
+    { name: 'Tomás Ferreira',  email: 'tomas@tarnvista.example',    headline: 'Automation · PLC',        skills: ['PLC', 'Automation', 'SCADA', 'MES'],   location: 'Fort Collins, CO', workAuth: 'US_CITIZEN' },
   ]
 
   const alumniPeople: any[] = []
@@ -2845,7 +2845,7 @@ async function main() {
       },
     })
 
-    // Bench listing under TechVista (available)
+    // Bench listing under Tarnvista (available)
     const profile = await prisma.consultantProfile.findUnique({
       where: { personId: person.id },
     })
@@ -2883,7 +2883,7 @@ async function main() {
   })
 
   const endedContractData = [
-    // Marcus Bell: 18 months via Techpeple, ended 45 days ago
+    // Marcus Bell: 18 months via Tecwyn, ended 45 days ago
     // In 90-day break period — demonstrates the re-engagement block
     {
       personId: alumniPeople[0].id,
@@ -2896,7 +2896,7 @@ async function main() {
       startDays: -593, // 18 months (548 days) + 45 = 593 days ago
       endDays: -45,    // ended 45 days ago — in break period (45 of 90 days)
     },
-    // Sarah Lindqvist: 9 months via TechVista, ended 2 months ago
+    // Sarah Lindqvist: 9 months via Tarnvista, ended 2 months ago
     {
       personId: alumniPeople[1].id,
       companyId: vendor2.id,
@@ -2908,9 +2908,9 @@ async function main() {
       startDays: -330, // ~11 months ago
       endDays: -60,    // ended 2 months ago (9 months duration)
     },
-    // Tomás Ferreira: 9 months via TechVista, then 6 months via Techpeple
+    // Tomás Ferreira: 9 months via Tarnvista, then 6 months via Tecwyn
     // Total: 15 months — nearing 18-month tenure cap
-    // Contract 1: TechVista, ended 8 months ago
+    // Contract 1: Tarnvista, ended 8 months ago
     {
       personId: alumniPeople[2].id,
       companyId: vendor2.id,
@@ -2920,9 +2920,9 @@ async function main() {
       billRate: 8800,
       state: 'ENDED' as const,
       startDays: -480, // ~16 months ago
-      endDays: -210,   // ended 7 months ago (9 months via TechVista)
+      endDays: -210,   // ended 7 months ago (9 months via Tarnvista)
     },
-    // Contract 2: Techpeple, ended 30 days ago
+    // Contract 2: Tecwyn, ended 30 days ago
     {
       personId: alumniPeople[2].id,
       companyId: vendor.id,
@@ -2931,8 +2931,8 @@ async function main() {
       msaId: msa.id,
       billRate: 9600,
       state: 'ENDED' as const,
-      startDays: -210, // started right after TechVista contract
-      endDays: -30,    // ended 30 days ago (6 months via Techpeple)
+      startDays: -210, // started right after Tarnvista contract
+      endDays: -30,    // ended 30 days ago (6 months via Tecwyn)
     },
   ]
 
@@ -3033,13 +3033,13 @@ async function main() {
   // ── Governance Evaluations ────────────────────────────
 
   const evaluationsData = [
-    // PASS — Anita Desai contract start, work auth check
+    // PASS — Anita Dalvi contract start, work auth check
     { ruleIdx: 3, triggerPoint: 'CONTRACT_START', subjectType: 'PERSON', subjectId: people[2].id, outcome: 'PASS', reason: `${consultantData[2].name} — Green Card holder, work authorization valid`, daysAgo: 120 },
     // PASS — John Martinez contract start, rate band check
     { ruleIdx: 2, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[1].id, outcome: 'PASS', reason: `${consultantData[5].name} — $105/hr within $75–$160 band`, daysAgo: 90 },
-    // PASS — Techpeple insurance verified
-    { ruleIdx: 4, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[0].id, outcome: 'PASS', reason: 'Techpeple Inc. — GL and WC insurance verified, expires 2027-03-15', daysAgo: 120 },
-    // PASS — Ravi Patel work auth (H1B valid through 2027)
+    // PASS — Tecwyn insurance verified
+    { ruleIdx: 4, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[0].id, outcome: 'PASS', reason: 'Tecwyn Inc. — GL and WC insurance verified, expires 2027-03-15', daysAgo: 120 },
+    // PASS — Ravi Purohit work auth (H1B valid through 2027)
     { ruleIdx: 3, triggerPoint: 'CONTRACT_START', subjectType: 'PERSON', subjectId: people[0].id, outcome: 'PASS', reason: `${consultantData[0].name} — H1B valid through 2027-04-30`, daysAgo: 200 },
     // PASS — segregation of duties check
     { ruleIdx: 5, triggerPoint: 'SUBMISSION', subjectType: 'PERSON', subjectId: people[1].id, outcome: 'PASS', reason: `${consultantData[1].name} — no conflicting role assignments`, daysAgo: 45 },
@@ -3083,17 +3083,17 @@ async function main() {
     { personId: people[5].id, type: 'I9_EVERIFY' as const, status: 'CLEAR' as const, provider: 'E-Verify', daysAgo: 90 },
     { personId: people[4].id, type: 'I9_EVERIFY' as const, status: 'PENDING' as const, provider: 'E-Verify', daysAgo: 14 },
     // Background checks
-    { personId: people[0].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'HireRight', daysAgo: 200 },
-    { personId: people[2].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'HireRight', daysAgo: 120 },
-    { personId: people[5].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'Sterling', daysAgo: 90 },
-    { personId: people[4].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'HireRight', daysAgo: 14 },
+    { personId: people[0].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'Harrowline Checks', daysAgo: 200 },
+    { personId: people[2].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'Harrowline Checks', daysAgo: 120 },
+    { personId: people[5].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'Stonegate Screening', daysAgo: 90 },
+    { personId: people[4].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'Harrowline Checks', daysAgo: 14 },
     // Drug screening
     { personId: people[0].id, type: 'DRUG_SCREENING' as const, status: 'CLEAR' as const, provider: 'Quest', daysAgo: 200 },
     { personId: people[2].id, type: 'DRUG_SCREENING' as const, status: 'CLEAR' as const, provider: 'Quest', daysAgo: 120 },
     { personId: people[5].id, type: 'DRUG_SCREENING' as const, status: 'CONDITIONAL' as const, provider: 'Quest', daysAgo: 88 },
     // Company-level — insurance
-    { companyId: vendor.id, type: 'INSURANCE_GL' as const, status: 'CLEAR' as const, provider: 'Travelers', daysAgo: 300, expiresInDays: 200 },
-    { companyId: vendor.id, type: 'INSURANCE_WC' as const, status: 'CLEAR' as const, provider: 'Travelers', daysAgo: 300, expiresInDays: 200 },
+    { companyId: vendor.id, type: 'INSURANCE_GL' as const, status: 'CLEAR' as const, provider: 'Pinecrest Indemnity', daysAgo: 300, expiresInDays: 200 },
+    { companyId: vendor.id, type: 'INSURANCE_WC' as const, status: 'CLEAR' as const, provider: 'Pinecrest Indemnity', daysAgo: 300, expiresInDays: 200 },
     { companyId: vendor2.id, type: 'INSURANCE_GL' as const, status: 'CLEAR' as const, provider: 'Hartford', daysAgo: 180, expiresInDays: 90 },
     { companyId: vendor2.id, type: 'INSURANCE_WC' as const, status: 'PENDING' as const, provider: 'Hartford', daysAgo: 30 },
   ]

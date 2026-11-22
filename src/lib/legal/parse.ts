@@ -9,9 +9,8 @@
  * as it was approved (`lib/legal/*-text`) and read here into the shape
  * the page draws.
  *
- * It reads only the handful of forms the drafts use, and nothing else:
+ * It reads only the handful of forms the texts use, and nothing else:
  *
- *   > **Notice:** …           the draft notice
  *   # Title                   the document's title
  *   **Effective date:** …     the dates, one per line
  *   ## 7. Heading             a numbered section (or "Annex A — …")
@@ -21,9 +20,13 @@
  *   | a | b |                 a table, header row first
  *   ---                       a rule, which the page does not draw
  *
- * and two marks inside a line: **strong**, and [square brackets], which
- * in these drafts always mark a point counsel has not decided yet. The
- * page draws a bracket as marked text so a reader sees what is open.
+ * and one mark inside a line: **strong**.
+ *
+ * Until 2026-11-22 the texts opened on a draft notice and carried
+ * [square brackets] around each point counsel had not decided. The owner
+ * published the three as final that day (record 110), so both are now
+ * refused here: a text that opens on a notice line, or holds a square
+ * bracket, stops the build before a draft mark can reach a reader.
  *
  * `toMarkdown` writes a parsed document back out. The test holds that
  * it gives back the approved text character for character, so a form
@@ -37,8 +40,6 @@ export interface Inline {
   text: string
   /** Inside **…**. */
   strong?: boolean
-  /** Inside […]: a point counsel has to decide. Includes the brackets. */
-  counsel?: boolean
 }
 
 /** One line of text, as runs. */
@@ -66,8 +67,6 @@ export interface LegalDate {
 }
 
 export interface ParsedLegalDocument {
-  /** The draft notice above the title, as runs (it opens on **Notice:**). */
-  notice: Line
   title: string
   dates: LegalDate[]
   /** Everything between the dates and the first section. */
@@ -88,17 +87,15 @@ export function anchorOf(heading: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-/** A line of text into runs: **strong** and [counsel]. */
+/** A line of text into runs: **strong**. A square bracket is refused. */
 export function inline(text: string): Line {
   const out: Line = []
   let strong = false
-  let counsel = false
   let buf = ''
   const flush = () => {
     if (buf === '') return
     const run: Inline = { text: buf }
     if (strong) run.strong = true
-    if (counsel) run.counsel = true
     out.push(run)
     buf = ''
   }
@@ -109,23 +106,13 @@ export function inline(text: string): Line {
       i++
       continue
     }
-    if (text[i] === '[' && !counsel) {
-      flush()
-      counsel = true
-      buf = '['
-      continue
-    }
-    if (text[i] === ']' && counsel) {
-      buf += ']'
-      flush()
-      counsel = false
-      continue
+    if (text[i] === '[' || text[i] === ']') {
+      throw new Error(`A square bracket marks an undecided point, and a final text has none: ${text}`)
     }
     buf += text[i]
   }
   flush()
   if (strong) throw new Error(`Unclosed ** in: ${text}`)
-  if (counsel) throw new Error(`Unclosed [ in: ${text}`)
   return out
 }
 
@@ -226,12 +213,8 @@ export function parseLegal(source: string): ParsedLegalDocument {
   }
 
   skipBlank()
-  if (!lines[i]?.startsWith('> ')) throw new Error('A legal document opens on its draft notice.')
-  const notice = inline(lines[i].slice(2))
-  i++
-  skipBlank()
-
-  if (!lines[i]?.startsWith('# ')) throw new Error('The draft notice is followed by the title.')
+  if (lines[i]?.startsWith('> ')) throw new Error('A final legal document carries no notice above its title.')
+  if (!lines[i]?.startsWith('# ')) throw new Error('A legal document opens on its title.')
   const title = lines[i].slice(2)
   i++
   skipBlank()
@@ -264,7 +247,7 @@ export function parseLegal(source: string): ParsedLegalDocument {
     at = stop
   }
 
-  return { notice, title, dates, intro, sections }
+  return { title, dates, intro, sections }
 }
 
 // ── Back out, to prove nothing was lost ───────────────────────────────
@@ -273,7 +256,6 @@ function lineOut(line: Line): string {
   let out = ''
   let strong = false
   for (const r of line) {
-    // A bracket's own characters are in its text; only ** is a mark.
     if (!!r.strong !== strong) {
       out += '**'
       strong = !strong
@@ -307,7 +289,7 @@ function blockOut(b: Block): string {
  * every word that was approved and no other.
  */
 export function toMarkdown(doc: ParsedLegalDocument): string {
-  const parts: string[] = [`> ${lineOut(doc.notice)}`, `# ${doc.title}`]
+  const parts: string[] = [`# ${doc.title}`]
   if (doc.dates.length > 0) {
     parts.push(doc.dates.map((d) => `**${d.label}:** ${lineOut(d.value)}`).join('\n'))
   }

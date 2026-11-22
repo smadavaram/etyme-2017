@@ -755,7 +755,7 @@ async function plants(ctx: Ctx, region: RegionKey): Promise<void> {
       const onFile = Math.max(w.startedDaysAgo, 0) + 8
       const by = { uploadedById: ownerOf(w.supplier), verifiedById: compliance, verifiedAt: day(-onFile + 1), result: { outcome: 'CLEAR' } }
       const check = {
-        id: `cv_bgc_${w.key}`, personId: who(w), type: 'BACKGROUND_CHECK' as const, status: 'CLEAR', provider: 'Sterling',
+        id: `cv_bgc_${w.key}`, personId: who(w), type: 'BACKGROUND_CHECK' as const, status: 'CLEAR', provider: 'Stonegate Screening',
         issuedAt: day(-onFile), expiresAt: day(300), orderedByCompanyId: supplierIds.get(supplierSlug(w.supplier))!, orderedAt: day(-onFile - 4), ...by,
       }
       if (w.state !== 'IN_PROGRESS') return [check]

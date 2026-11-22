@@ -31,7 +31,7 @@ function role(over: Partial<Role> = {}): Role {
 function person(over: Partial<Candidate> = {}): Candidate {
   return {
     personId: 'p1',
-    name: 'Anita Desai',
+    name: 'Anita Dalvi',
     skills: ['SAP FICO', 'S/4HANA', 'ABAP'],
     location: 'Denver, CO',
     workAuth: 'US_CITIZEN',

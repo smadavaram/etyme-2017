@@ -39,7 +39,7 @@ export type Door =
   | { email: string }
 
 export interface SeatSpec {
-  /** `world-nike/hiring`, `world-teleworld/delivery/Rahul Deshpande`, `world-brightmoor/owner`, `person/helena-marsh`, `worker/<email>`. */
+  /** `world-nike/hiring`, `world-tellisford/delivery/Rahul Dandekar`, `world-brightmoor/owner`, `person/helena-marsh`, `worker/<email>`. */
   key: string
   door: Door
   /** Who sits there, as the world holds them. */
@@ -115,7 +115,7 @@ export async function readCatalog(db: PrismaClient): Promise<Catalog> {
         personName: h.person, email: h.email, personId: h.personId, role: h.role!, company: companyOf(h),
       })
       for (const role of DESK_ROLES[desk]) opened.add(role)
-      // Two people at one role: each by name (Teleworld's two delivery managers).
+      // Two people at one role: each by name (Tellisford's two delivery managers).
       const names = [...new Set(holders.map((x) => x.person))]
       if (names.length > 1) {
         for (const x of holders) {

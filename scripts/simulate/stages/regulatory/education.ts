@@ -141,8 +141,8 @@ export async function education(ctx: Ctx, s: EducationSubject, other: { actor: A
 
   // 4. Another person's name: sent back with the reason, and the worker told in the firm's words.
   const wrong = await ask(s)
-  if (wrong && (await answerWith(ctx, 'hiring', s.worker, wrong, degreeFile(s.supplier.id, { ...right, name: 'Anita Desai' }), false)).ok) {
-    const reason = `The certificate is in the name Anita Desai, not ${s.personName}`
+  if (wrong && (await answerWith(ctx, 'hiring', s.worker, wrong, degreeFile(s.supplier.id, { ...right, name: 'Anita Dalvi' }), false)).ok) {
+    const reason = `The certificate is in the name Anita Dalvi, not ${s.personName}`
     const back = await examineAt('hiring', s.hr, wrong, { verdict: 'SEND_BACK', reason })
     if (docMatrix.sentBack(DEGREE_KIND, FILL, back, reason)) {
       const said = degreeSentBack({ firmName: s.supplier.name, reason })

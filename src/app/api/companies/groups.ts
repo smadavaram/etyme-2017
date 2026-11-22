@@ -4,7 +4,7 @@ import type { CallerContext } from '@/lib/api-context'
 import { directoryScope } from '@/lib/directory-scope'
 import {
   groupsOf, groupTotals, groupsAddUpSays, sellsToSomebody, isMine, notLinkedYet, END_CLIENT_ROW,
-  type GroupsRead, type GroupTotals, type OnContracts,
+  type GroupsRead, type GroupTotals, type OnContracts, type SaidStamp,
 } from '@/lib/counterparty'
 import { companiesOnList } from './dealings'
 import { positionsFor, type PositionsRead } from './positions'
@@ -27,6 +27,8 @@ export interface GroupsRow extends GroupsRead {
   /** When a person last said what it is, and who. Null where nobody has. */
   classifiedAt: string | null
   classifiedByName: string | null
+  /** Who said "customer" and who said "client", each with its day. */
+  stamps: { CUSTOMER: SaidStamp | null; CLIENT: SaidStamp | null }
 }
 
 type ListCompany = { id: string; kind: string; claimedAt: Date | null; listedById: string | null }
@@ -89,9 +91,12 @@ export async function groupsFor(
       saidClientAt: client?.classifiedAt ?? null,
       onContracts: contracts,
     }, sells)
+    const stampOf = (s: typeof customer): SaidStamp | null =>
+      s?.classifiedAt ? { at: s.classifiedAt.toISOString(), byName: s.classifiedById ? names.get(s.classifiedById) ?? null : null } : null
     out.set(c.id, {
       ...read,
       contracts,
+      stamps: { CUSTOMER: stampOf(customer), CLIENT: stampOf(client) },
       classifiedAt: last?.classifiedAt?.toISOString() ?? null,
       classifiedByName: last?.classifiedById ? names.get(last.classifiedById) ?? null : null,
     })

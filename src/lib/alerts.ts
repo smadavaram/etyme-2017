@@ -43,7 +43,7 @@ export async function tellStaff(subject: string, body: string): Promise<Told> {
   const sender = emailSender()
   if (!sender) return { sent: false, reason: 'No email sender is configured (RESEND_API_KEY and NOTIFY_FROM_EMAIL).' }
   try {
-    for (const address of to) await sender.send(address, subject, body)
+    for (const address of to) await sender.send(address, subject, body, null, null, { template: 'staff-alert' })
     return { sent: true, to }
   } catch (err: any) {
     return { sent: false, reason: `The email sender refused: ${String(err?.message ?? err).slice(0, 160)}` }

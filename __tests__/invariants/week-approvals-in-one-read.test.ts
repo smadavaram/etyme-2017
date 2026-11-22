@@ -11,7 +11,7 @@ type Rung = { sellContractId: string; companyId: string; clientCompanyId: string
 const h = vi.hoisted(() => ({ q: {} as Record<string, number>, logs: [] as unknown[] }))
 const count = (k: string) => { h.q[k] = (h.q[k] ?? 0) + 1 }
 
-const rung = (id: string): Rung => ({ sellContractId: id, companyId: 'techpeple', clientCompanyId: 'northbend', endClientCompanyId: null, supplierSellContractId: null })
+const rung = (id: string): Rung => ({ sellContractId: id, companyId: 'tecwyn', clientCompanyId: 'northbend', endClientCompanyId: null, supplierSellContractId: null })
 const weeks: Record<string, { sc: string; status: string }> = {
   'ts-1': { sc: 'sc-helena', status: 'SUBMITTED' },
   'ts-2': { sc: 'sc-helena', status: 'SUBMITTED' },
@@ -22,7 +22,7 @@ const weekRow = (id: string) => ({
   status: weeks[id].status, submittedAt: new Date('2026-10-26'), clientApprovedAt: weeks[id].status === 'CLIENT_APPROVED' ? new Date('2026-10-28') : null,
   employerAcceptedAt: null, anomalyScore: null, anomalyReason: null,
   person: { name: 'Helena Marsh', primaryEmail: 'helena.marsh@seed.etyme.invalid' }, overtimeDecisions: [],
-  sellContract: { ...rung(weeks[id].sc), id: weeks[id].sc, billRate: 9500, overtimeAfterHours: 40, overtimeMultiplierBps: 15000, endDate: null, requirement: null, company: { name: 'Techpeple' }, clientCompany: { name: 'Northbend Athletic' } },
+  sellContract: { ...rung(weeks[id].sc), id: weeks[id].sc, billRate: 9500, overtimeAfterHours: 40, overtimeMultiplierBps: 15000, endDate: null, requirement: null, company: { name: 'Tecwyn' }, clientCompany: { name: 'Northbend Athletic' } },
 })
 const approvals = [
   { id: 'wa-1', timesheetId: 'ts-1', how: 'LINK', approverName: 'Dana Whitfield', approverEmail: 'dana@northbend.example', sentAt: new Date('2026-10-27'), expiresAt: new Date('2099-01-01'), usedAt: null,
@@ -39,7 +39,7 @@ vi.mock('@/lib/db', () => ({
       findUnique: async ({ where }: any) => { count('timesheet'); return weeks[where.id] ? weekRow(where.id) : null },
       findMany: async ({ where }: any) => { count('timesheet'); return (where.id.in as string[]).filter((id) => weeks[id]).map(weekRow) },
     },
-    company: { findMany: async ({ where }: any) => { count('company'); return (where.id.in as string[]).map((id) => ({ id, name: id === 'northbend' ? 'Northbend Athletic' : 'Techpeple' })) } },
+    company: { findMany: async ({ where }: any) => { count('company'); return (where.id.in as string[]).map((id) => ({ id, name: id === 'northbend' ? 'Northbend Athletic' : 'Tecwyn' })) } },
     weekApproval: { findMany: async ({ where }: any) => { count('weekApproval'); const w = where.timesheetId; return approvals.filter((a) => (typeof w === 'string' ? a.timesheetId === w : w.in.includes(a.timesheetId))) } },
     workAssertion: { findMany: async ({ where }: any) => { count('workAssertion'); const w = where.timesheetId; return signatures.filter((a) => (typeof w === 'string' ? a.timesheetId === w : w.in.includes(a.timesheetId))) } },
     person: { findMany: async ({ where }: any) => { count('person'); return (where.id.in as string[]).map((id) => ({ id, name: id === 'dana' ? 'Dana Whitfield' : id })) } },

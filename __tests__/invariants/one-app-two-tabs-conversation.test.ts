@@ -143,7 +143,7 @@ describe('the pinned questions are answered from the record', () => {
   it('“What is on hold, and why?” names each held start with its paper and each held invoice receipt with what to do', async () => {
     const queue: QueueRead = {
       total: 1,
-      items: [{ type: 'START_HELD', title: 'Ingrid Sørensen — through Teleworld', whose: 'Ingrid Sørensen', subtitle: 'Ingrid Sørensen cannot start without an I-9 (Form I-9).', entityId: 'c1', dueDate: '2026-11-10', actionUrl: '/dashboard/placements/c1' }],
+      items: [{ type: 'START_HELD', title: 'Ingrid Sørensen — through Tellisford', whose: 'Ingrid Sørensen', subtitle: 'Ingrid Sørensen cannot start without an I-9 (Form I-9).', entityId: 'c1', dueDate: '2026-11-10', actionUrl: '/dashboard/placements/c1' }],
     }
     const a = await respond('What is on hold, and why?', readers({
       told: async () => ({ told: [{ invoiceId: 'inv-442', number: 'PR-2026-0442', supplier: 'Pinnacle Resourcing', hoursBilled: 41.5, hoursAccepted: 40 }], stale: [] }),

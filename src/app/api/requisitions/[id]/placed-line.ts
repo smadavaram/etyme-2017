@@ -3,7 +3,7 @@
  *
  * Sign-up walk, round six (2026-10-08), problem 2. In a chain every rung
  * writes a sell line carrying the client's requirement: Computer Systems
- * bills Northbend $145 for Helena Marsh, Techpeple bills Computer Systems
+ * bills Northbend $145 for Helena Marsh, Tecwyn bills Computer Systems
  * $118. The page mapped every line by person and the last one written
  * won, so Northbend read "Filled by Helena Marsh at $118/hr" — the rung
  * below the one it pays. The client sees the contract it pays and nothing

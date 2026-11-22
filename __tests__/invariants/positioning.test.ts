@@ -1089,7 +1089,7 @@ describe('Every claim about a screen is a thing that screen does', () => {
 
 describe('The record is the product, and Etyme running the program is offered quietly', () => {
 
-  it('leads with the record and leaves the offer to run the program to About, where it is said once and quietly', () => {
+  it('leads with the record, and neither the home page nor About offers to run the program since the owner’s sales-ready batch', () => {
     // Until 2026-10-14 the offer was one row of the home page's close.
     // The page the founder approved that day has no close and makes no
     // offer: the live product is the record, and the service is a second
@@ -1097,7 +1097,10 @@ describe('The record is the product, and Etyme running the program is offered qu
     // door for a firm that runs programs, not an offer.
     expect(offersTheProgramOffice(all)).toEqual([])
     expect(all).not.toContain('Have Etyme run your program office')
-    expect(offersTheProgramOffice(ABOUT_PAGE)).toHaveLength(1)
+    // About made the offer once until 2026-11-22, when the owner's
+    // sales-ready batch took its two positioning lines off
+    // (docs/decisions/110, item 4).
+    expect(offersTheProgramOffice(ABOUT_PAGE)).toEqual([])
     expect(all).not.toContain('You choose how to use it')
   })
 
@@ -1131,12 +1134,16 @@ describe('The record is the product, and Etyme running the program is offered qu
     expect(aimed, aimed.join('\n')).toEqual([])
   })
 
-  it('keeps the two labels the founder named, in one line of About, never in a headline', () => {
-    // A program manager has already evaluated things called both of
-    // those, and inventing a third word costs the recognition. Since
-    // 2026-10-15 About says them in one of its five lines.
+  it('about no longer positions Etyme as VMS software or as an MSP provider, and no headline says MSP', () => {
+    // From 2026-10-15 About said the founder's two labels in one of its
+    // five lines. The owner's sales-ready batch of 2026-11-22 removed the
+    // line and the sentence saying how Etyme would be paid as an MSP
+    // (docs/decisions/110, item 4). The labels stay as data for the census
+    // letter, which is not a public page.
     expect(TWO_WAYS.map((w) => w.label)).toEqual(['VMS software', 'MSP provider'])
-    expect(ABOUT_PAGE).toContain('Two ways to use it. Your team runs it: Etyme as VMS software. Or Etyme runs it for you: Etyme as MSP provider.')
+    expect(ABOUT_PAGE).not.toMatch(/\bVMS\b|\bMSP\b|vendor management system/i)
+    expect(ABOUT_PAGE).not.toContain('Two ways to use it')
+    expect(ABOUT_PAGE).not.toContain('Etyme runs it for you')
     for (const heading of [...headlinesFrom(PAGE), CLOSE_BAND.heading, ABOUT.title, ABOUT.lede]) {
       expect(heading, heading).not.toContain('MSP')
     }
@@ -1144,17 +1151,11 @@ describe('The record is the product, and Etyme running the program is offered qu
     expect(SKELETON_FOOTER_LINKS.map((l) => l.href)).toContain('/about')
   })
 
-  it('says your own team running it first, and Etyme running it second', () => {
-    expect(ABOUT_PAGE.indexOf('Your team runs it')).toBeGreaterThan(0)
-    expect(ABOUT_PAGE.indexOf('Your team runs it')).toBeLessThan(ABOUT_PAGE.indexOf('Or Etyme runs it for you'))
-  })
-
   it('says what every supplier gets alike, whichever way it is used, and never that Etyme runs no bench', () => {
-    // About says it in its second line, right before the two ways a
-    // reader may weigh handing Etyme the program. Until 2026-11-14 the
+    // About says it in its second line. Until 2026-11-14 the
     // line said Etyme never supplies workers; see docs/decisions/69.
     expect(ABOUT_PAGE).toContain('Every look at a person’s record is logged.')
-    expect(ABOUT_PAGE.indexOf('The same for every supplier.')).toBeLessThan(ABOUT_PAGE.indexOf('Two ways to use it.'))
+    expect(ABOUT_PAGE.indexOf('The same for every supplier.')).toBeLessThan(ABOUT_PAGE.indexOf('Price.'))
     expect(ABOUT_PAGE).not.toMatch(/never supplies workers|never runs a bench|no reason to favor/)
     expect(check(copyOfCompanyPage(ABOUT)).map((f) => f.rule)).not.toContain('claims-no-stake')
     expect(check(live).map((f) => f.rule)).not.toContain('neutrality')
@@ -1194,14 +1195,13 @@ describe('The record is the product, and Etyme running the program is offered qu
     expect(existsSync(join(process.cwd(), 'src/app/census'))).toBe(false)
   })
 
-  it('says VMS software without the page reading as software staffing', () => {
-    // Horizontal, never vertical. The label is a product category a
-    // buyer names, and the rule that guards the industry assumption has
-    // to tell it apart from a page about engineers.
-    expect(ABOUT_PAGE).toContain('VMS software')
+  it('neither the home page nor About says vendor management system, and neither reads as software staffing', () => {
+    // Horizontal, never vertical. "Vendor management system" left the home
+    // page on 2026-09-28, and the label "VMS software" left About on
+    // 2026-11-22 (docs/decisions/110, item 4).
+    expect(ABOUT_PAGE).not.toContain('VMS software')
+    expect(vendorManagementSystem(ABOUT_PAGE)).toEqual([])
     expect(check(copyOfCompanyPage(ABOUT)).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
-    // "Vendor management system" itself left the home page on 2026-09-28;
-    // the founder's label "VMS software" is kept on About.
     expect(vendorManagementSystem(all)).toEqual([])
     expect(check(live).map((f) => f.rule)).not.toContain('horizontal-not-vertical')
   })
@@ -1960,8 +1960,8 @@ describe('The home page reads as a product page, and every band leads deeper', (
       // yet, so no page may claim it (held above).
       { was: 'compliance', to: '/docs/when-work-ends', anchor: '/docs/when-work-ends', text: TIME_ON_SITE_DOC,
         phrase: 'things that run without anybody asking are a date, a threshold or a count' },
-      { was: 'ways', to: '/about', anchor: '/about', text: ABOUT_PAGE,
-        phrase: 'Etyme as VMS software' },
+      // The two ways moved to About on 2026-10-15 and left the site on
+      // 2026-11-22 (docs/decisions/110, item 4); held gone further up.
       { was: 'the hero’s span line', to: '/about', anchor: '/about', text: ABOUT_PAGE,
         phrase: 'jobs, submissions, timesheets and invoices' },
     ]

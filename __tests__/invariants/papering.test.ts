@@ -29,7 +29,7 @@ const AP: Seat = {
 }
 
 const PLACEMENT: AwardFacts = {
-  personName: 'Priya Raman',
+  personName: 'Priya Ramesh',
   clientName: 'Northbend Athletic',
   roleTitle: 'SAP FICO Consultant',
   rateCents: 13_500,
@@ -86,7 +86,7 @@ describe('When a candidate is placed, the baton passes from the desk that sold t
   it('the notice names the person, the client, the role and the rate, so nobody opens the contract to find out what it is', () => {
     const h = awardHandoff(PLACEMENT, [CONTRACT_MANAGER])
     const body = h.toPaper!.body
-    expect(body).toContain('Priya Raman')
+    expect(body).toContain('Priya Ramesh')
     expect(body).toContain('Northbend Athletic')
     expect(body).toContain('SAP FICO Consultant')
     expect(body).toContain('$135/hr')
@@ -118,7 +118,7 @@ describe('A contract nobody has papered sits on the supplier’s own queue', () 
 
   const DRAFT = {
     state: 'DRAFT',
-    personName: 'Priya Raman',
+    personName: 'Priya Ramesh',
     clientName: 'Northbend Athletic',
     roleTitle: 'SAP FICO Consultant',
     rateCents: 13_500,
@@ -130,7 +130,7 @@ describe('A contract nobody has papered sits on the supplier’s own queue', () 
   it('a contract waiting to be papered is on the supplier’s own queue, with how long it has waited', () => {
     const row = paperingRow(DRAFT, NOW)!
     expect(row.type).toBe('CONTRACT_PAPERING')
-    expect(row.title).toBe('Paper the contract — Priya Raman')
+    expect(row.title).toBe('Paper the contract — Priya Ramesh')
     expect(row.subtitle).toContain('awarded 9 days ago, still a draft')
     expect(row.waitedDays).toBe(9)
   })
@@ -152,7 +152,7 @@ describe('A contract nobody has papered sits on the supplier’s own queue', () 
   it('a contract papered but not started is a second row, because starting somebody is a different act', () => {
     const row = paperingRow({ ...DRAFT, state: 'PENDING_VERIFICATION', waitingSince: day(-2) }, NOW)!
     expect(row.type).toBe('CONTRACT_START')
-    expect(row.title).toBe('Start Priya Raman at Northbend Athletic')
+    expect(row.title).toBe('Start Priya Ramesh at Northbend Athletic')
     expect(row.subtitle).toContain('papered 2 days ago, not started')
   })
 

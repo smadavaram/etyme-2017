@@ -52,6 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       contextId: seat.id,
       person: seat.person,
       inviterName: caller.person.name,
+      inviterId: caller.person.id,
       company: seat.company,
       roleName: seat.roleName,
       mode,

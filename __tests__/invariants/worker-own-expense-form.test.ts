@@ -16,7 +16,7 @@ import { EXPENSE_KINDS, NOTE_LONGEST, amountOf, expenseBody, type ExpenseAsTyped
 
 const TODAY = '2026-10-20'
 const typed = (over: Partial<ExpenseAsTyped> = {}): ExpenseAsTyped => ({
-  contractId: 'sc_techpeple_helena',
+  contractId: 'sc_tecwyn_helena',
   date: '2026-10-14',
   kind: 'TRAVEL',
   amount: '412.50',
@@ -34,7 +34,7 @@ describe('the worker’s own expense form', () => {
     expect(v.ok).toBe(true)
     if (!v.ok) return
     expect(v.body).toEqual({
-      sellContractId: 'sc_techpeple_helena',
+      sellContractId: 'sc_tecwyn_helena',
       category: 'TRAVEL',
       description: 'Flight to the client site',
       periodStart: '2026-10-14T00:00:00.000Z',

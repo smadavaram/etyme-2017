@@ -38,7 +38,7 @@ let seed = 4172026
 const rnd = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296)
 const pick = <T,>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)]
 
-const NAMES = ['Ravi Patel', 'ravi patel', "R. O'Brien", 'RO Brien', 'Meera Krishnan', 'Meera  Krishnan', 'John Flowers']
+const NAMES = ['Ravi Purohit', 'ravi patel', "R. O'Brien", 'RO Brien', 'Meera Krishnan', 'Meera  Krishnan', 'John Flowers']
 const SKILLS = [['Java', 'AWS', 'SQL'], ['Java', 'Spring'], ['.NET', 'C#'], []]
 const CITIES = ['Dallas, Texas', 'dallas, texas', 'San Jose, California', null]
 const PHONES = ['+1 (303) 555-2000', '3035552000', '972 555 0111', null]
@@ -82,7 +82,7 @@ describe('blocking finds exactly what comparing everything found', () => {
     // One block holding everybody. No saving here, and no loss either —
     // these pairs genuinely need comparing.
     const c = Array.from({ length: 60 }, (_, i) => ({
-      personId: `p${i}`, name: 'Ravi Patel', email: `p${i}@x.com`,
+      personId: `p${i}`, name: 'Ravi Purohit', email: `p${i}@x.com`,
       mobile: '3035552000', location: 'Dallas, Texas',
       skills: ['Java', 'AWS', 'SQL'], stints: [],
     })) as Candidate[]
@@ -146,7 +146,7 @@ describe('and the comparison count collapses', () => {
     // day it is fixed, this function already puts the pair in front of
     // it.
     const c = [
-      { personId: 'a', name: 'Ravi Patel', email: 'a@x.com', mobile: '303 555 2000', location: null, skills: [], stints: [] },
+      { personId: 'a', name: 'Ravi Purohit', email: 'a@x.com', mobile: '303 555 2000', location: null, skills: [], stints: [] },
       { personId: 'b', name: 'Ravikumar Patel', email: 'b@x.com', mobile: '+13035552000', location: null, skills: [], stints: [] },
     ] as Candidate[]
     // Same block, so the comparison happens; compare() is what declines it.

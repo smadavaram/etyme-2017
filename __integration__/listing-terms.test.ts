@@ -135,12 +135,12 @@ describe('the rate each signature records on Helena Marsh’s week', () => {
 
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['nike', 'computer-systems', 'techpeple']) {
+    for (const slug of ['nike', 'computer-systems', 'tecwyn']) {
       ids[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug: `world-${slug}` } })).id
     }
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
     week = await prisma.timesheet.findFirstOrThrow({
-      where: { personId: helena.id, status: 'APPROVED', sellContract: { companyId: ids.techpeple } },
+      where: { personId: helena.id, status: 'APPROVED', sellContract: { companyId: ids.tecwyn } },
       orderBy: { periodStart: 'desc' },
       select: { id: true, sellContractId: true, periodStart: true },
     })
@@ -160,13 +160,13 @@ describe('the rate each signature records on Helena Marsh’s week', () => {
     })
     const top = csBuy.sellLinks[0].sellContract.billRate
     const tpPay = await prisma.buyContractCandidate.findFirstOrThrow({
-      where: { buyContract: { companyId: ids.techpeple, sellLinks: { some: { sellContractId: week.sellContractId } } } },
+      where: { buyContract: { companyId: ids.tecwyn, sellLinks: { some: { sellContractId: week.sellContractId } } } },
       select: { payRate: true },
     })
     expect(top).not.toBe(bottom.billRate)
 
-    // Northbend signs, Computer Systems accepts what it pays, Techpeple last.
-    for (const email of [NIKE.programme, `world-computer-systems${D}`, `world-techpeple${D}`]) {
+    // Northbend signs, Computer Systems accepts what it pays, Tecwyn last.
+    for (const email of [NIKE.programme, `world-computer-systems${D}`, `world-tecwyn${D}`]) {
       as(email)
       const r = await call(assertWeek, 'POST', `/api/timesheets/${week.id}/assert`, week.id, {})
       expect(r.body?.error, `${email}: ${JSON.stringify(r.body)}`).toBeUndefined()
@@ -180,6 +180,6 @@ describe('the rate each signature records on Helena Marsh’s week', () => {
     expect(signed.map((s) => s.role).sort()).toEqual(['CLIENT_APPROVAL', 'EMPLOYER_ACCEPTANCE', 'PASS_THROUGH'])
     expect(rateOf(ids.nike)).toBe(top)
     expect(rateOf(ids['computer-systems'])).toBe(csBuy.candidates[0].payRate)
-    expect(rateOf(ids.techpeple)).toBe(tpPay.payRate)
+    expect(rateOf(ids.tecwyn)).toBe(tpPay.payRate)
   })
 })

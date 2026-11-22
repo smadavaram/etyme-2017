@@ -10,13 +10,13 @@ import { GET as pairsOf, POST as joinRecords } from '@/app/api/suppliers/join/ro
  * Suppliers and the Check queue, on the seeded world, as the desks that
  * use them and as one that does not.
  *
- * Karthik Menon is a Teleworld delivery engineer: he reads the work he is
+ * Karthik Menon is a Tellisford delivery engineer: he reads the work he is
  * on and files his own week, and nothing else. Both pages were open to
  * him because both routes asked for nothing past being staff.
  *
  * Since the sign-up walk's round five his seat holds no desk, so the one
  * door refuses him every route here before it reads or writes anything.
- * Each route's own sentence is asserted on Teleworld's HR seat: a desk
+ * Each route's own sentence is asserted on Tellisford's HR seat: a desk
  * that reads the firm's people and buys from no supplier.
  */
 
@@ -25,14 +25,14 @@ const KARTHIK = 'karthik.menon@seed.etyme.invalid'
 const PROCUREMENT = `world-nike-procurement${D}`
 const HIRING = `world-nike-hiring${D}`
 const AP = `world-nike-ap${D}`
-const TELEWORLD_HR = `world-teleworld-hr${D}`
+const TELLISFORD_HR = `world-tellisford-hr${D}`
 
 /** The one door's refusal for a seat with no desk: the page named, no permission key, nothing read. */
 function refusedAtTheDoor(status: number, body: any, page: string) {
   expect(status).toBe(403)
   expect(body.data).toBeUndefined()
   expect(body.error.code).toBe('NO_DESK')
-  expect(body.error.message).toBe(`${page} is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.`)
+  expect(body.error.message).toBe(`${page} is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.`)
   expect(body.error.message).not.toMatch(/vendors\.(read|manage)|requirements\.read|payments\.record|submissions\.read/)
 }
 
@@ -69,7 +69,7 @@ describe('who opens the supplier list', () => {
   })
 
   it('a desk that buys from no supplier is refused the supplier list in a sentence that says who to ask', async () => {
-    as(TELEWORLD_HR)
+    as(TELLISFORD_HR)
     const { status, body } = await json(await suppliers(req('GET', '/api/suppliers')))
     expect(status).toBe(403)
     expect(body.data).toBeUndefined()
@@ -110,7 +110,7 @@ describe('who adds suppliers from a pasted list', () => {
   })
 
   it('a desk that buys from no supplier cannot add one, is pointed at the recommendation, and nothing is written', async () => {
-    as(TELEWORLD_HR)
+    as(TELLISFORD_HR)
     const before = await prisma.company.count()
     const { status, body } = await json(await addSuppliers(req('POST', '/api/suppliers', row('dana@pellwood.invalid', 'Pellwood Staffing'))))
     expect(status).toBe(403)
@@ -180,7 +180,7 @@ describe('who joins two records of one supplier', () => {
 
   it('a desk that buys from no supplier cannot merge two supplier records, and is told it cannot be undone', async () => {
     const { a, b } = await twoRecordsOfOneFirm('brindlewood')
-    as(TELEWORLD_HR)
+    as(TELLISFORD_HR)
     const { status, body } = await json(await joinRecords(req('POST', '/api/suppliers/join', { keepId: a, foldId: b })))
     expect(status).toBe(403)
     expect(body.error.message).toContain('cannot be undone')
@@ -222,7 +222,7 @@ describe('who opens the check queue', () => {
   })
 
   it('a desk that reads no submissions is refused the check queue in a sentence that says who to ask', async () => {
-    as(TELEWORLD_HR)
+    as(TELLISFORD_HR)
     const { status, body } = await json(await queue(req('GET', '/api/checks/queue')))
     expect(status).toBe(403)
     expect(body.data).toBeUndefined()

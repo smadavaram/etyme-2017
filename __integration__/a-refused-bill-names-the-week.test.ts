@@ -782,7 +782,7 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
 
   it('a week bills in the same period here as it does for Ask Etyme’s drafted bill', async () => {
     const lines = await prisma.sellContract.findMany({
-      where: { company: { slug: { in: ['world-brightmoor', 'world-teleworld', 'world-computer-systems'] } } },
+      where: { company: { slug: { in: ['world-brightmoor', 'world-tellisford', 'world-computer-systems'] } } },
       select: {
         id: true, startDate: true, billFrequency: true, billAnchor: true, billStraddle: true,
         workOrder: { select: ORDER_HEADER_SELECT },
@@ -801,15 +801,15 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
     expect(compared).toBeGreaterThan(30)
   })
 
-  it('Brightmoor Staffing bills $59,680 a month at current rates: Omar Haddad and Rosa Delgado at Northbend Athletic, and Ravi Subramanian at Nordway Retail', async () => {
+  it('Brightmoor Staffing bills $59,680 a month at current rates: Omar Haddad and Rosa Delgado at Northbend Athletic, and Ravi Subbarayan at Nordway Retail', async () => {
     const { billingThisMonth: b } = await read('world-brightmoor')
     expect(b.people.map((p) => `${p.personName} at ${p.atName}`)).toEqual([
-      'Ravi Subramanian at Nordway Retail', 'Omar Haddad at Northbend Athletic', 'Rosa Delgado at Northbend Athletic',
+      'Ravi Subbarayan at Nordway Retail', 'Omar Haddad at Northbend Athletic', 'Rosa Delgado at Northbend Athletic',
     ])
     // $132, $112 and $129 an hour, 160 hours each.
     expect(b.people.map((p) => p.monthlyMinor)).toEqual([2064000, 2112000, 1792000])
     // Ravi’s job states no hours, so 160 is assumed and said.
-    expect(b.people.find((p) => p.personName === 'Ravi Subramanian')!.hoursStated).toBe(false)
+    expect(b.people.find((p) => p.personName === 'Ravi Subbarayan')!.hoursStated).toBe(false)
     expect(b.totals).toEqual([{ currency: 'USD', amountMinor: 5968000, pricedMinor: 5968000, count: 3, unpriced: 0 }])
   })
 
@@ -820,22 +820,22 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
     expect(b.basis).toContain('Not signed time.')
   })
 
-  it('Teleworld Solutions bills for the four people on site today, and not for Karthik Menon, whose placement has ended', async () => {
-    const { billingThisMonth: b } = await read('world-teleworld')
+  it('Tellisford Solutions bills for the four people on site today, and not for Karthik Menon, whose placement has ended', async () => {
+    const { billingThisMonth: b } = await read('world-tellisford')
     expect(b.people.map((p) => p.personName).sort()).toEqual(['Amara Nwosu', 'Deepa Varma', 'Felix Brenner', 'Marcus Whitfield'])
     expect(b.totals[0]).toMatchObject({ currency: 'USD', amountMinor: 8736000, count: 4 })
   })
 
   it('a firm in the middle of a chain reads each person at its own rate to the firm it bills, never the rate of the firm below it', async () => {
     const cs = await read('world-computer-systems')
-    const tp = await read('world-techpeple')
+    const tp = await read('world-tecwyn')
     const helenaAtCs = cs.billingThisMonth.people.find((p) => p.personName === 'Helena Marsh')!
     const helenaAtTp = tp.billingThisMonth.people.find((p) => p.personName === 'Helena Marsh')!
     expect(helenaAtCs).toMatchObject({ rateMinor: 14500, billedToName: 'Northbend Athletic' })
     expect(helenaAtTp).toMatchObject({ rateMinor: 11800, billedToName: 'Computer Systems Inc', atName: 'Northbend Athletic' })
     // Each firm reads its own book and nobody else’s people.
-    const teleworld = await read('world-teleworld')
-    const names = JSON.stringify(teleworld)
+    const tellisford = await read('world-tellisford')
+    const names = JSON.stringify(tellisford)
     for (const n of ['Rosa Delgado', 'Omar Haddad', 'Helena Marsh']) expect(names).not.toContain(n)
   })
 
@@ -860,14 +860,14 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
   })
 
   it('a week already on an invoice the firm above recorded from the firm is billed, and is not counted again', async () => {
-    // Techpeple’s weeks for Helena Marsh and Priya Raman are on the
-    // invoices Computer Systems Inc recorded from Techpeple.
-    const { signedNotBilled: s } = await read('world-techpeple')
+    // Tecwyn’s weeks for Helena Marsh and Priya Ramesh are on the
+    // invoices Computer Systems Inc recorded from Tecwyn.
+    const { signedNotBilled: s } = await read('world-tecwyn')
     expect(s.weeks).toEqual([])
   })
 
   it('a week signed on a placement that has since ended is priced like any other, because the Bills page bills it', async () => {
-    const { signedNotBilled: s } = await read('world-teleworld')
+    const { signedNotBilled: s } = await read('world-tellisford')
     const karthik = s.weeks.filter((w) => w.personName === 'Karthik Menon')
     expect(karthik.length).toBeGreaterThan(10)
     for (const w of karthik) {
@@ -877,17 +877,17 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
   })
 
   it('a week the client signed and the firm above has not accepted is counted with no amount, and says it waits on that firm', async () => {
-    const techpeple = await slugId('world-techpeple')
+    const tecwyn = await slugId('world-tecwyn')
     const cs = await slugId('world-computer-systems')
     const week = await prisma.timesheet.findFirstOrThrow({
-      where: { person: { name: 'Helena Marsh' }, sellContract: { companyId: techpeple }, assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } } },
+      where: { person: { name: 'Helena Marsh' }, sellContract: { companyId: tecwyn }, assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } } },
       orderBy: { periodStart: 'desc' },
       select: { id: true },
     })
-    // Computer Systems withdraws its acceptance, and the receipt it recorded from Techpeple is cancelled.
+    // Computer Systems withdraws its acceptance, and the receipt it recorded from Tecwyn is cancelled.
     await prisma.workAssertion.updateMany({ where: { timesheetId: week.id, companyId: cs, state: 'LIVE' }, data: { state: 'WITHDRAWN' } })
-    await prisma.vendorBill.updateMany({ where: { companyId: cs, vendorCompanyId: techpeple }, data: { status: 'CANCELLED' } })
-    const { signedNotBilled: s } = await read('world-techpeple')
+    await prisma.vendorBill.updateMany({ where: { companyId: cs, vendorCompanyId: tecwyn }, data: { status: 'CANCELLED' } })
+    const { signedNotBilled: s } = await read('world-tecwyn')
     const w = s.weeks.find((x) => x.timesheetId === week.id)!
     expect(w).toMatchObject({ amountMinor: null, billedHours: null, unpriced: 'not accepted', billedToName: 'Computer Systems Inc' })
     expect(w.says).toContain('Computer Systems Inc has not accepted')
@@ -990,21 +990,21 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
 
   it('a person with no rate is named with no amount, and blanks the month’s total rather than leaving the others to stand for all of them', async () => {
     const brightmoor = await slugId('world-brightmoor')
-    const ravisLine = await prisma.sellContract.findFirstOrThrow({ where: { companyId: brightmoor, person: { name: 'Ravi Subramanian' } }, select: { id: true } })
+    const ravisLine = await prisma.sellContract.findFirstOrThrow({ where: { companyId: brightmoor, person: { name: 'Ravi Subbarayan' } }, select: { id: true } })
     // No rate on the line and no approved rate change behind it.
     await prisma.sellContract.update({ where: { id: ravisLine.id }, data: { billRate: 0 } })
     await prisma.rateHistory.deleteMany({ where: { contractType: 'SELL', contractId: ravisLine.id } })
     const t = await read('world-brightmoor')
-    const ravi = t.billingThisMonth.people.find((p) => p.personName === 'Ravi Subramanian')!
+    const ravi = t.billingThisMonth.people.find((p) => p.personName === 'Ravi Subbarayan')!
     expect(ravi).toMatchObject({ monthlyMinor: null, unpriced: 'no rate' })
     expect(t.billingThisMonth.totals).toEqual([{ currency: 'USD', amountMinor: null, pricedMinor: 3904000, count: 3, unpriced: 1 }])
-    const week = t.signedNotBilled.weeks.find((w) => w.personName === 'Ravi Subramanian')!
+    const week = t.signedNotBilled.weeks.find((w) => w.personName === 'Ravi Subbarayan')!
     expect(week).toMatchObject({ amountMinor: null, unpriced: 'no rate' })
   })
 })
 
 describe('a selling firm’s Today page names who is where, what is unbilled, who rolls off and who is on the bench', () => {
-  const OWNERS = { brightmoor: 'world-brightmoor@demo.etyme.local', teleworld: 'world-teleworld@demo.etyme.local' }
+  const OWNERS = { brightmoor: 'world-brightmoor@demo.etyme.local', tellisford: 'world-tellisford@demo.etyme.local' }
   const readToday = async (email: string) => {
     as(email)
     return json(await today(req('GET', '/api/today')))
@@ -1014,8 +1014,8 @@ describe('a selling firm’s Today page names who is where, what is unbilled, wh
     await freshWorld()
   }, 600_000)
 
-  it('Teleworld’s owner reads Karthik Menon on the bench with the day he joined it, and Felix Brenner and Amara Nwosu rolling off Northbend Athletic by name', async () => {
-    const { status, body } = await readToday(OWNERS.teleworld)
+  it('Tellisford’s owner reads Karthik Menon on the bench with the day he joined it, and Felix Brenner and Amara Nwosu rolling off Northbend Athletic by name', async () => {
+    const { status, body } = await readToday(OWNERS.tellisford)
     expect(status).toBe(200)
     const t = body.data
     expect(t.bench.map((b: { name: string }) => b.name)).toEqual(['Karthik Menon'])
@@ -1050,9 +1050,9 @@ describe('a selling firm’s Today page names who is where, what is unbilled, wh
   })
 
   it('every person the page names is on the access trail, read by the owner, before the answer is used', async () => {
-    const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: OWNERS.teleworld }, select: { id: true } })
+    const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: OWNERS.tellisford }, select: { id: true } })
     await prisma.accessLog.deleteMany({ where: { actorPersonId: owner.id, reason: { startsWith: 'Read on the firm’s Today page' } } })
-    const { body } = await readToday(OWNERS.teleworld)
+    const { body } = await readToday(OWNERS.tellisford)
     const t = body.data
     const named = new Set<string>([
       ...t.whoIsWhere.flatMap((g: { people: { personId: string }[] }) => g.people.map((p) => p.personId)),

@@ -70,7 +70,7 @@ describe('somebody with a page and nothing else is told the truth about what is 
   })
 
   it('an employer’s own W2 keeps the sentence they had', () => {
-    const karthik = { ...NOBODY, employers: ['Teleworld Solutions'], placements: 1, hasProfile: true }
+    const karthik = { ...NOBODY, employers: ['Tellisford Solutions'], placements: 1, hasProfile: true }
     const verdict = ownPage(karthik)
 
     expect(verdict.because).toBe('EMPLOYED')

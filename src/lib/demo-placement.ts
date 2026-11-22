@@ -207,7 +207,7 @@ export async function completePlacement(input: CompleteInput): Promise<void> {
     // The employer ordered the report and the screening company posted
     // it back to them. Recorded, because a row that cannot say who
     // bought it reads the same as a desk's own note.
-    { personId, type: 'BACKGROUND_CHECK' as const, provider: 'Sterling', expiresAt: day(new Date(), 300),
+    { personId, type: 'BACKGROUND_CHECK' as const, provider: 'Stonegate Screening', expiresAt: day(new Date(), 300),
       orderedByCompanyId: supplierCompanyId, orderedAt: day(sell.startDate, -14) },
     // The two company rows carry the day cover begins as well as the day
     // it runs out. `lib/onboarding-evidence` — the one door in the

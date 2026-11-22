@@ -8,7 +8,7 @@ import { GET as profitability } from '@/app/api/profitability/route'
  *
  * ── The finding this walk holds ───────────────────────────────────────
  *
- * Walked as Teleworld Solutions on a freshly seeded world, 2026-09-26. A
+ * Walked as Tellisford Solutions on a freshly seeded world, 2026-09-26. A
  * systems integrator with two placements read two different answers to
  * one question on two entries of one menu:
  *
@@ -17,7 +17,7 @@ import { GET as profitability } from '@/app/api/profitability/route'
  *
  * Both were wrong.
  *
- * **Profitability** grouped strictly by `projectOrderId`. Teleworld has
+ * **Profitability** grouped strictly by `projectOrderId`. Tellisford has
  * tagged nothing to a master contract — which CLAUDE.md says is the normal
  * case, the roll-up being optional by design — so every line fell out of
  * the grouping and the page said "Nothing has been posted". The product's
@@ -39,10 +39,10 @@ import { GET as profitability } from '@/app/api/profitability/route'
  */
 
 const CLIENT = 'program@corveldt.invalid'
-const GSI = 'delivery@teleworld.invalid'
+const GSI = 'delivery@tellisford.invalid'
 const SUB = 'owner@nimbus.invalid'
 
-const co = { corveldt: '', teleworld: '', nimbus: '' }
+const co = { corveldt: '', tellisford: '', nimbus: '' }
 const who = { pm: '', sunil: '', nimbusLead: '', marcus: '', karthik: '', unpaired: '' }
 const it_ = { marcusSell: '', karthikSell: '', unpairedSell: '', master: '' }
 
@@ -124,48 +124,48 @@ beforeAll(async () => {
   co.corveldt = corveldt.companyId
   who.pm = corveldt.personId
 
-  const teleworld = await company('Teleworld Solutions', 'teleworld-solutions', 'GSI', GSI)
-  co.teleworld = teleworld.companyId
-  who.sunil = teleworld.personId
+  const tellisford = await company('Tellisford Solutions', 'tellisford-solutions', 'GSI', GSI)
+  co.tellisford = tellisford.companyId
+  who.sunil = tellisford.personId
 
   const nimbus = await company('Nimbus Talent', 'nimbus-talent', 'VENDOR', SUB)
   co.nimbus = nimbus.companyId
   who.nimbusLead = nimbus.personId
 
   who.marcus = await worker('Marcus Whitfield', 'marcus@nimbus.invalid', co.nimbus, nimbus.roleId)
-  who.karthik = await worker('Karthik Menon', 'karthik@teleworld.invalid', co.teleworld, teleworld.roleId)
-  who.unpaired = await worker('Aditi Ramaswamy', 'aditi@teleworld.invalid', co.teleworld, teleworld.roleId)
+  who.karthik = await worker('Karthik Menon', 'karthik@tellisford.invalid', co.tellisford, tellisford.roleId)
+  who.unpaired = await worker('Aditi Ramaswamy', 'aditi@tellisford.invalid', co.tellisford, tellisford.roleId)
 
   // Marcus: bought from a sub-vendor, running. $142 billed, $116 paid.
   const marcus = await placement({
-    sellerId: co.teleworld, clientId: co.corveldt, personId: who.marcus,
+    sellerId: co.tellisford, clientId: co.corveldt, personId: who.marcus,
     billRate: 14_200, payRate: 11_600, vendorCompanyId: co.nimbus,
     contractType: 'C2C', state: 'IN_PROGRESS',
     start: new Date('2026-06-28'), end: new Date('2027-06-28'),
   })
   it_.marcusSell = marcus.sellId
 
-  // Karthik: Teleworld's own W2, finished. $136 billed, $89 paid.
+  // Karthik: Tellisford's own W2, finished. $136 billed, $89 paid.
   const karthik = await placement({
-    sellerId: co.teleworld, clientId: co.corveldt, personId: who.karthik,
+    sellerId: co.tellisford, clientId: co.corveldt, personId: who.karthik,
     billRate: 13_600, payRate: 8_900, vendorCompanyId: null,
     contractType: 'W2', state: 'ENDED',
     start: new Date('2025-11-30'), end: new Date('2026-09-05'),
   })
   it_.karthikSell = karthik.sellId
 
-  // ── And the line Teleworld BUYS, which is Nimbus's to sell ──────────
+  // ── And the line Tellisford BUYS, which is Nimbus's to sell ──────────
   //
-  // Nimbus's own sell contract, billing Teleworld for Marcus at $116. It
-  // is on the list `/api/contracts?side=sell` serves Teleworld, because a
-  // GSI is a party to both sides of its placements. It is Teleworld's
+  // Nimbus's own sell contract, billing Tellisford for Marcus at $116. It
+  // is on the list `/api/contracts?side=sell` serves Tellisford, because a
+  // GSI is a party to both sides of its placements. It is Tellisford's
   // cost, and this walk exists partly to prove it is never its revenue.
   const nimbusEngagement = await prisma.engagement.create({
-    data: { msaId: null, title: 'Marcus Whitfield to Teleworld', invoiceCycle: 'MONTHLY' },
+    data: { msaId: null, title: 'Marcus Whitfield to Tellisford', invoiceCycle: 'MONTHLY' },
   })
   await prisma.sellContract.create({
     data: {
-      companyId: co.nimbus, clientCompanyId: co.teleworld, personId: who.marcus,
+      companyId: co.nimbus, clientCompanyId: co.tellisford, personId: who.marcus,
       engagementId: nimbusEngagement.id, billRate: 11_600, billCurrency: 'USD',
       state: 'IN_PROGRESS', startDate: new Date('2026-06-28'), endDate: new Date('2027-06-28'),
     },
@@ -211,7 +211,7 @@ describe('a firm that has tagged nothing to a master contract still sees its mar
   it('a placement tagged to a master contract reads under that master contract, and once', async () => {
     const order = await prisma.projectOrder.create({
       data: {
-        companyId: co.teleworld, clientCompanyId: co.corveldt,
+        companyId: co.tellisford, clientCompanyId: co.corveldt,
         code: 'MC-AVIONICS', name: 'Corveldt avionics program',
         kind: 'TIME_AND_MATERIALS', currency: 'USD', status: 'OPEN',
       },
@@ -260,9 +260,9 @@ describe('two screens on one menu do not disagree about one firm’s margin', ()
     as(GSI)
     const { body } = await ask('by=book&scope=live')
 
-    // Nimbus's $116/hr line billing Teleworld exists and is live.
+    // Nimbus's $116/hr line billing Tellisford exists and is live.
     const nimbusLine = await prisma.sellContract.findFirst({
-      where: { companyId: co.nimbus, clientCompanyId: co.teleworld },
+      where: { companyId: co.nimbus, clientCompanyId: co.tellisford },
     })
     expect(nimbusLine).not.toBeNull()
 
@@ -286,7 +286,7 @@ describe('two screens on one menu do not disagree about one firm’s margin', ()
 describe('a placement with no buy line behind it says so rather than being left out', () => {
   beforeAll(async () => {
     const unpaired = await placement({
-      sellerId: co.teleworld, clientId: co.corveldt, personId: who.unpaired,
+      sellerId: co.tellisford, clientId: co.corveldt, personId: who.unpaired,
       billRate: 15_000, payRate: 9_000, vendorCompanyId: null,
       contractType: 'W2', state: 'IN_PROGRESS',
       start: new Date('2026-08-03'), end: new Date('2027-08-03'),
@@ -384,7 +384,7 @@ describe('what a placement cost belongs to that placement and to no other', () =
     // person this handed one placement's pay rate to the other; paired by
     // `ContractLink` each reads its own.
     const second = await placement({
-      sellerId: co.teleworld, clientId: co.corveldt, personId: who.karthik,
+      sellerId: co.tellisford, clientId: co.corveldt, personId: who.karthik,
       billRate: 15_800, payRate: 10_400, vendorCompanyId: null,
       contractType: 'W2', state: 'IN_PROGRESS',
       start: new Date('2026-09-20'), end: new Date('2027-09-20'),
@@ -415,19 +415,19 @@ describe('who may read a margin at all', () => {
   it('a seat without margin.read is refused in a sentence rather than shown a blank', async () => {
     const recruiterRole = await prisma.role.create({
       data: {
-        companyId: co.teleworld, name: 'Recruiter',
+        companyId: co.tellisford, name: 'Recruiter',
         // Everything a recruiter does, and deliberately not the money.
         permissions: ['submissions.write', 'requirements.read', 'consultants.read'],
       },
     })
     const p = await prisma.person.create({
-      data: { name: 'Ravi Kulkarni', primaryEmail: 'ravi@teleworld.invalid' },
+      data: { name: 'Ravi Kulkarni', primaryEmail: 'ravi@tellisford.invalid' },
     })
     await prisma.context.create({
-      data: { personId: p.id, companyId: co.teleworld, roleId: recruiterRole.id, type: 'EMPLOYEE', grantReason: 'Recruiting' },
+      data: { personId: p.id, companyId: co.tellisford, roleId: recruiterRole.id, type: 'EMPLOYEE', grantReason: 'Recruiting' },
     })
 
-    as('ravi@teleworld.invalid')
+    as('ravi@tellisford.invalid')
     const { status, body } = await ask('by=book')
     expect(status).toBe(403)
     expect(body.error.message).toMatch(/^Reading what placements earn /)

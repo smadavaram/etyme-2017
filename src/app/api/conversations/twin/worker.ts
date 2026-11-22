@@ -46,7 +46,7 @@ import { sinceSays, type Link, type RichLine, type NoticeLine, type ThreadNote, 
 /**
  * A worker's seat: somebody on a firm's bench (a CONSULTANT context), or
  * a firm's own employee whose seat holds no desk — only the reads of
- * their own work, like Karthik Menon at Teleworld. Either reads Ask Etyme
+ * their own work, like Karthik Menon at Tellisford. Either reads Ask Etyme
  * about their own work. A seat that holds a desk reads the firm's, as
  * before; the shared sample and a machine key are never a worker.
  */
@@ -380,7 +380,7 @@ function listed(xs: readonly string[]): string {
 
 /**
  * Her chain in one line, every firm by name and no rate:
- * "You work at Northbend Athletic through Computer Systems Inc, employed by Techpeple."
+ * "You work at Northbend Athletic through Computer Systems Inc, employed by Tecwyn."
  */
 export function chainSays(p: Pick<WorkerPlacement, 'site' | 'through' | 'employer' | 'tie'> & Partial<Pick<WorkerPlacement, 'live' | 'endDate'>>): string {
   const how = p.tie === 'EMPLOYED' ? 'employed by' : p.tie === 'PAID' ? 'paid by' : 'placed through'

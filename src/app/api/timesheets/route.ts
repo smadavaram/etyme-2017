@@ -59,7 +59,7 @@ import { ADDS_CONSULTANTS } from '@/lib/consultant-portfolio/who-adds'
  *
  * A client is owed what it pays. In a chain the hours hang off the
  * bottom rung — the leg where the employer is — so reading the rate off
- * the timesheet's own contract printed Techpeple's $118 on Nike's screen
+ * the timesheet's own contract printed Tecwyn's $118 on Nike's screen
  * beside the $145 Nike is billed, and the difference is the prime's
  * entire margin. The rows stay, because a client signs the hours of
  * people it never contracted with; the rate is walked up the chain to
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
 
   // ── A seat with no timesheet desk reads only its own weeks ─────────
   //
-  // Karthik Menon, Teleworld's own W2, holds the two reads every delivery
+  // Karthik Menon, Tellisford's own W2, holds the two reads every delivery
   // engineer holds and no desk that administers anybody. The firm scope
   // above handed him every colleague's week and `personId=` was ignored.
   // A seat holding none of the desks that act on a week (`./own-weeks`)
@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
   })
   if (!whose.ok) {
     // Named only where the reader's company already knows the person
-    // (round five, problem 8): an id typed at Teleworld for a Techpeple
+    // (round five, problem 8): an id typed at Tellisford for a Tecwyn
     // worker is refused as "That timesheet", never by her name.
     const named = await nameIfKnown(whose.refusedPersonId, caller.company?.id ?? null)
     const says = colleaguesWeeksRefused(named.name, caller.company?.name ?? null)
@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
   // its own sell lines bill, wherever in the chain it was filed (money's
   // `firmWeeksWhere`): the founder's tester, 2026-11-08, found no row on
   // Computer Systems' Timesheets for Helena Marsh's weeks, filed on
-  // Techpeple's line below it and billed by Computer Systems. Rates on a
+  // Tecwyn's line below it and billed by Computer Systems. Rates on a
   // line the firm is not party to stay withheld (`mayReadBillRate`).
   const firmWide = !asClient && !onBench && !deskless && !ownOnly && !!caller.company && caller.company.kind !== 'CLIENT'
   const where: any = firmWide
@@ -522,7 +522,7 @@ export async function GET(request: NextRequest) {
         // — the next rung down — and never the employer below it: in a
         // chain the employer is the prime's sub-vendor, and a sub-vendor's
         // name is the prime's to keep (CLAUDE.md, 2026-09-17). The row read
-        // "waiting on Techpeple" to Northbend, whose agreement with Computer
+        // "waiting on Tecwyn" to Northbend, whose agreement with Computer
         // Systems discloses nobody.
         const otherParty = isClientSide
           ? asClient

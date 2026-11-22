@@ -93,6 +93,9 @@ export async function sendInvitationMail(a: {
   contextId: string
   person: { id: string; primaryEmail: string; passwordHash: string | null }
   inviterName: string
+  /** Who pressed the button, and the role she held, for the mail ledger. */
+  inviterId?: string | null
+  inviterHeldAs?: string | null
   company: { id: string; name: string }
   roleName: string | null
   mode: EffectiveMode
@@ -126,6 +129,10 @@ export async function sendInvitationMail(a: {
     body: letter.link ? [...letter.lines, '', letter.link].join('\n') : letter.lines.join('\n'),
     companyId: a.company.id,
     personId: a.person.id,
+    about: {
+      template: 'invitation', templateVersion: door, recordType: 'Context', recordId: a.contextId,
+      actorPersonId: a.inviterId ?? null, heldAs: a.inviterHeldAs ?? null,
+    },
   })
   const state: InviteMailState = sent.state
   const mail = { state, at: sent.at, why: sent.left ? null : mailFailureSays(sent.failure) }
@@ -453,6 +460,7 @@ export async function inviteOne(inviter: Inviter, input: { email: string; name?:
     contextId: context.id,
     person: { id: person.id, primaryEmail: email, passwordHash: person.passwordHash },
     inviterName: inviter.name,
+    inviterId: inviter.personId,
     company: { id: companyId, name: company?.name ?? inviter.company.name },
     roleName: role?.name ?? null,
     mode,

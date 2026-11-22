@@ -17,17 +17,17 @@ import { GET as payroll } from '@/app/api/payroll/route'
  * payroll route the question it could never answer before.
  */
 describe('cycles land on the side of the trade they describe', () => {
-  let techpeple: { id: string; seat: string }
+  let tecwyn: { id: string; seat: string }
   let sell: { id: string; clientCompanyId: string; startDate: Date | null; endDate: Date | null }
   let buy: { id: string; contractType: string; vendorCompanyId: string | null }
 
   beforeAll(async () => {
     await freshWorld()
 
-    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
-    techpeple = { id: co.id, seat: 'world-techpeple@demo.etyme.local' }
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
+    tecwyn = { id: co.id, seat: 'world-tecwyn@demo.etyme.local' }
 
-    // Techpeple employs the ERP finance consultant on W-2 and sells them up
+    // Tecwyn employs the ERP finance consultant on W-2 and sells them up
     // the chain. Its buy contract has no vendor below — it IS the employer.
     const s = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: co.id },
@@ -105,7 +105,7 @@ describe('cycles land on the side of the trade they describe', () => {
   })
 
   it('payroll now sees a pay day where it saw nothing before', async () => {
-    as(techpeple.seat)
+    as(tecwyn.seat)
     const res = await json(await payroll(req('GET', '/api/payroll')))
     expect(res.status).toBe(200)
     // The route reads buyCycles where kind in SALARY_CALCULATE / SALARY_PAY

@@ -89,7 +89,7 @@ describe('the page checks', () => {
   })
 
   it('an underscored code shown to a person is reported', () => {
-    const facts = factsFromHtml('<main><h1>Contracts</h1><p>Status: DOCUMENTS_BLOCK for Priya Raman this week.</p></main>')
+    const facts = factsFromHtml('<main><h1>Contracts</h1><p>Status: DOCUMENTS_BLOCK for Priya Ramesh this week.</p></main>')
     expect(checkPage(facts).find((x) => x.kind === 'raw-code')!.what).toContain('DOCUMENTS_BLOCK')
   })
 

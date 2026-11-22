@@ -193,16 +193,16 @@ describe('putting two filters together', () => {
     // a wall into a wide-open query that still looks filtered — a walled
     // delivery manager was briefly shown every contract on the platform
     // exactly this way.
-    const scope = { OR: [{ companyId: 'ravensbourne' }] }
+    const scope = { OR: [{ companyId: 'ravenmoor' }] }
     const wall = { OR: [{ deliveryUnitId: { in: ['retail'] } }] }
 
     const spread = { ...scope, ...wall }
     expect(spread.OR).toHaveLength(1)
-    expect(JSON.stringify(spread)).not.toContain('ravensbourne')
+    expect(JSON.stringify(spread)).not.toContain('ravenmoor')
 
     const combined = andAll(scope, wall) as { AND: unknown[] }
     expect(combined.AND).toHaveLength(2)
-    expect(JSON.stringify(combined)).toContain('ravensbourne')
+    expect(JSON.stringify(combined)).toContain('ravenmoor')
     expect(JSON.stringify(combined)).toContain('retail')
   })
 

@@ -298,7 +298,7 @@ describe('the payment-terms cascade knows about the document', () => {
 
   it('with no agreement, payment days set on the order beat the same days copied onto the line', () => {
     const terms = resolveBillingTerms({
-      company: { name: 'Techpeple', paymentTermsDays: 30, currency: 'USD' },
+      company: { name: 'Tecwyn', paymentTermsDays: 30, currency: 'USD' },
       agreement: null,
       contract: { paymentTermsDays: 30, paymentTermsFrom: 'PERIOD_END' },
       order: { paymentTermsDays: 45, number: 'PO-2026-4417' },
@@ -311,7 +311,7 @@ describe('the payment-terms cascade knows about the document', () => {
 
   it('a placement with no order is read from its agreement, then its contract where the contract gives a reason, then the platform', () => {
     const onContract = resolveBillingTerms({
-      company: { name: 'Techpeple', paymentTermsDays: 30, currency: 'USD' },
+      company: { name: 'Tecwyn', paymentTermsDays: 30, currency: 'USD' },
       agreement: { paymentTermsDays: 60, counterpartyName: 'Talvern Medical' },
       contract: { paymentTermsDays: 45, differReason: 'Agreed with Talvern for this one placement' },
       order: null,
@@ -320,7 +320,7 @@ describe('the payment-terms cascade knows about the document', () => {
     expect(onContract.paymentTermsDays.source).toBe('CONTRACT')
 
     const onAgreement = resolveBillingTerms({
-      company: { name: 'Techpeple', paymentTermsDays: 30, currency: 'USD' },
+      company: { name: 'Tecwyn', paymentTermsDays: 30, currency: 'USD' },
       agreement: { paymentTermsDays: 60, counterpartyName: 'Talvern Medical' },
       contract: null,
       order: null,
@@ -329,7 +329,7 @@ describe('the payment-terms cascade knows about the document', () => {
     expect(onAgreement.paymentTermsDays.source).toBe('AGREEMENT')
 
     const onNothing = resolveBillingTerms({
-      company: { name: 'Techpeple', currency: null },
+      company: { name: 'Tecwyn', currency: null },
       agreement: null,
       contract: null,
       order: null,
@@ -340,7 +340,7 @@ describe('the payment-terms cascade knows about the document', () => {
 
   it('an order that says nothing about payment days does not silently win with a blank', () => {
     const terms = resolveBillingTerms({
-      company: { name: 'Techpeple', currency: 'USD' },
+      company: { name: 'Tecwyn', currency: 'USD' },
       agreement: null,
       contract: { paymentTermsDays: 45 },
       order: { paymentTermsDays: null, number: 'PO-2026-4417' },
@@ -449,14 +449,14 @@ describe('billing and paying follow the agreement between each pair', () => {
   })
 
   it('a buy line reads the agreement with the sub-vendor, through the order raised to it', () => {
-    const withTechpeple = { ...NORTHBEND_AGREEMENT, paymentTerms: 45, client: { name: 'Computer Systems Inc' }, vendor: { name: 'Techpeple' } }
+    const withTecwyn = { ...NORTHBEND_AGREEMENT, paymentTerms: 45, client: { name: 'Computer Systems Inc' }, vendor: { name: 'Tecwyn' } }
     const t = termsFor('BUY', {
       startDate: day('2026-03-02'), payFrequency: 'MONTHLY',
-      workOrder: { id: 'wo_b', number: 'PO-2026-1QJHU', paymentTerms: 60, msa: withTechpeple },
+      workOrder: { id: 'wo_b', number: 'PO-2026-1QJHU', paymentTerms: 60, msa: withTecwyn },
     })
     expect(t.paymentTermsDays).toBe(45)
-    expect(t.counterpartyName).toBe('Techpeple')
-    expect(t.setAside[0]).toBe('Your order says net 60 but gives no reason, so your agreement with Techpeple\u2019s net 45 applies.')
+    expect(t.counterpartyName).toBe('Tecwyn')
+    expect(t.setAside[0]).toBe('Your order says net 60 but gives no reason, so your agreement with Tecwyn\u2019s net 45 applies.')
   })
 
   it('a W2 line has no agreement above it, so the worker’s own contract sets the terms', () => {

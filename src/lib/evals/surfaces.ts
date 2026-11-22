@@ -20,8 +20,8 @@ import {
 
 // ── The words on a company's public page ──────────────────────────────
 
-const TECHPEPLE: SiteFacts = {
-  name: 'Techpeple Inc.',
+const TECWYN: SiteFacts = {
+  name: 'Tecwyn Inc.',
   kind: 'VENDOR',
   posture: 'PRIME',
   skills: ['SAP FICO', 'S/4HANA', 'ABAP'],
@@ -35,7 +35,7 @@ const TECHPEPLE: SiteFacts = {
 }
 
 const BRAND_NEW: SiteFacts = {
-  ...TECHPEPLE,
+  ...TECWYN,
   name: 'Halvorsen Talent',
   skills: [],
   placements: 0,
@@ -46,7 +46,7 @@ const BRAND_NEW: SiteFacts = {
 }
 
 const BUYER: SiteFacts = {
-  ...TECHPEPLE,
+  ...TECWYN,
   name: 'Talvern Medical',
   kind: 'CLIENT',
   posture: null,
@@ -70,7 +70,7 @@ const siteVoice: Surface<SiteFacts, string> = {
   cases: [
     {
       name: 'a staffing firm with seven placements',
-      input: TECHPEPLE,
+      input: TECWYN,
       checks: [
         { said: 'invents no number it was not given', grade: noInventedNumbers([7, 4, 2, 3, 10]) },
         { said: 'uses no adjective a reader could not check', grade: avoids(FILLER, 'filler') },
@@ -98,7 +98,7 @@ const siteVoice: Surface<SiteFacts, string> = {
     },
     {
       name: 'the model’s answer parses at all',
-      input: TECHPEPLE,
+      input: TECWYN,
       modelOnly: true,
       checks: [
         {
@@ -117,7 +117,7 @@ const NOW = new Date('2026-08-20T00:00:00Z')
 const ago = (months: number) => new Date(NOW.getTime() - months * 30 * 86_400_000)
 
 const ANITA: PortfolioInput = {
-  name: 'Anita Desai',
+  name: 'Anita Dalvi',
   headline: null,
   skills: ['SAP SD', 'SAP MM', 'Kubernetes'],
   location: 'Chicago, IL',
@@ -194,8 +194,8 @@ const GOOD_ANSWER = JSON.stringify({
     {
       rowNumber: 1,
       fields: [
-        { field: 'name', value: 'Anita Desai', confidence: 0.97, foundIn: 'Anita Desai', concern: null },
-        { field: 'email', value: 'anita@techpeple.example', confidence: 0.99, foundIn: 'anita@techpeple.example', concern: null },
+        { field: 'name', value: 'Anita Dalvi', confidence: 0.97, foundIn: 'Anita Dalvi', concern: null },
+        { field: 'email', value: 'anita@tecwyn.example', confidence: 0.99, foundIn: 'anita@tecwyn.example', concern: null },
         { field: 'rate', value: '120', confidence: 0.55, foundIn: '$120–140', concern: 'a range, not one number' },
       ],
       problems: [],

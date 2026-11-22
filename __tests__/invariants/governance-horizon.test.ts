@@ -63,7 +63,7 @@ describe('Every rule belongs to a team', () => {
 // ── Tenure ─────────────────────────────────────────────────
 
 describe('Tenure caps are dated, not vague', () => {
-  const person = { personId: 'p1', personName: 'Priya Raman', capMonths: 18, accruing: true }
+  const person = { personId: 'p1', personName: 'Priya Ramesh', capMonths: 18, accruing: true }
 
   it('someone six months short is given the date they cross', () => {
     const item = projectTenure({ ...person, monthsAccrued: 12 }, NOW, 200)!
@@ -138,7 +138,7 @@ describe('A break in service ends on a date somebody can plan around', () => {
 describe('An expiring certificate carries the stake with it', () => {
   const cert = {
     id: 'v1', subjectKind: 'VENDOR' as const, subjectId: 'c1',
-    subjectName: 'Techpeple Inc.', type: 'INSURANCE_GL',
+    subjectName: 'Tecwyn Inc.', type: 'INSURANCE_GL',
   }
 
   it('the number of people relying on it is in the headline', () => {

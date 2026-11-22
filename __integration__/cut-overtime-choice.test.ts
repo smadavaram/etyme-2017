@@ -82,7 +82,7 @@ describe("a paying firm's choice of how overtime is paid on a cut week", () => {
     })
     noCost = { id: c2.id, personId: p2.id, email: p2.primaryEmail }
 
-    const priya = await prisma.person.create({ data: { name: 'Priya Natarajan', primaryEmail: 'priya@cut-ot.etyme.invalid' } })
+    const priya = await prisma.person.create({ data: { name: 'Priya Nagarkar', primaryEmail: 'priya@cut-ot.etyme.invalid' } })
     personId = priya.id
     const start = new Date('2026-06-01T00:00:00Z')
     const sell = await prisma.sellContract.create({
@@ -116,7 +116,7 @@ describe("a paying firm's choice of how overtime is paid on a cut week", () => {
   it("a desk that cannot see what the worker is paid cannot change how a cut week's overtime is paid, and the refusal is logged", async () => {
     const r = await choose(noCost, { rule: 'KEEP_WEEK_OVERTIME', reason: 'Agreed with Priya when she joined' })
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain("Changing how Priya Natarajan's overtime is paid when fewer hours are accepted")
+    expect(r.body.error.message).toContain("Changing how Priya Nagarkar's overtime is paid when fewer hours are accepted")
     const line = await prisma.buyContract.findUniqueOrThrow({ where: { id: buyId } })
     expect(line.cutOvertime).toBe('ABOVE_THE_LINE')
     expect(line.cutOvertimeById).toBeNull()
@@ -135,7 +135,7 @@ describe("a paying firm's choice of how overtime is paid on a cut week", () => {
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('NOT_THE_PAYER')
     expect(r.body.error.message).toBe(
-      'Only the firm that pays Priya Natarajan can choose how their overtime is paid when fewer hours are accepted.'
+      'Only the firm that pays Priya Nagarkar can choose how their overtime is paid when fewer hours are accepted.'
     )
   })
 
@@ -143,7 +143,7 @@ describe("a paying firm's choice of how overtime is paid on a cut week", () => {
     const r = await choose(owner, { rule: 'KEEP_WEEK_OVERTIME' })
     expect(r.status).toBe(422)
     expect(r.body.error.field).toBe('reason')
-    expect(r.body.error.message).toContain("Say why Priya Natarajan should keep the week's overtime")
+    expect(r.body.error.message).toContain("Say why Priya Nagarkar should keep the week's overtime")
     const line = await prisma.buyContract.findUniqueOrThrow({ where: { id: buyId } })
     expect(line.cutOvertime).toBe('ABOVE_THE_LINE')
   })

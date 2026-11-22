@@ -190,7 +190,7 @@ describe('the floor nobody was checking', () => {
     expect(health(profitOf(line({ billRateCents: 6000 })), null)).toBe('LOSS')
   })
 
-  // Found walking Teleworld Solutions on 2026-09-26. Both its placements
+  // Found walking Tellisford Solutions on 2026-09-26. Both its placements
   // had no hours in the ledger, so revenue was zero and the percentage
   // was null — and the screen chipped them THIN. A firm was being told
   // its placements were marginal on the strength of no data at all.

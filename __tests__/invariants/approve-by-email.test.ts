@@ -16,20 +16,20 @@ import { sign } from '@/lib/signed-link'
  * A client may approve by email, and the proof travels down the chain.
  * Founder, 2026-09-30.
  *
- * Northbend Athletic ← Computer Systems ← Techpeple, Helena Marsh: the
+ * Northbend Athletic ← Computer Systems ← Tecwyn, Helena Marsh: the
  * chain `signed-week-travels-down` walks. Dana Whitfield is Northbend's
  * approver.
  */
 
-const TECHPEPLE_RUNG: LadderRung = {
-  sellContractId: 'techpeple-rung', companyId: 'techpeple', clientCompanyId: 'cs',
+const TECWYN_RUNG: LadderRung = {
+  sellContractId: 'tecwyn-rung', companyId: 'tecwyn', clientCompanyId: 'cs',
   endClientCompanyId: 'northbend', supplierSellContractId: null,
 }
 const CS_RUNG: LadderRung = {
   sellContractId: 'cs-rung', companyId: 'cs', clientCompanyId: 'northbend',
-  endClientCompanyId: null, supplierSellContractId: 'techpeple-rung',
+  endClientCompanyId: null, supplierSellContractId: 'tecwyn-rung',
 }
-const LADDER = topDown([TECHPEPLE_RUNG, CS_RUNG])
+const LADDER = topDown([TECWYN_RUNG, CS_RUNG])
 const HELENA = { personId: 'helena', personName: 'Helena Marsh' }
 
 const NOW = new Date('2026-10-02T15:00:00Z')
@@ -41,7 +41,7 @@ function link(over: Partial<LinkRow> = {}): LinkRow {
 function week(over: Partial<WeekNow> = {}): WeekNow {
   return { status: 'SUBMITTED', submittedAt: new Date('2026-09-28T09:00:00Z'), clientApprovedAt: null, personName: 'Helena Marsh', ...over }
 }
-const NAMES = { clientName: 'Northbend Athletic', senderFirm: 'Techpeple' }
+const NAMES = { clientName: 'Northbend Athletic', senderFirm: 'Tecwyn' }
 
 describe('the one-time link to the client’s approver', () => {
   it('a link to approve a week runs out after seven days, the widest window a company may give its approvers', () => {
@@ -78,7 +78,7 @@ describe('the one-time link to the client’s approver', () => {
     expect(v.open).toBe(false)
     if (!v.open) {
       expect(v.code).toBe('FILED_AGAIN')
-      expect(v.says).toContain('Ask Techpeple for a new link.')
+      expect(v.says).toContain('Ask Tecwyn for a new link.')
     }
   })
 
@@ -90,7 +90,7 @@ describe('the one-time link to the client’s approver', () => {
 
   it('an expired link is refused in a sentence saying the day it ran out and whom to ask', () => {
     const v = linkVerdict(link(), week(), new Date('2026-10-06T00:00:00Z'), NAMES)
-    expect(v).toEqual({ open: false, code: 'EXPIRED', says: 'This link ran out on Oct 5. Ask Techpeple for a new one.' })
+    expect(v).toEqual({ open: false, code: 'EXPIRED', says: 'This link ran out on Oct 5. Ask Tecwyn for a new one.' })
   })
 
   it('a used link says it was used, not that it expired, when both are true', () => {
@@ -166,12 +166,12 @@ describe('who may send the link or attach the evidence', () => {
   const desk = (companyId: string, permissions: string[]) => ({ personId: `p-${companyId}`, companyId, permissions })
 
   it('the worker may attach evidence to her own week', () => {
-    expect(mayActForTheClient({ personId: 'helena', companyId: 'techpeple', permissions: [] }, HELENA, LADDER, 'Northbend Athletic'))
+    expect(mayActForTheClient({ personId: 'helena', companyId: 'tecwyn', permissions: [] }, HELENA, LADDER, 'Northbend Athletic'))
       .toEqual({ ok: true, as: 'WORKER' })
   })
 
   it('the timesheet desk at any supplier on the chain may attach evidence', () => {
-    expect(mayActForTheClient(desk('techpeple', ['timesheets.approve']), HELENA, LADDER, 'Northbend Athletic')).toEqual({ ok: true, as: 'SUPPLIER_DESK' })
+    expect(mayActForTheClient(desk('tecwyn', ['timesheets.approve']), HELENA, LADDER, 'Northbend Athletic')).toEqual({ ok: true, as: 'SUPPLIER_DESK' })
     expect(mayActForTheClient(desk('cs', ['timesheets.approve']), HELENA, LADDER, 'Northbend Athletic')).toEqual({ ok: true, as: 'SUPPLIER_DESK' })
   })
 
@@ -186,20 +186,20 @@ describe('who may send the link or attach the evidence', () => {
   })
 
   it('a supplier seat without the timesheet desk is refused, naming the desks that can', () => {
-    const v = mayActForTheClient({ ...desk('techpeple', ['submissions.create']), companyKind: 'VENDOR', companyName: 'Techpeple' }, HELENA, LADDER, 'Northbend Athletic')
+    const v = mayActForTheClient({ ...desk('tecwyn', ['submissions.create']), companyKind: 'VENDOR', companyName: 'Tecwyn' }, HELENA, LADDER, 'Northbend Athletic')
     expect(v.ok).toBe(false)
-    if (!v.ok) expect(v.says).toMatch(/^Attaching a client’s approval is done by .* at Techpeple/)
+    if (!v.ok) expect(v.says).toMatch(/^Attaching a client’s approval is done by .* at Tecwyn/)
   })
 })
 
 describe('which contracts the approval applies to', () => {
   it('the approval applies to every contract on the chain unless the sender picks fewer', () => {
-    expect(scopeFor(undefined, LADDER, 'Northbend Athletic')).toEqual({ ok: true, contracts: ['cs-rung', 'techpeple-rung'] })
+    expect(scopeFor(undefined, LADDER, 'Northbend Athletic')).toEqual({ ok: true, contracts: ['cs-rung', 'tecwyn-rung'] })
     expect(scopeFor(['cs-rung'], LADDER, 'Northbend Athletic')).toEqual({ ok: true, contracts: ['cs-rung'] })
   })
 
   it('the client’s own contract is always among them, because that is where its signature is given', () => {
-    expect(scopeFor(['techpeple-rung'], LADDER, 'Northbend Athletic')).toEqual({
+    expect(scopeFor(['tecwyn-rung'], LADDER, 'Northbend Athletic')).toEqual({
       ok: false, says: 'The approval is given on Northbend Athletic’s own contract, so that one has to be included.',
     })
   })
@@ -211,12 +211,12 @@ describe('which contracts the approval applies to', () => {
 })
 
 describe('who reads the evidence', () => {
-  const ALL = ['cs-rung', 'techpeple-rung']
+  const ALL = ['cs-rung', 'tecwyn-rung']
 
   it('every rung the approval applies to may read the evidence', () => {
-    expect(mayReadEvidence({ personId: 'x', companyId: 'cs' }, HELENA, ALL, LADDER)).toEqual({ ok: true, contracts: ['cs-rung', 'techpeple-rung'] })
-    expect(mayReadEvidence({ personId: 'x', companyId: 'techpeple' }, HELENA, ALL, LADDER)).toEqual({ ok: true, contracts: ['techpeple-rung'] })
-    expect(mayReadEvidence({ personId: 'helena', companyId: 'techpeple' }, HELENA, ALL, LADDER)).toEqual({ ok: true, contracts: ALL })
+    expect(mayReadEvidence({ personId: 'x', companyId: 'cs' }, HELENA, ALL, LADDER)).toEqual({ ok: true, contracts: ['cs-rung', 'tecwyn-rung'] })
+    expect(mayReadEvidence({ personId: 'x', companyId: 'tecwyn' }, HELENA, ALL, LADDER)).toEqual({ ok: true, contracts: ['tecwyn-rung'] })
+    expect(mayReadEvidence({ personId: 'helena', companyId: 'tecwyn' }, HELENA, ALL, LADDER)).toEqual({ ok: true, contracts: ALL })
   })
 
   it('the client reads only its own contract in the scope, never a sub-vendor’s', () => {
@@ -224,7 +224,7 @@ describe('who reads the evidence', () => {
   })
 
   it('a rung left out of the scope cannot read it, and a stranger cannot either', () => {
-    expect(mayReadEvidence({ personId: 'x', companyId: 'techpeple' }, HELENA, ['cs-rung'], LADDER)).toEqual({
+    expect(mayReadEvidence({ personId: 'x', companyId: 'tecwyn' }, HELENA, ['cs-rung'], LADDER)).toEqual({
       ok: false, says: 'This approval was not attached to a contract your company is on.',
     })
     expect(mayReadEvidence({ personId: 'x', companyId: 'elsewhere' }, HELENA, ALL, LADDER).ok).toBe(false)
@@ -263,7 +263,7 @@ describe('what the screens and the letter say', () => {
   it('the letter to the approver says whose hours, how many, and when the link runs out, and never a rate', () => {
     const l = letterToApprover({
       approverName: 'Dana Whitfield', personName: 'Helena Marsh', clientName: 'Northbend Athletic',
-      senderName: 'Priya Raman', senderFirm: 'Techpeple', period: 'Sep 20 – Sep 26', hours: 40,
+      senderName: 'Priya Ramesh', senderFirm: 'Tecwyn', period: 'Sep 20 – Sep 26', hours: 40,
       url: 'https://etyme.example/approve-week/abc', expiresAt: linkExpiresAt(SENT), now: NOW,
     })
     expect(l.subject).toBe('Helena Marsh’s hours for Sep 20 – Sep 26: approve or send back')
@@ -287,8 +287,8 @@ describe('the chain below the approval', () => {
     const signed = (s: (typeof signers)[number]) => signedBy(s, w, live)
     const cs = turnOf(signers, 'cs', signed, (id) => id)
     expect(cs.ok && cs.signer.role).toBe('PASS_THROUGH')
-    const techpeple = turnOf(signers, 'techpeple', signed, (id) => id)
-    expect(techpeple).toEqual({ ok: false, code: 'NOT_YOUR_TURN', says: 'cs has not accepted this week yet. It comes to you once they have.' })
+    const tecwyn = turnOf(signers, 'tecwyn', signed, (id) => id)
+    expect(tecwyn).toEqual({ ok: false, code: 'NOT_YOUR_TURN', says: 'cs has not accepted this week yet. It comes to you once they have.' })
   })
 })
 

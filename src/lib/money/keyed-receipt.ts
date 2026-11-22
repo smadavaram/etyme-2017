@@ -967,7 +967,7 @@ export interface KeyedBankHold {
  * (`mayPayFirm` in lib/setup-gates), the same gate the ordinary invoice
  * receipt's payment, the payment run and the twin read.
  *
- * Walk 7, 2026-11-08: Brightmoor's AP & Payroll seat opened Consultis'
+ * Walk 7, 2026-11-08: Brightmoor's AP & Payroll seat opened Conisby'
  * typed-in receipt, saw no hold and no "Ask Rosalind Tay", pressed Pay,
  * and $4,160 left for a firm whose bank nobody had checked, because this
  * door asked only the three-way check. Now the payment route and the

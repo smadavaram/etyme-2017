@@ -138,10 +138,17 @@ const RETIRED: { was: string; now: string }[] = [
   // Invented, but it collided with Vertex Global in the same world, so
   // the sheet moved it too.
   { was: 'Vertex Talent', now: 'Veritan Talent' },
-  // A real company of this name asked for its own tenancy on 2026-10-04,
-  // and the founder chose the new name. Both spellings the code used.
-  { was: 'CloudEPA', now: 'Techpeple' },
-  { was: 'Cloudepa', now: 'Techpeple' },
+  // A real company of this name asked for its own tenancy on 2026-10-04.
+  // Both spellings the code used.
+  { was: 'CloudEPA', now: 'Tecwyn' },
+  { was: 'Cloudepa', now: 'Tecwyn' },
+  // The name chosen that day was a misspelling, and its plain correction
+  // is too close to a real firm's name. Retired 2026-11-22, with three
+  // seeded firms whose names real companies hold (docs/demo-names.md).
+  { was: 'Techpeple', now: 'Tecwyn' },
+  { was: 'Teleworld', now: 'Tellisford Solutions' },
+  { was: 'Consultis', now: 'Conisby' },
+  { was: 'Meridian Bank', now: 'Merrowfield Bank' },
   // A headquarters town names a company as surely as the company does.
   { was: 'Beaverton', now: 'Tualatin, OR' },
   { was: 'Lakewood', now: 'Westminster, CO' },
@@ -642,8 +649,8 @@ describe('The retired firm’s name is nowhere in the repository but the rename 
     const left = carrying.filter((f) => !(f in MAY_SPELL) && !OWED.has(f))
     expect(
       left,
-      'A real company of this name asked for its own tenancy on 2026-10-04. The demo firm is Techpeple now ' +
-        '(docs/demo-names.md), and a real firm’s domain is never an example: use techpeple.example.'
+      'A real company of this name asked for its own tenancy on 2026-10-04. The demo firm is Tecwyn now ' +
+        '(docs/demo-names.md), and a real firm’s domain is never an example: use tecwyn.example.'
     ).toEqual([])
   })
 
@@ -655,13 +662,13 @@ describe('The retired firm’s name is nowhere in the repository but the rename 
   it('the rename map is the one piece of code that spells it, and it names the new firm beside it', () => {
     const map = read('src/lib/seed-renames.ts')
     expect(map).toMatch(/fromName: 'CloudEPA'/)
-    expect(map).toMatch(/toName: 'Techpeple'/)
-    expect(map).toMatch(/toSlug: 'techpeple'/)
+    expect(map).toMatch(/toName: 'Tecwyn'/)
+    expect(map).toMatch(/toSlug: 'tecwyn'/)
   })
 
-  it('the demo door seats a visitor at world-techpeple, never at the old address', () => {
-    expect(SURFACES['src/app/demo/seats.ts']).toContain("'world-techpeple'")
-    expect(SURFACES['src/components/try-demo.tsx']).toContain("'world-techpeple'")
+  it('the demo door seats a visitor at world-tecwyn, never at the old address', () => {
+    expect(SURFACES['src/app/demo/seats.ts']).toContain("'world-tecwyn'")
+    expect(SURFACES['src/components/try-demo.tsx']).toContain("'world-tecwyn'")
   })
 
   it('no seeded company or person holds an address at the retired firm’s domain or any alias of it', () => {

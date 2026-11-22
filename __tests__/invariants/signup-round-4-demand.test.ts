@@ -193,8 +193,8 @@ describe('a worker’s seat reads its own weeks, and a timesheet desk reads the 
   })
 
   it('the refusal of a colleague’s weeks names the colleague and the firm, and no permission key', () => {
-    const says = colleaguesWeeksRefused('Aditi Ramaswamy', 'Teleworld')
-    expect(says).toBe('Aditi Ramaswamy’s timesheet is not part of your seat at Teleworld. Ask your company’s owner if you need it.')
+    const says = colleaguesWeeksRefused('Aditi Ramaswamy', 'Tellisford')
+    expect(says).toBe('Aditi Ramaswamy’s timesheet is not part of your seat at Tellisford. Ask your company’s owner if you need it.')
     expect(namesAPermission(says)).toBe(false)
   })
 })

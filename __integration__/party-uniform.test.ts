@@ -47,10 +47,10 @@ import { GET as tenure } from '@/app/api/tenure/route'
  *
  *   Northbend Athletic          CLIENT        buys, signs the hours, pays
  *   Kestrel       MSP           runs a program; supplies nobody
- *   Teleworld     GSI           invited to the role, did not submit
+ *   Tellisford     GSI           invited to the role, did not submit
  *   Pinnacle      PRIME         submitted Rhea and holds the contract
  *   Brightmoor    SUB           a supplier of Northbend Athletic's, not on this deal
- *   Consultis     BENCH_VENDOR  holds Rhea's consent, did not submit
+ *   Conisby     BENCH_VENDOR  holds Rhea's consent, did not submit
  *   Marsh         SOLOPRENEUR   put its own principal up and lost
  *   Rhea          CANDIDATE     the person on the seat
  *
@@ -85,16 +85,16 @@ const NIKE = {
 const SEAT: Record<Party, string> = {
   CLIENT: NIKE.hiring,
   MSP: `world-kestrel${D}`,
-  GSI: `world-teleworld${D}`,
+  GSI: `world-tellisford${D}`,
   PRIME: `world-pinnacle${D}`,
   SUB: `world-brightmoor${D}`,
-  BENCH_VENDOR: `world-consultis${D}`,
+  BENCH_VENDOR: `world-conisby${D}`,
   SOLOPRENEUR: 'dev.marsh@marshanalytics.invalid',
   CANDIDATE: 'rhea.saunders@party.invalid',
 }
 const FIRM: Record<Party, string> = {
-  CLIENT: 'Northbend Athletic', MSP: 'Kestrel MSP', GSI: 'Teleworld Solutions',
-  PRIME: 'Pinnacle Resourcing', SUB: 'Brightmoor Staffing', BENCH_VENDOR: 'Consultis',
+  CLIENT: 'Northbend Athletic', MSP: 'Kestrel MSP', GSI: 'Tellisford Solutions',
+  PRIME: 'Pinnacle Resourcing', SUB: 'Brightmoor Staffing', BENCH_VENDOR: 'Conisby',
   SOLOPRENEUR: 'Marsh Analytics', CANDIDATE: 'Rhea Saunders',
 }
 
@@ -102,7 +102,7 @@ const FIRM: Record<Party, string> = {
 const OWN_FIRM = (party: Party): string =>
   party === 'SOLOPRENEUR' ? co['marsh']
   : party === 'CANDIDATE' ? co['world-pinnacle']
-  : co[{ CLIENT: 'world-nike', MSP: 'world-kestrel', GSI: 'world-teleworld', PRIME: 'world-pinnacle', SUB: 'world-brightmoor', BENCH_VENDOR: 'world-consultis' }[party as 'CLIENT']]
+  : co[{ CLIENT: 'world-nike', MSP: 'world-kestrel', GSI: 'world-tellisford', PRIME: 'world-pinnacle', SUB: 'world-brightmoor', BENCH_VENDOR: 'world-conisby' }[party as 'CLIENT']]
 
 const call = async (fn: (r: any, ctx: any) => Promise<Response>, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
@@ -156,7 +156,7 @@ function refusalsAreSentences(grid: Grid) {
 
 beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-corning', 'world-kestrel', 'world-teleworld', 'world-pinnacle', 'world-brightmoor', 'world-consultis']) {
+    for (const slug of ['world-nike', 'world-corning', 'world-kestrel', 'world-tellisford', 'world-pinnacle', 'world-brightmoor', 'world-conisby']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
 
@@ -185,14 +185,14 @@ beforeAll(async () => {
       data: { consultantId: devProfile.id, companyId: marshCo.id, tier: 'RETAINED', state: 'GRANTED', invitedAt: day(-30), respondedAt: day(-29), grantedAt: day(-29) },
     })
 
-    // Rhea: on Pinnacle's bench and on Consultis's, which is what makes
+    // Rhea: on Pinnacle's bench and on Conisby's, which is what makes
     // cross-supplier tenure a real number rather than a claim.
     const rhea = await prisma.person.create({ data: { name: 'Rhea Saunders', primaryEmail: SEAT.CANDIDATE } })
     it_.worker = rhea.id
     const profile = await prisma.consultantProfile.create({
       data: { personId: rhea.id, skills: ['Sustainability reporting', 'Power BI'], location: 'Beaverton, OR', visibility: 'VERIFIED', workAuth: 'USC' },
     })
-    for (const slug of ['world-pinnacle', 'world-consultis']) {
+    for (const slug of ['world-pinnacle', 'world-conisby']) {
       await prisma.benchListing.create({
         data: { consultantId: profile.id, companyId: co[slug], tier: 'RETAINED', state: 'GRANTED', invitedAt: day(-30), respondedAt: day(-29), grantedAt: day(-29) },
       })
@@ -213,11 +213,11 @@ describe('the grid itself', () => {
   })
 
   it('a position is what a firm is on this deal, never a column on the firm', async () => {
-    // Pinnacle, Brightmoor and Consultis are one kind on the register
+    // Pinnacle, Brightmoor and Conisby are one kind on the register
     // and three different things here. If a position were ever stored
     // on the company this assertion is the one that breaks.
     const kinds = await prisma.company.findMany({
-      where: { id: { in: [co['world-pinnacle'], co['world-brightmoor'], co['world-consultis']] } },
+      where: { id: { in: [co['world-pinnacle'], co['world-brightmoor'], co['world-conisby']] } },
       select: { kind: true },
     })
     expect(new Set(kinds.map((k) => k.kind))).toEqual(new Set(['VENDOR']))
@@ -312,12 +312,12 @@ describe('2 · the role is put in front of suppliers', () => {
     refusalsAreSentences(grid)
   })
 
-  it('the program office sends it to Pinnacle and Teleworld, each seeing only its own band', async () => {
+  it('the program office sends it to Pinnacle and Tellisford, each seeing only its own band', async () => {
     as(NIKE.program)
     const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [
         { companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 },
-        { companyId: co['world-teleworld'], payMin: 3000, payMax: 3500 },
+        { companyId: co['world-tellisford'], payMin: 3000, payMax: 3500 },
       ],
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()

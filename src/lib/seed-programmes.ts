@@ -242,7 +242,7 @@ export const PROGRAMMES: Program[] = [
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
     placements: [
       { role: 'ERP finance lead', skills: ['ERP finance', 'General ledger', 'Central finance'], loc: 'Tualatin, OR',
-        via: ['nike', 'computer-systems', 'techpeple'], rates: [14500, 11800, 9000], takeAgain: true,
+        via: ['nike', 'computer-systems', 'tecwyn'], rates: [14500, 11800, 9000], takeAgain: true,
         person: 'Helena Marsh', workAuth: 'GC', startedDaysAgo: 200, endsInDays: 160, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
       // A week over the line, and nobody has said what it is worth. The
@@ -310,7 +310,7 @@ export const PROGRAMMES: Program[] = [
   },
   {
     client: 'corning', loc: 'Elmira, NY',
-    people: { programme: 'Eleanor Vance', hiring: 'Derek Halvorsen', hr: 'Priya Natarajan', procurement: 'Colin Mabry', ap: 'Patrice Boyd', compliance: 'Miriam Osei' },
+    people: { programme: 'Eleanor Vance', hiring: 'Derek Halvorsen', hr: 'Priya Nagarkar', procurement: 'Colin Mabry', ap: 'Patrice Boyd', compliance: 'Miriam Osei' },
     governance: { tenureCapMonths: 24, breakDays: 90, band: [6500, 14000] },
     placements: [
       { role: 'Process validation engineer', skills: ['Process validation', 'Glass forming', 'Minitab'], loc: 'Elmira, NY',
@@ -331,7 +331,7 @@ export const PROGRAMMES: Program[] = [
       // Out long enough. Eligible to be asked back, and the button says so.
       { role: 'Optical test technician', skills: ['Optical metrology', 'LabVIEW'], loc: 'Elmira, NY',
         via: ['corning', 'vertex-global'], rates: [7800, 5900],
-        person: 'Nadia Petrova', workAuth: 'GC', startedDaysAgo: 900, endsInDays: -100, state: 'ENDED', papers: 'CLEAR' },
+        person: 'Nadia Pavlenko', workAuth: 'GC', startedDaysAgo: 900, endsInDays: -100, state: 'ENDED', papers: 'CLEAR' },
       { role: 'Controls engineer', skills: ['Allen-Bradley PLC', 'Studio 5000'], loc: 'Elmira, NY',
         via: ['corning', 'halcyon'], rates: [10800, 8100],
         person: 'Samuel Adeyinka', workAuth: 'H1B', startedDaysAgo: -10, endsInDays: 355, state: 'DRAFT', papers: 'NO_I9' },
@@ -788,7 +788,7 @@ export async function seedProgrammes(
       await db.supplierRequest.create({
         data: {
           companyId: client.id, name: p.recommend.name, domain: p.recommend.contactEmail.split('@')[1],
-          contactEmail: p.recommend.contactEmail, contactName: 'Priya Natarajan', reason: p.recommend.reason,
+          contactEmail: p.recommend.contactEmail, contactName: 'Priya Nagarkar', reason: p.recommend.reason,
           skills: ['Supply chain planning', 'Demand planning', 'S&OP'],
           recommendedById: desk.hiring.personId, state: 'IN_REVIEW', stage: 'HR', createdAt: day(-4), linkSentAt: day(-4),
           token: newApplyToken(),
@@ -800,7 +800,7 @@ export async function seedProgrammes(
             legalName: 'Veritan Talent LLC', address: '400 SW 6th Ave, Portland, OR 97204', duns: '08-123-4567', website: 'veritantalent.example',
             experience: 'Twelve years placing supply chain and planning consultants for consumer goods and apparel; 40 consultants on site across four clients.',
             references: [{ name: 'Alan Reyes', company: 'Ridgeline Outfitters', email: 'areyes@ridgeline.example', phone: '' }, { name: 'Dana Kim', company: 'Ascent Athletic', email: 'dkim@ascentathletic.example', phone: '' }],
-            bank: { bankName: 'Umpqua Bank', accountName: 'Veritan Talent LLC', last4: '4471' },
+            bank: { bankName: 'Bellrock Bank', accountName: 'Veritan Talent LLC', last4: '4471' },
             skills: ['Supply chain planning', 'Demand planning', 'S&OP'],
             docs: [{ key: 'TAX_FORM', fileName: 'Veritan-W9-2026.pdf', size: 184000, at }, { key: 'INSURANCE', fileName: 'Veritan-COI-2026.pdf', size: 221000, at }, { key: 'PROPOSAL', fileName: 'Veritan-rate-card.pdf', size: 96000, at }],
             submittedAt: at,
@@ -808,7 +808,7 @@ export async function seedProgrammes(
           checklist: newChecklist().map((i) =>
             i.desk === 'PROCUREMENT' && i.required ? { ...i, state: 'HELD', at, fileName: i.key === 'REFERENCES' ? '2 references' : null }
             : i.key === 'PROPOSAL' ? { ...i, state: 'HELD', at, fileName: 'Veritan-rate-card.pdf' }
-            : provided.includes(i.key) ? { ...i, state: 'PROVIDED', at, fileName: i.key === 'TAX_FORM' ? 'Veritan-W9-2026.pdf' : i.key === 'INSURANCE' ? 'Veritan-COI-2026.pdf' : i.key === 'BANK' ? 'Umpqua Bank ····4471' : null }
+            : provided.includes(i.key) ? { ...i, state: 'PROVIDED', at, fileName: i.key === 'TAX_FORM' ? 'Veritan-W9-2026.pdf' : i.key === 'INSURANCE' ? 'Veritan-COI-2026.pdf' : i.key === 'BANK' ? 'Bellrock Bank ····4471' : null }
             : i
           ) as unknown as object,
         },
@@ -966,7 +966,7 @@ export async function seedProgrammes(
         if (await db.verification.findFirst({ where: { personId: who.id, type: v.type } })) continue
         await db.verification.create({
           data: {
-            personId: who.id, type: v.type, status: 'CLEAR', provider: v.type === 'I9_EVERIFY' ? 'E-Verify' : 'Sterling',
+            personId: who.id, type: v.type, status: 'CLEAR', provider: v.type === 'I9_EVERIFY' ? 'E-Verify' : 'Stonegate Screening',
             issuedAt: day(-onFile - 8), expiresAt: v.expiresAt,
             uploadedById: seatBySlug.get(employerSlug)!.personId, verifiedById: desk.compliance.personId, verifiedAt: day(-onFile - 7),
             // Who bought the report, where somebody bought one. The
@@ -1477,7 +1477,7 @@ export async function seedProgrammes(
       // every other one does.
       for (const v of [
         { type: 'I9_EVERIFY' as const, expiresAt: null, provider: 'E-Verify' },
-        { type: 'BACKGROUND_CHECK' as const, expiresAt: day(250), provider: 'Sterling' },
+        { type: 'BACKGROUND_CHECK' as const, expiresAt: day(250), provider: 'Stonegate Screening' },
       ]) {
         if (await db.verification.findFirst({ where: { personId: dWho.id, type: v.type } })) continue
         await db.verification.create({

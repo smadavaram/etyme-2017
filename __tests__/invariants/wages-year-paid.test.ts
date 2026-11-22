@@ -150,7 +150,7 @@ describe('1099 and corp-to-corp payments count in the year they were paid', () =
   })
 
   it('a corp-to-corp supplier’s invoice paid in the year counts in that year, and still gets no form', () => {
-    const out = receiptPayments([receipt({ contractType: 'C2C', payeeName: 'Consultis', paidAt: D('2026-08-14') })])
+    const out = receiptPayments([receipt({ contractType: 'C2C', payeeName: 'Conisby', paidAt: D('2026-08-14') })])
     const pack = yearEndPack(out.postings, 2026)
     expect(pack.necCount).toBe(0)
     expect(pack.noForm[0].grossCents).toBe(800_000)

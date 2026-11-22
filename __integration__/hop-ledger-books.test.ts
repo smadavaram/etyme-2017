@@ -14,11 +14,11 @@ import { placementBooks } from '@/lib/money/margin'
  * seeded world, through the screens.
  *
  * Helena Marsh works at Northbend Athletic, sold by Computer Systems at
- * $145, bought from Techpeple at $118, employed by Techpeple at $90. Priya
- * Raman is the same chain at Harlow Health: $138 / $112 / $86. Daniel Osei
+ * $145, bought from Tecwyn at $118, employed by Tecwyn at $90. Priya
+ * Ramesh is the same chain at Harlow Health: $138 / $112 / $86. Daniel Osei
  * is Computer Systems' own W2 at Harlow: $115 billed, $84 paid.
  *
- * The outside audit of 2026-10-05 read, on these three: Techpeple's profit
+ * The outside audit of 2026-10-05 read, on these three: Tecwyn's profit
  * at $29,000 billed — Helena's hours at Computer Systems' $145; Computer
  * Systems' profit with Helena and Priya missing; and Daniel costing about
  * $140 an hour on an $84 pay rate. The last was the seed writing his bill
@@ -29,7 +29,7 @@ import { placementBooks } from '@/lib/money/margin'
 const OWNER = {
   northbend: 'world-nike@demo.etyme.local',
   cs: 'world-computer-systems@demo.etyme.local',
-  techpeple: 'world-techpeple@demo.etyme.local',
+  tecwyn: 'world-tecwyn@demo.etyme.local',
 }
 const co: Record<string, string> = {}
 const line: Record<string, string> = {}
@@ -41,15 +41,15 @@ const ask = async (email: string, query: string) => {
 
 beforeAll(async () => {
   await freshWorld()
-  for (const [k, slug] of [['northbend', 'world-nike'], ['cs', 'world-computer-systems'], ['techpeple', 'world-techpeple']]) {
+  for (const [k, slug] of [['northbend', 'world-nike'], ['cs', 'world-computer-systems'], ['tecwyn', 'world-tecwyn']]) {
     co[k] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
   }
   const sell = async (person: string, companyId: string) =>
     (await prisma.sellContract.findFirstOrThrow({ where: { person: { name: person }, companyId }, select: { id: true } })).id
   line.helenaCs = await sell('Helena Marsh', co.cs)
-  line.helenaTp = await sell('Helena Marsh', co.techpeple)
-  line.priyaCs = await sell('Priya Raman', co.cs)
-  line.priyaTp = await sell('Priya Raman', co.techpeple)
+  line.helenaTp = await sell('Helena Marsh', co.tecwyn)
+  line.priyaCs = await sell('Priya Ramesh', co.cs)
+  line.priyaTp = await sell('Priya Ramesh', co.tecwyn)
   line.daniel = await sell('Daniel Osei', co.cs)
 }, 600_000)
 
@@ -76,14 +76,14 @@ describe('the seeded world is booked rung by rung', () => {
     expect(first.rebuilt, JSON.stringify(first.leftAlone.slice(0, 3))).toBe(0)
   })
 
-  it('Techpeple’s earned margin on Helena Marsh is on its own $118, never Computer Systems’ $145', async () => {
+  it('Tecwyn’s earned margin on Helena Marsh is on its own $118, never Computer Systems’ $145', async () => {
     const hours = await signedHours(co.cs, 'PASS_THROUGH', 'Helena Marsh')
     expect(hours).toBeGreaterThan(0)
-    const books = await postedFor(co.techpeple, 'Helena Marsh')
+    const books = await postedFor(co.tecwyn, 'Helena Marsh')
     expect(books.REVENUE).toBe(Math.round(hours * 11_800))
     expect(books.PAY).toBe(-Math.round(hours * 9_000))
 
-    const { status, body } = await ask(OWNER.techpeple, 'by=contract')
+    const { status, body } = await ask(OWNER.tecwyn, 'by=contract')
     expect(status).toBe(200)
     const row = body.data.rows.find((r: any) => r.contractId === line.helenaTp)
     expect(row.earned.revenueCents).toBe(Math.round(hours * 11_800))
@@ -96,11 +96,11 @@ describe('the seeded world is booked rung by rung', () => {
     const helena = body.data.rows.find((r: any) => r.contractId === line.helenaCs)
     const priya = body.data.rows.find((r: any) => r.contractId === line.priyaCs)
     expect(helena.person.name).toBe('Helena Marsh')
-    expect(priya.person.name).toBe('Priya Raman')
+    expect(priya.person.name).toBe('Priya Ramesh')
     // $145 − $118 on $145, and $138 − $112 on $138.
     expect(helena.agreed.pct).toBe(18.6)
     expect(priya.agreed.pct).toBe(18.8)
-    expect(helena.vendorName).toBe('Techpeple')
+    expect(helena.vendorName).toBe('Tecwyn')
     const hours = await signedHours(co.northbend, 'CLIENT_APPROVAL', 'Helena Marsh')
     expect(helena.earned.revenueCents).toBe(Math.round(hours * 14_500))
     expect(helena.earned.costCents).toBe(Math.round((await signedHours(co.cs, 'PASS_THROUGH', 'Helena Marsh')) * 11_800))
@@ -167,7 +167,7 @@ describe('one margin, on every screen that shows one', () => {
   })
 
   it('every firm’s earned figures are the sum of the postings in its own books', async () => {
-    for (const firm of [co.cs, co.techpeple]) {
+    for (const firm of [co.cs, co.tecwyn]) {
       const rows = await placementBooks(firm)
       for (const r of rows) {
         const p = await prisma.orderPosting.groupBy({
@@ -187,24 +187,24 @@ describe('one margin, on every screen that shows one', () => {
 
 describe('a rung reads how many hops lie above and below it, and no rate of theirs', () => {
   it('a rung reads how many hops lie above and below it, and no rate of theirs', async () => {
-    const tp = (await ask(OWNER.techpeple, 'by=contract')).body.data.rows.find((r: any) => r.contractId === line.helenaTp)
+    const tp = (await ask(OWNER.tecwyn, 'by=contract')).body.data.rows.find((r: any) => r.contractId === line.helenaTp)
     expect([tp.hopsAbove, tp.hopsBelow]).toEqual([1, 0])
     const cs = (await ask(OWNER.cs, 'by=contract')).body.data.rows.find((r: any) => r.contractId === line.helenaCs)
     expect([cs.hopsAbove, cs.hopsBelow]).toEqual([0, 1])
-    // Computer Systems reads its own $118 cost and never Techpeple's $90 pay.
+    // Computer Systems reads its own $118 cost and never Tecwyn's $90 pay.
     expect(JSON.stringify(cs)).not.toContain('9000')
   })
 
-  it('a firm’s books hold nothing at another firm’s rate: no Techpeple posting is priced at $145', async () => {
+  it('a firm’s books hold nothing at another firm’s rate: no Tecwyn posting is priced at $145', async () => {
     const wrong = await prisma.orderPosting.count({
-      where: { companyId: co.techpeple, kind: 'REVENUE', person: { name: 'Helena Marsh' }, says: { contains: '145' } },
+      where: { companyId: co.tecwyn, kind: 'REVENUE', person: { name: 'Helena Marsh' }, says: { contains: '145' } },
     })
     expect(wrong).toBe(0)
   })
 })
 
 describe('signed in as each firm in a three-rung chain, another rung’s rate is refused', () => {
-  const others = { northbend: ['helenaTp'], cs: [] as string[], techpeple: ['helenaCs'] }
+  const others = { northbend: ['helenaTp'], cs: [] as string[], tecwyn: ['helenaCs'] }
 
   it('the client and the sub-vendor are each refused the bill on the rung they are not party to', async () => {
     const billOn = async (sellContractId: string) =>
@@ -215,7 +215,7 @@ describe('signed in as each firm in a three-rung chain, another rung’s rate is
 
     as(OWNER.northbend)
     expect((await json(await invoice(req('GET', `/api/invoices/${tpBill}`), { params: Promise.resolve({ id: tpBill! }) }))).status).toBe(404)
-    as(OWNER.techpeple)
+    as(OWNER.tecwyn)
     expect((await json(await invoice(req('GET', `/api/invoices/${csBill}`), { params: Promise.resolve({ id: csBill! }) }))).status).toBe(404)
   })
 
@@ -228,13 +228,13 @@ describe('signed in as each firm in a three-rung chain, another rung’s rate is
     as(OWNER.northbend)
     const nb = await json(await contracts(req('GET', '/api/contracts?side=sell&limit=50')))
     expect(rateOf(nb.body, line.helenaTp) ?? null).toBeNull()
-    as(OWNER.techpeple)
+    as(OWNER.tecwyn)
     const tp = await json(await contracts(req('GET', '/api/contracts?side=sell&limit=50')))
     expect(rateOf(tp.body, line.helenaCs) ?? null).toBeNull()
   })
 
   it('a firm’s profitability never lists another rung’s line, by id or otherwise', async () => {
-    for (const [who, foreign] of [['techpeple', [line.helenaCs, line.priyaCs]], ['northbend', [line.helenaCs, line.helenaTp]]] as const) {
+    for (const [who, foreign] of [['tecwyn', [line.helenaCs, line.priyaCs]], ['northbend', [line.helenaCs, line.helenaTp]]] as const) {
       const { status, body } = await ask(OWNER[who], 'by=contract')
       if (status !== 200) continue
       const ids = body.data.rows.map((r: any) => r.contractId)
@@ -261,7 +261,7 @@ describe('signed in as each firm in a three-rung chain, another rung’s rate is
     const nb = await json(await placement(req('GET', `/api/placements/${line.helenaTp}`), { params: Promise.resolve({ id: line.helenaTp }) } as any))
     if (nb.status === 200) expect(JSON.stringify(nb.body)).not.toContain('11800')
     else expect([403, 404]).toContain(nb.status)
-    as(OWNER.techpeple)
+    as(OWNER.tecwyn)
     const tp = await json(await placement(req('GET', `/api/placements/${line.helenaCs}`), { params: Promise.resolve({ id: line.helenaCs }) } as any))
     if (tp.status === 200) expect(JSON.stringify(tp.body)).not.toContain('14500')
     else expect([403, 404]).toContain(tp.status)
@@ -270,7 +270,7 @@ describe('signed in as each firm in a three-rung chain, another rung’s rate is
 
 describe('the rebuild door', () => {
   it('a controller rebuilds only their own firm’s books, and a second run changes nothing', async () => {
-    as(OWNER.techpeple)
+    as(OWNER.tecwyn)
     const r = await json(await rebuild(req('POST', '/api/profitability/rebuild')))
     expect(r.status).toBe(200)
     expect(r.body.data.rebuilt).toBe(0)
@@ -279,21 +279,21 @@ describe('the rebuild door', () => {
 
   it('a wrong posting left by the old rule is moved to the firm whose rung it is, at that rung’s rate', async () => {
     // Put the old rule back on one week: the client's signature booked to
-    // Techpeple at $145, which is what every chained week held until today.
+    // Tecwyn at $145, which is what every chained week held until today.
     const sig = await prisma.workAssertion.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { companyId: co.northbend, role: 'CLIENT_APPROVAL', state: 'LIVE', timesheet: { sellContractId: line.helenaTp } },
       select: { id: true, hours: true },
     })
     const right = await prisma.orderPosting.findFirstOrThrow({ where: { source: 'TIMESHEET', sourceId: sig.id, kind: 'REVENUE' } })
-    const tpOrder = await prisma.orderPosting.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: co.techpeple, sellContractId: line.helenaTp }, select: { projectOrderId: true } })
+    const tpOrder = await prisma.orderPosting.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: co.tecwyn, sellContractId: line.helenaTp }, select: { projectOrderId: true } })
     await prisma.orderPosting.update({
       where: { id: right.id },
-      data: { companyId: co.techpeple, sellContractId: line.helenaTp, projectOrderId: tpOrder.projectOrderId },
+      data: { companyId: co.tecwyn, sellContractId: line.helenaTp, projectOrderId: tpOrder.projectOrderId },
     })
 
-    // Techpeple rebuilding its own books takes the posting out of them,
+    // Tecwyn rebuilding its own books takes the posting out of them,
     // and never writes into Computer Systems'.
-    as(OWNER.techpeple)
+    as(OWNER.tecwyn)
     const own = await json(await rebuild(req('POST', '/api/profitability/rebuild')))
     expect(own.body.data.removed).toBe(1)
     expect(own.body.data.written).toBe(0)

@@ -41,8 +41,8 @@ function caller(overrides: {
   hasCompany?: boolean
 }): CallerContext {
   const {
-    companyId = 'vendor-techpeple',
-    companyName = 'Techpeple Inc.',
+    companyId = 'vendor-tecwyn',
+    companyName = 'Tecwyn Inc.',
     companyKind = 'VENDOR',
     permissions = ALL_PERMS,
     hasCompany = true,
@@ -149,7 +149,7 @@ describe('A supplier reading the client it supplies', () => {
     vi.mocked(prisma.company.findUnique).mockResolvedValue(TERUMO as any)
     vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({ id: 'contract-1' } as any)
 
-    const result = await resolveClientCompany(caller({ companyName: 'Teleworld' }), TERUMO.id)
+    const result = await resolveClientCompany(caller({ companyName: 'Tellisford' }), TERUMO.id)
     const body = await result.error!.json()
 
     expect(body.error.message).toContain('Talvern Medical')
@@ -240,8 +240,8 @@ describe('A supplier that names no client at all', () => {
 describe('Contract list scoping — every caller sees only their own side', () => {
 
   it('a vendor sees the contracts they sell', () => {
-    const scope = sellContractScope(caller({ companyId: 'vendor-techpeple' }))
-    expect(scope).toEqual({ companyId: 'vendor-techpeple' })
+    const scope = sellContractScope(caller({ companyId: 'vendor-tecwyn' }))
+    expect(scope).toEqual({ companyId: 'vendor-tecwyn' })
   })
 
   it('a client sees the contracts it is billed on, and not the ones underneath them', () => {
@@ -257,7 +257,7 @@ describe('Contract list scoping — every caller sees only their own side', () =
   })
 
   it('a client is shown nothing rather than its supplier\u2019s cost where a chain has no top rung', () => {
-    // Three-party: Techpeple bills GlobalStaff MSP, consultant works at
+    // Three-party: Tecwyn bills GlobalStaff MSP, consultant works at
     // Talvern Medical, and no contract names Talvern Medical as the buyer. Talvern Medical is not
     // a party to the money of that row, so it is not on this list —
     // who is on site is endClientFilter's question, asked on the
@@ -298,8 +298,8 @@ describe('Contract list scoping — every caller sees only their own side', () =
 describe('Buy contract scoping', () => {
 
   it('a vendor sees the buy contracts they own', () => {
-    expect(buyContractScope(caller({ companyId: 'vendor-techpeple' })))
-      .toEqual({ companyId: 'vendor-techpeple' })
+    expect(buyContractScope(caller({ companyId: 'vendor-tecwyn' })))
+      .toEqual({ companyId: 'vendor-tecwyn' })
   })
 
   it('a client has no buy contracts and sees an empty list, not everyone else\'s', () => {
@@ -316,8 +316,8 @@ describe('Buy contract scoping', () => {
 describe('Expense scoping — a client never sees a vendor\'s internal costs', () => {
 
   it('a vendor sees every expense their company owns', () => {
-    expect(expenseScope(caller({ companyId: 'vendor-techpeple' })))
-      .toEqual({ companyId: 'vendor-techpeple' })
+    expect(expenseScope(caller({ companyId: 'vendor-tecwyn' })))
+      .toEqual({ companyId: 'vendor-tecwyn' })
   })
 
   it('a client sees only billable expenses raised at their own sites', () => {
@@ -422,7 +422,7 @@ describe('MSP and GSI callers are refused the same way a staffing vendor is', ()
     vi.mocked(prisma.sellContract.findFirst).mockResolvedValue({ id: 'contract-1' } as any)
 
     const result = await resolveClientCompany(
-      caller({ companyKind: 'GSI', companyName: 'Teleworld' }),
+      caller({ companyKind: 'GSI', companyName: 'Tellisford' }),
       TERUMO.id
     )
     expect(result.client).toBeNull()

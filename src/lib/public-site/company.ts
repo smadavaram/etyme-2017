@@ -11,9 +11,9 @@
  *   - About was ten sections and 1,600 words: the four questions and why
  *     nobody can answer them, one hire in six milestones, what it sits
  *     beside, how we work, the two ways, neutrality and the price, all
- *     moved there from the home page on 2026-09-27. It is five lines now:
+ *     moved there from the home page on 2026-09-27. It was five lines:
  *     what we build, what we never do, the two ways, the price, where we
- *     are. The rest left the site on purpose; the home page's panel
+ *     are. It is four since 2026-11-22, when the two ways left (below). The rest left the site on purpose; the home page's panel
  *     answers the four questions by showing them.
  *   - Security was 630 words. It is what is done, what is not done yet,
  *     what comes next in order with no date, and how to report a problem.
@@ -60,8 +60,8 @@ export interface Block {
 
 /**
  * The two ways to run a program on the record, in the founder's two
- * labels (decided 2026-09-20). About names both in one line; the census
- * letter reads the labels from here.
+ * labels (decided 2026-09-20). About named both in one line until
+ * 2026-11-22; the census letter reads the labels from here.
  */
 export const TWO_WAYS: { label: string; says: string }[] = [
   {
@@ -107,13 +107,14 @@ export const ABOUT: CompanyPage = {
         // every level (the documentation's who-does-what) and every look
         // logged (Security).
         { lead: 'The same for every supplier.', t: 'A supplier’s rates are never shown to another supplier. Every look at a person’s record is logged.' },
-        { lead: 'Two ways to use it.', t: `Your team runs it: Etyme as ${TWO_WAYS[0].label}. Or Etyme runs it for you: Etyme as ${TWO_WAYS[1].label}.` },
-        // The second half brought back by the founder, 2026-10-15: how Etyme
-        // is paid when it runs the program, said once on the site (CLAUDE.md,
-        // "Etyme runs the program": supplier-funded, a percentage on
-        // billings, no number yet). Kept on the price line, so the offer to
-        // run the program is still made once.
-        { lead: 'Price.', t: 'Free while we test with our first companies. No number until we have one. As your MSP, Etyme would be paid by suppliers, as a share of what they bill.' },
+        // Two lines left on 2026-11-22, on the owner's sales-ready batch
+        // (docs/decisions/110, item 4: the positioning lines he ruled out).
+        // "Two ways to use it" named Etyme as software of one acronym and as
+        // a provider of another, and the price line's last sentence said how
+        // Etyme would be paid as that provider. About now says one thing:
+        // the category's own span. `TWO_WAYS` stays above for the census
+        // letter, which is not a public page.
+        { lead: 'Price.', t: 'Free while we test with our first companies. No number until we have one.' },
         { lead: 'Where we are.', t: `${ADDRESS.company}, ${ADDRESS.street}, ${ADDRESS.city}. ${ADDRESS.phone}.` },
       ],
     },

@@ -281,7 +281,7 @@ not start the next slice until the report is delivered.
 ## 9. Acceptance
 
 1. Helena Marsh's week: filed once, signed by Northbend, accepted by
-   Computer Systems and Techpeple in turn; the prime's twin drafts
+   Computer Systems and Tecwyn in turn; the prime's twin drafts
    its October bill on the agreement's date for both October weeks
    (80 h × $145 = $11,600), a person sends it, the three-way check
    passes, Northbend pays, and Helena is owed 40 × $90 = $3,600 on

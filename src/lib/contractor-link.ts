@@ -64,7 +64,9 @@ export async function sendInvite(input: {
     letter.subject,
     letter.body,
     configuredSenders(),
-    new Date()
+    new Date(),
+    null,
+    { mail: { template: 'contractor-invitation' } },
   )
   return { state: out.state, note: out.note }
 }

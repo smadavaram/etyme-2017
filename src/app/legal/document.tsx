@@ -8,17 +8,17 @@ import type { Block, Line } from '@/lib/legal/parse'
  * The founder read the three drafts and said "Publish" (2026-10-15).
  * Earlier the same day he had said the legal pages are read whole, so
  * this draws them the way a well-run company's legal pages read: the
- * shared header and footer, a row of links between the three, the draft
- * notice first, the title, the dates, the opening paragraph, a short
- * list of the sections, and then every section, open. No folds, no
- * summary box, nothing to click to read the rest.
+ * shared header and footer, a row of links between the three, the
+ * title, the dates, the opening paragraph, a short list of the
+ * sections, and then every section, open. No folds, no summary box,
+ * nothing to click to read the rest.
  *
- * ── What the reader must be able to see ─────────────────────────────
+ * ── Final, not a draft ───────────────────────────────────────────────
  *
- * Text in square brackets is a point counsel has not decided. It is
- * drawn as marked text on a light wash, so a reader sees at once which
- * sentences are settled and which are not, without a legend. The notice
- * at the top says what the brackets mean.
+ * The owner published the three as final on 2026-11-22 (record 110).
+ * Until then this drew a draft notice above the title and marked each
+ * bracketed point counsel had not decided. Neither is drawn now, and
+ * `lib/legal/parse` refuses a text that carries either.
  *
  * ── Phone first ──────────────────────────────────────────────────────
  *
@@ -39,23 +39,13 @@ import type { Block, Line } from '@/lib/legal/parse'
 /** The text column, about seventy characters. */
 const MEASURE = 'max-w-[70ch]'
 
-/** One line of the approved text: strong runs, and counsel's points marked. */
+/** One line of the approved text, with its strong runs. */
 function Runs({ line }: { line: Line }) {
   return (
     <>
       {line.map((r, i) => {
         let node: React.ReactNode = r.text
         if (r.strong) node = <strong className="font-semibold text-etyme-ink">{node}</strong>
-        if (r.counsel) {
-          node = (
-            <mark
-              data-counsel=""
-              className="rounded-[3px] bg-etyme-attention-wash px-[3px] text-etyme-ink [box-decoration-break:clone]"
-            >
-              {node}
-            </mark>
-          )
-        }
         return <span key={i}>{node}</span>
       })}
     </>
@@ -186,15 +176,6 @@ export function LegalDocument({ docKey }: { docKey: LegalKey }) {
               </a>
             ))}
           </nav>
-
-          {/* The draft notice, first: a reader who takes a draft for
-              reviewed text has been misled by the layout. */}
-          <p
-            role="note"
-            className={`mt-6 ${MEASURE} rounded-panel border border-etyme-attention-line bg-etyme-attention-wash px-4 py-3 text-[14px] leading-relaxed text-etyme-ink`}
-          >
-            <Runs line={doc.notice} />
-          </p>
 
           <header className="mt-6">
             <h1 className="headline-serif text-[34px] leading-[1.05] [text-wrap:balance] sm:text-[40px]">

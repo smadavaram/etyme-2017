@@ -25,7 +25,7 @@ const it_: Record<string, string> = {}
 const USED = {
   'LinkedIn': 'amara.osei@harborline-tech.example',
   'a company directory': 'jonas.lindqvist@harborline-tech.example',
-  'a first email link': 'priya.raman@northwind-staffing.example',
+  'a first email link': 'priya.ramesh@northwind-staffing.example',
   'answering a one-time link': 'tomas.alvarez@northwind-staffing.example',
 } as const
 const NEVER = 'lena.kowalski@northwind-staffing.example'
@@ -48,7 +48,7 @@ beforeAll(async () => {
   const d = await person(USED['a company directory'], 'Jonas Lindqvist')
   await prisma.externalIdentity.create({ data: { personId: d.id, companyId: other.id, issuer: 'https://login.harborline-tech.example', subject: `sub-${d.id}`, email: USED['a company directory'] } })
   // A first email link only: the mailbox is proved.
-  await prisma.person.create({ data: { primaryEmail: USED['a first email link'], name: 'Priya Raman', emailVerifiedAt: new Date() } })
+  await prisma.person.create({ data: { primaryEmail: USED['a first email link'], name: 'Priya Ramesh', emailVerifiedAt: new Date() } })
   // A one-time link answered, and nothing else.
   const t = await person(USED['answering a one-time link'], 'Tomas Alvarez')
   await prisma.emailToken.create({ data: { personId: t.id, purpose: 'VERIFY', tokenHash: randomBytes(16).toString('hex'), expiresAt: new Date(Date.now() + 3_600_000), usedAt: new Date() } })

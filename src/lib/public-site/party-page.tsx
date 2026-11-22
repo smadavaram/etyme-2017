@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { SubPageView } from './sub-page'
 import { ON_SCREEN_DOOR, OPEN_DEMO } from './skeleton-words'
-import { doorTab, partyAt, tabHref, type PartySlug } from './parties'
+import { doorTab, partyAt, segmentAt, tabAddress, tabHref, type PartySlug, type Segment, type SegmentSlug } from './parties'
 import { doorMap } from './door-maps'
 import { NO_FACTS, type DoorFacts } from './door-map-facts'
 import { CorvaneMapView } from './corvane-map-view'
@@ -32,8 +32,28 @@ function tabOf(params?: DoorParams): string | null {
 }
 
 export function partyMetadata(slug: PartySlug, params?: DoorParams): Metadata {
-  const p = doorTab(partyAt(slug)!, tabOf(params))
-  return { title: p.tab ? `${p.eyebrow}: ${p.tab.label}` : p.eyebrow, description: p.purpose }
+  const door = partyAt(slug)!
+  const p = doorTab(door, tabOf(params))
+  const meta: Metadata = { title: p.tab ? `${p.eyebrow}: ${p.tab.label}` : p.eyebrow, description: p.purpose }
+  // A tab opened by `?tab=` that has a plain address of its own names it as the canonical one.
+  const plain = p.tab && p.tab.key !== door.tabs![0].key ? tabAddress(door, p.tab.key) : null
+  return plain && plain !== tabHref(door, p.tab!.key) ? { ...meta, alternates: { canonical: plain } } : meta
+}
+
+/**
+ * A segment page's title and line: its own party's name, and the line
+ * under its headline. Its canonical address is its own, so a search engine
+ * lists the plain address and not the door's `?tab=` twin.
+ */
+export function segmentMetadata(slug: SegmentSlug): Metadata {
+  const s = segmentAt(slug)!
+  return { title: s.eyebrow, description: doorTab(partyAt(s.door)!, s.tab).purpose, alternates: { canonical: s.route } }
+}
+
+/** One segment page (./parties, 2026-11-22): its door's tab, drawn at the segment's own plain address. */
+export function SegmentPageView({ slug, params, facts }: { slug: SegmentSlug; params?: DoorParams; facts?: DoorFacts }) {
+  const s = segmentAt(slug)!
+  return <PartyPageView slug={s.door} params={params} facts={facts} segment={s} />
 }
 
 /**
@@ -42,14 +62,16 @@ export function partyMetadata(slug: PartySlug, params?: DoorParams): Metadata {
  * on the demo. The map itself is the door tab's own (`./door-maps`), and a
  * door with no map yet (the MSPs') draws none.
  */
-export function PartyPageView({ slug, params, facts = NO_FACTS }: { slug: PartySlug; params?: DoorParams; facts?: DoorFacts }) {
+export function PartyPageView({ slug, params, facts = NO_FACTS, segment }: { slug: PartySlug; params?: DoorParams; facts?: DoorFacts; segment?: Segment }) {
   const door = partyAt(slug)!
-  const p = doorTab(door, tabOf(params))
-  const drawn = doorMap(p.tab ? tabHref(door, p.tab.key) : door.route, facts, params?.searchParams?.seat)
+  // A segment page is one tab whatever the address's query says.
+  const p = doorTab(door, segment ? segment.tab : tabOf(params))
+  const own = p.tab ? tabHref(door, p.tab.key) : door.route
+  const drawn = doorMap(own, facts, params?.searchParams?.seat, segment?.route ?? own)
   const demo = 'candidate' in p.demo
     ? { label: OPEN_DEMO, candidate: true as const }
     : { label: OPEN_DEMO, target: p.demo.target }
-  const tabs = door.tabs?.map((t) => ({ t: t.label, href: tabHref(door, t.key), current: t.key === p.tab?.key }))
+  const tabs = door.tabs?.map((t) => ({ t: t.label, href: tabAddress(door, t.key), current: t.key === p.tab?.key }))
   return (
     <SubPageView
       tabs={tabs && { label: door.eyebrow, list: tabs }}

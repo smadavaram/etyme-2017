@@ -127,22 +127,22 @@ describe('a person invited with no role is told on her first screen who gives he
 })
 
 describe('a firm’s own worker with no role, in the firm’s hat, is told who gives her one', () => {
-  let teleworld = ''
+  let tellisford = ''
   let karthikSeat = ''
   let ownRole = ''
   let giver = { personId: '', name: '' }
 
   beforeAll(async () => {
     await freshWorld()
-    teleworld = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })).id
+    tellisford = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' }, select: { id: true } })).id
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK }, select: { id: true } })
-    const s = await prisma.context.findFirstOrThrow({ where: { personId: person.id, companyId: teleworld }, select: { id: true, roleId: true } })
+    const s = await prisma.context.findFirstOrThrow({ where: { personId: person.id, companyId: tellisford }, select: { id: true, roleId: true } })
     karthikSeat = s.id
     ownRole = s.roleId!
-    // Somebody at Teleworld who may give roles today, read from the seeded seats, never assumed.
+    // Somebody at Tellisford who may give roles today, read from the seeded seats, never assumed.
     const g = await prisma.context.findFirstOrThrow({
       where: {
-        companyId: teleworld, revokedAt: null, suspendedAt: null, type: 'EMPLOYEE', invitedAt: null,
+        companyId: tellisford, revokedAt: null, suspendedAt: null, type: 'EMPLOYEE', invitedAt: null,
         role: { permissions: { hasSome: ['settings.manage', '*'] } },
         person: { primaryEmail: { not: { endsWith: 'sample.etyme.local' } } },
       },
@@ -155,20 +155,20 @@ describe('a firm’s own worker with no role, in the firm’s hat, is told who g
   it('Karthik Menon, who holds a role of his own, reads the firm hat’s line as before, with no word about roles', async () => {
     as(KARTHIK)
     const answer = await greeting('etyme_hat=firm')
-    expect(answer.says).toMatch(/(Nothing of Teleworld Solutions’ is addressed to you; your own work is under You, in the account menu\.|Your own work is under You, in the account menu\.)$/)
+    expect(answer.says).toMatch(/(Nothing of Tellisford Solutions’ is addressed to you; your own work is under You, in the account menu\.|Your own work is under You, in the account menu\.)$/)
     expect(answer.says).not.toContain(LEAD)
   })
 
   it('with only the Member role, Karthik Menon in the firm’s hat is told to ask the colleague who invited him, by name', async () => {
-    const member = (await prisma.role.findFirst({ where: { companyId: teleworld, name: 'Member' }, select: { id: true } }))
-      ?? (await prisma.role.create({ data: { companyId: teleworld, name: 'Member', isDefault: false, permissions: [] }, select: { id: true } }))
+    const member = (await prisma.role.findFirst({ where: { companyId: tellisford, name: 'Member' }, select: { id: true } }))
+      ?? (await prisma.role.create({ data: { companyId: tellisford, name: 'Member', isDefault: false, permissions: [] }, select: { id: true } }))
     await prisma.context.update({ where: { id: karthikSeat }, data: { roleId: member.id, invitedById: giver.personId } })
     as(KARTHIK)
     const answer = await greeting('etyme_hat=firm')
     expect(answer.says).toContain(`${LEAD} Ask ${giver.name}, who invited you, to give you one.`)
     const asked = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'What needs me today?' }, { cookie: 'etyme_hat=firm' })))
     expect(asked.status).toBe(200)
-    expect(asked.body.data.answer.says).toBe(`Nothing of Teleworld Solutions’ is addressed to you; your own work is under You, in the account menu. ${LEAD} Ask ${giver.name}, who invited you, to give you one.`)
+    expect(asked.body.data.answer.says).toBe(`Nothing of Tellisford Solutions’ is addressed to you; your own work is under You, in the account menu. ${LEAD} Ask ${giver.name}, who invited you, to give you one.`)
     await prisma.context.update({ where: { id: karthikSeat }, data: { roleId: ownRole, invitedById: null } })
   })
 })

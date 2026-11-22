@@ -17,16 +17,16 @@ const src = (p: string) => readFileSync(join(__dirname, '../../src', p), 'utf8')
 describe('every line is paid one way', () => {
   it('payroll never pays a worker paid through their own company; the invoice receipt does', () => {
     expect(paidByPayroll({ contractType: 'C2C' })).toBe(false)
-    expect(notPayrollSays({ personName: 'Ravi Subramanian', contractType: 'C2C' }))
-      .toBe('Ravi Subramanian is paid through their own company’s invoice — see Invoice receipts.')
+    expect(notPayrollSays({ personName: 'Ravi Subbarayan', contractType: 'C2C' }))
+      .toBe('Ravi Subbarayan is paid through their own company’s invoice — see Invoice receipts.')
   })
 
   it('a worker bought from a supplier is paid through that supplier’s invoice, whatever the supplier calls them', () => {
-    expect(paidByPayroll({ contractType: 'C2C', vendorCompanyId: 'consultis' })).toBe(false)
-    expect(paidByPayroll({ contractType: 'W2', vendorCompanyId: 'consultis' })).toBe(false)
+    expect(paidByPayroll({ contractType: 'C2C', vendorCompanyId: 'conisby' })).toBe(false)
+    expect(paidByPayroll({ contractType: 'W2', vendorCompanyId: 'conisby' })).toBe(false)
     expect(paidByPayroll({ contractType: 'W2', supplierSellContractId: 's1' })).toBe(false)
-    expect(notPayrollSays({ personName: 'Ravi Subramanian', contractType: 'C2C', vendorName: 'Consultis' }))
-      .toBe('Ravi Subramanian is paid through Consultis’s invoice — see Invoice receipts.')
+    expect(notPayrollSays({ personName: 'Ravi Subbarayan', contractType: 'C2C', vendorName: 'Conisby' }))
+      .toBe('Ravi Subbarayan is paid through Conisby’s invoice — see Invoice receipts.')
   })
 
   it('a 1099 individual is paid on their own invoice, never by payroll', () => {

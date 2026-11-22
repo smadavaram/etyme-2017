@@ -11,7 +11,7 @@ import { consultantRowPlan, rowFields } from '@/app/api/imports/sheets/consultan
  */
 const route = readFileSync(join(__dirname, '../../src/app/api/imports/sheets/route.ts'), 'utf8')
 const row = { name: 'Priya R', email: 'priya@example.invalid', headline: 'SAP lead', skills: ['SAP'], location: 'Dayton', workAuth: 'H-1B', rateFloor: 90 }
-const base = { isSubject: false, otherFirms: 0, hasListing: true, name: 'Priya Raman', firm: 'Tapin' }
+const base = { isSubject: false, otherFirms: 0, hasListing: true, name: 'Priya Ramesh', firm: 'Tapin' }
 
 describe('a consultants import never writes on a person who has their own record', () => {
   it('a row whose email matches a person with their own account writes only the firm’s listing and leaves their name and profile alone', () => {
@@ -25,7 +25,7 @@ describe('a consultants import never writes on a person who has their own record
 
   it('the import’s summary says per row that it was kept on the listing because the person has their own account', () => {
     const plan = consultantRowPlan({ ...base, ownAccount: true, values: row })
-    expect(plan.write === 'LISTING' && plan.says).toBe('Kept on your listing; Priya Raman has their own account.')
+    expect(plan.write === 'LISTING' && plan.says).toBe('Kept on your listing; Priya Ramesh has their own account.')
     expect(route).toContain('kept.push({ row: r.rowNumber, says: plan.says })')
     expect(route).toContain("written.kept.map((k) => ` Row ${k.row}: ${k.says}`)")
     expect(route).toContain('kept: written.kept,')
@@ -34,13 +34,13 @@ describe('a consultants import never writes on a person who has their own record
   it('a row about somebody another firm lists is kept on the listing, and the sentence never mentions another firm', () => {
     const plan = consultantRowPlan({ ...base, ownAccount: false, otherFirms: 1, values: row })
     expect(plan.write).toBe('LISTING')
-    expect(plan.write === 'LISTING' && plan.says).toBe('Kept on your listing; Priya Raman’s own profile is theirs to change.')
+    expect(plan.write === 'LISTING' && plan.says).toBe('Kept on your listing; Priya Ramesh’s own profile is theirs to change.')
     expect(plan.write === 'LISTING' && plan.says).not.toMatch(/firm|another|other/i)
   })
 
   it('a row about somebody whose record is theirs, at a firm with no bench listing for them, writes nothing and says why', () => {
     const plan = consultantRowPlan({ ...base, ownAccount: true, hasListing: false, values: row })
-    expect(plan).toEqual({ write: 'NONE', says: 'Nothing written; Priya Raman has their own account, and Tapin has no bench listing for them to keep your words on.' })
+    expect(plan).toEqual({ write: 'NONE', says: 'Nothing written; Priya Ramesh has their own account, and Tapin has no bench listing for them to keep your words on.' })
   })
 
   it('a row with only the person’s own details about somebody whose record is theirs writes nothing', () => {

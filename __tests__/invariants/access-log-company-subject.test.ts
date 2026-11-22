@@ -64,13 +64,13 @@ describe('A firm as the subject of a read', () => {
   })
 
   it('a refused read of a company’s paper is written with the company as its subject before the refusal goes out, once per firm', async () => {
-    expect(await recordRefusal([{ companyId: 'techpeple' }, { companyId: 'techpeple' }], { ...reader, allowed: false })).toBe(1)
-    expect(h.rows).toEqual([expect.objectContaining({ subjectId: null, subjectCompanyId: 'techpeple', allowed: false })])
+    expect(await recordRefusal([{ companyId: 'tecwyn' }, { companyId: 'tecwyn' }], { ...reader, allowed: false })).toBe(1)
+    expect(h.rows).toEqual([expect.objectContaining({ subjectId: null, subjectCompanyId: 'tecwyn', allowed: false })])
   })
 
   it('a refusal that cannot be written is reported in words that name a firm, and never thrown', async () => {
     h.fail = true
-    expect(await recordRefusal([{ companyId: 'techpeple' }], { ...reader, allowed: false })).toBe(0)
+    expect(await recordRefusal([{ companyId: 'tecwyn' }], { ...reader, allowed: false })).toBe(0)
     expect(String((h.reportError.mock.calls[0] as unknown[])[1])).toMatch(/refused DOCUMENT_FILE_READ of 1 firm\./)
   })
 

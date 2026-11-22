@@ -52,7 +52,7 @@ describe('one reader of what is on file for a person and a line', () => {
   it('a paper another firm’s request accepted stands on that firm’s lines only', () => {
     const record: PapersOnRecord = { papers: [], accepted: [{ key: 'NDA', state: 'ACCEPTED', validUntil: null, personId: 'omar', companyId: 'brightmoor' }] }
     expect(heldAbout(record, { personId: 'omar', companyIds: ['brightmoor'] }).map((h) => h.key)).toEqual(['NDA'])
-    expect(heldAbout(record, { personId: 'omar', companyIds: ['techpeple'] })).toEqual([])
+    expect(heldAbout(record, { personId: 'omar', companyIds: ['tecwyn'] })).toEqual([])
   })
 
   it('the papers read are the signed and the sent, against the line, about the person and about either firm', () => {

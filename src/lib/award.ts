@@ -345,9 +345,9 @@ export const STOOD_DOWN_REASON = 'TIMING' as const
  *
  * That is answered by the chain, not by the award. A submission that was
  * forwarded carries a parent, and the parent's sender is the supplier —
- * Techpeple put Priya forward to Computer Systems, Computer Systems put
+ * Tecwyn put Priya forward to Computer Systems, Computer Systems put
  * her forward to Adobe, so when Adobe awards, Computer Systems buys from
- * Techpeple at what Techpeple asked for. A submission with no parent is
+ * Tecwyn at what Tecwyn asked for. A submission with no parent is
  * hop 0: the firm pays the person, on terms the two of them agree.
  *
  * This used to be decided by comparing the supplier with the awarding

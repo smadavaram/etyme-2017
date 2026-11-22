@@ -46,7 +46,7 @@ export type CompanyKind = 'CLIENT' | 'VENDOR' | 'MSP' | 'GSI' | 'CONSULTANT_CORP
  * How a supplier sits in the chain, at the moment they sign up.
  *
  * A prime holds the agreement with the client. A bench supplier sells
- * through other suppliers. The same company is often both — Teleworld Solutions
+ * through other suppliers. The same company is often both — Tellisford Solutions
  * is prime to one client and buys bench from three firms in the same week —
  * so this is a starting posture that shapes the first screens, not a
  * permanent identity, and it can be changed without migrating anything.
@@ -127,7 +127,7 @@ const TYPES: Omit<CompanyTypeOption, 'personalEmail'>[] = [
     posture: 'PRIME',
     label: 'Integrator (project delivery)',
     blurb: 'You deliver projects with your own people and with suppliers.',
-    example: 'Teleworld Solutions, Sundara Systems',
+    example: 'Tellisford Solutions, Sundara Systems',
   },
   {
     key: 'prime',

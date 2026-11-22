@@ -9,13 +9,13 @@
  * are built"). All four doors: the MSPs' followed once Aptiva's three
  * missing seats were seeded (lib/seed-world, `APTIVA_TEAM`).
  *
- *   Integrators  Teleworld Solutions, as its two delivery managers (Ingrid
- *                Solberg in Tualatin, Rahul Deshpande in San Jose), HR
+ *   Integrators  Tellisford Solutions, as its two delivery managers (Ingrid
+ *                Solberg in Tualatin, Rahul Dandekar in San Jose), HR
  *                (Farah Haddad) and AP & Payroll (Ravi Kalathil)
  *   Suppliers    Prime vendor: Brightmoor Staffing as its owner (Jenna
  *                Okafor), account manager (Marisa Delacroix), accounts
  *                receivable (Imelda Santoro) and AP & Payroll (Desmond
- *                Achebe). Sub-vendor and Bench vendor: Techpeple, as its
+ *                Achebe). Sub-vendor and Bench vendor: Tecwyn, as its
  *                owner (Bhavesh Nair) and its recruiter (Linnea Qadri),
  *                the two seats it has, each tab opening on the one its
  *                panel plays
@@ -50,10 +50,10 @@
  * ── Where the drawing and the seed disagreed, the seed won ────────────
  *
  *   drawing                                seed, and so the map
- *   Teleworld "4 people on client sites"   3 on client sites and 1 between
+ *   Tellisford "4 people on client sites"   3 on client sites and 1 between
  *                                          projects (Karthik Menon)
  *   "Nimbus Staffing"                      Nimbus Talent
- *   Teleworld's "Marcus Whitfield, $5,680" the signed weeks Teleworld has not
+ *   Tellisford's "Marcus Whitfield, $5,680" the signed weeks Tellisford has not
  *   and Nimbus "$4,640, due day 25"        billed, and Nimbus Talent's invoice,
  *                                          read live: names and sums are the
  *                                          record's, not the drawing's
@@ -62,13 +62,13 @@
  *   Rosa "back pay waits for your yes"     the rise was approved before it took
  *                                          effect, so no back pay is owed; the
  *                                          map says the rise
- *   Ravi Subramanian at Nordway; Consultis generated names, not seed rows a map
+ *   Ravi Subbarayan at Nordway; Conisby generated names, not seed rows a map
  *                                          can read; counted in the live figures
  *   Farah's "Papers" column, Helena's      left off: no paper verdict the map
  *   "background check, 250 days"           can read from the seed
  *   Helena's "$3,600 paid" on earlier      left off "paid": the earlier weeks are
  *   weeks                                  signed; what is paid is on her page
- *   Techpeple's bench, Grace Lindqvist     generated names; the map names the two
+ *   Tecwyn's bench, Grace Lindqvist     generated names; the map names the two
  *   and Peter Halloran                     people the seed writes by hand
  *   "Checked just now."                    left off; the live figures say "read
  *                                          when this page opened" in their own line
@@ -77,7 +77,7 @@
  *   Halcyon "cover on file" for every      left off: the program asks for
  *   supplier, and its 12-day liability     Halcyon's cover to end in 12 days,
  *   cover in the program's `cover`         but Halcyon's cover is written first
- *                                          by its Meridian Bank chain (200
+ *                                          by its Merrowfield Bank chain (200
  *                                          days) and the program's write is then
  *                                          skipped; a map cannot say which won
  *   "Standing: approved" per supplier      left off: the seed sets no standing
@@ -116,14 +116,14 @@ import type { MapCell, MapStat, MapView, RoleMap } from './corvane-map'
 import type { PersonTarget, SeatTarget } from './flow'
 import type { DoorFacts, FirmLive, LiveProgramReceipt } from './door-map-facts'
 import {
-  FIRM_NAMES, FIRST_SEAT, APTIVA_TEAM, BRIGHTMOOR_TEAM, TECHPEPLE_RECRUITER, TELEWORLD_PAYROLL, TELEWORLD_STAFF,
-  TELEWORLD_LINES, KARTHIK_LINE, CORVELDT_JOB, MEERA, IFEOMA, ROSA_JOB, MARISOL, BYRNE, BILLS_FROM_BELOW,
-  type TeleworldLine,
+  FIRM_NAMES, FIRST_SEAT, APTIVA_TEAM, BRIGHTMOOR_TEAM, TECWYN_RECRUITER, TELLISFORD_PAYROLL, TELLISFORD_STAFF,
+  TELLISFORD_LINES, KARTHIK_LINE, CORVELDT_JOB, MEERA, IFEOMA, ROSA_JOB, MARISOL, BYRNE, BILLS_FROM_BELOW,
+  type TellisfordLine,
 } from './door-map-seed'
 
 // ── Which map, on which door and tab ─────────────────────────────────
 
-export type DoorMapKey = 'teleworld' | 'brightmoor' | 'techpeple' | 'helena' | 'byrne' | 'aptiva'
+export type DoorMapKey = 'tellisford' | 'brightmoor' | 'tecwyn' | 'helena' | 'byrne' | 'aptiva'
 
 /** Each map's seats, in tab order. The first is the default unless the door's tab names another. */
 /** The city a delivery manager's project is in: the last part of its unit's name in the seed. */
@@ -132,7 +132,7 @@ const PORTLAND_CITY = cityOf(MOVE_DESKS.portland.unit)
 const SAN_JOSE_CITY = cityOf(MOVE_DESKS.sanJose.unit)
 
 export const DOOR_SEATS: Record<DoorMapKey, readonly { key: string; tab: string }[]> = {
-  teleworld: [
+  tellisford: [
     { key: 'tualatin', tab: `Delivery manager, ${PORTLAND_CITY}` },
     { key: 'sanjose', tab: `Delivery manager, ${SAN_JOSE_CITY}` },
     { key: 'hr', tab: 'HR' },
@@ -144,7 +144,7 @@ export const DOOR_SEATS: Record<DoorMapKey, readonly { key: string; tab: string 
     { key: 'ar', tab: 'Accounts receivable' },
     { key: 'payroll', tab: 'AP & Payroll' },
   ],
-  techpeple: [
+  tecwyn: [
     { key: 'owner', tab: 'Owner' },
     { key: 'recruiter', tab: 'Recruiter' },
   ],
@@ -164,10 +164,10 @@ export const DOOR_SEATS: Record<DoorMapKey, readonly { key: string; tab: string 
  * person where they can be.
  */
 export const DOOR_MAPS: Record<string, { map: DoorMapKey; seat: string }> = {
-  '/for/integrators': { map: 'teleworld', seat: 'tualatin' },
+  '/for/integrators': { map: 'tellisford', seat: 'tualatin' },
   '/for/suppliers': { map: 'brightmoor', seat: 'owner' },
-  '/for/suppliers?tab=sub': { map: 'techpeple', seat: 'owner' },
-  '/for/suppliers?tab=bench': { map: 'techpeple', seat: 'recruiter' },
+  '/for/suppliers?tab=sub': { map: 'tecwyn', seat: 'owner' },
+  '/for/suppliers?tab=bench': { map: 'tecwyn', seat: 'recruiter' },
   '/for/contractors': { map: 'helena', seat: 'worker' },
   '/for/contractors?tab=solo': { map: 'byrne', seat: 'solo' },
   '/for/program-offices': { map: 'aptiva', seat: 'pm' },
@@ -214,20 +214,20 @@ export const READ_LIVE = 'read when this page opened'
 const NORTHBEND = PROGRAMMES.find((p) => p.client === 'nike')!
 const HIRING = NORTHBEND.people.hiring
 const running = NORTHBEND.placements.filter((x) => x.state === 'IN_PROGRESS')
-/** Helena Marsh: Northbend's running line through a chain of three, the one Techpeple employs her on. */
-const HELENA = running.find((x) => x.via.length === 3 && x.via.includes('techpeple'))!
+/** Helena Marsh: Northbend's running line through a chain of three, the one Tecwyn employs her on. */
+const HELENA = running.find((x) => x.via.length === 3 && x.via.includes('tecwyn'))!
 /** Omar Haddad: Northbend's running line whose week went over the line. */
 const OMAR = running.find((x) => x.overtimeWeekHours != null)!
 /** The hours of a seeded week at Northbend, as the seed files it. */
 const WEEK_HOURS = Object.values(seededWeek(1).days).reduce((a, b) => a + b, 0)
 
-// ── Teleworld Solutions: the integrators' door ───────────────────────
+// ── Tellisford Solutions: the integrators' door ───────────────────────
 
-const TELEWORLD = FIRM_NAMES.teleworld
-const onProject = (city: string) => TELEWORLD_LINES.filter((l) => l.city === city)
-const comesOff = (l: TeleworldLine) => `in ${plural(l.end, 'day')}`
+const TELLISFORD = FIRM_NAMES.tellisford
+const onProject = (city: string) => TELLISFORD_LINES.filter((l) => l.city === city)
+const comesOff = (l: TellisfordLine) => `in ${plural(l.end, 'day')}`
 /** The day a flagged person reads as free: the line's end, or the day their manager keeps them until. */
-const freeIn = (l: TeleworldLine) => l.release?.keepUntil ?? l.end
+const freeIn = (l: TellisfordLine) => l.release?.keepUntil ?? l.end
 
 function signedTotal(f: FirmLive | null): { value: string; sub: string; att?: boolean } {
   if (!f) return { value: '—', sub: ON_THE_DEMO }
@@ -249,16 +249,16 @@ function weeksByPerson(f: FirmLive): { person: string; client: string; weeks: nu
   return [...by.values()].sort((a, b) => b.weeks - a.weeks)
 }
 
-export function teleworldMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
+export function tellisfordMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
   const today = seedToday()
-  const as = 'world-teleworld'
+  const as = 'world-tellisford'
   const tualatin = onProject(PORTLAND_CITY)
   const sanJose = onProject(SAN_JOSE_CITY)
   // Felix Brenner is free when his line ends; Amara Nwosu is kept; Deepa Varma is the San Jose project's.
-  const felix = TELEWORLD_LINES.find((l) => l.release && l.release.keepUntil === null)!
-  const amara = TELEWORLD_LINES.find((l) => l.release && l.release.keepUntil !== null)!
+  const felix = TELLISFORD_LINES.find((l) => l.release && l.release.keepUntil === null)!
+  const amara = TELLISFORD_LINES.find((l) => l.release && l.release.keepUntil !== null)!
   const deepa = sanJose[0]
-  const flagged = TELEWORLD_LINES.filter((l) => l.release)
+  const flagged = TELLISFORD_LINES.filter((l) => l.release)
   const freeWhenOff = flagged.filter((l) => l.release!.keepUntil === null)
   const kept = flagged.filter((l) => l.release!.keepUntil !== null)
   const karthik = karthikWindow(today)
@@ -272,7 +272,7 @@ export function teleworldMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
   const nimbus = FIRM_NAMES[MEERA.bench]
 
   const tualatinView: MapView<string, SeatTarget> = {
-    key: 'tualatin', tab: DOOR_SEATS.teleworld[0].tab,
+    key: 'tualatin', tab: DOOR_SEATS.tellisford[0].tab,
     signed: `Signed in as ${ingrid}, delivery manager, ${PORTLAND_CITY}. Reads her project at ${northbend} and the firm’s bench.`,
     headline:
       `${felix.person} comes off ${northbend} ${comesOff(felix)} and is free from then. ` +
@@ -304,11 +304,11 @@ export function teleworldMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
 
   const freeSoon = flagged.filter((l) => freeIn(l) <= 30)
   const sanJoseView: MapView<string, SeatTarget> = {
-    key: 'sanjose', tab: DOOR_SEATS.teleworld[1].tab,
+    key: 'sanjose', tab: DOOR_SEATS.tellisford[1].tab,
     signed: `Signed in as ${rahul}, delivery manager, ${SAN_JOSE_CITY}. Reads his project at ${clientName(deepa.client)} and the firm’s bench.`,
     headline:
       `${KARTHIK_LINE.person} is free now, and ${felix.person} is free in ${plural(freeIn(felix), 'day')}. ` +
-      `${possessive(corveldt, '’')} ${CORVELDT_JOB.title} job is open to ${TELEWORLD} at ${perHour(CORVELDT_JOB.payMin)}–${perHour(CORVELDT_JOB.payMax)}.`,
+      `${possessive(corveldt, '’')} ${CORVELDT_JOB.title} job is open to ${TELLISFORD} at ${perHour(CORVELDT_JOB.payMin)}–${perHour(CORVELDT_JOB.payMax)}.`,
     stats: [
       { label: 'Your people on site', value: String(sanJose.length), sub: sanJose.map((l) => `${l.person}, ${clientName(l.client)}`).join('; ') },
       { label: 'Free now', value: String(between.length), sub: between.join(', ') },
@@ -346,8 +346,8 @@ export function teleworldMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
       `${ingrid} flagged ${flagged.map((l) => l.person).join(' and ')} to come off ${northbend}. ` +
       `${KARTHIK_LINE.person} has been between projects for ${plural(karthikOffDays, 'day')}.`,
     stats: [
-      { label: 'Our people', value: String(TELEWORLD_STAFF.length) },
-      { label: 'On client sites', value: String(TELEWORLD_LINES.length) },
+      { label: 'Our people', value: String(TELLISFORD_STAFF.length) },
+      { label: 'On client sites', value: String(TELLISFORD_LINES.length) },
       { label: 'Between projects', value: String(between.length), sub: between.join(', ') },
       { label: 'Flagged to come off', value: String(flagged.length), sub: `by ${ingrid}`, att: flagged.length > 0 },
       // The seed holds, confirms and moves nobody: those are the acts the demo is for.
@@ -355,7 +355,7 @@ export function teleworldMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
     ],
     columns: [{ t: 'Person' }, { t: 'Where' }, { t: 'Status' }],
     rows: [
-      ...TELEWORLD_LINES.map((l): MapCell[] => [
+      ...TELLISFORD_LINES.map((l): MapCell[] => [
         { t: l.person, strong: true },
         { t: `${clientName(l.client)}, ${l.city}` },
         !l.release
@@ -401,7 +401,7 @@ export function teleworldMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
   }
   const payrollView: MapView<string, SeatTarget> = {
     key: 'payroll', tab: 'AP & Payroll',
-    signed: `Signed in as ${TELEWORLD_PAYROLL}, AP & Payroll. Pays the firm below on weeks it accepted, and runs payroll for the firm’s own people.`,
+    signed: `Signed in as ${TELLISFORD_PAYROLL}, AP & Payroll. Pays the firm below on weeks it accepted, and runs payroll for the firm’s own people.`,
     headline: [
       f ? `${plural(f.signed.count, 'signed week')} ${f.signed.count === 1 ? 'is' : 'are'} not billed yet.` : null,
       r ? `${possessive(r.from, '’')} invoice ${r.number}, ${money(r.totalMinor)}, is received and due in ${plural(r.dueInDays, 'day')}.` : null,
@@ -416,13 +416,13 @@ export function teleworldMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
     columns: [{ t: 'Who' }, { t: 'Client or firm' }, { t: 'Weeks' }, { t: 'Amount', right: true }, { t: 'Step' }],
     rows: payrollRows,
     caption: 'A firm bills the hours the firm above it accepted, and pays below only on a week it has accepted.',
-    demo: { target: { as, desk: 'payroll', seat: TELEWORLD_PAYROLL }, label: `Open the demo as ${TELEWORLD_PAYROLL}` },
+    demo: { target: { as, desk: 'payroll', seat: TELLISFORD_PAYROLL }, label: `Open the demo as ${TELLISFORD_PAYROLL}` },
   }
 
   return {
-    bar: `${TELEWORLD} · a sample integrator · ${plural(TELEWORLD_STAFF.length, 'person', 'people')} of its own · ${TELEWORLD_LINES.length} on client sites · ${between.length} between projects`,
+    bar: `${TELLISFORD} · a sample integrator · ${plural(TELLISFORD_STAFF.length, 'person', 'people')} of its own · ${TELLISFORD_LINES.length} on client sites · ${between.length} between projects`,
     views: [tualatinView, sanJoseView, hrView, payrollView],
-    under: underLine(TELEWORLD, 'integrator'),
+    under: underLine(TELLISFORD, 'integrator'),
   }
 }
 
@@ -604,18 +604,18 @@ export function brightmoorMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
   }
 }
 
-// ── Techpeple: the suppliers' door, Sub-vendor and Bench vendor ──────
+// ── Tecwyn: the suppliers' door, Sub-vendor and Bench vendor ──────
 
-export function techpepleMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
-  const as = 'world-techpeple'
-  const name = FIRM_NAMES.techpeple
+export function tecwynMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
+  const as = 'world-tecwyn'
+  const name = FIRM_NAMES.tecwyn
   const helena = HELENA
   const [, primeRate, ownRate] = helena.rates
   const prime = FIRM_NAMES[helena.via[1] as 'computer-systems']
   const northbend = clientName(NORTHBEND.client)
   const weeks = helena.weeks!
   const r = facts.receipt
-  const owner = FIRST_SEAT.techpeple
+  const owner = FIRST_SEAT.tecwyn
   const ifeomaFirm = FIRM_NAMES[IFEOMA.prime]
 
   const ownerView: MapView<string, SeatTarget> = {
@@ -632,7 +632,7 @@ export function techpepleMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
       { label: 'Weeks signed', value: String(weeks.approved), sub: `${weeks.awaiting} waiting at the client`, att: weeks.awaiting > 0 },
       r
         ? { label: 'Your invoice', value: money(r.totalMinor), sub: `${r.number}, due in ${plural(r.dueInDays, 'day')}` }
-        : { label: 'Your invoice', value: '—', sub: `${BILLS_FROM_BELOW.techpeple.number}, ${ON_THE_DEMO}` },
+        : { label: 'Your invoice', value: '—', sub: `${BILLS_FROM_BELOW.tecwyn.number}, ${ON_THE_DEMO}` },
     ],
     columns: [{ t: 'Person' }, { t: 'Job' }, { t: 'Through' }, { t: 'Bill', right: true }, { t: 'Pay', right: true }, { t: 'Step' }],
     rows: [
@@ -653,7 +653,7 @@ export function techpepleMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
 
   const recruiterView: MapView<string, SeatTarget> = {
     key: 'recruiter', tab: 'Recruiter',
-    signed: `Signed in as ${TECHPEPLE_RECRUITER}, recruiter. Finds people and puts them forward. Never sees what anybody costs.`,
+    signed: `Signed in as ${TECWYN_RECRUITER}, recruiter. Finds people and puts them forward. Never sees what anybody costs.`,
     headline:
       `${IFEOMA.name} is put forward to ${ifeomaFirm} for an ${IFEOMA.job} job. ` +
       `Her phone screen is in ${plural(IFEOMA.screenInDays, 'day')}, and her I-9 was asked for ${plural(IFEOMA.i9AskedDaysAgo, 'day')} ago.`,
@@ -670,7 +670,7 @@ export function techpepleMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
       [{ t: helena.person, strong: true }, { t: helena.role }, { t: prime }, { t: 'on site', chip: 'ok' }],
     ],
     caption: 'Each person on your bench is shown to a firm only by their own yes.',
-    demo: { target: { as, desk: 'recruiter', seat: TECHPEPLE_RECRUITER }, label: `Open the demo as ${TECHPEPLE_RECRUITER}` },
+    demo: { target: { as, desk: 'recruiter', seat: TECWYN_RECRUITER }, label: `Open the demo as ${TECWYN_RECRUITER}` },
   }
 
   return {
@@ -687,7 +687,7 @@ const WEEK_WORDS = ['Newest', 'The week before', '2 weeks before', '3 weeks befo
 export function helenaMap(): RoleMap<string, PersonTarget> {
   const helena = HELENA
   const [, , pay] = helena.rates
-  const chain = helena.via.map((slug) => (slug === NORTHBEND.client ? clientName(slug) : FIRM_NAMES[slug as 'computer-systems' | 'techpeple']))
+  const chain = helena.via.map((slug) => (slug === NORTHBEND.client ? clientName(slug) : FIRM_NAMES[slug as 'computer-systems' | 'tecwyn']))
   const employer = chain[chain.length - 1]
   const northbend = chain[0]
   const weekHours = WEEK_HOURS
@@ -1053,17 +1053,19 @@ export function doorMap(
   tabHref: string,
   facts: DoorFacts,
   askedSeat?: string | string[],
+  /** Where the seats' links point: the tab's own address, or a segment page's plain one (./parties). */
+  address: string = tabHref,
 ): { key: DoorMapKey; map: RoleMap; seat: string; hrefs: Record<string, string> } | null {
   const at = DOOR_MAPS[tabHref]
   if (!at) return null
   const map: RoleMap =
-    at.map === 'teleworld' ? teleworldMap(facts)
+    at.map === 'tellisford' ? tellisfordMap(facts)
       : at.map === 'brightmoor' ? brightmoorMap(facts)
-        : at.map === 'techpeple' ? techpepleMap(facts)
+        : at.map === 'tecwyn' ? tecwynMap(facts)
           : at.map === 'helena' ? helenaMap()
             : at.map === 'aptiva' ? aptivaMap(facts)
               : byrneMap()
-  const hrefs = Object.fromEntries(DOOR_SEATS[at.map].map((s) => [s.key, doorSeatHref(tabHref, s.key, at.seat)]))
+  const hrefs = Object.fromEntries(DOOR_SEATS[at.map].map((s) => [s.key, doorSeatHref(address, s.key, at.seat)]))
   return { key: at.map, map, seat: doorSeatOf(at.map, at.seat, askedSeat), hrefs }
 }
 

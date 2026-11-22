@@ -19,7 +19,7 @@ import { postBenchProfitWeeks, NICHE_VENDOR } from '@/lib/seed-bench-profit'
  * Pellwright Validation Partners is a niche bench vendor: validation
  * engineers, one course at $1,800 a seat, half pay on the bench for up to
  * ninety days, placing through Sundara Systems at Corveldt Aerospace
- * (lib/seed-bench-profit). Teleworld Solutions is the integrator whose
+ * (lib/seed-bench-profit). Tellisford Solutions is the integrator whose
  * people move between its own projects. Every figure below is read off
  * the route and re-derived in the comment beside it.
  *
@@ -49,7 +49,7 @@ import { postBenchProfitWeeks, NICHE_VENDOR } from '@/lib/seed-bench-profit'
  * a public holiday inside a spell is not paid and comes off the cost.
  * Which holidays fall inside a spell depends on the day the world was
  * born, so the count is worked out below from the world's own calendar
- * (`holidaysIn`) and never written as a number. Teleworld is an
+ * (`holidaysIn`) and never written as a number. Tellisford is an
  * integrator and pays its people for holidays without anybody switching
  * them on.
  */
@@ -311,8 +311,8 @@ describe('who reads it', () => {
 })
 
 describe('utilization, for an integrator', () => {
-  it('Teleworld’s owner reads three of four people billing and one on the bench, by project', async () => {
-    const r = await read(`world-teleworld${D}`)
+  it('Tellisford’s owner reads three of four people billing and one on the bench, by project', async () => {
+    const r = await read(`world-tellisford${D}`)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.utilization).toMatchObject({
       billing: 3, onBench: 1, billingPct: 75, benchPct: 25,
@@ -324,8 +324,8 @@ describe('utilization, for an integrator', () => {
     expect(r.body.data.moves).toEqual([])
   })
 
-  it('under Teleworld’s no bill, no pay policy Karthik Menon’s month between projects cost nothing', async () => {
-    const r = await read(`world-teleworld${D}`)
+  it('under Tellisford’s no bill, no pay policy Karthik Menon’s month between projects cost nothing', async () => {
+    const r = await read(`world-tellisford${D}`)
     const karthik = row(r.body, 'Karthik Menon')
     // His last project ended on the last month-end at least ten days before
     // the world was born (lib/seed-doors), so the spell is ten to forty days.
@@ -339,11 +339,11 @@ describe('utilization, for an integrator', () => {
     expect(owner.body.data.utilization).toBeNull()
   })
 
-  it('Teleworld’s people are paid for holidays without anybody switching them on', async () => {
-    const r = await read(`world-teleworld${D}`)
+  it('Tellisford’s people are paid for holidays without anybody switching them on', async () => {
+    const r = await read(`world-tellisford${D}`)
     const karthik = row(r.body, 'Karthik Menon')
     expect(karthik.holiday).toMatchObject({ paid: true, source: 'INTEGRATOR_DEFAULT', says: 'Paid for holidays: on for everybody here' })
-    as(`world-teleworld${D}`)
+    as(`world-tellisford${D}`)
     const s = await json(await switchesGET(req('GET', `/api/settings/bench/people?personId=${karthik.personId}`)))
     expect(s.status, JSON.stringify(s.body)).toBe(200)
     expect(s.body.data.people).toEqual([

@@ -4,7 +4,7 @@ import { standingOf, rosterSummary, mayMarket, type RosterPerson } from '@/lib/c
 /**
  * A firm's roster of the people it employs.
  *
- * Teleworld Solutions is the real case: a systems integrator holding five
+ * Tellisford Solutions is the real case: a systems integrator holding five
  * live EMPLOYEE seats, whose Consultants page read "TOTAL 0 consultants"
  * and whose Bench page was bare, because every talent screen read bench
  * listings — and you do not ask your own W2 for permission to staff them.
@@ -27,14 +27,14 @@ function person(over: Partial<RosterPerson> = {}): RosterPerson {
 
 describe('a firm sees the people it employs', () => {
   it('a firm sees the people it employs even where none of them has agreed to be marketed', () => {
-    const teleworld = [
+    const tellisford = [
       person({ personId: 'p_1', name: 'Karthik Menon', lines: [{ live: false, startsOn: new Date('2025-11-30'), endsOn: new Date('2026-09-05'), clientName: 'Corveldt Aerospace' }] }),
       person({ personId: 'p_2', name: 'Amara Nwosu', seat: 'Data Engineer' }),
       person({ personId: 'p_3', name: 'Felix Brenner', seat: 'ERP Finance Consultant' }),
       person({ personId: 'p_4', name: 'Deepa Varma', seat: 'Integration Architect' }),
       person({ personId: 'p_5', name: 'Sunil Raghavan', seat: 'Owner' }),
     ]
-    const s = rosterSummary(teleworld, NOW)
+    const s = rosterSummary(tellisford, NOW)
     expect(s.total).toBe(5)
     expect(s.marketable).toBe(0)
     expect(s.says).toMatch(/^5 people on your payroll/)

@@ -13,7 +13,7 @@ import { POST as submitCandidates } from '@/app/api/submissions/route'
  * "On our payroll" group to pick from. The world seed then made that
  * door open onto an empty room: each integrator held exactly one
  * EMPLOYEE seat — the delivery manager's own login — so a founder
- * opening the picker as Teleworld saw one name and it was himself.
+ * opening the picker as Tellisford saw one name and it was himself.
  *
  * This walks what the seed now builds. Four people on each integrator's
  * payroll, none of them on anybody's bench, and one of them put in front
@@ -26,11 +26,11 @@ import { POST as submitCandidates } from '@/app/api/submissions/route'
  */
 
 const D = '@demo.etyme.local'
-const TELEWORLD = `world-teleworld${D}`
+const TELLISFORD = `world-tellisford${D}`
 const SUNDARA = `world-sundara${D}`
 
-const TELEWORLD_TEAM = ['Karthik Menon', 'Amara Nwosu', 'Felix Brenner', 'Deepa Varma']
-const SUNDARA_TEAM = ['Aditi Ramaswamy', 'Olivier Renard', 'Harish Pillai', 'Beatriz Salgado']
+const TELLISFORD_TEAM = ['Karthik Menon', 'Amara Nwosu', 'Felix Brenner', 'Deepa Varma']
+const SUNDARA_TEAM = ['Aditi Ramaswamy', 'Olivier Rambert', 'Harish Panicker', 'Beatriz Salgado']
 
 let seat = 0
 
@@ -41,27 +41,27 @@ beforeAll(async () => {
 }, 600_000)
 
 describe('each integrator has a delivery team on its own payroll', () => {
-  it('offers Teleworld four of its own people, and never the delivery manager alone', async () => {
-    as(TELEWORLD)
+  it('offers Tellisford four of its own people, and never the delivery manager alone', async () => {
+    as(TELLISFORD)
     const r = await json(await ownPeople(req('GET', '/api/submissions/own-people')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const names = r.body.data.people.map((p: any) => p.name)
-    for (const name of TELEWORLD_TEAM) expect(names).toContain(name)
+    for (const name of TELLISFORD_TEAM) expect(names).toContain(name)
   })
 
-  it('offers Sundara its own four, and never Teleworld’s', async () => {
+  it('offers Sundara its own four, and never Tellisford’s', async () => {
     as(SUNDARA)
     const r = await json(await ownPeople(req('GET', '/api/submissions/own-people')))
     const names = r.body.data.people.map((p: any) => p.name)
     for (const name of SUNDARA_TEAM) expect(names).toContain(name)
-    for (const name of TELEWORLD_TEAM) expect(names).not.toContain(name)
+    for (const name of TELLISFORD_TEAM) expect(names).not.toContain(name)
   })
 
   it('says what each of them does, so a picker reads as a delivery team rather than a list of names', async () => {
-    as(TELEWORLD)
+    as(TELLISFORD)
     const r = await json(await ownPeople(req('GET', '/api/submissions/own-people')))
     const disciplines = r.body.data.people
-      .filter((p: any) => TELEWORLD_TEAM.includes(p.name))
+      .filter((p: any) => TELLISFORD_TEAM.includes(p.name))
       .map((p: any) => p.role)
     expect(disciplines).toContain('Validation Engineer')
     expect(disciplines).toContain('Data Engineer')
@@ -69,7 +69,7 @@ describe('each integrator has a delivery team on its own payroll', () => {
   })
 
   it('counts them in what the seed reports back, so the reseed page can say how many', () => {
-    expect(seat).toBe(TELEWORLD_TEAM.length + SUNDARA_TEAM.length)
+    expect(seat).toBe(TELLISFORD_TEAM.length + SUNDARA_TEAM.length)
   })
 })
 
@@ -80,7 +80,7 @@ describe('an employee on a payroll is not a consultant on a bench', () => {
     // off it. That record is theirs: it carries no headline a firm wrote
     // to sell them and no listing hangs off it.
     const profiles = await prisma.consultantProfile.findMany({
-      where: { person: { name: { in: [...TELEWORLD_TEAM, ...SUNDARA_TEAM] } } },
+      where: { person: { name: { in: [...TELLISFORD_TEAM, ...SUNDARA_TEAM] } } },
       select: { headline: true, skills: true, _count: { select: { listings: true } } },
     })
     for (const p of profiles) {
@@ -92,13 +92,13 @@ describe('an employee on a payroll is not a consultant on a bench', () => {
 
   it('gives none of the eight a bench listing at any firm', async () => {
     const listings = await prisma.benchListing.count({
-      where: { consultant: { person: { name: { in: [...TELEWORLD_TEAM, ...SUNDARA_TEAM] } } } },
+      where: { consultant: { person: { name: { in: [...TELLISFORD_TEAM, ...SUNDARA_TEAM] } } } },
     })
     expect(listings).toBe(0)
   })
 
   it('gives each of them one live employee seat at the firm that pays them', async () => {
-    for (const [email, team] of [[TELEWORLD, TELEWORLD_TEAM], [SUNDARA, SUNDARA_TEAM]] as const) {
+    for (const [email, team] of [[TELLISFORD, TELLISFORD_TEAM], [SUNDARA, SUNDARA_TEAM]] as const) {
       const firm = await prisma.person.findUniqueOrThrow({
         where: { primaryEmail: email },
         select: { contexts: { select: { companyId: true }, take: 1 } },
@@ -118,22 +118,22 @@ describe('an employee on a payroll is not a consultant on a bench', () => {
 })
 
 describe('the walk from the picker to a real client seat', () => {
-  it('lets Teleworld put its validation engineer in front of Corveldt with no bench listing anywhere', async () => {
+  it('lets Tellisford put its validation engineer in front of Corveldt with no bench listing anywhere', async () => {
     const requirement = await prisma.requirement.findFirstOrThrow({
       where: { title: 'DO-178C verification engineer', company: { slug: 'world-corveldt' } },
       select: { id: true },
     })
     const karthik = await prisma.person.findFirstOrThrow({ where: { name: 'Karthik Menon' } })
-    const teleworld = await prisma.company.findFirstOrThrow({ where: { slug: 'world-teleworld' } })
+    const tellisford = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tellisford' } })
 
-    as(TELEWORLD)
+    as(TELLISFORD)
     const r = await json(
       await submitCandidates(
         req('POST', '/api/submissions', {
           requirementId: requirement.id,
           personIds: [karthik.id],
           rate: 14_100,
-          fromCompanyId: teleworld.id,
+          fromCompanyId: tellisford.id,
         })
       )
     )
@@ -153,21 +153,21 @@ describe('the walk from the picker to a real client seat', () => {
 describe('pressing the seed button twice', () => {
   it('makes no second copy of anybody on either payroll', async () => {
     const before = await prisma.person.count({
-      where: { name: { in: [...TELEWORLD_TEAM, ...SUNDARA_TEAM] } },
+      where: { name: { in: [...TELLISFORD_TEAM, ...SUNDARA_TEAM] } },
     })
     const seats = await prisma.context.count({
-      where: { person: { name: { in: [...TELEWORLD_TEAM, ...SUNDARA_TEAM] } } },
+      where: { person: { name: { in: [...TELLISFORD_TEAM, ...SUNDARA_TEAM] } } },
     })
 
     await seedWorld()
 
-    expect(await prisma.person.count({ where: { name: { in: [...TELEWORLD_TEAM, ...SUNDARA_TEAM] } } })).toBe(before)
-    expect(await prisma.context.count({ where: { person: { name: { in: [...TELEWORLD_TEAM, ...SUNDARA_TEAM] } } } })).toBe(seats)
+    expect(await prisma.person.count({ where: { name: { in: [...TELLISFORD_TEAM, ...SUNDARA_TEAM] } } })).toBe(before)
+    expect(await prisma.context.count({ where: { person: { name: { in: [...TELLISFORD_TEAM, ...SUNDARA_TEAM] } } } })).toBe(seats)
   }, 600_000)
 
   it('makes no second role, no second certificate and no second invitation for either integrator', async () => {
     const firms = await prisma.company.findMany({
-      where: { slug: { in: ['world-teleworld', 'world-sundara'] } },
+      where: { slug: { in: ['world-tellisford', 'world-sundara'] } },
       select: { id: true },
     })
     const ids = firms.map((f) => f.id)

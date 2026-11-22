@@ -387,7 +387,7 @@ const DIRECT = weekSigners(
 const CHAIN = weekSigners(
   {
     rungs: [
-      { companyId: 'techpeple', companyName: 'Techpeple' },
+      { companyId: 'tecwyn', companyName: 'Tecwyn' },
       { companyId: 'csi', companyName: 'Computer Systems Inc' },
     ],
   },
@@ -414,7 +414,7 @@ describe('a week sent and not yet accepted by her employer is waiting, and never
     expect(CHAIN.map((x) => [x.name, x.role])).toEqual([
       ['Northbend Athletic', 'CLIENT_APPROVAL'],
       ['Computer Systems Inc', 'PASS_THROUGH'],
-      ['Techpeple', 'EMPLOYER_ACCEPTANCE'],
+      ['Tecwyn', 'EMPLOYER_ACCEPTANCE'],
     ])
   })
 
@@ -444,10 +444,10 @@ describe('a week sent and not yet accepted by her employer is waiting, and never
   it('in a chain, a week the client signed names the firm between it and her employer, then her employer', () => {
     const w = waitingWeek(sent(CHAIN, { northbend: '2026-09-21' }), d('2026-09-22'))!
     expect(w.stage).toBe('WAITING_FOR_EMPLOYER')
-    expect(w.says).toContain('Waiting for Computer Systems Inc to accept it, then Techpeple.')
+    expect(w.says).toContain('Waiting for Computer Systems Inc to accept it, then Tecwyn.')
 
     const next = waitingWeek(sent(CHAIN, { northbend: '2026-09-21', csi: '2026-09-22' }), d('2026-09-23'))!
-    expect(next.says).toContain('Computer Systems Inc accepted it on Sep 22. Waiting for Techpeple to accept it.')
+    expect(next.says).toContain('Computer Systems Inc accepted it on Sep 22. Waiting for Tecwyn to accept it.')
   })
 
   it('a week her employer has accepted is not waiting: it is owed, and priced where it is owed', () => {

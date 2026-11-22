@@ -103,7 +103,7 @@ const SUFFIXES: Record<Exclude<Position, 'CLIENT' | 'SOLO'>, readonly string[]> 
 /** The base world's firm names a generated firm may not take, lower case. Kept short and checked by the test. */
 const BASE_NAMES = new Set([
   'northbend athletic', 'cavanaugh glassworks', 'talvern medical', 'auralis software', 'maren msp', 'veritan talent',
-  'brightmoor staffing', 'computer systems', 'techpeple', 'teleworld solutions', 'aptiva workforce', 'kestrel msp',
+  'brightmoor staffing', 'computer systems', 'tecwyn', 'tellisford solutions', 'aptiva workforce', 'kestrel msp',
   'harlow health', 'halcyon talent', 'sundara systems', 'pinnacle resourcing',
 ])
 

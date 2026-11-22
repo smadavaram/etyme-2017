@@ -29,8 +29,8 @@ describe('a placement that is extended is billed for the months it gains', () =>
   beforeAll(async () => {
     await freshWorld()
 
-    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
-    supplier = 'world-techpeple@demo.etyme.local'
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
+    supplier = 'world-tecwyn@demo.etyme.local'
 
     const s = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { companyId: co.id, state: 'IN_PROGRESS', endDate: { not: null } },
@@ -50,7 +50,7 @@ describe('a placement that is extended is billed for the months it gains', () =>
 
     as(supplier)
     await json(
-      await extend(req('POST', `/api/contracts/${sellId}/extend`, { months: 3, reason: 'Techpeple’s renewed certificates are on their way; the client needs the work to go on.' }), {
+      await extend(req('POST', `/api/contracts/${sellId}/extend`, { months: 3, reason: 'Tecwyn’s renewed certificates are on their way; the client needs the work to go on.' }), {
         params: Promise.resolve({ id: sellId }),
       })
     )
@@ -100,7 +100,7 @@ describe('a placement that is extended is billed for the months it gains', () =>
 
     as(supplier)
     await json(
-      await extend(req('POST', `/api/contracts/${sellId}/extend`, { months: 3, reason: 'Techpeple’s renewed certificates are on their way; the client needs the work to go on.' }), {
+      await extend(req('POST', `/api/contracts/${sellId}/extend`, { months: 3, reason: 'Tecwyn’s renewed certificates are on their way; the client needs the work to go on.' }), {
         params: Promise.resolve({ id: sellId }),
       })
     )
@@ -151,13 +151,13 @@ describe('an extension reads the papers that must last to its new end', () => {
   let companyId: string
   let uploaderId: string
   let endBefore: Date
-  const supplier = 'world-techpeple@demo.etyme.local'
+  const supplier = 'world-tecwyn@demo.etyme.local'
   const ask = async (body: Record<string, unknown>) =>
     json(await extend(req('POST', `/api/contracts/${sellId}/extend`, body), { params: Promise.resolve({ id: sellId }) }))
 
   beforeAll(async () => {
     await freshWorld()
-    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
     companyId = co.id
     const s = await prisma.sellContract.findFirstOrThrow({ where: { companyId, state: 'IN_PROGRESS', endDate: { not: null } }, orderBy: { id: 'asc' } })
     sellId = s.id
@@ -199,9 +199,9 @@ describe('an extension reads the papers that must last to its new end', () => {
   })
 
   it('the firm’s cover ending before the new end asks for a reason, and goes ahead on one, which is kept with the extension', async () => {
-    // Techpeple's general liability and workers' compensation certificates
+    // Tecwyn's general liability and workers' compensation certificates
     // run out on May 10, 2027, in the seeded world; three more months take
-    // Priya Raman's placement past them.
+    // Priya Ramesh's placement past them.
     const newEnd = new Date(endBefore)
     newEnd.setMonth(newEnd.getMonth() + 3)
     const lapsing = await prisma.verification.count({
@@ -231,9 +231,9 @@ describe('an extension reads the papers that must last to its new end', () => {
 describe('a paper that only starts after the new end does not answer for it', () => {
   it('a certificate that begins after the new end does not stand in for the one running out before it', async () => {
     await freshWorld()
-    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-techpeple' } })
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
     const s = await prisma.sellContract.findFirstOrThrow({ where: { companyId: co.id, state: 'IN_PROGRESS', endDate: { not: null } }, orderBy: { id: 'asc' } })
-    const uploader = await prisma.person.findFirstOrThrow({ where: { primaryEmail: 'world-techpeple@demo.etyme.local' } })
+    const uploader = await prisma.person.findFirstOrThrow({ where: { primaryEmail: 'world-tecwyn@demo.etyme.local' } })
     const newEnd = new Date(s.endDate!)
     newEnd.setMonth(newEnd.getMonth() + 3)
     // A renewal on file, but one that starts only after the new end and runs long after it.
@@ -242,7 +242,7 @@ describe('a paper that only starts after the new end does not answer for it', ()
         data: { companyId: co.id, type, status: 'CLEAR', validFrom: new Date(newEnd.getTime() + 10 * 86_400_000), expiresAt: new Date(newEnd.getTime() + 400 * 86_400_000), uploadedById: uploader.id },
       })
     }
-    as('world-techpeple@demo.etyme.local')
+    as('world-tecwyn@demo.etyme.local')
     const r = await json(await extend(req('POST', `/api/contracts/${s.id}/extend`, { months: 3 }), { params: Promise.resolve({ id: s.id }) }))
     expect(r.status).toBe(422)
     expect(r.body.error.code).toBe('PAPERS_NEED_A_REASON')

@@ -28,7 +28,7 @@ const inDays = (n: number) => new Date(NOW.getTime() + n * 86_400_000)
 describe('insurance and work authorization', () => {
   const base = {
     id: 'v1', companyId: 'co1', personId: null,
-    status: 'CLEAR', subjectName: 'Techpeple Inc.',
+    status: 'CLEAR', subjectName: 'Tecwyn Inc.',
   }
 
   it('warns two months before insurance lapses, not on the day', () => {
@@ -47,7 +47,7 @@ describe('insurance and work authorization', () => {
   it('says what will happen rather than that something is wrong', () => {
     const f = watchVerifications([{ ...base, type: 'INSURANCE_GL', expiresAt: inDays(12) }], NOW)
     expect(f[0].detail).toMatch(/will not be able to place anybody/i)
-    expect(f[0].detail).toContain('Techpeple Inc.')
+    expect(f[0].detail).toContain('Tecwyn Inc.')
   })
 
   it('treats lapsed cover as blocking, because it already stops work', () => {
@@ -106,7 +106,7 @@ describe('insurance and work authorization', () => {
 
 describe('purchase orders running out', () => {
   const base = {
-    id: 'po1', companyId: 'co1', number: 'PO-9001', supplierName: 'Techpeple Inc.',
+    id: 'po1', companyId: 'co1', number: 'PO-9001', supplierName: 'Tecwyn Inc.',
     amountCents: 100_000_00, endDate: null, status: 'OPEN', liveContracts: 3,
   }
 
@@ -169,7 +169,7 @@ describe('purchase orders running out', () => {
 
 describe('access nobody is using', () => {
   const base = {
-    contextId: 'c1', companyId: 'co1', personName: 'Ravi Patel',
+    contextId: 'c1', companyId: 'co1', personName: 'Ravi Purohit',
     roleName: 'Recruiter', expiresAt: null, lastUsedAt: inDays(-2), grantedAt: inDays(-100),
     usedHere: { signedIn: true, lastAt: null as Date | null },
   }
@@ -188,7 +188,7 @@ describe('access nobody is using', () => {
     // Either they do not need it, or nobody told them it was there.
     const f = watchAccess([{ ...base, lastUsedAt: null, grantedAt: inDays(-45), usedHere: { signedIn: false, lastAt: null } }], NOW)
     expect(f[0].kind).toBe('ACCESS_NEVER_USED')
-    expect(f[0].headline).toBe('Ravi Patel has never used their access')
+    expect(f[0].headline).toBe('Ravi Purohit has never used their access')
   })
 
   it('the nightly watch never says somebody has never used their access when she has signed in here', () => {
@@ -200,7 +200,7 @@ describe('access nobody is using', () => {
   })
 
   it('the nightly watch says nothing about use where this firm’s own record of it was not read', () => {
-    const unread = { contextId: 'c1', companyId: 'co1', personName: 'Ravi Patel', roleName: 'Recruiter', expiresAt: null, lastUsedAt: null, grantedAt: inDays(-45) }
+    const unread = { contextId: 'c1', companyId: 'co1', personName: 'Ravi Purohit', roleName: 'Recruiter', expiresAt: null, lastUsedAt: null, grantedAt: inDays(-45) }
     expect(watchAccess([unread], NOW)).toHaveLength(0)
     // An end date is still read without it.
     expect(watchAccess([{ ...unread, expiresAt: inDays(5) }], NOW).map((x) => x.kind)).toEqual(['ACCESS_EXPIRING'])
@@ -209,7 +209,7 @@ describe('access nobody is using', () => {
   it('access untouched here for three months is reported from her last act at this firm, though the seat’s own use date was never written', () => {
     const f = watchAccess([{ ...base, lastUsedAt: null, usedHere: { signedIn: true, lastAt: inDays(-120) } }], NOW)
     expect(f.map((x) => x.kind)).toEqual(['ACCESS_DORMANT'])
-    expect(f[0].headline).toBe('Ravi Patel has not used their access in 120 days')
+    expect(f[0].headline).toBe('Ravi Purohit has not used their access in 120 days')
     // Her latest act counts: one last week keeps the seat quiet.
     expect(watchAccess([{ ...base, lastUsedAt: inDays(-120), usedHere: { signedIn: true, lastAt: inDays(-7) } }], NOW)).toHaveLength(0)
   })

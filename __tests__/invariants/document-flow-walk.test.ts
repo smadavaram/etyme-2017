@@ -30,7 +30,7 @@ const report = (status: string, renderedOn: Date) => ({
   issuedAt: renderedOn, verifiedAt: renderedOn, expiresAt: new Date(renderedOn.getTime() + 365 * 86_400_000),
 })
 const verdict = (personVerifications: any[]) =>
-  contractClearance({ personName: 'Helena Marsh', personVerifications, supplierName: 'Techpeple', supplierCertificates: insured, clientName: 'Northbend Athletic', on, extraHeld: signedNda })
+  contractClearance({ personName: 'Helena Marsh', personVerifications, supplierName: 'Tecwyn', supplierCertificates: insured, clientName: 'Northbend Athletic', on, extraHeld: signedNda })
 
 describe('a background check is read as the screening company’s newest report', () => {
   it('a newer flagged report is not hidden behind an older clear one', () => {
@@ -71,7 +71,7 @@ describe('an I-9 edition is judged at every company, not only where a company re
 describe('HR reads the days to the start from today', () => {
   it('a person starting in a week is due in a week, though the papers are judged on the first day', () => {
     const p = startPreview({
-      personName: 'Helena Marsh', personVerifications: [], supplierName: 'Techpeple', supplierCertificates: insured,
+      personName: 'Helena Marsh', personVerifications: [], supplierName: 'Tecwyn', supplierCertificates: insured,
       clientName: 'Northbend Athletic', on: inDays(7), today: on, startDate: inDays(7), extraHeld: signedNda,
     })
     expect(p.daysUntilStart).toBe(7)
@@ -94,7 +94,7 @@ describe('the start, the clearance list and the worker’s page agree on the sig
   const hers = [{ key: 'NDA', label: 'Signed non-disclosure agreement', required: true, owedBy: 'WORKER', blocks: false, from: 'DEFAULT' as const, says: 'asked of every employee as standard paperwork', waived: false }]
   const i9AndCheck = [i9('01/20/25', day('2026-10-01')), report('CLEAR', day('2026-10-01'))]
   const preview = (extraHeld: any[]) => startPreview({
-    personName: 'Helena Marsh', personVerifications: i9AndCheck, supplierName: 'Techpeple', supplierCertificates: insured,
+    personName: 'Helena Marsh', personVerifications: i9AndCheck, supplierName: 'Tecwyn', supplierCertificates: insured,
     clientName: 'Northbend Athletic', on, today: on, startDate: inDays(7), extraHeld, requirements: hers,
   })
   it('the NDA the worker owes on the line that employs her warns at the start, is on "Still needed", and says nothing else', () => {

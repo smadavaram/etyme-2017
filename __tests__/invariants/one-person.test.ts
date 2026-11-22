@@ -35,7 +35,7 @@ const stint = (months: number, endedAt: Date | null, vendorName: string) => ({
 
 function offer(over: Partial<Offer> = {}): Offer {
   return {
-    vendorName: 'Techpeple',
+    vendorName: 'Tecwyn',
     vendorId: 'v1',
     rateCents: 7800,
     submittedAt: daysAgo(5),
@@ -64,21 +64,21 @@ describe('the same person from more than one supplier', () => {
     const m = merge(
       person({
         offers: [
-          offer({ vendorId: 'v1', vendorName: 'Techpeple', rateCents: 7800 }),
+          offer({ vendorId: 'v1', vendorName: 'Tecwyn', rateCents: 7800 }),
           offer({ vendorId: 'v2', vendorName: 'Vertex', rateCents: 9600 }),
         ],
       }),
       NOW
     )
     expect(m.vendors).toBe(2)
-    expect(m.vendorNames).toEqual(['Techpeple', 'Vertex'])
+    expect(m.vendorNames).toEqual(['Tecwyn', 'Vertex'])
   })
 
   it('puts the two prices side by side, which no client has been able to see', () => {
     const m = merge(
       person({
         offers: [
-          offer({ vendorId: 'v1', vendorName: 'Techpeple', rateCents: 7800 }),
+          offer({ vendorId: 'v1', vendorName: 'Tecwyn', rateCents: 7800 }),
           offer({ vendorId: 'v2', vendorName: 'Vertex', rateCents: 9600 }),
         ],
       }),
@@ -113,7 +113,7 @@ describe('time already served here', () => {
       person({
         stints: [
           stint(12, daysAgo(700), 'Vertex'),
-          stint(12, daysAgo(200), 'Techpeple'),
+          stint(12, daysAgo(200), 'Tecwyn'),
         ],
       }),
       NOW
@@ -195,7 +195,7 @@ describe('time already served here', () => {
 
   it('has served one set of days, not two, when bought through two legs of one chain', () => {
     // Northbend Athletic buys Helena from Computer Systems, who buys her from
-    // Techpeple. Two sell contracts, one person, the same days on the
+    // Tecwyn. Two sell contracts, one person, the same days on the
     // same site. Summed, they said fourteen months and printed "past
     // your cap" about somebody seven months in — the double-count
     // lib/chain-top was written to kill on the dashboard, alive on the
@@ -207,7 +207,7 @@ describe('time already served here', () => {
       person({
         stints: [
           { startedAt: from, endedAt: to, vendorName: 'Computer Systems' },
-          { startedAt: from, endedAt: to, vendorName: 'Techpeple' },
+          { startedAt: from, endedAt: to, vendorName: 'Tecwyn' },
         ],
       }),
       NOW
@@ -225,7 +225,7 @@ describe('time already served here', () => {
       person({
         stints: [
           { startedAt: daysAgo(400), endedAt: daysAgo(200), vendorName: 'Vertex' },
-          { startedAt: daysAgo(205), endedAt: daysAgo(40), vendorName: 'Techpeple' },
+          { startedAt: daysAgo(205), endedAt: daysAgo(40), vendorName: 'Tecwyn' },
         ],
       }),
       NOW
@@ -309,7 +309,7 @@ describe('where somebody has got to', () => {
     const m = merge(
       person({
         offers: [
-          offer({ vendorId: 'v1', vendorName: 'Techpeple', state: 'REJECTED' }),
+          offer({ vendorId: 'v1', vendorName: 'Tecwyn', state: 'REJECTED' }),
           offer({ vendorId: 'v2', vendorName: 'Vertex', state: 'SUBMITTED' }),
         ],
       }),
@@ -334,7 +334,7 @@ describe('what the record cannot account for', () => {
 
 describe('an ordinary single submission', () => {
   it('is not dressed up as a finding', () => {
-    expect(merge(person(), NOW).says).toBe('Put forward by Techpeple.')
+    expect(merge(person(), NOW).says).toBe('Put forward by Tecwyn.')
   })
 })
 

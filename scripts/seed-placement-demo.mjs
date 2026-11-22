@@ -9,7 +9,7 @@
  *
  * The chain is the one from docs/full-spine.md:
  *
- *   Adobe Systems ← Computer Systems ← Techpeple ← Priya Raman
+ *   Adobe Systems ← Computer Systems ← Tecwyn ← Priya Ramesh
  *      $135/hr          $110/hr          $85/hr
  *
  * Idempotent by slug and email: run it twice and you get one chain.
@@ -47,7 +47,7 @@ async function company(name, slug, kind, email) {
 
 const adobe = await company('Adobe Systems', 'demo-adobe', 'CLIENT', 'programme@demo-adobe.test')
 const prime = await company('Computer Systems', 'demo-computer-systems', 'VENDOR', 'owner@demo-cs.test')
-const sub = await company('Techpeple', 'demo-techpeple', 'VENDOR', 'owner@demo-techpeple.test')
+const sub = await company('Tecwyn', 'demo-tecwyn', 'VENDOR', 'owner@demo-tecwyn.test')
 
 const link = async (a, b, relationship) => {
   const found = await db.counterparty.findFirst({
@@ -64,7 +64,7 @@ await link(prime.companyId, sub.companyId, 'SUPPLIER')
 const priya = await db.person.upsert({
   where: { primaryEmail: 'priya@demo-person.test' },
   update: {},
-  create: { name: 'Priya Raman', primaryEmail: 'priya@demo-person.test' },
+  create: { name: 'Priya Ramesh', primaryEmail: 'priya@demo-person.test' },
 })
 const profile =
   (await db.consultantProfile.findFirst({ where: { personId: priya.id } })) ??
@@ -113,7 +113,7 @@ const submission =
     data: {
       requirementId: requirement.id, personId: priya.id,
       fromCompanyId: sub.companyId, toCompanyId: prime.companyId,
-      // Computed from ownership, never chosen: she is on Techpeple's own
+      // Computed from ownership, never chosen: she is on Tecwyn's own
       // bench, so this is a BENCH submission.
       kind: 'BENCH',
       rate: 11_000, status: 'PLACED', checkState: 'SENT',
@@ -184,12 +184,12 @@ async function pair({ seller, buyer, endClient, bill, pay, supplierSellContractI
   return sell
 }
 
-// Techpeple employs her; nobody below, so no supplier contract and no vendor.
+// Tecwyn employs her; nobody below, so no supplier contract and no vendor.
 const subSell = await pair({
   seller: sub.companyId, buyer: prime.companyId, endClient: adobe.companyId,
   bill: 11_000, pay: 8_500, contractType: 'W2', vendorCompanyId: null,
 })
-// Computer Systems buys from Techpeple — the edge that makes the ladder walkable.
+// Computer Systems buys from Tecwyn — the edge that makes the ladder walkable.
 const primeSell = await pair({
   seller: prime.companyId, buyer: adobe.companyId, endClient: adobe.companyId,
   bill: 13_500, pay: 11_000, contractType: 'C2C', vendorCompanyId: sub.companyId,
@@ -249,7 +249,7 @@ async function invoice(sell, number, rateCents, clientId) {
     data: {
       invoiceId: inv.id, timesheetId: sheet.id, sellContractId: sell.id, personId: priya.id,
       hours: 40, rateCents, amountCents: amount,
-      description: 'Priya Raman — 2026-09-14 to 2026-09-18',
+      description: 'Priya Ramesh — 2026-09-14 to 2026-09-18',
     },
   })
   await db.payment.create({
@@ -259,11 +259,11 @@ async function invoice(sell, number, rateCents, clientId) {
     },
   })
 }
-await invoice(subSell, 'IN-TECHPEPLE-001', 11_000, prime.companyId)
+await invoice(subSell, 'IN-TECWYN-001', 11_000, prime.companyId)
 await invoice(primeSell, 'IN-CS-001', 13_500, adobe.companyId)
 
 console.log('Seeded one placement, followable end to end.\n')
-console.log('  Techpeple view       /dashboard/placements/' + subSell.id)
+console.log('  Tecwyn view       /dashboard/placements/' + subSell.id)
 console.log('  Computer Systems    /dashboard/placements/' + primeSell.id)
-console.log('\n  sign in as owner@demo-techpeple.test  or  owner@demo-cs.test')
+console.log('\n  sign in as owner@demo-tecwyn.test  or  owner@demo-cs.test')
 await db.$disconnect()

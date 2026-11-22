@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Mail clients send "Ravi Patel <ravi@example.com>". The address is the
+  // Mail clients send "Ravi Purohit <ravi@example.com>". The address is the
   // part that identifies anybody.
   const address = (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase()
 

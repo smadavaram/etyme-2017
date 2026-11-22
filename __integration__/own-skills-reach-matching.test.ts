@@ -7,15 +7,15 @@ import { GET as readMatches, POST as runMatches } from '@/app/api/requirements/[
  * An integrator's own engineer between projects reaches matching once he
  * says his own skills (found by the simulation's match station, 2026-10-20).
  *
- * Karthik Menon is Teleworld Solutions' own W2; his placement ended. The
- * DO-178C job at Corveldt Aerospace was sent to Teleworld. Matching weighs
+ * Karthik Menon is Tellisford Solutions' own W2; his placement ended. The
+ * DO-178C job at Corveldt Aerospace was sent to Tellisford. Matching weighs
  * only people with skills on record, and nobody lists an employee, so until
  * he could say his skills himself he never appeared — and the firm's own
  * people never went forward as INTERNAL from a match.
  */
 
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
-const TELEWORLD_OWNER = 'world-teleworld@demo.etyme.local'
+const TELLISFORD_OWNER = 'world-tellisford@demo.etyme.local'
 let jobId = ''
 
 const withId = async (fn: (r: any, ctx: any) => Promise<Response>, method: string, url: string, id: string, body?: unknown) =>
@@ -31,8 +31,8 @@ describe('an integrator’s own engineer reaches matching through the skills he 
     jobId = job.id
   }, 300_000)
 
-  it('before he says his skills, Teleworld’s matching says its employees have none on record', async () => {
-    as(TELEWORLD_OWNER)
+  it('before he says his skills, Tellisford’s matching says its employees have none on record', async () => {
+    as(TELLISFORD_OWNER)
     const run = await withId(runMatches, 'POST', `/api/requirements/${jobId}/matches`, jobId, {})
     expect(run.status, JSON.stringify(run.body)).toBe(200)
     const r = await withId(readMatches, 'GET', `/api/requirements/${jobId}/matches`, jobId)
@@ -49,8 +49,8 @@ describe('an integrator’s own engineer reaches matching through the skills he 
     expect(p.skills).toEqual(['DO-178C', 'Embedded C', 'LDRA'])
   })
 
-  it('Teleworld’s matching then offers him as its own employee, to go forward as INTERNAL, with reasons', async () => {
-    as(TELEWORLD_OWNER)
+  it('Tellisford’s matching then offers him as its own employee, to go forward as INTERNAL, with reasons', async () => {
+    as(TELLISFORD_OWNER)
     const run = await withId(runMatches, 'POST', `/api/requirements/${jobId}/matches`, jobId, {})
     expect(run.status).toBe(200)
     const r = await withId(readMatches, 'GET', `/api/requirements/${jobId}/matches`, jobId)
@@ -68,7 +68,7 @@ describe('an integrator’s own engineer reaches matching through the skills he 
   })
 
   it('nobody else may write his skills: a firm’s seat on that door writes its own page, never his', async () => {
-    as(TELEWORLD_OWNER)
+    as(TELLISFORD_OWNER)
     await json(await editPage(req('PATCH', '/api/me/portfolio', { skills: ['Something else'] })))
     const p = await prisma.consultantProfile.findFirstOrThrow({ where: { person: { primaryEmail: KARTHIK } }, select: { skills: true } })
     expect(p.skills).toEqual(['DO-178C', 'Embedded C', 'LDRA'])

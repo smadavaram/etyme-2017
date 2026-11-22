@@ -30,7 +30,7 @@ const { companyTiles } = await import('@/lib/counterparty')
 
 const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
-const SEATS = ['brightmoor', 'techpeple', 'nike', 'aptiva', 'teleworld', 'computer-systems', 'kestrel'].map((s) => `world-${s}${D}`)
+const SEATS = ['brightmoor', 'tecwyn', 'nike', 'aptiva', 'tellisford', 'computer-systems', 'kestrel'].map((s) => `world-${s}${D}`)
 
 let brightmoor = ''
 const listed = async (q = '?records=1') => {
@@ -295,7 +295,7 @@ describe('what was typed is kept and shown', () => {
   })
 
   it('another firm reading its own list is never shown a domain this firm typed', async () => {
-    as(`world-techpeple${D}`)
+    as(`world-tecwyn${D}`)
     const raw = JSON.stringify(await listed())
     expect(raw).not.toContain('larkspur-systems.example')
     expect(raw).not.toContain('tangent-talent.example')
@@ -347,7 +347,7 @@ describe('a recorded company can be corrected', () => {
   })
 
   it('another firm cannot correct a company this firm recorded, and is answered as an id that does not exist', async () => {
-    as(`world-techpeple${D}`)
+    as(`world-tecwyn${D}`)
     const r = await edit(id, { name: 'Taken Over' })
     expect(r.status).toBe(404)
     expect(r.body.error.message).toBe('That company is not on your Companies list.')

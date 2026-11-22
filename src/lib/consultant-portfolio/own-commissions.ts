@@ -66,7 +66,7 @@ export interface OwnCommissionRow {
   id: string
   kind: string
   firm: string
-  /** "Priya Raman at Northbend Athletic, on the sell line". */
+  /** "Priya Ramesh at Northbend Athletic, on the sell line". */
   line: string
   basis: string
   /** "10%", "$5.00 an hour", "$200.00 a period". */

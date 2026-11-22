@@ -89,7 +89,7 @@ describe("a paying firm's choice of overtime method", () => {
     })
     noCost = { id: c2.id, personId: p2.id, email: p2.primaryEmail }
 
-    const priya = await prisma.person.create({ data: { name: 'Priya Natarajan', primaryEmail: 'priya@ot-method.etyme.invalid' } })
+    const priya = await prisma.person.create({ data: { name: 'Priya Nagarkar', primaryEmail: 'priya@ot-method.etyme.invalid' } })
     personId = priya.id
     const start = d('2026-06-01')
     const sell = await prisma.sellContract.create({
@@ -162,7 +162,7 @@ describe("a paying firm's choice of overtime method", () => {
   it('a desk that cannot read what people cost cannot change it', async () => {
     const r = await choose(noCost, { method: 'HIGHER_RATE', reason: 'Agreed with Priya at the June review' })
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toContain("Changing how Priya Natarajan's overtime is priced")
+    expect(r.body.error.message).toContain("Changing how Priya Nagarkar's overtime is priced")
     const line = await prisma.buyContract.findUniqueOrThrow({ where: { id: buyId } })
     expect(line.overtimeMethod).toBe('US_REGULAR_RATE')
     expect(line.overtimeMethodById).toBeNull()
@@ -187,7 +187,7 @@ describe("a paying firm's choice of overtime method", () => {
     const r = await choose(client, { method: 'HIGHER_RATE', reason: 'We would like her paid more' })
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('NOT_THE_PAYER')
-    expect(r.body.error.message).toBe('Only the firm that pays Priya Natarajan can choose how their overtime is priced.')
+    expect(r.body.error.message).toBe('Only the firm that pays Priya Nagarkar can choose how their overtime is priced.')
   })
 
   it("a method other than the law's default is refused without a reason", async () => {

@@ -104,48 +104,48 @@ describe('a Member with no desk at Northbend Athletic reads only the conversatio
 })
 
 /**
- * Sign-up walk, round five, problem 5: Karthik Menon is Teleworld's own
+ * Sign-up walk, round five, problem 5: Karthik Menon is Tellisford's own
  * W2 validation engineer. His seat holds two reads — the lines that name
  * him and his own weeks — and no desk. The round-four narrowing asked
  * only for a seat with no permission at all, so his Conversations page
- * showed Teleworld's commercial thread with Corveldt Aerospace about
+ * showed Tellisford's commercial thread with Corveldt Aerospace about
  * Meera Balakrishnan's rate and start date, a deal he is not on.
- * Teleworld's own seat — Sunil Raghavan, the delivery manager who works
- * the firm's deals (Teleworld seats no separate account manager) —
+ * Tellisford's own seat — Sunil Raghavan, the delivery manager who works
+ * the firm's deals (Tellisford seats no separate account manager) —
  * still reads every thread.
  */
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
-const TELEWORLD_DESK = 'world-teleworld@demo.etyme.local'
+const TELLISFORD_DESK = 'world-tellisford@demo.etyme.local'
 const MEERA_ASK = 'Can Meera Balakrishnan start inside three weeks'
 
-describe('Karthik Menon, a worker seated at Teleworld with only the reads of his own work, reads no thread he is not on', () => {
-  let teleworld = ''
+describe('Karthik Menon, a worker seated at Tellisford with only the reads of his own work, reads no thread he is not on', () => {
+  let tellisford = ''
   let karthik = ''
   let meeraThread = ''
   let firmThreads: { id: string; participants: unknown }[] = []
 
   beforeAll(async () => {
     await freshWorld()
-    teleworld = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })).id
+    tellisford = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' }, select: { id: true } })).id
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK }, select: { id: true } })
     karthik = person.id
     const seat = await prisma.context.findFirstOrThrow({
-      where: { personId: karthik, companyId: teleworld },
+      where: { personId: karthik, companyId: tellisford },
       select: { role: { select: { permissions: true } } },
     })
     expect([...(seat.role?.permissions ?? [])].sort()).toEqual(['assignments.read', 'timesheets.read'])
     const ask = await prisma.message.findFirstOrThrow({
-      where: { body: { startsWith: MEERA_ASK }, conversation: { OR: [{ companyId: teleworld }, { withCompanyId: teleworld }] } },
+      where: { body: { startsWith: MEERA_ASK }, conversation: { OR: [{ companyId: tellisford }, { withCompanyId: tellisford }] } },
       select: { conversationId: true },
     })
     meeraThread = ask.conversationId
     firmThreads = await prisma.conversation.findMany({
-      where: { archivedAt: null, OR: [{ companyId: teleworld }, { withCompanyId: teleworld }] },
+      where: { archivedAt: null, OR: [{ companyId: tellisford }, { withCompanyId: tellisford }] },
       select: { id: true, participants: true },
     })
   }, 600_000)
 
-  it('Karthik’s conversation list holds no Teleworld thread that does not name him, and never the Corveldt thread about Meera’s rate and start date', async () => {
+  it('Karthik’s conversation list holds no Tellisford thread that does not name him, and never the Corveldt thread about Meera’s rate and start date', async () => {
     as(KARTHIK)
     const r = await json(await list(req('GET', '/api/conversations?limit=50')))
     expect(r.status).toBe(200)
@@ -162,7 +162,7 @@ describe('Karthik Menon, a worker seated at Teleworld with only the reads of his
     as(KARTHIK)
     const r = await json(await readMessages(req('GET', `/api/conversations/messages?conversationId=${meeraThread}`)))
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toBe('That conversation is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(r.body.error.message).toBe('That conversation is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     expect(JSON.stringify(r.body)).not.toContain('inclusive of expenses')
   })
 
@@ -173,8 +173,8 @@ describe('Karthik Menon, a worker seated at Teleworld with only the reads of his
     expect(await prisma.message.count({ where: { conversationId: meeraThread, authorId: karthik } })).toBe(0)
   })
 
-  it('Teleworld’s delivery manager, who works the firm’s deals, still reads every Teleworld thread, the Corveldt one about Meera among them', async () => {
-    as(TELEWORLD_DESK)
+  it('Tellisford’s delivery manager, who works the firm’s deals, still reads every Tellisford thread, the Corveldt one about Meera among them', async () => {
+    as(TELLISFORD_DESK)
     const r = await json(await list(req('GET', '/api/conversations?limit=50')))
     expect(r.status).toBe(200)
     const ids: string[] = r.body.data.conversations.map((c: any) => c.id)
@@ -568,9 +568,9 @@ describe('Ask Etyme keeps the conversation through its own route, and the greeti
 })
 
 // Ask Etyme for workers (founder, 2026-10-16: the same Ask Etyme, inside
-// their own pages). Walked as the seeded Helena Marsh — on Techpeple's
+// their own pages). Walked as the seeded Helena Marsh — on Tecwyn's
 // bench, on site at Northbend Athletic through Computer Systems Inc — and
-// Karthik Menon, Teleworld's own W2 with a seat that reads only his own
+// Karthik Menon, Tellisford's own W2 with a seat that reads only his own
 // work; then a worker whose thread is kept, and a candidate with no
 // company seat at all.
 describe('a worker reads Ask Etyme about her own work, from her own pages, and Etyme never files for her', () => {
@@ -579,27 +579,27 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
   const INES = 'ines.okafor@walkthrough.test'
   const SOLO = 'rui.candidate@walkthrough.test'
   let helena = ''
-  let techpeple = ''
+  let tecwyn = ''
 
   beforeAll(async () => {
     await freshWorld()
     helena = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: HELENA }, select: { id: true } })).id
-    techpeple = (await prisma.company.findFirstOrThrow({ where: { name: 'Techpeple' }, select: { id: true } })).id
+    tecwyn = (await prisma.company.findFirstOrThrow({ where: { name: 'Tecwyn' }, select: { id: true } })).id
     const ines = await prisma.person.create({ data: { primaryEmail: INES, name: 'Ines Okafor' }, select: { id: true } })
-    await prisma.context.create({ data: { personId: ines.id, companyId: techpeple, type: 'CONSULTANT', grantReason: 'Said yes to the bench' } })
+    await prisma.context.create({ data: { personId: ines.id, companyId: tecwyn, type: 'CONSULTANT', grantReason: 'Said yes to the bench' } })
     const rui = await prisma.person.create({ data: { primaryEmail: SOLO, name: 'Rui Costa' }, select: { id: true } })
     await prisma.context.create({ data: { personId: rui.id, type: 'CONSULTANT', grantReason: 'Signed up as a candidate' } })
-    // Techpeple has not run Helena's latest month yet. The seed runs every
+    // Tecwyn has not run Helena's latest month yet. The seed runs every
     // month whose run fell five days after it ended, before the world was
     // born (lib/seed-payroll-runs), so from about the 6th of a month until
-    // the first week of the new month is accepted, every week Techpeple
+    // the first week of the new month is accepted, every week Tecwyn
     // accepted is paid and nothing is owed to her: the release passes of
     // 2026-11-08 met exactly that day. The sentences below are about the
     // moment a week becomes owed, so they read a world where her newest
-    // month is still Techpeple's to run, as the seed itself reads it on
+    // month is still Tecwyn's to run, as the seed itself reads it on
     // the 1st to the 5th. Only her lines leave that one run.
     const runs = await prisma.automationLog.findMany({
-      where: { companyId: techpeple, action: PAYROLL_RUN, payload: { path: ['action'], equals: 'process' } },
+      where: { companyId: tecwyn, action: PAYROLL_RUN, payload: { path: ['action'], equals: 'process' } },
       select: { id: true, at: true, payload: true },
       orderBy: { at: 'desc' },
     })
@@ -620,7 +620,7 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     expect(r.body.data.worker).toBe(true)
     const a = r.body.data.answer
     expect(a.kind).toBe('WORKER')
-    expect(a.where).toEqual(['You work at Northbend Athletic through Computer Systems Inc, employed by Techpeple.'])
+    expect(a.where).toEqual(['You work at Northbend Athletic through Computer Systems Inc, employed by Tecwyn.'])
     // A week that ended and is not filed, with the hours her job runs.
     const file = a.cards.find((c: any) => c.act === 'FILE_WEEK')
     // The card opens Your work at that week, the Sunday it starts.
@@ -634,8 +634,8 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     const lines = a.more.map((l: any) => l.says)
     const tail = (a.tail ?? []).map((l: any) => l.says)
     // Where the newest week stands, what is owed and for how many unpaid hours, and the rule.
-    expect(lines).toContain('A week is owed to you once Techpeple accepts it, not when the client signs it.')
-    expect(lines.some((l: string) => /^\$[\d,]+\.\d\d is owed to you, for [\d.]+ hours Techpeple accepted and has not paid yet\.$/.test(l))).toBe(true)
+    expect(lines).toContain('A week is owed to you once Tecwyn accepts it, not when the client signs it.')
+    expect(lines.some((l: string) => /^\$[\d,]+\.\d\d is owed to you, for [\d.]+ hours Tecwyn accepted and has not paid yet\.$/.test(l))).toBe(true)
     // Papers that do not stop her work come after the money, as one line with an Upload card each.
     expect(a.papers.says).toMatch(/^Two papers are asked of you: your .+ and your .+\.$/)
     expect(a.papers.cards.map((c: any) => c.button)).toEqual(['Upload', 'Upload'])
@@ -666,9 +666,9 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     const r = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'What am I owed?' })))
     expect(r.status).toBe(200)
     const a = r.body.data.answer
-    expect(a.says).toMatch(/^\$[\d,]+\.\d\d is owed to you, for [\d.]+ hours Techpeple accepted and has not paid yet\. Checked just now\.$/)
-    expect(a.more.map((l: any) => l.says)).toContain('A week is owed to you once Techpeple accepts it, not when the client signs it.')
-    // Every week in the owed table is one Techpeple accepted; none is waiting on a signature.
+    expect(a.says).toMatch(/^\$[\d,]+\.\d\d is owed to you, for [\d.]+ hours Tecwyn accepted and has not paid yet\. Checked just now\.$/)
+    expect(a.more.map((l: any) => l.says)).toContain('A week is owed to you once Tecwyn accepts it, not when the client signs it.')
+    // Every week in the owed table is one Tecwyn accepted; none is waiting on a signature.
     const accepted = await prisma.timesheet.findMany({
       where: { personId: helena, OR: [{ employerAcceptedAt: { not: null } }, { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } }] },
       select: { id: true },
@@ -686,13 +686,13 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
     expect(r.status).toBe(200)
     const a = r.body.data.answer
     expect(a.kind).toBe('WORKER')
-    expect(a.where[0]).toMatch(/^You (work|worked) at Corveldt Aerospace.*, employed by Teleworld Solutions\.$/)
+    expect(a.where[0]).toMatch(/^You (work|worked) at Corveldt Aerospace.*, employed by Tellisford Solutions\.$/)
     // His firm's book never: no colleague, no invoice receipt; a time limit only as his own months at his own site.
     expect(JSON.stringify(a)).not.toMatch(/Meera|invoice receipt/i)
     for (const l of (a.tail ?? []).map((x: any) => x.says).filter((x: string) => /time limit/.test(x))) expect(l).toMatch(/^You (are|have reached) .*Corveldt Aerospace’s/)
     const consent = await json(await askPost(req('POST', '/api/conversations/twin', { text: 'Who has my consent?' })))
     expect(consent.body.data.answer.more.map((l: any) => l.says)).toContain(
-      'Teleworld Solutions employs you, so it puts you forward without asking. You are told each time.'
+      'Tellisford Solutions employs you, so it puts you forward without asking. You are told each time.'
     )
   })
 
@@ -707,7 +707,7 @@ describe('a worker reads Ask Etyme about her own work, from her own pages, and E
       ['PERSON', 'Who has my consent?'], ['ETYME', asked.body.data.answer.says],
     ])
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: INES }, select: { id: true } })
-    expect(await prisma.askEtymeThread.count({ where: { personId: person.id, companyId: techpeple } })).toBe(1)
+    expect(await prisma.askEtymeThread.count({ where: { personId: person.id, companyId: tecwyn } })).toBe(1)
   })
 
   it('a candidate with no company seat keeps her own Ask Etyme thread, read back after a reload', async () => {

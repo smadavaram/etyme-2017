@@ -2,7 +2,8 @@
  * The Privacy Notice, the Terms of Service and the Data Processing
  * Addendum, as the page draws them.
  *
- * The founder read the three drafts and said "Publish" (2026-10-15). The
+ * The founder read the three drafts and said "Publish" (2026-10-15), and
+ * the owner published them as final on 2026-11-22 (record 110). The
  * words are in `privacy-text`, `terms-text` and `dpa-text`, exactly as
  * approved; this module reads them into sections and blocks once, and
  * says the few things about them the page and the tests need: which
@@ -86,7 +87,9 @@ export const OLD_ANCHORS: Record<LegalKey, Record<string, string>> = {
     'where-a-model-is-used': '8-automated-features',
     'fees': '9-fees',
     'availability-support-and-change': '12-availability-and-support',
-    'liability-indemnity-governing-law-and-termination': '15-limitation-of-liability',
+    // The final Terms hold no liability, indemnity or governing-law
+    // section (2026-11-22), so the old address lands on what is left of it.
+    'liability-indemnity-governing-law-and-termination': '13-suspension-and-termination',
   },
   dpa: {
     'the-unsettled-question-stated-before-anything-else': '1-parties-and-roles',
@@ -143,7 +146,6 @@ export function linesIn(doc: LegalPage): Line[] {
     }
   }
   return [
-    doc.notice,
     [{ text: doc.title }],
     ...doc.dates.map((d) => [{ text: `${d.label}: ` }, ...d.value]),
     ...doc.intro.flatMap(of),
@@ -154,11 +156,6 @@ export function linesIn(doc: LegalPage): Line[] {
 /** A document's words, marks removed — for a test to search. */
 export function wordsOf(doc: LegalPage): string {
   return linesIn(doc).map(plain).join('\n')
-}
-
-/** Every point counsel has not decided, as written: "[To be confirmed …]". */
-export function counselPointsIn(doc: LegalPage): string[] {
-  return linesIn(doc).flatMap((l) => l.filter((r) => r.counsel).map((r) => r.text))
 }
 
 /** A section by its number or its opening words: `sectionOf(PRIVACY_NOTICE, '10.')`. */

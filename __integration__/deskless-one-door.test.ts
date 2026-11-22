@@ -227,7 +227,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     const res = await mod.GET(req('GET', `/api/placements/${colleagues}`), { params: Promise.resolve({ id: colleagues }) })
     expect(res.status).toBe(403)
     const body = await res.json()
-    expect(body.error.message).toBe('That placement is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(body.error.message).toBe('That placement is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     const logged = await prisma.accessLog.findFirst({
       where: { actorPersonId: karthik, allowed: false, reason: 'A seat that sees only its own work reads only a placement that names it' },
     })
@@ -261,7 +261,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
 
   it('a colleague’s week is refused to him in the door’s words, by the route itself, and the refused read is logged', async () => {
     const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
-    // A week Teleworld is on, worked by somebody else: the firm is on its
+    // A week Tellisford is on, worked by somebody else: the firm is on its
     // chain, so only the seat having no desk stops him.
     const theirs = await prisma.timesheet.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
@@ -275,7 +275,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     const res = await mod.GET(req('GET', `/api/week-approvals?timesheetId=${theirs.id}`))
     expect(res.status).toBe(403)
     const body = await res.json()
-    expect(body.error.message).toBe('That week is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+    expect(body.error.message).toBe('That week is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     const logged = await prisma.accessLog.findFirst({
       where: { actorPersonId: karthik, subjectId: theirs.personId, allowed: false, action: 'WEEK_APPROVAL_VIEW' },
     })
@@ -283,11 +283,11 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
   })
 
   it('his firm’s submissions list shows him only the times he was put forward, with no rate on any', async () => {
-    const teleworld = (await prisma.company.findFirstOrThrow({ where: { name: 'Teleworld Solutions' }, select: { id: true } })).id
+    const tellisford = (await prisma.company.findFirstOrThrow({ where: { name: 'Tellisford Solutions' }, select: { id: true } })).id
     const his = await prisma.submission.count({ where: { personId: karthik } })
     expect(his, 'Karthik was put forward on the seeded world').toBeGreaterThan(0)
     as(KARTHIK)
-    const r = await get('submissions', `?direction=sent&companyId=${teleworld}&limit=50`)
+    const r = await get('submissions', `?direction=sent&companyId=${tellisford}&limit=50`)
     expect(r.status, r.text.slice(0, 200)).toBe(200)
     expect(r.body.data.desk.ownOnly).toBe(true)
     expect(r.body.data.submissions.length).toBeGreaterThan(0)
@@ -303,7 +303,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
       const r = await get(route)
       expect(r.status, `${route} ${r.text.slice(0, 200)}`).toBe(403)
       expect(r.body.error.code).toBe('NO_DESK')
-      expect(r.body.error.message).toMatch(/is not part of your seat at Teleworld Solutions\. Ask your company’s owner if you need it\.$/)
+      expect(r.body.error.message).toMatch(/is not part of your seat at Tellisford Solutions\. Ask your company’s owner if you need it\.$/)
     }
   })
 
@@ -313,7 +313,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
       const r = await get(route)
       expect(r.status, `${route} ${r.text.slice(0, 200)}`).toBe(403)
       expect(r.body.error.code).toBe('NO_DESK')
-      expect(r.body.error.message).toBe('Bench is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.')
+      expect(r.body.error.message).toBe('Bench is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.')
     }
   })
 
@@ -339,7 +339,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     expect(await mine.text()).toBe('signed')
     const other = await mod.GET(req('GET', `/api/documents/${theirs}/file`), { params: Promise.resolve({ id: theirs }) })
     expect(other.status).toBe(403)
-    expect((await other.json()).error.message).toMatch(/is not part of your seat at Teleworld Solutions/)
+    expect((await other.json()).error.message).toMatch(/is not part of your seat at Tellisford Solutions/)
   })
 
   it('a job request, a bill and a week at another company are answered to him as not there, never as something his owner could give him (round seven, problem 8)', async () => {
@@ -382,12 +382,12 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     const ours = await prisma.requirement.findFirst({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       where: { OR: [{ companyId: seat.companyId! }, { invitations: { some: { toCompanyId: seat.companyId! } } }] }, select: { id: true },
     })
-    expect(ours, 'Teleworld has a job request on the seeded world').not.toBeNull()
+    expect(ours, 'Tellisford has a job request on the seeded world').not.toBeNull()
     as(KARTHIK)
     const mod = await import('@/app/api/requisitions/[id]/route')
     const res = await mod.GET(req('GET', `/api/requisitions/${ours!.id}`), { params: Promise.resolve({ id: ours!.id }) })
     expect(res.status).toBe(403)
-    expect((await res.json()).error.message).toMatch(/is not part of your seat at Teleworld Solutions\. Ask your company’s owner if you need it\.$/)
+    expect((await res.json()).error.message).toMatch(/is not part of your seat at Tellisford Solutions\. Ask your company’s owner if you need it\.$/)
   })
 
   it('the chain of approvals on his own week stays a desk’s: his own page reads the chain from his own work, and the assert route refuses him at the door', async () => {
@@ -405,25 +405,25 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
  * Sign-up walk, round five, problem 1: the import routes checked only that
  * somebody was signed in and took the company from the body. Mo, a Member
  * at Northbend Athletic, imported a person and a live $150/hr contract into
- * Teleworld Solutions; a candidate with no company read the rows with rates.
+ * Tellisford Solutions; a candidate with no company read the rows with rates.
  */
 describe('nobody imports into, or reads an import of, a company that is not their own (round five)', () => {
-  let teleworld = ''
+  let tellisford = ''
   let theirs = ''
   const NINA = 'nina@walk5.example'
 
   beforeAll(async () => {
     await freshWorld()
     const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
-    teleworld = (await prisma.company.findFirstOrThrow({ where: { name: 'Teleworld Solutions' }, select: { id: true } })).id
+    tellisford = (await prisma.company.findFirstOrThrow({ where: { name: 'Tellisford Solutions' }, select: { id: true } })).id
     const role = await prisma.role.findFirstOrThrow({ where: { companyId: nike.id, name: 'Member' }, select: { id: true } })
     const mo = await prisma.person.create({ data: { primaryEmail: 'mo5@walk5.example', name: 'Mo Haddad' }, select: { id: true } })
     await prisma.context.create({ data: { personId: mo.id, companyId: nike.id, type: 'EMPLOYEE', roleId: role.id, grantReason: 'Joined on the domain' } })
     await prisma.person.create({ data: { primaryEmail: NINA, name: 'Nina Park' } })
-    // Teleworld's own import, not yet committed, with a rate in a row.
+    // Tellisford's own import, not yet committed, with a rate in a row.
     theirs = (await prisma.import.create({
       data: {
-        companyId: teleworld, kind: 'PEOPLE', fileName: 'people.csv', mapping: { mappings: [], unmapped: [], warnings: [] } as any,
+        companyId: tellisford, kind: 'PEOPLE', fileName: 'people.csv', mapping: { mappings: [], unmapped: [], warnings: [] } as any,
         rowCount: 1, issueCount: 0,
         rows: { create: { raw: { name: 'Walk Five Probe', 'pay rate': '90', 'bill rate': '150' } as any, parsed: { name: 'Walk Five Probe', payRate: 90, billRate: 150, startDate: '2026-10-01' } as any, issues: [] } },
       },
@@ -441,15 +441,15 @@ describe('nobody imports into, or reads an import of, a company that is not thei
 
   it('Mo cannot start an import at another company: the door refuses his seat in a sentence and nothing is written', async () => {
     as('mo5@walk5.example')
-    const before = await prisma.import.count({ where: { companyId: teleworld } })
+    const before = await prisma.import.count({ where: { companyId: tellisford } })
     const r = await call('/api/imports', 'POST', await import('@/app/api/imports/route'), {},
-      { companyId: teleworld, kind: 'PEOPLE', rows: [{ name: 'Walk Five Probe', email: 'probe5@walk5.example', 'bill rate': '150', 'start date': '2026-10-01' }] })
+      { companyId: tellisford, kind: 'PEOPLE', rows: [{ name: 'Walk Five Probe', email: 'probe5@walk5.example', 'bill rate': '150', 'start date': '2026-10-01' }] })
     expect(r.status, r.text.slice(0, 200)).toBe(403)
     expect(r.body.error.message).toMatch(/is not part of your seat at Northbend Athletic/)
-    expect(await prisma.import.count({ where: { companyId: teleworld } })).toBe(before)
+    expect(await prisma.import.count({ where: { companyId: tellisford } })).toBe(before)
   })
 
-  it('Mo cannot read or commit Teleworld’s import, and no person, listing or contract appears at Teleworld', async () => {
+  it('Mo cannot read or commit Tellisford’s import, and no person, listing or contract appears at Tellisford', async () => {
     as('mo5@walk5.example')
     const rows = await call(`/api/imports/${theirs}/rows`, 'GET', await import('@/app/api/imports/[id]/rows/route'), { id: theirs })
     expect(rows.status).toBe(403)
@@ -465,7 +465,7 @@ describe('nobody imports into, or reads an import of, a company that is not thei
     const rows = await call(`/api/imports/${theirs}/rows`, 'GET', await import('@/app/api/imports/[id]/rows/route'), { id: theirs })
     expect(rows.status).toBeGreaterThanOrEqual(400)
     expect(rows.text).not.toContain('bill rate')
-    const start = await call('/api/imports', 'POST', await import('@/app/api/imports/route'), {}, { companyId: teleworld, kind: 'PEOPLE', rows: [{ name: 'X' }] })
+    const start = await call('/api/imports', 'POST', await import('@/app/api/imports/route'), {}, { companyId: tellisford, kind: 'PEOPLE', rows: [{ name: 'X' }] })
     expect(start.status).toBeGreaterThanOrEqual(400)
   })
 
@@ -474,9 +474,9 @@ describe('nobody imports into, or reads an import of, a company that is not thei
     const rows = await call(`/api/imports/${theirs}/rows`, 'GET', await import('@/app/api/imports/[id]/rows/route'), { id: theirs })
     expect([403, 404]).toContain(rows.status)
     expect(rows.text).not.toContain('150')
-    const before = await prisma.import.count({ where: { companyId: teleworld } })
-    await call('/api/imports', 'POST', await import('@/app/api/imports/route'), {}, { companyId: teleworld, kind: 'PEOPLE', rows: [{ name: 'Y Z', email: 'yz@walk5.example' }] })
-    expect(await prisma.import.count({ where: { companyId: teleworld } })).toBe(before)
+    const before = await prisma.import.count({ where: { companyId: tellisford } })
+    await call('/api/imports', 'POST', await import('@/app/api/imports/route'), {}, { companyId: tellisford, kind: 'PEOPLE', rows: [{ name: 'Y Z', email: 'yz@walk5.example' }] })
+    expect(await prisma.import.count({ where: { companyId: tellisford } })).toBe(before)
   })
 
   /** Seated the way candidate sign-up seats her: a consultant context, no company (lib/password-door). */
@@ -506,7 +506,7 @@ describe('nobody imports into, or reads an import of, a company that is not thei
   it('a company’s work sites are read only by itself and the firms it trades with', async () => {
     as(NINA)
     const mod = await import('@/app/api/companies/[id]/locations/route')
-    const nina = await call(`/api/companies/${teleworld}/locations`, 'GET', mod, { id: teleworld })
+    const nina = await call(`/api/companies/${tellisford}/locations`, 'GET', mod, { id: tellisford })
     expect(nina.status).toBeGreaterThanOrEqual(400)
     expect(nina.text).not.toContain('Wichita')
   })

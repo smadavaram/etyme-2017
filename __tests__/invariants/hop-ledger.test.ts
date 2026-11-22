@@ -9,17 +9,17 @@ import { sameBooks, type PlannedPosting } from '@/lib/order-postings'
  * Every money posting lands on one rung, at that rung's own rate.
  *
  * The outside chain audit of 2026-10-05: the client's signature on Helena
- * Marsh's week was booked to Techpeple, at the bottom of the chain, at
+ * Marsh's week was booked to Tecwyn, at the bottom of the chain, at
  * Computer Systems' $145; Computer Systems' own acceptance in the middle
  * posted nothing. The ladders below are the audit's.
  */
 
-// Northbend Athletic ← Computer Systems ← Techpeple ← Helena Marsh (W2, $90)
+// Northbend Athletic ← Computer Systems ← Tecwyn ← Helena Marsh (W2, $90)
 const HELENA: HopRung[] = [
-  { sellContractId: 'cs-sells', companyId: 'cs', clientCompanyId: 'northbend', endClientCompanyId: 'northbend', buyContractId: 'cs-buys-techpeple' },
-  { sellContractId: 'tp-sells', companyId: 'techpeple', clientCompanyId: 'cs', endClientCompanyId: 'northbend', buyContractId: 'tp-pays-helena' },
+  { sellContractId: 'cs-sells', companyId: 'cs', clientCompanyId: 'northbend', endClientCompanyId: 'northbend', buyContractId: 'cs-buys-tecwyn' },
+  { sellContractId: 'tp-sells', companyId: 'tecwyn', clientCompanyId: 'cs', endClientCompanyId: 'northbend', buyContractId: 'tp-pays-helena' },
 ]
-const RATE: Record<string, number> = { 'cs-sells': 14_500, 'tp-sells': 11_800, 'cs-buys-techpeple': 11_800, 'tp-pays-helena': 9_000 }
+const RATE: Record<string, number> = { 'cs-sells': 14_500, 'tp-sells': 11_800, 'cs-buys-tecwyn': 11_800, 'tp-pays-helena': 9_000 }
 
 // The audit's acceptance test: client ← prime $150 ← sub $130 ← bench $115 ← candidate W2 $90.
 const FOUR: HopRung[] = [
@@ -47,7 +47,7 @@ function book(ladder: HopRung[], rates: Record<string, number>, signatures: { co
 }
 
 describe('the client’s signature is revenue at the top, at the top rung’s own rate', () => {
-  it('Northbend’s signature is revenue to Computer Systems, never to Techpeple', () => {
+  it('Northbend’s signature is revenue to Computer Systems, never to Tecwyn', () => {
     const { legs } = legsOf({ companyId: 'northbend', role: 'CLIENT_APPROVAL' }, HELENA)
     expect(legs).toEqual([{ kind: 'REVENUE', companyId: 'cs', sellContractId: 'cs-sells', customerId: 'northbend' }])
   })
@@ -68,25 +68,25 @@ describe('a firm in the middle accepting a week', () => {
     const { legs } = legsOf({ companyId: 'cs', role: 'PASS_THROUGH' }, HELENA)
     const revenue = legs.find((l) => l.kind === 'REVENUE')!
     const bought = legs.find((l) => l.kind === 'BOUGHT') as Extract<PostingLeg, { kind: 'BOUGHT' }>
-    expect(revenue).toMatchObject({ companyId: 'techpeple', sellContractId: 'tp-sells' })
-    expect(bought).toMatchObject({ companyId: 'cs', sellContractId: 'cs-sells', buyContractId: 'cs-buys-techpeple' })
+    expect(revenue).toMatchObject({ companyId: 'tecwyn', sellContractId: 'tp-sells' })
+    expect(bought).toMatchObject({ companyId: 'cs', sellContractId: 'cs-sells', buyContractId: 'cs-buys-tecwyn' })
   })
 
-  it('Techpeple’s earned margin on Helena Marsh is on its own $118, never Computer Systems’ $145', () => {
+  it('Tecwyn’s earned margin on Helena Marsh is on its own $118, never Computer Systems’ $145', () => {
     const week = book(HELENA, RATE, [
       { companyId: 'northbend', role: 'CLIENT_APPROVAL' },
       { companyId: 'cs', role: 'PASS_THROUGH' },
-      { companyId: 'techpeple', role: 'EMPLOYER_ACCEPTANCE' },
+      { companyId: 'tecwyn', role: 'EMPLOYER_ACCEPTANCE' },
     ])
-    expect(week.get('techpeple')).toEqual({ revenue: 40 * 11_800, cost: 40 * 9_000 })
+    expect(week.get('tecwyn')).toEqual({ revenue: 40 * 11_800, cost: 40 * 9_000 })
     expect(week.get('cs')).toEqual({ revenue: 40 * 14_500, cost: 40 * 11_800 })
   })
 })
 
 describe('the employer’s acceptance is pay at hop 0', () => {
   it('only the firm that employs the person posts pay, and anybody else’s acceptance posts nothing, in a sentence', () => {
-    expect(legsOf({ companyId: 'techpeple', role: 'EMPLOYER_ACCEPTANCE' }, HELENA).legs).toEqual([
-      { kind: 'PAY', companyId: 'techpeple', sellContractId: 'tp-sells', buyContractId: 'tp-pays-helena', customerId: 'cs' },
+    expect(legsOf({ companyId: 'tecwyn', role: 'EMPLOYER_ACCEPTANCE' }, HELENA).legs).toEqual([
+      { kind: 'PAY', companyId: 'tecwyn', sellContractId: 'tp-sells', buyContractId: 'tp-pays-helena', customerId: 'cs' },
     ])
     const stranger = legsOf({ companyId: 'cs', role: 'EMPLOYER_ACCEPTANCE' }, HELENA)
     expect(stranger.legs).toEqual([])
@@ -126,7 +126,7 @@ describe('the audit’s acceptance test, four hops', () => {
   })
 
   it('a client whose rung is not linked to the hours is refused a posting rather than given the bottom firm’s books', () => {
-    // Computer Systems' line was never linked: the ladder is Techpeple's line alone.
+    // Computer Systems' line was never linked: the ladder is Tecwyn's line alone.
     const broken = [HELENA[1]]
     const r = legsOf({ companyId: 'northbend', role: 'CLIENT_APPROVAL' }, broken)
     expect(r.legs).toEqual([])
@@ -154,24 +154,24 @@ describe('a week as one rung sees it', () => {
   const sigs = [
     { companyId: 'northbend', role: 'CLIENT_APPROVAL', hours: 40, rateCents: 14_500 },
     { companyId: 'cs', role: 'PASS_THROUGH', hours: 38, rateCents: 11_800 },
-    { companyId: 'techpeple', role: 'EMPLOYER_ACCEPTANCE', hours: 38, rateCents: 9_000 },
+    { companyId: 'tecwyn', role: 'EMPLOYER_ACCEPTANCE', hours: 38, rateCents: 9_000 },
   ]
 
-  it('Techpeple is billed on what Computer Systems accepted, not on what the client signed', () => {
+  it('Tecwyn is billed on what Computer Systems accepted, not on what the client signed', () => {
     const seen = rungView(HELENA[1], HELENA, sigs)
     expect(seen).toEqual([
       { companyId: 'cs', role: 'CLIENT_APPROVAL', hours: 38, rateCents: 11_800 },
-      { companyId: 'techpeple', role: 'EMPLOYER_ACCEPTANCE', hours: 38, rateCents: 9_000 },
+      { companyId: 'tecwyn', role: 'EMPLOYER_ACCEPTANCE', hours: 38, rateCents: 9_000 },
     ])
   })
 
-  it('Computer Systems is billed on Northbend’s signature and costed on its own acceptance; Techpeple’s pay is never in its view', () => {
+  it('Computer Systems is billed on Northbend’s signature and costed on its own acceptance; Tecwyn’s pay is never in its view', () => {
     const seen = rungView(HELENA[0], HELENA, sigs)
     expect(seen.map((a) => [a.companyId, a.role])).toEqual([
       ['northbend', 'CLIENT_APPROVAL'],
       ['cs', 'EMPLOYER_ACCEPTANCE'],
     ])
-    expect(seen.some((a) => a.companyId === 'techpeple')).toBe(false)
+    expect(seen.some((a) => a.companyId === 'tecwyn')).toBe(false)
   })
 
   it('a firm bills only the hours the firm above it accepted: 38 of 40 bills 38 at its own rate', () => {
@@ -205,7 +205,7 @@ describe('rebuilding the books', () => {
   it('the client’s signature booked to the bottom firm at the top rate is not the same books, and is rebuilt', () => {
     expect(
       sameBooks(
-        [{ companyId: 'techpeple', kind: 'REVENUE', txAmountCents: 580_000, txCurrency: 'USD', sellContractId: 'tp-sells', buyContractId: null }],
+        [{ companyId: 'tecwyn', kind: 'REVENUE', txAmountCents: 580_000, txCurrency: 'USD', sellContractId: 'tp-sells', buyContractId: null }],
         [planned({})]
       )
     ).toBe(false)

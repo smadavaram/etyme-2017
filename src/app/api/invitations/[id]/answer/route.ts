@@ -55,7 +55,7 @@ export async function POST(
   // desk's act, the same `submissions.create` the main submission door
   // asks. It asked only "staff, not a consultant", so Karthik Menon, a
   // validation engineer whose seat reads only his own work, put a stranger
-  // in front of Corveldt Aerospace and onto Teleworld's bench. A seat with
+  // in front of Corveldt Aerospace and onto Tellisford's bench. A seat with
   // no desk is told so; a desk that does not recruit is told which does.
   const door = mayAnswerWithCv(caller.permissions)
   if (!door.open) {

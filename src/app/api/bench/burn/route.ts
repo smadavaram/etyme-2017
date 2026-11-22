@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
   // ── What this counted before, and why it was two bugs ─────────────
   //
   // Every OPEN requirement on the platform, with no company filter at
-  // all. So Techpeple's bench page read "12 open reqs for matching" over
+  // all. So Tecwyn's bench page read "12 open reqs for matching" over
   // a firm that could see exactly one — and the twelve were every
   // client's open roles across every tenant, including roles this firm
   // was never invited to and cannot open. A count it may not have, and

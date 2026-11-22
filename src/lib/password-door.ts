@@ -176,7 +176,7 @@ async function mail(personId: string, to: string, subject: string, lines: string
   // list and /ready read them, and Etyme's staff are told within the hour.
   // Before 2026-11-12 the door kept the thrown message alone, so a refused
   // confirm or reset email was counted and never explained.
-  const sent = await sendEmailNow({ to, subject, body, personId, companyId: null })
+  const sent = await sendEmailNow({ to, subject, body, personId, companyId: null, about: { template: 'account-mail', recordType: 'Person', recordId: personId, actorPersonId: personId } })
   const state: AccountMailState = sent.state === 'SENT' ? 'SENT' : sent.state === 'NOT_CONFIGURED' ? 'NOT_CONFIGURED' : 'FAILED'
   const note = sent.note
   // Written down so delivery can be checked, and written read: a sign-up

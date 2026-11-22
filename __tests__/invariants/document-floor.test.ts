@@ -92,7 +92,7 @@ describe('a certificate that has not started covers nobody', () => {
 
   it('cover that has not begun stops a start the same way lapsed cover does', () => {
     const verdict = contractClearance({
-      personName: 'Priya Raman',
+      personName: 'Priya Ramesh',
       personVerifications: [
         { type: 'I9_EVERIFY', status: 'CLEAR' },
         { type: 'BACKGROUND_CHECK', status: 'CLEAR', expiresAt: inDays(200) },
@@ -150,7 +150,7 @@ describe('a certificate that has not started is never sent to a client as curren
 describe('what is reported and what actually warns', () => {
 
   const CLEAN = {
-    personName: 'Priya Raman',
+    personName: 'Priya Ramesh',
     supplierName: 'Brightmoor Talent',
     supplierCertificates: [
       { type: 'INSURANCE_GL', status: 'CLEAR', issuedAt: inDays(-100), validFrom: inDays(-100), expiresAt: inDays(260), verifiedAt: inDays(-100) },
@@ -272,7 +272,7 @@ describe('what is reported and what actually warns', () => {
       },
     })
     expect(verdict.outcome).toBe('PASS')
-    expect(verdict.says).toBe('Priya Raman is cleared to start. Everything required is on file.')
+    expect(verdict.says).toBe('Priya Ramesh is cleared to start. Everything required is on file.')
   })
 })
 

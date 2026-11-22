@@ -98,7 +98,7 @@ export const CORVANE_PLANTS: readonly CorvanePlant[] = [
   { key: 'monterrey', region: 'latam', cc: 'MX', plant: 'Monterrey, Mexico', city: 'Monterrey', state: 'Nuevo León', timeZone: 'America/Monterrey', manager: 'Ana Lucía Garza', contractors: 18, openJobs: 3, weeksToSign: 4, nearestLimitDays: 52, suppliers: 3 },
   { key: 'queretaro', region: 'latam', cc: 'MX', plant: 'Querétaro, Mexico', city: 'Querétaro', state: 'Querétaro', timeZone: 'America/Mexico_City', manager: 'Héctor Villaseñor', contractors: 10, openJobs: 1, weeksToSign: 1, nearestLimitDays: 140, suppliers: 2 },
   { key: 'campinas', region: 'latam', cc: 'BR', plant: 'Campinas, Brazil', city: 'Campinas', state: 'São Paulo', timeZone: 'America/Sao_Paulo', manager: 'Fernanda Albuquerque', contractors: 15, openJobs: 2, weeksToSign: 2, nearestLimitDays: 22, suppliers: 3 },
-  { key: 'joinville', region: 'latam', cc: 'BR', plant: 'Joinville, Brazil', city: 'Joinville', state: 'Santa Catarina', timeZone: 'America/Sao_Paulo', manager: 'Rodrigo Teixeira', contractors: 8, openJobs: 1, weeksToSign: 0, nearestLimitDays: 95, suppliers: 2 },
+  { key: 'joinville', region: 'latam', cc: 'BR', plant: 'Joinville, Brazil', city: 'Joinville', state: 'Santa Catarina', timeZone: 'America/Sao_Paulo', manager: 'Rodrigo Tavares', contractors: 8, openJobs: 1, weeksToSign: 0, nearestLimitDays: 95, suppliers: 2 },
   { key: 'medellin', region: 'latam', cc: 'CO', plant: 'Medellín, Colombia', city: 'Medellín', state: 'Antioquia', timeZone: 'America/Bogota', manager: 'Camila Restrepo', contractors: 11, openJobs: 2, weeksToSign: 3, nearestLimitDays: 30, suppliers: 2 },
   { key: 'barranquilla', region: 'latam', cc: 'CO', plant: 'Barranquilla, Colombia', city: 'Barranquilla', state: 'Atlántico', timeZone: 'America/Bogota', manager: 'Andrés Pacheco', contractors: 6, openJobs: 0, weeksToSign: 1, nearestLimitDays: 160, suppliers: 1 },
   { key: 'binh-duong', region: 'vn', cc: 'VN', plant: 'Bình Dương', city: 'Bình Dương', state: null, timeZone: 'Asia/Ho_Chi_Minh', manager: 'Nguyễn Thị Lan', contractors: 22, openJobs: 3, weeksToSign: 4, nearestLimitDays: 28, suppliers: 3 },
@@ -107,8 +107,8 @@ export const CORVANE_PLANTS: readonly CorvanePlant[] = [
   { key: 'bac-ninh', region: 'vn', cc: 'VN', plant: 'Bắc Ninh', city: 'Bắc Ninh', state: null, timeZone: 'Asia/Ho_Chi_Minh', manager: 'Đỗ Văn Hùng', contractors: 19, openJobs: 4, weeksToSign: 2, nearestLimitDays: 45, suppliers: 3 },
   { key: 'da-nang', region: 'vn', cc: 'VN', plant: 'Đà Nẵng', city: 'Đà Nẵng', state: null, timeZone: 'Asia/Ho_Chi_Minh', manager: 'Võ Thị Mai', contractors: 7, openJobs: 0, weeksToSign: 0, nearestLimitDays: 230, suppliers: 1 },
   { key: 'pune', region: 'in', cc: 'IN', plant: 'Pune, Maharashtra', city: 'Pune', state: 'Maharashtra', timeZone: 'Asia/Kolkata', manager: 'Aditya Kulkarni', contractors: 24, openJobs: 3, weeksToSign: 3, nearestLimitDays: 58, suppliers: 4 },
-  { key: 'sriperumbudur', region: 'in', cc: 'IN', plant: 'Sriperumbudur, Tamil Nadu', city: 'Sriperumbudur', state: 'Tamil Nadu', timeZone: 'Asia/Kolkata', manager: 'Lakshmi Narayanan', contractors: 20, openJobs: 2, weeksToSign: 5, nearestLimitDays: 19, suppliers: 3 },
-  { key: 'sanand', region: 'in', cc: 'IN', plant: 'Sanand, Gujarat', city: 'Sanand', state: 'Gujarat', timeZone: 'Asia/Kolkata', manager: 'Hardik Patel', contractors: 12, openJobs: 1, weeksToSign: 1, nearestLimitDays: 130, suppliers: 2 },
+  { key: 'sriperumbudur', region: 'in', cc: 'IN', plant: 'Sriperumbudur, Tamil Nadu', city: 'Sriperumbudur', state: 'Tamil Nadu', timeZone: 'Asia/Kolkata', manager: 'Lakshmi Nagarajan', contractors: 20, openJobs: 2, weeksToSign: 5, nearestLimitDays: 19, suppliers: 3 },
+  { key: 'sanand', region: 'in', cc: 'IN', plant: 'Sanand, Gujarat', city: 'Sanand', state: 'Gujarat', timeZone: 'Asia/Kolkata', manager: 'Hardik Parekh', contractors: 12, openJobs: 1, weeksToSign: 1, nearestLimitDays: 130, suppliers: 2 },
   { key: 'hosur', region: 'in', cc: 'IN', plant: 'Hosur, Tamil Nadu', city: 'Hosur', state: 'Tamil Nadu', timeZone: 'Asia/Kolkata', manager: 'Divya Srinivasan', contractors: 15, openJobs: 2, weeksToSign: 0, nearestLimitDays: 88, suppliers: 3 },
   { key: 'manesar', region: 'in', cc: 'IN', plant: 'Manesar, Haryana', city: 'Manesar', state: 'Haryana', timeZone: 'Asia/Kolkata', manager: 'Rohit Yadav', contractors: 17, openJobs: 3, weeksToSign: 2, nearestLimitDays: 36, suppliers: 3 },
   { key: 'vadodara', region: 'in', cc: 'IN', plant: 'Vadodara, Gujarat', city: 'Vadodara', state: 'Gujarat', timeZone: 'Asia/Kolkata', manager: 'Neha Desai', contractors: 9, openJobs: 1, weeksToSign: 1, nearestLimitDays: 175, suppliers: 2 },
@@ -245,7 +245,7 @@ export function corvaneSeatEmail(desk: string, domain: string): string {
 /** The five seats over the whole program, by desk key and role. */
 export const CORVANE_PEOPLE = [
   { desk: 'owner', name: 'Graham Ellery', role: 'Owner' },
-  // Not Ingrid: Teleworld's delivery manager is Ingrid Solberg and Northbend's held start is Ingrid Sørensen.
+  // Not Ingrid: Tellisford's delivery manager is Ingrid Solberg and Northbend's held start is Ingrid Sørensen.
   { desk: 'operations', name: 'Astrid Berge', role: 'Head of Operations' },
   { desk: 'cfo', name: 'Margaret Osei', role: 'Chief Financial Officer' },
   { desk: 'ap', name: 'Lucas Fairbairn', role: 'AP Clerk' },

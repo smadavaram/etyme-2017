@@ -69,14 +69,14 @@ describe('the nightly chase asks for papers only where the company said what it 
 
   it('a confirmed set chases exactly what it lists', async () => {
     const tonight = [
-      chase('1', 'techpeple', 'WORKERS_W2', 'I-9'),
-      chase('2', 'techpeple', 'CORP_TO_CORP', 'W-9'),
-      chase('3', 'techpeple', 'SUB_VENDORS', 'Certificate of insurance'),
+      chase('1', 'tecwyn', 'WORKERS_W2', 'I-9'),
+      chase('2', 'tecwyn', 'CORP_TO_CORP', 'W-9'),
+      chase('3', 'tecwyn', 'SUB_VENDORS', 'Certificate of insurance'),
       // A chase nobody can place on a set passes as it did before.
       chase('4', null, null, 'NDA'),
     ]
     const { chase: sent, withheld } = await gateChases(
-      tonight, forOf, docOf, setsConfirmed('techpeple:WORKERS_W2', 'techpeple:SUB_VENDORS')
+      tonight, forOf, docOf, setsConfirmed('tecwyn:WORKERS_W2', 'tecwyn:SUB_VENDORS')
     )
     expect(sent.map((c) => c.id)).toEqual(['1', '3', '4'])
     expect(withheld.map((w) => [w.party, w.documents])).toEqual([['CORP_TO_CORP', ['W-9']]])
@@ -85,7 +85,7 @@ describe('the nightly chase asks for papers only where the company said what it 
     // the night has nothing to say about it.
     const all = await gateChases(
       tonight, forOf, docOf,
-      setsConfirmed('techpeple:WORKERS_W2', 'techpeple:SUB_VENDORS', 'techpeple:CORP_TO_CORP')
+      setsConfirmed('tecwyn:WORKERS_W2', 'tecwyn:SUB_VENDORS', 'tecwyn:CORP_TO_CORP')
     )
     expect(all.chase).toEqual(tonight)
     expect(all.withheld).toEqual([])
@@ -110,12 +110,12 @@ describe('the nightly chase asks for papers only where the company said what it 
     expect(paperChaseGate('WORKERS_W2', []).ok).toBe(false)
     // The start does not read the gate at all, and the law's block stands.
     const v = contractClearance({
-      personName: 'Priya Raman',
+      personName: 'Priya Ramesh',
       personVerifications: [
         { type: 'I9_EVERIFY', status: 'CLEAR', expiresAt: inDays(-5) },
         { type: 'BACKGROUND_CHECK', status: 'CLEAR', expiresAt: inDays(300) },
       ],
-      supplierName: 'Techpeple',
+      supplierName: 'Tecwyn',
       supplierCertificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: inDays(200), verifiedAt: on },
         { type: 'INSURANCE_WC', status: 'CLEAR', expiresAt: inDays(200), verifiedAt: on },

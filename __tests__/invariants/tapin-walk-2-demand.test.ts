@@ -282,7 +282,7 @@ describe('a firm beside its name in a picker is called what the trade calls it, 
     expect(firmOption({ name: 'Brightmoor Staffing', kind: 'VENDOR' })).toBe('Brightmoor Staffing · supplier')
     expect(firmOption({ name: 'Northbend Athletic', kind: 'CLIENT' })).toBe('Northbend Athletic · client')
     expect(firmOption({ name: 'Aptiva Workforce', kind: 'MSP' })).toBe('Aptiva Workforce · MSP')
-    expect(firmOption({ name: 'Teleworld Solutions', kind: 'GSI' })).toBe('Teleworld Solutions · integrator')
+    expect(firmOption({ name: 'Tellisford Solutions', kind: 'GSI' })).toBe('Tellisford Solutions · integrator')
     expect(firmOption({ name: 'Byrne Critical Care LLC', kind: 'CONSULTANT_CORP' })).toBe('Byrne Critical Care LLC · one-person firm')
   })
 

@@ -4,7 +4,7 @@ import { evaluateRequisition, possessive, type RequisitionFacts, type ApprovalRu
 /**
  * A tester read "The final word on Apps's spend" on a job request's
  * approval reason (2026-10-03). A name ending in s takes the apostrophe
- * alone, as supply's bench sentences already write "Teleworld Solutions'".
+ * alone, as supply's bench sentences already write "Tellisford Solutions'".
  */
 
 const DESKS: ApprovalRuleFacts[] = [
@@ -40,8 +40,8 @@ describe('whose spend an approval reason names', () => {
     expect(d.summary).not.toContain("Harris's")
   })
 
-  it('gives a name ending in s the apostrophe alone, as "Teleworld Solutions\'"', () => {
-    expect(possessive('Teleworld Solutions')).toBe("Teleworld Solutions'")
+  it('gives a name ending in s the apostrophe alone, as "Tellisford Solutions\'"', () => {
+    expect(possessive('Tellisford Solutions')).toBe("Tellisford Solutions'")
     expect(possessive('Northbend Athletic')).toBe("Northbend Athletic's")
   })
 })

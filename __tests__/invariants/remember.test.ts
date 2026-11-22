@@ -49,9 +49,9 @@ describe('remembering a reader’s choice', () => {
   it('keeps one company’s choice separate from another’s', () => {
     const store = working()
     remember('submissions.direction.harlow', 'received', store)
-    remember('submissions.direction.techpeple', 'sent', store)
+    remember('submissions.direction.tecwyn', 'sent', store)
     expect(recall('submissions.direction.harlow', 'sent', SIDES, store)).toBe('received')
-    expect(recall('submissions.direction.techpeple', 'received', SIDES, store)).toBe('sent')
+    expect(recall('submissions.direction.tecwyn', 'received', SIDES, store)).toBe('sent')
   })
 
   it('reads back what it just wrote', () => {

@@ -12,11 +12,11 @@ import { workedOutKeys, isWorkedOut, notWorkedOutSays } from '@/lib/money/payrol
  * Four things a browser walk of the seeded world found on the payroll
  * screens, 2026-09-30, each as the rule it broke.
  *
- * 1. Karthik Menon worked June to August for Teleworld and was paid for
+ * 1. Karthik Menon worked June to August for Tellisford and was paid for
  *    every month, and the payroll screen said "W-2 employees 0" for all
  *    three, because it read active contracts only and his had ended.
  * 2. The deposit deadlines listed a date for every week hours were
- *    posted — Mondays for Teleworld, Saturdays for Brightmoor — for
+ *    posted — Mondays for Tellisford, Saturdays for Brightmoor — for
  *    workers paid once a month. A deposit follows the day wages are
  *    paid, and that is a pay day on the line, not a posting.
  * 3. A corp-to-corp worker's "Client" was the employer's own name,

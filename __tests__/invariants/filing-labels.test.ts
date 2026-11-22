@@ -23,8 +23,8 @@ describe('a worker with two lines at one firm is offered options that read apart
   })
 
   it('a line with an end client names where the work is, through whom', () => {
-    expect(filingLabels([line({ site: 'Northbend Athletic', client: 'Computer Systems' , payer: 'Techpeple' })]))
-      .toEqual(['Northbend Athletic · through Techpeple'])
+    expect(filingLabels([line({ site: 'Northbend Athletic', client: 'Computer Systems' , payer: 'Tecwyn' })]))
+      .toEqual(['Northbend Athletic · through Tecwyn'])
   })
 
   it('two lines at two clients read by the client alone', () => {

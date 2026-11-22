@@ -342,12 +342,12 @@ describe('cover that has not started yet stops a start, the same as cover that r
 
   it('a right-to-work document that comes into force after the first day does not authorize the start', () => {
     const v = contractClearance({
-      personName: 'Priya Raman',
+      personName: 'Priya Ramesh',
       personVerifications: [
         { type: 'I9_EVERIFY', status: 'CLEAR', validFrom: inDays(20), expiresAt: inDays(500) },
         { type: 'BACKGROUND_CHECK', status: 'CLEAR', expiresAt: inDays(300) },
       ],
-      supplierName: 'Techpeple',
+      supplierName: 'Tecwyn',
       supplierCertificates: [
         { type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: inDays(300), verifiedAt: on },
         { type: 'INSURANCE_WC', status: 'CLEAR', expiresAt: inDays(300), verifiedAt: on },
@@ -362,8 +362,8 @@ describe('cover that has not started yet stops a start, the same as cover that r
 
 describe('what the clearance says about a form with nothing behind it', () => {
   const base = {
-    personName: 'Priya Raman',
-    supplierName: 'Techpeple',
+    personName: 'Priya Ramesh',
+    supplierName: 'Tecwyn',
     supplierCertificates: [
       { type: 'INSURANCE_GL', status: 'CLEAR', expiresAt: inDays(300), verifiedAt: on },
       { type: 'INSURANCE_WC', status: 'CLEAR', expiresAt: inDays(300), verifiedAt: on },

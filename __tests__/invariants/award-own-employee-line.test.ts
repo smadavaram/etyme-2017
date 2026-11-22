@@ -32,7 +32,7 @@ describe('the award writes a firm’s own employee’s line from the pay on its 
     ])
     expect(pay).toEqual({ cents: 6_400, endedOn: d('2026-10-03') })
     const buy = buySide({
-      awardedCompanyId: 'teleworld', suppliedByCompanyId: null, suppliedRateCents: null,
+      awardedCompanyId: 'tellisford', suppliedByCompanyId: null, suppliedRateCents: null,
       employedByAwardedFirm: true, currentPayCents: pay!.cents, payFromLineEndedOn: pay!.endedOn,
     })
     expect(buy).toMatchObject({ write: true, vendorCompanyId: null, contractType: 'W2', payRateCents: 6_400, hopZero: true })
@@ -56,7 +56,7 @@ describe('the award writes a firm’s own employee’s line from the pay on its 
       line({ lineState: 'DRAFT' }), line({ lineState: 'CANCELLED' }), line({ payRateCents: 0 }),
     ])).toBeNull()
     const buy = buySide({
-      awardedCompanyId: 'teleworld', suppliedByCompanyId: null, suppliedRateCents: null,
+      awardedCompanyId: 'tellisford', suppliedByCompanyId: null, suppliedRateCents: null,
       employedByAwardedFirm: true, currentPayCents: null,
     })
     expect(buy).toMatchObject({ write: false })

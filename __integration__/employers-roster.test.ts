@@ -10,45 +10,45 @@ import { GET as consultants } from '@/app/api/consultants/route'
  * Found by a screen-by-screen walk of four party types on 2026-09-26, and
  * both halves are one bug wearing two faces.
  *
- * **Techpeple**, a staffing vendor: its Bench page read TOTAL 5, RETAINED
+ * **Tecwyn**, a staffing vendor: its Bench page read TOTAL 5, RETAINED
  * 3, and all five had skills on record. Two clicks away its Training page
  * read "Bench consultants 0 with skills listed" and computed the skill
  * gap from that nought — because it read the bench answer under
  * `data.listings`, a key `/api/bench` has never sent.
  *
- * **Teleworld Solutions**, an integrator: five live EMPLOYEE seats, and
+ * **Tellisford Solutions**, an integrator: five live EMPLOYEE seats, and
  * its Consultants page read "TOTAL 0 consultants" while its Bench page
  * was bare. Both screens read bench *listings*, and you do not ask your
  * own W2 for permission to staff them.
  */
 
 const D = '@demo.etyme.local'
-const TECHPEPLE = `world-techpeple${D}`
-const TELEWORLD = `world-teleworld${D}`
+const TECWYN = `world-tecwyn${D}`
+const TELLISFORD = `world-tellisford${D}`
 
-const TELEWORLD_PAYROLL = ['Amara Nwosu', 'Deepa Varma', 'Felix Brenner', 'Karthik Menon']
+const TELLISFORD_PAYROLL = ['Amara Nwosu', 'Deepa Varma', 'Felix Brenner', 'Karthik Menon']
 // The two delivery managers and the HR desk the internal-moves story
 // seats (lib/seed-internal-moves, 2026-09-30), and the AP & Payroll clerk
 // who pays the firms below it (2026-10-19). Staff, not roster, since the
 // onboarding walk (2026-10-27): a seat that does something and that no
 // placement, pay line or listing names is neither payroll nor bench.
-const TELEWORLD_STAFF = ['Ingrid Solberg', 'Rahul Deshpande', 'Farah Haddad', 'Ravi Kalathil']
+const TELLISFORD_STAFF = ['Ingrid Solberg', 'Rahul Dandekar', 'Farah Haddad', 'Ravi Kalathil']
 const SUNDARA = `world-sundara${D}`
-const TECHPEPLE_BENCH = ['Grace Lindqvist', 'Helena Marsh', 'Ifeoma Balogun', 'Peter Halloran', 'Priya Raman']
+const TECWYN_BENCH = ['Grace Lindqvist', 'Helena Marsh', 'Ifeoma Balogun', 'Peter Halloran', 'Priya Ramesh']
 
 beforeAll(async () => {
   await freshWorld()
 }, 600_000)
 
 describe('a firm’s bench and its training page agree about how many of its people have skills', () => {
-  it('reads five on Techpeple’s bench, every one of them with skills on record', async () => {
-    as(TECHPEPLE)
+  it('reads five on Tecwyn’s bench, every one of them with skills on record', async () => {
+    as(TECWYN)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
 
     const rows = [...r.body.data.tiers.RETAINED, ...r.body.data.tiers.MARKETING]
     expect(rows).toHaveLength(5)
-    for (const name of TECHPEPLE_BENCH) {
+    for (const name of TECWYN_BENCH) {
       expect(rows.map((l: any) => l.consultant.person.name)).toContain(name)
     }
     // The fact the Training page could not see.
@@ -60,7 +60,7 @@ describe('a firm’s bench and its training page agree about how many of its peo
     const { readBench } = await import('@/lib/bench-filter')
     const { skillGap } = await import('@/lib/training')
 
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     const reading = readBench(r.body)
     expect(reading.ok, reading.why ?? '').toBe(true)
@@ -81,7 +81,7 @@ describe('a firm’s bench and its training page agree about how many of its peo
   it('a skill gap is not computed from a supply of zero when the bench is full', async () => {
     const { skillGap } = await import('@/lib/training')
     const { readBench } = await import('@/lib/bench-filter')
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     const gap = skillGap([{ skills: ['Epic'] }], { people: readBench(r.body).rows })
     expect(gap.skillsTracked).not.toBeNull()
@@ -91,21 +91,21 @@ describe('a firm’s bench and its training page agree about how many of its peo
 })
 
 describe('a firm sees the people it employs even where none of them has agreed to be marketed', () => {
-  it('names Teleworld’s four engineers on its own roster, and leaves its managers, HR and its AP & Payroll clerk off it because no work names them', async () => {
-    as(TELEWORLD)
+  it('names Tellisford’s four engineers on its own roster, and leaves its managers, HR and its AP & Payroll clerk off it because no work names them', async () => {
+    as(TELLISFORD)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
 
     const names = r.body.data.roster.map((x: any) => x.name)
-    for (const name of TELEWORLD_PAYROLL) expect(names).toContain(name)
-    for (const name of TELEWORLD_STAFF) expect(names).not.toContain(name)
+    for (const name of TELLISFORD_PAYROLL) expect(names).toContain(name)
+    for (const name of TELLISFORD_STAFF) expect(names).not.toContain(name)
     expect(r.body.data.summary.total).toBe(4)
     // Not one of them granted a listing, and every one of them is here.
     expect(r.body.data.summary.marketable).toBe(0)
   })
 
   it('somebody whose assignment ended and who is on nothing else is between projects', async () => {
-    as(TELEWORLD)
+    as(TELLISFORD)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     const karthik = r.body.data.roster.find((x: any) => x.name === 'Karthik Menon')
     expect(karthik.standing).toBe('BETWEEN_PROJECTS')
@@ -116,7 +116,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
   })
 
   it('the firm’s owner is staff: never on the roster, and never counted as free', async () => {
-    as(TELEWORLD)
+    as(TELLISFORD)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     expect(r.body.data.roster.find((x: any) => x.seat === 'Owner')).toBeUndefined()
     // The only figure a delivery manager can act on excludes the owner.
@@ -124,12 +124,12 @@ describe('a firm sees the people it employs even where none of them has agreed t
   })
 
   it('an employee with no work on the record is named, and nothing claims they are free', async () => {
-    // Sundara's, because every Teleworld engineer now has work on the
+    // Sundara's, because every Tellisford engineer now has work on the
     // record: three on its Tualatin and San Jose projects, one just off
     // Corveldt.
     as(SUNDARA)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
-    const amara = r.body.data.roster.find((x: any) => x.name === 'Olivier Renard')
+    const amara = r.body.data.roster.find((x: any) => x.name === 'Olivier Rambert')
     expect(amara.standing).toBe('NOT_ON_THE_RECORD')
     expect(amara.free).toBe(false)
     expect(amara.freeForDays).toBeNull()
@@ -138,7 +138,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
   })
 
   it('a roster never offers to put forward somebody who has granted no listing', async () => {
-    as(TELEWORLD)
+    as(TELLISFORD)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     for (const row of r.body.data.roster) {
       expect(row.mayMarket).toBe(false)
@@ -147,7 +147,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
   })
 
   it('a firm’s roster carries no rates, no tiers and no listing, because it is not a bench', async () => {
-    as(TELEWORLD)
+    as(TELLISFORD)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     expect(r.body.data.tiers).toBeUndefined()
     for (const row of r.body.data.roster) {
@@ -157,10 +157,10 @@ describe('a firm sees the people it employs even where none of them has agreed t
   })
 
   it('one firm’s roster never shows another firm’s people', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
     const names = r.body.data.roster.map((x: any) => x.name)
-    for (const name of TELEWORLD_PAYROLL) expect(names).not.toContain(name)
+    for (const name of TELLISFORD_PAYROLL) expect(names).not.toContain(name)
   })
 
   it('a revoked seat is off the roster the moment it is revoked', async () => {
@@ -171,7 +171,7 @@ describe('a firm sees the people it employs even where none of them has agreed t
     })
     await prisma.context.update({ where: { id: seat!.id }, data: { revokedAt: new Date() } })
     try {
-      as(TELEWORLD)
+      as(TELLISFORD)
       const r = await json(await bench(req('GET', '/api/bench?scope=payroll')))
       expect(r.body.data.roster.map((x: any) => x.name)).not.toContain('Felix Brenner')
       expect(r.body.data.summary.total).toBe(3)
@@ -182,12 +182,12 @@ describe('a firm sees the people it employs even where none of them has agreed t
 
   it('the consultants page reports only consultant records, each of the firm\'s own employees with one reads as employed here, and the roster is elsewhere', async () => {
     // `/api/consultants` reads ConsultantProfile. Since 2026-11-12 the seed
-    // records the skills of the three Teleworld employees on a project
+    // records the skills of the three Tellisford employees on a project
     // (lib/seed-internal-moves), so matching can weigh them; those three
     // records are on the page as employed here, never as on the bench.
     // Karthik Menon has said nothing yet and has no record. The payroll
     // count stays on the roster.
-    as(TELEWORLD)
+    as(TELLISFORD)
     const c = await json(await consultants(req('GET', '/api/consultants')))
     const rows = c.body.data.consultants.map((x: any) => [x.person?.name ?? x.name, x.standing]).sort()
     expect(rows).toEqual([['Amara Nwosu', 'EMPLOYED'], ['Deepa Varma', 'EMPLOYED'], ['Felix Brenner', 'EMPLOYED']])
@@ -202,7 +202,7 @@ describe('two screens on one menu do not disagree about the same firm’s open r
     const { GET: burn } = await import('@/app/api/bench/burn/route')
     const { GET: requirements } = await import('@/app/api/requirements/route')
 
-    as(TECHPEPLE)
+    as(TECWYN)
     const b = await json(await burn(req('GET', '/api/bench/burn')))
     const r = await json(await requirements(req('GET', '/api/requirements?status=OPEN&limit=100')))
 
@@ -214,7 +214,7 @@ describe('two screens on one menu do not disagree about the same firm’s open r
     const { GET: burn } = await import('@/app/api/bench/burn/route')
     const everyOpenRole = await prisma.requirement.count({ where: { status: 'OPEN' } })
 
-    as(TECHPEPLE)
+    as(TECWYN)
     const b = await json(await burn(req('GET', '/api/bench/burn')))
     // The old count was this number, for every firm, whoever asked.
     expect(everyOpenRole).toBeGreaterThan(b.body.data.openRequirements)

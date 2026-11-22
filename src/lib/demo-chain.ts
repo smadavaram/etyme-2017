@@ -58,35 +58,35 @@ interface Firm {
 export const CHAIN: Firm[] = [
   {
     seat: 'CLIENT',
-    name: 'Oxford Corp',
+    name: 'Orlestone Corp',
     kind: 'CLIENT',
     buysFrom: 'MSP',
     blurb: 'You buy the work. You never learn who the sub-vendor is.',
   },
   {
     seat: 'MSP',
-    name: 'Yoh Services',
+    name: 'Yarrow Services',
     kind: 'MSP',
     buysFrom: 'GSI',
     blurb: 'You run the program and are invoiced for it. You never touch a CV.',
   },
   {
     seat: 'GSI',
-    name: 'Teleworld Solutions',
+    name: 'Tellisford Solutions',
     kind: 'GSI',
     buysFrom: 'PRIME',
     blurb: 'You deliver a project with your own people and bought ones.',
   },
   {
     seat: 'PRIME',
-    name: 'Insight Global',
+    name: 'Ingleby Global',
     kind: 'VENDOR',
     buysFrom: 'BENCH',
     blurb: 'You hold the paper on somebody you did not source.',
   },
   {
     seat: 'BENCH',
-    name: 'Consultis',
+    name: 'Conisby',
     kind: 'VENDOR',
     buysFrom: null,
     blurb: 'You sourced them, and you are furthest from the money.',
@@ -188,7 +188,7 @@ export async function seedChain(input: {
   const benchCo = made.get('BENCH')!
   const consultants: { personId: string; profileId: string; name: string }[] = []
   const PEOPLE = [
-    { name: 'Ravi Patel', skills: ['SAP FICO', 'ABAP'], location: 'Dallas, Texas', rate: 9500 },
+    { name: 'Ravi Purohit', skills: ['SAP FICO', 'ABAP'], location: 'Dallas, Texas', rate: 9500 },
     { name: 'Meera Krishnan', skills: ['Java', 'Spring', 'AWS'], location: 'San Jose, California', rate: 11000 },
     { name: 'David Chen', skills: ['Business Analyst', 'SQL'], location: 'Chicago, Illinois', rate: 7800 },
     { name: 'Priya Sharma', skills: ['QA Automation', 'Selenium'], location: 'Atlanta, Georgia', rate: 8200 },

@@ -473,7 +473,7 @@ export interface ExpenseRow {
    * Never the employer's own flag where an agreement said.
    */
   billable: boolean
-  /** "Approved by Techpeple · accepted by Northbend Athletic $412.50 · waiting on you". Null before the employer approves. */
+  /** "Approved by Tecwyn · accepted by Northbend Athletic $412.50 · waiting on you". Null before the employer approves. */
   line: string | null
   /** What the reader may accept now, in minor units; null where it may not. */
   upToCents: number | null

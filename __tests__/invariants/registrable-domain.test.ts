@@ -18,7 +18,7 @@ import {
 
 describe('finding the domain somebody actually registered', () => {
   it('leaves an ordinary company domain alone', () => {
-    expect(registrableDomain('techpeple.example')).toBe('techpeple.example')
+    expect(registrableDomain('tecwyn.example')).toBe('tecwyn.example')
   })
 
   it('strips a mail subdomain, which is the bug that split a company in two', () => {

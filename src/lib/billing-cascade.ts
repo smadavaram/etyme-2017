@@ -556,7 +556,7 @@ export function dueOn(input: DueInput): DueVerdict {
 // ── Sending a bill: what the days run from, and a date already gone ───
 //
 // Found by the browser walk, 2026-10-22: the supplier's twin offered
-// Teleworld a bill "Due Sep 14, 2026", and once sent it read "38 days
+// Tellisford a bill "Due Sep 14, 2026", and once sent it read "38 days
 // late" on its first day. The agreement counted net 30 from the end of
 // the work period, the period ended in August, and the bill went in
 // October. Two rules follow, both about the day a bill is sent:

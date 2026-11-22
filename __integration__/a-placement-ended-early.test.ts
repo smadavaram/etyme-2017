@@ -22,7 +22,7 @@ import { formatDay } from '@/lib/format-date'
  */
 
 const D = '@demo.etyme.local'
-const TECHPEPLE = `world-techpeple${D}`
+const TECWYN = `world-tecwyn${D}`
 const DAY = 86_400_000
 const midnight = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
 const key = (d: Date) => d.toISOString().slice(0, 10)
@@ -71,7 +71,7 @@ let between: Awaited<ReturnType<typeof placed>>
 
 beforeAll(async () => {
   await freshWorld()
-  firm = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-techpeple' }, select: { id: true } })).id
+  firm = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' }, select: { id: true } })).id
   client = (await prisma.company.create({ data: { name: 'Ridgefold Mills', slug: 'ridgefold-early-end', kind: 'CLIENT', currency: 'USD' } })).id
   today = midnight(new Date())
   started = new Date(today.getTime() - 60 * DAY)
@@ -130,7 +130,7 @@ beforeAll(async () => {
 
 describe('a placement ended early', () => {
   it('a placement ended early takes the day it ended as its last day on site, and keeps the planned end in its log', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await complete(ended.sellId)
     expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200)
     expect(r.body.data.state).toBe('ENDED')
@@ -173,7 +173,7 @@ describe('a placement ended early', () => {
     expect((await benchAt(firm, now)).map((b) => b.personId)).not.toContain(ended.personId)
     expect((await benchAt(firm, new Date(now.getTime() + DAY))).map((b) => b.personId)).toContain(ended.personId)
 
-    as(TECHPEPLE)
+    as(TECWYN)
     const b = await json(await bench(req('GET', '/api/bench?scope=company')))
     expect(b.status).toBe(200)
     const rows = [...b.body.data.tiers.MARKETING, ...b.body.data.tiers.RETAINED]
@@ -195,7 +195,7 @@ describe('a placement ended early', () => {
   })
 
   it('an early end past a week already billed or paid is refused in a sentence naming the week', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await complete(held.sellId)
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('PAST_LAST_DAY')
@@ -208,7 +208,7 @@ describe('a placement ended early', () => {
   })
 
   it('an early end is refused past a week with hours and no daily breakdown', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await complete(totalOnly.sellId)
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('PAST_LAST_DAY')
@@ -222,7 +222,7 @@ describe('a placement ended early', () => {
   })
 
   it('a week a pay run paid is named paid, never filed, wherever the run put its hours', async () => {
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await complete(lump.sellId)
     expect(r.status).toBe(409)
     expect(r.body.error.week.stage).toBe('PAID')
@@ -242,7 +242,7 @@ describe('a placement ended early', () => {
       return real(fn, opts)
     }) as any)
     try {
-      as(TECHPEPLE)
+      as(TECWYN)
       const r = await complete(between.sellId)
       expect(r.status).toBe(409)
       expect(r.body.error.message).toBe(
@@ -269,7 +269,7 @@ describe('an early end leaves what another placement still needs', () => {
       data: { companyId: firm, clientCompanyId: client, personId: p.personId, billRate: 9_000, state: 'IN_PROGRESS', startDate: started, endDate: planned },
     })
     await prisma.contractLink.create({ data: { sellContractId: second.id, buyContractId: p.buyId, effectiveFrom: started, effectiveTo: null } })
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await complete(p.sellId)
     expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200)
     // Her row and the pay line keep their end: the second placement still pays through them.
@@ -297,7 +297,7 @@ describe('an early end leaves what another placement still needs', () => {
       include: { candidates: true },
     })
     const link = await prisma.contractLink.create({ data: { sellContractId: p.sellId, buyContractId: next.id, effectiveFrom: later, effectiveTo: planned } })
-    as(TECHPEPLE)
+    as(TECWYN)
     const r = await complete(p.sellId)
     expect(r.status, JSON.stringify(r.body).slice(0, 300)).toBe(200)
     const after = await prisma.contractLink.findUniqueOrThrow({ where: { id: link.id } })

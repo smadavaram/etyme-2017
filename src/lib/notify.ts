@@ -302,7 +302,7 @@ async function deliver(
       configuredSenders(),
       new Date(),
       appLink(page),
-      { companyId, personId }
+      { companyId, personId, mail: { template: 'notice', recordType: 'Notification', recordId: notificationId } }
     )
 
     await prisma.notification.update({

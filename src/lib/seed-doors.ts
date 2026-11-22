@@ -922,7 +922,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
         companyId: nurseCorp.id,
         type,
         status: 'CLEAR',
-        provider: 'Cincinnati Insurance',
+        provider: 'Lakeshore Casualty',
         issuedAt: day(-200),
         validFrom: day(-200),
         expiresAt: day(165),
@@ -943,7 +943,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // ── Karthik Menon, between projects ──────────────────────────────────
   //
   // A GSI's own W2. His page was empty, because the only thing the world
-  // said about him was that Teleworld employs him — and a person seat
+  // said about him was that Tellisford employs him — and a person seat
   // that opens on nothing is the emptiest kind of demo. So the project
   // he has just come off is on the record: three whole calendar months
   // at Corveldt on avionics software assurance, every week of it signed
@@ -956,7 +956,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // latest, lib/contract-cycles) has passed and the payroll runs
   // (lib/seed-payroll-runs) have paid all three.
   //
-  // Deliberately not the open DO-178C seat. That one is Teleworld's to
+  // Deliberately not the open DO-178C seat. That one is Tellisford's to
   // submit him for from its own desk, and submitting him here would take
   // the one thing the integrator door exists to demonstrate and do it
   // before the visitor arrives.
@@ -964,7 +964,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   if (karthik) {
     people++
     const { start, end } = karthikWindow(seedToday())
-    // His I-9, completed by Teleworld before his first day. The start gate
+    // His I-9, completed by Tellisford before his first day. The start gate
     // refuses a W2 start without one, and this seed wrote his line as
     // ENDED without walking the gate — so a man who worked three months
     // on a client site read "nothing on your file" on his own paperwork
@@ -979,8 +979,8 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
           status: 'CLEAR',
           provider: 'E-Verify',
           issuedAt: new Date(start.getTime() - 3 * 86_400_000),
-          uploadedById: seat('teleworld'),
-          verifiedById: seat('teleworld'),
+          uploadedById: seat('tellisford'),
+          verifiedById: seat('tellisford'),
           verifiedAt: new Date(start.getTime() - 2 * 86_400_000),
           result: { outcome: 'CLEAR' },
         },
@@ -988,7 +988,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     }
     const past = await place({
       personId: karthik.id,
-      sellerSlug: 'teleworld',
+      sellerSlug: 'tellisford',
       clientSlug: 'corveldt',
       buyFromId: null,
       contractType: 'W2',
@@ -1014,7 +1014,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
         week,
         standing: 'SIGNED',
         clientById: seat('corveldt'),
-        employerById: seat('teleworld'),
+        employerById: seat('tellisford'),
       })
     }
   }
@@ -1243,7 +1243,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     })
   }
 
-  // ── Techpeple's own consultant, mid-chain ─────────────────────────────
+  // ── Tecwyn's own consultant, mid-chain ─────────────────────────────
   //
   // The sub-vendor's sell side already has something waiting: Ifeoma
   // Balogun is shortlisted with the prime above it, with a screen in the
@@ -1256,13 +1256,13 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   // below them, and until now that leg's money was written already paid.
   // One bill apiece, unsettled, so the desk that sells also has
   // something to answer as a customer.
-  await billFromBelow('computer-systems', 'techpeple', 'CE-2026-0418')
-  await billFromBelow('teleworld', 'nimbus', 'NT-2026-1190')
+  await billFromBelow('computer-systems', 'tecwyn', 'CE-2026-0418')
+  await billFromBelow('tellisford', 'nimbus', 'NT-2026-1190')
 
   const ifeoma = await db.person.findUnique({ where: { primaryEmail: emailOf('Ifeoma Balogun') } })
   if (ifeoma) {
     await asked({
-      companySlug: 'techpeple',
+      companySlug: 'tecwyn',
       name: 'I-9, with the document it is completed from',
       needsSignature: true,
       audience: 'CANDIDATE',

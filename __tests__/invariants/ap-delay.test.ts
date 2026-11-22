@@ -317,14 +317,14 @@ describe('Where the chain leaves the platform, we say so', () => {
   })
 
   it('a chain that ends at a supplier who is not here says the real financier is probably below them', () => {
-    const b = beyondLastParty('TechVista', false)
+    const b = beyondLastParty('Tarnvista', false)
     expect(b.blind).toBe(true)
     expect(b.says).toContain('further down than the last one visible')
     expect(b.says).toContain('invite them')
   })
 
   it('a supplier who is here continues the chain rather than ending it', () => {
-    const b = beyondLastParty('TechVista', true)
+    const b = beyondLastParty('Tarnvista', true)
     expect(b.blind).toBe(false)
     expect(b.says).toContain('measured the same way')
   })

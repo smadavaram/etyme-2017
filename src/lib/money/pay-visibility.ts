@@ -6,9 +6,9 @@
  * `GET /api/contracts?side=buy` asked who the caller was, scoped the
  * rows to the caller's company, and then handed every buy line's pay
  * rate to every staff seat at that company. Karthik Menon is a delivery
- * engineer at Teleworld Solutions — his seat reads assignments and
+ * engineer at Tellisford Solutions — his seat reads assignments and
  * timesheets and nothing about money — and the Buy tab showed him what
- * Teleworld pays each of his colleagues. A pay rate is the most private
+ * Tellisford pays each of his colleagues. A pay rate is the most private
  * figure a firm holds about a person, and the list was the one door onto
  * it that nobody had closed: the placement page, the rate history and the
  * payroll screen all ask for `consultants.cost` before they print one.

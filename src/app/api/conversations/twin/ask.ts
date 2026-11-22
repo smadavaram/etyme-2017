@@ -3802,7 +3802,7 @@ export function cardIdsOf(answer: Answer): string[] {
 // ── Every first screen names a person (founder, 2026-10-19) ──────────
 //
 // "Two things need you: Ingrid Sørensen cannot start on Oct 26 without an
-// I-9; Teleworld Solutions has two people on site with no agreement on
+// I-9; Tellisford Solutions has two people on site with no agreement on
 // file." The names come from the same GET /api/decisions rows the count
 // comes from, so the number on the mark and the sentence are one read.
 // Every row is a card; where one existing route performs the act, the

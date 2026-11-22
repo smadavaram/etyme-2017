@@ -13,8 +13,8 @@ import { useRouter } from 'next/navigation'
  * ── Where the door leads ─────────────────────────────────────────────
  *
  * A company seat lands in the twenty-firm world lib/seed-world builds —
- * a client sits at Northbend Athletic, a bench vendor at Techpeple — not in a private
- * copy with a made-up name. This used to mint "Oxford Corp" for anybody
+ * a client sits at Northbend Athletic, a bench vendor at Tecwyn — not in a private
+ * copy with a made-up name. This used to mint "Orlestone Corp" for anybody
  * who picked the client seat, and the founder, who had just watched
  * Northbend Athletic, Cavanaugh Glassworks and Talvern Medical get built, opened the product and asked
  * why it said Oxford. The world is the demo; the button is a door into
@@ -39,9 +39,9 @@ import { useRouter } from 'next/navigation'
 const WORLD_SEAT: Record<string, { as: string; desk?: string; firm: string }> = {
   CLIENT: { as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' },
   MSP:    { as: 'world-aptiva', firm: 'Aptiva Workforce' },
-  GSI:    { as: 'world-teleworld', firm: 'Teleworld Solutions' },
+  GSI:    { as: 'world-tellisford', firm: 'Tellisford Solutions' },
   PRIME:  { as: 'world-computer-systems', firm: 'Computer Systems Inc' },
-  BENCH:  { as: 'world-techpeple', firm: 'Techpeple' },
+  BENCH:  { as: 'world-tecwyn', firm: 'Tecwyn' },
   // The old buyer's door means the client's chair.
   HIRING: { as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' },
 }
@@ -112,14 +112,14 @@ export function TryDemo({
       seats: [
         { seat: 'CLIENT', label: 'A company hiring contractors', note: 'You pay for it. You never touch a CV. Sit at Northbend Athletic.' },
         { seat: 'MSP', label: 'An MSP running the program', note: 'You run it on the client\'s behalf. Sit at Aptiva Workforce.' },
-        { seat: 'GSI', label: 'A systems integrator delivering a project', note: 'Your own people, and bought ones. Sit at Teleworld Solutions.' },
+        { seat: 'GSI', label: 'A systems integrator delivering a project', note: 'Your own people, and bought ones. Sit at Tellisford Solutions.' },
       ],
     },
     {
       heading: 'You supply it',
       seats: [
         { seat: 'PRIME', label: 'A prime vendor', note: 'You hold the paper on people you did not source. Sit at Computer Systems Inc.' },
-        { seat: 'BENCH', label: 'A staffing firm with a bench', note: 'You sourced them. You are furthest from the money. Sit at Techpeple.' },
+        { seat: 'BENCH', label: 'A staffing firm with a bench', note: 'You sourced them. You are furthest from the money. Sit at Tecwyn.' },
       ],
     },
   ]

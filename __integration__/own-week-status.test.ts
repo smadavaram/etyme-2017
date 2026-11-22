@@ -46,7 +46,7 @@ describe('a one-person firm reads where its own week stands', () => {
   })
 
   it('a week this firm signed reads "Signed · waiting on" the firm below, and a week nobody signed reads its status', () => {
-    expect(statusLine({ status: 'SUBMITTED', signature: { youSigned: true, waitingOn: 'Techpeple' } })).toBe('Signed · waiting on Techpeple')
+    expect(statusLine({ status: 'SUBMITTED', signature: { youSigned: true, waitingOn: 'Tecwyn' } })).toBe('Signed · waiting on Tecwyn')
     expect(statusLine({ status: 'SUBMITTED', signature: { youSigned: false, waitingOn: null } })).toBe('Submitted')
     expect(statusLine({ status: 'APPROVED', signature: { youSigned: true, waitingOn: null } })).toBe('Approved')
   })

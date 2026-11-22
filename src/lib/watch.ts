@@ -23,7 +23,7 @@
  *
  * **Say what will happen, not that something is wrong.** "Certificate
  * expires in 12 days" is a fact. "In 12 days you will not be able to place
- * anybody through Techpeple" is the same fact in the form somebody acts on.
+ * anybody through Tecwyn" is the same fact in the form somebody acts on.
  */
 
 import { format, fromDecimal } from '@/lib/money'
@@ -36,7 +36,7 @@ export type Urgency = 'BLOCKING' | 'SOON' | 'WORTH_KNOWING'
 /**
  * A sentence ending in a company name.
  *
- * "Techpeple Inc.." is the kind of thing that makes automated text read as
+ * "Tecwyn Inc.." is the kind of thing that makes automated text read as
  * automated, and half the names in this industry end in a full stop.
  */
 function endingWith(name: string): string {

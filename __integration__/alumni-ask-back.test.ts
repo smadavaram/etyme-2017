@@ -11,7 +11,7 @@ import { GET as tenure } from '@/app/api/tenure/route'
  *
  *   Northbend Athletic   an eighteen-month limit and a ninety-day break.
  *   Kwame Mensah         741 days on site, left fifty days ago: inside the break.
- *   Cavanaugh Glassworks Nadia Petrova left a hundred days ago: the break is served.
+ *   Cavanaugh Glassworks Nadia Pavlenko left a hundred days ago: the break is served.
  */
 
 const D = '@demo.etyme.local'
@@ -39,7 +39,7 @@ beforeAll(async () => {
   northbend = (await prisma.company.findFirstOrThrow({ where: { name: 'Northbend Athletic' }, select: { id: true } })).id
   kwame = (await prisma.person.findFirstOrThrow({ where: { name: 'Kwame Mensah' }, select: { id: true } })).id
   cavanaugh = (await prisma.company.findFirstOrThrow({ where: { name: 'Cavanaugh Glassworks' }, select: { id: true } })).id
-  nadia = (await prisma.person.findFirstOrThrow({ where: { name: 'Nadia Petrova' }, select: { id: true } })).id
+  nadia = (await prisma.person.findFirstOrThrow({ where: { name: 'Nadia Pavlenko' }, select: { id: true } })).id
 }, 120_000)
 
 describe('ask them back reads the time-limit ledger', () => {
@@ -63,9 +63,9 @@ describe('ask them back reads the time-limit ledger', () => {
     expect(r.body.error.message).toContain('Kwame Mensah cannot be asked back to Northbend Athletic yet.')
   })
 
-  it('Nadia Petrova, out longer than the break, is offered ask them back where the ledger reads her eligible', async () => {
-    const ledger = await rowOn(CORNING_OFFICER, tenure, '/api/tenure', 'people', 'Nadia Petrova')
-    const row = await rowOn(CORNING_OFFICER, alumni, '/api/alumni', 'alumni', 'Nadia Petrova')
+  it('Nadia Pavlenko, out longer than the break, is offered ask them back where the ledger reads her eligible', async () => {
+    const ledger = await rowOn(CORNING_OFFICER, tenure, '/api/tenure', 'people', 'Nadia Pavlenko')
+    const row = await rowOn(CORNING_OFFICER, alumni, '/api/alumni', 'alumni', 'Nadia Pavlenko')
     expect(row.ledgerStatus).toBe(ledger.status)
     expect(row.canReengage).toBe(true)
     expect(row.eligibleDate).toBeNull()
@@ -119,7 +119,7 @@ describe('ask them back is written only for a client the caller acts for, and go
     expect(r.body.error.message).toContain('has not worked at Cavanaugh Glassworks')
   })
 
-  it('asking Nadia Petrova back goes to the supplier Cavanaugh Glassworks paid for her, and none of Cavanaugh’s own people is told it as a supplier', async () => {
+  it('asking Nadia Pavlenko back goes to the supplier Cavanaugh Glassworks paid for her, and none of Cavanaugh’s own people is told it as a supplier', async () => {
     const vertex = await prisma.company.findFirstOrThrow({ where: { name: 'Vertex Global' }, select: { id: true } })
     const since = new Date()
     as(CORNING_HIRING)
@@ -130,7 +130,7 @@ describe('ask them back is written only for a client the caller acts for, and go
     expect(r.body.data.message).toContain('Vertex Global')
 
     const told = await prisma.notification.findMany({
-      where: { createdAt: { gte: since }, title: { contains: 'would like Nadia Petrova back' } },
+      where: { createdAt: { gte: since }, title: { contains: 'would like Nadia Pavlenko back' } },
       select: { companyId: true },
     })
     expect(told.length, 'somebody at the supplier is told').toBeGreaterThan(0)
@@ -158,7 +158,7 @@ describe('whose desk asks somebody back', () => {
     as(CORNING_OFFICER)
     const list = await json(await alumni(req('GET', '/api/alumni')))
     expect(list.body?.error, JSON.stringify(list.body)).toBeUndefined()
-    expect(list.body.data.alumni.some((a: any) => a.name === 'Nadia Petrova')).toBe(true)
+    expect(list.body.data.alumni.some((a: any) => a.name === 'Nadia Pavlenko')).toBe(true)
 
     const before = await askBacksAt(cavanaugh)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia, clientCompanyId: cavanaugh })))
@@ -174,7 +174,7 @@ describe('the alumni list draws Ask back only for the desk that may ask', () => 
     as(CORNING_OFFICER)
     const r = await json(await alumni(req('GET', '/api/alumni')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect(r.body.data.alumni.find((a: any) => a.name === 'Nadia Petrova')?.canReengage, 'the ledger reads her eligible').toBe(true)
+    expect(r.body.data.alumni.find((a: any) => a.name === 'Nadia Pavlenko')?.canReengage, 'the ledger reads her eligible').toBe(true)
     expect(r.body.data.askBack.mayAsk).toBe(false)
     expect(r.body.data.askBack.says).toMatch(/^Asking somebody back to Cavanaugh Glassworks is for the .+, who raises? job requests there/)
 

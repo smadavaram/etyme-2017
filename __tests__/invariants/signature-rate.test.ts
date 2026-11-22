@@ -8,7 +8,7 @@ import { signatureRateCents, type RungRate } from '@/app/api/timesheets/signatur
  * lib/money/hop-ledger): the rate on the rung the signing firm pays on.
  *
  * Helena Marsh's chain: Northbend Athletic pays Computer Systems $145,
- * Computer Systems pays Techpeple $118, Techpeple pays Helena $84.
+ * Computer Systems pays Tecwyn $118, Tecwyn pays Helena $84.
  */
 const ladder: RungRate[] = [
   { sellContractId: 'cs-to-northbend', companyId: 'cs', clientCompanyId: 'northbend', billRateCents: 14_500 },

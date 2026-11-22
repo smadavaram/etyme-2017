@@ -299,7 +299,7 @@ export default function SuppliersPage() {
       setListSummary(body.data.summary)
       loadRequests()
 
-      // The same firm listed twice. Two clients each list Techpeple and
+      // The same firm listed twice. Two clients each list Tecwyn and
       // neither knows the other did — a real state, and one somebody has
       // to be able to fix.
       const dup = await fetch('/api/suppliers/join').then((r) => r.json()).catch(() => null)
@@ -1162,7 +1162,7 @@ export default function SuppliersPage() {
                under RFC 2606. Nothing else in this file was touched — the
                paste parser, the desks and the import are etyme-demand's and
                are unchanged. */
-            'Techpeple, Ravi Menon, ravi@techpeple.example\n' +
+            'Tecwyn, Ravi Menon, ravi@tecwyn.example\n' +
             'Veritan Talent Ltd, priya@veritantalent.example\n' +
             'Brightmoor Staffing <hello@brightmoor.example>'
           }

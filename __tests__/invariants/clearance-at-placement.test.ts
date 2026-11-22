@@ -32,9 +32,9 @@ const preview = (
   extra: Partial<Parameters<typeof startPreview>[0]> = {}
 ) =>
   startPreview({
-    personName: 'Priya Raman',
+    personName: 'Priya Ramesh',
     personVerifications,
-    supplierName: 'Techpeple',
+    supplierName: 'Tecwyn',
     supplierCertificates: insured,
     clientName: 'Northbend Athletic',
     on,
@@ -57,9 +57,9 @@ describe('asking for the papers when somebody is placed', () => {
   it('the preview HR reads and the refusal activation gives are the same sentences', () => {
     const rows = [clear('BACKGROUND_CHECK', inDays(300))]
     const refusal = contractClearance({
-      personName: 'Priya Raman',
+      personName: 'Priya Ramesh',
       personVerifications: rows,
-      supplierName: 'Techpeple',
+      supplierName: 'Tecwyn',
       supplierCertificates: insured,
       clientName: 'Northbend Athletic',
       on,
@@ -138,12 +138,12 @@ describe('what HR is told', () => {
   it('HR is told a placement needs clearing, and the notice says what is outstanding', () => {
     const p = preview([])
     const notice = hrNotice(p, {
-      personName: 'Priya Raman',
+      personName: 'Priya Ramesh',
       roleTitle: 'Validation Engineer',
       askedOfPerson: ['I-9 and E-Verify', 'Background check'],
     })
     expect(notice).not.toBeNull()
-    expect(notice!.title).toContain('Priya Raman')
+    expect(notice!.title).toContain('Priya Ramesh')
     expect(notice!.title).toContain('Northbend Athletic')
     expect(notice!.title).toContain('in 9 days')
     expect(notice!.body).toContain(p.says)
@@ -152,7 +152,7 @@ describe('what HR is told', () => {
   })
 
   it('the notice says what to do about it, never a code', () => {
-    const notice = hrNotice(preview([]), { personName: 'Priya Raman' })
+    const notice = hrNotice(preview([]), { personName: 'Priya Ramesh' })
     expect(notice!.body).toMatch(/on file, then activate|Chase /)
     expect(notice!.body).not.toMatch(/DOCUMENTS_BLOCK|DOCUMENTS_WARN|[A-Z]{4,}_[A-Z]{4,}/)
   })
@@ -162,7 +162,7 @@ describe('what HR is told', () => {
     // firm writes is not either. HR hears about the placement because of
     // the background check, and the notice separates the two.
     const p = preview([clear('I9_EVERIFY')], { extraHeld: [] })
-    const notice = hrNotice(p, { personName: 'Priya Raman' })
+    const notice = hrNotice(p, { personName: 'Priya Ramesh' })
     expect(notice!.body).toMatch(/ours to produce/)
     expect(notice!.body).toMatch(/Non-disclosure agreement/i)
   })
@@ -177,12 +177,12 @@ describe('what HR is told', () => {
     const p = preview([clear('I9_EVERIFY'), clear('BACKGROUND_CHECK', inDays(300))], { extraHeld: [] })
     expect(p.outcome).toBe('PASS')
     expect(p.askOfFirm.map((a) => a.key)).toContain('NDA')
-    expect(hrNotice(p, { personName: 'Priya Raman' })).toBeNull()
+    expect(hrNotice(p, { personName: 'Priya Ramesh' })).toBeNull()
   })
 
   it('a placement whose paperwork is already in order writes HR no notice at all', () => {
     const p = preview([clear('I9_EVERIFY'), clear('BACKGROUND_CHECK', inDays(300))])
-    expect(hrNotice(p, { personName: 'Priya Raman' })).toBeNull()
+    expect(hrNotice(p, { personName: 'Priya Ramesh' })).toBeNull()
   })
 })
 
@@ -211,7 +211,7 @@ describe('the start says who may change a placement, what the I-9 was completed 
   it('names each firm that may change it once, with "or" before the last', () => {
     expect(partiesSay(['Brightmoor Staffing', 'Northbend Athletic', 'Northbend Athletic'])).toBe('Brightmoor Staffing or Northbend Athletic')
     expect(partiesSay(['Brightmoor Staffing', 'Northbend Athletic', null])).toBe('Brightmoor Staffing or Northbend Athletic')
-    expect(partiesSay(['Techpeple', 'Computer Systems', 'Northbend Athletic'])).toBe('Techpeple, Computer Systems or Northbend Athletic')
+    expect(partiesSay(['Tecwyn', 'Computer Systems', 'Northbend Athletic'])).toBe('Tecwyn, Computer Systems or Northbend Athletic')
   })
 
   it('a role that does not start placements is told "Starting a placement is done by", never "activated is done by"', () => {

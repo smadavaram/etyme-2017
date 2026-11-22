@@ -28,7 +28,7 @@ import { askedWeek, openingWeek, allFiledSays } from './asked-week'
 
 interface Placement {
   id: string
-  /** "Northbend Athletic · through Computer Systems · employed by Techpeple" */
+  /** "Northbend Athletic · through Computer Systems · employed by Tecwyn" */
   chain: string
   through: string[]
   payer: string

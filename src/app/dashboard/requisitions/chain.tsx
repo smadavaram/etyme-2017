@@ -187,7 +187,7 @@ export function clearedForSentence(
  * The list printed `approvals[0].reason`, which is whichever row the
  * read path happened to return first. On a $1,152,000 requisition
  * waiting on two names that printed "Within the plan — 5 of 6 approved
- * heads. HR (Priya Natarajan) not needed." beside an Approve button: a
+ * heads. HR (Priya Nagarkar) not needed." beside an Approve button: a
  * true sentence about a desk that had already stood down, read as the
  * reason somebody was being asked. The desks at one rank decide
  * alongside each other in any order, so "first" is not a fact about the

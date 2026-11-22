@@ -25,7 +25,7 @@ export function mayAddConsultant(permissions: readonly string[]): boolean {
 /**
  * The sentence a seat that cannot add reads, naming the roles that can.
  * "Adding a consultant is done by Recruiter, Resource Manager or HR at
- * Teleworld, among other roles there. Ask one of them, or ask whoever
+ * Tellisford, among other roles there. Ask one of them, or ask whoever
  * manages roles there to add it to your role."
  */
 export function whoAddsSays(o: { kind: string | null | undefined; companyName: string | null | undefined }): string {

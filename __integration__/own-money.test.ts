@@ -8,10 +8,10 @@ import { GET as myRate } from '@/app/api/me/submissions/[id]/rate/route'
 /**
  * Karthik Menon opens his own screens, and no sell-side price is on them.
  *
- * He is Teleworld Solutions' own W2, placed at an aerospace client and
- * billed four weeks. `Submission.rate` on his row is what Teleworld
+ * He is Tellisford Solutions' own W2, placed at an aerospace client and
+ * billed four weeks. `Submission.rate` on his row is what Tellisford
  * charges for him; `BuyContractCandidate.payRate` at the bottom of the
- * chain is what Teleworld pays him. Two routes he opens as himself were
+ * chain is what Tellisford pays him. Two routes he opens as himself were
  * reading the first and calling it the second.
  *
  * Asserted as relationships rather than as pinned figures, deliberately:

@@ -23,7 +23,7 @@ const NOW = new Date('2026-08-21T00:00:00Z')
 
 function pkg(over: Partial<Package> = {}): Package {
   return {
-    personName: 'Anita Desai',
+    personName: 'Anita Dalvi',
     rateCents: 13000,
     billMin: 12000,
     billMax: 14000,

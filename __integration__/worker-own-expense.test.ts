@@ -54,23 +54,23 @@ describe('a worker files their own expense from Your work', () => {
     it_.contextType = r.body.data.contextType
   })
 
-  it('Helena files an expense on her placement with Techpeple, and it waits on Techpeple’s approval', async () => {
+  it('Helena files an expense on her placement with Tecwyn, and it waits on Tecwyn’s approval', async () => {
     const d = await page(HELENA)
     it_.helena = d
     const on = d.filing[0]
-    expect(on.payer).toBe('Techpeple')
+    expect(on.payer).toBe('Tecwyn')
     as(HELENA)
     const r = await json(await fileExpense(req('POST', '/api/expenses', body(on.contractId))))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.status).toBe(201)
-    expect(r.body.data.message).toMatch(/^Filed\. Techpeple approves it before it is paid back to you\. /)
+    expect(r.body.data.message).toMatch(/^Filed\. Tecwyn approves it before it is paid back to you\. /)
     it_.expenseId = r.body.data.expense.id
     it_.filed = r.body.data
   })
 
-  it('with no agreement that says which expenses are billable, her expense is stored as not billable and she is told Techpeple decides', async () => {
+  it('with no agreement that says which expenses are billable, her expense is stored as not billable and she is told Tecwyn decides', async () => {
     expect(it_.filed.billable.decidedBy).toBe('NOT_DECIDED')
-    expect(it_.filed.message).toContain('so Techpeple decides whether Computer Systems Inc is billed for it. For now it is recorded as Techpeple’s own cost.')
+    expect(it_.filed.message).toContain('so Tecwyn decides whether Computer Systems Inc is billed for it. For now it is recorded as Tecwyn’s own cost.')
     const e = await prisma.expense.findUniqueOrThrow({ where: { id: it_.expenseId }, select: { billable: true } })
     expect(e.billable).toBe(false)
   })
@@ -83,7 +83,7 @@ describe('a worker files their own expense from Your work', () => {
     expect(e.billable).toBe(false)
   })
 
-  it('once the agreement between Computer Systems and Techpeple lists travel, her travel expense is billable, and a meal is not', async () => {
+  it('once the agreement between Computer Systems and Tecwyn lists travel, her travel expense is billable, and a meal is not', async () => {
     const line = await prisma.sellContract.findUniqueOrThrow({
       where: { id: it_.helena.filing[0].contractId }, select: { id: true, companyId: true, clientCompanyId: true },
     })
@@ -97,8 +97,8 @@ describe('a worker files their own expense from Your work', () => {
     expect(travel.status).toBe(201)
     expect(travel.body.data.billable.decidedBy).toBe('AGREEMENT')
     expect(travel.body.data.message).toBe(
-      'Filed. Techpeple approves it before it is paid back to you. ' +
-        'The agreement between Computer Systems Inc and Techpeple makes travel expenses billable, so Computer Systems Inc is billed for it once it is accepted.'
+      'Filed. Tecwyn approves it before it is paid back to you. ' +
+        'The agreement between Computer Systems Inc and Tecwyn makes travel expenses billable, so Computer Systems Inc is billed for it once it is accepted.'
     )
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: travel.body.data.expense.id } })).billable).toBe(true)
 
@@ -119,7 +119,7 @@ describe('a worker files their own expense from Your work', () => {
     })
     expect(e.personId).toBe(it_.helena.person.id)
     expect(e.sellContractId).toBe(it_.helena.filing[0].contractId)
-    expect(e.company.name).toBe('Techpeple')
+    expect(e.company.name).toBe('Tecwyn')
     expect(e.status).toBe('SUBMITTED')
     expect(Number(e.total)).toBe(412.5)
     expect(e.category).toBe('TRAVEL')
@@ -134,7 +134,7 @@ describe('a worker files their own expense from Your work', () => {
     as(HELENA)
     const r = await json(await fileExpense(req('POST', '/api/expenses', body(top.id))))
     expect(r.status).toBe(422)
-    expect(r.body.error.message).toMatch(/^File it on your placement with Techpeple, which approves it\./)
+    expect(r.body.error.message).toMatch(/^File it on your placement with Tecwyn, which approves it\./)
   })
 
   it('a week filed on her own placement after it ended is told the day it ended and who adds a week still owed', async () => {

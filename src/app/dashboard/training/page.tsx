@@ -23,7 +23,7 @@ import { RefusedState, LoadingState } from '@/components/ui'
  *
  * This page read the bench under `data.listings`, a key `/api/bench` has
  * never returned. So the supply side of every comparison was nought, on
- * every firm, for the life of the screen: Techpeple read "Bench
+ * every firm, for the life of the screen: Tecwyn read "Bench
  * consultants 0 with skills listed" over five fully skilled people, and
  * every skill a client asked for read as an unfilled deficit.
  *

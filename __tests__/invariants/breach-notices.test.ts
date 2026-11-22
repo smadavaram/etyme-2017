@@ -155,11 +155,11 @@ describe('the notice itself is the kind a good company sends', () => {
 
   const toPerson = () => breachPersonNotice({
     breach,
-    person: { name: 'Priya Raman', audience: 'candidate' },
+    person: { name: 'Priya Ramesh', audience: 'candidate' },
     whatWeDid: ['Closed the hole within the hour.'],
     whatToDo: [],
     contact,
-    replyTo: 'priya.raman.personal@gmail.example',
+    replyTo: 'priya.ramesh.personal@gmail.example',
   })
 
   it('says what happened, what data, what we did and what to do — in that order', () => {
@@ -181,7 +181,7 @@ describe('the notice itself is the kind a good company sends', () => {
     const n = toPerson()
     expect(n.channels).toEqual(['EMAIL'])
     expect(n.card).toBeNull()
-    expect(n.to).toBe('priya.raman.personal@gmail.example')
+    expect(n.to).toBe('priya.ramesh.personal@gmail.example')
     expect(n.body.startsWith('Priya,')).toBe(true)
   })
 

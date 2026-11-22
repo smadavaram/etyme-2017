@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
     // ── A worker reads what they are paid, and never what they are sold at ──
     //
     // A consultant's own rows used to be their SELL contracts: the rate
-    // the client is billed for them. Priya Raman's page listed $112 and a
+    // the client is billed for them. Priya Ramesh's page listed $112 and a
     // proposed $117.60 — the client's price, and with her pay beside it,
     // her employer's whole margin. The person named on a sell contract is
     // its subject, not a party to it; the line they are a party to is the

@@ -129,7 +129,7 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
   let colleague = { id: '', name: '' }
   beforeAll(async () => {
     await freshWorld()
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' }, select: { id: true } })
     const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK }, select: { id: true } })
     karthik = person.id
     const seat = await prisma.context.findFirstOrThrow({
@@ -143,7 +143,7 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
       where: { sellContract: { OR: [{ companyId: firm.id }, { clientCompanyId: firm.id }] }, personId: { not: karthik } },
       select: { person: { select: { id: true, name: true } } },
     })
-    expect(other, 'Teleworld has a colleague with weeks on file').not.toBeNull()
+    expect(other, 'Tellisford has a colleague with weeks on file').not.toBeNull()
     colleague = { id: other!.person.id, name: other!.person.name ?? '' }
   }, 240_000)
 
@@ -159,16 +159,16 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
 
     const theirs = await json(await listTimesheets(req('GET', `/api/timesheets?limit=50&personId=${colleague.id}`, undefined, { 'x-context-id': contextId })))
     expect(theirs.status, JSON.stringify(theirs.body)).toBe(403)
-    // Named only where Teleworld knows the person: a seat there, or a
-    // line of Teleworld's own that bills for or pays them. Anybody else —
-    // a sub-vendor's worker Teleworld is only the client of — is "That
+    // Named only where Tellisford knows the person: a seat there, or a
+    // line of Tellisford's own that bills for or pays them. Anybody else —
+    // a sub-vendor's worker Tellisford is only the client of — is "That
     // timesheet" (round five, problem 8; name-if-known).
-    const tw = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' } })).id
+    const tw = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' } })).id
     const known = (await prisma.context.count({ where: { personId: colleague.id, companyId: tw, revokedAt: null } }))
       + (await prisma.sellContract.count({ where: { personId: colleague.id, companyId: tw } }))
       + (await prisma.buyContractCandidate.count({ where: { personId: colleague.id, buyContract: { companyId: tw } } }))
     expect(theirs.body.error.message).toBe(
-      `${known ? `${colleague.name}’s timesheet` : 'That timesheet'} is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.`
+      `${known ? `${colleague.name}’s timesheet` : 'That timesheet'} is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.`
     )
     expect(namesAPermission(theirs.body.error.message)).toBe(false)
     const logged = await refusalsBy(karthik, 'Timesheets refused')
@@ -176,15 +176,15 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
   })
 
   it('a supplier’s AP & Payroll and Account Manager, who have timesheet desks, still read the firm’s weeks', async () => {
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' }, select: { id: true } })
     for (const name of ['AP & Payroll', 'Account Manager']) {
       // The default role, as `rolesFor` writes it for an integrator.
       const permissions = rolesFor('GSI').find((r) => r.name === name)!.permissions
       const role =
         (await prisma.role.findFirst({ where: { companyId: firm.id, name }, select: { id: true } })) ??
         (await prisma.role.create({ data: { companyId: firm.id, name, isDefault: true, permissions }, select: { id: true } }))
-      const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@teleworld.test.etyme.invalid`
-      const p = await prisma.person.create({ data: { primaryEmail: email, name: `Teleworld ${name}` }, select: { id: true } })
+      const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@tellisford.test.etyme.invalid`
+      const p = await prisma.person.create({ data: { primaryEmail: email, name: `Tellisford ${name}` }, select: { id: true } })
       const ctx = await prisma.context.create({
         data: { personId: p.id, companyId: firm.id, type: 'EMPLOYEE', roleId: role.id, grantReason: 'Test desk' },
         select: { id: true },
@@ -202,20 +202,20 @@ describe('an integrator’s own engineer, whose seat reads only its own work', (
 /**
  * Round five of the sign-up walk (2026-10-08), problems 3, 4 and 8. Karthik
  * Menon's seat reads his own work and his own hours and holds no desk. He
- * read all six of Teleworld's submissions with each rate, read the
+ * read all six of Tellisford's submissions with each rate, read the
  * client's band, put a stranger in front of a client with a pasted CV,
- * and a timesheet refusal named a worker at a firm Teleworld has no tie to.
+ * and a timesheet refusal named a worker at a firm Tellisford has no tie to.
  */
 describe('a worker seat with no desk, on the buying side (round five)', () => {
   const KARTHIK = 'karthik.menon@seed.etyme.invalid'
   let karthik = ''
   let contextId = ''
-  let teleworld = ''
+  let tellisford = ''
   const headers = () => ({ 'x-context-id': contextId })
   beforeAll(async () => {
     await freshWorld()
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })
-    teleworld = firm.id
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' }, select: { id: true } })
+    tellisford = firm.id
     karthik = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK }, select: { id: true } })).id
     contextId = (await prisma.context.findFirstOrThrow({
       where: { personId: karthik, companyId: firm.id, type: 'EMPLOYEE' }, select: { id: true },
@@ -223,11 +223,11 @@ describe('a worker seat with no desk, on the buying side (round five)', () => {
   }, 240_000)
 
   it('Karthik reads no colleague’s submission and no rate on the Submissions list', async () => {
-    const colleagues = await prisma.submission.count({ where: { fromCompanyId: teleworld, personId: { not: karthik } } })
-    expect(colleagues, 'Teleworld has put colleagues forward').toBeGreaterThan(0)
+    const colleagues = await prisma.submission.count({ where: { fromCompanyId: tellisford, personId: { not: karthik } } })
+    expect(colleagues, 'Tellisford has put colleagues forward').toBeGreaterThan(0)
     as(KARTHIK)
     const { status, body } = await json(await listSubmissions(
-      req('GET', `/api/submissions?direction=sent&companyId=${teleworld}&limit=50`, undefined, headers())
+      req('GET', `/api/submissions?direction=sent&companyId=${tellisford}&limit=50`, undefined, headers())
     ))
     // Refused outright, or narrowed to his own rows; never the firm's list.
     if (status === 403) {
@@ -244,7 +244,7 @@ describe('a worker seat with no desk, on the buying side (round five)', () => {
 
   it('Karthik asking for a colleague’s submissions by person is refused without naming them', async () => {
     const other = await prisma.submission.findFirstOrThrow({ orderBy: { id: 'asc' },
-      where: { fromCompanyId: teleworld, personId: { not: karthik } },
+      where: { fromCompanyId: tellisford, personId: { not: karthik } },
       select: { person: { select: { id: true, name: true } } },
     })
     as(KARTHIK)
@@ -265,10 +265,10 @@ describe('a worker seat with no desk, on the buying side (round five)', () => {
 
   it('a desk-less seat cannot submit a new person by answering an invitation, and nobody is created', async () => {
     const invitation = await prisma.requirementInvitation.findFirst({
-      where: { toCompanyId: teleworld, requirement: { status: 'OPEN' } }, select: { id: true },
+      where: { toCompanyId: tellisford, requirement: { status: 'OPEN' } }, select: { id: true },
     })
-    expect(invitation, 'Teleworld has an open invitation').not.toBeNull()
-    const before = await prisma.submission.count({ where: { fromCompanyId: teleworld } })
+    expect(invitation, 'Tellisford has an open invitation').not.toBeNull()
+    const before = await prisma.submission.count({ where: { fromCompanyId: tellisford } })
     as(KARTHIK)
     const cv = 'Walk Probe Three\nwalk.probe.three@example.invalid\nDO-178C verification engineer, ten years on avionics test.'
     const { status, body } = await json(await answerInvitation(
@@ -278,22 +278,22 @@ describe('a worker seat with no desk, on the buying side (round five)', () => {
     // Refused at the one door (named for Shared with you) or by the route
     // itself (named for the act); either way in a sentence, and nothing made.
     expect(status, JSON.stringify(body)).toBe(403)
-    expect(body.error.message).toMatch(/^(Shared with you|Answering a job with a CV) is not part of your seat at Teleworld Solutions\./)
+    expect(body.error.message).toMatch(/^(Shared with you|Answering a job with a CV) is not part of your seat at Tellisford Solutions\./)
     expect(namesAPermission(body.error.message)).toBe(false)
     expect(await prisma.person.findUnique({ where: { primaryEmail: 'walk.probe.three@example.invalid' } })).toBeNull()
-    expect(await prisma.submission.count({ where: { fromCompanyId: teleworld } })).toBe(before)
+    expect(await prisma.submission.count({ where: { fromCompanyId: tellisford } })).toBe(before)
   })
 
-  it('a timesheet refusal for a worker Teleworld has no tie to names nobody', async () => {
+  it('a timesheet refusal for a worker Tellisford has no tie to names nobody', async () => {
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' }, select: { id: true } })
-    expect(await prisma.context.count({ where: { personId: helena.id, companyId: teleworld } })).toBe(0)
+    expect(await prisma.context.count({ where: { personId: helena.id, companyId: tellisford } })).toBe(0)
     as(KARTHIK)
     const { status, body } = await json(await listTimesheets(
       req('GET', `/api/timesheets?limit=50&personId=${helena.id}`, undefined, headers())
     ))
     expect(status, JSON.stringify(body)).toBe(403)
     expect(body.error.message).toBe(
-      'That timesheet is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.'
+      'That timesheet is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.'
     )
     // Still a refused read of her data, and logged as one.
     const logged = await refusalsBy(karthik, 'Timesheets refused')
@@ -311,10 +311,10 @@ describe('a worker seat with no desk, on the buying side (round five)', () => {
 describe('a person’s terms with their firm, read from a seat with no desk (round six)', () => {
   const KARTHIK = 'karthik.menon@seed.etyme.invalid'
   const MO = 'mo@walk6.northbend.etyme.invalid'
-  const TW_MEMBER = 'new.colleague@teleworld.etyme.invalid'
+  const TW_MEMBER = 'new.colleague@tellisford.etyme.invalid'
   let karthik = ''
   let karthikCtx = ''
-  let teleworld = ''
+  let tellisford = ''
   let own = ''
   let colleague = { submissionId: '', personId: '', name: '' }
   let moCtx = ''
@@ -326,28 +326,28 @@ describe('a person’s terms with their firm, read from a seat with no desk (rou
 
   beforeAll(async () => {
     await freshWorld()
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-teleworld' }, select: { id: true } })
-    teleworld = firm.id
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' }, select: { id: true } })
+    tellisford = firm.id
     karthik = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK }, select: { id: true } })).id
     karthikCtx = (await prisma.context.findFirstOrThrow({
-      where: { personId: karthik, companyId: teleworld, type: 'EMPLOYEE' }, select: { id: true },
+      where: { personId: karthik, companyId: tellisford, type: 'EMPLOYEE' }, select: { id: true },
     })).id
     own = (await prisma.submission.findFirstOrThrow({
-      where: { fromCompanyId: teleworld, personId: karthik, parentSubmissionId: null }, select: { id: true },
+      where: { fromCompanyId: tellisford, personId: karthik, parentSubmissionId: null }, select: { id: true },
     })).id
     const other = await prisma.submission.findFirstOrThrow({ orderBy: { id: 'asc' },
-      where: { fromCompanyId: teleworld, personId: { not: karthik }, parentSubmissionId: null },
+      where: { fromCompanyId: tellisford, personId: { not: karthik }, parentSubmissionId: null },
       select: { id: true, personId: true, person: { select: { name: true } } },
     })
     colleague = { submissionId: other.id, personId: other.personId, name: other.person.name ?? '' }
 
     // The seat a colleague gets on arrival, with no permission at all.
     const member =
-      (await prisma.role.findFirst({ where: { companyId: teleworld, name: 'Member' }, select: { id: true } })) ??
-      (await prisma.role.create({ data: { companyId: teleworld, name: 'Member', isDefault: true, permissions: [] }, select: { id: true } }))
+      (await prisma.role.findFirst({ where: { companyId: tellisford, name: 'Member' }, select: { id: true } })) ??
+      (await prisma.role.create({ data: { companyId: tellisford, name: 'Member', isDefault: true, permissions: [] }, select: { id: true } }))
     memberId = (await prisma.person.create({ data: { primaryEmail: TW_MEMBER, name: 'Tess Member' }, select: { id: true } })).id
     memberCtx = (await prisma.context.create({
-      data: { personId: memberId, companyId: teleworld, type: 'EMPLOYEE', roleId: member.id, grantReason: 'Joined on the domain' },
+      data: { personId: memberId, companyId: tellisford, type: 'EMPLOYEE', roleId: member.id, grantReason: 'Joined on the domain' },
       select: { id: true },
     })).id
 
@@ -373,7 +373,7 @@ describe('a person’s terms with their firm, read from a seat with no desk (rou
     const { status, body } = await readTerms(colleague.submissionId, karthikCtx)
     expect(status, JSON.stringify(body)).toBe(403)
     expect(body.error.message).toBe(
-      'Somebody else’s terms is not part of your seat at Teleworld Solutions. Ask your company’s owner if you need it.'
+      'Somebody else’s terms is not part of your seat at Tellisford Solutions. Ask your company’s owner if you need it.'
     )
     expect(JSON.stringify(body)).not.toContain(colleague.name)
     expect(JSON.stringify(body)).not.toMatch(/payRate|\/hr/)
@@ -416,12 +416,12 @@ describe('a person’s terms with their firm, read from a seat with no desk (rou
       (r) => r.permissions.includes('submissions.read') && !r.permissions.includes('*' as any)
     )!
     const role =
-      (await prisma.role.findFirst({ where: { companyId: teleworld, name: recruiting.name }, select: { id: true } })) ??
-      (await prisma.role.create({ data: { companyId: teleworld, name: recruiting.name, isDefault: true, permissions: recruiting.permissions }, select: { id: true } }))
-    const email = 'recruiting.desk@teleworld.test.etyme.invalid'
-    const p = await prisma.person.create({ data: { primaryEmail: email, name: 'Teleworld recruiting desk' }, select: { id: true } })
+      (await prisma.role.findFirst({ where: { companyId: tellisford, name: recruiting.name }, select: { id: true } })) ??
+      (await prisma.role.create({ data: { companyId: tellisford, name: recruiting.name, isDefault: true, permissions: recruiting.permissions }, select: { id: true } }))
+    const email = 'recruiting.desk@tellisford.test.etyme.invalid'
+    const p = await prisma.person.create({ data: { primaryEmail: email, name: 'Tellisford recruiting desk' }, select: { id: true } })
     const ctx = await prisma.context.create({
-      data: { personId: p.id, companyId: teleworld, type: 'EMPLOYEE', roleId: role.id, grantReason: 'Test desk' },
+      data: { personId: p.id, companyId: tellisford, type: 'EMPLOYEE', roleId: role.id, grantReason: 'Test desk' },
       select: { id: true },
     })
     as(email)
@@ -436,7 +436,7 @@ describe('a person’s terms with their firm, read from a seat with no desk (rou
  * Round six, problem 2. Every rung of a chain writes a sell line carrying
  * the client's job request, and the page priced the filled job from
  * whichever was written last: Northbend read Helena Marsh at $118, the
- * rate Computer Systems pays Techpeple, where Northbend pays $145.
+ * rate Computer Systems pays Tecwyn, where Northbend pays $145.
  */
 describe('a filled job request shows the client the rate it pays (round six)', () => {
   beforeAll(async () => { await freshWorld() }, 240_000)

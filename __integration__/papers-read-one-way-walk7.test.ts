@@ -15,7 +15,7 @@ const HIM = 'samuel.adeyinka@seed.etyme.invalid'
 const HALCYON_HR = 'world-halcyon@demo.etyme.local'
 const CAVANAUGH = 'world-corning-compliance@demo.etyme.local'
 const HELENA = 'helena.marsh@seed.etyme.invalid'
-const TECHPEPLE = 'world-techpeple@demo.etyme.local'
+const TECWYN = 'world-tecwyn@demo.etyme.local'
 const NORTHBEND = 'world-nike-compliance@demo.etyme.local'
 
 async function uploadAt(firmSeatEmail: string, personEmail: string, name: string) {
@@ -36,8 +36,8 @@ beforeAll(async () => {
   await freshWorld()
   // His own upload, from his own page: arrived at his employer, examined by nobody, answering no request.
   await uploadAt(HALCYON_HR, HIM, 'I-9 and E-Verify')
-  // Hers, at Techpeple, the firm below the supplier Northbend pays.
-  await uploadAt(TECHPEPLE, HELENA, 'I-9 and E-Verify')
+  // Hers, at Tecwyn, the firm below the supplier Northbend pays.
+  await uploadAt(TECWYN, HELENA, 'I-9 and E-Verify')
 }, 600_000)
 
 describe('papers read one way, on the seeded world', () => {
@@ -56,8 +56,8 @@ describe('papers read one way, on the seeded world', () => {
     const hers = r.body.data.atSuppliers.filter((a: any) => a.personName === 'Helena Marsh')
     expect(hers.length, JSON.stringify(r.body.data.atSuppliers)).toBeGreaterThanOrEqual(1)
     for (const row of hers) {
-      expect(row.says).not.toContain('Techpeple')
-      expect(row.firmName).not.toContain('Techpeple')
+      expect(row.says).not.toContain('Tecwyn')
+      expect(row.firmName).not.toContain('Tecwyn')
     }
   })
 

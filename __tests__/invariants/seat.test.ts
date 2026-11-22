@@ -20,10 +20,10 @@ import type { CallerContext } from '@/lib/api-context'
 
 function staff(over: Partial<CallerContext> = {}): CallerContext {
   return {
-    person: { id: 'rec-1', name: 'Ravi', primaryEmail: 'ravi@techpeple.example', timezone: null },
-    context: { id: 'ctx', type: 'EMPLOYEE', companyId: 'techpeple', roleId: 'role-1' },
+    person: { id: 'rec-1', name: 'Ravi', primaryEmail: 'ravi@tecwyn.example', timezone: null },
+    context: { id: 'ctx', type: 'EMPLOYEE', companyId: 'tecwyn', roleId: 'role-1' },
     company: {
-      id: 'techpeple', name: 'Techpeple Inc.', slug: 'techpeple', kind: 'VENDOR',
+      id: 'tecwyn', name: 'Tecwyn Inc.', slug: 'tecwyn', kind: 'VENDOR',
       outsideAccess: 'ALLOWED', accountWalls: false, isDemo: false,
     },
     permissions: ['requirements.read', 'consultants.cost'],
@@ -34,10 +34,10 @@ function staff(over: Partial<CallerContext> = {}): CallerContext {
 function onTheBench(over: Partial<CallerContext> = {}): CallerContext {
   return {
     ...staff(),
-    person: { id: 'anita', name: 'Anita Desai', primaryEmail: 'anita@techpeple.example', timezone: null },
+    person: { id: 'anita', name: 'Anita Dalvi', primaryEmail: 'anita@tecwyn.example', timezone: null },
     // The agency's id, because she is listed there. No role, because she
     // does not work there.
-    context: { id: 'ctx', type: 'CONSULTANT', companyId: 'techpeple', roleId: null },
+    context: { id: 'ctx', type: 'CONSULTANT', companyId: 'tecwyn', roleId: null },
     permissions: [],
     ...over,
   }
@@ -73,7 +73,7 @@ describe('a consultant asking for the agency’s book', () => {
 
   it('does not put two full stops in the sentence when the company name ends in one', async () => {
     const body = await staffOnly(onTheBench(), 'Company settings')!.json()
-    expect(body.error.message).toContain('belongs to Techpeple Inc. You are')
+    expect(body.error.message).toContain('belongs to Tecwyn Inc. You are')
   })
 
   it('tells a candidate on nobody’s bench that she is not signed in at a company, never that she is on an agency’s bench', async () => {
@@ -92,7 +92,7 @@ describe('a consultant asking for the agency’s book', () => {
   it('keeps the bench sentence, naming the firm, for somebody actually listed at that firm', async () => {
     const body = await staffOnly(onTheBench(), 'Automation')!.json()
     expect(body.error.message).toBe(
-      'Automation belongs to Techpeple Inc. You are on their bench, not on their staff — your own work is under Your work.'
+      'Automation belongs to Tecwyn Inc. You are on their bench, not on their staff — your own work is under Your work.'
     )
   })
 
@@ -125,8 +125,8 @@ describe('what a consultant sees of contracts, hours, rates and expenses', () =>
   })
 
   it('leaves staff scoped to the company, exactly as before', () => {
-    expect(sellContractScope(staff())).toEqual({ companyId: 'techpeple' })
-    expect(buyContractScope(staff())).toEqual({ companyId: 'techpeple' })
+    expect(sellContractScope(staff())).toEqual({ companyId: 'tecwyn' })
+    expect(buyContractScope(staff())).toEqual({ companyId: 'tecwyn' })
   })
 
   it('narrows a query to the person when they are on a bench, and not otherwise', () => {
@@ -138,7 +138,7 @@ describe('what a consultant sees of contracts, hours, rates and expenses', () =>
 describe('an invoice, and who is party to it', () => {
   it('scopes to the two companies on the agreement behind it', () => {
     expect(invoiceScope(staff())).toEqual({
-      engagement: { msa: { OR: [{ vendorId: 'techpeple' }, { clientId: 'techpeple' }] } },
+      engagement: { msa: { OR: [{ vendorId: 'tecwyn' }, { clientId: 'tecwyn' }] } },
     })
   })
 
@@ -151,8 +151,8 @@ describe('who may see a role, and who may see the shortlist behind it', () => {
   it('shows a vendor their own roles, roles they were invited to, and the open market', () => {
     const scope = requirementScope(staff()) as any
     expect(scope.OR).toEqual([
-      { companyId: 'techpeple' },
-      { invitations: { some: { toCompanyId: 'techpeple' } } },
+      { companyId: 'tecwyn' },
+      { invitations: { some: { toCompanyId: 'tecwyn' } } },
       { openToNetwork: true, status: 'OPEN', company: { isDemo: false } },
     ])
   })
@@ -195,11 +195,11 @@ describe('who may see a role, and who may see the shortlist behind it', () => {
     // Seeing a role is one thing — a supplier invited to it should. The
     // shortlist is names, headlines, skills and scores: somebody's bench
     // with the prices taken off.
-    expect(raisedIt(staff(), { companyId: 'techpeple' })).toBe(true)
+    expect(raisedIt(staff(), { companyId: 'tecwyn' })).toBe(true)
     expect(raisedIt(staff(), { companyId: 'northwind' })).toBe(false)
   })
 
   it('never gives the match list to the consultant sitting on it', () => {
-    expect(raisedIt(onTheBench(), { companyId: 'techpeple' })).toBe(false)
+    expect(raisedIt(onTheBench(), { companyId: 'tecwyn' })).toBe(false)
   })
 })

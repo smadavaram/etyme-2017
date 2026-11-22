@@ -223,11 +223,11 @@ describe('a firm is recognized by the record, never by capitals', () => {
   })
 
   it('a firm on Etyme’s record that the reader does not trade with is still another company’s book', async () => {
-    expect(await anotherFirmsMoneyOnRecord('What does Pinnacle Resourcing pay its people?', 'Techpeple', { people: [], firms: [] }, async (n) => n === 'Pinnacle Resourcing')).toBe(true)
+    expect(await anotherFirmsMoneyOnRecord('What does Pinnacle Resourcing pay its people?', 'Tecwyn', { people: [], firms: [] }, async (n) => n === 'Pinnacle Resourcing')).toBe(true)
   })
 
   it('an unknown capitalized name is not a firm by the words alone, but a legal form still is', () => {
-    expect(anotherFirmsMoney('What does Ruth Ellis pay?', 'Techpeple', { people: [], firms: [] })).toBe(false)
-    expect(anotherFirmsMoney('What does Halden Systems Inc pay its people?', 'Techpeple', { people: [], firms: [] })).toBe(true)
+    expect(anotherFirmsMoney('What does Ruth Ellis pay?', 'Tecwyn', { people: [], firms: [] })).toBe(false)
+    expect(anotherFirmsMoney('What does Halden Systems Inc pay its people?', 'Tecwyn', { people: [], firms: [] })).toBe(true)
   })
 })

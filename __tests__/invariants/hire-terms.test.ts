@@ -111,8 +111,8 @@ describe('the person’s own terms — hop 0', () => {
   })
 
   it('the buyer is told in a sentence that what the seller pays below it is not the buyer’s to set at the award', () => {
-    expect(payRateIsNotTheBuyers({ sellerName: 'Techpeple', personName: 'Priya Raghunathan' }))
-      .toMatch(/^What Techpeple pays for Priya Raghunathan is agreed between Techpeple and whoever it pays/)
+    expect(payRateIsNotTheBuyers({ sellerName: 'Tecwyn', personName: 'Priya Raghunathan' }))
+      .toMatch(/^What Tecwyn pays for Priya Raghunathan is agreed between Tecwyn and whoever it pays/)
   })
 })
 
@@ -190,11 +190,11 @@ describe('one placement, one word', () => {
 
 describe('the award travels down the chain', () => {
   it('each firm below is told its candidate was selected for the job as it knows it, by the firm it sold to, at its own rate', () => {
-    const t = tellSelected({ personName: 'Ana Ruiz', roleTitle: 'Supply planning analyst', buyerName: 'Techpeple', rateCents: 11_500, currency: 'USD' })
+    const t = tellSelected({ personName: 'Ana Ruiz', roleTitle: 'Supply planning analyst', buyerName: 'Tecwyn', rateCents: 11_500, currency: 'USD' })
     expect(t.title).toBe('Selected — Ana Ruiz for Supply planning analyst')
     expect(t.body).toBe(
-      'Techpeple has a client decision: Ana Ruiz was selected for Supply planning analyst, at the $115/hr you asked. ' +
-      'Techpeple places them with you next, and your contract manager is asked to paper it then.'
+      'Tecwyn has a client decision: Ana Ruiz was selected for Supply planning analyst, at the $115/hr you asked. ' +
+      'Tecwyn places them with you next, and your contract manager is asked to paper it then.'
     )
   })
 
@@ -221,7 +221,7 @@ describe('how they came is read off the chain', () => {
   })
 
   it('a person forwarded up a chain reads through the named supplier to the firm that bought from it, and unnamed to the client', () => {
-    expect(submissionKindWord('NETWORK', 'sent', { chained: true, through: 'Techpeple' })).toBe('Through Techpeple')
+    expect(submissionKindWord('NETWORK', 'sent', { chained: true, through: 'Tecwyn' })).toBe('Through Tecwyn')
     expect(submissionKindWord('NETWORK', 'received', { chained: true, through: null })).toBe('Through the supplier’s own supplier')
   })
 

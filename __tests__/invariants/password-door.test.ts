@@ -315,7 +315,7 @@ describe('the password door says what is true of an address no email can reach',
   })
 
   it('an address on the Etyme demo’s own host keeps the demo page’s guidance', () => {
-    for (const e of ['pm@demo.etyme.com', ' PM@Demo.Etyme.io ', 'world-techpeple@demo.etyme.local']) {
+    for (const e of ['pm@demo.etyme.com', ' PM@Demo.Etyme.io ', 'world-tecwyn@demo.etyme.local']) {
       expect(noPasswordSays(e), e).toBe(DEMO_REFUSAL)
     }
   })

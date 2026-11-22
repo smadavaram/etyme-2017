@@ -14,7 +14,7 @@ const firms: { slug: string; kind: string; owner: string }[] = []
 
 beforeAll(async () => {
   await freshWorld()
-  for (const slug of ['world-teleworld', 'world-nike']) {
+  for (const slug of ['world-tellisford', 'world-nike']) {
     const company = await prisma.company.findFirstOrThrow({ where: { slug }, select: { id: true, kind: true } })
     const owner = await prisma.context.findFirstOrThrow({
       where: { companyId: company.id, revokedAt: null, suspendedAt: null, role: { name: 'Owner' } },

@@ -384,7 +384,7 @@ describe('Payroll Module', () => {
     }
 
     const item = {
-      person: { name: 'Ravi Patel' },
+      person: { name: 'Ravi Purohit' },
       contractType: 'W2',
       payStatus: 'PENDING',
     }

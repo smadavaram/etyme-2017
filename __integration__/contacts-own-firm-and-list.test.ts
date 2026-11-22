@@ -26,8 +26,8 @@ const readiness = await import('@/app/api/onboarding/readiness/route')
 
 const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
-const OTHER_FIRM = `world-techpeple${D}`
-const SEATS = ['brightmoor', 'techpeple', 'nike', 'aptiva', 'computer-systems'].map((s) => `world-${s}${D}`)
+const OTHER_FIRM = `world-tecwyn${D}`
+const SEATS = ['brightmoor', 'tecwyn', 'nike', 'aptiva', 'computer-systems'].map((s) => `world-${s}${D}`)
 
 let brightmoor = { id: '', name: '' }
 const list = async () => {

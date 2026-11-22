@@ -34,7 +34,7 @@ const SELL = [
     requirement: null, workLocation: null, workOrder: null, documentRequirements: [],
   },
   {
-    id: 's3', companyId: 'techpeple', company: { name: 'Techpeple' },
+    id: 's3', companyId: 'tecwyn', company: { name: 'Tecwyn' },
     clientCompany: { id: 'northbend', name: 'Northbend Athletic' }, person: { name: 'Helena Marsh' },
     requirement: { title: 'Data analyst' }, workLocation: { country: 'US', state: 'OH' }, workOrder: ORDER_2,
     documentRequirements: [],
@@ -54,7 +54,7 @@ const BUY = [
     documentRequirements: [row('r-b2', 'NDA', { waivedReason: 'Her own firm signed one', waivedById: 'p-sam', waivedAt: day })],
   },
   {
-    id: 'b3', companyId: 'techpeple', contractType: 'C2C', vendorCompanyId: 'nimbus', company: { name: 'Techpeple' },
+    id: 'b3', companyId: 'tecwyn', contractType: 'C2C', vendorCompanyId: 'nimbus', company: { name: 'Tecwyn' },
     vendorCompany: { name: 'Nimbus Talent', kind: 'VENDOR' }, candidates: [], workOrder: ORDER, sellLinks: [],
     documentRequirements: [],
   },
@@ -66,7 +66,7 @@ const REQUIREMENTS = [
   { ...row('r-o3', 'BADGE'), workOrderId: 'o2', companyId: null, party: null },
   { ...row('r-c1', 'W9', { owedBy: 'CUSTOMER' }), workOrderId: null, companyId: 'brightmoor', party: 'CUSTOMERS' },
   { ...row('r-c2', 'DRUG_SCREEN'), workOrderId: null, companyId: 'brightmoor', party: 'WORKERS_W2' },
-  { ...row('r-c3', 'INSURANCE_GL', { owedBy: 'SUPPLIER', required: false }), workOrderId: null, companyId: 'techpeple', party: 'SUB_VENDORS' },
+  { ...row('r-c3', 'INSURANCE_GL', { owedBy: 'SUPPLIER', required: false }), workOrderId: null, companyId: 'tecwyn', party: 'SUB_VENDORS' },
 ]
 
 const type = (id: string, companyId: string, key: string, label: string) => ({
@@ -126,7 +126,7 @@ describe('the required set of many lines, read at once', () => {
       const alone = await requirementsFor({ sellContractId: id }, fakeDb().db)
       expect(many.get(id)).toEqual(alone)
     }
-    // And the answer is the line's own: s2 has no order, s3 is Techpeple's, on its own order.
+    // And the answer is the line's own: s2 has no order, s3 is Tecwyn's, on its own order.
     expect(many.get('s1')!.items.find((i) => i.key === 'BADGE')).toBeUndefined()
     expect(many.get('s3')!.items.find((i) => i.key === 'BADGE')!.from).toBe('ORDER')
     expect(many.get('s2')!.order).toBeNull()

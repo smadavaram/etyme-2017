@@ -27,7 +27,7 @@ import { POST } from '@/app/api/texts/inbound/route'
 import { verifyInbound, signInbound, reportRefusalNow, readReply, INBOUND_SECRET_ENV } from '@/lib/texts'
 
 const SECRET = 'whsec_' + Buffer.from('a signing secret nobody else holds').toString('base64')
-const BODY = JSON.stringify({ From: 'Ravi Patel <ravi.patel@gmail.com>', Body: 'no im on a contract till march' })
+const BODY = JSON.stringify({ From: 'Ravi Purohit <ravi.patel@gmail.com>', Body: 'no im on a contract till march' })
 
 function request(body: string, headers: Record<string, string> = {}): NextRequest {
   return new NextRequest('https://etyme.example/api/texts/inbound', {
@@ -52,7 +52,7 @@ function nothingWritten() {
 beforeEach(() => {
   vi.clearAllMocks()
   process.env[INBOUND_SECRET_ENV] = SECRET
-  h.findFirst.mockResolvedValue({ id: 'cp1', personId: 'p1', person: { name: 'Ravi Patel' } })
+  h.findFirst.mockResolvedValue({ id: 'cp1', personId: 'p1', person: { name: 'Ravi Purohit' } })
   h.lastAsked.mockResolvedValue({ kind: 'FRESHNESS' })
   h.recordAnswer.mockResolvedValue({ companyId: 'c1', says: 'Thanks, Ravi — marked as on a contract.', needsFollowUp: false })
   h.send.mockResolvedValue(undefined)

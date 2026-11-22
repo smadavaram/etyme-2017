@@ -30,7 +30,7 @@ describe('choosing a subdomain', () => {
   })
 
   it('refuses a name already taken, and says so plainly', () => {
-    const v = checkSubdomain('techpeple', new Set(['techpeple']))
+    const v = checkSubdomain('tecwyn', new Set(['tecwyn']))
     expect(v.ok).toBe(false)
     expect(v.reason).toMatch(/already somebody else's/i)
   })
@@ -159,7 +159,7 @@ describe('where a verified domain points', () => {
 
 describe('changing an address', () => {
   it('keeps the old one working, which is what makes this safe to offer', () => {
-    const a = assessSubdomainChange('techpeple', 'techpeple-talent', 0)
+    const a = assessSubdomainChange('tecwyn', 'tecwyn-talent', 0)
     expect(a.allowed).toBe(true)
     expect(a.consequences.join(' ')).toMatch(/keep working/i)
   })
@@ -184,11 +184,11 @@ describe('changing an address', () => {
 
 describe('working out whose company a visitor is looking at', () => {
   it('reads a company subdomain', () => {
-    expect(tenantFromHost('techpeple.etyme.com')).toEqual({ kind: 'SUBDOMAIN', value: 'techpeple' })
+    expect(tenantFromHost('tecwyn.etyme.com')).toEqual({ kind: 'SUBDOMAIN', value: 'tecwyn' })
   })
 
   it('ignores the port', () => {
-    expect(tenantFromHost('techpeple.etyme.com:3000').value).toBe('techpeple')
+    expect(tenantFromHost('tecwyn.etyme.com:3000').value).toBe('tecwyn')
   })
 
   it('treats our own hosts as the platform rather than a tenant', () => {

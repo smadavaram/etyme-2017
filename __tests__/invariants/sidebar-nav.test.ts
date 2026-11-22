@@ -651,9 +651,9 @@ describe('the + button and the search box, in the header from md up, say what th
  *
  * He is a systems integrator's own W2 — the case CLAUDE.md added the
  * same day under "Who sells and who buys" — so his only context is
- * EMPLOYEE at Teleworld Solutions. The shell read identity off the
+ * EMPLOYEE at Tellisford Solutions. The shell read identity off the
  * seat's type (`contextType === 'CONSULTANT'`) and therefore served him
- * Teleworld's whole integrator menu, while the four pages that are
+ * Tellisford's whole integrator menu, while the four pages that are
  * actually his appeared nowhere at all. The demo door drops him on
  * /dashboard/my-work and nothing in his own navigation pointed back.
  *
@@ -682,7 +682,7 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
 
   it('and still sees what his firm addresses to him, but not the firm’s book, because his seat holds no desk', () => {
     // Not the consultant menu instead. He holds a real seat at
-    // Teleworld, and what the firm sends him lands under its Today.
+    // Tellisford, and what the firm sends him lands under its Today.
     // Sign-up walk, round five: his two reads are of his own work, not a
     // desk, so the firm's Deliver, Operate, Grow and Governance — every
     // submission with its rate, the counterparties, the contacts — are
@@ -714,7 +714,7 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
 
   it('is told they are staff of the firm, not that they are a consultant', () => {
     const props = sidebarPropsFrom({
-      company: { id: 't', name: 'Teleworld Solutions', slug: 'teleworld', kind: 'GSI' },
+      company: { id: 't', name: 'Tellisford Solutions', slug: 'tellisford', kind: 'GSI' },
       contextType: 'EMPLOYEE',
       isWorker: true,
       permissions: GSI_PERMS,
@@ -728,13 +728,13 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
       // The kind of firm, then the role the seat actually holds, or
       // No role yet where it holds none: never "Integrator · Delivery", a
       // tagline that read as a role he does not hold (walk 4, A3).
-      companyName: 'Teleworld Solutions', companyLabel: 'Integrator · No role yet',
+      companyName: 'Tellisford Solutions', companyLabel: 'Integrator · No role yet',
     })
   })
 
   it('the foot of the menu names the role the person actually holds at the firm, or No role yet where the seat holds none or only Member, never a role the seat does not hold', () => {
     const seat = (roleName: string | null) => sidebarPropsFrom({
-      company: { id: 't', name: 'Teleworld Solutions', slug: 'teleworld', kind: 'GSI' },
+      company: { id: 't', name: 'Tellisford Solutions', slug: 'tellisford', kind: 'GSI' },
       contextType: 'EMPLOYEE', isWorker: true, permissions: GSI_PERMS, loading: false, roleName,
     })
     expect(seat(null).companyLabel).toBe('Integrator · No role yet')
@@ -761,10 +761,10 @@ describe('somebody a firm employs and the work is about reads both menus', () =>
   })
 
   it('reads the same answer the engineer\'s own page reads, rather than a second one', () => {
-    // Karthik's working life on the seeded world: employed by Teleworld,
+    // Karthik's working life on the seeded world: employed by Tellisford,
     // one finished placement, no bench listing anywhere.
     const karthik = ownPage({
-      benches: [], employers: ['Teleworld Solutions'],
+      benches: [], employers: ['Tellisford Solutions'],
       placements: 1, submissions: 0, paidEngagements: 1, hasProfile: false,
     })
     expect(karthik.ok).toBe(true)
@@ -1048,7 +1048,7 @@ describe('a menu offers only what this seat can actually open', () => {
   })
 
   it('a delivery engineer who sees no money is shown no money or firm-admin links', () => {
-    // Karthik Menon, a Teleworld delivery engineer: he staffs nobody,
+    // Karthik Menon, a Tellisford delivery engineer: he staffs nobody,
     // sells nobody and sees no money.
     const labels = itemsOf(getNavForKind('GSI', false, {
       worker: true, permissions: ['assignments.read', 'timesheets.read'],
@@ -1248,7 +1248,7 @@ describe('the compliance desk and a person’s own record have a door in every m
   })
 
   it('a GSI’s own engineer is shown Your data once in each hat, never twice in one', () => {
-    // Karthik Menon: Teleworld's W2 and the person the work is about, so
+    // Karthik Menon: Tellisford's W2 and the person the work is about, so
     // he wears two hats. The page belongs to both and prints once in
     // each: under the firm's Settings, and under "You", because it is his.
     const firm = getNavForKind('GSI', false, { worker: true, hat: 'firm' })
@@ -1305,7 +1305,7 @@ describe('a seat that holds everything is shown everything', () => {
   // Found on the browser walk, not in a test: every seeded owner in the
   // world carries the wildcard `*` rather than a list of permissions —
   // `lib/permissions` has read it that way since it was written — and
-  // the menu was comparing strings instead of asking. So Techpeple's
+  // the menu was comparing strings instead of asking. So Tecwyn's
   // owner opened his own company and was shown no Requirements, no
   // Bench, no Invoices and no Payroll, while every one of those routes
   // would have let him in. A menu shorter than the product is the same

@@ -1,6 +1,6 @@
-import { demoAddress, DEMO_ADDRESS_NOTE, type Sender } from '@/lib/notification-delivery'
+import { DEMO_ADDRESS_NOTE, type Sender } from '@/lib/notification-delivery'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
-import { MailRefused, providerMessageOf, type MailProvider } from '@/lib/notify/mail-failure'
+import { MailHeld, sendMail } from '@/lib/notify/mail-door'
 import {
   teamsCard, teamsLinkKind, teamsEdge, TEAMS_LINK_RETIRED_SENTENCE, type TeamsFacts,
 } from '@/lib/notify/teams-link'
@@ -25,73 +25,21 @@ export function emailSender(): Sender | null {
   // The one answer to "can email leave" (lib/notify/mail-leaves): every
   // sentence that promises a letter reads it, so the send agrees with it.
   if (!mailLeaves()) return null
-  const resend = process.env.RESEND_API_KEY
-  const sendgrid = process.env.SENDGRID_API_KEY
-  const from = process.env.NOTIFY_FROM_EMAIL!
 
   return {
     channel: 'EMAIL',
-    async send(to, title, body, _link, html) {
-      // The last guard, for callers that send directly rather than through
-      // attemptDelivery: a reserved demo address is never handed to the
-      // provider. The error carries the reason, so whoever records the
-      // send writes "demo address, nothing sent".
-      if (demoAddress(to)) throw new Error(DEMO_ADDRESS_NOTE)
-      if (resend) {
-        const res = await asked('Resend', () => fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${resend}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ from, to, subject: title, text: body, ...(html ? { html } : {}) }),
-        }))
-        if (!res.ok) throw await refusal('Resend', res)
-        return
-      }
-      const res = await asked('SendGrid', () => fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${sendgrid}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: to }] }],
-          from: { email: from },
-          subject: title,
-          content: [{ type: 'text/plain', value: body }, ...(html ? [{ type: 'text/html', value: html }] : [])],
-        }),
-      }))
-      if (!res.ok) throw await refusal('SendGrid', res)
+    async send(to, title, body, _link, html, about) {
+      // Every email leaves through the one door (lib/notify/mail-door,
+      // record 110): it holds the sender address, refuses CC and a bulk
+      // send, limits a chase, talks to the provider and writes the mail
+      // ledger. This sender only turns its answer back into the throw its
+      // callers already read: the reason goes on whoever's row records it.
+      const sent = await sendMail({ to, subject: title, text: body, html: html ?? null, about: about ?? null })
+      if (sent.outcome === 'SENT') return
+      if (sent.outcome === 'DEMO_SKIPPED') throw new Error(DEMO_ADDRESS_NOTE)
+      if (sent.outcome === 'FAILED_DELIVERY') throw sent.refused ?? new Error(sent.note)
+      throw new MailHeld(sent.note)
     },
-  }
-}
-
-/**
- * The provider's answer to a send it did not take, as a `MailRefused`
- * carrying its status and its own words (cleaned in lib/notify/mail-failure:
- * no address, nothing key-like, at most 300 characters). Until 2026-11-12
- * this threw "Resend returned 403" and never read the body, so a sending
- * domain nobody verified and a bad key read the same.
- */
-async function refusal(provider: MailProvider, res: Response): Promise<MailRefused> {
-  let body: unknown = null
-  try {
-    const text = await res.text()
-    try { body = JSON.parse(text) } catch { body = text }
-  } catch {
-    body = null
-  }
-  return new MailRefused(provider, res.status, providerMessageOf(body))
-}
-
-/** A fetch that never answered is the provider not answering, said the same way. */
-async function asked(provider: MailProvider, call: () => Promise<Response>): Promise<Response> {
-  try {
-    return await call()
-  } catch (err) {
-    // The error of a failed fetch names no secret, but it is cleaned anyway.
-    throw new MailRefused(provider, null, err instanceof Error ? err.message : String(err))
   }
 }
 

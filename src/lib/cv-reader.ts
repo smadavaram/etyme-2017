@@ -92,7 +92,7 @@ const SKILLS = [
 /**
  * Words that appear in sentences and never in names.
  *
- * The tell that separates "Anita Desai" from "A dedicated professional
+ * The tell that separates "Anita Dalvi" from "A dedicated professional
  * with fifteen years". Length and capitalization do not separate those
  * two; grammar does.
  */

@@ -70,10 +70,10 @@ describe('A purchase order is not a buy contract', () => {
   })
 
   it('in the layer cake the two describe different edges entirely', () => {
-    // Techpeple's buy contract pays David Chen. GlobalStaff's PO authorizes
-    // Techpeple to bill GlobalStaff. Different parties, different direction.
-    const buyContract = { payer: 'techpeple', paid: 'david-chen' }
-    const po = { issuedBy: 'globalstaff', issuedTo: 'techpeple' }
+    // Tecwyn's buy contract pays David Chen. GlobalStaff's PO authorizes
+    // Tecwyn to bill GlobalStaff. Different parties, different direction.
+    const buyContract = { payer: 'tecwyn', paid: 'david-chen' }
+    const po = { issuedBy: 'globalstaff', issuedTo: 'tecwyn' }
 
     expect(buyContract.paid).not.toBe(po.issuedTo)
     expect(buyContract.payer).not.toBe(po.issuedBy)
@@ -86,7 +86,7 @@ describe('A subcontract is the one case where the two meet', () => {
 
   it('a C2C buy contract with a vendor company may carry a purchase order', () => {
     const result = canAttachPoToBuyContract({
-      vendorCompanyId: 'techvista',
+      vendorCompanyId: 'tarnvista',
       contractType: 'C2C',
     })
     expect(result.allowed).toBe(true)
@@ -107,7 +107,7 @@ describe('A subcontract is the one case where the two meet', () => {
     // field — it puts wages into a commitment ledger and makes the
     // person look like a supplier in every report downstream.
     const result = canAttachPoToBuyContract({
-      vendorCompanyId: 'techpeple-payroll',
+      vendorCompanyId: 'tecwyn-payroll',
       contractType: 'W2',
     })
     expect(result.allowed).toBe(false)
@@ -116,7 +116,7 @@ describe('A subcontract is the one case where the two meet', () => {
 
   it('a stale vendor company on a W2 row does not make it a purchase', () => {
     const result = canAttachPoToBuyContract({
-      vendorCompanyId: 'techvista',
+      vendorCompanyId: 'tarnvista',
       contractType: 'w2',
     })
     expect(result.allowed).toBe(false)
@@ -124,7 +124,7 @@ describe('A subcontract is the one case where the two meet', () => {
 
   it('a 1099 contractor engaged directly is also not somebody you raise a purchase order to', () => {
     const result = canAttachPoToBuyContract({
-      vendorCompanyId: 'techvista',
+      vendorCompanyId: 'tarnvista',
       contractType: '1099',
     })
     expect(result.allowed).toBe(false)
@@ -132,7 +132,7 @@ describe('A subcontract is the one case where the two meet', () => {
 
   it('a purchase order may be raised to a sub-vendor on a corp-to-corp contract', () => {
     const result = canAttachPoToBuyContract({
-      vendorCompanyId: 'techvista',
+      vendorCompanyId: 'tarnvista',
       contractType: 'C2C',
     })
     expect(result.allowed).toBe(true)
@@ -150,7 +150,7 @@ describe('A subcontract is the one case where the two meet', () => {
   })
 
   it('the buy contract keeps the rate and the purchase order keeps the ceiling', () => {
-    // Techpeple subcontracts Kavitha from TechVista at $105/hr against a
+    // Tecwyn subcontracts Kavitha from Tarnvista at $105/hr against a
     // $180,000 PO — both facts are needed and neither implies the other
     const subcontract = { payRate: 10_500, workOrderId: 'po-1' }
     const po = { id: 'po-1', amountCents: 18_000_000 }

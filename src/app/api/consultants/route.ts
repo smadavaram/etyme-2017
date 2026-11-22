@@ -530,6 +530,7 @@ export async function POST(request: NextRequest) {
         contextId: seat.contextId,
         person: { id: seat.person.id, primaryEmail: addr, passwordHash: seat.person.passwordHash },
         inviterName: caller.person.name,
+        inviterId: caller.person.id,
         company: { id: companyId, name: firmName },
         roleName: 'Employee',
         mode,
