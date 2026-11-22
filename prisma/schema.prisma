@@ -2445,16 +2445,6 @@ model Counterparty {
   /// supplier. Read only by the firm whose register this is.
   vendorNumber String?
 
-  /// A1 (record 110, 2026-11-22): the day a person said what this
-  /// company is to this firm, on the Classify page, and who said it (a
-  /// Person id, with no relation: the ledger row holds the full stamp).
-  /// A CLIENT row with this set says "Customer: pays us". The END_CLIENT
-  /// relationship, written only by that act, says "Client: where our
-  /// people work". Null on every row written before the rule, and a
-  /// company of Kind CLIENT with no row holding it needs classifying.
-  classifiedAt   DateTime?
-  classifiedById String?
-
   @@unique([companyId, otherCompanyId, relationship])
   @@index([otherCompanyId])
   @@index([companyId, status])

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import {
-  addressing, bareAddress, chaseTooSoonSays, ledgerRowFor, nextChaseAt, sendMail, isMailHeld,
+  addressing, bareAddress, chaseTooSoonSays, ledgerRowFor, nextChaseAt, sendMail, recordNotSent, isMailHeld,
   CHASE_UNCHECKED_SAYS, CHASE_WINDOW_HOURS, MAIL_MAX_RECIPIENTS, NO_CC_SAYS, NOBODY_NAMED_SAYS, OTHER_SENDER_SAYS,
   TEMPLATE_NOT_NAMED, tooManySays, type MailLedgerRow, type MailDoorDeps,
 } from '@/lib/notify/mail-door'
@@ -178,6 +178,42 @@ describe('the verified sender is the only way out', () => {
     expect((await sendMail({ to: 'a@firm.test', subject: 's', text: 't' }, d.deps)).outcome).toBe('NOT_CONFIGURED')
     expect(d.handed).toEqual([])
     expect(d.rows[0].outcome).toBe('NOT_CONFIGURED')
+  })
+
+  it('an invitation that cannot leave is on the mail ledger: not set up where no sender is configured, skipped for a demo address, and no provider is called', async () => {
+    const fetched = vi.fn(async () => new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetched)
+    const about = { template: 'invitation', companyId: 'c1', recordType: 'Invitation', recordId: 'i1' }
+    const calls: { outcome: string; to: unknown; template: string | undefined }[] = []
+    const notSent = async (m: any, outcome: string) => { calls.push({ outcome, to: m.to, template: m.about?.template }) }
+    // No sender configured: the caller answers NOT_CONFIGURED and the door is still told.
+    const none = await sendEmailNow({ to: 'a@firm.test', subject: 's', body: 't', about }, { sender: null, notSent })
+    expect(none).toMatchObject({ left: false, state: 'NOT_CONFIGURED' })
+    // A demo address, with a sender configured: skipped, and the sender is never asked.
+    const send = vi.fn(async () => {})
+    const demo = await sendEmailNow({ to: 'helena@seed.etyme.invalid', subject: 's', body: 't', about }, { sender: { channel: 'EMAIL', send }, notSent })
+    expect(demo).toMatchObject({ left: false, state: 'DEMO_SKIPPED' })
+    expect(send).not.toHaveBeenCalled()
+    expect(calls).toEqual([
+      { outcome: 'NOT_CONFIGURED', to: 'a@firm.test', template: 'invitation' },
+      { outcome: 'DEMO_SKIPPED', to: 'helena@seed.etyme.invalid', template: 'invitation' },
+    ])
+    // The door's own row for each, written with everything the caller said it was for.
+    const d = door()
+    await recordNotSent({ to: 'a@firm.test', subject: 's', text: 't', about }, 'NOT_CONFIGURED', { env: {}, record: d.deps.record })
+    await recordNotSent({ to: 'helena@seed.etyme.invalid', subject: 's', text: 't', about }, 'DEMO_SKIPPED', { env: ENV, record: d.deps.record })
+    expect(d.rows.map((r) => [r.outcome, r.toAddresses, r.template, r.companyId, r.recordId])).toEqual([
+      ['NOT_CONFIGURED', ['a@firm.test'], 'invitation', 'c1', 'i1'],
+      ['DEMO_SKIPPED', ['helena@seed.etyme.invalid'], 'invitation', 'c1', 'i1'],
+    ])
+    expect(d.rows.every((r) => r.note && r.provider === null)).toBe(true)
+    expect(d.handed).toEqual([])
+    expect(fetched).not.toHaveBeenCalled()
+    // And send-now reaches the door before it answers, in both cases.
+    const src = readFileSync(join(process.cwd(), 'src/lib/notify/send-now.ts'), 'utf8')
+    expect(src).toMatch(/await notSent\('DEMO_SKIPPED'\)\s+return \{/)
+    expect(src).toMatch(/await notSent\('NOT_CONFIGURED'\)\s+return \{/)
+    vi.unstubAllGlobals()
   })
 })
 

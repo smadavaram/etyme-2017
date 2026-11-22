@@ -292,6 +292,49 @@ async function lastChaseFromLedger(q: { recordType: string; recordId: string; te
   return row?.createdAt ?? null
 }
 
+/** Writes the ledger row for one attempt and gives the result back. Never throws. */
+async function written<R extends MailResult>(
+  mail: MailToSend,
+  verified: string,
+  plan: { to: string[]; bcc: string[] },
+  record: (row: MailLedgerRow) => Promise<void>,
+  deps: Pick<MailDoorDeps, 'onLedgerLost'>,
+  result: R,
+  extra: { provider?: string | null; providerMessageId?: string | null } = {},
+): Promise<R> {
+  const row = ledgerRowFor({
+    about: mail.about, from: verified, to: plan.to, bcc: plan.bcc, subject: mail.subject,
+    outcome: result.outcome, note: result.note,
+    provider: extra.provider ?? null, providerMessageId: extra.providerMessageId ?? null,
+  })
+  try {
+    await record(row)
+  } catch (err) {
+    if (deps.onLedgerLost) deps.onLedgerLost(err, row)
+    // No address and no subject in the log: the outcome and the template only.
+    else console.error(`[mail-door] A ${row.outcome} send of "${row.template}" could not be written to the mail ledger.`)
+  }
+  return result
+}
+
+/**
+ * An email its caller already knows cannot leave: no sender is set up, or
+ * the address is a reserved demo one. Every attempt is on the ledger
+ * (walk, 2026-11-22: an invitation that could not leave wrote no row,
+ * because its caller answered before the door). This writes the row the
+ * door would have written, and never talks to a provider. Never throws.
+ */
+export async function recordNotSent(
+  mail: MailToSend,
+  outcome: 'NOT_CONFIGURED' | 'DEMO_SKIPPED',
+  deps: Pick<MailDoorDeps, 'env' | 'record' | 'onLedgerLost'> = {},
+): Promise<MailResult> {
+  const verified = (deps.env ?? process.env).NOTIFY_FROM_EMAIL ?? ''
+  const plan = addressing(mail, verified)
+  const note = outcome === 'DEMO_SKIPPED' ? DEMO_ADDRESS_NOTE : NOT_SET_UP_SAYS
+  return written(mail, verified, plan, deps.record ?? writeRow, deps, { outcome, left: false, note })
+}
+
 /**
  * Send one email, and write down what came of it. Never throws.
  *
@@ -306,21 +349,8 @@ export async function sendMail(mail: MailToSend, deps: MailDoorDeps = {}): Promi
   const verified = env.NOTIFY_FROM_EMAIL ?? ''
   const plan = addressing(mail, verified)
 
-  const finish = async <R extends MailResult>(result: R, extra: { provider?: string | null; providerMessageId?: string | null } = {}): Promise<R> => {
-    const row = ledgerRowFor({
-      about: mail.about, from: verified, to: plan.to, bcc: plan.bcc, subject: mail.subject,
-      outcome: result.outcome, note: result.note,
-      provider: extra.provider ?? null, providerMessageId: extra.providerMessageId ?? null,
-    })
-    try {
-      await record(row)
-    } catch (err) {
-      if (deps.onLedgerLost) deps.onLedgerLost(err, row)
-      // No address and no subject in the log: the outcome and the template only.
-      else console.error(`[mail-door] A ${row.outcome} send of "${row.template}" could not be written to the mail ledger.`)
-    }
-    return result
-  }
+  const finish = <R extends MailResult>(result: R, extra: { provider?: string | null; providerMessageId?: string | null } = {}): Promise<R> =>
+    written(mail, verified, plan, record, deps, result, extra)
 
   if (!mailLeaves(env)) return finish({ outcome: 'NOT_CONFIGURED', left: false, note: NOT_SET_UP_SAYS })
   if (!plan.ok) return finish({ outcome: 'REFUSED', left: false, note: plan.says })

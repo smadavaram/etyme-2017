@@ -143,6 +143,41 @@ describe('No seeded bank, insurer, screening company or supplier carries a real 
   })
 })
 
+describe('No job on a public page is titled with a product one vendor sells', () => {
+  /**
+   * The walk of 2026-11-22 read a job on two public doors titled with a
+   * hospital-software product's name. The two words of that title, as
+   * hashes, so the guard does not spell them. A skill is not read here:
+   * the world seed still holds product names as skills, and
+   * `docs/demo-names.md` says why.
+   */
+  const RETIRED_TITLE_WORDS = new Set(['49a70bd1e731c8cd', 'de79dda4d18e5f79'])
+  const wordsOf = (text: string) => text.match(/[A-Za-z][A-Za-z0-9-]*/g) ?? []
+  const retiredIn = (text: string) => wordsOf(text).filter((w) => RETIRED_TITLE_WORDS.has(hash(w)))
+  const publicFiles = readdirSync(join(root, 'src/lib/public-site')).filter((f) => /\.tsx?$/.test(f)).map((f) => `src/lib/public-site/${f}`)
+
+  it('no public page file holds a word of the product-named job title, in a title, a skill or a sentence', () => {
+    expect(publicFiles.length).toBeGreaterThan(20)
+    const found = publicFiles.flatMap((f) => retiredIn(read(f)).map(() => f))
+    expect(found).toEqual([])
+  })
+
+  it('no seeded job, role or headline is titled with it, and no seeded note says it', () => {
+    const TITLED = /\b(?:role|title|job|headline|disagreedNote|says): '([^']*)'/g
+    const found: string[] = []
+    for (const f of seedFiles()) {
+      for (const m of read(f).matchAll(TITLED)) if (retiredIn(m[1]).length > 0) found.push(f)
+    }
+    expect(found).toEqual([])
+  })
+
+  it('the guard still bites: the retired title is found when it is written, and the new one is not', () => {
+    const old = ['cipE', 'rekaeB'].map((w) => [...w].reverse().join('')).join(' ') + ' analyst'
+    expect(retiredIn(old)).toHaveLength(2)
+    expect(retiredIn('Laboratory systems analyst')).toEqual([])
+  })
+})
+
 describe('The calling-list fixture holds invented people at reserved addresses', () => {
   it('every firm’s domain is at .example, so no real company’s domain is registered by a test', () => {
     expect(NETWORK.length).toBe(6)

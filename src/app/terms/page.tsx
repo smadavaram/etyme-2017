@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { LegalDocument } from '../legal/document'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Etyme',
+  title: 'Terms of Service',
   description:
     'The agreement between Etyme and the companies and people who use it: what Etyme is and is not, and what each party is responsible for.',
 }

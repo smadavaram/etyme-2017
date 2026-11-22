@@ -131,7 +131,7 @@ export const MEERA = {
 /** Ifeoma Balogun, Tecwyn's, put forward to Computer Systems Inc (`LIVE` in lib/seed-world; the I-9 ask in lib/seed-doors). */
 export const IFEOMA = {
   name: 'Ifeoma Balogun',
-  job: 'Epic Beaker analyst',
+  job: 'Laboratory systems analyst',
   prime: 'computer-systems',
   screenInDays: 3,
   i9AskedDaysAgo: 6,

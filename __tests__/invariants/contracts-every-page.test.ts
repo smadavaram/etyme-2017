@@ -114,14 +114,19 @@ describe('a supplier’s Contracts page counts every line, not the route’s fir
   it('the Contracts page reads the list and the client picker through every page, never one bare fetch', () => {
     const page = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
     expect(page).toContain("readEveryContractPage(asked, fetchPage)")
-    // The picker no longer reads contract pages at all (record 110, A1): who
-    // can be billed comes from the one reader behind the Companies list,
-    // which reads every sell line of the firm with no page limit.
-    expect(page).toContain("fetch('/api/companies/groups?for=bill-to'),")
-    const reader = readFileSync(join(process.cwd(), 'src/app/api/companies/groups.ts'), 'utf8')
-    const lines = reader.slice(reader.indexOf('db.sellContract.findMany({'), reader.indexOf('db.buyContract.findMany('))
-    expect(lines).not.toMatch(/\btake\b|\bskip\b/)
+    expect(page).toContain("readEveryContractPage('sell', fetchPage)")
     expect(page).not.toMatch(/fetch\(`\/api\/contracts\?side=/)
     expect(page).not.toContain("fetch('/api/contracts?side=sell&limit=100')")
+  })
+
+  it('after a contract is activated the open panel reads the same state as the list, without being closed and opened again', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/contracts/page.tsx'), 'utf8')
+    // The activation tells the page to read the list again.
+    expect(page).toContain("<ActivatePanel contractId={contract.id} onDone={(says) => { onToast(says, 'success'); onRefresh() }} />")
+    expect(page).toContain('onRefresh={fetchContracts}')
+    // The panel is drawn from the list's own row for the contract that is open, never from the row as it was when it was clicked.
+    expect(page).toContain('? contracts.find((c) => c.id === selectedContract.id && c.side === selectedContract.side) ?? selectedContract')
+    expect(page).toContain('contract={openContract}')
+    expect(page).not.toContain('contract={selectedContract}')
   })
 })

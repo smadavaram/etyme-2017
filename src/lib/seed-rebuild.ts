@@ -230,8 +230,6 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   // The twin's ledger is history: who acted and about what, kept as it was.
   // The actor is a person's id or the twin's kind, so it is no row's key.
   'RecordAction.recordId': { as: 'RECORD' },
-  // Who said what a company is to the firm; the ledger row holds the stamp.
-  'Counterparty.classifiedById': { as: 'RECORD' },
   // An email attempt belongs to the firm it was sent for, or to the person
   // who acted where no firm is named; the rest is history as it was sent.
   'MailSend.companyId': { as: 'OWNED', to: ['Company'] },

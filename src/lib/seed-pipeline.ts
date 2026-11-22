@@ -305,7 +305,7 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
           ],
         },
         {
-          title: 'Epic Beaker analyst', skills: ['Epic', 'Beaker'], loc: 'Madison, WI',
+          title: 'Laboratory systems analyst', skills: ['LIS', 'Laboratory workflows'], loc: 'Madison, WI',
           inferred: 'a hospital group, Wisconsin', status: 'LIVE', lastSeen: -1,
           adverts: [
             { source: 'LINKEDIN', postedBy: 'Confidential', rate: 12_400, strength: null, because: [] },

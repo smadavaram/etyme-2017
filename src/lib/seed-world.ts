@@ -223,7 +223,7 @@ interface Placement {
 const PLACEMENTS: Placement[] = [
   { role: 'ERP finance consultant',     skills: ['ERP finance', 'General ledger'], loc: 'San Jose, CA',
     routedBy: 'aptiva',  via: ['harlow-health', 'computer-systems', 'tecwyn'], rates: [13800, 11200, 8600] },
-  { role: 'Epic Ambulatory analyst',    skills: ['Epic', 'Ambulatory'],        loc: 'Madison, WI',
+  { role: 'Ambulatory systems analyst', skills: ['Epic', 'Ambulatory'],        loc: 'Madison, WI',
     via: ['harlow-health', 'computer-systems'],                                  rates: [11500, 8400] },
   { role: 'Java microservices engineer',skills: ['Java', 'Spring Boot', 'AWS'],loc: 'Charlotte, NC',
     via: ['merrowfield-bank', 'vertex-global', 'sahasra'],                          rates: [12600, 10200, 7900] },
@@ -530,7 +530,7 @@ export interface Live {
 }
 export const LIVE: readonly Live[] = [
   {
-    role: 'Epic Beaker analyst', skills: ['Epic', 'Beaker', 'LIS'], loc: 'Madison, WI',
+    role: 'Laboratory systems analyst', skills: ['LIS', 'Laboratory workflows', 'HL7'], loc: 'Madison, WI',
     client: 'harlow-health', prime: 'computer-systems', bench: 'tecwyn',
     name: 'Ifeoma Balogun', band: [11000, 13000], primeRate: 12400, benchRate: 9900,
     rounds: [

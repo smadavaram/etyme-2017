@@ -73,8 +73,8 @@ interface Role {
 const ROLES: Role[] = [
   { title: 'SAP FICO consultant', skills: ['SAP FICO', 'S/4HANA'], band: [12000, 14500],
     says: 'Finance is moving off ECC in Q2 and the current team has done configuration but never a cutover. We need somebody who has taken a plant live on S/4 and can say what goes wrong in week two.' },
-  { title: 'Epic Ambulatory analyst', skills: ['Epic', 'Ambulatory', 'Clinical workflows'], band: [10500, 12500],
-    says: 'Two clinics onboarding onto our Epic instance in the autumn. The build is done; this is workflow validation with the clinical leads and the go-live support that follows. Certification current, please.' },
+  { title: 'Ambulatory systems analyst', skills: ['Epic', 'Ambulatory', 'Clinical workflows'], band: [10500, 12500],
+    says: 'Two clinics onboarding onto our clinical records system in the autumn. The build is done; this is workflow validation with the clinical leads and the go-live support that follows. Certification current, please.' },
   { title: 'Java microservices engineer', skills: ['Java', 'Spring Boot', 'Kubernetes'], band: [11500, 13500],
     says: 'Payments platform, twelve services, moving from a shared database to one per service. Team of five. The person will own two of the extractions end to end and sit in the on-call rotation from month two.' },
   { title: 'Validation engineer', skills: ['CSV', 'GAMP 5', 'IQ/OQ/PQ'], band: [9500, 11500],

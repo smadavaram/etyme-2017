@@ -49,6 +49,27 @@ describe('every send attempt is one row on the mail ledger, in the database', ()
     expect(rows.map((r) => [r.outcome, r.note])).toEqual([['FAILED_DELIVERY', 'Resend answered 422: Invalid recipient']])
   })
 
+  it('an invitation that cannot leave is on the ledger: not set up where no sender is configured, skipped for a demo address, and no provider is asked', async () => {
+    const { sendEmailNow } = await import('@/lib/notify/send-now')
+    const asked: string[] = []
+    const sender = { channel: 'EMAIL' as const, send: async (to: string) => { asked.push(to) } }
+    const none = await sendEmailNow(
+      { to: `new.${tag}@client.test`, subject: 'You are invited', body: 't', about: about({ recordType: 'Invitation', recordId: `invite1_${tag}`, template: 'invitation' }) },
+      { sender: null },
+    )
+    expect(none).toMatchObject({ left: false, state: 'NOT_CONFIGURED' })
+    const demo = await sendEmailNow(
+      { to: `new.${tag}@seed.etyme.invalid`, subject: 'You are invited', body: 't', about: about({ recordType: 'Invitation', recordId: `invite2_${tag}`, template: 'invitation' }) },
+      { sender },
+    )
+    expect(demo).toMatchObject({ left: false, state: 'DEMO_SKIPPED' })
+    expect(asked).toEqual([])
+    const one = await mailSendsAbout(`co_${tag}`, 'Invitation', `invite1_${tag}`)
+    expect(one.map((r) => [r.outcome, r.toAddresses, r.template, r.provider])).toEqual([['NOT_CONFIGURED', [`new.${tag}@client.test`], 'invitation', null]])
+    const two = await mailSendsAbout(`co_${tag}`, 'Invitation', `invite2_${tag}`)
+    expect(two.map((r) => [r.outcome, r.toAddresses, r.template, r.provider])).toEqual([['DEMO_SKIPPED', [`new.${tag}@seed.etyme.invalid`], 'invitation', null]])
+  })
+
   it('another company reading the same record id reads none of the rows', async () => {
     expect(await mailSendsAbout(`someone_else_${tag}`, 'Invoice', `inv_${tag}`)).toEqual([])
   })

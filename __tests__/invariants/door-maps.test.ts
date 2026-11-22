@@ -44,7 +44,7 @@ import {
   copyOfDoorMap, defaultCopyOfDoorMap, DOOR_MAPS, DOOR_SEATS, ON_THE_DEMO, READ_LIVE,
 } from '@/lib/public-site/door-maps'
 import {
-  doorFacts, firmLive, programLive, mayReadLive, NO_FACTS, LIVE_READS, PROGRAM_READS, SEEDED_SLUGS, FACTS_WAIT_MS,
+  doorFacts, billsFor, firmLive, programLive, mayReadLive, NO_FACTS, LIVE_READS, PROGRAM_READS, SEEDED_SLUGS, FACTS_WAIT_MS,
   type DoorFacts, type FactsReader, type CompanySeen, type ProgramInvoice,
 } from '@/lib/public-site/door-map-facts'
 import * as SEED from '@/lib/public-site/door-map-seed'
@@ -371,6 +371,31 @@ describe('The suppliers’ map is Brightmoor’s book on Prime vendor and Tecwyn
     expect(view(B, 'ar').headline).toContain('Omar Haddad’s bill to Northbend Athletic is paid.')
   })
 
+  it('the invoice on the sub-vendors’ page says whose hours it bills and at what rate, so it is never read against the rate of another line beside it', () => {
+    // The seeded invoice bills another person's line at $112, beside Helena Marsh's $118 (walk, 2026-11-22).
+    const live = { number: SEED.BILLS_FROM_BELOW.tecwyn.number, from: 'Tecwyn', totalMinor: 448_000, dueInDays: 25, billsFor: billsFor(448_000, [{ person: 'Priya Ramesh', rateCents: 11_200 }]) }
+    expect(live.billsFor).toEqual({ person: 'Priya Ramesh', hours: 40, rateMinor: 11_200 })
+    const owner = view(tecwynMap({ firm: null, receipt: live }), 'owner')
+    expect(stat(owner, 'You bill').value).toBe('$118')
+    expect(stat(owner, 'Your invoice').value).toBe('$4,480')
+    expect(stat(owner, 'Your invoice').sub).toBe('CE-2026-0418, Priya Ramesh, 40 hours at $112, due in 25 days')
+    expect(owner.headline).toContain('Your invoice CE-2026-0418 to Computer Systems Inc, $4,480, is due in 25 days. It bills Priya Ramesh for 40 hours at $112.')
+    // Hours times the rate said is the total said.
+    expect(live.billsFor!.hours * live.billsFor!.rateMinor).toBe(live.totalMinor)
+  })
+
+  it('an invoice whose line does not say exactly whose hours it bills names nobody and no rate', () => {
+    expect(billsFor(448_000, undefined)).toBeNull()
+    expect(billsFor(448_000, [])).toBeNull()
+    expect(billsFor(448_000, [{ person: 'A Person', rateCents: 11_200 }, { person: 'B Person', rateCents: 11_800 }])).toBeNull()
+    expect(billsFor(448_000, [{ person: 'A Person', rateCents: 0 }])).toBeNull()
+    // $4,480 is not a whole number of hundredths of an hour at $118.
+    expect(billsFor(448_000, [{ person: 'A Person', rateCents: 11_800 }])).toBeNull()
+    const owner = view(tecwynMap({ firm: null, receipt: { number: 'CE-2026-0418', from: 'Tecwyn', totalMinor: 448_000, dueInDays: 25, billsFor: null } }), 'owner')
+    expect(stat(owner, 'Your invoice').sub).toBe('CE-2026-0418, due in 25 days')
+    expect(owner.headline).not.toContain('It bills')
+  })
+
   it('Tecwyn’s owner bills Computer Systems Inc $118 and pays Helena Marsh $90, and its recruiter’s seat shows no rate at all', () => {
     expect(HELENA.via).toEqual(['nike', 'computer-systems', 'tecwyn'])
     expect(HELENA.rates).toEqual([14_500, 11_800, 9_000])
@@ -385,7 +410,7 @@ describe('The suppliers’ map is Brightmoor’s book on Prime vendor and Tecwyn
 
   it('Tecwyn’s recruiter reads Ifeoma Balogun put forward to Computer Systems Inc, her phone screen in 3 days and her I-9 asked 6 days ago', () => {
     expect(view(T, 'recruiter').headline).toBe(
-      'Ifeoma Balogun is put forward to Computer Systems Inc for an Epic Beaker analyst job. ' +
+      'Ifeoma Balogun is put forward to Computer Systems Inc for a Laboratory systems analyst job. ' +
       'Her phone screen is in 3 days, and her I-9 was asked for 6 days ago.',
     )
   })
@@ -602,7 +627,7 @@ describe('The live figures are read, bounded, and never guessed', () => {
     }
     const f = await doorFacts('integrators', reader, 500, new Date('2026-10-28T15:00:00Z'))
     expect(asked.sort()).toEqual(['id-world-tellisford NT-2026-1190', 'world-tellisford', 'world-tellisford'])
-    expect(f.receipt).toEqual({ number: 'NT-2026-1190', from: 'Nimbus Talent', totalMinor: 464_000, dueInDays: 25 })
+    expect(f.receipt).toEqual({ number: 'NT-2026-1190', from: 'Nimbus Talent', totalMinor: 464_000, dueInDays: 25, billsFor: null })
     expect(f.firm).toBeNull()
   })
 

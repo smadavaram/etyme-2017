@@ -24,8 +24,7 @@ import {
   type OrderParties,
 } from '@/lib/order-naming'
 import { orderReferenceLabel } from '@/lib/money/order-reference'
-import { NO_CLIENTS_HREF } from '@/lib/money/client-options'
-import { pickerLabel, NO_CUSTOMERS_SAYS, SAME_AS_CUSTOMER, type PickerOption } from '@/lib/counterparty'
+import { clientOptions, NO_CLIENTS_SAYS, NO_CLIENTS_HREF } from '@/lib/money/client-options'
 import { ENGAGEMENT_TYPES, ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
 import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
 import { agreedTermsFrom, withAgreed, stillAgreed, type AgreedTerms } from '@/lib/money/agreed-terms'
@@ -330,10 +329,7 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
   const [errorLink, setErrorLink] = useState<StepLink>(null)
   const [companyId, setCompanyId] = useState<string | null>(null)
   const [consultants, setConsultants] = useState<ConsultantOption[]>([])
-  // Who a bill can go to (customers) and where she can work (clients),
-  // each from the one reader behind the Companies list (record 110, A1).
-  const [clientCompanies, setClientCompanies] = useState<PickerOption[]>([])
-  const [worksites, setWorksites] = useState<PickerOption[]>([])
+  const [clientCompanies, setClientCompanies] = useState<ClientCompanyOption[]>([])
   const [suppliers, setSuppliers] = useState<ClientCompanyOption[]>([])
   const [loadingOptions, setLoadingOptions] = useState(true)
 
@@ -342,12 +338,12 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
     async function loadOptions() {
       setLoadingOptions(true)
       try {
-        const [meRes, consultantsRes, registerRes, billToRes, worksiteRes] = await Promise.all([
+        const [meRes, consultantsRes, contractsRes, registerRes, clientsRes] = await Promise.all([
           fetch('/api/me'),
           fetch('/api/consultants?limit=100'),
+          readEveryContractPage('sell', fetchPage),
           fetch('/api/counterparties'),
-          fetch('/api/companies/groups?for=bill-to'),
-          fetch('/api/companies/groups?for=worksite'),
+          fetch('/api/clients'),
         ])
 
         // Whom this firm buys from: the suppliers on its own register.
@@ -387,14 +383,13 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
           setConsultants(mapped)
         }
 
-        // Whom this firm bills: its customers, the ones a person said pay
-        // it and the ones its own sell contracts bill. Where she works: its
-        // clients. A company loaded as a client that nobody has classified
-        // is offered last, with those words beside its name. Its first
-        // contract has no sell contracts to read, so what was said on
-        // Companies is the whole list.
-        setClientCompanies(billToRes.ok ? (await billToRes.json()).data?.options ?? [] : [])
-        setWorksites(worksiteRes.ok ? (await worksiteRes.json()).data?.options ?? [] : [])
+        // Whom this firm bills: the clients on its register first — the
+        // ones it added from Companies, here or not — then any named on its
+        // own sell contracts. Its first contract has no sell contracts to
+        // read, so the register is the whole list (`lib/money/client-options`).
+        const register = clientsRes.ok ? (await clientsRes.json()).data?.clients ?? [] : []
+        const contracts = contractsRes.ok ? contractsRes.body?.data?.contracts ?? [] : []
+        setClientCompanies(clientOptions(register, contracts))
       } catch {
         // Options loading is best-effort
       } finally {
@@ -542,44 +537,40 @@ function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onC
               </select>
             </div>
 
-            {/* Customer (bill to) and End client */}
+            {/* Client (bill to) and End client */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className={labelClass}>Customer (bill to) *</label>
+                <label className={labelClass}>Client (bill to) *</label>
                 <select
                   required
                   value={form.clientCompanyId}
                   onChange={(e) => setForm({ ...form, clientCompanyId: e.target.value })}
                   className={selectClass}
                 >
-                  <option value="">Select customer…</option>
+                  <option value="">Select client…</option>
                   {clientCompanies.map((c) => (
-                    <option key={c.id} value={c.id}>{pickerLabel(c)}</option>
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
                 {!loadingOptions && clientCompanies.length === 0 && (
                   <p className="text-xs text-etyme-muted mt-1">
-                    <Link href={NO_CLIENTS_HREF} className="text-etyme-action hover:underline">{NO_CUSTOMERS_SAYS}</Link>
+                    <Link href={NO_CLIENTS_HREF} className="text-etyme-action hover:underline">{NO_CLIENTS_SAYS}</Link>
                   </p>
                 )}
               </div>
               <div>
-                <label className={labelClass}>End client (where the consultant works)</label>
+                <label className={labelClass}>End client (where consultant works)</label>
                 <select
                   value={form.endClientCompanyId}
                   onChange={(e) => setForm({ ...form, endClientCompanyId: e.target.value })}
                   className={selectClass}
                 >
-                  <option value="">{SAME_AS_CUSTOMER}</option>
-                  {worksites.map((c) => (
-                    <option key={c.id} value={c.id}>{pickerLabel(c)}</option>
+                  <option value="">Same as billing client</option>
+                  {clientCompanies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-                <p className="text-xs text-etyme-muted mt-1">
-                  Somewhere else? Add it on{' '}
-                  <Link href={NO_CLIENTS_HREF} className="text-etyme-action hover:underline">Companies</Link>
-                  {' '}as “A client: where our people work”.
-                </p>
+                <p className="text-[10px] text-etyme-faint mt-1">Leave empty if same as billing client</p>
               </div>
             </div>
 
@@ -1438,6 +1429,14 @@ export default function ContractsPage() {
     if (found) setSelectedContract(found)
   }, [openId, contracts])
 
+  // The open panel reads the list's own row, so what a press changed (a
+  // contract activated, paused, ended) shows in the panel as it does in
+  // the list, without closing it (walk, 2026-11-22: the panel went on
+  // reading Draft beside "Contract activated").
+  const openContract = selectedContract
+    ? contracts.find((c) => c.id === selectedContract.id && c.side === selectedContract.side) ?? selectedContract
+    : null
+
   // Auto-dismiss toast
   useEffect(() => {
     if (toast) {
@@ -1917,9 +1916,9 @@ export default function ContractsPage() {
         ))}
 
       {/* Contract detail drawer */}
-      {selectedContract && (
+      {openContract && (
         <ContractDetailDrawer
-          contract={selectedContract}
+          contract={openContract}
           tab={tab}
           viewerId={viewerId}
           mayTag={mayTagLines}

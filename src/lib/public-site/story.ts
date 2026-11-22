@@ -580,7 +580,7 @@ export const TECWYN_BENCH_STORY: Story = {
         { who: 'etyme', text: 'Grace Lindqvist and Peter Halloran. Each said yes to being shown to the firms we sell to.' },
         {
           who: 'etyme',
-          text: 'Ifeoma Balogun is put forward to Computer Systems Inc for an Epic Beaker analyst job. Her phone screen is booked. Her I-9 is not signed yet.',
+          text: 'Ifeoma Balogun is put forward to Computer Systems Inc for a Laboratory systems analyst job. Her phone screen is booked. Her I-9 is not signed yet.',
           card: {
             t: 'Remind Ifeoma Balogun to sign her I-9?',
             s: 'Asked, not signed yet · phone screen booked',
@@ -594,7 +594,7 @@ export const TECWYN_BENCH_STORY: Story = {
         rows: [
           ['Grace Lindqvist', 'ERP finance, General ledger', { pill: 'ok', t: 'Shown to partners' }],
           ['Peter Halloran', 'Teamcenter, PLM', { pill: 'ok', t: 'Shown to partners' }],
-          ['Ifeoma Balogun', 'Epic, Beaker, LIS', { pill: 'att', t: 'I-9 not signed', then: { pill: 'wait', t: 'Reminded' } }],
+          ['Ifeoma Balogun', 'LIS, Laboratory workflows, HL7', { pill: 'att', t: 'I-9 not signed', then: { pill: 'wait', t: 'Reminded' } }],
         ],
         flash: 2,
       },

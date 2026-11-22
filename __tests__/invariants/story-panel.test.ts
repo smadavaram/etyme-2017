@@ -655,11 +655,11 @@ describe('Each door plays its own party’s person, every name and figure the se
     expect(WORLD).toMatch(/consultantId: profile\.id, companyId: co\.id, tier: 'MARKETING', state: 'GRANTED'/)
     expect(st.chat[1].text).toBe('Grace Lindqvist and Peter Halloran. Each said yes to being shown to the firms we sell to.')
     // Ifeoma is Tecwyn's, put forward to Computer Systems for Harlow Health's job, screen booked, I-9 asked.
-    const live = WORLD.slice(WORLD.indexOf("role: 'Epic Beaker analyst'"), WORLD.indexOf("role: 'Python market risk developer'"))
+    const live = WORLD.slice(WORLD.indexOf("role: 'Laboratory systems analyst'"), WORLD.indexOf("role: 'Python market risk developer'"))
     expect(live).toMatch(/prime: 'computer-systems', bench: 'tecwyn',\s*name: 'Ifeoma Balogun'/)
     expect(live).toMatch(/stage: 'SCREEN', mode: 'PHONE', state: 'CONFIRMED'/)
     expect(DOORS_SEED).toMatch(/companySlug: 'tecwyn',\s*name: 'I-9, with the document it is completed from',\s*needsSignature: true/)
-    expect(st.chat[2].text).toBe(`Ifeoma Balogun is put forward to ${firm('computer-systems')} for an Epic Beaker analyst job. Her phone screen is booked. Her I-9 is not signed yet.`)
+    expect(st.chat[2].text).toBe(`Ifeoma Balogun is put forward to ${firm('computer-systems')} for a Laboratory systems analyst job. Her phone screen is booked. Her I-9 is not signed yet.`)
     // The seed's other two in flight are other firms' bench, so the panel does not claim them.
     expect(WORLD).toMatch(/bench: 'sahasra',\s*name: 'Tobias Lindgren'/)
     expect(WORLD).toMatch(/bench: 'nimbus',\s*name: 'Meera Balakrishnan'/)
@@ -668,7 +668,7 @@ describe('Each door plays its own party’s person, every name and figure the se
     expect(rows(st)).toEqual([
       ['Grace Lindqvist', skills(tecwyn[0].i % WORLD_PLACEMENTS.length), 'Shown to partners'],
       ['Peter Halloran', skills(tecwyn[1].i % WORLD_PLACEMENTS.length), 'Shown to partners'],
-      ['Ifeoma Balogun', 'Epic, Beaker, LIS', 'I-9 not signed'],
+      ['Ifeoma Balogun', live.match(/skills: \[([^\]]+)\]/)![1].replace(/'/g, '').split(',').map((x) => x.trim()).join(', '), 'I-9 not signed'],
     ])
   })
 

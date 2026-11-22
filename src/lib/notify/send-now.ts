@@ -18,7 +18,7 @@ import { demoAddress, DEMO_ADDRESS_NOTE, reportMailRefused, type Sender } from '
 import { emailSender } from '@/lib/senders'
 import { dressLetter } from './letter-html'
 import { cleanProviderWords, isMailRefused, type MailFailure } from './mail-failure'
-import { isMailHeld, type MailAbout } from './mail-door'
+import { isMailHeld, recordNotSent, type MailAbout, type MailToSend } from './mail-door'
 
 /** The note a row keeps where this deployment has no email sender. */
 export const NOT_SET_UP_NOTE = 'No email provider set up, so this was recorded and not sent.'
@@ -54,6 +54,12 @@ export interface SendNowDeps {
   /** The sender; `emailSender()` when not given. Null means none is set up. */
   sender?: Sender | null
   now?: Date
+  /**
+   * Writes the mail ledger row for an email that cannot leave (no sender,
+   * or a demo address), with no provider call; `recordNotSent` of the mail
+   * door when not given.
+   */
+  notSent?: (mail: MailToSend, outcome: 'NOT_CONFIGURED' | 'DEMO_SKIPPED') => Promise<unknown>
   /** How Etyme's staff are told; `reportMailRefused` when not given. */
   report?: (err: unknown, ctx: { companyId?: string | null; personId?: string | null }) => Promise<void>
 }
@@ -61,7 +67,15 @@ export interface SendNowDeps {
 export async function sendEmailNow(mail: EmailToSend, deps: SendNowDeps = {}): Promise<EmailSent> {
   const now = deps.now ?? new Date()
   const report = deps.report ?? reportMailRefused
+  // Every attempt is on the mail ledger, the two that cannot leave
+  // included: the door writes their row, and no provider is called.
+  const about = mail.about ? { ...mail.about, companyId: mail.about.companyId ?? mail.companyId ?? null } : null
+  const notSent = async (outcome: 'NOT_CONFIGURED' | 'DEMO_SKIPPED') => {
+    const ledger = deps.notSent ?? ((m: MailToSend, o: 'NOT_CONFIGURED' | 'DEMO_SKIPPED') => recordNotSent(m, o))
+    await ledger({ to: mail.to, subject: mail.subject, text: mail.body, about: about ?? (mail.companyId ? { companyId: mail.companyId, template: '' } : null) }, outcome).catch(() => {})
+  }
   if (demoAddress(mail.to)) {
+    await notSent('DEMO_SKIPPED')
     return {
       left: false, state: 'DEMO_SKIPPED', at: null, note: DEMO_ADDRESS_NOTE,
       failure: { kind: 'DEMO', status: null, provider: null, words: null },
@@ -69,6 +83,7 @@ export async function sendEmailNow(mail: EmailToSend, deps: SendNowDeps = {}): P
   }
   const sender = deps.sender === undefined ? emailSender() : deps.sender
   if (!sender) {
+    await notSent('NOT_CONFIGURED')
     return {
       left: false, state: 'NOT_CONFIGURED', at: null, note: NOT_SET_UP_NOTE,
       failure: { kind: 'NOT_SET_UP', status: null, provider: null, words: null },
@@ -76,7 +91,6 @@ export async function sendEmailNow(mail: EmailToSend, deps: SendNowDeps = {}): P
   }
   try {
     const html = mail.html === undefined ? dressLetter(mail.subject, mail.body) : mail.html
-    const about = mail.about ? { ...mail.about, companyId: mail.about.companyId ?? mail.companyId ?? null } : null
     if (html || about) await sender.send(mail.to, mail.subject, mail.body, null, html || null, ...(about ? [about] : []))
     else await sender.send(mail.to, mail.subject, mail.body)
     return { left: true, state: 'SENT', at: now, note: null, failure: null }

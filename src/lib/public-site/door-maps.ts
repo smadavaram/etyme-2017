@@ -196,6 +196,9 @@ const DAY = 86_400_000
 const money = (minor: number) => format(fromMinor(minor, 'USD'), { compact: true })
 const perHour = (cents: number) => money(cents)
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+/** "Priya Ramesh, 40 hours at $112": whose hours a live invoice bills, or null where the record does not say. */
+export const billedFor = (r: { billsFor?: { person: string; hours: number; rateMinor: number } | null }): string | null =>
+  r.billsFor ? `${r.billsFor.person}, ${plural(r.billsFor.hours, 'hour')} at ${perHour(r.billsFor.rateMinor)}` : null
 const clientName = (slug: string) => WORLD_CLIENTS.find((c) => c.slug === slug)!.name
 const firstName = (name: string) => name.split(' ')[0]
 /** A month of a set of bill rates, at 160 hours, in cents. */
@@ -378,7 +381,7 @@ export function tellisfordMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
   const r = facts.receipt
   const signed = signedTotal(f)
   const receiptStat: MapStat = r
-    ? { label: 'Invoice receipt', value: money(r.totalMinor), sub: `${r.from}, ${r.number}, due in ${plural(r.dueInDays, 'day')}` }
+    ? { label: 'Invoice receipt', value: money(r.totalMinor), sub: [r.from, r.number, billedFor(r), `due in ${plural(r.dueInDays, 'day')}`].filter(Boolean).join(', ') }
     : { label: 'Invoice receipt', value: '—', sub: `${nimbus}, ${BILLS_FROM_BELOW.nimbus.number}, ${ON_THE_DEMO}` }
   const karthikMonths = new Date(karthik.end).getUTCMonth() - new Date(karthik.start).getUTCMonth() + 12 * (karthik.end.getUTCFullYear() - karthik.start.getUTCFullYear()) + 1
   const payrollRows: MapCell[][] = f
@@ -623,7 +626,11 @@ export function tecwynMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
     signed: `Signed in as ${owner}, owner. Reads ${possessive(name, '’')} own book: its people, its weeks and its invoices.`,
     headline: [
       `${possessive(helena.person, '’')} newest week at ${northbend} waits for ${HIRING}. Once ${prime} accepts it, you bill ${prime} for the same hours.`,
-      r ? `Your invoice ${r.number} to ${prime}, ${money(r.totalMinor)}, is due in ${plural(r.dueInDays, 'day')}.` : null,
+      r
+        ? r.billsFor
+          ? `Your invoice ${r.number} to ${prime}, ${money(r.totalMinor)}, is due in ${plural(r.dueInDays, 'day')}. It bills ${r.billsFor.person} for ${plural(r.billsFor.hours, 'hour')} at ${perHour(r.billsFor.rateMinor)}.`
+          : `Your invoice ${r.number} to ${prime}, ${money(r.totalMinor)}, is due in ${plural(r.dueInDays, 'day')}.`
+        : null,
     ].filter(Boolean).join(' '),
     stats: [
       { label: 'On site', value: '1', sub: `${helena.person}, ${northbend}` },
@@ -631,7 +638,7 @@ export function tecwynMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
       { label: 'You pay', value: perHour(ownRate), sub: `an hour, to ${helena.person}` },
       { label: 'Weeks signed', value: String(weeks.approved), sub: `${weeks.awaiting} waiting at the client`, att: weeks.awaiting > 0 },
       r
-        ? { label: 'Your invoice', value: money(r.totalMinor), sub: `${r.number}, due in ${plural(r.dueInDays, 'day')}` }
+        ? { label: 'Your invoice', value: money(r.totalMinor), sub: [r.number, billedFor(r), `due in ${plural(r.dueInDays, 'day')}`].filter(Boolean).join(', ') }
         : { label: 'Your invoice', value: '—', sub: `${BILLS_FROM_BELOW.tecwyn.number}, ${ON_THE_DEMO}` },
     ],
     columns: [{ t: 'Person' }, { t: 'Job' }, { t: 'Through' }, { t: 'Bill', right: true }, { t: 'Pay', right: true }, { t: 'Step' }],
@@ -655,7 +662,7 @@ export function tecwynMap(facts: DoorFacts): RoleMap<string, SeatTarget> {
     key: 'recruiter', tab: 'Recruiter',
     signed: `Signed in as ${TECWYN_RECRUITER}, recruiter. Finds people and puts them forward. Never sees what anybody costs.`,
     headline:
-      `${IFEOMA.name} is put forward to ${ifeomaFirm} for an ${IFEOMA.job} job. ` +
+      `${IFEOMA.name} is put forward to ${ifeomaFirm} for a ${IFEOMA.job} job. ` +
       `Her phone screen is in ${plural(IFEOMA.screenInDays, 'day')}, and her I-9 was asked for ${plural(IFEOMA.i9AskedDaysAgo, 'day')} ago.`,
     stats: [
       { label: 'Put forward', value: '1', sub: IFEOMA.name },

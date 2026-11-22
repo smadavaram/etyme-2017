@@ -26,7 +26,7 @@ import { MAP_WHO } from '@/lib/map-gate'
  */
 export const dynamic = 'force-static'
 
-export const metadata = { title: 'The map · Etyme' }
+export const metadata = { title: 'The map' }
 
 export default function MapPage() {
   const tests = [...new Set(allProcesses().flatMap((r) => r.l3.testedBy ?? []))]

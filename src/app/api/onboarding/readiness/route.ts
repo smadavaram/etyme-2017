@@ -6,8 +6,6 @@ import { hasAnyPermission, askTheDesk } from '@/lib/permissions'
 import {
   clientChecklist, supplierChecklist, consultantChecklist, assignmentChecklist, SETS_UP_A_PARTY,
 } from '@/lib/party-onboarding'
-import { positionsFor } from '../../companies/positions'
-import { groupsFor } from '../../companies/groups'
 
 /**
  * GET /api/onboarding/readiness — the five onboardings, derived live.
@@ -67,18 +65,8 @@ export async function GET(request: NextRequest) {
         (m.clientId === companyId && m.vendorId === otherId)
     )
 
-  // A company loaded as a client is nobody's customer until a person says
-  // so (record 110, A1), so it has no customer checklist yet. Asked of the
-  // one reader behind the Companies list.
-  const asCustomer = counterparties.filter((c) => c.relationship === 'CLIENT')
-  const listed = await prisma.company.findMany({
-    where: { id: { in: asCustomer.map((c) => c.otherCompanyId) } },
-    select: { id: true, kind: true, claimedAt: true, listedById: true },
-  })
-  const read = await groupsFor({ id: companyId, kind: caller.company!.kind }, listed, await positionsFor(companyId, listed))
-
-  const clients = asCustomer
-    .filter((c) => !read.get(c.otherCompanyId)?.needsClassifying)
+  const clients = counterparties
+    .filter((c) => c.relationship === 'CLIENT')
     .map((c) =>
       clientChecklist({
         name: c.otherCompany.name,

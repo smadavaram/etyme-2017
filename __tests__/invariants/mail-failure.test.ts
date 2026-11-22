@@ -206,14 +206,14 @@ describe('One awaited send, for a caller that must not say "emailed" early', () 
   it('a demo address is recorded as skipped, not failed, the sender is never asked and staff are not told', async () => {
     const send = vi.fn(async () => {})
     const report = vi.fn(async () => {})
-    const out = await sendEmailNow({ to: 'helena@seed.etyme.invalid', subject: 'S', body: 'B' }, { sender: { channel: 'EMAIL', send }, report })
+    const out = await sendEmailNow({ to: 'helena@seed.etyme.invalid', subject: 'S', body: 'B' }, { sender: { channel: 'EMAIL', send }, report, notSent: async () => {} })
     expect(out.state).toBe('DEMO_SKIPPED')
     expect(send).not.toHaveBeenCalled()
     expect(report).not.toHaveBeenCalled()
   })
 
   it('a deployment with no email sender is recorded as not set up and nobody is told it went', async () => {
-    const out = await sendEmailNow({ to: TO, subject: 'S', body: 'B' }, { sender: null })
+    const out = await sendEmailNow({ to: TO, subject: 'S', body: 'B' }, { sender: null, notSent: async () => {} })
     expect(out).toMatchObject({ left: false, state: 'NOT_CONFIGURED', note: NOT_SET_UP_NOTE })
     if (!out.left) expect(mailFailureSays(out.failure)).toBe(`${NO_MAIL_HERE}.`)
   })

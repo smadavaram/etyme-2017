@@ -1,8 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import { register, positionsOf, isMine, isNotClassified, lacksPosition, historyUndoSays, CAN_BE_UNDONE, classifiedSays, entityForSaying, END_CLIENT_ROW, type Position, type PositionWork, type ExtendAs } from '@/lib/counterparty'
-import { writeRecordAction, recordTimeline } from '@/lib/record-ledger'
-import { roleWords } from '@/lib/access-grant'
+import { register, positionsOf, isMine, isNotClassified, lacksPosition, historyUndoSays, CAN_BE_UNDONE, type Position, type PositionWork, type ExtendAs } from '@/lib/counterparty'
 
 export { lacksPosition }
 
@@ -131,55 +129,6 @@ export async function writeCustomerPosition(
     create: { companyId: input.me, otherCompanyId: input.otherId, relationship: 'CLIENT', status: 'ACTIVE', createdById: input.byId },
   })
   return { msaId: msa?.id ?? null, madeAgreement: !existing && msa != null }
-}
-
-/**
- * A person saying what a company is, at a door other than the Classify
- * page (record 110, A1): Add a company, the clients door and Extend to
- * Customer. Each is somebody saying "this company pays us" or "our people
- * work there", so nobody is asked a second time: the day and the person
- * go on the row, and the same ledger row the Classify page writes is
- * written. "Customer" stamps the CLIENT row the door has just written;
- * "client" writes the END_CLIENT row. Nothing a person said before is
- * taken off, and the Kind is not read or changed.
- *
- * Returns false, having written nothing, where the firm has several
- * legal entities and the act names none of its own (`entityForSaying`):
- * the caller says so in its reply and the company reads Needs classifying.
- */
-export async function sayWhatItIs(
-  db: Db,
-  input: {
-    me: string
-    other: { id: string; name: string }
-    by: { id: string; name: string; roleId: string | null }
-    customer: boolean
-    client: boolean
-    actingEntityId?: unknown
-  },
-): Promise<boolean> {
-  const [entities, role] = await Promise.all([
-    db.legalEntity.findMany({ where: { companyId: input.me }, select: { id: true } }),
-    input.by.roleId ? db.role.findUnique({ where: { id: input.by.roleId }, select: { name: true } }) : null,
-  ])
-  const entity = entityForSaying(entities.map((e) => e.id), typeof input.actingEntityId === 'string' ? input.actingEntityId : null)
-  if (!entity.ok) return false
-  const stamp = { classifiedAt: new Date(), classifiedById: input.by.id }
-  const row = { companyId: input.me, otherCompanyId: input.other.id }
-  if (input.customer) await db.counterparty.updateMany({ where: { ...row, relationship: 'CLIENT' }, data: stamp })
-  if (input.client) {
-    await db.counterparty.upsert({
-      where: { companyId_otherCompanyId_relationship: { ...row, relationship: END_CLIENT_ROW } },
-      update: stamp,
-      create: { ...row, relationship: END_CLIENT_ROW, status: 'ACTIVE', createdById: input.by.id, ...stamp },
-    })
-  }
-  await writeRecordAction(db, {
-    companyId: input.me, recordType: 'Company', recordId: input.other.id, action: 'COMPANY_CLASSIFIED',
-    summary: classifiedSays(input.by.name, input.other.name, input),
-    personId: input.by.id, heldAs: roleWords(role?.name ?? null), actingEntityId: entity.id,
-  })
-  return true
 }
 
 /** The Supplier position: the SUPPLIER register row, what Add a company writes today. */
@@ -327,21 +276,8 @@ export async function historyOf(
     }
   })
   const says = historyUndoSays(read, now)
-  const acts: HistoryRow[] = read.map((r, i) => ({ ...r, reversible: says[i] === CAN_BE_UNDONE, undoSays: says[i] }))
-  // What a person said it is (customer, client or both), from the record
-  // ledger: the Classify page, this drawer, and the doors that say it once.
-  const said: HistoryRow[] = (await recordTimeline(me, 'Company', otherId, db))
-    .filter((r) => r.action === 'COMPANY_CLASSIFIED')
-    .map((r) => ({
-      action: r.action, summary: r.summary, reason: '', at: r.createdAt.toISOString(), byName: r.person.name,
-      position: null, reversible: false, undoSays: CLASSIFIED_CHANGED_AT,
-    }))
-  // Newest first; two rows of one moment keep the order they were read in.
-  return [...acts, ...said].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 50)
+  return read.map((r, i) => ({ ...r, reversible: says[i] === CAN_BE_UNDONE, undoSays: says[i] }))
 }
-
-/** What a classify row on a company's history says about changing it. */
-export const CLASSIFIED_CHANGED_AT = 'Can be changed under Customer or client'
 
 /**
  * The companies `me` recorded as not classified yet, whatever Kind they

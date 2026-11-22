@@ -65,6 +65,23 @@ export interface LiveReceipt {
   totalMinor: number
   /** Days from today to its due day; negative once it is past. */
   dueInDays: number
+  /**
+   * Whose hours it bills and at what rate, read off the invoice's own
+   * line. Null where the record does not say it exactly: more than one
+   * person on the line, no rate, or a total that is not a whole number of
+   * hundredths of an hour at that rate. A figure beside a rate from
+   * another line read as wrong (walk, 2026-11-22: $4,480 beside "$118 an
+   * hour", where the invoice bills another person at $112).
+   */
+  billsFor?: { person: string; hours: number; rateMinor: number } | null
+}
+
+/** Whose hours an invoice bills, from its total and its line's one rate, or null where that is not exact. Pure. */
+export function billsFor(totalCents: number, line: readonly { person: string; rateCents: number }[] | null | undefined): LiveReceipt['billsFor'] {
+  if (!line || line.length !== 1 || !(line[0].rateCents > 0) || !(totalCents > 0)) return null
+  const hundredths = (totalCents * 100) / line[0].rateCents
+  if (Math.abs(hundredths - Math.round(hundredths)) > 1e-9) return null
+  return { person: line[0].person, hours: Math.round(hundredths) / 100, rateMinor: line[0].rateCents }
 }
 
 /** One invoice receipt in a client's program, as its AP clerk checks it. */
@@ -132,7 +149,8 @@ export interface CompanySeen { id: string; slug: string; domain: string | null; 
 export interface FactsReader {
   company(slug: string): Promise<CompanySeen | null>
   firm(companyId: string): Promise<FirmTuesday | null>
-  receipt(payerId: string, number: string): Promise<{ totalCents: number; dueAt: Date; vendorName: string } | null>
+  /** `line` is everybody on the invoice's own contract line, each with the rate it bills at. */
+  receipt(payerId: string, number: string): Promise<{ totalCents: number; dueAt: Date; vendorName: string; line?: { person: string; rateCents: number }[] } | null>
   /** The invoice receipts a client pays, each with the three-way check's answer. */
   program?(clientId: string): Promise<ProgramInvoice[] | null>
 }
@@ -188,9 +206,17 @@ export const DATABASE: FactsReader = {
   async receipt(payerId, number) {
     const b = await prisma.vendorBill.findFirst({
       where: { number, companyId: payerId },
-      select: { totalCents: true, dueAt: true, vendorCompany: { select: { name: true } } },
+      select: {
+        totalCents: true, dueAt: true, vendorCompany: { select: { name: true } },
+        buyContract: { select: { candidates: { select: { payRate: true, person: { select: { name: true } } } } } },
+      },
     })
-    return b ? { totalCents: b.totalCents, dueAt: b.dueAt, vendorName: b.vendorCompany.name } : null
+    return b
+      ? {
+          totalCents: b.totalCents, dueAt: b.dueAt, vendorName: b.vendorCompany.name,
+          line: (b.buyContract?.candidates ?? []).map((c) => ({ person: c.person.name, rateCents: c.payRate })),
+        }
+      : null
   },
   async program(clientId) {
     const invs = await prisma.invoice.findMany({
@@ -301,6 +327,7 @@ export async function doorFacts(
     receipt: receipt
       ? {
           number: w.receipt.number, from: receipt.vendorName, totalMinor: receipt.totalCents,
+          billsFor: billsFor(receipt.totalCents, receipt.line),
           dueInDays: Math.round((Date.UTC(receipt.dueAt.getUTCFullYear(), receipt.dueAt.getUTCMonth(), receipt.dueAt.getUTCDate()) -
             Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())) / DAY),
         }

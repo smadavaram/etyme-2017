@@ -779,3 +779,22 @@ describe('The security policy tells a researcher what to do, and promises nothin
   })
 })
 
+describe('a page is named once in the browser tab', () => {
+  it('no page’s title names Etyme itself, because the layout adds the name to every title: the Privacy page reads "Privacy Notice | Etyme"', () => {
+    const layout = read('src/app/layout.tsx')
+    expect(layout).toContain("template: '%s | Etyme',")
+    expect(read('src/app/privacy/page.tsx')).toContain("title: 'Privacy Notice',")
+    const pages = (dir: string): string[] =>
+      readdirSync(join(ROOT, dir)).flatMap((name) => {
+        const p = `${dir}/${name}`
+        return statSync(join(ROOT, p)).isDirectory() ? pages(p) : /^(page|layout)\.tsx$/.test(name) ? [p] : []
+      })
+    const twice: string[] = []
+    for (const p of pages('src/app')) {
+      if (p === 'src/app/layout.tsx') continue
+      // A plain string title goes through the layout's template. `absolute` and `default` do not.
+      for (const m of read(p).matchAll(/\btitle: (['"`])([^'"`\n]*)\1/g)) if (/\bEtyme\b/.test(m[2]) && /[—·|-]\s*Etyme\s*$/.test(m[2])) twice.push(`${p}: ${m[2]}`)
+    }
+    expect(twice).toEqual([])
+  })
+})

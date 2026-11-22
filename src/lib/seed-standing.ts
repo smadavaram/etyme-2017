@@ -711,7 +711,7 @@ export async function seedStanding(ctx: SeedContext, parts: readonly StandingPar
               ? {
                   checkedById: ctx.seatBySlug.get('computer-systems')?.personId ?? null,
                   agreed: false,
-                  disagreedNote: 'The Epic experience is Ambulatory, not Beaker. The CV does not evidence what the job asks for.',
+                  disagreedNote: 'The experience is with ambulatory clinic systems, not laboratory systems. The CV does not evidence what the job asks for.',
                 }
               : {}),
             at: day(-100 + i),

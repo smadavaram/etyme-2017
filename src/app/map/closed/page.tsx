@@ -3,7 +3,7 @@ import { EtymeLogo } from '@/components/logo'
 import { MAP_REFUSED, MAP_WHO } from '@/lib/map-gate'
 
 /** Where /map sends somebody it does not open for (lib/map-gate). */
-export const metadata = { title: 'The map · Etyme' }
+export const metadata = { title: 'The map' }
 
 export default function MapClosedPage() {
   return (

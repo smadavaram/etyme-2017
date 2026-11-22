@@ -60,12 +60,9 @@ describe('Record a placement offers the clients on the firm’s register, before
       { id: 'harrow', name: 'Harrow Freight Lines — not on Etyme yet' },
       { id: 'northbend', name: 'Northbend Athletic' },
     ])
-    // Since record 110 (A1) the form reads who can be billed from the one
-    // reader behind the Companies list: the customers a person said pay the
-    // firm, and the ones its own contracts bill. Its first contract still
-    // offers the customer it added from Companies.
-    expect(page).toContain("fetch('/api/companies/groups?for=bill-to'),")
-    expect(page).toContain("setClientCompanies(billToRes.ok ? (await billToRes.json()).data?.options ?? [] : [])")
+    // The page reads the register beside its contracts, and hands both to the one function.
+    expect(page).toContain("fetch('/api/clients')")
+    expect(page).toContain('setClientCompanies(clientOptions(register, contracts))')
   })
 
   it('with no clients the form says to add one from Companies and that they need not be on Etyme', () => {
