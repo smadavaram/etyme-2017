@@ -333,8 +333,10 @@ BASELINE PENDING. Blended margin an hour: BASELINE PENDING. The
 baseline is an output of the week 2 census and is never estimated. The
 target is 36 at $15 by 2027-11-21.
 
-**Week 1, Nov 21–22: RELEASED, NOT RETESTED (record 109).** Source
-428f4009f. Every line is a claim until the tester passes it by screen
+**Week 1, Nov 21–22: RELEASED, NOT RETESTED (record 109).** Deployed
+2026-11-22 as 6490627a, from source f988c05c3 (code checked at
+428f4009f). The last replayed source is f988c05c3. STOPPED for the
+retest; no second deploy this weekend. Every line is a claim until the tester passes it by screen
 number in production.
 
 | Screen | Claim | Retest |

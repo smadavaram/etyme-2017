@@ -85,3 +85,21 @@ are at the foot.
 
 **Which model ran which piece** is in STATE.md, said to the founder and
 not here.
+
+### The deploy — 2026-11-22, a Sunday
+
+- Source f988c05c3 (the checked code of 428f4009f plus this record and
+  STATE.md), replayed from 19c3c102a as deploy commit 6490627a, pushed
+  once. Production reported it about nine minutes later, on both hosts.
+- Gates: no Ruby; the brand kit present; no source difference. Two
+  schema lines differ from the last deploy by one space each, with no
+  column, type or rule changed.
+- Smoke: health READY on both hosts; the home page, the four door
+  pages, demo, documentation, about, security, privacy, terms, the DPA,
+  contact, sign-in, sign-up and Tapin's page all answer; the inbound
+  email door answers 404; the three new routes answer a signed-out
+  caller "Not authenticated".
+- NOT PROVEN by the smoke: a signed-in read of the three new tables in
+  production. No agent signs in to production. The tester's first
+  opened decision and first started month prove them.
+- Last replayed source is now f988c05c3.
