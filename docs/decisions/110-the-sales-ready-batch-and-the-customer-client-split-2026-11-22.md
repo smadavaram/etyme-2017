@@ -127,3 +127,20 @@ Production never held any of it.
 **Standing from now.** A company's Kind is one fact. No screen or route
 asks whether a company is a customer or a client apart from it, and a
 test holds that.
+
+### The owner's refinement: the end client is on the placement
+
+"End client" is a defined term: the party where the consultant does the
+work, the worksite. It is not a kind of company and it does not bring
+the split back. It is modeled on the placement: a placement names its
+end client, a company record, when the worksite differs from the
+customer. Companies themselves stay one role, customer and client the
+same, for every business.
+
+**The lead's reading.** The contract line already holds this, and held
+it before today: one field for the company billed and one optional
+field for the end client, empty meaning the same company. "Record a
+placement" already offers it. So nothing new is built for it tonight;
+the removal of the split keeps that field and that select as they were,
+and the test that holds the ruling forbids classifying a company, never
+the placement's end client.
