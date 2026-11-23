@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
+import { recordRefusal } from '@/lib/access-log'
 import { applyMove, type Move } from '@/lib/visa-petition'
 
 /**
@@ -16,11 +17,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (error) return error
   const notStaff = staffOnly(caller, 'Visa petitions')
   if (notStaff) return notStaff
-  if (!hasPermission(caller.permissions, 'consultants.write')) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: `Recording a petition's progress is for whoever looks after the bench at ${caller.company!.name}.` } },
-      { status: 403 }
-    )
+  if (!hasPermission(caller.permissions, 'governance.read')) {
+    await recordRefusal([{ companyId: caller.company!.id }], {
+      actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'CONTRACT_VIEW',
+      reason: `Refused POST ${request.nextUrl.pathname} to a seat that does not look after petitions.`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Petitions are read by HR and the compliance officer at your firm.' } }, { status: 403 })
   }
 
   const { id } = await params

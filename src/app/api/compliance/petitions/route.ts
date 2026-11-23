@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
+import { recordRefusal } from '@/lib/access-log'
 import { MOVES, MOVE_WORDS, statusWord } from '@/lib/visa-petition'
 import { possessive } from '@/lib/requisition-approval'
 import { employerNamedNote } from '@/lib/document-stages/worker-class'
@@ -44,6 +45,13 @@ export async function GET(request: NextRequest) {
   if (error) return error
   const notStaff = staffOnly(caller, 'Visa petitions')
   if (notStaff) return notStaff
+  if (!hasPermission(caller.permissions, 'governance.read')) {
+    await recordRefusal([{ companyId: caller.company!.id }], {
+      actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'CONTRACT_VIEW',
+      reason: `Refused GET ${request.nextUrl.pathname} to a seat that does not look after petitions.`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Petitions are read by HR and the compliance officer at your firm.' } }, { status: 403 })
+  }
 
   const people = await ourPeople(caller.company!.id)
   const personId = request.nextUrl.searchParams.get('personId')
@@ -80,11 +88,12 @@ export async function POST(request: NextRequest) {
   if (error) return error
   const notStaff = staffOnly(caller, 'Filing a petition')
   if (notStaff) return notStaff
-  if (!hasPermission(caller.permissions, 'consultants.write')) {
-    return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: `Filing a petition is for whoever looks after the bench at ${caller.company!.name}.` } },
-      { status: 403 }
-    )
+  if (!hasPermission(caller.permissions, 'governance.read')) {
+    await recordRefusal([{ companyId: caller.company!.id }], {
+      actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'CONTRACT_VIEW',
+      reason: `Refused POST ${request.nextUrl.pathname} to a seat that does not look after petitions.`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Petitions are read by HR and the compliance officer at your firm.' } }, { status: 403 })
   }
 
   const body = await request.json().catch(() => ({}))

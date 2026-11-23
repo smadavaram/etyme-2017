@@ -92,6 +92,37 @@ describe('a visa petition on the bench, filing to running out', () => {
     expect(theirs.body.data.petitions.some((x: any) => x.id === it_.petition)).toBe(false)
   })
 
+  it('a recruiter cannot read or write a visa petition on the older route, and the refusal is logged before the answer', async () => {
+    const recruiter = `world-brightmoor-recruiter${D}`
+    const before = await prisma.accessLog.count({ where: { allowed: false, reason: { contains: '/api/compliance/petitions' } } })
+    as(recruiter)
+    const read = await json(await list(req('GET', '/api/compliance/petitions')))
+    expect(read.status).toBe(403)
+    expect(read.body.error.message).toBe('Petitions are read by HR and the compliance officer at your firm.')
+    const wrote = await json(await file(req('POST', '/api/compliance/petitions', { personId: it_.worker, type: 'H1B' })))
+    expect(wrote.status).toBe(403)
+    const moved = await call(move, 'POST', `/api/compliance/petitions/${it_.petition}`, it_.petition, { move: 'RFE' })
+    expect(moved.status).toBe(403)
+    // The rows exist by the time the answers came back: nothing was awaited after them.
+    const after = await prisma.accessLog.count({ where: { allowed: false, reason: { contains: '/api/compliance/petitions' } } })
+    expect(after - before).toBe(3)
+  })
+
+  it('HR and the compliance officer still read and write visa petitions', async () => {
+    const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
+    const person = await prisma.person.create({ data: { name: 'Ines Valdera', primaryEmail: 'ines.valdera@seed.etyme.invalid' } })
+    await prisma.context.create({ data: { personId: person.id, companyId: brightmoor.id, type: 'EMPLOYEE', side: 'SELL', grantReason: 'Employed' } })
+    for (const seat of ['hr', 'compliance']) {
+      as(`world-brightmoor-${seat}${D}`)
+      const read = await json(await list(req('GET', '/api/compliance/petitions')))
+      expect(read.status, seat).toBe(200)
+      const wrote = await json(await file(req('POST', '/api/compliance/petitions', { personId: person.id, type: 'H1B' })))
+      expect(wrote.status, JSON.stringify(wrote.body)).toBe(201)
+      const moved = await call(move, 'POST', `/api/compliance/petitions/${wrote.body.data.id}`, wrote.body.data.id, { move: 'RFE' })
+      expect(moved.status, JSON.stringify(moved.body)).toBe(200)
+    }
+  })
+
   // ── The picker in front of all of it ────────────────────────────────
   //
   // Every test above files for a person somebody chose in code. On the
