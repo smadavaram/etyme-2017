@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  itemState, dualAuthorizations, blockReleased, twoSeats, confirmationRefusal, countingConfirmations, daysWaiting,
+  itemState, dualAuthorizations, blockReleased, twoSeats, confirmationRefusal, confirmedMoment, countingConfirmations, daysWaiting,
   type SubmissionFact,
 } from '@/lib/agents/confirmation-rules'
 import {
@@ -144,5 +144,34 @@ describe('the census of customers and suppliers', () => {
     const line = weeklyLine(rows, [], d('2026-11-22'))
     expect(line).toMatch(/1 customer \(0 active, 1 dormant\)/)
     expect(line).toMatch(/a proposal/); expect(line).toMatch(/Dormant now: Northwind/); expect(line).toMatch(/No change since last week/)
+  })
+})
+
+describe('the day a confirmation is recorded as of', () => {
+  const sent = new Date('2026-11-10T09:00:00Z')
+  const now = new Date('2026-11-23T15:00:00Z')
+  it('no day typed means now', () => {
+    expect(confirmedMoment(undefined, sent, now)).toEqual({ ok: true, at: now })
+  })
+  it('today is recorded as the moment it was recorded', () => {
+    expect(confirmedMoment('2026-11-23', sent, now)).toEqual({ ok: true, at: now })
+  })
+  it('an earlier day after the submission was sent is recorded as that day', () => {
+    const r = confirmedMoment('2026-11-12', sent, now)
+    expect(r.ok && r.at.toISOString().slice(0, 10)).toBe('2026-11-12')
+  })
+  it('a day that has not happened is refused in a sentence', () => {
+    const r = confirmedMoment('2026-11-24', sent, now)
+    expect(r.ok === false && r.says).toMatch(/has not happened yet/)
+  })
+  it('a day before the submission was sent is refused in a sentence', () => {
+    const r = confirmedMoment('2026-11-09', sent, now)
+    expect(r.ok === false && r.says).toMatch(/before the submission was sent/)
+  })
+  it('the day the submission was sent is allowed', () => {
+    expect(confirmedMoment('2026-11-10', sent, now).ok).toBe(true)
+  })
+  it('something that is not a day is refused in a sentence', () => {
+    expect(confirmedMoment('yesterday', sent, now).ok).toBe(false)
   })
 })

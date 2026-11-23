@@ -2,7 +2,7 @@ import { reachFor, submissionsWhere, jobInReach, outsideReachSays } from '@/app/
 import { mayNameJob, jobNamed } from './job-heading'
 import { NextRequest, NextResponse } from 'next/server'
 import { placeOf } from '@/lib/job-site'
-import { whyNotOpen, listedStatus, OFFER_OUT_STATES } from './words'
+import { whyNotOpen, listedStatus, offerForRow, OFFER_OUT_STATES } from './words'
 import { reportError } from '@/lib/alerts'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -1798,8 +1798,8 @@ export async function GET(request: NextRequest) {
         // The hop this row came up, so "how they came" is read off the
         // chain rather than off the stored kind (`submissionKindWord`).
         parentSubmission: { select: { fromCompany: { select: { name: true } } } },
-        // A live offer, so the row can read Offered; the state only, never its rate.
-        offers: { where: { liveFor: { not: null } }, select: { state: true } },
+        // A live offer, so the row can read Offered. Its rate and start day go only to the two firms on its rung (`offerForRow`).
+        offers: { where: { liveFor: { not: null } }, select: { state: true, rate: true, currency: true, startDate: true } },
         confirmations: { select: { id: true }, take: 1 },
         // Where each candidate has got to, so a row can say it without a
         // second call per row. Four fields — no feedback, no panel, no
@@ -1904,6 +1904,7 @@ export async function GET(request: NextRequest) {
           open: hasPermission(caller.permissions, 'submissions.create') && !!caller.company && s.fromCompanyId === caller.company.id
             && s.confirmations.length === 0 && !['REJECTED', 'WITHDRAWN', 'NOT_SELECTED', 'PLACED'].includes(s.status),
         },
+        offer: offerForRow(s.offers, { companyId: deskId, ownOnly, maySubmit: hasPermission(caller.permissions, 'submissions.create') }, s),
         submittedAt: s.submittedAt.toISOString(),
         // Whether it has been sent on, so the list can offer the button
         // — and, once used, say plainly that it was used. The route was

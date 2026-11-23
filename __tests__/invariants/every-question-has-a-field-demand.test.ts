@@ -317,3 +317,14 @@ describe('every question the pick route asks, the supplier picker has a field fo
     expect(PICKER).toContain('onPick(c.companyId, reason.trim())')
   })
 })
+
+describe('every question the confirmation route asks, the Record confirmation dialog has a field for', () => {
+  const ROUTE_C = readFileSync(join(process.cwd(), 'src/app/api/bench/submission-confirmations/route.ts'), 'utf8')
+  const DIALOG = readFileSync(join(process.cwd(), 'src/app/dashboard/submissions/confirmation-dialog.tsx'), 'utf8')
+  it('the confirmation route reads the day it was confirmed as confirmedOn, and the dialog has a day box that sends confirmedOn', () => {
+    expect(ROUTE_C).toContain('body.confirmedOn')
+    expect(DIALOG).toContain('The day it was confirmed')
+    expect(DIALOG).toContain('type="date"')
+    expect(DIALOG).toContain('confirmedOn: day')
+  })
+})

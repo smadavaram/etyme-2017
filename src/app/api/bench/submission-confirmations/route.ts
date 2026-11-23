@@ -9,7 +9,7 @@ import { CHANNELS } from '@/lib/agents/confirmation-rules'
 
 /**
  * GET  /api/bench/submission-confirmations?submissionId=…
- * POST /api/bench/submission-confirmations — { submissionId, channel, note?, mailSendId?, actingEntityId? }
+ * POST /api/bench/submission-confirmations — { submissionId, channel, note?, confirmedOn?, mailSendId?, actingEntityId? }
  *
  * Record 112, chain 1. Where a submission stands against its confirmation
  * (not sent, awaiting, confirmed, failed delivery, on hold), and a
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       companyId: seat.companyId, submissionId: body.submissionId, personId: seat.personId, heldAs: seat.heldAs,
       actingEntityId: typeof body.actingEntityId === 'string' && body.actingEntityId ? body.actingEntityId : null,
       channel: body.channel, note: typeof body.note === 'string' ? body.note : null,
+      confirmedOn: body.confirmedOn,
       mailSendId: typeof body.mailSendId === 'string' && body.mailSendId ? body.mailSendId : null,
     })
     return NextResponse.json({ data: { id: row.id, submissionId: row.submissionId, channel: row.channel, confirmedAt: row.confirmedAt } }, { status: 201 })

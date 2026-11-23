@@ -125,6 +125,30 @@ describe('a person recording that the other side confirmed a submission', () => 
     await prisma.submissionConfirmation.deleteMany({ where: { submissionId: w.s5.id } })
   })
 
+  it('a confirmation dated a day that has not happened is refused in a sentence and nothing is written', async () => {
+    const tomorrow = new Date(Date.now() + 36 * 3600_000).toISOString().slice(0, 10)
+    const out = await post(w.am, { submissionId: w.s5.id, channel: 'PHONE', confirmedOn: tomorrow })
+    expect(out.status).toBe(422)
+    expect(out.body.error.message).toMatch(/has not happened yet/)
+    expect(await prisma.submissionConfirmation.count({ where: { submissionId: w.s5.id } })).toBe(0)
+  })
+
+  it('a confirmation dated before the submission was sent is refused in a sentence', async () => {
+    const lastYear = new Date(Date.now() - 365 * 86400_000).toISOString().slice(0, 10)
+    const out = await post(w.am, { submissionId: w.s5.id, channel: 'PHONE', confirmedOn: lastYear })
+    expect(out.status).toBe(422)
+    expect(out.body.error.message).toMatch(/before the submission was sent/)
+  })
+
+  it('a confirmation dated an earlier day after the submission was sent is stored as that day', async () => {
+    await prisma.submission.update({ where: { id: w.s5.id }, data: { submittedAt: new Date(Date.now() - 10 * 86400_000) } })
+    const day = new Date(Date.now() - 3 * 86400_000).toISOString().slice(0, 10)
+    const out = await post(w.am, { submissionId: w.s5.id, channel: 'PHONE', confirmedOn: day })
+    expect(out.status).toBe(201)
+    expect(String(out.body.data.confirmedAt).slice(0, 10)).toBe(day)
+    await prisma.submissionConfirmation.deleteMany({ where: { submissionId: w.s5.id } })
+  })
+
   it('a second confirmation of the same submission is refused', async () => {
     const out = await post(w.am, { submissionId: w.s1.id, channel: 'EMAIL', actingEntityId: w.entity.id })
     expect(out.status).toBe(422)

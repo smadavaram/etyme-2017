@@ -21,6 +21,8 @@ export function ConfirmationDialog({ submissionId, candidate, onDone, onCancel }
 }) {
   const [entities, setEntities] = useState<{ id: string; name: string }[]>([])
   const [channel, setChannel] = useState('PHONE')
+  const today = new Date().toISOString().slice(0, 10)
+  const [day, setDay] = useState(today)
   const [note, setNote] = useState('')
   const [entity, setEntity] = useState('')
   const [refusal, setRefusal] = useState<string | null>(null)
@@ -36,7 +38,7 @@ export function ConfirmationDialog({ submissionId, candidate, onDone, onCancel }
     try {
       const res = await fetch('/api/bench/submission-confirmations', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(confirmationBody({ submissionId, channel, note, entity })),
+        body: JSON.stringify(confirmationBody({ submissionId, channel, note, entity, confirmedOn: day })),
       })
       const body = await readJson(res)
       if (res.ok) { onDone(`Recorded that ${candidate} was confirmed.`); return }
@@ -52,7 +54,7 @@ export function ConfirmationDialog({ submissionId, candidate, onDone, onCancel }
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onCancel}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 mx-4" onClick={(e) => e.stopPropagation()}>
         <h3 className="headline-serif text-[18px] text-etyme-ink mb-1">Record confirmation for {candidate}</h3>
-        <p className="text-[12px] text-etyme-muted mb-4">Say how the other side confirmed they have the submission. It is recorded as of today.</p>
+        <p className="text-[12px] text-etyme-muted mb-4">Say how the other side confirmed they have the submission. It is recorded as of the day you choose, today unless you change it.</p>
         <div className="space-y-3">
           {entities.length > 1 && (
             <Field label="Recorded for">
@@ -67,6 +69,7 @@ export function ConfirmationDialog({ submissionId, candidate, onDone, onCancel }
               {CONFIRM_CHANNELS.map((c) => <option key={c.key} value={c.key}>{c.words}</option>)}
             </Select>
           </Field>
+          <Field label="The day it was confirmed"><Input type="date" value={day} max={today} onChange={(e) => setDay(e.target.value)} /></Field>
           <Field label="Note"><Input value={note} onChange={(e) => setNote(e.target.value)} /></Field>
           {refusal && <div className="px-4 py-3 rounded-lg bg-etyme-danger-wash border border-etyme-danger-line" role="alert"><p className="text-sm text-etyme-ink">{refusal}</p></div>}
           <div className="flex gap-2 pt-2">

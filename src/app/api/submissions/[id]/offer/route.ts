@@ -88,7 +88,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const r = await open(request, id)
   if (r.error) return r.error
   const { caller, companyId, submission, side, mays, entities } = r
-  const offers = await prisma.offer.findMany({ where: { submissionId: id }, orderBy: { createdAt: 'desc' } })
+  // A draft is the buyer's own paper: the supplier reads an offer once it is made.
+  const offers = await prisma.offer.findMany({ where: { submissionId: id, ...(side === 'SUPPLIER' ? { state: { not: 'DRAFT' as const } } : {}) }, orderBy: { createdAt: 'desc' } })
   await recordAccess([submission.personId], {
     actorPersonId: caller.person.id, actorCompanyId: companyId, action: 'CONTRACT_VIEW',
     reason: `Read the offer on the submission for "${submission.requirement.title}"`,

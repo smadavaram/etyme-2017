@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { AwardDialog } from './award-dialog'
 import { OfferDialog } from './offer-dialog'
+import { offerLine, mayRecordHerAnswer, type RowOffer } from './offer-words'
 import { ConfirmationDialog } from './confirmation-dialog'
 import { sendOnRefusalSays } from './send-on-words'
 import { centsTyped, typedFromCents } from '@/app/dashboard/requisitions/facts'
@@ -70,6 +71,8 @@ interface Submission {
   status: string
   /** Whether the confirmations route would take a record from this seat for this row. */
   confirm?: { open: boolean }
+  /** The live offer, only for the two firms on its rung. */
+  offer?: RowOffer | null
   submittedAt: string
   forwardedAt: string | null
   forwardedVia: string | null
@@ -1285,6 +1288,21 @@ export default function SubmissionsPage() {
               className="text-[10px] font-medium text-etyme-action border border-etyme-action/40 rounded px-2 py-0.5 whitespace-nowrap"
             >
               Offer
+            </button>
+          )}
+          {offerLine(row.offer) && (
+            <span className="text-[11px] text-etyme-muted whitespace-nowrap">{offerLine(row.offer)}</span>
+          )}
+          {mayRecordHerAnswer(row.offer) && !row.award?.open && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setOfferSubmission(row)
+              }}
+              title="Record what she answered to the offer"
+              className="text-[10px] font-medium text-etyme-action border border-etyme-action/40 rounded px-2 py-0.5 whitespace-nowrap"
+            >
+              Record her answer
             </button>
           )}
           {row.confirm?.open && (

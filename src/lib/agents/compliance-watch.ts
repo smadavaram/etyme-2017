@@ -36,7 +36,8 @@ import {
 
 export const COMPLIANCE_WATCH_AGENT = 'compliance-watch'
 export const COMPLIANCE_WATCH_RULES = 'compliance-watch-1'
-export const TENURE_RECORD = 'TenureWatch'
+/** The tenure card's own link is the placement, a record the record view opens. */
+export const TENURE_RECORD = 'SellContract'
 export const NOTICE_RECORD = 'NoticePosting'
 export const ACCESS_FILE_RECORD = 'PublicAccessFile'
 
@@ -58,7 +59,7 @@ async function tenureStep(ctx: AgentContext): Promise<void> {
 
   const lines = await prisma.sellContract.findMany({
     where: { ...endClientFilter(companyId), state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] } },
-    select: { personId: true, startDate: true, endDate: true, state: true, person: { select: { name: true } } },
+    select: { id: true, personId: true, startDate: true, endDate: true, state: true, person: { select: { name: true } } },
     orderBy: { id: 'asc' },
   })
   const client = (await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } }))?.name ?? 'the client'
@@ -80,7 +81,9 @@ async function tenureStep(ctx: AgentContext): Promise<void> {
     const words = tenureWords({ person: own[0].person.name, client, capMonths, limitDay, daysLeft })
     // One card per person, per limit day, per warning crossed.
     if (!(await ctx.mayAct())) return
-    const r = await openOnce(ctx, owner, { recordType: TENURE_RECORD, recordId: `${personId}:${limitDay.toISOString().slice(0, 10)}:${step}` }, words, [{ recordType: 'Person', recordId: personId }])
+    // The card is tied to the placement the person is on now (a contract the record view opens), one open card each.
+    const placement = own.filter((l) => l.state !== 'ENDED').sort((a, b) => (b.endDate?.getTime() ?? Infinity) - (a.endDate?.getTime() ?? Infinity))[0]
+    const r = await openOnce(ctx, owner, { recordType: TENURE_RECORD, recordId: placement.id }, words, [{ recordType: 'Person', recordId: personId }])
     if (r === 'OPENED') await ctx.act({ recordType: 'Person', recordId: personId, action: 'TENURE_WARNING_OPENED', summary: `${words.question} A decision is open. Nothing was changed.` })
   }
 }

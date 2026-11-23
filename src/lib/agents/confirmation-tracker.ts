@@ -32,7 +32,7 @@ import { ownerForRoles } from '@/lib/money/agent-owners'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
 import {
   CONFIRMATION_AGENT, CONFIRMATION_RULE, CONFIRMING_MESSAGE_TYPES, PROPOSED_LATE_AFTER_DAYS,
-  blockReleased, confirmationRefusal, daysWaiting, dualAuthorizations, dualProof, dualQuestion,
+  blockReleased, confirmationRefusal, confirmedMoment, daysWaiting, dualAuthorizations, dualProof, dualQuestion,
   failedQuestion, itemState, twoSeats, type ItemState, type SubmissionFact,
 } from './confirmation-rules'
 
@@ -101,6 +101,8 @@ export interface RecordConfirmationInput {
   channel: unknown
   note?: string | null
   mailSendId?: string | null
+  /** The day it was confirmed, as YYYY-MM-DD; today where nothing is typed. */
+  confirmedOn?: unknown
   /** Set where the tracker matched a reply it already holds. */
   agentKey?: string
   ruleVersion?: string
@@ -122,6 +124,8 @@ export async function recordConfirmation(input: RecordConfirmationInput) {
     alreadyConfirmed: item.state === 'CONFIRMED',
   })
   if (says) throw new LedgerRefusal(says)
+  const when = confirmedMoment(input.confirmedOn, item.fact.submittedAt, now)
+  if (!when.ok) throw new LedgerRefusal(when.says)
   let mailSendId: string | null = null
   if (input.mailSendId) {
     const mail = (await mailSendsAbout(input.companyId, MAIL_ABOUT, input.submissionId)).find((m) => m.id === input.mailSendId)
@@ -133,7 +137,7 @@ export async function recordConfirmation(input: RecordConfirmationInput) {
     const row = await tx.submissionConfirmation.create({
       data: {
         companyId: input.companyId, submissionId: input.submissionId, channel: input.channel as string, mailSendId, note,
-        confirmedByPersonId: input.agentKey ? null : input.personId, confirmedAt: now,
+        confirmedByPersonId: input.agentKey ? null : input.personId, confirmedAt: when.at,
       },
     })
     await writeRecordAction(tx, {

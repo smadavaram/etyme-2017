@@ -26,6 +26,8 @@ function onBook(companyId: string, type: RecordType): Record<string, unknown> {
   switch (type) {
     case 'Company': return { OR: [{ id: companyId }, { counterpartyOf: { some: { companyId } } }] }
     case 'SellContract': return { OR: [{ companyId }, { clientCompanyId: companyId }, { endClientCompanyId: companyId }] }
+    // A job: the firm's own, one it is the end client of, or one sent to it.
+    case 'Requirement': return { OR: [{ companyId }, { endClientCompanyId: companyId }, { invitations: { some: { toCompanyId: companyId } } }] }
     case 'Person': return {
       OR: [
         { contexts: { some: { companyId, revokedAt: null } } },
@@ -69,6 +71,10 @@ export async function findOnBook(companyId: string, type: RecordType, id: string
     case 'Person': {
       const r = await prisma.person.findFirst({ where, select: { id: true, name: true } })
       return r
+    }
+    case 'Requirement': {
+      const r = await prisma.requirement.findFirst({ where, select: { id: true, title: true } })
+      return r ? { id: r.id, name: r.title } : null
     }
     case 'VendorBill': {
       const r = await prisma.vendorBill.findFirst({ where, select: { id: true, number: true, vendorCompany: { select: { name: true } } } })
@@ -136,6 +142,7 @@ export async function subjectOf(type: RecordType, id: string): Promise<{ company
   switch (type) {
     case 'Company': return (await prisma.company.findUnique({ where: { id }, select: { id: true } })) ? { companyId: id } : null
     case 'Person': return (await prisma.person.findUnique({ where: { id }, select: { id: true } })) ? { personId: id } : null
+    case 'Requirement': return ownerFirm(await prisma.requirement.findUnique({ where: { id }, select: { companyId: true } }))
     case 'SellContract': {
       const r = await prisma.sellContract.findUnique({ where: { id }, select: { personId: true } })
       return r ? { personId: r.personId } : null
@@ -192,6 +199,10 @@ export async function recordsOnBook(companyId: string, type: ProofType, q: strin
         select: { id: true, person: { select: { name: true } }, clientCompany: { select: { name: true } } }, orderBy: { createdAt: 'desc' }, take,
       })
       return rows.map((r) => ({ id: r.id, name: `${r.person.name} at ${r.clientCompany.name}` }))
+    }
+    case 'Requirement': {
+      const rows = await prisma.requirement.findMany({ where: { AND: [base, words ? { title: { contains: words, mode: 'insensitive' } } : {}] } as any, select: { id: true, title: true }, orderBy: { createdAt: 'desc' }, take })
+      return rows.map((r) => ({ id: r.id, name: r.title }))
     }
     case 'VendorBill': {
       const rows = await prisma.vendorBill.findMany({
@@ -268,6 +279,10 @@ export async function factsOf(type: RecordType, id: string): Promise<Fact[]> {
         ...f('Consultant', r.person.name), ...f('Supplier', r.company.name), ...f('Client', r.clientCompany.name),
         ...f('Works at', r.endClientCompany?.name), ...f('Starts', day(r.startDate)), ...f('Ends', day(r.endDate)),
       ] : []
+    }
+    case 'Requirement': {
+      const r = await prisma.requirement.findUnique({ where: { id }, select: { title: true, status: true, startDate: true, company: { select: { name: true } } } })
+      return r ? [...f('Job', r.title), ...f('From', r.company.name), ...f('State', plainKind(r.status)), ...f('Starts', day(r.startDate))] : []
     }
     case 'VendorBill': {
       const r = await prisma.vendorBill.findUnique({ where: { id }, select: { number: true, receivedAt: true, dueAt: true, vendorCompany: { select: { name: true } } } })

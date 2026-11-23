@@ -181,3 +181,23 @@ export function listedStatus(status: string, offerStates: readonly string[]): st
   const live = offerStates.some((o) => (OFFER_OUT_STATES as readonly string[]).includes(o))
   return live && ['SUBMITTED', 'SHORTLISTED', 'INTERVIEW'].includes(status) ? 'OFFERED' : status
 }
+
+/**
+ * The live offer a row carries, and only to the two firms on that rung of the
+ * deal: the buyer who made it and the supplier whose person received it. Any
+ * other reader (a seat with only its own work, a firm beside the deal) gets
+ * nothing, so the rate never leaves the rung. A draft is the buyer's alone
+ * and is never carried. Pure.
+ */
+export function offerForRow(
+  offers: { state: string; rate: { toString(): string }; currency: string; startDate: Date | null }[],
+  reader: { companyId: string | null; ownOnly: boolean; maySubmit?: boolean },
+  submission: { fromCompanyId: string; toCompanyId: string },
+): { state: string; rate: number; currency: string; startDate: string | null; side: 'BUYER' | 'SUPPLIER'; mayAnswer: boolean } | null {
+  if (reader.ownOnly || !reader.companyId) return null
+  const side = reader.companyId === submission.toCompanyId ? 'BUYER' : reader.companyId === submission.fromCompanyId ? 'SUPPLIER' : null
+  if (!side) return null
+  const o = offers.find((x) => (OFFER_OUT_STATES as readonly string[]).includes(x.state))
+  if (!o) return null
+  return { state: o.state, rate: Number(o.rate.toString()), currency: o.currency, startDate: o.startDate ? o.startDate.toISOString().slice(0, 10) : null, side, mayAnswer: side === 'SUPPLIER' && o.state === 'PROPOSED' && reader.maySubmit === true }
+}

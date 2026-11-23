@@ -7,10 +7,11 @@ export const CONFIRM_CHANNELS = [
 ] as const
 
 /** What the dialog posts to /api/bench/submission-confirmations. A firm with one legal entity sends none. Pure. */
-export function confirmationBody(f: { submissionId: string; channel: string; note: string; entity: string }) {
+export function confirmationBody(f: { submissionId: string; channel: string; note: string; entity: string; confirmedOn?: string }) {
   return {
     submissionId: f.submissionId, channel: f.channel,
     ...(f.note.trim() ? { note: f.note.trim() } : {}),
+    ...(f.confirmedOn ? { confirmedOn: f.confirmedOn } : {}),
     ...(f.entity ? { actingEntityId: f.entity } : {}),
   }
 }

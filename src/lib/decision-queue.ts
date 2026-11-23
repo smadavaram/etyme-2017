@@ -41,6 +41,7 @@ export const PROOF_TYPES = [
   { type: 'NoticePosting', label: 'A posted notice' },
   { type: 'PublicAccessFile', label: 'A public access file' },
   { type: 'SubmissionConfirmation', label: 'A submission confirmation' },
+  { type: 'Requirement', label: 'A job' },
 ] as const
 
 export type ProofType = (typeof PROOF_TYPES)[number]['type']
@@ -63,13 +64,14 @@ export function isRecordType(t: unknown): t is RecordType {
  * needed beyond a working seat: the one its own list asks for. A decision
  * is read by the proof rule (`mayReadProof` in lib/decision-items). Pure.
  */
-export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | 'consultants.write' | 'submissions.read' | typeof LOOP_READS | null {
+export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | 'consultants.write' | 'submissions.read' | 'requirements.read' | typeof LOOP_READS | null {
   if (type === 'MoneyChain' || type === 'PayrollDraft') return LOOP_READS
   if (type === 'Offer' || type === 'SubmissionConfirmation') return 'submissions.read'
   // The paperwork routes read these with the permission that writes them (whoever looks after paperwork).
   if (type === 'ChecklistItem' || type === 'Petition' || type === 'NoticePosting' || type === 'PublicAccessFile') return 'consultants.write'
   if (type === 'Invoice' || type === 'VendorBill') return 'invoices.read'
   if (type === 'SellContract') return 'assignments.read'
+  if (type === 'Requirement') return 'requirements.read'
   if (type === 'Person') return 'consultants.read'
   return null
 }
@@ -79,6 +81,7 @@ export function cannotReadSays(type: RecordType): string {
   if (type === 'MoneyChain') return CANNOT_READ_MONTH_RECORD
   if (type === 'Invoice' || type === 'VendorBill') return 'Your seat cannot read bills or invoice receipts.'
   if (type === 'SellContract') return 'Your seat cannot read contracts.'
+  if (type === 'Requirement') return 'Your seat cannot read jobs.'
   if (type === 'Person') return 'Your seat cannot read people’s records.'
   if (type === 'PayrollDraft') return CANNOT_READ_MONTH_RECORD
   if (type === 'Offer' || type === 'SubmissionConfirmation') return 'Your seat cannot read submissions.'
@@ -92,6 +95,7 @@ export function ownPageOf(type: RecordType, id: string): { href: string; words: 
     case 'Company': return { href: '/dashboard/companies', words: 'Open Companies' }
     case 'SellContract': return { href: `/dashboard/placements/${id}`, words: 'Open the contract' }
     case 'Person': return { href: `/dashboard/people/${id}`, words: 'Open the person' }
+    case 'Requirement': return { href: `/dashboard/requirements/${id}`, words: 'Open the job' }
     case 'VendorBill': return { href: '/dashboard/ap', words: 'Open invoice receipts' }
     case 'Invoice': return { href: `/dashboard/invoices/${id}`, words: 'Open the bill' }
     case 'DecisionItem': return { href: `/dashboard/decisions/${id}`, words: 'Open the decision' }

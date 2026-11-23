@@ -163,3 +163,20 @@ export function confirmationRefusal(input: {
   if (input.alreadyConfirmed) return 'This submission is already confirmed.'
   return null
 }
+
+/**
+ * The day a confirmation is recorded as of. Never a day that has not
+ * happened, never before the submission went out. Returns the moment to
+ * store (now, for today; midday UTC for an earlier day) or the sentence
+ * that says what to fix. Nothing typed means now. Pure.
+ */
+export function confirmedMoment(typed: unknown, submittedAt: Date, now: Date): { ok: true; at: Date } | { ok: false; says: string } {
+  if (typed === undefined || typed === null || typed === '') return { ok: true, at: now }
+  if (typeof typed !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(typed) || Number.isNaN(new Date(`${typed}T00:00:00Z`).getTime())) {
+    return { ok: false, says: 'Give the day it was confirmed as a day, such as 2026-11-23.' }
+  }
+  const today = now.toISOString().slice(0, 10)
+  if (typed > today) return { ok: false, says: 'That day has not happened yet. Choose today or an earlier day.' }
+  if (typed < submittedAt.toISOString().slice(0, 10)) return { ok: false, says: 'That is before the submission was sent. Choose the day it was sent or later.' }
+  return { ok: true, at: typed === today ? now : new Date(`${typed}T12:00:00Z`) }
+}
