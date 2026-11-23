@@ -32,7 +32,7 @@ describe('chasing money owed, as arithmetic and words', () => {
     const q = moneyChaseQuestion({ customer: 'Northbend Athletic', number: 'IN-1042', owedMinor: 64_950, currency: 'USD', dueAt: d('2026-11-01'), daysPast: 22 })
     expect(q).toMatch(/Northbend Athletic owes \$649\.50 on bill IN-1042, due Nov 1, 2026, 22 days past it/)
     expect(q).toMatch(/one letter, then up to 2 reminders, 5 working days apart, closing when the bill is paid in full/)
-    expect(q).toMatch(/proposals the Owner may change/)
+    expect(q).toMatch(/proposals; the Owner can change them in Agent control/)
   })
   it('a reminder waits five working days, then goes', () => {
     expect(nextLetter(PROPOSED_MONEY_CHASE_PLAN, 1, d('2026-11-16'), d('2026-11-20'), OFF).act).toBe('WAIT')

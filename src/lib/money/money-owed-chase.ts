@@ -41,6 +41,7 @@ import { ownerForRoles, RECEIVABLES_ROLES } from '@/lib/money/agent-owners'
 import { sendMail, mailSendsAbout } from '@/lib/notify/mail-door'
 import { hello, paragraphs, bullets } from '@/lib/notify/letters'
 import { billLinkOpen, billLinkToken, billLinkUrl } from '@/lib/notify/bill-letter'
+import { chaseNumbersOf, planWith, numbersSource } from '@/lib/agents/chase-numbers'
 import { nextLetter, agentStamp } from '@/lib/notify/timesheet-chase-agent'
 import { registerAgent, type AgentContext } from '@/lib/agents/runner'
 import { TASK_RECORD, approvalOf, closeTask, proposeTask, type TaskPlan } from '@/lib/agents/tasks'
@@ -81,11 +82,11 @@ export function daysPastDue(dueAt: Date, today: Date): number {
 }
 
 /** The card's question, with the plan said as a proposal. Pure. */
-export function moneyChaseQuestion(f: { customer: string; number: string; owedMinor: number; currency: string; dueAt: Date; daysPast: number }, plan: TaskPlan = PROPOSED_MONEY_CHASE_PLAN): string {
+export function moneyChaseQuestion(f: { customer: string; number: string; owedMinor: number; currency: string; dueAt: Date; daysPast: number }, plan: TaskPlan = PROPOSED_MONEY_CHASE_PLAN, ownerSet = false): string {
   const n = plan.retries
   return `${f.customer} owes ${amount(f.owedMinor, f.currency)} on bill ${f.number}, due ${formatDay(f.dueAt)}, ${f.daysPast} ${f.daysPast === 1 ? 'day' : 'days'} past it. ` +
     `Send a letter asking for it? Proposed: one letter, then up to ${n} ${n === 1 ? 'reminder' : 'reminders'}, ${plan.daysApart} working days apart, ` +
-    `closing when the bill is paid in full. These numbers are proposals the Owner may change.`
+    `closing when the bill is paid in full. ${numbersSource(ownerSet)}`
 }
 
 export interface SignedWeek { person: string; periodStart: Date; periodEnd: Date; hours: number; signedAt: Date | null }
@@ -190,6 +191,17 @@ async function billingContact(supplierId: string, customerId: string, workerEmai
   return pick ? { email: pick.email!.trim(), name: pick.name } : null
 }
 
+/** Open one card for a gap, the first time only: any card of this wording on this link, open or decided, means it was asked. Returns whether it opened one. */
+async function raiseOnce(i: { companyId: string; agentKey: string; owner: string | null; now: Date; prefix: string; link: { recordType: string; recordId: string }; question: string; proof: string }): Promise<boolean> {
+  if (!i.owner) return false
+  const asked = await prisma.decisionItem.count({ where: { companyId: i.companyId, question: { startsWith: i.prefix }, proofLinks: { array_contains: [i.link] } } })
+  if (asked > 0) return false
+  const stamp = await agentStamp(i.companyId, i.agentKey)
+  if (!stamp) return false
+  await openDecision({ ...stamp, companyId: i.companyId, ownerPersonId: i.owner, openedOn: i.now, question: i.question, proof: i.proof, proofLinks: [i.link] })
+  return true
+}
+
 export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeof sendMail } = {}): Promise<void> {
   const send = deps.send ?? sendMail
   const { companyId, now } = ctx
@@ -211,10 +223,13 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     if (!customer) continue
     if (!(await ctx.mayAct(2))) break // proposing writes two counted rows
     const daysPast = daysPastDue(b.dueAt, now)
+    // The firm's own numbers, if the Owner set any, are taken now and kept in the task's plan.
+    const set = await chaseNumbersOf(companyId, ctx.agentKey)
+    const plan = planWith(PROPOSED_MONEY_CHASE_PLAN, set)
     const task = await proposeTask({
       companyId, agentKey: ctx.agentKey, kind: MONEY_OWED_CHASE_KIND, recordType: MONEY_OWED_RECORD, recordId: b.id,
-      plan: PROPOSED_MONEY_CHASE_PLAN, ownerPersonId: owner, openedOn: now,
-      question: moneyChaseQuestion({ customer: customer.name, number: b.number, owedMinor: owed, currency: b.currency, dueAt: b.dueAt, daysPast }),
+      plan, ownerPersonId: owner, openedOn: now,
+      question: moneyChaseQuestion({ customer: customer.name, number: b.number, owedMinor: owed, currency: b.currency, dueAt: b.dueAt, daysPast }, plan, set !== null),
     })
     await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_PROPOSED', summary: `Proposed a chase of ${customer.name} for bill ${b.number}, ${amount(owed, b.currency)} owed. Nothing is sent until a person says yes.` })
   }
@@ -263,13 +278,27 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     const customer = await customerOf(b)
     const contact = customer ? await billingContact(companyId, customer.id, b.invoiceLines.map((l) => l.person?.primaryEmail ?? '').filter(Boolean)) : null
     if (!customer || !contact) {
-      await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_NOT_SENT', summary: `Letter ${next.attempt} for bill ${b.number} was not sent: no address is recorded for the person at ${customer?.name ?? 'the customer'} who receives bills. Record one, and the next run sends it.` })
+      // One card for a person the first time, then quiet until a contact is recorded (the next run then sends as planned).
+      const who = customer?.name ?? 'The customer'
+      const raised = await raiseOnce({
+        companyId, agentKey: ctx.agentKey, owner, now, prefix: `${who} has no one recorded to receive bills`,
+        link: { recordType: 'Company', recordId: customer?.id ?? companyId },
+        question: `${who} has no one recorded to receive bills, so bill ${b.number} cannot be chased. Add a billing contact on the customer’s page?`,
+        proof: `Letter ${next.attempt} was ready and has nowhere to go. Once a billing contact is recorded for this customer, the chase goes ahead as approved.`,
+      })
+      if (raised) await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_NOT_SENT', summary: `Letter ${next.attempt} for bill ${b.number} was not sent: no billing contact is recorded at ${who}. One card asks for it.` })
       continue
     }
     const base = mailedBase()
     const url = base ? billLinkUrl(billLinkToken(b.id, contact.email), base) : null
     if (!url) {
-      await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_NOT_SENT', summary: `Letter ${next.attempt} for bill ${b.number} was not sent: this deployment does not know its own web address, so the link to the bill would not open.` })
+      const raised = await raiseOnce({
+        companyId, agentKey: ctx.agentKey, owner, now, prefix: 'Bills cannot be chased',
+        link: { recordType: 'Company', recordId: companyId },
+        question: `Bills cannot be chased, such as bill ${b.number}: this deployment does not know its own web address, so the link to the bill would not open. Set the web address?`,
+        proof: 'Letters about bills carry a link to the bill. Once the deployment has a lasting web address, the chase goes ahead as approved.',
+      })
+      if (raised) await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_NOT_SENT', summary: `Letter ${next.attempt} for bill ${b.number} was not sent: this deployment does not know its own web address. One card asks for it.` })
       continue
     }
     const weeks = new Map<string, SignedWeek>()

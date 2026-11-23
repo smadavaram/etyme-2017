@@ -9,6 +9,7 @@ import { prisma, resetDatabase, as, req, json } from './harness'
 import * as item from '@/app/api/decision-items/[id]/route'
 import { decideBody } from '@/lib/decision-queue'
 import { runAgent, registerAgent, unregisterAgent } from '@/lib/agents/runner'
+import * as agents from '@/app/api/decision-items/agents/route'
 import { sendMail } from '@/lib/notify/mail-door'
 import { moneyOwedChaseStep, PROPOSED_MONEY_CHASE_PLAN, MONEY_OWED_CHASE_AGENT as KEY, closeChaseOnPayment } from '@/lib/money/money-owed-chase'
 
@@ -89,7 +90,7 @@ describe('chasing money owed, on the database', () => {
     expect(card.question).toContain(`Owed Client ${tag} owes $1,000.00 on bill ${w.bill.number}`)
     expect(card.question).toMatch(/22 days past it/)
     expect(card.question).toMatch(/one letter, then up to 2 reminders, 5 working days apart, closing when the bill is paid in full/)
-    expect(card.question).toMatch(/proposals the Owner may change/)
+    expect(card.question).toMatch(/proposals; the Owner can change them in Agent control/)
   })
 
   it('nothing is sent before a yes', async () => {
@@ -240,5 +241,122 @@ describe('chasing money owed, on the database', () => {
     expect(done.closedReason).not.toMatch(/No answer/)
     const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { contains: `no letter about bill ${b.number} could leave` } } })
     expect(cards).toHaveLength(1)
+  })
+})
+
+describe('a customer nobody can write to, and the numbers the Owner sets', () => {
+  async function lonelyBill() {
+    const client = await prisma.company.create({ data: { name: `Lonely Client ${++n} ${tag}`, slug: `lonely-${n}-${tag}`, kind: 'CLIENT' } })
+    const msa = await prisma.masterAgreement.create({ data: { vendorId: w.firm.id, clientId: client.id } as any })
+    const engagement = await prisma.engagement.create({ data: { title: `Lonely ${n} ${tag}`, msaId: msa.id }, select: { id: true } })
+    const person = await prisma.person.create({ data: { name: `Lonely Worker ${n}`, primaryEmail: `lonely${n}.${tag}@example.invalid` } })
+    const line = await prisma.sellContract.create({ data: { companyId: w.firm.id, clientCompanyId: client.id, personId: person.id, engagementId: engagement.id, billRate: 10_000, state: 'IN_PROGRESS', startDate: day(90) } })
+    const bill = await prisma.invoice.create({
+      data: {
+        engagementId: engagement.id, number: `LN-${n}-${tag}`, currency: 'USD', total: '500.00', periodStart: day(50), periodEnd: day(44), dueAt: day(10), status: 'SUBMITTED',
+        invoiceLines: { create: [{ sellContractId: line.id, personId: person.id, hours: '20.00', rateCents: 2500, amountCents: 50_000 }] },
+      },
+    })
+    return { client, bill }
+  }
+  const noCards = (clientName: string) => prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { startsWith: `${clientName} has no one recorded to receive bills` } } })
+  const notSent = () => prisma.recordAction.count({ where: { companyId: w.firm.id, agentKey: KEY, action: 'MONEY_CHASE_NOT_SENT' } })
+
+  it('a customer with nobody to receive bills raises one card naming the fix, and no line every night', async () => {
+    await setSwitch('ON'); register()
+    const linesBefore = await notSent()
+    const { client, bill } = await lonelyBill()
+    await run()
+    const t = await taskFor(bill.id)
+    await say(t.decisionId, 'APPROVE')
+    await run(); await run(); await run()
+    const cards = await noCards(client.name)
+    expect(cards).toHaveLength(1)
+    expect(cards[0].question).toBe(`${client.name} has no one recorded to receive bills, so bill ${bill.number} cannot be chased. Add a billing contact on the customer’s page?`)
+    expect(cards[0].ownerPersonId).toBe(w.ar.id)
+    expect(cards[0].proofLinks).toEqual([{ recordType: 'Company', recordId: client.id }])
+    expect((await notSent()) - linesBefore).toBe(1)
+    expect(sent).toHaveLength(0)
+  })
+
+  it('once the billing contact is added the chase goes ahead as planned, with no further card', async () => {
+    const before = await notSent()
+    const t = (await tasks()).find((x) => x.state === 'APPROVED' || x.state === 'RUNNING')!
+    const bill = await prisma.invoice.findUniqueOrThrow({ where: { id: t.recordId }, include: { engagement: { include: { msa: true } } } })
+    await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: bill.engagement.msa!.clientId, name: 'Pat Payables', email: `pat.${tag}@example.invalid`, kind: 'AP' } as any })
+    register(); await run()
+    expect(await letters(t.id)).toBe(1)
+    expect(await notSent()).toBe(before)
+  })
+
+  it('a deployment with no lasting web address raises one card, then stays quiet', async () => {
+    const was = { a: process.env.NEXTAUTH_URL, b: process.env.NEXT_PUBLIC_APP_URL, c: process.env.APP_URL }
+    try {
+      await setSwitch('ON'); register()
+      const { client, bill } = await lonelyBill()
+      await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: client.id, name: 'Quinn Payables', email: `quinn.${tag}@example.invalid`, kind: 'AP' } as any })
+      await run()
+      await say((await taskFor(bill.id)).decisionId, 'APPROVE')
+      delete process.env.NEXTAUTH_URL; delete process.env.NEXT_PUBLIC_APP_URL; delete process.env.APP_URL
+      await run(); await run(); await run()
+      const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { startsWith: 'Bills cannot be chased' } } })
+      expect(cards).toHaveLength(1)
+      expect(cards[0].question).toMatch(/does not know its own web address/)
+    } finally {
+      if (was.a) process.env.NEXTAUTH_URL = was.a
+      if (was.b) process.env.NEXT_PUBLIC_APP_URL = was.b
+      if (was.c) process.env.APP_URL = was.c
+    }
+  })
+
+  const patch = (email: string, body: unknown) => { as(email); return agents.PATCH(req('PATCH', '/api/decision-items/agents', body)) }
+
+  it('the Owner sets a chase’s reminders and spacing, and the next card proposes them', async () => {
+    await setSwitch('ON'); register()
+    const res = await patch(w.owner.primaryEmail, { agentKey: KEY, chaseNumbers: { retries: 4, daysApart: 3 } })
+    expect(res.status).toBe(200)
+    const ledger = await prisma.recordAction.findFirst({ where: { companyId: w.firm.id, recordType: 'AgentSwitch', summary: { contains: 'up to 4 reminders, 3 working days apart' } } })
+    expect(ledger).not.toBeNull()
+    const { bill } = await lonelyBill()
+    await run()
+    const t = await taskFor(bill.id)
+    expect(t.plan).toMatchObject({ retries: 4, daysApart: 3 })
+    const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: t.decisionId } })
+    expect(card.question).toMatch(/one letter, then up to 4 reminders, 3 working days apart/)
+    expect(card.question).toMatch(/numbers the Owner set in Agent control/)
+  })
+
+  it('a task already approved keeps the plan it was approved with', async () => {
+    register()
+    await patch(w.owner.primaryEmail, { agentKey: KEY, chaseNumbers: { retries: 2, daysApart: 5 } })
+    const { bill } = await lonelyBill()
+    await run()
+    const t = await taskFor(bill.id)
+    await say(t.decisionId, 'APPROVE')
+    await patch(w.owner.primaryEmail, { agentKey: KEY, chaseNumbers: { retries: 5, daysApart: 1 } })
+    await run()
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).plan).toMatchObject({ retries: 2, daysApart: 5 })
+  })
+
+  it('an Admin cannot change them', async () => {
+    const adminRole = await prisma.role.create({ data: { companyId: w.firm.id, name: 'Admin', permissions: ['settings.manage', 'people.manage'] } })
+    const admin = await prisma.person.create({ data: { name: 'Ada Admin', primaryEmail: `ada.${tag}@example.invalid` } })
+    await prisma.context.create({ data: { personId: admin.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: adminRole.id } as any })
+    const res = await patch(admin.primaryEmail, { agentKey: KEY, chaseNumbers: { retries: 1, daysApart: 1 } })
+    expect(res.status).toBe(403)
+    expect(JSON.stringify(await json(res))).toMatch(/Only the firm’s Owner/)
+  })
+
+  it('numbers outside the allowed range are refused in a sentence', async () => {
+    for (const [chaseNumbers, says] of [
+      [{ retries: 6, daysApart: 5 }, /Letters after the first is a whole number from 0 to 5/],
+      [{ retries: 2, daysApart: 0 }, /Working days apart is a whole number from 1 to 15/],
+      [{ retries: 2, daysApart: 16 }, /Working days apart is a whole number from 1 to 15/],
+      [{ retries: 1.5, daysApart: 5 }, /Letters after the first/],
+    ] as const) {
+      const res = await patch(w.owner.primaryEmail, { agentKey: KEY, chaseNumbers })
+      expect(res.status).toBe(422)
+      expect(JSON.stringify(await json(res))).toMatch(says)
+    }
   })
 })

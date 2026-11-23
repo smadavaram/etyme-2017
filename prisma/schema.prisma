@@ -11285,6 +11285,8 @@ model AgentSwitch {
   agentKey    String
   state       AgentSwitchState @default(OFF)
   dailyCap    Int?
+  /// A chase agent's numbers the Owner set: { retries, daysApart }. Null = the proposed defaults.
+  chasePlan   Json?
   changedById String
   changedBy   Person           @relation(fields: [changedById], references: [id])
   changedAt   DateTime         @default(now())

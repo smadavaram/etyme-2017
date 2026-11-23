@@ -26,7 +26,7 @@ interface Data {
   lines: string[]
   canSwitch: boolean
   entities: { id: string; name: string }[]
-  agents: { key: string; name: string; switchState: 'OFF' | 'DRAFT_ONLY' | 'ON'; live: boolean; state: string; dailyCap: number | null; actionsToday: number; meter: string; cap: string }[]
+  agents: { key: string; name: string; switchState: 'OFF' | 'DRAFT_ONLY' | 'ON'; live: boolean; state: string; dailyCap: number | null; actionsToday: number; meter: string; cap: string; chaseNumbers: { retries: number; daysApart: number } | null }[]
   tasks: { id: string; agentKey: string; kind: string; state: string; question: string; ownerName: string; decisionId: string; sent: number; escalationOf: string | null; stopped: string | null }[]
   thisWeek: { at: string; says: string } | null
   proposedDefaults: { agentKey: string; name: string; says: string }[]
@@ -63,6 +63,17 @@ export default function AgentControlPage() {
         body: JSON.stringify({ agentKey, state, ...(dailyCap !== undefined ? { dailyCap } : {}), actingEntityId: entity || null }),
       }))
       setSaying('Saved.'); await load()
+    } catch (e: any) { setSaying(e.message) }
+  }
+
+  async function changeChase(agentKey: string, retries: number, daysApart: number) {
+    setSaying(null)
+    try {
+      await readJson(await fetch('/api/decision-items/agents', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentKey, chaseNumbers: { retries, daysApart }, actingEntityId: entity || null }),
+      }))
+      setSaying('Saved. New tasks use these numbers; tasks already approved keep theirs.'); await load()
     } catch (e: any) { setSaying(e.message) }
   }
 
@@ -119,6 +130,15 @@ export default function AgentControlPage() {
                           if (v === null) return
                           change(a.key, a.switchState, v.trim() === '' ? null : Number(v))
                         }}>Set cap</button>
+                      )}
+                      {data.canSwitch && a.live && (a.key === 'timesheet-chase' || a.key === 'money-owed-chase') && (
+                        <button className="ml-2 underline text-[12px]" onClick={() => {
+                          const r = window.prompt('Letters after the first, 0 to 5', String(a.chaseNumbers?.retries ?? 2))
+                          if (r === null) return
+                          const d = window.prompt('Working days apart, 1 to 15', String(a.chaseNumbers?.daysApart ?? (a.key === 'timesheet-chase' ? 2 : 5)))
+                          if (d === null) return
+                          changeChase(a.key, Number(r), Number(d))
+                        }}>Set letters{a.chaseNumbers ? ` (${a.chaseNumbers.retries} after the first, ${a.chaseNumbers.daysApart} days apart)` : ''}</button>
                       )}
                     </td>
                   </tr>

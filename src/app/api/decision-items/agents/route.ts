@@ -4,6 +4,7 @@ import { firmLedger, usageCount, payrollRowsHiddenSays, PAYROLL_LEDGER_READS } f
 import { prisma } from '@/lib/db'
 import { agentByWords, BASELINE_LINES, LEDGER_IS_FOR, agentRows, dayAround, recordViewHref } from '@/lib/decision-queue'
 import { NOTE_ACTIONS, mayChangeSwitch, readSwitchAsk, setSwitch } from '@/lib/agents/switch'
+import { CHASE_AGENT_KEYS, chaseNumbersFrom, readChaseNumbers, setChaseNumbers } from '@/lib/agents/chase-numbers'
 import { openTasks } from '@/lib/agents/tasks'
 import { latestThisWeek, proposedDefaults, stoppedSays } from '@/lib/agents/control-view'
 import { queueSeat, refused, refusalOf } from '../door'
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
       proposedDefaults: proposedDefaults().map((d) => ({ ...d, name: rows.find((r) => r.key === d.agentKey)?.name ?? (d.agentKey === 'weekly-summary' ? 'Weekly summary' : d.agentKey) })),
       canSwitch: mayChangeSwitch(seat.roleName) === null,
       entities: seat.entities,
-      agents: rows,
+      agents: rows.map((r) => ({ ...r, chaseNumbers: CHASE_AGENT_KEYS.includes(r.key) ? chaseNumbersFrom(switches.find((s) => s.agentKey === r.key)?.chasePlan) : null })),
       tasks: tasks.map((t) => {
         const a = rows.find((r) => r.key === t.agentKey)
         return { ...t, stopped: stoppedSays(t.state, a?.switchState ?? 'OFF', a?.name ?? t.agentKey) }
@@ -77,9 +78,24 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
+  const body = await request.json().catch(() => ({}))
+  if (body && typeof body === 'object' && 'chaseNumbers' in body) {
+    // A chase's letters and spacing: the Owner's alone, each change on the ledger.
+    const owner = mayChangeSwitch(seat.roleName)
+    if (owner) return refused(403, owner)
+    const num = readChaseNumbers(typeof body.agentKey === 'string' ? body.agentKey : '', body.chaseNumbers)
+    if (!num.ok) return refused(422, num.says, num.field)
+    const entity = typeof body.actingEntityId === 'string' && body.actingEntityId.trim() ? body.actingEntityId.trim() : seat.entities.length === 1 ? seat.entities[0].id : null
+    if (seat.entities.length > 1 && !entity) return refused(422, 'This company has legal entities. Choose which one this change is made for.', 'actingEntityId')
+    try {
+      const row = await setChaseNumbers({ companyId: seat.companyId, agentKey: body.agentKey, roleName: seat.roleName, personId: seat.personId, heldAs: seat.heldAs, actingEntityId: entity, numbers: num.numbers })
+      return NextResponse.json({ data: { agentKey: row.agentKey, chaseNumbers: num.numbers } })
+    } catch (e) {
+      return refusalOf(e)
+    }
+  }
   const who = mayChangeSwitch(seat.roleName)
   if (who) return refused(403, who)
-  const body = await request.json().catch(() => ({}))
   // A firm with one legal entity is not asked which: the change is made for it. Several, and she chooses.
   const asked = typeof body?.actingEntityId === 'string' && body.actingEntityId.trim() ? body : { ...body, actingEntityId: seat.entities.length === 1 ? seat.entities[0].id : null }
   const read = readSwitchAsk(typeof body?.agentKey === 'string' ? body.agentKey : '', asked, seat.entities.length > 1)

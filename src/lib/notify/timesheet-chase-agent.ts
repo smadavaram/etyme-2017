@@ -22,6 +22,7 @@ import { dayAround } from '@/lib/decision-queue'
 import { sendMail, mailSendsAbout } from '@/lib/notify/mail-door'
 import { registerAgent, AGENT_HELD_AS, type AgentContext } from '@/lib/agents/runner'
 import { TASK_RECORD, approvalOf, closeTask, proposeTask, type TaskPlan } from '@/lib/agents/tasks'
+import { chaseNumbersOf, planWith, numbersSource } from '@/lib/agents/chase-numbers'
 import { TIMESHEET_CHASE_TEMPLATE, timesheetChaseLetter, weekWords } from './timesheet-chase-letter'
 
 export const TIMESHEET_CHASE_AGENT = 'timesheet-chase'
@@ -45,19 +46,19 @@ export const PROPOSED_CHASE_PLAN: TaskPlan = {
 }
 
 /** The card's question, with the proposal said as a proposal. Pure. */
-export function chaseQuestion(workerName: string, week: string, plan: TaskPlan = PROPOSED_CHASE_PLAN): string {
+export function chaseQuestion(workerName: string, week: string, plan: TaskPlan = PROPOSED_CHASE_PLAN, ownerSet = false): string {
   const n = plan.retries
   return `${workerName} has not filed the week of ${week}. Send a letter asking for it? ` +
     `Proposed: one letter, then up to ${n} ${n === 1 ? 'reminder' : 'reminders'}, ${plan.daysApart} working days apart, ` +
-    `closing when the week is filed. These numbers are proposals; the Owner can change them in Agent control.`
+    `closing when the week is filed. ${numbersSource(ownerSet)}`
 }
 
 /** What a yes releases, in the card's own words: no template key, the same plan words as the question. Pure. */
-export function chaseProof(plan: TaskPlan = PROPOSED_CHASE_PLAN): string {
+export function chaseProof(plan: TaskPlan = PROPOSED_CHASE_PLAN, ownerSet = false): string {
   const n = plan.retries
   return `If you say yes, the agent sends a timesheet reminder. It may send it again up to ${n} ${n === 1 ? 'reminder' : 'reminders'}, ` +
     `${plan.daysApart} working days apart. It closes the task when ${plan.closesWhen}. Anything more is a new task and asks you again. ` +
-    `These numbers are proposals; the Owner can change them in Agent control.`
+    numbersSource(ownerSet)
 }
 
 /** Whole working days after `from` up to and including `to`, skipping the firm's days off. Pure. */
@@ -209,11 +210,14 @@ export async function timesheetChaseStep(ctx: AgentContext, deps: { send?: typeo
     if (!ownerPersonId) continue
     if (!(await ctx.mayAct(2))) break // proposing writes two counted rows
     const week = c.periodStart && c.periodEnd ? weekWords(c.periodStart, c.periodEnd) : `${weekWords(c.dueOn, c.dueOn)} (due)`
+    // The firm's own numbers, if the Owner set any, are taken now and kept in the task's plan.
+    const set = await chaseNumbersOf(companyId, ctx.agentKey)
+    const plan = planWith(PROPOSED_CHASE_PLAN, set)
     const task = await proposeTask({
       companyId, agentKey: ctx.agentKey, kind: TIMESHEET_CHASE_KIND, recordType: CHASE_RECORD, recordId: c.id,
-      plan: PROPOSED_CHASE_PLAN, ownerPersonId, question: chaseQuestion(c.sellContract!.person.name, week), openedOn: now,
+      plan, ownerPersonId, question: chaseQuestion(c.sellContract!.person.name, week, plan, set !== null), openedOn: now,
     })
-    await prisma.decisionItem.update({ where: { id: task.decisionId }, data: { proof: chaseProof() } })
+    await prisma.decisionItem.update({ where: { id: task.decisionId }, data: { proof: chaseProof(plan, set !== null) } })
     await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'CHASE_PROPOSED', summary: `Proposed a chase for ${c.sellContract!.person.name}, week of ${week}. Nothing is sent until a person says yes.` })
   }
 

@@ -256,4 +256,21 @@ describe('the timesheet chase agent', () => {
     expect(cards[0].question).toMatch(/Old One/); expect(cards[0].question).toMatch(/Old Two/)
     void o1; void o2
   })
+
+  it('the Owner sets a chase’s reminders and spacing, and the next card proposes them while an approved task keeps its plan', async () => {
+    await setSwitch('ON'); register()
+    const first = await newWeek('Early Bird'); await run()
+    const early = (await tasks()).find((t) => t.recordId === first.cycle.id)!
+    await say(early.decisionId, 'APPROVE')
+    as(w.owner.primaryEmail)
+    const res = await agents.PATCH(req('PATCH', '/api/decision-items/agents', { agentKey: KEY, chaseNumbers: { retries: 1, daysApart: 6 } }))
+    expect(res.status).toBe(200)
+    const later = await newWeek('Late Comer'); await run()
+    const t = (await tasks()).find((x) => x.recordId === later.cycle.id)!
+    expect(t.plan).toMatchObject({ retries: 1, daysApart: 6 })
+    const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: t.decisionId } })
+    expect(card.question).toMatch(/up to 1 reminder, 6 working days apart/)
+    expect(card.question).toMatch(/numbers the Owner set in Agent control/)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: early.id } })).plan).toEqual(PROPOSED_CHASE_PLAN)
+  })
 })
