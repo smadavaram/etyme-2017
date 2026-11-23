@@ -10,7 +10,7 @@
 import { prisma } from '@/lib/db'
 import { writeRecordAction, LedgerRefusal } from '@/lib/record-ledger'
 import { OWNER_ROLE } from '@/lib/owner-rules'
-import { FIRM_AGENTS, SWITCH_WORDS as WORDS, agentNameOf } from '@/lib/decision-queue'
+import { FIRM_AGENTS, SWITCH_WORDS as WORDS, agentNameOf, NOT_LIVE_AGENTS, notLiveSays } from '@/lib/decision-queue'
 
 export type SwitchState = 'OFF' | 'DRAFT_ONLY' | 'ON'
 export const SWITCH_STATES: readonly SwitchState[] = ['OFF', 'DRAFT_ONLY', 'ON']
@@ -51,6 +51,7 @@ export function readSwitchAsk(key: string, body: unknown, hasEntities: boolean):
   const b = (body ?? {}) as Record<string, unknown>
   if (!agentKeys().includes(key)) return { ok: false, field: 'agentKey', says: 'That is not one of the firm’s agents.' }
   if (!SWITCH_STATES.includes(b.state as SwitchState)) return { ok: false, field: 'state', says: 'Choose Off, Drafts only or On.' }
+  if (b.state !== 'OFF' && NOT_LIVE_AGENTS.includes(key)) return { ok: false, field: 'state', says: notLiveSays(key) }
   let dailyCap: number | null | undefined
   if ('dailyCap' in b) {
     if (b.dailyCap === null || b.dailyCap === '') dailyCap = null

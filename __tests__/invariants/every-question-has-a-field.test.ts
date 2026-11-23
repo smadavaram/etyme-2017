@@ -741,6 +741,12 @@ describe('the decision queue’s two forms (record 107, A2 and A3)', () => {
     expect(readFileSync(join(process.cwd(), 'src/app/api/decision-items/route.ts'), 'utf8')).toContain('readOpenAsk(')
     expect(readFileSync(join(process.cwd(), 'src/app/api/decision-items/[id]/route.ts'), 'utf8')).toContain('readDecideAsk(')
   })
+
+  it('a firm with exactly one legal entity is never asked to choose it, on any screen or route that asks for an entity', () => {
+    for (const f of ['src/app/dashboard/decisions/queue.tsx', 'src/app/dashboard/decisions/[id]/page.tsx', 'src/app/dashboard/money-loop/page.tsx', 'src/app/dashboard/money-loop/advance-form.tsx', 'src/components/settings/home-page-panel.tsx', 'src/app/api/decision-items/[id]/route.ts', 'src/app/api/decision-items/route.ts', 'src/app/api/money-loop/route.ts', 'src/app/api/settings/home-page/route.ts']) {
+      expect(readFileSync(join(process.cwd(), f), 'utf8'), f).not.toMatch(/entities\.length > 0/)
+    }
+  })
 })
 
 describe('the money loop’s forms (record 107, B2 to B5)', () => {

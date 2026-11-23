@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { workingDaysBetween, nextLetter, chaseQuestion, chaseProof, periodCovered, PROPOSED_CHASE, PROPOSED_CHASE_PLAN } from '@/lib/notify/timesheet-chase-agent'
+import { workingDaysBetween, nextLetter, chaseQuestion, chaseProof, periodCovered, PROPOSED_CHASE, PROPOSED_CHASE_PLAN, backlogLines,
+} from '@/lib/notify/timesheet-chase-agent'
 import { timesheetChaseLetter, weekWords } from '@/lib/notify/timesheet-chase-letter'
 
 const OFF = [0, 6]
@@ -52,5 +53,10 @@ describe('the timesheet chase, as arithmetic', () => {
     expect(periodCovered(due[0], due[1], [{ periodStart: d('2026-11-02'), periodEnd: d('2026-11-13') }], OFF)).toBe(true)
     expect(periodCovered(due[0], due[1], [{ periodStart: d('2026-11-09'), periodEnd: d('2026-11-11') }], OFF)).toBe(false)
     expect(periodCovered(due[0], due[1], [{ periodStart: d('2026-11-09'), periodEnd: d('2026-11-11') }, { periodStart: d('2026-11-12'), periodEnd: d('2026-11-20') }], OFF)).toBe(true)
+  })
+
+  it('the backlog card lists each worker once with her weeks', () => {
+    expect(backlogLines([{ name: 'Ana Ruiz', week: 'Nov 2 to Nov 8' }, { name: 'Bo Lin', week: 'Nov 2 to Nov 8' }, { name: 'Ana Ruiz', week: 'Nov 9 to Nov 15' }]))
+      .toEqual(['Ana Ruiz: Nov 2 to Nov 8, Nov 9 to Nov 15', 'Bo Lin: Nov 2 to Nov 8'])
   })
 })

@@ -32,6 +32,8 @@ export interface TaskPlan {
   daysApart: number
   /** What closes the task, in words: "the timesheet arrives". */
   closesWhen: string
+  /** A task that raises a card for a person and writes to nobody: it has no letters and no send step. */
+  sendsNothing?: boolean
 }
 
 /** A letter's name as a person reads it: its label, else its template made into words. Pure. */
@@ -43,6 +45,7 @@ export function letterName(m: { template: string; label?: string }): string {
 
 /** The plan in plain words, the proof a person reads before saying yes. Pure. */
 export function planWords(plan: TaskPlan): string {
+  if (plan.sendsNothing) return `If you say yes, nothing is sent. A person follows up. It closes the task when ${plan.closesWhen}.`
   const names = plan.messages.map((m) => `“${letterName(m)}”`).join(', ')
   const again = plan.retries === 0
     ? 'It is not sent again.'
@@ -51,7 +54,7 @@ export function planWords(plan: TaskPlan): string {
 }
 
 export function planRefusal(plan: TaskPlan): string | null {
-  if (!plan || !Array.isArray(plan.messages) || plan.messages.length === 0) return 'A task names the letters it may send.'
+  if (!plan || !Array.isArray(plan.messages) || (plan.messages.length === 0 && !plan.sendsNothing)) return 'A task names the letters it may send.'
   if (plan.messages.some((m) => !m.template?.trim())) return 'Every letter in a task has a template name.'
   if (!Number.isInteger(plan.retries) || plan.retries < 0) return 'A task says how many times a letter may be sent again, none or more.'
   if (plan.retries > 0 && (!Number.isInteger(plan.daysApart) || plan.daysApart < 1)) return 'A task that sends again says how many days apart.'

@@ -112,11 +112,14 @@ describe('the money loop, through its routes', () => {
     expect(await prisma.moneyChain.count({ where: { companyId: w.firm.id, periodStart: NEXT.start } })).toBe(0)
   })
 
-  it('a firm with a legal entity cannot open a month without choosing the entity', async () => {
-    as(w.clerk.primaryEmail)
-    const res = await json(await loop.POST(post('/api/money-loop', openMonthBody({ month: DEC }))))
-    expect(res.status).toBe(422)
-    expect(res.body.error.message).toMatch(/Choose which one/)
+  it('a firm with several legal entities cannot open a month without choosing the entity', async () => {
+    const second = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Loop Firm Two LLC', country: 'US', currency: 'USD' } })
+    try {
+      as(w.clerk.primaryEmail)
+      const res = await json(await loop.POST(post('/api/money-loop', openMonthBody({ month: DEC }))))
+      expect(res.status).toBe(422)
+      expect(res.body.error.message).toMatch(/Choose which one/)
+    } finally { await prisma.legalEntity.delete({ where: { id: second.id } }) }
   })
 
   it('a seat that runs payroll opens a month, and every consultant on a running contract starts at Timesheet owed', async () => {
@@ -202,10 +205,13 @@ describe('the money loop, through its routes', () => {
     expect(res.body.error.message).toBe('Type the amount as a number with at most two decimal places, such as 16000.00.')
   })
 
-  it('a firm with a legal entity cannot move a month without choosing the entity', async () => {
-    as(w.clerk.primaryEmail)
-    const res = await move(w.chain.ana, 'TIMESHEET_RECEIVED', { amount: '16000.00', actingEntityId: '' })
-    expect([res.status, res.body.error.field]).toEqual([422, 'actingEntityId'])
+  it('a firm with several legal entities cannot move a month without choosing the entity', async () => {
+    const second = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Loop Firm Two LLC', country: 'US', currency: 'USD' } })
+    try {
+      as(w.clerk.primaryEmail)
+      const res = await move(w.chain.ana, 'TIMESHEET_RECEIVED', { amount: '16000.00', actingEntityId: '' })
+      expect([res.status, res.body.error.field]).toEqual([422, 'actingEntityId'])
+    } finally { await prisma.legalEntity.delete({ where: { id: second.id } }) }
   })
 
   it('a move that states an amount is refused until somebody is named to decide a disagreement', async () => {
@@ -432,10 +438,13 @@ describe('the money loop, through its routes', () => {
     expect(await prisma.moneyChain.count({ where: { sellContractId: w.cy.id, periodStart: PAST.start } })).toBe(0)
   })
 
-  it('a firm with a legal entity cannot load a past month without choosing the entity, and the refusal names the entity box', async () => {
-    as(w.clerk.primaryEmail)
-    const res = await loadInto(PAST.key, loadTyped({ actingEntityId: '' }))
-    expect([res.status, res.body.error.field, res.body.error.message]).toEqual([422, 'actingEntityId', 'This company has legal entities. Choose which one this is done for.'])
+  it('a firm with several legal entities cannot load a past month without choosing the entity, and the refusal names the entity box', async () => {
+    const second = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Loop Firm Two LLC', country: 'US', currency: 'USD' } })
+    try {
+      as(w.clerk.primaryEmail)
+      const res = await loadInto(PAST.key, loadTyped({ actingEntityId: '' }))
+      expect([res.status, res.body.error.field, res.body.error.message]).toEqual([422, 'actingEntityId', 'This company has legal entities. Choose which one this is done for.'])
+    } finally { await prisma.legalEntity.delete({ where: { id: second.id } }) }
   })
 
   it('a past month is loaded as closed with its source, its as-of day and three equal amounts, and reads Loaded as history', async () => {

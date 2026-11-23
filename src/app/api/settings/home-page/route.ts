@@ -24,7 +24,7 @@ export async function PATCH(request: NextRequest) {
   if (error) return error
   const who = maySetHomePage(seat.roleName)
   if (who) return refused(403, who)
-  const read = readHomeAsk(await request.json().catch(() => ({})), seat.entities.length > 0)
+  const read = readHomeAsk(await request.json().catch(() => ({})), seat.entities.length > 1)
   if (!read.ok) return refused(422, read.says)
   try {
     await prisma.$transaction(async (tx) => {

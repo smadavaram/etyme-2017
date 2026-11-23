@@ -233,6 +233,16 @@ export function readDecideAsk(body: unknown, hasEntities: boolean):
   return { ok: true, ask: { verdict, reason, actingEntityId: entity } }
 }
 
+/** A card that only needs acknowledging: it offers Done, never Approve, Send back or Reject. Pure. */
+export function onlyAcknowledged(question: string): boolean {
+  return /(Read the summary\?|Review the placement now\?)$/.test(question.trim())
+}
+
+/** A proof's text cut at the in-app paths it names, so each path can be drawn as a link. Pure. */
+export function proofParts(proof: string): { text: string; href: string | null }[] {
+  return proof.split(/(\/dashboard\/[\w/-]+[\w-])/).filter(Boolean).map((t) => (t.startsWith('/dashboard/') ? { text: t, href: t } : { text: t, href: null }))
+}
+
 /** The decision, in the words its page prints. Pure. */
 export function stateWords(state: string): string {
   return state === 'APPROVED' ? 'Approved' : state === 'REJECTED' ? 'Rejected' : 'Open'
@@ -262,6 +272,14 @@ export const FIRM_AGENTS = [
   { key: 'money-owed-chase', name: 'Money-owed chase' },
   { key: 'weekly-summary', name: 'Weekly summary' },
 ] as const
+
+/** Agents named on Agent control that have no step behind them yet: they read "Not live yet" and cannot be switched on. */
+export const NOT_LIVE_AGENTS: readonly string[] = ['digest-scanner']
+
+/** The sentence a refused switch says. Pure. */
+export function notLiveSays(key: string): string {
+  return `${agentNameOf(key)} is not live yet, so it cannot be switched on.`
+}
 
 /** An agent's name as a person reads it; an unknown key reads as the key made into words. Pure. */
 export function agentNameOf(key: string): string {
@@ -300,7 +318,8 @@ export function agentRows(
     const sw = switches.find((s) => s.agentKey === a.key)
     const cap = sw?.dailyCap ?? null
     return {
-      key: a.key, name: a.name, switchState: sw?.state ?? 'OFF', state: SWITCH_WORDS[sw?.state ?? 'OFF'], dailyCap: cap,
+      key: a.key, name: a.name, switchState: sw?.state ?? 'OFF', state: NOT_LIVE_AGENTS.includes(a.key) ? 'Not live yet' : SWITCH_WORDS[sw?.state ?? 'OFF'], dailyCap: cap,
+      live: !NOT_LIVE_AGENTS.includes(a.key),
       actionsToday: today, meter: `${today} ${today === 1 ? 'action' : 'actions'}`,
       cap: cap === null ? `${today} today · no cap` : `${today} of ${cap} today`,
     }

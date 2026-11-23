@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!hasPermission(seat.caller.permissions, 'payroll.read')) return refuseLoop(seat, request, 'read')
   if (!hasPermission(seat.caller.permissions, 'payroll.run')) return refuseLoop(seat, request, 'run')
-  const read = readOpenMonthAsk(await request.json().catch(() => ({})), seat.entities.length > 0)
+  const read = readOpenMonthAsk(await request.json().catch(() => ({})), seat.entities.length > 1)
   if (!read.ok) return refused(422, read.says, read.field)
   const today = await firmToday(seat.companyId)
   const notBegun = openPeriodRefusal({ periodStart: read.month.start, periodEnd: read.month.end }, today)

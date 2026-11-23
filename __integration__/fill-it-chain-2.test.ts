@@ -8,9 +8,9 @@ import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { prisma, resetDatabase, as, req, json } from './harness'
 import * as item from '@/app/api/decision-items/[id]/route'
 import * as offerRoute from '@/app/api/submissions/[id]/offer/route'
+import * as listRoute from '@/app/api/submissions/route'
 import { decideBody } from '@/lib/decision-queue'
 import { runAgent, registerAgent, unregisterAgent } from '@/lib/agents/runner'
-import { sendMail } from '@/lib/notify/mail-door'
 import { interviewChaseStep, INTERVIEW_CHASE, PROPOSED_INTERVIEW_PLAN } from '@/lib/agents/interview-chase'
 import { matchRankerStep, MATCH_RANKER } from '@/lib/agents/match-ranker'
 
@@ -133,6 +133,32 @@ describe('the offer on a submission', () => {
     expect((await offerCall(w.hiring.primaryEmail, 'POST', a.s.id, { rate: 95, propose: true, actingEntityId: e })).status).toBe(201)
   })
 
+  it('a submission with a live offer reads Offered in the list and the Offered filter, and not Interviewing', async () => {
+    const a = await submission('INTERVIEW')
+    const e = w.client.entity.id
+    const listed = async (status: string) => {
+      as(w.recruiter.primaryEmail)
+      const r = await json(await listRoute.GET(req('GET', `/api/submissions?direction=sent&limit=50${status ? `&status=${status}` : ''}`)))
+      return (r.body.data?.submissions ?? []).filter((x: any) => x.id === a.s.id)
+    }
+    expect((await listed(''))[0].status).toBe('INTERVIEW')
+    await offerCall(w.hiring.primaryEmail, 'POST', a.s.id, { rate: 80, propose: true, actingEntityId: e })
+    expect((await listed(''))[0].status).toBe('OFFERED')
+    expect(await listed('OFFERED')).toHaveLength(1)
+    expect(await listed('INTERVIEW')).toHaveLength(0)
+  })
+
+  it('the list offers Record confirmation to a seat that puts people forward, and not to a seat that cannot', async () => {
+    const a = await submission()
+    as(w.recruiter.primaryEmail)
+    const mine = await json(await listRoute.GET(req('GET', '/api/submissions?direction=sent&limit=50')))
+    expect(mine.body.data.submissions.find((x: any) => x.id === a.s.id).confirm.open).toBe(true)
+    as(w.owner.primaryEmail)
+    await prisma.submissionConfirmation.create({ data: { companyId: w.supplier.company.id, submissionId: a.s.id, channel: 'PHONE' } })
+    const after = await json(await listRoute.GET(req('GET', '/api/submissions?direction=sent&limit=50')))
+    expect(after.body.data.submissions.find((x: any) => x.id === a.s.id).confirm.open).toBe(false)
+  })
+
   it('an offer that was accepted can be withdrawn only before the person is placed', async () => {
     const a = await submission()
     const e = w.client.entity.id
@@ -145,7 +171,7 @@ describe('the offer on a submission', () => {
 })
 
 describe('the interview chase agent', () => {
-  const reg = () => registerAgent(INTERVIEW_CHASE, { ruleVersion: 't', step: (ctx) => interviewChaseStep(ctx, { send: (m) => sendMail(m, deps) }) })
+  const reg = () => registerAgent(INTERVIEW_CHASE, { ruleVersion: 't', step: (ctx) => interviewChaseStep(ctx) })
   const run = (now = new Date()) => runAgent(INTERVIEW_CHASE, w.supplier.company.id, now)
   const tasks = () => prisma.agentTask.findMany({ where: { companyId: w.supplier.company.id, agentKey: INTERVIEW_CHASE }, orderBy: { createdAt: 'asc' } })
 
@@ -160,19 +186,16 @@ describe('the interview chase agent', () => {
     expect([t[0].kind, t[0].state, t[0].plan]).toEqual(['INTERVIEW_CHASE', 'PROPOSED', PROPOSED_INTERVIEW_PLAN])
     const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: t[0].decisionId } })
     expect(card.question).toMatch(/has not moved .* for Quiet role in 3 working days/)
-    expect(card.question).toMatch(/proposals the Owner may change/)
+    expect(card.question).toMatch(/A person follows up with .* about .*; the agent does not write to the client\./)
     expect(sent).toHaveLength(0)
   })
 
-  it('after the yes one letter goes to the client contact and the reminder waits its working days', async () => {
+  it('the interview chase never writes to a client contact, even after a yes with the switch On', async () => {
     const [t] = await tasks()
     await say(w.owner.primaryEmail, w.supplier.entity.id, t.decisionId, 'APPROVE')
-    reg(); await run()
-    const rows = await prisma.mailSend.findMany({ where: { agentTaskId: t.id, outcome: 'SENT' } })
-    expect(rows).toHaveLength(1)
-    expect([rows[0].agentKey, rows[0].template, rows[0].recordType]).toEqual([INTERVIEW_CHASE, 'interview-chase', 'Submission'])
-    await run()
-    expect(await prisma.mailSend.count({ where: { agentTaskId: t.id, outcome: 'SENT' } })).toBe(1)
+    reg(); await run(); await run()
+    expect(await prisma.mailSend.count({ where: { agentTaskId: t.id } })).toBe(0)
+    expect(sent).toHaveLength(0)
   })
 
   it('when the client interviews the person the chase is closed and no more letters go', async () => {

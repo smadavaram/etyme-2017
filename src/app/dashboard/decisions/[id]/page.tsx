@@ -7,7 +7,7 @@ import { readJson } from '@/lib/read-response'
 import { useFirstPageSection } from '@/components/page-section'
 import { PageHead, Panel, ErrorState, LoadingState } from '@/components/ui'
 import { Field, Input, Select, FormMessage } from '@/components/ui/form'
-import { VERDICT_BUTTONS, QUEUE_EYEBROW_HREFS, ageWords, decideBody, stateWords, type VerdictWord } from '@/lib/decision-queue'
+import { VERDICT_BUTTONS, QUEUE_EYEBROW_HREFS, onlyAcknowledged, proofParts, ageWords, decideBody, stateWords, type VerdictWord } from '@/lib/decision-queue'
 import { ledgerWhen } from '@/components/ui/ledger-rows'
 
 /**
@@ -90,13 +90,19 @@ export default function DecisionItemPage() {
 
       <Panel title="Proof">
         {item.proofHidden && <p className="text-[14px] text-etyme-muted">{item.proofHidden}</p>}
-        {item.proof && <p className="text-[14px] text-etyme-ink whitespace-pre-line">{item.proof}</p>}
-        {item.proofLinks.length > 0 && (
+        {item.proof && (
+          <p className="text-[14px] text-etyme-ink whitespace-pre-line">
+            {proofParts(item.proof).map((part, i) => part.href
+              ? <Link key={i} href={part.href as any} className="text-etyme-action hover:underline">{part.text}</Link>
+              : <span key={i}>{part.text}</span>)}
+          </p>
+        )}
+        {item.proofLinks.some((l) => l.name) && (
           <ul className="mt-3 text-[14px]">
-            {item.proofLinks.map((l) => (
+            {item.proofLinks.filter((l) => l.name).map((l) => (
               <li key={`${l.recordType}:${l.recordId}`} className="py-1">
                 <span className="text-etyme-muted">{l.label}: </span>
-                <Link href={l.href as any} className="text-etyme-action hover:underline">{l.name ?? 'A record your seat cannot read'}</Link>
+                <Link href={l.href as any} className="text-etyme-action hover:underline">{l.name}</Link>
               </li>
             ))}
           </ul>
@@ -124,7 +130,7 @@ export default function DecisionItemPage() {
 
       {item.state === 'OPEN' && item.mayAct && (
         <div className="mt-5 grid gap-4 max-w-[620px]">
-          {item.entities.length > 0 && (
+          {item.entities.length > 1 && (
             <Field label="The legal entity you decide for" id="dq-decide-entity">
               <Select id="dq-decide-entity" value={entity} onChange={(e) => setEntity(e.target.value)}>
                 <option value="">Choose an entity</option>
@@ -132,12 +138,18 @@ export default function DecisionItemPage() {
               </Select>
             </Field>
           )}
-          <Field label="Reason" help="One line. Needed to send it back or reject it." id="dq-reason">
-            <Input id="dq-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
-          </Field>
+          {!onlyAcknowledged(item.question) && (
+            <Field label="Reason" help="One line. Needed to send it back or reject it." id="dq-reason">
+              <Input id="dq-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+            </Field>
+          )}
           {err && <FormMessage tone="error">{err}</FormMessage>}
           <div className="flex flex-wrap gap-2">
-            {VERDICT_BUTTONS.map((b) => (
+            {onlyAcknowledged(item.question) ? (
+              <button type="button" disabled={busy !== null} onClick={() => decide('APPROVE')} className="btn-primary text-[13px]">
+                {busy === 'APPROVE' ? 'Saving…' : 'Done'}
+              </button>
+            ) : VERDICT_BUTTONS.map((b) => (
               <button key={b.verdict} type="button" disabled={busy !== null} onClick={() => decide(b.verdict)}
                 className={b.verdict === 'APPROVE' ? 'btn-primary text-[13px]' : 'btn-secondary text-[13px]'}>
                 {busy === b.verdict ? 'Saving…' : b.label}

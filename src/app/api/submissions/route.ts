@@ -2,7 +2,7 @@ import { reachFor, submissionsWhere, jobInReach, outsideReachSays } from '@/app/
 import { mayNameJob, jobNamed } from './job-heading'
 import { NextRequest, NextResponse } from 'next/server'
 import { placeOf } from '@/lib/job-site'
-import { whyNotOpen } from './words'
+import { whyNotOpen, listedStatus, OFFER_OUT_STATES } from './words'
 import { reportError } from '@/lib/alerts'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -1775,7 +1775,13 @@ export async function GET(request: NextRequest) {
   }
 
   if (status) {
-    where.status = status.toUpperCase()
+    // A live offer makes a row read Offered, so the Offered filter finds it and Interviewing does not.
+    const live = { offers: { some: { liveFor: { not: null }, state: { in: [...OFFER_OUT_STATES] } } } }
+    const asked = status.toUpperCase()
+    const and = (c: unknown) => { where.AND = [...(where.AND ?? []), c] }
+    if (asked === 'OFFERED') and({ OR: [{ status: 'OFFERED' }, { status: { in: ['SUBMITTED', 'SHORTLISTED', 'INTERVIEW'] }, ...live }] })
+    else if (['SUBMITTED', 'SHORTLISTED', 'INTERVIEW'].includes(asked)) and({ status: asked, NOT: live })
+    else where.status = asked
   }
 
   const [submissions, total] = await Promise.all([
@@ -1792,6 +1798,9 @@ export async function GET(request: NextRequest) {
         // The hop this row came up, so "how they came" is read off the
         // chain rather than off the stored kind (`submissionKindWord`).
         parentSubmission: { select: { fromCompany: { select: { name: true } } } },
+        // A live offer, so the row can read Offered; the state only, never its rate.
+        offers: { where: { liveFor: { not: null } }, select: { state: true } },
+        confirmations: { select: { id: true }, take: 1 },
         // Where each candidate has got to, so a row can say it without a
         // second call per row. Four fields — no feedback, no panel, no
         // notes: this list is read by both sides of the trade, and what
@@ -1888,7 +1897,13 @@ export async function GET(request: NextRequest) {
         // What the firm asked for the person is the selling desk's to
         // read; a seat with no desk reads its own row without it.
         rate: ownOnly ? null : s.rate,
-        status: s.status,
+        status: listedStatus(s.status, s.offers.map((o) => o.state)),
+        // "Record confirmation" is drawn where the confirmations route would take it: the firm that put the person forward,
+        // by a seat that puts people forward, while nothing is confirmed and the row is still alive.
+        confirm: {
+          open: hasPermission(caller.permissions, 'submissions.create') && !!caller.company && s.fromCompanyId === caller.company.id
+            && s.confirmations.length === 0 && !['REJECTED', 'WITHDRAWN', 'NOT_SELECTED', 'PLACED'].includes(s.status),
+        },
         submittedAt: s.submittedAt.toISOString(),
         // Whether it has been sent on, so the list can offer the button
         // — and, once used, say plainly that it was used. The route was

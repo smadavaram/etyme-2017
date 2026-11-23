@@ -57,7 +57,7 @@ describe('the agent switch, through its route', () => {
   it('every agent is off until the Owner switches it on, and an Admin cannot', async () => {
     as(w.admin.primaryEmail)
     const view = await json(await agents.GET(req('GET', '/api/decision-items/agents')))
-    expect(view.body.data.agents.map((a: any) => a.state)).toEqual(Array(13).fill('Off'))
+    expect(view.body.data.agents.map((a: any) => a.state)).toEqual(Array(13).fill('Off').map((x, i) => (i === 1 ? 'Not live yet' : x)))
     expect(view.body.data.canSwitch).toBe(false)
     const denied = await json(await agents.PATCH(req('PATCH', '/api/decision-items/agents', { agentKey: KEY, state: 'ON', actingEntityId: w.entity.id })))
     expect(denied.status).toBe(403)

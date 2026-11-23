@@ -32,6 +32,7 @@ import { prisma } from '@/lib/db'
 import { mailedBase } from '@/lib/app-url'
 import { daysOffFor } from '@/lib/days-off'
 import { dayAround } from '@/lib/decision-queue'
+import { openDecision } from '@/lib/decision-items'
 import { formatDay } from '@/lib/format-date'
 import { minorFromWhole } from '@/lib/money'
 import { amount } from '@/lib/money-display'
@@ -40,7 +41,7 @@ import { ownerForRoles, RECEIVABLES_ROLES } from '@/lib/money/agent-owners'
 import { sendMail, mailSendsAbout } from '@/lib/notify/mail-door'
 import { hello, paragraphs, bullets } from '@/lib/notify/letters'
 import { billLinkOpen, billLinkToken, billLinkUrl } from '@/lib/notify/bill-letter'
-import { nextLetter } from '@/lib/notify/timesheet-chase-agent'
+import { nextLetter, agentStamp } from '@/lib/notify/timesheet-chase-agent'
 import { registerAgent, type AgentContext } from '@/lib/agents/runner'
 import { TASK_RECORD, approvalOf, closeTask, proposeTask, type TaskPlan } from '@/lib/agents/tasks'
 
@@ -237,10 +238,10 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     if (await openDecisionAbout(companyId, b)) continue // A short pay or drift is a person's to record first.
 
     const plan = task.plan as unknown as TaskPlan
-    const left = (await mailSendsAbout(companyId, MONEY_OWED_RECORD, b.id)).filter((r) => r.agentTaskId === task.id && r.outcome === 'SENT')
+    const left = (await mailSendsAbout(companyId, MONEY_OWED_RECORD, b.id)).filter((r) => r.agentTaskId === task.id) // every attempt counts, sent or not
     const next = nextLetter(plan, left.length, left.length ? left[left.length - 1].createdAt : null, now, daysOff)
     if (next.act === 'WAIT') continue
-    if (next.act === 'END') { await closeTask(task.id, 'No answer: every letter in the plan was sent and the bill is still owed. Any further step is a person’s to take.', 'DONE'); continue }
+    if (next.act === 'END') { await closeTask(task.id, 'No answer: every attempt in the plan was made and the bill is still owed. Any further step is a person’s to take.', 'DONE'); continue }
 
     if (!(await ctx.mayAct())) return // the letter and its row are one unit
     const customer = await customerOf(b)
@@ -276,6 +277,17 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
       recordType: TASK_RECORD, recordId: task.id, action: went ? 'MONEY_CHASE_SENT' : 'MONEY_CHASE_NOT_SENT',
       summary: went ? `Sent letter ${next.attempt} to ${customer.name} for bill ${b.number}, ${amount(owed, b.currency)} owed.` : `Letter ${next.attempt} to ${customer.name} for bill ${b.number} was not sent: ${res.note}`,
     })
+    if (res.outcome === 'FAILED_DELIVERY') {
+      const stamp = await agentStamp(companyId, ctx.agentKey)
+      if (stamp && owner) {
+        await openDecision({
+          ...stamp, companyId, ownerPersonId: owner, openedOn: now,
+          question: `Failed delivery: letter ${next.attempt} to ${customer.name} for bill ${b.number} did not arrive. Check the address recorded for the person who receives bills.`,
+          proof: `The mail service said: ${res.note}`,
+          proofLinks: [{ recordType: TASK_RECORD, recordId: task.id }],
+        })
+      }
+    }
   }
 }
 

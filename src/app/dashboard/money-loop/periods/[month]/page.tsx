@@ -215,7 +215,7 @@ export default function PeriodPage() {
 }
 
 function LoadForm({ data, onDone }: { data: Data; onDone: () => Promise<void> }) {
-  const hasEntities = data.entities.length > 0
+  const hasEntities = data.entities.length > 1
   const draws = loadFields(hasEntities)
   const [f, setF] = useState<Partial<LoadTyped>>({ currency: 'USD' })
   const [busy, setBusy] = useState(false)

@@ -127,7 +127,7 @@ function OpenDecisionForm({ data, onOpened }: { data: QueueData; onOpened: () =>
   const [linkQuery, setLinkQuery] = useState('')
   const [choices, setChoices] = useState<{ id: string; name: string }[]>([])
   const [names, setNames] = useState<Record<string, string>>({})
-  const hasEntities = data.entities.length > 0
+  const hasEntities = data.entities.length > 1
 
   useEffect(() => {
     if (!linkType) { setChoices([]); return }

@@ -122,11 +122,22 @@ describe('the decision queue, through its routes', () => {
     expect(res.body.error.message).toBe('Say in one line why it is rejected.')
   })
 
-  it('a decider at a firm with entities must choose which entity she decides for', async () => {
+  it('a decider at a firm with several legal entities must choose which entity she decides for', async () => {
+    const second = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Queue Firm Two LLC', country: 'US', currency: 'USD' } })
     as(w.am.primaryEmail)
     const res = await json(await item.POST(post(`/api/decision-items/${w.itemId}`, decideBody('APPROVE', '', '')), p(w.itemId)))
+    await prisma.legalEntity.delete({ where: { id: second.id } })
     expect(res.status).toBe(422)
     expect(res.body.error.message).toMatch(/Choose which one you decide for/)
+  })
+
+  it('a firm with one legal entity approves a card without choosing it', async () => {
+    const opened = await openOne('Approve the single-entity renewal?')
+    as(w.am.primaryEmail)
+    const res = await json(await item.POST(post(`/api/decision-items/${opened.body.data.id}`, decideBody('APPROVE', '', '')), p(opened.body.data.id)))
+    expect(res.status).toBe(200)
+    const row = await prisma.recordAction.findFirst({ where: { recordId: opened.body.data.id, action: { not: 'OPENED' } } })
+    expect(row?.actingEntityId).toBe(w.entity.id)
   })
 
   it('after approval the item names the decider, the entity, the role she held, the time and the reason, and it leaves the open list', async () => {
@@ -164,7 +175,7 @@ describe('agent control and the ledger', () => {
     as(w.am.primaryEmail)
     const res = await json(await agents.GET(req('GET', '/api/decision-items/agents')))
     expect(res.body.data.agents).toHaveLength(13)
-    for (const a of res.body.data.agents) expect([a.state, a.actionsToday, a.meter, a.cap]).toEqual(['Off', 0, '0 actions', '0 today · no cap'])
+    for (const a of res.body.data.agents) expect([a.state, a.actionsToday, a.meter, a.cap]).toEqual([a.key === 'digest-scanner' ? 'Not live yet' : 'Off', 0, '0 actions', '0 today · no cap'])
   })
 
   it('the margin baseline line is shown only to a seat that may read margin', async () => {

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   mayOpenDecision, maySetHomePage, readOpenAsk, openBody, readDecideAsk, decideBody, agentRows, ageWords,
   ownPageOf, recordViewHref, agentByWords, agentNameOf, readHomeAsk, FIRM_AGENTS, VERDICT_BUTTONS, PROOF_TYPES,
-  QUEUE_EYEBROW_HREFS, ledgerBeganSays, readNeeds, isRecordType, cannotReadSays,
+  QUEUE_EYEBROW_HREFS, onlyAcknowledged, proofParts, ledgerBeganSays, readNeeds, isRecordType, cannotReadSays,
 } from '@/lib/decision-queue'
 import { queueCards } from '@/app/api/conversations/twin/ask'
 import { execSync } from 'child_process'
@@ -91,7 +91,7 @@ describe('agent control', () => {
     const rows = agentRows([{ agentKey: 'digest-scanner', count: 2 }, { agentKey: null, count: 9 }])
     expect(rows.map((r) => r.name)).toEqual(FIRM_AGENTS.map((a) => a.name))
     expect(rows).toHaveLength(13)
-    expect(rows.every((r) => r.state === 'Off' && r.cap.endsWith('today · no cap'))).toBe(true)
+    expect(rows.every((r) => (r.state === 'Off' || r.state === 'Not live yet') && r.cap.endsWith('today · no cap'))).toBe(true)
     expect(rows.find((r) => r.key === 'digest-scanner')).toMatchObject({ actionsToday: 2, meter: '2 actions' })
     expect(rows.find((r) => r.key === 'census-keeper')).toMatchObject({ actionsToday: 0, meter: '0 actions' })
   })
@@ -223,4 +223,16 @@ describe('how the queue’s pages are framed and drawn (the walk of Flow A)', ()
     expect(src('src/app/dashboard/decisions/agents/page.tsx')).toContain('{data.ledger.payrollHidden && <p')
     expect(src('src/app/api/decision-items/agents/route.ts')).toContain('payrollHidden: payrollRowsHiddenSays(ledger.hidden)')
   })
+
+describe('the words on a card', () => {
+  it('a card that only needs reading offers Done, and a card that asks for a decision does not', () => {
+    expect(onlyAcknowledged('This week: 3 hours waiting. Read the summary?')).toBe(true)
+    expect(onlyAcknowledged('A placement changed. Review the placement now?')).toBe(true)
+    expect(onlyAcknowledged('Approve the client renewal for another year?')).toBe(false)
+  })
+  it('a path to a job inside a card’s proof is drawn as a link', () => {
+    const parts = proofParts('open the job at /dashboard/requirements/abc-1, where each person has the ask.')
+    expect(parts.find((p) => p.href)).toEqual({ text: '/dashboard/requirements/abc-1', href: '/dashboard/requirements/abc-1' })
+  })
+})
 })

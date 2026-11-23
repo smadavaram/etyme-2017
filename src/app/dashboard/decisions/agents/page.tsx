@@ -26,7 +26,7 @@ interface Data {
   lines: string[]
   canSwitch: boolean
   entities: { id: string; name: string }[]
-  agents: { key: string; name: string; switchState: 'OFF' | 'DRAFT_ONLY' | 'ON'; state: string; dailyCap: number | null; actionsToday: number; meter: string; cap: string }[]
+  agents: { key: string; name: string; switchState: 'OFF' | 'DRAFT_ONLY' | 'ON'; live: boolean; state: string; dailyCap: number | null; actionsToday: number; meter: string; cap: string }[]
   tasks: { id: string; agentKey: string; kind: string; state: string; question: string; ownerName: string; decisionId: string; sent: number; escalationOf: string | null; stopped: string | null }[]
   thisWeek: { at: string; says: string } | null
   proposedDefaults: { agentKey: string; name: string; says: string }[]
@@ -103,7 +103,7 @@ export default function AgentControlPage() {
                     <td className="block py-1 pr-3 font-medium sm:table-cell sm:py-2 sm:font-normal">{a.name}</td>
                     <td className="block py-1 pr-3 sm:table-cell sm:py-2">
                       <span className="mr-2 text-[12px] text-etyme-muted sm:hidden">Switch</span>
-                      {data.canSwitch ? (
+                      {!a.live ? <span className="text-etyme-muted">Not live yet</span> : data.canSwitch ? (
                         <select aria-label={`${a.name} switch`} className="input text-[13px]" value={a.switchState} onChange={(e) => change(a.key, e.target.value)}>
                           <option value="OFF">Off</option><option value="DRAFT_ONLY">Drafts only</option><option value="ON">On</option>
                         </select>
@@ -113,7 +113,7 @@ export default function AgentControlPage() {
                     <td className="block py-1 pr-3 sm:table-cell sm:py-2"><span className="mr-2 text-[12px] text-etyme-muted sm:hidden">Meter</span>{a.meter}</td>
                     <td className="block py-1 text-etyme-muted sm:table-cell sm:py-2">
                       <span className="mr-2 text-[12px] sm:hidden">Cap</span>{a.cap}
-                      {data.canSwitch && (
+                      {data.canSwitch && a.live && (
                         <button className="ml-2 underline text-[12px]" onClick={() => {
                           const v = window.prompt('Most acts a day, or leave empty for no cap', a.dailyCap?.toString() ?? '')
                           if (v === null) return

@@ -71,6 +71,13 @@ export function workingDaysBetween(from: Date, to: Date, daysOff: readonly numbe
   return n
 }
 
+/** One line per worker, her weeks together: "Ana Ruiz: Nov 2 to Nov 8, Nov 9 to Nov 15". Pure. */
+export function backlogLines(rows: readonly { name: string; week: string }[]): string[] {
+  const by = new Map<string, string[]>()
+  for (const r of rows) by.set(r.name, [...(by.get(r.name) ?? []), r.week])
+  return [...by.entries()].map(([name, weeks]) => `${name}: ${weeks.join(', ')}`)
+}
+
 export type NextLetter =
   | { act: 'SEND'; attempt: number }
   | { act: 'WAIT'; says: string }
@@ -166,7 +173,7 @@ async function attemptsOf(companyId: string, taskId: string, cycleId: string) {
 }
 
 /** The seat the agent acts as: whoever last changed its switch. */
-async function agentStamp(companyId: string, agentKey: string) {
+export async function agentStamp(companyId: string, agentKey: string) {
   const sw = await prisma.agentSwitch.findUnique({ where: { companyId_agentKey: { companyId, agentKey } } })
   if (!sw) return null
   const entities = await prisma.legalEntity.findMany({ where: { companyId }, select: { id: true } })
@@ -207,7 +214,7 @@ export async function timesheetChaseStep(ctx: AgentContext, deps: { send?: typeo
       plan: PROPOSED_CHASE_PLAN, ownerPersonId, question: chaseQuestion(c.sellContract!.person.name, week), openedOn: now,
     })
     await prisma.decisionItem.update({ where: { id: task.decisionId }, data: { proof: chaseProof() } })
-    await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'CHASE_PROPOSED', summary: `Proposed a chase for ${c.sellContract!.person.name}, week of ${week}. Nothing is sent until the Owner says yes.` })
+    await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'CHASE_PROPOSED', summary: `Proposed a chase for ${c.sellContract!.person.name}, week of ${week}. Nothing is sent until a person says yes.` })
   }
 
   // Older unfiled weeks are one card for a person, once, never a chase each.
@@ -219,7 +226,7 @@ export async function timesheetChaseStep(ctx: AgentContext, deps: { send?: typeo
   const stamp = unlisted.length ? await agentStamp(companyId, ctx.agentKey) : null
   const backlogOwner = stamp ? await cardOwner(companyId, now) : null
   if (stamp && backlogOwner && (await ctx.mayAct())) {
-    const lines = unlisted.map((c) => `${c.sellContract!.person.name}: ${c.periodStart && c.periodEnd ? weekWords(c.periodStart, c.periodEnd) : weekWords(c.dueOn, c.dueOn)}`)
+    const lines = backlogLines(unlisted.map((c) => ({ name: c.sellContract!.person.name, week: c.periodStart && c.periodEnd ? weekWords(c.periodStart, c.periodEnd) : weekWords(c.dueOn, c.dueOn) })))
     await openDecision({
       ...stamp, companyId, ownerPersonId: backlogOwner, openedOn: now,
       question: `${unlisted.length} older ${unlisted.length === 1 ? 'week is' : 'weeks are'} still not filed: ${lines.join('; ')}. Contact them yourself?`,

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   const who = mayOpenDecision(seat.roleName)
   if (who) return refused(403, who)
-  const read = readOpenAsk(await request.json().catch(() => ({})), seat.entities.length > 0)
+  const read = readOpenAsk(await request.json().catch(() => ({})), seat.entities.length > 1)
   if (!read.ok) return refused(422, read.says, read.field)
   // Every proof link is to a record on this firm's own book, and one this seat may read.
   for (const l of read.ask.proofLinks) {

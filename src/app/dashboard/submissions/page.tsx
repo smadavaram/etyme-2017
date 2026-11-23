@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { AwardDialog } from './award-dialog'
 import { OfferDialog } from './offer-dialog'
+import { ConfirmationDialog } from './confirmation-dialog'
 import { sendOnRefusalSays } from './send-on-words'
 import { centsTyped, typedFromCents } from '@/app/dashboard/requisitions/facts'
 import { bandHint, rateHelp, CURRENCY_SAYS } from './rate-words'
@@ -67,6 +68,8 @@ interface Submission {
   /** Null to a seat with no desk: what the firm asked is the selling desk's to read. */
   rate: number | null
   status: string
+  /** Whether the confirmations route would take a record from this seat for this row. */
+  confirm?: { open: boolean }
   submittedAt: string
   forwardedAt: string | null
   forwardedVia: string | null
@@ -998,6 +1001,7 @@ export default function SubmissionsPage() {
   const [preselectedJob, setPreselectedJob] = useState<string | null>(null)
   const [placeSubmission, setPlaceSubmission] = useState<Submission | null>(null)
   const [offerSubmission, setOfferSubmission] = useState<Submission | null>(null)
+  const [confirmSubmission, setConfirmSubmission] = useState<Submission | null>(null)
   const [sendOn, setSendOn] = useState<Submission | null>(null)
   // Who the client is asking to meet, and which round it will be.
   const [propose, setPropose] = useState<{ row: Submission; round: number } | null>(null)
@@ -1281,6 +1285,18 @@ export default function SubmissionsPage() {
               className="text-[10px] font-medium text-etyme-action border border-etyme-action/40 rounded px-2 py-0.5 whitespace-nowrap"
             >
               Offer
+            </button>
+          )}
+          {row.confirm?.open && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setConfirmSubmission(row)
+              }}
+              title="Record that the other side confirmed this submission"
+              className="text-[10px] font-medium text-etyme-action border border-etyme-action/40 rounded px-2 py-0.5 whitespace-nowrap"
+            >
+              Record confirmation
             </button>
           )}
           {row.award?.open && (
@@ -1717,6 +1733,19 @@ export default function SubmissionsPage() {
           onDone={(says) => {
             setSaid(says)
             setOfferSubmission(null)
+            fetchSubmissions()
+          }}
+        />
+      )}
+
+      {confirmSubmission && (
+        <ConfirmationDialog
+          submissionId={confirmSubmission.id}
+          candidate={confirmSubmission.person.name}
+          onCancel={() => setConfirmSubmission(null)}
+          onDone={(says) => {
+            setSaid(says)
+            setConfirmSubmission(null)
             fetchSubmissions()
           }}
         />

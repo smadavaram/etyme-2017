@@ -97,7 +97,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   // Before any field is read: a month that has not ended is never saved as paid and closed.
   const notEnded = loadPeriodRefusal(period, today)
   if (notEnded) return refused(422, notEnded, 'month')
-  const read = readLoadAsk(await request.json().catch(() => ({})), seat.entities.length > 0)
+  const read = readLoadAsk(await request.json().catch(() => ({})), seat.entities.length > 1)
   if (!read.ok) return refused(422, read.says, read.field)
   const badDay = asOfRefusal(read.ask.asOf, period, today)
   if (badDay) return refused(422, badDay, 'asOf')

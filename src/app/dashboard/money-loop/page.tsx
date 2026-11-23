@@ -90,7 +90,7 @@ export default function MoneyLoopPage() {
 
   if (loadErr) return <ErrorState says={loadErr} />
   if (!data) return <LoadingState says="Opening the month…" />
-  const hasEntities = data.entities.length > 0
+  const hasEntities = data.entities.length > 1
   // The route's sentence about the entity is shown on its box; any other, and good news, above the form.
   const onEntity = said?.tone === 'error' && said.field === 'actingEntityId' && hasEntities && data.mayStart
   const monthState = (r: Row) => (r.chain ? <StateChip state={r.chain.state} label={r.chain.label} /> : <span className="text-etyme-muted">Not started</span>)

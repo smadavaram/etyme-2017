@@ -86,7 +86,7 @@ export async function POST(request: NextRequest, { params }: Params) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
   const { id } = await params
-  const read = readDecideAsk(await request.json().catch(() => ({})), seat.entities.length > 0)
+  const read = readDecideAsk(await request.json().catch(() => ({})), seat.entities.length > 1)
   if (!read.ok) return refused(422, read.says, read.field)
   try {
     const item = await decideDecision({

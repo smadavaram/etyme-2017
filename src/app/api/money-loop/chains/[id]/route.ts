@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     return refused(404, NO_SUCH_CHAIN)
   }
   const body = await request.json().catch(() => ({}))
-  const hasEntities = seat.entities.length > 0
+  const hasEntities = seat.entities.length > 1
   try {
     if (body?.act === 'RESOLVE') {
       const read = readResolveAsk(body, hasEntities)

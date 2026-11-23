@@ -66,9 +66,9 @@ const date = (d: Date) => formatDayLong(d, { year: false })
 
 /** The one ledger line, "This week". Pure. */
 export function summaryLine(s: WeeklySummary): string {
-  const side = (n: string, c: { active: number; dormant: number }) => `${c.active} ${n} active, ${c.dormant} dormant`
+  const side = (one: string, many: string, c: { active: number; dormant: number }) => `${c.active} ${c.active === 1 ? one : many} active, ${c.dormant} dormant`
   const billing = s.consultantsBilling === null ? 'consultants billing not applicable to this firm' : `${s.consultantsBilling} ${s.consultantsBilling === 1 ? 'consultant' : 'consultants'} billing`
-  return `${WEEKLY_SUMMARY_QUESTION_PREFIX}${side('customers', s.customers)}; ${side('suppliers', s.suppliers)}; ${billing}; ` +
+  return `${WEEKLY_SUMMARY_QUESTION_PREFIX}${side('customer', 'customers', s.customers)}; ${side('supplier', 'suppliers', s.suppliers)}; ${billing}; ` +
     `${hoursWord(s.hoursAccepted)} accepted for the week of ${date(s.weekOf)}; ${hoursWord(s.hoursWaiting)} waiting for acceptance.`
 }
 

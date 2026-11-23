@@ -20,6 +20,9 @@ describe('the weekly summary', () => {
   it('counts the hours the employer accepted, not the hours the client approved, where they differ', () => {
     expect(sumHours([{ acceptedHours: '30', totalHours: '40' }, { acceptedHours: null, totalHours: '8.25' }])).toBe(38.25)
   })
+  it('says one supplier active, not “1 suppliers active”', () => {
+    expect(summaryLine({ ...s, suppliers: { active: 1, dormant: 0 } })).toContain('1 supplier active, 0 dormant')
+  })
   it('says every figure in one line, with the week it is for', () => {
     const line = summaryLine(s)
     expect(line).toContain('3 customers active, 1 dormant')

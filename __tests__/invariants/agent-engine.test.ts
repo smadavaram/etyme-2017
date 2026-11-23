@@ -30,9 +30,14 @@ describe('the agent switch', () => {
   it('a firm with legal entities must say which one a switch change is made for', () => {
     expect(readSwitchAsk('payroll-draft', { state: 'ON' }, true)).toMatchObject({ ok: false, field: 'actingEntityId' })
   })
+  it('the digest scanner reads Not live yet on Agent control and cannot be switched On', () => {
+    expect(agentRows([]).find((r) => r.key === 'digest-scanner')).toMatchObject({ state: 'Not live yet', live: false })
+    expect(readSwitchAsk('digest-scanner', { state: 'ON' }, false)).toMatchObject({ ok: false, field: 'state', says: 'Digest scanner is not live yet, so it cannot be switched on.' })
+    expect(readSwitchAsk('digest-scanner', { state: 'OFF' }, false)).toMatchObject({ ok: true })
+  })
   it('the control view reads off for an agent never switched, and “3 of 10 today” against a cap', () => {
     const rows = agentRows([{ agentKey: 'census-keeper', count: 3 }], [{ agentKey: 'census-keeper', state: 'ON', dailyCap: 10 }])
-    expect(rows.find((r) => r.key === 'digest-scanner')).toMatchObject({ state: 'Off', cap: '0 today · no cap' })
+    expect(rows.find((r) => r.key === 'payroll-draft')).toMatchObject({ state: 'Off', cap: '0 today · no cap' })
     expect(rows.find((r) => r.key === 'census-keeper')).toMatchObject({ state: 'On', cap: '3 of 10 today' })
     expect(capWords(3, null)).toBe('3 today · no cap')
     expect(offSays('payroll-draft')).toMatch(/Payroll draft is off, so it did nothing/)

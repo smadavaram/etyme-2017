@@ -22,7 +22,7 @@ export function AdvanceForm({ chainId, next, currency, people, entities, onDone 
   entities: { id: string; name: string }[]
   onDone: (message: string) => void
 }) {
-  const hasEntities = entities.length > 0
+  const hasEntities = entities.length > 1
   const draws = advanceFields(next.to, hasEntities)
   const [f, setF] = useState<Partial<AdvanceTyped>>({ currency })
   const [busy, setBusy] = useState(false)
@@ -78,7 +78,7 @@ export function ResolveForm({ chainId, entities, onDone }: { chainId: string; en
   const [entity, setEntity] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<{ says: string; field?: string } | null>(null)
-  const onEntity = entities.length > 0 && err?.field === 'actingEntityId'
+  const onEntity = entities.length > 1 && err?.field === 'actingEntityId'
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -97,7 +97,7 @@ export function ResolveForm({ chainId, entities, onDone }: { chainId: string; en
 
   return (
     <form onSubmit={save} className="grid gap-4 max-w-[620px]">
-      {entities.length > 0 && <EntityField id="ml-resolve-entity" entities={entities} value={entity} onChange={setEntity} error={onEntity ? err!.says : undefined} />}
+      {entities.length > 1 && <EntityField id="ml-resolve-entity" entities={entities} value={entity} onChange={setEntity} error={onEntity ? err!.says : undefined} />}
       {err && !onEntity && <FormMessage tone="error">{err.says}</FormMessage>}
       <div><SubmitButton pending={busy}>Return this month from its dispute</SubmitButton></div>
     </form>

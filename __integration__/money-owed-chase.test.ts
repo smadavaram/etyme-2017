@@ -207,4 +207,20 @@ describe('chasing money owed, on the database', () => {
     expect(new Set(templates.map((x) => x.template))).toEqual(new Set(['money-owed-chase']))
     for (const s of sent) expect(s.text.toLowerCase()).not.toMatch(/final notice|write.?off|payroll hold/)
   })
+
+  it('a letter that could not leave counts as an attempt, and the chase is never tried more times than its plan', async () => {
+    const b = await newBill()
+    await setSwitch('ON'); register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE')
+    const failing = { ...deps, hand: async () => { throw new Error('The mailbox is full.') } }
+    unregisterAgent(KEY)
+    registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => sendMail(m, failing as any) }) })
+    for (let i = 0; i < 6; i++) { await run(); await prisma.mailSend.updateMany({ where: { agentTaskId: t.id }, data: { createdAt: day(8) } }) }
+    expect(await prisma.mailSend.count({ where: { agentTaskId: t.id } })).toBe(3)
+    expect(await letters(t.id)).toBe(0)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('DONE')
+    const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { startsWith: 'Failed delivery' } } })
+    expect(cards.length).toBeGreaterThan(0)
+  })
 })

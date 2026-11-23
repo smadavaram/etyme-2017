@@ -54,7 +54,7 @@ export function HomePagePanel() {
               {HOME_CHOICES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </Select>
           </Field>
-          {data.canEdit && data.entities.length > 0 && (
+          {data.canEdit && data.entities.length > 1 && (
             <Field label="The legal entity this change is made for" id="home-page-entity">
               <Select id="home-page-entity" value={entity} onChange={(e) => setEntity(e.target.value)}>
                 <option value="">Choose an entity</option>

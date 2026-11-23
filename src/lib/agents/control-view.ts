@@ -10,7 +10,7 @@ import { PROPOSED_DORMANT_AFTER_DAYS } from './census-rules'
 import { PROPOSED_LATE_AFTER_DAYS } from './confirmation-rules'
 import { PROPOSED_CHASE } from '@/lib/notify/timesheet-chase-agent'
 import { PROPOSED_MONEY_CHASE } from '@/lib/money/money-owed-chase'
-import { PROPOSED_QUIET_DAYS, PROPOSED_INTERVIEW_PLAN } from './interview-chase'
+import { PROPOSED_QUIET_DAYS } from './interview-chase'
 import { WEEKLY_SUMMARY_ACTION, WEEKLY_SUMMARY_AGENT } from './weekly-summary'
 
 /**
@@ -35,7 +35,7 @@ export function proposedDefaults(): ProposedDefault[] {
   return [
     { agentKey: 'timesheet-chase', says: `One letter, then up to ${times(PROPOSED_CHASE.retries, 'reminder')}, ${PROPOSED_CHASE.workingDaysApart} working days apart, closing when the week is filed.` },
     { agentKey: 'money-owed-chase', says: `One letter, then up to ${times(PROPOSED_MONEY_CHASE.retries, 'reminder')}, ${PROPOSED_MONEY_CHASE.workingDaysApart} working days apart, closing when the bill is paid in full.` },
-    { agentKey: 'interview-chase', says: `A task opens after ${PROPOSED_QUIET_DAYS} working days of quiet, then one letter and ${times(PROPOSED_INTERVIEW_PLAN.retries, 'reminder')}, ${PROPOSED_INTERVIEW_PLAN.daysApart} working days apart.` },
+    { agentKey: 'interview-chase', says: `A reminder card opens after ${PROPOSED_QUIET_DAYS} working days of quiet. It sends nothing: a person follows up with the client.` },
     { agentKey: 'census-keeper', says: `A customer or supplier is dormant after ${PROPOSED_DORMANT_AFTER_DAYS} days with no contract, bill or submission.` },
     { agentKey: 'confirmation-tracker', says: `A submission is late when the other side has not confirmed in ${PROPOSED_LATE_AFTER_DAYS} days.` },
     { agentKey: WEEKLY_SUMMARY_AGENT, says: 'Runs once a week, on the firm’s Monday, and sends nothing.' },

@@ -119,6 +119,12 @@ describe('a person recording that the other side confirmed a submission', () => 
     expect((await stateOf(w.hr, w.s1.id)).body.data.state).toBe('CONFIRMED')
   })
 
+  it('a firm with one legal entity records a confirmation without choosing it', async () => {
+    const out = await post(w.am, { submissionId: w.s5.id, channel: 'PHONE' })
+    expect(out.status).toBe(201)
+    await prisma.submissionConfirmation.deleteMany({ where: { submissionId: w.s5.id } })
+  })
+
   it('a second confirmation of the same submission is refused', async () => {
     const out = await post(w.am, { submissionId: w.s1.id, channel: 'EMAIL', actingEntityId: w.entity.id })
     expect(out.status).toBe(422)

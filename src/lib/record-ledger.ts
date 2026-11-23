@@ -60,6 +60,8 @@ export function stampRefusal(
 /** Write one row. Refuses, in a sentence, a stamp that does not hold. */
 export async function writeRecordAction(tx: Tx, input: RecordActionInput) {
   const entities = await tx.legalEntity.findMany({ where: { companyId: input.companyId }, select: { id: true } })
+  // Exactly one legal entity is used without asking; several are asked.
+  if (!input.actingEntityId && entities.length === 1) input = { ...input, actingEntityId: entities[0].id }
   const refusal = stampRefusal(input, entities.map((e) => e.id))
   if (refusal) throw new LedgerRefusal(refusal)
   return tx.recordAction.create({

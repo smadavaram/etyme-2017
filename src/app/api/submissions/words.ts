@@ -174,3 +174,10 @@ export function putForwardNotice(i: {
       : `${i.supplierName} put ${names.length} candidates forward for the ${i.roleTitle} job: ${listed(shown)}. Read each submission and decide whom to interview.`
   return { title, body }
 }
+
+/** An offer that is out or accepted makes the row read Offered, until the person is placed or turned down. Pure. */
+export const OFFER_OUT_STATES = ['PROPOSED', 'ACCEPTED'] as const
+export function listedStatus(status: string, offerStates: readonly string[]): string {
+  const live = offerStates.some((o) => (OFFER_OUT_STATES as readonly string[]).includes(o))
+  return live && ['SUBMITTED', 'SHORTLISTED', 'INTERVIEW'].includes(status) ? 'OFFERED' : status
+}

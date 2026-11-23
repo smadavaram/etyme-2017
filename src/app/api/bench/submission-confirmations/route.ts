@@ -44,9 +44,10 @@ export async function GET(request: NextRequest) {
   if (!id) return refused(422, 'Say which submission.', 'submissionId')
   const [item] = await trackerItems(seat.companyId, new Date(), id)
   if (!item) return refused(404, 'There is no such submission at this firm.')
+  const entities = await prisma.legalEntity.findMany({ where: { companyId: seat.companyId }, select: { id: true, name: true }, orderBy: { name: 'asc' } })
   return NextResponse.json({
     data: {
-      submissionId: id, state: item.state, says: STATE_WORDS[item.state], channels: CHANNELS,
+      entities, submissionId: id, state: item.state, says: STATE_WORDS[item.state], channels: CHANNELS,
       confirmations: item.confirmations.map((c) => ({ id: c.id, at: c.confirmedAt })),
     },
   })
