@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { firmLedger, usageCount, payrollRowsHiddenSays, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
 import { prisma } from '@/lib/db'
-import { BASELINE_LINES, LEDGER_IS_FOR, agentRows, dayAround, recordViewHref } from '@/lib/decision-queue'
+import { agentByWords, BASELINE_LINES, LEDGER_IS_FOR, agentRows, dayAround, recordViewHref } from '@/lib/decision-queue'
 import { NOTE_ACTIONS, mayChangeSwitch, readSwitchAsk, setSwitch } from '@/lib/agents/switch'
 import { openTasks } from '@/lib/agents/tasks'
+import { latestThisWeek, proposedDefaults, stoppedSays } from '@/lib/agents/control-view'
 import { queueSeat, refused, refusalOf } from '../door'
 
 /**
@@ -38,20 +39,27 @@ export async function GET(request: NextRequest) {
   const acts = counts.map((c) => ({ ...c, count: c.count - (notes.find((n) => n.agentKey === c.agentKey)?._count._all ?? 0) }))
   const lines: string[] = [BASELINE_LINES.billing]
   if (hasPermission(seat.caller.permissions, 'margin.read')) lines.push(BASELINE_LINES.margin)
+  const thisWeek = await latestThisWeek(seat.companyId)
+  const rows = agentRows(acts, switches)
   return NextResponse.json({
     data: {
       lines,
+      thisWeek: thisWeek ? { at: thisWeek.at, says: thisWeek.says } : null,
+      proposedDefaults: proposedDefaults().map((d) => ({ ...d, name: rows.find((r) => r.key === d.agentKey)?.name ?? (d.agentKey === 'weekly-summary' ? 'Weekly summary' : d.agentKey) })),
       canSwitch: mayChangeSwitch(seat.roleName) === null,
       entities: seat.entities,
-      agents: agentRows(acts, switches),
-      tasks,
+      agents: rows,
+      tasks: tasks.map((t) => {
+        const a = rows.find((r) => r.key === t.agentKey)
+        return { ...t, stopped: stoppedSays(t.state, a?.switchState ?? 'OFF', a?.name ?? t.agentKey) }
+      }),
       ledgerHidden: ledger ? null : LEDGER_IS_FOR,
       ledger: !ledger ? null : {
         page: ledger.page, pages: ledger.pages, total: ledger.total,
         payrollHidden: payrollRowsHiddenSays(ledger.hidden),
         rows: ledger.rows.map((r) => ({
           id: r.id, at: r.createdAt, summary: r.summary, entityName: r.actingEntity?.name ?? null,
-          by: r.agentKey ? `${r.agentKey} for ${r.person.name}` : r.person.name, heldAs: r.heldAs,
+          by: r.agentKey ? agentByWords(r.agentKey, r.person.name) : r.person.name, heldAs: r.heldAs,
           href: recordViewHref(r.recordType, r.recordId),
         })),
       },
@@ -72,7 +80,9 @@ export async function PATCH(request: NextRequest) {
   const who = mayChangeSwitch(seat.roleName)
   if (who) return refused(403, who)
   const body = await request.json().catch(() => ({}))
-  const read = readSwitchAsk(typeof body?.agentKey === 'string' ? body.agentKey : '', body, seat.entities.length > 0)
+  // A firm with one legal entity is not asked which: the change is made for it. Several, and she chooses.
+  const asked = typeof body?.actingEntityId === 'string' && body.actingEntityId.trim() ? body : { ...body, actingEntityId: seat.entities.length === 1 ? seat.entities[0].id : null }
+  const read = readSwitchAsk(typeof body?.agentKey === 'string' ? body.agentKey : '', asked, seat.entities.length > 1)
   if (!read.ok) return refused(422, read.says, read.field)
   try {
     const row = await setSwitch({ companyId: seat.companyId, agentKey: body.agentKey, roleName: seat.roleName, personId: seat.personId, heldAs: seat.heldAs, ask: read.ask })

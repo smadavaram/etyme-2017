@@ -470,3 +470,15 @@ export function mailSendsAbout(companyId: string, recordType: string, recordId: 
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   })
 }
+
+/**
+ * The same read for several records of one kind at once, narrowed to the
+ * fields a tracker needs (which record, how it ended, when). Company and
+ * record kind are named, and only the listed records come back.
+ */
+export function mailSendsAboutMany(companyId: string, recordType: string, recordIds: string[]) {
+  return prisma.mailSend.findMany({
+    where: { companyId, recordType, recordId: { in: recordIds } },
+    select: { id: true, recordId: true, outcome: true, createdAt: true },
+  })
+}

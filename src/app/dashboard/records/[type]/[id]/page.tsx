@@ -23,7 +23,7 @@ interface Data {
   ownPage: { href: string; words: string }
   facts: { label: string; value: string }[]
   emptySays: string | null
-  timeline: { id: string; at: string; summary: string; personName: string; entityName: string | null; heldAs: string; agentKey: string | null }[]
+  timeline: { id: string; at: string; summary: string; personName: string; entityName: string | null; heldAs: string; agentKey: string | null; by: string }[]
 }
 
 /** A calendar day (YYYY-MM-DD) written out; any other value as it is. */
@@ -65,7 +65,7 @@ export default function RecordViewPage() {
         {data.timeline.length === 0 ? (
           <p className="text-[13px] text-etyme-muted py-2">{data.emptySays}</p>
         ) : (
-          <LedgerRows rows={data.timeline.map((r) => ({ id: r.id, at: r.at, summary: r.summary, entityName: r.entityName, by: r.agentKey ? `${r.agentKey} for ${r.personName}` : r.personName, heldAs: r.heldAs }))} />
+          <LedgerRows rows={data.timeline.map((r) => ({ id: r.id, at: r.at, summary: r.summary, entityName: r.entityName, by: r.by, heldAs: r.heldAs }))} />
         )}
       </Panel>
     </>

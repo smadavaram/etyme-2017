@@ -18,7 +18,7 @@ const mail = (n: string) => `${n}.${tag}@example.invalid`
 const p = (id: string) => ({ params: Promise.resolve({ id }) })
 const KEY = 'chase-and-reconciliation'
 const OTHER = 'census-keeper'
-const PLAN: TaskPlan = { messages: [{ template: 'timesheet-chase' }], retries: 1, daysApart: 2, closesWhen: 'the timesheet arrives' }
+const PLAN: TaskPlan = { messages: [{ template: 'timesheet-chase', label: 'Timesheet reminder' }], retries: 1, daysApart: 2, closesWhen: 'the timesheet arrives' }
 const env = { NOTIFY_FROM_EMAIL: 'hello@etyme.example', RESEND_API_KEY: 'k' }
 const sent: string[] = []
 const deps = { env, isDemo: () => false, hand: async () => { sent.push('x'); return { provider: 'Resend' as const, messageId: 'm' } } }
@@ -57,7 +57,7 @@ describe('the agent switch, through its route', () => {
   it('every agent is off until the Owner switches it on, and an Admin cannot', async () => {
     as(w.admin.primaryEmail)
     const view = await json(await agents.GET(req('GET', '/api/decision-items/agents')))
-    expect(view.body.data.agents.map((a: any) => a.state)).toEqual(Array(8).fill('Off'))
+    expect(view.body.data.agents.map((a: any) => a.state)).toEqual(Array(13).fill('Off'))
     expect(view.body.data.canSwitch).toBe(false)
     const denied = await json(await agents.PATCH(req('PATCH', '/api/decision-items/agents', { agentKey: KEY, state: 'ON', actingEntityId: w.entity.id })))
     expect(denied.status).toBe(403)
@@ -72,10 +72,21 @@ describe('the agent switch, through its route', () => {
     expect([row.personId, row.summary]).toEqual([w.owner.id, 'Set Chase and reconciliation to Drafts only.'])
   })
 
-  it('a firm with a legal entity cannot change a switch without saying which entity it is made for', async () => {
+  it('a firm with exactly one legal entity changes a switch without being asked which entity, and the row is for that entity', async () => {
     as(w.owner.primaryEmail)
-    const res = await json(await agents.PATCH(req('PATCH', '/api/decision-items/agents', { agentKey: KEY, state: 'ON' })))
-    expect(res.status).toBe(422)
+    const res = await json(await agents.PATCH(req('PATCH', '/api/decision-items/agents', { agentKey: KEY, state: 'DRAFT_ONLY' })))
+    expect(res.status).toBe(200)
+    const row = await prisma.recordAction.findFirstOrThrow({ where: { companyId: w.firm.id, action: 'SWITCH_CHANGED' }, orderBy: { createdAt: 'desc' } })
+    expect(row.actingEntityId).toBe(w.entity.id)
+  })
+
+  it('a firm with several legal entities cannot change a switch without saying which entity it is made for', async () => {
+    const second = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Agent Firm Two LLC', country: 'US', currency: 'USD' } })
+    try {
+      as(w.owner.primaryEmail)
+      const res = await json(await agents.PATCH(req('PATCH', '/api/decision-items/agents', { agentKey: KEY, state: 'ON' })))
+      expect(res.status).toBe(422)
+    } finally { await prisma.legalEntity.delete({ where: { id: second.id } }) }
   })
 })
 
@@ -124,6 +135,34 @@ describe('the runner', () => {
     await switchTo(KEY, 'ON', null)
   })
 
+  it('a step that writes two rows a unit stops cleanly at its cap, never past it, and writes one stopped-at-its-cap row', async () => {
+    await switchTo(OTHER, 'ON', 3)
+    registerAgent(OTHER, {
+      ruleVersion: 'v1',
+      step: async (ctx) => {
+        for (let i = 0; i < 5; i++) {
+          if (!(await ctx.mayAct(2))) return
+          await ctx.act({ recordType: 'MoneyChain', recordId: `unit-${i}-a`, action: 'CHECKED', summary: 'First row of the unit.' })
+          await ctx.act({ recordType: 'MoneyChain', recordId: `unit-${i}-b`, action: 'CHECKED', summary: 'Second row of the unit.' })
+        }
+      },
+    })
+    const out = await runAgent(OTHER, w.firm.id)
+    expect(out.why).toMatch(/reached its cap of 3 for today/)
+    expect(await actsToday(w.firm.id, OTHER, new Date())).toBe(2)
+    expect(await prisma.recordAction.count({ where: { companyId: w.firm.id, agentKey: OTHER, action: 'STOPPED_AT_CAP' } })).toBe(1)
+    await switchTo(OTHER, 'OFF', null)
+  })
+
+  it('an agent with no cap is always allowed to act', async () => {
+    await switchTo(OTHER, 'ON', null)
+    let allowed: boolean | null = null
+    registerAgent(OTHER, { ruleVersion: 'v1', step: async (ctx) => { allowed = await ctx.mayAct(50) } })
+    const out = await runAgent(OTHER, w.firm.id)
+    expect([out.why, allowed]).toEqual([null, true])
+    await switchTo(OTHER, 'OFF', null)
+  })
+
   it('one agent’s failure does not stop another’s run, and the failure is a ledger row and an incident', async () => {
     await switchTo(KEY, 'ON'); await switchTo(OTHER, 'ON')
     registerAgent(KEY, { ruleVersion: 'v1', step: async () => { throw new Error('the chase broke') } })
@@ -155,7 +194,7 @@ describe('the per-task approval record', () => {
     const task = await propose('mc-card')
     const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: task.decisionId } })
     expect(card.ownerPersonId).toBe(w.owner.id)
-    expect(card.proof).toMatch(/sends “timesheet-chase”/)
+    expect(card.proof).toMatch(/sends “Timesheet reminder”/)
     expect(card.proofLinks).toEqual([{ recordType: 'AgentTask', recordId: task.id }])
   })
 

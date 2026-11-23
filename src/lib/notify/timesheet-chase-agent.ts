@@ -38,7 +38,7 @@ export const CHASE_RECORD = 'Cycle'
 export const PROPOSED_CHASE = { letters: 1, retries: 2, workingDaysApart: 2 } as const
 
 export const PROPOSED_CHASE_PLAN: TaskPlan = {
-  messages: [{ template: TIMESHEET_CHASE_TEMPLATE }],
+  messages: [{ template: TIMESHEET_CHASE_TEMPLATE, label: 'Timesheet reminder' }],
   retries: PROPOSED_CHASE.retries,
   daysApart: PROPOSED_CHASE.workingDaysApart,
   closesWhen: 'the week is filed',
@@ -200,6 +200,7 @@ export async function timesheetChaseStep(ctx: AgentContext, deps: { send?: typeo
     if (had > 0) continue
     const ownerPersonId = await cardOwner(companyId, now)
     if (!ownerPersonId) continue
+    if (!(await ctx.mayAct(2))) break // proposing writes two counted rows
     const week = c.periodStart && c.periodEnd ? weekWords(c.periodStart, c.periodEnd) : `${weekWords(c.dueOn, c.dueOn)} (due)`
     const task = await proposeTask({
       companyId, agentKey: ctx.agentKey, kind: TIMESHEET_CHASE_KIND, recordType: CHASE_RECORD, recordId: c.id,
@@ -217,7 +218,7 @@ export async function timesheetChaseStep(ctx: AgentContext, deps: { send?: typeo
   }
   const stamp = unlisted.length ? await agentStamp(companyId, ctx.agentKey) : null
   const backlogOwner = stamp ? await cardOwner(companyId, now) : null
-  if (stamp && backlogOwner) {
+  if (stamp && backlogOwner && (await ctx.mayAct())) {
     const lines = unlisted.map((c) => `${c.sellContract!.person.name}: ${c.periodStart && c.periodEnd ? weekWords(c.periodStart, c.periodEnd) : weekWords(c.dueOn, c.dueOn)}`)
     await openDecision({
       ...stamp, companyId, ownerPersonId: backlogOwner, openedOn: now,
@@ -257,6 +258,7 @@ export async function timesheetChaseStep(ctx: AgentContext, deps: { send?: typeo
     })
     if (told > 0) continue
 
+    if (!(await ctx.mayAct())) return // the letter and its row are one unit
     const week = c.periodStart && c.periodEnd ? weekWords(c.periodStart, c.periodEnd) : weekWords(c.dueOn, c.dueOn)
     const base = mailedBase()
     const letter = timesheetChaseLetter({

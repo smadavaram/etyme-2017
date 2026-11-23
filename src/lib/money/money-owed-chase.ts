@@ -56,7 +56,7 @@ export const MONEY_OWED_RECORD = 'Invoice'
 export const PROPOSED_MONEY_CHASE = { letters: 1, retries: 2, workingDaysApart: 5 } as const
 
 export const PROPOSED_MONEY_CHASE_PLAN: TaskPlan = {
-  messages: [{ template: MONEY_OWED_CHASE_TEMPLATE }],
+  messages: [{ template: MONEY_OWED_CHASE_TEMPLATE, label: 'Overdue bill reminder' }],
   retries: PROPOSED_MONEY_CHASE.retries,
   daysApart: PROPOSED_MONEY_CHASE.workingDaysApart,
   closesWhen: 'the bill is paid in full',
@@ -208,6 +208,7 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     if (!owner) continue
     const customer = await customerOf(b)
     if (!customer) continue
+    if (!(await ctx.mayAct(2))) break // proposing writes two counted rows
     const daysPast = daysPastDue(b.dueAt, now)
     const task = await proposeTask({
       companyId, agentKey: ctx.agentKey, kind: MONEY_OWED_CHASE_KIND, recordType: MONEY_OWED_RECORD, recordId: b.id,
@@ -241,6 +242,7 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     if (next.act === 'WAIT') continue
     if (next.act === 'END') { await closeTask(task.id, 'No answer: every letter in the plan was sent and the bill is still owed. Any further step is a person’s to take.', 'DONE'); continue }
 
+    if (!(await ctx.mayAct())) return // the letter and its row are one unit
     const customer = await customerOf(b)
     const contact = customer ? await billingContact(companyId, customer.id, b.invoiceLines.map((l) => l.person?.primaryEmail ?? '').filter(Boolean)) : null
     if (!customer || !contact) {

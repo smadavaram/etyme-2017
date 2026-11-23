@@ -27,7 +27,9 @@ interface Data {
   canSwitch: boolean
   entities: { id: string; name: string }[]
   agents: { key: string; name: string; switchState: 'OFF' | 'DRAFT_ONLY' | 'ON'; state: string; dailyCap: number | null; actionsToday: number; meter: string; cap: string }[]
-  tasks: { id: string; agentKey: string; kind: string; state: string; question: string; ownerName: string; decisionId: string; sent: number; escalationOf: string | null }[]
+  tasks: { id: string; agentKey: string; kind: string; state: string; question: string; ownerName: string; decisionId: string; sent: number; escalationOf: string | null; stopped: string | null }[]
+  thisWeek: { at: string; says: string } | null
+  proposedDefaults: { agentKey: string; name: string; says: string }[]
   /** Set for a seat that does not read the firm's ledger: who does, in a sentence. */
   ledgerHidden: string | null
   ledger: null | { page: number; pages: number; total: number; payrollHidden: string | null; rows: { id: string; at: string; summary: string; entityName: string | null; by: string; heldAs: string; href: string }[] }
@@ -77,9 +79,16 @@ export default function AgentControlPage() {
           <ul className="mb-5 text-[14px] text-etyme-ink">
             {data.lines.map((l) => <li key={l}>{l}</li>)}
           </ul>
+          <div className="mb-6">
+            <Panel title="This week" subtitle="Read once a week, on the firm’s Monday. It sends nothing.">
+              {data.thisWeek
+                ? <p className="text-[14px]">{data.thisWeek.says}</p>
+                : <p className="text-[13px] text-etyme-muted py-2">The weekly summary has not run yet. It runs on the firm’s Monday once its agent is switched on.</p>}
+            </Panel>
+          </div>
           <Panel title="Agents">
-            <table className="w-full text-[14px] tabular-nums">
-              <thead>
+            <table className="block w-full text-[14px] tabular-nums sm:table">
+              <thead className="hidden sm:table-header-group">
                 <tr className="text-left text-[12px] text-etyme-muted border-b border-etyme-rule">
                   <th className="py-2 pr-3 font-normal">Agent</th>
                   <th className="py-2 pr-3 font-normal">Switch</th>
@@ -88,21 +97,22 @@ export default function AgentControlPage() {
                   <th className="py-2 font-normal">Cap</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block sm:table-row-group">
                 {data.agents.map((a) => (
-                  <tr key={a.key} className="border-b border-etyme-rule last:border-0">
-                    <td className="py-2 pr-3">{a.name}</td>
-                    <td className="py-2 pr-3">
+                  <tr key={a.key} className="block border-b border-etyme-rule py-2 last:border-0 sm:table-row sm:py-0">
+                    <td className="block py-1 pr-3 font-medium sm:table-cell sm:py-2 sm:font-normal">{a.name}</td>
+                    <td className="block py-1 pr-3 sm:table-cell sm:py-2">
+                      <span className="mr-2 text-[12px] text-etyme-muted sm:hidden">Switch</span>
                       {data.canSwitch ? (
                         <select aria-label={`${a.name} switch`} className="input text-[13px]" value={a.switchState} onChange={(e) => change(a.key, e.target.value)}>
                           <option value="OFF">Off</option><option value="DRAFT_ONLY">Drafts only</option><option value="ON">On</option>
                         </select>
                       ) : <span className="text-etyme-muted">{a.state}</span>}
                     </td>
-                    <td className="py-2 pr-3">{a.actionsToday}</td>
-                    <td className="py-2 pr-3">{a.meter}</td>
-                    <td className="py-2 text-etyme-muted">
-                      {a.cap}
+                    <td className="block py-1 pr-3 sm:table-cell sm:py-2"><span className="mr-2 text-[12px] text-etyme-muted sm:hidden">Actions today</span>{a.actionsToday}</td>
+                    <td className="block py-1 pr-3 sm:table-cell sm:py-2"><span className="mr-2 text-[12px] text-etyme-muted sm:hidden">Meter</span>{a.meter}</td>
+                    <td className="block py-1 text-etyme-muted sm:table-cell sm:py-2">
+                      <span className="mr-2 text-[12px] sm:hidden">Cap</span>{a.cap}
                       {data.canSwitch && (
                         <button className="ml-2 underline text-[12px]" onClick={() => {
                           const v = window.prompt('Most acts a day, or leave empty for no cap', a.dailyCap?.toString() ?? '')
@@ -115,9 +125,9 @@ export default function AgentControlPage() {
                 ))}
               </tbody>
             </table>
-            {data.canSwitch && data.entities.length > 0 && (
+            {data.canSwitch && data.entities.length > 1 && (
               <label className="mt-3 block text-[13px]">Change made for{' '}
-                <select className="input text-[13px]" value={entity} onChange={(e) => setEntity(e.target.value)}>
+                <select className="input max-w-full text-[13px]" value={entity} onChange={(e) => setEntity(e.target.value)}>
                   <option value="">Choose a legal entity</option>
                   {data.entities.map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
                 </select>
@@ -138,10 +148,20 @@ export default function AgentControlPage() {
                       <span className="ml-2 text-etyme-muted text-[13px]">
                         {t.state === 'PROPOSED' ? `Waiting for a yes from ${t.ownerName}` : `Running, ${t.sent} sent`}{t.escalationOf ? ' · an escalation' : ''}
                       </span>
+                      {t.stopped && <span className="ml-2 text-[13px] text-etyme-attention">{t.stopped}</span>}
                     </li>
                   ))}
                 </ul>
               )}
+            </Panel>
+          </div>
+          <div className="mt-6">
+            <Panel title="Proposed defaults" subtitle="Nobody has decided these numbers. They are proposals the Owner may change.">
+              <ul className="text-[14px]">
+                {data.proposedDefaults.map((d) => (
+                  <li key={d.agentKey} className="py-2 border-b border-etyme-rule last:border-0"><span className="font-medium">{d.name}.</span> {d.says}</li>
+                ))}
+              </ul>
             </Panel>
           </div>
           {data.ledgerHidden && <p className="mt-6 text-[13px] text-etyme-muted">{data.ledgerHidden}</p>}

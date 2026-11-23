@@ -791,8 +791,8 @@ export default function PayrollPage() {
             aria-label="Pay period"
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="px-3 py-2 text-[13px] border border-etyme-rule rounded-lg bg-white
-                       text-etyme-ink focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
+            className="w-full max-w-full min-w-0 truncate px-3 py-2 text-[13px] border border-etyme-rule rounded-lg bg-white
+                       text-etyme-ink focus:outline-none focus:ring-2 focus:ring-etyme-action/20 sm:w-auto"
           >
             {/* The company's own periods first, the current one at the top;
                 the calendar month stays as a second choice. */}

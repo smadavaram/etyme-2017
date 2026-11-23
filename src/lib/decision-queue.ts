@@ -35,6 +35,12 @@ export const PROOF_TYPES = [
   { type: 'Person', label: 'A person on your list' },
   { type: 'VendorBill', label: 'An invoice receipt' },
   { type: 'Invoice', label: 'A bill' },
+  { type: 'Offer', label: 'An offer' },
+  { type: 'ChecklistItem', label: 'A checklist paper' },
+  { type: 'Petition', label: 'An immigration petition' },
+  { type: 'NoticePosting', label: 'A posted notice' },
+  { type: 'PublicAccessFile', label: 'A public access file' },
+  { type: 'SubmissionConfirmation', label: 'A submission confirmation' },
 ] as const
 
 export type ProofType = (typeof PROOF_TYPES)[number]['type']
@@ -44,9 +50,9 @@ export type ProofType = (typeof PROOF_TYPES)[number]['type']
  * payroll record of lib/record-ledger). A month is never picked as proof
  * by hand; a disputed month's own decision links to it.
  */
-export type RecordType = ProofType | 'DecisionItem' | 'MoneyChain' | 'AgentTask' | 'AgentSwitch'
+export type RecordType = ProofType | 'DecisionItem' | 'MoneyChain' | 'AgentTask' | 'AgentSwitch' | 'PayrollDraft'
 
-export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem', 'MoneyChain', 'AgentTask', 'AgentSwitch']
+export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem', 'MoneyChain', 'AgentTask', 'AgentSwitch', 'PayrollDraft']
 
 export function isRecordType(t: unknown): t is RecordType {
   return typeof t === 'string' && (RECORD_TYPES as readonly string[]).includes(t)
@@ -57,8 +63,11 @@ export function isRecordType(t: unknown): t is RecordType {
  * needed beyond a working seat: the one its own list asks for. A decision
  * is read by the proof rule (`mayReadProof` in lib/decision-items). Pure.
  */
-export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | typeof LOOP_READS | null {
-  if (type === 'MoneyChain') return LOOP_READS
+export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | 'consultants.write' | 'submissions.read' | typeof LOOP_READS | null {
+  if (type === 'MoneyChain' || type === 'PayrollDraft') return LOOP_READS
+  if (type === 'Offer' || type === 'SubmissionConfirmation') return 'submissions.read'
+  // The paperwork routes read these with the permission that writes them (whoever looks after paperwork).
+  if (type === 'ChecklistItem' || type === 'Petition' || type === 'NoticePosting' || type === 'PublicAccessFile') return 'consultants.write'
   if (type === 'Invoice' || type === 'VendorBill') return 'invoices.read'
   if (type === 'SellContract') return 'assignments.read'
   if (type === 'Person') return 'consultants.read'
@@ -71,6 +80,9 @@ export function cannotReadSays(type: RecordType): string {
   if (type === 'Invoice' || type === 'VendorBill') return 'Your seat cannot read bills or invoice receipts.'
   if (type === 'SellContract') return 'Your seat cannot read contracts.'
   if (type === 'Person') return 'Your seat cannot read people’s records.'
+  if (type === 'PayrollDraft') return CANNOT_READ_MONTH_RECORD
+  if (type === 'Offer' || type === 'SubmissionConfirmation') return 'Your seat cannot read submissions.'
+  if (type === 'ChecklistItem' || type === 'Petition' || type === 'NoticePosting' || type === 'PublicAccessFile') return 'Your seat cannot read paperwork records.'
   return 'Your seat cannot read this record.'
 }
 
@@ -83,6 +95,13 @@ export function ownPageOf(type: RecordType, id: string): { href: string; words: 
     case 'VendorBill': return { href: '/dashboard/ap', words: 'Open invoice receipts' }
     case 'Invoice': return { href: `/dashboard/invoices/${id}`, words: 'Open the bill' }
     case 'DecisionItem': return { href: `/dashboard/decisions/${id}`, words: 'Open the decision' }
+    case 'Offer':
+    case 'SubmissionConfirmation': return { href: '/dashboard/submissions', words: 'Open Submissions' }
+    case 'ChecklistItem':
+    case 'Petition':
+    case 'NoticePosting':
+    case 'PublicAccessFile': return { href: '/dashboard/compliance', words: 'Open Compliance' }
+    case 'PayrollDraft': return { href: '/dashboard/payroll', words: 'Open Payroll' }
     case 'AgentSwitch':
     case 'AgentTask': return { href: '/dashboard/decisions/agents', words: 'Open Agent control' }
     // The month's own page needs its contract and month, which the route reads (`monthPageOf`); this is the page they are on.
@@ -171,7 +190,7 @@ export function readOpenAsk(body: unknown, hasEntities: boolean): { ok: true; as
     const o = (l ?? {}) as Record<string, unknown>
     const type = o.recordType
     const id = typeof o.recordId === 'string' ? o.recordId.trim() : ''
-    if (!isRecordType(type) || type === 'DecisionItem' || type === 'MoneyChain' || type === 'AgentTask' || type === 'AgentSwitch' || !id) {
+    if (!isRecordType(type) || type === 'DecisionItem' || type === 'MoneyChain' || type === 'AgentTask' || type === 'AgentSwitch' || type === 'PayrollDraft' || !id) {
       return { ok: false, field: 'proofLinks', says: 'Each proof link names a kind of record from the list and the record itself.' }
     }
     links.push({ recordType: type, recordId: id })
@@ -237,7 +256,25 @@ export const FIRM_AGENTS = [
   { key: 'immigration-checklist', name: 'Immigration checklist' },
   { key: 'payroll-draft', name: 'Payroll draft' },
   { key: 'timesheet-chase', name: 'Timesheet chase' },
+  { key: 'match-ranker', name: 'Match ranker' },
+  { key: 'interview-chase', name: 'Interview chase' },
+  { key: 'compliance-watch', name: 'Compliance watch' },
+  { key: 'money-owed-chase', name: 'Money-owed chase' },
+  { key: 'weekly-summary', name: 'Weekly summary' },
 ] as const
+
+/** An agent's name as a person reads it; an unknown key reads as the key made into words. Pure. */
+export function agentNameOf(key: string): string {
+  const known = FIRM_AGENTS.find((a) => a.key === key)?.name
+  if (known) return known
+  const t = key.replace(/[-_]+/g, ' ').trim()
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+/** Who an agent's row is under: the agent's name, and the person who last set its switch. Pure. */
+export function agentByWords(key: string, personName: string): string {
+  return `${agentNameOf(key)}, switched on by ${personName}`
+}
 
 /** An agent's switch in the words a person reads. */
 export const SWITCH_WORDS = { OFF: 'Off', DRAFT_ONLY: 'Drafts only', ON: 'On' } as const

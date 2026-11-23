@@ -266,8 +266,10 @@ describe('every send attempt is one row on the mail ledger', () => {
   it('the mail ledger is read only by company and record together, never by company alone', () => {
     const src = read('src/lib/notify/mail-door.ts')
     const reads = src.match(/prisma\.mailSend\.find\w+\(/g) ?? []
-    expect(reads).toHaveLength(2)
+    expect(reads).toHaveLength(3)
     expect(src).toContain('where: { companyId, recordType, recordId }')
+    // The second reader names the same two things and the records it may return.
+    expect(src).toContain('where: { companyId, recordType, recordId: { in: recordIds } }')
     const elsewhere = sources('src').filter((f) => f !== 'src/lib/notify/mail-door.ts' && /\.mailSend\b/.test(read(f)))
     expect(elsewhere).toEqual([])
   })

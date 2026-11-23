@@ -100,6 +100,7 @@ export async function payrollDraftStep(ctx: AgentContext): Promise<void> {
     const hash = draftHash(rows)
     if (latest?.contentHash === hash) continue
     if (!owner) continue
+    if (!(await ctx.mayAct())) return
 
     let draftId: string | null = null
     try {

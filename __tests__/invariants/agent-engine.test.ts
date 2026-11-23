@@ -5,7 +5,7 @@ import { sendRefusal, planWords, planRefusal, type TaskPlan, type SendCheck } fr
 import { mayChangeSwitch, readSwitchAsk, capWords, offSays, agentKeys } from '@/lib/agents/switch'
 import { agentRows } from '@/lib/decision-queue'
 
-const PLAN: TaskPlan = { messages: [{ template: 'timesheet-chase' }], retries: 2, daysApart: 2, closesWhen: 'the timesheet arrives' }
+const PLAN: TaskPlan = { messages: [{ template: 'timesheet-chase', label: 'Timesheet reminder' }], retries: 2, daysApart: 2, closesWhen: 'the timesheet arrives' }
 const task = (o: Partial<SendCheck['task']> = {}): SendCheck['task'] => ({ companyId: 'c1', agentKey: 'chase-and-reconciliation', recordType: 'MoneyChain', recordId: 'm1', state: 'APPROVED', plan: PLAN, sentCount: 0, ...o })
 const step = (o: Partial<SendCheck['step']> = {}): SendCheck['step'] => ({ companyId: 'c1', agentKey: 'chase-and-reconciliation', recordType: 'MoneyChain', recordId: 'm1', template: 'timesheet-chase', attempt: 1, ...o })
 const check = (t = task(), sw: SendCheck['switchState'] = 'ON', s = step()) => sendRefusal({ task: t, switchState: sw, step: s })
@@ -16,8 +16,8 @@ describe('the agent switch', () => {
     expect(mayChangeSwitch('Admin')).toMatch(/Only the firm’s Owner/)
     expect(mayChangeSwitch(null)).toMatch(/Only the firm’s Owner/)
   })
-  it('the eight agents are named, payroll draft among them', () => {
-    expect(agentKeys()).toHaveLength(8)
+  it('the twelve agents are named, payroll draft among them', () => {
+    expect(agentKeys()).toHaveLength(13)
     expect(agentKeys()).toContain('payroll-draft')
   })
   it('the switch asks for one of Off, Drafts only or On and a whole-number cap or none', () => {
@@ -41,7 +41,7 @@ describe('the agent switch', () => {
 
 describe('what a task’s one yes allows', () => {
   it('a task’s plan is said in plain words, and a plan with no letters or no closing is refused', () => {
-    expect(planWords(PLAN)).toMatch(/sends “timesheet-chase”.*up to 2 times, 2 days apart.*closes the task when the timesheet arrives.*new task and asks you again/)
+    expect(planWords(PLAN)).toMatch(/sends “Timesheet reminder”.*up to 2 times, 2 working days apart.*closes the task when the timesheet arrives.*new task and asks you again/)
     expect(planRefusal({ ...PLAN, messages: [] })).toMatch(/names the letters/)
     expect(planRefusal({ ...PLAN, closesWhen: ' ' })).toMatch(/what closes it/)
     expect(planRefusal(PLAN)).toBeNull()

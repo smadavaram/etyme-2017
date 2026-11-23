@@ -91,6 +91,8 @@ export const DELETE_ORDER = [
   // An agent's task names the decision that asks for its yes, so it goes
   // before it; the switch names the firm and the Owner who set it.
   'AgentTask', 'AgentSwitch',
+  // Chains 1, 2, 3 and 6 (record 112): each names the firm, and some a submission or a petition, so they go before both.
+  'PublicAccessFile', 'Petition', 'NoticePosting', 'ChecklistItem', 'Offer', 'SubmissionConfirmation',
   // The money loop's month, a decision a person opened and the record
   // ledger (2026-11-21) name a firm, a legal entity, people and a sell
   // line, so they go before all of them; a month names its decision.
@@ -235,6 +237,20 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'RecordAction.recordId': { as: 'RECORD' },
   // An agent's task is about a record by type and id; its send on the mail ledger names the task and keeps it as history.
   'AgentTask.recordId': { as: 'RECORD' },
+  // Chains 1, 2, 3 and 6 (record 112): people, sites and mail rows named by id alone, kept as history.
+  'SubmissionConfirmation.confirmedByPersonId': { as: 'RECORD' },
+  'SubmissionConfirmation.mailSendId': { as: 'RECORD' },
+  'Offer.decidedById': { as: 'RECORD' },
+  'Offer.createdById': { as: 'RECORD' },
+  'ChecklistItem.ownerId': { as: 'RECORD' },
+  'ChecklistItem.signatoryPersonId': { as: 'RECORD' },
+  'ChecklistItem.decidedById': { as: 'RECORD' },
+  'Petition.personId': { as: 'RECORD' },
+  'Petition.employerCompanyId': { as: 'RECORD' },
+  'NoticePosting.locationId': { as: 'RECORD' },
+  'NoticePosting.postedById': { as: 'RECORD' },
+  'NoticePosting.removedById': { as: 'RECORD' },
+  'PublicAccessFile.approvedById': { as: 'RECORD' },
   'MailSend.agentTaskId': { as: 'RECORD' },
   // An email attempt belongs to the firm it was sent for, or to the person
   // who acted where no firm is named; the rest is history as it was sent.

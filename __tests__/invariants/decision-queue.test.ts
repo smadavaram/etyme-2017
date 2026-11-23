@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   mayOpenDecision, maySetHomePage, readOpenAsk, openBody, readDecideAsk, decideBody, agentRows, ageWords,
-  ownPageOf, recordViewHref, readHomeAsk, FIRM_AGENTS, VERDICT_BUTTONS, PROOF_TYPES,
+  ownPageOf, recordViewHref, agentByWords, agentNameOf, readHomeAsk, FIRM_AGENTS, VERDICT_BUTTONS, PROOF_TYPES,
   QUEUE_EYEBROW_HREFS, ledgerBeganSays, readNeeds, isRecordType, cannotReadSays,
 } from '@/lib/decision-queue'
 import { queueCards } from '@/app/api/conversations/twin/ask'
@@ -53,7 +53,7 @@ describe('opening a decision', () => {
   })
 
   it('a proof link names one of the five kinds of record, and a decision is not one of them', () => {
-    expect(PROOF_TYPES.map((p) => p.label)).toEqual(['A company', 'A contract', 'A person on your list', 'An invoice receipt', 'A bill'])
+    expect(PROOF_TYPES.map((p) => p.label)).toEqual(['A company', 'A contract', 'A person on your list', 'An invoice receipt', 'A bill', 'An offer', 'A checklist paper', 'An immigration petition', 'A posted notice', 'A public access file', 'A submission confirmation'])
     expect(readOpenAsk(openBody({ ...typed, proofLinks: [{ recordType: 'Invoice', recordId: 'i1' }] }), false).ok).toBe(true)
     expect(readOpenAsk(openBody({ ...typed, proofLinks: [{ recordType: 'DecisionItem', recordId: 'd1' }] }), false).ok).toBe(false)
     expect(readOpenAsk({ ...openBody(typed), proofLinks: [{ recordType: 'Timesheet', recordId: 't1' }] }, false).ok).toBe(false)
@@ -87,10 +87,10 @@ describe('the three acts', () => {
 })
 
 describe('agent control', () => {
-  it('the eight agents each read off, a count of actions as the meter, and no cap until the Owner sets one', () => {
+  it('the thirteen agents each read off, a count of actions as the meter, and no cap until the Owner sets one', () => {
     const rows = agentRows([{ agentKey: 'digest-scanner', count: 2 }, { agentKey: null, count: 9 }])
     expect(rows.map((r) => r.name)).toEqual(FIRM_AGENTS.map((a) => a.name))
-    expect(rows).toHaveLength(8)
+    expect(rows).toHaveLength(13)
     expect(rows.every((r) => r.state === 'Off' && r.cap.endsWith('today · no cap'))).toBe(true)
     expect(rows.find((r) => r.key === 'digest-scanner')).toMatchObject({ actionsToday: 2, meter: '2 actions' })
     expect(rows.find((r) => r.key === 'census-keeper')).toMatchObject({ actionsToday: 0, meter: '0 actions' })
@@ -148,6 +148,25 @@ describe('how the queue’s pages are framed and drawn (the walk of Flow A)', ()
   it('a record with no ledger rows says when the firm’s ledger began, or that it starts with the next act', () => {
     expect(ledgerBeganSays(null)).toBe('The ledger starts with the next act on this record.')
     expect(ledgerBeganSays(new Date('2026-11-21T10:00:00Z'))).toMatch(/^Your firm’s ledger began on November 21, 2026/)
+  })
+
+  it('an offer, a checklist paper, a petition, a posted notice, an access file and a confirmation are records the record view opens, each for the seat that reads its own list', () => {
+    for (const t of ['Offer', 'ChecklistItem', 'Petition', 'NoticePosting', 'PublicAccessFile', 'SubmissionConfirmation'] as const) expect(isRecordType(t), t).toBe(true)
+    expect([readNeeds('Offer'), readNeeds('SubmissionConfirmation')]).toEqual(['submissions.read', 'submissions.read'])
+    expect([readNeeds('ChecklistItem'), readNeeds('Petition'), readNeeds('NoticePosting'), readNeeds('PublicAccessFile')]).toEqual(Array(4).fill('consultants.write'))
+  })
+
+  it('a payroll draft is a record the record view opens for a seat that reads payroll, and is never picked as proof by hand', () => {
+    expect(isRecordType('PayrollDraft')).toBe(true)
+    expect(readNeeds('PayrollDraft')).toBe('payroll.read')
+    expect(PROOF_TYPES.some((p) => (p.type as string) === 'PayrollDraft')).toBe(false)
+    expect(readOpenAsk({ ...typed, proofLinks: [{ recordType: 'PayrollDraft', recordId: 'd1' }] }, true).ok).toBe(false)
+    expect(src('src/app/api/records/lookup.ts')).toContain("case 'PayrollDraft': {")
+  })
+
+  it('an agent’s row reads its name and the person who switched it on, never its key', () => {
+    expect(agentByWords('timesheet-chase', 'Jenna Okafor')).toBe('Timesheet chase, switched on by Jenna Okafor')
+    expect(agentNameOf('some-new-agent')).toBe('Some new agent')
   })
 
   it('a record view asks for the permission its own list asks for', () => {

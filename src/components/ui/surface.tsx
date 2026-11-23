@@ -115,7 +115,7 @@ export function PageHead({ eyebrow, title, subtitle, actions }: {
         <h1 className={`headline-serif text-[26px] leading-[1.15] text-etyme-ink sm:text-display ${eyebrow ? 'mt-2' : ''}`}>{title}</h1>
         {subtitle && <p className="mt-2 max-w-[620px] text-[14.5px] leading-relaxed text-etyme-muted">{subtitle}</p>}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>}
     </header>
   )
 }

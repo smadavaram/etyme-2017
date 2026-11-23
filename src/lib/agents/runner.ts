@@ -20,7 +20,7 @@
 import { prisma } from '@/lib/db'
 import { writeRecordAction } from '@/lib/record-ledger'
 import { reportError } from '@/lib/alerts'
-import { dayAround } from '@/lib/decision-queue'
+import { dayAround, agentNameOf } from '@/lib/decision-queue'
 import { NOTE_ACTIONS, SWITCH_RECORD, agentKeys, capReachedSays, offSays } from './switch'
 
 export const AGENT_HELD_AS = 'agent'
@@ -43,6 +43,14 @@ export interface AgentContext {
   ruleVersion: string
   /** Write one act to the ledger as the agent. Throws once the day's cap is reached. */
   act(a: AgentAct): Promise<void>
+  /**
+   * Ask before each unit of work that will write `rows` counted rows (default one), before the
+   * letter is sent or the card is opened. False at the day's cap: the step stops there, cleanly, and
+   * the runner writes one "stopped at its cap" row. Always true where the agent has no cap.
+   */
+  mayAct(rows?: number): Promise<boolean>
+  /** How many counted rows are left today; null where the agent has no cap. */
+  actsLeft(): Promise<number | null>
 }
 
 export interface AgentDef {
@@ -104,7 +112,16 @@ export async function runAgent(agentKey: string, companyId: string, now: Date = 
   }
 
   let acts = 0
+  let capHit = false
+  const left = async () => (sw.dailyCap === null ? null : Math.max(0, sw.dailyCap - (await actsToday(companyId, agentKey, now))))
   const ctx: AgentContext = {
+    actsLeft: left,
+    mayAct: async (rows = 1) => {
+      const l = await left()
+      if (l === null || l >= rows) return true
+      capHit = true
+      return false
+    },
     agentKey, companyId, now, mode: sw.state as 'DRAFT_ONLY' | 'ON', ruleVersion: def.ruleVersion,
     act: async (a) => {
       if (sw.dailyCap !== null && (await actsToday(companyId, agentKey, now)) >= sw.dailyCap) throw new CapReached()
@@ -118,6 +135,11 @@ export async function runAgent(agentKey: string, companyId: string, now: Date = 
   }
   try {
     await def.step(ctx)
+    if (capHit) {
+      const why = capReachedSays(agentKey, sw.dailyCap ?? 0)
+      await note('STOPPED_AT_CAP', why, def.ruleVersion)
+      return { ran: true, why, acts }
+    }
     return { ran: true, why: null, acts }
   } catch (e) {
     if (e instanceof CapReached) {
@@ -126,7 +148,7 @@ export async function runAgent(agentKey: string, companyId: string, now: Date = 
       return { ran: true, why, acts }
     }
     const message = e instanceof Error ? e.message : String(e)
-    await note('FAILED', `${agentKey} failed: ${message.slice(0, 300)}`, def.ruleVersion)
+    await note('FAILED', `${agentNameOf(agentKey)} failed: ${message.slice(0, 300)}`, def.ruleVersion)
     await reportError(`agents/${agentKey}`, e, { companyId })
     return { ran: false, why: `The agent failed: ${message.slice(0, 200)}`, acts }
   }

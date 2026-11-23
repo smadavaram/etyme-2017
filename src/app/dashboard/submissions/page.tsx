@@ -2,6 +2,7 @@
 
 import { readJson } from '@/lib/read-response'
 import { AwardDialog } from './award-dialog'
+import { OfferDialog } from './offer-dialog'
 import { sendOnRefusalSays } from './send-on-words'
 import { centsTyped, typedFromCents } from '@/app/dashboard/requisitions/facts'
 import { bandHint, rateHelp, CURRENCY_SAYS } from './rate-words'
@@ -996,6 +997,7 @@ export default function SubmissionsPage() {
   const [preselectedPerson, setPreselectedPerson] = useState<string | null>(null)
   const [preselectedJob, setPreselectedJob] = useState<string | null>(null)
   const [placeSubmission, setPlaceSubmission] = useState<Submission | null>(null)
+  const [offerSubmission, setOfferSubmission] = useState<Submission | null>(null)
   const [sendOn, setSendOn] = useState<Submission | null>(null)
   // Who the client is asking to meet, and which round it will be.
   const [propose, setPropose] = useState<{ row: Submission; round: number } | null>(null)
@@ -1269,6 +1271,18 @@ export default function SubmissionsPage() {
           {/* Placing is the award, and the route said whether this reader
               may do it for this row — the same answer it would give on
               the click. Once placed, the row leads to the placement. */}
+          {row.award?.open && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setOfferSubmission(row)
+              }}
+              title="Make an offer, or record the answer"
+              className="text-[10px] font-medium text-etyme-action border border-etyme-action/40 rounded px-2 py-0.5 whitespace-nowrap"
+            >
+              Offer
+            </button>
+          )}
           {row.award?.open && (
             <button
               onClick={(e) => {
@@ -1689,6 +1703,20 @@ export default function SubmissionsPage() {
           onDone={(says) => {
             setPropose(null)
             setSaid(says)
+            fetchSubmissions()
+          }}
+        />
+      )}
+
+      {offerSubmission && (
+        <OfferDialog
+          submissionId={offerSubmission.id}
+          candidate={offerSubmission.person.name}
+          role={offerSubmission.requirement.title}
+          onCancel={() => setOfferSubmission(null)}
+          onDone={(says) => {
+            setSaid(says)
+            setOfferSubmission(null)
             fetchSubmissions()
           }}
         />

@@ -10,7 +10,7 @@
 import { prisma } from '@/lib/db'
 import { writeRecordAction, LedgerRefusal } from '@/lib/record-ledger'
 import { OWNER_ROLE } from '@/lib/owner-rules'
-import { FIRM_AGENTS, SWITCH_WORDS as WORDS } from '@/lib/decision-queue'
+import { FIRM_AGENTS, SWITCH_WORDS as WORDS, agentNameOf } from '@/lib/decision-queue'
 
 export type SwitchState = 'OFF' | 'DRAFT_ONLY' | 'ON'
 export const SWITCH_STATES: readonly SwitchState[] = ['OFF', 'DRAFT_ONLY', 'ON']
@@ -22,7 +22,7 @@ export const SWITCH_RECORD = 'AgentSwitch'
 export const NOTE_ACTIONS = ['NOT_RUN', 'STOPPED_AT_CAP', 'FAILED', 'SWITCH_CHANGED'] as const
 
 export const agentKeys = (): string[] => FIRM_AGENTS.map((a) => a.key)
-export const agentName = (key: string): string => FIRM_AGENTS.find((a) => a.key === key)?.name ?? key
+export const agentName = (key: string): string => agentNameOf(key)
 
 /** Changing a switch or a cap is the Owner's act alone. Pure. */
 export function mayChangeSwitch(roleName: string | null | undefined): string | null {

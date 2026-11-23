@@ -30,6 +30,7 @@ import { startOf, payRateIsNotTheBuyers, noneDueBeforeAward, listingTerms, TERMS
 import { termsOnRecordFor } from '@/lib/award/terms-on-record'
 import { placementStatus } from '@/lib/award/placement-status'
 import { tellSelected } from '@/lib/papering'
+import { acceptedOfferFor } from '../offer/read'
 
 /**
  * POST /api/submissions/:id/award
@@ -188,8 +189,12 @@ export async function POST(
   // counted from this one, so a start typed a week early wrote a week of
   // reminders about days already gone (audit, 2026-10-05).
   const awardedAt = new Date()
+  // Where somebody recorded that the person accepted an offer, the award
+  // opens on its rate and start day. A figure typed here still wins: the
+  // offer is a person's record and the award is a person's act.
+  const offered = await acceptedOfferFor(id, await currencyOf(submission.toCompanyId))
   const begins = startOf({
-    typed: body.startDate ? new Date(body.startDate) : null,
+    typed: body.startDate ? new Date(body.startDate) : offered?.startDate ? new Date(offered.startDate) : null,
     neededBy: req.neededBy ?? null,
     now: awardedAt,
     underWay: body.workUnderWay === true,
@@ -199,7 +204,7 @@ export async function POST(
     return NextResponse.json({ error: { code: begins.code, message: begins.says } }, { status: 422 })
   }
 
-  const awardedRate: number = Number.isFinite(body.rate) ? body.rate : submission.rate
+  const awardedRate: number = Number.isFinite(body.rate) ? body.rate : offered?.cents ?? submission.rate
 
   const endClientId = req.companyId
 
@@ -1631,4 +1636,9 @@ async function chainBelow(
     down = s.parentSubmissionId
   }
   return below
+}
+
+/** The buying firm's own currency, which an accepted offer must match to carry its rate. */
+async function currencyOf(companyId: string): Promise<string | null> {
+  return (await prisma.company.findUnique({ where: { id: companyId }, select: { homeCurrency: true } }))?.homeCurrency ?? null
 }

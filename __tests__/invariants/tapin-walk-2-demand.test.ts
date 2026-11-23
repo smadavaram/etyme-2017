@@ -128,7 +128,7 @@ describe('a warning that takes a reason is a question with a box, never a refusa
     expect(dialog).toContain('setRefusal(refusalSays(err.message')
     expect(dialog).not.toMatch(/setToast|window\.prompt|\balert\(/)
     // A new day is a new question: what the route said about the old one goes.
-    expect(dialog).toMatch(/function pickDay\(next: string\) \{\s*setStartDate\(next\)\s*setAsked\(\{\}\)/)
+    expect(dialog).toMatch(/function pickDay\(next: string\) \{\s*(setTouched\(true\)\s*)?setStartDate\(next\)\s*setAsked\(\{\}\)/)
   })
 
   it('the dialog reads the rate through the one reader, never dollars times a hundred by hand', () => {

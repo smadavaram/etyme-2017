@@ -680,6 +680,12 @@ model AccessLog {
 // ─────────────────────────────────────────────
 
 model Company {
+  submissionConfirmations SubmissionConfirmation[]
+  offers                  Offer[]
+  checklistItems          ChecklistItem[]
+  petitions               Petition[]
+  noticePostings          NoticePosting[]
+  publicAccessFiles       PublicAccessFile[]
   /// Payroll drafts the payroll agent prepared (record 112, chain 4).
   payrollDrafts PayrollDraft[]
   id             String      @id @default(cuid())
@@ -3840,6 +3846,8 @@ model Match {
 
 // One record, two views. Sent for the origin, received for the destination.
 model Submission {
+  confirmations SubmissionConfirmation[]
+  offers        Offer[]
   id            String         @id @default(cuid())
   requirementId String
   requirement   Requirement    @relation(fields: [requirementId], references: [id])
@@ -11359,4 +11367,169 @@ model PayrollDraft {
 
   @@index([companyId, periodStart, periodEnd, createdAt])
   @@index([decisionId])
+}
+
+/// Chain 1 (record 112): a firm's record that a submission was confirmed by
+/// the other side. Written only by a person's act or by the confirmation
+/// tracker on a reply it can read; a draft is not a confirmation. The mail
+/// ledger row, where the confirmation came by email, is `mailSendId`.
+model SubmissionConfirmation {
+  id                 String     @id @default(cuid())
+  companyId          String
+  company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  submissionId       String
+  submission         Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  /// The person who confirmed, by id. A person at the other firm is named in the note.
+  confirmedByPersonId String?
+  confirmedAt        DateTime   @default(now())
+  /// EMAIL, PHONE, PORTAL or MANUAL.
+  channel            String
+  /// The MailSend row the confirmation answers, where there is one.
+  mailSendId         String?
+  note               String?
+  createdAt          DateTime   @default(now())
+
+  @@index([companyId, submissionId])
+  @@index([submissionId])
+  @@index([confirmedByPersonId])
+  @@index([mailSendId])
+}
+
+enum OfferState {
+  DRAFT
+  PROPOSED
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+/// Chain 2: an offer on a submission. One live offer (DRAFT, PROPOSED or
+/// ACCEPTED) per submission: `liveFor` holds the submission id while the
+/// offer is live and is null once it is DECLINED or WITHDRAWN, and its
+/// unique index is what refuses a second live offer. Whoever changes the
+/// state sets or clears it in the same write.
+model Offer {
+  id           String      @id @default(cuid())
+  companyId    String
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  submissionId String
+  submission   Submission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  rate         Decimal     @db.Decimal(12, 2)
+  currency     String      @default("USD")
+  startDate    DateTime?   @db.Date
+  terms        String?
+  state        OfferState  @default(DRAFT)
+  liveFor      String?     @unique
+  decidedById  String?
+  decidedAt    DateTime?
+  createdById  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([companyId, state])
+  @@index([submissionId, state])
+  @@index([decidedById])
+  @@index([createdById])
+}
+
+enum ChecklistKind {
+  CONTRACT_TERM
+  PETITION_PAPER
+  ONBOARDING_PAPER
+}
+
+enum ChecklistState {
+  OPEN
+  MET
+  DRIFT
+  WAIVED_WITH_REASON
+}
+
+/// Chains 3 (both checklists): one line of agreed against actual, on an
+/// owner named by type and id (a contract, a petition, an onboarding).
+/// A line waived carries its reason. A signature line names the person who signs.
+model ChecklistItem {
+  id                String         @id @default(cuid())
+  companyId         String
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  ownerType         String
+  ownerId           String
+  kind              ChecklistKind
+  label             String
+  agreedValue       String?
+  actualValue       String?
+  state             ChecklistState @default(OPEN)
+  /// Required when the state is WAIVED_WITH_REASON.
+  waivedReason      String?
+  dueDate           DateTime?      @db.Date
+  signatoryPersonId String?
+  decidedById       String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([companyId, kind, state])
+  @@index([ownerType, ownerId])
+  @@index([signatoryPersonId])
+  @@index([decidedById])
+}
+
+/// Chain 3: a petition for a person, tracked by stage. Records what the
+/// employer's counsel reports; Etyme decides nothing about the filing.
+model Petition {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  personId          String
+  /// e.g. SPECIALTY_OCCUPATION.
+  kind              String
+  stage             String
+  filedOn           DateTime? @db.Date
+  /// The firm that files as the employer.
+  employerCompanyId String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  accessFiles       PublicAccessFile[]
+
+  @@index([companyId, stage])
+  @@index([personId])
+  @@index([employerCompanyId])
+}
+
+/// Chain 6: a required notice, when it went up at a work site and when it came down.
+model NoticePosting {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind        String
+  /// The work site (a CompanyLocation), by id.
+  locationId  String
+  postedOn    DateTime  @db.Date
+  takenDownOn DateTime? @db.Date
+  postedById  String?
+  removedById String?
+  fileRef     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([companyId, kind])
+  @@index([locationId])
+  @@index([postedById])
+  @@index([removedById])
+}
+
+/// Chain 6: the public access file for a petition: due by a date, ready on a
+/// date, approved by a person.
+model PublicAccessFile {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  petitionId   String
+  petition     Petition  @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+  readyBy      DateTime  @db.Date
+  readyOn      DateTime? @db.Date
+  approvedById String?
+  createdAt    DateTime  @default(now())
+
+  @@index([companyId])
+  @@index([petitionId])
+  @@index([approvedById])
 }

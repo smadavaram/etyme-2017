@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { rate as showRate } from '@/lib/money-display'
 import { readJson } from '@/lib/read-response'
@@ -87,9 +87,33 @@ export function AwardDialog({
 
   const cents = centsTyped(rate)
 
+  // Where somebody recorded that the person accepted an offer, the boxes
+  // open on its rate and start day. Only a box nobody has touched moves,
+  // and the person can still type over either.
+  const [offerSays, setOfferSays] = useState<string | null>(null)
+  const [touched, setTouched] = useState(false)
+  useEffect(() => {
+    let live = true
+    fetch(`/api/submissions/${submissionId}/offer`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        const a = body?.data?.award
+        if (!live || !a) return
+        if (a.note) { setOfferSays(a.note); return }
+        if (touched) return
+        if (a.cents != null) setRate(typedFromCents(a.cents))
+        if (a.startDate) setStartDate(a.startDate)
+        setOfferSays('The boxes open on the offer that was accepted. Change either one if the deal changed.')
+      })
+      .catch(() => {})
+    return () => { live = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submissionId])
+
   // A warning was about the day it was asked for. A new day is a new
   // question, so what the route said about the old one is cleared.
   function pickDay(next: string) {
+    setTouched(true)
     setStartDate(next)
     setAsked({})
     setTyped({})
@@ -164,12 +188,14 @@ export function AwardDialog({
           </p>
         </div>
 
+        {offerSays && <p className="text-[12px] text-etyme-muted mb-3">{offerSays}</p>}
+
         <form
           className="space-y-3"
           onSubmit={(e) => { e.preventDefault(); if (!blocked) void place() }}
         >
           <Field label="Bill rate ($/hr)">
-            <Input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
+            <Input inputMode="decimal" value={rate} onChange={(e) => { setTouched(true); setRate(e.target.value) }} />
           </Field>
 
           <Field label="Start date">

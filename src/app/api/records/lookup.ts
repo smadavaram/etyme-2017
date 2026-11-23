@@ -1,10 +1,13 @@
 import { prisma } from '@/lib/db'
 import { invoiceBetween } from '@/lib/money/invoice-parties'
-import type { RecordType, ProofType } from '@/lib/decision-queue'
+import { agentNameOf, type RecordType, type ProofType } from '@/lib/decision-queue'
 import { amountsOf, periodWords } from '@/lib/money/money-chain'
 import { historySays, monthKeyOf, placementHref, seeMonth, stateLabel } from '@/lib/money-loop'
 import { money } from '@/lib/order'
 import { formatDay } from '@/lib/format-date'
+import { amount } from '@/lib/money-display'
+import { daySpan } from '@/lib/plain-date'
+import { grossSays, peopleIn, type DraftRow } from '@/lib/money/payroll-draft'
 
 /**
  * Which records are on a firm's book, by type (record 107, A2's proof
@@ -35,10 +38,21 @@ function onBook(companyId: string, type: RecordType): Record<string, unknown> {
     case 'MoneyChain': return { companyId }
     case 'AgentTask': return { companyId }
     case 'AgentSwitch': return { companyId }
+    // The firm's own paperwork, offers, confirmations and drafts: each carries the firm that keeps it.
+    case 'Offer':
+    case 'ChecklistItem':
+    case 'Petition':
+    case 'NoticePosting':
+    case 'PublicAccessFile':
+    case 'SubmissionConfirmation':
+    case 'PayrollDraft': return { companyId }
   }
 }
 
 type Named = { id: string; name: string }
+
+const personName = async (id: string) => (await prisma.person.findUnique({ where: { id }, select: { name: true } }))?.name ?? 'A person'
+const plainKind = (k: string) => { const t = k.toLowerCase().replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1) }
 
 /** One record on the firm's book, with the name a person reads; null when it is not on the book. */
 export async function findOnBook(companyId: string, type: RecordType, id: string): Promise<Named | null> {
@@ -70,11 +84,39 @@ export async function findOnBook(companyId: string, type: RecordType, id: string
     }
     case 'AgentSwitch': {
       const r = await prisma.agentSwitch.findFirst({ where, select: { id: true, agentKey: true } })
-      return r ? { id: r.id, name: `Switch for ${r.agentKey}` } : null
+      return r ? { id: r.id, name: `${agentNameOf(r.agentKey)} switch` } : null
     }
     case 'AgentTask': {
       const r = await prisma.agentTask.findFirst({ where, select: { id: true, kind: true, decision: { select: { question: true } } } })
       return r ? { id: r.id, name: r.decision.question } : null
+    }
+    case 'Offer': {
+      const r = await prisma.offer.findFirst({ where, select: { id: true, submission: { select: { person: { select: { name: true } } } } } })
+      return r ? { id: r.id, name: `Offer to ${r.submission.person.name}` } : null
+    }
+    case 'SubmissionConfirmation': {
+      const r = await prisma.submissionConfirmation.findFirst({ where, select: { id: true, submission: { select: { person: { select: { name: true } } } } } })
+      return r ? { id: r.id, name: `Confirmation for ${r.submission.person.name}` } : null
+    }
+    case 'ChecklistItem': {
+      const r = await prisma.checklistItem.findFirst({ where, select: { id: true, label: true } })
+      return r ? { id: r.id, name: r.label } : null
+    }
+    case 'Petition': {
+      const r = await prisma.petition.findFirst({ where, select: { id: true, personId: true } })
+      return r ? { id: r.id, name: `${await personName(r.personId)}’s petition` } : null
+    }
+    case 'NoticePosting': {
+      const r = await prisma.noticePosting.findFirst({ where, select: { id: true, kind: true, postedOn: true } })
+      return r ? { id: r.id, name: `${plainKind(r.kind)} notice posted ${day(r.postedOn)}` } : null
+    }
+    case 'PublicAccessFile': {
+      const r = await prisma.publicAccessFile.findFirst({ where, select: { id: true, petition: { select: { personId: true } } } })
+      return r ? { id: r.id, name: `Public access file for ${await personName(r.petition.personId)}’s petition` } : null
+    }
+    case 'PayrollDraft': {
+      const r = await prisma.payrollDraft.findFirst({ where, select: { id: true, periodStart: true, periodEnd: true } })
+      return r ? { id: r.id, name: `Payroll draft for ${daySpan(day(r.periodStart)!, day(r.periodEnd)!)}` } : null
     }
     case 'MoneyChain': {
       const r = await prisma.moneyChain.findFirst({ where, select: { id: true, periodStart: true, periodEnd: true, person: { select: { name: true } } } })
@@ -123,8 +165,17 @@ export async function subjectOf(type: RecordType, id: string): Promise<{ company
       const r = await prisma.moneyChain.findUnique({ where: { id }, select: { personId: true } })
       return r ? { personId: r.personId } : null
     }
+    case 'Offer': return ownerFirm(await prisma.offer.findUnique({ where: { id }, select: { companyId: true } }))
+    case 'SubmissionConfirmation': return ownerFirm(await prisma.submissionConfirmation.findUnique({ where: { id }, select: { companyId: true } }))
+    case 'ChecklistItem': return ownerFirm(await prisma.checklistItem.findUnique({ where: { id }, select: { companyId: true } }))
+    case 'Petition': return ownerFirm(await prisma.petition.findUnique({ where: { id }, select: { companyId: true } }))
+    case 'NoticePosting': return ownerFirm(await prisma.noticePosting.findUnique({ where: { id }, select: { companyId: true } }))
+    case 'PublicAccessFile': return ownerFirm(await prisma.publicAccessFile.findUnique({ where: { id }, select: { companyId: true } }))
+    case 'PayrollDraft': return ownerFirm(await prisma.payrollDraft.findUnique({ where: { id }, select: { companyId: true } }))
   }
 }
+
+const ownerFirm = (r: { companyId: string } | null) => (r ? { companyId: r.companyId } : null)
 
 /** Records of one type on the firm's book, for the proof picker, matching a few typed letters. */
 export async function recordsOnBook(companyId: string, type: ProofType, q: string, take = 20): Promise<Named[]> {
@@ -155,6 +206,34 @@ export async function recordsOnBook(companyId: string, type: ProofType, q: strin
         select: { id: true, number: true }, orderBy: { number: 'desc' }, take,
       })
       return rows.map((r) => ({ id: r.id, name: `Bill ${r.number}` }))
+    }
+    case 'Offer': {
+      const rows = await prisma.offer.findMany({
+        where: { AND: [base, words ? { submission: { person: { name: { contains: words, mode: 'insensitive' } } } } : {}] } as any,
+        select: { id: true, submission: { select: { person: { select: { name: true } } } } }, orderBy: { createdAt: 'desc' }, take,
+      })
+      return rows.map((r) => ({ id: r.id, name: `Offer to ${r.submission.person.name}` }))
+    }
+    case 'SubmissionConfirmation': {
+      const rows = await prisma.submissionConfirmation.findMany({
+        where: { AND: [base, words ? { submission: { person: { name: { contains: words, mode: 'insensitive' } } } } : {}] } as any,
+        select: { id: true, submission: { select: { person: { select: { name: true } } } } }, orderBy: { createdAt: 'desc' }, take,
+      })
+      return rows.map((r) => ({ id: r.id, name: `Confirmation for ${r.submission.person.name}` }))
+    }
+    case 'ChecklistItem':
+      return (await prisma.checklistItem.findMany({ where: { AND: [base, words ? { label: { contains: words, mode: 'insensitive' } } : {}] } as any, select: { id: true, label: true }, orderBy: { createdAt: 'desc' }, take })).map((r) => ({ id: r.id, name: r.label }))
+    case 'Petition': {
+      const rows = await prisma.petition.findMany({ where: base as any, select: { id: true, personId: true }, orderBy: { createdAt: 'desc' }, take })
+      const named = await Promise.all(rows.map(async (r) => ({ id: r.id, name: `${await personName(r.personId)}’s petition` })))
+      return words ? named.filter((n) => n.name.toLowerCase().includes(words.toLowerCase())) : named
+    }
+    case 'NoticePosting':
+      return (await prisma.noticePosting.findMany({ where: { AND: [base, words ? { kind: { contains: words, mode: 'insensitive' } } : {}] } as any, select: { id: true, kind: true, postedOn: true }, orderBy: { postedOn: 'desc' }, take })).map((r) => ({ id: r.id, name: `${plainKind(r.kind)} notice posted ${day(r.postedOn)}` }))
+    case 'PublicAccessFile': {
+      const rows = await prisma.publicAccessFile.findMany({ where: base as any, select: { id: true, petition: { select: { personId: true } } }, orderBy: { createdAt: 'desc' }, take })
+      const named = await Promise.all(rows.map(async (r) => ({ id: r.id, name: `Public access file for ${await personName(r.petition.personId)}’s petition` })))
+      return words ? named.filter((n) => n.name.toLowerCase().includes(words.toLowerCase())) : named
     }
   }
 }
@@ -204,11 +283,46 @@ export async function factsOf(type: RecordType, id: string): Promise<Fact[]> {
     }
     case 'AgentSwitch': {
       const r = await prisma.agentSwitch.findUnique({ where: { id }, select: { agentKey: true, state: true, dailyCap: true } })
-      return r ? [...f('Agent', r.agentKey), ...f('Switch', r.state === 'ON' ? 'On' : r.state === 'DRAFT_ONLY' ? 'Drafts only' : 'Off'), ...f('Daily cap', r.dailyCap === null ? 'None' : String(r.dailyCap))] : []
+      return r ? [...f('Agent', agentNameOf(r.agentKey)), ...f('Switch', r.state === 'ON' ? 'On' : r.state === 'DRAFT_ONLY' ? 'Drafts only' : 'Off'), ...f('Daily cap', r.dailyCap === null ? 'None' : String(r.dailyCap))] : []
     }
     case 'AgentTask': {
       const r = await prisma.agentTask.findUnique({ where: { id }, select: { agentKey: true, kind: true, state: true, sentCount: true, closedReason: true } })
-      return r ? [...f('Agent', r.agentKey), ...f('Kind', r.kind), ...f('State', r.state), ...f('Sent', String(r.sentCount)), ...f('Closed because', r.closedReason)] : []
+      return r ? [...f('Agent', agentNameOf(r.agentKey)), ...f('Kind', plainKind(r.kind)), ...f('State', plainKind(r.state)), ...f('Sent', String(r.sentCount)), ...f('Closed because', r.closedReason)] : []
+    }
+    case 'Offer': {
+      const r = await prisma.offer.findUnique({ where: { id }, select: { state: true, rate: true, currency: true, startDate: true, terms: true, submission: { select: { person: { select: { name: true } }, requirement: { select: { title: true } } } } } })
+      return r ? [...f('Candidate', r.submission.person.name), ...f('Job', r.submission.requirement.title), ...f('State', plainKind(r.state)), ...f('Hourly rate', `${r.rate.toString()} ${r.currency}`), ...f('Starts', day(r.startDate)), ...f('Terms', r.terms)] : []
+    }
+    case 'SubmissionConfirmation': {
+      const r = await prisma.submissionConfirmation.findUnique({ where: { id }, select: { channel: true, confirmedAt: true, note: true, submission: { select: { person: { select: { name: true } } } } } })
+      return r ? [...f('Candidate', r.submission.person.name), ...f('Confirmed', day(r.confirmedAt)), ...f('How', plainKind(r.channel)), ...f('Note', r.note)] : []
+    }
+    case 'ChecklistItem': {
+      const r = await prisma.checklistItem.findUnique({ where: { id }, select: { label: true, kind: true, state: true, agreedValue: true, actualValue: true, waivedReason: true, dueDate: true } })
+      return r ? [...f('Item', r.label), ...f('State', plainKind(r.state)), ...f('Agreed', r.agreedValue), ...f('Found', r.actualValue), ...f('Waived because', r.waivedReason), ...f('Due', day(r.dueDate))] : []
+    }
+    case 'Petition': {
+      const r = await prisma.petition.findUnique({ where: { id }, select: { personId: true, kind: true, stage: true, filedOn: true } })
+      return r ? [...f('Person', await personName(r.personId)), ...f('Kind', plainKind(r.kind)), ...f('Stage', plainKind(r.stage)), ...f('Filed', day(r.filedOn))] : []
+    }
+    case 'NoticePosting': {
+      const r = await prisma.noticePosting.findUnique({ where: { id }, select: { kind: true, postedOn: true, takenDownOn: true, fileRef: true } })
+      return r ? [...f('Kind', plainKind(r.kind)), ...f('Posted', day(r.postedOn)), ...f('Taken down', day(r.takenDownOn)), ...f('Paper', r.fileRef)] : []
+    }
+    case 'PublicAccessFile': {
+      const r = await prisma.publicAccessFile.findUnique({ where: { id }, select: { readyBy: true, readyOn: true, petition: { select: { personId: true } } } })
+      return r ? [...f('Person', await personName(r.petition.personId)), ...f('Due', day(r.readyBy)), ...f('Ready', day(r.readyOn))] : []
+    }
+    case 'PayrollDraft': {
+      // Read only after the route found a seat that reads payroll: the run's own figures, kept as a draft.
+      const r = await prisma.payrollDraft.findUnique({ where: { id }, select: { periodStart: true, periodEnd: true, state: true, rows: true } })
+      if (!r) return []
+      const rows = r.rows as unknown as DraftRow[]
+      return [
+        ...f('Period', daySpan(day(r.periodStart)!, day(r.periodEnd)!)), ...f('State', r.state === 'DRAFT' ? 'Draft, not run' : 'Replaced by a newer draft'),
+        ...f('People', String(peopleIn(rows))), ...f('Total gross', grossSays(rows)),
+        ...rows.map((x) => ({ label: x.person, value: `${x.hours} hours, ${amount(x.grossPay, x.currency)}${x.held.length ? `; ${x.held.join('; ')}` : ''}` })),
+      ]
     }
     case 'MoneyChain': {
       // Read only after the route found a seat that reads payroll: these are the amounts people stated.

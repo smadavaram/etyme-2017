@@ -28,6 +28,8 @@ const bankGate = vi.fn()
 const reportError = vi.fn()
 vi.mock('@/lib/owner-proof', () => ({ needsVerifiedOwnerAt: (...a: unknown[]) => ownerGate(...a) }))
 vi.mock('@/lib/setup-gates', () => ({ mayPayFirm: (...a: unknown[]) => bankGate(...a) }))
+// The chase that follows a payment (lib/money/money-owed-chase) has its own tests; here the payment's notice is what is read.
+vi.mock('@/lib/money/money-owed-chase', () => ({ closeChaseOnPayment: async () => undefined }))
 vi.mock('@/lib/alerts', () => ({ reportError: (...a: unknown[]) => reportError(...a) }))
 
 import { paidNotice, tellSupplierPaid, tellPaidOrReport, toldSays, suppliersBillHref, type PaidFacts } from '@/lib/money/paid-notice'
@@ -252,6 +254,7 @@ describe('a notice that fails is never said as nobody to tell', () => {
 
 const RECORDED = {
   ok: true,
+  invoice: { id: 'inv-9' },
   event: { type: 'invoice.paid', companyId: 'northbend', subjectType: 'Invoice', subjectId: 'inv-9' },
   notice: { ...FACTS, suppliersBill: { id: 'inv-9', number: 'PR-2026-0441' } },
 } as unknown as InvoicePaymentResult

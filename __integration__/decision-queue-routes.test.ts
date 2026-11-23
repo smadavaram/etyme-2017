@@ -160,10 +160,10 @@ describe('the decision queue, through its routes', () => {
 })
 
 describe('agent control and the ledger', () => {
-  it('each of the eight agents reads off, no actions today, and no cap, until the Owner switches it on', async () => {
+  it('each of the thirteen agents reads off, no actions today, and no cap, until the Owner switches it on', async () => {
     as(w.am.primaryEmail)
     const res = await json(await agents.GET(req('GET', '/api/decision-items/agents')))
-    expect(res.body.data.agents).toHaveLength(8)
+    expect(res.body.data.agents).toHaveLength(13)
     for (const a of res.body.data.agents) expect([a.state, a.actionsToday, a.meter, a.cap]).toEqual(['Off', 0, '0 actions', '0 today · no cap'])
   })
 
@@ -194,6 +194,30 @@ describe('the record view', () => {
     expect(res.status).toBe(200)
     expect(res.body.data.timeline.map((r: any) => r.action)).toEqual(['OPENED', 'SENT_BACK', 'APPROVED'])
     expect(res.body.data.ownPage.href).toBe(`/dashboard/decisions/${w.itemId}`)
+  })
+
+  it('a payroll draft opens for a seat that reads payroll, showing its rows, and is refused to one that does not', async () => {
+    const draft = await prisma.payrollDraft.create({
+      data: {
+        companyId: w.firm.id, periodStart: new Date('2026-11-01T00:00:00Z'), periodEnd: new Date('2026-11-14T00:00:00Z'), contentHash: `h-${tag}`,
+        rows: [{ person: 'Priya Rao', hours: 80, overtimeHours: 0, grossPay: 400000, currency: 'USD', held: [] }],
+      },
+    })
+    const view = (email: string) => { as(email); return recordView.GET(req('GET', `/api/records/PayrollDraft/${draft.id}`), { params: Promise.resolve({ type: 'PayrollDraft', id: draft.id }) }).then(json) }
+    const owner = await view(w.owner.primaryEmail)
+    expect(owner.status).toBe(200)
+    expect(owner.body.data.facts.some((f: any) => f.label === 'Priya Rao' && /80 hours/.test(f.value))).toBe(true)
+    const am = await view(w.am.primaryEmail)
+    expect([am.status, am.body.error.message]).toEqual([403, 'Your seat cannot read payroll records.'])
+  })
+
+  it('an offer opens for a seat that reads submissions and its ledger line is on the offer itself', async () => {
+    const offer = await prisma.offer.findFirst({ where: { companyId: w.firm.id } })
+    expect(offer).toBeNull() // none yet in this world: the kind is exercised by its own routes in fill-it-chain-2
+    as(w.owner.primaryEmail)
+    const res = await json(await recordView.GET(req('GET', '/api/records/Offer/nope'), { params: Promise.resolve({ type: 'Offer', id: 'nope' }) }))
+    expect(res.status).toBe(403)
+    expect(res.body.error.message).toBe('That record is not on your firm’s book, so it cannot be opened here.')
   })
 
   it('a record of another company is refused in a sentence and the refusal is logged first', async () => {

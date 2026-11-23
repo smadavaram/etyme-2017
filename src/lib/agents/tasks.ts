@@ -25,21 +25,28 @@ export const TASK_RECORD = 'AgentTask'
 
 export interface TaskPlan {
   /** The letters the task may send, by template name. */
-  messages: { template: string }[]
+  messages: { template: string; /** The letter's plain name, the one a person reads: “Timesheet reminder”. */ label?: string }[]
   /** How many times each letter may be sent again after the first. */
   retries: number
-  /** Days between a send and its retry. */
+  /** Working days (the firm's own days off and holidays left out) between a send and its retry. */
   daysApart: number
   /** What closes the task, in words: "the timesheet arrives". */
   closesWhen: string
 }
 
+/** A letter's name as a person reads it: its label, else its template made into words. Pure. */
+export function letterName(m: { template: string; label?: string }): string {
+  if (m.label?.trim()) return m.label.trim()
+  const t = m.template.replace(/[-_]+/g, ' ').trim()
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
 /** The plan in plain words, the proof a person reads before saying yes. Pure. */
 export function planWords(plan: TaskPlan): string {
-  const names = plan.messages.map((m) => `“${m.template}”`).join(', ')
+  const names = plan.messages.map((m) => `“${letterName(m)}”`).join(', ')
   const again = plan.retries === 0
     ? 'It is not sent again.'
-    : `Each may be sent again up to ${plan.retries} ${plan.retries === 1 ? 'time' : 'times'}, ${plan.daysApart} ${plan.daysApart === 1 ? 'day' : 'days'} apart.`
+    : `Each may be sent again up to ${plan.retries} ${plan.retries === 1 ? 'time' : 'times'}, ${plan.daysApart} working ${plan.daysApart === 1 ? 'day' : 'days'} apart.`
   return `If you say yes, the agent sends ${names}. ${again} It closes the task when ${plan.closesWhen}. Anything more is a new task and asks you again.`
 }
 

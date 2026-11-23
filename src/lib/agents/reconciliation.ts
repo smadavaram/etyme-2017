@@ -144,6 +144,7 @@ export async function reconcileStep(ctx: AgentContext): Promise<void> {
     for (const v of judgeBill(bill, inv.payments.map(fact))) {
       if (v.kind === 'CURRENCY') {
         if (!newIds.has(v.payment.id)) continue
+        if (!(await ctx.mayAct())) return
         const r = await flag({ recordType: 'Payment', recordId: v.payment.id }, currencyWords(bill, v.payment), null)
         if (r === 'OPENED' || r === 'ALREADY_OPEN' || r === 'ALREADY_DECIDED') {
           await mark(v.payment.id, 'PAYMENT_FLAGGED', `Payment of a different currency than bill ${bill.number}: a decision is open. Nothing was moved.`)
@@ -154,11 +155,13 @@ export async function reconcileStep(ctx: AgentContext): Promise<void> {
       if (mine.length === 0) continue
       if (v.kind === 'MATCHED') {
         if (!moves) continue
+        if (!(await ctx.mayAct(mine.length))) return
         const lineContractIds = [...new Set(inv.invoiceLines.map((l) => l.sellContractId).filter((x): x is string => !!x))]
         const said = await moveMonth({ ...bill, periodStart: inv.periodStart, periodEnd: inv.periodEnd, lineContractIds })
         for (const p of mine) await mark(p.id, 'PAYMENT_MATCHED', `Matched to bill ${bill.number} to the cent.${said}`)
         continue
       }
+      if (!(await ctx.mayAct(mine.length))) return
       const words = v.kind === 'SHORT' ? shortPayWords(bill, v) : overPayWords(bill, v)
       const r = await flag({ recordType: 'Invoice', recordId: inv.id }, words, null)
       if (r === 'OPENED' || r === 'ALREADY_DECIDED') {
@@ -184,12 +187,14 @@ export async function reconcileStep(ctx: AgentContext): Promise<void> {
       const v = judgeUnplaced(f, open as OpenBill[])
       if (v.kind === 'MATCHED') {
         if (!moves) continue
+        if (!(await ctx.mayAct())) return
         const b = open.find((x) => x.id === v.bill.id)!
         const lineContractIds = [...new Set(b.invoiceLines.map((l) => l.sellContractId).filter((x): x is string => !!x))]
         const said = await moveMonth({ id: b.id, periodStart: b.periodStart, periodEnd: b.periodEnd, currency: b.currency, lineContractIds, minor: f.minor })
         await mark(p.id, 'PAYMENT_MATCHED', `Matched to bill ${b.number}, which is owed exactly this amount. The payment is not yet placed against it: placing it is a person’s.${said}`)
         continue
       }
+      if (!(await ctx.mayAct())) return
       const words = v.kind === 'NO_BILL' ? noBillWords(f)
         : v.kind === 'MANY_BILLS' ? manyBillsWords(f, v.bills)
         : currencyWords(v.bill, f)
@@ -228,6 +233,7 @@ export async function reconcileStep(ctx: AgentContext): Promise<void> {
         hasAmendments: amended.has(l.sellContract.id),
       })
       if (!d) continue
+      if (!(await ctx.mayAct())) return
       const words = driftWords(b, l.person?.name ?? 'the consultant', d)
       const r = await flag({ recordType: 'InvoiceLine', recordId: l.id }, words, null)
       if (r === 'OPENED') await ctx.act({ recordType: 'InvoiceLine', recordId: l.id, action: 'RATE_DRIFT_FLAGGED', summary: `${words.question} A decision is open. Nothing was changed.` })

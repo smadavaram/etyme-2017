@@ -61,6 +61,12 @@ import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
  * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
+  submissionConfirmation: 'Written when a person or the confirmation tracker records that the other side confirmed a submission; a seeded row would claim a confirmation nobody gave.',
+  offer: 'Written when a person drafts, proposes or answers an offer on a submission; a seeded row would claim an offer nobody made.',
+  checklistItem: 'Written when a contract or a petition checklist is opened and a person records a value; a seeded row would claim a paper was checked.',
+  petition: 'Written when a person records a petition for somebody; a seeded row would claim a filing nobody made.',
+  noticePosting: 'Written when a person records a notice going up or coming down at a site; a seeded row would claim somebody posted it.',
+  publicAccessFile: 'Written when a person starts the public access file of a petition; a seeded row would claim one was approved.',
   payrollDraft: 'Written by the payroll agent when the Owner switches it on; the seed switches no agent on.',
   mailSend: 'Written when an email is attempted; the seed sends none, and a seeded row would claim mail left for a demo address.',
   recordAction: 'Written when a person acts on a record after the ledger began (2026-11-21); the seed acts through no screen.',

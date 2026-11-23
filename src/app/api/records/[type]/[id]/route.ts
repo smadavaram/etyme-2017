@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { logAccess } from '@/lib/access-log'
-import { recordTimeline, aboutPayroll, PAYROLL_RECORD, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
+import { recordTimeline, aboutPayroll, PAYROLL_RECORD, PAYROLL_RECORDS, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
 import { DECISION_RECORD, mayReadProof, proofIsFor } from '@/lib/decision-items'
-import { NOT_ON_YOUR_BOOK, cannotReadSays, isRecordType, ledgerBeganSays, ownPageOf, readNeeds } from '@/lib/decision-queue'
+import { agentByWords, NOT_ON_YOUR_BOOK, cannotReadSays, isRecordType, ledgerBeganSays, ownPageOf, readNeeds } from '@/lib/decision-queue'
 import { findOnBook, subjectOf, factsOf, monthPageOf } from '../../lookup'
 import { queueSeat, refused, logRefusal } from '../../../decision-items/door'
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   if (error) return error
   const { type, id } = await params
   if (!isRecordType(type)) return refused(404, 'That is not a kind of record this page opens.')
-  const action = type === 'Person' ? 'PROFILE_VIEW' as const : type === PAYROLL_RECORD ? 'PAYROLL_VIEW' as const : 'CONTRACT_VIEW' as const
+  const action = type === 'Person' ? 'PROFILE_VIEW' as const : PAYROLL_RECORDS.includes(type) ? 'PAYROLL_VIEW' as const : 'CONTRACT_VIEW' as const
   const needs = readNeeds(type)
   const lacks = needs !== null && !hasPermission(seat.caller.permissions, needs)
   const found = lacks ? null : await findOnBook(seat.companyId, type, id)
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     data: {
       type, id, name: found!.name, ownPage: monthPage ? { href: monthPage.href, words: monthPage.words } : ownPageOf(type, id), facts,
       emptySays: rows.length === 0 ? ledgerBeganSays(first?.createdAt ?? null) : null,
-      timeline: rows.map((r) => ({ id: r.id, at: r.createdAt, action: r.action, summary: r.summary, personName: r.person.name, entityName: r.actingEntity?.name ?? null, heldAs: r.heldAs, agentKey: r.agentKey })),
+      timeline: rows.map((r) => ({ id: r.id, at: r.createdAt, action: r.action, summary: r.summary, personName: r.person.name, entityName: r.actingEntity?.name ?? null, heldAs: r.heldAs, agentKey: r.agentKey, by: r.agentKey ? agentByWords(r.agentKey, r.person.name) : r.person.name })),
     },
   })
 }
