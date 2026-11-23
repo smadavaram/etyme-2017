@@ -344,6 +344,14 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
+## The four agent gaps (record 115): DECIDED, START AFTER SATURDAY'S DEPLOY
+
+Owner's yes, 2026-11-23: the SOW item on the contracts checklist; one
+checklist per petition type; the on-time notice check; saying why a
+money chase was skipped. Built after the Saturday 2026-11-28 deploy, for
+the following release. Gaps 2 and 3 warn until regulatory confirms the
+rule with a source.
+
 ## The weekend after (2026-12-05/06): READY, walk passed
 
 Source 0dffd42dc (on top of Saturday's c8d8abaf7; walked pieces at
