@@ -160,10 +160,10 @@ describe('the decision queue, through its routes', () => {
 })
 
 describe('agent control and the ledger', () => {
-  it('each of the seven agents reads off, no actions today, and no cap, until the Owner switches it on', async () => {
+  it('each of the eight agents reads off, no actions today, and no cap, until the Owner switches it on', async () => {
     as(w.am.primaryEmail)
     const res = await json(await agents.GET(req('GET', '/api/decision-items/agents')))
-    expect(res.body.data.agents).toHaveLength(7)
+    expect(res.body.data.agents).toHaveLength(8)
     for (const a of res.body.data.agents) expect([a.state, a.actionsToday, a.meter, a.cap]).toEqual(['Off', 0, '0 actions', '0 today · no cap'])
   })
 
