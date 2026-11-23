@@ -39,13 +39,15 @@ const say = async (decisionId: string, verdict: 'APPROVE' | 'REJECT') => {
 }
 const tasks = () => prisma.agentTask.findMany({ where: { companyId: w.firm.id, agentKey: KEY }, orderBy: { createdAt: 'asc' } })
 const letters = (taskId: string) => prisma.mailSend.count({ where: { agentTaskId: taskId, outcome: 'SENT' } })
+const attempts = (taskId: string) => prisma.mailSend.count({ where: { agentTaskId: taskId } })
 /** Make the letters already sent read as sent four days ago, so the next retry is due. */
-const aged = () => prisma.mailSend.updateMany({ where: { companyId: w.firm.id, outcome: 'SENT' }, data: { createdAt: day(4) } })
+const aged = () => prisma.mailSend.updateMany({ where: { companyId: w.firm.id }, data: { createdAt: day(4) } })
 
 async function newWeek(name: string) {
   const person = await prisma.person.create({ data: { name, primaryEmail: `${name.toLowerCase().replace(/\s/g, '.')}.${tag}@example.invalid` } })
   const msa = await prisma.masterAgreement.create({ data: { vendorId: w.firm.id, clientId: w.client.id } as any })
   const engagement = await prisma.engagement.create({ data: { title: `${name} work`, msaId: msa.id }, select: { id: true } })
+  await prisma.context.create({ data: { personId: person.id, companyId: w.firm.id, type: 'EMPLOYEE' } as any })
   const line = await prisma.sellContract.create({
     data: { companyId: w.firm.id, clientCompanyId: w.client.id, personId: person.id, engagementId: engagement.id, billRate: 9000, state: 'IN_PROGRESS', startDate: day(60) },
   })
@@ -80,7 +82,9 @@ describe('the timesheet chase agent', () => {
     expect([t[0].kind, t[0].recordType, t[0].recordId, t[0].state]).toEqual(['TIMESHEET_CHASE', 'Cycle', a.cycle.id, 'PROPOSED'])
     const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: t[0].decisionId } })
     expect(card.ownerPersonId).toBe(w.owner.id)
-    expect(card.proof).toMatch(/up to 2 times, 2 days apart/)
+    expect(card.proof).toMatch(/up to 2 reminders, 2 working days apart/)
+    expect(card.proof).toMatch(/the agent sends a timesheet reminder/)
+    expect(card.proof).not.toMatch(/timesheet-chase/)
     expect(card.proof).toMatch(/closes the task when the week is filed/)
   })
 
@@ -89,7 +93,7 @@ describe('the timesheet chase agent', () => {
     const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: t.decisionId } })
     expect(card.question).toMatch(/Priya Shah has not filed the week of/)
     expect(card.question).toMatch(/one letter, then up to 2 reminders, 2 working days apart, closing when the week is filed/)
-    expect(card.question).toMatch(/proposals the Owner may change/)
+    expect(card.question).toMatch(/These numbers are proposals; the Owner can change them in Agent control/)
     expect(t.plan).toEqual(PROPOSED_CHASE_PLAN)
   })
 
@@ -186,5 +190,70 @@ describe('the timesheet chase agent', () => {
     expect((await firmsChasing([w.firm.id])).size).toBe(0)
     await setSwitch('OFF')
     expect((await firmsChasing([w.firm.id])).size).toBe(0)
+  })
+  it('a letter that could not leave counts as an attempt, and the chase is never tried more times than its plan', async () => {
+    await setSwitch('ON')
+    const f = await newWeek('Ines Park')
+    const failing = { ...deps, hand: async () => { throw new Error('The mailbox is full.') } }
+    unregisterAgent(KEY)
+    registerAgent(KEY, { ruleVersion: 't', step: (ctx) => timesheetChaseStep(ctx, { send: (m) => sendMail(m, failing as any) }) })
+    await run()
+    const t = (await tasks()).find((x) => x.recordId === f.cycle.id)!
+    await say(t.decisionId, 'APPROVE')
+    for (let i = 0; i < 6; i++) { await run(); await prisma.mailSend.updateMany({ where: { agentTaskId: t.id }, data: { createdAt: day(4) } }) }
+    expect(await attempts(t.id)).toBe(3)
+    expect(await letters(t.id)).toBe(0)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('DONE')
+    const said = await prisma.recordAction.findMany({ where: { recordId: t.id, action: 'CHASE_NOT_SENT' }, orderBy: { createdAt: 'asc' } })
+    expect(said[0].summary).toMatch(/^Letter 1 could not be sent: /)
+    const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { startsWith: 'Failed delivery' } } })
+    expect(cards.length).toBeGreaterThan(0)
+    expect(cards[0].ownerPersonId).toBe(w.owner.id)
+  })
+
+  it('a firm never chases a worker it does not employ', async () => {
+    await setSwitch('ON')
+    const g = await newWeek('Sub Worker')
+    await prisma.context.deleteMany({ where: { personId: g.person.id } })
+    register(); await run()
+    expect((await tasks()).some((x) => x.recordId === g.cycle.id)).toBe(false)
+  })
+
+  it('a week filed on the employer’s own line closes the chase on the line above it', async () => {
+    await setSwitch('ON')
+    const h = await newWeek('Rosa Vega')
+    register(); await run()
+    const t = (await tasks()).find((x) => x.recordId === h.cycle.id)!
+    await say(t.decisionId, 'APPROVE')
+    const other = await prisma.company.create({ data: { name: `Employer ${tag}`, slug: `employer-${tag}`, kind: 'VENDOR' } })
+    const below = await prisma.sellContract.create({ data: { companyId: other.id, clientCompanyId: w.firm.id, endClientCompanyId: w.client.id, personId: h.person.id, billRate: 5000, state: 'IN_PROGRESS', startDate: day(60) } })
+    await prisma.timesheet.create({ data: { sellContractId: below.id, personId: h.person.id, periodStart: h.cycle.periodStart!, periodEnd: h.cycle.periodEnd!, days: {}, totalHours: 40, status: 'SUBMITTED' } })
+    await closeChaseOnFiling(below.id)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('CLOSED_BY_ARRIVAL')
+  })
+
+  it('a worker whose filed weeks overlap the due period is not chased', async () => {
+    await setSwitch('ON')
+    const k = await newWeek('Noor Haddad')
+    await prisma.timesheet.create({ data: { sellContractId: k.line.id, personId: k.person.id, periodStart: day(12), periodEnd: day(2), days: {}, totalHours: 40, status: 'SUBMITTED' } })
+    register(); await run()
+    expect((await tasks()).some((x) => x.recordId === k.cycle.id)).toBe(false)
+  })
+
+  it('a backlog of old weeks is one card for a person, not one chase each', async () => {
+    await setSwitch('ON')
+    const before = (await tasks()).length
+    const mk = async (name: string, n: number) => {
+      const o = await newWeek(name)
+      await prisma.cycle.update({ where: { id: o.cycle.id }, data: { dueOn: day(n), periodStart: day(n + 7), periodEnd: day(n + 1) } })
+      return o
+    }
+    const o1 = await mk('Old One', 40); const o2 = await mk('Old Two', 50)
+    register(); await run(); await run()
+    expect((await tasks()).length).toBe(before)
+    const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { contains: 'older weeks' } } })
+    expect(cards).toHaveLength(1)
+    expect(cards[0].question).toMatch(/Old One/); expect(cards[0].question).toMatch(/Old Two/)
+    void o1; void o2
   })
 })

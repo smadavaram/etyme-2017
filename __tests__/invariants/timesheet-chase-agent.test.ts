@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { workingDaysBetween, nextLetter, chaseQuestion, PROPOSED_CHASE, PROPOSED_CHASE_PLAN } from '@/lib/notify/timesheet-chase-agent'
+import { workingDaysBetween, nextLetter, chaseQuestion, chaseProof, periodCovered, PROPOSED_CHASE, PROPOSED_CHASE_PLAN } from '@/lib/notify/timesheet-chase-agent'
 import { timesheetChaseLetter, weekWords } from '@/lib/notify/timesheet-chase-letter'
 
 const OFF = [0, 6]
@@ -27,7 +27,7 @@ describe('the timesheet chase, as arithmetic', () => {
   it('the card question names the worker and the week and says the numbers are proposals', () => {
     const q = chaseQuestion('Priya Shah', 'Nov 9 to Nov 15')
     expect(q).toMatch(/Priya Shah has not filed the week of Nov 9 to Nov 15/)
-    expect(q).toMatch(/proposals the Owner may change/)
+    expect(q).toMatch(/These numbers are proposals; the Owner can change them in Agent control/)
   })
   it('the letter names the firm and the week, gives one link and carries no figure', () => {
     const l = timesheetChaseLetter({ workerName: 'Priya Shah', firmName: 'Northbend', periodStart: d('2026-11-09'), periodEnd: d('2026-11-15'), dueOn: d('2026-11-17'), link: 'https://x.example/dashboard/my-work', attempt: 1 })
@@ -40,5 +40,17 @@ describe('the timesheet chase, as arithmetic', () => {
     const l = timesheetChaseLetter({ workerName: 'Priya', firmName: 'N', periodStart: d('2026-11-09'), periodEnd: d('2026-11-15'), dueOn: d('2026-11-17'), link: '', attempt: 2 })
     expect(l.subject).toMatch(/^Reminder:/)
     expect(l.text).toMatch(/Open Etyme and go to Your work/)
+  })
+  it('the proof says the agent sends a timesheet reminder, up to 2 reminders, 2 working days apart', () => {
+    const p = chaseProof()
+    expect(p).toMatch(/the agent sends a timesheet reminder/)
+    expect(p).toMatch(/up to 2 reminders, 2 working days apart/)
+    expect(p).not.toMatch(/timesheet-chase/)
+  })
+  it('a worker whose filed weeks overlap the due period is not chased: days covered by other period boundaries count', () => {
+    const due = [d('2026-11-09'), d('2026-11-15')] as const
+    expect(periodCovered(due[0], due[1], [{ periodStart: d('2026-11-02'), periodEnd: d('2026-11-13') }], OFF)).toBe(true)
+    expect(periodCovered(due[0], due[1], [{ periodStart: d('2026-11-09'), periodEnd: d('2026-11-11') }], OFF)).toBe(false)
+    expect(periodCovered(due[0], due[1], [{ periodStart: d('2026-11-09'), periodEnd: d('2026-11-11') }, { periodStart: d('2026-11-12'), periodEnd: d('2026-11-20') }], OFF)).toBe(true)
   })
 })
