@@ -6,6 +6,9 @@ import { rateWordsOf } from '@/app/dashboard/compliance/checklists/bodies'
 import { kindWords, petitionWords, stageWords } from '@/app/dashboard/compliance/act-spec'
 import { rolesFor } from '@/lib/company-defaults'
 import { getNavForKind } from '@/lib/nav-table'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { SavedLine } from '@/app/dashboard/compliance/act-form'
 
 /**
  * The Checklists and Notices tabs of Contracts (record 112, chains 3 and 6):
@@ -127,5 +130,26 @@ describe('the Checklists and Notices tabs', () => {
       expect(src, p).toContain('<SavedLine says={saved} />')
       expect(src, p).not.toContain('onDone={load}')
     }
+  })
+
+  it('an act\u2019s saved sentence is drawn once on the page', () => {
+    const html = renderToStaticMarkup(createElement(SavedLine, { says: 'Saved. Each paper is its own line.' }))
+    expect(html.match(/Saved\. Each paper/g)?.length).toBe(1)
+    expect(html.match(/role="status"/g)?.length).toBe(1)
+    for (const p of ['checklists', 'notices']) expect(read(`src/app/dashboard/compliance/${p}/page.tsx`).match(/<SavedLine /g)?.length, p).toBe(1)
+  })
+
+  it('a petition\u2019s kind prints H-1B and never says petition twice', () => {
+    expect(petitionWords('H-1b transfer')).toBe('H-1B transfer petition')
+    expect(petitionWords('H1B_TRANSFER')).toBe('H-1B transfer petition')
+    expect(petitionWords('h-1b transfer petition')).toBe('H-1B transfer petition')
+    expect(petitionWords('L1A_EXTENSION')).toBe('L-1A extension petition')
+    expect(petitionWords('o-1')).toBe('O-1 petition')
+    expect(petitionWords('tn')).toBe('TN petition')
+    expect(petitionWords('SPECIALTY_OCCUPATION')).toBe('Specialty occupation petition')
+    expect(petitionWords('Green card petition')).toBe('Green card petition')
+    const route = read('src/app/api/compliance/immigration-petitions/route.ts')
+    expect(route).toContain('petitionWords(kind)')
+    expect(route).not.toContain("toLowerCase().replace(/_/g, ' ')} petition")
   })
 })

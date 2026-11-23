@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { writeRecordAction } from '@/lib/record-ledger'
-import { PETITION_LINES } from '@/lib/agents/checklist-rules'
+import { PETITION_LINES, petitionWords } from '@/lib/agents/checklist-rules'
 import { ownersOnOffer } from '@/lib/decision-items'
 import { queueSeat, logRefusal, refused, refusalOf } from '../../decision-items/door'
 import { dayFrom, entityFor, mayKeepPapers, refuseUnlessKeeper, text } from '../checklist-items/read'
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     const created = await prisma.$transaction(async (tx) => {
       const p = await tx.petition.create({ data: { companyId: seat.companyId, personId, kind, stage: text(body.stage) || (filedOn ? 'FILED' : 'PREPARING'), filedOn, employerCompanyId: seat.companyId } })
       await tx.checklistItem.createMany({ data: PETITION_LINES.map((l) => ({ companyId: seat.companyId, ownerType: 'Petition', ownerId: p.id, kind: 'PETITION_PAPER' as const, label: l.label })) })
-      await writeRecordAction(tx, { companyId: seat.companyId, recordType: 'Petition', recordId: p.id, action: 'PETITION_STARTED', summary: `Started the checklist for ${person?.name ?? 'the person'}’s ${kind.toLowerCase().replace(/_/g, ' ')} petition: ${PETITION_LINES.length} papers, each its own line.`, personId: seat.personId, heldAs: seat.heldAs, actingEntityId: entity.id })
+      await writeRecordAction(tx, { companyId: seat.companyId, recordType: 'Petition', recordId: p.id, action: 'PETITION_STARTED', summary: `Started the checklist for ${person?.name ?? 'the person'}’s ${petitionWords(kind)}: ${PETITION_LINES.length} papers, each its own line.`, personId: seat.personId, heldAs: seat.heldAs, actingEntityId: entity.id })
       if (filedOn && calendar) await followFilingDay(tx, { companyId: seat.companyId, petitionId: p.id, person: person?.name ?? 'the person', filedOn, calendar, personId: seat.personId, heldAs: seat.heldAs, actingEntityId: entity.id })
       return p
     })

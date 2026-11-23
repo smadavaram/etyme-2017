@@ -20,7 +20,8 @@ import { formatDay } from '@/lib/format-date'
 
 interface Data {
   name: string
-  ownPage: { href: string; words: string }
+  /** Null where the seat is not let in by the record's own page: no button is drawn. */
+  ownPage: { href: string; words: string } | null
   facts: { label: string; value: string }[]
   emptySays: string | null
   timeline: { id: string; at: string; summary: string; personName: string; entityName: string | null; heldAs: string; agentKey: string | null; by: string }[]
@@ -48,7 +49,7 @@ export default function RecordViewPage() {
       <PageHead
         eyebrow={section}
         title={data.name}
-        actions={<Link href={data.ownPage.href as any} className="btn-secondary text-[13px]">{data.ownPage.words}</Link>}
+        actions={data.ownPage ? <Link href={data.ownPage.href as any} className="btn-secondary text-[13px]">{data.ownPage.words}</Link> : undefined}
       />
       {data.facts.length > 0 && (
         <div className="mb-6">

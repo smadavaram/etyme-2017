@@ -21,10 +21,10 @@ export function useSaved(): { saved: string | null; tell: (says: string) => void
   return { saved, tell }
 }
 
-/** Where the saved sentence is drawn: under the page head, and it stays in view while the page scrolls. */
+/** Where the saved sentence is drawn: under the page head, and it stays in view while the page scrolls. FormMessage is the one status region; a second around it read the sentence twice. */
 export function SavedLine({ says }: { says: string | null }) {
   if (!says) return null
-  return <div role="status" className="sticky top-2 z-10 mb-4"><FormMessage tone="ok">{says}</FormMessage></div>
+  return <div className="sticky top-2 z-10 mb-4"><FormMessage tone="ok">{says}</FormMessage></div>
 }
 
 /**

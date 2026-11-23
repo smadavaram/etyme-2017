@@ -250,3 +250,32 @@ export function accessFileWords(o: { person: string; readyBy: Date; today: Date 
 export function approvedLate(readyOn: Date, readyBy: Date): boolean {
   return dayStart(readyOn).getTime() > readyBy.getTime()
 }
+
+/** Visa classes and permits that print in capitals, letters after a hyphen included: H-1B, L-1, O-1A, TN, OPT. */
+const VISA_WORD = /^([a-z])-?(\d)([a-z]?)$/i
+const PERMIT_WORD = /^(tn|opt|cpt|ead|stem|ds)$/i
+
+/**
+ * A petition's kind as people write it: a visa class prints as H-1B, L-1,
+ * O-1; a machine word (SPECIALTY_OCCUPATION) is turned into words; any
+ * other text stays as typed. Pure.
+ */
+export function kindWords(kind: string): string {
+  const k = kind.trim()
+  const machine = /^[A-Za-z0-9]+(_[A-Za-z0-9]+)+$/.test(k) && k === k.toUpperCase()
+  const words = k.replace(/_/g, ' ').split(/\s+/).map((w, i) => {
+    const v = VISA_WORD.exec(w)
+    if (v) return `${v[1].toUpperCase()}-${v[2]}${v[3].toUpperCase()}`
+    if (PERMIT_WORD.test(w)) return w.toUpperCase()
+    if (!machine) return w
+    const lower = w.toLowerCase()
+    return i === 0 ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower
+  })
+  return words.join(' ')
+}
+
+/** "H-1B transfer petition": the word "petition" is added only where the kind does not already end with it. Pure. */
+export function petitionWords(kind: string): string {
+  const k = kindWords(kind)
+  return /\bpetition$/i.test(k) ? k : `${k} petition`
+}

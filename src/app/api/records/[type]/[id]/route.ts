@@ -4,7 +4,7 @@ import { hasPermission } from '@/lib/permissions'
 import { logAccess } from '@/lib/access-log'
 import { recordTimeline, aboutPayroll, PAYROLL_RECORD, PAYROLL_RECORDS, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
 import { DECISION_RECORD, mayReadProof, proofIsFor } from '@/lib/decision-items'
-import { agentByWords, NOT_ON_YOUR_BOOK, cannotReadSays, isRecordType, ledgerBeganSays, ownPageOf, readNeeds } from '@/lib/decision-queue'
+import { agentByWords, NOT_ON_YOUR_BOOK, cannotReadSays, isRecordType, ledgerBeganSays, mayOpenOwnPage, ownPageOf, readNeeds } from '@/lib/decision-queue'
 import { findOnBook, subjectOf, factsOf, monthPageOf } from '../../lookup'
 import { queueSeat, refused, logRefusal } from '../../../decision-items/door'
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   ])
   return NextResponse.json({
     data: {
-      type, id, name: found!.name, ownPage: monthPage ? { href: monthPage.href, words: monthPage.words } : ownPageOf(type, id), facts,
+      type, id, name: found!.name, ownPage: monthPage ? { href: monthPage.href, words: monthPage.words } : mayOpenOwnPage(type, seat.caller.permissions) ? ownPageOf(type, id) : null, facts,
       emptySays: rows.length === 0 ? ledgerBeganSays(first?.createdAt ?? null) : null,
       timeline: rows.map((r) => ({ id: r.id, at: r.createdAt, action: r.action, summary: r.summary, personName: r.person.name, entityName: r.actingEntity?.name ?? null, heldAs: r.heldAs, agentKey: r.agentKey, by: r.agentKey ? agentByWords(r.agentKey, r.person.name) : r.person.name })),
     },

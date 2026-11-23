@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { agentTaskName, mayOpenOwnPage, ownPageNeeds } from '@/lib/decision-queue'
 import {
   mayOpenDecision, maySetHomePage, readOpenAsk, openBody, readDecideAsk, decideBody, agentRows, ageWords,
   ownPageOf, recordViewHref, agentByWords, agentNameOf, readHomeAsk, FIRM_AGENTS, VERDICT_BUTTONS, PROOF_TYPES,
@@ -255,6 +256,26 @@ describe('the words on a card', () => {
   it('a proof link to an agent task is named by the task, never by the question its card asks', () => {
     expect(proofLabelOf('AgentTask')).toBe('The agent’s task')
     expect(proofLabelOf('Company')).toBe('A company')
+  })
+  it('an agent task is named by what it is about, once, and by the agent alone where nothing more is known', () => {
+    expect(agentTaskName('money-owed-chase', 'Chase of bill IN-204')).toBe('Chase of bill IN-204 (Money-owed chase)')
+    expect(agentTaskName('timesheet-chase', 'Timesheet chase for Rosa Delgado, week of Nov 9 to Nov 15')).toBe('Timesheet chase for Rosa Delgado, week of Nov 9 to Nov 15 (Timesheet chase)')
+    expect(agentTaskName('money-owed-chase', null)).toBe('Money-owed chase')
+    expect(agentTaskName('money-owed-chase', null)).not.toMatch(/by/)
+  })
+  it('a record\u2019s own-page button is drawn only for a seat its page lets in', () => {
+    expect(ownPageNeeds('Petition')).toEqual(['governance.read'])
+    expect(mayOpenOwnPage('Petition', ['governance.read'])).toBe(true)
+    expect(mayOpenOwnPage('Petition', ['requirements.read'])).toBe(false)
+    expect(mayOpenOwnPage('ChecklistItem', ['assignments.read'])).toBe(false)
+    expect(mayOpenOwnPage('Offer', ['submissions.read'])).toBe(true)
+    expect(mayOpenOwnPage('SubmissionConfirmation', ['submissions.create'])).toBe(true)
+    expect(mayOpenOwnPage('Offer', ['invoices.read'])).toBe(false)
+    expect(mayOpenOwnPage('Invoice', ['invoices.read'])).toBe(true)
+    const route = readFileSync(join(process.cwd(), 'src/app/api/records/[type]/[id]/route.ts'), 'utf8')
+    expect(route).toContain('mayOpenOwnPage(type, seat.caller.permissions)')
+    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/records/[type]/[id]/page.tsx'), 'utf8')
+    expect(page).toContain('data.ownPage ?')
   })
 })
 })

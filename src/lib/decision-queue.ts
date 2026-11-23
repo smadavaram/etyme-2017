@@ -102,6 +102,25 @@ export function cannotReadSays(type: RecordType): string {
   return 'Your seat cannot read this record.'
 }
 
+/**
+ * What the record's own page asks for, read off the page's own route (any
+ * one of these lets a seat in): the Compliance page asks `governance.read`
+ * (`/api/compliance`), the Submissions page `submissions.read` or
+ * `submissions.create` (`/api/submissions`). Null where the page asks
+ * nothing beyond what the record view already did. Pure.
+ */
+export function ownPageNeeds(type: RecordType): readonly string[] | null {
+  if (type === 'Offer' || type === 'SubmissionConfirmation') return ['submissions.read', 'submissions.create']
+  if (type === 'ChecklistItem' || type === 'Petition' || type === 'NoticePosting' || type === 'PublicAccessFile') return ['governance.read']
+  return null
+}
+
+/** Whether a seat holding these permissions is let in by the record's own page, so its button is drawn. Pure. */
+export function mayOpenOwnPage(type: RecordType, permissions: readonly string[] | Parameters<typeof hasPermission>[0]): boolean {
+  const needs = ownPageNeeds(type)
+  return needs === null || needs.some((n) => hasPermission(permissions as any, n as any))
+}
+
 /** The record's own page, where it already has one. Pure. */
 export function ownPageOf(type: RecordType, id: string): { href: string; words: string } {
   switch (type) {
@@ -303,6 +322,11 @@ export const NOT_LIVE_AGENTS: readonly string[] = ['digest-scanner']
 /** The sentence a refused switch says. Pure. */
 export function notLiveSays(key: string): string {
   return `${agentNameOf(key)} is not live yet, so it cannot be switched on.`
+}
+
+/** A task named by what it is about, once: "Chase of bill IN-1 (Money-owed chase)"; the agent's name alone where nothing more is known. Pure. */
+export function agentTaskName(agentKey: string, about: string | null): string {
+  return about ? `${about} (${agentNameOf(agentKey)})` : agentNameOf(agentKey)
 }
 
 /** An agent's name as a person reads it; an unknown key reads as the key made into words. Pure. */
