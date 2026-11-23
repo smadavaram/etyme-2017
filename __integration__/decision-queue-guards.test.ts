@@ -113,7 +113,7 @@ describe('a working seat at the firm reads and owes decisions; nobody else does'
   it('the firm’s whole ledger on agent control is read by the Owner, and another seat reads the agents and who reads the ledger', async () => {
     as(w.am.primaryEmail)
     const am = await json(await agents.GET(req('GET', '/api/decision-items/agents')))
-    expect([am.body.data.ledger, am.body.data.agents.length]).toEqual([null, 6])
+    expect([am.body.data.ledger, am.body.data.agents.length]).toEqual([null, 7])
     expect(am.body.data.ledgerHidden).toMatch(/Owner and Admins/)
     as(w.owner.primaryEmail)
     const owner = await json(await agents.GET(req('GET', '/api/decision-items/agents')))

@@ -33,6 +33,8 @@ function onBook(companyId: string, type: RecordType): Record<string, unknown> {
     case 'Invoice': return invoiceBetween(companyId)
     case 'DecisionItem': return { companyId }
     case 'MoneyChain': return { companyId }
+    case 'AgentTask': return { companyId }
+    case 'AgentSwitch': return { companyId }
   }
 }
 
@@ -65,6 +67,14 @@ export async function findOnBook(companyId: string, type: RecordType, id: string
     case 'DecisionItem': {
       const r = await prisma.decisionItem.findFirst({ where, select: { id: true, question: true } })
       return r ? { id: r.id, name: r.question } : null
+    }
+    case 'AgentSwitch': {
+      const r = await prisma.agentSwitch.findFirst({ where, select: { id: true, agentKey: true } })
+      return r ? { id: r.id, name: `Switch for ${r.agentKey}` } : null
+    }
+    case 'AgentTask': {
+      const r = await prisma.agentTask.findFirst({ where, select: { id: true, kind: true, decision: { select: { question: true } } } })
+      return r ? { id: r.id, name: r.decision.question } : null
     }
     case 'MoneyChain': {
       const r = await prisma.moneyChain.findFirst({ where, select: { id: true, periodStart: true, periodEnd: true, person: { select: { name: true } } } })
@@ -99,6 +109,14 @@ export async function subjectOf(type: RecordType, id: string): Promise<{ company
     }
     case 'DecisionItem': {
       const r = await prisma.decisionItem.findUnique({ where: { id }, select: { companyId: true } })
+      return r ? { companyId: r.companyId } : null
+    }
+    case 'AgentSwitch': {
+      const r = await prisma.agentSwitch.findUnique({ where: { id }, select: { companyId: true } })
+      return r ? { companyId: r.companyId } : null
+    }
+    case 'AgentTask': {
+      const r = await prisma.agentTask.findUnique({ where: { id }, select: { companyId: true } })
       return r ? { companyId: r.companyId } : null
     }
     case 'MoneyChain': {
@@ -183,6 +201,14 @@ export async function factsOf(type: RecordType, id: string): Promise<Fact[]> {
     case 'DecisionItem': {
       const r = await prisma.decisionItem.findUnique({ where: { id }, select: { question: true, openedOn: true, state: true, ownerPerson: { select: { name: true } } } })
       return r ? [...f('Question', r.question), ...f('Owed by', r.ownerPerson.name), ...f('Opened', day(r.openedOn))] : []
+    }
+    case 'AgentSwitch': {
+      const r = await prisma.agentSwitch.findUnique({ where: { id }, select: { agentKey: true, state: true, dailyCap: true } })
+      return r ? [...f('Agent', r.agentKey), ...f('Switch', r.state === 'ON' ? 'On' : r.state === 'DRAFT_ONLY' ? 'Drafts only' : 'Off'), ...f('Daily cap', r.dailyCap === null ? 'None' : String(r.dailyCap))] : []
+    }
+    case 'AgentTask': {
+      const r = await prisma.agentTask.findUnique({ where: { id }, select: { agentKey: true, kind: true, state: true, sentCount: true, closedReason: true } })
+      return r ? [...f('Agent', r.agentKey), ...f('Kind', r.kind), ...f('State', r.state), ...f('Sent', String(r.sentCount)), ...f('Closed because', r.closedReason)] : []
     }
     case 'MoneyChain': {
       // Read only after the route found a seat that reads payroll: these are the amounts people stated.

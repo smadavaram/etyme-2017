@@ -1304,6 +1304,14 @@ export const JOBS: Record<string, Job> = {
     says: 'Removes a visitor\u2019s demo sandbox nobody has used for thirty days, and tells a visitor who left an address a week before. It cannot be undone, and it refuses anything that is not a visitor\u2019s own sandbox.',
     writes: ['DEMO_SANDBOX_EXPIRY_WARNED', 'DEMO_SANDBOX_REMOVED'],
   },
+  agents: {
+    job: 'agents',
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Runs each agent a firm\u2019s Owner switched on, inside its daily cap. Every act is a row on the record ledger under the agent\u2019s name; an agent never sends without a task a person approved.',
+    // Empty on purpose: the acts go to the record ledger (lib/agents/runner), not the automation log.
+    writes: [],
+  },
 }
 
 export const ALL_JOBS: string[] = Object.keys(JOBS).sort()

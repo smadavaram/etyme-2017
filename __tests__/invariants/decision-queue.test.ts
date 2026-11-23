@@ -87,11 +87,11 @@ describe('the three acts', () => {
 })
 
 describe('agent control', () => {
-  it('the six agents each read not enabled, a count of actions as the meter, and a cap not set', () => {
+  it('the seven agents each read off, a count of actions as the meter, and no cap until the Owner sets one', () => {
     const rows = agentRows([{ agentKey: 'digest-scanner', count: 2 }, { agentKey: null, count: 9 }])
     expect(rows.map((r) => r.name)).toEqual(FIRM_AGENTS.map((a) => a.name))
-    expect(rows).toHaveLength(6)
-    expect(rows.every((r) => r.state === 'Not enabled' && r.cap === 'Not set')).toBe(true)
+    expect(rows).toHaveLength(7)
+    expect(rows.every((r) => r.state === 'Off' && r.cap.endsWith('today · no cap'))).toBe(true)
     expect(rows.find((r) => r.key === 'digest-scanner')).toMatchObject({ actionsToday: 2, meter: '2 actions' })
     expect(rows.find((r) => r.key === 'census-keeper')).toMatchObject({ actionsToday: 0, meter: '0 actions' })
   })
@@ -171,7 +171,7 @@ describe('how the queue’s pages are framed and drawn (the walk of Flow A)', ()
     // Every file that writes to the ledger, and the record type each names.
     const files = execSync("grep -rl 'writeRecordAction(' src", { encoding: 'utf8' }).trim().split('\n').filter((f) => !f.endsWith('lib/record-ledger.ts'))
     const named = new Set<string>()
-    const consts: Record<string, string> = { CHAIN_RECORD: 'MoneyChain', DECISION_RECORD: 'DecisionItem' }
+    const consts: Record<string, string> = { CHAIN_RECORD: 'MoneyChain', DECISION_RECORD: 'DecisionItem', SWITCH_RECORD: 'AgentSwitch', TASK_RECORD: 'AgentTask' }
     for (const f of files) {
       const text = src(f)
       for (const m of text.matchAll(/writeRecordAction\([\s\S]*?recordType: ('([A-Za-z]+)'|([A-Z_]+))/g)) named.add(m[2] ?? consts[m[3]] ?? m[3])

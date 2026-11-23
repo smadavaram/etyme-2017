@@ -54,6 +54,8 @@ const JOBS = [
   // After end-contracts and the cycle jobs, so the time limit and the
   // invoice receipts it reads are tonight's.
   { path: 'twin', does: 'has the program manager\u2019s twin read each client program and record, tell or ask about what it finds' },
+  // After the jobs that write the records agents read.
+  { path: 'agents', does: 'runs each agent a firm has switched on, within its daily cap' },
   { path: 'deliver-webhooks', does: 'retries webhooks that did not land' },
   { path: 'watch', does: 'runs the saved watches' },
   { path: 'reap-demos', does: 'removes visitors\u2019 demo sandboxes nobody used for thirty days, and warns a week before' },

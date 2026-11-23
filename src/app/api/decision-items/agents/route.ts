@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { firmLedger, usageCount, payrollRowsHiddenSays, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
+import { prisma } from '@/lib/db'
 import { BASELINE_LINES, LEDGER_IS_FOR, agentRows, dayAround, recordViewHref } from '@/lib/decision-queue'
-import { queueSeat } from '../door'
+import { NOTE_ACTIONS, mayChangeSwitch, readSwitchAsk, setSwitch } from '@/lib/agents/switch'
+import { openTasks } from '@/lib/agents/tasks'
+import { queueSeat, refused, refusalOf } from '../door'
 
 /**
  * GET /api/decision-items/agents?page=N — agent control and the firm's ledger (A5)
@@ -26,13 +29,22 @@ export async function GET(request: NextRequest) {
   const page = Number(request.nextUrl.searchParams.get('page') ?? '1')
   const readsLedger = seat.ownerOrAdmin || hasPermission(seat.caller.permissions, 'governance.read')
   const readsPayroll = hasPermission(seat.caller.permissions, PAYROLL_LEDGER_READS)
-  const [counts, ledger] = await Promise.all([usageCount(seat.companyId, from, to), readsLedger ? firmLedger(seat.companyId, page, undefined, { readsPayroll }) : null])
+  const [counts, switches, tasks, ledger] = await Promise.all([
+    usageCount(seat.companyId, from, to), prisma.agentSwitch.findMany({ where: { companyId: seat.companyId } }),
+    openTasks(seat.companyId), readsLedger ? firmLedger(seat.companyId, page, undefined, { readsPayroll }) : null,
+  ])
+  // The meter counts acts; a line that says why an agent did nothing is not one.
+  const notes = await prisma.recordAction.groupBy({ by: ['agentKey'], where: { companyId: seat.companyId, createdAt: { gte: from, lt: to }, agentKey: { not: null }, action: { in: [...NOTE_ACTIONS] } }, _count: { _all: true } })
+  const acts = counts.map((c) => ({ ...c, count: c.count - (notes.find((n) => n.agentKey === c.agentKey)?._count._all ?? 0) }))
   const lines: string[] = [BASELINE_LINES.billing]
   if (hasPermission(seat.caller.permissions, 'margin.read')) lines.push(BASELINE_LINES.margin)
   return NextResponse.json({
     data: {
       lines,
-      agents: agentRows(counts),
+      canSwitch: mayChangeSwitch(seat.roleName) === null,
+      entities: seat.entities,
+      agents: agentRows(acts, switches),
+      tasks,
       ledgerHidden: ledger ? null : LEDGER_IS_FOR,
       ledger: !ledger ? null : {
         page: ledger.page, pages: ledger.pages, total: ledger.total,
@@ -45,4 +57,27 @@ export async function GET(request: NextRequest) {
       },
     },
   })
+}
+
+/**
+ * PATCH /api/decision-items/agents — { agentKey, state: 'OFF' | 'DRAFT_ONLY' | 'ON', dailyCap?, actingEntityId }
+ *
+ * The Owner alone switches an agent or sets its daily cap (an Admin may
+ * not); the change is a row on the record ledger. Off stops the agent's
+ * next run and any send of a running task at once.
+ */
+export async function PATCH(request: NextRequest) {
+  const { seat, error } = await queueSeat(request)
+  if (error) return error
+  const who = mayChangeSwitch(seat.roleName)
+  if (who) return refused(403, who)
+  const body = await request.json().catch(() => ({}))
+  const read = readSwitchAsk(typeof body?.agentKey === 'string' ? body.agentKey : '', body, seat.entities.length > 0)
+  if (!read.ok) return refused(422, read.says, read.field)
+  try {
+    const row = await setSwitch({ companyId: seat.companyId, agentKey: body.agentKey, roleName: seat.roleName, personId: seat.personId, heldAs: seat.heldAs, ask: read.ask })
+    return NextResponse.json({ data: { agentKey: row.agentKey, state: row.state, dailyCap: row.dailyCap } })
+  } catch (e) {
+    return refusalOf(e)
+  }
 }

@@ -160,11 +160,11 @@ describe('the decision queue, through its routes', () => {
 })
 
 describe('agent control and the ledger', () => {
-  it('each of the six agents reads not enabled, no actions today, and a cap not set', async () => {
+  it('each of the seven agents reads off, no actions today, and no cap, until the Owner switches it on', async () => {
     as(w.am.primaryEmail)
     const res = await json(await agents.GET(req('GET', '/api/decision-items/agents')))
-    expect(res.body.data.agents).toHaveLength(6)
-    for (const a of res.body.data.agents) expect([a.state, a.actionsToday, a.meter, a.cap]).toEqual(['Not enabled', 0, '0 actions', 'Not set'])
+    expect(res.body.data.agents).toHaveLength(7)
+    for (const a of res.body.data.agents) expect([a.state, a.actionsToday, a.meter, a.cap]).toEqual(['Off', 0, '0 actions', '0 today · no cap'])
   })
 
   it('the margin baseline line is shown only to a seat that may read margin', async () => {

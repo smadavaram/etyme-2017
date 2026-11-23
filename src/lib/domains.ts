@@ -634,6 +634,9 @@ export const DOMAINS: Domain[] = [
       // person opens (2026-11-21 → 107). Every domain writes to the ledger
       // through the one writer; the schema under it queues here.
       'lib/record-ledger', 'lib/decision-items',
+      // The agent engine (record 112, chain 7): the switch, the runner with
+      // its cap, and the per-task approval record. Every agent lands on it.
+      'lib/agents',
       // The decision queue's routes and the record view (Flow A, A2 to A6):
       // the open list, an item and its three acts, agent control and the
       // firm's ledger, and one record with its whole history.

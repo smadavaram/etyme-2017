@@ -64,6 +64,8 @@ const RUNTIME: Record<string, string> = {
   mailSend: 'Written when an email is attempted; the seed sends none, and a seeded row would claim mail left for a demo address.',
   recordAction: 'Written when a person acts on a record after the ledger began (2026-11-21); the seed acts through no screen.',
   decisionItem: 'Opened by an Owner or an Admin on the decision queue, or by a disputed month; the real questions are a firm\'s own and are never seeded.',
+  agentSwitch: 'Written when the Owner switches an agent on, off or to drafts only; every agent is off until then, and a seeded switch would claim the Owner chose.',
+  agentTask: 'Proposed by an agent that is switched on, and released by a person’s yes on the decision queue; no agent runs in the seeded world.',
   moneyChain: 'Opened when a seat that runs payroll opens a month; every amount on it is typed by a person.',
   // Record 102, item 1 (2026-11-21). A stranger's question from a firm's public page.
   pageAsk: 'written when somebody outside Etyme asks a firm a question on its public page; a seeded row would claim a stranger wrote to the demo firm and left an address',

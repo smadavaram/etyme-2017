@@ -227,7 +227,7 @@ describe('every send attempt is one row on the mail ledger', () => {
     const d = door()
     await sendMail({ to: ['a@firm.test', 'b@firm.test'], subject: 'You are invited', text: 'the letter', about }, d.deps)
     expect(d.rows).toEqual([{
-      companyId: 'co_1', actingEntityId: 'ent_1', actorPersonId: 'per_1', heldAs: 'HR', agentKey: null,
+      companyId: 'co_1', actingEntityId: 'ent_1', actorPersonId: 'per_1', heldAs: 'HR', agentKey: null, agentTaskId: null,
       recordType: 'Context', recordId: 'ctx_1',
       fromAddress: SENDER, toAddresses: ['a@firm.test'], bccAddresses: ['b@firm.test'],
       subject: 'You are invited', template: 'invitation', templateVersion: 'PASSWORD', chase: false,

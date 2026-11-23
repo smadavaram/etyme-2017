@@ -34,6 +34,8 @@ model Person {
   /// Money chains for this person's placements (Flow B, → 105, 107).
   moneyChains              MoneyChain[]
   decisionsSentBack        DecisionItem[]            @relation("decisionSentBackBy")
+  agentSwitchesChanged     AgentSwitch[]
+  agentTasksApproved       AgentTask[]
   /// Team structure (2026-11-09): leads named, changes made and undone.
   unitLeadsSet             OrgUnit[]                 @relation("unitLeadSetBy")
   orgChangesMade           OrgChange[]               @relation("orgChangeActor")
@@ -978,6 +980,8 @@ model Company {
   /// The record ledger and the decisions a person opened (2026-11-21 → 107).
   recordActions         RecordAction[]
   decisionItems         DecisionItem[]
+  agentSwitches         AgentSwitch[]
+  agentTasks            AgentTask[]
   /// Money chains, one per placement per period (Flow B, → 105, 107).
   moneyChains           MoneyChain[]
   /// Where a signed-in seat at this firm lands. Null is the standing rule
@@ -11131,6 +11135,8 @@ model DecisionItem {
   createdAt          DateTime      @default(now())
   /// The money chains this decision holds in dispute (Flow B).
   disputedChains     MoneyChain[]
+  /// The agent tasks this decision asks the yes for.
+  agentTasks         AgentTask[]
 
   @@index([companyId, state, openedOn])
   @@index([ownerPersonId])
@@ -11216,6 +11222,8 @@ model MailSend {
   heldAs          String?
   /// Set where an agent drafted the letter.
   agentKey        String?
+  /// The approved task an agent's send belongs to (record 112).
+  agentTaskId     String?
   /// The record the mail is about, named by type and id.
   recordType      String?
   recordId        String?
@@ -11243,5 +11251,79 @@ model MailSend {
 
   @@index([companyId, createdAt])
   @@index([recordType, recordId, createdAt])
+  @@index([agentTaskId])
   @@index([outcome, createdAt])
+}
+
+enum AgentSwitchState {
+  OFF
+  DRAFT_ONLY
+  ON
+}
+
+/// One row per company per agent (record 112, chain 7). No row reads OFF.
+/// Only the Owner changes it; each change is a RecordAction row.
+/// DRAFT_ONLY: the agent prepares tasks and drafts, and sends nothing even
+/// after a yes. dailyCap is the most acts the agent may do in a day; null
+/// is no cap.
+model AgentSwitch {
+  id          String           @id @default(cuid())
+  companyId   String
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agentKey    String
+  state       AgentSwitchState @default(OFF)
+  dailyCap    Int?
+  changedById String
+  changedBy   Person           @relation(fields: [changedById], references: [id])
+  changedAt   DateTime         @default(now())
+
+  @@unique([companyId, agentKey])
+  @@index([changedById])
+}
+
+enum AgentTaskState {
+  PROPOSED
+  APPROVED
+  RUNNING
+  DONE
+  CLOSED_BY_ARRIVAL
+  REFUSED
+  STOPPED
+}
+
+/// What an agent sends, asked once (record 112, the owner's answer of
+/// 2026-11-22): one yes releases the whole task; every new task asks again;
+/// an escalation is its own task with its parent's id. The yes is the
+/// DecisionItem; the task reads it, never copies it.
+model AgentTask {
+  id           String         @id @default(cuid())
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agentKey     String
+  /// TIMESHEET_CHASE, ESCALATION, ...
+  kind         String
+  /// The record the task is about, by type and id.
+  recordType   String
+  recordId     String
+  /// { messages: [{ template, ... }], retries, daysApart, closesWhen } as approved.
+  plan         Json
+  state        AgentTaskState @default(PROPOSED)
+  decisionId   String
+  decision     DecisionItem   @relation(fields: [decisionId], references: [id])
+  approvedById String?
+  approvedBy   Person?        @relation(fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  parentTaskId String?
+  parentTask   AgentTask?     @relation("escalation", fields: [parentTaskId], references: [id])
+  escalations  AgentTask[]    @relation("escalation")
+  /// The messages sent so far, counted from the mail ledger as they go.
+  sentCount    Int            @default(0)
+  closedReason String?
+  createdAt    DateTime       @default(now())
+
+  @@index([companyId, agentKey, state])
+  @@index([decisionId])
+  @@index([approvedById])
+  @@index([parentTaskId])
+  @@index([recordType, recordId])
 }

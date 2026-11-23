@@ -44,9 +44,9 @@ export type ProofType = (typeof PROOF_TYPES)[number]['type']
  * payroll record of lib/record-ledger). A month is never picked as proof
  * by hand; a disputed month's own decision links to it.
  */
-export type RecordType = ProofType | 'DecisionItem' | 'MoneyChain'
+export type RecordType = ProofType | 'DecisionItem' | 'MoneyChain' | 'AgentTask' | 'AgentSwitch'
 
-export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem', 'MoneyChain']
+export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem', 'MoneyChain', 'AgentTask', 'AgentSwitch']
 
 export function isRecordType(t: unknown): t is RecordType {
   return typeof t === 'string' && (RECORD_TYPES as readonly string[]).includes(t)
@@ -83,6 +83,8 @@ export function ownPageOf(type: RecordType, id: string): { href: string; words: 
     case 'VendorBill': return { href: '/dashboard/ap', words: 'Open invoice receipts' }
     case 'Invoice': return { href: `/dashboard/invoices/${id}`, words: 'Open the bill' }
     case 'DecisionItem': return { href: `/dashboard/decisions/${id}`, words: 'Open the decision' }
+    case 'AgentSwitch':
+    case 'AgentTask': return { href: '/dashboard/decisions/agents', words: 'Open Agent control' }
     // The month's own page needs its contract and month, which the route reads (`monthPageOf`); this is the page they are on.
     case 'MoneyChain': return { href: LOOP_HREF, words: 'Open Timesheet to payment' }
   }
@@ -169,7 +171,7 @@ export function readOpenAsk(body: unknown, hasEntities: boolean): { ok: true; as
     const o = (l ?? {}) as Record<string, unknown>
     const type = o.recordType
     const id = typeof o.recordId === 'string' ? o.recordId.trim() : ''
-    if (!isRecordType(type) || type === 'DecisionItem' || type === 'MoneyChain' || !id) {
+    if (!isRecordType(type) || type === 'DecisionItem' || type === 'MoneyChain' || type === 'AgentTask' || type === 'AgentSwitch' || !id) {
       return { ok: false, field: 'proofLinks', says: 'Each proof link names a kind of record from the list and the record itself.' }
     }
     links.push({ recordType: type, recordId: id })
@@ -225,7 +227,7 @@ export function ageWords(days: number): string {
 
 // ── Agent control (A5) ──────────────────────────────────────────────
 
-/** The six agents of record 105. None is enabled in week 1, and no switch is drawn. */
+/** The agents of record 105, and the payroll draft of chain 4. Each is Off until the Owner switches it on (lib/agents/switch). */
 export const FIRM_AGENTS = [
   { key: 'chase-and-reconciliation', name: 'Chase and reconciliation' },
   { key: 'digest-scanner', name: 'Digest scanner' },
@@ -233,9 +235,11 @@ export const FIRM_AGENTS = [
   { key: 'census-keeper', name: 'Census keeper' },
   { key: 'contracts-checklist', name: 'Contracts checklist' },
   { key: 'immigration-checklist', name: 'Immigration checklist' },
+  { key: 'payroll-draft', name: 'Payroll draft' },
 ] as const
 
-export const AGENT_STATE = 'Not enabled'
+/** An agent's switch in the words a person reads. */
+export const SWITCH_WORDS = { OFF: 'Off', DRAFT_ONLY: 'Drafts only', ON: 'On' } as const
 export const AGENT_CAP = 'Not set'
 export const BASELINE_LINES = {
   billing: 'Consultants billing: baseline pending',
@@ -245,11 +249,23 @@ export const BASELINE_LINES = {
 /** What a seat that does not read the firm's ledger reads in its place. */
 export const LEDGER_IS_FOR = 'The firm’s ledger is read by its Owner and Admins, and by a seat that reads the activity log.'
 
-/** Each agent's row: its state, today's count of its acts, and its cap. Pure. */
-export function agentRows(counts: readonly { agentKey: string | null; count: number }[]) {
+/**
+ * Each agent's row: its switch (Off where no row), today's count of its
+ * acts, and its cap as "N of M today" or "N today · no cap". Pure.
+ */
+export function agentRows(
+  counts: readonly { agentKey: string | null; count: number }[],
+  switches: readonly { agentKey: string; state: keyof typeof SWITCH_WORDS; dailyCap: number | null }[] = [],
+) {
   return FIRM_AGENTS.map((a) => {
     const today = counts.find((c) => c.agentKey === a.key)?.count ?? 0
-    return { key: a.key, name: a.name, state: AGENT_STATE, actionsToday: today, meter: `${today} ${today === 1 ? 'action' : 'actions'}`, cap: AGENT_CAP }
+    const sw = switches.find((s) => s.agentKey === a.key)
+    const cap = sw?.dailyCap ?? null
+    return {
+      key: a.key, name: a.name, switchState: sw?.state ?? 'OFF', state: SWITCH_WORDS[sw?.state ?? 'OFF'], dailyCap: cap,
+      actionsToday: today, meter: `${today} ${today === 1 ? 'action' : 'actions'}`,
+      cap: cap === null ? `${today} today · no cap` : `${today} of ${cap} today`,
+    }
   })
 }
 

@@ -57,6 +57,10 @@ export interface MailAbout {
   heldAs?: string | null
   /** Set where an agent drafted the letter. */
   agentKey?: string | null
+  /** The approved task an agent's send belongs to. An agent's send without one is refused. */
+  agentTaskId?: string | null
+  /** Which send of this letter this is: 1 the first, 2 its first retry. Left out, 1. */
+  agentAttempt?: number
   recordType?: string | null
   recordId?: string | null
   /** The letter's template or rule. */
@@ -135,6 +139,7 @@ export interface MailLedgerRow {
   actorPersonId: string | null
   heldAs: string | null
   agentKey: string | null
+  agentTaskId: string | null
   recordType: string | null
   recordId: string | null
   fromAddress: string
@@ -169,6 +174,7 @@ export function ledgerRowFor(a: {
     actorPersonId: about?.actorPersonId ?? null,
     heldAs: about?.heldAs?.trim() || null,
     agentKey: about?.agentKey ?? null,
+    agentTaskId: about?.agentTaskId ?? null,
     recordType: about?.recordType ?? null,
     recordId: about?.recordId ?? null,
     fromAddress: a.from,
@@ -269,8 +275,28 @@ export interface MailDoorDeps {
   lastChase?: (q: { recordType: string; recordId: string; template: string; address: string; since: Date }) => Promise<Date | null>
   /** Hands the email over; the provider when not given. */
   hand?: (e: Envelope, env: Record<string, string | undefined>) => Promise<{ provider: MailProvider; messageId: string | null }>
+  /** Whether an agent may send this letter now: a sentence when not, null when it may. The approved-task rule when not given. */
+  agentGate?: (q: { agentTaskId: string | null; companyId: string | null; agentKey: string; recordType: string | null; recordId: string | null; template: string; attempt: number }) => Promise<string | null>
+  /** Told that an agent's letter left, so its task counts it. */
+  agentSent?: (agentTaskId: string) => Promise<void>
   /** Told when a ledger row could not be written. */
   onLedgerLost?: (err: unknown, row: MailLedgerRow) => void
+}
+
+const AGENT_UNCHECKED_SAYS = 'Whether this task was approved could not be checked, so nothing was sent.'
+const NO_TASK_SAYS = 'An agent sends only inside a task a person approved. This send names no task, so nothing was sent.'
+
+// Loaded when an agent sends, so the door does not pull the decision queue in with it.
+async function agentGateFromTasks(q: Parameters<NonNullable<MailDoorDeps['agentGate']>>[0]): Promise<string | null> {
+  if (!q.agentTaskId || !q.agentKey || !q.companyId) return NO_TASK_SAYS
+  const { mayAgentSend } = await import('@/lib/agents/tasks')
+  const got = await mayAgentSend(q.agentTaskId, { companyId: q.companyId, agentKey: q.agentKey, recordType: q.recordType, recordId: q.recordId, template: q.template, attempt: q.attempt })
+  return got.ok ? null : got.says
+}
+
+async function agentSentToTasks(agentTaskId: string): Promise<void> {
+  const { noteSent } = await import('@/lib/agents/tasks')
+  await noteSent(agentTaskId)
 }
 
 const NOT_SET_UP_SAYS = 'No email sender is set up on this deployment, so nothing was sent.'
@@ -352,6 +378,19 @@ export async function sendMail(mail: MailToSend, deps: MailDoorDeps = {}): Promi
   const finish = <R extends MailResult>(result: R, extra: { provider?: string | null; providerMessageId?: string | null } = {}): Promise<R> =>
     written(mail, verified, plan, record, deps, result, extra)
 
+  // An agent sends only inside a task a person said yes to (record 112).
+  const agentAbout = mail.about
+  if (agentAbout?.agentKey || agentAbout?.agentTaskId) {
+    const q = {
+      agentTaskId: agentAbout.agentTaskId ?? null, companyId: agentAbout.companyId ?? null, agentKey: agentAbout.agentKey ?? '',
+      recordType: agentAbout.recordType ?? null, recordId: agentAbout.recordId ?? null,
+      template: agentAbout.template?.trim() || TEMPLATE_NOT_NAMED, attempt: agentAbout.agentAttempt ?? 1,
+    }
+    let held: string | null
+    try { held = await (deps.agentGate ?? agentGateFromTasks)(q) } catch { held = AGENT_UNCHECKED_SAYS }
+    if (held) return finish({ outcome: 'REFUSED', left: false, note: held })
+  }
+
   if (!mailLeaves(env)) return finish({ outcome: 'NOT_CONFIGURED', left: false, note: NOT_SET_UP_SAYS })
   if (!plan.ok) return finish({ outcome: 'REFUSED', left: false, note: plan.says })
 
@@ -379,6 +418,9 @@ export async function sendMail(mail: MailToSend, deps: MailDoorDeps = {}): Promi
       { from: plan.from, to: plan.to, bcc: plan.bcc, subject: mail.subject, text: mail.text, html: mail.html ?? null },
       env,
     )
+    if (agentAbout?.agentTaskId) {
+      try { await (deps.agentSent ?? agentSentToTasks)(agentAbout.agentTaskId) } catch { /* the mail ledger row below is the record of the send */ }
+    }
     return finish(
       { outcome: 'SENT', left: true, note: null, provider: took.provider, providerMessageId: took.messageId },
       { provider: took.provider, providerMessageId: took.messageId },
