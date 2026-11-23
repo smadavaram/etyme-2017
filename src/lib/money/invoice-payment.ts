@@ -7,6 +7,7 @@ import { partiesOf } from '@/lib/money/invoice-parties'
 import { mayPayFirm } from '@/lib/setup-gates'
 import type { ItemKey } from '@/lib/setup-checklist'
 import { tellPaidOrReport, type PaidFacts } from '@/lib/money/paid-notice'
+import { closeChaseOnPayment } from '@/lib/money/money-owed-chase'
 import { logPaymentRefusedIn } from '@/lib/money/payment-refused'
 
 /**
@@ -390,6 +391,7 @@ export async function emitInvoicePaid(
   actor?: Pick<EmitParams, 'actorKind' | 'actorTwinKind'>
 ): Promise<{ id: string } | null> {
   if (!result.ok) return null
+  await closeChaseOnPayment(result.invoice.id)
   const [event] = await Promise.all([
     emit({ ...result.event, ...(actor ?? {}) }),
     result.notice ? tellPaidOrReport(result.notice, 'invoice payment') : Promise.resolve(0),
