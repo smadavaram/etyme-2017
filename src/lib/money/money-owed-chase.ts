@@ -241,7 +241,23 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     const left = (await mailSendsAbout(companyId, MONEY_OWED_RECORD, b.id)).filter((r) => r.agentTaskId === task.id) // every attempt counts, sent or not
     const next = nextLetter(plan, left.length, left.length ? left[left.length - 1].createdAt : null, now, daysOff)
     if (next.act === 'WAIT') continue
-    if (next.act === 'END') { await closeTask(task.id, 'No answer: every attempt in the plan was made and the bill is still owed. Any further step is a person’s to take.', 'DONE'); continue }
+    if (next.act === 'END') {
+      // Nothing left at all: say so, never "no answer", and tell a person once.
+      if (!left.some((r) => r.outcome === 'SENT')) {
+        const why = left.length ? left[left.length - 1].note ?? 'the mail service gave no reason' : 'no attempt was recorded'
+        await closeTask(task.id, `No letter could leave: ${why} Nothing was sent, so nobody was asked. A person follows up.`, 'DONE')
+        const stampNL = await agentStamp(companyId, ctx.agentKey)
+        const ownerNL = owner
+        if (stampNL && ownerNL) {
+          await openDecision({
+            ...stampNL, companyId, ownerPersonId: ownerNL, openedOn: now,
+            question: `Failed delivery: no letter about bill ${b.number} could leave. Follow up by hand?`,
+            proof: `Every attempt in the plan was made and none left. The last reason: ${why}`,
+            proofLinks: [{ recordType: TASK_RECORD, recordId: task.id }],
+          })
+        }
+        continue
+      } await closeTask(task.id, 'No answer: every attempt in the plan was made and the bill is still owed. Any further step is a person’s to take.', 'DONE'); continue }
 
     if (!(await ctx.mayAct())) return // the letter and its row are one unit
     const customer = await customerOf(b)

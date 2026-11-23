@@ -77,11 +77,24 @@ describe('the decision queue, through its routes', () => {
     expect(res.body.error.message).toMatch(/Owner or an Admin/)
   })
 
-  it('a firm with a legal entity cannot open a decision without choosing which entity it is for', async () => {
+  it('a firm with one legal entity opens a decision by hand without choosing it', async () => {
     as(w.admin.primaryEmail)
-    const res = await json(await queue.POST(post('/api/decision-items', openBody({ question: 'x?', ownerPersonId: w.am.id, openedOn: '2026-11-01', proof: 'y' }))))
-    expect(res.status).toBe(422)
-    expect(res.body.error.message).toMatch(/Choose which one/)
+    const res = await json(await queue.POST(post('/api/decision-items', openBody({ question: 'One entity, opened by hand?', ownerPersonId: w.am.id, openedOn: '2026-11-01', proof: 'y' }))))
+    expect(res.status, JSON.stringify(res.body)).toBe(201)
+    const item = await prisma.decisionItem.findFirstOrThrow({ where: { companyId: w.firm.id, question: 'One entity, opened by hand?' } })
+    expect(item.actingEntityId).toBe(w.entity.id)
+  })
+
+  it('a firm with several legal entities cannot open a decision without choosing which entity it is for', async () => {
+    const second = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Queue Firm Opening LLC', country: 'US', currency: 'USD' } })
+    try {
+      as(w.admin.primaryEmail)
+      const res = await json(await queue.POST(post('/api/decision-items', openBody({ question: 'x?', ownerPersonId: w.am.id, openedOn: '2026-11-01', proof: 'y' }))))
+      expect(res.status).toBe(422)
+      expect(res.body.error.message).toMatch(/Choose which one/)
+    } finally {
+      await prisma.legalEntity.delete({ where: { id: second.id } })
+    }
   })
 
   it('a proof link to another firm’s record is refused', async () => {

@@ -230,6 +230,8 @@ export async function openDecision(
   const refusal = openRefusal(input, day)
   if (refusal) throw new LedgerRefusal(refusal)
   const entities = await db.legalEntity.findMany({ where: { companyId: input.companyId }, select: { id: true } })
+  // Exactly one legal entity is used without asking; several are asked.
+  if (!input.actingEntityId && entities.length === 1) input = { ...input, actingEntityId: entities[0].id }
   const entityRefusal = stampRefusal({ ...input, action: 'OPENED', summary: input.question }, entities.map((e) => e.id))
   if (entityRefusal) throw new LedgerRefusal(entityRefusal)
   const seats = await firmSeats(input.companyId, db)

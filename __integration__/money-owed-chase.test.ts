@@ -223,4 +223,22 @@ describe('chasing money owed, on the database', () => {
     const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { startsWith: 'Failed delivery' } } })
     expect(cards.length).toBeGreaterThan(0)
   })
+
+  it('with no mail sender set up, the chase ends saying no letter could leave, never "no answer", and one card asks a person to follow up', async () => {
+    const b = await newBill()
+    await setSwitch('ON'); register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE')
+    const noSender = { ...deps, env: {} }
+    unregisterAgent(KEY)
+    registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => sendMail(m, noSender as any) }) })
+    for (let i = 0; i < 6; i++) { await run(); await prisma.mailSend.updateMany({ where: { agentTaskId: t.id }, data: { createdAt: day(8) } }) }
+    expect(await prisma.mailSend.count({ where: { agentTaskId: t.id } })).toBe(3)
+    const done = await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })
+    expect(done.state).toBe('DONE')
+    expect(done.closedReason).toMatch(/No letter could leave/)
+    expect(done.closedReason).not.toMatch(/No answer/)
+    const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { contains: `no letter about bill ${b.number} could leave` } } })
+    expect(cards).toHaveLength(1)
+  })
 })
