@@ -228,6 +228,7 @@ describe('the words on a card', () => {
   it('a card that only needs reading offers Done, and a card that asks for a decision does not', () => {
     expect(onlyAcknowledged('This week: 3 hours waiting. Read the summary?')).toBe(true)
     expect(onlyAcknowledged('A placement changed. Review the placement now?')).toBe(true)
+    expect(onlyAcknowledged('Weekly census: 4 companies moved between active and dormant. Read the list.')).toBe(true)
     expect(onlyAcknowledged('Approve the client renewal for another year?')).toBe(false)
   })
   it('a path to a job inside a card’s proof is drawn as a link', () => {

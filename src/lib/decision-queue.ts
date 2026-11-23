@@ -235,7 +235,7 @@ export function readDecideAsk(body: unknown, hasEntities: boolean):
 
 /** A card that only needs acknowledging: it offers Done, never Approve, Send back or Reject. Pure. */
 export function onlyAcknowledged(question: string): boolean {
-  return /(Read the summary\?|Review the placement now\?)$/.test(question.trim())
+  return /(Read the summary\?|Review the placement now\?|Read the list\.)$/.test(question.trim())
 }
 
 /** A proof's text cut at the in-app paths it names, so each path can be drawn as a link. Pure. */
