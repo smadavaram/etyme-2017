@@ -375,14 +375,14 @@ describe('the payroll file takes the same cut, on a line that keeps the week’s
 describe('the run, the screen, the file and back pay cut in one place', () => {
   const root = join(__dirname, '..', '..', 'src')
   it('reads the hours accepted through lib/money/pay-hours, and never hands the filed days to the by-day pricing to cut', () => {
-    for (const f of ['app/api/payroll/run/route.ts', 'app/api/payroll/route.ts', 'app/api/payroll/export/route.ts', 'lib/money/back-pay.ts']) {
+    for (const f of ['lib/money/payroll-run.ts', 'app/api/payroll/route.ts', 'app/api/payroll/export/route.ts', 'lib/money/back-pay.ts']) {
       const src = readFileSync(join(root, f), 'utf8')
       expect(src).toContain("from '@/lib/money/pay-hours'")
       expect(src).toContain('acceptanceForPay(')
     }
     // The run and the screen price the days already cut: `hours` is only
     // ever given where a sheet has no daily hours at all.
-    for (const f of ['app/api/payroll/run/route.ts', 'app/api/payroll/route.ts']) {
+    for (const f of ['lib/money/payroll-run.ts', 'app/api/payroll/route.ts']) {
       const src = readFileSync(join(root, f), 'utf8')
       expect(src).toMatch(/hours: Object\.keys\([^)]*\)\.length > 0 \? null/)
     }

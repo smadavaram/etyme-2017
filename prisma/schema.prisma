@@ -680,6 +680,8 @@ model AccessLog {
 // ─────────────────────────────────────────────
 
 model Company {
+  /// Payroll drafts the payroll agent prepared (record 112, chain 4).
+  payrollDrafts PayrollDraft[]
   id             String      @id @default(cuid())
   name           String
   slug           String      @unique // {slug}.etyme.com — 2017 create_slug, collision numbered
@@ -11137,6 +11139,8 @@ model DecisionItem {
   disputedChains     MoneyChain[]
   /// The agent tasks this decision asks the yes for.
   agentTasks         AgentTask[]
+  /// The payroll drafts this decision asks a person to review.
+  payrollDrafts      PayrollDraft[]
 
   @@index([companyId, state, openedOn])
   @@index([ownerPersonId])
@@ -11326,4 +11330,33 @@ model AgentTask {
   @@index([approvedById])
   @@index([parentTaskId])
   @@index([recordType, recordId])
+}
+
+/// What the payroll agent worked out for a pay period that has ended
+/// (record 112, chain 4). A DRAFT, never a run: it pays nobody and marks no
+/// pay day. `rows` is what the existing payroll calculation returned for the
+/// period, person by person (hours, gross, held weeks and why), and
+/// `contentHash` says whether a later pass found the same thing. Only the
+/// latest draft of a period is current; an older one is SUPERSEDED.
+/// No relation is drawn on purpose: nothing in the core reads this.
+model PayrollDraft {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  periodStart DateTime @db.Date
+  periodEnd   DateTime @db.Date
+  /// DRAFT or SUPERSEDED.
+  state       String   @default("DRAFT")
+  /// A hash of the rows, so an unchanged period is never drafted twice.
+  contentHash String
+  /// [{ buyContractId, buyContractCandidateId, person, hours, grossPay, currency, held, refused }]
+  rows        Json
+  /// The card on the decision queue that asks a person to review and run it.
+  decisionId  String?
+  decision    DecisionItem? @relation(fields: [decisionId], references: [id])
+  agentKey    String   @default("payroll-draft")
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, periodStart, periodEnd, createdAt])
+  @@index([decisionId])
 }

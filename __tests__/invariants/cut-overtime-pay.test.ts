@@ -205,7 +205,7 @@ describe('one rule, read once, for every reader of pay', () => {
 
   it('the run, its screen and the payroll file read the rule off the pay line, and the file loads the columns that say who chose it and why', () => {
     const src = (p: string) => readFileSync(join(__dirname, '..', '..', 'src', p), 'utf8')
-    const run = src('app/api/payroll/run/route.ts')
+    const run = src('lib/money/payroll-run.ts')
     const screen = src('app/api/payroll/route.ts')
     const file = src('app/api/payroll/export/route.ts')
     for (const route of [run, screen, file]) expect(route).toContain('cutOvertimeFor(')

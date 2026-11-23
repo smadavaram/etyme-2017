@@ -72,7 +72,7 @@ describe('every line is paid one way', () => {
   })
 
   it('the payroll screen, the run, the file and back pay all ask the one door', () => {
-    for (const f of ['app/api/payroll/route.ts', 'app/api/payroll/run/route.ts', 'lib/payroll-export.ts', 'lib/money/back-pay.ts', 'app/api/payroll/off-cycle/route.ts']) {
+    for (const f of ['app/api/payroll/route.ts', 'lib/money/payroll-run.ts', 'lib/payroll-export.ts', 'lib/money/back-pay.ts', 'app/api/payroll/off-cycle/route.ts']) {
       expect(src(f), f).toMatch(/paidByPayroll/)
     }
   })

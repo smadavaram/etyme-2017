@@ -150,7 +150,7 @@ describe('a week over 40 hours for a person nobody has said is exempt is held of
 
   it('the Payroll screen, the run and the pay file each hold the week, and the file judges it on the held line', () => {
     expect(src('src/app/api/payroll/route.ts')).toContain('heldForExemption({ line, days: filedDays')
-    expect(src('src/app/api/payroll/run/route.ts')).toContain('heldForExemption({ line, days: filed')
+    expect(src('src/lib/money/payroll-run.ts')).toContain('heldForExemption({ line, days: filed')
     expect(src('src/app/api/payroll/export/route.ts')).toContain('const lineAt = judgedLine(payLine)')
   })
 })
@@ -252,7 +252,7 @@ describe('a period worked out stays worked out only while what is still to pay i
   })
 
   it('the run compares what it would pay with what the latest calculation covered, before anything is marked paid', () => {
-    const run = src('src/app/api/payroll/run/route.ts')
+    const run = src('src/lib/money/payroll-run.ts')
     expect(run).toContain('const covers = payCovers(lines)')
     expect(run).toContain("}, covers === '' ? undefined : covers)")
     expect(run).toContain("orderBy: { at: 'asc' }")

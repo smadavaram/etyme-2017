@@ -134,7 +134,7 @@ describe('what Payroll shows for a week held outside the pay window', () => {
     expect(route).toContain('windowHeld: windowHeldSaid')
     expect(route).toContain("reason: 'WINDOW' as const")
     expect(route).toContain('weeksHeld:')
-    const run = src('src/app/api/payroll/run/route.ts')
+    const run = src('src/lib/money/payroll-run.ts')
     expect(run).toContain('windowHeld: windowHeldSays(cand.person.name, windowHere)')
     const page = src('src/app/dashboard/payroll/page.tsx')
     expect(page).toContain('{row.windowHeld}')

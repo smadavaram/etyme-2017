@@ -203,7 +203,7 @@ describe('every event that ends a wait marks its cycle', () => {
   })
 
   it('a pay run already marked its cycles; nothing here doubles it', () => {
-    expect(read('src/app/api/payroll/run/route.ts')).not.toContain('cycle-complete')
+    expect(read('src/lib/money/payroll-run.ts')).not.toContain('cycle-complete')
   })
 })
 

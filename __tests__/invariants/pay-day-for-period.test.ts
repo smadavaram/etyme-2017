@@ -125,7 +125,7 @@ describe('the fortnightly pack, paid on Fridays', () => {
 
 describe('the run reads the pay day off the cycles', () => {
   it('the payroll run has no fixed number of days after a period in which its pay day must fall', () => {
-    const run = readFileSync(join(__dirname, '..', '..', 'src/app/api/payroll/run/route.ts'), 'utf8')
+    const run = readFileSync(join(__dirname, '..', '..', 'src/lib/money/payroll-run.ts'), 'utf8')
     expect(run).not.toMatch(/SHIFT_DAYS/)
     expect(run).toContain('payDaysToMark(')
   })

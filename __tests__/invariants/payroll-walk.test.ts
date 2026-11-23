@@ -283,7 +283,7 @@ describe('pay never goes out before it is worked out (the founder, 2026-10-07, r
   })
 
   it('the payroll run refuses to pay a period with no calculation behind it, before anything is marked paid', () => {
-    const src = readFileSync(join(process.cwd(), 'src/app/api/payroll/run/route.ts'), 'utf8')
+    const src = readFileSync(join(process.cwd(), 'src/lib/money/payroll-run.ts'), 'utf8')
     expect(src).toMatch(/action === 'process'\s*\?\s*workedOutKeys\(/)
     expect(src).toContain("code: 'NOT_WORKED_OUT'")
     // Thrown inside the transaction, so the pay days it marked roll back.

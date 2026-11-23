@@ -198,6 +198,7 @@ describe('no sentence on the payroll or placement money screens carries an ISO d
       'src/app/dashboard/payroll/page.tsx',
       'src/app/api/payroll/route.ts',
       'src/app/api/payroll/run/route.ts',
+      'src/lib/money/payroll-run.ts',
       'src/app/api/payroll/statutory/route.ts',
       'src/lib/money/placement-earned.ts',
       'src/lib/money/sheet-overtime.ts',

@@ -94,7 +94,7 @@ export const DELETE_ORDER = [
   // The money loop's month, a decision a person opened and the record
   // ledger (2026-11-21) name a firm, a legal entity, people and a sell
   // line, so they go before all of them; a month names its decision.
-  'MoneyChain', 'DecisionItem', 'RecordAction',
+  'PayrollDraft', 'MoneyChain', 'DecisionItem', 'RecordAction',
   // The ledger of every email attempt (2026-11-22) names a firm and the
   // person who acted by id alone, so it goes before both.
   'MailSend',

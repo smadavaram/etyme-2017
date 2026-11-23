@@ -111,20 +111,22 @@ export const LEDGER_PAGE_SIZE = 25
  * holding `payroll.read`, everywhere a ledger is drawn.
  */
 export const PAYROLL_RECORD = 'MoneyChain'
+/** Every record whose ledger lines or proof state payroll amounts: the month, and the payroll agent's draft. */
+export const PAYROLL_RECORDS: readonly string[] = [PAYROLL_RECORD, 'PayrollDraft']
 export const PAYROLL_LEDGER_READS = 'payroll.read' as const
 
 /** Whether a decision's proof points at a payroll record. Pure. */
 export function aboutPayroll(proofLinks: unknown): boolean {
-  return Array.isArray(proofLinks) && proofLinks.some((l) => (l as { recordType?: unknown } | null)?.recordType === PAYROLL_RECORD)
+  return Array.isArray(proofLinks) && proofLinks.some((l) => PAYROLL_RECORDS.includes((l as { recordType?: unknown } | null)?.recordType as string))
 }
 
 /** The ledger rows on payroll records: a month's own, and those of a decision a disputed month opened. */
 export async function payrollRows(companyId: string, db: Tx = prisma): Promise<Prisma.RecordActionWhereInput> {
   const decisions = await db.decisionItem.findMany({
-    where: { companyId, proofLinks: { array_contains: [{ recordType: PAYROLL_RECORD }] } },
+    where: { companyId, OR: PAYROLL_RECORDS.map((t) => ({ proofLinks: { array_contains: [{ recordType: t }] } })) },
     select: { id: true },
   })
-  return { OR: [{ recordType: PAYROLL_RECORD }, { recordType: 'DecisionItem', recordId: { in: decisions.map((d) => d.id) } }] }
+  return { OR: [{ recordType: { in: [...PAYROLL_RECORDS] } }, { recordType: 'DecisionItem', recordId: { in: decisions.map((d) => d.id) } }] }
 }
 
 /** What a seat that does not read payroll is told in place of those rows; null where none is left out. Pure. */

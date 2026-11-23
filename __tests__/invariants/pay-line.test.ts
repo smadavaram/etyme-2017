@@ -231,7 +231,7 @@ describe('the client’s bill does not move', () => {
 
   it('is read for pay by the run, the screen, the file and back pay, all through the one door', () => {
     for (const f of [
-      'app/api/payroll/run/route.ts', 'app/api/payroll/route.ts', 'app/api/payroll/export/route.ts', 'lib/money/back-pay.ts',
+      'lib/money/payroll-run.ts', 'app/api/payroll/route.ts', 'app/api/payroll/export/route.ts', 'lib/money/back-pay.ts',
     ]) {
       const src = readFileSync(join(root, f), 'utf8')
       expect(src).toContain("from '@/lib/money/pay-line'")

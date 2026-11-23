@@ -131,7 +131,7 @@ describe('Calculate and Process say what they did', () => {
 
   it('the Payroll page prints the sentence from the run route’s own reply, and the route names the period’s pay day', () => {
     expect(read('src/app/dashboard/payroll/page.tsx')).toMatch(/setRunSaid\(payrollRunSays\(action, body\.data \?\? \{\}\)\)/)
-    expect(read('src/app/api/payroll/run/route.ts')).toMatch(/payOn: askedIsOwn && askedKey && co \? periodHolding\(askedKey, co\.rhythm, co\.rule\)\?\.payOn/)
+    expect(read('src/lib/money/payroll-run.ts')).toMatch(/payOn: askedIsOwn && askedKey && co \? periodHolding\(askedKey, co\.rhythm, co\.rule\)\?\.payOn/)
   })
 
   it('a firm with nothing posted in the year is never told it was paid in more than one currency', () => {
