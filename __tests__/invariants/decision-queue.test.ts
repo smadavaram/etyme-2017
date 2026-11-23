@@ -87,10 +87,10 @@ describe('the three acts', () => {
 })
 
 describe('agent control', () => {
-  it('the seven agents each read off, a count of actions as the meter, and no cap until the Owner sets one', () => {
+  it('the eight agents each read off, a count of actions as the meter, and no cap until the Owner sets one', () => {
     const rows = agentRows([{ agentKey: 'digest-scanner', count: 2 }, { agentKey: null, count: 9 }])
     expect(rows.map((r) => r.name)).toEqual(FIRM_AGENTS.map((a) => a.name))
-    expect(rows).toHaveLength(7)
+    expect(rows).toHaveLength(8)
     expect(rows.every((r) => r.state === 'Off' && r.cap.endsWith('today · no cap'))).toBe(true)
     expect(rows.find((r) => r.key === 'digest-scanner')).toMatchObject({ actionsToday: 2, meter: '2 actions' })
     expect(rows.find((r) => r.key === 'census-keeper')).toMatchObject({ actionsToday: 0, meter: '0 actions' })

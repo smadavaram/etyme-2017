@@ -5,6 +5,7 @@ import { labelOf } from '@/lib/cycle-kinds'
 import { prisma } from '@/lib/db'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import type { Permission } from '@/lib/permissions'
+import { firmsChasing } from '@/lib/notify/timesheet-chase-agent'
 import {
   bodyFor,
   companiesHearing,
@@ -192,7 +193,11 @@ export async function GET(request: NextRequest) {
     const notifiedCycles = new Set<string>()
     let viaOwner = 0
 
+    // A firm whose timesheet chase agent is on is chased by it, one task
+    // per week under one yes (record 112); the old reminder stays quiet.
+    const chasing = await firmsChasing([...new Set(upcoming.map((c: any) => c.sellContract?.companyId).filter(Boolean))] as string[])
     for (const cycle of upcoming) {
+      if (cycle.kind === 'TIMESHEET_SUBMIT' && chasing.has((cycle as any).sellContract?.companyId)) continue
       const daysUntilDue = Math.ceil(
         (cycle.dueOn.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
       )

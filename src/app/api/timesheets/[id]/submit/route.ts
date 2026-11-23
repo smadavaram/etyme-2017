@@ -1,3 +1,4 @@
+import { closeChaseOnFiling } from '@/lib/notify/timesheet-chase-agent'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { mayEnter } from '@/lib/timesheet-authority'
@@ -89,6 +90,9 @@ export async function POST(
     kind: 'TIMESHEET_SUBMIT',
     periodEnd: timesheet.periodEnd,
   })
+
+  // An open chase for this week closes at once (record 112, chain 4).
+  await closeChaseOnFiling(timesheet.sellContractId)
 
   return NextResponse.json({
     data: {

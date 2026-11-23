@@ -236,6 +236,7 @@ export const FIRM_AGENTS = [
   { key: 'contracts-checklist', name: 'Contracts checklist' },
   { key: 'immigration-checklist', name: 'Immigration checklist' },
   { key: 'payroll-draft', name: 'Payroll draft' },
+  { key: 'timesheet-chase', name: 'Timesheet chase' },
 ] as const
 
 /** An agent's switch in the words a person reads. */
