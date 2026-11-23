@@ -346,7 +346,11 @@ the stabilization batch.
 
 ## Saturday 2026-11-28 deploy: READY, gate passed
 
-Source 4eae9cbab. Release check green on 11ac0ab21 (17,991 unit, 4,071
+Source c8d8abaf7 (supersedes 4eae9cbab): adds the census card's Done and
+the Checklists and Notices tabs, walked and passing. Final release check
+on it: type check; 18,021 unit tests; 4,084 database tests; build. Deploy
+with `prepare-replay.sh 18f59d2b1 c8d8abaf7`.
+Earlier: Release check green on 11ac0ab21 (17,991 unit, 4,071
 database tests, build) plus the whole unit suite on 4eae9cbab. Walks:
 three, the last saying ships. Deploy on Saturday with
 `prepare-replay.sh 18f59d2b1 4eae9cbab`, then smoke. After it, each
