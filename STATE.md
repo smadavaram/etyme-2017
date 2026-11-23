@@ -344,6 +344,20 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
+## Saturday 2026-11-28 deploy: READY, gate passed
+
+Source 4eae9cbab. Release check green on 11ac0ab21 (17,991 unit, 4,071
+database tests, build) plus the whole unit suite on 4eae9cbab. Walks:
+three, the last saying ships. Deploy on Saturday with
+`prepare-replay.sh 18f59d2b1 4eae9cbab`, then smoke. After it, each
+Owner switches agents to Drafts only first. Recommended On: timesheet
+chase, payroll draft, reconciliation, money-owed chase, match ranker,
+census keeper, weekly summary, compliance watch, contracts checklist.
+Off: interview chase (writes to no client until the owner rules),
+confirmation tracker (screen has no date field yet), digest scanner (not
+built). Open before or after: census card shows Approve instead of Done;
+chain 3 and 6 screens; the owner's ruling on the interview chase.
+
 ## The first agents (record 114): BUILT, NOT DEPLOYED
 
 Source 5d1e783d0, release check green (no browser walk yet). Built:
