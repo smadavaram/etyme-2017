@@ -344,6 +344,18 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
+## The weekend after (2026-12-05/06): READY, walk passed
+
+Source a5ba6f102 (on top of Saturday's c8d8abaf7): the confirmation
+date; the supplier's side of an offer; record links that open; the
+money chase's missing-contact card and Owner-set chase numbers. Walks L
+and M; M says ship. Before deploying: a full release check on the
+source then current. Cosmetic, queued: "Money owed chase by Money-owed
+chase" on a task's record line; "H-1b" lowercased and "petition
+petition" on a petition's history; the doubled saved sentence; the older
+petitions route; the record view's Open Compliance and Open Submissions
+buttons drawn for every reader (unchecked).
+
 ## Saturday 2026-11-28 deploy: READY, gate passed
 
 Source c8d8abaf7 (supersedes 4eae9cbab): adds the census card's Done and
