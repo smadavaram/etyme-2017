@@ -1,3 +1,4 @@
+import { formatDay } from '@/lib/format-date'
 /**
  * The letter the timesheet chase agent sends a worker whose week is not
  * filed (record 112, chain 4). Plain words: who is asking, which week, why
@@ -7,7 +8,7 @@
 
 export const TIMESHEET_CHASE_TEMPLATE = 'timesheet-chase'
 
-const day = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+const day = (d: Date) => formatDay(d, { year: false })
 
 /** "Nov 9 to Nov 15", or "Nov 9" for a one-day week. */
 export function weekWords(from: Date, to: Date): string {
