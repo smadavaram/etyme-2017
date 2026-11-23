@@ -1,9 +1,31 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { saveForm } from '@/lib/form-save'
 import { Field, FormMessage, Input, Select, SubmitButton } from '@/components/ui'
 import { firstMissing, type FieldSpec, type Values } from './act-spec'
+
+/**
+ * The sentence a save came back with, kept on screen for a few seconds or
+ * until the next act, wherever the act's own form has gone.
+ */
+export function useSaved(): { saved: string | null; tell: (says: string) => void } {
+  const [saved, setSaved] = useState<string | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tell = useCallback((says: string) => {
+    if (timer.current) clearTimeout(timer.current)
+    setSaved(says)
+    timer.current = setTimeout(() => setSaved(null), 8000)
+  }, [])
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
+  return { saved, tell }
+}
+
+/** Where the saved sentence is drawn: under the page head, and it stays in view while the page scrolls. */
+export function SavedLine({ says }: { says: string | null }) {
+  if (!says) return null
+  return <div role="status" className="sticky top-2 z-10 mb-4"><FormMessage tone="ok">{says}</FormMessage></div>
+}
 
 /**
  * One small act on a row: a button that opens its form in place. The route's
@@ -20,7 +42,8 @@ export function Act({ label, doneLabel, fields, url, method = 'POST', body, onDo
   url: string
   method?: 'POST' | 'PATCH'
   body: (v: Values) => Record<string, unknown>
-  onDone: () => void
+  /** Told what the route said, so the page can keep the sentence on screen after the form closes. */
+  onDone: (saidSaved: string) => void
   tone?: 'primary' | 'secondary'
 }) {
   const [open, setOpen] = useState(false)
@@ -40,12 +63,12 @@ export function Act({ label, doneLabel, fields, url, method = 'POST', body, onDo
       send: () => fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body(v)) }),
       setBusy, setError, fallback: 'That could not be saved. Try again.',
     })
-    if (saved) { setOpen(false); setV({}); onDone() }
+    if (saved) { setOpen(false); setV({}); onDone(saved?.data?.message ?? 'Saved.') }
   }
 
   return (
     <form onSubmit={send} className="mt-3 w-full max-w-full rounded-panel border border-etyme-rule bg-etyme-raised p-4" noValidate>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
         {drawn.map((f) => (
           <Field key={f.key} label={f.label} help={f.help} className="min-w-0">
             {f.type === 'select' ? (

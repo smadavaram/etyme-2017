@@ -5,7 +5,7 @@ import { writeRecordAction } from '@/lib/record-ledger'
 import { firmSeats, seatAtFirm } from '@/lib/decision-items'
 import { judgeContractItem } from '@/lib/agents/checklist-rules'
 import { queueSeat, refused, refusalOf } from '../../../decision-items/door'
-import { entityFor, text } from '../read'
+import { entityFor, refuseUnlessKeeper, text } from '../read'
 import { markMetAsk, recordSignedAsk } from '../../asks'
 
 /**
@@ -14,8 +14,8 @@ import { markMetAsk, recordSignedAsk } from '../../asks'
  * Record 112, chain 3. A checklist item changes only by a person's act:
  *  { action: 'RECORD_SIGNED', paperReference, agreedValue? }   a contract item: a signed paper says what
  *       the agreed value is. Without agreedValue, the paper says what the line says now. Needs assignments.write.
- *  { action: 'MARK_MET', paperReference }                       a petition paper is on hand. Needs consultants.write.
- *  { action: 'SET_SIGNATORY', signatoryPersonId }               who signs this petition paper. Needs consultants.write.
+ *  { action: 'MARK_MET', paperReference }                       a petition paper is on hand. Needs governance.read.
+ *  { action: 'SET_SIGNATORY', signatoryPersonId }               who signs this petition paper. Needs governance.read.
  * The agent never calls this. Etyme signs nothing: the route records that a
  * person holds the signed paper, with its reference. Every act is a row on
  * the record ledger under the person's own name and role.
@@ -52,7 +52,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (action === 'MARK_MET' || action === 'SET_SIGNATORY') {
       if (item.kind !== 'PETITION_PAPER') return refused(422, 'That is a contract item. A petition paper has its own lines.', 'action')
-      if (!hasPermission(seat.caller.permissions, 'consultants.write')) return refused(403, 'Recording a petition paper is for whoever looks after paperwork at your firm.')
+      const notKeeper = await refuseUnlessKeeper(seat, request, 'Recording a petition paper is for HR and the compliance officer at your firm.')
+      if (notKeeper) return notKeeper
       if (action === 'MARK_MET') {
         const ask = markMetAsk(body)
         if (ask) return refused(422, ask.says, ask.field)

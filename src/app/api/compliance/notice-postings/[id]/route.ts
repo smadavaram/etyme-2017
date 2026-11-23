@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { hasPermission } from '@/lib/permissions'
 import { writeRecordAction } from '@/lib/record-ledger'
 import { daysOffFor } from '@/lib/days-off'
 import { loadCompanyHolidays } from '@/lib/holidays'
 import { noticeEndsOn, removedEarly } from '@/lib/agents/checklist-rules'
 import { queueSeat, refused, refusalOf } from '../../../decision-items/door'
-import { dayFrom, entityFor, text } from '../../checklist-items/read'
+import { dayFrom, entityFor, refuseUnlessKeeper, text } from '../../checklist-items/read'
 import { removalDayAsk } from '../../asks'
 
 /**
@@ -20,7 +19,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params
   const { seat, error } = await queueSeat(request)
   if (error) return error
-  if (!hasPermission(seat.caller.permissions, 'consultants.write')) return refused(403, 'Recording that a notice came down is for whoever looks after paperwork at your firm.')
+  const notKeeper = await refuseUnlessKeeper(seat, request, 'Recording that a notice came down is for HR and the compliance officer at your firm.')
+  if (notKeeper) return notKeeper
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const notice = await prisma.noticePosting.findFirst({ where: { id, companyId: seat.companyId } })
   if (!notice) return refused(404, 'There is no such notice at your firm.')

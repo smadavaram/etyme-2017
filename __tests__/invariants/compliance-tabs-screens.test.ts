@@ -3,6 +3,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { rateWords, PROPOSED_NOTICE_WORKING_DAYS, PROPOSED_ACCESS_FILE_WORKING_DAYS, PROPOSED_PACK_LEAD_DAYS } from '@/lib/agents/checklist-rules'
 import { rateWordsOf } from '@/app/dashboard/compliance/checklists/bodies'
+import { kindWords, petitionWords, stageWords } from '@/app/dashboard/compliance/act-spec'
+import { rolesFor } from '@/lib/company-defaults'
+import { getNavForKind } from '@/lib/nav-table'
 
 /**
  * The Checklists and Notices tabs of Contracts (record 112, chains 3 and 6):
@@ -81,5 +84,48 @@ describe('the Checklists and Notices tabs', () => {
 
   it('no screen here draws a verdict about a person: it records papers, dates and who signed', () => {
     for (const p of SCREENS) expect(read(p), p).not.toMatch(/cleared to place|overallVerdict|\bapproved to work\b/i)
+  })
+
+  it('the Notices tab is drawn only for a seat holding the permission HR and the compliance officer hold and the recruiter, account manager and contract manager do not', () => {
+    const items = JSON.stringify(getNavForKind('VENDOR', false))
+    const at = items.indexOf('"label":"Notices"')
+    expect(items.slice(at, at + 400)).toContain('"needs":["governance.read"]')
+    const holds = (role: string) => (rolesFor('VENDOR').find((r) => r.name === role)!.permissions as readonly string[]).includes('governance.read')
+    expect(['HR', 'Compliance Officer'].map(holds)).toEqual([true, true])
+    expect(['Recruiter', 'Account Manager', 'Contract Manager'].map(holds)).toEqual([false, false, false])
+  })
+
+  it('the Checklists page asks for petitions only after the contract list says this seat keeps them, so a contract manager sees no petition section and no refusal', () => {
+    const src = read('src/app/dashboard/compliance/checklists/page.tsx')
+    expect(src).toContain('c.data?.keepsPapers ?')
+    expect(src).not.toContain('Promise.all([read<Contract>')
+    expect(src).not.toContain('says.petitions')
+  })
+
+  it('a petition kind prints as written for people, a machine word becomes words, and a stage is a capitalized word', () => {
+    expect(petitionWords('H-1B extension')).toBe('H-1B extension petition')
+    expect(petitionWords('H-1B extension petition')).toBe('H-1B extension petition')
+    expect(kindWords('SPECIALTY_OCCUPATION')).toBe('Specialty occupation')
+    expect(kindWords('OPT')).toBe('OPT')
+    expect(stageWords('FILED')).toBe('Filed')
+  })
+
+  it('both forms sit below the panel heading, never inside its header row, and stack one field per line on a phone', () => {
+    for (const p of ['checklists', 'notices']) expect(read(`src/app/dashboard/compliance/${p}/page.tsx`), p).not.toMatch(/\baction=\{(petitions|notices)\.mayRecord/)
+    const form = read('src/app/dashboard/compliance/act-form.tsx')
+    expect(form).toContain('grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2')
+    expect(form).toContain('w-full max-w-full')
+    expect(read('src/app/dashboard/compliance/notices/page.tsx')).toContain('mb-4 min-w-0')
+  })
+
+  it('every act says what it saved on the page after its form closes, and the sentence goes away by itself', () => {
+    const form = read('src/app/dashboard/compliance/act-form.tsx')
+    expect(form).toContain('onDone(saved?.data?.message')
+    expect(form).toContain('setTimeout(() => setSaved(null)')
+    for (const p of ['checklists', 'notices']) {
+      const src = read(`src/app/dashboard/compliance/${p}/page.tsx`)
+      expect(src, p).toContain('<SavedLine says={saved} />')
+      expect(src, p).not.toContain('onDone={load}')
+    }
   })
 })

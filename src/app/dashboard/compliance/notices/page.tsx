@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, ErrorState, LoadingState, PageHead, Panel, RefusedState } from '@/components/ui'
-import { Act } from '../act-form'
+import { Act, SavedLine, useSaved } from '../act-form'
+import { petitionWords } from '../act-spec'
 import { approveBody, approveFields, recordNoticeBody, recordNoticeFields, removalBody, removalFields } from './bodies'
 import { formatDay } from '@/lib/format-date'
 
@@ -45,6 +46,7 @@ export default function NoticesPage() {
   const [says, setSays] = useState<{ notices: string | null; files: string | null }>({ notices: null, files: null })
   const [failed, setFailed] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const { saved, tell } = useSaved()
 
   const load = useCallback(async () => {
     const [n, f] = await Promise.all([read<Notices>('/api/compliance/notice-postings'), read<Files>('/api/compliance/access-files')])
@@ -54,6 +56,7 @@ export default function NoticesPage() {
     setLoading(false)
   }, [])
   useEffect(() => { load() }, [load])
+  const done = (says: string) => { tell(says); load() }
 
   if (loading) return <LoadingState />
   if (says.notices && says.files) return <RefusedState says={says.notices} />
@@ -65,6 +68,7 @@ export default function NoticesPage() {
         title="Notices"
         subtitle="Notices posted at your sites and the public access files, with the day each is due. A person posts, takes down and approves. Nothing here stops work."
       />
+      <SavedLine says={saved} />
       {failed && <ErrorState says={failed} action={{ label: 'Try again', onClick: load }} />}
 
       <div className="space-y-6">
@@ -72,11 +76,11 @@ export default function NoticesPage() {
           <Panel
             title="Posted notices"
             subtitle={`A notice stays up ${days(notices.rules.noticeWorkingDays)}, counted on your days off and holidays. ${PROPOSED}`}
-            action={notices.mayRecord ? (
-              <Act label="Record a posted notice" fields={() => recordNoticeFields(notices.sites, notices.entities)} url="/api/compliance/notice-postings"
-                body={(v) => recordNoticeBody(v, notices.sites, notices.entities)} onDone={load} />
-            ) : undefined}
           >
+            {notices.mayRecord && <div className="mb-4 min-w-0">
+              <Act label="Record a posted notice" fields={() => recordNoticeFields(notices.sites, notices.entities)} url="/api/compliance/notice-postings"
+                body={(v) => recordNoticeBody(v, notices.sites, notices.entities)} onDone={done} />
+            </div>}
             {notices.notices.length === 0 ? (
               <EmptyState compact says="No notice has been recorded yet." detail="Record each notice when it goes up, and you are told the day it may come down." />
             ) : (
@@ -94,7 +98,7 @@ export default function NoticesPage() {
                       </div>
                       {notices.mayRecord && !n.takenDownOn && (
                         <Act label="Record its removal" fields={(v) => removalFields(v.takenDownOn ?? '', n.periodEndsOn, notices.entities)}
-                          url={`/api/compliance/notice-postings/${n.id}`} method="PATCH" body={(v) => removalBody(v, n.periodEndsOn, notices.entities)} onDone={load} />
+                          url={`/api/compliance/notice-postings/${n.id}`} method="PATCH" body={(v) => removalBody(v, n.periodEndsOn, notices.entities)} onDone={done} />
                       )}
                     </div>
                   </li>
@@ -117,14 +121,14 @@ export default function NoticesPage() {
                   <li key={f.id} className="py-3 min-w-0">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <p className="text-[13.5px] text-etyme-ink break-words">{f.person ?? 'Somebody'}: {f.kind.toLowerCase().replace(/_/g, ' ')} petition {f.approved ? <Chip tone="verified">Approved</Chip> : <Chip tone="attention">Not approved</Chip>}</p>
+                        <p className="text-[13.5px] text-etyme-ink break-words">{f.person ?? 'Somebody'}: {petitionWords(f.kind)} {f.approved ? <Chip tone="verified">Approved</Chip> : <Chip tone="attention">Not approved</Chip>}</p>
                         <p className="mt-1 text-[13px] text-etyme-muted">
                           {f.filedOn ? `Filed ${formatDay(f.filedOn)}. ` : ''}Due {formatDay(f.readyBy)}.{f.readyOn ? ` Ready ${formatDay(f.readyOn)}.` : ''}
                         </p>
                       </div>
                       {files.mayApprove && !f.approved && (
                         <Act label="Approve" fields={(v) => approveFields(v.readyOn ?? '', f.readyBy, files.entities)}
-                          url={`/api/compliance/access-files/${f.id}`} method="PATCH" body={(v) => approveBody(v, f.readyBy, files.entities)} onDone={load} />
+                          url={`/api/compliance/access-files/${f.id}`} method="PATCH" body={(v) => approveBody(v, f.readyBy, files.entities)} onDone={done} />
                       )}
                     </div>
                   </li>

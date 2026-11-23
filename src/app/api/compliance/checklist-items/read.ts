@@ -4,7 +4,28 @@
  * routes because a route file may export only its handlers.
  */
 
-import type { QueueSeat } from '../../decision-items/door'
+import type { NextRequest, NextResponse } from 'next/server'
+import { hasPermission } from '@/lib/permissions'
+import { logRefusal, refused, type QueueSeat } from '../../decision-items/door'
+
+/**
+ * Petitions, posted notices and public access files are HR's and the
+ * compliance officer's work (the lead's ruling, 2026-11-23). The shipped
+ * roles that hold governance.read are HR and the Compliance Officer, and
+ * neither the Recruiter, the Account Manager nor the Contract Manager do;
+ * the Owner and an Admin hold it too.
+ */
+export const KEEPS_PAPERS = 'governance.read'
+
+export const mayKeepPapers = (seat: Pick<QueueSeat, 'caller' | 'ownerOrAdmin'>): boolean =>
+  seat.ownerOrAdmin || hasPermission(seat.caller.permissions, 'governance.read')
+
+/** Null where the seat keeps papers; else the refusal, logged before it is sent. */
+export async function refuseUnlessKeeper(seat: QueueSeat, request: NextRequest, says: string): Promise<NextResponse | null> {
+  if (mayKeepPapers(seat)) return null
+  await logRefusal(seat, { companyId: seat.companyId }, `Refused ${request.method} ${request.nextUrl.pathname} to a seat that does not look after petitions, notices and public access files.`)
+  return refused(403, says)
+}
 
 /** A day typed as 2026-11-23, or null where it is not one. */
 export function dayFrom(v: unknown): Date | null {

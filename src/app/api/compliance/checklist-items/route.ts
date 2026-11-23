@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { CONTRACT_LABELS, PROPOSED_PACK_LEAD_DAYS, valueWords } from '@/lib/agents/checklist-rules'
 import { queueSeat, logRefusal, refused } from '../../decision-items/door'
+import { mayKeepPapers } from './read'
 
 /**
  * GET /api/compliance/checklist-items   each live placement's contract items: the agreed value beside the line's
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   })
   const items = await prisma.checklistItem.findMany({
     where: { companyId: seat.companyId, kind: 'CONTRACT_TERM', ownerType: 'SellContract', ownerId: { in: lines.map((l) => l.id) } },
-    orderBy: { createdAt: 'asc' },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   })
   const placements = lines.map((l) => {
     const own = items.filter((i) => i.ownerId === l.id)
@@ -53,5 +54,5 @@ export async function GET(request: NextRequest) {
       }),
     }
   }).filter((p) => p.items.length > 0)
-  return NextResponse.json({ data: { placements, entities: seat.entities, mayRecord: hasPermission(seat.caller.permissions, 'assignments.write'), rules: { packLeadDays: PROPOSED_PACK_LEAD_DAYS, confirmed: false } } })
+  return NextResponse.json({ data: { placements, entities: seat.entities, keepsPapers: mayKeepPapers(seat), mayRecord: hasPermission(seat.caller.permissions, 'assignments.write'), rules: { packLeadDays: PROPOSED_PACK_LEAD_DAYS, confirmed: false } } })
 }

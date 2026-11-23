@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, ErrorState, LoadingState, PageHead, Panel, RefusedState } from '@/components/ui'
-import { Act } from '../act-form'
+import { Act, SavedLine, useSaved } from '../act-form'
+import { petitionWords, stageWords } from '../act-spec'
 import { markMetBody, markMetFields, recordSignedBody, recordSignedFields, signatoryBody, signatoryFields, startPetitionBody, startPetitionFields, filingDayBody, filingDayFields, type ItemKind } from './bodies'
 import { formatDay } from '@/lib/format-date'
 
@@ -18,12 +19,10 @@ import { formatDay } from '@/lib/format-date'
 interface Entity { id: string; name: string }
 interface Item { id: string; label: string; kind: ItemKind | null; state: string; agreed: string; actual: string; says: string }
 interface Placement { lineId: string; person: string; client: string; currency: string; items: Item[] }
-interface Contract { placements: Placement[]; entities: Entity[]; mayRecord: boolean; rules: { packLeadDays: number } }
+interface Contract { placements: Placement[]; entities: Entity[]; mayRecord: boolean; keepsPapers: boolean; rules: { packLeadDays: number } }
 interface Line { id: string; label: string; state: string; reference: string | null; signatoryName: string | null; needsSignature: boolean }
 interface Petition { id: string; person: string | null; kind: string; stage: string; filedOn: string | null; lines: Line[]; complete: boolean }
 interface Petitions { petitions: Petition[]; entities: Entity[]; mayRecord: boolean; people: Entity[]; signatories: Entity[] }
-
-const plain = (s: string) => s.toLowerCase().replace(/_/g, ' ')
 
 async function read<T>(url: string): Promise<{ data: T | null; refused: string | null; failed: string | null }> {
   try {
@@ -44,18 +43,22 @@ export default function ChecklistsPage() {
   const [says, setSays] = useState<{ contract: string | null; petitions: string | null }>({ contract: null, petitions: null })
   const [failed, setFailed] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const { saved, tell } = useSaved()
 
   const load = useCallback(async () => {
-    const [c, p] = await Promise.all([read<Contract>('/api/compliance/checklist-items'), read<Petitions>('/api/compliance/immigration-petitions')])
+    // Petitions are HR's and the compliance officer's: a seat that does not keep them is never asked for them, so nothing is refused or logged.
+    const c = await read<Contract>('/api/compliance/checklist-items')
+    const p = c.data?.keepsPapers ? await read<Petitions>('/api/compliance/immigration-petitions') : { data: null, refused: null, failed: null }
     setContract(c.data); setPetitions(p.data)
     setSays({ contract: c.refused, petitions: p.refused })
     setFailed(c.failed ?? p.failed)
     setLoading(false)
   }, [])
   useEffect(() => { load() }, [load])
+  const done = (says: string) => { tell(says); load() }
 
   if (loading) return <LoadingState />
-  if (says.contract && says.petitions) return <RefusedState says={says.contract} />
+  if (says.contract) return <RefusedState says={says.contract} />
 
   return (
     <div className="min-w-0">
@@ -64,10 +67,11 @@ export default function ChecklistsPage() {
         title="Checklists"
         subtitle="What each placement’s papers agree, beside what the line says now, and each petition’s papers one by one. A person records every change; nothing here stops a start or a payment."
       />
+      <SavedLine says={saved} />
       {failed && <ErrorState says={failed} action={{ label: 'Try again', onClick: load }} />}
 
       <div className="space-y-6">
-        {says.contract ? <RefusedState says={says.contract} /> : contract && (
+        {contract && (
           <Panel
             title="Contract items"
             subtitle={`HR is told ${contract.rules.packLeadDays} days before a start about papers still missing. Proposed rule, not yet confirmed with its source.`}
@@ -93,7 +97,7 @@ export default function ChecklistsPage() {
                                 fields={() => recordSignedFields(i.kind, contract.entities)}
                                 url={`/api/compliance/checklist-items/${i.id}`}
                                 body={(v) => recordSignedBody(i.kind, p.currency, v, contract.entities)}
-                                onDone={load}
+                                onDone={done}
                               />
                             )}
                           </div>
@@ -107,15 +111,15 @@ export default function ChecklistsPage() {
           </Panel>
         )}
 
-        {says.petitions ? <RefusedState says={says.petitions} /> : petitions && (
+        {petitions && (
           <Panel
             title="Petitions"
             subtitle="One checklist per petition, each paper its own line. A petition is complete only when every paper is on hand. Etyme files nothing and signs nothing."
-            action={petitions.mayRecord ? (
-              <Act label="Start a petition checklist" fields={() => startPetitionFields(petitions.people, petitions.entities)} url="/api/compliance/immigration-petitions"
-                body={(v) => startPetitionBody(v, petitions.people, petitions.entities)} onDone={load} />
-            ) : undefined}
           >
+            {petitions.mayRecord && <div className="mb-4 min-w-0">
+              <Act label="Start a petition checklist" fields={() => startPetitionFields(petitions.people, petitions.entities)} url="/api/compliance/immigration-petitions"
+                body={(v) => startPetitionBody(v, petitions.people, petitions.entities)} onDone={done} />
+            </div>}
             {petitions.petitions.length === 0 ? (
               <EmptyState compact says="No petition has a checklist yet." detail="Start one for a person on your payroll or your bench, and each paper it needs becomes its own line." />
             ) : (
@@ -124,15 +128,15 @@ export default function ChecklistsPage() {
                   <li key={p.id} className="min-w-0">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
-                        <h3 className="font-serif text-[16px] text-etyme-ink break-words">{p.person ?? 'Somebody'}: {plain(p.kind)} petition</h3>
+                        <h3 className="font-serif text-[16px] text-etyme-ink break-words">{p.person ?? 'Somebody'}: {petitionWords(p.kind)}</h3>
                         <p className="mt-1 text-[13px] text-etyme-muted">
                           {p.complete ? <Chip tone="verified">Complete</Chip> : <Chip tone="attention">Papers missing</Chip>}{' '}
-                          Stage {plain(p.stage)}. {p.filedOn ? `Filed ${formatDay(p.filedOn)}.` : 'Not filed yet.'}
+                          Stage: {stageWords(p.stage)}. {p.filedOn ? `Filed ${formatDay(p.filedOn)}.` : 'Not filed yet.'}
                         </p>
                       </div>
                       {petitions.mayRecord && (
                         <Act label={p.filedOn ? 'Change the filing day' : 'Record the filing day'} fields={() => filingDayFields(petitions.entities)}
-                          url={`/api/compliance/immigration-petitions/${p.id}`} method="PATCH" body={(v) => filingDayBody(v, petitions.entities)} onDone={load} />
+                          url={`/api/compliance/immigration-petitions/${p.id}`} method="PATCH" body={(v) => filingDayBody(v, petitions.entities)} onDone={done} />
                       )}
                     </div>
                     <ul className="mt-2 divide-y divide-etyme-rule">
@@ -147,11 +151,11 @@ export default function ChecklistsPage() {
                             <div className="mt-2 flex flex-col items-start gap-2">
                               {l.state !== 'MET' && (
                                 <Act label="Mark met" fields={() => markMetFields(petitions.entities)} url={`/api/compliance/checklist-items/${l.id}`}
-                                  body={(v) => markMetBody(v, petitions.entities)} onDone={load} />
+                                  body={(v) => markMetBody(v, petitions.entities)} onDone={done} />
                               )}
                               {l.needsSignature && (
                                 <Act label={l.signatoryName ? 'Change who signs' : 'Name who signs'} fields={() => signatoryFields(petitions.signatories, petitions.entities)}
-                                  url={`/api/compliance/checklist-items/${l.id}`} body={(v) => signatoryBody(v, petitions.signatories, petitions.entities)} onDone={load} />
+                                  url={`/api/compliance/checklist-items/${l.id}`} body={(v) => signatoryBody(v, petitions.signatories, petitions.entities)} onDone={done} />
                               )}
                             </div>
                           )}

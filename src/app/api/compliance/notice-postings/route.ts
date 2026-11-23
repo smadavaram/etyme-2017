@@ -6,7 +6,7 @@ import { daysOffFor } from '@/lib/days-off'
 import { loadCompanyHolidays } from '@/lib/holidays'
 import { PROPOSED_NOTICE_WORKING_DAYS, noticeEndsOn } from '@/lib/agents/checklist-rules'
 import { queueSeat, logRefusal, refused, refusalOf } from '../../decision-items/door'
-import { dayFrom, entityFor, text } from '../checklist-items/read'
+import { dayFrom, entityFor, mayKeepPapers, refuseUnlessKeeper, text } from '../checklist-items/read'
 import { noticePostedAsk } from '../asks'
 
 /**
@@ -16,18 +16,18 @@ import { noticePostedAsk } from '../asks'
  * Record 112, chain 6. A person posts the notice and records it here; the
  * compliance watch counts the required period (10 working days, proposed)
  * and opens a card when it ends so a person takes it down and records the
- * removal. Etyme publishes and removes nothing. Needs consultants.write.
+ * removal. Etyme publishes and removes nothing. Needs governance.read (HR, the Compliance Officer, an Owner or an Admin).
  */
 export async function GET(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
-  if (!hasPermission(seat.caller.permissions, 'consultants.write') && !seat.ownerOrAdmin) {
+  if (!hasPermission(seat.caller.permissions, 'governance.read') && !seat.ownerOrAdmin) {
     await logRefusal(seat, { companyId: seat.companyId }, `Refused the read of ${request.nextUrl.pathname} to a seat that does not look after it.`)
-    return refused(403, 'Posted notices are read by whoever looks after paperwork at your firm.')
+    return refused(403, 'Posted notices are read by HR and the compliance officer at your firm.')
   }
   const rows = await prisma.noticePosting.findMany({ where: { companyId: seat.companyId }, orderBy: { postedOn: 'desc' }, take: 200 })
   const year = new Date().getUTCFullYear()
-  const mayRecord = hasPermission(seat.caller.permissions, 'consultants.write')
+  const mayRecord = true // the read is already HR's and the compliance officer's
   const [daysOff, holidays, sites] = await Promise.all([
     daysOffFor(seat.companyId), loadCompanyHolidays(seat.companyId, year - 1, year + 1),
     prisma.companyLocation.findMany({ where: { companyId: seat.companyId }, select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 500 }),
@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
-  if (!hasPermission(seat.caller.permissions, 'consultants.write')) return refused(403, 'Recording a posted notice is for whoever looks after paperwork at your firm.')
+  const notKeeper = await refuseUnlessKeeper(seat, request, 'Recording a posted notice is for HR and the compliance officer at your firm.')
+  if (notKeeper) return notKeeper
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const ask = noticePostedAsk(body)
   if (ask) return refused(422, ask.says, ask.field)

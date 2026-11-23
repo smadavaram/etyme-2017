@@ -829,6 +829,10 @@ Full text → 49, 31, 17, 34, 35, 37, 20, 13.
   paper that arrived and nobody examined reads "Arrived, not examined".
   Its notice goes to HR and the compliance officer, else the Owner, else
   the Admin; never to the sender or a colleague.
+- **Petitions, posted notices and public access files are HR's and the
+  compliance officer's** (lead's ruling, 2026-11-23 → 114): read and
+  written with `governance.read`, never by a recruiter, an account
+  manager or a contract manager.
 - **A chase asks a worker for her consent and identifiers**, never for
   the background report. Never ask for a non-compete where the state
   voids it for workers (CA, MN, ND, OK).

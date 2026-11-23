@@ -42,3 +42,14 @@ week is filed.
 **For switching them on in production, after the deploy.** Each agent
 is Off for every firm. The Owner switches it in Decisions, Agent
 control, best first to "Drafts only", and sets a daily cap.
+
+### The lead's ruling on who reads immigration papers — 2026-11-23
+
+A walk found a recruiter reading and writing petitions, posted notices
+and public access files. Ruling, under record 108: these are HR's and the
+compliance officer's work. They are read and written with
+`governance.read`, which HR, the compliance officer, the Owner and an
+Admin hold and a recruiter, an account manager and a contract manager do
+not. A contract manager sees the contract checklist items only. The
+older petitions route still gates on `consultants.write`; it is to be
+brought under the same rule.

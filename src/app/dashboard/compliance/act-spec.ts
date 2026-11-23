@@ -40,3 +40,26 @@ export function firstMissing(fields: readonly FieldSpec[], v: Values): string | 
   const f = fields.find((x) => !x.optional && (v[x.key] ?? '').trim() === '')
   return f ? `Fill in: ${f.label.toLowerCase().replace(/\?$/, '')}.` : null
 }
+
+/**
+ * A petition's kind as people write it: "H-1B extension" stays as typed.
+ * Only a machine word (SPECIALTY_OCCUPATION) is turned into words.
+ */
+export function kindWords(kind: string): string {
+  const k = kind.trim()
+  if (!/^[A-Z0-9]+(_[A-Z0-9]+)+$/.test(k)) return k
+  const w = k.toLowerCase().replace(/_/g, ' ')
+  return w.charAt(0).toUpperCase() + w.slice(1)
+}
+
+/** "H-1B extension petition", never doubling the word where the kind already ends in it. */
+export const petitionWords = (kind: string): string => {
+  const k = kindWords(kind)
+  return /\bpetition$/i.test(k) ? k : `${k} petition`
+}
+
+/** A stage as a word a person reads: "Filed", "Preparing". */
+export function stageWords(stage: string): string {
+  const w = stage.trim().toLowerCase().replace(/_/g, ' ')
+  return w.charAt(0).toUpperCase() + w.slice(1)
+}

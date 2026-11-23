@@ -584,7 +584,7 @@ const SCREENING_PACKS: NavItem = { label: 'Screening packs', href: '/dashboard/o
 const COMPLIANCE: NavItem = { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', needs: ['governance.read'] }
 // The start checklists and the posted-notice log, children of Compliance. The longest matching path wins in activeHref, so Compliance does not light up on them.
 const CHECKLISTS: NavItem = { label: 'Checklists', href: '/dashboard/compliance/checklists', icon: '☑', needs: ['assignments.read'], api: 'compliance/checklist-items' }
-const NOTICES: NavItem = { label: 'Notices', href: '/dashboard/compliance/notices', icon: '▤', needs: ['consultants.write'], api: 'compliance/notice-postings' }
+const NOTICES: NavItem = { label: 'Notices', href: '/dashboard/compliance/notices', icon: '▤', needs: ['governance.read'], api: 'compliance/notice-postings' }
 const CHECK_QUEUE: NavItem = { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', needs: ['submissions.read'], api: 'checks/queue' }
 // /api/blacklist opens for anybody who deals with people or suppliers (MAY_READ), the compliance officer included.
 const DNR_LIST: NavItem = { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', needs: ['consultants.read', 'vendors.read', 'governance.read'] }

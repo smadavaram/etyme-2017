@@ -57,7 +57,7 @@ beforeAll(async () => {
   const role = (companyId: string, name: string, permissions: string[]) => prisma.role.create({ data: { companyId, name, permissions } })
   w.owner = await person('Dana Owner'); w.hr = await person('Hana Resources'); w.cm = await person('Carl Contracts'); w.pm = await person('Pia Program'); w.clientOwner = await person('Cora Clientowner')
   await seat(w.firm.id, w.owner, (await role(w.firm.id, 'Owner', ['*'])).id)
-  await seat(w.firm.id, w.hr, (await role(w.firm.id, 'HR', ['consultants.write', 'assignments.read'])).id)
+  await seat(w.firm.id, w.hr, (await role(w.firm.id, 'HR', ['consultants.write', 'assignments.read', 'governance.read'])).id)
   await seat(w.firm.id, w.cm, (await role(w.firm.id, 'Contract Manager', ['assignments.write', 'assignments.read'])).id)
   await seat(w.client.id, w.clientOwner, (await role(w.client.id, 'Owner', ['*'])).id)
   await seat(w.client.id, w.pm, (await role(w.client.id, 'Program Manager', ['assignments.read'])).id)
@@ -458,5 +458,102 @@ describe('the two new lists the screens read', () => {
     expect(r.status).toBe(200)
     expect(Array.isArray(r.body.data.files)).toBe(true)
     expect(r.body.data.mayApprove).toBe(true)
+  })
+})
+
+describe('who keeps petitions, notices and public access files', () => {
+  async function seatOf(name: string, role: string, permissions: string[]) {
+    const who = await person(name)
+    await seat(w.firm.id, who, (await prisma.role.create({ data: { companyId: w.firm.id, name: role, permissions } })).id)
+    return who
+  }
+  const logged = (id: string) => prisma.accessLog.count({ where: { actorPersonId: id } })
+
+  it('a recruiter cannot read or write petitions, notices or public access files', async () => {
+    const recruiter = await seatOf('Rita Recruiter', 'Recruiter', ['consultants.read', 'consultants.write', 'assignments.read', 'timesheets.read'])
+    as(recruiter.primaryEmail)
+    const before = await logged(recruiter.id)
+    const attempts = [
+      await petitions.GET(req('GET', '/api/compliance/immigration-petitions')),
+      await petitions.POST(req('POST', '/api/compliance/immigration-petitions', { personId: w.worker.id, kind: 'EXTENSION' })),
+      await petition.PATCH(req('PATCH', `/api/compliance/immigration-petitions/${w.petition.id}`, { filedOn: '2026-11-24' }), p(w.petition.id)),
+      await notices.GET(req('GET', '/api/compliance/notice-postings')),
+      await notices.POST(req('POST', '/api/compliance/notice-postings', { kind: 'Labor condition notice', locationId: w.site.id, postedOn: '2026-11-23' })),
+      await accessFiles.GET(req('GET', '/api/compliance/access-files')),
+      await accessFile.PATCH(req('PATCH', `/api/compliance/access-files/${w.file.id}`, { readyOn: '2026-11-23' }), p(w.file.id)),
+    ]
+    expect(attempts.map((r) => r.status)).toEqual([403, 403, 403, 403, 403, 403, 403])
+    const one = await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: w.petition.id }, orderBy: { id: 'asc' } })
+    const paper = await json(await itemRoute.POST(req('POST', `/api/compliance/checklist-items/${one.id}`, { action: 'MARK_MET', paperReference: 'LCA 123' }), p(one.id)))
+    expect(paper.status).toBe(403)
+    expect(await prisma.checklistItem.findUniqueOrThrow({ where: { id: one.id } }).then((i) => i.actualValue)).toBe(one.actualValue)
+    // Every one of the eight refusals is on the access log before its answer went out.
+    expect(await logged(recruiter.id)).toBe(before + 8)
+  })
+
+  it('the contract manager reads contract checklist items and sees no petition section and no Notices tab', async () => {
+    as(w.cm.primaryEmail)
+    const list = await json(await itemsList.GET(req('GET', '/api/compliance/checklist-items')))
+    expect(list.status).toBe(200)
+    expect(list.body.data.keepsPapers).toBe(false)
+    expect((await petitions.GET(req('GET', '/api/compliance/immigration-petitions'))).status).toBe(403)
+    expect((await notices.GET(req('GET', '/api/compliance/notice-postings'))).status).toBe(403)
+  })
+
+  it('HR and the compliance officer read and write all three', async () => {
+    const officer = await seatOf('Cleo Compliance', 'Compliance Officer', ['consultants.read', 'assignments.read', 'timesheets.read', 'governance.read', 'privacy.manage'])
+    for (const who of [w.hr, officer]) {
+      as(who.primaryEmail)
+      expect((await petitions.GET(req('GET', '/api/compliance/immigration-petitions'))).status).toBe(200)
+      expect((await notices.GET(req('GET', '/api/compliance/notice-postings'))).status).toBe(200)
+      expect((await accessFiles.GET(req('GET', '/api/compliance/access-files'))).status).toBe(200)
+    }
+    as(officer.primaryEmail)
+    const started = await json(await petitions.POST(req('POST', '/api/compliance/immigration-petitions', { personId: w.worker.id, kind: 'H-1B extension' })))
+    expect(started.status, JSON.stringify(started.body)).toBe(201)
+    const posted = await json(await notices.POST(req('POST', '/api/compliance/notice-postings', { kind: 'Labor condition notice', locationId: w.site.id, postedOn: '2026-11-23' })))
+    expect(posted.status, JSON.stringify(posted.body)).toBe(201)
+    const filed = await json(await petition.PATCH(req('PATCH', `/api/compliance/immigration-petitions/${started.body.data.id}`, { filedOn: '2026-11-18' }), p(started.body.data.id)))
+    expect(filed.status, JSON.stringify(filed.body)).toBe(200)
+    const file = await prisma.publicAccessFile.findFirstOrThrow({ where: { petitionId: started.body.data.id } })
+    const approved = await json(await accessFile.PATCH(req('PATCH', `/api/compliance/access-files/${file.id}`, { readyOn: '2026-11-19' }), p(file.id)))
+    expect(approved.status, JSON.stringify(approved.body)).toBe(200)
+    w.keptPetition = started.body.data.id
+  })
+
+  it('a petition with a filing day has its public access file tracked by recording the day, with no agent run', async () => {
+    const file = await prisma.publicAccessFile.findFirstOrThrow({ where: { petitionId: w.keptPetition } })
+    expect(file.readyBy.toISOString().slice(0, 10)).toBe('2026-11-19')
+    expect(await ledger(w.firm.id, 'ACCESS_FILE_TRACKED').then((r) => r.some((x) => x.recordId === file.id))).toBe(true)
+  })
+
+  it('recording the filing day moves the petition’s stage to filed', async () => {
+    expect((await prisma.petition.findUniqueOrThrow({ where: { id: w.keptPetition } })).stage).toBe('FILED')
+  })
+
+  it('changing the filing day moves the access file’s due day with it', async () => {
+    const other = await person('Nia Okafor')
+    await seat(w.firm.id, other, (await prisma.role.findFirstOrThrow({ where: { companyId: w.firm.id, name: 'HR' } })).id)
+    as(w.hr.primaryEmail)
+    const made = await json(await petitions.POST(req('POST', '/api/compliance/immigration-petitions', { personId: other.id, kind: 'EXTENSION', filedOn: '2026-11-18' })))
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    const id = made.body.data.id
+    const due = async () => (await prisma.publicAccessFile.findFirstOrThrow({ where: { petitionId: id } })).readyBy.toISOString().slice(0, 10)
+    expect(await due()).toBe('2026-11-19')
+    const moved = await json(await petition.PATCH(req('PATCH', `/api/compliance/immigration-petitions/${id}`, { filedOn: '2026-11-20' }), p(id)))
+    expect(moved.status, JSON.stringify(moved.body)).toBe(200)
+    expect(await due()).toBe('2026-11-23')
+    expect(await prisma.publicAccessFile.count({ where: { petitionId: id } })).toBe(1)
+    expect((await ledger(w.firm.id, 'ACCESS_FILE_DUE_MOVED')).some((r) => /due 2026-11-23, not 2026-11-19/.test(r.summary))).toBe(true)
+  })
+
+  it('a petition’s papers come back in their list order after one is saved', async () => {
+    as(w.hr.primaryEmail)
+    const lines = await prisma.checklistItem.findMany({ where: { ownerId: w.keptPetition } })
+    const last = lines.find((l) => l.label === 'Approval notice copy')!
+    await json(await itemRoute.POST(req('POST', `/api/compliance/checklist-items/${last.id}`, { action: 'MARK_MET', paperReference: 'I-797' }), p(last.id)))
+    const r = await json(await petitions.GET(req('GET', '/api/compliance/immigration-petitions')))
+    const mine = r.body.data.petitions.find((x: any) => x.id === w.keptPetition)
+    expect(mine.lines.map((l: any) => l.label)).toEqual(['Labor condition application', 'Petition form', 'Representation form', 'Approval notice copy'])
   })
 })
