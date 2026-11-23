@@ -1,2 +1,2 @@
-/** Stub: filled by the builder of this agent (record 112). */
-export function registerMoneyOwedChase(): void {}
+/** The money-owed chase lives with money (lib/money/money-owed-chase); this is its slot in the agent registry. */
+export { registerMoneyOwedChase } from '@/lib/money/money-owed-chase'
