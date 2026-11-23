@@ -61,6 +61,7 @@ import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
  * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
+  payrollDraft: 'Written by the payroll agent when the Owner switches it on; the seed switches no agent on.',
   mailSend: 'Written when an email is attempted; the seed sends none, and a seeded row would claim mail left for a demo address.',
   recordAction: 'Written when a person acts on a record after the ledger began (2026-11-21); the seed acts through no screen.',
   decisionItem: 'Opened by an Owner or an Admin on the decision queue, or by a disputed month; the real questions are a firm\'s own and are never seeded.',
