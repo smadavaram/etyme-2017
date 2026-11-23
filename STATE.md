@@ -344,6 +344,14 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
+## The first agents (record 114): BUILT, NOT DEPLOYED
+
+Source 5d1e783d0, release check green (no browser walk yet). Built:
+chain 7's switch, runner, cap and control view; one yes per task; the
+timesheet chase; the payroll draft; payment reconciliation. Every agent
+is Off for every firm. First possible deploy: Saturday 2026-11-28, after
+a browser walk. The last replayed source is still 18f59d2b1.
+
 ## START HERE for the next session (record 113)
 
 The owner's order of 2026-11-22: a second-tier lead, third-tier
