@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { readJson } from '@/lib/read-response'
+import { formatDay } from '@/lib/format-date'
+import { offerIntro } from './offer-words'
 import { Field, Input, Select, Textarea, SubmitButton } from '@/components/ui/form'
 
 /**
@@ -16,6 +18,7 @@ import { Field, Input, Select, Textarea, SubmitButton } from '@/components/ui/fo
 interface OfferRow { id: string; state: string; stateWords: string; rate: number; currency: string; startDate: string | null; terms: string | null }
 interface Loaded {
   candidate: string
+  side?: 'BUYER' | 'SUPPLIER' | null
   offers: OfferRow[]
   declineReasons: { code: string; words: string }[]
   mayMake: boolean
@@ -76,7 +79,7 @@ export function OfferDialog({ submissionId, candidate, role, onDone, onCancel }:
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onCancel}>
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 mx-4" onClick={(e) => e.stopPropagation()}>
         <h3 className="headline-serif text-[18px] text-etyme-ink mb-1">Offer for {candidate}</h3>
-        <p className="text-[12px] text-etyme-muted mb-4">{role}. The rate, the start date and the terms are yours to set. Placing opens on them once the offer is accepted.</p>
+        <p className="text-[12px] text-etyme-muted mb-4">{role}. {offerIntro(data?.side ?? null)}</p>
 
         {data && data.entities.length > 1 && (
           <Field label="Made for">
@@ -91,7 +94,7 @@ export function OfferDialog({ submissionId, candidate, role, onDone, onCancel }:
           <div className="space-y-3">
             <div className="px-3 py-2 bg-etyme-canvas rounded-lg text-[13px] text-etyme-ink">
               <p className="font-medium">{live.stateWords}</p>
-              <p>{live.rate.toFixed(2)} {live.currency} an hour{live.startDate ? `, starting ${live.startDate}` : ''}</p>
+              <p>{live.rate.toFixed(2)} {live.currency} an hour{live.startDate ? `, starting ${formatDay(live.startDate)}` : ''}</p>
               {live.terms && <p className="text-etyme-muted whitespace-pre-wrap">{live.terms}</p>}
             </div>
 

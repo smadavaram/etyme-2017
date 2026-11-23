@@ -8,6 +8,7 @@
  * age, state and who decides are lib/decision-items.
  */
 
+import { hasPermission } from '@/lib/permissions'
 import { OWNER_ROLE, ADMIN_ROLE } from '@/lib/owner-rules'
 import { formatDayLong } from '@/lib/format-date'
 import { CANNOT_READ_MONTH_RECORD, LOOP_HREF, LOOP_READS } from '@/lib/money-loop'
@@ -64,16 +65,28 @@ export function isRecordType(t: unknown): t is RecordType {
  * needed beyond a working seat: the one its own list asks for. A decision
  * is read by the proof rule (`mayReadProof` in lib/decision-items). Pure.
  */
-export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | 'consultants.write' | 'submissions.read' | 'requirements.read' | typeof LOOP_READS | null {
+export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | 'consultants.write' | 'submissions.read' | 'requirements.read' | 'governance.read' | typeof LOOP_READS | null {
   if (type === 'MoneyChain' || type === 'PayrollDraft') return LOOP_READS
   if (type === 'Offer' || type === 'SubmissionConfirmation') return 'submissions.read'
-  // The paperwork routes read these with the permission that writes them (whoever looks after paperwork).
-  if (type === 'ChecklistItem' || type === 'Petition' || type === 'NoticePosting' || type === 'PublicAccessFile') return 'consultants.write'
+  // Petitions, posted notices and public access files are HR's and the compliance officer's (CLAUDE.md, ruling 114): the routes read them with governance.read.
+  if (type === 'ChecklistItem' || type === 'Petition' || type === 'NoticePosting' || type === 'PublicAccessFile') return 'governance.read'
   if (type === 'Invoice' || type === 'VendorBill') return 'invoices.read'
   if (type === 'SellContract') return 'assignments.read'
   if (type === 'Requirement') return 'requirements.read'
   if (type === 'Person') return 'consultants.read'
   return null
+}
+
+/**
+ * Whether a seat holding these permissions may open a record of this kind in
+ * the record view: the one check the view's route, a decision's proof links
+ * and the firm ledger's rows all read. A decision is read by the proof rule
+ * in the route, so here it is only a matter of kind. Pure.
+ */
+export function mayOpenRecordKind(type: string, permissions: readonly string[] | Parameters<typeof hasPermission>[0]): boolean {
+  if (!isRecordType(type)) return false
+  const needs = readNeeds(type)
+  return needs === null || hasPermission(permissions as any, needs)
 }
 
 /** What a seat that does not hold `readNeeds(type)` reads, in a sentence. Pure. */
@@ -111,6 +124,13 @@ export function ownPageOf(type: RecordType, id: string): { href: string; words: 
     // The month's own page needs its contract and month, which the route reads (`monthPageOf`); this is the page they are on.
     case 'MoneyChain': return { href: LOOP_HREF, words: 'Open Timesheet to payment' }
   }
+}
+
+/** The kind of record a proof link names, in words, where it is not one a person picks. Pure. */
+export function proofLabelOf(type: string): string {
+  const picked = PROOF_TYPES.find((p) => p.type === type)?.label
+  if (picked) return picked
+  return type === 'AgentTask' ? 'The agent’s task' : type === 'AgentSwitch' ? 'The agent’s switch' : type === 'DecisionItem' ? 'A decision' : 'A record'
 }
 
 /** Where the record view for one record is. Pure. */
@@ -242,9 +262,9 @@ export function onlyAcknowledged(question: string): boolean {
   return /(Read the summary\?|Review the placement now\?|Read the list\.)$/.test(question.trim())
 }
 
-/** A proof's text cut at the in-app paths it names, so each path can be drawn as a link. Pure. */
+/** A proof's text cut at the in-app paths it names, so each path can be drawn as a link. A job's path reads "Open the job", never the path. Pure. */
 export function proofParts(proof: string): { text: string; href: string | null }[] {
-  return proof.split(/(\/dashboard\/[\w/-]+[\w-])/).filter(Boolean).map((t) => (t.startsWith('/dashboard/') ? { text: t, href: t } : { text: t, href: null }))
+  return proof.split(/(\/dashboard\/[\w/-]+[\w-])/).filter(Boolean).map((t) => (t.startsWith('/dashboard/') ? { text: /^\/dashboard\/requirements\/[\w-]+$/.test(t) ? 'Open the job' : t, href: t } : { text: t, href: null }))
 }
 
 /** The decision, in the words its page prints. Pure. */

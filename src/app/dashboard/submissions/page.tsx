@@ -3,7 +3,7 @@
 import { readJson } from '@/lib/read-response'
 import { AwardDialog } from './award-dialog'
 import { OfferDialog } from './offer-dialog'
-import { offerLine, mayRecordHerAnswer, type RowOffer } from './offer-words'
+import { offerLine, mayRecordHerAnswer, rowStatusWord, type RowOffer } from './offer-words'
 import { ConfirmationDialog } from './confirmation-dialog'
 import { sendOnRefusalSays } from './send-on-words'
 import { centsTyped, typedFromCents } from '@/app/dashboard/requisitions/facts'
@@ -1274,7 +1274,7 @@ export default function SubmissionsPage() {
       label: 'Status',
       render: (row) => (
         <div className="flex items-center gap-2">
-          <span className={`chip ${statusChipClass(row.status)}`}>{submissionStatusWord(row.status)}</span>
+          <span className={`chip ${statusChipClass(row.status)}`}>{rowStatusWord(row.status, row.offer)}</span>
           {/* Placing is the award, and the route said whether this reader
               may do it for this row — the same answer it would give on
               the click. Once placed, the row leads to the placement. */}
@@ -1451,7 +1451,7 @@ export default function SubmissionsPage() {
     row.fromCompany.name.toLowerCase().includes(q) ||
     row.toCompany.name.toLowerCase().includes(q) ||
     submissionKindWord(row.kind, direction, row.came).toLowerCase().includes(q) ||
-    submissionStatusWord(row.status).toLowerCase().includes(q)
+    rowStatusWord(row.status, row.offer).toLowerCase().includes(q)
 
   // ── Status filter options ──────────────────────────
   // The filter says what the row's chip says — "Turned down" on both,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { firmLedger, usageCount, payrollRowsHiddenSays, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
 import { prisma } from '@/lib/db'
-import { agentByWords, BASELINE_LINES, LEDGER_IS_FOR, agentRows, dayAround, recordViewHref } from '@/lib/decision-queue'
+import { agentByWords, BASELINE_LINES, LEDGER_IS_FOR, agentRows, dayAround, recordViewHref, mayOpenRecordKind } from '@/lib/decision-queue'
 import { NOTE_ACTIONS, mayChangeSwitch, readSwitchAsk, setSwitch } from '@/lib/agents/switch'
 import { CHASE_AGENT_KEYS, chaseNumbersFrom, readChaseNumbers, setChaseNumbers } from '@/lib/agents/chase-numbers'
 import { openTasks } from '@/lib/agents/tasks'
@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
         rows: ledger.rows.map((r) => ({
           id: r.id, at: r.createdAt, summary: r.summary, entityName: r.actingEntity?.name ?? null,
           by: r.agentKey ? agentByWords(r.agentKey, r.person.name) : r.person.name, heldAs: r.heldAs,
-          href: recordViewHref(r.recordType, r.recordId),
+          // A row names its record only where this seat may open it; elsewhere the summary stands alone.
+          href: mayOpenRecordKind(r.recordType, seat.caller.permissions) ? recordViewHref(r.recordType, r.recordId) : null,
         })),
       },
     },

@@ -78,7 +78,7 @@ export function cardProof(i: { requirementId: string; title: string; scoredBy: '
     i.basis,
     ...lines,
     ...more,
-    `Nobody has been submitted. Consent comes first: open the job at /dashboard/requirements/${i.requirementId}, where each person has the consent ask, and a person puts them forward.`,
+    `Nobody has been submitted. Consent comes first, and each person has the consent ask on the job’s page: /dashboard/requirements/${i.requirementId}. A person puts them forward.`,
   ].join('\n')
 }
 

@@ -91,7 +91,7 @@ export default function DecisionItemPage() {
       <Panel title="Proof">
         {item.proofHidden && <p className="text-[14px] text-etyme-muted">{item.proofHidden}</p>}
         {item.proof && (
-          <p className="text-[14px] text-etyme-ink whitespace-pre-line">
+          <p className="text-[14px] text-etyme-ink whitespace-pre-line break-words [overflow-wrap:anywhere]">
             {proofParts(item.proof).map((part, i) => part.href
               ? <Link key={i} href={part.href as any} className="text-etyme-action hover:underline">{part.text}</Link>
               : <span key={i}>{part.text}</span>)}

@@ -1,4 +1,5 @@
 import { formatDay } from '@/lib/format-date'
+import { submissionStatusWord } from './words'
 
 /**
  * What a row says about its live offer, and whether it offers the supplier
@@ -16,3 +17,15 @@ export function offerLine(o: RowOffer | null | undefined): string | null {
 
 /** The supplier's "Record her answer" is drawn only where the route said her seat may, while the offer waits for one. */
 export const mayRecordHerAnswer = (o: RowOffer | null | undefined): boolean => !!o && o.side === 'SUPPLIER' && o.state === 'PROPOSED' && o.mayAnswer === true
+
+/** A row's status word: once her answer is "accepted" the row reads Accepted, not Offered, until she is placed. Pure. */
+export function rowStatusWord(status: string, offer: RowOffer | null | undefined): string {
+  return status === 'OFFERED' && offer?.state === 'ACCEPTED' ? 'Accepted' : submissionStatusWord(status)
+}
+
+/** The sentence under an offer dialog's title, said to the side reading it. Pure. */
+export function offerIntro(side: 'BUYER' | 'SUPPLIER' | null): string {
+  return side === 'SUPPLIER'
+    ? 'The firm that hires sets the rate, the start and the terms. You record her answer.'
+    : 'The rate, the start date and the terms are yours to set. Placing opens on them once the offer is accepted.'
+}

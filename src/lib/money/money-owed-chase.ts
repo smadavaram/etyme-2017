@@ -283,10 +283,10 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
       const raised = await raiseOnce({
         companyId, agentKey: ctx.agentKey, owner, now, prefix: `${who} has no one recorded to receive bills`,
         link: { recordType: 'Company', recordId: customer?.id ?? companyId },
-        question: `${who} has no one recorded to receive bills, so bill ${b.number} cannot be chased. Add a billing contact on the customer’s page?`,
-        proof: `Letter ${next.attempt} was ready and has nowhere to go. Once a billing contact is recorded for this customer, the chase goes ahead as approved.`,
+        question: `${who} has no one recorded to receive bills, so bill ${b.number} cannot be chased. Add someone to receive bills (a contact at ${who}) on the customer’s page?`,
+        proof: `Letter ${next.attempt} was ready and has nowhere to go. Once someone to receive bills is recorded for this customer, the chase goes ahead as approved.`,
       })
-      if (raised) await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_NOT_SENT', summary: `Letter ${next.attempt} for bill ${b.number} was not sent: no billing contact is recorded at ${who}. One card asks for it.` })
+      if (raised) await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_NOT_SENT', summary: `Letter ${next.attempt} for bill ${b.number} was not sent: no one to receive bills is recorded at ${who}. One card asks for it.` })
       continue
     }
     const base = mailedBase()

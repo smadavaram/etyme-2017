@@ -32,7 +32,7 @@ interface Data {
   proposedDefaults: { agentKey: string; name: string; says: string }[]
   /** Set for a seat that does not read the firm's ledger: who does, in a sentence. */
   ledgerHidden: string | null
-  ledger: null | { page: number; pages: number; total: number; payrollHidden: string | null; rows: { id: string; at: string; summary: string; entityName: string | null; by: string; heldAs: string; href: string }[] }
+  ledger: null | { page: number; pages: number; total: number; payrollHidden: string | null; rows: { id: string; at: string; summary: string; entityName: string | null; by: string; heldAs: string; href: string | null }[] }
 }
 
 export default function AgentControlPage() {

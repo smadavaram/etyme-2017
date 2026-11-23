@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   mayOpenDecision, maySetHomePage, readOpenAsk, openBody, readDecideAsk, decideBody, agentRows, ageWords,
   ownPageOf, recordViewHref, agentByWords, agentNameOf, readHomeAsk, FIRM_AGENTS, VERDICT_BUTTONS, PROOF_TYPES,
-  QUEUE_EYEBROW_HREFS, onlyAcknowledged, proofParts, ledgerBeganSays, readNeeds, isRecordType, cannotReadSays,
+  QUEUE_EYEBROW_HREFS, onlyAcknowledged, proofParts, mayOpenRecordKind, proofLabelOf, ledgerBeganSays, readNeeds, isRecordType, cannotReadSays,
 } from '@/lib/decision-queue'
 import { queueCards } from '@/app/api/conversations/twin/ask'
 import { execSync } from 'child_process'
@@ -153,7 +153,7 @@ describe('how the queue’s pages are framed and drawn (the walk of Flow A)', ()
   it('an offer, a checklist paper, a petition, a posted notice, an access file and a confirmation are records the record view opens, each for the seat that reads its own list', () => {
     for (const t of ['Offer', 'ChecklistItem', 'Petition', 'NoticePosting', 'PublicAccessFile', 'SubmissionConfirmation'] as const) expect(isRecordType(t), t).toBe(true)
     expect([readNeeds('Offer'), readNeeds('SubmissionConfirmation')]).toEqual(['submissions.read', 'submissions.read'])
-    expect([readNeeds('ChecklistItem'), readNeeds('Petition'), readNeeds('NoticePosting'), readNeeds('PublicAccessFile')]).toEqual(Array(4).fill('consultants.write'))
+    expect([readNeeds('ChecklistItem'), readNeeds('Petition'), readNeeds('NoticePosting'), readNeeds('PublicAccessFile')]).toEqual(Array(4).fill('governance.read'))
   })
 
   it('a payroll draft is a record the record view opens for a seat that reads payroll, and is never picked as proof by hand', () => {
@@ -233,7 +233,28 @@ describe('the words on a card', () => {
   })
   it('a path to a job inside a card’s proof is drawn as a link', () => {
     const parts = proofParts('open the job at /dashboard/requirements/abc-1, where each person has the ask.')
-    expect(parts.find((p) => p.href)).toEqual({ text: '/dashboard/requirements/abc-1', href: '/dashboard/requirements/abc-1' })
+    expect(parts.find((p) => p.href)).toEqual({ text: 'Open the job', href: '/dashboard/requirements/abc-1' })
+  })
+  it('a card’s proof says Open the job as the link’s words and never prints the path', () => {
+    const words = proofParts('Each person has the ask on the job’s page: /dashboard/requirements/abc-1. A person puts them forward.').map((p) => p.text).join('')
+    expect(words).not.toContain('/dashboard')
+    expect(words).toContain('Open the job')
+  })
+  it('a ledger row links its record only for a seat that may open it', () => {
+    expect(mayOpenRecordKind('Requirement', ['requirements.read'])).toBe(true)
+    expect(mayOpenRecordKind('Requirement', ['invoices.read'])).toBe(false)
+    expect(mayOpenRecordKind('Offer', ['assignments.read'])).toBe(false)
+    expect(mayOpenRecordKind('Petition', ['consultants.write'])).toBe(false)
+    expect(mayOpenRecordKind('Company', [])).toBe(true)
+    expect(mayOpenRecordKind('NotARecord', ['*'])).toBe(false)
+  })
+  it('the compliance officer opens a petition and its access file in the record view', () => {
+    const officer = ['governance.read']
+    for (const t of ['Petition', 'PublicAccessFile', 'NoticePosting', 'ChecklistItem'] as const) expect(mayOpenRecordKind(t, officer), t).toBe(true)
+  })
+  it('a proof link to an agent task is named by the task, never by the question its card asks', () => {
+    expect(proofLabelOf('AgentTask')).toBe('The agent’s task')
+    expect(proofLabelOf('Company')).toBe('A company')
   })
 })
 })

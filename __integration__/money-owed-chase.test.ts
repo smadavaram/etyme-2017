@@ -272,7 +272,7 @@ describe('a customer nobody can write to, and the numbers the Owner sets', () =>
     await run(); await run(); await run()
     const cards = await noCards(client.name)
     expect(cards).toHaveLength(1)
-    expect(cards[0].question).toBe(`${client.name} has no one recorded to receive bills, so bill ${bill.number} cannot be chased. Add a billing contact on the customer’s page?`)
+    expect(cards[0].question).toBe(`${client.name} has no one recorded to receive bills, so bill ${bill.number} cannot be chased. Add someone to receive bills (a contact at ${client.name}) on the customer’s page?`)
     expect(cards[0].ownerPersonId).toBe(w.ar.id)
     expect(cards[0].proofLinks).toEqual([{ recordType: 'Company', recordId: client.id }])
     expect((await notSent()) - linesBefore).toBe(1)

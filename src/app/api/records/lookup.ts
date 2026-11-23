@@ -41,7 +41,8 @@ function onBook(companyId: string, type: RecordType): Record<string, unknown> {
     case 'AgentTask': return { companyId }
     case 'AgentSwitch': return { companyId }
     // The firm's own paperwork, offers, confirmations and drafts: each carries the firm that keeps it.
-    case 'Offer':
+    // An offer is the buyer's paper, and the supplier whose person it is to reads it once it is made, never a draft (the offer route's own rule).
+    case 'Offer': return { OR: [{ companyId }, { state: { not: 'DRAFT' }, submission: { fromCompanyId: companyId } }] }
     case 'ChecklistItem':
     case 'Petition':
     case 'NoticePosting':
@@ -93,8 +94,9 @@ export async function findOnBook(companyId: string, type: RecordType, id: string
       return r ? { id: r.id, name: `${agentNameOf(r.agentKey)} switch` } : null
     }
     case 'AgentTask': {
-      const r = await prisma.agentTask.findFirst({ where, select: { id: true, kind: true, decision: { select: { question: true } } } })
-      return r ? { id: r.id, name: r.decision.question } : null
+      const r = await prisma.agentTask.findFirst({ where, select: { id: true, kind: true, agentKey: true } })
+      // The task's own name, never the question its card asks (the card already says that).
+      return r ? { id: r.id, name: `${plainKind(r.kind)} by ${agentNameOf(r.agentKey)}` } : null
     }
     case 'Offer': {
       const r = await prisma.offer.findFirst({ where, select: { id: true, submission: { select: { person: { select: { name: true } } } } } })

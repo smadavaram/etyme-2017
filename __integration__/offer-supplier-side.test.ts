@@ -7,6 +7,7 @@ import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route
 import { POST as submitCandidates } from '@/app/api/submissions/route'
 import * as offerRoute from '@/app/api/submissions/[id]/offer/route'
 import { GET as listSubmissions } from '@/app/api/submissions/route'
+import { GET as readRecord } from '@/app/api/records/[type]/[id]/route'
 
 /**
  * Chain 2 of record 112, the supplier's side of an offer: she sees the offer made to
@@ -114,5 +115,18 @@ describe('the supplier’s side of an offer', () => {
     expect(JSON.stringify(read.body)).not.toMatch(/50|41\.5/)
     const said = await offer(OUTSIDER, 'PATCH', { action: 'ACCEPT' })
     expect(said.status).toBe(404)
+  })
+
+  it('a supplier opens the offer it answered from its own ledger', async () => {
+    as(PINNACLE)
+    const opened = await json(await readRecord(req('GET', `/api/records/Offer/${w.offer}`), { params: Promise.resolve({ type: 'Offer', id: w.offer }) }))
+    expect(opened.status, JSON.stringify(opened.body)).toBe(200)
+    expect(opened.body.data.name).toMatch(/^Offer to Rowan Pell/)
+    // A firm beside the deal still reads nothing, and a draft is the buyer's paper alone.
+    as(OUTSIDER)
+    expect((await json(await readRecord(req('GET', `/api/records/Offer/${w.offer}`), { params: Promise.resolve({ type: 'Offer', id: w.offer }) }))).status).toBe(403)
+    const draft = await prisma.offer.create({ data: { submissionId: w.submission, companyId: co['world-nike'], state: 'DRAFT', rate: 40, currency: 'USD' } as any })
+    as(PINNACLE)
+    expect((await json(await readRecord(req('GET', `/api/records/Offer/${draft.id}`), { params: Promise.resolve({ type: 'Offer', id: draft.id }) }))).status).toBe(403)
   })
 })

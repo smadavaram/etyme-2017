@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { recordTimeline, aboutPayroll, PAYROLL_LEDGER_READS } from '@/lib/record-ledger'
 import { hasPermission } from '@/lib/permissions'
 import { DECISION_RECORD, ageOf, firmZone, todayIn, decideDecision, mayDecide, mayReadProof, proofIsFor, type ProofLink } from '@/lib/decision-items'
-import { PROOF_TYPES, isRecordType, readDecideAsk, readNeeds, recordViewHref } from '@/lib/decision-queue'
+import { isRecordType, readDecideAsk, readNeeds, recordViewHref, proofLabelOf } from '@/lib/decision-queue'
 import { findOnBook } from '@/app/api/records/lookup'
 import { queueSeat, refused, refusalOf, logRefusal } from '../door'
 import { isChainProof, chainProofLink } from '../../money-loop/proof-link'
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const proofLinks = await Promise.all(links.map(async (l) => {
     // A disputed month (Flow B): the consultant and the month, opening that placement's month.
     if (isChainProof(l.recordType)) return chainProofLink(seat.companyId, seat.caller.permissions, l.recordId)
-    const label = PROOF_TYPES.find((p) => p.type === l.recordType)?.label ?? 'A record'
+    const label = proofLabelOf(l.recordType)
     // A line is drawn as a link only where this seat may open what it names; elsewhere it is left out, never a dead link.
     const needs = isRecordType(l.recordType) ? readNeeds(l.recordType) : null
     const opens = isRecordType(l.recordType) && (needs === null || hasPermission(seat.caller.permissions, needs))
