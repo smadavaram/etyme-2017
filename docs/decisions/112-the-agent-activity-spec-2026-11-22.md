@@ -42,3 +42,30 @@ People own deciding, signing, paying and people.
    the decision queue, the agent control view with six agents reading
    "Not enabled", the month from timesheet to payment, and the mail
    ledger. No agent runs.
+
+### The owner's answer on who sends a chase — 2026-11-22
+
+"One time, but ask for every task."
+
+- The chase agent asks once per task. One person's yes releases that
+  whole task. The agent then runs it to its end by itself: the chase is
+  sent, the permitted retries are sent, and the chase is closed when
+  the timesheet arrives. It does not ask again inside the task.
+- Every new task asks again. A chase for a new consultant and period is
+  a new task. An escalation (a final notice, a payroll hold) is a
+  separate task with its own yes.
+- Approval never graduates to sending across tasks without asking. It
+  is per task, one time.
+- Probation still applies to scope and trust: draft only at first. The
+  one ask per task is the permanent pattern for anything an agent sends.
+
+This settles point 1 above and replaces the lead's reading there. It
+also reads onto the email law (record 110): "agents draft, people
+approve" means one approval per task, not one per message.
+
+**What the build needs for it.** A task record: what it is about
+(consultant and period), its plan (the messages, the retry count and
+spacing, the closing condition), who said yes and when, and every send
+on the mail ledger tied to that task. The yes is a card on the decision
+queue. A retry outside the approved plan, or an escalation, opens a new
+task and a new card.

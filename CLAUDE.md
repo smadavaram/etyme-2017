@@ -891,6 +891,10 @@ Full text → 12, 14, 24, 32, 35.
   metered. Every activity feeds the decision queue or closes a loop on
   the ledger. Never an agent's: money, signing, a decision about a
   person, publishing compliance copy.
+- **An agent that sends asks once per task** (owner, 2026-11-22 →
+  112): one person's yes releases the whole task, retries and closing
+  included. Every new task asks again, and an escalation is its own
+  task. Approval never carries across tasks.
 - **The voice.** Recommendation first. Names, not counts. One sentence
   per refusal, with the door. No apology words. The trade's phrasing:
   who applied, approve a timesheet, pay an invoice, on hold.

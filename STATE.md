@@ -362,7 +362,8 @@ only.
 | 7 Run the firm | Decision queue, agent control view with six agents "Not enabled", the ledger | | A runner that acts as an agent, a switch per tenant, the meter against a cap, the weekly summary |
 
 First work, in order: (a) chain 7's runner, switch and meter; (b) the
-owner's answer on who sends a chase; (c) chain 5's reconciliation and
+task record and its one yes on the decision queue (answered, record
+112); (c) chain 5's reconciliation and
 chain 4's payroll draft, in sequence under the lead; (d) chain 4's
 chase beside them.
 
@@ -372,7 +373,8 @@ Owner-approved 2026-11-22. Seven areas, each activity marked agent
 alone, agent prepares and a person decides, or a person. No agent runs
 today; the ledger, the decision queue, the control view, the month from
 timesheet to payment and the mail ledger exist. Open with the owner:
-may an agent send a chase alone, or does a person's yes send it.
+ANSWERED: an agent that sends asks once per task; one yes releases
+the whole task, and every new task or escalation asks again.
 
 ## The weekend release contract (record 107)
 
