@@ -355,6 +355,10 @@ and M; M says ship. Before deploying: a full release check on the
 source then current. The cosmetic items (saved
 sentence, task names, H-1B wording, own-page buttons) are fixed and
 walked (walk N, 43c48107c).
+Release check GREEN on 88c15dd23 (0dffd42dc plus the access-log count in
+docs/security-posture.md, 106 to 108 of 424): type check; 18,056 unit
+tests; 4,102 database tests; build. Deploy then with
+`prepare-replay.sh <last replayed> 88c15dd23`.
 
 ## Saturday 2026-11-28 deploy: READY, gate passed
 
