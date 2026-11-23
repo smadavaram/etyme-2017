@@ -15,6 +15,8 @@ import * as petition from '@/app/api/compliance/immigration-petitions/[id]/route
 import * as itemRoute from '@/app/api/compliance/checklist-items/[id]/route'
 import * as notices from '@/app/api/compliance/notice-postings/route'
 import * as notice from '@/app/api/compliance/notice-postings/[id]/route'
+import * as itemsList from '@/app/api/compliance/checklist-items/route'
+import * as accessFiles from '@/app/api/compliance/access-files/route'
 import * as accessFile from '@/app/api/compliance/access-files/[id]/route'
 
 const tag = `c36${Date.now()}`
@@ -419,5 +421,42 @@ describe('what these agents never do', () => {
     const out = await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
     expect(out.ran).toBe(true)
     expect(await prisma.checklistItem.count({ where: { ownerId: l.id, state: 'DRIFT' } })).toBe(1)
+  })
+})
+
+describe('the two new lists the screens read', () => {
+  it('a seat that does not look after contracts is refused the checklist list, and the refusal is on the access log before the answer', async () => {
+    const outsider = await person('Olive Outsider')
+    await seat(w.firm.id, outsider, (await prisma.role.create({ data: { companyId: w.firm.id, name: 'Reader', permissions: ['requirements.read'] } })).id)
+    const before = await prisma.accessLog.count({ where: { actorPersonId: outsider.id } })
+    as(outsider.primaryEmail)
+    const r = await json(await itemsList.GET(req('GET', '/api/compliance/checklist-items')))
+    expect(r.status).toBe(403)
+    expect(await prisma.accessLog.count({ where: { actorPersonId: outsider.id } })).toBe(before + 1)
+    w.outsider = outsider
+  })
+
+  it('the contract manager reads the checklist list with the agreed value beside the line’s own', async () => {
+    as(w.cm.primaryEmail)
+    const r = await json(await itemsList.GET(req('GET', '/api/compliance/checklist-items')))
+    expect(r.status).toBe(200)
+    expect(Array.isArray(r.body.data.placements)).toBe(true)
+    expect(r.body.data.rules.confirmed).toBe(false)
+  })
+
+  it('a seat that does not look after paperwork is refused the public access files, and the refusal is on the access log before the answer', async () => {
+    const before = await prisma.accessLog.count({ where: { actorPersonId: w.outsider.id } })
+    as(w.outsider.primaryEmail)
+    const r = await json(await accessFiles.GET(req('GET', '/api/compliance/access-files')))
+    expect(r.status).toBe(403)
+    expect(await prisma.accessLog.count({ where: { actorPersonId: w.outsider.id } })).toBe(before + 1)
+  })
+
+  it('HR reads the public access files with the day each is due and whether a person approved it', async () => {
+    as(w.hr.primaryEmail)
+    const r = await json(await accessFiles.GET(req('GET', '/api/compliance/access-files')))
+    expect(r.status).toBe(200)
+    expect(Array.isArray(r.body.data.files)).toBe(true)
+    expect(r.body.data.mayApprove).toBe(true)
   })
 })

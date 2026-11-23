@@ -6,6 +6,7 @@ import { firmSeats, seatAtFirm } from '@/lib/decision-items'
 import { judgeContractItem } from '@/lib/agents/checklist-rules'
 import { queueSeat, refused, refusalOf } from '../../../decision-items/door'
 import { entityFor, text } from '../read'
+import { markMetAsk, recordSignedAsk } from '../../asks'
 
 /**
  * POST /api/compliance/checklist-items/:id
@@ -37,10 +38,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (action === 'RECORD_SIGNED') {
       if (item.kind !== 'CONTRACT_TERM') return refused(422, 'Only a contract item records a signed paper this way. A petition paper is marked on hand.', 'action')
       if (!hasPermission(seat.caller.permissions, 'assignments.write')) return refused(403, 'Recording what a signed paper says is for whoever looks after contracts at your firm.')
+      const ask = recordSignedAsk(body, item.actualValue)
+      if (ask) return refused(422, ask.says, ask.field)
       const reference = text(body.paperReference)
-      if (!reference) return refused(422, 'Say which signed paper this comes from: its name, number or date.', 'paperReference')
-      const agreed = text(body.agreedValue) || item.actualValue
-      if (!agreed) return refused(422, 'There is no value on the line to agree to. Say what the signed paper agrees.', 'agreedValue')
+      const agreed = (text(body.agreedValue) || item.actualValue)!
       const state = judgeContractItem(item.label, agreed, item.actualValue)
       await prisma.$transaction(async (tx) => {
         await tx.checklistItem.update({ where: { id: item.id }, data: { agreedValue: agreed, state, decidedById: seat.personId } })
@@ -53,8 +54,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (item.kind !== 'PETITION_PAPER') return refused(422, 'That is a contract item. A petition paper has its own lines.', 'action')
       if (!hasPermission(seat.caller.permissions, 'consultants.write')) return refused(403, 'Recording a petition paper is for whoever looks after paperwork at your firm.')
       if (action === 'MARK_MET') {
+        const ask = markMetAsk(body)
+        if (ask) return refused(422, ask.says, ask.field)
         const reference = text(body.paperReference)
-        if (!reference) return refused(422, 'Say which paper is on hand: its name, number or date. Etyme keeps the reference, never the paper.', 'paperReference')
         await prisma.$transaction(async (tx) => {
           await tx.checklistItem.update({ where: { id: item.id }, data: { state: 'MET', actualValue: reference, decidedById: seat.personId } })
           await writeRecordAction(tx, { ...stamp, action: 'PETITION_PAPER_ON_HAND', summary: `Recorded the ${item.label.toLowerCase()} as on hand (${reference}).` })

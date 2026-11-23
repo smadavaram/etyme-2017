@@ -3,8 +3,10 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { writeRecordAction } from '@/lib/record-ledger'
 import { PETITION_LINES } from '@/lib/agents/checklist-rules'
-import { queueSeat, refused, refusalOf } from '../../decision-items/door'
+import { ownersOnOffer } from '@/lib/decision-items'
+import { queueSeat, logRefusal, refused, refusalOf } from '../../decision-items/door'
 import { dayFrom, entityFor, text } from '../checklist-items/read'
+import { startPetitionAsk } from '../asks'
 
 /**
  * GET  /api/compliance/immigration-petitions   the firm's petitions, each with its paper lines and what is missing
@@ -18,20 +20,34 @@ import { dayFrom, entityFor, text } from '../checklist-items/read'
 export async function GET(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
-  if (!hasPermission(seat.caller.permissions, 'consultants.write') && !seat.ownerOrAdmin) return refused(403, 'Petitions are read by whoever looks after paperwork at your firm.')
+  if (!hasPermission(seat.caller.permissions, 'consultants.write') && !seat.ownerOrAdmin) {
+    await logRefusal(seat, { companyId: seat.companyId }, `Refused the read of ${request.nextUrl.pathname} to a seat that does not look after it.`)
+    return refused(403, 'Petitions are read by whoever looks after paperwork at your firm.')
+  }
   const petitions = await prisma.petition.findMany({ where: { companyId: seat.companyId }, orderBy: { createdAt: 'desc' }, take: 200 })
   const items = await prisma.checklistItem.findMany({ where: { companyId: seat.companyId, kind: 'PETITION_PAPER', ownerId: { in: petitions.map((p) => p.id) } }, orderBy: { createdAt: 'asc' } })
-  const people = await prisma.person.findMany({ where: { id: { in: petitions.map((p) => p.personId) } }, select: { id: true, name: true } })
+  const signatoryIds = items.map((i) => i.signatoryPersonId).filter((x): x is string => !!x)
+  const people = await prisma.person.findMany({ where: { id: { in: [...petitions.map((p) => p.personId), ...signatoryIds] } }, select: { id: true, name: true } })
+  const mayWrite = hasPermission(seat.caller.permissions, 'consultants.write')
+  // Who a petition may be started for: this firm's own people and its bench, as the POST accepts.
+  const [seats, benched, signatories] = mayWrite ? await Promise.all([
+    prisma.context.findMany({ where: { companyId: seat.companyId, revokedAt: null, type: { in: ['EMPLOYEE', 'CONSULTANT'] } }, select: { personId: true }, take: 500 }),
+    prisma.benchListing.findMany({ where: { companyId: seat.companyId }, select: { consultant: { select: { personId: true } } }, take: 500 }),
+    ownersOnOffer(seat.companyId),
+  ]) : [[], [], []]
+  const startable = await prisma.person.findMany({ where: { id: { in: [...seats.map((s) => s.personId), ...benched.map((b) => b.consultant.personId)] } }, select: { id: true, name: true }, orderBy: { name: 'asc' } })
+  const SIGNED = new Set<string>(PETITION_LINES.filter((l) => l.signature).map((l) => l.label))
   return NextResponse.json({
     data: {
       petitions: petitions.map((p) => {
         const own = items.filter((i) => i.ownerId === p.id)
         return {
           id: p.id, person: people.find((x) => x.id === p.personId)?.name ?? null, kind: p.kind, stage: p.stage, filedOn: p.filedOn?.toISOString().slice(0, 10) ?? null,
-          lines: own.map((i) => ({ id: i.id, label: i.label, state: i.state, reference: i.actualValue, signatoryPersonId: i.signatoryPersonId })),
+          lines: own.map((i) => ({ id: i.id, label: i.label, state: i.state, reference: i.actualValue, signatoryPersonId: i.signatoryPersonId, signatoryName: people.find((x) => x.id === i.signatoryPersonId)?.name ?? null, needsSignature: SIGNED.has(i.label) })),
           complete: own.length > 0 && own.every((i) => i.state === 'MET'),
         }
       }),
+      entities: seat.entities, mayRecord: mayWrite, people: startable, signatories,
     },
   })
 }
@@ -41,13 +57,11 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!hasPermission(seat.caller.permissions, 'consultants.write')) return refused(403, 'Starting a petition’s checklist is for whoever looks after paperwork at your firm.')
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
+  const ask = startPetitionAsk(body)
+  if (ask) return refused(422, ask.says, ask.field)
   const personId = text(body.personId)
   const kind = text(body.kind)
-  if (!personId) return refused(422, 'Choose the person the petition is for.', 'personId')
-  if (!kind) return refused(422, 'Say what kind of petition this is.', 'kind')
-  const filedOnRaw = text(body.filedOn)
-  const filedOn = filedOnRaw ? dayFrom(filedOnRaw) : null
-  if (filedOnRaw && !filedOn) return refused(422, 'Say the filing day as year-month-day, for example 2026-11-23.', 'filedOn')
+  const filedOn = text(body.filedOn) ? dayFrom(body.filedOn) : null
   const entity = entityFor(seat, body.actingEntityId)
   if (!entity.ok) return refused(422, entity.says, 'actingEntityId')
   // Only a person this firm employs or holds on its bench.

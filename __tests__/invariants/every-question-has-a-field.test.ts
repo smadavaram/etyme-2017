@@ -23,6 +23,12 @@ import { PUBLISHED_EDITIONS, editionToRecord } from '@/lib/document-stages/editi
 import { formNumberKey, heldFromDocInstances, typeKeyForTemplate } from '@/lib/document-request'
 import { i9RecordFor } from '@/app/dashboard/compliance/record-for'
 import { NOTICE_THE_FORM_RAISES, adverseFields, recordAdverseBody, recordI9Body, recordVerdictBody, type AdverseStepTyped } from '@/app/dashboard/compliance/record-bodies'
+import { markMetAsk, noticePostedAsk, readyDayAsk, recordSignedAsk, removalDayAsk, startPetitionAsk } from '@/app/api/compliance/asks'
+import { entityFor, dayFrom } from '@/app/api/compliance/checklist-items/read'
+import { removedEarly, approvedLate } from '@/lib/agents/checklist-rules'
+import { firstMissing, type FieldSpec, type Values } from '@/app/dashboard/compliance/act-spec'
+import { filingDayBody, filingDayFields, markMetBody, markMetFields, recordSignedBody, recordSignedFields, signatoryBody, signatoryFields, startPetitionBody, startPetitionFields, type ItemKind } from '@/app/dashboard/compliance/checklists/bodies'
+import { approveBody, approveFields, cameDownEarly, recordNoticeBody, recordNoticeFields, removalBody, removalFields } from '@/app/dashboard/compliance/notices/bodies'
 
 /**
  * Every question a route asks, its screen has a field for.
@@ -808,5 +814,123 @@ describe('the money loop’s forms (record 107, B2 to B5)', () => {
     expect(chains).toContain('readResolveAsk(')
     expect(read('src/app/api/money-loop/periods/[month]/route.ts')).toContain('readLoadAsk(')
     expect(read('src/app/api/money-loop/route.ts')).toContain('readOpenMonthAsk(')
+  })
+})
+
+
+// ── Chains 3 and 6: the Checklists and Notices tabs (record 112) ─────────
+
+/** What a person would type into every field a form draws, nothing else. */
+const typedInto = (fields: FieldSpec[], answers: Values): Values => Object.fromEntries(fields.map((f) => [f.key, answers[f.key] ?? '']))
+
+const ONE_ENTITY = [{ id: 'e1', name: 'Brightmoor Staffing LLC' }]
+const TWO_ENTITIES = [...ONE_ENTITY, { id: 'e2', name: 'Brightmoor Staffing Canada Ltd' }]
+const PEOPLE = [{ id: 'p1', name: 'Priya Raman' }]
+const SITES = [{ id: 's1', name: 'Lakewood site' }]
+
+describe('every question a checklist or notice route asks, its screen has a field for', () => {
+  const kinds: (ItemKind | null)[] = ['RATE', 'TERMS', 'WINDOW', null]
+  for (const kind of kinds) {
+    it(`recording the signed paper for ${kind ?? 'an item of another kind'} with every field the form draws filled in is not refused`, () => {
+      const fields = recordSignedFields(kind, ONE_ENTITY)
+      const v = typedInto(fields, { paperReference: 'Amendment 2, signed 2026-11-10', rate: '95', days: '45', from: '2026-01-05', to: '2026-12-31', agreedValue: 'Net 45' })
+      expect(firstMissing(fields, v)).toBeNull()
+      const body = recordSignedBody(kind, 'USD', v, ONE_ENTITY)
+      expect(recordSignedAsk(body, '$90.00 an hour')).toBeNull()
+      // A value typed on the form reaches the route as the agreed value, in the words the agent keeps it in.
+      if (kind === 'RATE') expect(body.agreedValue).toBe('$95.00 an hour')
+      if (kind === 'TERMS') expect(body.agreedValue).toBe('Net 45')
+      if (kind === 'WINDOW') expect(body.agreedValue).toBe('2026-01-05..2026-12-31')
+    })
+  }
+
+  it('the signed paper form draws the paper field the route names when it is missing', () => {
+    const body = recordSignedBody('RATE', 'USD', {}, ONE_ENTITY)
+    const refusal = recordSignedAsk(body, '$90.00 an hour')!
+    expect(recordSignedFields('RATE', ONE_ENTITY).map((f) => f.key)).toContain(refusal.field)
+  })
+
+  it('an item with no value on the line and none typed is refused for the agreed value, which the form draws for an item of another kind', () => {
+    const refusal = recordSignedAsk({ paperReference: 'Amendment 2' }, null)!
+    expect(refusal.field).toBe('agreedValue')
+    expect(recordSignedFields(null, ONE_ENTITY).map((f) => f.key)).toContain('agreedValue')
+  })
+
+  it('marking a petition paper on hand with the form filled in is not refused, and a blank is refused for a field the form draws', () => {
+    const fields = markMetFields(ONE_ENTITY)
+    const v = typedInto(fields, { paperReference: 'LCA certified copy, case 7741' })
+    expect(markMetAsk(markMetBody(v, ONE_ENTITY))).toBeNull()
+    expect(fields.map((f) => f.key)).toContain(markMetAsk(markMetBody({}, ONE_ENTITY))!.field)
+  })
+
+  it('naming who signs posts the person chosen from the people the route accepts', () => {
+    const fields = signatoryFields(PEOPLE, ONE_ENTITY)
+    const body = signatoryBody(typedInto(fields, { signatoryPersonId: 'p1' }), PEOPLE, ONE_ENTITY)
+    expect(body).toEqual({ action: 'SET_SIGNATORY', signatoryPersonId: 'p1' })
+  })
+
+  it('starting a petition checklist with the form filled in is not refused, and each field the route names when it is blank is drawn', () => {
+    const fields = startPetitionFields(PEOPLE, ONE_ENTITY)
+    const v = typedInto(fields, { personId: 'p1', kind: 'Specialty occupation', filedOn: '2026-11-23' })
+    expect(startPetitionAsk(startPetitionBody(v, PEOPLE, ONE_ENTITY))).toBeNull()
+    for (const blank of [{}, { personId: 'p1' }, { personId: 'p1', kind: 'x', filedOn: 'soon' }] as Values[]) {
+      const refusal = startPetitionAsk(startPetitionBody(blank, PEOPLE, ONE_ENTITY))!
+      expect(fields.map((f) => f.key)).toContain(refusal.field)
+    }
+  })
+
+  it('recording the filing day posts a day the route reads', () => {
+    const body = filingDayBody(typedInto(filingDayFields(ONE_ENTITY), { filedOn: '2026-11-23' }), ONE_ENTITY)
+    expect(dayFrom(body.filedOn)).not.toBeNull()
+  })
+
+  it('recording a posted notice with the form filled in is not refused, and each field the route names when it is blank is drawn', () => {
+    const fields = recordNoticeFields(SITES, ONE_ENTITY)
+    const v = typedInto(fields, { kind: 'Labor condition notice', locationId: 's1', postedOn: '2026-11-23', fileRef: 'LCA-7741.pdf' })
+    expect(noticePostedAsk(recordNoticeBody(v, SITES, ONE_ENTITY))).toBeNull()
+    for (const blank of [{}, { kind: 'x' }, { kind: 'x', locationId: 's1' }] as Values[]) {
+      expect(fields.map((f) => f.key)).toContain(noticePostedAsk(recordNoticeBody(blank, SITES, ONE_ENTITY))!.field)
+    }
+  })
+
+  it('recording a removal asks for a reason on the form exactly when the route does, which is when it came down before its period ended', () => {
+    const endsOn = '2026-12-08'
+    for (const typed of ['2026-12-01', '2026-12-08', '2026-12-15']) {
+      const drawn = removalFields(typed, endsOn, ONE_ENTITY).map((f) => f.key)
+      expect(drawn.includes('reason'), typed).toBe(removedEarly(new Date(`${typed}T00:00:00Z`), new Date(`${endsOn}T00:00:00Z`)))
+      expect(cameDownEarly(typed, endsOn)).toBe(drawn.includes('reason'))
+      const v = typedInto(removalFields(typed, endsOn, ONE_ENTITY), { takenDownOn: typed, reason: 'The site closed early.' })
+      expect(removalDayAsk(removalBody(v, endsOn, ONE_ENTITY))).toBeNull()
+    }
+    expect(removalFields('', endsOn, ONE_ENTITY).map((f) => f.key)).toContain(removalDayAsk(removalBody({}, endsOn, ONE_ENTITY))!.field)
+  })
+
+  it('approving a public access file asks for a reason on the form exactly when the route does, which is when it was ready after its due day', () => {
+    const due = '2026-11-24'
+    for (const typed of ['2026-11-23', '2026-11-24', '2026-11-26']) {
+      const drawn = approveFields(typed, due, ONE_ENTITY).map((f) => f.key)
+      expect(drawn.includes('reason'), typed).toBe(approvedLate(new Date(`${typed}T00:00:00Z`), new Date(`${due}T00:00:00Z`)))
+      const v = typedInto(approveFields(typed, due, ONE_ENTITY), { readyOn: typed, reason: 'Counsel was out.' })
+      expect(readyDayAsk(approveBody(v, due, ONE_ENTITY))).toBeNull()
+    }
+    expect(approveFields('', due, ONE_ENTITY).map((f) => f.key)).toContain(readyDayAsk(approveBody({}, due, ONE_ENTITY))!.field)
+  })
+
+  it('a firm with one legal entity, or none, is never asked to choose it, and the route still accepts the act', () => {
+    for (const entities of [[], ONE_ENTITY]) {
+      for (const fields of [recordSignedFields('RATE', entities), markMetFields(entities), startPetitionFields(PEOPLE, entities), recordNoticeFields(SITES, entities), removalFields('2026-12-01', '2026-12-08', entities), approveFields('2026-11-26', '2026-11-24', entities), filingDayFields(entities)]) {
+        expect(fields.map((f) => f.key)).not.toContain('actingEntityId')
+      }
+      expect(entityFor({ entities }, undefined).ok).toBe(true)
+    }
+  })
+
+  it('a firm with several legal entities is asked which one on every form, because the route refuses an act without it', () => {
+    expect(entityFor({ entities: TWO_ENTITIES }, undefined).ok).toBe(false)
+    for (const fields of [recordSignedFields('RATE', TWO_ENTITIES), markMetFields(TWO_ENTITIES), startPetitionFields(PEOPLE, TWO_ENTITIES), recordNoticeFields(SITES, TWO_ENTITIES), removalFields('2026-12-01', '2026-12-08', TWO_ENTITIES), approveFields('2026-11-26', '2026-11-24', TWO_ENTITIES), filingDayFields(TWO_ENTITIES), signatoryFields(PEOPLE, TWO_ENTITIES)]) {
+      expect(fields.map((f) => f.key)).toContain('actingEntityId')
+    }
+    const v = typedInto(markMetFields(TWO_ENTITIES), { paperReference: 'x', actingEntityId: 'e2' })
+    expect(entityFor({ entities: TWO_ENTITIES }, (markMetBody(v, TWO_ENTITIES) as Record<string, unknown>).actingEntityId).ok).toBe(true)
   })
 })

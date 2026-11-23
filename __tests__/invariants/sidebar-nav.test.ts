@@ -109,7 +109,7 @@ describe('a menu is eleven links at most, and every other page is a tab of one o
     expect(tabsFor(vendor, '/dashboard/interviews')).toEqual({ label: 'Submissions', tabs: vendor.find((s) => s.label === 'Submissions')!.items })
     expect(tabsFor(vendor, '/dashboard/interviews')!.tabs.map((t) => t.label)).toEqual(['Submissions', 'Interviews'])
     expect(tabsFor(vendor, '/dashboard/purchase-orders')!.tabs.map((t) => t.label)).toEqual(
-      ['Sell contracts', 'Buy contracts', 'POs', 'Paperwork', 'Missing paperwork', 'Document requests', 'Screening packs', 'Compliance', 'Check queue']
+      ['Sell contracts', 'Buy contracts', 'POs', 'Paperwork', 'Missing paperwork', 'Document requests', 'Screening packs', 'Compliance', 'Checklists', 'Notices', 'Check queue']
     )
     expect(tabsFor(vendor, '/dashboard/payroll')!.tabs.map((t) => t.label)).toEqual(['Payroll', 'Commissions', 'Timesheet to payment'])
     expect(tabsFor(vendor, '/dashboard/ar')!.tabs.map((t) => t.label)).toEqual(['Bills', 'AR'])
@@ -1614,7 +1614,7 @@ describe('master data sits under Network: the people a firm keeps and the firms 
 })
 
 describe('paperwork is a tab of Contracts, not a thing of its own (founder, 2026-11-04)', () => {
-  const PAPER_PAGES = ['/dashboard/documents', '/dashboard/loose-ends', '/dashboard/packets', '/dashboard/outbound-pack', '/dashboard/compliance', '/dashboard/checks']
+  const PAPER_PAGES = ['/dashboard/documents', '/dashboard/loose-ends', '/dashboard/packets', '/dashboard/outbound-pack', '/dashboard/compliance', '/dashboard/compliance/checklists', '/dashboard/compliance/notices', '/dashboard/checks']
 
   it('Paperwork is a tab of Contracts on every firm’s menu, beside the lines it protects', () => {
     for (const kind of ['VENDOR', 'GSI', 'MSP'] as const) {
@@ -1623,7 +1623,7 @@ describe('paperwork is a tab of Contracts, not a thing of its own (founder, 2026
       expect(row.label, kind).toBe('Contracts')
       expect(row.groups!.map((g) => [g.name, g.tabs.map((t) => t.label)]), kind).toEqual([
         ['Contracts', ['Sell contracts', 'Buy contracts', 'POs']],
-        ['Paperwork', ['Paperwork', 'Missing paperwork', 'Document requests', 'Screening packs', 'Compliance', 'Check queue']],
+        ['Paperwork', ['Paperwork', 'Missing paperwork', 'Document requests', 'Screening packs', 'Compliance', 'Checklists', 'Notices', 'Check queue']],
       ])
     }
     const client = tabsFor(getNavForKind('CLIENT', false), '/dashboard/packets')!

@@ -4,9 +4,10 @@ import { hasPermission } from '@/lib/permissions'
 import { writeRecordAction } from '@/lib/record-ledger'
 import { daysOffFor } from '@/lib/days-off'
 import { loadCompanyHolidays } from '@/lib/holidays'
-import { noticeEndsOn } from '@/lib/agents/checklist-rules'
-import { queueSeat, refused, refusalOf } from '../../decision-items/door'
+import { PROPOSED_NOTICE_WORKING_DAYS, noticeEndsOn } from '@/lib/agents/checklist-rules'
+import { queueSeat, logRefusal, refused, refusalOf } from '../../decision-items/door'
 import { dayFrom, entityFor, text } from '../checklist-items/read'
+import { noticePostedAsk } from '../asks'
 
 /**
  * GET  /api/compliance/notice-postings   the firm's notices, each with the day its required posting period ends
@@ -20,12 +21,16 @@ import { dayFrom, entityFor, text } from '../checklist-items/read'
 export async function GET(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
-  if (!hasPermission(seat.caller.permissions, 'consultants.write') && !seat.ownerOrAdmin) return refused(403, 'Posted notices are read by whoever looks after paperwork at your firm.')
+  if (!hasPermission(seat.caller.permissions, 'consultants.write') && !seat.ownerOrAdmin) {
+    await logRefusal(seat, { companyId: seat.companyId }, `Refused the read of ${request.nextUrl.pathname} to a seat that does not look after it.`)
+    return refused(403, 'Posted notices are read by whoever looks after paperwork at your firm.')
+  }
   const rows = await prisma.noticePosting.findMany({ where: { companyId: seat.companyId }, orderBy: { postedOn: 'desc' }, take: 200 })
   const year = new Date().getUTCFullYear()
+  const mayRecord = hasPermission(seat.caller.permissions, 'consultants.write')
   const [daysOff, holidays, sites] = await Promise.all([
     daysOffFor(seat.companyId), loadCompanyHolidays(seat.companyId, year - 1, year + 1),
-    prisma.companyLocation.findMany({ where: { id: { in: rows.map((r) => r.locationId) } }, select: { id: true, name: true } }),
+    prisma.companyLocation.findMany({ where: { companyId: seat.companyId }, select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 500 }),
   ])
   return NextResponse.json({
     data: {
@@ -33,6 +38,9 @@ export async function GET(request: NextRequest) {
         id: r.id, kind: r.kind, site: sites.find((s) => s.id === r.locationId)?.name ?? null, postedOn: r.postedOn.toISOString().slice(0, 10),
         periodEndsOn: noticeEndsOn(r.postedOn, daysOff, holidays).toISOString().slice(0, 10), takenDownOn: r.takenDownOn?.toISOString().slice(0, 10) ?? null, fileRef: r.fileRef,
       })),
+      sites, entities: seat.entities, mayRecord,
+      // A proposal, not a confirmed rule: the screen says so beside the period.
+      rules: { noticeWorkingDays: PROPOSED_NOTICE_WORKING_DAYS, confirmed: false },
     },
   })
 }
@@ -42,12 +50,12 @@ export async function POST(request: NextRequest) {
   if (error) return error
   if (!hasPermission(seat.caller.permissions, 'consultants.write')) return refused(403, 'Recording a posted notice is for whoever looks after paperwork at your firm.')
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
+  const ask = noticePostedAsk(body)
+  if (ask) return refused(422, ask.says, ask.field)
   const kind = text(body.kind)
-  if (!kind) return refused(422, 'Say what kind of notice was posted.', 'kind')
   const site = await prisma.companyLocation.findFirst({ where: { id: text(body.locationId), companyId: seat.companyId }, select: { id: true, name: true } })
   if (!site) return refused(422, 'Choose the site where the notice was posted. It must be one of your firm’s sites.', 'locationId')
-  const postedOn = dayFrom(body.postedOn)
-  if (!postedOn) return refused(422, 'Say the day it was posted as year-month-day, for example 2026-11-23.', 'postedOn')
+  const postedOn = dayFrom(body.postedOn)!
   const entity = entityFor(seat, body.actingEntityId)
   if (!entity.ok) return refused(422, entity.says, 'actingEntityId')
   try {

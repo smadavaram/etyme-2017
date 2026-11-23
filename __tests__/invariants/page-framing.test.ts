@@ -710,6 +710,12 @@ describe('sign-up walk, round three: a page is headed by the link the reader cli
     }
   })
 
+  it('the contract checklists and the posted notices are headed Contracts for a staffing vendor, tabs beside Compliance', () => {
+    for (const href of ['/dashboard/compliance/checklists', '/dashboard/compliance/notices']) {
+      expect(sectionOfHref('VENDOR', href), href).toBe('Contracts')
+    }
+  })
+
   it('every page on every menu is headed by the link it is a tab of', () => {
     for (const kind of ALL_KINDS) {
       for (const section of getNavForKind(kind, false)) {

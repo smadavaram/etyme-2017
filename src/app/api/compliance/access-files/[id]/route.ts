@@ -5,6 +5,7 @@ import { writeRecordAction } from '@/lib/record-ledger'
 import { approvedLate } from '@/lib/agents/checklist-rules'
 import { queueSeat, refused, refusalOf } from '../../../decision-items/door'
 import { dayFrom, entityFor, text } from '../../checklist-items/read'
+import { readyDayAsk } from '../../asks'
 
 /**
  * PATCH /api/compliance/access-files/:id   { readyOn, reason?, actingEntityId? } a person approves the public access file
@@ -23,8 +24,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const file = await prisma.publicAccessFile.findFirst({ where: { id, companyId: seat.companyId } })
   if (!file) return refused(404, 'There is no such public access file at your firm.')
   if (file.approvedById) return refused(409, 'This file is already approved.')
-  const readyOn = dayFrom(body.readyOn)
-  if (!readyOn) return refused(422, 'Say the day the file was ready as year-month-day, for example 2026-11-24.', 'readyOn')
+  const ask = readyDayAsk(body)
+  if (ask) return refused(422, ask.says, ask.field)
+  const readyOn = dayFrom(body.readyOn)!
   const entity = entityFor(seat, body.actingEntityId)
   if (!entity.ok) return refused(422, entity.says, 'actingEntityId')
   const late = approvedLate(readyOn, file.readyBy)

@@ -7,6 +7,7 @@ import { loadCompanyHolidays } from '@/lib/holidays'
 import { noticeEndsOn, removedEarly } from '@/lib/agents/checklist-rules'
 import { queueSeat, refused, refusalOf } from '../../../decision-items/door'
 import { dayFrom, entityFor, text } from '../../checklist-items/read'
+import { removalDayAsk } from '../../asks'
 
 /**
  * PATCH /api/compliance/notice-postings/:id   { takenDownOn, reason?, actingEntityId? } a person records the removal
@@ -24,8 +25,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const notice = await prisma.noticePosting.findFirst({ where: { id, companyId: seat.companyId } })
   if (!notice) return refused(404, 'There is no such notice at your firm.')
   if (notice.takenDownOn) return refused(409, 'This notice is already recorded as taken down.')
-  const removedOn = dayFrom(body.takenDownOn)
-  if (!removedOn) return refused(422, 'Say the day it came down as year-month-day, for example 2026-12-08.', 'takenDownOn')
+  const ask = removalDayAsk(body)
+  if (ask) return refused(422, ask.says, ask.field)
+  const removedOn = dayFrom(body.takenDownOn)!
   if (removedOn < notice.postedOn) return refused(422, 'A notice cannot come down before the day it went up.', 'takenDownOn')
   const entity = entityFor(seat, body.actingEntityId)
   if (!entity.ok) return refused(422, entity.says, 'actingEntityId')

@@ -582,6 +582,9 @@ const DOCUMENT_REQUESTS: NavItem = { label: 'Document requests', href: '/dashboa
 // The other direction: a supplier spends as much time being screened as screening.
 const SCREENING_PACKS: NavItem = { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲' }
 const COMPLIANCE: NavItem = { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', needs: ['governance.read'] }
+// The start checklists and the posted-notice log, children of Compliance. The longest matching path wins in activeHref, so Compliance does not light up on them.
+const CHECKLISTS: NavItem = { label: 'Checklists', href: '/dashboard/compliance/checklists', icon: '☑', needs: ['assignments.read'], api: 'compliance/checklist-items' }
+const NOTICES: NavItem = { label: 'Notices', href: '/dashboard/compliance/notices', icon: '▤', needs: ['consultants.write'], api: 'compliance/notice-postings' }
 const CHECK_QUEUE: NavItem = { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', needs: ['submissions.read'], api: 'checks/queue' }
 // /api/blacklist opens for anybody who deals with people or suppliers (MAY_READ), the compliance officer included.
 const DNR_LIST: NavItem = { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', needs: ['consultants.read', 'vendors.read', 'governance.read'] }
@@ -654,7 +657,7 @@ const FIRM_CONTRACTS: NavItem[] = [
   // Paperwork is a tab of Contracts, not a thing of its own (founder,
   // 2026-11-04): a paper lives on the line, on the side it protects. The
   // firm's own Paperwork page first, then HR's working lists beside it.
-  ...inGroup('Paperwork', [PAPERWORK, MISSING_PAPERWORK, DOCUMENT_REQUESTS, SCREENING_PACKS, COMPLIANCE, CHECK_QUEUE]),
+  ...inGroup('Paperwork', [PAPERWORK, MISSING_PAPERWORK, DOCUMENT_REQUESTS, SCREENING_PACKS, COMPLIANCE, CHECKLISTS, NOTICES, CHECK_QUEUE]),
 ]
 
 /**
