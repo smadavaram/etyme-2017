@@ -80,11 +80,36 @@ describe('the contracts checklist agent', () => {
     expect(await cards(w.firm.id)).toHaveLength(0)
   })
 
-  it('a placement whose line matches its agreement lists its items as met and opens no card', async () => {
+  it('a bill rate with no signed paper recorded reads as open, not drift, and opens no card on the first run or any later run', async () => {
     await switchOn(w.firm.id, CONTRACTS_CHECKLIST_AGENT, 'ON')
     await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
+    await prisma.sellContract.update({ where: { id: w.matched.id }, data: { billRate: 12_800 } })
+    await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
+    await prisma.sellContract.update({ where: { id: w.matched.id }, data: { billRate: 12_500 } })
+    await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
     const items = await prisma.checklistItem.findMany({ where: { ownerId: w.matched.id } })
-    expect(items.map((i) => [i.label, i.state, i.agreedValue, i.actualValue])).toEqual([['Bill rate', 'MET', '$125.00 an hour', '$125.00 an hour']])
+    expect(items.map((i) => [i.label, i.state, i.agreedValue, i.actualValue])).toEqual([['Bill rate', 'OPEN', null, '$125.00 an hour']])
+    expect((await cards(w.firm.id)).filter((x) => x.question.includes('Bill rate'))).toHaveLength(0)
+  })
+
+  it('a bill rate item listed before this change keeps its stored agreed value when the agent runs again', async () => {
+    const old = await line()
+    await prisma.checklistItem.create({ data: { companyId: w.firm.id, ownerType: 'SellContract', ownerId: old.id, kind: 'CONTRACT_TERM', label: 'Bill rate', agreedValue: '$125.00 an hour', actualValue: '$125.00 an hour', state: 'MET' } })
+    await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
+    const item = await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: old.id, label: 'Bill rate' } })
+    expect([item.state, item.agreedValue]).toEqual(['MET', '$125.00 an hour'])
+    await prisma.checklistItem.deleteMany({ where: { ownerId: old.id } })
+    await prisma.sellContract.update({ where: { id: old.id }, data: { state: 'ENDED' } })
+  })
+
+  it('once a person records the signed paper and the line matches, the bill rate reads as met', async () => {
+    as(w.cm.primaryEmail)
+    const item = await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: w.matched.id, label: 'Bill rate' } })
+    const r = await json(await itemRoute.POST(req('POST', `/api/compliance/checklist-items/${item.id}`, { action: 'RECORD_SIGNED', paperReference: 'Rate letter of Sep 1' }), p(item.id)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
+    const after = await prisma.checklistItem.findUniqueOrThrow({ where: { id: item.id } })
+    expect([after.state, after.agreedValue]).toEqual(['MET', '$125.00 an hour'])
   })
 
   it('payment terms that differ from the agreement are a drift and open one card to the Contract Manager', async () => {
@@ -103,12 +128,14 @@ describe('the contracts checklist agent', () => {
     expect((await cards(w.firm.id)).length).toBe(before)
   })
 
-  it('a rate changed on the line is a drift and the agreed value does not move by itself', async () => {
+  it('a line rate that later differs from the recorded signed paper opens one decision to the contract manager and changes nothing', async () => {
     await prisma.sellContract.update({ where: { id: w.matched.id }, data: { billRate: 13_000 } })
     await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
     const item = await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: w.matched.id, label: 'Bill rate' } })
     expect([item.state, item.agreedValue, item.actualValue]).toEqual(['DRIFT', '$125.00 an hour', '$130.00 an hour'])
-    expect((await cards(w.firm.id)).filter((x) => x.question.includes('Bill rate'))).toHaveLength(1)
+    const d = (await cards(w.firm.id)).filter((x) => x.question.includes('Bill rate'))
+    expect(d).toHaveLength(1)
+    expect(d[0].ownerPersonId).toBe(w.cm.id)
     w.rateItem = item
   })
 
@@ -131,7 +158,7 @@ describe('the contracts checklist agent', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const item = await prisma.checklistItem.findUniqueOrThrow({ where: { id: w.rateItem.id } })
     expect([item.state, item.agreedValue, item.decidedById]).toEqual(['MET', '$130.00 an hour', w.cm.id])
-    const row = (await ledger(w.firm.id, 'AGREED_VALUE_RECORDED'))[0]
+    const row = (await ledger(w.firm.id, 'AGREED_VALUE_RECORDED')).find((r) => r.summary.includes('Rate amendment of Nov 20'))!
     expect(row.personId).toBe(w.cm.id)
     expect(row.agentKey).toBeNull()
     expect(row.summary).toMatch(/Rate amendment of Nov 20/)
@@ -151,6 +178,53 @@ describe('the contracts checklist agent', () => {
     const item = await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: l.id, label: 'Line dates inside the order' } })
     expect(item.state).toBe('DRIFT')
     expect((await cards(w.firm.id)).some((x) => x.question.includes('outside the order’s Sep 1, 2026 to Dec 31, 2026'))).toBe(true)
+  })
+})
+
+describe('the statement of work item', () => {
+  const sowCards = async (lineId: string) => (await cards(w.firm.id)).filter((x) => x.question.includes('statement of work') && JSON.stringify(x.proofLinks).includes(lineId))
+
+  it('a placement with no engagement or an empty statement of work has no statement of work item', async () => {
+    w.noSow = await line({ engagementId: null })
+    w.emptySow = await line({ engagementId: (await prisma.engagement.create({ data: { title: `Empty ${tag}`, statementOfWork: '  ' } })).id })
+    await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
+    expect(await prisma.checklistItem.count({ where: { ownerId: { in: [w.noSow.id, w.emptySow.id] }, label: 'Statement of work' } })).toBe(0)
+  })
+
+  it('a written statement of work with no signature date reads as drift and opens one card to the contract manager that says the agent changed nothing', async () => {
+    w.sowEng = await prisma.engagement.create({ data: { title: `Sow ${tag}`, statementOfWork: 'Build the data platform in three phases.' } })
+    w.unsigned = await line({ engagementId: w.sowEng.id })
+    await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
+    const item = await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: w.unsigned.id, label: 'Statement of work' } })
+    expect([item.state, item.agreedValue, item.actualValue]).toEqual(['DRIFT', 'Signed', 'Not signed'])
+    const d = await sowCards(w.unsigned.id)
+    expect(d).toHaveLength(1)
+    expect(d[0].ownerPersonId).toBe(w.cm.id)
+    expect(d[0].question).toMatch(/The statement of work for Worker \d+ at C36 Client .* is written and not signed\. Look at it\?/)
+    expect(d[0].proof).toMatch(/changed nothing/)
+  })
+
+  it('running the contracts checklist twice opens the statement of work card only once', async () => {
+    await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
+    expect(await sowCards(w.unsigned.id)).toHaveLength(1)
+  })
+
+  it('a signed statement of work reads as met and opens no card', async () => {
+    const signedEng = await prisma.engagement.create({ data: { title: `Signed ${tag}`, statementOfWork: 'Run the help desk.', sowSignedAt: day('2026-08-20') } })
+    const l = await line({ engagementId: signedEng.id })
+    await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
+    expect((await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: l.id, label: 'Statement of work' } })).state).toBe('MET')
+    expect(await sowCards(l.id)).toHaveLength(0)
+  })
+
+  it('a placement reaches its statement of work through its own engagement first and its order’s engagement second', async () => {
+    const orderEng = await prisma.engagement.create({ data: { title: `Order ${tag}`, statementOfWork: 'Order level scope.', sowSignedAt: day('2026-08-21') } })
+    const order = await prisma.workOrder.create({ data: { issuedById: w.client.id, issuedToId: w.firm.id, recordedById: w.firm.id, number: `PO-S-${tag}`, amount: '100000.00', startDate: day('2026-09-01'), engagementId: orderEng.id } as any })
+    const viaOrder = await line({ engagementId: null, workOrderId: order.id })
+    const own = await line({ engagementId: w.sowEng.id, workOrderId: order.id })
+    await runs(CONTRACTS_CHECKLIST_AGENT, registerContractsChecklist, w.firm.id)
+    expect((await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: viaOrder.id, label: 'Statement of work' } })).state).toBe('MET')
+    expect((await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: own.id, label: 'Statement of work' } })).state).toBe('DRIFT')
   })
 })
 

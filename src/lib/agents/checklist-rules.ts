@@ -56,6 +56,7 @@ export const CONTRACT_LABELS = {
   RATE: 'Bill rate',
   TERMS: 'Payment terms',
   WINDOW: 'Line dates inside the order',
+  SOW: 'Statement of work',
 } as const
 export type ContractLabel = (typeof CONTRACT_LABELS)[keyof typeof CONTRACT_LABELS]
 
@@ -70,12 +71,14 @@ export interface LineFacts {
   msa: { paymentTerms: number } | null
   /** The order the line bills under, where it is on one. */
   order: { number: string; startDate: Date; endDate: Date | null } | null
+  /** The statement of work the engagement holds, passed only where one is written. */
+  sow: { signedAt: Date | null } | null
 }
 
 export interface Wanted {
   label: ContractLabel
-  /** What the paper says now: the agreed value the first time the item is listed. */
-  firstAgreed: string
+  /** What the paper says: null until a person records a signed paper, because the agent cannot know what one says. */
+  firstAgreed: string | null
   /** What the line says now. */
   actual: string
 }
@@ -91,15 +94,18 @@ const termsWords = (days: number) => `Net ${days}`
 /**
  * The items a placement's checklist holds, from what exists on the record.
  * An MSA line appears only where the line sits under an agreement, an order
- * line only where it bills under an order. Nothing is invented for a paper
+ * line only where it bills under an order, a statement of work only where
+ * the engagement has one written. The bill rate has no agreed value until a
+ * person records the signed paper (never the line's own rate). Nothing is invented for a paper
  * that is not there. Pure.
  */
 export function contractItemsFor(f: LineFacts): Wanted[] {
   const items: Wanted[] = [
-    { label: CONTRACT_LABELS.RATE, firstAgreed: rateWords(f.billRateCents, f.billCurrency), actual: rateWords(f.billRateCents, f.billCurrency) },
+    { label: CONTRACT_LABELS.RATE, firstAgreed: null, actual: rateWords(f.billRateCents, f.billCurrency) },
   ]
   if (f.msa) items.push({ label: CONTRACT_LABELS.TERMS, firstAgreed: termsWords(f.msa.paymentTerms), actual: termsWords(f.paymentTerms) })
   if (f.order) items.push({ label: CONTRACT_LABELS.WINDOW, firstAgreed: windowOf(f.order.startDate, f.order.endDate), actual: windowOf(f.startDate, f.endDate) })
+  if (f.sow) items.push({ label: CONTRACT_LABELS.SOW, firstAgreed: 'Signed', actual: f.sow.signedAt ? 'Signed' : 'Not signed' })
   return items
 }
 
@@ -112,11 +118,16 @@ export function windowInside(line: string, order: string): boolean {
   return true
 }
 
-export type ItemState = 'MET' | 'DRIFT'
+export type ItemState = 'MET' | 'DRIFT' | 'OPEN'
 
-/** Agreed against actual. A window is judged as inside; every other value is judged as equal. Pure. */
+/**
+ * Agreed against actual. A window is judged as inside; every other value is
+ * judged as equal. Nothing agreed yet is OPEN (no signed paper recorded),
+ * never a drift: there is nothing to differ from. Pure.
+ */
 export function judgeContractItem(label: string, agreed: string | null, actual: string | null): ItemState {
-  if (agreed === null || actual === null) return 'DRIFT'
+  if (agreed === null) return 'OPEN'
+  if (actual === null) return 'DRIFT'
   if (label === CONTRACT_LABELS.WINDOW) return windowInside(actual, agreed) ? 'MET' : 'DRIFT'
   return agreed === actual ? 'MET' : 'DRIFT'
 }
@@ -133,7 +144,9 @@ export interface Drift { question: string; proof: string }
 export function driftWords(o: { person: string; client: string; label: string; agreed: string | null; actual: string | null }): Drift {
   const agreed = valueWords(o.label, o.agreed)
   const actual = valueWords(o.label, o.actual)
-  const what = o.label === CONTRACT_LABELS.WINDOW
+  const what = o.label === CONTRACT_LABELS.SOW
+    ? `The statement of work for ${o.person} at ${o.client} is written and not signed.`
+    : o.label === CONTRACT_LABELS.WINDOW
     ? `${o.person}’s dates at ${o.client} run ${actual}, outside the order’s ${agreed}.`
     : `${o.label} for ${o.person} at ${o.client} reads ${actual} on the line. The agreed value is ${agreed}.`
   return {

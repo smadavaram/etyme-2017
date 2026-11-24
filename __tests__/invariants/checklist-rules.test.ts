@@ -11,7 +11,7 @@ const SAT_SUN = [0, 6]
 const none = new Set<string>()
 
 const line = (over: Partial<LineFacts> = {}): LineFacts => ({
-  billRateCents: 12_500, billCurrency: 'USD', paymentTerms: 30, startDate: d('2026-12-01'), endDate: d('2027-05-31'), msa: null, order: null, ...over,
+  billRateCents: 12_500, billCurrency: 'USD', paymentTerms: 30, startDate: d('2026-12-01'), endDate: d('2027-05-31'), msa: null, order: null, sow: null, ...over,
 })
 
 describe('working days', () => {
@@ -50,17 +50,39 @@ describe('the contracts checklist items', () => {
     const items = contractItemsFor(line({ order: { number: 'PO-1', startDate: d('2026-12-01'), endDate: d('2027-03-31') } }))
     expect(items.map((i) => i.label)).toEqual([CONTRACT_LABELS.RATE, CONTRACT_LABELS.WINDOW])
   })
-  it('the first time a rate is listed the agreed value is the line’s rate, so it starts agreed', () => {
+  it('a new bill rate item has no agreed value until a person records the signed paper', () => {
     const [rate] = contractItemsFor(line())
-    expect(rate.firstAgreed).toBe(rate.actual)
+    expect(rate.firstAgreed).toBeNull()
     expect(rate.actual).toBe('$125.00 an hour')
-    expect(judgeContractItem(rate.label, rate.firstAgreed, rate.actual)).toBe('MET')
+  })
+  it('a bill rate with no signed paper recorded reads as open, not drift', () => {
+    expect(judgeContractItem(CONTRACT_LABELS.RATE, null, '$125.00 an hour')).toBe('OPEN')
+  })
+  it('once a person records the signed paper and the line matches, the bill rate reads as met', () => {
+    expect(judgeContractItem(CONTRACT_LABELS.RATE, '$125.00 an hour', '$125.00 an hour')).toBe('MET')
+  })
+  it('the statement of work is listed only where the placement has a written one', () => {
+    expect(contractItemsFor(line()).map((i) => i.label)).not.toContain(CONTRACT_LABELS.SOW)
+    const items = contractItemsFor(line({ sow: { signedAt: null } }))
+    expect(items.map((i) => i.label)).toEqual([CONTRACT_LABELS.RATE, CONTRACT_LABELS.SOW])
+    expect(items[1]).toMatchObject({ firstAgreed: 'Signed', actual: 'Not signed' })
+  })
+  it('a signed statement of work reads as met and an unsigned one as drift', () => {
+    const [, signed] = contractItemsFor(line({ sow: { signedAt: d('2026-11-01') } }))
+    const [, unsigned] = contractItemsFor(line({ sow: { signedAt: null } }))
+    expect(judgeContractItem(signed.label, signed.firstAgreed, signed.actual)).toBe('MET')
+    expect(judgeContractItem(unsigned.label, unsigned.firstAgreed, unsigned.actual)).toBe('DRIFT')
+  })
+  it('the card for an unsigned statement of work says the agent signed nothing and changed nothing', () => {
+    const w = driftWords({ person: 'Priya Nair', client: 'Northbend Athletic', label: CONTRACT_LABELS.SOW, agreed: 'Signed', actual: 'Not signed' })
+    expect(w.question).toBe('The statement of work for Priya Nair at Northbend Athletic is written and not signed. Look at it?')
+    expect(w.proof).toMatch(/changed nothing/)
+    expect(w.proof).toMatch(/signing is a person’s/)
   })
   it('a rate that moved off the agreed value is a drift', () => {
     expect(judgeContractItem(CONTRACT_LABELS.RATE, '$125.00 an hour', '$130.00 an hour')).toBe('DRIFT')
   })
-  it('an item with no agreed value or no actual value is a drift, never silently met', () => {
-    expect(judgeContractItem(CONTRACT_LABELS.RATE, null, '$1.00 an hour')).toBe('DRIFT')
+  it('an item with no actual value is a drift, never silently met', () => {
     expect(judgeContractItem(CONTRACT_LABELS.RATE, '$1.00 an hour', null)).toBe('DRIFT')
   })
   it('a line inside the order’s dates is met and one running past them is a drift', () => {

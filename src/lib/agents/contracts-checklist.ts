@@ -4,8 +4,10 @@
  * Each run, for one firm that sells people:
  *  1. For every placement not yet ended, the items its record supports (the
  *     bill rate, the payment terms under its agreement, its dates inside its
- *     order) are listed as checklist items with the agreed value beside the
- *     actual one. Nothing is listed for a paper that is not there.
+ *     order, the statement of work where one is written) are listed as checklist items with the agreed value beside the
+ *     actual one. Nothing is listed for a paper that is not there. A bill
+ *     rate starts with no agreed value (open, no card) until a person
+ *     records the signed paper; an unsigned statement of work is a drift.
  *  2. An item whose actual no longer matches the agreed value opens ONE
  *     decision. The agreed value never changes here: only a person
  *     recording a signed paper changes it (POST
@@ -44,7 +46,8 @@ export async function contractsChecklistStep(ctx: AgentContext): Promise<void> {
       person: { select: { name: true } },
       clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } },
       msa: { select: { paymentTerms: true } },
-      workOrder: { select: { number: true, startDate: true, endDate: true } },
+      engagement: { select: { statementOfWork: true, sowSignedAt: true } },
+      workOrder: { select: { number: true, startDate: true, endDate: true, engagement: { select: { statementOfWork: true, sowSignedAt: true } } } },
     },
     orderBy: { id: 'asc' },
     take: 500,
@@ -53,9 +56,11 @@ export async function contractsChecklistStep(ctx: AgentContext): Promise<void> {
 
   for (const line of lines) {
     const client = line.endClientCompany?.name ?? line.clientCompany.name
+    const eng = line.engagement ?? line.workOrder?.engagement ?? null
+    const sow = eng?.statementOfWork?.trim() ? { signedAt: eng.sowSignedAt } : null
     const wanted = contractItemsFor({
       billRateCents: line.billRate, billCurrency: line.billCurrency, paymentTerms: line.paymentTerms,
-      startDate: line.startDate, endDate: line.endDate, msa: line.msa, order: line.workOrder,
+      startDate: line.startDate, endDate: line.endDate, msa: line.msa, order: line.workOrder, sow,
     })
     const have = await prisma.checklistItem.findMany({ where: { companyId, ownerType: LINE_RECORD, ownerId: line.id, kind: 'CONTRACT_TERM' } })
 
@@ -67,7 +72,7 @@ export async function contractsChecklistStep(ctx: AgentContext): Promise<void> {
         item = await prisma.checklistItem.create({
           data: { companyId, ownerType: LINE_RECORD, ownerId: line.id, kind: 'CONTRACT_TERM', label: w.label, agreedValue: w.firstAgreed, actualValue: w.actual, state },
         })
-        await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'CHECKLIST_LISTED', summary: `Listed “${w.label}” on ${line.person.name}’s placement at ${client}: ${state === 'MET' ? 'agreed and actual match' : 'agreed and actual differ'}.` })
+        await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'CHECKLIST_LISTED', summary: `Listed “${w.label}” on ${line.person.name}’s placement at ${client}: ${state === 'MET' ? 'agreed and actual match' : state === 'OPEN' ? 'no signed paper recorded' : 'agreed and actual differ'}.` })
       } else if (item.state !== 'WAIVED_WITH_REASON') {
         const state = judgeContractItem(w.label, item.agreedValue, w.actual)
         if (item.actualValue !== w.actual || item.state !== state) {
