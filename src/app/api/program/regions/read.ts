@@ -491,6 +491,8 @@ async function readFacts(
           },
         },
       },
+      // A fixed order, so the sites a sentence names never change between two readings.
+      orderBy: [{ number: 'asc' }, { id: 'asc' }],
     })
     const unpaid = rows.filter((r) => r.status !== 'PAID').map((r) => r.id)
     const matches = await matchInvoices(unpaid)
