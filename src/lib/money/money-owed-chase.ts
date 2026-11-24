@@ -90,10 +90,10 @@ export function moneyChaseQuestion(f: { customer: string; number: string; owedMi
 }
 
 /** Why a bill was not chased: a payment question about it is still open. `paused` is for a chase already approved. Pure. */
-export function moneyChaseHeldSays(f: { number: string; customer: string; decisionId: string; paused?: boolean }): string {
+export function moneyChaseHeldSays(f: { number: string; customer: string; paused?: boolean }): string {
   return f.paused
-    ? `Letters about bill ${f.number} to ${f.customer} are paused: a payment question about it is still open (${f.decisionId}). Once that question is recorded, the letters go on as approved.`
-    : `Bill ${f.number} to ${f.customer} was not chased: a payment question about it is still open (${f.decisionId}). Once that question is recorded, the next run proposes the chase.`
+    ? `Letters about bill ${f.number} to ${f.customer} are paused, and nothing was sent: a payment question about it is still open. Once that question is recorded, the letters go on as approved.`
+    : `Bill ${f.number} to ${f.customer} was not chased, and nothing was sent: a payment question about it is still open. Once that question is recorded, the next run proposes the chase.`
 }
 
 /** Why late bills were not chased where no seat can be asked. Pure. */
@@ -157,7 +157,7 @@ export function moneyChaseLetter(i: MoneyChaseLetterInput): { subject: string; t
 const OPEN = ['PROPOSED', 'APPROVED', 'RUNNING'] as const
 
 /** The id of an open reconciliation decision about this bill, a line on it or a payment placed on it; null where none. A chase's own card is not one. */
-async function openDecisionAbout(companyId: string, bill: { id: string; invoiceLines: { id: string }[]; payments: { id: string }[] }): Promise<string | null> {
+async function openDecisionAbout(companyId: string, bill: { id: string; invoiceLines: { id: string }[]; payments: { id: string }[] }): Promise<{ id: string; createdAt: Date } | null> {
   const links = [
     { recordType: 'Invoice', recordId: bill.id },
     ...bill.invoiceLines.map((l) => ({ recordType: 'InvoiceLine', recordId: l.id })),
@@ -165,17 +165,17 @@ async function openDecisionAbout(companyId: string, bill: { id: string; invoiceL
   ]
   const hit = await prisma.decisionItem.findFirst({
     where: { companyId, state: 'OPEN', agentTasks: { none: {} }, OR: links.map((l) => ({ proofLinks: { array_contains: [l] } })) },
-    select: { id: true }, orderBy: [{ openedOn: 'asc' }, { id: 'asc' }],
+    select: { id: true, createdAt: true }, orderBy: [{ openedOn: 'asc' }, { id: 'asc' }],
   })
-  return hit?.id ?? null
+  return hit ?? null
 }
 
 /**
  * Put one line on the ledger saying why nothing was done, once: not again while a line of this action
- * on this record already holds `key`. Returns false at the day's cap; the line is then written on the next run.
+ * on this record was written since the question it is about was opened. Returns false at the day's cap; the line is then written on the next run.
  */
-async function sayOnce(ctx: AgentContext, i: { recordType: string; recordId: string; action: string; summary: string; key: string }): Promise<boolean> {
-  const said = await prisma.recordAction.count({ where: { companyId: ctx.companyId, agentKey: ctx.agentKey, action: i.action, recordType: i.recordType, recordId: i.recordId, summary: { contains: i.key } } })
+async function sayOnce(ctx: AgentContext, i: { recordType: string; recordId: string; action: string; summary: string; since: Date }): Promise<boolean> {
+  const said = await prisma.recordAction.count({ where: { companyId: ctx.companyId, agentKey: ctx.agentKey, action: i.action, recordType: i.recordType, recordId: i.recordId, createdAt: { gte: i.since } } })
   if (said > 0) return true
   if (!(await ctx.mayAct(1))) return false
   await ctx.act({ recordType: i.recordType, recordId: i.recordId, action: i.action, summary: i.summary })
@@ -249,7 +249,7 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     if (heldBy) {
       // Said on the ledger once per question; no card, because that question already sits with the person who owes it.
       const who = await customerOf(b)
-      if (!(await sayOnce(ctx, { recordType: MONEY_OWED_RECORD, recordId: b.id, action: 'MONEY_CHASE_HELD', key: heldBy, summary: moneyChaseHeldSays({ number: b.number, customer: who?.name ?? 'its customer', decisionId: heldBy }) }))) { atCap = true; break }
+      if (!(await sayOnce(ctx, { recordType: MONEY_OWED_RECORD, recordId: b.id, action: 'MONEY_CHASE_HELD', since: heldBy.createdAt, summary: moneyChaseHeldSays({ number: b.number, customer: who?.name ?? 'its customer' }) }))) { atCap = true; break }
       continue
     }
     if (!owner) { ownerless.push(b.number); continue }
@@ -298,7 +298,7 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     const heldBy = await openDecisionAbout(companyId, b)
     if (heldBy) { // A short pay or drift is a person's to record first; said once per question, on the task.
       const who = await customerOf(b)
-      if (!(await sayOnce(ctx, { recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_HELD', key: heldBy, summary: moneyChaseHeldSays({ number: b.number, customer: who?.name ?? 'its customer', decisionId: heldBy, paused: true }) }))) return
+      if (!(await sayOnce(ctx, { recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_HELD', since: heldBy.createdAt, summary: moneyChaseHeldSays({ number: b.number, customer: who?.name ?? 'its customer', paused: true }) }))) return
       continue
     }
 

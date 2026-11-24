@@ -381,7 +381,7 @@ describe('saying why a bill was not chased', () => {
   it('the held line names the bill, the customer and the open payment question, and says the chase is proposed once that question is recorded', async () => {
     const { b, q } = w.held
     const [l] = await lines('MONEY_CHASE_HELD', b.id)
-    expect(l.summary).toBe(`Bill ${b.number} to ${w.client.name} was not chased: a payment question about it is still open (${q.id}). Once that question is recorded, the next run proposes the chase.`)
+    expect(l.summary).toBe(`Bill ${b.number} to ${w.client.name} was not chased, and nothing was sent: a payment question about it is still open. Once that question is recorded, the next run proposes the chase.`)
   })
 
   it('a bill held by an open payment question opens no card of its own, so the person who owes that question sees it once', async () => {
@@ -404,8 +404,7 @@ describe('saying why a bill was not chased', () => {
     await run(); await run()
     const l = await lines('MONEY_CHASE_HELD', b.id)
     expect(l).toHaveLength(2)
-    expect(l[0].summary).toContain(q1.id)
-    expect(l[1].summary).toContain(q2.id)
+    expect(l.every((x: any) => !x.summary.includes(q1.id) && !x.summary.includes(q2.id))).toBe(true)
     expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(0)
     await record(q2.id)
   })
@@ -420,7 +419,7 @@ describe('saying why a bill was not chased', () => {
     await run(); await run(); await run()
     const l = await lines('MONEY_CHASE_HELD', t.id)
     expect(l).toHaveLength(1)
-    expect(l[0].summary).toContain(q.id)
+    expect(l[0].summary).toMatch(/are paused, and nothing was sent/)
     expect(l[0].summary).toMatch(/are paused/)
     expect(sent).toHaveLength(0)
     expect(await prisma.mailSend.count({ where: { agentTaskId: t.id } })).toBe(0)

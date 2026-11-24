@@ -161,6 +161,10 @@ describe('the Checklists and Notices tabs', () => {
     expect(page).toContain('contract.mayRecord && i.recordable')
   })
 
+  it('a notice dated on its filing day is not called dated before it', () => {
+    expect(timingChip('ON_TIME')).toEqual({ tone: 'passive', text: 'Dated on or before filing' })
+  })
+
   it('the notices form offers the filing day field that the route accepts, and so does the row’s own act', () => {
     expect(recordNoticeFields([], []).map((f) => f.key)).toContain('measuredFromOn')
     expect(filingDayFields([]).map((f) => f.key)).toEqual(['measuredFromOn'])

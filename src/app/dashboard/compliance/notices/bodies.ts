@@ -26,7 +26,7 @@ export const filingDayBody = (v: Values, entities: Entities) => typedBody(filing
 
 /** The chip beside a notice's timing: none where no filing day was entered, and never green, because the rule is a proposal. */
 export const timingChip = (timing: 'ON_TIME' | 'LATE' | 'TOO_EARLY' | null): { tone: 'passive' | 'attention'; text: string } | null =>
-  timing === null ? null : timing === 'LATE' ? { tone: 'attention', text: 'Dated after filing' } : timing === 'TOO_EARLY' ? { tone: 'attention', text: 'Dated early' } : { tone: 'passive', text: 'Dated before filing' }
+  timing === null ? null : timing === 'LATE' ? { tone: 'attention', text: 'Dated after filing' } : timing === 'TOO_EARLY' ? { tone: 'attention', text: 'Dated early' } : { tone: 'passive', text: 'Dated on or before filing' }
 
 /** A removal asks for a reason only when it comes down before its required period ends. Days are year-month-day, so they compare as text. */
 export const cameDownEarly = (typedDay: string, periodEndsOn: string) => typedDay !== '' && typedDay < periodEndsOn
