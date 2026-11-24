@@ -8,7 +8,8 @@
  * Account Manager else the Owner, with who moved and why in its proof.
  *
  * It edits no company, register row or money field, deletes nothing and
- * sends nothing. Drafts only and On do the same: reading and listing is
+ * sends nothing. For a company that went quiet it drafts a check-in letter
+ * on one card; a person sends it (`dormant-outreach`). Drafts only and On do the same: reading and listing is
  * what probation allows.
  */
 
@@ -16,6 +17,7 @@ import { prisma } from '@/lib/db'
 import { LedgerRefusal } from '@/lib/record-ledger'
 import { openDecision, firmToday } from '@/lib/decision-items'
 import { ownerForRoles } from '@/lib/money/agent-owners'
+import { draftDormantOutreach } from './dormant-outreach'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
 import {
   CENSUS_AGENT, CENSUS_RULE, censusOn, censusProof, censusQuestion, changesBetween, sideOf, weeklyLine,
@@ -81,8 +83,11 @@ export async function censusKeeperStep(ctx: AgentContext): Promise<void> {
   if (!(await ctx.mayAct())) return
   const facts = await censusFacts(companyId)
   const rows = censusOn(facts, now)
-  const changes = changesBetween(censusOn(facts, new Date(now.getTime() - 7 * 86_400_000)), rows)
+  const before = censusOn(facts, new Date(now.getTime() - 7 * 86_400_000))
+  const changes = changesBetween(before, rows)
   await ctx.act({ recordType: CENSUS_RECORD, recordId: companyId, action: 'CENSUS_WEEKLY', summary: weeklyLine(rows, changes, from) })
+  // A company gone quiet gets a draft check-in on a card; a person sends it.
+  await draftDormantOutreach(ctx, { before, after: rows })
   if (changes.length === 0) return
 
   const owner = await ownerForRoles(companyId, ['Account Manager'], now)
