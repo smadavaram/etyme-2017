@@ -429,7 +429,23 @@ docs/security-posture.md, 106 to 108 of 424): type check; 18,056 unit
 tests; 4,102 database tests; build. Deploy then with
 `prepare-replay.sh <last replayed> 88c15dd23`.
 
-## Saturday 2026-11-28 deploy: READY, gate passed
+## Launch build DEPLOYED Tue 2026-11-24 (owner: "deploy if it's green")
+
+Deploy commit 72a7b313 on etyme2040 main, replayed from 18f59d2b1 to
+source c8d8abaf7. Production etyme2040.vercel.app serves 72a7b313
+(health: database READY). The owner set DB_PUSH_ON_BUILD on before the
+push; he turns it off after. Smoke: home, /demo, /docs, /about,
+/security, /privacy, /terms, /dpa, /contact, /login, /site/tapin, every
+/for/ door, /map, /ready 200; four old addresses 308; inbound email door
+404. NOT proven: the 13 new tables (the health page counts companies
+only, and this session cannot sign in to production); the first screen
+of Agent control or Checklists in the tester's retest proves them. No
+agent is switched on: each Owner switches to Drafts only first. The
+Saturday reminder is cancelled. Last replayed source is now c8d8abaf7.
+Staged for later: 88c15dd23 line, record 115, the rest of 112, 116
+(7d03c56e5). STOPPED for Pax's production retest.
+
+## Saturday 2026-11-28 deploy: superseded by the Tuesday deploy above
 
 Source c8d8abaf7 (supersedes 4eae9cbab): adds the census card's Done and
 the Checklists and Notices tabs, walked and passing. Final release check
