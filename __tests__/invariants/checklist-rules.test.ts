@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   CONTRACT_LABELS, PETITION_LINES, PROPOSED_ACCESS_FILE_WORKING_DAYS, PROPOSED_NOTICE_WORKING_DAYS, PROPOSED_PACK_LEAD_DAYS,
   accessFileReadyBy, accessFileWords, addWorkingDays, approvedLate, contractItemsFor, crossedWarning, daysFromTo, driftWords,
-  judgeContractItem, noticeEndsOn, noticePeriodOver, noticeWords, packDue, packWords, petitionComplete, petitionMissing,
+  judgeContractItem, noticeEndsOn, noticePeriodOver, noticeWords, packCompleteWords, packDue, packWords, placementWords, petitionComplete, petitionMissing,
   PROPOSED_NOTICE_LEAD_DAYS, noticeTiming, noticeTimingWords, petitionListFor, PETITION_LISTS, removedEarly, signatureWords, tenureWords, windowInside, type LineFacts,
 } from '@/lib/agents/checklist-rules'
 
@@ -174,12 +174,55 @@ describe('the onboarding pack', () => {
   })
   it('the card names the papers that are missing and the day the person starts', () => {
     const w = packWords({ person: 'Priya Nair', client: 'Northbend Athletic', startDate: d('2026-11-30'), days: 3, missing: ['I-9', 'Background check'] })
-    expect(w.question).toBe('Priya Nair starts at Northbend Athletic in 3 days, and 2 papers are still missing: I-9; Background check. Chase them?')
+    expect(w.question).toBe('Priya Nair starts at Northbend Athletic in 3 days, and 2 papers are still missing: I-9; Background check. Get them on file before day one.')
+    expect(w.question).not.toMatch(/Chase them/)
     expect(w.proof).toMatch(/Start day Nov 30, 2026/)
   })
   it('a start tomorrow and a start today are said as such', () => {
     expect(packWords({ person: 'A', client: 'B', startDate: d('2026-11-24'), days: 1, missing: ['I-9'] }).question).toMatch(/starts at B tomorrow, and one paper is still missing/)
     expect(packWords({ person: 'A', client: 'B', startDate: d('2026-11-23'), days: 0, missing: ['I-9'] }).question).toMatch(/starts at B today/)
+  })
+})
+
+describe('the onboarding pack when every paper is on file', () => {
+  const w = packCompleteWords({ person: 'Priya Nair', client: 'Northbend Athletic', startDate: d('2026-11-30'), days: 3, papers: ['I-9', 'Right to work'] })
+  it('a placement starting within five days with every paper on file names each paper and asks HR to confirm it is ready', () => {
+    expect(w.question).toBe('All 2 papers for Priya Nair are on file, and they start at Northbend Athletic in 3 days. Confirm ready?')
+    expect(w.proof).toContain('On file: I-9; Right to work.')
+  })
+  it('one paper on file is said in the singular', () => {
+    expect(packCompleteWords({ person: 'A', client: 'B', startDate: d('2026-11-24'), days: 1, papers: ['I-9'] }).question).toBe('The one paper for A is on file, and they start at B tomorrow. Confirm ready?')
+  })
+  it('HR’s yes is said to be advisory: Activate still decides the start, and the agent started nobody', () => {
+    expect(w.proof).toMatch(/Activate still decides the start/)
+    expect(w.proof).toMatch(/The agent sent nothing and started nobody/)
+  })
+})
+
+describe('the placement record card', () => {
+  const base = { person: 'Priya Nair', customer: 'Northbend Athletic', endClient: null, billRateCents: 12_500, currency: 'USD', startDate: d('2026-12-01'), endDate: d('2027-05-31') as Date | null, suppliers: [] as string[] }
+  it('the card asks to confirm the placement record and names the customer, the bill rate, the start and end days', () => {
+    const w = placementWords(base)
+    expect(w.question).toBe('Confirm the placement record for Priya Nair at Northbend Athletic?')
+    expect(w.proof).toContain('Customer: Northbend Athletic.')
+    expect(w.proof).toContain('Bill rate: $125.00 an hour.')
+    expect(w.proof).toContain('Starts Dec 1, 2026 and ends May 31, 2027.')
+  })
+  it('a line with no end day says it has none', () => {
+    expect(placementWords({ ...base, endDate: null }).proof).toContain('Starts Dec 1, 2026 and has no end day.')
+  })
+  it('the worksite is named only where it differs from the customer, and otherwise the card says the customer’s own site', () => {
+    expect(placementWords(base).proof).toContain('Worksite: the customer’s own site.')
+    expect(placementWords({ ...base, endClient: 'Lakeview Plant' }).proof).toContain('Worksite: Lakeview Plant.')
+  })
+  it('the suppliers on the firm’s own chain are named, and a line with none says the person is the firm’s own', () => {
+    expect(placementWords({ ...base, suppliers: ['Acme Staff', 'Bolt Bench'] }).proof).toContain('Suppliers on this firm’s own chain: Acme Staff; Bolt Bench.')
+    expect(placementWords(base).proof).toContain('No supplier below this firm on this line.')
+  })
+  it('the card says the agent changed nothing and signed nothing, and shows no buy rate', () => {
+    const w = placementWords({ ...base, suppliers: ['Acme Staff'] })
+    expect(w.proof).toMatch(/The agent changed nothing and signed nothing/)
+    expect(w.proof).not.toMatch(/pay rate|buy rate|\$\d+\.\d\d an hour.*\$\d+\.\d\d an hour/i)
   })
 })
 

@@ -232,11 +232,53 @@ export function packDue(daysUntilStart: number | null, lead: number = PROPOSED_P
 }
 
 export function packWords(o: { person: string; client: string; startDate: Date; days: number; missing: string[] }): Drift {
-  const when = o.days === 0 ? 'today' : o.days === 1 ? 'tomorrow' : `in ${o.days} days`
+  const when = packWhen(o.days)
   const list = o.missing.join('; ')
   return {
-    question: `${o.person} starts at ${o.client} ${when}, and ${o.missing.length === 1 ? 'one paper is' : `${o.missing.length} papers are`} still missing: ${list}. Chase them?`,
+    question: `${o.person} starts at ${o.client} ${when}, and ${o.missing.length === 1 ? 'one paper is' : `${o.missing.length} papers are`} still missing: ${list}. Get them on file before day one.`,
     proof: `Start day ${formatDay(o.startDate)}. Still missing: ${list}. The agent sent nothing. A start cannot happen without the papers the law asks for.`,
+  }
+}
+
+const packWhen = (days: number) => (days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`)
+
+/**
+ * The pack when every paper the start rule needs is on file: one card to HR,
+ * naming each, asking it to confirm the person is ready. HR's yes is advice;
+ * Activate decides the start and refuses without what the law asks for. Pure.
+ */
+export function packCompleteWords(o: { person: string; client: string; startDate: Date; days: number; papers: string[] }): Drift {
+  const when = packWhen(o.days)
+  const n = o.papers.length
+  return {
+    question: `${n === 1 ? `The one paper for ${o.person} is` : `All ${n} papers for ${o.person} are`} on file, and they start at ${o.client} ${when}. Confirm ready?`,
+    proof: `Start day ${formatDay(o.startDate)}. On file: ${o.papers.join('; ')}. A yes here is HR’s word that the pack is complete; Activate still decides the start and still refuses without what the law asks for. The agent sent nothing and started nobody.`,
+  }
+}
+
+// ── Placement record ────────────────────────────────────────────────
+
+/**
+ * The card that asks a person to read the line the award wrote and confirm
+ * it. The customer is the company billed; the worksite is named only where
+ * it differs (record 110). The bill rate is the firm's own figure; no buy
+ * rate is ever shown. Pure.
+ */
+export function placementWords(o: {
+  person: string; customer: string; endClient: string | null; billRateCents: number; currency: string
+  startDate: Date; endDate: Date | null; suppliers: string[]
+}): Drift {
+  const ends = o.endDate ? `ends ${formatDay(o.endDate)}` : 'has no end day'
+  return {
+    question: `Confirm the placement record for ${o.person} at ${o.customer}?`,
+    proof: [
+      `Customer: ${o.customer}.`,
+      o.endClient ? `Worksite: ${o.endClient}.` : 'Worksite: the customer’s own site.',
+      `Bill rate: ${rateWords(o.billRateCents, o.currency)}.`,
+      `Starts ${formatDay(o.startDate)} and ${ends}.`,
+      o.suppliers.length ? `Suppliers on this firm’s own chain: ${o.suppliers.join('; ')}.` : 'No supplier below this firm on this line.',
+      'A yes here is a person’s word that the line the award wrote is right; corrections are made on the contract’s own screens. The agent changed nothing and signed nothing.',
+    ].join(' '),
   }
 }
 
