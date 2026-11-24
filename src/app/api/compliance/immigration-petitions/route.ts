@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { writeRecordAction } from '@/lib/record-ledger'
-import { PETITION_LINES, petitionWords } from '@/lib/agents/checklist-rules'
+import { petitionListFor, petitionWords } from '@/lib/agents/checklist-rules'
 import { ownersOnOffer } from '@/lib/decision-items'
 import { queueSeat, logRefusal, refused, refusalOf } from '../../decision-items/door'
 import { dayFrom, entityFor, mayKeepPapers, refuseUnlessKeeper, text } from '../checklist-items/read'
@@ -18,8 +18,8 @@ import { filingCalendar, followFilingDay } from '../access-file-sync'
  * no paper's contents: a line holds a label, a state and a reference.
  * Needs governance.read (HR, the Compliance Officer, an Owner or an Admin). A person at this firm only.
  */
-/** A petition's papers keep the order the list names them in, whatever was saved last. */
-const lineOrder = (label: string) => { const i = PETITION_LINES.findIndex((l) => l.label === label); return i < 0 ? PETITION_LINES.length : i }
+/** A petition's papers keep the order its type's list names them in, whatever was saved last; a line not on the list sorts last. */
+const lineOrder = (kind: string, label: string) => { const lines = petitionListFor(kind).lines; const i = lines.findIndex((l) => l.label === label); return i < 0 ? lines.length : i }
 
 export async function GET(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
@@ -40,14 +40,16 @@ export async function GET(request: NextRequest) {
     ownersOnOffer(seat.companyId),
   ]) : [[], [], []]
   const startable = await prisma.person.findMany({ where: { id: { in: [...seats.map((s) => s.personId), ...benched.map((b) => b.consultant.personId)] } }, select: { id: true, name: true }, orderBy: { name: 'asc' } })
-  const SIGNED = new Set<string>(PETITION_LINES.filter((l) => l.signature).map((l) => l.label))
   return NextResponse.json({
     data: {
       petitions: petitions.map((p) => {
         const own = items.filter((i) => i.ownerId === p.id)
+        const list = petitionListFor(p.kind)
+        const SIGNED = new Set<string>(list.lines.filter((l) => l.signature).map((l) => l.label))
         return {
           id: p.id, person: people.find((x) => x.id === p.personId)?.name ?? null, kind: p.kind, stage: p.stage, filedOn: p.filedOn?.toISOString().slice(0, 10) ?? null,
-          lines: [...own].sort((a, b) => lineOrder(a.label) - lineOrder(b.label) || a.id.localeCompare(b.id)).map((i) => ({ id: i.id, label: i.label, state: i.state, reference: i.actualValue, signatoryPersonId: i.signatoryPersonId, signatoryName: people.find((x) => x.id === i.signatoryPersonId)?.name ?? null, needsSignature: SIGNED.has(i.label) })),
+          lines: [...own].sort((a, b) => lineOrder(p.kind, a.label) - lineOrder(p.kind, b.label) || a.id.localeCompare(b.id)).map((i) => ({ id: i.id, label: i.label, state: i.state, reference: i.actualValue, signatoryPersonId: i.signatoryPersonId, signatoryName: people.find((x) => x.id === i.signatoryPersonId)?.name ?? null, needsSignature: SIGNED.has(i.label) })),
+          listConfirmed: list.confirmed,
           complete: own.length > 0 && own.every((i) => i.state === 'MET'),
         }
       }),
@@ -74,12 +76,13 @@ export async function POST(request: NextRequest) {
     + (await prisma.benchListing.count({ where: { companyId: seat.companyId, consultant: { personId } } }))
   if (known === 0) return refused(422, 'That person is not on your payroll or your bench, so a petition cannot be kept for them here.', 'personId')
   const person = await prisma.person.findUnique({ where: { id: personId }, select: { name: true } })
+  const list = petitionListFor(kind)
   const calendar = filedOn ? await filingCalendar(seat.companyId, filedOn) : null
   try {
     const created = await prisma.$transaction(async (tx) => {
       const p = await tx.petition.create({ data: { companyId: seat.companyId, personId, kind, stage: text(body.stage) || (filedOn ? 'FILED' : 'PREPARING'), filedOn, employerCompanyId: seat.companyId } })
-      await tx.checklistItem.createMany({ data: PETITION_LINES.map((l) => ({ companyId: seat.companyId, ownerType: 'Petition', ownerId: p.id, kind: 'PETITION_PAPER' as const, label: l.label })) })
-      await writeRecordAction(tx, { companyId: seat.companyId, recordType: 'Petition', recordId: p.id, action: 'PETITION_STARTED', summary: `Started the checklist for ${person?.name ?? 'the person'}’s ${petitionWords(kind)}: ${PETITION_LINES.length} papers, each its own line.`, personId: seat.personId, heldAs: seat.heldAs, actingEntityId: entity.id })
+      await tx.checklistItem.createMany({ data: list.lines.map((l) => ({ companyId: seat.companyId, ownerType: 'Petition', ownerId: p.id, kind: 'PETITION_PAPER' as const, label: l.label })) })
+      await writeRecordAction(tx, { companyId: seat.companyId, recordType: 'Petition', recordId: p.id, action: 'PETITION_STARTED', summary: `Started the checklist for ${person?.name ?? 'the person'}’s ${petitionWords(kind)}: ${list.lines.length} papers from the ${list.key === 'H1B' ? 'H-1B' : 'general'} list, each its own line.${list.confirmed ? '' : ' The list is a proposal; regulatory has not confirmed it.'}`, personId: seat.personId, heldAs: seat.heldAs, actingEntityId: entity.id })
       if (filedOn && calendar) await followFilingDay(tx, { companyId: seat.companyId, petitionId: p.id, person: person?.name ?? 'the person', filedOn, calendar, personId: seat.personId, heldAs: seat.heldAs, actingEntityId: entity.id })
       return p
     })

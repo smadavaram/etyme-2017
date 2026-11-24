@@ -165,6 +165,39 @@ export const PETITION_LINES = [
   { label: 'Approval notice copy', signature: false },
 ] as const
 
+export type PetitionLine = (typeof PETITION_LINES)[number] | { label: string; signature: boolean }
+
+export interface PetitionList {
+  key: 'H1B' | 'GENERAL'
+  lines: readonly PetitionLine[]
+  /** Same shape as `lib/document-stages/countries`: read and confirmed, with its source, or not. */
+  confirmed: boolean
+  source: string | null
+  checkedOn: string | null
+  unconfirmedBecause: string | null
+}
+
+const NOT_CONFIRMED = 'Regulatory has not confirmed this list with a source.'
+
+/**
+ * One list per petition type (record 115, gap 2). Two entries only: the
+ * H-1B family keeps today's four lines, and every other kind reads the
+ * general list, the same without the labor condition application, which is
+ * the H-1B family's paper. Regulatory adds a type's own list when it
+ * confirms it with a source; nothing is guessed here. Neither is confirmed,
+ * so both warn and neither blocks.
+ */
+export const PETITION_LISTS: Record<PetitionList['key'], PetitionList> = {
+  H1B: { key: 'H1B', lines: PETITION_LINES, confirmed: false, source: null, checkedOn: null, unconfirmedBecause: NOT_CONFIRMED },
+  GENERAL: { key: 'GENERAL', lines: PETITION_LINES.filter((l) => l.label !== 'Labor condition application'), confirmed: false, source: null, checkedOn: null, unconfirmedBecause: NOT_CONFIRMED },
+}
+
+/** The list a petition of this kind (free text) is drawn from. Never throws, never empty: an unknown kind reads the general list. Pure. */
+export function petitionListFor(kind: string): PetitionList {
+  const n = kind.toUpperCase().replace(/[\s_-]+/g, '')
+  return /^(H1B(?!\d)|SPECIALTYOCCUPATION)/.test(n) ? PETITION_LISTS.H1B : PETITION_LISTS.GENERAL
+}
+
 /** Stages after which a petition has no lines to chase. Free text on the record; these are the ends the agent knows. */
 export const ENDED_PETITION_STAGES: readonly string[] = ['DENIED', 'WITHDRAWN', 'CLOSED']
 

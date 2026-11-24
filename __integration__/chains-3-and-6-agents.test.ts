@@ -338,6 +338,45 @@ describe('the immigration checklist', () => {
     await runs(IMMIGRATION_CHECKLIST_AGENT, registerImmigrationChecklist, w.firm.id)
     expect(await prisma.checklistItem.count({ where: { ownerId: gone.id } })).toBe(0)
   })
+
+  it('starting a TN petition lists its type’s papers without a labor condition application and says the list is not yet confirmed by regulatory', async () => {
+    as(w.hr.primaryEmail)
+    const r = await json(await petitions.POST(req('POST', '/api/compliance/immigration-petitions', { personId: w.worker.id, kind: 'TN' })))
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    w.tn = await prisma.petition.findUniqueOrThrow({ where: { id: r.body.data.id } })
+    const lines = await prisma.checklistItem.findMany({ where: { ownerId: w.tn.id }, orderBy: { createdAt: 'asc' } })
+    expect(lines.map((l) => l.label).sort()).toEqual(['Approval notice copy', 'Petition form', 'Representation form'])
+    const row = (await ledger(w.firm.id, 'PETITION_STARTED')).find((x) => x.recordId === w.tn.id)!
+    expect(row.summary).toMatch(/3 papers from the general list/)
+    expect(row.summary).toMatch(/regulatory has not confirmed it/)
+  })
+
+  it('a TN petition’s signature lines are the ones the screen offers a signer for, and the list says it is unconfirmed', async () => {
+    as(w.hr.primaryEmail)
+    const r = await json(await petitions.GET(req('GET', '/api/compliance/immigration-petitions')))
+    const tn = r.body.data.petitions.find((x: any) => x.id === w.tn.id)
+    expect(tn.listConfirmed).toBe(false)
+    expect(tn.lines.map((l: any) => [l.label, l.needsSignature])).toEqual([['Petition form', true], ['Representation form', true], ['Approval notice copy', false]])
+  })
+
+  it('the agent lists a TN petition’s papers rather than the H-1B four, and the route and the agent draw the same lines for the same kind', async () => {
+    const bare = await prisma.petition.create({ data: { companyId: w.firm.id, personId: w.worker.id, kind: 'TN', stage: 'PREPARING', employerCompanyId: w.firm.id } })
+    await runs(IMMIGRATION_CHECKLIST_AGENT, registerImmigrationChecklist, w.firm.id)
+    const agentLines = (await prisma.checklistItem.findMany({ where: { ownerId: bare.id } })).map((l) => l.label).sort()
+    const routeLines = (await prisma.checklistItem.findMany({ where: { ownerId: w.tn.id } })).map((l) => l.label).sort()
+    expect(agentLines).toEqual(routeLines)
+    expect(agentLines).not.toContain('Labor condition application')
+    expect((await ledger(w.firm.id, 'PETITION_CHECKLIST_LISTED')).some((x) => x.recordId === bare.id && /regulatory has not confirmed/.test(x.summary))).toBe(true)
+  })
+
+  it('a petition listed under the old four papers is topped up, no line is deleted or relabeled, and a line on hand stays on hand', async () => {
+    const old = await prisma.petition.create({ data: { companyId: w.firm.id, personId: w.worker.id, kind: 'TN', stage: 'PREPARING', employerCompanyId: w.firm.id } })
+    await prisma.checklistItem.create({ data: { companyId: w.firm.id, ownerType: 'Petition', ownerId: old.id, kind: 'PETITION_PAPER', label: 'Labor condition application', state: 'MET', actualValue: 'LCA copy 1' } })
+    await runs(IMMIGRATION_CHECKLIST_AGENT, registerImmigrationChecklist, w.firm.id)
+    const lines = await prisma.checklistItem.findMany({ where: { ownerId: old.id } })
+    expect(lines.map((l) => l.label).sort()).toEqual(['Approval notice copy', 'Labor condition application', 'Petition form', 'Representation form'])
+    expect(lines.find((l) => l.label === 'Labor condition application')!.state).toBe('MET')
+  })
 })
 
 describe('the compliance watch: tenure', () => {

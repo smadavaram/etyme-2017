@@ -48,3 +48,15 @@ records one; there is no SOW rate field; two lines under one unsigned SOW
 open one card each. Known edge: recording a signed paper on the statement
 of work item itself would agree it to "Not signed"; the route was not
 touched and a person should sign the SOW on the engagement instead.
+
+**Gap 2, one checklist per petition type (2026-11-24).** Two lists, in
+`lib/agents/checklist-rules` (`petitionListFor`), in the shape of
+`lib/document-stages/countries`: H-1B (the kinds SPECIALTY_OCCUPATION,
+H1B and h-1b) keeps today's four lines, and every other kind reads the
+general list, the same without the labor condition application. Neither is
+confirmed (`confirmed: false`, with `unconfirmedBecause`), so each warns
+and none blocks; an unknown kind is never refused. The ledger lines say the
+list is a proposal. The petitions route returns `listConfirmed` and no
+screen prints a new sentence. `Petition.kind` stays free text. An older
+petition is topped up only: no line is deleted or relabeled. Regulatory adds
+L-1, O-1, E-3 and TN lists when it confirms each with a source.

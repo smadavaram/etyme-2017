@@ -3,7 +3,7 @@ import {
   CONTRACT_LABELS, PETITION_LINES, PROPOSED_ACCESS_FILE_WORKING_DAYS, PROPOSED_NOTICE_WORKING_DAYS, PROPOSED_PACK_LEAD_DAYS,
   accessFileReadyBy, accessFileWords, addWorkingDays, approvedLate, contractItemsFor, crossedWarning, daysFromTo, driftWords,
   judgeContractItem, noticeEndsOn, noticePeriodOver, noticeWords, packDue, packWords, petitionComplete, petitionMissing,
-  removedEarly, signatureWords, tenureWords, windowInside, type LineFacts,
+  petitionListFor, PETITION_LISTS, removedEarly, signatureWords, tenureWords, windowInside, type LineFacts,
 } from '@/lib/agents/checklist-rules'
 
 const d = (s: string) => new Date(`${s}T00:00:00Z`)
@@ -126,6 +126,37 @@ describe('the immigration checklist', () => {
   })
   it('the missing papers are named by their labels', () => {
     expect(petitionMissing([{ label: 'Petition form', state: 'MET' }, { label: 'Representation form', state: 'OPEN' }])).toEqual(['Representation form'])
+  })
+  it('an H-1B petition keeps today’s four papers, so nothing changes for the specialty-occupation walk', () => {
+    const l = petitionListFor('H-1B')
+    expect(l.key).toBe('H1B')
+    expect(l.lines).toBe(PETITION_LINES)
+  })
+  it('SPECIALTY_OCCUPATION, H1B and h-1b all read as the one H-1B list, and H-1B1 does not', () => {
+    for (const k of ['SPECIALTY_OCCUPATION', 'H1B', 'h-1b', 'H-1B transfer']) expect(petitionListFor(k).key).toBe('H1B')
+    expect(petitionListFor('H-1B1').key).toBe('GENERAL')
+  })
+  it('a TN petition gets no labor condition application line', () => {
+    const l = petitionListFor('TN')
+    expect(l.lines.map((x) => x.label)).toEqual(['Petition form', 'Representation form', 'Approval notice copy'])
+  })
+  it('a petition of a kind nobody has listed gets the general papers and is never refused', () => {
+    for (const k of ['L-1', 'O-1', '', '   ', 'something new']) {
+      const l = petitionListFor(k)
+      expect(l.key).toBe('GENERAL')
+      expect(l.lines.length).toBeGreaterThan(0)
+    }
+  })
+  it('no petition type’s list is called confirmed until regulatory records a source for it', () => {
+    for (const l of Object.values(PETITION_LISTS)) {
+      expect(l.confirmed).toBe(false)
+      expect(l.unconfirmedBecause).toMatch(/Regulatory has not confirmed/)
+    }
+  })
+  it('a list marked confirmed without a source fails the build', () => {
+    for (const l of Object.values(PETITION_LISTS)) {
+      if (l.confirmed) { expect(l.source).toBeTruthy(); expect(l.checkedOn).toBeTruthy() }
+    }
   })
   it('the signature card says Etyme signs nothing and files nothing', () => {
     const w = signatureWords({ person: 'Priya Nair', label: 'Petition form' })

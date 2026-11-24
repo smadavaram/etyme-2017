@@ -1,9 +1,11 @@
 /**
  * The immigration checklist agent (record 112, chain 3, "Start them").
  *
- * One checklist per petition, each dependent paper its own line (the labor
- * condition application, the petition form, the representation form, the
- * approval notice copy). The petition is complete only when every line is
+ * One checklist per petition, each dependent paper its own line, drawn from
+ * the list for the petition's type (`petitionListFor`; H-1B has the labor
+ * condition application, every other kind the general list). A line already
+ * on a petition is never deleted or relabeled, so an older petition is
+ * topped up only. The petition is complete only when every line is
  * met. A person records each paper as on hand; the agent never marks one.
  * A line that needs a signature opens one card to the signatory seat (the
  * seat named on the line, else the Owner), once. The agent files nothing
@@ -14,7 +16,7 @@
 import { prisma } from '@/lib/db'
 import { registerAgent, type AgentContext } from './runner'
 import { openOnce, ownerOf } from './open-once'
-import { ENDED_PETITION_STAGES, PETITION_LINES, petitionComplete, signatureWords } from './checklist-rules'
+import { ENDED_PETITION_STAGES, petitionComplete, petitionListFor, petitionWords, signatureWords } from './checklist-rules'
 import { ITEM_RECORD } from './contracts-checklist'
 import { seatAtFirm, firmSeats } from '@/lib/decision-items'
 
@@ -37,18 +39,20 @@ export async function immigrationChecklistStep(ctx: AgentContext): Promise<void>
 
   for (const pet of petitions) {
     let items = await prisma.checklistItem.findMany({ where: { companyId, ownerType: PETITION_RECORD, ownerId: pet.id, kind: 'PETITION_PAPER' }, orderBy: { createdAt: 'asc' } })
-    const missingLines = PETITION_LINES.filter((l) => !items.some((i) => i.label === l.label))
+    const list = petitionListFor(pet.kind)
+    const unconfirmed = list.confirmed ? '' : ' The list is a proposal; regulatory has not confirmed it.'
+    const missingLines = list.lines.filter((l) => !items.some((i) => i.label === l.label))
     if (missingLines.length > 0 && !(await ctx.mayAct())) return
     for (const l of missingLines) {
       await prisma.checklistItem.create({ data: { companyId, ownerType: PETITION_RECORD, ownerId: pet.id, kind: 'PETITION_PAPER', label: l.label } })
     }
     if (missingLines.length > 0) {
       items = await prisma.checklistItem.findMany({ where: { companyId, ownerType: PETITION_RECORD, ownerId: pet.id, kind: 'PETITION_PAPER' }, orderBy: { createdAt: 'asc' } })
-      await ctx.act({ recordType: 'Petition', recordId: pet.id, action: 'PETITION_CHECKLIST_LISTED', summary: `Listed ${PETITION_LINES.length} papers for ${nameOf(pet.personId)}’s petition, each its own line. A person records each as on hand.` })
+      await ctx.act({ recordType: 'Petition', recordId: pet.id, action: 'PETITION_CHECKLIST_LISTED', summary: `Listed ${missingLines.length} ${missingLines.length === 1 ? 'paper' : 'papers'} from the ${list.key === 'H1B' ? 'H-1B' : 'general'} list for ${nameOf(pet.personId)}’s ${petitionWords(pet.kind)}, each its own line. A person records each as on hand.${unconfirmed}` })
     }
 
     // A signature line routes one card to the signatory seat.
-    for (const l of PETITION_LINES.filter((x) => x.signature)) {
+    for (const l of list.lines.filter((x) => x.signature)) {
       const item = items.find((i) => i.label === l.label)
       if (!item || item.state === 'MET') continue
       const to = working(item.signatoryPersonId) ? item.signatoryPersonId : owner
@@ -61,7 +65,7 @@ export async function immigrationChecklistStep(ctx: AgentContext): Promise<void>
       const ref = `petition ${pet.id.slice(-6)}`
       const said = await prisma.recordAction.count({ where: { companyId, recordType: PETITION_RECORD, recordId: pet.id, action: 'PETITION_PAPERS_COMPLETE' } })
       if (said === 0 && !(await ctx.mayAct())) return
-      if (said === 0) await ctx.act({ recordType: PETITION_RECORD, recordId: pet.id, action: 'PETITION_PAPERS_COMPLETE', summary: `Every paper for ${nameOf(pet.personId)}’s petition is recorded as on hand (${ref}). Filing is counsel’s; Etyme files nothing.` })
+      if (said === 0) await ctx.act({ recordType: PETITION_RECORD, recordId: pet.id, action: 'PETITION_PAPERS_COMPLETE', summary: `Every paper on the ${list.confirmed ? '' : 'proposed '}list for ${nameOf(pet.personId)}’s petition is recorded as on hand (${ref}). Filing is counsel’s; Etyme files nothing.` })
     }
   }
 }
