@@ -51,7 +51,7 @@ export function submissionChaseQuestion(f: { person: string; job: string; sentOn
   const n = plan.retries
   return `${f.person} for ${f.job}, put forward ${formatDay(f.sentOn)}, has no confirmation. Send a letter asking them to ${THE_ONE_ASK}? ` +
     `Proposed: one letter, then ${n} ${n === 1 ? 'reminder' : 'reminders'}, ${plan.daysApart} working days apart, closing when a confirmation is recorded. ` +
-    'Proposed numbers, awaiting the Owner.'
+    'These numbers are proposed; the Owner may change them.'
 }
 
 /** Why a submission was not chased where nobody can be asked. Pure. */

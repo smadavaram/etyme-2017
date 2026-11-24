@@ -91,7 +91,8 @@ describe('the submission chase, on the database', () => {
     expect(t).toHaveLength(1)
     expect(t[0].state).toBe('PROPOSED')
     const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: t[0].decisionId } })
-    expect([card.state, card.question]).toEqual(['OPEN', expect.stringMatching(/Candidate \d+ for Job \d+.*Proposed numbers, awaiting the Owner/)])
+    expect([card.state, card.question]).toEqual(['OPEN', expect.stringMatching(/Candidate \d+ for Job \d+.*These numbers are proposed; the Owner may change them/)])
+    expect(card.proof).toMatch(/The letter, to <.+>\.\nSubject: Candidate \d+ for Job \d+/)
   })
 
   it('a submission chase reads by name as the chase of that person for that job, not a code', async () => {

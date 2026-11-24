@@ -58,10 +58,14 @@ export async function submissionChaseStep(ctx: AgentContext, items: Item[], deps
     if (!chaseProposal({ state: item.state, waitedDays: daysWaiting(f.submittedAt, now), hasSentLetter, everHadTask }).propose) continue
     if (!owner) { ownerless.push(f.id); continue }
     if (!(await ctx.mayAct(2))) break // proposing writes two counted rows
+    const to = await addressOf(companyId, f.id)
+    const firmName = (await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } }))?.name ?? 'We'
+    const draft = submissionChaseLetter({ firmName, contactName: null, person: f.personName, job: f.jobTitle, sentOn: f.submittedAt, attempt: 1 })
     const task = await proposeTask({
       companyId, agentKey: ctx.agentKey, kind: SUBMISSION_CHASE_KIND, recordType: SUBMISSION_RECORD, recordId: f.id,
       plan: PROPOSED_SUBMISSION_CHASE_PLAN, ownerPersonId: owner, openedOn: now,
       question: submissionChaseQuestion({ person: f.personName, job: f.jobTitle, sentOn: f.submittedAt }),
+      detail: `The letter, to <${to}>.\nSubject: ${draft.subject}\n\n${draft.text}`,
     })
     await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'SUBMISSION_CHASE_PROPOSED', summary: `Proposed a follow-up of ${f.personName} for ${f.jobTitle}. Nothing is sent until a person says yes.` })
   }

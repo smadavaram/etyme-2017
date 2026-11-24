@@ -67,7 +67,7 @@ export function askCard(o: { person: string; firm: string; job: { id: string; ti
     question: `Ask ${o.firm} about ${o.person} for ${o.job.title}?`,
     proof: [
       `${o.person} matches ${o.job.title}, and ${o.firm} holds their consent to be put forward.`,
-      `A yes here sends nothing and asks nobody. To ask ${o.firm}, a person presses Ask on the job’s page: ${pageOf(o.job.id)}.`,
+      `A yes here sends nothing and asks nobody. To ask ${o.firm}, a person presses “Ask ${o.firm} to submit” on the job’s page: ${pageOf(o.job.id)}.`,
       'Nobody has been submitted.',
     ].join(' '),
   }

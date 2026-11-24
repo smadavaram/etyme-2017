@@ -49,7 +49,7 @@ describe('consent before a submission: the words on the cards', () => {
     expect(c.question).toBe('Ask Acme Staff about Bea Bench for Java lead?')
     expect(c.proof).toContain('A yes here sends nothing')
     expect(c.proof).toContain('/dashboard/requirements/job1')
-    expect(c.proof).toContain('presses Ask')
+    expect(c.proof).toContain('presses “Ask Acme Staff to submit”')
   })
   it('the card shows the listing’s rate word for word and says the rate is not on record where there is none', () => {
     expect(rateWords(8000, 9500)).toBe('The listing says 80.00 to 95.00 an hour.')

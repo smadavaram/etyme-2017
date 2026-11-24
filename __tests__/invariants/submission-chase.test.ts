@@ -36,7 +36,7 @@ describe('the submission chase, its rules', () => {
 describe('the submission chase, its numbers and its plan', () => {
   it('the numbers are one letter, one reminder, three working days apart, and are labelled as a proposal', () => {
     expect(PROPOSED_SUBMISSION_CHASE).toEqual({ firstAfterDays: 3, letters: 1, retries: 1, workingDaysApart: 3 })
-    expect(submissionChaseQuestion({ person: 'Priya Nair', job: 'Data Engineer', sentOn: d('2026-11-16') })).toMatch(/Proposed numbers, awaiting the Owner/)
+    expect(submissionChaseQuestion({ person: 'Priya Nair', job: 'Data Engineer', sentOn: d('2026-11-16') })).toMatch(/These numbers are proposed; the Owner may change them/)
   })
   it('the plan is a valid task plan that closes when a confirmation is recorded', () => {
     expect(planRefusal(PROPOSED_SUBMISSION_CHASE_PLAN)).toBeNull()
