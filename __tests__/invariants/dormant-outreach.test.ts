@@ -120,6 +120,7 @@ describe('the task and its card', () => {
     expect(linkOf('NO_CONTACT')).toEqual([{ text: 'Open Contacts', href: '/dashboard/contacts' }])
     expect(linkOf('BOUNCED')).toEqual([{ text: 'Open Contacts', href: '/dashboard/contacts' }])
     for (const b of ['NO_ADDRESS', 'NO_CONTACT', 'BOUNCED', 'OPTED_OUT', 'NO_LINK'] as const) expect(onlyAcknowledged(blockedCard(q, b).question)).toBe(true)
+    for (const b of ['NO_ADDRESS', 'NO_CONTACT', 'BOUNCED'] as const) expect(blockedCard(q, b).proof).not.toMatch(/: \/dashboard/)
     expect(onlyAcknowledged(outreachCard(input('CUSTOMER')).question)).toBe(false)
   })
   it('the customer card and the supplier card for one company open with different words', () => {

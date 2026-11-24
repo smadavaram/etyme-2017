@@ -133,11 +133,11 @@ export function outreachCard(i: OutreachInput & { recipient: { name: string; ema
 /** The card where no letter can be drafted, and why, in a sentence that names the fix. Pure. */
 export function blockedCard(i: { side: Side; firmName: string; companyName: string; lastActivity: Date | null }, block: Block): { question: string; proof: string } {
   const why: Record<Block, string> = {
-    NO_ADDRESS: `${i.firmName} has no postal address on record, and every letter must carry one. Add the firm's address in Settings: /dashboard/settings/setup/addresses. Then send the check-in yourself.`,
+    NO_ADDRESS: `${i.firmName} has no postal address on record, and every letter must carry one. Add the firm's address in Settings, then send the check-in yourself. /dashboard/settings/setup/addresses`,
     NO_LINK: 'Etyme has no public web address on this deployment, so the letter could not carry its unsubscribe link. Nothing was drafted.',
-    NO_CONTACT: `No one with an email is recorded at ${i.companyName}. Add a contact there in Contacts: /dashboard/contacts. Then send the check-in yourself.`,
+    NO_CONTACT: `No one with an email is recorded at ${i.companyName}. Add a contact there in Contacts, then send the check-in yourself. /dashboard/contacts`,
     OPTED_OUT: `Everyone recorded at ${i.companyName} with an email asked ${i.firmName} for no more check-in letters. Nothing is sent to them.`,
-    BOUNCED: `The address recorded at ${i.companyName} did not receive the last check-in letter. Record a new address for them in Contacts: /dashboard/contacts. Then send the check-in yourself.`,
+    BOUNCED: `The address recorded at ${i.companyName} did not receive the last check-in letter. Record a new address for them in Contacts, then send the check-in yourself. /dashboard/contacts`,
   }
   return {
     question: `${outreachPrefix(i.side)}${i.companyName}: ${quietWords(i)}. No letter was drafted, and nothing is sent. Read why.`,

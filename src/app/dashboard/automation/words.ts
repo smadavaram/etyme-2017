@@ -12,3 +12,6 @@ export const ACTIVITY_LOG_SUBTITLE =
   'Who read whose records is a different record, the access log.'
 
 export const UNPROMPTED_PANEL_HEADING = 'What Etyme does without being asked'
+
+/** Agents' acts (chases, letters, cards) are on Agent control's ledger, not in this log. */
+export const AGENTS_ELSEWHERE = 'What the agents did, such as chases, letters and cards, is listed on Agent control.'

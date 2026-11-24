@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { readJson, isRefusal } from '@/lib/read-response'
 import { Field, Input, Select, Textarea, SubmitButton, FormMessage } from '@/components/ui/form'
 import { Panel } from '@/components/ui'
-import { ageWords, openBody, type OpenTyped } from '@/lib/decision-queue'
+import { ageWords, openBody, stateWords, type OpenTyped } from '@/lib/decision-queue'
 
 /**
  * The decision queue (record 107, A2): the firm's decisions, oldest first,
@@ -96,7 +96,7 @@ export function DecisionQueue({ onAnswered }: { onAnswered?: (refused: string | 
                     <p className="mt-1 text-[13px] text-etyme-attention">Sent back{r.sentBackBy ? ` by ${r.sentBackBy}` : ''}: {r.sentBackReason}</p>
                   )}
                   {r.state !== 'OPEN' && (
-                    <p className="mt-1 text-[13px] text-etyme-muted">{r.state === 'APPROVED' ? 'Approved' : 'Rejected'}{r.decidedBy ? ` by ${r.decidedBy}` : ''}</p>
+                    <p className="mt-1 text-[13px] text-etyme-muted">{stateWords(r.state, r.question)}{r.decidedBy ? ` by ${r.decidedBy}` : ''}</p>
                   )}
                 </td>
                 <td className="py-3 pr-3">{r.ownerName}</td>

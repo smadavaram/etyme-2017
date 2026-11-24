@@ -295,7 +295,9 @@ export function proofParts(proof: string): { text: string; href: string | null }
 }
 
 /** The decision, in the words its page prints. Pure. */
-export function stateWords(state: string): string {
+export function stateWords(state: string, question = ''): string {
+  // A card that only asks to be read is never called approved: its Done records that it was read.
+  if (state === 'APPROVED' && onlyAcknowledged(question)) return 'Read'
   return state === 'APPROVED' ? 'Approved' : state === 'REJECTED' ? 'Rejected' : 'Open'
 }
 

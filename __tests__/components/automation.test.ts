@@ -498,3 +498,14 @@ describe('the activity log says what it is', () => {
     expect(page).not.toMatch(/automation log|automation entries/i)
   })
 })
+
+describe('the activity log points to where the agents’ acts are listed', () => {
+  it('the log says the agents’ acts are on Agent control and links there, so an empty log never reads as nothing having happened', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { AGENTS_ELSEWHERE } = await import('@/app/dashboard/automation/words')
+    const page = readFileSync('src/app/dashboard/automation/page.tsx', 'utf8')
+    expect(AGENTS_ELSEWHERE).toMatch(/Agent control/)
+    expect(page).toContain("'/dashboard/decisions/agents'")
+    expect(page).not.toContain('Etyme has not done anything on its own yet.')
+  })
+})

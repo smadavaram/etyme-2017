@@ -6,7 +6,7 @@ import Link from 'next/link'
 import type { Route } from 'next'
 import { ACTIONS, LADDER, RUNGS, logUndoesAnything, type Rung } from '@/lib/autonomy'
 import { dayOfMomentFor, momentFor, readerZone } from '@/lib/when'
-import { ACTIVITY_LOG_SUBTITLE, ACTIVITY_LOG_TITLE, UNPROMPTED_PANEL_HEADING } from './words'
+import { ACTIVITY_LOG_SUBTITLE, ACTIVITY_LOG_TITLE, AGENTS_ELSEWHERE, UNPROMPTED_PANEL_HEADING } from './words'
 import { Check, Chip, EmptyState, ErrorState, FilterChips, LoadingState, PageHead, Panel, RefusedState, Stat, type ChipTone } from '@/components/ui'
 
 /**
@@ -341,12 +341,16 @@ export default function AutomationPage() {
 
       {loading && <LoadingState says="Opening the activity log…" />}
 
+      <p className="mb-4 text-[13px] text-etyme-muted">
+        {AGENTS_ELSEWHERE} <Link href={'/dashboard/decisions/agents' as Route} className="text-etyme-action hover:underline">Open Agent control</Link>
+      </p>
+
       {!loading && entries.length === 0 && (
         <EmptyState
           says="Nothing in the activity log yet."
           detail={actionFilter || levelFilter
             ? 'Try a different filter to see other entries.'
-            : 'Etyme has not done anything on its own yet.'}
+            : 'Nothing else Etyme did on its own is listed here yet.'}
         />
       )}
 

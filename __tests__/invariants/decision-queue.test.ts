@@ -3,7 +3,7 @@ import { agentTaskName, mayOpenOwnPage, ownPageNeeds } from '@/lib/decision-queu
 import {
   mayOpenDecision, maySetHomePage, readOpenAsk, openBody, readDecideAsk, decideBody, agentRows, ageWords,
   ownPageOf, recordViewHref, agentByWords, agentNameOf, readHomeAsk, FIRM_AGENTS, VERDICT_BUTTONS, PROOF_TYPES,
-  QUEUE_EYEBROW_HREFS, onlyAcknowledged, proofParts, mayOpenRecordKind, proofLabelOf, ledgerBeganSays, readNeeds, isRecordType, cannotReadSays,
+  QUEUE_EYEBROW_HREFS, onlyAcknowledged, stateWords, proofParts, mayOpenRecordKind, proofLabelOf, ledgerBeganSays, readNeeds, isRecordType, cannotReadSays,
 } from '@/lib/decision-queue'
 import { queueCards } from '@/app/api/conversations/twin/ask'
 import { execSync } from 'child_process'
@@ -51,6 +51,14 @@ describe('opening a decision', () => {
     const r = readOpenAsk(openBody({ ...typed, actingEntityId: '' }), true)
     expect(r.ok).toBe(false)
     expect(readOpenAsk(openBody(typed), true).ok).toBe(true)
+  })
+
+  it('a card that only asks to be read reads Read once done, never Approved, and every other card keeps its verdict word', () => {
+    expect(stateWords('APPROVED', 'Check in with customer Orchid Foods: quiet. No letter was drafted, and nothing is sent. Read why.')).toBe('Read')
+    expect(stateWords('APPROVED', 'Weekly census: 4 companies moved between active and dormant. Read the list.')).toBe('Read')
+    expect(stateWords('APPROVED', 'Approve the client renewal for another year?')).toBe('Approved')
+    expect(stateWords('REJECTED', 'Approve the client renewal for another year?')).toBe('Rejected')
+    expect(stateWords('OPEN')).toBe('Open')
   })
 
   it('a proof link names one of the five kinds of record, and a decision is not one of them', () => {
