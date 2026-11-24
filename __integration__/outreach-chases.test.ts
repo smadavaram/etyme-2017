@@ -349,6 +349,18 @@ describe('the dormant outreach, on the database', () => {
     expect((await taskAt(w.mina.id)).state).toBe('APPROVED')
   })
 
+  it('with room for only one more counted row today, no outreach letter leaves, because the letter and its close are two', async () => {
+    const { actsToday } = await import('@/lib/agents/runner')
+    await setSwitch(CENSUS, 'ON')
+    const when = day(-4)
+    const used = await actsToday(w.firm.id, CENSUS, when)
+    await prisma.agentSwitch.update({ where: { companyId_agentKey: { companyId: w.firm.id, agentKey: CENSUS } }, data: { dailyCap: used + 1 } })
+    await census(when)
+    expect(sent).toHaveLength(0); expect(await outreachMail()).toHaveLength(0)
+    expect((await taskAt(w.mina.id)).state).toBe('APPROVED')
+    await prisma.agentSwitch.update({ where: { companyId_agentKey: { companyId: w.firm.id, agentKey: CENSUS } }, data: { dailyCap: null } })
+  })
+
   it('after the yes, with the agent on, one letter goes to the firm’s own contact and the task closes, and it is never sent again', async () => {
     await setSwitch(CENSUS, 'ON')
     await census(day(-4)); await census(day(-5))

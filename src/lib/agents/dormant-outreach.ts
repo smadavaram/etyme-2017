@@ -164,7 +164,7 @@ export async function walkOutreach(ctx: AgentContext, rows: () => Promise<readon
     if (!url) { await stop('Etyme has no public web address on this deployment, so the letter cannot carry its unsubscribe link. Nothing was sent.'); continue }
     firm ??= await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } })
 
-    if (!(await ctx.mayAct())) return // the letter and its row are one unit
+    if (!(await ctx.mayAct(2))) return // the letter, its row and the close row are one unit
     const letter = outreachLetter({ side, firmName: firm?.name ?? 'We', postal, companyName: row.name, lastActivity: row.lastActivity, today: now, recipient: { name: contact.name }, unsubscribeUrl: url })
     const res = await send({
       to: contact.email.trim(), subject: letter.subject, text: letter.text,
