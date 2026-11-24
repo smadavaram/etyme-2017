@@ -3549,6 +3549,7 @@ export const MATRIX: L1[] = [
             'A sent bill past due with money owed becomes one task and one card asking for a yes; a short pay or rate drift already put to a person is not chased',
             'After the yes it sends one letter and up to two reminders, 5 working days apart, through the mail door, and closes the task when the bill is paid in full',
             'On Drafts only it sends nothing, even after a yes; a held or disputed bill is a person\u2019s to settle',
+            'A bill skipped because a payment question is open, and late bills skipped because no receivables or Owner seat is working, are each said once on the ledger in plain words (record 115, gap 4); no card, no letter, no change to the bill',
             'PARTIAL 2026-11-23 (record 112, chain 5): built and tested on the database, not walked in a browser',
           ],
           implementedBy: ['src/lib/money/money-owed-chase.ts', 'src/lib/agents/money-owed-chase.ts', 'src/lib/agents/tasks.ts', 'src/app/api/cron/agents/route.ts', 'src/lib/agents/chase-numbers.ts', 'src/app/api/decision-items/agents/route.ts', 'src/app/dashboard/decisions/agents/page.tsx'],

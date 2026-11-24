@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  owedCents, daysPastDue, moneyChaseQuestion, moneyChaseLetter, PROPOSED_MONEY_CHASE, PROPOSED_MONEY_CHASE_PLAN, CHASEABLE_STATUSES,
+  owedCents, daysPastDue, moneyChaseQuestion, moneyChaseLetter, moneyChaseHeldSays, moneyChaseNoOwnerSays, PROPOSED_MONEY_CHASE, PROPOSED_MONEY_CHASE_PLAN, CHASEABLE_STATUSES,
 } from '@/lib/money/money-owed-chase'
 import { nextLetter } from '@/lib/notify/timesheet-chase-agent'
 
@@ -61,5 +61,24 @@ describe('chasing money owed, as arithmetic and words', () => {
     const l = moneyChaseLetter({ ...base, link: null, linkClosed: true })
     expect(l.text).not.toContain('answer/bill')
     expect(l.text).toMatch(/stopped opening/)
+  })
+})
+
+describe('saying why a bill was not chased, in words', () => {
+  it('the held line names the bill, the customer and the open payment question, and says the chase is proposed once that question is recorded', () => {
+    const t = moneyChaseHeldSays({ number: 'IN-1042', customer: 'Northbend Athletic', decisionId: 'dec_1' })
+    expect(t).toBe('Bill IN-1042 to Northbend Athletic was not chased: a payment question about it is still open (dec_1). Once that question is recorded, the next run proposes the chase.')
+  })
+  it('the held line for an approved chase says the letters are paused, not that a chase is proposed', () => {
+    const t = moneyChaseHeldSays({ number: 'IN-7', customer: 'Northbend Athletic', decisionId: 'dec_2', paused: true })
+    expect(t).toMatch(/Letters about bill IN-7 to Northbend Athletic are paused: a payment question about it is still open \(dec_2\)\. Once that question is recorded, the letters go on as approved\./)
+  })
+  it('no held line ever says reconciliation', () => {
+    expect(moneyChaseHeldSays({ number: 'A', customer: 'B', decisionId: 'c' }).toLowerCase()).not.toContain('reconcil')
+    expect(moneyChaseHeldSays({ number: 'A', customer: 'B', decisionId: 'c', paused: true }).toLowerCase()).not.toContain('reconcil')
+  })
+  it('the no-owner line says how many late bills were not chased, names one, and says which seats to fill', () => {
+    expect(moneyChaseNoOwnerSays(3, 'IN-9')).toBe('3 bills past due were not chased, such as bill IN-9: no Accounts Receivable, Finance or Owner seat is working. Fill one and the next run proposes them.')
+    expect(moneyChaseNoOwnerSays(1, 'IN-9')).toBe('1 bill past due was not chased, such as bill IN-9: no Accounts Receivable, Finance or Owner seat is working. Fill one and the next run proposes it.')
   })
 })

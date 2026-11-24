@@ -360,3 +360,154 @@ describe('a customer nobody can write to, and the numbers the Owner sets', () =>
     }
   })
 })
+
+describe('saying why a bill was not chased', () => {
+  const lines = (action: string, recordId?: string) => prisma.recordAction.findMany({ where: { companyId: w.firm.id, agentKey: KEY, action, ...(recordId ? { recordId } : {}) }, orderBy: { createdAt: 'asc' } })
+  const question = (b: { id: string; invoiceLines: { id: string }[] }) => prisma.decisionItem.create({
+    data: { companyId: w.firm.id, question: 'Short pay', proof: 'short', ownerPersonId: w.ar.id, state: 'OPEN', proofLinks: [{ recordType: 'Invoice', recordId: b.id }], openedOn: new Date() } as any,
+  })
+  const record = (id: string) => prisma.decisionItem.update({ where: { id }, data: { state: 'APPROVED', decidedAt: new Date(), decidedByPersonId: w.owner.id } })
+  const cards = () => prisma.decisionItem.count({ where: { companyId: w.firm.id } })
+
+  it('a bill held by an open payment question writes one ledger line saying why it was not chased, and a second run writes none', async () => {
+    await setSwitch('ON'); register()
+    const b = await newBill(); const q = await question(b)
+    await run(); await run()
+    const l = await lines('MONEY_CHASE_HELD', b.id)
+    expect(l).toHaveLength(1)
+    w.held = { b, q }
+  })
+
+  it('the held line names the bill, the customer and the open payment question, and says the chase is proposed once that question is recorded', async () => {
+    const { b, q } = w.held
+    const [l] = await lines('MONEY_CHASE_HELD', b.id)
+    expect(l.summary).toBe(`Bill ${b.number} to ${w.client.name} was not chased: a payment question about it is still open (${q.id}). Once that question is recorded, the next run proposes the chase.`)
+  })
+
+  it('a bill held by an open payment question opens no card of its own, so the person who owes that question sees it once', async () => {
+    const { b } = w.held
+    expect(await prisma.decisionItem.count({ where: { companyId: w.firm.id, proofLinks: { array_contains: [{ recordType: 'Invoice', recordId: b.id }] } } })).toBe(1)
+  })
+
+  it('once the open payment question is recorded the next run proposes the chase as before, with no further line', async () => {
+    const { b, q } = w.held
+    await record(q.id); register(); await run()
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(1)
+    expect(await lines('MONEY_CHASE_HELD', b.id)).toHaveLength(1)
+  })
+
+  it('a bill held again by a new payment question after the first was recorded says so once more', async () => {
+    const b = await newBill(); const q1 = await question(b)
+    register(); await run()
+    await record(q1.id)
+    const q2 = await question(b)
+    await run(); await run()
+    const l = await lines('MONEY_CHASE_HELD', b.id)
+    expect(l).toHaveLength(2)
+    expect(l[0].summary).toContain(q1.id)
+    expect(l[1].summary).toContain(q2.id)
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(0)
+    await record(q2.id)
+  })
+
+  it('an approved chase paused by a new payment question writes one line on its task and sends nothing', async () => {
+    const b = await newBill()
+    register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE')
+    const q = await question(b)
+    sent.length = 0
+    await run(); await run(); await run()
+    const l = await lines('MONEY_CHASE_HELD', t.id)
+    expect(l).toHaveLength(1)
+    expect(l[0].summary).toContain(q.id)
+    expect(l[0].summary).toMatch(/are paused/)
+    expect(sent).toHaveLength(0)
+    expect(await prisma.mailSend.count({ where: { agentTaskId: t.id } })).toBe(0)
+    await record(q.id)
+  })
+
+  it('on drafts only the skip is still said once and nothing is sent', async () => {
+    const b = await newBill(); await question(b)
+    await setSwitch('DRAFT_ONLY'); register()
+    await run(); await run()
+    expect(await lines('MONEY_CHASE_HELD', b.id)).toHaveLength(1)
+    expect(sent).toHaveLength(0)
+    await setSwitch('ON')
+  })
+
+  it('saying a chase was skipped never changes the bill, sends no letter and opens no task or card', async () => {
+    const b = await newBill(); await question(b)
+    const before = { inv: await prisma.invoice.findUniqueOrThrow({ where: { id: b.id } }), cards: await cards() }
+    register(); await run()
+    expect(await prisma.invoice.findUniqueOrThrow({ where: { id: b.id } })).toEqual(before.inv)
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(0)
+    expect(await cards()).toBe(before.cards)
+    expect(sent.filter((m) => m.text.includes(b.number))).toHaveLength(0)
+  })
+
+  it('at the day\'s cap the skip line is written on the next run rather than lost', async () => {
+    const b = await newBill(); await question(b)
+    await prisma.agentSwitch.update({ where: { companyId_agentKey: { companyId: w.firm.id, agentKey: KEY } }, data: { dailyCap: 0 } })
+    register(); await run()
+    expect(await lines('MONEY_CHASE_HELD', b.id)).toHaveLength(0)
+    await prisma.agentSwitch.update({ where: { companyId_agentKey: { companyId: w.firm.id, agentKey: KEY } }, data: { dailyCap: null } })
+    await run()
+    expect(await lines('MONEY_CHASE_HELD', b.id)).toHaveLength(1)
+  })
+})
+
+describe('a firm with nobody to hand a chase to', () => {
+  const ghost: Record<string, any> = {}
+  const gRun = () => runAgent(KEY, ghost.firm.id, new Date())
+  const gLines = () => prisma.recordAction.findMany({ where: { companyId: ghost.firm.id, agentKey: KEY, action: 'MONEY_CHASE_NO_OWNER' }, orderBy: { createdAt: 'asc' } })
+  const gBill = async (num: string) => {
+    const person = await prisma.person.create({ data: { name: `Ghost Worker ${num}`, primaryEmail: `gw${num}.${tag}@example.invalid` } })
+    const line = await prisma.sellContract.create({ data: { companyId: ghost.firm.id, clientCompanyId: ghost.client.id, personId: person.id, engagementId: ghost.engagement.id, billRate: 10_000, state: 'IN_PROGRESS', startDate: day(90) } })
+    return prisma.invoice.create({ data: { engagementId: ghost.engagement.id, number: `GH-${num}-${tag}`, currency: 'USD', total: '300.00', periodStart: day(50), periodEnd: day(44), dueAt: day(10), status: 'SUBMITTED',
+      invoiceLines: { create: [{ sellContractId: line.id, personId: person.id, hours: '10.00', rateCents: 2500, amountCents: 30_000 }] } } })
+  }
+  const seat = async (roleName: string, email: string) => {
+    const role = await prisma.role.create({ data: { companyId: ghost.firm.id, name: roleName, permissions: roleName === 'Owner' ? ['*'] : [] } })
+    const person = await prisma.person.create({ data: { name: `${roleName} Person`, primaryEmail: email } })
+    const ctxRow = await prisma.context.create({ data: { personId: person.id, companyId: ghost.firm.id, type: 'EMPLOYEE', roleId: role.id } as any })
+    return { person, ctxRow }
+  }
+  beforeAll(async () => {
+    ghost.firm = await prisma.company.create({ data: { name: `Ghost Firm ${tag}`, slug: `ghost-firm-${tag}`, kind: 'VENDOR' } })
+    ghost.client = await prisma.company.create({ data: { name: `Ghost Client ${tag}`, slug: `ghost-client-${tag}`, kind: 'CLIENT' } })
+    const msa = await prisma.masterAgreement.create({ data: { vendorId: ghost.firm.id, clientId: ghost.client.id } as any })
+    ghost.engagement = await prisma.engagement.create({ data: { title: `Ghost ${tag}`, msaId: msa.id }, select: { id: true } })
+    ghost.admin = (await seat('Admin', `ghostadmin.${tag}@example.invalid`)).person
+    await prisma.agentSwitch.create({ data: { companyId: ghost.firm.id, agentKey: KEY, state: 'ON', changedById: ghost.admin.id } })
+    await gBill('1'); await gBill('2')
+  })
+  const registerG = () => registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => sendMail(m, deps as any) }) })
+
+  it('a firm with no Accounts Receivable, Finance or Owner seat writes one line saying how many late bills were not chased and why, and none the next night', async () => {
+    registerG(); await gRun(); await gRun()
+    const l = await gLines()
+    expect(l).toHaveLength(1)
+    expect([l[0].recordType, l[0].recordId]).toEqual(['Company', ghost.firm.id])
+    expect(l[0].summary).toMatch(/^2 bills past due were not chased, such as bill GH-\d-/)
+    expect(l[0].summary).toMatch(/no Accounts Receivable, Finance or Owner seat is working\. Fill one and the next run proposes them\.$/)
+    expect(await prisma.agentTask.count({ where: { companyId: ghost.firm.id } })).toBe(0)
+    expect(await prisma.decisionItem.count({ where: { companyId: ghost.firm.id } })).toBe(0)
+  })
+
+  it('once a receivables seat is filled the next run proposes the chases it skipped', async () => {
+    ghost.ar = await seat('Accounts Receivable', `ghostar.${tag}@example.invalid`)
+    registerG(); await gRun()
+    expect(await prisma.agentTask.count({ where: { companyId: ghost.firm.id, agentKey: KEY } })).toBe(2)
+    expect(await gLines()).toHaveLength(1)
+  })
+
+  it('a firm that loses its last receivables and Owner seat after chases were proposed is told once again', async () => {
+    await prisma.context.delete({ where: { id: ghost.ar.ctxRow.id } }).catch(async () => prisma.context.update({ where: { id: ghost.ar.ctxRow.id }, data: { status: 'ENDED' } as any }))
+    await gBill('3')
+    registerG(); await gRun(); await gRun()
+    const l = await gLines()
+    expect(l).toHaveLength(2)
+    expect(l[1].summary).toMatch(/^1 bill past due was not chased, such as bill GH-3-/)
+  })
+})

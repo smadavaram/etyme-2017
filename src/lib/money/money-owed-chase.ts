@@ -89,6 +89,19 @@ export function moneyChaseQuestion(f: { customer: string; number: string; owedMi
     `closing when the bill is paid in full. ${numbersSource(ownerSet)}`
 }
 
+/** Why a bill was not chased: a payment question about it is still open. `paused` is for a chase already approved. Pure. */
+export function moneyChaseHeldSays(f: { number: string; customer: string; decisionId: string; paused?: boolean }): string {
+  return f.paused
+    ? `Letters about bill ${f.number} to ${f.customer} are paused: a payment question about it is still open (${f.decisionId}). Once that question is recorded, the letters go on as approved.`
+    : `Bill ${f.number} to ${f.customer} was not chased: a payment question about it is still open (${f.decisionId}). Once that question is recorded, the next run proposes the chase.`
+}
+
+/** Why late bills were not chased where no seat can be asked. Pure. */
+export function moneyChaseNoOwnerSays(count: number, firstNumber: string): string {
+  const many = count !== 1
+  return `${count} ${many ? 'bills' : 'bill'} past due ${many ? 'were' : 'was'} not chased, such as bill ${firstNumber}: no Accounts Receivable, Finance or Owner seat is working. Fill one and the next run proposes ${many ? 'them' : 'it'}.`
+}
+
 export interface SignedWeek { person: string; periodStart: Date; periodEnd: Date; hours: number; signedAt: Date | null }
 
 export interface MoneyChaseLetterInput {
@@ -143,17 +156,30 @@ export function moneyChaseLetter(i: MoneyChaseLetterInput): { subject: string; t
 
 const OPEN = ['PROPOSED', 'APPROVED', 'RUNNING'] as const
 
-/** Whether a reconciliation decision about this bill, a line on it or a payment placed on it is open. A chase's own card is not one. */
-async function openDecisionAbout(companyId: string, bill: { id: string; invoiceLines: { id: string }[]; payments: { id: string }[] }): Promise<boolean> {
+/** The id of an open reconciliation decision about this bill, a line on it or a payment placed on it; null where none. A chase's own card is not one. */
+async function openDecisionAbout(companyId: string, bill: { id: string; invoiceLines: { id: string }[]; payments: { id: string }[] }): Promise<string | null> {
   const links = [
     { recordType: 'Invoice', recordId: bill.id },
     ...bill.invoiceLines.map((l) => ({ recordType: 'InvoiceLine', recordId: l.id })),
     ...bill.payments.map((p) => ({ recordType: 'Payment', recordId: p.id })),
   ]
-  const n = await prisma.decisionItem.count({
+  const hit = await prisma.decisionItem.findFirst({
     where: { companyId, state: 'OPEN', agentTasks: { none: {} }, OR: links.map((l) => ({ proofLinks: { array_contains: [l] } })) },
+    select: { id: true }, orderBy: [{ openedOn: 'asc' }, { id: 'asc' }],
   })
-  return n > 0
+  return hit?.id ?? null
+}
+
+/**
+ * Put one line on the ledger saying why nothing was done, once: not again while a line of this action
+ * on this record already holds `key`. Returns false at the day's cap; the line is then written on the next run.
+ */
+async function sayOnce(ctx: AgentContext, i: { recordType: string; recordId: string; action: string; summary: string; key: string }): Promise<boolean> {
+  const said = await prisma.recordAction.count({ where: { companyId: ctx.companyId, agentKey: ctx.agentKey, action: i.action, recordType: i.recordType, recordId: i.recordId, summary: { contains: i.key } } })
+  if (said > 0) return true
+  if (!(await ctx.mayAct(1))) return false
+  await ctx.act({ recordType: i.recordType, recordId: i.recordId, action: i.action, summary: i.summary })
+  return true
 }
 
 const billRead = {
@@ -213,12 +239,20 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     where: { ...invoicesRaisedBy(companyId), status: { in: [...CHASEABLE_STATUSES] }, dueAt: { lt: dayStart } },
     select: billRead, orderBy: [{ dueAt: 'asc' }, { number: 'asc' }], take: 500,
   })
+  const ownerless: string[] = []
+  let atCap = false
   for (const b of late) {
     const owed = owedCents(b, b.payments)
     if (owed <= 0) continue
     if ((await prisma.agentTask.count({ where: { companyId, agentKey: ctx.agentKey, kind: MONEY_OWED_CHASE_KIND, recordType: MONEY_OWED_RECORD, recordId: b.id } })) > 0) continue
-    if (await openDecisionAbout(companyId, b)) continue
-    if (!owner) continue
+    const heldBy = await openDecisionAbout(companyId, b)
+    if (heldBy) {
+      // Said on the ledger once per question; no card, because that question already sits with the person who owes it.
+      const who = await customerOf(b)
+      if (!(await sayOnce(ctx, { recordType: MONEY_OWED_RECORD, recordId: b.id, action: 'MONEY_CHASE_HELD', key: heldBy, summary: moneyChaseHeldSays({ number: b.number, customer: who?.name ?? 'its customer', decisionId: heldBy }) }))) { atCap = true; break }
+      continue
+    }
+    if (!owner) { ownerless.push(b.number); continue }
     const customer = await customerOf(b)
     if (!customer) continue
     if (!(await ctx.mayAct(2))) break // proposing writes two counted rows
@@ -232,6 +266,17 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
       question: moneyChaseQuestion({ customer: customer.name, number: b.number, owedMinor: owed, currency: b.currency, dueAt: b.dueAt, daysPast }, plan, set !== null),
     })
     await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_PROPOSED', summary: `Proposed a chase of ${customer.name} for bill ${b.number}, ${amount(owed, b.currency)} owed. Nothing is sent until a person says yes.` })
+  }
+
+  // Nobody to hand them to: one line for the firm while that stays true, again only after a seat was filled and later emptied.
+  if (ownerless.length > 0 && !atCap) {
+    const lastProposed = await prisma.recordAction.findFirst({ where: { companyId, agentKey: ctx.agentKey, action: 'MONEY_CHASE_PROPOSED' }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
+    const said = await prisma.recordAction.count({
+      where: { companyId, agentKey: ctx.agentKey, action: 'MONEY_CHASE_NO_OWNER', recordType: 'Company', recordId: companyId, ...(lastProposed ? { createdAt: { gt: lastProposed.createdAt } } : {}) },
+    })
+    if (said === 0 && (await ctx.mayAct(1))) {
+      await ctx.act({ recordType: 'Company', recordId: companyId, action: 'MONEY_CHASE_NO_OWNER', summary: moneyChaseNoOwnerSays(ownerless.length, ownerless[0]) })
+    }
   }
 
   // 2. Walk every released task.
@@ -250,7 +295,12 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     if (owed <= 0 || b.status === 'PAID') { await closeTask(task.id, 'The bill is paid in full, so the chase is closed.', 'CLOSED_BY_ARRIVAL'); continue }
     if (ctx.mode !== 'ON') continue // Drafts only: nothing is sent, even after a yes.
     if (!CHASEABLE_STATUSES.includes(b.status)) continue // Held or disputed by the customer: a person's to settle.
-    if (await openDecisionAbout(companyId, b)) continue // A short pay or drift is a person's to record first.
+    const heldBy = await openDecisionAbout(companyId, b)
+    if (heldBy) { // A short pay or drift is a person's to record first; said once per question, on the task.
+      const who = await customerOf(b)
+      if (!(await sayOnce(ctx, { recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_HELD', key: heldBy, summary: moneyChaseHeldSays({ number: b.number, customer: who?.name ?? 'its customer', decisionId: heldBy, paused: true }) }))) return
+      continue
+    }
 
     const plan = task.plan as unknown as TaskPlan
     const left = (await mailSendsAbout(companyId, MONEY_OWED_RECORD, b.id)).filter((r) => r.agentTaskId === task.id) // every attempt counts, sent or not
