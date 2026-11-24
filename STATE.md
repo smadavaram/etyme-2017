@@ -344,6 +344,15 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
+## Latest ready source: 7d03c56e5 (release check GREEN; walk S passed)
+
+The three leftovers fixed and walked (f91387752, 7d03c56e5): no colon
+before a blocked card's link; a read-only card reads "Read" after Done on
+its page, in the queue and in its history line; the activity log points
+to Agent control. Release check GREEN on 7d03c56e5: type check; 18,155
+unit; 4,224 database; build. This source carries records 115, 112's rest
+and 116 for a weekend release after Saturday's c8d8abaf7.
+
 ## Record 116, agent outreach under a mass-mail service's policy: READY, walk passed, Source a02e489ab
 
 The owner's answer: agent outreach to a dormant firm may send after one
