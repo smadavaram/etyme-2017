@@ -344,6 +344,21 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
+## Record 116, agent outreach under a mass-mail service's policy: READY, walk passed, Source a02e489ab
+
+The owner's answer: agent outreach to a dormant firm may send after one
+yes, under that policy. Built: only the firm's own contacts at firms it
+traded with; an unsubscribe link in every letter (signed, no sign-in,
+GET changes nothing); the firm and its postal address named; bounces
+suppress; 180-day cooling-off (proposal). Blocked cards link to the fix
+and ask only for an acknowledgement. A contact opens in the record view.
+Walks Q (did not ship: no link on blocked cards) and R (ships). Release
+check GREEN on a02e489ab: type check; 18,153 unit; 4,223 database;
+build. Left: a colon before the link on blocked cards; an acknowledged
+card's status reads "Approved" (all acknowledge-only cards); the
+activity log page does not show agent acts. Final notice stays drafted;
+chase numbers stay proposals.
+
 ## The rest of record 112 in chains 1, 2, 3 and 5: READY, walk passed, Source 526aba57d
 
 Built on the branch after the four gaps (commits 5161170ee to 526aba57d):
