@@ -344,7 +344,7 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
-## Latest ready source: 7d03c56e5 (release check GREEN; walk S passed)
+## Latest ready source: 7d03c56e5 (release check GREEN; walks S and T passed — T walked the "Read." history line)
 
 The three leftovers fixed and walked (f91387752, 7d03c56e5): no colon
 before a blocked card's link; a read-only card reads "Read" after Done on
