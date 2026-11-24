@@ -29,15 +29,20 @@ import { reportError } from '@/lib/alerts'
 import { LedgerRefusal } from '@/lib/record-ledger'
 import { openDecision, firmToday } from '@/lib/decision-items'
 import { runMatchEngine, type MatchResult } from '@/lib/match-engine'
-import { poolFor } from '@/lib/match-pool'
+import { poolFor, actionFor, buyerOf, type PoolEntry } from '@/lib/match-pool'
+import { lastAsk } from '@/app/api/requirements/[id]/matches/asked-read'
 import { ownerForRoles } from '@/lib/money/agent-owners'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
+import { openOnce, ownerOf } from './open-once'
+import { ASK_CARD_RECORD, READY_CARD_RECORD, askCard, askIsDue, cardFor, namedForCards, readyCard } from './consent-ask'
 
 export const MATCH_RANKER = 'match-ranker'
 export const MATCH_RANKER_RULE = 'match-ranker-v1'
 export const MATCH_RECORD = 'Requirement'
 /** Who owes the card: the recruiter, else the account manager, else the Owner. */
 export const MATCH_ROLES = ['Recruiter', 'Account Manager'] as const
+/** Who owes an ask card: whoever raises the client's jobs, the one who may press Ask. */
+export const ASK_ROLES = ['Hiring Manager', 'Program Manager', 'Recruiter', 'Account Manager'] as const
 /** The most jobs one run ranks for one firm, oldest raised first, so the rest wait for tomorrow. */
 export const MAX_JOBS_A_RUN = 25
 /** How many people the card names. */
@@ -125,11 +130,14 @@ export async function matchRankerStep(ctx: AgentContext): Promise<void> {
     const scoredBy = ran.scoredBy ?? 'RULES'
 
     const question = cardQuestion(ran.matches.length, job.title)
-    const latest = await prisma.decisionItem.findFirst({
+    // This card's own link is its first. A per-person card shows the job beside its own link and is a different card.
+    const latest = (await prisma.decisionItem.findMany({
       where: { companyId, proofLinks: { array_contains: [{ recordType: MATCH_RECORD, recordId: job.id }] } },
-      orderBy: { createdAt: 'desc' }, select: { state: true, question: true },
-    })
-    if (!cardDue(latest, question)) continue
+      orderBy: { createdAt: 'desc' }, select: { state: true, question: true, proofLinks: true },
+    })).find((d) => {
+      const first = Array.isArray(d.proofLinks) ? (d.proofLinks[0] as { recordType?: string; recordId?: string } | undefined) : undefined
+      return first?.recordType === MATCH_RECORD && first?.recordId === job.id
+    }) ?? null
 
     // Names only where the firm may read them: a suggestion is never named.
     const suggest = companyId === job.companyId && job.payerCompanyId === null && job.company.kind === 'CLIENT'
@@ -140,22 +148,72 @@ export async function matchRankerStep(ctx: AgentContext): Promise<void> {
       score: m.score, confidence: m.confidence, unknowns: m.unknowns, topFactors: topFactors(m),
     }))
 
-    try {
-      await openDecision({
-        companyId, personId: sw.changedById, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
-        question, ownerPersonId: owner, openedOn: today,
-        proof: cardProof({ requirementId: job.id, title: job.title, scoredBy, basis: ran.basis, total: ran.matches.length, rows }),
-        proofLinks: [{ recordType: MATCH_RECORD, recordId: job.id }],
-      }, now)
-    } catch (e) {
-      if (e instanceof LedgerRefusal) continue
-      throw e
+    if (cardDue(latest, question)) {
+      let opened = true
+      try {
+        await openDecision({
+          companyId, personId: sw.changedById, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
+          question, ownerPersonId: owner, openedOn: today,
+          proof: cardProof({ requirementId: job.id, title: job.title, scoredBy, basis: ran.basis, total: ran.matches.length, rows }),
+          proofLinks: [{ recordType: MATCH_RECORD, recordId: job.id }],
+        }, now)
+      } catch (e) {
+        if (!(e instanceof LedgerRefusal)) throw e
+        opened = false
+      }
+      if (opened) {
+        await ctx.act({
+          recordType: MATCH_RECORD, recordId: job.id, action: 'MATCHES_RANKED',
+          summary: `Ranked ${ran.matches.length} ${ran.matches.length === 1 ? 'person' : 'people'} for ${job.title}, ${scoredBy === 'MODEL' ? 'scored by the model after the rules' : 'by rules only'}. Nobody was submitted: that is a person’s, after consent.`,
+        })
+      }
     }
-    await ctx.act({
-      recordType: MATCH_RECORD, recordId: job.id, action: 'MATCHES_RANKED',
-      summary: `Ranked ${ran.matches.length} ${ran.matches.length === 1 ? 'person' : 'people'} for ${job.title}, ${scoredBy === 'MODEL' ? 'scored by the model after the rules' : 'by rules only'}. Nobody was submitted: that is a person’s, after consent.`,
-    })
+
+    await consentCards(ctx, job, namedForCards(ran.matches).map((m) => entryOf.get(m.personId)).filter((e): e is PoolEntry => !!e && e.reach !== 'SUGGESTION'))
   }
+}
+
+/**
+ * The per-person cards for the top of a job's list: who to ask, or who is
+ * ready to put forward. Read off `actionFor`, the rule the job's page and
+ * the ask route read. Nothing is asked, sent or submitted here.
+ */
+async function consentCards(ctx: AgentContext, job: Awaited<ReturnType<typeof jobsToRank>>[number], entries: PoolEntry[]): Promise<void> {
+  const { companyId, now } = ctx
+  const buyer = companyId === buyerOf(job)
+  const forJob = { id: job.id, title: job.title }
+  for (const entry of entries) {
+    const under = buyer ? await approvedUnder(companyId, entry.firmId) : null
+    const action = actionFor({ entry, viewer: { companyId, buyer }, under })
+    const kind = cardFor(action, entry.name)
+    if (!kind) continue
+    if (kind === 'ASK' && !askIsDue(await lastAsk(companyId, job.id, entry.personId), now)) continue
+    if (kind === 'READY' && (await prisma.submission.count({ where: { requirementId: job.id, personId: entry.personId } })) > 0) continue
+    if (!(await ctx.mayAct())) return
+    const link = { recordType: kind === 'ASK' ? ASK_CARD_RECORD : READY_CARD_RECORD, recordId: `${job.id}:${entry.personId}` }
+    const words = kind === 'ASK' && action.kind === 'ASK'
+      ? askCard({ person: entry.name, firm: action.toName, job: forJob })
+      : readyCard({ person: entry.name, job: forJob, employee: entry.employee, rateMin: entry.rateMin, rateMax: entry.rateMax })
+    const owner = await ownerOf(ctx, kind === 'ASK' ? ASK_ROLES : MATCH_ROLES)
+    const r = await openOnce(ctx, owner, link, words, [{ recordType: MATCH_RECORD, recordId: job.id }])
+    if (r === 'OPENED') {
+      await ctx.act({
+        recordType: MATCH_RECORD, recordId: job.id, action: kind === 'ASK' ? 'CONSENT_ASK_CARDED' : 'READY_TO_SUBMIT_CARDED',
+        summary: `${words.question} A decision is open. Nobody was asked and nobody was submitted: that is a person’s.`,
+      })
+    }
+  }
+}
+
+/** The prime a client pays where the supplier works for it under that prime: the ask goes there (the ask route reads the same row). */
+async function approvedUnder(companyId: string, firmId: string): Promise<{ companyId: string; name: string } | null> {
+  const row = await prisma.supplierRequest.findFirst({
+    where: { companyId, firmCompanyId: firmId, state: 'APPROVED', comesInAs: 'SUB_UNDER_PRIME', underCompanyId: { not: null } },
+    select: { underCompanyId: true },
+  })
+  if (!row?.underCompanyId) return null
+  const prime = await prisma.company.findUnique({ where: { id: row.underCompanyId }, select: { id: true, name: true } })
+  return prime ? { companyId: prime.id, name: prime.name } : null
 }
 
 export const matchRankerAgent: AgentDef = { ruleVersion: MATCH_RANKER_RULE, step: matchRankerStep }
