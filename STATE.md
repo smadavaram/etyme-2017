@@ -344,13 +344,25 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
-## The four agent gaps (record 115): DECIDED, START AFTER SATURDAY'S DEPLOY
+## The four agent gaps (record 115): BUILT, RELEASE-CHECKED, NOT WALKED
 
-Owner's yes, 2026-11-23: the SOW item on the contracts checklist; one
-checklist per petition type; the on-time notice check; saying why a
-money chase was skipped. Built after the Saturday 2026-11-28 deploy, for
-the following release. Gaps 2 and 3 warn until regulatory confirms the
-rule with a source.
+Owner's yes, 2026-11-23, then "complete the build now and not have to
+wait". Built on the branch, for a weekend release after Saturday's:
+- Gap 1: the SOW item on the contracts checklist; a bill rate reads
+  "No signed paper" until a person records one (906cae5da, 6d8059f28).
+- Gap 2: one checklist per petition type, H-1B and general, both
+  unconfirmed (d3d25fcb8).
+- Gap 3: the on-time notice check from NoticePosting.measuredFromOn, a
+  filing day a person enters (b018224d0, 4585f5866).
+- Gap 4: the money chase says once why it skipped a bill (7779243f6).
+- Review fix: openOnce matches a card by its own link only (cb0cba95e).
+- Found by the release check: By region read receipts in no order
+  (4568c2c0a).
+Release check GREEN: type check; 18,082 unit tests; 4,139 database tests
+(three parts on cb0cba95e, part 00 on 4568c2c0a); build. Next: a browser
+walk of the four gaps. Gaps 2 and 3 warn until regulatory confirms the
+rule with a source; regulatory also owes which filing a notice is
+measured against.
 
 ## The weekend after (2026-12-05/06): READY, walk passed
 
