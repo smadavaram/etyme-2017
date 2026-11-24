@@ -33,6 +33,7 @@ import { seatByDate, type DatedSeat } from '@/lib/account-lifecycle'
 import { seatHasSignedIn } from '@/lib/access-grant'
 import { signedInHere } from '@/lib/access-log'
 import { dayFor } from '@/lib/when'
+import { stateWords } from '@/lib/decision-queue'
 
 type Db = Prisma.TransactionClient | PrismaClient
 
@@ -318,7 +319,7 @@ export async function decideDecision(input: Stamp & { decisionId: string; verdic
       : { state: input.verdict === 'APPROVE' ? 'APPROVED' as const : 'REJECTED' as const, verdictNote: note, decidedByPersonId: input.personId, decidedAt: now }
     const moved = await tx.decisionItem.updateMany({ where: { id: item.id, state: 'OPEN' }, data })
     if (moved.count !== 1) throw new LedgerRefusal('This decision is already closed and cannot be decided again.')
-    const words = input.verdict === 'APPROVE' ? 'Approved' : input.verdict === 'REJECT' ? 'Rejected' : 'Sent back'
+    const words = input.verdict === 'APPROVE' ? stateWords('APPROVED', item.question) : input.verdict === 'REJECT' ? 'Rejected' : 'Sent back'
     await writeRecordAction(tx, {
       companyId: input.companyId, recordType: DECISION_RECORD, recordId: item.id,
       action: input.verdict === 'APPROVE' ? 'APPROVED' : input.verdict === 'REJECT' ? 'REJECTED' : 'SENT_BACK',

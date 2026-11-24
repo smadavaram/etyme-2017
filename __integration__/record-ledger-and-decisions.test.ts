@@ -72,6 +72,16 @@ describe('the record ledger and decision items, on the database', () => {
     expect(done.state).toBe('APPROVED')
   })
 
+  it('a card that only asks to be read is recorded as read, never as approved, in its history line', async () => {
+    const read = await openDecision({ ...stamp(), personId: w.am.id, heldAs: 'Accounts', question: 'Weekly census: 2 companies moved between active and dormant. Read the list.', ownerPersonId: w.owner.id, openedOn: new Date(), proof: 'The list.' })
+    await decideDecision({ ...stamp(), decisionId: read.id, verdict: 'APPROVE', personId: w.owner.id, heldAs: 'Owner' })
+    const yes = await openDecision({ ...stamp(), personId: w.am.id, heldAs: 'Accounts', question: 'Approve the renewal for another year?', ownerPersonId: w.owner.id, openedOn: new Date(), proof: 'Renewal letter.' })
+    await decideDecision({ ...stamp(), decisionId: yes.id, verdict: 'APPROVE', personId: w.owner.id, heldAs: 'Owner' })
+    const line = async (id: string) => (await prisma.recordAction.findFirstOrThrow({ where: { recordType: 'DecisionItem', recordId: id, action: 'APPROVED' } })).summary
+    expect(await line(read.id)).toBe('Read.')
+    expect(await line(yes.id)).toBe('Approved.')
+  })
+
   it('a decision sent back stays open and keeps its age', async () => {
     const back = await decideDecision({ ...stamp(), decisionId: w.older.id, verdict: 'SEND_BACK', note: 'Attach the signed letter.', personId: w.am.id, heldAs: 'Accounts' })
     expect(back).toMatchObject({ state: 'OPEN', sentBackReason: 'Attach the signed letter.', sentBackByPersonId: w.am.id })
