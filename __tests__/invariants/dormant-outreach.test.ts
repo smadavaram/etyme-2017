@@ -112,6 +112,16 @@ describe('the task and its card', () => {
     expect(blockedCard(q, 'BOUNCED').proof).toMatch(/did not receive the last check-in letter. Record a new address/)
     expect(blockedCard(q, 'NO_ADDRESS').proof).toMatch(/Add the firm's address in Settings/)
   })
+  it('a card that cannot send links to the place that fixes it, in words, and offers no approval', async () => {
+    const { proofParts, onlyAcknowledged } = await import('@/lib/decision-queue')
+    const q = { side: 'CUSTOMER' as const, firmName: 'Win Firm', companyName: 'Orchid Foods', lastActivity: null }
+    const linkOf = (b: 'NO_ADDRESS' | 'NO_CONTACT' | 'BOUNCED') => proofParts(blockedCard(q, b).proof).filter((p) => p.href)
+    expect(linkOf('NO_ADDRESS')).toEqual([{ text: 'Open Settings, Addresses', href: '/dashboard/settings/setup/addresses' }])
+    expect(linkOf('NO_CONTACT')).toEqual([{ text: 'Open Contacts', href: '/dashboard/contacts' }])
+    expect(linkOf('BOUNCED')).toEqual([{ text: 'Open Contacts', href: '/dashboard/contacts' }])
+    for (const b of ['NO_ADDRESS', 'NO_CONTACT', 'BOUNCED', 'OPTED_OUT', 'NO_LINK'] as const) expect(onlyAcknowledged(blockedCard(q, b).question)).toBe(true)
+    expect(onlyAcknowledged(outreachCard(input('CUSTOMER')).question)).toBe(false)
+  })
   it('the customer card and the supplier card for one company open with different words', () => {
     expect(outreachCard(input('CUSTOMER')).question.slice(0, 30)).not.toEqual(outreachCard(input('SUPPLIER')).question.slice(0, 30))
   })

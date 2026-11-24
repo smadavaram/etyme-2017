@@ -401,7 +401,7 @@ describe('the dormant outreach, on the database', () => {
     const again = await optOut(token, 'POST')
     expect(again.status).toBe(200)
     expect((await prisma.companyContact.findUniqueOrThrow({ where: { id: w.mina.id } })).outreachOptOutAt).toEqual(first)
-    const lines = await prisma.recordAction.findMany({ where: { companyId: w.firm.id, recordType: 'CompanyContact', recordId: w.mina.id, action: 'OUTREACH_UNSUBSCRIBED' } })
+    const lines = await prisma.recordAction.findMany({ where: { companyId: w.firm.id, recordType: 'Company', recordId: w.mina.atCompanyId, action: 'OUTREACH_UNSUBSCRIBED' } })
     expect(lines).toHaveLength(1)
     expect(lines[0].summary).toMatch(/Chases and bills are not affected/)
     expect((await (await optOut(token, 'GET')).json()).data.already).toBe(true)

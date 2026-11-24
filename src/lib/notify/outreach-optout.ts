@@ -45,7 +45,7 @@ async function find(token: string) {
   if (!parts || !parts[0]) return null
   return prisma.companyContact.findUnique({
     where: { id: parts[0] },
-    select: { id: true, name: true, companyId: true, outreachOptOutAt: true, company: { select: { name: true } } },
+    select: { id: true, name: true, companyId: true, atCompanyId: true, outreachOptOutAt: true, company: { select: { name: true } } },
   })
 }
 
@@ -69,7 +69,7 @@ export async function applyOptOut(token: string, now: Date = new Date()): Promis
     const entity = await prisma.legalEntity.findFirst({ where: { companyId: c.companyId }, orderBy: { id: 'asc' }, select: { id: true } })
     if (sw) {
       await writeRecordAction(prisma, {
-        companyId: c.companyId, recordType: 'CompanyContact', recordId: c.id, action: 'OUTREACH_UNSUBSCRIBED',
+        companyId: c.companyId, recordType: 'Company', recordId: c.atCompanyId, action: 'OUTREACH_UNSUBSCRIBED',
         summary: `${c.name} used the unsubscribe link in a check-in letter. ${c.company.name} sends this contact no more outreach. Chases and bills are not affected.`,
         personId: sw.changedById, heldAs: OUTREACH_OPTOUT_HELD_AS, actingEntityId: entity?.id ?? null,
       }).catch(() => undefined)

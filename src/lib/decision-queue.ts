@@ -278,12 +278,18 @@ export function readDecideAsk(body: unknown, hasEntities: boolean):
 
 /** A card that only needs acknowledging: it offers Done, never Approve, Send back or Reject. Pure. */
 export function onlyAcknowledged(question: string): boolean {
-  return /(Read the summary\?|Review the placement now\?|Read the list\.)$/.test(question.trim())
+  return /(Read the summary\?|Review the placement now\?|Read the list\.|Read why\.)$/.test(question.trim())
 }
 
 /** A proof's text cut at the in-app paths it names, so each path can be drawn as a link. A job's path reads "Open the job", never the path. Pure. */
+/** Paths a card names, in the words a person reads instead of the path. */
+const PATH_WORDS: Record<string, string> = {
+  '/dashboard/settings/setup/addresses': 'Open Settings, Addresses',
+  '/dashboard/contacts': 'Open Contacts',
+}
+
 export function proofParts(proof: string): { text: string; href: string | null }[] {
-  return proof.split(/(\/dashboard\/[\w/-]+[\w-])/).filter(Boolean).map((t) => (t.startsWith('/dashboard/') ? { text: /^\/dashboard\/requirements\/[\w-]+$/.test(t) ? 'Open the job' : t, href: t } : { text: t, href: null }))
+  return proof.split(/(\/dashboard\/[\w/-]+[\w-])/).filter(Boolean).map((t) => (t.startsWith('/dashboard/') ? { text: PATH_WORDS[t] ?? (/^\/dashboard\/requirements\/[\w-]+$/.test(t) ? 'Open the job' : t), href: t } : { text: t, href: null }))
 }
 
 /** The decision, in the words its page prints. Pure. */
