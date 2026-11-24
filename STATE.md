@@ -344,7 +344,7 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
-## The four agent gaps (record 115): BUILT, RELEASE-CHECKED, NOT WALKED
+## The four agent gaps (record 115): READY, walk passed, Source f897913e5
 
 Owner's yes, 2026-11-23, then "complete the build now and not have to
 wait". Built on the branch, for a weekend release after Saturday's:
@@ -359,8 +359,13 @@ wait". Built on the branch, for a weekend release after Saturday's:
 - Found by the release check: By region read receipts in no order
   (4568c2c0a).
 Release check GREEN: type check; 18,082 unit tests; 4,139 database tests
-(three parts on cb0cba95e, part 00 on 4568c2c0a); build. Next: a browser
-walk of the four gaps. Gaps 2 and 3 warn until regulatory confirms the
+(three parts on cb0cba95e, part 00 on 4568c2c0a); build. Walk O said
+ships; its two wording faults fixed in f897913e5 (no record code in the
+held line; "Dated on or before filing"). FINAL release check GREEN on
+f897913e5: type check; 18,084 unit; 4,139 database; build. Deploy on a
+weekend after Saturday's, with `prepare-replay.sh <last replayed>
+f897913e5`. Left: the doubled colon in the shared empty-save sentence;
+AR cannot read the ledger line (by design). Gaps 2 and 3 warn until regulatory confirms the
 rule with a source; regulatory also owes which filing a notice is
 measured against.
 
