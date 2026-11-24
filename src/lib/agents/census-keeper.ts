@@ -7,17 +7,18 @@
  * shows; and where anything changed since last week, one card owed by the
  * Account Manager else the Owner, with who moved and why in its proof.
  *
- * It edits no company, register row or money field, deletes nothing and
- * sends nothing. For a company that went quiet it drafts a check-in letter
- * on one card; a person sends it (`dormant-outreach`). Drafts only and On do the same: reading and listing is
- * what probation allows.
+ * It edits no company, register row or money field and deletes nothing.
+ * For a company that went quiet it proposes one check-in letter as a task;
+ * after one person's yes, and only with the agent On, the letter is sent
+ * once (`dormant-outreach`, record 116). Drafts only reads, lists and drafts.
  */
 
 import { prisma } from '@/lib/db'
 import { LedgerRefusal } from '@/lib/record-ledger'
 import { openDecision, firmToday } from '@/lib/decision-items'
 import { ownerForRoles } from '@/lib/money/agent-owners'
-import { draftDormantOutreach } from './dormant-outreach'
+import { draftDormantOutreach, walkOutreach } from './dormant-outreach'
+import type { sendMail } from '@/lib/notify/mail-door'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
 import {
   CENSUS_AGENT, CENSUS_RULE, censusOn, censusProof, censusQuestion, changesBetween, sideOf, weeklyLine,
@@ -74,8 +75,10 @@ export async function censusFacts(companyId: string): Promise<CensusFacts[]> {
   })
 }
 
-export async function censusKeeperStep(ctx: AgentContext): Promise<void> {
+export async function censusKeeperStep(ctx: AgentContext, deps: { send?: typeof sendMail } = {}): Promise<void> {
   const { companyId, now } = ctx
+  // A yes can come any day of the week, so released outreach is walked on every run, before the weekly work.
+  await walkOutreach(ctx, async () => censusOn(await censusFacts(companyId), now), deps)
   const from = weekStart(now)
   // Once a week, on the first run of it.
   const done = await prisma.recordAction.count({ where: { companyId, agentKey: ctx.agentKey, action: 'CENSUS_WEEKLY', createdAt: { gte: from } } })
@@ -105,7 +108,7 @@ export async function censusKeeperStep(ctx: AgentContext): Promise<void> {
   }
 }
 
-export const censusKeeperAgent: AgentDef = { ruleVersion: CENSUS_RULE, step: censusKeeperStep }
+export const censusKeeperAgent: AgentDef = { ruleVersion: CENSUS_RULE, step: (ctx) => censusKeeperStep(ctx) }
 
 export function registerCensusKeeper(): void { registerAgent(CENSUS_AGENT, censusKeeperAgent) }
 

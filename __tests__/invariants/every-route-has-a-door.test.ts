@@ -36,6 +36,7 @@ const NO_SEAT_NEEDED: Readonly<Record<string, string>> = {
   'approve-week/[token]': 'A client approver signing one week by email without an account; the token names the week.',
   'answer/sign-in/[token]': 'Continue on the page a firm’s sign-in link opens, before the person has signed in: the signed token names only the notice the link was kept on; the door decides at use whether she signs in or chooses a password, and answers with a redirect, never a body.',
   'answer/bill/[token]': 'The person a supplier emailed a bill to, reading that one bill without an account; the signed token names the bill and the address, dies 90 days after the due date, and every open is logged.',
+  'answer/outreach/[token]': 'The person who got an outreach letter, unsubscribing from it without an account; the signed token names one contact, GET changes nothing and POST is harmless to repeat; it never touches a chase or a bill.',
   'packet/[token]': 'A document request link mailed to the person who owes the papers.',
   'claim/[token]': 'A firm claiming the company a client put on Etyme for it, from the link mailed to it.',
   'reply/[token]': 'A reply link mailed to a person; the token names the thread and the person.',

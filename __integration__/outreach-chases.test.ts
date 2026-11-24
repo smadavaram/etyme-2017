@@ -2,7 +2,8 @@
  * Chain 1 of record 112, "Drafts of outreach and chases", on the database
  * through the real runner, the real task record and the real mail ledger:
  * the submission chase (a task, one yes, one letter and one reminder) and
- * the dormant outreach (a card holding a draft; Etyme sends nothing).
+ * the dormant outreach (a task, one yes, one letter with its unsubscribe
+ * and the firm's postal address; record 116).
  * Builds its own firm on reserved domains. The provider is a stub; the
  * door's rules are the real ones.
  */
@@ -13,8 +14,12 @@ import { decideBody } from '@/lib/decision-queue'
 import { runAgent, registerAgent, unregisterAgent } from '@/lib/agents/runner'
 import { sendMail } from '@/lib/notify/mail-door'
 import { confirmationTrackerStep, recordConfirmation, trackerItems } from '@/lib/agents/confirmation-tracker'
-import { censusKeeperAgent } from '@/lib/agents/census-keeper'
+import { censusKeeperStep } from '@/lib/agents/census-keeper'
+import { openDecision } from '@/lib/decision-items'
+import * as unsub from '@/app/api/answer/outreach/[token]/route'
 
+process.env.NEXTAUTH_SECRET ||= 'test-secret-for-outreach'
+process.env.NEXTAUTH_URL = 'https://etyme.example'
 const tag = `oc${Date.now()}`
 const w: Record<string, any> = {}
 const TRACK = 'confirmation-tracker'
@@ -39,7 +44,7 @@ const track = (when = new Date()) => {
   registerAgent(TRACK, { ruleVersion: 't', step: (ctx) => confirmationTrackerStep(ctx, { send: (m) => sendMail(m, deps as any) }) })
   return runAgent(TRACK, w.firm.id, when)
 }
-const census = (when: Date) => { registerAgent(CENSUS, censusKeeperAgent); return runAgent(CENSUS, w.firm.id, when) }
+const census = (when: Date) => { registerAgent(CENSUS, { ruleVersion: 't', step: (ctx) => censusKeeperStep(ctx, { send: (m) => sendMail(m, deps as any) }) }); return runAgent(CENSUS, w.firm.id, when) }
 const say = async (decisionId: string, verdict: 'APPROVE' | 'REJECT') => {
   as(w.owner.primaryEmail)
   return json(await item.POST(req('POST', `/api/decision-items/${decisionId}`, decideBody(verdict, verdict === 'REJECT' ? 'Not this one.' : '', w.entity.id)), p(decisionId)))
@@ -165,6 +170,15 @@ describe('the submission chase, on the database', () => {
     expect([t.state, t.sentCount]).toEqual(['DONE', 2])
   })
 
+  it('a contact who unsubscribed from outreach still gets the submission chase at the same address', async () => {
+    await setSwitch(TRACK, 'ON')
+    const s = await released()
+    await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: w.client.id, name: 'Opted Out', email: s.to, kind: 'HIRING_MANAGER', outreachOptOutAt: new Date() } as any })
+    await track()
+    const row = (await chaseLetters(s.id))[0]
+    expect(row.toAddresses).toEqual([s.to])
+  })
+
   it('the submission chase goes to the address the submission letter was sent to and never to the candidate', async () => {
     await setSwitch(TRACK, 'ON')
     const s = await released()
@@ -279,7 +293,7 @@ describe('the submission chase, on the database', () => {
 })
 
 describe('the dormant outreach, on the database', () => {
-  // Counterparty rows are old enough to be in last week's census; the last submission sets when each company went quiet.
+  // Each scenario is a company that turns quiet in its own week: last activity L days ago, run W days on, L + W = 92.
   const register = (otherCompanyId: string, relationship: string) => prisma.counterparty.create({ data: { companyId: w.firm.id, otherCompanyId, relationship, status: 'ACTIVE', createdAt: day(300) } })
   const quietSince = async (co: any, side: 'CUSTOMER' | 'SUPPLIER', daysAgo: number) => {
     n++
@@ -288,65 +302,188 @@ describe('the dormant outreach, on the database', () => {
     const ends = side === 'CUSTOMER' ? { fromCompanyId: w.firm.id, toCompanyId: co.id } : { fromCompanyId: co.id, toCompanyId: w.firm.id }
     return prisma.submission.create({ data: { requirementId: job.id, personId: person.id, ...ends, kind: 'NETWORK', rate: 9_000, status: 'SUBMITTED', checkState: 'SENT', submittedAt: day(daysAgo) } })
   }
+  const newCo = (name: string) => prisma.company.create({ data: { name: `${name} ${tag}`, slug: `x-${name.toLowerCase().replace(/\s/g, '-')}-${tag}`, kind: 'CLIENT' } as any })
+  const contactAt = (co: any, name: string, extra: Record<string, unknown> = {}, owner: any = w.firm) =>
+    prisma.companyContact.create({ data: { companyId: owner.id, atCompanyId: co.id, name, email: `${name.toLowerCase().replace(/\s/g, '.')}.${tag}@example.invalid`, kind: 'HIRING_MANAGER', ...extra } as any })
+  /** A company that goes quiet on the census run W days from now. */
+  async function quietOn(name: string, W: number, side: 'CUSTOMER' | 'SUPPLIER' = 'CUSTOMER') {
+    const co = await newCo(name)
+    await register(co.id, side === 'CUSTOMER' ? 'CLIENT' : 'SUPPLIER'); await quietSince(co, side, 92 - W)
+    return co
+  }
+  const outreachTasks = (kind = 'DORMANT_OUTREACH_CUSTOMER') => prisma.agentTask.findMany({ where: { companyId: w.firm.id, agentKey: CENSUS, kind }, orderBy: { createdAt: 'asc' } })
+  const taskAt = async (contactId: string) => (await outreachTasks()).find((t) => t.recordId === contactId)!
   const cards = (co: any, prefix: string) => prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { startsWith: prefix }, proofLinks: { array_contains: [{ recordType: 'Company', recordId: co.id }] } } })
-  const mailOut = () => prisma.mailSend.count({ where: { companyId: w.firm.id, template: { not: 'submission' }, recordType: 'Company' } })
+  const outreachMail = () => prisma.mailSend.findMany({ where: { companyId: w.firm.id, template: 'dormant-outreach' }, orderBy: { createdAt: 'asc' } })
+  const optOut = (token: string, method: 'GET' | 'POST') => (method === 'GET' ? unsub.GET : unsub.POST)(req(method, `/api/answer/outreach/${token}`), p2(token))
+  const p2 = (token: string) => ({ params: Promise.resolve({ token }) })
+  let token = ''
+  let letterText = ''
 
-  it('a company that turned dormant this week becomes one card holding the draft and the recipient, and no task', async () => {
+  beforeAll(async () => {
+    await prisma.companyAddress.create({ data: { companyId: w.firm.id, kind: 'LEGAL', street: '12 Mill Road', city: 'Leeds', state: null, postalCode: 'LS1 4AB', country: 'GB' } })
+    w.mina = null
+  })
+
+  it('a company that turned dormant becomes one task and one card holding the letter and the recipient, and nothing is sent before the yes', async () => {
     await setSwitch(CENSUS, 'ON')
-    await register(w.quiet.id, 'CLIENT'); await quietSince(w.quiet, 'CUSTOMER', 92)
-    await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: w.quiet.id, name: 'Mina Cho', email: `mina.${tag}@example.invalid`, kind: 'HIRING_MANAGER' } as any })
-    const before = await prisma.agentTask.count({ where: { companyId: w.firm.id, agentKey: CENSUS } })
+    w.quiet2 = await quietOn('Quiet Co', 0)
+    w.mina = await contactAt(w.quiet2, 'Mina Cho')
+    await contactAt(w.quiet2, 'Their Own', {}, w.supplier) // another firm's rolodex row at the same company
     await census(new Date())
-    const c = await cards(w.quiet, 'Check in with customer ')
-    expect(c).toHaveLength(1)
-    expect(c[0].question).toMatch(/A person sends this; Etyme sent nothing\./)
-    expect(c[0].proof).toMatch(`mina.${tag}@example.invalid`)
-    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, agentKey: CENSUS } })).toBe(before)
+    const t = await taskAt(w.mina.id)
+    expect(t.state).toBe('PROPOSED'); expect(t.recordType).toBe('CompanyContact')
+    const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: t.decisionId } })
+    expect(card.question).toMatch(/^Check in with customer /); expect(card.question).toMatch(/sends it only if you say yes/)
+    expect(card.proof).toMatch(`mina.cho.${tag}@example.invalid`); expect(card.proof).toMatch(/12 Mill Road, Leeds, LS1 4AB, GB/)
+    await census(day(-1)); await census(day(-2))
+    expect(sent).toHaveLength(0); expect(await outreachMail()).toHaveLength(0)
+    expect((await taskAt(w.mina.id)).state).toBe('PROPOSED')
   })
 
-  it('the dormant outreach never calls the mail door, on drafts only or on', async () => {
+  it('on drafts only the outreach sends nothing even after a yes', async () => {
     await setSwitch(CENSUS, 'DRAFT_ONLY')
+    await say((await taskAt(w.mina.id)).decisionId, 'APPROVE')
+    await census(day(-3))
+    expect(sent).toHaveLength(0); expect(await outreachMail()).toHaveLength(0)
+    expect((await taskAt(w.mina.id)).state).toBe('APPROVED')
+  })
+
+  it('after the yes, with the agent on, one letter goes to the firm’s own contact and the task closes, and it is never sent again', async () => {
+    await setSwitch(CENSUS, 'ON')
+    await census(day(-4)); await census(day(-5))
+    const rows = await outreachMail()
+    expect(rows).toHaveLength(1)
+    expect(rows[0].toAddresses).toEqual([`mina.cho.${tag}@example.invalid`]); expect(rows[0].outcome).toBe('SENT')
+    expect(rows[0].agentTaskId).toBe((await taskAt(w.mina.id)).id)
+    expect(sent).toHaveLength(1)
+    letterText = sent[0].text // the stub's list is cleared after each test
+    expect((await taskAt(w.mina.id)).state).toBe('DONE')
+    // The other firm's contact at that company was never used.
+    expect(rows.flatMap((r) => r.toAddresses).join()).not.toMatch(/their\.own/)
+  })
+
+  it('every outreach letter carries the unsubscribe link, the sending firm and its postal address, and says what it is in the subject', async () => {
+    const text = letterText
+    expect(text).toMatch(/https:\/\/etyme\.example\/answer\/outreach\/\S+/)
+    expect(text).toContain(`Chase Firm ${tag}\n12 Mill Road, Leeds, LS1 4AB, GB`)
+    const row = (await outreachMail())[0]
+    expect(row.subject).toBe(`Check-in from Chase Firm ${tag}: any jobs coming up?`)
+    token = /answer\/outreach\/(\S+)/.exec(text)![1]
+  })
+
+  it('opening the unsubscribe link changes nothing, and pressing the button needs no sign-in and sets the opt-out', async () => {
+    delete process.env.DEV_BYPASS_AUTH
+    const view = await optOut(token, 'GET')
+    expect(view.status).toBe(200)
+    expect((await view.json()).data).toEqual({ firm: `Chase Firm ${tag}`, already: false })
+    expect((await prisma.companyContact.findUniqueOrThrow({ where: { id: w.mina.id } })).outreachOptOutAt).toBeNull()
+    const done = await optOut(token, 'POST')
+    expect(done.status).toBe(200)
+    expect((await done.json()).data.says).toBe(`Chase Firm ${tag} will send you no more outreach. Messages about work already agreed, such as timesheets and bills, still reach you.`)
+    expect((await prisma.companyContact.findUniqueOrThrow({ where: { id: w.mina.id } })).outreachOptOutAt).not.toBeNull()
+  })
+
+  it('a second use of the link is harmless: the same sentence, the same time, one ledger row', async () => {
+    const first = (await prisma.companyContact.findUniqueOrThrow({ where: { id: w.mina.id } })).outreachOptOutAt
+    const again = await optOut(token, 'POST')
+    expect(again.status).toBe(200)
+    expect((await prisma.companyContact.findUniqueOrThrow({ where: { id: w.mina.id } })).outreachOptOutAt).toEqual(first)
+    const lines = await prisma.recordAction.findMany({ where: { companyId: w.firm.id, recordType: 'CompanyContact', recordId: w.mina.id, action: 'OUTREACH_UNSUBSCRIBED' } })
+    expect(lines).toHaveLength(1)
+    expect(lines[0].summary).toMatch(/Chases and bills are not affected/)
+    expect((await (await optOut(token, 'GET')).json()).data.already).toBe(true)
+  })
+
+  it('a link that was altered is refused in a sentence and changes nobody', async () => {
+    const res = await optOut(`${token}x`, 'POST')
+    expect(res.status).toBe(404)
+    expect((await res.json()).error.message).toMatch(/not valid/)
+  })
+
+  it('the token is in no ledger row, no card, no mail row and no reply of the route', async () => {
+    const bodies = [JSON.stringify(await (await optOut(token, 'GET')).json()), JSON.stringify(await (await optOut(token, 'POST')).json()), JSON.stringify(await (await optOut(`${token}x`, 'POST')).json())]
+    const ledger = JSON.stringify(await prisma.recordAction.findMany({ where: { companyId: w.firm.id } }))
+    const decisions = JSON.stringify(await prisma.decisionItem.findMany({ where: { companyId: w.firm.id } }))
+    const mail = JSON.stringify(await prisma.mailSend.findMany({ where: { companyId: w.firm.id } }))
+    const tasks = JSON.stringify(await prisma.agentTask.findMany({ where: { companyId: w.firm.id } }))
+    const secret = token.split('.')[1]
+    for (const where of [...bodies, ledger, decisions, mail, tasks]) { expect(where).not.toContain(token); expect(where).not.toContain(secret) }
+  })
+
+  it('a contact who unsubscribed gets no task, and the card says so once', async () => {
+    const co = await quietOn('Opted Co', 8)
+    await contactAt(co, 'Olive Out', { outreachOptOutAt: new Date() })
     await census(day(-8))
-    await setSwitch(CENSUS, 'ON')
-    await census(day(-16))
-    expect(await mailOut()).toBe(0)
-    expect(sent).toHaveLength(0)
+    const c = await cards(co, 'Check in with customer ')
+    expect(c).toHaveLength(1)
+    expect(c[0].proof).toMatch(/asked .* for no more check-in letters/)
+    expect((await outreachTasks()).length).toBe(1)
+    await census(day(-9)); await census(day(-16))
+    expect(await cards(co, 'Check in with customer ')).toHaveLength(1)
   })
 
-  it('a company that stayed dormant from earlier weeks is not drafted for again', async () => {
-    expect(await cards(w.quiet, 'Check in with customer ')).toHaveLength(1)
+  it('an address whose outreach letter bounced gets no task, and the card says to record a new address', async () => {
+    const co = await quietOn('Bounced Co', 24)
+    const c = await contactAt(co, 'Bo Bounce')
+    await prisma.mailSend.create({ data: { companyId: w.firm.id, recordType: 'CompanyContact', recordId: c.id, fromAddress: 'hello@etyme.example', toAddresses: [c.email!.toUpperCase()], bccAddresses: [], subject: 'Check-in', template: 'dormant-outreach', templateVersion: '1', outcome: 'FAILED_DELIVERY', note: 'Mailbox does not exist' } })
+    await census(day(-24))
+    expect((await cards(co, 'Check in with customer '))[0].proof).toMatch(/did not receive the last check-in letter/)
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: c.id } })).toBe(0)
   })
 
-  it('a company asked within the last 180 days is not drafted for again when it flaps', async () => {
-    await setSwitch(CENSUS, 'ON')
-    await quietSince(w.quiet, 'CUSTOMER', -60) // active again until day 150 from now, dormant again at day 152
+  it('a company where only another firm recorded a contact gets no task and no letter', async () => {
+    const co = await quietOn('Theirs Co', 32)
+    await contactAt(co, 'Not Ours', {}, w.supplier)
+    await census(day(-32))
+    expect((await cards(co, 'Check in with customer '))[0].proof).toMatch(/No one with an email is recorded at/)
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, kind: 'DORMANT_OUTREACH_CUSTOMER', recordId: (await prisma.companyContact.findFirstOrThrow({ where: { atCompanyId: co.id } })).id } })).toBe(0)
+  })
+
+  it('a contact who unsubscribes between the yes and the send is not written to', async () => {
+    const before = (await outreachMail()).length
+    const co = await quietOn('Late Co', 40)
+    const c = await contactAt(co, 'Lee Late')
+    await census(day(-40))
+    await say((await taskAt(c.id)).decisionId, 'APPROVE')
+    await prisma.companyContact.update({ where: { id: c.id }, data: { outreachOptOutAt: new Date() } })
+    await census(day(-41))
+    const t = await taskAt(c.id)
+    expect(t.state).toBe('STOPPED'); expect(t.closedReason).toMatch(/asked for no more outreach/)
+    expect((await outreachMail()).length).toBe(before)
+  })
+
+  it('a company that is both a customer and a supplier gets a separate task for each side that went quiet', async () => {
+    const co = await newCo('Both Ways')
+    await register(co.id, 'CLIENT'); await register(co.id, 'SUPPLIER')
+    await quietSince(co, 'CUSTOMER', 92 - 48); await quietSince(co, 'SUPPLIER', 92 - 48)
+    const hm = await contactAt(co, 'Hana Hire'); const rc = await contactAt(co, 'Ravi Recruit', { kind: 'RECRUITING' })
+    await census(day(-48))
+    expect((await outreachTasks('DORMANT_OUTREACH_CUSTOMER')).some((t) => t.recordId === hm.id)).toBe(true)
+    expect((await outreachTasks('DORMANT_OUTREACH_SUPPLIER')).some((t) => t.recordId === rc.id)).toBe(true)
+  })
+
+  it('a company asked within the last 180 days, by an old draft card or by a task, is not written to again when it flaps', async () => {
+    const before = (await outreachTasks()).length
+    await quietSince(w.quiet2, 'CUSTOMER', -60) // active again until day 150 from now, dormant again at day 152
     await census(day(-152))
     const line = await prisma.recordAction.findFirstOrThrow({ where: { companyId: w.firm.id, action: 'CENSUS_WEEKLY' }, orderBy: { createdAt: 'desc' } })
-    expect(line.summary).toMatch(/1 change since last week/) // it did go dormant again; the cooling-off alone held the second card
-    expect(await cards(w.quiet, 'Check in with customer ')).toHaveLength(1)
+    expect(line.summary).toMatch(/1 change since last week/)
+    expect((await outreachTasks()).length).toBe(before)
+    // An old draft card from before the outreach could send counts the same way.
+    const co = await quietOn('Cool Co', 160)
+    await contactAt(co, 'Cora Cool')
+    await openDecision({ companyId: w.firm.id, personId: w.owner.id, heldAs: 'Account Manager', actingEntityId: w.entity.id, question: `Check in with customer ${co.name}: nothing. Etyme drafted a check-in letter.`, ownerPersonId: w.owner.id, openedOn: day(-100), proof: 'old', proofLinks: [{ recordType: 'Company', recordId: co.id }] }, day(-100))
+    await census(day(-160))
+    expect((await outreachTasks()).length).toBe(before)
   })
 
-  it('a company that is both a customer and a supplier gets a separate card for each side that went quiet', async () => {
-    await setSwitch(CENSUS, 'ON')
-    await register(w.both.id, 'CLIENT'); await register(w.both.id, 'SUPPLIER')
-    // Both sides had their last work 60 days ago, so 32 days on, one week after it was still inside 90 days, both are quiet.
-    await quietSince(w.both, 'CUSTOMER', 60); await quietSince(w.both, 'SUPPLIER', 60)
-    await census(day(-32))
-    expect(await cards(w.both, 'Check in with customer ')).toHaveLength(1)
-    expect(await cards(w.both, 'Check in with supplier ')).toHaveLength(1)
-  })
-
-  it('a dormant company with no recorded contact gets one card that says so and no letter, and the card is not repeated the next week', async () => {
-    await setSwitch(CENSUS, 'ON')
-    const c = (await cards(w.both, 'Check in with supplier '))[0]
-    expect(c.proof).toMatch(/No one with an email is recorded at Both Ways/)
-    await census(day(-39))
-    expect(await cards(w.both, 'Check in with supplier ')).toHaveLength(1)
-    expect(await mailOut()).toBe(0)
-  })
-
-  it('the outreach card is one yes or no that sends nothing, so nothing was written to the register or to the company', async () => {
-    const rows = await prisma.counterparty.findMany({ where: { companyId: w.firm.id, otherCompanyId: w.quiet.id } })
-    expect(rows.map((r) => r.status)).toEqual(['ACTIVE'])
+  it('a firm with no postal address gets no task and a card that says to add it in Settings', async () => {
+    await prisma.companyAddress.deleteMany({ where: { companyId: w.firm.id } })
+    const co = await quietOn('Addressless Co', 176)
+    const c = await contactAt(co, 'Ann Address')
+    await census(day(-176))
+    expect((await cards(co, 'Check in with customer '))[0].proof).toMatch(/Add the firm's address in Settings/)
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: c.id } })).toBe(0)
   })
 })
