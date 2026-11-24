@@ -670,3 +670,106 @@ describe('who keeps petitions, notices and public access files', () => {
     expect(mine.lines.map((l: any) => l.label)).toEqual(['Labor condition application', 'Petition form', 'Representation form', 'Approval notice copy'])
   })
 })
+
+describe('the notice timing check', () => {
+  const post = async (postedOn: string, extra: Record<string, unknown> = {}) => {
+    as(w.hr.primaryEmail)
+    const r = await json(await notices.POST(req('POST', '/api/compliance/notice-postings', { kind: 'Timing notice', locationId: w.site.id, postedOn, ...extra })))
+    return r
+  }
+  const timingCards = async () => (await cards(w.firm.id)).filter((c) => c.question.includes('Timing notice') && c.question.includes('filing day it is measured against'))
+
+  it('a notice with no filing day entered is saved and has no timing verdict', async () => {
+    const r = await post('2026-11-02')
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    const list = await json(await notices.GET(req('GET', '/api/compliance/notice-postings')))
+    const row = list.body.data.notices.find((x: any) => x.id === r.body.data.id)
+    expect([row.measuredFromOn, row.timing]).toEqual([null, null])
+    expect(list.body.data.rules).toMatchObject({ noticeLeadDays: 30, confirmed: false })
+  })
+
+  it('a filing day typed in a way that is not a day is refused in a sentence on that field', async () => {
+    const r = await post('2026-11-02', { measuredFromOn: 'next week' })
+    expect(r.status).toBe(422)
+    expect(r.body.error.field).toBe('measuredFromOn')
+  })
+
+  it('a notice posted late is still saved, and the late timing is shown beside it', async () => {
+    const r = await post('2026-11-05', { measuredFromOn: '2026-11-03' })
+    expect(r.status, JSON.stringify(r.body)).toBe(201)
+    w.lateNotice = r.body.data.id
+    const list = await json(await notices.GET(req('GET', '/api/compliance/notice-postings')))
+    const row = list.body.data.notices.find((x: any) => x.id === w.lateNotice)
+    expect([row.measuredFromOn, row.timing]).toEqual(['2026-11-03', 'LATE'])
+  })
+
+  it('a notice posted before its filing day opens no card, and neither does one with no filing day', async () => {
+    const ok = await post('2026-11-03', { measuredFromOn: '2026-11-10' })
+    expect(ok.status).toBe(201)
+    w.onTime = ok.body.data.id
+    await runs(COMPLIANCE_WATCH_AGENT, registerComplianceWatch, w.firm.id)
+    expect((await timingCards()).filter((c) => JSON.stringify(c.proofLinks).includes(w.onTime))).toHaveLength(0)
+  })
+
+  it('the compliance watch opens one card to HR or the compliance officer for a notice dated after its filing day, and says the agent posted, removed and changed nothing', async () => {
+    const mine = (await timingCards()).filter((c) => JSON.stringify(c.proofLinks).includes(w.lateNotice))
+    expect(mine).toHaveLength(1)
+    expect(mine[0].ownerPersonId).toBe(w.hr.id)
+    expect(mine[0].question).toBe('The Timing notice notice posted at Lakewood HQ on Nov 5, 2026 is dated after the filing day it is measured against, Nov 3, 2026. Check the days on the record?')
+    expect(mine[0].proof).toMatch(/proposed rule, not confirmed by regulatory/i)
+    expect(mine[0].proof).toMatch(/posted, removed and changed nothing/)
+    expect(await ledger(w.firm.id, 'NOTICE_TIMING_FLAGGED')).toHaveLength(1)
+  })
+
+  it('running the compliance watch twice opens the late-notice card once', async () => {
+    await runs(COMPLIANCE_WATCH_AGENT, registerComplianceWatch, w.firm.id)
+    expect((await timingCards()).filter((c) => JSON.stringify(c.proofLinks).includes(w.lateNotice))).toHaveLength(1)
+  })
+
+  it('the late-notice card and the period-ended card for the same notice are two separate cards', async () => {
+    const own = (await cards(w.firm.id)).filter((c) => JSON.stringify(c.proofLinks).includes(w.lateNotice))
+    expect(own.some((c) => c.question.includes('filing day it is measured against'))).toBe(true)
+    expect(own.some((c) => c.question.includes('has been up its required time'))).toBe(true)
+    expect(own).toHaveLength(2)
+  })
+
+  it('a late notice can still be taken down and recorded, and is still flagged once it is down', async () => {
+    as(w.hr.primaryEmail)
+    const r = await json(await notice.PATCH(req('PATCH', `/api/compliance/notice-postings/${w.lateNotice}`, { takenDownOn: '2026-11-23' }), p(w.lateNotice)))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const list = await json(await notices.GET(req('GET', '/api/compliance/notice-postings')))
+    expect(list.body.data.notices.find((x: any) => x.id === w.lateNotice).timing).toBe('LATE')
+  })
+
+  it('the filing day can be entered later on a notice already on file, with a line on the record, and a day that is not a day is refused', async () => {
+    const r = await post('2026-09-01')
+    const id = r.body.data.id
+    as(w.hr.primaryEmail)
+    const bad = await json(await notice.PATCH(req('PATCH', `/api/compliance/notice-postings/${id}`, { measuredFromOn: 'soon' }), p(id)))
+    expect(bad.status).toBe(422)
+    expect(bad.body.error.field).toBe('measuredFromOn')
+    const ok = await json(await notice.PATCH(req('PATCH', `/api/compliance/notice-postings/${id}`, { measuredFromOn: '2026-08-15' }), p(id)))
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200)
+    expect((await prisma.noticePosting.findUniqueOrThrow({ where: { id } })).measuredFromOn?.toISOString().slice(0, 10)).toBe('2026-08-15')
+    expect((await ledger(w.firm.id, 'NOTICE_FILING_DAY_RECORDED')).some((x) => x.recordId === id && /2026-08-15/.test(x.summary))).toBe(true)
+    await runs(COMPLIANCE_WATCH_AGENT, registerComplianceWatch, w.firm.id)
+    expect((await timingCards()).filter((c) => JSON.stringify(c.proofLinks).includes(id))).toHaveLength(1)
+  })
+
+  it('a notice taken down on time but dated late is still flagged', async () => {
+    const r = await post('2026-11-02', { measuredFromOn: '2026-11-01' })
+    const id = r.body.data.id
+    as(w.hr.primaryEmail)
+    await json(await notice.PATCH(req('PATCH', `/api/compliance/notice-postings/${id}`, { takenDownOn: '2026-11-23' }), p(id)))
+    await runs(COMPLIANCE_WATCH_AGENT, registerComplianceWatch, w.firm.id)
+    expect((await timingCards()).filter((c) => JSON.stringify(c.proofLinks).includes(id))).toHaveLength(1)
+  })
+
+  it('a notice dated more than thirty days before its filing day opens a card that says so', async () => {
+    const r = await post('2026-09-01', { measuredFromOn: '2026-11-10' })
+    await runs(COMPLIANCE_WATCH_AGENT, registerComplianceWatch, w.firm.id)
+    const mine = (await timingCards()).filter((c) => JSON.stringify(c.proofLinks).includes(r.body.data.id))
+    expect(mine).toHaveLength(1)
+    expect(mine[0].question).toMatch(/more than 30 days before the filing day it is measured against, Nov 10, 2026/)
+  })
+})

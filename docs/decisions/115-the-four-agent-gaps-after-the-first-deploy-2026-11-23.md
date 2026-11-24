@@ -60,3 +60,16 @@ list is a proposal. The petitions route returns `listConfirmed` and no
 screen prints a new sentence. `Petition.kind` stays free text. An older
 petition is topped up only: no line is deleted or relabeled. Regulatory adds
 L-1, O-1, E-3 and TN lists when it confirms each with a source.
+
+**Gap 3, the on-time notice check (2026-11-24).** A notice carries
+`measuredFromOn`, the filing day it is measured against, entered by a
+person on the form or later by PATCH, optional. No link to a petition was
+added: which filing a notice is measured against is regulatory's to say, so
+the date is the person's. With it, the compliance watch judges the notice
+(`noticeTiming`): dated after that day is late, more than 30 days before it
+is early (30 is a proposal), otherwise on time; with no date there is no
+verdict. Late and early open one card to HR or the compliance officer
+(its own link `<id>:timing`, apart from the period-ended card) that says
+the rule is a proposal and the agent posted, removed and changed nothing.
+Closed notices are judged too. A late notice is still saved and can still
+come down. On time shows as a muted chip, never green. Nothing blocks.

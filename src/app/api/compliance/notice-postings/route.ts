@@ -4,19 +4,21 @@ import { hasPermission } from '@/lib/permissions'
 import { writeRecordAction } from '@/lib/record-ledger'
 import { daysOffFor } from '@/lib/days-off'
 import { loadCompanyHolidays } from '@/lib/holidays'
-import { PROPOSED_NOTICE_WORKING_DAYS, noticeEndsOn } from '@/lib/agents/checklist-rules'
+import { PROPOSED_NOTICE_LEAD_DAYS, PROPOSED_NOTICE_WORKING_DAYS, noticeEndsOn, noticeTiming } from '@/lib/agents/checklist-rules'
 import { queueSeat, logRefusal, refused, refusalOf } from '../../decision-items/door'
 import { dayFrom, entityFor, mayKeepPapers, refuseUnlessKeeper, text } from '../checklist-items/read'
 import { noticePostedAsk } from '../asks'
 
 /**
  * GET  /api/compliance/notice-postings   the firm's notices, each with the day its required posting period ends
- * POST /api/compliance/notice-postings   { kind, locationId, postedOn, fileRef?, actingEntityId? } a person records a notice posted
+ * POST /api/compliance/notice-postings   { kind, locationId, postedOn, measuredFromOn?, fileRef?, actingEntityId? } a person records a notice posted
  *
  * Record 112, chain 6. A person posts the notice and records it here; the
  * compliance watch counts the required period (10 working days, proposed)
  * and opens a card when it ends so a person takes it down and records the
- * removal. Etyme publishes and removes nothing. Needs governance.read (HR, the Compliance Officer, an Owner or an Admin).
+ * removal. A person may enter the filing day the notice is measured against;
+ * the notice is then judged on time, late or early against it (a proposal,
+ * never a block, nothing refused). Etyme publishes and removes nothing. Needs governance.read (HR, the Compliance Officer, an Owner or an Admin).
  */
 export async function GET(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
@@ -37,10 +39,11 @@ export async function GET(request: NextRequest) {
       notices: rows.map((r) => ({
         id: r.id, kind: r.kind, site: sites.find((s) => s.id === r.locationId)?.name ?? null, postedOn: r.postedOn.toISOString().slice(0, 10),
         periodEndsOn: noticeEndsOn(r.postedOn, daysOff, holidays).toISOString().slice(0, 10), takenDownOn: r.takenDownOn?.toISOString().slice(0, 10) ?? null, fileRef: r.fileRef,
+        measuredFromOn: r.measuredFromOn?.toISOString().slice(0, 10) ?? null, timing: noticeTiming(r.postedOn, r.measuredFromOn),
       })),
       sites, entities: seat.entities, mayRecord,
       // A proposal, not a confirmed rule: the screen says so beside the period.
-      rules: { noticeWorkingDays: PROPOSED_NOTICE_WORKING_DAYS, confirmed: false },
+      rules: { noticeWorkingDays: PROPOSED_NOTICE_WORKING_DAYS, noticeLeadDays: PROPOSED_NOTICE_LEAD_DAYS, confirmed: false },
     },
   })
 }
@@ -57,11 +60,13 @@ export async function POST(request: NextRequest) {
   const site = await prisma.companyLocation.findFirst({ where: { id: text(body.locationId), companyId: seat.companyId }, select: { id: true, name: true } })
   if (!site) return refused(422, 'Choose the site where the notice was posted. It must be one of your firm’s sites.', 'locationId')
   const postedOn = dayFrom(body.postedOn)!
+  const measuredFromOn = text(body.measuredFromOn) ? dayFrom(body.measuredFromOn) : null
+  if (text(body.measuredFromOn) && !measuredFromOn) return refused(422, 'Say the filing day as year-month-day, for example 2026-11-23, or leave it empty.', 'measuredFromOn')
   const entity = entityFor(seat, body.actingEntityId)
   if (!entity.ok) return refused(422, entity.says, 'actingEntityId')
   try {
     const row = await prisma.$transaction(async (tx) => {
-      const n = await tx.noticePosting.create({ data: { companyId: seat.companyId, kind, locationId: site.id, postedOn, postedById: seat.personId, fileRef: text(body.fileRef) || null } })
+      const n = await tx.noticePosting.create({ data: { companyId: seat.companyId, kind, locationId: site.id, postedOn, postedById: seat.personId, fileRef: text(body.fileRef) || null, measuredFromOn } })
       await writeRecordAction(tx, { companyId: seat.companyId, recordType: 'NoticePosting', recordId: n.id, action: 'NOTICE_POSTED', summary: `Recorded a ${kind} notice posted at ${site.name} on ${postedOn.toISOString().slice(0, 10)}.`, personId: seat.personId, heldAs: seat.heldAs, actingEntityId: entity.id })
       return n
     })

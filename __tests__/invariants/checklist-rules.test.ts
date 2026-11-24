@@ -3,7 +3,7 @@ import {
   CONTRACT_LABELS, PETITION_LINES, PROPOSED_ACCESS_FILE_WORKING_DAYS, PROPOSED_NOTICE_WORKING_DAYS, PROPOSED_PACK_LEAD_DAYS,
   accessFileReadyBy, accessFileWords, addWorkingDays, approvedLate, contractItemsFor, crossedWarning, daysFromTo, driftWords,
   judgeContractItem, noticeEndsOn, noticePeriodOver, noticeWords, packDue, packWords, petitionComplete, petitionMissing,
-  petitionListFor, PETITION_LISTS, removedEarly, signatureWords, tenureWords, windowInside, type LineFacts,
+  PROPOSED_NOTICE_LEAD_DAYS, noticeTiming, noticeTimingWords, petitionListFor, PETITION_LISTS, removedEarly, signatureWords, tenureWords, windowInside, type LineFacts,
 } from '@/lib/agents/checklist-rules'
 
 const d = (s: string) => new Date(`${s}T00:00:00Z`)
@@ -250,5 +250,38 @@ describe('the public access file', () => {
   })
   it('the card says the agent approves and publishes nothing', () => {
     expect(accessFileWords({ person: 'A', readyBy: d('2026-11-24'), today: d('2026-11-23') }).proof).toMatch(/publishes nothing/)
+  })
+})
+
+describe('the notice timing check (proposed, measured from the filing day a person entered)', () => {
+  it('the proposed lead is thirty days', () => {
+    expect(PROPOSED_NOTICE_LEAD_DAYS).toBe(30)
+  })
+  it('a notice posted ten days before the filing day is judged on time under the proposed rule', () => {
+    expect(noticeTiming(d('2026-11-10'), d('2026-11-20'), PROPOSED_NOTICE_LEAD_DAYS)).toBe('ON_TIME')
+  })
+  it('a notice posted on the filing day itself is not late', () => {
+    expect(noticeTiming(d('2026-11-20'), d('2026-11-20'), PROPOSED_NOTICE_LEAD_DAYS)).toBe('ON_TIME')
+  })
+  it('a notice posted after the filing day is judged late', () => {
+    expect(noticeTiming(d('2026-11-21'), d('2026-11-20'), PROPOSED_NOTICE_LEAD_DAYS)).toBe('LATE')
+  })
+  it('a notice posted more than the proposed thirty days before the filing day is judged too early, and exactly thirty is not', () => {
+    expect(noticeTiming(d('2026-10-20'), d('2026-11-20'), PROPOSED_NOTICE_LEAD_DAYS)).toBe('TOO_EARLY')
+    expect(noticeTiming(d('2026-10-21'), d('2026-11-20'), PROPOSED_NOTICE_LEAD_DAYS)).toBe('ON_TIME')
+  })
+  it('a notice with no filing day entered has no timing verdict at all', () => {
+    expect(noticeTiming(d('2026-11-21'), null, PROPOSED_NOTICE_LEAD_DAYS)).toBeNull()
+  })
+  it('the card says the rule is a proposal and that the agent posted, removed and changed nothing, and never accuses', () => {
+    const late = noticeTimingWords({ kind: 'Labor condition', site: 'Lakewood HQ', postedOn: d('2026-11-21'), measuredFromOn: d('2026-11-20'), timing: 'LATE' })
+    expect(late.question).toBe('The Labor condition notice posted at Lakewood HQ on Nov 21, 2026 is dated after the filing day it is measured against, Nov 20, 2026. Check the days on the record?')
+    const early = noticeTimingWords({ kind: 'Labor condition', site: 'Lakewood HQ', postedOn: d('2026-10-01'), measuredFromOn: d('2026-11-20'), timing: 'TOO_EARLY' })
+    expect(early.question).toMatch(/more than 30 days before the filing day it is measured against, Nov 20, 2026/)
+    for (const c of [late, early]) {
+      expect(c.proof).toMatch(/proposed rule, not confirmed by regulatory/i)
+      expect(c.proof).toMatch(/posted, removed and changed nothing/)
+      expect(c.question + c.proof).not.toMatch(/fraud|violat|\bdesk\b/i)
+    }
   })
 })

@@ -5,7 +5,7 @@ import { usePageSection } from '@/components/page-section'
 import { Chip, EmptyState, ErrorState, LoadingState, PageHead, Panel, RefusedState } from '@/components/ui'
 import { Act, SavedLine, useSaved } from '../act-form'
 import { petitionWords } from '../act-spec'
-import { approveBody, approveFields, recordNoticeBody, recordNoticeFields, removalBody, removalFields } from './bodies'
+import { approveBody, approveFields, filingDayBody, filingDayFields, recordNoticeBody, recordNoticeFields, removalBody, removalFields, timingChip } from './bodies'
 import { formatDay } from '@/lib/format-date'
 
 /**
@@ -19,8 +19,8 @@ import { formatDay } from '@/lib/format-date'
  */
 
 interface Entity { id: string; name: string }
-interface Notice { id: string; kind: string; site: string | null; postedOn: string; periodEndsOn: string; takenDownOn: string | null; fileRef: string | null }
-interface Notices { notices: Notice[]; sites: Entity[]; entities: Entity[]; mayRecord: boolean; rules: { noticeWorkingDays: number } }
+interface Notice { id: string; kind: string; site: string | null; postedOn: string; periodEndsOn: string; takenDownOn: string | null; fileRef: string | null; measuredFromOn: string | null; timing: 'ON_TIME' | 'LATE' | 'TOO_EARLY' | null }
+interface Notices { notices: Notice[]; sites: Entity[]; entities: Entity[]; mayRecord: boolean; rules: { noticeWorkingDays: number; noticeLeadDays: number } }
 interface AccessFile { id: string; person: string | null; kind: string; filedOn: string | null; readyBy: string; readyOn: string | null; approved: boolean }
 interface Files { files: AccessFile[]; entities: Entity[]; mayApprove: boolean; rules: { accessFileWorkingDays: number } }
 
@@ -95,7 +95,16 @@ export default function NoticesPage() {
                           {n.takenDownOn ? `Taken down on ${formatDay(n.takenDownOn)}.` : 'Not taken down yet.'}
                           {n.fileRef ? ` Copy: ${n.fileRef}.` : ''}
                         </p>
+                        {n.measuredFromOn && (() => { const chip = timingChip(n.timing); return (
+                          <p className="mt-1 text-[13px] text-etyme-muted break-words">
+                            Measured against the filing day {formatDay(n.measuredFromOn)}. {chip && <Chip tone={chip.tone}>{chip.text}</Chip>} {PROPOSED}
+                          </p>
+                        ) })()}
                       </div>
+                      {notices.mayRecord && !n.measuredFromOn && (
+                        <Act label="Add its filing day" fields={() => filingDayFields(notices.entities)}
+                          url={`/api/compliance/notice-postings/${n.id}`} method="PATCH" body={(v) => filingDayBody(v, notices.entities)} onDone={done} />
+                      )}
                       {notices.mayRecord && !n.takenDownOn && (
                         <Act label="Record its removal" fields={(v) => removalFields(v.takenDownOn ?? '', n.periodEndsOn, notices.entities)}
                           url={`/api/compliance/notice-postings/${n.id}`} method="PATCH" body={(v) => removalBody(v, n.periodEndsOn, notices.entities)} onDone={done} />

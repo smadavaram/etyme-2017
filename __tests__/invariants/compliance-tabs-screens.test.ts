@@ -9,6 +9,7 @@ import { getNavForKind } from '@/lib/nav-table'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { SavedLine } from '@/app/dashboard/compliance/act-form'
+import { recordNoticeFields, timingChip, filingDayFields } from '@/app/dashboard/compliance/notices/bodies'
 
 /**
  * The Checklists and Notices tabs of Contracts (record 112, chains 3 and 6):
@@ -151,5 +152,24 @@ describe('the Checklists and Notices tabs', () => {
     const route = read('src/app/api/compliance/immigration-petitions/route.ts')
     expect(route).toContain('petitionWords(kind)')
     expect(route).not.toContain("toLowerCase().replace(/_/g, ' ')} petition")
+  })
+
+  it('the notices form offers the filing day field that the route accepts, and so does the row’s own act', () => {
+    expect(recordNoticeFields([], []).map((f) => f.key)).toContain('measuredFromOn')
+    expect(filingDayFields([]).map((f) => f.key)).toEqual(['measuredFromOn'])
+    for (const r of ['notice-postings/route.ts', 'notice-postings/[id]/route.ts']) expect(read(`src/app/api/compliance/${r}`), r).toContain('measuredFromOn')
+  })
+
+  it('the notices screen shows no green chip for any timing, and no chip where there is no filing day', () => {
+    expect(timingChip(null)).toBeNull()
+    for (const t of ['ON_TIME', 'LATE', 'TOO_EARLY'] as const) expect(timingChip(t)!.tone).not.toBe('verified')
+    expect(timingChip('ON_TIME')!.tone).toBe('passive')
+    expect(timingChip('LATE')!.text).toBe('Dated after filing')
+    expect(timingChip('TOO_EARLY')!.text).toBe('Dated early')
+  })
+
+  it('the notices screen says the timing rule is a proposal beside its chip', () => {
+    expect(read('src/app/dashboard/compliance/notices/page.tsx')).toContain('timingChip(')
+    expect(read('src/app/dashboard/compliance/notices/page.tsx')).toMatch(/Proposed rule, not yet confirmed with its source/)
   })
 })

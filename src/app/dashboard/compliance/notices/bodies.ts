@@ -11,10 +11,22 @@ export const recordNoticeFields = (sites: readonly { id: string; name: string }[
   { key: 'kind', label: 'What kind of notice was posted', type: 'text', help: 'For example, a labor condition notice.' },
   { key: 'locationId', label: 'Where it was posted', type: 'select', options: sites.map((s) => ({ value: s.id, label: s.name })) },
   { key: 'postedOn', label: 'The day it was posted', type: 'date' },
+  { key: 'measuredFromOn', label: 'The filing day it is measured against', type: 'date', optional: true, help: 'Optional. With it, Etyme checks the day the notice was posted against that filing day. It never stops work.' },
   { key: 'fileRef', label: 'Where the copy is kept', type: 'text', optional: true, help: 'A file name or number. Etyme keeps the reference, never the notice.' },
   ...entityField(entities),
 ]
 export const recordNoticeBody = (v: Values, sites: readonly { id: string; name: string }[], entities: Entities) => typedBody(recordNoticeFields(sites, entities), v)
+
+/** The filing day a notice already on file is measured against, entered by a person. */
+export const filingDayFields = (entities: Entities): FieldSpec[] => [
+  { key: 'measuredFromOn', label: 'The filing day it is measured against', type: 'date' },
+  ...entityField(entities),
+]
+export const filingDayBody = (v: Values, entities: Entities) => typedBody(filingDayFields(entities), v)
+
+/** The chip beside a notice's timing: none where no filing day was entered, and never green, because the rule is a proposal. */
+export const timingChip = (timing: 'ON_TIME' | 'LATE' | 'TOO_EARLY' | null): { tone: 'passive' | 'attention'; text: string } | null =>
+  timing === null ? null : timing === 'LATE' ? { tone: 'attention', text: 'Dated after filing' } : timing === 'TOO_EARLY' ? { tone: 'attention', text: 'Dated early' } : { tone: 'passive', text: 'Dated before filing' }
 
 /** A removal asks for a reason only when it comes down before its required period ends. Days are year-month-day, so they compare as text. */
 export const cameDownEarly = (typedDay: string, periodEndsOn: string) => typedDay !== '' && typedDay < periodEndsOn

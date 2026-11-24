@@ -15,6 +15,12 @@ import { isDayOff } from '@/lib/days-off'
 
 // ── Proposals, awaiting the owner or regulatory. Nobody has decided these numbers. ──
 
+/**
+ * PROPOSED, not confirmed by regulatory (record 115, gap 3): a notice dated
+ * more than this many days before the filing day it is measured against is
+ * flagged as early. A notice dated after that filing day is flagged as late.
+ */
+export const PROPOSED_NOTICE_LEAD_DAYS = 30
 /** PROPOSED: the onboarding pack card goes to HR this many days before a start. */
 export const PROPOSED_PACK_LEAD_DAYS = 5
 /** PROPOSED (the spec says ten business days): a notice stays up this many working days. */
@@ -269,6 +275,32 @@ export function noticeWords(o: { kind: string; site: string; postedOn: Date; end
   return {
     question: `The ${o.kind} notice posted at ${o.site} on ${formatDay(o.postedOn)} has been up its required time. Take it down and record the removal?`,
     proof: `Posted ${formatDay(o.postedOn)}. The required posting period ended ${formatDay(o.endsOn)}. A person takes the notice down and records the day. The agent removed nothing and published nothing.`,
+  }
+}
+
+export type NoticeTiming = 'ON_TIME' | 'LATE' | 'TOO_EARLY'
+
+/**
+ * Where a notice's posting day falls against the filing day a person entered
+ * for it. Null where no filing day was entered: nothing is guessed. The
+ * filing day on the notice's own record is the anchor, never a petition's,
+ * because which filing a notice is measured against is regulatory's to say.
+ * On the filing day itself is on time. Pure.
+ */
+export function noticeTiming(postedOn: Date, measuredFromOn: Date | null, leadDays: number = PROPOSED_NOTICE_LEAD_DAYS): NoticeTiming | null {
+  if (!measuredFromOn) return null
+  const before = daysFromTo(postedOn, measuredFromOn)
+  if (before < 0) return 'LATE'
+  return before > leadDays ? 'TOO_EARLY' : 'ON_TIME'
+}
+
+/** The card a late or early notice opens. It asks a person to check the days, accuses nobody and says what the agent did not do. Pure. */
+export function noticeTimingWords(o: { kind: string; site: string; postedOn: Date; measuredFromOn: Date; timing: 'LATE' | 'TOO_EARLY'; leadDays?: number }): Drift {
+  const lead = o.leadDays ?? PROPOSED_NOTICE_LEAD_DAYS
+  const what = `The ${o.kind} notice posted at ${o.site} on ${formatDay(o.postedOn)} is dated ${o.timing === 'LATE' ? 'after' : `more than ${lead} days before`} the filing day it is measured against, ${formatDay(o.measuredFromOn)}.`
+  return {
+    question: `${what} Check the days on the record?`,
+    proof: `${what} This is a proposed rule, not confirmed by regulatory. The days are as a person entered them. The agent posted, removed and changed nothing; a person checks the days.`,
   }
 }
 
