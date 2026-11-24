@@ -22,9 +22,9 @@ import { askState } from '@/app/api/requirements/[id]/matches/asked'
 import type { MatchAction } from '@/lib/match-pool'
 import type { Card } from './open-once'
 
-/** The dedupe labels of the two cards. Not tables: the record view opens the job from the card's other link. */
-export const ASK_CARD_RECORD = 'ConsentAsk'
-export const READY_CARD_RECORD = 'ReadyToSubmit'
+/** The dedupe labels of the two cards. Not records (so not named `*_RECORD`): the decision page draws only a link it can open, and opens the job from the card's other link. */
+export const ASK_CARD_LABEL = 'ConsentAsk'
+export const READY_CARD_LABEL = 'ReadyToSubmit'
 /** How many people on one job may get a card in one run. */
 export const PEOPLE_CARDED = 5
 

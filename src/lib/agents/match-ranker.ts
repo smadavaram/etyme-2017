@@ -34,7 +34,7 @@ import { lastAsk } from '@/app/api/requirements/[id]/matches/asked-read'
 import { ownerForRoles } from '@/lib/money/agent-owners'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
 import { openOnce, ownerOf } from './open-once'
-import { ASK_CARD_RECORD, READY_CARD_RECORD, askCard, askIsDue, cardFor, namedForCards, readyCard } from './consent-ask'
+import { ASK_CARD_LABEL, READY_CARD_LABEL, askCard, askIsDue, cardFor, namedForCards, readyCard } from './consent-ask'
 
 export const MATCH_RANKER = 'match-ranker'
 export const MATCH_RANKER_RULE = 'match-ranker-v1'
@@ -190,7 +190,7 @@ async function consentCards(ctx: AgentContext, job: Awaited<ReturnType<typeof jo
     if (kind === 'ASK' && !askIsDue(await lastAsk(companyId, job.id, entry.personId), now)) continue
     if (kind === 'READY' && (await prisma.submission.count({ where: { requirementId: job.id, personId: entry.personId } })) > 0) continue
     if (!(await ctx.mayAct())) return
-    const link = { recordType: kind === 'ASK' ? ASK_CARD_RECORD : READY_CARD_RECORD, recordId: `${job.id}:${entry.personId}` }
+    const link = { recordType: kind === 'ASK' ? ASK_CARD_LABEL : READY_CARD_LABEL, recordId: `${job.id}:${entry.personId}` }
     const words = kind === 'ASK' && action.kind === 'ASK'
       ? askCard({ person: entry.name, firm: action.toName, job: forJob })
       : readyCard({ person: entry.name, job: forJob, employee: entry.employee, rateMin: entry.rateMin, rateMax: entry.rateMax })
