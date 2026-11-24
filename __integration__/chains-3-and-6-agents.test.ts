@@ -754,6 +754,18 @@ describe('the notice timing check', () => {
     expect(own).toHaveLength(2)
   })
 
+  it('a late-notice card opened first never stops the take-down card when the notice’s period ends later', async () => {
+    const r = await post('2026-11-20', { measuredFromOn: '2026-11-10' })
+    const id = r.body.data.id
+    await runs(COMPLIANCE_WATCH_AGENT, registerComplianceWatch, w.firm.id, MON)
+    const mine = async () => (await cards(w.firm.id)).filter((c) => JSON.stringify(c.proofLinks).includes(id))
+    expect((await mine()).map((c) => c.question.includes('filing day it is measured against'))).toEqual([true])
+    await runs(COMPLIANCE_WATCH_AGENT, registerComplianceWatch, w.firm.id, new Date('2026-12-15T12:00:00Z'))
+    const after = await mine()
+    expect(after).toHaveLength(2)
+    expect(after.some((c) => c.question.includes('has been up its required time'))).toBe(true)
+  })
+
   it('a late notice can still be taken down and recorded, and is still flagged once it is down', async () => {
     as(w.hr.primaryEmail)
     const r = await json(await notice.PATCH(req('PATCH', `/api/compliance/notice-postings/${w.lateNotice}`, { takenDownOn: '2026-11-23' }), p(w.lateNotice)))

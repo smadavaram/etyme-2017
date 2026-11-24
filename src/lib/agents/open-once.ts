@@ -32,9 +32,14 @@ export async function openOnce(
   const { companyId, now } = ctx
   const sw = await prisma.agentSwitch.findUnique({ where: { companyId_agentKey: { companyId, agentKey: ctx.agentKey } } })
   if (!sw) return 'REFUSED'
-  const same = await prisma.decisionItem.findMany({
+  // The same card is one whose own dedupe link (the first) is this link. A card
+  // that only shows this record beside its own link is a different card.
+  const same = (await prisma.decisionItem.findMany({
     where: { companyId, proofLinks: { array_contains: [link] }, agentTasks: { none: {} } },
-    select: { state: true, proof: true },
+    select: { state: true, proof: true, proofLinks: true },
+  })).filter((d) => {
+    const first = Array.isArray(d.proofLinks) ? (d.proofLinks[0] as { recordType?: string; recordId?: string } | undefined) : undefined
+    return first?.recordType === link.recordType && first?.recordId === link.recordId
   })
   if (same.some((d) => d.state === 'OPEN')) return 'ALREADY_OPEN'
   if (same.some((d) => d.proof === card.proof.trim())) return 'ALREADY_DECIDED'
