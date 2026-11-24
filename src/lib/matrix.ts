@@ -3555,6 +3555,7 @@ export const MATRIX: L1[] = [
             'After the yes it sends one letter and up to two reminders, 5 working days apart, through the mail door, and closes the task when the bill is paid in full',
             'On Drafts only it sends nothing, even after a yes; a held or disputed bill is a person\u2019s to settle',
             'A bill skipped because a payment question is open, and late bills skipped because no receivables or Owner seat is working, are each said once on the ledger in plain words (record 115, gap 4); no card, no letter, no change to the bill',
+            'A chase that ended with letters sent and the bill still owed gets one final notice on a later run, as its own task and its own yes card (an escalation of the chase). It is drafted for the same billing contact and never sent by the agent: a yes closes it as handed to a person, and no path sends it. Collections, a payroll hold and any change to the bill stay a person\u2019s',
             'PARTIAL 2026-11-23 (record 112, chain 5): built and tested on the database, not walked in a browser',
           ],
           implementedBy: ['src/lib/money/money-owed-chase.ts', 'src/lib/agents/money-owed-chase.ts', 'src/lib/agents/tasks.ts', 'src/app/api/cron/agents/route.ts', 'src/lib/agents/chase-numbers.ts', 'src/app/api/decision-items/agents/route.ts', 'src/app/dashboard/decisions/agents/page.tsx'],

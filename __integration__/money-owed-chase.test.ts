@@ -129,15 +129,16 @@ describe('chasing money owed, on the database', () => {
     expect(sent[0].text).toContain('$600.00 is still owed')
   })
 
-  it('reminders spent end the task with no answer and open nothing further', async () => {
+  it('reminders spent end the task with no answer, and the next run proposes one final notice as its own task', async () => {
     const [t] = await tasks()
     register(); await aged(); await run(); await run()
     expect(await letters(t.id)).toBe(3)
     const done = await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })
     expect(done.state).toBe('DONE'); expect(done.closedReason).toMatch(/No answer/)
-    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, OR: [{ kind: 'ESCALATION' }, { parentTaskId: { not: null } }] } })).toBe(0)
     await run()
-    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, agentKey: KEY, recordId: w.bill.id } })).toBe(1)
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, agentKey: KEY, recordId: w.bill.id, kind: 'MONEY_OWED_CHASE' } })).toBe(1)
+    const kids = await prisma.agentTask.findMany({ where: { companyId: w.firm.id, parentTaskId: t.id } })
+    expect(kids.map((k) => [k.kind, k.state])).toEqual([['ESCALATION', 'PROPOSED']])
   })
 
   it('a bill paid in full closes its chase at once and no further letter goes', async () => {
@@ -203,7 +204,7 @@ describe('chasing money owed, on the database', () => {
     register(); await aged(); await run()
     const after = await prisma.invoice.findMany({ where: { number: { contains: tag } }, select: { id: true, status: true, total: true, paid: true, dueAt: true } })
     expect(after).toEqual(before)
-    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, kind: { not: 'MONEY_OWED_CHASE' } } })).toBe(0)
+    for (const k of await prisma.agentTask.findMany({ where: { companyId: w.firm.id, kind: { not: 'MONEY_OWED_CHASE' } } })) expect([k.kind, (k.plan as any).sendsNothing]).toEqual(['ESCALATION', true])
     const templates = await prisma.mailSend.findMany({ where: { companyId: w.firm.id, agentKey: KEY }, select: { template: true } })
     expect(new Set(templates.map((x) => x.template))).toEqual(new Set(['money-owed-chase']))
     for (const s of sent) expect(s.text.toLowerCase()).not.toMatch(/final notice|write.?off|payroll hold/)
@@ -508,5 +509,206 @@ describe('a firm with nobody to hand a chase to', () => {
     const l = await gLines()
     expect(l).toHaveLength(2)
     expect(l[1].summary).toMatch(/^1 bill past due was not chased, such as bill GH-3-/)
+  })
+})
+
+describe('a final notice after a chase ends with the bill still owed', () => {
+  const kids = (chaseId: string) => prisma.agentTask.findMany({ where: { parentTaskId: chaseId } })
+  const FN = 'money-owed-final-notice'
+  /** Walk one bill's chase to its end ("No answer"), stopping the moment it is DONE. Returns the chase task. */
+  async function endedChase(b: { id: string }) {
+    await setSwitch('ON'); register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE')
+    for (let i = 0; i < 12; i++) {
+      await run()
+      if ((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state === 'DONE') break
+      await aged()
+    }
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('DONE')
+    return t
+  }
+  const finalFor = async (chaseId: string) => (await kids(chaseId))[0]
+  const mailFN = () => prisma.mailSend.count({ where: { companyId: w.firm.id, template: FN, outcome: 'SENT' } })
+
+  it('a final notice is proposed as its own task with its own yes card, and the finished chase is never reopened', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    expect(await kids(t.id)).toHaveLength(0) // the run that closed the chase proposes nothing
+    await run()
+    const [k] = await kids(t.id)
+    expect([k.kind, k.state, k.recordType, k.recordId, k.agentKey]).toEqual(['ESCALATION', 'PROPOSED', 'Invoice', b.id, KEY])
+    expect(k.decisionId).not.toBe(t.decisionId)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('DONE')
+    const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: k.decisionId } })
+    expect(card.ownerPersonId).toBe(w.ar.id)
+    w.fn = { b, t, k, card }
+  })
+
+  it('the final notice card names the customer, the bill, the amount owed, the days past due and the letters already sent', async () => {
+    const { b, card } = w.fn
+    expect(card.question).toMatch(new RegExp(`^Final notice for bill ${b.number}: ${w.client.name} still owes \\$1,000\\.00 on bill ${b.number}`))
+    expect(card.question).toMatch(/22 days past it/)
+    expect(card.question).toMatch(/\d letters? (was|were) sent, on /)
+    expect(card.question).toContain('A person sends this; Etyme sent nothing.')
+  })
+
+  it('the final notice draft is addressed to the same billing contact and carries the signed weeks, with no fee, deadline, threat or word about pay', async () => {
+    const { card } = w.fn
+    expect(card.proof).toContain(`omar.${tag}@example.invalid`)
+    expect(card.proof).toMatch(/Worker \d+, .* 40 hours, signed /)
+    const all = `${card.question}\n${card.proof}`.toLowerCase()
+    for (const x of ['fee', 'interest', 'deadline', 'within', 'legal', 'collections', 'payroll', 'wage', 'salary', 'threat']) expect(all).not.toContain(x)
+  })
+
+  it('a bill is never given a second final notice, whatever became of the first', async () => {
+    const { t, k } = w.fn
+    register(); await run(); await run()
+    expect(await kids(t.id)).toHaveLength(1)
+    await say(k.decisionId, 'REJECT')
+    await run(); await run()
+    expect((await kids(t.id)).map((x) => x.state)).toEqual(['REFUSED'])
+  })
+
+  it('nothing is sent for a final notice until a person says yes to its card, and a yes sends nothing either: the task ends handed to a person', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    const mailsBefore = await prisma.mailSend.count({ where: { companyId: w.firm.id } })
+    sent.length = 0
+    await run()
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })).state).toBe('PROPOSED')
+    await say(k.decisionId, 'APPROVE'); await run(); await run()
+    const done = await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })
+    expect(done.state).toBe('DONE'); expect(done.closedReason).toMatch(/person/i); expect(done.closedReason).toMatch(/Etyme sent nothing/)
+    expect(done.sentCount).toBe(0)
+    expect(sent).toHaveLength(0)
+    expect(await prisma.mailSend.count({ where: { companyId: w.firm.id } })).toBe(mailsBefore)
+    expect(await mailFN()).toBe(0)
+  })
+
+  it('the mail door refuses a final notice whatever the task, in ON mode too, and the step never calls it with that template', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    await say(k.decisionId, 'APPROVE')
+    const calls: string[] = []
+    unregisterAgent(KEY)
+    registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => { calls.push(m.about?.template ?? ''); return sendMail(m, deps as any) } }) })
+    await run(); await run()
+    expect(calls).not.toContain(FN)
+    const res = await sendMail({ to: `omar.${tag}@example.invalid`, subject: 'x', text: 'x', about: { companyId: w.firm.id, agentKey: KEY, agentTaskId: k.id, agentAttempt: 1, recordType: 'Invoice', recordId: b.id, template: FN, chase: true } }, deps as any)
+    expect(res.outcome).not.toBe('SENT')
+    expect(await mailFN()).toBe(0)
+  })
+
+  it('a chase that ended because no letter could leave proposes no final notice', async () => {
+    const b = await newBill()
+    await setSwitch('ON'); register(); await run()
+    const t = await taskFor(b.id); await say(t.decisionId, 'APPROVE')
+    const noSender = { ...deps, env: {} }
+    unregisterAgent(KEY)
+    registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => sendMail(m, noSender as any) }) })
+    for (let i = 0; i < 8; i++) { await run(); await prisma.mailSend.updateMany({ where: { agentTaskId: t.id }, data: { createdAt: day(8) } }) }
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('DONE')
+    expect(await kids(t.id)).toHaveLength(0)
+  })
+
+  it('a chase closed because the bill was paid proposes no final notice', async () => {
+    const b = await newBill(); register(); await run()
+    const t = await taskFor(b.id); await say(t.decisionId, 'APPROVE'); await run()
+    await pay(b.id, '1000.00'); await closeChaseOnPayment(b.id); await run(); await run()
+    expect(await kids(t.id)).toHaveLength(0)
+  })
+
+  it('a bill the customer holds or disputes is never given a final notice', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    await prisma.invoice.update({ where: { id: b.id }, data: { status: 'DISPUTED' } })
+    await run(); await run()
+    expect(await kids(t.id)).toHaveLength(0)
+  })
+
+  it('a final notice is not proposed while a payment question about the bill is still open', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    const q = await prisma.decisionItem.create({ data: { companyId: w.firm.id, question: 'Short pay', proof: 'short', ownerPersonId: w.ar.id, state: 'OPEN', proofLinks: [{ recordType: 'Invoice', recordId: b.id }], openedOn: new Date() } as any })
+    await run(); await run()
+    expect(await kids(t.id)).toHaveLength(0)
+    await prisma.decisionItem.update({ where: { id: q.id }, data: { state: 'APPROVED', decidedAt: new Date(), decidedByPersonId: w.owner.id } })
+    await run()
+    expect(await kids(t.id)).toHaveLength(1)
+  })
+
+  it('a final notice with nobody recorded to receive bills is not proposed', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    const saved = await prisma.companyContact.findMany({ where: { companyId: w.firm.id, atCompanyId: w.client.id } })
+    await prisma.companyContact.deleteMany({ where: { companyId: w.firm.id, atCompanyId: w.client.id } })
+    try { await run(); await run(); expect(await kids(t.id)).toHaveLength(0) }
+    finally { for (const c of saved) await prisma.companyContact.create({ data: c as any }) }
+    await run()
+    expect(await kids(t.id)).toHaveLength(1)
+  })
+
+  it('a chase that finished before this change is offered a final notice on a card, and nothing is sent', async () => {
+    const b = await newBill(); register(); await run()
+    const t = await taskFor(b.id); await say(t.decisionId, 'APPROVE'); await run()
+    await prisma.agentTask.update({ where: { id: t.id }, data: { state: 'DONE', closedReason: 'No answer: every attempt in the plan was made and the bill is still owed. Any further step is a person’s to take.' } })
+    sent.length = 0; await run()
+    expect((await kids(t.id)).map((x) => x.state)).toEqual(['PROPOSED'])
+    expect(sent).toHaveLength(0)
+  })
+
+  it('on drafts only a final notice is proposed and nothing is sent, even after a yes', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    await setSwitch('DRAFT_ONLY'); sent.length = 0
+    await run()
+    const k = await finalFor(t.id)
+    expect(k.state).toBe('PROPOSED')
+    await say(k.decisionId, 'APPROVE'); await run()
+    expect(sent).toHaveLength(0); expect(await mailFN()).toBe(0)
+    await setSwitch('ON')
+  })
+
+  it('a final notice already proposed is closed when the bill is paid in full', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    await pay(b.id, '1000.00'); await closeChaseOnPayment(b.id)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })).state).toBe('CLOSED_BY_ARRIVAL')
+  })
+
+  it('a final notice that was approved is closed as paid, not as handed over, when the bill is paid before the next run', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    await say(k.decisionId, 'APPROVE')
+    await pay(b.id, '1000.00')
+    await run()
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })).state).toBe('CLOSED_BY_ARRIVAL')
+  })
+
+  it('a final notice for a bill that is cancelled is stopped', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    await say(k.decisionId, 'APPROVE')
+    await prisma.invoice.update({ where: { id: b.id }, data: { status: 'CANCELLED' } })
+    await run()
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })).state).toBe('STOPPED')
+  })
+
+  it('the final notice leaves the bill and its payments exactly as they were', async () => {
+    const b = await newBill(); await pay(b.id, '100.00'); const t = await endedChase(b)
+    const read = async () => ({ inv: await prisma.invoice.findUniqueOrThrow({ where: { id: b.id } }), pays: await prisma.payment.findMany({ where: { invoiceId: b.id }, orderBy: { id: 'asc' } }) })
+    const before = await read()
+    await run(); const k = await finalFor(t.id); await say(k.decisionId, 'APPROVE'); await run()
+    expect(await read()).toEqual(before)
+  })
+
+  it('the final notice card reads as a final notice on the control view, with the chase it grows out of', async () => {
+    const { openTasks } = await import('@/lib/agents/tasks')
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const row = (await openTasks(w.firm.id)).find((r) => r.escalationOf === t.id)!
+    expect(row.question).toMatch(/^Final notice for bill /)
+    expect(row.state).toBe('PROPOSED')
+  })
+
+  it('the chase walk never takes a final notice as a chase of its own', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id); await say(k.decisionId, 'APPROVE'); await run()
+    expect(await prisma.mailSend.count({ where: { agentTaskId: k.id } })).toBe(0)
   })
 })
