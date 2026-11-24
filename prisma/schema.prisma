@@ -11510,6 +11510,9 @@ model NoticePosting {
   postedById  String?
   removedById String?
   fileRef     String?
+  /// The filing day this notice is measured against, entered by a person
+  /// (record 115). Which filing it is stays regulatory's to confirm.
+  measuredFromOn DateTime? @db.Date
   createdAt   DateTime  @default(now())
 
   @@index([companyId, kind])
