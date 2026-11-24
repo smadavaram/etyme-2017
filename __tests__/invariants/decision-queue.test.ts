@@ -54,7 +54,7 @@ describe('opening a decision', () => {
   })
 
   it('a proof link names one of the five kinds of record, and a decision is not one of them', () => {
-    expect(PROOF_TYPES.map((p) => p.label)).toEqual(['A company', 'A contract', 'A person on your list', 'An invoice receipt', 'A bill', 'An offer', 'A checklist paper', 'An immigration petition', 'A posted notice', 'A public access file', 'A submission confirmation', 'A job'])
+    expect(PROOF_TYPES.map((p) => p.label)).toEqual(['A company', 'A contract', 'A person on your list', 'An invoice receipt', 'A bill', 'An offer', 'A checklist paper', 'An immigration petition', 'A posted notice', 'A public access file', 'A submission confirmation', 'A job', 'A contact'])
     expect(readOpenAsk(openBody({ ...typed, proofLinks: [{ recordType: 'Invoice', recordId: 'i1' }] }), false).ok).toBe(true)
     expect(readOpenAsk(openBody({ ...typed, proofLinks: [{ recordType: 'DecisionItem', recordId: 'd1' }] }), false).ok).toBe(false)
     expect(readOpenAsk({ ...openBody(typed), proofLinks: [{ recordType: 'Timesheet', recordId: 't1' }] }, false).ok).toBe(false)

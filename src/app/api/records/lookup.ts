@@ -28,6 +28,8 @@ import { grossSays, peopleIn, type DraftRow } from '@/lib/money/payroll-draft'
 function onBook(companyId: string, type: RecordType): Record<string, unknown> {
   switch (type) {
     case 'Company': return { OR: [{ id: companyId }, { counterpartyOf: { some: { companyId } } }] }
+    // A contact: only the firm's own rolodex row.
+    case 'CompanyContact': return { companyId }
     case 'SellContract': return { OR: [{ companyId }, { clientCompanyId: companyId }, { endClientCompanyId: companyId }] }
     // A job: the firm's own, one it is the end client of, or one sent to it.
     case 'Requirement': return { OR: [{ companyId }, { endClientCompanyId: companyId }, { invitations: { some: { toCompanyId: companyId } } }] }
@@ -89,6 +91,10 @@ export async function findOnBook(companyId: string, type: RecordType, id: string
     case 'Company': {
       const r = await prisma.company.findFirst({ where, select: { id: true, name: true } })
       return r
+    }
+    case 'CompanyContact': {
+      const r = await prisma.companyContact.findFirst({ where, select: { id: true, name: true, atCompany: { select: { name: true } } } })
+      return r ? { id: r.id, name: `${r.name} at ${r.atCompany.name}` } : null
     }
     case 'SellContract': {
       const r = await prisma.sellContract.findFirst({ where, select: { id: true, person: { select: { name: true } }, clientCompany: { select: { name: true } } } })
@@ -168,6 +174,7 @@ export async function monthPageOf(id: string): Promise<{ href: string; words: st
 export async function subjectOf(type: RecordType, id: string): Promise<{ companyId: string } | { personId: string } | null> {
   switch (type) {
     case 'Company': return (await prisma.company.findUnique({ where: { id }, select: { id: true } })) ? { companyId: id } : null
+    case 'CompanyContact': return ownerFirm(await prisma.companyContact.findUnique({ where: { id }, select: { companyId: true } }))
     case 'Person': return (await prisma.person.findUnique({ where: { id }, select: { id: true } })) ? { personId: id } : null
     case 'Requirement': return ownerFirm(await prisma.requirement.findUnique({ where: { id }, select: { companyId: true } }))
     case 'SellContract': {
@@ -216,6 +223,8 @@ export async function recordsOnBook(companyId: string, type: ProofType, q: strin
   const words = q.trim()
   const base = onBook(companyId, type)
   switch (type) {
+    case 'CompanyContact':
+      return (await prisma.companyContact.findMany({ where: { AND: [base, words ? { name: { contains: words, mode: 'insensitive' } } : {}] } as any, select: { id: true, name: true, atCompany: { select: { name: true } } }, orderBy: { name: 'asc' }, take })).map((r) => ({ id: r.id, name: `${r.name} at ${r.atCompany.name}` }))
     case 'Company':
       return prisma.company.findMany({ where: { AND: [base, words ? { name: { contains: words, mode: 'insensitive' } } : {}] } as any, select: { id: true, name: true }, orderBy: { name: 'asc' }, take })
     case 'Person':
@@ -289,6 +298,10 @@ const day = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : 
 export async function factsOf(type: RecordType, id: string): Promise<Fact[]> {
   const f = (label: string, value: string | null | undefined): Fact[] => (value ? [{ label, value }] : [])
   switch (type) {
+    case 'CompanyContact': {
+      const r = await prisma.companyContact.findUnique({ where: { id }, select: { name: true, title: true, outreachOptOutAt: true, atCompany: { select: { name: true } } } })
+      return r ? [...f('Name', r.name), ...f('Works at', r.atCompany.name), ...f('Title', r.title), ...f('No more outreach since', day(r.outreachOptOutAt))] : []
+    }
     case 'Company': {
       const r = await prisma.company.findUnique({ where: { id }, select: { name: true, createdAt: true } })
       return r ? [...f('Name', r.name), ...f('On Etyme since', day(r.createdAt))] : []

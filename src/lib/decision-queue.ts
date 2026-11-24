@@ -43,6 +43,7 @@ export const PROOF_TYPES = [
   { type: 'PublicAccessFile', label: 'A public access file' },
   { type: 'SubmissionConfirmation', label: 'A submission confirmation' },
   { type: 'Requirement', label: 'A job' },
+  { type: 'CompanyContact', label: 'A contact' },
 ] as const
 
 export type ProofType = (typeof PROOF_TYPES)[number]['type']
@@ -125,6 +126,7 @@ export function mayOpenOwnPage(type: RecordType, permissions: readonly string[] 
 export function ownPageOf(type: RecordType, id: string): { href: string; words: string } {
   switch (type) {
     case 'Company': return { href: '/dashboard/companies', words: 'Open Companies' }
+    case 'CompanyContact': return { href: '/dashboard/contacts', words: 'Open Contacts' }
     case 'SellContract': return { href: `/dashboard/placements/${id}`, words: 'Open the contract' }
     case 'Person': return { href: `/dashboard/people/${id}`, words: 'Open the person' }
     case 'Requirement': return { href: `/dashboard/requirements/${id}`, words: 'Open the job' }

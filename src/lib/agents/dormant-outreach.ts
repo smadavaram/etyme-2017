@@ -44,9 +44,10 @@ async function postalOf(companyId: string): Promise<string | null> {
 }
 
 /** Addresses this firm's outreach letters bounced on, lower case. A new address is simply not in the set. */
-async function bouncedAddresses(companyId: string): Promise<Set<string>> {
-  const rows = await prisma.mailSend.findMany({ where: { companyId, template: OUTREACH_TEMPLATE, outcome: 'FAILED_DELIVERY' }, select: { toAddresses: true } })
-  return new Set(rows.flatMap((r) => r.toAddresses.map((a) => a.trim().toLowerCase())))
+async function bouncedAddresses(companyId: string, contactIds: readonly string[]): Promise<Set<string>> {
+  // Read through the mail door's own reader, by firm and record together.
+  const rows = (await Promise.all(contactIds.map((id) => mailSendsAbout(companyId, OUTREACH_RECORD, id)))).flat()
+  return new Set(rows.filter((r) => r.template === OUTREACH_TEMPLATE && r.outcome === 'FAILED_DELIVERY').flatMap((r) => r.toAddresses.map((a) => a.trim().toLowerCase())))
 }
 
 /** The firm's own rolodex at one company: only rows whose owner is the sending firm. */
@@ -85,14 +86,14 @@ export async function draftDormantOutreach(ctx: AgentContext, census: { before: 
   const firmName = firm?.name ?? 'We'
   const entities = await prisma.legalEntity.findMany({ where: { companyId }, select: { id: true } })
   const postal = await postalOf(companyId)
-  const bounced = await bouncedAddresses(companyId)
   for (const row of gone) {
     const otherId = row.key.slice(row.key.indexOf(':') + 1)
     const link = { recordType: 'Company', recordId: otherId }
     if (coolingOffHolds(await lastOutreachOn(companyId, otherId, row.side), now)) continue
     if (!(await ctx.mayAct(2))) return // a task writes two counted rows
 
-    const picked = chooseRecipient(await rolodexAt(companyId, otherId), bounced, row.side)
+    const rolodex = await rolodexAt(companyId, otherId)
+    const picked = chooseRecipient(rolodex, await bouncedAddresses(companyId, rolodex.map((c) => c.id)), row.side)
     const block: Block | null = !postal ? 'NO_ADDRESS' : !baseUrl() ? 'NO_LINK' : picked.ok ? null : picked.block
     const quiet = { side: row.side, firmName, companyName: row.name, lastActivity: row.lastActivity }
 
@@ -154,7 +155,7 @@ export async function walkOutreach(ctx: AgentContext, rows: () => Promise<readon
     const contact = await prisma.companyContact.findUnique({ where: { id: task.recordId }, select: { id: true, name: true, email: true, companyId: true, atCompanyId: true, outreachOptOutAt: true } })
     if (!contact || contact.companyId !== companyId || !contact.email?.trim()) { await stop('The contact is no longer in the firm’s own records with an email, so nothing was sent.'); continue }
     if (contact.outreachOptOutAt) { await stop(`${contact.name} asked for no more outreach, so nothing was sent.`); continue }
-    if ((await bouncedAddresses(companyId)).has(contact.email.trim().toLowerCase())) { await stop('The last outreach letter to this address bounced, so nothing was sent. Record a new address first.'); continue }
+    if ((await bouncedAddresses(companyId, [contact.id])).has(contact.email.trim().toLowerCase())) { await stop('The last outreach letter to this address bounced, so nothing was sent. Record a new address first.'); continue }
     census ??= await rows()
     const row = census.find((r) => r.key === `${side}:${contact.atCompanyId}`)
     if (!row || row.standing !== 'DORMANT') { await stop('The company has work with the firm again, or is no longer on its register, so the check-in is stopped.'); continue }
