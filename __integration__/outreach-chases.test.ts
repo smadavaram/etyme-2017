@@ -204,6 +204,22 @@ describe('the submission chase, on the database', () => {
     expect(t.state).toBe('CLOSED_BY_ARRIVAL')
   })
 
+  it('a submission confirmed before anyone says yes closes its chase, sends nothing, and its card no longer counts as owed', async () => {
+    const { listDecisions } = await import('@/lib/decision-items')
+    await setSwitch(TRACK, 'ON')
+    const s = await newSubmission()
+    await track()
+    const t0 = await taskFor(s.id)
+    expect(t0.state).toBe('PROPOSED')
+    expect((await listDecisions(w.firm.id, { state: 'open' })).some((d) => d.id === t0.decisionId)).toBe(true)
+    await recordConfirmation({ companyId: w.firm.id, submissionId: s.id, personId: w.owner.id, heldAs: 'Owner', actingEntityId: w.entity.id, channel: 'PHONE' })
+    await track()
+    expect((await taskFor(s.id)).state).toBe('CLOSED_BY_ARRIVAL')
+    expect(await chaseLetters(s.id)).toHaveLength(0)
+    expect((await listDecisions(w.firm.id, { state: 'open' })).some((d) => d.id === t0.decisionId)).toBe(false)
+    expect((await prisma.decisionItem.findUniqueOrThrow({ where: { id: t0.decisionId } })).state).toBe('OPEN')
+  })
+
   it('a confirmation tied to the chase letter counts as the confirmation of the submission', async () => {
     await setSwitch(TRACK, 'ON')
     const s = await released()

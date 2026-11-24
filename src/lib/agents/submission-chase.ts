@@ -83,12 +83,14 @@ export async function submissionChaseStep(ctx: AgentContext, items: Item[], deps
   const firm = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } })
   for (const t0 of tasks) {
     const { task } = await approvalOf(t0.id)
-    if (task.state !== 'APPROVED' && task.state !== 'RUNNING') continue
+    // Close first, whether or not anybody has said yes yet: a chase for a submission that is answered or gone asks for nothing.
+    if (task.state !== 'PROPOSED' && task.state !== 'APPROVED' && task.state !== 'RUNNING') continue
     const item = items.find((i) => i.fact.id === task.recordId)
     if (!item) { await closeTask(task.id, 'The submission was turned down or withdrawn, so the follow-up is stopped.', 'STOPPED'); continue }
     if (item.state === 'CONFIRMED') { await closeTask(task.id, 'A confirmation is recorded, so the follow-up is closed.', 'CLOSED_BY_ARRIVAL'); continue }
     if (item.state === 'FAILED_DELIVERY') { await closeTask(task.id, 'A letter about this submission did not reach the other side. The tracker’s own card asks a person, so the follow-up is stopped.', 'STOPPED'); continue }
     if (item.state === 'NOT_SENT') { await closeTask(task.id, 'The submission is no longer out, so the follow-up is stopped.', 'STOPPED'); continue }
+    if (task.state === 'PROPOSED') continue // nothing is sent before a person's yes
     if (item.state === 'BLOCKED') continue // held by a dual authorization: a person's to release first
     if (ctx.mode !== 'ON') continue // Drafts only: nothing is sent, even after a yes.
 

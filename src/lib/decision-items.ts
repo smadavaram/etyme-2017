@@ -264,13 +264,21 @@ export async function openDecision(
  * entity and age in days. `state` 'open' lists only open items, 'decided'
  * only closed ones; a closed item's age stops on the day it was decided.
  */
+/**
+ * An open card is still owed unless the agent task it asks about has
+ * already closed (the bill was paid, the submission confirmed or
+ * withdrawn): then there is nothing left to say yes to. The card keeps its
+ * state; no verdict is written in a person's name.
+ */
+export const STILL_OWED: Prisma.DecisionItemWhereInput = { NOT: { agentTasks: { some: { state: { notIn: ['PROPOSED', 'APPROVED', 'RUNNING'] } } } } }
+
 export async function listDecisions(companyId: string, opts: { state?: 'open' | 'decided' | 'all'; now?: Date } = {}) {
   const now = opts.now ?? new Date()
   const zone = await firmZone(companyId)
   const today = todayIn(zone, now)
   const state = opts.state ?? 'all'
   const rows = await prisma.decisionItem.findMany({
-    where: { companyId, ...(state === 'open' ? { state: 'OPEN' as const } : state === 'decided' ? { state: { not: 'OPEN' as const } } : {}) },
+    where: { companyId, ...(state === 'open' ? { state: 'OPEN' as const, ...STILL_OWED } : state === 'decided' ? { state: { not: 'OPEN' as const } } : {}) },
     orderBy: [{ openedOn: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     include: {
       ownerPerson: { select: { name: true } },
@@ -336,7 +344,7 @@ export async function decisionItemCards(caller: { person: { id: string }; compan
   if (!caller.company || caller.context.type === 'CONSULTANT') return []
   const companyId = caller.company.id
   const rows = await prisma.decisionItem.findMany({
-    where: { companyId, state: 'OPEN', ownerPersonId: caller.person.id },
+    where: { companyId, state: 'OPEN', ownerPersonId: caller.person.id, ...STILL_OWED },
     orderBy: [{ openedOn: 'asc' }, { id: 'asc' }],
     select: { id: true, question: true, openedOn: true, createdAt: true, actingEntity: { select: { name: true } } },
     take: 100,
