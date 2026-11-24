@@ -344,6 +344,26 @@ the stabilization batch.
   engine, never a one-off build. NOT BUILT. Nothing in record 110's
   batch built a tenant's site directly.
 
+## The rest of record 112 in chains 1, 2, 3 and 5: READY, walk passed, Source 526aba57d
+
+Built on the branch after the four gaps (commits 5161170ee to 526aba57d):
+- Chain 1: submission chase (one yes per task, one letter, one reminder,
+  3 working days apart, numbers proposed); dormant outreach is a draft
+  card only, never sent by an agent.
+- Chain 2: ask and put-forward cards from the match ranker; a yes sends
+  nothing and submits nobody.
+- Chain 3: placement-record card on the line the award wrote; HR's pack
+  card, advisory, Activate unchanged.
+- Chain 5: final notice as its own escalation task; drafted on its card,
+  never sent by an agent. Payroll hold waits on regulatory.
+- Review fix: a card whose agent task closed no longer counts as owed
+  (STILL_OWED in decision-items), and an answered chase closes first.
+Walk P said ships; its wording points fixed in 526aba57d. Release check
+GREEN on 526aba57d: type check; 18,138 unit; 4,213 database; build.
+Owner questions open: may an agent send outreach or an approved final
+notice, and who writes the final notice's text; do the submission chase
+numbers stand. Chain 6 has nothing left unbuilt.
+
 ## The four agent gaps (record 115): READY, walk passed, Source f897913e5
 
 Owner's yes, 2026-11-23, then "complete the build now and not have to
