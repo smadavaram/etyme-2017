@@ -154,6 +154,13 @@ describe('the Checklists and Notices tabs', () => {
     expect(route).not.toContain("toLowerCase().replace(/_/g, ' ')} petition")
   })
 
+  it('a contract item with no signed paper reads No signed paper in a quiet chip, never a green one, and the statement of work line offers no paper to record', () => {
+    const page = read('src/app/dashboard/compliance/checklists/page.tsx')
+    expect(page).toContain("i.state === 'OPEN' ? 'No signed paper'")
+    expect(page).toContain("i.state === 'MET' ? 'verified' : 'passive'")
+    expect(page).toContain('contract.mayRecord && i.recordable')
+  })
+
   it('the notices form offers the filing day field that the route accepts, and so does the row’s own act', () => {
     expect(recordNoticeFields([], []).map((f) => f.key)).toContain('measuredFromOn')
     expect(filingDayFields([]).map((f) => f.key)).toEqual(['measuredFromOn'])

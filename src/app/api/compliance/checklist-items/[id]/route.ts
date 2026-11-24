@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { writeRecordAction } from '@/lib/record-ledger'
 import { firmSeats, seatAtFirm } from '@/lib/decision-items'
-import { judgeContractItem } from '@/lib/agents/checklist-rules'
+import { CONTRACT_LABELS, judgeContractItem } from '@/lib/agents/checklist-rules'
 import { queueSeat, refused, refusalOf } from '../../../decision-items/door'
 import { entityFor, refuseUnlessKeeper, text } from '../read'
 import { markMetAsk, recordSignedAsk } from '../../asks'
@@ -37,6 +37,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     if (action === 'RECORD_SIGNED') {
       if (item.kind !== 'CONTRACT_TERM') return refused(422, 'Only a contract item records a signed paper this way. A petition paper is marked on hand.', 'action')
+      if (item.label === CONTRACT_LABELS.SOW) return refused(422, 'A statement of work is signed on its engagement. This line turns agreed by itself once the signing date is recorded there.', 'action')
       if (!hasPermission(seat.caller.permissions, 'assignments.write')) return refused(403, 'Recording what a signed paper says is for whoever looks after contracts at your firm.')
       const ask = recordSignedAsk(body, item.actualValue)
       if (ask) return refused(422, ask.says, ask.field)

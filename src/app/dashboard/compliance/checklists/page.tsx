@@ -17,7 +17,7 @@ import { formatDay } from '@/lib/format-date'
  */
 
 interface Entity { id: string; name: string }
-interface Item { id: string; label: string; kind: ItemKind | null; state: string; agreed: string; actual: string; says: string }
+interface Item { id: string; label: string; kind: ItemKind | null; recordable: boolean; state: string; agreed: string; actual: string; says: string }
 interface Placement { lineId: string; person: string; client: string; currency: string; items: Item[] }
 interface Contract { placements: Placement[]; entities: Entity[]; mayRecord: boolean; keepsPapers: boolean; rules: { packLeadDays: number } }
 interface Line { id: string; label: string; state: string; reference: string | null; signatoryName: string | null; needsSignature: boolean }
@@ -88,10 +88,10 @@ export default function ChecklistsPage() {
                         <li key={i.id} className="py-3 min-w-0">
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0">
-                              <p className="text-[13.5px] text-etyme-ink">{i.label} <Chip tone={i.state === 'DRIFT' ? 'attention' : 'verified'}>{i.state === 'DRIFT' ? 'Differs' : i.state === 'MET' ? 'Agreed' : 'Set aside'}</Chip></p>
+                              <p className="text-[13.5px] text-etyme-ink">{i.label} <Chip tone={i.state === 'DRIFT' ? 'attention' : i.state === 'MET' ? 'verified' : 'passive'}>{i.state === 'DRIFT' ? 'Differs' : i.state === 'MET' ? 'Agreed' : i.state === 'OPEN' ? 'No signed paper' : 'Set aside'}</Chip></p>
                               <p className="mt-1 text-[13px] text-etyme-muted break-words">{i.says}</p>
                             </div>
-                            {contract.mayRecord && i.state !== 'WAIVED_WITH_REASON' && (
+                            {contract.mayRecord && i.recordable && i.state !== 'WAIVED_WITH_REASON' && (
                               <Act
                                 label="Record the signed paper" tone={i.state === 'DRIFT' ? 'primary' : 'secondary'}
                                 fields={() => recordSignedFields(i.kind, contract.entities)}

@@ -47,7 +47,11 @@ export async function GET(request: NextRequest) {
         const kind = KIND_OF[i.label] ?? null
         return {
           id: i.id, label: i.label, kind, state: i.state, agreed, actual,
-          says: i.state === 'DRIFT'
+          recordable: i.label !== CONTRACT_LABELS.SOW,
+          says: i.label === CONTRACT_LABELS.SOW
+            ? (i.state === 'MET' ? 'The statement of work is signed.' : 'The statement of work is written and not signed.')
+            : i.state === 'OPEN' ? `The line reads ${actual}. No signed paper is recorded yet.`
+            : i.state === 'DRIFT'
             ? (kind === 'WINDOW' ? `The line’s dates run ${actual}, outside the order’s ${agreed}.` : `The line reads ${actual}. The signed paper agreed ${agreed}.`)
             : i.state === 'WAIVED_WITH_REASON' ? 'Set aside with a reason on the record.' : (kind === 'WINDOW' ? `The line’s dates run inside the order’s ${agreed}.` : `The line and the signed paper agree: ${agreed}.`),
         }

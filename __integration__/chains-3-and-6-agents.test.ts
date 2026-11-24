@@ -209,6 +209,27 @@ describe('the statement of work item', () => {
     expect(await sowCards(w.unsigned.id)).toHaveLength(1)
   })
 
+  it('a statement of work cannot be agreed by recording a paper on its line, so an unsigned one never reads as agreed', async () => {
+    as(w.cm.primaryEmail)
+    const item = await prisma.checklistItem.findFirstOrThrow({ where: { ownerId: w.unsigned.id, label: 'Statement of work' } })
+    const r = await json(await itemRoute.POST(req('POST', `/api/compliance/checklist-items/${item.id}`, { action: 'RECORD_SIGNED', paperReference: 'SOW v1' }), p(item.id)))
+    expect(r.status).toBe(422)
+    expect(JSON.stringify(r.body)).toMatch(/signed on its engagement/)
+    expect((await prisma.checklistItem.findUniqueOrThrow({ where: { id: item.id } })).state).toBe('DRIFT')
+  })
+
+  it('the checklist list says an unsigned statement of work is not signed, offers no paper to record on it, and says a rate with no paper has none', async () => {
+    as(w.cm.primaryEmail)
+    const r = await json(await itemsList.GET(req('GET', '/api/compliance/checklist-items')))
+    const all = r.body.data.placements.flatMap((x: any) => x.items)
+    const sow = all.find((i: any) => i.label === 'Statement of work' && i.state === 'DRIFT')
+    expect(sow.recordable).toBe(false)
+    expect(sow.says).toBe('The statement of work is written and not signed.')
+    const open = all.find((i: any) => i.label === 'Bill rate' && i.state === 'OPEN')
+    expect(open.recordable).toBe(true)
+    expect(open.says).toMatch(/No signed paper is recorded yet\.$/)
+  })
+
   it('a signed statement of work reads as met and opens no card', async () => {
     const signedEng = await prisma.engagement.create({ data: { title: `Signed ${tag}`, statementOfWork: 'Run the help desk.', sowSignedAt: day('2026-08-20') } })
     const l = await line({ engagementId: signedEng.id })
