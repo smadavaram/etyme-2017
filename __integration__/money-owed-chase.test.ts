@@ -706,6 +706,15 @@ describe('a final notice after a chase ends with the bill still owed', () => {
     expect(row.state).toBe('PROPOSED')
   })
 
+  it('the final notice card carries its draft from the moment it opens, and its task reads as a final notice by name', async () => {
+    const { findOnBook } = await import('@/app/api/records/lookup')
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: k.decisionId } })
+    expect(card.proof).toMatch(/Draft, to .*\nSubject: /)
+    expect((await findOnBook(w.firm.id, 'AgentTask' as any, k.id))?.name).toMatch(new RegExp(`Final notice for bill ${b.number}`))
+  })
+
   it('the chase walk never takes a final notice as a chase of its own', async () => {
     const b = await newBill(); const t = await endedChase(b); await run()
     const k = await finalFor(t.id); await say(k.decisionId, 'APPROVE'); await run()

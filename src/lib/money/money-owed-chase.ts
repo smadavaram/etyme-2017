@@ -334,14 +334,13 @@ async function proposeFinalNotices(ctx: AgentContext, owner: string | null): Pro
       owedMinor: owed, currency: b.currency, dueAt: b.dueAt, daysPast: daysPastDue(b.dueAt, now), link: null,
       weeks: signedWeeksOf(b), lettersSentOn: left.map((r) => r.createdAt),
     }
+    // The draft goes under the card's plan, written with the card, for the person who sends it. It carries no link: a bill link is a token and never sits on a card.
+    const letter = finalNoticeLetter(f)
     const task = await proposeTask({
       companyId, agentKey: ctx.agentKey, kind: MONEY_OWED_CHASE_KIND, recordType: MONEY_OWED_RECORD, recordId: b.id,
       plan: PROPOSED_FINAL_NOTICE_PLAN, ownerPersonId: owner, openedOn: now, parentTaskId: t.id, question: finalNoticeQuestion(f),
+      detail: `Draft, to ${contact.name ? `${contact.name} ` : ''}<${contact.email}>.\nSubject: ${letter.subject}\n\n${letter.text}\n\nThe link to the bill is not on this card: open the bill and copy its link before you send.`,
     })
-    // The draft goes under the card's plan, for the person who sends it. It carries no link: a bill link is a token and never sits on a card.
-    const letter = finalNoticeLetter(f)
-    const plan = (await prisma.decisionItem.findUniqueOrThrow({ where: { id: task.decisionId }, select: { proof: true } })).proof
-    await prisma.decisionItem.update({ where: { id: task.decisionId }, data: { proof: `${plan}\n\nDraft, to ${contact.name ? `${contact.name} ` : ''}<${contact.email}>.\nSubject: ${letter.subject}\n\n${letter.text}\n\nThe link to the bill is not on this card: open the bill and copy its link before you send.` } })
     await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_FINAL_NOTICE_PROPOSED', summary: `Drafted a final notice for bill ${b.number} to ${customer.name}, ${amount(owed, b.currency)} owed, and asked for a yes. A person sends it; Etyme sends nothing.` })
   }
 }

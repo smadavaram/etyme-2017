@@ -66,6 +66,14 @@ async function taskAbout(t: { kind: string; recordType: string; recordId: string
     const b = await prisma.invoice.findUnique({ where: { id: t.recordId }, select: { number: true } })
     return b ? `Chase of bill ${b.number}` : null
   }
+  if (t.kind === 'SUBMISSION_CHASE' && t.recordType === 'Submission') {
+    const s = await prisma.submission.findUnique({ where: { id: t.recordId }, select: { person: { select: { name: true } }, requirement: { select: { title: true } } } })
+    return s ? `Chase of ${s.person.name}'s submission for ${s.requirement.title}` : null
+  }
+  if (t.kind === 'ESCALATION' && t.recordType === 'Invoice') {
+    const b = await prisma.invoice.findUnique({ where: { id: t.recordId }, select: { number: true } })
+    return b ? `Final notice for bill ${b.number}` : null
+  }
   if (t.kind === 'TIMESHEET_CHASE' && t.recordType === 'Cycle') {
     const c = await prisma.cycle.findUnique({ where: { id: t.recordId }, select: { periodStart: true, periodEnd: true, dueOn: true, sellContract: { select: { person: { select: { name: true } } } } } })
     if (!c?.sellContract) return null

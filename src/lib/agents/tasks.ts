@@ -107,6 +107,8 @@ export interface ProposeInput {
   parentTaskId?: string | null
   actingEntityId?: string | null
   openedOn?: Date
+  /** Words shown under the plan on the card, written with it (a draft a person sends, say). */
+  detail?: string
 }
 
 /** Prepare a task and open the card that asks for its yes. Allowed Drafts only; refused Off. */
@@ -125,7 +127,7 @@ export async function proposeTask(input: ProposeInput) {
     const decision = await openDecision({
       companyId: input.companyId, personId, heldAs: AGENT_HELD_AS, actingEntityId: entity,
       question: input.question, ownerPersonId: input.ownerPersonId, openedOn: input.openedOn ?? new Date(),
-      proof: planWords(input.plan), proofLinks: [],
+      proof: input.detail ? `${planWords(input.plan)}\n\n${input.detail}` : planWords(input.plan), proofLinks: [],
     }, undefined, tx)
     const task = await tx.agentTask.create({
       data: {

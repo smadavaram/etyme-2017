@@ -94,6 +94,14 @@ describe('the submission chase, on the database', () => {
     expect([card.state, card.question]).toEqual(['OPEN', expect.stringMatching(/Candidate \d+ for Job \d+.*Proposed numbers, awaiting the Owner/)])
   })
 
+  it('a submission chase reads by name as the chase of that person for that job, not a code', async () => {
+    const { findOnBook } = await import('@/app/api/records/lookup')
+    const t = (await tasks())[0]
+    const name = (await findOnBook(t.companyId, 'AgentTask' as any, t.id))?.name ?? ''
+    expect(name).toMatch(/Chase of Candidate \d+'s submission for Job \d+/)
+    expect(name).not.toContain('SUBMISSION_CHASE')
+  })
+
   it('a submission is never proposed for a chase twice, whatever became of the first task', async () => {
     await setSwitch(TRACK, 'ON')
     const s = await newSubmission()
