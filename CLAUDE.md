@@ -899,6 +899,10 @@ Full text → 12, 14, 24, 32, 35.
   112): one person's yes releases the whole task, retries and closing
   included. Every new task asks again, and an escalation is its own
   task. Approval never carries across tasks.
+- **Agent outreach follows a mass-mail service's policy** (owner,
+  2026-11-24 → 116): after one yes, only to contacts the firm recorded
+  at firms it traded with, an unsubscribe in every letter that ends its
+  outreach, the sender and its postal address named, bounces suppressed.
 - **The voice.** Recommendation first. Names, not counts. One sentence
   per refusal, with the door. No apology words. The trade's phrasing:
   who applied, approve a timesheet, pay an invoice, on hold.

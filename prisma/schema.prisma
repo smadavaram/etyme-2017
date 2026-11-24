@@ -2500,6 +2500,11 @@ model CompanyContact {
   personId String?
   person   Person? @relation("contactIdentity", fields: [personId], references: [id])
 
+  /// Set when this contact unsubscribed from this firm's outreach
+  /// (record 116). No outreach letter goes to them after it; a chase or
+  /// a bill about a deal already made is not outreach.
+  outreachOptOutAt DateTime?
+
   notes String?
 
   createdById String?
