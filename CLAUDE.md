@@ -903,6 +903,11 @@ Full text → 12, 14, 24, 32, 35.
   2026-11-24 → 116): after one yes, only to contacts the firm recorded
   at firms it traded with, an unsubscribe in every letter that ends its
   outreach, the sender and its postal address named, bounces suppressed.
+- **Outreach is one lean engine to sell staffing and project pods**
+  (owner, 2026-11-25 → 117): audience from the firm's own record, an
+  offer drafted from it, one yes per batch, record 116 on every letter,
+  two follow-ups at most, replies as lead cards, links to the storefront.
+  Candidates only after their own yes to updates.
 - **The voice.** Recommendation first. Names, not counts. One sentence
   per refusal, with the door. No apology words. The trade's phrasing:
   who applied, approve a timesheet, pay an invoice, on hold.
