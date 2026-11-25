@@ -995,6 +995,10 @@ model Company {
   /// Where a signed-in seat at this firm lands. Null is the standing rule
   /// (lib/console-home); DECISIONS opens the decision queue (→ 107).
   homePage              HomePage?
+  /// Plugins switched on for this firm (record 120): TRAIN_TO_BENCH, PODS.
+  /// Empty is off. The ledger is PluginSwitch.
+  pluginsOn             String[]                @default([])
+  pluginSwitches        PluginSwitch[]
   docTemplates          DocTemplate[]
   msasAsVendor          MasterAgreement[]       @relation("vendor")
   msasAsClient          MasterAgreement[]       @relation("client")
@@ -11576,4 +11580,22 @@ model PublicAccessFile {
   @@index([companyId])
   @@index([petitionId])
   @@index([approvedById])
+}
+
+/// Who switched which plugin, and when (record 120). Append-only: a row is
+/// never changed or deleted. `byStaff` is Etyme's Superadmin, shown to the
+/// Owner as "Etyme staff". `byPersonId` is kept as text so the ledger
+/// outlives the person.
+model PluginSwitch {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plugin     String // TRAIN_TO_BENCH · PODS
+  on         Boolean
+  byPersonId String
+  byStaff    Boolean  @default(false)
+  reason     String?
+  at         DateTime @default(now())
+
+  @@index([companyId, plugin, at])
 }

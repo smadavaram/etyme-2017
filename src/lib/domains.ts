@@ -652,6 +652,9 @@ export const DOMAINS: Domain[] = [
       // so a server route may import it; the sidebar that draws it is a
       // client component and no route may import that.
       'lib/nav-table',
+      // The per-tenant plugin switch (record 120): the state, who may switch,
+      // and the one refusal every plugin's routes say. Every plugin reads it.
+      'lib/plugins', 'lib/plugin-gate',
       // One order, three names, and the rule for a counterparty that is
       // not on the system. Both are read by money, demand and the
       // platform's own routes at once, so they queue here with the

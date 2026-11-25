@@ -1070,6 +1070,11 @@ export type SeatFacts = {
    * permission: the route answers each person about themselves.
    */
   earnsCommission?: boolean
+  /**
+   * The plugins the seat's company has on (`Company.pluginsOn`, record 120).
+   * Undefined is off: Training is drawn only where TRAIN_TO_BENCH is here.
+   */
+  plugins?: readonly string[]
 }
 
 /**
@@ -1531,7 +1536,26 @@ export function mayOpen(href: string, permissions: readonly string[] | null | un
   return true
 }
 
+/** The pages a plugin draws, which are not drawn while it is off. */
+const PLUGIN_PAGES: Record<string, string> = { TRAIN_TO_BENCH: TRAINING.href }
+
+/**
+ * The menu for a seat, less the pages of any plugin its company has off
+ * (record 120). The menu, the + button and search all read this one answer.
+ */
 export function getNavForKind(
+  kind: CompanyKind | null | undefined,
+  isConsultant: boolean,
+  seat: SeatFacts = {}
+): NavSection[] {
+  const off = Object.entries(PLUGIN_PAGES).filter(([key]) => !seat.plugins?.includes(key)).map(([, href]) => href)
+  const sections = navForKind(kind, isConsultant, seat)
+  return sections
+    .map((s) => ({ ...s, items: s.items.filter((i) => !off.includes(i.href)) }))
+    .filter((s) => s.items.length > 0)
+}
+
+function navForKind(
   kind: CompanyKind | null | undefined,
   isConsultant: boolean,
   seat: SeatFacts = {}

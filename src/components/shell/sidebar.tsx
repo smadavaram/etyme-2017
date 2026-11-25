@@ -38,6 +38,7 @@ export function Sidebar({
   region = null,
   hat = null,
   earnsCommission = false,
+  plugins = [],
   homePage = null,
   pending = false,
   sheet = false,
@@ -72,6 +73,7 @@ export function Sidebar({
   hat?: Hat | null
   /** This person earns commission at this firm: "Your commissions" under Accounting. */
   earnsCommission?: boolean
+  plugins?: string[]
   /** The firm's own home setting (→ 107): its Dashboard link opens the decision queue. */
   homePage?: 'DECISIONS' | null
   /** Session still loading — render the frame without nav items so the
@@ -91,7 +93,7 @@ export function Sidebar({
   const searchParams = useSearchParams()
   const sections = pending
     ? []
-    : getNavForKind(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref, region, hat, earnsCommission })
+    : getNavForKind(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref, region, hat, earnsCommission, plugins })
 
   // Where this seat's own front door is. One answer, in lib/console-home,
   // shared with /dashboard's own redirect and the demo door — three
@@ -115,7 +117,7 @@ export function Sidebar({
 
   // What the Dashboard column prints: the role's links under the
   // founder's headings (founder, 2026-11-08, "One app, two tabs").
-  const groups = pending ? [] : menuFor(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref, region, hat, earnsCommission })
+  const groups = pending ? [] : menuFor(companyKind, isConsultant, { worker, permissions, seatedAtClient, termsHref, region, hat, earnsCommission, plugins })
   const view = viewOf(pathname)
   // The Dashboard tab opens the first link of this seat's own menu.
   const dashboardTab = menuLinks(groups)[0]?.href ?? dashboardHref

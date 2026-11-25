@@ -402,7 +402,8 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
     Client: 'CLIENT', Supplier: 'VENDOR', Integrator: 'GSI', MSP: 'MSP', 'One-person firm': 'CONSULTANT_CORP', Worker: null,
   }
   const sectionsOf = (party: string) => getNavForKind(KIND[party], KIND[party] == null)
-  const columnOf = (party: string) => menuFor(KIND[party], KIND[party] == null)
+  // Training is a plugin (record 120): the table names it "where the plugin is on", so it is read with the plugin on.
+  const columnOf = (party: string) => menuFor(KIND[party], KIND[party] == null, { plugins: ['TRAIN_TO_BENCH'] })
 
   it('names all six parties in the table, and nobody else', () => {
     expect([...documented.keys()].sort()).toEqual(
@@ -420,8 +421,10 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
       const sections = sectionsOf(party)
       const wrong: string[] = []
       for (const sentence of documented.get(party)!.folded.split(/\.\s*/)) {
-        const [pages, noun] = sentence.split('→').map((x) => x?.trim())
-        if (!noun) continue
+        const [pages, rawNoun] = sentence.split('→').map((x) => x?.trim())
+        if (!rawNoun) continue
+        // "Training → Candidates, where the plugin is on": the clause says when, not where.
+        const noun = rawNoun.replace(/,\s*where .*$/, '')
         // A link on the column, or Ask Etyme, which is the switch above it.
         const covers = links.find((l) => l.label === noun)?.covers ?? sections.find((s) => s.label === noun)?.items
         for (const page of pages.split(',').map((x) => x.trim())) {
@@ -1009,7 +1012,7 @@ describe('a menu offers only what this seat can actually open', () => {
     expect(labels).not.toContain('Training')
     // A desk that reads the bench still has it.
     const resourcing = rolesFor('GSI').find((r) => (r.permissions as readonly string[]).includes('consultants.read') && !(r.permissions as readonly string[]).includes('*'))!
-    expect(itemsOf(getNavForKind('GSI', false, { permissions: resourcing.permissions })).map((i) => i.label)).toContain('Training')
+    expect(itemsOf(getNavForKind('GSI', false, { permissions: resourcing.permissions, plugins: ['TRAIN_TO_BENCH'] })).map((i) => i.label)).toContain('Training')
   })
 
   it('a worker\u2019s seat is not shown Paperwork, whose one action asks somebody on the books and his seat reads nobody there', () => {
@@ -1170,7 +1173,7 @@ describe('a menu offers only what this seat can actually open', () => {
     // Both read the desk through `deskOf`, the helper the sidebar reads,
     // so a program office at a client's desk is filtered by the seat.
     expect(HEADER_SRC).toContain('deskOf(session)')
-    expect(HEADER_SRC).toContain('{ worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, hat: desk.hat }')
+    expect(HEADER_SRC).toContain('{ worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, hat: desk.hat, plugins: session.company?.pluginsOn ?? [] }')
   })
 
   it('does not filter a menu at all until it knows what the seat holds', () => {
@@ -1554,7 +1557,7 @@ describe('Ask Etyme carries the number the bell used to', () => {
 
 describe('master data sits under Network: the people a firm keeps and the firms it trades with (founder, 2026-11-04)', () => {
   const groupsAt = (kind: 'VENDOR' | 'GSI' | 'MSP' | 'CLIENT', permissions?: string[]) => {
-    const nav = getNavForKind(kind, false, permissions ? { permissions } : {})
+    const nav = getNavForKind(kind, false, { plugins: ['TRAIN_TO_BENCH'], ...(permissions ? { permissions } : {}) })
     const network = nav.find((s) => s.label === 'Network')!
     return tabsFor(nav, network.items[0].href)!
   }
@@ -1594,7 +1597,7 @@ describe('master data sits under Network: the people a firm keeps and the firms 
 
   it('no page lost its address: every register and its neighbors still open where they opened before, now as Network’s tabs', () => {
     const at = (kind: 'VENDOR' | 'GSI' | 'MSP' | 'CLIENT') =>
-      getNavForKind(kind, false).find((s) => s.label === 'Network')!.items.map((i) => i.href)
+      getNavForKind(kind, false, { plugins: ['TRAIN_TO_BENCH'] }).find((s) => s.label === 'Network')!.items.map((i) => i.href)
     for (const kind of ['VENDOR', 'GSI'] as const) {
       expect(at(kind), kind).toEqual([
         '/dashboard/consultants', '/dashboard/bench', '/dashboard/settings/bench-pay', '/dashboard/texts', '/dashboard/training',

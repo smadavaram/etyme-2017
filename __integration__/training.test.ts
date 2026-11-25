@@ -24,6 +24,8 @@ describe('training on the bench, enrolled to finished', () => {
     const pinnacle = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' }, select: { id: true } })
     const tariq = await prisma.person.create({ data: { name: 'Tariq Al-Amin', primaryEmail: WORKER } })
     it_.worker = tariq.id
+    // Training is a plugin, off until the firm's Owner turns it on (record 120).
+    await prisma.company.updateMany({ where: { slug: { in: ['world-pinnacle', 'world-brightmoor'] } }, data: { pluginsOn: ['TRAIN_TO_BENCH'] } })
     const profile = await prisma.consultantProfile.create({ data: { personId: tariq.id, skills: ['Power BI'], location: 'Portland, OR', visibility: 'VERIFIED', workAuth: 'USC' } })
     await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: pinnacle.id, tier: 'RETAINED', state: 'GRANTED', invitedAt: day(-30), respondedAt: day(-29), grantedAt: day(-29) } })
     await prisma.context.create({ data: { personId: tariq.id, companyId: pinnacle.id, type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' } })

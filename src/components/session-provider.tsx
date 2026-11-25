@@ -29,6 +29,8 @@ export interface SessionCompany {
   kind: CompanyKind
   /** The firm's own home setting (→ 107): DECISIONS lands its seats on the decision queue. */
   homePage?: 'DECISIONS' | null
+  /** The plugins this firm has on (record 120). Empty is off. */
+  pluginsOn?: string[]
 }
 
 /** Who the signed-in person is here. A consultant on a vendor's bench has
@@ -350,6 +352,7 @@ export function SessionProvider({
                 slug: company.slug,
                 kind: normalizeKind(company.kind),
                 homePage: company.homePage === 'DECISIONS' ? 'DECISIONS' : null,
+                pluginsOn: Array.isArray(company.pluginsOn) ? company.pluginsOn : [],
               }
             : null,
           roleName: active?.role?.name ?? null,

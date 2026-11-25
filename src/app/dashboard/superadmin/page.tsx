@@ -181,8 +181,57 @@ export default function SuperadminPage() {
 
       {mail && <MailFailuresPanel mail={mail} />}
 
+      <PluginSwitchPanel />
+
       <IdentityCheckPanel />
     </div>
+  )
+}
+
+/**
+ * Switch one firm's plugin (record 120). The switch and nothing else: no
+ * company data is read here, the answer is the plugin and its state, and
+ * the firm's Owner reads the row as "Etyme staff" with the reason.
+ */
+function PluginSwitchPanel() {
+  const [f, setF] = useState({ slug: '', plugin: 'TRAIN_TO_BENCH', on: 'on', reason: '' })
+  const [said, setSaid] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value })
+  async function send(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true); setSaid(null)
+    const res = await fetch('/api/superadmin/plugins', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: f.slug, plugin: f.plugin, on: f.on === 'on', reason: f.reason }),
+    })
+    const body = await res.json().catch(() => ({}))
+    setBusy(false)
+    if (!res.ok) { setSaid({ tone: 'error', text: body.error?.message ?? 'Not switched. Try again.' }); return }
+    setSaid({ tone: 'ok', text: `${body.data.plugin === 'PODS' ? 'Project teams' : 'Train to bench'} is now ${body.data.on ? 'on' : 'off'}. The firm’s Owner sees this as Etyme staff.` })
+  }
+  const pick = 'w-full rounded-[8px] border border-etyme-rule bg-etyme-raised px-3 py-2 text-[14px] text-etyme-ink'
+  return (
+    <Panel title="Switch a plugin for one firm" subtitle="Only the switch. Nothing of the firm’s is read. The firm’s Owner sees who switched it, when, and why.">
+      <form onSubmit={send} className="max-w-[520px] space-y-3">
+        <Field label="Company’s Etyme address (before .etyme.com)"><Input value={f.slug} onChange={set('slug')} /></Field>
+        <Field label="Plugin">
+          <select value={f.plugin} onChange={set('plugin')} className={pick}>
+            <option value="TRAIN_TO_BENCH">Train to bench</option>
+            <option value="PODS">Project teams</option>
+          </select>
+        </Field>
+        <Field label="Switch it">
+          <select value={f.on} onChange={set('on')} className={pick}>
+            <option value="on">On</option>
+            <option value="off">Off</option>
+          </select>
+        </Field>
+        <Field label="Why"><Input value={f.reason} onChange={set('reason')} /></Field>
+        {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+        <SubmitButton pending={busy} pendingLabel="Switching…">Switch</SubmitButton>
+      </form>
+    </Panel>
   )
 }
 

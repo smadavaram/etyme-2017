@@ -280,7 +280,7 @@ export function plusMenuFor(
    * `readerFilesAWeek`). `seatedAtClient`: the client whose desk this is,
    * so a desk-less seat's own menu is read the way the sidebar reads it.
    */
-  more: { filesAWeek?: boolean; seatedAtClient?: string | null; region?: string | null; hat?: Hat | null } = {}
+  more: { filesAWeek?: boolean; seatedAtClient?: string | null; region?: string | null; hat?: Hat | null; plugins?: readonly string[] } = {}
 ): PlusMenuSection[] {
   if (isConsultant || !kind) return []
   // The You hat creates nothing of the firm's (founder, 2026-11-03): a
@@ -330,7 +330,7 @@ export function plusMenuFor(
   // The hat too: in the You hat the menu is the person's own pages, so
   // nothing the firm creates is offered over it.
   const nav = getNavForKind(kind as Parameters<typeof getNavForKind>[0], false, {
-    worker, permissions, seatedAtClient: more.seatedAtClient ?? null, region: more.region ?? null, hat: more.hat ?? null,
+    worker, permissions, seatedAtClient: more.seatedAtClient ?? null, region: more.region ?? null, hat: more.hat ?? null, plugins: more.plugins,
   })
   const sectionOf = (href: string): number => {
     const path = href.split('?')[0]
@@ -492,6 +492,7 @@ export function Header({ title }: HeaderProps) {
   const crumb = seatCrumb({ isConsultant: contextType === 'CONSULTANT', hasCompany: Boolean(company), roleName, seatedAtClient: desk.seatedAtClient })
   const plusMenu = plusMenuFor(desk.menuKind, desk.isConsultant, permissions, desk.worker, {
     filesAWeek: desk.filesAWeek, seatedAtClient: desk.seatedAtClient, region: desk.region, hat: desk.hat,
+    plugins: session.company?.pluginsOn ?? [],
   })
   const [plusOpen, setPlusOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -527,6 +528,7 @@ export function Header({ title }: HeaderProps) {
   const seatFacts = {
     worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, region: desk.region, hat: desk.hat,
     earnsCommission: Boolean(session.earnsCommission),
+    plugins: session.company?.pluginsOn ?? [],
   }
   const asks = !session.loading && pinnedOn(getNavForKind(desk.companyKind, desk.isConsultant, seatFacts)).length > 0
   const owed = useOwedCount(asks)
@@ -591,7 +593,7 @@ export function Header({ title }: HeaderProps) {
   const reachablePages = reachablePagesFor(
     desk.companyKind,
     desk.isConsultant,
-    { worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, hat: desk.hat }
+    { worker: desk.worker, permissions, seatedAtClient: desk.seatedAtClient, hat: desk.hat, plugins: session.company?.pluginsOn ?? [] }
   )
 
   const searchResults: SearchResult[] = searchQuery.length >= 1

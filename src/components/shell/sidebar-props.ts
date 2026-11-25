@@ -46,6 +46,8 @@ export type SidebarIdentity = {
   hat?: Hat | null
   /** This person earns commission at this firm: "Your commissions" under Accounting. */
   earnsCommission?: boolean
+  /** The plugins this firm has on (record 120). */
+  plugins?: string[]
   /**
    * The firm's own home setting (→ 107). Read only at the firm's own book:
    * a seat in a client's program lands where that seat always did.
@@ -117,6 +119,7 @@ export function sidebarPropsFrom(
     region: session.region ?? null,
     hat: session.hat ?? null,
     earnsCommission: Boolean(session.earnsCommission),
+    plugins: session.company?.pluginsOn ?? [],
     // A seat that reads one region keeps its own home: the queue reads every region.
     homePage: session.seat || session.region ? null : session.company?.homePage ?? null,
     pending: false,

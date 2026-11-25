@@ -27,6 +27,8 @@ function readPerson(email: string) {
               id: true, name: true, slug: true, kind: true, homeCurrency: true,
               // Where the firm's seats land (Company.homePage, → 107).
               homePage: true,
+              // The plugins the firm has on (record 120): the menu draws Training only then.
+              pluginsOn: true,
               // How the company's people sign in, read the way the one
               // caller check reads it (seatCompanyPolicy), so an invited
               // public-address seat is narrowed here as it is on every route.
