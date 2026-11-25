@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
+import { recordRefusal, accessActor } from '@/lib/access-log'
 
 /**
  * POST /api/contracts/:id/rolloff
@@ -52,15 +53,23 @@ export async function POST(
   }
 
   const side = contractSide(caller, contract)
-  if (!side) {
+  // Record 119: the line between a client's supplier and a firm below it
+  // is a deal between two other firms. The client is the site on it, never
+  // its payer, and is refused as if it were not there. A stranger is told
+  // nothing about who is on the line either: the refusal names no firm.
+  const belowTheClient = side === 'END_CLIENT'
+  if (!side || belowTheClient) {
+    await recordRefusal([contract.person.id], {
+      ...accessActor(caller), action: 'CONTRACT_VIEW',
+      reason: belowTheClient
+        ? 'A client asked to roll somebody off the line between its supplier and a firm below it.'
+        : 'Asked to roll somebody off a placement at a firm not party to it.',
+    })
     return NextResponse.json(
-      {
-        error: {
-          code: 'NOT_A_PARTY',
-          message: `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${contract.company.name}, ${contract.clientCompany.name}${contract.endClientCompany ? ` or ${contract.endClientCompany.name}` : ''} can roll somebody off it.`,
-        },
-      },
-      { status: 403 }
+      belowTheClient
+        ? { error: { code: 'NOT_FOUND', message: 'Contract not found' } }
+        : { error: { code: 'NOT_A_PARTY', message: `${caller.company?.name ?? 'Your company'} is not a party to this contract, so it cannot roll somebody off it.` } },
+      { status: belowTheClient ? 404 : 403 }
     )
   }
 

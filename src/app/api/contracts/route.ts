@@ -39,6 +39,7 @@ import { writePayTrail, writeBillTrail } from '@/lib/money/pay-trail'
 import { recordedLine } from '@/lib/money/recorded-line'
 import { mayRecordFor, recordingFloor, type PersonTies } from '@/lib/money/recorded-person'
 import { endsPastLimit } from '@/lib/governance'
+import { mayNameSubVendors } from '@/lib/chain-names'
 
 /**
  * POST /api/contracts
@@ -1279,6 +1280,21 @@ export async function GET(request: NextRequest) {
   }
   const billWithheld = !isConsultant && contracts.some((c) => !seesBill(c))
 
+  // A client never reaches below its supplier (record 119). Where the
+  // reader is the client paying this line and the seller is not the
+  // client itself, the buy line beside it is a deal between two other
+  // firms: no id, and a name only where the client's agreement with the
+  // seller requires disclosure. Read once per request.
+  const clientReads = billViewer.companyId
+    ? contracts.some((c) => c.clientCompanyId === billViewer.companyId && c.companyId !== billViewer.companyId)
+    : false
+  const disclosureTerms = clientReads && billViewer.companyId
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: billViewer.companyId },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
   return NextResponse.json({
     data: {
       contracts: contracts.map((c) => ({
@@ -1312,17 +1328,30 @@ export async function GET(request: NextRequest) {
             }
           : null,
         masterContract: c.projectOrder,
-        pairedWith: c.buyLinks[0]?.buyContract
-          ? {
-              id: c.buyLinks[0].buyContract.id,
-              // Null where we employ the person: payroll pays that line,
-              // and there is no firm below us to name.
-              counterpartName: c.buyLinks[0].buyContract.vendorCompany?.name ?? null,
-              // How the buy line engages the person, so a 1099 or her own
-              // company's line never reads "paired with payroll".
-              contractType: c.buyLinks[0].buyContract.contractType,
-            }
-          : null,
+        // True where the client reads its own line: the screen says nothing
+        // of a pair, never "no line on the other side", which would be false.
+        pairedWithHidden: !!billViewer.companyId && billViewer.companyId === c.clientCompanyId && c.clientCompanyId !== c.companyId,
+        pairedWith: (() => {
+          const buy = c.buyLinks[0]?.buyContract
+          if (!buy) return null
+          const belowClient =
+            !!billViewer.companyId &&
+            billViewer.companyId === c.clientCompanyId &&
+            c.clientCompanyId !== c.companyId
+          if (belowClient) {
+            if (!mayNameSubVendors(disclosureTerms, c.clientCompanyId, c.companyId)) return null
+            return { id: null, counterpartName: buy.vendorCompany?.name ?? null, contractType: buy.contractType }
+          }
+          return {
+            id: buy.id,
+            // Null where we employ the person: payroll pays that line,
+            // and there is no firm below us to name.
+            counterpartName: buy.vendorCompany?.name ?? null,
+            // How the buy line engages the person, so a 1099 or her own
+            // company's line never reads "paired with payroll".
+            contractType: buy.contractType,
+          }
+        })(),
         state: c.state,
         // What the client is charged is the supplier's margin seen from the
         // other end, and a consultant reading it can subtract their own pay

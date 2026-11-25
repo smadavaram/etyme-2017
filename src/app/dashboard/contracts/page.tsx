@@ -105,7 +105,9 @@ interface Contract {
   /** The document this line is on. Null where no paper has arrived. */
   document: Document | null
   /** The line on the other side of the trade that pairs with this one. */
-  pairedWith: { id: string; counterpartName: string | null } | null
+  pairedWith: { id: string | null; counterpartName: string | null } | null
+  /** The reader is the client: a firm below its supplier is not its to read. */
+  pairedWithHidden?: boolean
   /** On a buy line: the supplier's sell line it pays, where this firm's cost coding sits. */
   codingContractId: string | null
   /**
@@ -267,7 +269,7 @@ function LineCard({ row, viewerId }: { row: Contract; viewerId: string | null })
       </div>
       <p className="text-[12px] text-etyme-muted mt-1">{line.does}</p>
       <p className="text-[12px] text-etyme-muted">
-        {row.pairedWith ? pair : 'No line on the other side of this one yet.'}
+        {row.pairedWith ? pair : row.pairedWithHidden ? '' : 'No line on the other side of this one yet.'}
       </p>
       <p className="text-[12px] text-etyme-faint mt-1">
         {masterContractLine(row.masterContract)}
@@ -1038,6 +1040,7 @@ function ContractDetailDrawer({
                     : ''}
                 </p>
               )}
+              {contract.pairedWith || !contract.pairedWithHidden ? (
               <p className="text-[12px] text-etyme-muted">
                 {contract.pairedWith
                   ? pairLine({
@@ -1048,6 +1051,7 @@ function ContractDetailDrawer({
                     })
                   : 'No line on the other side of this one yet, so this placement has no margin of its own.'}
               </p>
+              ) : null}
             </div>
           </div>
 
@@ -1502,6 +1506,7 @@ export default function ContractsPage() {
           personName: c.person?.name ?? 'Unknown',
           document: c.workOrder ?? null,
           pairedWith: c.pairedWith ?? null,
+          pairedWithHidden: c.pairedWithHidden === true,
           codingContractId: c.codingContractId ?? null,
           buyContractType: (tab === 'buy' ? c.contractType : c.pairedWith?.contractType) ?? null,
           masterContract: c.masterContract ?? null,

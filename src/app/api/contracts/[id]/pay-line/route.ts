@@ -41,8 +41,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       { status: 403 },
     )
   }
-  if (side !== 'SUPPLIER' || sell._count.buyLinks > 0) {
-    return NextResponse.json({ data: { hasBuyLine: sell._count.buyLinks > 0, says: null, door: null } })
+  // Whether a firm below the supplier is on the line is the supplier's to
+  // know. The payer and the site read nothing of it (record 119).
+  if (side !== 'SUPPLIER') {
+    return NextResponse.json({ data: { hasBuyLine: false, says: null, door: null } })
+  }
+  if (sell._count.buyLinks > 0) {
+    return NextResponse.json({ data: { hasBuyLine: true, says: null, door: null } })
   }
 
   const terms = (await termsOnRecordFor([sell.id])).get(sell.id) ?? null
