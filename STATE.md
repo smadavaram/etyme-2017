@@ -429,7 +429,22 @@ docs/security-posture.md, 106 to 108 of 424): type check; 18,056 unit
 tests; 4,102 database tests; build. Deploy then with
 `prepare-replay.sh <last replayed> 88c15dd23`.
 
-## LIVE LEAK found 2026-11-25 (NOT RELEASED): a sub-vendor's name can reach the client on a contract line
+## DEPLOYED Wed 2026-11-25 on the owner's word ("deploy now"): 6f91fe3cd, source 98617d23d
+
+Replayed from c8d8abaf7. Carries the sub-vendor leak fix (07710b0c6) and
+everything staged: records 115, the rest of 112, 116 and 117 steps 1-2,
+the Network tabs. DB_PUSH_ON_BUILD set on by the owner before the push
+(new table OutreachLetter; new columns NoticePosting.measuredFromOn,
+CompanyContact.outreachOptOutAt, AgentTask.payload); he turns it off
+after. Health: serving 6f91fe3c, database READY. Smoke: every public
+page and door 200, two old addresses 308, inbound email door 404, a bad
+unsubscribe or interest link 404, outreach routes 401 signed out. NOT
+proven: the new table and columns (no signed-in read here); the first
+open of Outreach, Notices or a contract line's papers in the retest
+proves them. No agent switched on. Last replayed source is now
+98617d23d. STOPPED for Pax's production retest.
+
+## LIVE LEAK found 2026-11-25 (RELEASED in 6f91fe3cd): a sub-vendor's name can reach the client on a contract line
 
 Found by walk X of the papers view. In production (72a7b313, source
 c8d8abaf7) GET /api/placements/[id] sends the checklist item `note` and
