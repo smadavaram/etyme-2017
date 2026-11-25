@@ -1596,7 +1596,10 @@ export default function CompaniesPage() {
   const [error, setError] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [selected, setSelected] = useState<Company | null>(null)
-  const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL')
+  // The Customers tab opens this list on its Customer filter (owner, 2026-11-25).
+  const showsCustomers = searchParams.get('show') === 'customers'
+  const [positionFilter, setPositionFilter] = useState<PositionFilter>(showsCustomers ? 'CUSTOMER' : 'ALL')
+  useEffect(() => { setPositionFilter(showsCustomers ? 'CUSTOMER' : 'ALL') }, [showsCustomers])
   const [toast, setToast] = useState<string | null>(null)
   // A refusal is the page: its sentence alone, with no tiles or chips
   // around it (sign-up walk, round five, problem 10). And nothing is

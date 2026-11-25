@@ -74,7 +74,7 @@ export function SectionPills() {
   const current = activeHref(sections, pathname, searchParams, home)
 
   const noun = tabsFor(sections, current)
-  if (noun?.groups) return <GroupedTabRow label={noun.label} groups={noun.groups} current={current} />
+  if (noun?.groups) return <GroupedTabRow label={noun.label} groups={groupsShown(noun.label, noun.groups, current)} current={current} />
   if (noun) return <TabRow label={noun.label} tabs={noun.tabs} current={current} everyWidth />
 
   const list = sections.find((s) => !s.tabbed && s.items.some((i) => i.href === current))
@@ -118,6 +118,18 @@ function TabRow({ label, tabs, current, everyWidth = false }: {
  * named after the group (its register), the name is that page's link and
  * the rest follow; otherwise the name is a plain label over its pages.
  */
+/**
+ * Network shows only the group of the page being read (owner, 2026-11-25):
+ * on Candidates its own tabs, on Companies Suppliers, Customers and
+ * Contacts. Each group is reached from its own link on the menu. Every
+ * other grouped row (Settings) keeps all its groups.
+ */
+export function groupsShown(label: string, groups: readonly TabGroup[], current: string | null): readonly TabGroup[] {
+  if (label !== 'Network') return groups
+  const mine = groups.filter((g) => g.tabs.some((t) => t.href === current))
+  return mine.length ? mine : groups
+}
+
 export function groupRow(group: TabGroup): { head: NavItem | null; name: string; pages: NavItem[] } {
   const [first, ...rest] = group.tabs
   return first && first.label === group.name

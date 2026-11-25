@@ -1570,11 +1570,11 @@ describe('master data sits under Network: the people a firm keeps and the firms 
     const vendor = groupsAt('VENDOR')
     expect(vendor.groups!.map((g) => [g.name, g.tabs.map((t) => t.label)])).toEqual([
       ['Candidates', ['Candidates', 'Bench', 'Bench pay', 'Bench check-ins', 'Training']],
-      ['Companies', ['Companies', 'Suppliers', 'Contacts']],
+      ['Companies', ['Companies', 'Suppliers', 'Customers', 'Contacts']],
     ])
     // The group's name is the link to its own register; the rest follow it.
     expect(groupRow(vendor.groups![0])).toMatchObject({ head: { href: '/dashboard/consultants' }, name: 'Candidates' })
-    expect(groupRow(vendor.groups![1]).pages.map((p) => p.label)).toEqual(['Suppliers', 'Contacts'])
+    expect(groupRow(vendor.groups![1]).pages.map((p) => p.label)).toEqual(['Suppliers', 'Customers', 'Contacts'])
     const client = groupsAt('CLIENT')
     expect(client.groups!.map((g) => [g.name, g.tabs.map((t) => t.label)])).toEqual([
       ['Candidates', ['Candidates']],
@@ -1598,10 +1598,10 @@ describe('master data sits under Network: the people a firm keeps and the firms 
     for (const kind of ['VENDOR', 'GSI'] as const) {
       expect(at(kind), kind).toEqual([
         '/dashboard/consultants', '/dashboard/bench', '/dashboard/settings/bench-pay', '/dashboard/texts', '/dashboard/training',
-        '/dashboard/companies', '/dashboard/suppliers', '/dashboard/contacts',
+        '/dashboard/companies', '/dashboard/suppliers', '/dashboard/companies?show=customers', '/dashboard/contacts',
       ])
     }
-    expect(at('MSP')).toEqual(['/dashboard/companies', '/dashboard/suppliers', '/dashboard/scorecards', '/dashboard/contacts'])
+    expect(at('MSP')).toEqual(['/dashboard/companies', '/dashboard/suppliers', '/dashboard/scorecards', '/dashboard/companies?show=customers', '/dashboard/contacts'])
     expect(at('CLIENT')).toEqual(['/dashboard/people', '/dashboard/suppliers', '/dashboard/contacts', '/dashboard/program/agreements', '/dashboard/scorecards'])
   })
 
@@ -2001,5 +2001,23 @@ describe('the Settings home page keeps only tabs no pill repeats', () => {
 
   it('Owners is not repeated as a link in a sentence on the Settings home page, now that it is a pill', () => {
     expect(page).not.toMatch(/href=\{'\/dashboard\/settings\/owners'/)
+  })
+})
+
+describe('Network shows one group at a time (owner, 2026-11-25)', () => {
+  it('on Candidates the row holds only the candidate tabs, and on Companies only Companies, Suppliers, Customers and Contacts', async () => {
+    const { groupsShown } = await import('@/components/shell/section-pills')
+    const groups = [
+      { name: 'Candidates', tabs: [{ label: 'Candidates', href: '/dashboard/consultants' }, { label: 'Bench', href: '/dashboard/bench' }] },
+      { name: 'Companies', tabs: [{ label: 'Companies', href: '/dashboard/companies' }, { label: 'Suppliers', href: '/dashboard/suppliers' }, { label: 'Customers', href: '/dashboard/companies?show=customers' }, { label: 'Contacts', href: '/dashboard/contacts' }] },
+    ] as any
+    expect(groupsShown('Network', groups, '/dashboard/bench').map((g: any) => g.name)).toEqual(['Candidates'])
+    expect(groupsShown('Network', groups, '/dashboard/companies?show=customers').map((g: any) => g.name)).toEqual(['Companies'])
+    expect(groupsShown('Settings', groups, '/dashboard/bench')).toHaveLength(2)
+  })
+  it('a firm that sells reads a Customers tab under Companies, and a client, which only buys, does not', () => {
+    const tabsOf = (kind: string) => JSON.stringify(getNavForKind(kind as any))
+    expect(tabsOf('VENDOR')).toContain('/dashboard/companies?show=customers')
+    expect(tabsOf('CLIENT')).not.toContain('/dashboard/companies?show=customers')
   })
 })

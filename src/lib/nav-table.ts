@@ -489,6 +489,8 @@ const CHECK_INS: NavItem = { label: 'Bench check-ins', href: '/dashboard/texts',
 const COMPANIES: NavItem = { label: 'Companies', href: '/dashboard/companies', icon: '▣' }
 const SUPPLIERS: NavItem = { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', needs: ['vendors.read', 'requirements.read', 'payments.record'] }
 const CONTACTS: NavItem = { label: 'Contacts', href: '/dashboard/contacts', icon: '☎' }
+/** The companies a firm sells to: Companies, opened on its Customer filter (owner, 2026-11-25). */
+const CUSTOMERS: NavItem = { label: 'Customers', href: '/dashboard/companies?show=customers', icon: '◆' }
 const SELL_CONTRACTS: NavItem = { label: 'Sell contracts', href: '/dashboard/contracts?side=sell', icon: '▤' }
 const BUY_CONTRACTS: NavItem = { label: 'Buy contracts', href: '/dashboard/contracts?side=buy', icon: '▥' }
 const POS: NavItem = { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', needs: ['invoices.read'] }
@@ -642,7 +644,7 @@ const FIRM_SETTINGS: NavItem[] = [
  * network.
  */
 const FIRM_CANDIDATES = inGroup('Candidates', [CANDIDATES, BENCH, BENCH_PAY, CHECK_INS, TRAINING])
-const FIRM_COMPANIES = inGroup('Companies', [COMPANIES, SUPPLIERS, CONTACTS])
+const FIRM_COMPANIES = inGroup('Companies', [COMPANIES, SUPPLIERS, CUSTOMERS, CONTACTS])
 
 /**
  * A firm's contracts, a link of its own between Submissions and
@@ -735,7 +737,7 @@ const MSP_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY]),
   // Companies alone: an MSP keeps no candidates of its own.
-  tabbed('Network', inGroup('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CONTACTS])),
+  tabbed('Network', inGroup('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CUSTOMERS, CONTACTS])),
   tabbed('Jobs', [JOBS, SHARED_WITH_YOU]),
   tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
   tabbed('Contracts', FIRM_CONTRACTS),
