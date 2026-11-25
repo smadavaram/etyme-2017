@@ -323,9 +323,12 @@ export async function GET(request: NextRequest) {
     if (!sells && bySupplier.size === 0) {
       const view = await programView(caller, null, { trail: 'Supplier scorecards' })
       if ('data' in view && view.data) {
-        for (const v of view.data.vendors) {
+        for (const [i, v] of view.data.vendors.entries()) {
           if (v.headcount <= 0) continue
-          bySupplier.set(v.id, { id: v.id, name: v.name, amountMinor: v.headcount })
+          // A firm below the supplier carries no id to a client (record 119),
+          // so it is keyed by its place in the list, never by a company id.
+          const key = v.id ?? `below-${i}`
+          bySupplier.set(key, { id: key, name: v.name, amountMinor: v.headcount })
         }
       }
     }
