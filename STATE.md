@@ -437,8 +437,16 @@ c8d8abaf7) GET /api/placements/[id] sends the checklist item `note` and
 come from the free-text screening provider, so a firm that records a
 check under the sub-vendor's own name shows that name to the client,
 against the rule that a sub-vendor's name is the prime's to keep. It
-predates record 117. Fix in progress by the architect (failing tests in
-__tests__/invariants/placement-papers-walk-faults.test.ts). Deploy
+predates record 117. FIXED on the branch in 07710b0c6 (with the papers view, record 117 step
+2): no hidden firm's name reaches a client in any field. Release check
+GREEN on 07710b0c6 (type check; 18,268 unit; 4,274 database, 7 skipped by
+a timing flake in check-ins-before-her-yes that passes alone; build).
+Walk Y: the name is gone from screen and JSON; arrived-not-examined,
+the I-9 edition, the refusal page and "your supplier" all pass. Kept by
+the existing rule in the route: a hidden firm's opaque id stays on the
+payload ("a client cannot turn an id into a firm"); a client may open the
+line between its supplier and a sub-vendor, labelled "arranged by your
+supplier". Both are open questions for the owner, not changed. Deploy
 timing is the owner's: the weekend rule has no hotfix exception, and he
 has overridden it once (2026-11-24).
 
