@@ -252,10 +252,9 @@ describe('4 · nobody starts without paperwork', () => {
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('NOT_A_PARTY')
     expect(r.body.error.message).toMatch(/not a party/)
-    // Each firm that may change it is named once, joined with "or" (simulation, 2026-10-20).
-    const named = /Only (.+) can change it\.$/.exec(r.body.error.message)![1].split(/, | or /)
-    expect(new Set(named).size).toBe(named.length)
-    expect(named.length).toBeGreaterThanOrEqual(2)
+    // A stranger is told only that it is not a party, never who is on the
+    // line (record 119, 2026-11-25; this replaced naming each firm).
+    expect(r.body.error.message).not.toMatch(/Only .+ can change it/)
   })
 
   it('the AP clerk is a party and still cannot start somebody — that is not the clerk\'s job', async () => {

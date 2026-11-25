@@ -24,7 +24,7 @@ describe('a 1099 or own-company line on Contracts never says payroll pays her', 
   })
 
   it('the contracts list says how the paired buy line engages the person, so a sell line can say it', () => {
-    expect(src('src/app/api/contracts/route.ts')).toContain('contractType: c.buyLinks[0].buyContract.contractType,')
+    expect(src('src/app/api/contracts/route.ts')).toContain('contractType: buy.contractType,')
   })
 
   it('a 1099 line with no order reads "Not yet on an order" on its chip, never "No order — payroll"', () => {
