@@ -79,7 +79,6 @@ export default function TrainingPage() {
    */
   const [refused, setRefused] = useState<string | null>(null)
   /** Where the Owner turns Training on, when it is off (record 120). Nobody else is sent there. */
-  const [offHref, setOffHref] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -89,7 +88,6 @@ export default function TrainingPage() {
       const gate = await fetch('/api/training')
       if (gate.status === 403) {
         const body = await gate.json().catch(() => ({}))
-        setOffHref(body.error?.code === 'PLUGIN_OFF' ? body.error?.href ?? null : null)
         setRefused(body.error?.message ?? 'Training is not part of your seat. Ask your company\'s owner if you need it.')
         return
       }
@@ -149,16 +147,7 @@ export default function TrainingPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   if (refused) {
-    return (
-      <>
-        <RefusedState says={refused} />
-        {offHref && (
-          <p className="text-center text-[14px]">
-            <Link href={offHref as any} className="text-etyme-action-press underline">Open Settings</Link>
-          </p>
-        )}
-      </>
-    )
+    return <RefusedState says={refused} />
   }
 
   if (loading) {

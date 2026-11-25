@@ -118,7 +118,7 @@ describe('train to bench: the review’s seven defects, on the real routes', () 
     const told = await idRoute(benchAsk, 'POST', '/x', en, {})
     expect(told.status, JSON.stringify(told.body)).toBe(201)
     expect(told.body.data.method).toBe('EMPLOYEE_TOLD')
-    await json(await answerByLink(req('POST', 'x', { said: 'ACCEPT' }), { params: Promise.resolve({ token: signInvite(listing.id) }) }))
+    await json(await answerByLink(req('POST', '/x', { said: 'ACCEPT' }), { params: Promise.resolve({ token: signInvite(listing.id) }) }))
     expect(await prisma.benchAsk.findFirstOrThrow({ where: { enrollmentId: en } })).toMatchObject({ answer: null, answeredAt: null, answeredVia: null })
   })
 
