@@ -429,6 +429,19 @@ docs/security-posture.md, 106 to 108 of 424): type check; 18,056 unit
 tests; 4,102 database tests; build. Deploy then with
 `prepare-replay.sh <last replayed> 88c15dd23`.
 
+## LIVE LEAK found 2026-11-25 (NOT RELEASED): a sub-vendor's name can reach the client on a contract line
+
+Found by walk X of the papers view. In production (72a7b313, source
+c8d8abaf7) GET /api/placements/[id] sends the checklist item `note` and
+`compliance.person[].provider` to every reader, client included. Both
+come from the free-text screening provider, so a firm that records a
+check under the sub-vendor's own name shows that name to the client,
+against the rule that a sub-vendor's name is the prime's to keep. It
+predates record 117. Fix in progress by the architect (failing tests in
+__tests__/invariants/placement-papers-walk-faults.test.ts). Deploy
+timing is the owner's: the weekend rule has no hotfix exception, and he
+has overridden it once (2026-11-24).
+
 ## Record 117 step 1, outreach to companies: READY, walks V and W passed, Source 8e67b3154
 
 Built on the branch (894eaabf4 to 8e67b3154), with the Network tab change
