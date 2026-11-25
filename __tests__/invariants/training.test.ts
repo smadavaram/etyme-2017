@@ -97,4 +97,8 @@ describe('the trainee pickers name a person by her name', () => {
   it('the enroll picker is labelled through that one rule', () => {
     expect(read('src/app/dashboard/training/cohorts.tsx')).toContain('pickerLabels(')
   })
+
+  it('the course picker is labelled through that one rule too, so nobody is offered by a bare email', () => {
+    expect(read('src/app/dashboard/training/page.tsx')).toContain('pickerLabels(')
+  })
 })

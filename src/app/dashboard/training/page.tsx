@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { readBench } from '@/lib/bench-filter'
-import { skillGap, fieldable, trainable, type SkillGapReading } from '@/lib/training'
+import { skillGap, fieldable, trainable, pickerLabels, type SkillGapReading } from '@/lib/training'
 import { amount } from '@/lib/money-display'
 import { usePageSection } from '@/components/page-section'
 import { RefusedState, LoadingState } from '@/components/ui'
@@ -412,10 +412,13 @@ function Courses() {
       // not the people a course is for (`fieldable`).
       const listed = readBench(b)
       const roster: any[] = Array.isArray(payroll?.data?.roster) ? payroll.data.roster : []
-      setPeople(
-        trainable(listed.rows, listed.asked, roster.filter((r) => r?.personId && r?.name), new Date())
-          .map((p) => ({ id: p.personId, name: p.name, kind: p.kind }))
-      )
+      const kept = trainable(listed.rows, listed.asked, roster.filter((r) => r?.personId && r?.name), new Date())
+      // Names first, an email only as a hint (the same labels as the cohort picker).
+      const emails = new Map<string, string>()
+      for (const r of [...listed.rows, ...listed.asked]) if (r.email) emails.set(r.personId, r.email)
+      for (const r of roster) if (r?.personId && (r.email || r.primaryEmail) && !emails.has(r.personId)) emails.set(r.personId, r.email ?? r.primaryEmail)
+      const label = pickerLabels(kept.map((p) => ({ personId: p.personId, name: p.name, email: emails.get(p.personId) ?? null })))
+      setPeople(kept.map((p) => ({ id: p.personId, name: label.get(p.personId) ?? p.name, kind: p.kind })))
     } catch (e: any) { setErr(e.message) }
   }, [])
   useEffect(() => { load() }, [load])
