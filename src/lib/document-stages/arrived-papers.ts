@@ -24,7 +24,7 @@ import { BUILT_IN } from '@/lib/document-type'
 import { typeKeyForTemplate, waitsToBeExamined, KEPT_BY_HOLDER } from '@/lib/document-request'
 import { examineNeedsOf } from '@/lib/document-stages/examine-form'
 import { paperExaminersAt } from '@/lib/notify/paper-examiners'
-import { employedPairs, employerOfRecord, employmentOf } from '@/app/api/compliance/verifications/record'
+import { employedPairs, employerOfRecord } from '@/app/api/compliance/verifications/record'
 import { itemFollowsPaper } from '@/app/api/packets/examination'
 import { logBulkAccess } from '@/lib/access-log'
 import { startPapers } from '@/app/api/contracts/[id]/activate/papers'
@@ -33,6 +33,7 @@ import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-na
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { EMPLOYER_COMPLETES } from '@/lib/document-stages/employer'
 import { hasPermission } from '@/lib/permissions'
+import { chainFirmsOf } from './chain-firms'
 
 /** The address a paper's file is read at: what a request item points at once the paper answers it. */
 export const paperFileUrl = (docId: string) => `/api/documents/${docId}/file`
@@ -120,11 +121,10 @@ export async function arrivedOnLine(input: {
     select: { id: true, personId: true, companyId: true, person: { select: { name: true } }, company: { select: { name: true } } },
   })
   if (!line) return null
-  const [employer, chain] = await Promise.all([
+  const [employer, firmIds] = await Promise.all([
     employerOfRecord(line.personId, line.id),
-    employmentOf(line.personId),
+    chainFirmsOf(line, db),
   ])
-  const firmIds = [...new Set([line.companyId, ...chain.lines.map((l) => l.companyId), ...chain.facts.map((f) => f.companyId)])]
   const arrived = await arrivedAbout({ personId: line.personId, personName: line.person.name, firmIds, names: input.names }, db)
   return {
     line: {

@@ -17,7 +17,7 @@ import { prisma } from '@/lib/db'
 import { VerificationType } from '@prisma/client'
 import { orderedNotCollected } from '@/lib/attestation'
 import { keyOfPaper } from '@/lib/document-stages/arrived-papers'
-import { employmentOf } from '@/app/api/compliance/verifications/record'
+import { chainFirmsOf } from './chain-firms'
 
 /** A request item and the request it sits in. */
 export interface ItemRow {
@@ -213,7 +213,6 @@ export async function paperFactsForLine(input: {
 }, db: typeof prisma = prisma): Promise<Record<string, PaperFacts> | null> {
   const line = await db.sellContract.findUnique({ where: { id: input.contractId }, select: { personId: true, companyId: true } })
   if (!line) return null
-  const chain = await employmentOf(line.personId)
-  const firmIds = [...new Set([line.companyId, ...chain.lines.map((l) => l.companyId), ...chain.facts.map((f) => f.companyId)])]
+  const firmIds = await chainFirmsOf(line, db)
   return readPaperFacts({ personId: line.personId, firmIds, keys: input.items.map((i) => ({ key: i.key, label: i.label })) }, db)
 }

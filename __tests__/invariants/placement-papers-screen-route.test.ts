@@ -107,6 +107,12 @@ describe('what the route lets each reader read of the facts', () => {
     expect(factsForReader(all, () => true).ORDERED.verdict?.provider).toBe('Northbank Checks')
   })
 
+  it('a firm the reader may not name takes its file name with it, since a file name can carry the firm’s name', () => {
+    const named = { NDA: facts({ received: { when, fileName: 'Hidden_Firm_NDA.pdf', firmId: 'sub', firmName: 'Hidden Firm' } }) }
+    expect(factsForReader(named, () => false).NDA.received).toMatchObject({ fileName: null, firmId: null, firmName: null })
+    expect(factsForReader(named, () => true).NDA.received?.fileName).toBe('Hidden_Firm_NDA.pdf')
+  })
+
   it('a firm the reader may name is named, and its examiner with it', () => {
     const out = factsForReader(all, () => true)
     expect(out.NDA.asked?.firmName).toBe('Tecwyn')

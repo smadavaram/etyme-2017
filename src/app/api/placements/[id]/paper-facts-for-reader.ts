@@ -33,7 +33,8 @@ export function factsForReader(
 
   const firm = <T extends { firmId: string; firmName: string }>(x: T | null) => {
     if (!x) return null
-    return withheld.has(x.firmId) ? { ...x, firmId: null, firmName: null } : x
+    // A file name can carry the firm's name, so it goes with the firm.
+    return withheld.has(x.firmId) ? { ...x, firmId: null, firmName: null, ...('fileName' in x ? { fileName: null } : {}) } : x
   }
   const scrub = (text: string | null) => {
     if (!text) return text
@@ -55,7 +56,7 @@ export function factsForReader(
       verdict: f.verdict
         ? (f.verdict.firmId && !mayName(f.verdict.firmId)
           ? { ...f.verdict, provider: null, reference: null, firmId: null }
-          : { ...f.verdict, provider: scrub(f.verdict.provider) })
+          : { ...f.verdict, provider: scrub(f.verdict.provider), reference: scrub(f.verdict.reference) })
         : null,
     }
   }

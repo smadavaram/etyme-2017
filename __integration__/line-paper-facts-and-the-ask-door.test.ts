@@ -79,3 +79,23 @@ describe('an ask made from a buy line keeps the line it was asked on, or is neve
     }
   })
 })
+
+describe('a line reads papers only from the firms on its own chain (review, 2026-11-25)', () => {
+  it('a firm the person works through on another deal is never on this line’s chain, so its papers are never read here', async () => {
+    const { chainFirmsOf } = await import('@/lib/document-stages/chain-firms')
+    const tag = `cf${Date.now()}`
+    const other = await prisma.company.create({ data: { name: `Other Supplier ${tag}`, slug: `other-sup-${tag}`, kind: 'VENDOR' } as any })
+    const otherClient = await prisma.company.create({ data: { name: `Other Client ${tag}`, slug: `other-cli-${tag}`, kind: 'CLIENT' } as any })
+    await prisma.sellContract.create({ data: { companyId: other.id, clientCompanyId: otherClient.id, personId, billRate: 10_000, startDate: new Date('2026-09-01'), state: 'IN_PROGRESS' } as any })
+    const firms = await chainFirmsOf({ personId, companyId })
+    expect(firms).toContain(companyId)
+    expect(firms).not.toContain(other.id)
+  })
+  it('a firm that sells this same person to the line’s seller is on its chain', async () => {
+    const { chainFirmsOf } = await import('@/lib/document-stages/chain-firms')
+    const tag = `cs${Date.now()}`
+    const sub = await prisma.company.create({ data: { name: `Sub Supplier ${tag}`, slug: `sub-sup-${tag}`, kind: 'VENDOR' } as any })
+    await prisma.sellContract.create({ data: { companyId: sub.id, clientCompanyId: companyId, personId, billRate: 8_000, startDate: new Date('2026-09-01'), state: 'IN_PROGRESS' } as any })
+    expect(await chainFirmsOf({ personId, companyId })).toContain(sub.id)
+  })
+})
