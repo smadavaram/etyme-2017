@@ -36,6 +36,19 @@ deploy.
 
 ## START HERE
 
+**2026-11-25: train-to-bench built, walked green; rides the Saturday deploy (record 120).**
+- Head 80b208e11. Last full release check was on e5da68d45: type check, build and 18,417 unit tests green. The 5 database failures there were out-of-date tests, fixed in b0ee1f2ab and re-run green. The final picker fix re-ran its own tests.
+- Walks: walk-120, walk-120b, walk-120c (scratchpad). The short re-walk passed every item except the course picker's labels, fixed in 80b208e11.
+- Record 119 leaks closed: contracts list, program view, tenure, timesheets, compliance, people/[id], plus activate/extend/verify answering a client "not found". The contracts leak was live since 2026-09-19.
+- **Open for the tester:**
+  1. Does record 119 also cover an MSP seat working in a client's program?
+  2. The person page says "(and one firm below them)": is that allowed?
+  3. Where should a client read "Certified: title, issued, expires"?
+  4. Record 69 against record 120 on courses on storefronts.
+- **Open for the owner:** the website and outreach switches (records 121 and 122): Tapin's storefront going dark, the website switch before its three checks, and gating outreach sends.
+- **Next:** pods (module 2) through its plan gate.
+
+
 | # | Item | State | Evidence, or what it waits on |
 |---|---|---|---|
 | 1 | Sensitive numbers masked | DONE in part (claim) | See below. |
