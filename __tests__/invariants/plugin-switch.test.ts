@@ -73,10 +73,11 @@ describe('what a firm reads while a plugin is off', () => {
   it('a refusal is written to the access log before it is sent', () => {
     expect(read('src/lib/plugin-gate.ts')).toMatch(/await recordRefusal\(/)
   })
-  it('the Training page shows the same sentence and sends only an Owner to Settings', () => {
+  it('the Training page shows the route\'s sentence alone, and the route sends only an Owner to Settings', () => {
     const page = read('src/app/dashboard/training/page.tsx')
-    expect(page).toContain("body.error?.code === 'PLUGIN_OFF'")
-    expect(page).toContain('Open Settings')
+    expect(page).toContain('body.error?.message')
+    expect(page).not.toContain('Open Settings')
+    expect(read('src/lib/plugin-gate.ts')).toContain('The Owner turns it on in Settings.')
     expect(read('src/lib/plugin-gate.ts')).toContain("role?.name === 'Owner' ? { href: '/dashboard/settings' }")
   })
   it('the Training link is not drawn while the plugin is off, and is drawn when it is on', () => {

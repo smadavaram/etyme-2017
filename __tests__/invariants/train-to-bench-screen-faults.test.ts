@@ -106,3 +106,16 @@ describe('the screens draw only what their routes will take', () => {
     expect(cohorts).toMatch(/training:courses-changed/)
   })
 })
+
+describe('a client seat reads no training word before the refusal', () => {
+  const page = require('fs').readFileSync(require('path').join(process.cwd(), 'src/app/dashboard/training/page.tsx'), 'utf8')
+  it('the loading text, the fallback refusal and the error heading name no training', () => {
+    expect(page).not.toContain('Opening training')
+    expect(page).not.toContain('Training is not part of your seat')
+    expect(page).not.toContain('Unable to load training data')
+  })
+  it('the courses list offers no Finish for an enrollment inside a planned cohort', () => {
+    const route = require('fs').readFileSync(require('path').join(process.cwd(), 'src/app/api/training/route.ts'), 'utf8')
+    expect(route).toContain("m !== 'complete' || mayFinishCourse({ cohortState: e.cohort?.state ?? null }).ok")
+  })
+})

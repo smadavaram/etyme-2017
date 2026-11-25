@@ -5,7 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
 import { logTraineeReads, traineeReadRefusal } from '@/lib/training/caller'
-import { MOVES, MOVE_ACTIONS, statusWord } from '@/lib/training'
+import { MOVES, MOVE_ACTIONS, statusWord, mayFinishCourse } from '@/lib/training'
 
 /**
  * GET  /api/training     the company's courses, and who is on each
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     where: { companyId: caller.company!.id },
     include: {
       enrollments: {
-        include: { person: { select: { id: true, name: true } } },
+        include: { person: { select: { id: true, name: true } }, cohort: { select: { state: true } } },
         orderBy: { enrolledAt: 'desc' },
       },
     },
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
           completedAt: e.completedAt?.toISOString() ?? null,
           score: e.score,
           certificateUrl: e.certificateUrl,
-          moves: (MOVES[e.status] ?? []).map((m) => ({ move: m, word: MOVE_ACTIONS[m] })),
+          moves: (MOVES[e.status] ?? []).filter((m) => m !== 'complete' || mayFinishCourse({ cohortState: e.cohort?.state ?? null }).ok).map((m) => ({ move: m, word: MOVE_ACTIONS[m] })),
         })),
       })),
     },

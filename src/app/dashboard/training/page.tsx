@@ -88,7 +88,7 @@ export default function TrainingPage() {
       const gate = await fetch('/api/training')
       if (gate.status === 403) {
         const body = await gate.json().catch(() => ({}))
-        setRefused(body.error?.message ?? 'Training is not part of your seat. Ask your company\'s owner if you need it.')
+        setRefused(body.error?.message ?? 'This page is not part of your seat.')
         return
       }
       setRefused(null)
@@ -152,14 +152,14 @@ export default function TrainingPage() {
 
   if (loading) {
     return (
-      <LoadingState says="Opening training…" />
+      <LoadingState says="Opening…" />
     )
   }
 
   if (error) {
     return (
       <div className="animate-fade-in py-20 text-center">
-        <p className="text-etyme-attention font-medium mb-2">Unable to load training data</p>
+        <p className="text-etyme-attention font-medium mb-2">This page could not load.</p>
         <p className="text-sm text-etyme-muted mb-4">{error}</p>
         <button onClick={() => { setError(null); fetchData() }} className="btn-secondary">
           Retry
