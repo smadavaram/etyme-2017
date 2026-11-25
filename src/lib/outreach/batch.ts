@@ -16,7 +16,7 @@ import { mailSendsAbout, mailSendsAboutMany } from '@/lib/notify/mail-door'
 import { censusFacts } from '@/lib/agents/census-keeper'
 import { censusOn, type Side } from '@/lib/agents/census-rules'
 import { postalLine, outreachKind, OUTREACH_RECORD, OUTREACH_TEMPLATE } from '@/lib/agents/dormant-outreach-rules'
-import { proposeTask, closeTask, approvalOf } from '@/lib/agents/tasks'
+import { proposeTask, approvalOf } from '@/lib/agents/tasks'
 import { stoppedSays } from '@/lib/agents/control-view'
 import { agentNameOf } from '@/lib/decision-queue'
 import { standingWith, lacksPosition } from '@/app/api/companies/positions'
@@ -169,25 +169,23 @@ export async function createBatch(seat: { companyId: string; personId: string },
   const card = batchCard({ firm: firm.name, audienceLabel: AUDIENCE_LABELS[ask.audience], subject: ask.subject, letter, to, held })
   let task
   try {
-    task = await proposeTask({
-      companyId: seat.companyId, agentKey: OUTREACH_BATCH_AGENT, kind: OUTREACH_BATCH_KIND, recordType: 'Company', recordId: seat.companyId,
-      plan: batchPlan(to.length), ownerPersonId: owner, openedOn: now, today: now, question: card.question, detail: card.detail,
-    })
-  } catch (e) {
-    if (e instanceof LedgerRefusal) return refuse(e.message, undefined, 422)
-    throw e
-  }
-  try {
     const payload = {
       audience: ask.audience, side, contactKind: ask.contactKind, offerKind: ask.offerKind, offer: ask.offer, subject: ask.subject, body: ask.body,
       held: held.map((h) => ({ atCompanyId: h.atCompanyId, companyName: h.companyName, reason: h.reason, says: h.says })),
     }
-    await prisma.agentTask.update({ where: { id: task.id }, data: { payload: payload as unknown as Prisma.InputJsonValue } })
-    await prisma.outreachLetter.createMany({
-      data: to.map((t) => ({ companyId: seat.companyId, agentTaskId: task.id, contactId: t.contactId, atCompanyId: t.atCompanyId, email: t.email, state: 'READY' })),
+    // The task, its card, what the person chose and its letters are written together, or not at all.
+    task = await proposeTask({
+      companyId: seat.companyId, agentKey: OUTREACH_BATCH_AGENT, kind: OUTREACH_BATCH_KIND, recordType: 'Company', recordId: seat.companyId,
+      plan: batchPlan(to.length), ownerPersonId: owner, openedOn: now, today: now, question: card.question, detail: card.detail,
+      payload: payload as unknown as Prisma.InputJsonValue,
+      withTask: async (tx, taskId) => {
+        await tx.outreachLetter.createMany({
+          data: to.map((t) => ({ companyId: seat.companyId, agentTaskId: taskId, contactId: t.contactId, atCompanyId: t.atCompanyId, email: t.email, state: 'READY' })),
+        })
+      },
     })
   } catch (e) {
-    await closeTask(task.id, 'The batch could not be written down, so nothing will be sent.', 'STOPPED').catch(() => undefined)
+    if (e instanceof LedgerRefusal) return refuse(e.message, undefined, 422)
     throw e
   }
   return { ok: true, id: task.id, contacts: to.length, held: held.length }

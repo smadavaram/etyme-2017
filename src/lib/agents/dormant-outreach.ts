@@ -58,7 +58,7 @@ const rolodexAt = (companyId: string, otherId: string) =>
   })
 
 /** When this company was last written to or drafted for on this side: an old draft card, or a task. */
-async function lastOutreachOn(companyId: string, otherId: string, side: Side): Promise<Date | null> {
+export async function lastOutreachOn(companyId: string, otherId: string, side: Side): Promise<Date | null> {
   const card = await prisma.decisionItem.findFirst({
     where: { companyId, question: { startsWith: outreachPrefix(side) }, proofLinks: { array_contains: [{ recordType: 'Company', recordId: otherId }] } },
     orderBy: { openedOn: 'desc' }, select: { openedOn: true },
@@ -67,7 +67,13 @@ async function lastOutreachOn(companyId: string, otherId: string, side: Side): P
   const task = ids.length
     ? await prisma.agentTask.findFirst({ where: { companyId, kind: outreachKind(side), recordType: OUTREACH_RECORD, recordId: { in: ids } }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
     : null
-  const dates = [card?.openedOn, task?.createdAt].filter((d): d is Date => !!d)
+  // A batch letter to that company counts too, on that side, whatever the offer (record 117).
+  const letters = await prisma.outreachLetter.findMany({
+    where: { companyId, atCompanyId: otherId, agentTask: { state: { not: 'REFUSED' } } },
+    select: { createdAt: true, agentTask: { select: { payload: true } } }, orderBy: { createdAt: 'desc' }, take: 20,
+  })
+  const letter = letters.find((l) => (l.agentTask.payload as { side?: string } | null)?.side === side)
+  const dates = [card?.openedOn, task?.createdAt, letter?.createdAt].filter((d): d is Date => !!d)
   return dates.length ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null
 }
 

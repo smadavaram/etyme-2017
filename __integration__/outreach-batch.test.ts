@@ -160,6 +160,19 @@ describe('raising the batch', () => {
     expect(v.state).toBe('PROPOSED'); expect(v.counts).toMatchObject({ contacts: 4, sent: 0, waiting: 4 })
     expect(v.held).toHaveLength(2)
   })
+  it('a batch is written down whole: what the person chose and every letter exist the moment its card does', async () => {
+    expect((w.task.payload as any)?.subject).toMatch(/people available for work/)
+    expect(await prisma.outreachLetter.count({ where: { agentTaskId: w.task.id } })).toBe(4)
+  })
+
+  it('the dormant check-in counts a batch letter in its own wait, so a company just written to is not written to again', async () => {
+    const { lastOutreachOn } = await import('@/lib/agents/dormant-outreach')
+    const last = await lastOutreachOn(w.firm.id, w.orchid.id, 'CUSTOMER')
+    expect(last).not.toBeNull()
+    expect(Date.now() - last!.getTime()).toBeLessThan(86_400_000)
+    expect(await lastOutreachOn(w.firm.id, w.orchid.id, 'SUPPLIER')).toBeNull()
+  })
+
   it('the batch card says how many contacts it writes to and how many times each may be written again, and shows the letter with no token', async () => {
     const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: w.task.decisionId } })
     expect(card.question).toMatch(/^Outreach: send ".*" to 4 companies\?/)

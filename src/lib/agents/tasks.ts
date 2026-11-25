@@ -118,6 +118,10 @@ export interface ProposeInput {
   openedOn?: Date
   /** Words shown under the plan on the card, written with it (a draft a person sends, say). */
   detail?: string
+  /** What a person chose for the task (an outreach batch), written with it. */
+  payload?: Prisma.InputJsonValue
+  /** Rows that belong to the task, written in the same transaction, so a task never stands without them. */
+  withTask?: (tx: Prisma.TransactionClient, taskId: string) => Promise<void>
   /** The firm's own today, where the caller holds the clock (an agent run's `now`). Left out, it is read. */
   today?: Date
 }
@@ -144,8 +148,10 @@ export async function proposeTask(input: ProposeInput) {
       data: {
         companyId: input.companyId, agentKey: input.agentKey, kind, recordType: input.recordType, recordId: input.recordId,
         plan: input.plan as unknown as Prisma.InputJsonValue, decisionId: decision.id, parentTaskId: input.parentTaskId ?? null,
+        ...(input.payload !== undefined ? { payload: input.payload } : {}),
       },
     })
+    if (input.withTask) await input.withTask(tx, task.id)
     await tx.decisionItem.update({ where: { id: decision.id }, data: { proofLinks: [{ recordType: TASK_RECORD, recordId: task.id }] } })
     await writeRecordAction(tx, {
       companyId: input.companyId, recordType: TASK_RECORD, recordId: task.id, action: 'TASK_PROPOSED',
