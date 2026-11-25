@@ -45,6 +45,8 @@ export interface SiteFacts {
    * a client can open the page.
    */
   trainingCourses: number
+  /** False where the firm's courses are not shown (record 120); the writer is then told nothing about them. */
+  coursesShown?: boolean
 }
 
 export interface SiteVoice {

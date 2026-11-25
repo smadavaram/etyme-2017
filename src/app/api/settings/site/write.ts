@@ -60,7 +60,7 @@ export const liveDeps: WriteDeps = {
 
 /** What leaves for the model, as the log keeps it: the facts the writer is handed, each on its own line. Pure. */
 export function factsThatLeave(f: SiteFacts): string {
-  return [
+  const lines = [
     `Company: ${f.name}`,
     `What they are: ${f.kind}${f.posture ? ` (${f.posture})` : ''}`,
     `Where: ${f.locations.join(', ') || 'not stated'}`,
@@ -70,9 +70,11 @@ export function factsThatLeave(f: SiteFacts): string {
     `Organizations worked with: ${f.clients}`,
     `Positions open to any supplier: ${f.openPositions}`,
     `Consultants coming free within three months: ${f.comingFree}`,
-    `Training courses they run: ${f.trainingCourses}`,
+    // Said only where the one reader says the firm's courses are shown.
+    ...(f.coursesShown === false ? [] : [`Training courses they run: ${f.trainingCourses}`]),
     `Section keys you may rename: ${Object.keys(DEFAULT_HEADINGS).join(', ')}`,
-  ].join('\n')
+  ]
+  return lines.join('\n')
 }
 
 export type WrittenPage = SiteVoice & {

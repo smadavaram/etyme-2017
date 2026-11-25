@@ -1,3 +1,4 @@
+import { coursesShown } from '@/lib/training/courses-shown'
 import { prisma } from '@/lib/db'
 import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
 import { releasing, summarize, type RollingOff } from '@/lib/releasing-soon'
@@ -95,6 +96,11 @@ export interface PublicSite {
   askBox: boolean
   /** The firm's contact as it set it at setup; null where it set none. */
   contact: FirmContact | null
+  /**
+   * Public courses, listed only where `coursesShown` says so: Train to bench
+   * on and the firm has not hidden them (record 120). Empty otherwise.
+   */
+  courses: { title: string; hours: number | null }[]
 }
 
 const READABLE: Record<string, string> = {
@@ -259,6 +265,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     },
     select: {
       id: true, name: true, slug: true, kind: true, supplierPosture: true,
+      pluginsOn: true, coursesHiddenOnStorefront: true,
       siteLiveAt: true, networkVerifiedAt: true, domain: true, domainVerified: true,
       claimedAt: true, _count: { select: { contexts: { where: { roleId: { not: null } } } } },
       siteTagline: true, siteIntro: true, siteHeadings: true, siteWrittenBy: true,
@@ -301,7 +308,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     })),
   })
 
-  const [sellLines, profiles, verifications] = await Promise.all([
+  const [sellLines, profiles, verifications, courseRows] = await Promise.all([
     // Only lines where work started: a draft is no placement (walk tpf).
     prisma.sellContract.findMany({
       where: { companyId: company.id, state: { in: [...STARTED_STATES] } },
@@ -327,6 +334,15 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       },
       select: { type: true, expiresAt: true },
     }),
+    // Read only where the one reader says this firm's courses are shown.
+    coursesShown(company)
+      ? prisma.course.findMany({
+          where: { companyId: company.id, isPublic: true },
+          orderBy: { title: 'asc' },
+          take: 20,
+          select: { title: true, duration: true },
+        })
+      : Promise.resolve([] as { title: string; duration: number | null }[]),
   ])
 
   const base = {
@@ -355,6 +371,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     joinBench: offersJoinBench(company.kind),
     askBox: offersAsk(company.kind),
     contact,
+    courses: courseRows.map((c) => ({ title: c.title, hours: c.duration ?? null })),
   }
 
   // ── Talking to suppliers ────────────────────────────────────────────

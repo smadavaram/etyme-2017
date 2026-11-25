@@ -7,6 +7,8 @@ import {
   writeFromRules, checkEdit,
   DEFAULT_HEADINGS, type SiteFacts,
 } from '@/lib/site-voice'
+import { callerRoleName } from '@/lib/training/caller'
+import { coursesShown } from '@/lib/training/courses-shown'
 import { modelWritesFor, writePage } from './write'
 
 /**
@@ -36,7 +38,7 @@ async function factsFor(companyId: string): Promise<SiteFacts> {
       prisma.company.findUniqueOrThrow({
         where: { id: companyId },
         select: {
-          name: true, kind: true, supplierPosture: true,
+          name: true, kind: true, supplierPosture: true, pluginsOn: true, coursesHiddenOnStorefront: true,
           locations: { where: { isRemote: false }, select: { city: true, state: true, country: true } },
         },
       }),
@@ -61,6 +63,7 @@ async function factsFor(companyId: string): Promise<SiteFacts> {
       }),
     ])
 
+  const shown = coursesShown(company)
   const counts = new Map<string, number>()
   for (const p of profiles) for (const s of p.skills) counts.set(s, (counts.get(s) ?? 0) + 1)
 
@@ -77,7 +80,9 @@ async function factsFor(companyId: string): Promise<SiteFacts> {
     clients: new Set(contracts.map((c) => c.endClientCompanyId ?? c.clientCompanyId)).size,
     openPositions: positions,
     comingFree: rollingOff,
-    trainingCourses: courses,
+    // Counted only where the one reader says this firm's courses are shown.
+    trainingCourses: shown ? courses : 0,
+    coursesShown: shown,
   }
 }
 
@@ -98,9 +103,10 @@ export async function GET(request: NextRequest) {
     where: { id: caller.company.id },
     select: {
       slug: true, siteTagline: true, siteIntro: true, siteHeadings: true,
-      siteWrittenBy: true, siteWrittenAt: true,
+      siteWrittenBy: true, siteWrittenAt: true, pluginsOn: true, coursesHiddenOnStorefront: true,
     },
   })
+  const isOwner = (await callerRoleName(caller)) === 'Owner'
 
   const facts = await factsFor(caller.company.id)
   // What it would say if written now, so somebody can compare before
@@ -123,6 +129,11 @@ export async function GET(request: NextRequest) {
       basedOn: facts,
       preview: { tagline: wouldSay.tagline, intro: wouldSay.intro },
       canWrite: hasPermission(caller.permissions, 'settings.manage'),
+      // "Hide courses on our public page" (record 120, answer 3): the Owner's
+      // alone to change; an Admin reads it.
+      coursesHidden: company.coursesHiddenOnStorefront,
+      coursesShown: coursesShown(company),
+      canHideCourses: isOwner,
       // Said plainly rather than silently producing a lesser result: the
       // model writes only where this company turned it on and a writer is
       // set up, and the sentence says which of the two is missing.
@@ -222,6 +233,32 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}))
   const data: Record<string, unknown> = {}
+
+  // The Owner's switch, and nobody else's: not an Admin, not the twin.
+  if ('coursesHiddenOnStorefront' in body) {
+    const isOwner = !(caller as { twin?: boolean }).twin && (await callerRoleName(caller)) === 'Owner'
+    if (!isOwner) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: `Only an Owner of ${caller.company.name} hides or shows courses on its public page. An Admin may read the setting.` } },
+        { status: 403 }
+      )
+    }
+    if (typeof body.coursesHiddenOnStorefront !== 'boolean') {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say whether courses are hidden or shown.' } }, { status: 422 })
+    }
+    const done = await prisma.company.update({
+      where: { id: caller.company.id },
+      data: { coursesHiddenOnStorefront: body.coursesHiddenOnStorefront },
+      select: { coursesHiddenOnStorefront: true, pluginsOn: true },
+    })
+    return NextResponse.json({
+      data: {
+        coursesHidden: done.coursesHiddenOnStorefront,
+        coursesShown: coursesShown(done),
+        message: done.coursesHiddenOnStorefront ? 'Courses are hidden on your public page.' : 'Courses may be listed on your public page while Train to bench is on.',
+      },
+    })
+  }
 
   for (const field of ['tagline', 'intro'] as const) {
     if (typeof body[field] !== 'string') continue

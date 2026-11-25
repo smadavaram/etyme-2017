@@ -367,9 +367,26 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
         </>
       )}
 
-      {/* No training section, for any firm. A client can open this page,
-          and a firm's public page never says it trains people (the
-          founder, 2026-11-14, record 69). */}
+      {/* Courses are listed only where `coursesShown` said so when the
+          page was read: Train to bench on and not hidden by the firm
+          (record 120, answer 3, which replaces record 69 for that firm).
+          Empty otherwise, and nothing is drawn. */}
+      {site.courses.length > 0 && (
+        <>
+          <Rule />
+          <section>
+            <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">Courses</h2>
+            <ul className="mt-3 space-y-1.5">
+              {site.courses.map((c) => (
+                <li key={c.title} className="text-[15px] text-etyme-ink">
+                  {c.title}
+                  {c.hours != null && <span className="ml-2 text-etyme-muted tabular-nums">{c.hours} hours</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
+      )}
 
       {/* One door for a candidate, a staffing or bench firm's page only:
           the bench's own ask, answered from the letter it sends. */}

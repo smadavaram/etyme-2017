@@ -23,6 +23,7 @@ import { PayrollPanel, goToFirstPayDay } from '@/components/settings/payroll-pan
 import { AskEtymePanel } from '@/components/settings/ask-etyme-panel'
 import { HomePagePanel } from '@/components/settings/home-page-panel'
 import { PluginsPanel } from '@/components/settings/plugins-panel'
+import { CoursesOnPagePanel } from '@/components/settings/courses-on-page-panel'
 import { SendingDomainPanel } from '@/components/settings/sending-domain-panel'
 import { Chip, ErrorState, FormMessage, Lbl, LoadingState, PageHead, Panel } from '@/components/ui'
 import { SubmitButton } from '@/components/ui/form'
@@ -466,6 +467,7 @@ function CompanyTab({ data, send, busy, openModel }: { data: Settings; send: Sen
     <>
       <HomePagePanel />
       <PluginsPanel />
+      <CoursesOnPagePanel />
       <Panel
         title="Who you are"
         subtitle={howYouCameIn(c, data.joins)}
