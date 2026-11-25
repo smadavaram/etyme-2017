@@ -12,7 +12,7 @@ import { Panel } from './panel-bits'
  * is on and this is not set.
  */
 export function CoursesOnPagePanel() {
-  const [data, setData] = useState<{ coursesHidden: boolean; coursesShown: boolean; canHideCourses: boolean } | null>(null)
+  const [data, setData] = useState<{ coursesOffered?: boolean; coursesHidden: boolean; coursesShown: boolean; canHideCourses: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -35,6 +35,9 @@ export function CoursesOnPagePanel() {
       setBusy(false)
     }
   }
+
+  // A company that only buys is offered no courses: no panel.
+  if (data && data.coursesOffered === false) return null
 
   return (
     <Panel title="Courses on our public page" subtitle="Courses are listed on your public page only while Train to bench is on and this is not set.">

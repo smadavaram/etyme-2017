@@ -9,6 +9,7 @@ import {
 } from '@/lib/site-voice'
 import { callerRoleName } from '@/lib/training/caller'
 import { coursesShown } from '@/lib/training/courses-shown'
+import { pluginsOfferedTo, notOfferedSays } from '@/lib/plugins'
 import { modelWritesFor, writePage } from './write'
 
 /**
@@ -103,9 +104,11 @@ export async function GET(request: NextRequest) {
     where: { id: caller.company.id },
     select: {
       slug: true, siteTagline: true, siteIntro: true, siteHeadings: true,
-      siteWrittenBy: true, siteWrittenAt: true, pluginsOn: true, coursesHiddenOnStorefront: true,
+      siteWrittenBy: true, siteWrittenAt: true, pluginsOn: true, coursesHiddenOnStorefront: true, kind: true,
     },
   })
+  // A company that only buys is offered no courses: the fields are absent.
+  const offered = pluginsOfferedTo(company.kind).some((p) => p.key === 'TRAIN_TO_BENCH')
   const isOwner = (await callerRoleName(caller)) === 'Owner'
 
   const facts = await factsFor(caller.company.id)
@@ -131,9 +134,12 @@ export async function GET(request: NextRequest) {
       canWrite: hasPermission(caller.permissions, 'settings.manage'),
       // "Hide courses on our public page" (record 120, answer 3): the Owner's
       // alone to change; an Admin reads it.
-      coursesHidden: company.coursesHiddenOnStorefront,
-      coursesShown: coursesShown(company),
-      canHideCourses: isOwner,
+      coursesOffered: offered,
+      ...(offered ? {
+        coursesHidden: company.coursesHiddenOnStorefront,
+        coursesShown: coursesShown(company),
+        canHideCourses: isOwner,
+      } : {}),
       // Said plainly rather than silently producing a lesser result: the
       // model writes only where this company turned it on and a writer is
       // set up, and the sentence says which of the two is missing.
@@ -236,6 +242,9 @@ export async function PATCH(request: NextRequest) {
 
   // The Owner's switch, and nobody else's: not an Admin, not the twin.
   if ('coursesHiddenOnStorefront' in body) {
+    if (!pluginsOfferedTo(caller.company.kind).some((p) => p.key === 'TRAIN_TO_BENCH')) {
+      return NextResponse.json({ error: { code: 'NOT_OFFERED', message: notOfferedSays() } }, { status: 403 })
+    }
     const isOwner = !(caller as { twin?: boolean }).twin && (await callerRoleName(caller)) === 'Owner'
     if (!isOwner) {
       return NextResponse.json(
