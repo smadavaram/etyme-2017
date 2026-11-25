@@ -518,6 +518,9 @@ Full text → 44, 45, 38, 30, 39, 60, 61, 27, 28, 35, 52, 72, 73, 75, 77.
 - **A sub-vendor's name is the prime's to keep.** The client sees the
   rung it pays, and the standing (insured, authorized) of whoever employs
   the person on its site. Rates are closed at every rung.
+  No trace of a firm below reaches the client, not even its id, and a
+  client never opens the line between its supplier and a firm below it
+  (owner, 2026-11-25 → 119: the non-compete).
 - **One tenant is one domain name.** A legal entity and a site are layers
   under the tenant. The entity layer is not built; a group is never
   modeled as two companies. One firm, one tenant: a firm already on Etyme

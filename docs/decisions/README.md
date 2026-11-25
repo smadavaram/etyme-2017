@@ -134,3 +134,4 @@ built, every release check, every walk and every deploy.
 | 116 | Agent outreach follows a mass-mail service's policy — 2026-11-24 | 289 | [116-agent-outreach-follows-a-mass-mail-service-policy-2026-11-24.md](116-agent-outreach-follows-a-mass-mail-service-policy-2026-11-24.md) |
 | 117 | Lean outreach to sell staffing and pods; the course module — 2026-11-25 | 539 | [117-lean-outreach-to-sell-staffing-and-pods-and-the-course-module-2026-11-25.md](117-lean-outreach-to-sell-staffing-and-pods-and-the-course-module-2026-11-25.md) |
 | 118 | Outreach to companies, built — 2026-11-25 | 509 | [118-outreach-to-companies-built-2026-11-25.md](118-outreach-to-companies-built-2026-11-25.md) |
+| 119 | A client never reaches below its supplier — 2026-11-25 | 223 | [119-a-client-never-reaches-below-its-supplier-2026-11-25.md](119-a-client-never-reaches-below-its-supplier-2026-11-25.md) |
