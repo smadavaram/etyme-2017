@@ -16,8 +16,10 @@ describe('a placement’s papers carry their doors', () => {
 
   it('the placement page draws the door beside each paper and, after it acts, says the route’s sentence and reads itself again', () => {
     const src = readFileSync('src/app/dashboard/placements/[id]/page.tsx', 'utf8')
-    expect(src).toContain("import { PaperDoorButtons } from '@/app/dashboard/documents/paper-doors'")
-    expect(src).toMatch(/<PaperDoorButtons doors=\{doors\} onDone=\{\(says\) => \{ setPaperSays\(says\); setReads\(\(n\) => n \+ 1\) \}\} \/>/)
+    const table = readFileSync('src/app/dashboard/placements/[id]/papers-table.tsx', 'utf8')
+    expect(table).toContain("import { PaperDoorButtons } from '@/app/dashboard/documents/paper-doors'")
+    expect(table).toMatch(/<PaperDoorButtons doors=\{doors\} onDone=\{onDone\} \/>/)
+    expect(src).toMatch(/paperDoors=\{p\.checklist\.paperDoors\}\s*onDone=\{\(says\) => \{ setPaperSays\(says\); setReads\(\(n\) => n \+ 1\) \}\}/)
     expect(src).toContain('[id, session.company?.kind, session.company?.name, reads]')
   })
 

@@ -32,6 +32,8 @@ import { chainBelow } from './chain'
 import { weeksWhere } from '@/lib/money/weeks-read'
 import { paperDoorsForLine } from '@/lib/document-stages/arrived-papers'
 import { doorsForReader } from './paper-doors-for-reader'
+import { factsForReader } from './paper-facts-for-reader'
+import { paperFactsForLine, attachPaperFacts, type PaperFacts } from '@/lib/document-stages/line-paper-facts'
 
 /**
  * GET /api/placements/:id
@@ -940,6 +942,28 @@ export async function GET(
     })
     .catch(() => ({}))
 
+  // What was asked, what arrived and who examined it, beside each paper
+  // (record 117, step 2). Facts, never a state: `checklist` decides what
+  // stands. A firm is named only where this reader may call it by name,
+  // the same rule the doors above hold; a failed read draws none.
+  const paperFacts = await paperFactsForLine({
+    contractId: placement.id,
+    items: checklist.items.map((it) => ({ key: it.key, label: it.label })),
+  })
+    .then((facts) => {
+      if (!facts) return null
+      const sellerSeen = shown(placement.companyId, placement.company.name)
+      const mayName = (firmId: string) => {
+        if (firmId === mine) return true
+        if (isSupplier) return true
+        if (firmId === placement.companyId) return !sellerSeen.masked
+        return readsFromBelow && seenNames.has(firmId) && !seenNames.get(firmId)!.masked
+      }
+      return factsForReader(facts, mayName)
+    })
+    .catch(() => null)
+  const checklistItems = attachPaperFacts(checklist.items, (paperFacts ?? {}) as unknown as Record<string, PaperFacts>)
+
   // The firm below us, read the same way we read the firm above. Null
   // where we employ the person ourselves, which is a fact rather than a
   // gap and is said as `weEmployThem` in the chain.
@@ -1307,7 +1331,7 @@ export async function GET(
         outcome: checklist.outcome,
         says: checklist.says,
         fix: checklist.fix,
-        items: checklist.items,
+        items: checklistItems,
         cover: checklist.cover.outcome,
         paperDoors,
       },

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { PaperDoorButtons } from '@/app/dashboard/documents/paper-doors'
+import { PapersTable, type PaperRow } from './papers-table'
 import type { PaperDoors } from '@/lib/document-stages/paper-doors'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
@@ -222,7 +222,7 @@ interface Placement {
     outcome: 'PASS' | 'WARN' | 'BLOCK'
     says: string
     fix: string | null
-    items: Array<{ key: string; label: string; required: boolean; state: string; note: string; blocks: boolean }>
+    items: PaperRow[]
     cover: 'PASS' | 'WARN' | 'BLOCK'
     /** The door each paper carries for this seat, by the paper's key (regulatory's paperDoorsForLine). */
     paperDoors?: Record<string, PaperDoors>
@@ -925,38 +925,15 @@ export default function PlacementPage() {
           {p.checklist.says}
           {p.checklist.fix && <span className="text-etyme-ink"> {fixWithWho(p.checklist.fix, who)}</span>}
         </p>
-        <div className="flex flex-wrap gap-2">
-          {p.checklist.items.map((it) => (
-            <span
-              key={it.key}
-              className={`chip ${
-                it.state === 'ALREADY_HELD' ? 'chip--verified'
-                : it.blocks ? 'chip--danger'
-                : it.state === 'EXPIRING' ? 'chip--attention'
-                : it.required ? 'chip--attention'
-                : 'chip--passive'
-              }`}
-              title={it.note}
-            >
-              {inSentence(it.label)} · {it.state === 'ALREADY_HELD' ? 'on file' : words(it.state)}
-            </span>
-          ))}
-        </div>
-        {/* Beside each paper, the door it carries for this seat: check what
-            arrived, record the provider's verdict, or ask the worker. */}
-        <div className="mt-2 space-y-1">
-          {p.checklist.items.map((it) => {
-            const doors = p.checklist.paperDoors?.[it.key]
-            if (!doors || (doors.doors.length === 0 && !doors.says)) return null
-            return (
-              <div key={it.key} className="flex flex-wrap items-baseline gap-2 text-[12.5px]">
-                <span className="text-etyme-ink">{inSentence(it.label)}</span>
-                <PaperDoorButtons doors={doors} onDone={(says) => { setPaperSays(says); setReads((n) => n + 1) }} />
-              </div>
-            )
-          })}
-          {paperSays && <FormMessage tone="ok">{paperSays}</FormMessage>}
-        </div>
+        {/* One table per side: what was asked, what arrived, who examined
+            it, what is missing and who owes it. "Ask again" is the Ask door
+            beside the paper. */}
+        <PapersTable
+          items={p.checklist.items}
+          paperDoors={p.checklist.paperDoors}
+          onDone={(says) => { setPaperSays(says); setReads((n) => n + 1) }}
+        />
+        {paperSays && <div className="mt-2"><FormMessage tone="ok">{paperSays}</FormMessage></div>}
         <div className="flex flex-wrap gap-2 mt-2">
           {/* The sub-vendor's certificates, in the words the compliance
               page uses for the same rows. Shown to the supplier only:
