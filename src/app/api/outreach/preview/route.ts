@@ -14,11 +14,12 @@ import { OFFER_KINDS, OFFER_LABELS } from '@/lib/outreach/offer-rules'
  * Asks for the same permission as the batches route, so the menu link and
  * both routes agree.
  */
-const NOT_YOURS = 'Outreach is written by the people who see the firm’s suppliers and customers. Your seat does not.'
 
 export async function GET(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
+  // The permission the menu link names, read here; then the one rule that also refuses a client.
+  if (!hasPermission(seat.caller.permissions, 'vendors.read')) return refused(403, outreachNotYours(seat.caller)!)
   const notYours = outreachNotYours(seat.caller)
   if (notYours) return refused(403, notYours)
   return NextResponse.json({
@@ -33,6 +34,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
+  // The permission the menu link names, read here; then the one rule that also refuses a client.
+  if (!hasPermission(seat.caller.permissions, 'vendors.read')) return refused(403, outreachNotYours(seat.caller)!)
   const notYours = outreachNotYours(seat.caller)
   if (notYours) return refused(403, notYours)
   const body = await request.json().catch(() => null)

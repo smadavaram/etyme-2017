@@ -14,6 +14,8 @@ import { batchView } from '@/lib/outreach/batch'
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
+  // The permission the menu link names, read here; then the one rule that also refuses a client.
+  if (!hasPermission(seat.caller.permissions, 'vendors.read')) return refused(403, outreachNotYours(seat.caller)!)
   const notYours = outreachNotYours(seat.caller)
   if (notYours) return refused(403, notYours)
   const { id } = await params

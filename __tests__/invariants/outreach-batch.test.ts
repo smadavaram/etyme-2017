@@ -208,8 +208,8 @@ describe('the Outreach screen and its routes', () => {
     for (const f of asked) expect(screen(), `the screen posts ${f}`).toMatch(new RegExp(`\\b${f}\\b`))
   })
   it('the Outreach page is a firm’s page whose route asks for the permission its menu link names', () => {
+    expect(route()).toMatch(/hasPermission\(seat\.caller\.permissions, 'vendors\.read'\)/)
     expect(route()).toContain('outreachNotYours(seat.caller)')
-    expect(readFileSync('src/lib/outreach/rules-of-access.ts', 'utf8')).toContain("hasPermission(caller.permissions as any, 'vendors.read')")
   })
 })
 
@@ -266,7 +266,7 @@ describe('who may write outreach, and how a follow-up reads (walk V)', () => {
   it('every outreach route asks the one rule of access, so no route can be opened by a client', () => {
     for (const f of ['src/app/api/outreach/preview/route.ts', 'src/app/api/outreach/batches/route.ts', 'src/app/api/outreach/batches/[id]/route.ts']) {
       expect(readFileSync(f, 'utf8'), f).toContain('outreachNotYours(seat.caller)')
-      expect(readFileSync(f, 'utf8'), f).not.toContain("'vendors.read')) return refused")
+      expect(readFileSync(f, 'utf8'), f).toContain("hasPermission(seat.caller.permissions, 'vendors.read')")
     }
   })
 })
