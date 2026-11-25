@@ -32,9 +32,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const row = await prisma.enrollment.findFirst({
     where: { id, course: { companyId: caller.company!.id } },
     select: {
-      id: true, status: true, person: { select: { name: true } },
+      id: true, status: true, personId: true, person: { select: { name: true } },
       cohort: { select: { trainerPersonId: true } },
-      assessments: { select: { skill: true, attempt: true } },
     },
   })
   if (!row) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That enrollment is not on your books.' } }, { status: 404 })
@@ -46,20 +45,36 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     callerPersonId: caller.person.id,
     callerRole: await callerRoleName(caller),
     trainerPersonId: row.cohort?.trainerPersonId ?? null,
+    enrolledPersonId: row.personId,
   })
   if (!who.ok) return NextResponse.json({ error: { code: 'FORBIDDEN', message: who.message } }, { status: 403 })
 
-  const next = nextAttempt(row.assessments, String(body.skill ?? ''), body.score)
-  if (!next.ok) return NextResponse.json({ error: { code: 'VALIDATION', message: next.message } }, { status: 422 })
-
-  const made = await prisma.assessment.create({
-    data: {
-      enrollmentId: id, skill: next.skill, score: next.score, attempt: next.attempt,
-      assessorPersonId: caller.person.id,
-      note: typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 500) : null,
-    },
-    select: { id: true },
-  })
+  // The next number and the row are one step under one lock per
+  // (enrollment, skill): two attempts at the same moment would otherwise
+  // read the same last number and the second would fail on the unique key.
+  const skillKey = String(body.skill ?? '').trim().toLowerCase()
+  const noteText = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 500) : null
+  let done
+  try {
+    done = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'assessment:' + id + ':' + skillKey}))`
+      const existing = await tx.assessment.findMany({ where: { enrollmentId: id }, select: { skill: true, attempt: true } })
+      const next = nextAttempt(existing, String(body.skill ?? ''), body.score)
+      if (!next.ok) return { refused: next.message }
+      const made = await tx.assessment.create({
+        data: { enrollmentId: id, skill: next.skill, score: next.score, attempt: next.attempt, assessorPersonId: caller.person.id, note: noteText },
+        select: { id: true },
+      })
+      return { made, next }
+    })
+  } catch (err: any) {
+    if (err?.code === 'P2002') {
+      return NextResponse.json({ error: { code: 'CONFLICT', message: 'Another attempt was recorded at the same moment. Look again and enter yours.' } }, { status: 409 })
+    }
+    throw err
+  }
+  if ('refused' in done) return NextResponse.json({ error: { code: 'VALIDATION', message: done.refused } }, { status: 422 })
+  const { made, next } = done
   return NextResponse.json(
     {
       data: {

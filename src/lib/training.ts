@@ -464,27 +464,66 @@ export function nextAttempt(
   return { ok: true, skill: same.length ? existing.find((a) => a.skill.trim().toLowerCase() === name.toLowerCase())!.skill : name, score: n, attempt }
 }
 
-/** A recruiter develops people and sells them; she never grades or certifies them. */
+/** A recruiter develops people and sells them; she never grades or certifies them. An extra guard. */
 const NEVER_GRADES = ['Recruiter']
 
 /**
- * Who may enter an assessment: the cohort's trainer where it has one,
- * otherwise anybody who holds the training permission, never a recruiter.
+ * Who may enter an assessment. The rule follows a named person, not a
+ * label (record 120, review 2026-11-25):
+ *
+ *  - nobody assesses themselves;
+ *  - the cohort must have a trainer, and the caller must be that trainer;
+ *  - a recruiter never assesses, even one named trainer (extra guard).
  */
-export function mayAssess(o: { callerPersonId: string; callerRole: string | null; trainerPersonId: string | null }): Ok | Refusal {
+export function mayAssess(o: {
+  callerPersonId: string
+  callerRole: string | null
+  trainerPersonId: string | null
+  /** The person on the course being assessed. */
+  enrolledPersonId: string
+}): Ok | Refusal {
+  if (o.callerPersonId === o.enrolledPersonId) {
+    return { ok: false, message: 'Nobody assesses themselves. Another person enters this assessment.' }
+  }
   if (o.callerRole && NEVER_GRADES.includes(o.callerRole)) {
     return { ok: false, message: 'A recruiter does not assess a trainee. The cohort’s trainer does.' }
   }
-  if (o.trainerPersonId && o.trainerPersonId !== o.callerPersonId) {
+  if (!o.trainerPersonId) {
+    return { ok: false, message: 'Name the cohort’s trainer first.' }
+  }
+  if (o.trainerPersonId !== o.callerPersonId) {
     return { ok: false, message: 'Only the cohort’s trainer enters an assessment for this cohort.' }
   }
   return { ok: true }
 }
 
 /**
+ * Of an enrollment's assessments, the people who assessed her in her
+ * current run. A person dropped and enrolled again keeps the old rows
+ * (attempts are never deleted); a past run's assessor does not certify the
+ * new run, because only assessments made on or after the day the enrollment
+ * last began count.
+ */
+export function currentRunAssessors(
+  assessments: { assessorPersonId: string; assessedAt: Date }[],
+  runStartedAt: Date
+): string[] {
+  return [...new Set(assessments.filter((a) => a.assessedAt.getTime() >= runStartedAt.getTime()).map((a) => a.assessorPersonId))]
+}
+
+/** A trainee never trains her own cohort. */
+export function mayNameTrainer(o: { trainerPersonId: string; traineePersonIds: string[]; cohortName: string }): Ok | Refusal {
+  if (o.traineePersonIds.includes(o.trainerPersonId)) {
+    return { ok: false, message: `That person is a trainee on ${o.cohortName}. A trainee cannot be its trainer.` }
+  }
+  return { ok: true }
+}
+
+/**
  * A certification needs a finished course, and is issued only by the
- * person who assessed the trainee or by the cohort's trainer. Never a
- * recruiter, even one who is also named on the cohort.
+ * cohort's trainer or by a person who assessed this enrollment, and never
+ * by the trainee herself. Never a recruiter, even one who is also named on
+ * the cohort.
  */
 export function mayCertify(o: {
   enrollmentStatus: string
@@ -493,9 +532,14 @@ export function mayCertify(o: {
   callerRole: string | null
   trainerPersonId: string | null
   assessorPersonIds: string[]
+  /** The person on the course being certified. */
+  enrolledPersonId: string
 }): Ok | Refusal {
   if (o.enrollmentStatus !== 'COMPLETED') {
     return { ok: false, message: `${o.personName} has not finished the course. Finish it first, then certify.` }
+  }
+  if (o.callerPersonId === o.enrolledPersonId) {
+    return { ok: false, message: 'Nobody certifies themselves. The trainer or an assessor does.' }
   }
   if (o.callerRole && NEVER_GRADES.includes(o.callerRole)) {
     return { ok: false, message: 'A recruiter does not certify. The person who assessed her, or the cohort’s trainer, does.' }
@@ -545,8 +589,15 @@ export function mayCompleteCohort(o: {
   return { ok: false, message: `${o.name} cannot be finished: ${without.join(', ')} ${without.length === 1 ? 'has' : 'have'} no result yet.` }
 }
 
-/** The ask's record may be answered once, by her, and never by the firm. */
-export function mayRecordAnswer(ask: { answer: string | null }): Ok | Refusal {
+/**
+ * The ask's record may be answered once, by her, and never by the firm.
+ * Only an ask she was asked (her own page, or the email link) is filled
+ * by her answer; a firm's employee who was told is never stamped as a yes.
+ */
+export function mayRecordAnswer(ask: { answer: string | null; method: string }): Ok | Refusal {
+  if (ask.method !== 'OWN_PAGE' && ask.method !== 'EMAIL_LINK') {
+    return { ok: false, message: 'She was told, not asked. There is no answer to record on this one.' }
+  }
   if (ask.answer != null) return { ok: false, message: 'She has already answered this ask. An answer is written once.' }
   return { ok: true }
 }

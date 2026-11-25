@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   askMethod, certificationStanding, cohortFull, cohortNext, cohortOpen, mayAskOntoBench, mayAssess,
-  mayCertify, mayCompleteCohort, mayRecordAnswer, nextAttempt, sameCourse,
+  currentRunAssessors, mayCertify, mayCompleteCohort, mayNameTrainer, mayRecordAnswer, nextAttempt, sameCourse,
 } from '@/lib/training'
 
 /** Record 120, train to bench: the rules, one sentence per refusal, no database. */
@@ -87,7 +87,7 @@ describe('an attempt is never overwritten and a score is 0 to 100', () => {
 })
 
 describe('who may assess and who may certify', () => {
-  const base = { enrollmentStatus: 'COMPLETED', personName: 'Ada', callerPersonId: 'trainer', callerRole: 'Owner', trainerPersonId: 'trainer', assessorPersonIds: ['trainer'] }
+  const base = { enrollmentStatus: 'COMPLETED', personName: 'Ada', callerPersonId: 'trainer', callerRole: 'Owner', trainerPersonId: 'trainer', assessorPersonIds: ['trainer'], enrolledPersonId: 'ada' }
   it('the cohort’s trainer may certify a trainee who finished her course', () => {
     expect(mayCertify(base)).toEqual({ ok: true })
   })
@@ -103,11 +103,44 @@ describe('who may assess and who may certify', () => {
   it('somebody who neither assessed her nor trains the cohort cannot certify her', () => {
     expect(mayCertify({ ...base, callerPersonId: 'stranger', callerRole: 'Admin' })).toEqual({ ok: false, message: 'Only the person who assessed Ada, or the cohort’s trainer, may certify her.' })
   })
-  it('only the cohort’s trainer assesses where the cohort has one, and never a recruiter', () => {
-    expect(mayAssess({ callerPersonId: 't', callerRole: 'Owner', trainerPersonId: 't' })).toEqual({ ok: true })
-    expect(mayAssess({ callerPersonId: 'x', callerRole: 'Owner', trainerPersonId: 't' })).toMatchObject({ ok: false })
-    expect(mayAssess({ callerPersonId: 'x', callerRole: 'Recruiter', trainerPersonId: null })).toMatchObject({ ok: false })
-    expect(mayAssess({ callerPersonId: 'x', callerRole: 'HR', trainerPersonId: null })).toEqual({ ok: true })
+  it('only the cohort’s trainer assesses, and a recruiter never does even when named trainer', () => {
+    const b = { enrolledPersonId: 'ada' }
+    expect(mayAssess({ ...b, callerPersonId: 't', callerRole: 'Owner', trainerPersonId: 't' })).toEqual({ ok: true })
+    expect(mayAssess({ ...b, callerPersonId: 'x', callerRole: 'Owner', trainerPersonId: 't' })).toMatchObject({ ok: false })
+    expect(mayAssess({ ...b, callerPersonId: 't', callerRole: 'Recruiter', trainerPersonId: 't' })).toMatchObject({ ok: false })
+  })
+  it('a cohort with no trainer cannot be assessed by anybody, and the sentence says to name one', () => {
+    for (const role of ['HR', 'Owner', null]) {
+      expect(mayAssess({ callerPersonId: 'x', callerRole: role, trainerPersonId: null, enrolledPersonId: 'ada' })).toEqual({ ok: false, message: 'Name the cohort’s trainer first.' })
+    }
+  })
+  it('a trainee cannot assess herself, even when she holds the trainer’s seat', () => {
+    expect(mayAssess({ callerPersonId: 'ada', callerRole: 'Owner', trainerPersonId: 'ada', enrolledPersonId: 'ada' })).toMatchObject({ ok: false })
+  })
+  it('a trainee cannot certify herself, even as the trainer or as an assessor', () => {
+    expect(mayCertify({ ...base, callerPersonId: 'ada', trainerPersonId: 'ada', assessorPersonIds: ['ada'] })).toMatchObject({ ok: false })
+  })
+  it('a certification by a person with a role other than Recruiter still needs to be the trainer or an assessor', () => {
+    expect(mayCertify({ ...base, callerPersonId: 'someone', callerRole: 'Owner', assessorPersonIds: [] })).toMatchObject({ ok: false })
+  })
+})
+
+describe('a person named trainer is never a trainee of that cohort', () => {
+  it('a trainee on the cohort is refused as its trainer, and the sentence names the cohort', () => {
+    expect(mayNameTrainer({ trainerPersonId: 'ada', traineePersonIds: ['ada', 'bo'], cohortName: 'Spring' })).toEqual({ ok: false, message: 'That person is a trainee on Spring. A trainee cannot be its trainer.' })
+    expect(mayNameTrainer({ trainerPersonId: 'cy', traineePersonIds: ['ada', 'bo'], cohortName: 'Spring' })).toEqual({ ok: true })
+  })
+})
+
+describe('a past run’s assessor does not certify a new run after a drop and re-enrollment', () => {
+  const D = (s: string) => new Date(`${s}T00:00:00Z`)
+  it('assessments made before the current run began are not counted, and those after are', () => {
+    const rows = [
+      { assessorPersonId: 'old', assessedAt: D('2026-10-01') },
+      { assessorPersonId: 'new', assessedAt: D('2026-11-20') },
+      { assessorPersonId: 'new', assessedAt: D('2026-11-21') },
+    ]
+    expect(currentRunAssessors(rows, D('2026-11-01'))).toEqual(['new'])
   })
 })
 
@@ -142,8 +175,12 @@ describe('the ask onto the bench follows her own course, not the cohort', () => 
     expect(askMethod({ employed: false, hasOwnAccount: false })).toBe('EMAIL_LINK')
   })
   it('her answer is written once and a second write is refused', () => {
-    expect(mayRecordAnswer({ answer: null })).toEqual({ ok: true })
-    expect(mayRecordAnswer({ answer: 'YES' })).toEqual({ ok: false, message: 'She has already answered this ask. An answer is written once.' })
-    expect(mayRecordAnswer({ answer: 'NO' })).toMatchObject({ ok: false })
+    expect(mayRecordAnswer({ answer: null, method: 'OWN_PAGE' })).toEqual({ ok: true })
+    expect(mayRecordAnswer({ answer: null, method: 'EMAIL_LINK' })).toEqual({ ok: true })
+    expect(mayRecordAnswer({ answer: 'YES', method: 'OWN_PAGE' })).toEqual({ ok: false, message: 'She has already answered this ask. An answer is written once.' })
+    expect(mayRecordAnswer({ answer: 'NO', method: 'EMAIL_LINK' })).toMatchObject({ ok: false })
+  })
+  it('an employee who was told, not asked, never has a yes written on her ask', () => {
+    expect(mayRecordAnswer({ answer: null, method: 'EMPLOYEE_TOLD' })).toEqual({ ok: false, message: 'She was told, not asked. There is no answer to record on this one.' })
   })
 })

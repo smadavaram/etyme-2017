@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
-import { cohortNext, mayCompleteCohort, type CohortMove } from '@/lib/training'
+import { cohortNext, mayCompleteCohort, mayNameTrainer, type CohortMove } from '@/lib/training'
 
 /**
  * PATCH /api/training/cohorts/:id   { move: 'start' | 'complete' | 'cancel' }  or  { trainerPersonId }
@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const cohort = await prisma.cohort.findFirst({
     where: { id, companyId },
-    include: { enrollments: { select: { status: true, person: { select: { name: true } }, _count: { select: { assessments: true } } } } },
+    include: { enrollments: { select: { status: true, personId: true, person: { select: { name: true } }, _count: { select: { assessments: true } } } } },
   })
   if (!cohort) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That cohort is not on your books.' } }, { status: 404 })
 
@@ -44,6 +44,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (trainerPersonId) {
       const seat = await prisma.context.findFirst({ where: { personId: trainerPersonId, companyId, revokedAt: null }, select: { id: true } })
       if (!seat) return NextResponse.json({ error: { code: 'NOT_YOURS', message: 'The trainer must hold a seat at your firm.', field: 'trainerPersonId' } }, { status: 422 })
+    }
+    if (trainerPersonId) {
+      // A trainee of this cohort never trains it; one who dropped is not a trainee.
+      const named = mayNameTrainer({
+        trainerPersonId, cohortName: cohort.name,
+        traineePersonIds: cohort.enrollments.filter((e) => e.status !== 'DROPPED').map((e) => e.personId),
+      })
+      if (!named.ok) return NextResponse.json({ error: { code: 'IS_TRAINEE', message: named.message, field: 'trainerPersonId' } }, { status: 409 })
     }
     await prisma.cohort.update({ where: { id }, data: { trainerPersonId } })
     return NextResponse.json({ data: { id, trainerPersonId, says: trainerPersonId ? `The trainer for ${cohort.name} is set.` : `${cohort.name} has no trainer now.` } })

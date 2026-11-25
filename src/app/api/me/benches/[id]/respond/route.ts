@@ -111,7 +111,7 @@ export async function POST(
   // Where the firm asked her after a course (record 120), her answer is
   // written once on that ask: YES or NO, when, and by which door. An ask
   // already answered is never written again.
-  const lastAsk = await prisma.benchAsk.findFirst({ where: { benchListingId: id }, orderBy: { askedAt: 'desc' }, select: { id: true, answer: true } })
+  const lastAsk = await prisma.benchAsk.findFirst({ where: { benchListingId: id }, orderBy: { askedAt: 'desc' }, select: { id: true, answer: true, method: true } })
   const openAsk = lastAsk && mayRecordAnswer(lastAsk).ok ? lastAsk : null
 
   await prisma.$transaction([
