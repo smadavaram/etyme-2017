@@ -29,7 +29,7 @@ interface Person {
   onSite: boolean
   says: string
   tenure: { months: number; capMonths: number | null; headroomMonths: number | null; status: string; eligibleDate: string | null; runsPast?: string[] }
-  engagements: { contractId: string; supplier: { id: string; name: string }; state: string; startDate: string; endDate: string | null; rateCents: number | null }[]
+  engagements: { contractId: string; supplier: { id: string | null; name: string }; state: string; startDate: string; endDate: string | null; rateCents: number | null }[]
   /** Every firm they have been here through, on one line. */
   firms?: { parts: string[]; says: string; withheld: number }
   submissions: {
@@ -38,7 +38,7 @@ interface Person {
   }[]
   spread: { lowCents: number; highCents: number } | null
   paperwork: { type: string; status: string; expiresAt: string | null; verifiedAt: string | null }[]
-  representedBy: { id: string; name: string; how: 'bench' | 'submitted' }[]
+  representedBy: { id: string | null; name: string; how: 'bench' | 'submitted' }[]
   askGoesTo: { firms: { id: string; name: string }[]; throughAPrime: boolean; says: string }
   openRequirements: { id: string; title: string }[]
   alreadyOn: string[]
@@ -212,8 +212,8 @@ export default function PersonPage() {
           <Lbl>Who can put them forward</Lbl>
           {data.representedBy.length === 0 && <p className="mt-1 text-[13px] text-etyme-muted">Nobody yet.</p>}
           <ul className="mt-1 space-y-1">
-            {data.representedBy.map((r) => (
-              <li key={r.id} className="text-[13px] text-etyme-ink">{r.name} <span className="text-etyme-faint">· {r.how === 'bench' ? 'on their bench, with consent' : 'submitted them here'}</span></li>
+            {data.representedBy.map((r, i) => (
+              <li key={r.id ?? `${r.name}-${i}`} className="text-[13px] text-etyme-ink">{r.name} <span className="text-etyme-faint">· {r.how === 'bench' ? 'on their bench, with consent' : 'submitted them here'}</span></li>
             ))}
           </ul>
           {data.spread && <p className="mt-2 text-[12px] text-etyme-muted">Asked between {money(data.spread.lowCents)} and {money(data.spread.highCents)} across suppliers.</p>}

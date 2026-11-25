@@ -170,15 +170,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // ── The contracts this client pays, one per engagement ─────────────
   //
-  // The id travels whether or not the name does: a row needs something
-  // to hang a certificate on, and a client cannot turn an id into a firm
-  // it has no relationship with.
+  // The id is withheld with the name (record 119): a firm below the
+  // supplier this client pays leaves no trace, and the row hangs on the
+  // contract id, which is the client's own line.
   const engagements = chainTop(everyRung).map((c) => {
     const seen = seenNames.get(c.companyId)
     return {
       contractId: c.id,
       supplier: {
-        id: c.company.id,
+        id: seen?.masked ? null : c.company.id,
         name: seen?.name ?? 'A supplier on this site',
         nameWithheld: seen?.masked ?? false,
         suppliedThrough: seen?.through ?? null,
@@ -211,14 +211,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // listed them and submitted them here is this client's own
   // counterparty and is named; a firm this client knows only as the leg
   // under its own supplier is not, and the row says who it comes
-  // through. The id travels either way, because the ask is routed
-  // server-side and a client cannot turn an id into a firm it has no
-  // relationship with.
-  const represented = new Map<string, { id: string; name: string; phrase: string; nameWithheld: boolean; suppliedThrough: string | null; how: 'bench' | 'submitted' }>()
+  // through. The id is withheld with the name (record 119); the ask is
+  // routed server-side from `askGoesTo`, never from this list.
+  const represented = new Map<string, { id: string | null; name: string; phrase: string; nameWithheld: boolean; suppliedThrough: string | null; how: 'bench' | 'submitted' }>()
   const asFirm = (c: { id: string; name: string }, how: 'bench' | 'submitted') => {
     const seen = seenNames.get(c.id)
     return {
-      id: c.id,
+      id: seen?.masked ? null : c.id,
       name: seen?.name ?? c.name,
       phrase: seen?.phrase ?? c.name,
       nameWithheld: seen?.masked ?? false,
