@@ -1830,6 +1830,8 @@ export async function GET(request: NextRequest) {
   // Only a line this reader may open (record 119): a client's link leads to
   // its own line, never to the one below its supplier.
   const lineFor = lineForReader(lines, caller.company?.id ?? null)
+  // Whether the person is placed at all reads every line, so Place is never offered twice when the only line is one this reader may not open.
+  const placedOn = new Map(lines.map((l) => [`${l.requirementId}:${l.personId}`, l.id]))
   const mayHire = hasPermission(caller.permissions, 'requirements.write')
   // "Send on" and "Message", asked of the two routes' own rules per row
   // (`row-doors`): the forward route's actor is the acting desk's book
@@ -1942,7 +1944,7 @@ export async function GET(request: NextRequest) {
             toCompanyName: s.toCompany.name,
             personName: s.person.name,
             status: s.status,
-            contractId: lineFor.get(`${s.requirementId}:${s.personId}`) ?? null,
+            contractId: placedOn.get(`${s.requirementId}:${s.personId}`) ?? null,
           })
           return { open: door.open, says: door.says }
         })(),

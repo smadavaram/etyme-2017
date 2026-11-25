@@ -1,3 +1,4 @@
+import { lineFor as lineForReader } from '@/app/api/submissions/line-for'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -74,10 +75,12 @@ export async function GET(request: NextRequest) {
             personId: r.submission.personId,
           })),
         },
-        select: { id: true, requirementId: true, personId: true },
+        select: { id: true, requirementId: true, personId: true, companyId: true, clientCompanyId: true },
       })
     : []
-  const lineFor = new Map(lines.map((l) => [`${l.requirementId}:${l.personId}`, l.id]))
+  // The link goes only to a line this reader may open (record 119); whether the person is placed at all reads every line.
+  const lineFor = lineForReader(lines, caller.company?.id ?? null)
+  const placedOn = new Map(lines.map((l) => [`${l.requirementId}:${l.personId}`, l.id]))
   const mayHire = hasPermission(caller.permissions, 'requirements.write')
   const zone = readerZone(caller.person.timezone, browserZone)
 
@@ -117,6 +120,7 @@ export async function GET(request: NextRequest) {
         if (row.outcome !== 'OFFER') return placeFromRound({ outcome: row.outcome, personName: names.consultant, contractId: null, award: null })
         const s = row.submission
         const contractId = lineFor.get(`${s.requirementId}:${s.personId}`) ?? null
+        const placed = placedOn.get(`${s.requirementId}:${s.personId}`) ?? null
         const door = awardDoor({
           callerCompanyId: caller.company?.id ?? null,
           callerCompanyName: caller.company?.name ?? null,
@@ -128,7 +132,7 @@ export async function GET(request: NextRequest) {
           toCompanyName: s.toCompany.name,
           personName: s.person.name,
           status: s.status,
-          contractId,
+          contractId: placed,
         })
         return placeFromRound({
           outcome: row.outcome,

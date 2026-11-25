@@ -29,3 +29,15 @@ describe('the Open link on a submission row', () => {
     }
   })
 })
+
+describe('Place is never offered twice when the only line is one the reader may not open (record 119)', () => {
+  it('submissions and interviews ask whether the person is placed from every line, and link only to a line the reader may open', async () => {
+    const { readFileSync } = await import('node:fs')
+    for (const f of ['src/app/api/submissions/route.ts', 'src/app/api/interviews/route.ts']) {
+      const src = readFileSync(f, 'utf8')
+      expect(src, f).toMatch(/const placedOn = new Map\(lines\.map/)
+      expect(src, f).toMatch(/lineForReader\(lines, caller\.company\?\.id \?\? null\)/)
+      expect(src, f).toMatch(/contractId: (placedOn\.get|placed)/)
+    }
+  })
+})
