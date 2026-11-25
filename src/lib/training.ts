@@ -375,3 +375,189 @@ export function fieldable(
   }
   return [...out.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
+
+// ── Cohorts, assessments, certifications and the ask (record 120) ─────
+//
+// Pure rules, one sentence per refusal, no database. The routes under
+// /api/training call these and only these to decide.
+
+export type CohortState = 'PLANNED' | 'RUNNING' | 'COMPLETE' | 'CANCELLED'
+export type CohortMove = 'start' | 'complete' | 'cancel'
+
+export const COHORT_MOVES: Record<CohortState, CohortMove[]> = {
+  PLANNED: ['start', 'cancel'],
+  RUNNING: ['complete', 'cancel'],
+  COMPLETE: [],
+  CANCELLED: [],
+}
+
+/** A cohort's state in a recruiter's words. */
+export function cohortWord(state: string): string {
+  switch (state) {
+    case 'PLANNED': return 'Planned'
+    case 'RUNNING': return 'Running'
+    case 'COMPLETE': return 'Finished'
+    case 'CANCELLED': return 'Cancelled'
+    default: return state.toLowerCase()
+  }
+}
+
+export type Refusal = { ok: false; message: string }
+export type Ok = { ok: true }
+
+/** Where a cohort may go from here, or the sentence that says it cannot. */
+export function cohortNext(state: string, move: CohortMove, name: string): { ok: true; state: CohortState } | Refusal {
+  const allowed = COHORT_MOVES[state as CohortState] ?? []
+  if (!allowed.includes(move)) {
+    return {
+      ok: false,
+      message:
+        state === 'COMPLETE' ? `${name} is finished. There is nothing more to record on it.`
+          : state === 'CANCELLED' ? `${name} was cancelled. Start a new cohort instead.`
+            : `${name} is ${cohortWord(state).toLowerCase()}; it cannot be ${move === 'start' ? 'started' : move === 'complete' ? 'finished' : 'cancelled'} from there.`,
+    }
+  }
+  return { ok: true, state: move === 'start' ? 'RUNNING' : move === 'complete' ? 'COMPLETE' : 'CANCELLED' }
+}
+
+/** Capacity is enforced. A cohort with no capacity set has no limit. */
+export function cohortFull(o: { capacity: number | null; enrolled: number; name: string }): Ok | Refusal {
+  if (o.capacity == null) return { ok: true }
+  if (o.enrolled >= o.capacity) {
+    return { ok: false, message: `${o.name} holds ${o.capacity} ${o.capacity === 1 ? 'person' : 'people'} and is full.` }
+  }
+  return { ok: true }
+}
+
+/** A trainee is in a cohort only for the course the cohort teaches. */
+export function sameCourse(o: { enrollmentCourseId: string; cohortCourseId: string; courseTitle: string; cohortName: string }): Ok | Refusal {
+  if (o.enrollmentCourseId !== o.cohortCourseId) {
+    return { ok: false, message: `${o.cohortName} teaches a different course than ${o.courseTitle}. Pick a cohort for this course.` }
+  }
+  return { ok: true }
+}
+
+/** A cohort takes people only while it is planned or running. */
+export function cohortOpen(state: string, name: string): Ok | Refusal {
+  if (state === 'PLANNED' || state === 'RUNNING') return { ok: true }
+  return { ok: false, message: `${name} is ${cohortWord(state).toLowerCase()} and takes nobody new.` }
+}
+
+/**
+ * The next attempt at a skill. An attempt is never overwritten: a retake
+ * is the next number. The score is a whole number from 0 to 100.
+ */
+export function nextAttempt(
+  existing: { skill: string; attempt: number }[],
+  skill: string,
+  score: unknown
+): { ok: true; skill: string; score: number; attempt: number } | Refusal {
+  const name = skill.trim()
+  if (!name) return { ok: false, message: 'Say which skill was assessed.' }
+  const n = typeof score === 'number' ? score : typeof score === 'string' && score.trim() !== '' ? Number(score) : NaN
+  if (!Number.isInteger(n) || n < 0 || n > 100) {
+    return { ok: false, message: 'A score is a whole number from 0 to 100.' }
+  }
+  const same = existing.filter((a) => a.skill.trim().toLowerCase() === name.toLowerCase())
+  const attempt = same.reduce((m, a) => Math.max(m, a.attempt), 0) + 1
+  // Keep the first spelling typed for this skill, so a skill reads one way.
+  return { ok: true, skill: same.length ? existing.find((a) => a.skill.trim().toLowerCase() === name.toLowerCase())!.skill : name, score: n, attempt }
+}
+
+/** A recruiter develops people and sells them; she never grades or certifies them. */
+const NEVER_GRADES = ['Recruiter']
+
+/**
+ * Who may enter an assessment: the cohort's trainer where it has one,
+ * otherwise anybody who holds the training permission, never a recruiter.
+ */
+export function mayAssess(o: { callerPersonId: string; callerRole: string | null; trainerPersonId: string | null }): Ok | Refusal {
+  if (o.callerRole && NEVER_GRADES.includes(o.callerRole)) {
+    return { ok: false, message: 'A recruiter does not assess a trainee. The cohort’s trainer does.' }
+  }
+  if (o.trainerPersonId && o.trainerPersonId !== o.callerPersonId) {
+    return { ok: false, message: 'Only the cohort’s trainer enters an assessment for this cohort.' }
+  }
+  return { ok: true }
+}
+
+/**
+ * A certification needs a finished course, and is issued only by the
+ * person who assessed the trainee or by the cohort's trainer. Never a
+ * recruiter, even one who is also named on the cohort.
+ */
+export function mayCertify(o: {
+  enrollmentStatus: string
+  personName: string
+  callerPersonId: string
+  callerRole: string | null
+  trainerPersonId: string | null
+  assessorPersonIds: string[]
+}): Ok | Refusal {
+  if (o.enrollmentStatus !== 'COMPLETED') {
+    return { ok: false, message: `${o.personName} has not finished the course. Finish it first, then certify.` }
+  }
+  if (o.callerRole && NEVER_GRADES.includes(o.callerRole)) {
+    return { ok: false, message: 'A recruiter does not certify. The person who assessed her, or the cohort’s trainer, does.' }
+  }
+  const isTrainer = o.trainerPersonId != null && o.trainerPersonId === o.callerPersonId
+  if (!isTrainer && !o.assessorPersonIds.includes(o.callerPersonId)) {
+    return { ok: false, message: `Only the person who assessed ${o.personName}, or the cohort’s trainer, may certify her.` }
+  }
+  return { ok: true }
+}
+
+export type CertificationStanding = 'CURRENT' | 'EXPIRING' | 'EXPIRED'
+
+const DAY = 86_400_000
+const dayOf = (d: Date) => Math.floor(d.getTime() / DAY)
+
+/**
+ * Computed on read from the expiry date, never stored. Valid through the
+ * whole of its last day. No expiry date means it does not lapse.
+ * Expiring is the last 30 days.
+ */
+export function certificationStanding(expiresAt: Date | null, now: Date): CertificationStanding {
+  if (!expiresAt) return 'CURRENT'
+  const left = dayOf(expiresAt) - dayOf(now)
+  if (left < 0) return 'EXPIRED'
+  return left <= 30 ? 'EXPIRING' : 'CURRENT'
+}
+
+/** The ask is offered when her own course is complete, not when the cohort is. */
+export function mayAskOntoBench(o: { enrollmentStatus: string; personName: string }): Ok | Refusal {
+  if (o.enrollmentStatus !== 'COMPLETED') {
+    return { ok: false, message: `${o.personName} has not finished the course yet. Ask her onto the bench once she has.` }
+  }
+  return { ok: true }
+}
+
+/**
+ * A cohort is finished only when every trainee has a result. A trainee is
+ * anybody on it who has not dropped; a result is at least one assessment.
+ */
+export function mayCompleteCohort(o: {
+  name: string
+  trainees: { name: string; status: string; assessments: number }[]
+}): Ok | Refusal {
+  const without = o.trainees.filter((t) => t.status !== 'DROPPED' && t.assessments === 0).map((t) => t.name)
+  if (without.length === 0) return { ok: true }
+  return { ok: false, message: `${o.name} cannot be finished: ${without.join(', ')} ${without.length === 1 ? 'has' : 'have'} no result yet.` }
+}
+
+/** The ask's record may be answered once, by her, and never by the firm. */
+export function mayRecordAnswer(ask: { answer: string | null }): Ok | Refusal {
+  if (ask.answer != null) return { ok: false, message: 'She has already answered this ask. An answer is written once.' }
+  return { ok: true }
+}
+
+export type AskMethod = 'EMAIL_LINK' | 'OWN_PAGE' | 'EMPLOYEE_TOLD'
+
+/**
+ * How the ask reaches her. A firm's own employee is told, not asked.
+ * Somebody with an account of her own finds it on her own page; anybody
+ * else gets the email link.
+ */
+export function askMethod(o: { employed: boolean; hasOwnAccount: boolean }): AskMethod {
+  return o.employed ? 'EMPLOYEE_TOLD' : o.hasOwnAccount ? 'OWN_PAGE' : 'EMAIL_LINK'
+}
