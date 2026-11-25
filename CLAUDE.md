@@ -499,6 +499,11 @@ Full text → 40, 11, 56, 68, 72.
   2026-11-25 → 120): a per-tenant switch, set by the Owner or by a
   Superadmin as a staff tool on the switch alone, ledgered; off means no
   menu and refused routes, never deleted data. No agent switches one.
+- **Website and content, and outreach, are plugins too** (owner,
+  2026-11-25 → 121, 122), off by default. A site goes public only after
+  the Owner's branding yes, the firm's own domain and any compliance pass;
+  off takes it dark and keeps its content. Outreach off sends nothing and
+  still drafts. Built third and fourth, after pods.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
