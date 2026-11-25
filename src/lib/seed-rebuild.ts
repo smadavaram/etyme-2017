@@ -90,7 +90,7 @@ export const CONFIRM_PHRASE = 'delete the demo world'
 export const DELETE_ORDER = [
   // An agent's task names the decision that asks for its yes, so it goes
   // before it; the switch names the firm and the Owner who set it.
-  'AgentTask', 'AgentSwitch',
+  'OutreachLetter', 'AgentTask', 'AgentSwitch',
   // Chains 1, 2, 3 and 6 (record 112): each names the firm, and some a submission or a petition, so they go before both.
   'PublicAccessFile', 'Petition', 'NoticePosting', 'ChecklistItem', 'Offer', 'SubmissionConfirmation',
   // The money loop's month, a decision a person opened and the record
@@ -237,6 +237,10 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'RecordAction.recordId': { as: 'RECORD' },
   // An agent's task is about a record by type and id; its send on the mail ledger names the task and keeps it as history.
   'AgentTask.recordId': { as: 'RECORD' },
+  'OutreachLetter.companyId': { as: 'OWNED', to: ['Company'] },
+  'OutreachLetter.contactId': { as: 'LINK', to: ['CompanyContact'] },
+  'OutreachLetter.atCompanyId': { as: 'LINK', to: ['Company'] },
+  'OutreachLetter.leadId': { as: 'LINK', to: ['Lead'] },
   // Chains 1, 2, 3 and 6 (record 112): people, sites and mail rows named by id alone, kept as history.
   'SubmissionConfirmation.confirmedByPersonId': { as: 'RECORD' },
   'SubmissionConfirmation.mailSendId': { as: 'RECORD' },

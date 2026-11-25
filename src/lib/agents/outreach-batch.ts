@@ -24,7 +24,7 @@ import { postalLine } from './dormant-outreach-rules'
 import { TASK_RECORD, approvalOf, closeTask, mayAgentSend } from './tasks'
 import { registerAgent, type AgentContext, type AgentDef } from './runner'
 import {
-  OUTREACH_BATCH_AGENT, OUTREACH_BATCH_KIND, OUTREACH_BATCH_RULE, OUTREACH_BATCH_TEMPLATE, OUTREACH_LETTER_RECORD,
+  OUTREACH_BATCH_AGENT, OUTREACH_BATCH_KIND, OUTREACH_BATCH_RULE, OUTREACH_BATCH_TEMPLATE, OUTREACH_LETTER_TYPE,
   batchBlock, buildLetter, letterDue, letterOpen, settleLetter, stopFor,
 } from '@/lib/outreach/batch-rules'
 
@@ -59,7 +59,7 @@ export async function walkOutreachBatches(ctx: AgentContext, deps: { send?: type
     const contacts = await prisma.companyContact.findMany({ where: { id: { in: letters.map((l) => l.contactId) } }, select: { id: true, name: true, email: true, companyId: true, outreachOptOutAt: true } })
     const byId = new Map(contacts.map((c) => [c.id, c]))
     const names = new Map((await prisma.company.findMany({ where: { id: { in: letters.map((l) => l.atCompanyId) } }, select: { id: true, name: true } })).map((c) => [c.id, c.name]))
-    const sends = letters.length ? await mailSendsAboutMany(companyId, OUTREACH_LETTER_RECORD, letters.map((l) => l.id)) : []
+    const sends = letters.length ? await mailSendsAboutMany(companyId, OUTREACH_LETTER_TYPE, letters.map((l) => l.id)) : []
     const bouncedLetters = new Set(sends.filter((s) => s.outcome === 'FAILED_DELIVERY').map((s) => s.recordId))
     // An address that bounced in any letter of this batch or an earlier one is left alone.
     const bouncedEmails = new Set(letters.filter((l) => bouncedLetters.has(l.id)).map((l) => l.email.trim().toLowerCase()))
@@ -78,18 +78,24 @@ export async function walkOutreachBatches(ctx: AgentContext, deps: { send?: type
       })
       if (why) { await stop(why); continue }
       // The task's own yes is read again before every send; a refusal ends this batch's turn.
-      const may = await mayAgentSend(task.id, { companyId, agentKey: ctx.agentKey, recordType: OUTREACH_LETTER_RECORD, recordId: l.id, template: OUTREACH_BATCH_TEMPLATE, attempt: l.attempt + 1 })
+      const may = await mayAgentSend(task.id, { companyId, agentKey: ctx.agentKey, recordType: OUTREACH_LETTER_TYPE, recordId: l.id, template: OUTREACH_BATCH_TEMPLATE, attempt: l.attempt + 1 })
       if (!may.ok) break
       if (!(await ctx.mayAct(1))) return // the letter and its row are one unit; the rest wait for the next run
       const letter = buildLetter({
         firm: firm.name, postal, recipientName: c!.name, companyName: names.get(l.atCompanyId) ?? 'your company', subject: payload.subject, body: payload.body,
         unsubscribeUrl: unsubscribeUrlFor(l.contactId), interestedUrl: interestedUrlFor(l.id), storefrontUrl: storefront,
       })
+      // Claim the letter first, so two runs at once can never both send it: only the run whose claim moves it sends.
+      const claimed = await prisma.outreachLetter.updateMany({ where: { id: l.id, state: l.state, attempt: l.attempt }, data: { attempt: l.attempt + 1, nextDueAt: null } })
+      if (claimed.count !== 1) continue
       const res = await send({
         to: email, subject: letter.subject, text: letter.text,
-        about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: l.attempt + 1, recordType: OUTREACH_LETTER_RECORD, recordId: l.id, template: OUTREACH_BATCH_TEMPLATE },
+        about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: l.attempt + 1, recordType: OUTREACH_LETTER_TYPE, recordId: l.id, template: OUTREACH_BATCH_TEMPLATE },
       })
-      if (res.outcome === 'NOT_CONFIGURED') return // nothing can leave this deployment; the letters stay ready
+      if (res.outcome === 'NOT_CONFIGURED') { // nothing can leave this deployment; the letter is let go and stays as it was
+        await prisma.outreachLetter.update({ where: { id: l.id }, data: { attempt: l.attempt, nextDueAt: l.nextDueAt } })
+        return
+      }
       const next = settleLetter(l, res.outcome, now)
       await prisma.outreachLetter.update({ where: { id: l.id }, data: { state: next.state, attempt: next.attempt, nextDueAt: next.nextDueAt, stoppedReason: next.stoppedReason } })
       const to = `${c!.name} at ${names.get(l.atCompanyId) ?? 'a company'}`

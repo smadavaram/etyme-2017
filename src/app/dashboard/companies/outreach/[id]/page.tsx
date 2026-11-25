@@ -58,7 +58,7 @@ export default function OutreachBatchPage() {
       {view.state === 'PROPOSED' && view.card && (
         <p className="mb-4 text-[13px] text-etyme-muted">The one yes is on a card for the Account Manager, or the Owner. <Link className="text-etyme-action" href={'/dashboard' as Route}>Open the decisions</Link>.</p>
       )}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
         <Stat label="Contacts" value={c.contacts} />
         <Stat label="Sent" value={c.sent} />
         <Stat label="Interested" value={c.interested} />

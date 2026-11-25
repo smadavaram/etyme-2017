@@ -14,12 +14,12 @@ import { UNSUBSCRIBE_PLACEHOLDER } from '@/lib/agents/dormant-outreach-rules'
 import { addWorkingDays } from '@/lib/agents/checklist-rules'
 import type { TaskPlan } from '@/lib/agents/tasks'
 import { AUDIENCES, type Audience } from './audience-rules'
-import { OFFER_KINDS, draftOffer, type OfferKind } from './offer-rules'
+import { OFFER_KINDS, draftOffer, hotListWordsRefusal, type OfferKind } from './offer-rules'
 
 export const OUTREACH_BATCH_AGENT = 'outreach-batch'
 export const OUTREACH_BATCH_KIND = 'OUTREACH_BATCH'
 export const OUTREACH_BATCH_TEMPLATE = 'outreach-batch'
-export const OUTREACH_LETTER_RECORD = 'OutreachLetter'
+export const OUTREACH_LETTER_TYPE = 'OutreachLetter'
 export const OUTREACH_BATCH_RULE = 'outreach-batch-v1'
 
 /** PROPOSED, AWAITING THE OWNER: how many times a letter may be sent again. */
@@ -32,7 +32,7 @@ export const INTERESTED_PLACEHOLDER = '(the I’m interested link goes here when
 export function batchPlan(recipients: number): TaskPlan {
   return {
     messages: [{ template: OUTREACH_BATCH_TEMPLATE, label: 'Offer letter' }],
-    retries: FOLLOW_UPS, daysApart: DAYS_APART, recipients, letterRecordType: OUTREACH_LETTER_RECORD,
+    retries: FOLLOW_UPS, daysApart: DAYS_APART, recipients, letterRecordType: OUTREACH_LETTER_TYPE,
     closesWhen: 'every letter has gone, been answered or been stopped',
   }
 }
@@ -108,6 +108,13 @@ export function readBatchAsk(raw: unknown): { ok: true; ask: BatchAsk } | { ok: 
   const body = typeof b.body === 'string' ? b.body : ''
   const bodySays = bodyRefusal(body)
   if (bodySays) return { ok: false, field: 'body', says: bodySays }
+  // The words that go out are checked, not only the lines they were drafted from.
+  if (b.offerKind === 'HOT_LIST') {
+    const s = hotListWordsRefusal(subject)
+    if (s) return { ok: false, field: 'subject', says: s }
+    const t = hotListWordsRefusal(body)
+    if (t) return { ok: false, field: 'body', says: t }
+  }
   const kind = typeof b.contactKind === 'string' && b.contactKind.trim() ? b.contactKind.trim() : null
   return { ok: true, ask: { audience: b.audience as Audience, contactKind: kind, offerKind: b.offerKind as OfferKind, offer: b.offer as Record<string, unknown>, subject: subject.trim(), body: body.trim() } }
 }

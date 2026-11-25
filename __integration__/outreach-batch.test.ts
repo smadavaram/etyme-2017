@@ -221,10 +221,10 @@ describe('the yes, and what is sent', () => {
     expect((await view(w.task.id)).body.data.counts.waiting).toBe(2)
   })
 
-  it('the next run sends the rest, one email to each address, each naming the firm, its postal address, an unsubscribe link and its own interested link', async () => {
+  it('the next run sends the rest, one email to each address even when two runs overlap, each naming the firm, its postal address, an unsubscribe link and its own interested link', async () => {
     await setSwitch('ON', null)
     w.runOne = new Date()
-    await run(w.runOne)
+    await Promise.all([run(w.runOne), run(w.runOne)])
     const rows = await mail()
     expect(rows).toHaveLength(4)
     expect(rows.every((r) => r.toAddresses.length === 1 && r.bccAddresses.length === 0)).toBe(true)

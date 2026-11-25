@@ -9,6 +9,8 @@
  * built.
  */
 
+import { formatDayLong } from '@/lib/format-date'
+
 export const OFFER_KINDS = ['HOT_LIST', 'PROJECT_POD', 'OPEN_JOB'] as const
 export type OfferKind = (typeof OFFER_KINDS)[number]
 export const OFFER_LABELS: Record<OfferKind, string> = { HOT_LIST: 'Who is available', PROJECT_POD: 'A project team', OPEN_JOB: 'An open job' }
@@ -19,6 +21,15 @@ const HOT_KEYS = ['skills', 'availability']
 const text = (v: unknown): string => (typeof v === 'string' ? v.trim().replace(/[ \t]+/g, ' ') : '')
 const RATE = /[$€£]|\/\s?(hr|hour|day)\b|\bper\s+(hour|day)\b|\brate\b/i
 const EMAIL = /\S+@\S+\.\S+/
+// A phone as people write one: a leading +, a bracketed area code, or 3-3-4 digits with separators. A bare run of digits is not one.
+const PHONE = /\+\d[\d\s().-]{7,}\d|\(\d{3}\)\s?\d{3}[\s.-]?\d{4}|\b\d{3}[\s.-]\d{3}[\s.-]\d{4}\b/
+/** A hot list's words, wherever they are typed, carry no rate, no address and no phone number (record 117). Pure. */
+export function hotListWordsRefusal(words: string): string | null {
+  if (RATE.test(words)) return 'A list of who is available carries skills and availability only. Take the rate out.'
+  if (EMAIL.test(words)) return 'A list of who is available carries skills and availability only. Take the email address out.'
+  if (PHONE.test(words)) return 'A list of who is available carries skills and availability only. Take the phone number out.'
+  return null
+}
 
 const HOT_ONLY = 'A hot list carries skills and availability only. Never a name, a rate or an address.'
 
@@ -63,7 +74,7 @@ export function draftOffer(firm: string, kind: string, offer: unknown): Drafted 
   return { ok: false, field: 'offerKind', says: 'Choose who is available, a project team or an open job.' }
 }
 
-const monthDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })
+const monthDay = (iso: string) => formatDayLong(iso, { year: false })
 
 /**
  * Hot list lines drafted from the people the firm has said yes to showing

@@ -74,6 +74,17 @@ describe('the letter', () => {
     expect(b.ok).toBe(false)
     if (!b.ok) expect(b.field).toBe('subject')
   })
+  it('a list of who is available is checked in the words that go out, so a rate, an address or a phone typed into the letter is refused', () => {
+    const ask = { audience: 'DORMANT_CUSTOMERS', offerKind: 'HOT_LIST', offer: { lines: [{ skills: 'SQL', availability: 'now' }] }, subject: 'Win Firm: people available', body: 'Two engineers are free now.' }
+    expect(readBatchAsk(ask).ok).toBe(true)
+    for (const [field, v] of [['body', 'Priya at $85/hr'], ['body', 'Write to priya@example.invalid'], ['body', 'Call 555 010 0199 today'], ['subject', 'People from $80 an hour']] as const) {
+      const r = readBatchAsk({ ...ask, [field]: v })
+      expect(r.ok, v).toBe(false)
+      if (!r.ok) expect(r.field).toBe(field)
+    }
+    // A project team's own price is the firm's to state; only a list of people carries no rate.
+    expect(readBatchAsk({ ...ask, offerKind: 'PROJECT_POD', offer: { scope: 'Build the data platform', duration: 'Six months', skills: 'Spark, SQL' }, body: 'A fixed price of $120,000.' }).ok).toBe(true)
+  })
   it('a firm with no postal address cannot send a batch, and the card names the Settings page that fixes it', () => {
     const b = batchBlock({ postal: null, base: 'https://etyme.example' })
     expect(b).toMatchObject({ block: 'NO_POSTAL' })
