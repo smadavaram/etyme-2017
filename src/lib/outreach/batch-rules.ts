@@ -56,14 +56,17 @@ export interface LetterInput {
   interestedUrl: string | null
   /** The firm's own public page; null where it has none. */
   storefrontUrl: string | null
+  /** 1 for the letter; 2 and 3 for the follow-ups, which say they are one. */
+  attempt?: number
 }
 
 /** The letter: plain text, the person's words in the middle, the honest parts around them. Pure. */
 export function buildLetter(i: LetterInput): { subject: string; text: string } {
   return {
-    subject: i.subject,
+    subject: (i.attempt ?? 1) > 1 ? `Following up: ${i.subject}` : i.subject,
     text: paragraphs(
       hello(i.recipientName),
+      (i.attempt ?? 1) > 1 ? `A short follow-up to the letter ${i.firm} sent you earlier, in case it was missed.` : null,
       `You are getting this because ${i.firm} has your name in its own records as a contact at ${i.companyName}.`,
       i.body.trim(),
       `If this is of interest, tell us here: ${i.interestedUrl ?? INTERESTED_PLACEHOLDER}`,

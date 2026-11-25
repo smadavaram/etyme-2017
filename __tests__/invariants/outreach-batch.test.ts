@@ -208,7 +208,8 @@ describe('the Outreach screen and its routes', () => {
     for (const f of asked) expect(screen(), `the screen posts ${f}`).toMatch(new RegExp(`\\b${f}\\b`))
   })
   it('the Outreach page is a firm’s page whose route asks for the permission its menu link names', () => {
-    expect(route()).toMatch(/hasPermission\(seat\.caller\.permissions, 'vendors\.read'\)/)
+    expect(route()).toContain('outreachNotYours(seat.caller)')
+    expect(readFileSync('src/lib/outreach/rules-of-access.ts', 'utf8')).toContain("hasPermission(caller.permissions as any, 'vendors.read')")
   })
 })
 
@@ -244,5 +245,28 @@ describe('a contact\u2019s line on the batch page', () => {
     expect(letterWords({ ...l, optedOut: true })).toMatch(/Unsubscribed/)
     expect(letterWords({ ...l, bounced: true })).toMatch(/Bounced.*new address/)
     expect(letterWords({ ...l, attempt: 3, nextDueAt: null })).toMatch(/Sent 3 times\. No more follow-ups/)
+  })
+})
+
+describe('who may write outreach, and how a follow-up reads (walk V)', () => {
+  it('a client is refused outreach whatever its seat holds, because a client only buys', async () => {
+    const { outreachNotYours } = await import('@/lib/outreach/rules-of-access')
+    expect(outreachNotYours({ permissions: ['*'], company: { kind: 'CLIENT' } })).toMatch(/A client buys and does not sell/)
+    expect(outreachNotYours({ permissions: ['*'], company: { kind: 'VENDOR' } })).toBeNull()
+    expect(outreachNotYours({ permissions: ['consultants.read'], company: { kind: 'VENDOR' } })).toMatch(/Your seat does not/)
+  })
+  it('a follow-up says it is a follow-up, in its subject and its first line; the first letter does not', async () => {
+    const { buildLetter } = await import('@/lib/outreach/batch-rules')
+    const base = { firm: 'Win Firm', postal: '12 Mill Road', recipientName: 'Mina', companyName: 'Orchid', subject: 'People available', body: 'Two engineers.', unsubscribeUrl: 'u', interestedUrl: 'i', storefrontUrl: null }
+    expect(buildLetter(base).subject).toBe('People available')
+    expect(buildLetter(base).text).not.toMatch(/follow-up/)
+    expect(buildLetter({ ...base, attempt: 2 }).subject).toBe('Following up: People available')
+    expect(buildLetter({ ...base, attempt: 2 }).text).toMatch(/A short follow-up to the letter Win Firm sent you earlier/)
+  })
+  it('every outreach route asks the one rule of access, so no route can be opened by a client', () => {
+    for (const f of ['src/app/api/outreach/preview/route.ts', 'src/app/api/outreach/batches/route.ts', 'src/app/api/outreach/batches/[id]/route.ts']) {
+      expect(readFileSync(f, 'utf8'), f).toContain('outreachNotYours(seat.caller)')
+      expect(readFileSync(f, 'utf8'), f).not.toContain("'vendors.read')) return refused")
+    }
   })
 })

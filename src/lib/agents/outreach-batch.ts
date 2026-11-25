@@ -83,7 +83,7 @@ export async function walkOutreachBatches(ctx: AgentContext, deps: { send?: type
       if (!(await ctx.mayAct(1))) return // the letter and its row are one unit; the rest wait for the next run
       const letter = buildLetter({
         firm: firm.name, postal, recipientName: c!.name, companyName: names.get(l.atCompanyId) ?? 'your company', subject: payload.subject, body: payload.body,
-        unsubscribeUrl: unsubscribeUrlFor(l.contactId), interestedUrl: interestedUrlFor(l.id), storefrontUrl: storefront,
+        unsubscribeUrl: unsubscribeUrlFor(l.contactId), interestedUrl: interestedUrlFor(l.id), storefrontUrl: storefront, attempt: l.attempt + 1,
       })
       // Claim the letter first, so two runs at once can never both send it: only the run whose claim moves it sends.
       const claimed = await prisma.outreachLetter.updateMany({ where: { id: l.id, state: l.state, attempt: l.attempt }, data: { attempt: l.attempt + 1, nextDueAt: null } })

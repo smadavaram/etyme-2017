@@ -1,3 +1,4 @@
+import { outreachNotYours } from '@/lib/outreach/rules-of-access'
 import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { queueSeat, refused } from '../../../decision-items/door'
@@ -13,7 +14,8 @@ import { batchView } from '@/lib/outreach/batch'
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { seat, error } = await queueSeat(request)
   if (error) return error
-  if (!hasPermission(seat.caller.permissions, 'vendors.read')) return refused(403, 'Outreach is written by the people who see the firm’s suppliers and customers. Your seat does not.')
+  const notYours = outreachNotYours(seat.caller)
+  if (notYours) return refused(403, notYours)
   const { id } = await params
   const view = await batchView(seat.companyId, id)
   if (!view) return refused(404, 'That batch is not one of this firm’s.')
