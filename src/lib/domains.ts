@@ -213,6 +213,8 @@ export const DOMAINS: Domain[] = [
     owns: [
       // Its station of the simulation (scripts/simulate, 2026-10-20).
       'scripts/simulate/stages/conversation',
+      // Outreach to companies (record 117): the letters, the audience, the batch, its agent and its screens.
+      'lib/outreach', 'lib/agents/outreach-batch', 'app/api/outreach', 'app/dashboard/companies/outreach',
       'app/dashboard/conversations', 'app/dashboard/texts',
       'app/api/conversations', 'app/api/texts', 'app/api/events',
       'app/answer', 'app/claim',

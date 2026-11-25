@@ -491,6 +491,10 @@ const SUPPLIERS: NavItem = { label: 'Suppliers', href: '/dashboard/suppliers', i
 const CONTACTS: NavItem = { label: 'Contacts', href: '/dashboard/contacts', icon: '☎' }
 /** The companies a firm sells to: Companies, opened on its Customer filter (owner, 2026-11-25). */
 const CUSTOMERS: NavItem = { label: 'Customers', href: '/dashboard/companies?show=customers', icon: '◆' }
+/** Group outreach to companies the firm already trades with (record 117): one letter, one yes. Not a client's: a client only buys. */
+const OUTREACH: NavItem = {
+  label: 'Outreach', href: '/dashboard/companies/outreach', icon: '✉', needs: ['vendors.read'], api: 'outreach/batches', pageCalls: ['outreach/preview', 'outreach/batches/**'],
+}
 const SELL_CONTRACTS: NavItem = { label: 'Sell contracts', href: '/dashboard/contracts?side=sell', icon: '▤' }
 const BUY_CONTRACTS: NavItem = { label: 'Buy contracts', href: '/dashboard/contracts?side=buy', icon: '▥' }
 const POS: NavItem = { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', needs: ['invoices.read'] }
@@ -644,7 +648,7 @@ const FIRM_SETTINGS: NavItem[] = [
  * network.
  */
 const FIRM_CANDIDATES = inGroup('Candidates', [CANDIDATES, BENCH, BENCH_PAY, CHECK_INS, TRAINING])
-const FIRM_COMPANIES = inGroup('Companies', [COMPANIES, SUPPLIERS, CUSTOMERS, CONTACTS])
+const FIRM_COMPANIES = inGroup('Companies', [COMPANIES, SUPPLIERS, CUSTOMERS, CONTACTS, OUTREACH])
 
 /**
  * A firm's contracts, a link of its own between Submissions and
@@ -737,7 +741,7 @@ const MSP_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY]),
   // Companies alone: an MSP keeps no candidates of its own.
-  tabbed('Network', inGroup('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CUSTOMERS, CONTACTS])),
+  tabbed('Network', inGroup('Companies', [COMPANIES, SUPPLIERS, SUPPLIER_SCORECARDS, CUSTOMERS, CONTACTS, OUTREACH])),
   tabbed('Jobs', [JOBS, SHARED_WITH_YOU]),
   tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
   tabbed('Contracts', FIRM_CONTRACTS),

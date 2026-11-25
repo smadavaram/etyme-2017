@@ -13,6 +13,7 @@ import { registerImmigrationChecklist } from '@/lib/agents/immigration-checklist
 import { registerComplianceWatch } from '@/lib/agents/compliance-watch'
 import { registerWeeklySummary } from '@/lib/agents/weekly-summary'
 import { registerMoneyOwedChase } from '@/lib/agents/money-owed-chase'
+import { registerOutreachBatch } from '@/lib/agents/outreach-batch'
 
 /**
  * GET /api/cron/agents
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
   registerComplianceWatch()
   registerMoneyOwedChase()
   registerWeeklySummary()
+  registerOutreachBatch()
   const out = await runAllAgents(new Date())
   return NextResponse.json({ data: { says: out.says, ran: out.ran.length, stopped: out.stopped, broke: out.broke } })
 }

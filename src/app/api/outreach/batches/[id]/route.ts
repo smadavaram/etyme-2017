@@ -1,0 +1,21 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { hasPermission } from '@/lib/permissions'
+import { queueSeat, refused } from '../../../decision-items/door'
+import { batchView } from '@/lib/outreach/batch'
+
+/**
+ * GET /api/outreach/batches/:id  one batch, counted per contact
+ *
+ * Sent and bounced are counted from the mail sent; interested and
+ * unsubscribed from the letters. There is no open rate, because Etyme
+ * puts no tracking in a letter. Only this firm's own batches.
+ */
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { seat, error } = await queueSeat(request)
+  if (error) return error
+  if (!hasPermission(seat.caller.permissions, 'vendors.read')) return refused(403, 'Outreach is written by the people who see the firm’s suppliers and customers. Your seat does not.')
+  const { id } = await params
+  const view = await batchView(seat.companyId, id)
+  if (!view) return refused(404, 'That batch is not one of this firm’s.')
+  return NextResponse.json({ data: view })
+}

@@ -1570,11 +1570,11 @@ describe('master data sits under Network: the people a firm keeps and the firms 
     const vendor = groupsAt('VENDOR')
     expect(vendor.groups!.map((g) => [g.name, g.tabs.map((t) => t.label)])).toEqual([
       ['Candidates', ['Candidates', 'Bench', 'Bench pay', 'Bench check-ins', 'Training']],
-      ['Companies', ['Companies', 'Suppliers', 'Customers', 'Contacts']],
+      ['Companies', ['Companies', 'Suppliers', 'Customers', 'Contacts', 'Outreach']],
     ])
     // The group's name is the link to its own register; the rest follow it.
     expect(groupRow(vendor.groups![0])).toMatchObject({ head: { href: '/dashboard/consultants' }, name: 'Candidates' })
-    expect(groupRow(vendor.groups![1]).pages.map((p) => p.label)).toEqual(['Suppliers', 'Customers', 'Contacts'])
+    expect(groupRow(vendor.groups![1]).pages.map((p) => p.label)).toEqual(['Suppliers', 'Customers', 'Contacts', 'Outreach'])
     const client = groupsAt('CLIENT')
     expect(client.groups!.map((g) => [g.name, g.tabs.map((t) => t.label)])).toEqual([
       ['Candidates', ['Candidates']],
@@ -1598,10 +1598,10 @@ describe('master data sits under Network: the people a firm keeps and the firms 
     for (const kind of ['VENDOR', 'GSI'] as const) {
       expect(at(kind), kind).toEqual([
         '/dashboard/consultants', '/dashboard/bench', '/dashboard/settings/bench-pay', '/dashboard/texts', '/dashboard/training',
-        '/dashboard/companies', '/dashboard/suppliers', '/dashboard/companies?show=customers', '/dashboard/contacts',
+        '/dashboard/companies', '/dashboard/suppliers', '/dashboard/companies?show=customers', '/dashboard/contacts', '/dashboard/companies/outreach',
       ])
     }
-    expect(at('MSP')).toEqual(['/dashboard/companies', '/dashboard/suppliers', '/dashboard/scorecards', '/dashboard/companies?show=customers', '/dashboard/contacts'])
+    expect(at('MSP')).toEqual(['/dashboard/companies', '/dashboard/suppliers', '/dashboard/scorecards', '/dashboard/companies?show=customers', '/dashboard/contacts', '/dashboard/companies/outreach'])
     expect(at('CLIENT')).toEqual(['/dashboard/people', '/dashboard/suppliers', '/dashboard/contacts', '/dashboard/program/agreements', '/dashboard/scorecards'])
   })
 

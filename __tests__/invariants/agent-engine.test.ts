@@ -16,8 +16,8 @@ describe('the agent switch', () => {
     expect(mayChangeSwitch('Admin')).toMatch(/Only the firm’s Owner/)
     expect(mayChangeSwitch(null)).toMatch(/Only the firm’s Owner/)
   })
-  it('the twelve agents are named, payroll draft among them', () => {
-    expect(agentKeys()).toHaveLength(13)
+  it('the fourteen agents are named, payroll draft and outreach batch among them', () => {
+    expect(agentKeys()).toHaveLength(14)
     expect(agentKeys()).toContain('payroll-draft')
   })
   it('the switch asks for one of Off, Drafts only or On and a whole-number cap or none', () => {

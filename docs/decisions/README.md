@@ -133,3 +133,4 @@ built, every release check, every walk and every deploy.
 | 115 | The four agent gaps, built after the first deploy — 2026-11-23 | 249 | [115-the-four-agent-gaps-after-the-first-deploy-2026-11-23.md](115-the-four-agent-gaps-after-the-first-deploy-2026-11-23.md) |
 | 116 | Agent outreach follows a mass-mail service's policy — 2026-11-24 | 289 | [116-agent-outreach-follows-a-mass-mail-service-policy-2026-11-24.md](116-agent-outreach-follows-a-mass-mail-service-policy-2026-11-24.md) |
 | 117 | Lean outreach to sell staffing and pods; the course module — 2026-11-25 | 539 | [117-lean-outreach-to-sell-staffing-and-pods-and-the-course-module-2026-11-25.md](117-lean-outreach-to-sell-staffing-and-pods-and-the-course-module-2026-11-25.md) |
+| 118 | Outreach to companies, built — 2026-11-25 | 509 | [118-outreach-to-companies-built-2026-11-25.md](118-outreach-to-companies-built-2026-11-25.md) |
