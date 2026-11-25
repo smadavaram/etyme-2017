@@ -495,6 +495,10 @@ Full text → 40, 11, 56, 68, 72.
   2026-11-22 → 111): template, branding, pages and content stored on
   the tenant's record, built once as an engine. No tenant's site is a
   one-off build. Not built yet.
+- **Train-to-bench and pods are plugins, off by default** (owner,
+  2026-11-25 → 120): a per-tenant switch, set by the Owner or by a
+  Superadmin as a staff tool on the switch alone, ledgered; off means no
+  menu and refused routes, never deleted data. No agent switches one.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
