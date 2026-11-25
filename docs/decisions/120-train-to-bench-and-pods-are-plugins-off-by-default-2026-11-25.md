@@ -70,3 +70,45 @@ unless the owner overrides. The full instruction is kept as received
    gap is stopped and named, never improvised past. Each module's
    completion is reported with its commit; the tester retests in
    production after the Saturday deploy.
+
+## The owner's yes to the four proposals, and the tester's conditions, 2026-11-25
+
+The owner said yes to all four proposals. The tester's conditions travel
+with that yes.
+
+1. **The fee is the conversion fee only.** It is charged on the sell
+   line when she is placed. A course's price is catalogue information
+   only. No screen implies that Etyme bills or collects it. A path for
+   charging a course is a future build, not a gap.
+2. **Finishing a course gives the firm "Ask her onto the bench".** Only
+   her yes makes the bench row. A firm's own W-2 employee is told, not
+   asked. The ask (its date and method) and her answer are both on the
+   ledger.
+3. **Courses on a storefront.** They are hidden on every storefront
+   while the plugin is off. Tapin's storefront hides them always, as a
+   setting for that tenant, not a rule for all. Every other tenant may
+   list courses while its plugin is on.
+4. **Who certifies, and when the ask comes.** The assessor or the
+   cohort's trainer issues a certification, never a recruiter. The ask
+   is offered when her own course is complete; it does not wait for the
+   whole cohort.
+
+Two rules are confirmed:
+- A client never reads "training", a cohort or a score. To a client, a
+  finished course reads only "Certified: title, issued, expires".
+- Her yes date and method appear only after she gives her yes. Nothing
+  is pre-filled and no consent is implied.
+
+**Build notes that are part of the spec:**
+- The pods plan passes the same gate before any code is written.
+- Prove, never claim: every claim has a named check.
+- Validate at write time, on the side the rule protects.
+- Dedupe by identity.
+- One record: refer to it, never copy it.
+- Simplicity is a hard gate.
+- Lane C masking applies in these modules.
+- The stability bar: every status is visible, a failure can be
+  reprocessed, and the journal runs end to end.
+- Every acceptance number can be read back from the record.
+- Commits stay small, and STATE.md is kept current.
+- A conflict is named the moment it is seen.
