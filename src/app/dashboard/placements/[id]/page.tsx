@@ -87,7 +87,7 @@ interface Placement {
   person: { id: string; name: string; skills: string[]; location: string | null; workAuth: string | null }
   // `nameWithheld` where this reader is below the rung it pays: the name
   // is a sentence naming the firm they can actually call.
-  supplier: { id: string; name: string; phrase?: string; nameWithheld?: boolean; suppliedThrough?: string | null }
+  supplier: { id: string | null; name: string; phrase?: string; nameWithheld?: boolean; suppliedThrough?: string | null }
   client: { id: string; name: string }
   endClient: { id: string; name: string } | null
   hiringManager: { id: string; name: string } | null
@@ -106,13 +106,13 @@ interface Placement {
   }
   origin: {
     id: string; title: string; skills: string[]; location: string | null
-    raisedBy: { id: string; name: string }; neededBy: string | null; approvalState: string
+    raisedBy: { id: string | null; name: string }; neededBy: string | null; approvalState: string
   } | null
   invitation: { status: string; payMin: number | null; payMax: number | null; message: string | null } | null
   submission: {
     id: string; status: string; rate: number | null; rateCents?: number | null; currency?: string | null
     submittedAt: string | null; forwardedAt: string | null
-    from: { id: string; name: string; phrase?: string }; to: { id: string; name: string } | null
+    from: { id: string | null; name: string; phrase?: string }; to: { id: string; name: string } | null
     checkState: string
     sentOnBy: { company: { id: string; name: string }; at: string | null; rate: number | null; rateCents?: number | null; currency?: string | null } | null
   } | null

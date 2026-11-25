@@ -15,6 +15,7 @@ import { GET as placement } from '@/app/api/placements/[id]/route'
  */
 describe('what is due, on the thread', () => {
   let sellId: string
+  let clientLine: string
   let tecwyn: string
   let harlow: string
 
@@ -36,14 +37,21 @@ describe('what is due, on the thread', () => {
       include: { buyLinks: { include: { buyContract: true } } },
     })
     sellId = s.id
+    // The line the client itself pays: the prime's line to Harlow for the
+    // same person. The sub-vendor's line below it is not the client's to
+    // open (record 119).
+    clientLine = (await prisma.sellContract.findFirstOrThrow({
+      where: { clientCompanyId: harlowCo.id, personId: s.personId },
+      select: { id: true },
+    })).id
 
     // The world seed wrote the cycles; the thread reads them.
   }, 180_000)
 
-  const open = async (seat: string) => {
+  const open = async (seat: string, id: string = sellId) => {
     as(seat)
     return json(
-      await placement(req('GET', `/api/placements/${sellId}`), { params: Promise.resolve({ id: sellId }) })
+      await placement(req('GET', `/api/placements/${id}`), { params: Promise.resolve({ id }) })
     )
   }
 
@@ -56,7 +64,7 @@ describe('what is due, on the thread', () => {
   })
 
   it('a client sees when hours and invoices are due, and never when we pay', async () => {
-    const r = await open(harlow)
+    const r = await open(harlow, clientLine)
     expect(r.status).toBe(200)
     expect(r.body.data.timeline.hours.length).toBeGreaterThan(0)
     expect(r.body.data.timeline.bill.length).toBeGreaterThan(0)

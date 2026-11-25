@@ -1763,14 +1763,13 @@ describe('Step 21 — one placement, opened, top to bottom', () => {
 })
 
 
-describe('Step 21a — Auralis opens the leg below the one it pays', () => {
+describe('Step 21a — Auralis cannot open the leg below the one it pays', () => {
   /**
-   * The same rule as Step 14a, reached by a different door. Those three
-   * surfaces are lists filtered to a client's site; this is one record
-   * fetched by id, and a client is a party to every rung of a chain at
-   * its own site because every rung names that site. So Auralis could open
-   * Tecwyn's contract with Computer Systems and read the firm by name,
-   * what it charged, and the invoices between the two of them.
+   * Record 119 (2026-11-25), replacing the rule of 2026-09-17 that let
+   * Auralis open the line and read it with the firm below withheld. The
+   * line between Computer Systems and its sub-vendor is a deal between two
+   * other firms, so Auralis is refused it by id, in one sentence, shaped
+   * as not found, even where its agreement names sub-vendors.
    *
    * On the JSON, never on the screen.
    */
@@ -1782,62 +1781,14 @@ describe('Step 21a — Auralis opens the leg below the one it pays', () => {
     ))
   }
 
-  it('lets Auralis open it at all, because the work on that contract happens on Auralis\u2019s site', async () => {
+  it('refuses Auralis the line between Computer Systems and its sub-vendor, as not found', async () => {
     const r = await adobeOpens()
-    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    expect(r.body.data.viewer.side).toBe('END_CLIENT')
-    expect(r.body.data.person.name).toBe('Priya Ramesh')
+    expect(r.status).toBe(404)
+    expect(r.body.error.message).toBe('You can open only contracts your company is on. Yours are listed under Contracts.')
+    expect(JSON.stringify(r.body)).not.toContain('Tecwyn')
   })
 
-  it('says who supplied her instead of naming the firm below Computer Systems', async () => {
-    const r = await adobeOpens()
-    const d = r.body.data
-    expect(d.supplier.name).toBe('Supplied through Computer Systems.')
-    expect(d.supplier.nameWithheld).toBe(true)
-    expect(d.supplier.suppliedThrough).toBe('Computer Systems')
-    // The id travels either way: a row needs something to hang a
-    // certificate on, and an id is not a firm Auralis can reach.
-    expect(d.supplier.id).toBe(co.sub)
-    expect(JSON.stringify(d)).not.toContain('Tecwyn')
-  })
-
-  it('withholds the name on the submission behind it too, which is the same firm twice', async () => {
-    const r = await adobeOpens()
-    expect(r.body.data.submission.from.name).toBe('Supplied through Computer Systems.')
-  })
-
-  it('shows Auralis no price at all on a leg its supplier arranged, and says why', async () => {
-    const r = await adobeOpens()
-    const d = r.body.data
-    // $110 is what Tecwyn charges Computer Systems — the prime's own
-    // cost, and its margin one subtraction from the $135 Auralis pays.
-    expect(ratesIn(d)).not.toContain(110)
-    expect(ratesIn(d)).not.toContain(85)
-    expect(d.contracts.sell.billRate).toBeNull()
-    expect(d.money.invoices).toEqual([])
-    expect(d.money.says).toContain('between those two firms')
-  })
-
-  it('tells Auralis the paper behind that leg is between two of its suppliers, rather than that there is none', async () => {
-    const d = (await adobeOpens()).body.data
-    // A purchase order is a header and its lines, and this line is on
-    // one — it is simply not Auralis's document. "Not yet on an order"
-    // would be a false sentence where the honest one is withheld.
-    const doc = d.contracts.sell.document
-    expect(doc.order).toBeNull()
-    expect(doc.says).toContain('between two of your suppliers')
-    expect(doc.says).not.toContain('Not yet on an order')
-    // And nobody else on that document is named, for the same reason
-    // the firm below is not.
-    expect(d.contracts.lines).toEqual([])
-  })
-
-  it('still counts the week she worked, because the hours on Auralis\u2019s site are Auralis\u2019s own', async () => {
-    const r = await adobeOpens()
-    expect(r.body.data.timesheets[0].hours).toBe(40)
-  })
-
-  it('names Tecwyn on that row once Auralis\u2019s agreement with Computer Systems requires it', async () => {
+  it('still refuses it once Auralis\u2019s agreement with Computer Systems requires sub-vendors to be named', async () => {
     const msa = await prisma.masterAgreement.findFirstOrThrow({
       where: { clientId: co.adobe, vendorId: co.prime },
       select: { id: true },
@@ -1851,19 +1802,8 @@ describe('Step 21a — Auralis opens the leg below the one it pays', () => {
       { params: Promise.resolve({ id: msa.id }) }
     ))
     expect(amended.body?.error, JSON.stringify(amended.body)).toBeUndefined()
+    expect((await adobeOpens()).status).toBe(404)
 
-    const r = await adobeOpens()
-    expect(r.body.data.supplier.name).toBe('Tecwyn')
-    expect(r.body.data.supplier.nameWithheld).toBe(false)
-    // The name is a term on paper. The price never was.
-    expect(ratesIn(r.body.data)).not.toContain(110)
-  })
-
-  it('and closes again the moment the term comes off', async () => {
-    const msa = await prisma.masterAgreement.findFirstOrThrow({
-      where: { clientId: co.adobe, vendorId: co.prime },
-      select: { id: true },
-    })
     as(PRIME)
     await json(await amendAgreement(
       req('PATCH', `/api/program/agreements/${msa.id}`, {
@@ -1872,8 +1812,6 @@ describe('Step 21a — Auralis opens the leg below the one it pays', () => {
       }),
       { params: Promise.resolve({ id: msa.id }) }
     ))
-    const r = await adobeOpens()
-    expect(r.body.data.supplier.name).toBe('Supplied through Computer Systems.')
   })
 
   it('leaves Computer Systems reading its own sub by name on the same contract', async () => {

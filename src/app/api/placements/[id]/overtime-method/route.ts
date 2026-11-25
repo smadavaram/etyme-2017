@@ -3,6 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { logAccess, recordRefusal } from '@/lib/access-log'
+import { mayOpenLine } from '../party'
 import { askTheDesk, hasPermission } from '@/lib/permissions'
 import {
   CHOOSES_OVERTIME_METHOD,
@@ -68,7 +69,7 @@ export async function PATCH(
   })
   const isParty =
     placement != null &&
-    (placement.companyId === mine || placement.clientCompanyId === mine || placement.endClientCompanyId === mine)
+    mayOpenLine(mine, placement)
 
   if (!placement || !isParty) {
     if (placement) {

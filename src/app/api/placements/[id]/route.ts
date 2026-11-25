@@ -29,6 +29,7 @@ import { orderLedgers, linesBilled, billCountsAsBilled, type OrderLedger, type L
 import { signedAndBilled, type LineBilling } from '@/lib/money/signed-unbilled'
 import { amount as amountIn } from '@/lib/money-display'
 import { chainBelow } from './chain'
+import { mayOpenLine } from './party'
 import { weeksWhere } from '@/lib/money/weeks-read'
 import { paperDoorsForLine } from '@/lib/document-stages/arrived-papers'
 import { doorsForReader } from './paper-doors-for-reader'
@@ -128,11 +129,15 @@ export async function GET(
   })
 
   // A placement that is not ours is a placement that does not exist.
-  const isParty =
-    parties != null &&
-    (parties.companyId === mine ||
-      parties.clientCompanyId === mine ||
-      parties.endClientCompanyId === mine)
+  //
+  // Record 119: the site the work is done at is not a party to the deal
+  // between its supplier and a firm below that supplier. A reader whose
+  // firm is on the line only as the end client, while another firm is
+  // the buyer, is refused here, so the sub-vendor's line cannot be
+  // opened by id (nor reached by a link) from the client's side. Before
+  // this, `endClientCompanyId === mine` let the client in as END_CLIENT
+  // and the page then withheld what it could.
+  const isParty = parties != null && mayOpenLine(mine, parties)
 
   // A seat with no desk — a Member, or a worker seated with only the
   // reads of their own work — reads the placement that names it and no
@@ -354,15 +359,16 @@ export async function GET(
   /**
    * A firm on the payload, named or withheld.
    *
-   * The id travels either way: a row needs something to hang a
-   * certificate on, and a client cannot turn an id into a firm it has no
-   * relationship with.
+   * Withheld is withheld whole: where the name is withheld from this
+   * reader the id goes with it (record 119). An id is an opaque handle
+   * to a firm, and a client holding one could ask other doors about it.
    */
   const firm = <T extends { id: string; name: string }>(c: T | null) => {
     if (!c) return null
     const seen = shown(c.id, c.name)
     return {
       ...c,
+      id: seen.masked ? null : c.id,
       name: seen.name,
       // What to call this firm inside a sentence somebody else writes.
       // "Supplied through Pinnacle" is a cell; "submitted by the firm
