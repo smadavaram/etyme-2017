@@ -429,6 +429,22 @@ docs/security-posture.md, 106 to 108 of 424): type check; 18,056 unit
 tests; 4,102 database tests; build. Deploy then with
 `prepare-replay.sh <last replayed> 88c15dd23`.
 
+## Record 117 step 1, outreach to companies: READY, walks V and W passed, Source 8e67b3154
+
+Built on the branch (894eaabf4 to 8e67b3154), with the Network tab change
+(0616f7941): Companies > Outreach for supplier, integrator and MSP; a
+client is refused at every route. Audience from the firm's own record,
+offer (who is available: skills and availability only; a project team;
+an open job), letter checked for rate, email and phone, one yes per
+batch, one letter each with record 116, at most two follow-ups 5 working
+days apart ("Following up:"), "I'm interested" link to a lead card, a
+letter claimed before it is sent. Release check GREEN on 8e67b3154: type
+check; 18,212 unit; 4,255 database; build. Numbers stay proposals (180
+days, two follow-ups, 5 working days). Next in record 117: the papers
+view per contract line, then candidate outreach with opt-in, then the
+course module. Staged for a later release; production stays on 72a7b313
+for Pax's retest.
+
 ## Launch build DEPLOYED Tue 2026-11-24 (owner: "deploy if it's green")
 
 Deploy commit 72a7b313 on etyme2040 main, replayed from 18f59d2b1 to
