@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { GET as placement } from '@/app/api/placements/[id]/route'
+import { GET as programRoute } from '@/app/api/program/route'
+import type { NextRequest } from 'next/server'
 import { GET as listSubmissions } from '@/app/api/submissions/route'
 
 /**
@@ -121,6 +123,53 @@ describe('the Open link on a submission row', () => {
   it('every Open link a client is offered on a submission opens, never a 404', async () => {
     for (const row of await rowsOf(CLIENT)) {
       if (row.contractId) expect((await open(CLIENT, row.contractId)).status).toBe(200)
+    }
+  })
+})
+
+describe('the program view a client reads', () => {
+  // A person whose prime leg is paused sits in the roster through the
+  // sub-vendor's own line, the one case where a firm below the supplier
+  // is a row on the client's program.
+  const readProgram = async () => {
+    const before = await prisma.sellContract.findUniqueOrThrow({ where: { id: primeLine }, select: { state: true } })
+    await prisma.sellContract.update({ where: { id: primeLine }, data: { state: 'PAUSED' } })
+    try {
+      as(CLIENT)
+      const res = await programRoute(req('GET', '/api/program') as NextRequest)
+      return { status: res.status, body: await res.json() }
+    } finally {
+      await prisma.sellContract.update({ where: { id: primeLine }, data: { state: before.state } })
+    }
+  }
+
+  it('a client’s program view carries no id of a firm below its supplier', async () => {
+    const r = await readProgram()
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const text = JSON.stringify(r.body)
+    expect(text).not.toContain(subId)
+    expect(text.toLowerCase()).not.toContain('tecwyn')
+    expect(text).toContain('Supplied through')
+  })
+
+  it('a client’s program view still carries the id of the supplier it pays', async () => {
+    const r = await readProgram()
+    const prime = await slug('world-computer-systems')
+    expect(JSON.stringify(r.body)).toContain(prime.id)
+  })
+
+  it('where the agreement discloses the firm below, its name is shown and its id is still withheld', async () => {
+    const prime = await slug('world-computer-systems')
+    const agreement = await prisma.masterAgreement.findFirst({ where: { clientId, vendorId: prime.id } })
+    expect(agreement, 'the seeded world has an agreement between the client and the prime').not.toBeNull()
+    await prisma.masterAgreement.update({ where: { id: agreement!.id }, data: { disclosesSubVendors: true, status: 'ACTIVE' } })
+    try {
+      const r = await readProgram()
+      const text = JSON.stringify(r.body)
+      expect(text).toContain(subName)
+      expect(text).not.toContain(subId)
+    } finally {
+      await prisma.masterAgreement.update({ where: { id: agreement!.id }, data: { disclosesSubVendors: agreement!.disclosesSubVendors, status: agreement!.status } })
     }
   })
 })

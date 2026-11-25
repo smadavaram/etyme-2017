@@ -246,11 +246,18 @@ export async function programView(
       phrase: trueName, says: trueName,
     }
 
-  /** A firm on the payload, named or withheld. The id travels either way. */
+  /**
+   * Whether this firm sits below the supplier the client pays (record 119).
+   * Its id never reaches the client, named or not: an id is withheld with
+   * the name, and a disclosure of the name is not a disclosure of the id.
+   */
+  const belowSupplier = (seen: SeenName) => seen.masked || seen.through !== null
+
+  /** A firm on the payload, named or withheld. A firm below the supplier carries no id. */
   const firm = (c: { id: string; name: string }) => {
     const seen = shown(c.id, c.name)
     return {
-      id: c.id,
+      id: belowSupplier(seen) ? null : c.id,
       name: seen.name,
       phrase: seen.phrase,
       // What follows the word "through" on a screen. The phrase carries
@@ -303,7 +310,7 @@ export async function programView(
   const tierOf = new Map(standings.map((x) => [x.otherCompanyId, x.tier]))
 
   const vendors = Array.from(vendorMap.values()).map(v => ({
-    id: v.id,
+    id: belowSupplier(shown(v.id, v.name)) ? null : v.id,
     name: v.name,
     headcount: v.headcount,
     avgRate: v.headcount > 0 ? Math.round(v.totalBillRate / v.headcount) : 0,
@@ -606,7 +613,9 @@ export async function programView(
           startingSoon: hasAnyPermission(acting.permissions, ['assignments.write'])
             ? cleared.filter((c) => c.paperwork.outcome === 'BLOCK')
             : [],
-          vendors: hasAnyPermission(acting.permissions, ['vendors.manage']) ? vendors : [],
+          vendors: hasAnyPermission(acting.permissions, ['vendors.manage'])
+            ? vendors.flatMap((v) => (v.id === null ? [] : [{ ...v, id: v.id }]))
+            : [],
         }),
         new Map(cleared.map((c) => [c.contractId, new Date(c.startDate)])),
         now

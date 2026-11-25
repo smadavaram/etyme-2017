@@ -73,7 +73,7 @@ interface ProgramData {
   contractors: {
     contractId: string
     person: { id: string; name: string; headline?: string }
-    vendor: { id: string; name: string }
+    vendor: { id: string | null; name: string }
     engagement: { id: string; title: string } | null
     role: string | null
     billRate: number | null
@@ -84,7 +84,7 @@ interface ProgramData {
     pendingTimesheets: number
   }[]
   vendors: {
-    id: string
+    id: string | null
     name: string
     headcount: number
     avgRate: number
@@ -136,7 +136,7 @@ interface ProgramData {
     contractId: string
     person: { id: string; name: string }
     /** `via` is what follows the word "through"; `name` is the cell. */
-    vendor: { id: string; name: string; via?: string }
+    vendor: { id: string | null; name: string; via?: string }
     startDate: string
     daysUntil: number
     /** `short` is the sentence said once, where papers alone hold the start. */
@@ -152,7 +152,7 @@ interface ProgramData {
   endingSoon: {
     contractId: string
     person: { id: string; name: string }
-    vendor: { id: string; name: string }
+    vendor: { id: string | null; name: string }
     endDate: string | null
     daysRemaining: number | null
     billRate: number | null
@@ -1027,10 +1027,10 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
             <h2 className="font-serif text-lg text-etyme-ink mb-3">Suppliers</h2>
             <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 space-y-3">
               {data.vendors.length === 0 && <p className="text-sm text-etyme-muted">No supplier has anybody here yet.</p>}
-              {data.vendors.map((v) => {
+              {data.vendors.map((v, i) => {
                 const pct = s.activeContractors > 0 ? Math.round((v.headcount / s.activeContractors) * 100) : 0
                 return (
-                  <div key={v.id}>
+                  <div key={v.id ?? `below-${i}`}>
                     <div className="flex items-baseline justify-between gap-2 mb-1">
                       <span className="text-sm text-etyme-ink">
                         {v.name}
@@ -1421,13 +1421,13 @@ function VendorsTab({
       </p>
 
       <div className="space-y-4">
-        {vendors.map(v => {
+        {vendors.map((v, i) => {
           const pct = totalHeadcount > 0
             ? Math.round((v.headcount / totalHeadcount) * 100)
             : 0
 
           return (
-            <div key={v.id} className="card">
+            <div key={v.id ?? `below-${i}`} className="card">
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="text-sm font-semibold text-etyme-ink">{v.name}</h3>
