@@ -83,6 +83,12 @@ export function gateRefusal(
   action: Action,
 ): GateRefusal | null {
   const side: ContractSide | null = contractSide(caller as CallerContext, contract)
+  // Record 119: a client that is only the site on the line between its
+  // supplier and a firm below it never opens that line. It is told nothing
+  // is there, and the sentence names no firm.
+  if (side === 'END_CLIENT') {
+    return { status: 404, error: { code: 'NOT_FOUND', message: 'Contract not found' } }
+  }
   if (!side) {
     return {
       status: 403,

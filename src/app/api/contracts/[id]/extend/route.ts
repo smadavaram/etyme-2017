@@ -16,6 +16,7 @@ import { extendGate } from './gate'
 import { gateRefusal, DOING, NEEDS } from '../activate/gate'
 import { whoHereMaySays } from '@/lib/money/who-raises-bills'
 import { contractSide } from '@/lib/resolve-client-company'
+import { recordRefusal, accessActor } from '@/lib/access-log'
 
 /**
  * POST /api/contracts/:id/extend
@@ -57,7 +58,7 @@ export async function GET(
   const contract = await prisma.sellContract.findUnique({
     where: { id },
     select: {
-      state: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
+      personId: true, state: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
       company: { select: { name: true } },
       clientCompany: { select: { name: true } },
       endClientCompany: { select: { name: true } },
@@ -75,6 +76,13 @@ export async function GET(
     })
   }
   const gate = extendGate(caller, contract)
+  if (!gate.ok && gate.code === 'NOT_FOUND') {
+    await recordRefusal([contract.personId], {
+      ...accessActor(caller), action: 'CONTRACT_VIEW',
+      reason: 'A client asked whether it may extend the line between its supplier and a firm below it.',
+    })
+    return NextResponse.json({ error: { code: gate.code, message: gate.says } }, { status: gate.status })
+  }
   // Ending the placement is asked of the same gate the end press goes
   // through (`gateRefusal`), so the panel draws "Complete" only where the
   // press will take it. A seat refused for its role reads who may, in the
@@ -128,6 +136,12 @@ export async function POST(
   // as a fault. The same answer the drawer asks before it draws Extend.
   const gate = extendGate(caller, contract)
   if (!gate.ok) {
+    if (gate.code === 'NOT_FOUND') {
+      await recordRefusal([contract.personId], {
+        ...accessActor(caller), action: 'CONTRACT_VIEW',
+        reason: 'A client tried to extend the line between its supplier and a firm below it.',
+      })
+    }
     return NextResponse.json({ error: { code: gate.code, message: gate.says } }, { status: gate.status })
   }
 

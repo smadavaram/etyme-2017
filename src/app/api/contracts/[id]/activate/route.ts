@@ -105,9 +105,12 @@ export async function GET(
 
   const gated = gateRefusal(caller, contract, 'activate')
   const refused = gated && (await seatedRefusal(caller, gated, 'activate'))
-  if (refused?.error.code === 'NOT_A_PARTY') {
+  if (refused?.error.code === 'NOT_A_PARTY' || refused?.error.code === 'NOT_FOUND') {
     await recordRefusal([contract.personId], {
-      ...accessActor(caller), action: 'COMPLIANCE_CHECK', reason: 'Asked whether a placement may start, at a firm not party to it.',
+      ...accessActor(caller), action: 'COMPLIANCE_CHECK',
+      reason: refused.error.code === 'NOT_FOUND'
+        ? 'A client asked whether the line between its supplier and a firm below it may start.'
+        : 'Asked whether a placement may start, at a firm not party to it.',
     })
     return NextResponse.json({ error: refused.error }, { status: refused.status })
   }
@@ -210,6 +213,12 @@ export async function POST(
   const gated = gateRefusal(caller, contract, action as Action)
   if (gated) {
     const refused = await seatedRefusal(caller, gated, action as Action)
+    if (refused.error.code === 'NOT_FOUND') {
+      await recordRefusal([contract.personId], {
+        ...accessActor(caller), action: 'CONTRACT_VIEW',
+        reason: 'A client tried to change the line between its supplier and a firm below it.',
+      })
+    }
     return NextResponse.json({ error: refused.error }, { status: refused.status })
   }
   const side = contractSide(caller, contract)!
