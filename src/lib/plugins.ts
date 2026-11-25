@@ -15,6 +15,19 @@ export const PLUGINS: readonly { key: PluginKey; label: string; says: string }[]
   { key: 'PODS', label: 'Project teams', says: 'Named teams sold as a project, with deliverables the client accepts and milestones billed from them.' },
 ]
 
+/**
+ * Both plugins are supplier modules. A company that only buys (kind
+ * CLIENT) is offered neither, and is never told they exist.
+ */
+export function pluginsOfferedTo(kind: string | null | undefined): typeof PLUGINS {
+  return kind === 'CLIENT' ? [] : PLUGINS
+}
+
+/** The one sentence for a module that is not offered to this company; it names no module. */
+export function notOfferedSays(): string {
+  return 'That is not offered for your company.'
+}
+
 export function isPluginKey(v: unknown): v is PluginKey {
   return PLUGINS.some((p) => p.key === v)
 }

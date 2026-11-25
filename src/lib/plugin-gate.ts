@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { accessActor, recordRefusal } from '@/lib/access-log'
-import { isOn, pluginLabel, type PluginKey } from '@/lib/plugins'
+import { isOn, notOfferedSays, pluginLabel, type PluginKey } from '@/lib/plugins'
 import { prisma } from '@/lib/db'
 
 /** Pure: the one sentence every route and page of a plugin says while it is off. */
@@ -8,7 +8,7 @@ export function pluginOffSays(key: PluginKey, firm: string): string {
   return `${pluginLabel(key)} is off for ${firm}. The Owner turns it on in Settings.`
 }
 
-type GateCaller = Parameters<typeof accessActor>[0] & { company: { id: string; name: string } | null }
+type GateCaller = Parameters<typeof accessActor>[0] & { company: { id: string; name: string; kind?: string | null } | null }
 
 /**
  * The gate every route of a plugin asks, after the caller check. Returns
@@ -18,6 +18,16 @@ type GateCaller = Parameters<typeof accessActor>[0] & { company: { id: string; n
  */
 export async function pluginGate(caller: GateCaller, key: PluginKey): Promise<NextResponse | null> {
   if (!caller.company) return null
+  // A company that only buys is not offered a supplier module: one neutral
+  // sentence that names no module, and no door to a switch.
+  if (caller.company.kind === 'CLIENT') {
+    await recordRefusal([{ companyId: caller.company.id }], {
+      ...accessActor(caller),
+      action: 'PLUGIN_OFF_REFUSED',
+      reason: 'Refused a request for a module that is not offered to a client company.',
+    })
+    return NextResponse.json({ error: { code: 'NOT_OFFERED', message: notOfferedSays() } }, { status: 403 })
+  }
   const c = await prisma.company.findUnique({ where: { id: caller.company.id }, select: { pluginsOn: true } })
   if (isOn(c?.pluginsOn, key)) return null
   const says = pluginOffSays(key, caller.company.name)

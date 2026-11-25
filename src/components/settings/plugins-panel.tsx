@@ -43,6 +43,9 @@ export function PluginsPanel() {
     }
   }
 
+  // A company that only buys is offered no plugin: no panel, no switch.
+  if (data && data.plugins.length === 0) return null
+
   return (
     <Panel title="Plugins" subtitle="Extra modules, off until you turn them on. Turning one off hides it and deletes nothing.">
       {!data && !err && <p className="text-[13px] text-etyme-muted">Opening the plugins…</p>}
