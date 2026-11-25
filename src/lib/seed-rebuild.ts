@@ -91,6 +91,8 @@ export const DELETE_ORDER = [
   // An agent's task names the decision that asks for its yes, so it goes
   // before it; the switch names the firm and the Owner who set it.
   'OutreachLetter', 'AgentTask', 'AgentSwitch',
+  // A plugin switch (record 120) names the firm; the person who set it is by id alone.
+  'PluginSwitch',
   // Chains 1, 2, 3 and 6 (record 112): each names the firm, and some a submission or a petition, so they go before both.
   'PublicAccessFile', 'Petition', 'NoticePosting', 'ChecklistItem', 'Offer', 'SubmissionConfirmation',
   // The money loop's month, a decision a person opened and the record
@@ -161,7 +163,9 @@ export const DELETE_ORDER = [
   // Forwarded email (2026-10-22): a file before its email, both before the
   // company, and the company's switch beside them.
   'InboundEmailAttachment', 'InboundEmail', 'EmailIntake',
-  'VerificationDoc', 'DocumentEdition', 'DocumentBacking', 'GovernanceEvaluation', 'Enrollment',
+  'VerificationDoc', 'DocumentEdition', 'DocumentBacking', 'GovernanceEvaluation',
+  // Train-to-bench (record 120): a score, a certification and the ask name an enrollment, so they go before it; a cohort after its enrollments and before its course.
+  'Assessment', 'Certification', 'BenchAsk', 'Enrollment',
   'DocumentShareItem', 'DocumentShareAccess', 'DocFile', 'WeekApprovalFile', 'WeekApprovalContract', 'DocumentRequirement', 'ImportRow', 'Holiday',
   'PacketItem', 'WebhookDelivery', 'CompanyDomain', 'SubdomainAlias', 'CustomDomain', 'Check', 'TextMessage',
   'CreditNote', 'PaymentRunItem', 'ClassificationCall', 'ExemptAssertion', 'MarketingLead',
@@ -185,7 +189,7 @@ export const DELETE_ORDER = [
   'ExternalIdentity', 'IdentityProvider', 'ScimToken', 'DirectoryConnection', 'CompanySignInPolicy',
   'PlatformSettingChange', 'PlatformSetting',
   'OvertimeDecision', 'Invoice', 'Expense', 'VendorBill', 'LedgerAccount', 'JournalEntry', 'Conversation',
-  'Verification', 'GovernanceRule', 'Course', 'DocumentShare', 'DocInstance', 'Import', 'Event',
+  'Verification', 'GovernanceRule', 'Cohort', 'Course', 'DocumentShare', 'DocInstance', 'Import', 'Event',
   'DocumentPacket', 'WebhookSubscription', 'AgentRun', 'PaymentRun', 'Breach', 'CensusRequest',
   'WeekApproval', 'WorkAssertion', 'Resume', 'BuyContract', 'RemitTo', 'Incident', 'DocumentType', 'GovernancePolicy',
   'DocTemplate', 'ServiceAccount', 'LegalEntity', 'ProjectHold', 'ProjectRelease', 'Timesheet', 'SellContract', 'WorkOrder', 'Requirement',
@@ -237,6 +241,14 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'RecordAction.recordId': { as: 'RECORD' },
   // An agent's task is about a record by type and id; its send on the mail ledger names the task and keeps it as history.
   'AgentTask.recordId': { as: 'RECORD' },
+  // Train-to-bench (record 120): people named by id alone, kept as history; the ask and the switch belong to the firm.
+  'Cohort.trainerPersonId': { as: 'RECORD' },
+  'Assessment.assessorPersonId': { as: 'RECORD' },
+  'Certification.issuedByPersonId': { as: 'RECORD' },
+  'BenchAsk.askedByPersonId': { as: 'RECORD' },
+  'BenchAsk.companyId': { as: 'OWNED', to: ['Company'] },
+  'BenchAsk.benchListingId': { as: 'LINK', to: ['BenchListing'] },
+  'PluginSwitch.byPersonId': { as: 'RECORD' },
   'OutreachLetter.companyId': { as: 'OWNED', to: ['Company'] },
   'OutreachLetter.contactId': { as: 'LINK', to: ['CompanyContact'] },
   'OutreachLetter.atCompanyId': { as: 'LINK', to: ['Company'] },

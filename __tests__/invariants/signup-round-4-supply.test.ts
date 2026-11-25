@@ -130,8 +130,8 @@ describe('16 · Training says job requests, and three eyebrows follow the menu',
 
   it('the menu puts Supplier scorecards under Network for an MSP, and Training under Network for a supplier and an integrator', () => {
     expect(sectionOfHref('MSP', '/dashboard/scorecards')).toBe('Network')
-    expect(sectionOfHref('VENDOR', '/dashboard/training')).toBe('Network')
-    expect(sectionOfHref('GSI', '/dashboard/training')).toBe('Network')
+    expect(sectionOfHref('VENDOR', '/dashboard/training', null, { plugins: ['TRAIN_TO_BENCH'] })).toBe('Network')
+    expect(sectionOfHref('GSI', '/dashboard/training', null, { plugins: ['TRAIN_TO_BENCH'] })).toBe('Network')
   })
 })
 

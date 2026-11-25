@@ -354,7 +354,7 @@ describe('18 · the bench row shows the stay the person chose', () => {
 
 describe('20 · the Training page', () => {
   it('a course row shows its price a seat', () => {
-    expect(src('src/app/dashboard/training/page.tsx')).toContain("`${amount(c.price, c.currency)} a seat`")
+    expect(src('src/app/dashboard/training/page.tsx')).toContain("`${amount(c.price, c.currency)} a seat (catalog price)`")
   })
 
   it('every box on the add-a-course form has a label', () => {

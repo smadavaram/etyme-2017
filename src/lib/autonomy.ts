@@ -674,6 +674,8 @@ ATTRIBUTED.PROJECT_MOVE_SUBMITTED = { basis: 'RECORDED' }
 // answered, and asking somebody whose chosen stay ran out to renew it.
 // A person pressed each button; the person asked still decides.
 ATTRIBUTED.BENCH_INVITATION_RESENT = { basis: 'RECORDED' }
+// A firm's own employee finishing a course is told she is on its bench: the finish is a person's act, the row records that she was told (record 120).
+ATTRIBUTED.BENCH_ASK_EMPLOYEE_TOLD = { basis: 'RECORDED' }
 ATTRIBUTED.BENCH_STAY_RENEW_ASKED = { basis: 'RECORDED' }
 
 // A person withdrew a draft bill nobody had sent — usually the supplier's

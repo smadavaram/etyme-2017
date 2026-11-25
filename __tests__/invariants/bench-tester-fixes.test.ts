@@ -138,7 +138,7 @@ describe('6 · the words', () => {
     expect(src('src/app/dashboard/training/page.tsx')).not.toContain('<p className="eyebrow">Talent</p>')
     expect(src('src/app/dashboard/bench/page.tsx')).not.toContain('>Procure</div>')
     expect(sectionOfHref('VENDOR', '/dashboard/consultants')).toBe(sectionOfHref('VENDOR', '/dashboard/bench'))
-    expect(sectionOfHref('VENDOR', '/dashboard/training')).not.toBeNull()
+    expect(sectionOfHref('VENDOR', '/dashboard/training', null, { plugins: ['TRAIN_TO_BENCH'] })).not.toBeNull()
   })
 
   it('an owner reads their own consultants’ rates, and a seat that may not is told who does', () => {

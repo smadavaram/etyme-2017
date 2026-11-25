@@ -1843,10 +1843,13 @@ export function routeMatches(apiPath: string, pattern: string): boolean {
  * would read "Sell contracts". Null where no link names it.
  */
 export function pageNameOf(apiPath: string, kind: CompanyKind | null | undefined): string | null {
-  const own = kind ? getNavForKind(kind, false) : []
+  // A page keeps its name whether or not its plugin is on: a refusal on
+  // /api/training says "Training", plugin off included (record 120).
+  const all = { plugins: Object.keys(PLUGIN_PAGES) }
+  const own = kind ? getNavForKind(kind, false, all) : []
   const rest = (['CLIENT', 'VENDOR', 'GSI', 'MSP', 'CONSULTANT_CORP'] as const)
     .filter((k) => k !== kind)
-    .map((k) => getNavForKind(k, false))
+    .map((k) => getNavForKind(k, false, all))
   for (const nav of [own, ...rest]) {
     let best: { label: string; weight: number } | null = null
     for (const s of nav) {
