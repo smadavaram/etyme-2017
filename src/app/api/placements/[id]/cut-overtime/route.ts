@@ -78,7 +78,7 @@ export async function PATCH(
       })
     }
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No placement by that id.' } },
+      { error: { code: 'NOT_FOUND', message: 'You can open only contracts your company is on. Yours are listed under Contracts.' } },
       { status: 404 }
     )
   }

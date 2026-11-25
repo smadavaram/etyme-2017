@@ -1737,7 +1737,7 @@ describe('Step 21 — one placement, opened, top to bottom', () => {
       { params: Promise.resolve({ id: it_.subSell }) }
     ))
     expect(r.status).toBe(404)
-    expect(r.body.error.message).toBe('No placement by that id.')
+    expect(r.body.error.message).toBe('You can open only contracts your company is on. Yours are listed under Contracts.')
   })
 
   it('writes an access log row for the refusal as well as the read', async () => {

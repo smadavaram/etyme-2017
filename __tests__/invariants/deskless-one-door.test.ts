@@ -308,7 +308,7 @@ describe('withheld is not missing: a colleague’s placement is not part of the 
   })
 
   it('a firm that is not on the placement is still answered as if no placement were there', () => {
-    expect(ROUTE).toContain("{ error: { code: 'NOT_FOUND', message: 'No placement by that id.' } }")
+    expect(ROUTE).toContain("{ error: { code: 'NOT_FOUND', message: 'You can open only contracts your company is on. Yours are listed under Contracts.' } }")
   })
 
   it('a candidate with no company is told what a placement is and where her own work is, not that she needs to belong to something', () => {

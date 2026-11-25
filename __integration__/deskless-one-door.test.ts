@@ -244,7 +244,7 @@ describe('Karthik Menon, an integrator’s own W2 with no desk, reads his own wo
     const mod = await import('@/app/api/placements/[id]/route')
     const res = await mod.GET(req('GET', `/api/placements/${elsewhere}`), { params: Promise.resolve({ id: elsewhere }) })
     expect(res.status).toBe(404)
-    expect((await res.json()).error.message).toBe('No placement by that id.')
+    expect((await res.json()).error.message).toBe('You can open only contracts your company is on. Yours are listed under Contracts.')
   })
 
   it('his own week opens to him from the "Open this week" link on his own page, with the chain of signatures on it', async () => {

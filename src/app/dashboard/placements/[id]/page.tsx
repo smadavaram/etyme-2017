@@ -664,7 +664,14 @@ export default function PlacementPage() {
   }, [p?.id])
 
   // A refusal is the page: its sentence alone (round six, problem 12).
-  if (error) return <RefusedState says={error} />
+  if (error) {
+    return (
+      <div>
+        <RefusedState says={error} />
+        <Link href={parent.href} className="mt-3 inline-block text-[13px] text-etyme-action underline">Back to {parent.label}</Link>
+      </div>
+    )
+  }
 
   if (!p) return <LoadingState says="Opening the placement…" />
 

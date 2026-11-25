@@ -5,7 +5,7 @@ import type { PaperDoors } from '@/lib/document-stages/paper-doors'
  * them (release pass 41): "A sub-vendor's name is the prime's to keep"
  * (CLAUDE.md, 2026-09-17). A client reads the rung it pays and nothing
  * below it, so a door that names or carries a firm below its supplier is
- * not sent, and a sentence naming one says the supplier's supplier
+ * not sent, and a sentence naming one says "your supplier"
  * instead. Pure.
  *
  * Why it is needed here, for regulatory: `paperDoorsFor` and the arrival

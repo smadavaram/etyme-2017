@@ -156,7 +156,7 @@ describe('the papers on a supplier’s person, one rung below the client', () =>
     expect(asked).not.toBeNull()
     expect(asked.firmName).toBeNull()
     expect(asked.firmId).toBeNull()
-    expect(askedWords(item(r.body, key))).toContain('the supplier’s supplier')
+    expect(askedWords(item(r.body, key))).not.toContain('supplier’s supplier')
   })
 
   it('the examiner at a withheld firm is withheld with it', async () => {
@@ -169,5 +169,38 @@ describe('the papers on a supplier’s person, one rung below the client', () =>
     const r = await open(NIKE, tecwynLine)
     expect(r.status).not.toBe(200)
     expect(JSON.stringify(r.body)).not.toContain(tecwynName)
+  })
+})
+
+describe('a screening verdict a sub-vendor ordered never carries its name to the client above the prime', () => {
+  const said = `${'Tecwyn'} Screening reports clear`
+  let screenKey = ''
+
+  it('a client reading the prime’s line has no trace of the sub-vendor’s name or id in the checklist, the compliance list or the facts', async () => {
+    const line = await prisma.sellContract.findUniqueOrThrow({ where: { id: csToHarlow }, select: { personId: true } })
+    const row = await prisma.verification.create({
+      data: {
+        personId: line.personId, uploadedById: line.personId, type: 'DRUG_SCREENING', status: 'CLEAR', provider: `${tecwynName} Screening`, referenceId: 'R-4471',
+        verifiedAt: new Date(), orderedByCompanyId: tecwynId, result: { providerSays: said },
+      },
+      select: { type: true },
+    })
+    screenKey = row.type
+    const r = await open(HARLOW, csToHarlow)
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const everywhere = JSON.stringify([r.body.data.checklist, r.body.data.compliance])
+    expect(everywhere).not.toContain(tecwynName)
+    expect(everywhere).not.toContain(tecwynId)
+    expect(everywhere.toLowerCase()).not.toContain('tecwyn')
+  })
+
+  it('the prime and the sub-vendor still read the screening company and its word', async () => {
+    for (const seat of [CS, TECWYN]) {
+      const r = await open(seat, seat === CS ? csToHarlow : tecwynLine)
+      expect(r.status, seat).toBe(200)
+      expect(JSON.stringify(r.body.data.compliance.person), seat).toContain(`${tecwynName} Screening`)
+    }
+    const r = await open(CS, csToHarlow)
+    expect(item(r.body, screenKey)?.verdict?.provider).toContain(tecwynName)
   })
 })

@@ -8,7 +8,7 @@ import type { PaperFacts } from '@/lib/document-stages/line-paper-facts'
  * the same rule `doorsForReader` holds for the doors: the firm and the
  * person who examined at it are named only where `mayName` says this
  * reader may call that firm by name. Where not, the firm and the examiner
- * are null and the screen says "the supplier’s supplier". A screening
+ * are null and the screen draws the day alone. A screening
  * provider's name is scrubbed of any withheld firm's name, so a firm
  * that recorded a verdict as its own provider is not named by it. Pure.
  */
@@ -21,15 +21,26 @@ export interface FactsForReader {
   verdict: PaperFacts['verdict']
 }
 
+const namesProvider = (word: string | null, provider: string | null) =>
+  !!word && !!provider && word.toLowerCase().includes(provider.toLowerCase())
+
 export function factsForReader(
   facts: Record<string, PaperFacts>,
   mayName: (firmId: string) => boolean,
+  /** The route's own list of firms this reader may not name; their names are scrubbed from every free-text word. */
+  withheldFirms: readonly { id: string; name: string }[] = [],
 ): Record<string, FactsForReader> {
   const withheld = new Map<string, string>()
   const note = (f: { firmId: string; firmName: string } | null) => {
     if (f && !mayName(f.firmId)) withheld.set(f.firmId, f.firmName)
   }
   for (const f of Object.values(facts)) { note(f.asked); note(f.received); note(f.examined) }
+  // The firm that ordered a check is noted too, so its id is never carried in a word.
+  const named = new Map<string, string>(withheldFirms.map((f) => [f.id, f.name]))
+  for (const f of Object.values(facts)) {
+    const id = f.verdict?.firmId
+    if (id && !mayName(id)) named.set(id, named.get(id) ?? '')
+  }
 
   const firm = <T extends { firmId: string; firmName: string }>(x: T | null) => {
     if (!x) return null
@@ -38,7 +49,7 @@ export function factsForReader(
   }
   const scrub = (text: string | null) => {
     if (!text) return text
-    for (const [id, name] of withheld) {
+    for (const [id, name] of [...withheld, ...named]) {
       if (text.includes(id) || (name && text.toLowerCase().includes(name.toLowerCase()))) return null
     }
     return text
@@ -52,11 +63,15 @@ export function factsForReader(
       received: firm(f.received),
       // The examiner works at the firm; where the firm is withheld so is she.
       examined: examined && examined.firmId === null ? { ...examined, by: null } : examined,
-      // A check ordered by a firm this reader may not name keeps its word and date; its provider and reference go, so they cannot name that firm.
+      // A check ordered by a firm this reader may not name keeps its date; its provider and reference go, and so does a word that carries the provider's name.
       verdict: f.verdict
         ? (f.verdict.firmId && !mayName(f.verdict.firmId)
-          ? { ...f.verdict, provider: null, reference: null, firmId: null }
-          : { ...f.verdict, provider: scrub(f.verdict.provider), reference: scrub(f.verdict.reference) })
+          ? {
+              ...f.verdict,
+              word: namesProvider(f.verdict.word, f.verdict.provider) ? null : scrub(f.verdict.word),
+              provider: null, reference: null, firmId: null,
+            }
+          : { ...f.verdict, word: scrub(f.verdict.word), provider: scrub(f.verdict.provider), reference: scrub(f.verdict.reference) })
         : null,
     }
   }

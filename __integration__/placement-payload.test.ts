@@ -261,7 +261,7 @@ describe('a client opens a placement bought through two firms', () => {
   it('a firm that is not a party is told there is no such placement, rather than that it may not look', async () => {
     const r = await open(ctx.strangerEmail, ctx.placementId)
     expect(r.status).toBe(404)
-    expect(r.body.error.message).toBe('No placement by that id.')
+    expect(r.body.error.message).toBe('You can open only contracts your company is on. Yours are listed under Contracts.')
   })
 })
 

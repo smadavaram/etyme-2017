@@ -33,14 +33,14 @@ export interface PaperRow extends Facted {
   owedByName?: string | null
   renderedBy?: string | null
   renderedSays?: string | null
+  /** The issuer's edition warning on the form that stands for this paper, where there is one. */
+  edition?: { says: string } | null
 }
 
-/** A firm the reader may not name is said as what it is to them. */
-const firmWords = (f: { firmName: string | null }) => f.firmName ?? 'the supplier’s supplier'
-
+/** Said where a firm the reader may not name is left out: the day alone, never a hint of the chain. */
 export function askedWords(it: Facted): string {
   if (!it.asked) return '—'
-  return `${formatDay(it.asked.when)} by ${firmWords(it.asked)}`
+  return it.asked.firmName ? `${formatDay(it.asked.when)} by ${it.asked.firmName}` : formatDay(it.asked.when)
 }
 
 export function receivedWords(it: Facted): string {
@@ -60,13 +60,25 @@ export function examinedWords(it: Facted): string {
   return [what, e.by ? `by ${e.by}` : null, e.when ? formatDay(e.when) : null].filter(Boolean).join(' · ')
 }
 
+/** A paper that arrived and nobody examined is not on file yet. */
+const waitsForCheck = (it: PaperRow) => it.state === 'ALREADY_HELD' && it.examined?.state === 'NOT_EXAMINED'
+
+/** On file only where it is held, was examined where it arrived, and the form is on an edition the issuer still accepts. */
+const onFile = (it: PaperRow) => it.state === 'ALREADY_HELD' && !waitsForCheck(it) && !it.edition
+
 /** What is missing, in the checklist's own words; nothing where the paper stands. */
 export function missingWords(it: PaperRow): string {
+  if (it.edition) return it.edition.says
+  if (waitsForCheck(it)) return 'Waiting to be checked'
   return it.state === 'ALREADY_HELD' ? '—' : it.note || 'Missing'
 }
 
 const OWED: Record<string, string> = { WORKER: 'The worker', SUPPLIER: 'The supplier', CUSTOMER: 'The customer', US: 'Us' }
-export const owedWords = (it: PaperRow) => (it.state === 'ALREADY_HELD' ? '—' : it.owedByName ?? (it.owedByRole ? OWED[it.owedByRole] ?? it.owedByRole : '—'))
+export function owedWords(it: PaperRow): string {
+  if (waitsForCheck(it)) return it.examined?.firmName ? `${it.examined.firmName} checks it` : 'Waiting for the check'
+  if (it.edition) return it.examined?.firmName ?? it.owedByName ?? (it.owedByRole ? OWED[it.owedByRole] ?? it.owedByRole : 'The supplier')
+  return it.state === 'ALREADY_HELD' ? '—' : it.owedByName ?? (it.owedByRole ? OWED[it.owedByRole] ?? it.owedByRole : '—')
+}
 
 /** The customer's papers, and the worker's and supplier's. */
 export function sidesOf(items: PaperRow[]): { title: string; items: PaperRow[] }[] {
@@ -104,10 +116,10 @@ export function PapersTable({ items, paperDoors, onDone }: {
                 {side.items.map((it) => {
                   const doors = paperDoors?.[it.key]
                   return (
-                    <tr key={it.key} className="border-b border-etyme-rule align-top" title={it.note}>
+                    <tr key={it.key} className="border-b border-etyme-rule align-top" title={it.state === 'ALREADY_HELD' ? undefined : it.note}>
                       <td className="py-2 pr-3 text-etyme-ink">
                         {inSentence(it.label)}
-                        {it.state === 'ALREADY_HELD' && <span className="ml-1 text-etyme-verified">on file</span>}
+                        {onFile(it) && <span className="ml-1 text-etyme-verified">on file</span>}
                         {doors && (doors.doors.length > 0 || doors.says) && (
                           <div className="mt-1"><PaperDoorButtons doors={doors} onDone={onDone} /></div>
                         )}

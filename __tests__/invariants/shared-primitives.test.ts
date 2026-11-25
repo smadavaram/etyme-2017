@@ -181,7 +181,8 @@ describe('the surface pieces', () => {
     for (const f of ['src/app/dashboard/placements/[id]/page.tsx', 'src/app/dashboard/weeks/[id]/page.tsx']) {
       const src = read(f)
       expect(src, f).toContain('<DetailHead')
-      expect(src, f).toContain('if (error) return <RefusedState says={error} />')
+      // The placement page also draws a link back to its list beside the refusal.
+      expect(src, f).toMatch(/if \(error\) (return <RefusedState says=\{error\} \/>|\{\s*return \(\s*<div>\s*<RefusedState says=\{error\} \/>)/)
       expect(src, f).toContain('<LoadingState says=')
     }
   })

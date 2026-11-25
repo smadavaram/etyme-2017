@@ -9,7 +9,7 @@ import { noDeskYet } from '@/lib/no-desk'
 import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
 import { categoryOf, labelOf } from '@/lib/cycle-kinds'
-import { ADVERSE_STEPS, contractClearance, lineExtras, startWords } from '@/lib/contract-clearance'
+import { ADVERSE_STEPS, canonicalEdition, contractClearance, lineExtras, startWords } from '@/lib/contract-clearance'
 import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { endsPastLimit } from '@/lib/governance'
@@ -33,6 +33,7 @@ import { weeksWhere } from '@/lib/money/weeks-read'
 import { paperDoorsForLine } from '@/lib/document-stages/arrived-papers'
 import { doorsForReader } from './paper-doors-for-reader'
 import { factsForReader } from './paper-facts-for-reader'
+import { checklistForReader, providerForReader, sayWithoutHidden } from './checklist-for-reader'
 import { paperFactsForLine, attachPaperFacts, type PaperFacts } from '@/lib/document-stages/line-paper-facts'
 
 /**
@@ -169,7 +170,7 @@ export async function GET(
       )
     }
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No placement by that id.' } },
+      { error: { code: 'NOT_FOUND', message: 'You can open only contracts your company is on. Yours are listed under Contracts.' } },
       { status: 404 }
     )
   }
@@ -232,7 +233,7 @@ export async function GET(
   // is genuinely gone.
   if (!placement) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No placement by that id.' } },
+      { error: { code: 'NOT_FOUND', message: 'You can open only contracts your company is on. Yours are listed under Contracts.' } },
       { status: 404 }
     )
   }
@@ -724,7 +725,7 @@ export async function GET(
       // carries a license's number and the state that issued it, which
       // is what a refusal has to name to be checkable against a register.
       select: {
-        id: true, type: true, status: true, provider: true, result: true,
+        id: true, type: true, status: true, provider: true, result: true, orderedByCompanyId: true,
         issuedAt: true, validFrom: true, expiresAt: true, formEdition: true,
         backedBy: {
           select: {
@@ -908,6 +909,37 @@ export async function GET(
     ...(await lineExtras({ sellContractId: placement.id })),
   })
 
+  // The firms this reader may not name, once, for the doors, the facts and
+  // the checklist. A reader above the supplier never reads a firm below it
+  // (release pass 41: "Tecwyn orders Drug screening" reached Northbend).
+  // Every firm on the person's lines other than the supplier it pays and
+  // itself is below, unless its agreement with the prime names the sub
+  // (`shown`, the payload's one rule). An end client opening a leg below
+  // the one it pays reads even this line's seller withheld, so there it is
+  // every masked firm.
+  const sellerSeen = shown(placement.companyId, placement.company.name)
+  const mayNameFirm = (firmId: string) => {
+    if (firmId === mine) return true
+    if (isSupplier) return true
+    if (firmId === placement.companyId) return !sellerSeen.masked
+    return readsFromBelow && seenNames.has(firmId) && !seenNames.get(firmId)!.masked
+  }
+  const hiddenFirms: { id: string; name: string }[] = isSupplier
+    ? []
+    : await prisma.sellContract.findMany({
+        where: {
+          personId: placement.personId,
+          companyId: { notIn: [...(readsFromBelow ? [] : [placement.companyId]), ...(mine ? [mine] : [])] },
+        },
+        select: { companyId: true, company: { select: { name: true } } },
+        distinct: ['companyId'],
+      }).then((others) => others
+        .filter((o) => readsFromBelow ? shown(o.companyId, o.company.name).masked : true)
+        .map((o) => ({ id: o.companyId, name: o.company.name })))
+  const readerFirms = { hidden: hiddenFirms, mayName: mayNameFirm }
+  // What the checklist says of a screening verdict is free text a firm typed.
+  const readerChecklist = isSupplier ? checklist.items : checklistForReader(checklist.items, personChecks, readerFirms)
+
   // The door each required paper carries for this seat: check what
   // arrived, record a provider's verdict, or ask the worker (regulatory's
   // paperDoorsForLine). Never throws a page away: a failed read draws the
@@ -917,28 +949,9 @@ export async function GET(
     caller: { companyId: mine, permissions: caller.permissions },
     items: checklist.items.map((it) => ({ key: it.key, label: it.label, state: it.state, owedBy: it.owedByRole ?? null })),
   })
-    .then(async (doors) => {
+    .then((doors) => {
       if (isSupplier) return doors
-      // A reader above the supplier never reads a firm below it in a door
-      // (release pass 41: "Tecwyn orders Drug screening" reached
-      // Northbend). Every firm on the person's lines other than the
-      // supplier it pays and itself is below, unless its agreement with
-      // the prime names the sub (`shown`, the payload's one rule).
-      // An end client opening a leg below the one it pays reads even this
-      // line's seller withheld, so there it is every masked firm.
-      const others = await prisma.sellContract.findMany({
-        where: {
-          personId: placement.personId,
-          companyId: { notIn: [...(readsFromBelow ? [] : [placement.companyId]), ...(mine ? [mine] : [])] },
-        },
-        select: { companyId: true, company: { select: { name: true } } },
-        distinct: ['companyId'],
-      })
-      const hidden = others
-        .filter((o) => readsFromBelow ? shown(o.companyId, o.company.name).masked : true)
-        .map((o) => ({ id: o.companyId, name: o.company.name }))
-      const seller = shown(placement.companyId, placement.company.name)
-      return doorsForReader(doors, hidden, seller.masked ? seller.phrase : `${seller.phrase}’s supplier`)
+      return doorsForReader(doors, hiddenFirms, 'your supplier')
     })
     .catch(() => ({}))
 
@@ -952,17 +965,21 @@ export async function GET(
   })
     .then((facts) => {
       if (!facts) return null
-      const sellerSeen = shown(placement.companyId, placement.company.name)
-      const mayName = (firmId: string) => {
-        if (firmId === mine) return true
-        if (isSupplier) return true
-        if (firmId === placement.companyId) return !sellerSeen.masked
-        return readsFromBelow && seenNames.has(firmId) && !seenNames.get(firmId)!.masked
-      }
-      return factsForReader(facts, mayName)
+      return factsForReader(facts, mayNameFirm, hiddenFirms)
     })
     .catch(() => null)
-  const checklistItems = attachPaperFacts(checklist.items, (paperFacts ?? {}) as unknown as Record<string, PaperFacts>)
+  // The form's edition warning, where the issuer retired the edition it was
+  // completed on. `contractClearance` returns the findings without a key, so
+  // each is matched to the check that produced it: the same type, the same
+  // recorded edition.
+  const editionOf = (key: string): { says: string } | null => {
+    const finding = checklist.editions.find((e) => personChecks.some((v) =>
+      v.type === key && (v.status === 'CLEAR' || v.status === 'CONDITIONAL') &&
+      (v.formEdition ? e.recorded === v.formEdition || (e.recorded !== null && canonicalEdition(e.recorded) === canonicalEdition(v.formEdition)) : e.recorded === null)))
+    return finding ? { says: finding.says } : null
+  }
+  const checklistItems = attachPaperFacts(readerChecklist, (paperFacts ?? {}) as unknown as Record<string, PaperFacts>)
+    .map((it) => { const edition = editionOf(it.key); return edition ? { ...it, edition } : it })
 
   // The firm below us, read the same way we read the firm above. Null
   // where we employ the person ourselves, which is a fact rather than a
@@ -1240,7 +1257,7 @@ export async function GET(
         person: personChecks.map((v) => ({
           type: v.type,
           status: v.status,
-          provider: v.provider,
+          provider: isSupplier ? v.provider : providerForReader(v, readerFirms),
           expiresAt: v.expiresAt?.toISOString() ?? null,
         })),
         // The sub-vendor's cover, as standing rather than as the status
@@ -1324,13 +1341,13 @@ export async function GET(
         startDate: placement.startDate?.toISOString() ?? null,
         state: placement.state,
         outcome: checklist.outcome,
-        blocking: checklist.items.filter((i) => i.blocks),
+        blocking: readerChecklist.filter((i) => i.blocks),
         today: new Date(),
       }),
       checklist: {
         outcome: checklist.outcome,
-        says: checklist.says,
-        fix: checklist.fix,
+        says: isSupplier ? checklist.says : sayWithoutHidden(checklist.says, hiddenFirms),
+        fix: isSupplier || !checklist.fix ? checklist.fix : sayWithoutHidden(checklist.fix, hiddenFirms),
         items: checklistItems,
         cover: checklist.cover.outcome,
         paperDoors,

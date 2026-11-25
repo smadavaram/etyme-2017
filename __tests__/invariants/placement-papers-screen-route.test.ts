@@ -35,7 +35,7 @@ describe('the papers table and the route it calls', () => {
 
   it('the route attaches the facts to the checklist’s items through the one reader, after the doors are read, and masks them for the reader', () => {
     expect(ROUTE).toContain('paperFactsForLine({')
-    expect(ROUTE).toContain('factsForReader(facts, mayName)')
+    expect(ROUTE).toContain('factsForReader(facts, mayNameFirm, hiddenFirms)')
     expect(ROUTE).toMatch(/items: checklistItems,/)
   })
 
@@ -72,8 +72,8 @@ describe('what the table says of each paper', () => {
     expect(askedWords({})).toBe('—')
   })
 
-  it('a firm the reader may not name is said as the supplier’s supplier', () => {
-    expect(askedWords({ asked: { when: '2026-11-10T00:00:00.000Z', via: 'PAPER', firmId: null, firmName: null } })).toContain('the supplier’s supplier')
+  it('a firm the reader may not name is left out and the day alone is said', () => {
+    expect(askedWords({ asked: { when: '2026-11-10T00:00:00.000Z', via: 'PAPER', firmId: null, firmName: null } })).toBe('Nov 10, 2026')
   })
 
   it('a paper on file says nothing is missing and nobody owes it', () => {

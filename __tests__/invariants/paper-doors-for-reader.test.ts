@@ -8,9 +8,9 @@ import { doorsForReader } from '@/app/api/placements/[id]/paper-doors-for-reader
 describe('a client reading a placement’s paper doors never reads the firm below its supplier', () => {
   const hidden = [{ id: 'co-tecwyn', name: 'Tecwyn' }]
 
-  it('a sentence naming the firm below says the supplier’s supplier instead', () => {
-    const out = doorsForReader({ DRUG_SCREENING: { doors: [], says: 'Tecwyn orders Drug screening from a screening company and records what it says.' } }, hidden, 'Computer Systems Inc’s supplier')
-    expect(out.DRUG_SCREENING.says).toBe('Computer Systems Inc’s supplier orders Drug screening from a screening company and records what it says.')
+  it('a sentence naming the firm below says your supplier instead', () => {
+    const out = doorsForReader({ DRUG_SCREENING: { doors: [], says: 'Tecwyn orders Drug screening from a screening company and records what it says.' } }, hidden, 'your supplier')
+    expect(out.DRUG_SCREENING.says).toBe('your supplier orders Drug screening from a screening company and records what it says.')
     expect(JSON.stringify(out)).not.toContain('Tecwyn')
   })
 
