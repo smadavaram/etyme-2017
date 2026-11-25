@@ -151,10 +151,10 @@ describe('Extend is drawn only where the extend route takes this reader’s pres
     if (!g.ok) expect(g.code).toBe('FORBIDDEN')
   })
 
-  it('a firm that is not a party is told which firms can extend it', () => {
+  it('a firm that is not a party is told only that it is not one', () => {
     const g = extendGate(seat({ company: { id: 'stranger', name: 'Veritan Talent', kind: 'VENDOR' } }), contract)
     expect(g.ok).toBe(false)
-    if (!g.ok) expect(g.says).toBe('Veritan Talent is not a party to this contract. Only Brightmoor Staffing, Northbend Athletic can extend it.')
+    if (!g.ok) expect(g.says).toBe('Veritan Talent is not a party to this contract, so it cannot extend it.')
   })
 
   it('a finished placement is refused in words, never as its state code', () => {

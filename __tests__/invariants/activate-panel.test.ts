@@ -33,7 +33,7 @@ describe('the Activate button on a placement', () => {
     expect(gateRefusal(seat('northbend', ['assignments.write']), contract, 'activate')).toBeNull()
     expect(gateRefusal(seat('brightmoor', ['timesheets.read']), contract, 'activate')?.error.code).toBe('FORBIDDEN')
     expect(gateRefusal(seat('halcyon', ['assignments.write']), contract, 'activate')?.error.message)
-      .toBe('Halcyon Talent is not a party to this contract. Only Brightmoor Staffing or Northbend Athletic can change it.')
+      .toBe('Halcyon Talent is not a party to this contract, so it cannot change it.')
     expect(gateRefusal(seat('brightmoor', ['assignments.write']), { ...contract, state: 'IN_PROGRESS' }, 'activate')?.error.code).toBe('INVALID_TRANSITION')
     // And the panel draws from that answer: a button where it said yes, nothing where it said no.
     expect(viewBefore(may).button).toBe('Activate')

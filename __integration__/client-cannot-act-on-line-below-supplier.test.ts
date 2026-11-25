@@ -71,4 +71,26 @@ describe('a client acting on the line between its supplier and a firm below it',
     await activatePost(req('POST', `/api/contracts/${line.id}/activate`, { action: 'pause' }), ctx(line.id))
     expect(await prisma.accessLog.count({ where: { allowed: false } })).toBeGreaterThanOrEqual(before + 2)
   })
+
+  it('a firm that is no party to a contract is refused activate and extend without being told who is on it', async () => {
+    const line = await prisma.sellContract.findUniqueOrThrow({
+      where: { id: (await lineBelow()).id },
+      select: { id: true, company: { select: { name: true } }, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+    })
+    const onIt = [line.company.name, line.clientCompany.name, line.endClientCompany?.name].filter(Boolean) as string[]
+    const STRANGER = 'world-harlow-health@demo.etyme.local'
+    const before = await prisma.accessLog.count({ where: { allowed: false } })
+    as(STRANGER)
+    const answers = [
+      await json(await extendPost(req('POST', `/api/contracts/${line.id}/extend`, { months: 1 }), ctx(line.id))),
+      await json(await extendGet(req('GET', `/api/contracts/${line.id}/extend`), ctx(line.id))),
+      await json(await activatePost(req('POST', `/api/contracts/${line.id}/activate`, { action: 'pause' }), ctx(line.id))),
+      await json(await activateGet(req('GET', `/api/contracts/${line.id}/activate`), ctx(line.id))),
+    ]
+    for (const r of answers) {
+      expect([403, 404]).toContain(r.status)
+      for (const n of onIt) expect(JSON.stringify(r.body)).not.toContain(n)
+    }
+    expect(await prisma.accessLog.count({ where: { allowed: false } })).toBeGreaterThanOrEqual(before + 4)
+  })
 })

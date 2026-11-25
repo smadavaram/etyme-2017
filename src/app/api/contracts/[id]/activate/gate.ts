@@ -14,7 +14,6 @@
 import { contractSide, type ContractSide } from '@/lib/resolve-client-company'
 import { hasPermission, desksHolding, type Permission } from '@/lib/permissions'
 import { refusalFor, type CallerContext } from '@/lib/api-context'
-import { partiesSay } from './words'
 import { seatedWhoMay } from '@/lib/refusal-words'
 import { readCompanySeats, type CompanySeat } from '@/lib/company-seats'
 
@@ -94,7 +93,7 @@ export function gateRefusal(
       status: 403,
       error: {
         code: 'NOT_A_PARTY',
-        message: `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${partiesSay([contract.company.name, contract.clientCompany.name, contract.endClientCompany?.name])} can change it.`,
+        message: `${caller.company?.name ?? 'Your company'} is not a party to this contract, so it cannot change it.`,
       },
     }
   }

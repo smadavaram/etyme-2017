@@ -76,10 +76,12 @@ export async function GET(
     })
   }
   const gate = extendGate(caller, contract)
-  if (!gate.ok && gate.code === 'NOT_FOUND') {
+  if (!gate.ok && (gate.code === 'NOT_FOUND' || gate.code === 'NOT_A_PARTY')) {
     await recordRefusal([contract.personId], {
       ...accessActor(caller), action: 'CONTRACT_VIEW',
-      reason: 'A client asked whether it may extend the line between its supplier and a firm below it.',
+      reason: gate.code === 'NOT_FOUND'
+        ? 'A client asked whether it may extend the line between its supplier and a firm below it.'
+        : 'Asked whether a placement may be extended, at a firm not party to it.',
     })
     return NextResponse.json({ error: { code: gate.code, message: gate.says } }, { status: gate.status })
   }
@@ -136,10 +138,12 @@ export async function POST(
   // as a fault. The same answer the drawer asks before it draws Extend.
   const gate = extendGate(caller, contract)
   if (!gate.ok) {
-    if (gate.code === 'NOT_FOUND') {
+    if (gate.code === 'NOT_FOUND' || gate.code === 'NOT_A_PARTY') {
       await recordRefusal([contract.personId], {
         ...accessActor(caller), action: 'CONTRACT_VIEW',
-        reason: 'A client tried to extend the line between its supplier and a firm below it.',
+        reason: gate.code === 'NOT_FOUND'
+          ? 'A client tried to extend the line between its supplier and a firm below it.'
+          : 'A firm not party to a placement tried to extend it.',
       })
     }
     return NextResponse.json({ error: { code: gate.code, message: gate.says } }, { status: gate.status })

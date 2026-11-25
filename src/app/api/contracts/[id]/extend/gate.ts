@@ -48,9 +48,7 @@ export function extendGate(
       ok: false,
       status: 403,
       code: 'NOT_A_PARTY',
-      says:
-        `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${contract.company.name}, ` +
-        `${contract.clientCompany.name}${contract.endClientCompany ? ` or ${contract.endClientCompany.name}` : ''} can extend it.`,
+      says: `${caller.company?.name ?? 'Your company'} is not a party to this contract, so it cannot extend it.`,
     }
   }
   if (!hasPermission(caller.permissions, 'assignments.write')) {

@@ -213,10 +213,12 @@ export async function POST(
   const gated = gateRefusal(caller, contract, action as Action)
   if (gated) {
     const refused = await seatedRefusal(caller, gated, action as Action)
-    if (refused.error.code === 'NOT_FOUND') {
+    if (refused.error.code === 'NOT_FOUND' || refused.error.code === 'NOT_A_PARTY') {
       await recordRefusal([contract.personId], {
         ...accessActor(caller), action: 'CONTRACT_VIEW',
-        reason: 'A client tried to change the line between its supplier and a firm below it.',
+        reason: refused.error.code === 'NOT_FOUND'
+          ? 'A client tried to change the line between its supplier and a firm below it.'
+          : 'A firm not party to a placement tried to change it.',
       })
     }
     return NextResponse.json({ error: refused.error }, { status: refused.status })
