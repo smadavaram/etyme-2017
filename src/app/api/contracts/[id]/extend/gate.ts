@@ -40,7 +40,7 @@ export function extendGate(
   const side = contractSide(caller, { ...contract, endClientCompanyId: contract.endClientCompanyId ?? null })
   // Record 119: the client that is only the site on the line below its
   // supplier never opens that line, and the sentence names no firm.
-  if (side === 'END_CLIENT') {
+  if (side === 'END_CLIENT' || (!side && caller.company?.kind === 'CLIENT')) {
     return { ok: false, status: 404, code: 'NOT_FOUND', says: 'Contract not found' }
   }
   if (!side) {

@@ -11,7 +11,7 @@ import { termsGate } from '@/lib/award/terms-on-record'
 import { siteSay, startSays } from './words'
 import { startPapers, i9DoorAtStart } from './papers'
 import { hasPermission } from '@/lib/permissions'
-import { gateRefusal, whoMay, seatedRoles, TRANSITIONS, VALID_ACTIONS, DOING, NEEDS, type Action, type GateRefusal } from './gate'
+import { gateRefusal, whoMay, seatedRoles, TRANSITIONS, VALID_ACTIONS, CHOOSE_AN_ACT, DOING, NEEDS, type Action, type GateRefusal } from './gate'
 import { whoHereMaySays } from '@/lib/money/who-raises-bills'
 import { isSent } from '@/lib/money/bill-state'
 import { formatDay } from '@/lib/format-date'
@@ -165,7 +165,7 @@ export async function POST(
 
   if (!action || !VALID_ACTIONS.includes(action)) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: `action must be one of: ${VALID_ACTIONS.join(', ')}`, field: 'action' } },
+      { error: { code: 'VALIDATION', message: CHOOSE_AN_ACT, field: 'action' } },
       { status: 422 }
     )
   }

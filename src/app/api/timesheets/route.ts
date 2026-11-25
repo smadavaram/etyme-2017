@@ -580,7 +580,9 @@ export async function GET(request: NextRequest) {
           id: t.id,
           person: t.person,
           sellContract: {
-            id: t.sellContract.id,
+            // A client reads the id of the line it pays and never the
+            // line below it (decision 119).
+            id: asClient ? seen.lineId ?? null : t.sellContract.id,
             // Whose paper this row is read against. For a client in a
             // chain that is its own contract, not its supplier's.
             clientCompany: seen.clientCompany,
@@ -971,6 +973,12 @@ interface Seen {
    */
   payee?: { id: string; name: string } | null
   /**
+   * For a client: the id of the line it pays (the top rung), never the
+   * line below it, which is a deal between two other firms (decision
+   * 119). Null where no one line is the payer's.
+   */
+  lineId?: string | null
+  /**
    * The firm that pays on the line this row is priced on: the buyer on
    * that line. Its acceptance decides the hours the row reads and is
    * valued on (walk 8: a firm bills only the hours the firm above it
@@ -1160,6 +1168,7 @@ async function priceFor(
       clientCompany: top.clientCompany,
       engagement: top.engagement,
       payee,
+      lineId: top.id,
       // The client's own line: it is the payer, and its signature decides.
       payer: { id: top.clientCompanyId, name: top.clientCompany.name },
     })
