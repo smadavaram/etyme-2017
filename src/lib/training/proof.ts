@@ -77,3 +77,32 @@ export function clientCertifiedLines(
     .filter((c) => certificationStanding(c.expiresAt, now) !== 'EXPIRED')
     .map((c) => `Certified: ${c.title}, issued ${iso(c.issuedAt)}, ${c.expiresAt ? `expires ${iso(c.expiresAt)}` : 'does not expire'}`)
 }
+
+/** The door recorded on an ask for somebody who was already on the bench when the firm asked. */
+export const ALREADY_ON_BENCH = 'ALREADY_ON_BENCH'
+
+const DOOR_WORDS: Record<string, string> = {
+  OWN_PAGE: 'on her own page',
+  EMAIL_LINK: 'from the emailed link',
+  [ALREADY_ON_BENCH]: 'already on the bench when asked',
+}
+
+/**
+ * The Training block as plain lines, for a bench row and a consultant
+ * page. The yes line is there only once she has said yes.
+ */
+export function proofLines(p: Proof): string[] {
+  const out: string[] = []
+  if (p.cohort) out.push(`${p.cohort.name}, on ${p.cohort.courseTitle}`)
+  for (const s of p.scores) {
+    out.push(`${s.skill}: ${[...s.attempts].sort((a, b) => a.attempt - b.attempt).map((a) => a.score).join(', then ')}`)
+  }
+  for (const c of p.certifications) {
+    out.push(`Certified: ${c.title}, issued ${c.issued}, ${c.expires ? `expires ${c.expires}` : 'does not expire'}${c.standing === 'EXPIRED' ? ' (lapsed)' : ''}`)
+  }
+  if (p.consent) {
+    const door = p.consent.method ? DOOR_WORDS[p.consent.method] : null
+    out.push(`Said yes on ${p.consent.yesOn}${door ? `, ${door}` : ''}`)
+  }
+  return out
+}

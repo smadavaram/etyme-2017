@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
   const [course, seat, listing, person] = await Promise.all([
     prisma.course.findFirst({ where: { id: courseId, companyId }, select: { id: true, title: true } }),
     prisma.context.findFirst({ where: { personId, companyId, revokedAt: null }, select: { id: true, type: true } }),
-    prisma.benchListing.findFirst({ where: { companyId, state: 'GRANTED', consultant: { personId } }, select: { id: true } }),
+    // Any listing she holds here counts as on our books: granted, or asked and not answered yet.
+    prisma.benchListing.findFirst({ where: { companyId, revokedAt: null, state: { in: ['GRANTED', 'INVITED'] }, consultant: { personId } }, select: { id: true } }),
     prisma.person.findUnique({ where: { id: personId }, select: { name: true } }),
   ])
   if (!course) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That course is not in your library.' } }, { status: 404 })

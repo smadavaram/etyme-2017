@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readBench } from '@/lib/bench-filter'
-import { fieldable } from '@/lib/training'
+import { trainable } from '@/lib/training'
 
 /**
  * Cohorts: a group taking one course together (record 120). Plan one with
@@ -18,6 +18,8 @@ interface Trainee {
   person: { id: string; name: string }
   status: string
   word: string
+  /** What each button's own route would take from this reader. */
+  can: { assess: boolean; certify: boolean; ask: boolean; finish: boolean }
   assessments: Attempt[]
   certifications: { id: string; title: string; issued: string; expires: string | null; standing: string }[]
   ask: { method: string; on: string; answer: string | null; answeredOn: string | null; answeredVia: string | null; says: string } | null
@@ -31,6 +33,8 @@ interface Cohort {
   startsOn: string
   endsOn: string | null
   seatsSays: string
+  /** Set when no seat is left: the sentence that replaces the enroll form. */
+  fullSays: string | null
   trainer: { personId: string; name: string | null } | null
   moves: string[]
   trainees: Trainee[]
@@ -70,10 +74,18 @@ export function Cohorts() {
       setTrainers(c.data.trainerChoices ?? [])
       setCourses((t?.data?.courses ?? []).map((x: any) => ({ id: x.id, title: x.title })))
       const roster: any[] = Array.isArray(payroll?.data?.roster) ? payroll.data.roster : []
-      setPeople(fieldable(readBench(b).rows, roster.filter((r) => r?.personId && r?.name), new Date()).map((p) => ({ id: p.personId, name: p.name })))
+      // Everybody the firm keeps: on the bench, asked and not answered yet, or employed.
+      const listed = readBench(b)
+      setPeople(trainable(listed.rows, listed.asked, roster.filter((r) => r?.personId && r?.name), new Date()).map((p) => ({ id: p.personId, name: p.name })))
     } catch (e: any) { setErr(e.message) }
   }, [])
   useEffect(() => { load() }, [load])
+  // A course added above is offered in the plan form at once.
+  useEffect(() => {
+    const again = () => { void load() }
+    window.addEventListener('training:courses-changed', again)
+    return () => window.removeEventListener('training:courses-changed', again)
+  }, [load])
 
   async function send(method: string, url: string, body: unknown) {
     setErr(null); setSaid(null)
@@ -140,7 +152,7 @@ export function Cohorts() {
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                       <span className="text-etyme-ink">{t.person.name}</span>
                       <span className={`chip text-[9px] ${t.status === 'COMPLETED' ? 'chip--verified' : 'chip--passive'}`}>{t.word}</span>
-                      {t.status !== 'COMPLETED' && (
+                      {t.can.finish && (
                         <button onClick={() => send('POST', `/api/training/enrollments/${t.enrollmentId}`, { move: 'complete' })} className="text-xs text-etyme-action hover:underline">Finish her course</button>
                       )}
                     </div>
@@ -152,7 +164,7 @@ export function Cohorts() {
                     {t.certifications.map((k) => (
                       <p key={k.id} className="mt-1 text-xs text-etyme-verified">Certified: {k.title}, issued {k.issued}{k.expires ? `, expires ${k.expires}${k.standing === 'EXPIRED' ? ' (lapsed)' : ''}` : ''}</p>
                     ))}
-                    <form
+                    {t.can.assess && <form
                       onSubmit={async (e) => { e.preventDefault(); if (await send('POST', `/api/training/enrollments/${t.enrollmentId}/assessments`, sc)) setScore({ ...score, [t.enrollmentId]: { skill: sc.skill, score: '' } }) }}
                       className="mt-2 flex flex-wrap items-end gap-2"
                     >
@@ -161,13 +173,14 @@ export function Cohorts() {
                       <label><span className={label}>Score, 0 to 100</span>
                         <input value={sc.score} onChange={(e) => setScore({ ...score, [t.enrollmentId]: { ...sc, score: e.target.value } })} required inputMode="numeric" className={`${field} w-24`} /></label>
                       <button type="submit" className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Record score</button>
-                    </form>
-                    {t.status === 'COMPLETED' && (
+                    </form>}
+                    {t.status === 'COMPLETED' && (t.can.certify || (t.can.ask && !t.ask)) && (
                       <div className="mt-2 flex flex-wrap items-end gap-2">
+                        {t.can.certify && <>
                         <label><span className={label}>Certification</span>
                           <input value={certTitle[t.enrollmentId] ?? ''} onChange={(e) => setCertTitle({ ...certTitle, [t.enrollmentId]: e.target.value })} placeholder={c.course.title} className={`${field} w-48`} /></label>
-                        <button onClick={() => send('POST', `/api/training/enrollments/${t.enrollmentId}/certification`, { title: certTitle[t.enrollmentId] || undefined })} className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Certify</button>
-                        {!t.ask && (
+                        <button onClick={() => send('POST', `/api/training/enrollments/${t.enrollmentId}/certification`, { title: certTitle[t.enrollmentId] || undefined })} className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Certify</button></>}
+                        {t.can.ask && !t.ask && (
                           <button onClick={() => send('POST', `/api/training/enrollments/${t.enrollmentId}/bench-ask`, {})} className="px-3 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">Ask her onto the bench</button>
                         )}
                       </div>
@@ -182,7 +195,8 @@ export function Cohorts() {
               })}
             </div>
 
-            {(c.state === 'PLANNED' || c.state === 'RUNNING') && (
+            {(c.state === 'PLANNED' || c.state === 'RUNNING') && c.fullSays && <p className="mt-2 text-xs text-etyme-muted">{c.fullSays}</p>}
+            {(c.state === 'PLANNED' || c.state === 'RUNNING') && !c.fullSays && (
               <form
                 onSubmit={async (e) => { e.preventDefault(); await send('POST', '/api/training/enrollments', { courseId: c.course.id, cohortId: c.id, personId: enroll[c.id] }) }}
                 className="mt-2 flex flex-wrap items-end gap-2"

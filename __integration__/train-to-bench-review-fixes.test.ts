@@ -33,6 +33,8 @@ async function cohortWith(name: string, trainerPersonId: string | null, capacity
   as(OWNER)
   const k = await json(await cohortsPost(req('POST', '/api/training/cohorts', { courseId: s.course, name, startsOn: '2027-04-01', trainerPersonId, capacity })))
   expect(k.status, JSON.stringify(k.body)).toBe(201)
+  // A course is finished only inside a cohort that has started.
+  await prisma.cohort.update({ where: { id: k.body.data.id }, data: { state: 'RUNNING' } })
   return k.body.data.id as string
 }
 async function enrolled(cohortId: string, personId: string) {

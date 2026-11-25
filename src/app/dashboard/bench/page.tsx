@@ -26,6 +26,8 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, Stat, FormMessage } from '@/components/ui'
 import { addToBenchBody, nudgeBody } from '@/lib/consultant-portfolio/forms'
 import { useFirmCurrency } from '@/app/dashboard/consultants/firm-currency'
+import { TrainingBlock } from '@/app/dashboard/bench/training-block'
+import type { Proof } from '@/lib/training/proof'
 
 /**
  * Bench — working surface for the company's consultant bench.
@@ -70,6 +72,8 @@ interface BenchEntry {
   free: Free | null
   /** The stay they chose on this bench, in a line. */
   stay: string | null
+  /** Where she was trained at this firm; null where the plugin is off or she came another way. */
+  proof?: Proof | null
   /** NOBODY · FIRM_ONLY · NETWORK — from the consent and the tier. */
   reach: string | null
   reachSays: string | null
@@ -730,6 +734,7 @@ export default function BenchPage() {
         // is not "Free now" under a tile that leaves her out (`freeOnTheBench`).
         free: freeOnTheBench(r.free, r.onBenchToday),
         stay: r.stay,
+        proof: r.proof,
         reach: r.reach,
         reachSays: r.reachSays,
         grantedAt: r.grantedAt,
@@ -857,6 +862,7 @@ export default function BenchPage() {
                 : <p className="font-medium text-etyme-ink truncate">{row.name}</p>}
               {/* Never another firm's person's contact (`benchSubtitle`). */}
               <p className="text-[11px] text-etyme-faint truncate">{benchSubtitle(row, scope === 'company')}</p>
+              {scope === 'company' && <TrainingBlock proof={row.proof} />}
             </div>
           </div>
         </div>

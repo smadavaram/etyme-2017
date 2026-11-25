@@ -5,7 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
 import { readCohorts } from '@/lib/training/cohort-read'
-import { logTraineeReads, traineeReadRefusal } from '@/lib/training/caller'
+import { callerRoleName, logTraineeReads, traineeReadRefusal } from '@/lib/training/caller'
 
 /**
  * GET  /api/training/cohorts   the firm's cohorts, their trainees, every attempt and the ask
@@ -28,7 +28,11 @@ export async function GET(request: NextRequest) {
     take: 200,
   })
   const trainerChoices = [...new Map(seats.map((s) => [s.person.id, s.person])).values()].sort((a, b) => a.name.localeCompare(b.name))
-  const cohorts = await readCohorts(caller.company!.id, new Date())
+  const cohorts = await readCohorts(caller.company!.id, new Date(), undefined, {
+    personId: caller.person.id,
+    roleName: await callerRoleName(caller),
+    mayWrite: hasPermission(caller.permissions, 'consultants.write'),
+  })
   logTraineeReads(caller, cohorts.flatMap((c) => c.trainees.map((t) => t.person.id)), 'the people on its cohorts')
   return NextResponse.json({ data: { cohorts, trainerChoices } })
 }

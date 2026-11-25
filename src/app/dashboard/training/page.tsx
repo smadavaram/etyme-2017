@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { readBench } from '@/lib/bench-filter'
-import { skillGap, fieldable, type SkillGapReading } from '@/lib/training'
+import { skillGap, fieldable, trainable, type SkillGapReading } from '@/lib/training'
 import { amount } from '@/lib/money-display'
 import { usePageSection } from '@/components/page-section'
 import { RefusedState, LoadingState } from '@/components/ui'
@@ -413,7 +413,7 @@ function Courses() {
       const listed = readBench(b)
       const roster: any[] = Array.isArray(payroll?.data?.roster) ? payroll.data.roster : []
       setPeople(
-        fieldable(listed.rows, roster.filter((r) => r?.personId && r?.name), new Date())
+        trainable(listed.rows, listed.asked, roster.filter((r) => r?.personId && r?.name), new Date())
           .map((p) => ({ id: p.personId, name: p.name, kind: p.kind }))
       )
     } catch (e: any) { setErr(e.message) }
@@ -432,6 +432,8 @@ function Courses() {
     try {
       const j = await post('/api/training', newCourse)
       setSaid(j.data.says); setNewCourse({ title: '', category: 'TECH', duration: '', price: '' }); await load()
+      // The cohort form below keeps its own course list: tell it.
+      window.dispatchEvent(new Event('training:courses-changed'))
     } catch (e: any) { setErr(e.message) }
   }
   async function enrollSomebody(e: React.FormEvent) {

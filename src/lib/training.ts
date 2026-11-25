@@ -376,6 +376,28 @@ export function fieldable(
   return [...out.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
+/**
+ * Everybody a firm keeps, for the enroll pickers: the people on its bench,
+ * the people it has asked and who have not answered (a consultant it just
+ * added is one), and its employees with work on the record. Somebody who
+ * said no is not offered, and staff with nothing on the record never are.
+ * A course does not need her yes; the bench does, and that is the ask.
+ */
+export function trainable(
+  listings: Parameters<typeof fieldable>[0],
+  asked: Parameters<typeof fieldable>[0],
+  roster: Parameters<typeof fieldable>[1],
+  now: Date
+): FieldablePerson[] {
+  const pending = asked.filter((a) => a.consent === 'INVITED')
+  const have = new Set(listings.map((l) => l.personId))
+  return fieldable(
+    [...listings, ...pending.filter((a) => !have.has(a.personId)).map((a) => ({ ...a, consent: null }))],
+    roster,
+    now
+  )
+}
+
 // ── Cohorts, assessments, certifications and the ask (record 120) ─────
 //
 // Pure rules, one sentence per refusal, no database. The routes under
@@ -611,4 +633,16 @@ export type AskMethod = 'EMAIL_LINK' | 'OWN_PAGE' | 'EMPLOYEE_TOLD'
  */
 export function askMethod(o: { employed: boolean; hasOwnAccount: boolean }): AskMethod {
   return o.employed ? 'EMPLOYEE_TOLD' : o.hasOwnAccount ? 'OWN_PAGE' : 'EMAIL_LINK'
+}
+
+/** A course is finished inside a cohort only once the cohort has started (lead's ruling, 2026-11-25). */
+export function mayFinishCourse(o: { cohortState: string | null }): Ok | Refusal {
+  if (o.cohortState === 'PLANNED') return { ok: false, message: 'Start the cohort first.' }
+  return { ok: true }
+}
+
+/** What the screen says in place of the enroll form on a cohort with no seat left. Null while one is free. */
+export function cohortFullSays(o: { name: string; capacity: number | null; enrolled: number }): string | null {
+  if (o.capacity == null || o.enrolled < o.capacity) return null
+  return `${o.name} is full (${o.enrolled} of ${o.capacity}).`
 }

@@ -6,6 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
 import { notify } from '@/lib/notify'
 import { askMethod, mayAskOntoBench } from '@/lib/training'
+import { ALREADY_ON_BENCH } from '@/lib/training/proof'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
 import { askByEmail } from '@/app/api/consultants/ask-by-email'
@@ -105,20 +106,56 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Her ONE listing here. Live, pending or declined: never a second.
   if (listing && !listing.revokedAt) {
     if (listing.state === 'GRANTED') {
-      if (!listing.sourceCohortId && row.cohortId) {
+      // Already on the bench: her yes was given before this ask. Say so on
+      // the ask, honestly, so the proof shows. The date is the listing's.
+      if (row.cohortId) {
         await prisma.benchListing.update({ where: { id: listing.id }, data: { sourceCohortId: row.cohortId } })
       }
-      return NextResponse.json({ data: { askId: null, method: null, listingId: listing.id, says: `${row.person.name} is already on your bench. Nothing to ask.` } })
+      const done = await prisma.benchAsk.findFirst({ where: { enrollmentId: id, benchListingId: listing.id }, select: { id: true } })
+      if (!done) {
+        await prisma.benchAsk.create({
+          data: { companyId, enrollmentId: id, benchListingId: listing.id, askedByPersonId: caller.person.id, method, answer: 'YES', answeredAt: listing.respondedAt ?? listing.grantedAt ?? now, answeredVia: ALREADY_ON_BENCH },
+        })
+      }
+      return NextResponse.json({ data: { askId: null, method: null, listingId: listing.id, says: `${row.person.name} is already on your bench. Nothing to ask; her course now shows on her row.` } })
+    }
+    if (listing.state === 'INVITED') {
+      const open = await prisma.benchAsk.findFirst({ where: { enrollmentId: id, benchListingId: listing.id, answer: null }, select: { id: true } })
+      if (open) {
+        return NextResponse.json(
+          { error: { code: 'ALREADY_ASKED', message: `${row.person.name} was already asked and has not answered. Wait for her yes.` } },
+          { status: 409 }
+        )
+      }
+      // Asked when she was added as a consultant: the same listing, now
+      // carrying the cohort, asked again through the same letter. Never GRANTED here.
+      const attached = await prisma.$transaction(async (tx) => {
+        await tx.benchListing.update({ where: { id: listing.id }, data: { sourceCohortId: row.cohortId } })
+        const ask = await tx.benchAsk.create({
+          data: { companyId, enrollmentId: id, benchListingId: listing.id, askedByPersonId: caller.person.id, method },
+          select: { id: true },
+        })
+        await tx.automationLog.create({
+          data: {
+            companyId, action: 'BENCH_LISTING_REQUESTED',
+            summary: `Asked ${row.person.name} again onto the bench after ${row.course.title}. Waiting on her yes.`,
+            reason: 'The firm asked a finished trainee onto its bench; her listing from when she was added carries the cohort.',
+            payload: { listingId: listing.id, consultantId: profile.id, personId: profile.personId, requestedBy: caller.person.id, benchAskId: ask.id, enrollmentId: id, cohortId: row.cohortId, method },
+            reversible: true,
+          },
+        })
+        return ask
+      })
+      const url = inviteUrl(listing.id)
+      const msg = inviteText({ personName: profile.person.name, vendorName: caller.company!.name, url, terms: null })
+      const mail = await askByEmail({ companyId, personId: profile.personId, to: profile.person.primaryEmail, url, subject: msg.subject, body: msg.body, listingId: listing.id })
+      return NextResponse.json(
+        { data: { askId: attached.id, method, listingId: listing.id, mail, says: askedOntoBenchSays(profile.person.name) + (mail === 'KEPT' ? ` ${INVITE_LINK_KEPT_SAYS}` : '') } },
+        { status: 201 }
+      )
     }
     return NextResponse.json(
-      {
-        error: {
-          code: listing.state === 'INVITED' ? 'ALREADY_ASKED' : 'DECLINED',
-          message: listing.state === 'INVITED'
-            ? `${row.person.name} was already asked and has not answered. Wait for her yes.`
-            : `${row.person.name} said no. Asking again is a conversation, not a button.`,
-        },
-      },
+      { error: { code: 'DECLINED', message: `${row.person.name} said no. Asking again is a conversation, not a button.` } },
       { status: 409 }
     )
   }

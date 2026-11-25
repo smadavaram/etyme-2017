@@ -1,6 +1,9 @@
 'use client'
 
 import { formatDay, formatMonth } from '@/lib/format-date'
+import { TrainingBlock } from '@/app/dashboard/bench/training-block'
+import { readBench } from '@/lib/bench-filter'
+import type { Proof } from '@/lib/training/proof'
 import { educationEmptySays, type EducationShown } from '@/lib/consultant-portfolio/education'
 import { useEffect, useState, useCallback } from 'react'
 import { compact } from '@/lib/money-display'
@@ -602,6 +605,8 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
   const [submissions, setSubmissions] = useState<DrawerSubmission[]>([])
   const [rateProgression, setRateProgression] = useState<RateProgressionData | null>(null)
   const [loadingActivity, setLoadingActivity] = useState(true)
+  // The firm's own listing for her carries the Training proof, only while the plugin is on.
+  const [trainingProof, setTrainingProof] = useState<Proof | null>(null)
 
   // Escape closes the drawer, as it closes the Companies drawer and every
   // dialog (batch five walk, 2026-11-16).
@@ -610,6 +615,19 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  useEffect(() => {
+    let live = true
+    fetch('/api/bench?scope=company')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => {
+        const mine = readBench(body)
+        const row = [...mine.rows, ...mine.asked].find((x) => x.consultantId === consultant.id)
+        if (live) setTrainingProof(row?.proof ?? null)
+      })
+      .catch(() => { /* supplementary */ })
+    return () => { live = false }
+  }, [consultant.id])
 
   useEffect(() => {
     async function fetchActivity() {
@@ -786,6 +804,8 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
               <p className="text-sm text-etyme-muted">No skills listed</p>
             )}
           </div>
+
+          <TrainingBlock proof={trainingProof} />
 
           {/* Education, from the résumé: what the person's own résumé says,
               each line with the line it came from. Read only here; the

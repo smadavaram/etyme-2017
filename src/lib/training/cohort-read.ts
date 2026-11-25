@@ -1,12 +1,15 @@
 import { prisma } from '@/lib/db'
-import { certificationStanding, cohortWord, COHORT_MOVES, MOVES, MOVE_ACTIONS, statusWord } from '@/lib/training'
+import { certificationStanding, cohortFullSays, cohortWord, COHORT_MOVES, MOVES, MOVE_ACTIONS, statusWord, mayAssess, mayCertify, mayFinishCourse, mayAskOntoBench } from '@/lib/training'
+
+/** Who is reading: what each button's own route would ask of her. */
+export interface Reader { personId: string; roleName: string | null; mayWrite: boolean }
 
 /**
  * One cohort as the Training page and the route read it: its trainees,
  * every attempt kept, what each holds, and where the ask onto the bench
  * stands. Read from the record; nothing is held beside it.
  */
-export async function readCohorts(companyId: string, now: Date, only?: string) {
+export async function readCohorts(companyId: string, now: Date, only?: string, reader?: Reader) {
   const rows = await prisma.cohort.findMany({
     where: { companyId, ...(only ? { id: only } : {}) },
     include: {
@@ -30,7 +33,9 @@ export async function readCohorts(companyId: string, now: Date, only?: string) {
   const trainerName = new Map(trainers.map((t) => [t.id, t.name]))
   return rows.map((c) => {
     const live = c.enrollments.filter((e) => e.status !== 'DROPPED')
+    const fullSays = cohortFullSays({ name: c.name, capacity: c.capacity, enrolled: live.length })
     return {
+      fullSays,
       id: c.id,
       name: c.name,
       course: c.course,
@@ -45,7 +50,21 @@ export async function readCohorts(companyId: string, now: Date, only?: string) {
       moves: (COHORT_MOVES[c.state as keyof typeof COHORT_MOVES] ?? []),
       trainees: c.enrollments.map((e) => {
         const ask = e.benchAsks[0] ?? null
+        // Per button, the same rule the route applies, for the reader. With
+        // no reader named nothing is offered.
+        const r = reader
+        const can = {
+          assess: !!r && r.mayWrite && mayAssess({ callerPersonId: r.personId, callerRole: r.roleName, trainerPersonId: c.trainerPersonId, enrolledPersonId: e.person.id }).ok,
+          certify: !!r && r.mayWrite && mayCertify({
+            enrollmentStatus: e.status, personName: e.person.name, callerPersonId: r.personId, callerRole: r.roleName,
+            trainerPersonId: c.trainerPersonId, enrolledPersonId: e.person.id,
+            assessorPersonIds: [...new Set(e.assessments.filter((a) => a.assessedAt.getTime() >= e.enrolledAt.getTime()).map((a) => a.assessorPersonId))],
+          }).ok,
+          ask: !!r && r.mayWrite && mayAskOntoBench({ enrollmentStatus: e.status, personName: e.person.name }).ok,
+          finish: !!r && r.mayWrite && e.status !== 'COMPLETED' && e.status !== 'DROPPED' && mayFinishCourse({ cohortState: c.state }).ok,
+        }
         return {
+          can,
           enrollmentId: e.id,
           person: e.person,
           status: e.status,

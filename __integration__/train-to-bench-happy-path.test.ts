@@ -9,6 +9,7 @@ import { POST as assess } from '@/app/api/training/enrollments/[id]/assessments/
 import { POST as certify } from '@/app/api/training/enrollments/[id]/certification/route'
 import { POST as benchAsk } from '@/app/api/training/enrollments/[id]/bench-ask/route'
 import { POST as respond } from '@/app/api/me/benches/[id]/respond/route'
+import { POST as addConsultant } from '@/app/api/consultants/route'
 import { GET as benchGet } from '@/app/api/bench/route'
 import { GET as profitGet } from '@/app/api/bench/profit/route'
 
@@ -31,6 +32,7 @@ const trainees = [
 const idRoute = async (fn: any, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
 const s: Record<string, any> = { enrollment: {}, person: {}, listing: {} }
+const listingOf = (key: string) => prisma.benchListing.findUniqueOrThrow({ where: { id: s.listing[key] } })
 
 async function counts(companyId: string) {
   return {
@@ -59,12 +61,14 @@ describe('train to bench, from a plugin switched on to a trainee on the bench wi
     const recruiterRole = await prisma.role.findFirstOrThrow({ where: { companyId: firm.id, name: 'Recruiter' }, select: { id: true } })
     const rec = await prisma.person.create({ data: { name: 'Quentin Reedmarsh', primaryEmail: RECRUITER } })
     await prisma.context.create({ data: { personId: rec.id, companyId: firm.id, type: 'EMPLOYEE', side: 'SELL', roleId: recruiterRole.id, grantReason: 'Recruiter' } })
+    // The usual way: Add consultant. Each is a person and a profile and a
+    // listing that is asked (INVITED) and not answered. No seat is written.
+    as(OWNER)
     for (const t of trainees) {
-      const p = await prisma.person.create({ data: { name: t.name, primaryEmail: t.email } })
-      s.person[t.key] = p.id
-      await prisma.consultantProfile.create({ data: { personId: p.id, skills: ['Python'], location: 'Boise, ID', visibility: 'VERIFIED', workAuth: 'USC' } })
-      // A seat at the firm puts her on its books without a bench listing.
-      await prisma.context.create({ data: { personId: p.id, companyId: firm.id, type: 'CONSULTANT', side: 'SELL', grantReason: 'Joined a course' } })
+      const r = await json(await addConsultant(req('POST', '/api/consultants', { name: t.name, email: t.email, skills: ['Python'], location: 'Boise, ID', workAuth: 'US_CITIZEN' })))
+      expect(r.status, JSON.stringify(r.body)).toBe(201)
+      s.person[t.key] = (await prisma.person.findFirstOrThrow({ where: { primaryEmail: t.email }, select: { id: true } })).id
+      s.listing[t.key] = (await prisma.benchListing.findFirstOrThrow({ where: { companyId: firm.id, consultant: { personId: s.person[t.key] } }, select: { id: true } })).id
     }
   }, 240_000)
 
@@ -101,6 +105,18 @@ describe('train to bench, from a plugin switched on to a trainee on the bench wi
     expect(third.body.error.code).toBe('COHORT_FULL')
     expect(third.body.error.message).toContain('holds 2 people and is full')
     expect(await prisma.enrollment.count({ where: { cohortId: s.cohort } })).toBe(2)
+  })
+
+  it('a course cannot be finished while its cohort is only planned, and the screen offers no Finish then', async () => {
+    as(OWNER)
+    const r = await idRoute(move, 'POST', '/x', s.enrollment.ada, { move: 'complete' })
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).toBe('Start the cohort first.')
+    expect((await prisma.enrollment.findUniqueOrThrow({ where: { id: s.enrollment.ada } })).status).toBe('ENROLLED')
+    const read = await json(await cohortsGet(req('GET', '/api/training/cohorts')))
+    const c = read.body.data.cohorts.find((x: any) => x.id === s.cohort)
+    expect(c.fullSays).toBe('Spring data cohort is full (2 of 2).')
+    expect(c.trainees.every((t: any) => t.can.finish === false)).toBe(true)
   })
 
   it('a cohort is started, and its trainees are in progress', async () => {
@@ -146,7 +162,8 @@ describe('train to bench, from a plugin switched on to a trainee on the bench wi
     const r = await idRoute(benchAsk, 'POST', '/x', s.enrollment.ada, {})
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('NOT_FINISHED')
-    expect(await prisma.benchListing.count({ where: { companyId: s.firm, consultant: { personId: s.person.ada } } })).toBe(0)
+    expect(await prisma.benchAsk.count({ where: { enrollmentId: s.enrollment.ada } })).toBe(0)
+    expect(await listingOf('ada')).toMatchObject({ state: 'INVITED', sourceCohortId: null })
   })
 
   it('a certification needs a finished course, and a recruiter never issues one', async () => {
@@ -189,15 +206,15 @@ describe('train to bench, from a plugin switched on to a trainee on the bench wi
     expect(c.trainees.find((t: any) => t.person.name === 'Ada Quillfeather').assessments.map((a: any) => a.score)).toEqual([60, 82])
   })
 
-  it('each is asked onto the bench: one invited listing, no yes written, the cohort kept as her source', async () => {
+  it('each is asked onto the bench through the listing she was already given when added: the same one, the cohort kept, no yes written', async () => {
     as(OWNER)
     for (const k of ['ada', 'bram']) {
+      expect((await listingOf(k)).state).toBe('INVITED')
       const r = await idRoute(benchAsk, 'POST', '/x', s.enrollment[k], {})
       expect(r.status, JSON.stringify(r.body)).toBe(201)
       expect(r.body.data.method).toBe('EMAIL_LINK')
-      s.listing[k] = r.body.data.listingId
-      const l = await prisma.benchListing.findUniqueOrThrow({ where: { id: s.listing[k] } })
-      expect(l).toMatchObject({ state: 'INVITED', sourceCohortId: s.cohort, companyId: s.firm })
+      expect(r.body.data.listingId).toBe(s.listing[k])
+      expect(await listingOf(k)).toMatchObject({ state: 'INVITED', sourceCohortId: s.cohort, companyId: s.firm })
       const ask = await prisma.benchAsk.findFirstOrThrow({ where: { enrollmentId: s.enrollment[k] } })
       expect(ask).toMatchObject({ method: 'EMAIL_LINK', answer: null, answeredAt: null, answeredVia: null, benchListingId: s.listing[k], askedByPersonId: s.owner })
     }
@@ -286,5 +303,23 @@ describe('train to bench, from a plugin switched on to a trainee on the bench wi
     const on = (await benchRows()).find((r) => r.id === s.listing.ada)
     expect(on.proof.certifications).toHaveLength(1)
     expect((await json(await cohortsGet(req('GET', '/api/training/cohorts')))).status).toBe(200)
+  })
+
+  it('somebody already on the bench when asked keeps her one listing and gets proof, with the door recorded honestly', async () => {
+    const p = await prisma.person.create({ data: { name: 'Eli Fernhollow', primaryEmail: 'eli.fernhollow@seed.etyme.invalid' } })
+    const profile = await prisma.consultantProfile.create({ data: { personId: p.id, skills: ['SQL'], visibility: 'VERIFIED', workAuth: 'USC' } })
+    const granted = await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: s.firm, tier: 'MARKETING', state: 'GRANTED', grantedAt: new Date('2026-10-01T00:00:00Z'), respondedAt: new Date('2026-10-01T00:00:00Z') } })
+    as(OWNER)
+    const en = await json(await enroll(req('POST', '/api/training/enrollments', { courseId: s.course, personId: p.id })))
+    expect(en.status, JSON.stringify(en.body)).toBe(201)
+    await prisma.enrollment.update({ where: { id: en.body.data.id }, data: { cohortId: s.cohort } })
+    expect((await idRoute(move, 'POST', '/x', en.body.data.id, { move: 'complete' })).status).toBe(200)
+    const r = await idRoute(benchAsk, 'POST', '/x', en.body.data.id, {})
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(await prisma.benchListing.count({ where: { companyId: s.firm, consultantId: profile.id } })).toBe(1)
+    expect(await prisma.benchListing.findUniqueOrThrow({ where: { id: granted.id } })).toMatchObject({ state: 'GRANTED', sourceCohortId: s.cohort })
+    expect(await prisma.benchAsk.findFirstOrThrow({ where: { enrollmentId: en.body.data.id } })).toMatchObject({ answer: 'YES', answeredVia: 'ALREADY_ON_BENCH', benchListingId: granted.id })
+    const shown = (await benchRows()).find((x) => x.id === granted.id)
+    expect(shown.proof.consent).toEqual({ yesOn: '2026-10-01', method: 'ALREADY_ON_BENCH' })
   })
 })

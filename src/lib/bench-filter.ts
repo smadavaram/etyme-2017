@@ -32,6 +32,8 @@
  * without reading code.
  */
 
+
+import type { Proof } from '@/lib/training/proof'
 import { checkStatedTerms, perHour, ENGAGEMENT_TYPES, type EngagementType } from '@/lib/award/hire-terms'
 import { range, compact, amount } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
@@ -424,6 +426,8 @@ export interface BenchRow {
    * no Resend and no Copy link: there is nobody to send it to.
    */
   sample: boolean
+  /** Where she was trained at this firm, read by the route only while the plugin is on. Null otherwise. */
+  proof: Proof | null
 }
 
 export type BenchReading =
@@ -675,6 +679,7 @@ function benchRowOf(l: any, tier: 'RETAINED' | 'MARKETING'): BenchRow | null {
     oursSays: typeof l.oursSays === 'string' ? l.oursSays : null,
     onBenchToday: typeof l.onBenchToday === 'boolean' ? l.onBenchToday : null,
     sample: l.sample === true,
+    proof: l.proof && typeof l.proof === 'object' && Array.isArray(l.proof.scores) ? (l.proof as Proof) : null,
   }
 }
 
