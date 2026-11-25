@@ -130,8 +130,10 @@ const noorWeeks = () => placed(4, 8_200, 5_800, noorBurden)
 
 beforeAll(async () => {
   await freshWorld()
-  owner = await read(OWNER)
   const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pellwright' }, select: { id: true } })
+  // Courses are a plugin (record 120): the per-course table is read only where Train to bench is on.
+  await prisma.company.update({ where: { id: firm.id }, data: { pluginsOn: ['TRAIN_TO_BENCH'] } })
+  owner = await read(OWNER)
   tobiasBurden = (await burdenRate(firm.id, 'W2', startOf(17))).rate
   noorBurden = (await burdenRate(firm.id, 'W2', startOf(4))).rate
 }, 900_000)

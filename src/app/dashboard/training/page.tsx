@@ -7,6 +7,7 @@ import { skillGap, fieldable, type SkillGapReading } from '@/lib/training'
 import { amount } from '@/lib/money-display'
 import { usePageSection } from '@/components/page-section'
 import { RefusedState, LoadingState } from '@/components/ui'
+import { Cohorts } from './cohorts'
 
 /**
  * Training funnel — Talent section (vendor)
@@ -249,6 +250,9 @@ export default function TrainingPage() {
       {/* Courses, and who is on each. The thing to do about the gap. */}
       <Courses />
 
+      {/* Cohorts: a group taking one course, assessed, certified, and asked onto the bench. */}
+      <Cohorts />
+
       {/* Bench pipeline funnel */}
       {funnel.some(f => f.count > 0) && (
         <div className="panel mb-6">
@@ -489,7 +493,7 @@ function Courses() {
               <span className="text-sm text-etyme-ink">{c.title}</span>
               <span className="text-xs text-etyme-muted">
                 {c.category ? c.category.replace('_', ' ').toLowerCase() : ''}{c.duration ? ` · ${c.duration} hours` : ''}
-                {' · '}{c.price != null ? `${amount(c.price, c.currency)} a seat` : 'no price set'}
+                {' · '}{c.price != null ? `${amount(c.price, c.currency)} a seat (catalog price)` : 'no price set'}
               </span>
               <span className="text-xs text-etyme-faint tabular-nums ml-auto">
                 {c.counts.completed} finished · {c.counts.inProgress} in progress · {c.counts.enrolled} enrolled
@@ -538,6 +542,7 @@ function Courses() {
             <span className="block text-[11px] text-etyme-muted mb-1">Price a seat ($)</span>
             <input value={newCourse.price} onChange={(e) => setNewCourse({ ...newCourse, price: e.target.value })} inputMode="decimal" className="w-24 border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised" />
           </label>
+          <p className="w-full text-[11px] text-etyme-faint">The catalog price, kept for your own books. Etyme does not bill or collect it.</p>
           <button type="submit" className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Add</button>
         </form>
         <form onSubmit={enrollSomebody} className="border border-etyme-rule rounded-lg p-3 flex flex-wrap gap-2 items-end">

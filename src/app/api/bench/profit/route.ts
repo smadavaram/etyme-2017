@@ -1,3 +1,4 @@
+import { pluginOn } from '@/lib/plugins'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -264,8 +265,11 @@ export async function GET(request: NextRequest) {
 
   // ── Per person ──────────────────────────────────────────────────────
   const listed = new Set(joined.keys())
+  // Courses are a plugin (record 120): while Train to bench is off for this
+  // firm, no enrollment is read and no course group is drawn. Hidden, never deleted.
+  const trainingOn = await pluginOn(companyId, 'TRAIN_TO_BENCH')
   const enrollments = await prisma.enrollment.findMany({
-    where: { course: { companyId } },
+    where: trainingOn ? { course: { companyId } } : { id: { in: [] } },
     select: {
       personId: true, status: true, enrolledAt: true, completedAt: true,
       course: { select: { id: true, title: true, price: true, currency: true } },

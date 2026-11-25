@@ -8,6 +8,7 @@ import { accessActor, logAccess, recordRefusal } from '@/lib/access-log'
 import { firmViewPatch, hasOwnAccount, profileEditPlan, readAsTheFirm } from '@/lib/consultant-portfolio/firm-view'
 import { readProfileEdit } from '@/lib/consultant-portfolio/forms'
 import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
+import { proofsForListings } from '@/lib/training/proof-read'
 import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
 import { getCallerContext } from '@/lib/api-context'
 import {
@@ -79,6 +80,7 @@ export async function GET(
           rateMin: true,
           rateMax: true,
           grantedAt: true,
+          sourceCohortId: true,
         },
       },
       matches: {
@@ -176,6 +178,13 @@ export async function GET(
     maySeeListing({ isSubject, companyId }, l.companyId)
   )
 
+  // Where she came from one of this firm's cohorts, the proof (record 120):
+  // the firm's own listing only, and only while Train to bench is on.
+  const own = companyId && !isSubject ? visibleListings.find((l) => l.companyId === companyId) : undefined
+  const proof = own
+    ? (await proofsForListings(companyId!, [{ listingId: own.id, personId: profile.personId, sourceCohortId: own.sourceCohortId }], new Date())).get(own.id) ?? null
+    : null
+
   // Active sell contracts for this consultant (if caller has assignments.read)
   let contracts: any[] = []
   if (hasPermission(caller.permissions, 'assignments.read')) {
@@ -247,6 +256,7 @@ export async function GET(
         rateFloor: showCost ? (typed ? typed.rateFloor : profile.rateFloor) : undefined,
         availableFrom: typed ? typed.availableFrom : profile.availableFrom?.toISOString() ?? null,
         visibility: typed ? typed.visibility : profile.visibility,
+        proof,
         listings: visibleListings.map((l) => ({
           id: l.id,
           companyId: l.companyId,

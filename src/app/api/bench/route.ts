@@ -22,6 +22,7 @@ import { stayEndedRow, stayRow } from '@/lib/bench-stay'
 import { benchAt } from '@/app/api/today/reads'
 import { whenFree, mayBrowseBench, benchClosedSays, LIVE_STATES, alreadyOursSays, type FreeLine, notAtACompany, onTheBench } from '@/lib/bench-filter'
 import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
+import { proofsForListings } from '@/lib/training/proof-read'
 import { demoEmail } from '@/lib/password'
 
 /**
@@ -316,6 +317,12 @@ export async function GET(request: NextRequest) {
   }
   const showCost = canReadCostAggregates(fieldCtx)
 
+  // Where she came from one of this firm's own cohorts: the proof (record
+  // 120). Only on the firm's own bench, only while Train to bench is on.
+  const proofs = scope === 'company' && companyId
+    ? await proofsForListings(companyId, listings.map((l) => ({ listingId: l.id, personId: l.consultant.personId, sourceCohortId: l.sourceCohortId })), now)
+    : new Map()
+
   // Group by tier
   const grouped: Record<string, any[]> = { RETAINED: [], MARKETING: [] }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -358,6 +365,7 @@ export async function GET(request: NextRequest) {
         : freeOf(l.consultant.personId, l.consultant.availableFrom, l.state === 'GRANTED' ? l.grantedAt : null),
       stay: stayRow({ state: l.state, stayDays: l.stayDays, staysUntil: l.staysUntil }, now),
       oursSays: oursOf.get(l.consultant.personId) ?? null,
+      proof: proofs.get(l.id) ?? null,
       // Whether `benchAt` names them today; null where this scope does not read it.
       onBenchToday: onBenchToday ? onBenchToday.has(l.consultant.personId) : null,
       // An address no email can reach: the row offers no Resend and no
