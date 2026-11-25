@@ -3,7 +3,7 @@ import { certificationStanding, type CertificationStanding } from '@/lib/trainin
 /**
  * The proof on the bench (record 120): where she was trained, what she
  * scored, what she holds, and, only after her own yes, when and how she
- * said it. Pure. Nothing is pre-filled: with no answer, there is no
+ * said it. Pure. Nothing is pre-filled: with no granted listing, there is no
  * consent line, and with no rows, no block.
  *
  * (Named `lib/training/proof` and not `lib/training-proof`, because the
@@ -14,8 +14,13 @@ export interface ProofInput {
   cohort: { name: string; courseTitle: string } | null
   assessments: { skill: string; score: number; attempt: number; assessedAt: Date }[]
   certifications: { title: string; issuedAt: Date; expiresAt: Date | null }[]
-  /** The ask for her listing, and her answer where she has given it. */
-  ask: { method: string; answer: string | null; answeredAt: Date | null; answeredVia: string | null } | null
+  /**
+   * Her bench listing: the one consent record. Her yes is read from here
+   * and only while it is GRANTED and not taken back.
+   */
+  listing: { state: string; grantedAt: Date | null; respondedAt: Date | null; revokedAt?: Date | null } | null
+  /** The ask for her listing. It supplies the door she answered by, and nothing else. */
+  ask: { answeredVia: string | null } | null
 }
 
 export interface Proof {
@@ -23,8 +28,8 @@ export interface Proof {
   /** Per skill, the latest attempt first and every earlier attempt kept. */
   scores: { skill: string; latest: number; attempts: { attempt: number; score: number; on: string }[] }[]
   certifications: { title: string; issued: string; expires: string | null; standing: CertificationStanding }[]
-  /** Present only after her YES. */
-  consent: { yesOn: string; method: string } | null
+  /** Present only while her listing is GRANTED. The method is null where no ask recorded the door. */
+  consent: { yesOn: string; method: string | null } | null
 }
 
 const iso = (d: Date) => d.toISOString().slice(0, 10)
@@ -44,7 +49,8 @@ export function buildProof(i: ProofInput, now: Date): Proof | null {
       attempts: sorted.map((a) => ({ attempt: a.attempt, score: a.score, on: iso(a.assessedAt) })),
     }
   }).sort((a, b) => a.skill.localeCompare(b.skill))
-  const yes = i.ask && i.ask.answer === 'YES' && i.ask.answeredAt
+  const l = i.listing
+  const yesAt = l && l.state === 'GRANTED' && !l.revokedAt ? (l.respondedAt ?? l.grantedAt) : null
   return {
     cohort: i.cohort,
     scores,
@@ -54,7 +60,7 @@ export function buildProof(i: ProofInput, now: Date): Proof | null {
       expires: c.expiresAt ? iso(c.expiresAt) : null,
       standing: certificationStanding(c.expiresAt, now),
     })),
-    consent: yes ? { yesOn: iso(i.ask!.answeredAt!), method: i.ask!.answeredVia ?? i.ask!.method } : null,
+    consent: yesAt ? { yesOn: iso(yesAt), method: i.ask?.answeredVia ?? null } : null,
   }
 }
 

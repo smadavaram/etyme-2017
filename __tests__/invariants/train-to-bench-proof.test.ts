@@ -17,33 +17,43 @@ const attempts = [
 
 describe('the proof on the bench shows where she came from and what she holds', () => {
   it('with no cohort, no score and no certification there is no proof block at all', () => {
-    expect(buildProof({ cohort: null, assessments: [], certifications: [], ask: null }, now)).toBeNull()
+    expect(buildProof({ cohort: null, assessments: [], certifications: [], listing: null, ask: null }, now)).toBeNull()
   })
   it('both attempts at a skill are shown, the latest first and named as her current score', () => {
-    const p = buildProof({ cohort, assessments: attempts, certifications: [], ask: null }, now)!
+    const p = buildProof({ cohort, assessments: attempts, certifications: [], listing: null, ask: null }, now)!
     expect(p.scores).toEqual([{ skill: 'python', latest: 82, attempts: [{ attempt: 2, score: 82, on: '2026-11-20' }, { attempt: 1, score: 60, on: '2026-11-10' }] }])
   })
   it('a certification shows its title, when it was issued, when it expires and whether it is current', () => {
-    const p = buildProof({ cohort, assessments: [], certifications: [{ title: 'Data engineer', issuedAt: D('2026-11-25'), expiresAt: D('2028-11-25') }], ask: null }, now)!
+    const p = buildProof({ cohort, assessments: [], certifications: [{ title: 'Data engineer', issuedAt: D('2026-11-25'), expiresAt: D('2028-11-25') }], listing: null, ask: null }, now)!
     expect(p.certifications).toEqual([{ title: 'Data engineer', issued: '2026-11-25', expires: '2028-11-25', standing: 'CURRENT' }])
   })
 })
 
-describe('her yes date and method appear only after her yes', () => {
-  const ask = (a: Partial<{ answer: string | null; answeredAt: Date | null; answeredVia: string | null }>) =>
-    ({ method: 'EMAIL_LINK', answer: null, answeredAt: null, answeredVia: null, ...a })
-  it('an ask nobody has answered pre-fills nothing', () => {
-    expect(buildProof({ cohort, assessments: attempts, certifications: [], ask: ask({}) }, now)!.consent).toBeNull()
+describe('her yes date and method are read from her bench listing, the one consent record', () => {
+  const asked = { answeredVia: null as string | null }
+  const via = (v: string) => ({ answeredVia: v })
+  const listing = (l: Partial<{ state: string; grantedAt: Date | null; respondedAt: Date | null; revokedAt: Date | null }>) =>
+    ({ state: 'INVITED', grantedAt: null, respondedAt: null, revokedAt: null, ...l })
+  const consent = (listingRow: ReturnType<typeof listing> | null, ask: { answeredVia: string | null } | null) =>
+    buildProof({ cohort, assessments: attempts, certifications: [], listing: listingRow, ask }, now)!.consent
+  it('a listing nobody has answered pre-fills nothing', () => {
+    expect(consent(listing({}), asked)).toBeNull()
   })
-  it('an answer of no pre-fills nothing', () => {
-    expect(buildProof({ cohort, assessments: attempts, certifications: [], ask: ask({ answer: 'NO', answeredAt: D('2026-11-28'), answeredVia: 'OWN_PAGE' }) }, now)!.consent).toBeNull()
+  it('a listing she declined pre-fills nothing', () => {
+    expect(consent(listing({ state: 'DECLINED', respondedAt: D('2026-11-28') }), via('OWN_PAGE'))).toBeNull()
   })
-  it('a yes shows the day she said it and the door she used, not the way she was asked', () => {
-    const c = buildProof({ cohort, assessments: attempts, certifications: [], ask: ask({ answer: 'YES', answeredAt: D('2026-11-28'), answeredVia: 'OWN_PAGE' }) }, now)!.consent
-    expect(c).toEqual({ yesOn: '2026-11-28', method: 'OWN_PAGE' })
+  it('a granted listing shows the day she said yes and the door she used, not the way she was asked', () => {
+    expect(consent(listing({ state: 'GRANTED', grantedAt: D('2026-11-28'), respondedAt: D('2026-11-28') }), via('OWN_PAGE'))).toEqual({ yesOn: '2026-11-28', method: 'OWN_PAGE' })
   })
-  it('a firm’s own employee, told and never asked, has no yes line', () => {
-    expect(buildProof({ cohort, assessments: attempts, certifications: [], ask: { method: 'EMPLOYEE_TOLD', answer: null, answeredAt: null, answeredVia: null } }, now)!.consent).toBeNull()
+  it('an ask that says yes while the listing is no longer granted shows no yes', () => {
+    expect(consent(listing({ state: 'DECLINED', respondedAt: D('2026-12-01') }), via('OWN_PAGE'))).toBeNull()
+    expect(consent(listing({ state: 'GRANTED', respondedAt: D('2026-11-28'), revokedAt: D('2026-11-30') }), via('OWN_PAGE'))).toBeNull()
+  })
+  it('a yes on the listing is shown even where the ask row says nothing, with the method unknown rather than invented', () => {
+    expect(consent(listing({ state: 'GRANTED', grantedAt: D('2026-11-28') }), null)).toEqual({ yesOn: '2026-11-28', method: null })
+  })
+  it('a firm’s own employee, told and never asked, has no listing and so no yes line', () => {
+    expect(consent(null, { answeredVia: null })).toBeNull()
   })
 })
 
@@ -129,6 +139,41 @@ describe('every new route asks the caller, then the plugin, then reads', () => {
     for (const f of [...ROUTES, 'src/lib/training.ts', 'src/lib/training/proof.ts', 'src/lib/training/proof-read.ts', 'src/lib/training/cohort-read.ts', 'src/app/dashboard/training/cohorts.tsx', 'src/app/api/me/benches/[id]/respond/route.ts', 'src/app/api/bench/profit/route.ts']) {
       expect(mayWrite('etyme-supply', f).mayWrite, f).toBe(true)
     }
+  })
+})
+
+describe('the review’s fixes are in the routes themselves', () => {
+  it('the cohort and course reads ask for consultants.read, refuse through recordRefusal and log the trainees read', () => {
+    const helper = read('src/lib/training/caller.ts')
+    expect(helper).toContain("hasPermission(caller.permissions, 'consultants.read')")
+    expect(helper).toContain('await recordRefusal(')
+    expect(helper).toContain('logBulkAccess(')
+    for (const f of ['src/app/api/training/cohorts/route.ts', 'src/app/api/training/route.ts']) {
+      const get = read(f).split('export async function GET')[1].split('export async function POST')[0]
+      expect(get, f).toContain('await traineeReadRefusal(')
+      expect(get, f).toContain('logTraineeReads(')
+    }
+  })
+  it('two attempts, two certifications and two enrollments are each written under an advisory lock, and a unique clash is never a 500', () => {
+    const a = read('src/app/api/training/enrollments/[id]/assessments/route.ts')
+    expect(a).toContain("pg_advisory_xact_lock(hashtext(${'assessment:'")
+    expect(a).toContain("'P2002'")
+    const c = read('src/app/api/training/enrollments/[id]/certification/route.ts')
+    expect(c).toContain("pg_advisory_xact_lock(hashtext(${'certification:'")
+    expect(c).toContain("'P2002'")
+    const e = read('src/app/api/training/enrollments/route.ts')
+    expect(e).toContain("pg_advisory_xact_lock(hashtext(${'enrollment:'")
+    expect(e.indexOf("'enrollment:'")).toBeLessThan(e.indexOf('tx.enrollment.findUnique'))
+  })
+  it('the two doors that take her answer fill only an ask whose method is her own page or the email link', () => {
+    for (const f of ['src/app/api/me/benches/[id]/respond/route.ts', 'src/app/api/bench-invite/[token]/route.ts']) {
+      const src = read(f)
+      expect(src, f).toMatch(/benchAsk\.findFirst\([^)]*select: \{ id: true, answer: true, method: true \}/)
+      expect(src, f).toContain('mayRecordAnswer(lastAsk)')
+    }
+  })
+  it('certification reads only the assessors of the enrollment’s current run', () => {
+    expect(read('src/app/api/training/enrollments/[id]/certification/route.ts')).toContain('currentRunAssessors(row.assessments, row.enrolledAt)')
   })
 })
 

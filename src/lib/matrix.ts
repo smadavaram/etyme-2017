@@ -513,7 +513,7 @@ export const MATRIX: L1[] = [
             'src/app/dashboard/training/cohorts.tsx', 'src/app/api/bench-invite/[token]/route.ts', 'src/app/api/me/benches/[id]/respond/route.ts',
             'src/app/api/settings/site/route.ts', 'src/components/settings/courses-on-page-panel.tsx', 'src/lib/plugin-gate.ts'],
           testedBy: ['__tests__/invariants/train-to-bench-rules.test.ts', '__tests__/invariants/train-to-bench-proof.test.ts', '__integration__/train-to-bench-happy-path.test.ts',
-            '__integration__/train-to-bench-email-link-and-seats.test.ts', '__tests__/invariants/courses-on-storefront.test.ts', '__tests__/invariants/courses-hidden-switch.test.ts',
+            '__integration__/train-to-bench-email-link-and-seats.test.ts', '__integration__/train-to-bench-review-fixes.test.ts', '__tests__/invariants/courses-on-storefront.test.ts', '__tests__/invariants/courses-hidden-switch.test.ts',
             '__tests__/invariants/plugin-switch.test.ts', '__integration__/the-owners-plugin-switch-writes-the-flag-and-the-row-together.test.ts'] },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [

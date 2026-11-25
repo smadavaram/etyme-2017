@@ -16,6 +16,11 @@ export async function proofsForListings(
   const out = new Map<string, Proof>()
   const sourced = listings.filter((l) => l.sourceCohortId)
   if (sourced.length === 0 || !(await pluginOn(companyId, 'TRAIN_TO_BENCH'))) return out
+  const listingRows = await prisma.benchListing.findMany({
+    where: { id: { in: sourced.map((l) => l.listingId) }, companyId },
+    select: { id: true, state: true, grantedAt: true, respondedAt: true, revokedAt: true },
+  })
+  const listingById = new Map(listingRows.map((r) => [r.id, r]))
   const enrollments = await prisma.enrollment.findMany({
     where: {
       OR: sourced.map((l) => ({ personId: l.personId, cohortId: l.sourceCohortId! })),
@@ -27,7 +32,7 @@ export async function proofsForListings(
       course: { select: { title: true } },
       assessments: { select: { skill: true, score: true, attempt: true, assessedAt: true } },
       certifications: { select: { title: true, issuedAt: true, expiresAt: true } },
-      benchAsks: { select: { benchListingId: true, method: true, answer: true, answeredAt: true, answeredVia: true, askedAt: true }, orderBy: { askedAt: 'desc' } },
+      benchAsks: { select: { benchListingId: true, answeredVia: true, askedAt: true }, orderBy: { askedAt: 'desc' } },
     },
   })
   for (const l of sourced) {
@@ -38,6 +43,8 @@ export async function proofsForListings(
         cohort: e.cohort ? { name: e.cohort.name, courseTitle: e.course.title } : null,
         assessments: e.assessments,
         certifications: e.certifications,
+        // Her consent is the listing's; the ask only says which door she used.
+        listing: listingById.get(l.listingId) ?? null,
         ask: e.benchAsks.find((a) => a.benchListingId === l.listingId) ?? null,
       },
       now

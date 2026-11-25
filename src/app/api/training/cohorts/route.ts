@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
 import { readCohorts } from '@/lib/training/cohort-read'
+import { logTraineeReads, traineeReadRefusal } from '@/lib/training/caller'
 
 /**
  * GET  /api/training/cohorts   the firm's cohorts, their trainees, every attempt and the ask
@@ -17,6 +18,8 @@ export async function GET(request: NextRequest) {
   if (notStaff) return notStaff
   const off = await pluginGate(caller, 'TRAIN_TO_BENCH')
   if (off) return off
+  const refused = await traineeReadRefusal(caller, request.nextUrl.pathname)
+  if (refused) return refused
 
   // Who may be named trainer: a seat at this firm that is not a consultant's.
   const seats = await prisma.context.findMany({
@@ -25,7 +28,9 @@ export async function GET(request: NextRequest) {
     take: 200,
   })
   const trainerChoices = [...new Map(seats.map((s) => [s.person.id, s.person])).values()].sort((a, b) => a.name.localeCompare(b.name))
-  return NextResponse.json({ data: { cohorts: await readCohorts(caller.company!.id, new Date()), trainerChoices } })
+  const cohorts = await readCohorts(caller.company!.id, new Date())
+  logTraineeReads(caller, cohorts.flatMap((c) => c.trainees.map((t) => t.person.id)), 'the people on its cohorts')
+  return NextResponse.json({ data: { cohorts, trainerChoices } })
 }
 
 export async function POST(request: NextRequest) {

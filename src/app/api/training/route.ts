@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
+import { logTraineeReads, traineeReadRefusal } from '@/lib/training/caller'
 import { MOVES, MOVE_ACTIONS, statusWord } from '@/lib/training'
 
 /**
@@ -17,6 +18,8 @@ export async function GET(request: NextRequest) {
   if (notStaff) return notStaff
   const off = await pluginGate(caller, 'TRAIN_TO_BENCH')
   if (off) return off
+  const refused = await traineeReadRefusal(caller, request.nextUrl.pathname)
+  if (refused) return refused
 
   const courses = await prisma.course.findMany({
     where: { companyId: caller.company!.id },
@@ -29,6 +32,7 @@ export async function GET(request: NextRequest) {
     orderBy: { title: 'asc' },
   })
 
+  logTraineeReads(caller, courses.flatMap((c) => c.enrollments.map((e) => e.person.id)), 'the people on its courses')
   return NextResponse.json({
     data: {
       courses: courses.map((c) => ({
