@@ -980,8 +980,11 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
     expect(compliance.body?.error, JSON.stringify(compliance.body)).toBeUndefined()
 
     const companies = compliance.body.data.verifications.companies
-    const hidden = companies.find((c: any) => c.companyId === co.sub)
+    // Record 119 (2026-11-25): the masked row carries no id, so it is
+    // found by its withheld name, and its id is null.
+    const hidden = companies.find((c: any) => c.nameWithheld === true && c.suppliedThrough === 'Computer Systems')
     expect(hidden, 'the firm employing her is still on the page').toBeTruthy()
+    expect(hidden.companyId, 'no id of a firm below its supplier reaches the client (record 119)').toBeNull()
     expect(hidden.name).toBe('Supplied through Computer Systems.')
     expect(hidden.nameWithheld).toBe(true)
     expect(hidden.suppliedThrough).toBe('Computer Systems')
@@ -1086,7 +1089,10 @@ describe('Step 14a — the name below the rung Auralis pays, and the term that o
     expect(off.body?.error, JSON.stringify(off.body)).toBeUndefined()
 
     const { compliance } = await asAdobe()
-    const firm = compliance.body.data.verifications.companies.find((c: any) => c.companyId === co.sub)
+    // Record 119 (2026-11-25): closed again, the row has no id; find it by its withheld name.
+    const firm = compliance.body.data.verifications.companies.find((c: any) => c.nameWithheld === true)
+    expect(firm, 'the firm is still on the page, masked').toBeTruthy()
+    expect(firm.companyId).toBeNull()
     expect(firm.name).toBe('Supplied through Computer Systems.')
     expect(firm.cover.outcome).toBe('PASS')
   })
@@ -1209,8 +1215,9 @@ describe('Step 14b — the same rule on the rest of Auralis’s desks', () => {
     expect(bench.name).toBe('Supplied through Computer Systems.')
     expect(bench.nameWithheld).toBe(true)
     expect(bench.suppliedThrough).toBe('Computer Systems')
-    // The id travels, because the ask is routed to the firm server-side.
-    expect(bench.id).toBe(co.sub)
+    // Record 119 (2026-11-25): the id no longer travels to a client; the
+    // ask is routed to the firm server-side without it.
+    expect(bench.id).toBeNull()
   })
 
   it('offers Auralis no name below its own supplier when it weighs two records as one person', async () => {

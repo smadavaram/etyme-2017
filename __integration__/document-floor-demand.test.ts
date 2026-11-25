@@ -323,8 +323,14 @@ describe('the submit button and the compliance page agree about a firm\u2019s st
     as(ctx.clientEmail)
     const page = await json(await complianceView(req('GET', '/api/compliance')))
     expect(page.status, JSON.stringify(page.body)).toBe(200)
-    const row = page.body.data.verifications.companies.find((c: any) => c.companyId === ctx.supplierId)
+    // This supplier sits below the client's own supplier, so record 119
+    // (2026-11-25) withholds its id: find its row by the masked name and
+    // assert the id is null. Its standing still shows, which is the point.
+    const row = page.body.data.verifications.companies.find(
+      (c: any) => c.nameWithheld === true && c.suppliedThrough === 'Computer Systems Inc' && c.cover?.outcome === 'BLOCK'
+    )
     expect(row, 'the supplier is not on the compliance page at all').toBeTruthy()
+    expect(row.companyId, 'no id of a firm below its supplier reaches the client').toBeNull()
     expect(row.cover.outcome).toBe('BLOCK')
     expect(row.cover.says).toMatch(/good standing/i)
 

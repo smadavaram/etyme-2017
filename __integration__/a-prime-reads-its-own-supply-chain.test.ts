@@ -161,8 +161,10 @@ describe('a prime reads its own supply chain on its own compliance page', () => 
     expect(status).toBe(200)
     const firms = body.data.verifications.companies
     expect(firms.find((f: any) => f.companyId === co.prime).nameWithheld).toBe(false)
-    const sub = firms.find((f: any) => f.companyId === co.sub)
+    // Record 119 (2026-11-25): a masked row carries no id; find it by the withheld flag.
+    const sub = firms.find((f: any) => f.nameWithheld === true && f.suppliedThrough?.includes('Computer Systems'))
     expect(sub, 'the sub is still counted at the client').toBeTruthy()
+    expect(sub.companyId, 'no id of a firm below its supplier reaches the client').toBeNull()
     expect(sub.nameWithheld, 'a sub-vendor’s name is the prime’s to keep').toBe(true)
     expect(sub.suppliedThrough).toContain('Computer Systems')
     expect(JSON.stringify(body)).not.toContain('Tecwyn')
