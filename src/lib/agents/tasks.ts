@@ -34,6 +34,10 @@ export interface TaskPlan {
   closesWhen: string
   /** A task that raises a card for a person and writes to nobody: it has no letters and no send step. */
   sendsNothing?: boolean
+  /** A batch (record 117): the same letters go to this many people, each to its own. */
+  recipients?: number
+  /** A batch's letters are each about their own record of this type, one that belongs to the task. */
+  letterRecordType?: string
 }
 
 /** A letter's name as a person reads it: its label, else its template made into words. Pure. */
@@ -50,7 +54,8 @@ export function planWords(plan: TaskPlan): string {
   const again = plan.retries === 0
     ? 'It is not sent again.'
     : `Each may be sent again up to ${plan.retries} ${plan.retries === 1 ? 'time' : 'times'}, ${plan.daysApart} working ${plan.daysApart === 1 ? 'day' : 'days'} apart.`
-  return `If you say yes, the agent sends ${names}. ${again} It closes the task when ${plan.closesWhen}. Anything more is a new task and asks you again.`
+  const to = plan.recipients ? ` to each of ${plan.recipients} ${plan.recipients === 1 ? 'contact' : 'contacts'}, one letter each` : ''
+  return `If you say yes, the agent sends ${names}${to}. ${again} It closes the task when ${plan.closesWhen}. Anything more is a new task and asks you again.`
 }
 
 export function planRefusal(plan: TaskPlan): string | null {
@@ -59,6 +64,8 @@ export function planRefusal(plan: TaskPlan): string | null {
   if (!Number.isInteger(plan.retries) || plan.retries < 0) return 'A task says how many times a letter may be sent again, none or more.'
   if (plan.retries > 0 && (!Number.isInteger(plan.daysApart) || plan.daysApart < 1)) return 'A task that sends again says how many days apart.'
   if (!plan.closesWhen?.trim()) return 'A task says what closes it.'
+  if (plan.recipients !== undefined && (!Number.isInteger(plan.recipients) || plan.recipients < 1)) return 'A batch says how many people it writes to, one or more.'
+  if (plan.recipients !== undefined && !plan.letterRecordType?.trim()) return 'A batch says what record each of its letters is about.'
   return null
 }
 
@@ -78,10 +85,12 @@ export function sendRefusal(c: SendCheck): string | null {
   if (task.state === 'PROPOSED') return 'This task is waiting for a yes. Nothing is sent until a person approves it.'
   if (task.state === 'REFUSED') return 'This task was refused, so nothing is sent.'
   if (task.state !== 'APPROVED' && task.state !== 'RUNNING') return 'This task is closed. A new send needs a new task and a new yes.'
-  if (step.recordType !== task.recordType || step.recordId !== task.recordId) return 'This task was approved for another record. A send about this one needs its own task.'
+  // A batch's letter is about its own record, one the caller has checked belongs to this task.
+  const aboutTask = task.plan.letterRecordType ? step.recordType === task.plan.letterRecordType : step.recordType === task.recordType && step.recordId === task.recordId
+  if (!aboutTask) return 'This task was approved for another record. A send about this one needs its own task.'
   if (!task.plan.messages.some((m) => m.template === step.template)) return 'That letter is not in the approved plan. It needs a new task and a new yes.'
   if (!Number.isInteger(step.attempt) || step.attempt < 1 || step.attempt > 1 + task.plan.retries) return 'That is beyond the retries the task was approved for. It needs a new task and a new yes.'
-  if (task.sentCount >= task.plan.messages.length * (1 + task.plan.retries)) return 'The task has sent everything it was approved for. More needs a new task and a new yes.'
+  if (task.sentCount >= task.plan.messages.length * (1 + task.plan.retries) * (task.plan.recipients ?? 1)) return 'The task has sent everything it was approved for. More needs a new task and a new yes.'
   return null
 }
 
@@ -181,12 +190,23 @@ export async function mayAgentSend(taskId: string, step: SendCheck['step']): Pro
   const found = await prisma.agentTask.findUnique({ where: { id: taskId }, select: { id: true } })
   if (!found) return { ok: false, says: 'There is no such task, so nothing is sent.' }
   const { task } = await approvalOf(taskId)
+  const refusedLetter = await letterNotOfTask(task, step)
+  if (refusedLetter) return { ok: false, says: refusedLetter }
   const sw = await prisma.agentSwitch.findUnique({ where: { companyId_agentKey: { companyId: task.companyId, agentKey: task.agentKey } } })
   const says = sendRefusal({
     task: { ...task, plan: task.plan as unknown as TaskPlan },
     switchState: (sw?.state ?? 'OFF') as SwitchState, step,
   })
   return says ? { ok: false, says } : { ok: true }
+}
+
+/** A batch's letter must belong to the task that approved it; null where it does, or where the task is no batch. */
+export async function letterNotOfTask(task: { id: string; plan: unknown }, step: { recordType: string | null; recordId: string | null }): Promise<string | null> {
+  const plan = task.plan as TaskPlan
+  if (!plan?.letterRecordType || step.recordType !== plan.letterRecordType) return null
+  if (plan.letterRecordType !== 'OutreachLetter') return 'This batch names a kind of letter Etyme does not know, so nothing is sent.'
+  const letter = step.recordId ? await prisma.outreachLetter.findUnique({ where: { id: step.recordId }, select: { agentTaskId: true } }) : null
+  return letter?.agentTaskId === task.id ? null : 'That letter is not part of the approved batch, so nothing is sent.'
 }
 
 /** One send left. Counts it, and a released task is running from its first. */

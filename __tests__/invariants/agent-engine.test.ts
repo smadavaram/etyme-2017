@@ -95,3 +95,26 @@ describe('the doors that carry it', () => {
     expect(read('src/app/api/cron/daily/route.ts')).toContain("path: 'agents'")
   })
 })
+
+describe('one yes for a batch of letters (record 117)', () => {
+  const BATCH: TaskPlan = { messages: [{ template: 'outreach-batch', label: 'Offer letter' }], retries: 2, daysApart: 5, closesWhen: 'every contact has had the letter and its follow-ups, or answered', recipients: 3, letterRecordType: 'OutreachLetter' }
+  const bt = (o: Partial<SendCheck['task']> = {}) => task({ recordType: 'AgentTask', recordId: 't1', plan: BATCH, ...o })
+  const bs = (o: Partial<SendCheck['step']> = {}) => step({ recordType: 'OutreachLetter', recordId: 'l1', template: 'outreach-batch', ...o })
+  it('a batch approves one letter and two follow-ups for each contact, and no more', () => {
+    expect(check(bt({ sentCount: 8 }), 'ON', bs({ attempt: 3 }))).toBeNull()
+    expect(check(bt({ sentCount: 9 }), 'ON', bs())).toMatch(/sent everything it was approved for/)
+    expect(check(bt(), 'ON', bs({ attempt: 4 }))).toMatch(/beyond the retries/)
+  })
+  it('a batch letter must be a letter, never a send about some other record', () => {
+    expect(check(bt(), 'ON', bs({ recordType: 'Invoice' }))).toMatch(/approved for another record/)
+  })
+  it('a batch says how many it writes to and what each letter is about, and its card says so', () => {
+    expect(planRefusal({ ...BATCH, recipients: 0 })).toMatch(/how many people/)
+    expect(planRefusal({ ...BATCH, letterRecordType: undefined })).toMatch(/what record each of its letters/)
+    expect(planWords(BATCH)).toMatch(/to each of 3 contacts, one letter each/)
+  })
+  it('a task that is no batch is unchanged: one record, its own letters', () => {
+    expect(check(task(), 'ON', step({ recordId: 'other' }))).toMatch(/approved for another record/)
+    expect(check(task({ sentCount: 3 }))).toMatch(/sent everything/)
+  })
+})

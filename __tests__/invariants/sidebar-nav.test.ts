@@ -2016,7 +2016,7 @@ describe('Network shows one group at a time (owner, 2026-11-25)', () => {
     expect(groupsShown('Settings', groups, '/dashboard/bench')).toHaveLength(2)
   })
   it('a firm that sells reads a Customers tab under Companies, and a client, which only buys, does not', () => {
-    const tabsOf = (kind: string) => JSON.stringify(getNavForKind(kind as any))
+    const tabsOf = (kind: string) => JSON.stringify(getNavForKind(kind as any, false))
     expect(tabsOf('VENDOR')).toContain('/dashboard/companies?show=customers')
     expect(tabsOf('CLIENT')).not.toContain('/dashboard/companies?show=customers')
   })

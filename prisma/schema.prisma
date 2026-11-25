@@ -11338,13 +11338,47 @@ model AgentTask {
   /// The messages sent so far, counted from the mail ledger as they go.
   sentCount    Int            @default(0)
   closedReason String?
+  /// What a person chose for the task, where the task carries it (an
+  /// outreach batch: audience, offer, subject, body). Record 117.
+  payload      Json?
   createdAt    DateTime       @default(now())
+  outreachLetters OutreachLetter[]
 
   @@index([companyId, agentKey, state])
   @@index([decisionId])
   @@index([approvedById])
   @@index([parentTaskId])
   @@index([recordType, recordId])
+}
+
+/// One letter of an outreach batch to one contact (record 117). Whether
+/// it was sent or bounced is read from the mail ledger (MailSend with
+/// recordType 'OutreachLetter'), never kept twice.
+model OutreachLetter {
+  id            String    @id @default(cuid())
+  /// The sending firm.
+  companyId     String
+  agentTaskId   String
+  agentTask     AgentTask @relation(fields: [agentTaskId], references: [id], onDelete: Cascade)
+  contactId     String
+  atCompanyId   String
+  email         String
+  /// HELD · READY · SENT · STOPPED
+  state         String    @default("READY")
+  /// Why a letter is held: NO_ADDRESS, NO_LINK, NO_CONTACT, OPTED_OUT, BOUNCED, NOT_CLASSIFIED, COOLING_OFF.
+  heldReason    String?
+  /// 0 before the first letter; 1 the letter, 2 and 3 the follow-ups.
+  attempt       Int       @default(0)
+  nextDueAt     DateTime?
+  interestedAt  DateTime?
+  leadId        String?
+  /// INTERESTED · UNSUBSCRIBED · BOUNCED
+  stoppedReason String?
+  createdAt     DateTime  @default(now())
+
+  @@unique([agentTaskId, contactId])
+  @@unique([agentTaskId, atCompanyId])
+  @@index([companyId, atCompanyId, createdAt])
 }
 
 /// What the payroll agent worked out for a pay period that has ended
