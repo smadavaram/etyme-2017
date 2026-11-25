@@ -52,3 +52,21 @@ unless the owner overrides. The full instruction is kept as received
    read only by a seat that may read margin. The client reads
    deliverables, states and acceptance only. The outreach "project team"
    offer stays a letter.
+
+## Addendum from the tester, 2026-11-25
+
+1. A Superadmin's switch touches the switch only, never tenant data. It is
+   logged with who and when, and the tenant's own Owner sees that row on
+   the company's record: who switched which plugin, and when. The Owner
+   can also switch their own plugins on and off. No agent switches one.
+2. Both modules build on the standing agent architecture, with no new
+   pattern. Skills first: fewer agents, more skills. Any agent act inside
+   a module follows the generator/verifier split: the generator acts; the
+   verifier only reads and gives a reason with every verdict; success is
+   read from the record, never from the agent's report. Money, signing,
+   people and compliance-publish acts are an automatic FAIL for an agent.
+   Each agent act is metered on the ledger.
+3. The tester works as BA and architect on this build. Every conflict or
+   gap is stopped and named, never improvised past. Each module's
+   completion is reported with its commit; the tester retests in
+   production after the Saturday deploy.
