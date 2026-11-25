@@ -861,7 +861,8 @@ export async function GET(request: NextRequest) {
         // standing. A person's firms are folded on the tenure ledger,
         // where the cell is a list of names and nothing else.
         companies: Array.from(companyVerifMap.entries()).map(([companyId, data]) => ({
-          companyId,
+          // No id travels with a withheld name (record 119).
+          companyId: shown(companyId, data.name).masked ? null : companyId,
           name: shown(companyId, data.name).name,
           /** True where the name above is who it comes through, not the firm. */
           nameWithheld: shown(companyId, data.name).masked,
@@ -876,7 +877,7 @@ export async function GET(request: NextRequest) {
       // lapse nobody sees.
       lapsed: Array.from(companyVerifMap.entries())
         .map(([companyId, data]) => ({
-          companyId,
+          companyId: shown(companyId, data.name).masked ? null : companyId,
           name: shown(companyId, data.name).name,
           nameWithheld: shown(companyId, data.name).masked,
           suppliedThrough: shown(companyId, data.name).through,

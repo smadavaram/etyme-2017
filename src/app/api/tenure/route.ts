@@ -176,6 +176,27 @@ export async function GET(request: NextRequest) {
       )
     : new Map<string, SeenName>()
 
+  // ── The line a client may be told of (record 119) ───────────────────
+  //
+  // A line between the client's supplier and a firm below it is a deal
+  // between two other firms, and its id is a way to it. A client reads
+  // each such rung under the id of the line it pays for the same person,
+  // walked up the chain; where no such line is on file the id is null
+  // rather than the hidden line's own. Every other reader keeps its ids.
+  const byFirm = new Map(contracts.map((c) => [`${c.personId}|${c.companyId}`, c]))
+  const lineIdFor = (c: (typeof contracts)[number]): string | null => {
+    if (!viewerIsClient) return c.id
+    const seen = new Set<string>()
+    let cur: (typeof contracts)[number] | undefined = c
+    while (cur && cur.clientCompanyId !== clientCompany.id) {
+      if (seen.has(cur.id)) return null
+      seen.add(cur.id)
+      cur = byFirm.get(`${cur.personId}|${cur.clientCompanyId}`)
+    }
+    return cur ? cur.id : null
+  }
+  const lineIdOf = new Map(contracts.map((c) => [c.id, lineIdFor(c)]))
+
   /** What this reader may call a firm on a row. */
   const shown = (companyId: string, trueName: string): SeenName =>
     seenNames.get(companyId) ?? {
@@ -303,7 +324,7 @@ export async function GET(request: NextRequest) {
       runsPast: runsPast.filter((r, i, all) =>
         all.findIndex((o) => o.firm === r.firm && o.endDate?.getTime() === r.endDate?.getTime()) === i
       ).map((r) => ({
-        contractId: r.contractId,
+        contractId: lineIdOf.get(r.contractId) ?? null,
         firm: r.firm,
         endDate: r.endDate ? r.endDate.toISOString() : null,
         daysPast: r.daysPast,
@@ -341,7 +362,7 @@ export async function GET(request: NextRequest) {
       // sub-vendor's line reaches the client through is said once, on the
       // row's firms above, folded by firmsOnARow, never per contract.
       contracts: data.contracts.map(c => ({
-        id: c.id,
+        id: lineIdOf.get(c.id) ?? null,
         vendorName: shown(c.companyId, c.company.name).name,
         startDate: c.startDate.toISOString(),
         endDate: c.endDate?.toISOString() ?? null,

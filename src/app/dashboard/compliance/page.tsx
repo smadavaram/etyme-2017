@@ -109,7 +109,7 @@ interface OwedDocument {
 }
 
 interface LapsedSupplier {
-  companyId: string
+  companyId: string | null
   name: string
   outcome: string
   says: string
@@ -187,7 +187,7 @@ interface Evaluation {
 
 interface VerificationSubject {
   personId?: string
-  companyId?: string
+  companyId?: string | null
   name: string
   checks: VerificationCheck[]
   cover?: { outcome: string; says: string; fix: string | null } | null
@@ -586,8 +586,8 @@ export default function CompliancePage() {
             </p>
           </div>
           <div className="divide-y divide-etyme-rule">
-            {lapsed.map(s => (
-              <div key={s.companyId} className="px-4 py-3">
+            {lapsed.map((s, i) => (
+              <div key={s.companyId ?? `withheld-${i}`} className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   <span className="chip chip--danger">Blocked</span>
                   <span className="font-medium text-etyme-ink text-[13px]">{s.name}</span>
@@ -1211,8 +1211,8 @@ function VerificationsTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {companies.map(company => (
-                    <tr key={company.companyId}>
+                  {companies.map((company, i) => (
+                    <tr key={company.companyId ?? `withheld-${i}`}>
                       <td>
                         <span className="font-medium text-etyme-ink">{company.name}</span>
                       </td>

@@ -66,7 +66,7 @@ interface TenurePerson {
   /** The day the days on site reach the limit on the contracts booked; null where they end first. */
   limitReachedOn: string | null
   /** Live contracts booked past that day. */
-  runsPast: { contractId: string; firm: string; endDate: string | null; daysPast: number | null }[]
+  runsPast: { contractId: string | null; firm: string; endDate: string | null; daysPast: number | null }[]
   contractCount: number
   status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE'
   /** Days counted at or over the limit, whatever the person's status. */
@@ -76,7 +76,7 @@ interface TenurePerson {
   /** On site today, under any live contract. */
   onSite?: boolean
   contracts: {
-    id: string
+    id: string | null
     vendorName: string
     startDate: string
     endDate: string | null
@@ -206,7 +206,7 @@ export default function TenurePage() {
                     sentence. Lucía Fernández's ran seven months past it
                     and the row said only "Approaching". */}
                 {row.limitReachedOn && row.runsPast.map((r) => (
-                  <div key={r.contractId} className="text-[11px] mt-1 text-etyme-attention">
+                  <div key={`${r.contractId ?? 'line'}-${r.firm}-${r.endDate}`} className="text-[11px] mt-1 text-etyme-attention">
                     {runsPastWords({ firm: r.firm, personName: row.name, endDate: r.endDate, daysPast: r.daysPast, reachedOn: row.limitReachedOn!, today })}
                   </div>
                 ))}
@@ -378,8 +378,8 @@ export default function TenurePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {person.contracts.map(c => (
-                    <tr key={c.id}>
+                  {person.contracts.map((c, i) => (
+                    <tr key={`${c.id ?? 'line'}-${i}`}>
                       <td>{c.vendorName}</td>
                       <td className="tabular-nums">
                         {plainDate(c.startDate)}
