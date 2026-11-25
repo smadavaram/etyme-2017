@@ -5,9 +5,10 @@ import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
 import { notify } from '@/lib/notify'
+import { cohortFull, cohortOpen, sameCourse } from '@/lib/training'
 
 /**
- * POST /api/training/enrollments   { courseId, personId }
+ * POST /api/training/enrollments   { courseId, personId, cohortId? }
  *
  * Put somebody on a course. Only a person on our books, only on our
  * course, and only once — a second enrollment is the first one handed
@@ -34,6 +35,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say who, and on which course.' } }, { status: 422 })
   }
 
+  const cohortId = typeof body.cohortId === 'string' && body.cohortId ? body.cohortId : null
+
   const [course, seat, listing, person] = await Promise.all([
     prisma.course.findFirst({ where: { id: courseId, companyId }, select: { id: true, title: true } }),
     prisma.context.findFirst({ where: { personId, companyId, revokedAt: null }, select: { id: true, type: true } }),
@@ -45,14 +48,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: { code: 'NOT_YOURS', message: 'That person is not on your books.' } }, { status: 403 })
   }
 
-  const existing = await prisma.enrollment.findUnique({ where: { courseId_personId: { courseId, personId } }, select: { id: true, status: true } })
-  if (existing && existing.status !== 'DROPPED') {
+  const existing = await prisma.enrollment.findUnique({ where: { courseId_personId: { courseId, personId } }, select: { id: true, status: true, cohortId: true } })
+  const already = existing && existing.status !== 'DROPPED'
+  // Already on the course and already in a cohort (or none asked): handed back.
+  if (already && (!cohortId || existing.cohortId === cohortId)) {
     return NextResponse.json({ data: { id: existing.id, status: existing.status, existing: true, says: `${person.name} is already on ${course.title}.` } })
   }
 
+  // A cohort takes people for its own course only, while it is open and
+  // has a seat. The seats are counted on the people who have not dropped.
+  if (cohortId) {
+    const cohort = await prisma.cohort.findFirst({
+      where: { id: cohortId, companyId },
+      select: { id: true, name: true, courseId: true, capacity: true, state: true, _count: { select: { enrollments: { where: { status: { not: 'DROPPED' } } } } } },
+    })
+    if (!cohort) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That cohort is not on your books.' } }, { status: 404 })
+    const same = sameCourse({ enrollmentCourseId: courseId, cohortCourseId: cohort.courseId, courseTitle: course.title, cohortName: cohort.name })
+    if (!same.ok) return NextResponse.json({ error: { code: 'WRONG_COURSE', message: same.message } }, { status: 409 })
+    const open = cohortOpen(cohort.state, cohort.name)
+    if (!open.ok) return NextResponse.json({ error: { code: 'COHORT_CLOSED', message: open.message } }, { status: 409 })
+    const full = cohortFull({ capacity: cohort.capacity, enrolled: cohort._count.enrollments, name: cohort.name })
+    if (!full.ok) return NextResponse.json({ error: { code: 'COHORT_FULL', message: full.message } }, { status: 409 })
+  }
+
+  // Put into a cohort after the fact: the enrollment she holds, moved in.
+  if (already) {
+    await prisma.enrollment.update({ where: { id: existing.id }, data: { cohortId } })
+    return NextResponse.json({ data: { id: existing.id, status: existing.status, existing: true, says: `${person.name} is in the cohort.` } })
+  }
+
   const row = existing
-    ? await prisma.enrollment.update({ where: { id: existing.id }, data: { status: 'ENROLLED', enrolledAt: new Date(), completedAt: null, score: null, certificateUrl: null }, select: { id: true } })
-    : await prisma.enrollment.create({ data: { courseId, personId, status: 'ENROLLED' }, select: { id: true } })
+    ? await prisma.enrollment.update({ where: { id: existing.id }, data: { status: 'ENROLLED', enrolledAt: new Date(), completedAt: null, score: null, certificateUrl: null, cohortId }, select: { id: true } })
+    : await prisma.enrollment.create({ data: { courseId, personId, status: 'ENROLLED', cohortId }, select: { id: true } })
 
   const staffSeat = seat && seat.type !== 'CONSULTANT'
   void notify({

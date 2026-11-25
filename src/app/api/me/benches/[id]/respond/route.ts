@@ -5,6 +5,7 @@ import { answer, type State } from '@/lib/bench-consent'
 import { tellTheFirm } from '@/lib/bench-invite'
 import { readStay, stayFields, staySays } from '@/lib/bench-stay'
 import { agreeingTerms } from '@/lib/bench-filter'
+import { mayRecordAnswer } from '@/lib/training'
 import { firmReadsAt, nameOnHerAnswer } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
@@ -107,7 +108,19 @@ export async function POST(
       : null,
   })
 
+  // Where the firm asked her after a course (record 120), her answer is
+  // written once on that ask: YES or NO, when, and by which door. An ask
+  // already answered is never written again.
+  const lastAsk = await prisma.benchAsk.findFirst({ where: { benchListingId: id }, orderBy: { askedAt: 'desc' }, select: { id: true, answer: true } })
+  const openAsk = lastAsk && mayRecordAnswer(lastAsk).ok ? lastAsk : null
+
   await prisma.$transaction([
+    ...(openAsk
+      ? [prisma.benchAsk.updateMany({
+          where: { id: openAsk.id, answer: null },
+          data: { answer: said === 'ACCEPT' ? 'YES' : 'NO', answeredAt: now, answeredVia: 'OWN_PAGE' },
+        })]
+      : []),
     prisma.benchListing.update({
       where: { id },
       data: chosen
