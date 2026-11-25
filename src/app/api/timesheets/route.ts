@@ -720,7 +720,7 @@ function menuOpens(
 ): boolean {
   const kind = caller.company?.kind ?? null
   if (!kind) return false
-  return getNavForKind(kind as any, false, { permissions: caller.permissions })
+  return getNavForKind(kind as any, false, { permissions: caller.permissions, plugins: caller.company?.pluginsOn ?? [] })
     .some((s) => s.items.some((i) => i.href.split('?')[0] === path))
 }
 

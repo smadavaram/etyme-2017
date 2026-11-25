@@ -75,6 +75,8 @@ export interface CallerContext {
      * stranger's sandbox.
      */
     isDemo: boolean
+    /** Plugins the firm has on (record 120), so a menu is drawn with them. Absent where a reader did not select it. */
+    pluginsOn?: string[]
   } | null
   /**
    * The org unit this person sits on, if any.
@@ -528,7 +530,7 @@ async function sampleCaller(
     },
     include: {
       person: { select: { id: true, name: true, primaryEmail: true, timezone: true } },
-      company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true } },
+      company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true, pluginsOn: true } },
       role: { select: { id: true, name: true, permissions: true } },
     },
     orderBy: { grantedAt: 'asc' },
@@ -735,7 +737,7 @@ export async function getCallerContext(
     identityProviders: { where: { enabled: true }, select: { issuer: true } },
   } as const
   const seatInclude = {
-    company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true, ...SEAT_POLICY } },
+    company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true, pluginsOn: true, ...SEAT_POLICY } },
     role: { select: { id: true, name: true, permissions: true } },
     // Read with the seat so a region seat is known without a second query.
     orgUnit: { select: { id: true, name: true, kind: true } },

@@ -480,6 +480,7 @@ export function sectionOfHref(
     termsHref: reader?.termsHref ?? null,
     // The hat the sidebar is drawn in (2026-11-03), so the eyebrow reads the same menu.
     hat: reader?.hat ?? null,
+    plugins: reader?.plugins,
   }
   return columnWordOf(menuFor(kind, isConsultant, facts), href) ?? headingIn(getNavForKind(kind, isConsultant, facts), href)
 }
@@ -589,6 +590,8 @@ export interface ReaderFacts {
   termsHref?: string | null
   /** The hat worn: the firm's menu or the person's own (`hat` in lib/nav-table). */
   hat?: 'firm' | 'you' | null
+  /** The plugins the firm has on (record 120): the menu the sidebar draws holds Training only then. */
+  plugins?: readonly string[]
 }
 
 /**

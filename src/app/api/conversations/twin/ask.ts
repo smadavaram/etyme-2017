@@ -359,10 +359,10 @@ export function readWhere(raw: string, opts: { loose?: boolean } = {}): Intent |
  * client's program, its permissions, and whether the person earns
  * commission here (the sidebar's "Your commissions", read the same way).
  */
-export function menuOf(seat: { companyKind?: string | null; party?: Party; permissions?: readonly string[] | null; client?: string | null; earnsCommission?: boolean }): SeatMenu {
+export function menuOf(seat: { companyKind?: string | null; party?: Party; permissions?: readonly string[] | null; client?: string | null; earnsCommission?: boolean; plugins?: readonly string[] }): SeatMenu {
   const worker = seat.party === 'WORKER'
   const kind = (seat.companyKind ?? null) as CompanyKind | null
-  const facts = { permissions: seat.permissions ?? null, seatedAtClient: seat.client ?? null, earnsCommission: Boolean(seat.earnsCommission) }
+  const facts = { permissions: seat.permissions ?? null, seatedAtClient: seat.client ?? null, earnsCommission: Boolean(seat.earnsCommission), plugins: seat.plugins }
   const sections: SeatMenu = getNavForKind(kind, worker, facts)
   // A firm's Dashboard column reads the founder's headings (2026-11-08):
   // Network, HR, Accounting, and Profitability as a link of its own. A

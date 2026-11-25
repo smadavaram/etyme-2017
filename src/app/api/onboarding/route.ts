@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       contexts: {
         where: { revokedAt: null },
         include: {
-          company: { select: { id: true, name: true, slug: true, kind: true, homePage: true } },
+          company: { select: { id: true, name: true, slug: true, kind: true, homePage: true, pluginsOn: true } },
           // A seat on a REGION unit lands on its region (lib/region-scope).
           orgUnit: { select: { name: true, kind: true } },
         },

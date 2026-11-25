@@ -373,6 +373,7 @@ function NeedsAttention() {
           worker: session.isWorker,
           permissions: session.permissions,
           seatedAtClient: session.seat?.clientName ?? null,
+          plugins: session.company?.pluginsOn ?? [],
         },
         counts,
         decisions.length,

@@ -30,6 +30,8 @@ export function deskHome(seat: {
   region?: string | null
   /** The firm's own home setting (`Company.homePage`, → 107). */
   homePage?: 'DECISIONS' | null
+  /** The plugins the firm has on (record 120), so the menu is the one the sidebar draws. */
+  plugins?: readonly string[]
 }): string {
   const landing = landingFor({ kind: seat.kind, isConsultant: seat.isConsultant, permissions: seat.permissions, region: seat.region, homePage: seat.homePage })
   if (landing === DECISIONS_HOME) return landing
@@ -37,7 +39,7 @@ export function deskHome(seat: {
   if (landing === ASK_ETYME_HREF) return landing
   const home = consoleHome({ kind: seat.kind, isConsultant: seat.isConsultant, permissions: seat.permissions }).href
   if (seat.isConsultant || !seat.kind) return home
-  const menu = getNavForKind(seat.kind, false, { permissions: seat.permissions })
+  const menu = getNavForKind(seat.kind, false, { permissions: seat.permissions, plugins: seat.plugins })
     .flatMap((s) => s.items)
     .map((i) => i.href)
   return deskPageFor(seat.role, menu, home)

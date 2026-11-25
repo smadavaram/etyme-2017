@@ -105,6 +105,8 @@ export interface ChipReader {
   worker?: boolean
   permissions?: readonly string[] | null
   seatedAtClient?: string | null
+  /** The plugins the firm has on (record 120). */
+  plugins?: readonly string[]
 }
 
 /** Every href on the reader's own menu. */
@@ -114,6 +116,7 @@ export function menuHrefs(reader: ChipReader): Set<string> {
       worker: reader.worker,
       permissions: reader.permissions,
       seatedAtClient: reader.seatedAtClient,
+      plugins: reader.plugins,
     })
       .flatMap((s) => s.items)
       .map((i) => i.href.split('?')[0])

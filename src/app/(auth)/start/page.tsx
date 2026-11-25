@@ -120,6 +120,7 @@ export default function StartPage() {
       permissions: state.seat?.permissions ?? [],
       region: state.seat?.region ?? null,
       homePage: state.company?.homePage ?? null,
+      plugins: state.company?.pluginsOn ?? [],
     })
   }, [state])
 

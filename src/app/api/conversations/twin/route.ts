@@ -1070,7 +1070,7 @@ export async function POST(request: NextRequest) {
     // where the person earns one: what a WHERE answer names, which commission
     // page an answer links, and the menu every answer is put through below.
     const judged = await judgedBy(caller)
-    const menuFacts = { companyKind: caller.company.kind, party: who.party, client: seat?.clientCompany.name ?? null, earnsCommission: await earnsCommissionHere(caller) }
+    const menuFacts = { companyKind: caller.company.kind, party: who.party, client: seat?.clientCompany.name ?? null, earnsCommission: await earnsCommissionHere(caller), plugins: caller.company.pluginsOn ?? [] }
     const menu = menuOf({ ...menuFacts, permissions: judged })
     answer = solo
       ? await respondWorker(text, { facts: () => workerFacts(caller, request), firmPaid: () => firmPaidOf(caller) })
