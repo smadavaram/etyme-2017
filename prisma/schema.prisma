@@ -999,6 +999,10 @@ model Company {
   /// Empty is off. The ledger is PluginSwitch.
   pluginsOn             String[]                @default([])
   pluginSwitches        PluginSwitch[]
+  /// Hides this firm's courses on its storefront whatever its plugin says
+  /// (record 120, answer 3). A per-tenant setting; Tapin's is true.
+  coursesHiddenOnStorefront Boolean @default(false)
+  cohorts               Cohort[]
   docTemplates          DocTemplate[]
   msasAsVendor          MasterAgreement[]       @relation("vendor")
   msasAsClient          MasterAgreement[]       @relation("client")
@@ -2747,6 +2751,9 @@ model BenchListing {
   /// Set with `revokedAt` when the clock ended the listing rather than
   /// the person. Only a lapsed listing may be renewed from a reminder.
   lapsedAt       DateTime?
+  /// The cohort she finished before her yes made this row (record 120).
+  sourceCohortId String?
+  sourceCohort   Cohort? @relation(fields: [sourceCohortId], references: [id])
 
   // ── The person's own terms, where the firm stated them at listing ───
   //
@@ -2819,6 +2826,7 @@ model BenchListing {
   @@index([companyId, revokedAt])
   @@index([consultantId, state])
   @@index([termsStatedById])
+  @@index([sourceCohortId])
 }
 
 /// What a firm asks its partners to offer: "What we need", shown at the top
@@ -7717,6 +7725,7 @@ model Course {
   updatedAt   DateTime @updatedAt
 
   enrollments Enrollment[]
+  cohorts     Cohort[]
 
   @@index([companyId, isPublic])
 }
@@ -7732,9 +7741,88 @@ model Enrollment {
   completedAt    DateTime?
   score          Int?
   certificateUrl String?
+  /// The cohort she took the course in, where there was one (record 120).
+  cohortId       String?
+  cohort         Cohort?   @relation(fields: [cohortId], references: [id])
+  assessments    Assessment[]
+  certifications Certification[]
+  benchAsks      BenchAsk[]
 
   @@unique([courseId, personId])
   @@index([personId, status])
+  @@index([cohortId])
+}
+
+/// A group taking one course together (record 120, train-to-bench).
+/// States: PLANNED, RUNNING, COMPLETE, CANCELLED.
+model Cohort {
+  id              String       @id @default(cuid())
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          Course       @relation(fields: [courseId], references: [id])
+  name            String
+  startsOn        DateTime
+  endsOn          DateTime?
+  trainerPersonId String?
+  capacity        Int?
+  state           String       @default("PLANNED")
+  createdAt       DateTime     @default(now())
+  enrollments     Enrollment[]
+  benchListings   BenchListing[]
+
+  @@index([companyId, state])
+  @@index([courseId])
+}
+
+/// One scored attempt at one skill. Never changed: a retake is a new attempt.
+model Assessment {
+  id               String     @id @default(cuid())
+  enrollmentId     String
+  enrollment       Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  skill            String
+  score            Int
+  attempt          Int
+  assessorPersonId String
+  assessedAt       DateTime   @default(now())
+  note             String?
+
+  @@unique([enrollmentId, skill, attempt])
+}
+
+/// Issued by the assessor or the cohort's trainer, never a recruiter.
+model Certification {
+  id               String     @id @default(cuid())
+  enrollmentId     String
+  enrollment       Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  title            String
+  issuedAt         DateTime
+  expiresAt        DateTime?
+  issuedByPersonId String
+  evidenceUrl      String?
+
+  @@unique([enrollmentId, title])
+}
+
+/// The ledger of "Ask her onto the bench" and her answer (record 120).
+/// Append-only. The answer columns are written only by her own doors, once.
+/// EMAIL_LINK, OWN_PAGE or EMPLOYEE_TOLD (a firm's own W-2 is told, not asked).
+model BenchAsk {
+  id            String     @id @default(cuid())
+  companyId     String
+  enrollmentId  String
+  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id])
+  benchListingId String?
+  askedByPersonId String
+  askedAt       DateTime   @default(now())
+  method        String
+  /// YES or NO. Null until she answers; nothing is pre-filled.
+  answer        String?
+  answeredAt    DateTime?
+  answeredVia   String?
+
+  @@index([companyId, askedAt])
+  @@index([enrollmentId])
 }
 
 // ─────────────────────────────────────────────
