@@ -398,6 +398,30 @@ export function trainable(
   )
 }
 
+/**
+ * How a picker names a person: by name. A record whose name is blank or is
+ * only her email reads as a name made from the email's first part; the
+ * email is added in brackets only where two people would read the same, or
+ * where the name had to be made.
+ */
+export function pickerLabels(people: { personId: string; name: string; email?: string | null }[]): Map<string, string> {
+  const shown = (p: { name: string; email?: string | null }) => {
+    const n = (p.name ?? '').trim()
+    if (n && !n.includes('@')) return { text: n, made: false }
+    const local = (n || p.email || '').split('@')[0].replace(/[._-]+/g, ' ').trim()
+    const text = local.replace(/\b\w/g, (c) => c.toUpperCase())
+    return { text: text || 'Unnamed', made: true }
+  }
+  const base = people.map((p) => ({ p, ...shown(p) }))
+  const count = new Map<string, number>()
+  for (const b of base) count.set(b.text.toLowerCase(), (count.get(b.text.toLowerCase()) ?? 0) + 1)
+  return new Map(base.map((b) => {
+    const hint = b.p.email ?? (b.p.name.includes('@') ? b.p.name : null)
+    const clash = (count.get(b.text.toLowerCase()) ?? 0) > 1
+    return [b.p.personId, hint && (clash || b.made) ? `${b.text} (${hint})` : b.text]
+  }))
+}
+
 // ── Cohorts, assessments, certifications and the ask (record 120) ─────
 //
 // Pure rules, one sentence per refusal, no database. The routes under

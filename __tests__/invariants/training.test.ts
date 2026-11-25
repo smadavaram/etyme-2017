@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { applyMove, coursesForGap, statusWord, MOVES } from '@/lib/training'
+import { pickerLabels, applyMove, coursesForGap, statusWord, MOVES } from '@/lib/training'
 
 /**
  * Training that starts, finishes or stops.
@@ -58,5 +58,43 @@ describe('the screens and the routes', () => {
   })
   it('a finished course reaches the portfolio', () => {
     expect(read('src/lib/portfolio-data.ts')).toContain('completedTraining')
+  })
+})
+
+describe('a certified trainee shows her certification and no Certify control', () => {
+  it('the cohort screen draws Certify only while the trainee holds no certification', () => {
+    const src = read('src/app/dashboard/training/cohorts.tsx')
+    expect(src).toContain('t.can.certify && t.certifications.length === 0')
+    expect(src).toContain('Certified: {k.title}, issued {k.issued}')
+  })
+  it('the cohort read says she cannot be certified again once she holds a certification', () => {
+    expect(read('src/lib/training/cohort-read.ts')).toContain('e.certifications.length === 0 && mayCertify(')
+  })
+  it('a recruiter with consultants.write is still offered the ask onto the bench, not the certification', () => {
+    const src = read('src/app/dashboard/training/cohorts.tsx')
+    expect(src).toContain('Ask her onto the bench')
+    expect(src).toContain('t.can.ask && !t.ask')
+  })
+})
+
+describe('the trainee pickers name a person by her name', () => {
+  it('a person with a name is shown by that name and no email', () => {
+    const m = pickerLabels([{ personId: 'a', name: 'Priya Nair', email: 'priya@x.example' }])
+    expect(m.get('a')).toBe('Priya Nair')
+  })
+  it('a person whose name is only her email is shown as a name made from it, with the email as a hint', () => {
+    const m = pickerLabels([{ personId: 'a', name: 'priya.nair@x.example', email: null }])
+    expect(m.get('a')).toBe('Priya Nair (priya.nair@x.example)')
+  })
+  it('two people with the same name are told apart by their email', () => {
+    const m = pickerLabels([
+      { personId: 'a', name: 'Sam Lee', email: 'a@x.example' },
+      { personId: 'b', name: 'Sam Lee', email: 'b@x.example' },
+    ])
+    expect(m.get('a')).toBe('Sam Lee (a@x.example)')
+    expect(m.get('b')).toBe('Sam Lee (b@x.example)')
+  })
+  it('the enroll picker is labelled through that one rule', () => {
+    expect(read('src/app/dashboard/training/cohorts.tsx')).toContain('pickerLabels(')
   })
 })

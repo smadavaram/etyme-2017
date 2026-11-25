@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { readBench } from '@/lib/bench-filter'
-import { trainable } from '@/lib/training'
+import { trainable, pickerLabels } from '@/lib/training'
 
 /**
  * Cohorts: a group taking one course together (record 120). Plan one with
@@ -76,7 +76,12 @@ export function Cohorts() {
       const roster: any[] = Array.isArray(payroll?.data?.roster) ? payroll.data.roster : []
       // Everybody the firm keeps: on the bench, asked and not answered yet, or employed.
       const listed = readBench(b)
-      setPeople(trainable(listed.rows, listed.asked, roster.filter((r) => r?.personId && r?.name), new Date()).map((p) => ({ id: p.personId, name: p.name })))
+      const kept = trainable(listed.rows, listed.asked, roster.filter((r) => r?.personId && r?.name), new Date())
+      const emails = new Map<string, string>()
+      for (const r of [...listed.rows, ...listed.asked]) if (r.email) emails.set(r.personId, r.email)
+      for (const r of roster) if (r?.personId && (r.email || r.primaryEmail) && !emails.has(r.personId)) emails.set(r.personId, r.email ?? r.primaryEmail)
+      const label = pickerLabels(kept.map((p) => ({ personId: p.personId, name: p.name, email: emails.get(p.personId) ?? null })))
+      setPeople(kept.map((p) => ({ id: p.personId, name: label.get(p.personId) ?? p.name })))
     } catch (e: any) { setErr(e.message) }
   }, [])
   useEffect(() => { load() }, [load])
@@ -174,9 +179,9 @@ export function Cohorts() {
                         <input value={sc.score} onChange={(e) => setScore({ ...score, [t.enrollmentId]: { ...sc, score: e.target.value } })} required inputMode="numeric" className={`${field} w-24`} /></label>
                       <button type="submit" className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Record score</button>
                     </form>}
-                    {t.status === 'COMPLETED' && (t.can.certify || (t.can.ask && !t.ask)) && (
+                    {t.status === 'COMPLETED' && ((t.can.certify && t.certifications.length === 0) || (t.can.ask && !t.ask)) && (
                       <div className="mt-2 flex flex-wrap items-end gap-2">
-                        {t.can.certify && <>
+                        {t.can.certify && t.certifications.length === 0 && <>
                         <label><span className={label}>Certification</span>
                           <input value={certTitle[t.enrollmentId] ?? ''} onChange={(e) => setCertTitle({ ...certTitle, [t.enrollmentId]: e.target.value })} placeholder={c.course.title} className={`${field} w-48`} /></label>
                         <button onClick={() => send('POST', `/api/training/enrollments/${t.enrollmentId}/certification`, { title: certTitle[t.enrollmentId] || undefined })} className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Certify</button></>}

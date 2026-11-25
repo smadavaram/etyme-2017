@@ -55,7 +55,8 @@ export async function readCohorts(companyId: string, now: Date, only?: string, r
         const r = reader
         const can = {
           assess: !!r && r.mayWrite && mayAssess({ callerPersonId: r.personId, callerRole: r.roleName, trainerPersonId: c.trainerPersonId, enrolledPersonId: e.person.id }).ok,
-          certify: !!r && r.mayWrite && mayCertify({
+          // Once she holds one, the route answers 409: no control is offered.
+          certify: !!r && r.mayWrite && e.certifications.length === 0 && mayCertify({
             enrollmentStatus: e.status, personName: e.person.name, callerPersonId: r.personId, callerRole: r.roleName,
             trainerPersonId: c.trainerPersonId, enrolledPersonId: e.person.id,
             assessorPersonIds: [...new Set(e.assessments.filter((a) => a.assessedAt.getTime() >= e.enrolledAt.getTime()).map((a) => a.assessorPersonId))],
