@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { accessActor, recordRefusal, type AccessAction } from '@/lib/access-log'
+import { accessActor, recordRefusal } from '@/lib/access-log'
 import { isOn, pluginLabel, type PluginKey } from '@/lib/plugins'
 import { prisma } from '@/lib/db'
 
@@ -23,7 +23,7 @@ export async function pluginGate(caller: GateCaller, key: PluginKey): Promise<Ne
   const says = pluginOffSays(key, caller.company.name)
   await recordRefusal([{ companyId: caller.company.id }], {
     ...accessActor(caller),
-    action: 'PLUGIN_OFF_REFUSED' as string as AccessAction,
+    action: 'PLUGIN_OFF_REFUSED',
     reason: `Refused a ${pluginLabel(key)} request: the plugin is off for this firm.`,
   })
   // Only the Owner is sent to the switch; anybody else is told whose it is.

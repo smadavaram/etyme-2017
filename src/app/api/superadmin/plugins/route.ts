@@ -14,7 +14,7 @@ import { isPluginKey, type PluginKey } from '@/lib/plugins'
  * { plugin, on } and nothing more. Staff only (`caller.staff`); anybody
  * else is refused, the refusal written before it is sent.
  */
-const SWITCH_REFUSED = 'SUPERADMIN_PLUGIN_REFUSED' as string as AccessAction
+const SWITCH_REFUSED: AccessAction = 'SUPERADMIN_PLUGIN_REFUSED'
 
 const REFUSED = "This is for Etyme's Superadmin only. A company's Owner switches its own plugins under Settings."
 
