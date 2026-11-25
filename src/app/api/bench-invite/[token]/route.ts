@@ -9,6 +9,7 @@ import { agreeingTerms } from '@/lib/bench-filter'
 import { inviteTerms, inviteRange } from './terms'
 import { getSessionIdentity } from '@/lib/api-context'
 import { afterYes } from '@/lib/consultant-portfolio'
+import { mayRecordAnswer } from '@/lib/training'
 import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
 
 /**
@@ -201,7 +202,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     ? { ...outcome.data!, ...chosen, showInMatches: body.showInMatches === true, ...(agreed?.data ?? {}) }
     : outcome.data!
 
+  // Where the firm asked her after a course (record 120), her answer is
+  // written once on that ask: YES or NO, when, and by which door. An ask
+  // already answered is never written again.
+  const lastAsk = await prisma.benchAsk.findFirst({ where: { benchListingId: listing.id }, orderBy: { askedAt: 'desc' }, select: { id: true, answer: true } })
+  const openAsk = lastAsk && mayRecordAnswer(lastAsk).ok ? lastAsk : null
+
   await prisma.$transaction([
+    ...(openAsk
+      ? [prisma.benchAsk.updateMany({
+          where: { id: openAsk.id, answer: null },
+          data: { answer: said === 'ACCEPT' ? 'YES' : 'NO', answeredAt: now, answeredVia: 'EMAIL_LINK' },
+        })]
+      : []),
     prisma.benchListing.update({ where: { id: listing.id }, data }),
     prisma.automationLog.create({
       data: {

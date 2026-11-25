@@ -55,31 +55,43 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: { id: existing.id, status: existing.status, existing: true, says: `${person.name} is already on ${course.title}.` } })
   }
 
-  // A cohort takes people for its own course only, while it is open and
-  // has a seat. The seats are counted on the people who have not dropped.
-  if (cohortId) {
-    const cohort = await prisma.cohort.findFirst({
-      where: { id: cohortId, companyId },
-      select: { id: true, name: true, courseId: true, capacity: true, state: true, _count: { select: { enrollments: { where: { status: { not: 'DROPPED' } } } } } },
-    })
-    if (!cohort) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That cohort is not on your books.' } }, { status: 404 })
-    const same = sameCourse({ enrollmentCourseId: courseId, cohortCourseId: cohort.courseId, courseTitle: course.title, cohortName: cohort.name })
-    if (!same.ok) return NextResponse.json({ error: { code: 'WRONG_COURSE', message: same.message } }, { status: 409 })
-    const open = cohortOpen(cohort.state, cohort.name)
-    if (!open.ok) return NextResponse.json({ error: { code: 'COHORT_CLOSED', message: open.message } }, { status: 409 })
-    const full = cohortFull({ capacity: cohort.capacity, enrolled: cohort._count.enrollments, name: cohort.name })
-    if (!full.ok) return NextResponse.json({ error: { code: 'COHORT_FULL', message: full.message } }, { status: 409 })
-  }
+  // The seat count and the write are one transaction under one lock per
+  // cohort, so two enrollments at the same moment cannot both take the last
+  // seat (the pattern of `pg_advisory_xact_lock` used for access invites).
+  const done = await prisma.$transaction(async (tx) => {
+    // A cohort takes people for its own course only, while it is open and
+    // has a seat. The seats are counted on the people who have not dropped.
+    if (cohortId) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'cohort-seats:' + cohortId}))`
+      const cohort = await tx.cohort.findFirst({
+        where: { id: cohortId, companyId },
+        select: { id: true, name: true, courseId: true, capacity: true, state: true, _count: { select: { enrollments: { where: { status: { not: 'DROPPED' } } } } } },
+      })
+      if (!cohort) return { refused: NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That cohort is not on your books.' } }, { status: 404 }) }
+      const same = sameCourse({ enrollmentCourseId: courseId, cohortCourseId: cohort.courseId, courseTitle: course.title, cohortName: cohort.name })
+      if (!same.ok) return { refused: NextResponse.json({ error: { code: 'WRONG_COURSE', message: same.message } }, { status: 409 }) }
+      const open = cohortOpen(cohort.state, cohort.name)
+      if (!open.ok) return { refused: NextResponse.json({ error: { code: 'COHORT_CLOSED', message: open.message } }, { status: 409 }) }
+      const full = cohortFull({ capacity: cohort.capacity, enrolled: cohort._count.enrollments, name: cohort.name })
+      if (!full.ok) return { refused: NextResponse.json({ error: { code: 'COHORT_FULL', message: full.message } }, { status: 409 }) }
+    }
 
-  // Put into a cohort after the fact: the enrollment she holds, moved in.
-  if (already) {
-    await prisma.enrollment.update({ where: { id: existing.id }, data: { cohortId } })
-    return NextResponse.json({ data: { id: existing.id, status: existing.status, existing: true, says: `${person.name} is in the cohort.` } })
-  }
+    // Put into a cohort after the fact: the enrollment she holds, moved in.
+    if (already) {
+      await tx.enrollment.update({ where: { id: existing.id }, data: { cohortId } })
+      return { moved: existing }
+    }
 
-  const row = existing
-    ? await prisma.enrollment.update({ where: { id: existing.id }, data: { status: 'ENROLLED', enrolledAt: new Date(), completedAt: null, score: null, certificateUrl: null, cohortId }, select: { id: true } })
-    : await prisma.enrollment.create({ data: { courseId, personId, status: 'ENROLLED', cohortId }, select: { id: true } })
+    const row = existing
+      ? await tx.enrollment.update({ where: { id: existing.id }, data: { status: 'ENROLLED', enrolledAt: new Date(), completedAt: null, score: null, certificateUrl: null, cohortId }, select: { id: true } })
+      : await tx.enrollment.create({ data: { courseId, personId, status: 'ENROLLED', cohortId }, select: { id: true } })
+    return { row }
+  })
+  if ('refused' in done) return done.refused
+  if ('moved' in done) {
+    return NextResponse.json({ data: { id: done.moved.id, status: done.moved.status, existing: true, says: `${person.name} is in the cohort.` } })
+  }
+  const row = done.row
 
   const staffSeat = seat && seat.type !== 'CONSULTANT'
   void notify({
