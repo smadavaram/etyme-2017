@@ -17,7 +17,7 @@ const doc = (o: Partial<DocRow> = {}): DocRow => ({
   firmId: 'f1', firmName: 'Halcyon Talent', ...o,
 })
 const check = (o: Partial<CheckRow> = {}): CheckRow => ({
-  status: 'CLEAR', providerSays: 'Clear: no records found', provider: 'Sterling', reference: 'ST-1', date: d('2026-11-03'), ...o,
+  status: 'CLEAR', providerSays: 'Clear: no records found', provider: 'Northbank Checks', reference: 'ST-1', date: d('2026-11-03'), ...o,
 })
 
 describe('each paper on a contract line says what was asked, what arrived, who examined it and what is missing', () => {
@@ -88,7 +88,7 @@ describe('a paper nobody has examined reads "Arrived, not examined" and is never
 describe('a screening result shows the provider’s own word, name, reference and date', () => {
   it('a recorded verdict carries the provider’s words exactly as recorded', () => {
     const f = paperFactsOf('BACKGROUND_CHECK', { items: [], docs: [], check: check() })
-    expect(f.verdict).toEqual({ word: 'Clear: no records found', provider: 'Sterling', reference: 'ST-1', date: d('2026-11-03') })
+    expect(f.verdict).toEqual({ word: 'Clear: no records found', provider: 'Northbank Checks', reference: 'ST-1', date: d('2026-11-03'), firmId: null })
   })
 
   it('a check that was only ordered has no word yet and says so with null, never a made-up one', () => {

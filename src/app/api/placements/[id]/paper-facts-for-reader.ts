@@ -51,7 +51,12 @@ export function factsForReader(
       received: firm(f.received),
       // The examiner works at the firm; where the firm is withheld so is she.
       examined: examined && examined.firmId === null ? { ...examined, by: null } : examined,
-      verdict: f.verdict ? { ...f.verdict, provider: scrub(f.verdict.provider) } : null,
+      // A check ordered by a firm this reader may not name keeps its word and date; its provider and reference go, so they cannot name that firm.
+      verdict: f.verdict
+        ? (f.verdict.firmId && !mayName(f.verdict.firmId)
+          ? { ...f.verdict, provider: null, reference: null, firmId: null }
+          : { ...f.verdict, provider: scrub(f.verdict.provider) })
+        : null,
     }
   }
   return out

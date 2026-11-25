@@ -65,7 +65,7 @@ describe('what the table says of each paper', () => {
   })
 
   it('a screening row shows the provider’s word, name, reference and date, in the provider’s own words', () => {
-    expect(examinedWords({ verdict: { word: 'Clear', provider: 'Sterling', reference: '4471', date: '2026-03-12T00:00:00.000Z' } })).toBe('“Clear” · Sterling · ref. 4471 · Mar 12, 2026')
+    expect(examinedWords({ verdict: { word: 'Clear', provider: 'Northbank Checks', reference: '4471', date: '2026-03-12T00:00:00.000Z' } })).toBe('“Clear” · Northbank Checks · ref. 4471 · Mar 12, 2026')
   })
 
   it('a paper nobody asked for shows a dash and never a made-up day', () => {
@@ -96,8 +96,16 @@ describe('what the route lets each reader read of the facts', () => {
       received: { when, fileName: 'a.pdf', firmId: 'sub', firmName: 'Tecwyn' },
       examined: { state: 'ACCEPTED', by: 'Pat at Tecwyn', when, firmId: 'sub', firmName: 'Tecwyn' },
     }),
-    SCREEN: facts({ verdict: { word: 'Clear', provider: 'Tecwyn Screening', reference: '9', date: when } }),
+    SCREEN: facts({ verdict: { word: 'Clear', provider: 'Tecwyn Screening', reference: '9', date: when, firmId: null } }),
+    ORDERED: facts({ verdict: { word: 'Clear', provider: 'Northbank Checks', reference: 'R-77', date: when, firmId: 'sub' } }),
   }
+
+  it('a check ordered by a firm the reader may not name keeps its word and date and drops its provider and reference, whatever the provider is called', () => {
+    const out = factsForReader(all, (id) => id !== 'sub')
+    expect(out.ORDERED.verdict).toMatchObject({ word: 'Clear', provider: null, reference: null, firmId: null })
+    expect(out.ORDERED.verdict?.date).toEqual(when)
+    expect(factsForReader(all, () => true).ORDERED.verdict?.provider).toBe('Northbank Checks')
+  })
 
   it('a firm the reader may name is named, and its examiner with it', () => {
     const out = factsForReader(all, () => true)

@@ -54,13 +54,16 @@ export interface CheckRow {
   provider: string | null
   reference: string | null
   date: Date | null
+  /** The firm that ordered the check, where one did. */
+  firmId?: string | null
 }
 
 export interface PaperFacts {
   asked: { when: Date; via: 'REQUEST' | 'PAPER'; firmId: string; firmName: string } | null
   received: { when: Date; fileName: string | null; firmId: string; firmName: string } | null
   examined: { state: 'NOT_EXAMINED' | 'ACCEPTED' | 'SENT_BACK'; by: string | null; when: Date | null; firmId: string; firmName: string } | null
-  verdict: { word: string | null; provider: string | null; reference: string | null; date: Date | null } | null
+  /** firmId: the firm that ordered the check, so a reader who may not name it does not learn it through the provider. */
+  verdict: { word: string | null; provider: string | null; reference: string | null; date: Date | null; firmId: string | null } | null
 }
 
 export const NO_FACTS: PaperFacts = { asked: null, received: null, examined: null, verdict: null }
@@ -108,7 +111,7 @@ export function paperFactsOf(key: string, rows: { items: ItemRow[]; docs: DocRow
   const last = arrivals[0] ?? null
 
   const verdict = orderedNotCollected(key) && rows.check
-    ? { word: rows.check.providerSays, provider: rows.check.provider, reference: rows.check.reference, date: rows.check.date }
+    ? { word: rows.check.providerSays, provider: rows.check.provider, reference: rows.check.reference, date: rows.check.date, firmId: rows.check.firmId ?? null }
     : null
 
   return {
@@ -164,7 +167,7 @@ export async function readPaperFacts(input: {
     db.verification.findMany({
       where: { personId: input.personId, type: { in: names.map((n) => n.key).filter((k) => orderedNotCollected(k) && SCREENING_TYPES.has(k)) as VerificationType[] } },
       orderBy: [{ verifiedAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
-      select: { type: true, status: true, provider: true, referenceId: true, verifiedAt: true, result: true },
+      select: { type: true, status: true, provider: true, referenceId: true, verifiedAt: true, result: true, orderedByCompanyId: true },
     }),
   ])
   const examiners = await db.person.findMany({
@@ -192,7 +195,7 @@ export async function readPaperFacts(input: {
     const said = c?.result && typeof c.result === 'object' && !Array.isArray(c.result) ? (c.result as Record<string, unknown>).providerSays : null
     out[n.key] = paperFactsOf(n.key, {
       items: itemRows, docs: docRows,
-      check: c ? { status: c.status, providerSays: typeof said === 'string' ? said : null, provider: c.provider, reference: c.referenceId, date: c.verifiedAt } : null,
+      check: c ? { status: c.status, providerSays: typeof said === 'string' ? said : null, provider: c.provider, reference: c.referenceId, date: c.verifiedAt, firmId: c.orderedByCompanyId } : null,
     })
   }
   return out

@@ -10,7 +10,7 @@ import { askedWords, examinedWords, receivedWords } from '@/app/dashboard/placem
  * through the placement route on the seeded world, across three shapes of
  * line and the seats that read them.
  *
- *   a customer line that is a firm's own W2   Samuel at Halcyon, for Corning
+ *   a customer line that is a firm's own W2   Samuel at Halcyon, for its own customer
  *   the firm's own W2 buy side                the same line, read by Halcyon
  *   a supplier's person, one rung down        Priya at Tecwyn, sold up to
  *                                             Computer Systems, who sells
