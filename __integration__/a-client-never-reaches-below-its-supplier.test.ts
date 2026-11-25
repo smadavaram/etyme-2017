@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, as, req, json, freshWorld } from './harness'
 import { GET as placement } from '@/app/api/placements/[id]/route'
+import { GET as listSubmissions } from '@/app/api/submissions/route'
 
 /**
  * Record 119: a client never reaches below its supplier. The line between
@@ -78,5 +79,48 @@ describe('a client and the line between its supplier and the firm below it', () 
     const primeBuys = await open(PRIME, subLine)
     expect(primeBuys.status).toBe(200)
     expect(primeBuys.body.data.viewer.side).toBe('PAYER')
+  })
+})
+
+describe('the Open link on a submission row', () => {
+  // The prime put Priya forward to the client on the job both lines are on:
+  // one submission per job and person, with two lines behind it.
+  beforeAll(async () => {
+    const found = await prisma.sellContract.findUniqueOrThrow({ where: { id: primeLine }, select: { requirementId: true, personId: true, companyId: true, clientCompanyId: true } })
+    const line = { ...found, requirementId: found.requirementId! }
+    await prisma.submission.upsert({
+      where: { requirementId_personId: { requirementId: line.requirementId, personId: line.personId } },
+      update: {},
+      create: { requirementId: line.requirementId, personId: line.personId, fromCompanyId: line.companyId, toCompanyId: line.clientCompanyId, kind: 'BENCH', rate: 11200, status: 'PLACED' },
+    })
+  })
+
+  const rowsOf = async (seat: string) => {
+    as(seat)
+    const r = await json(await listSubmissions(req('GET', '/api/submissions?limit=50&direction=' + (seat === CLIENT ? 'received' : 'sent'))))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const all = (r.body.data?.submissions ?? r.body.data ?? r.body.submissions) as Array<{ person?: { name?: string }; personName?: string; contractId: string | null }>
+    return all.filter((s) => (s.person?.name ?? s.personName) === 'Priya Ramesh')
+  }
+
+  it('a client’s Open link on a submission opens its own line and never the sub-vendor’s', async () => {
+    const rows = await rowsOf(CLIENT)
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      expect(row.contractId).not.toBe(subLine)
+      expect(row.contractId).toBe(primeLine)
+    }
+  })
+
+  it('the prime’s Open link on a submission leads to the line it sells', async () => {
+    const own = await rowsOf(PRIME)
+    expect(own.length).toBeGreaterThan(0)
+    expect(own[0].contractId).toBe(primeLine)
+  })
+
+  it('every Open link a client is offered on a submission opens, never a 404', async () => {
+    for (const row of await rowsOf(CLIENT)) {
+      if (row.contractId) expect((await open(CLIENT, row.contractId)).status).toBe(200)
+    }
   })
 })

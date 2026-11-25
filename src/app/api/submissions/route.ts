@@ -1,3 +1,4 @@
+import { lineFor as lineForReader } from './line-for'
 import { reachFor, submissionsWhere, jobInReach, outsideReachSays } from '@/app/api/requisitions/grant-reach'
 import { mayNameJob, jobNamed } from './job-heading'
 import { NextRequest, NextResponse } from 'next/server'
@@ -1823,10 +1824,12 @@ export async function GET(request: NextRequest) {
   const lines = submissions.length
     ? await prisma.sellContract.findMany({
         where: { OR: submissions.map((s) => ({ requirementId: s.requirementId, personId: s.personId })) },
-        select: { id: true, requirementId: true, personId: true },
+        select: { id: true, requirementId: true, personId: true, companyId: true, clientCompanyId: true },
       })
     : []
-  const lineFor = new Map(lines.map((l) => [`${l.requirementId}:${l.personId}`, l.id]))
+  // Only a line this reader may open (record 119): a client's link leads to
+  // its own line, never to the one below its supplier.
+  const lineFor = lineForReader(lines, caller.company?.id ?? null)
   const mayHire = hasPermission(caller.permissions, 'requirements.write')
   // "Send on" and "Message", asked of the two routes' own rules per row
   // (`row-doors`): the forward route's actor is the acting desk's book
