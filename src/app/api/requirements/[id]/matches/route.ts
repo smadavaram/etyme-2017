@@ -303,6 +303,8 @@ export async function POST(
         recordType: 'REQUIREMENT',
         recordId: requirementId,
         agent: 'match.score',
+        // A skill-layer row is not a scoring pass: counts stay as they were.
+        skillKey: null,
         verdict: 'PASS',
         model: { not: null },
         at: { gte: startedAt },

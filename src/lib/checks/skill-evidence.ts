@@ -189,7 +189,7 @@ export async function stampModelRun(run: {
   const { model, usage, unverifiedBecause } = run.read
   try {
     await prisma.agentRun.updateMany({
-      where: { companyId: run.companyId, agent: run.agent, recordType: 'SUBMISSION', recordId: run.recordId, attempt: run.attempt },
+      where: { companyId: run.companyId, agent: run.agent, skillKey: null, recordType: 'SUBMISSION', recordId: run.recordId, attempt: run.attempt },
       data: {
         ...(model
           ? {
