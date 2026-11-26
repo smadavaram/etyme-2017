@@ -879,7 +879,8 @@ Full text → 12, 14, 24, 32, 35.
   next decision for the person's one job: a score bar, one card (a name,
   a figure, Yes or Not now), the queue, one input. The queue is ordered by
   urgency × value × confidence. A card has 12 words at most, and its detail
-  sits under "Why". No versions: each piece is built whole.
+  sits under "Why". No versions: each piece is built whole. Ask Etyme is
+  the end user's harness: the one place a person drives their own agents.
 - **It is called Ask Etyme, it is a chat, and it is the first screen
   after sign-in.** Conversations are kept and listed per seat. An answer
   that is a list or a figure is shown as data beside the chat, from the
