@@ -537,8 +537,8 @@ export const MATRIX: L1[] = [
             'Queue, Done today and the Agent switch read the same as the Ask Etyme badge; only the Owner switches the agent',
             'The screen fits 390 wide with no sideways scroll; a browser test presses Yes and proves the card, the record on reload and the ledger row',
           ],
-          implementedBy: [],
-          testedBy: [],
+          implementedBy: ['src/lib/notify/one-card/score.ts', 'src/lib/notify/one-card/score-bar.ts', 'src/lib/notify/one-card/wording.ts', 'src/lib/notify/one-card/build.ts', 'src/lib/notify/one-card/read.ts', 'src/app/api/conversations/one-card/route.ts', 'src/app/dashboard/conversations/one-card.tsx', 'src/app/dashboard/conversations/ask-etyme.tsx'],
+          testedBy: ['__tests__/unit/one-card-math.test.ts', '__tests__/unit/one-card-build.test.ts', '__integration__/one-card-screen.test.ts'],
         },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [
