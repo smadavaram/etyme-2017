@@ -39,3 +39,25 @@ This narrows record 108 for architecture questions.
    the key with the owner once, as a credential item.
 5. **The production retest waits on the owner's sign-in.** It stays
    flagged as his one action and does not hold the batch.
+
+## The tester's answers, 2026-11-26
+
+**Ruling 1 is read as (a).** The person's one yes on a task is the send
+for every letter in that task (record 112). An agent never sends without
+that yes, and it never sends beyond the task. Nothing built changes.
+
+**Yes to all three proposals on the website and outreach plugins (records
+121 and 122):**
+
+1. **The website flag ships this Saturday, off for every firm.** Tapin's
+   storefront goes dark, `/site/tapin` leaves the deploy's smoke test, and
+   Tapin's people are told before Saturday that the link in their
+   invitation goes dark. The content is kept.
+2. **Until the website module is built, the website switch refuses to
+   turn on.** It says: "The site goes public after three checks: your
+   branding, your domain, and any compliance pass." Turning it off always
+   works.
+3. **Outreach is gated on its send paths only.** That covers the batch
+   send, its follow-ups, and the dormant-contact and submission-chase
+   letters. Drafting and preview stay open. A batch already approved
+   stays a draft until the Owner switches outreach on.

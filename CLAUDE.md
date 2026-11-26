@@ -503,7 +503,9 @@ Full text → 40, 11, 56, 68, 72.
   2026-11-25 → 121, 122), off by default. A site goes public only after
   the Owner's branding yes, the firm's own domain and any compliance pass;
   off takes it dark and keeps its content. Outreach off sends nothing and
-  still drafts. Built third and fourth, after pods.
+  still drafts. Built third and fourth, after pods. Both flags ship
+  first (→ 123): the website switch refuses to turn on until its three
+  checks exist, and outreach is gated on its send paths only.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
@@ -1124,7 +1126,8 @@ Full text → 33, 34, 17, 20, 52, 57, 41, 65, 67, 71, 73, 74, 75, 76, 77.
   branch through gates: no Ruby, the brand kit present, no source
   difference, no schema line removed. Then smoke: health, every public
   page, `/site/tapin`, the inbound email door answering 404, and MX and
-  SPF after any DNS change. Production is `etyme2040.vercel.app`.
+  SPF after any DNS change. `/site/tapin` is out of the smoke test while
+  the website plugin is off (→ 123). Production is `etyme2040.vercel.app`.
 - **"Deploy when green"** (founder, 2026-11-13). Green is: the
   reviewers' blockers fixed, the release check green, and the walk
   saying ships.
