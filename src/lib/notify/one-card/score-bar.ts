@@ -22,14 +22,14 @@ export interface DoneCard {
   doneAt: string
 }
 
-/** Cards owed today: the days left, read the one way urgency reads them, is zero. */
+/** Cards owed today. Only a real due date counts: the days-open fallback orders cards and is never shown. */
 export function dueCount(cards: ReadonlyArray<Pick<Scorable, 'dueOn' | 'openedOn'>>, now: Date): number {
-  return cards.filter((c) => daysToDue(c, now) === 0).length
+  return cards.filter((c) => c.dueOn != null && daysToDue(c, now) === 0).length
 }
 
 /** Cards past due. */
 export function lateCount(cards: ReadonlyArray<Pick<Scorable, 'dueOn' | 'openedOn'>>, now: Date): number {
-  return cards.filter((c) => { const d = daysToDue(c, now); return d !== null && d < 0 }).length
+  return cards.filter((c) => { if (c.dueOn == null) return false; const d = daysToDue(c, now); return d !== null && d < 0 }).length
 }
 
 /** Done on time over done, as a whole percent; null where no done card had a due date. */

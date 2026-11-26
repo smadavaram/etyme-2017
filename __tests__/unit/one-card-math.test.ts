@@ -64,6 +64,11 @@ describe('The score bar reads Due, Late and On time from the record', () => {
   const cards = [card({ dueOn: '2026-11-26' }), card({ dueOn: '2026-11-26' }), card({ dueOn: '2026-11-20' }), card({ dueOn: '2026-12-05' })]
   it('Due counts the cards owed today', () => { expect(dueCount(cards, NOW)).toBe(2) })
   it('Late counts the cards past due', () => { expect(lateCount(cards, NOW)).toBe(1) })
+  it('a row with no due date is never counted Due or Late on the score bar', () => {
+    const undated = [card({ dueOn: null, openedOn: '2026-11-19' }), card({ dueOn: null, openedOn: '2026-11-01' })]
+    expect(dueCount(undated, NOW)).toBe(0)
+    expect(lateCount(undated, NOW)).toBe(0)
+  })
   it('On time is done on time over done, as a whole percent', () => {
     expect(onTimePct([
       { dueOn: '2026-11-26', doneAt: '2026-11-26T09:00:00Z' },
