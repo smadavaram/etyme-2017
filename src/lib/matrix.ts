@@ -3636,10 +3636,10 @@ export const MATRIX: L1[] = [
             'Variance is Actual minus Target; Var % is of the Target, rounded to a whole number; Completion % is Actual over Planned; nothing planned reads a dash',
             'Every cell is a number, a dash or a label of three words or fewer with no verb; counts by Rules, Low tier and High tier with Fallback and Escalated; no price or charge appears',
             'The Owner and Admins read the panel; an agent\u2019s line equals its output skill\u2019s line and its ledger acts count',
-            'PARTIAL 2026-11-26 (record 123, skill layer): the arithmetic is built (step 6a); the words, the routes and the panel follow'
+            'PARTIAL 2026-11-26 (record 123, skill layer): the arithmetic and the words are built (steps 6a, 6b); the routes and the panel follow'
           ],
-          implementedBy: ['src/lib/skills/performance.ts'],
-          testedBy: ['__tests__/unit/skills-performance.test.ts'] },
+          implementedBy: ['src/lib/skills/performance.ts', 'src/lib/skills/performance-words.ts'],
+          testedBy: ['__tests__/unit/skills-performance.test.ts', '__tests__/unit/skills-words.test.ts'] },
         { code: 'L3.6.3.48', name: 'Skills: the model gateway, one door for every model call, tiered by data class', owner: 'Owner', status: S,
           tasks: [
             'Every model call goes through one gateway; no file outside it imports a provider SDK or calls a provider host (a list that may only shrink)',
