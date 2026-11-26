@@ -150,3 +150,5 @@ The owner: "Let starter be 19.99+ user and offer 40% to affiliates."
      subscription revenue, for the first 12 months.
    - No affiliate terms appear on the rate card, or anywhere else, until
      those mechanics are ruled.
+
+**The tester, 2026-11-26:** the rate card shows the supplier example exactly: $4,598.20 a year. A published price is never rounded.
