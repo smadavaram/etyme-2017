@@ -144,3 +144,13 @@ shows one card.
    steps, then acts.
 4. Triggers fire as work arrives, not only once a day.
 5. Each seat keeps a memory of its open tasks and recent asks.
+
+## The prototypes are approved (the tester, 2026-11-26)
+
+The three one-card prototypes in `prototypes/ask-etyme-one-card/` (commit eb58f532b) are approved as drawn. Build them.
+
+In the build:
+- Every figure on the screen comes from the record, never from the drawing.
+- The real fonts are used.
+- The "Why" drawer is closed until the person taps it.
+- Until the skill layer grades a skill, its confidence counts as 1.
