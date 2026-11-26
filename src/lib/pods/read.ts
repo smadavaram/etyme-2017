@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/db'
+import { offerStateSays } from '@/lib/pods'
+import { POD_SALE_ACT } from '@/lib/twin/pod-sale-card'
 import { rosterRule, projectIsOpen, deliverableState, type RosterFacts } from '@/lib/pods'
 
 /** The firm's teams with roles, headcount and members (names only). */
@@ -85,4 +87,33 @@ export async function readProjects(companyId: string): Promise<{ id: string; pod
     id: p.id, podId: p.podId, name: p.projectOrder.name, clientName: p.projectOrder.clientCompany?.name ?? null,
     open: projectIsOpen({ fulfilledAt: p.fulfilledAt, deliverableStates: p.deliverables.map((d) => deliverableState(d.milestone, d.startedAt)?.state ?? null) }),
   }))
+}
+
+/**
+ * Where each team's offer stands, newest card per team: who it was offered
+ * to, who it waits on, and the answer. The supplier reads the client's name
+ * and the acceptor's name (she was named by the supplier) and nothing else
+ * from the card; the client's reason for a no stays with the client.
+ */
+export async function readOffers(companyId: string): Promise<Record<string, { client: string; acceptor: string; decision: 'PENDING' | 'APPROVED' | 'REJECTED' | 'OVERTAKEN'; says: string | null }>> {
+  const rows = await prisma.twinAction.findMany({
+    where: { action: POD_SALE_ACT, entityType: 'Pod', partyCompanyIds: { has: companyId }, NOT: { companyId }, approvalRequested: { isNot: null } },
+    orderBy: { ts: 'desc' },
+    take: 200,
+    select: { entityId: true, payload: true, company: { select: { name: true } }, approvalRequested: { select: { decision: true } } },
+  })
+  const newest = new Map<string, (typeof rows)[number]>()
+  for (const r of rows) if (r.entityId && !newest.has(r.entityId)) newest.set(r.entityId, r)
+  const people = await prisma.person.findMany({
+    where: { id: { in: [...newest.values()].map((r) => String((r.payload as { acceptorPersonId?: string } | null)?.acceptorPersonId ?? '')) } },
+    select: { id: true, name: true },
+  })
+  const names = new Map(people.map((p) => [p.id, p.name]))
+  const out: Awaited<ReturnType<typeof readOffers>> = {}
+  for (const [podId, r] of newest) {
+    if (!r.approvalRequested) continue
+    const o = { client: r.company.name, acceptor: names.get(String((r.payload as { acceptorPersonId?: string } | null)?.acceptorPersonId)) ?? 'the person named', decision: r.approvalRequested.decision }
+    out[podId] = { ...o, says: offerStateSays(o) }
+  }
+  return out
 }

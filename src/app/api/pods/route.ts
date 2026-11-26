@@ -5,7 +5,8 @@ import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
 import { podReadRefusal, podWriteRefusal, logPodReads } from '@/lib/pods/caller'
-import { eligiblePeople, readPods, readProjects } from '@/lib/pods/read'
+import { eligiblePeople, readOffers, readPods, readProjects } from '@/lib/pods/read'
+import { dealingsWithSides } from '@/app/api/companies/dealings'
 import { PRICINGS, isHeadcount, pricingRule } from '@/lib/pods'
 
 /**
@@ -26,9 +27,12 @@ export async function GET(request: NextRequest) {
   if (refused) return refused
 
   const companyId = caller.company!.id
-  const [teams, people, projects] = await Promise.all([readPods(companyId), eligiblePeople(companyId), readProjects(companyId)])
+  const [teams, people, projects, offers, dealings] = await Promise.all([readPods(companyId), eligiblePeople(companyId), readProjects(companyId), readOffers(companyId), dealingsWithSides(caller, false)])
+  // The firms a team may be offered to: the ones this firm works with, never one it reached by its own writing alone.
+  const open = [...dealings.ids].filter((id) => !dealings.ownSideOnly.has(id) && id !== companyId)
+  const clients = open.length ? await prisma.company.findMany({ where: { id: { in: open } }, select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 200 }) : []
   logPodReads(caller, teams.flatMap((t) => t.roles.flatMap((r) => r.members.map((m) => m.personId))), 'the people on its teams')
-  return NextResponse.json({ data: { teams, people, projects, mayWrite: hasPermission(caller.permissions, 'requirements.write') } })
+  return NextResponse.json({ data: { teams, people, projects, offers, clients, mayWrite: hasPermission(caller.permissions, 'requirements.write') } })
 }
 
 export async function POST(request: NextRequest) {

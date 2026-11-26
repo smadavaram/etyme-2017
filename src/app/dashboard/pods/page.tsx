@@ -23,6 +23,10 @@ interface Team {
 }
 interface Project { id: string; podId: string; name: string; clientName: string | null; open: boolean }
 interface MarginRead { marginCents: number | null; earnedRevenueCents: number; unknownSays: string[]; currency: string }
+interface Offer { client: string; acceptor: string; decision: 'PENDING' | 'APPROVED' | 'REJECTED' | 'OVERTAKEN'; says: string | null }
+interface Client { id: string; name: string }
+interface Row { name: string; amount: string; due: string }
+interface OfferForm { clientCompanyId: string; email: string; kind: string; projectName: string; price: string; rows: Row[] }
 interface Person { personId: string; name: string; email: string | null; kind: 'EMPLOYEE' | 'BENCH' }
 
 const field = 'rounded-md border border-etyme-rule bg-etyme-raised px-2 py-1.5 text-sm text-etyme-ink w-full sm:w-auto'
@@ -42,6 +46,10 @@ export default function ProjectTeamsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   // Filled only for a project whose margin route said yes: a seat it refuses draws no margin at all.
   const [margins, setMargins] = useState<Record<string, MarginRead>>({})
+  const [offers, setOffers] = useState<Record<string, Offer>>({})
+  const [clients, setClients] = useState<Client[]>([])
+  const [offerForm, setOfferForm] = useState<Record<string, OfferForm>>({})
+  const [known, setKnown] = useState<{ name: string; email: string }[]>([])
   const [mayWrite, setMayWrite] = useState(false)
   const [refused, setRefused] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
@@ -58,6 +66,8 @@ export default function ProjectTeamsPage() {
     setRefused(null)
     setTeams(body.data.teams)
     setPeople(body.data.people)
+    setOffers(body.data.offers ?? {})
+    setClients(body.data.clients ?? [])
     setMayWrite(Boolean(body.data.mayWrite))
     const sold: Project[] = body.data.projects ?? []
     setProjects(sold)
@@ -85,6 +95,28 @@ export default function ProjectTeamsPage() {
 
   const labels = pickerLabels(people)
   const dollarsToCents = (v: string) => Math.round(Number(v) * 100)
+
+  const blank: OfferForm = { clientCompanyId: '', email: '', kind: 'MILESTONE', projectName: '', price: '', rows: [{ name: '', amount: '', due: '' }] }
+
+  // The people the supplier already knows at that client, by name; she may type any other work address.
+  async function knowAt(clientId: string) {
+    setKnown([])
+    if (!clientId) return
+    const r = await fetch(`/api/contacts?at=${encodeURIComponent(clientId)}`)
+    if (!r.ok) return
+    const list: { name: string; email: string | null }[] = (await r.json().catch(() => ({}))).data?.contacts ?? []
+    setKnown(list.filter((c) => c.email).map((c) => ({ name: c.name, email: c.email as string })))
+  }
+
+  async function offer(teamId: string, f: OfferForm) {
+    const tm = f.kind === 'TIME_AND_MATERIALS'
+    const ok = await send('POST', `/api/pods/${teamId}/offer`, {
+      clientCompanyId: f.clientCompanyId, acceptorEmail: f.email, kind: f.kind, projectName: f.projectName,
+      priceCents: dollarsToCents(f.price), currency: teams!.find((t) => t.id === teamId)!.currency,
+      deliverables: tm ? [] : f.rows.filter((r) => r.name.trim() || r.amount).map((r) => ({ name: r.name, amountCents: dollarsToCents(r.amount), ...(r.due ? { dueOn: r.due } : {}) })),
+    })
+    if (ok) setOfferForm({ ...offerForm, [teamId]: blank })
+  }
 
   async function create(e: React.FormEvent) {
     e.preventDefault()
@@ -141,6 +173,10 @@ export default function ProjectTeamsPage() {
               </div>
               <p className="text-sm text-etyme-muted mb-3">{priceSays(t)}</p>
 
+              {offers[t.id]?.says && (
+                <p className="mb-3 text-sm text-etyme-ink" aria-label={`Offer on ${t.name}`}>{offers[t.id].says}</p>
+              )}
+
               {projects.filter((p) => p.podId === t.id).map((p) => {
                 const m = margins[p.id]
                 return (
@@ -190,6 +226,59 @@ export default function ProjectTeamsPage() {
                   </div>
                 ))}
               </div>
+
+              {mayWrite && !t.archivedAt && t.filled > 0 && clients.length > 0 && offers[t.id]?.decision !== 'PENDING'
+                && !projects.some((p) => p.podId === t.id && p.open) && (() => {
+                const f = offerForm[t.id] ?? blank
+                const set = (patch: Partial<OfferForm>) => setOfferForm({ ...offerForm, [t.id]: { ...f, ...patch } })
+                const tm = f.kind === 'TIME_AND_MATERIALS'
+                return (
+                  <details className="mb-3 rounded-md border border-etyme-rule px-3 py-2">
+                    <summary className="cursor-pointer text-sm text-etyme-action">Offer to a client</summary>
+                    <form onSubmit={(e) => { e.preventDefault(); offer(t.id, f) }} className="mt-3 flex flex-wrap items-end gap-3">
+                      <label><span className={label}>Client</span>
+                        <select value={f.clientCompanyId} required onChange={(e) => { set({ clientCompanyId: e.target.value, email: '' }); knowAt(e.target.value) }} className={field}>
+                          <option value="">Choose a client</option>
+                          {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select></label>
+                      <label><span className={label}>Who at the client accepts the work</span>
+                        <input type="email" list={`known-${t.id}`} value={f.email} required onChange={(e) => set({ email: e.target.value })} placeholder="Work address" className={`${field} w-64`} />
+                        <datalist id={`known-${t.id}`}>{known.map((k) => <option key={k.email} value={k.email}>{k.name}</option>)}</datalist></label>
+                      <label><span className={label}>Sold as</span>
+                        <select value={f.kind} onChange={(e) => set({ kind: e.target.value })} className={field}>
+                          <option value="MILESTONE">Milestones</option>
+                          <option value="FIXED_PRICE">A fixed price</option>
+                          <option value="TIME_AND_MATERIALS">Time and materials</option>
+                        </select></label>
+                      <label><span className={label}>Project name</span>
+                        <input value={f.projectName} required onChange={(e) => set({ projectName: e.target.value })} className={`${field} w-56`} /></label>
+                      <label><span className={label}>Price, in dollars</span>
+                        <input value={f.price} required inputMode="decimal" onChange={(e) => set({ price: e.target.value })} className={`${field} w-28`} /></label>
+                      {tm
+                        ? <p className="w-full text-xs text-etyme-muted">Hours are billed as they are worked and signed. There are no deliverables.</p>
+                        : (
+                          <div className="w-full space-y-2">
+                            {f.rows.map((r, i) => (
+                              <div key={i} className="flex flex-wrap items-end gap-2">
+                                <label><span className={label}>Deliverable</span>
+                                  <input value={r.name} onChange={(e) => set({ rows: f.rows.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} className={`${field} w-48`} /></label>
+                                <label><span className={label}>Amount, in dollars</span>
+                                  <input value={r.amount} inputMode="decimal" onChange={(e) => set({ rows: f.rows.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)) })} className={`${field} w-28`} /></label>
+                                <label><span className={label}>Due</span>
+                                  <input type="date" value={r.due} onChange={(e) => set({ rows: f.rows.map((x, j) => (j === i ? { ...x, due: e.target.value } : x)) })} className={field} /></label>
+                                {f.rows.length > 1 && <button type="button" onClick={() => set({ rows: f.rows.filter((_, j) => j !== i) })} className="text-xs text-etyme-action hover:underline">Remove</button>}
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => set({ rows: [...f.rows, { name: '', amount: '', due: '' }] })} className="text-xs text-etyme-action hover:underline">Add a deliverable</button>
+                            <p className="text-xs text-etyme-muted">The deliverables must add up to the price exactly.</p>
+                          </div>
+                        )}
+                      <button type="submit" className="btn-primary">Send offer</button>
+                      <p className="w-full text-xs text-etyme-muted">The client sees the project, its price and deliverables, and the roles. Never the people on it.</p>
+                    </form>
+                  </details>
+                )
+              })()}
 
               {mayWrite && (
                 <div className="flex flex-wrap items-end gap-2 border-t border-etyme-rule pt-3">

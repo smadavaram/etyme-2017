@@ -142,3 +142,72 @@ export function marginUnknownSays(m: { marginCents: number | null; earnedRevenue
   }
   return out.length ? out : ['Margin is not known yet']
 }
+
+// ── The supplier's proposal ───────────────────────────────────────────
+
+export const OFFER_KINDS = ['MILESTONE', 'FIXED_PRICE', 'TIME_AND_MATERIALS'] as const
+export type OfferKind = (typeof OFFER_KINDS)[number]
+
+export interface Offer {
+  clientCompanyId: string
+  /** The address of the one person at the client who answers and then accepts each deliverable. */
+  acceptorEmail: string
+  kind: OfferKind
+  priceCents: number
+  currency: string
+  projectName: string
+  deliverables: { name: string; amountCents: number; dueOn: Date | null }[]
+}
+
+export type OfferRead = { ok: true; offer: Offer } | { ok: false; says: string; field: string }
+
+const OFFER_NAME_SAYS = 'Name the project as your client would — for example ‘Data platform build’.'
+
+/**
+ * What a supplier's proposal must say before anything is raised: a client,
+ * a named person there, a kind, a price in whole cents, a currency, a name
+ * the client would use, and deliverables that add up to the price exactly
+ * (none at all on time and materials). Reads the raw body; one sentence
+ * and the field on the first thing wrong. Pure.
+ */
+export function offerRule(body: unknown): OfferRead {
+  const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>
+  const no = (says: string, field: string): OfferRead => ({ ok: false, says, field })
+  const clientCompanyId = typeof b.clientCompanyId === 'string' ? b.clientCompanyId.trim() : ''
+  if (!clientCompanyId) return no('Choose the client this is offered to.', 'clientCompanyId')
+  const acceptorEmail = typeof b.acceptorEmail === 'string' ? b.acceptorEmail.trim().toLowerCase() : ''
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acceptorEmail)) return no('Name the person at the client who will accept the work, by her work address.', 'acceptorEmail')
+  const kind = b.kind as OfferKind
+  if (!(OFFER_KINDS as readonly unknown[]).includes(kind)) return no('Choose milestones, a fixed price, or time and materials.', 'kind')
+  if (!isWholeCents(b.priceCents)) return no('The price is a whole number of cents, above zero.', 'priceCents')
+  const currency = typeof b.currency === 'string' ? b.currency.trim().toUpperCase() : ''
+  if (!/^[A-Z]{3}$/.test(currency)) return no('Give the currency as three letters, for example USD.', 'currency')
+  const projectName = typeof b.projectName === 'string' ? b.projectName.trim().slice(0, 200) : ''
+  if (!projectName || /\bpods?\b/i.test(projectName)) return no(OFFER_NAME_SAYS, 'projectName')
+
+  const listed = Array.isArray(b.deliverables) ? (b.deliverables as Record<string, unknown>[]) : []
+  if (kind === 'TIME_AND_MATERIALS') {
+    if (listed.length > 0) return no('A time-and-materials team bills hours and has no deliverables. Sell it on milestones or a fixed price to list deliverables.', 'deliverables')
+    return { ok: true, offer: { clientCompanyId, acceptorEmail, kind, priceCents: b.priceCents, currency, projectName, deliverables: [] } }
+  }
+  const deliverables: Offer['deliverables'] = []
+  for (const d of listed) {
+    const name = typeof d?.name === 'string' ? d.name.trim() : ''
+    if (name.length < 2) return no('A deliverable needs a name the client will recognize.', 'deliverables')
+    const due = typeof d.dueOn === 'string' && d.dueOn ? new Date(d.dueOn) : null
+    if (due && Number.isNaN(due.getTime())) return no(`${name} has a due date that is not a date.`, 'deliverables')
+    deliverables.push({ name, amountCents: d.amountCents as number, dueOn: due })
+  }
+  const amounts = amountsRule(b.priceCents, deliverables.map((d) => d.amountCents))
+  if (amounts) return no(amounts, 'deliverables')
+  return { ok: true, offer: { clientCompanyId, acceptorEmail, kind, priceCents: b.priceCents, currency, projectName, deliverables } }
+}
+
+/** What the team's row says about its offer, in the supplier's words. Null where no offer was made. */
+export function offerStateSays(o: { client: string; acceptor: string; decision: 'PENDING' | 'APPROVED' | 'REJECTED' | 'OVERTAKEN' } | null): string | null {
+  if (!o) return null
+  if (o.decision === 'PENDING') return `Offered to ${o.client}, waiting for ${o.acceptor}`
+  if (o.decision === 'APPROVED') return `Sold to ${o.client}`
+  if (o.decision === 'REJECTED') return `Declined by ${o.client}`
+  return null
+}

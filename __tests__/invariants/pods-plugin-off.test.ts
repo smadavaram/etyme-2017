@@ -24,6 +24,7 @@ vi.mock('@/lib/db', () => ({
 
 import * as list from '@/app/api/pods/route'
 import * as one from '@/app/api/pods/[id]/route'
+import * as offer from '@/app/api/pods/[id]/offer/route'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const call = (fn: any, method: string) =>
@@ -32,7 +33,7 @@ const call = (fn: any, method: string) =>
 const verbs: [string, any, string][] = [
   ['GET /api/pods', list.GET, 'GET'], ['POST /api/pods', list.POST, 'POST'],
   ['GET /api/pods/[id]', one.GET, 'GET'], ['PATCH /api/pods/[id]', one.PATCH, 'PATCH'],
-  ['POST /api/pods/[id]', one.POST, 'POST'], ['DELETE /api/pods/[id]', one.DELETE, 'DELETE'],
+  ['POST /api/pods/[id]', one.POST, 'POST'], ['POST /api/pods/[id]/offer', offer.POST, 'POST'], ['DELETE /api/pods/[id]', one.DELETE, 'DELETE'],
 ]
 
 describe('project teams while the plugin is off', () => {
