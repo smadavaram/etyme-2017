@@ -36,6 +36,29 @@ deploy.
 
 ## START HERE
 
+**2026-11-26 (Thu): DEPLOYED on the owner's word, "Deploy now".**
+- Production serves deploy commit c2caa7704, from source 2268b9c2a.
+- **Release check on 060faee59:** type check ok · 18,705 unit · 4,507 database · build ok.
+- **Walk:** 31 seats on the one-card screen. No errors, no sideways scroll, no "Open" headings.
+- **Outage and fix:**
+  - The first push (a26085cec) went live without the new columns, because the build ran no schema push. Every storefront returned 500.
+  - The owner chose no rollback.
+  - Fixed forward: every build now applies changes that only add (2268b9c2a). A change that would lose data still needs DB_PUSH_ON_BUILD.
+  - `/site/tapin` and `/api/site/tapin` read the new plugin column and return 200, which proves the columns are there.
+- **Smoke:** home 200 · /site/tapin 200 · /demo 200 · /login 200 · inbound email door 404.
+- **What shipped:**
+  - the plugin switch;
+  - train-to-bench;
+  - the record-119 leak fixes;
+  - pods, with its switch held;
+  - skill layer steps 1–6 and the agent panel;
+  - the one-card Ask Etyme screen;
+  - Answer job request;
+  - one-press Yes for job requests and suppliers;
+  - the access-log fix.
+- **For the tester:** please retest in production. Three seats are still empty on the demo data: the client Approver, the client Compliance Officer and the one-person firm.
+
+
 **2026-11-26: brief for the tester (Pax). Latest changes. Nothing is deployed since Nov 25.**
 
 | Area | Change | State | Record |
