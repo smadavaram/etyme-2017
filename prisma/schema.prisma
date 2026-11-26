@@ -288,6 +288,7 @@ model Person {
   /// The identities a company's directory vouches for: issuer and subject.
   externalIdentities     ExternalIdentity[]
   signInPoliciesSet      CompanySignInPolicy[] @relation("signInPolicySetBy")
+  skillTargetsSet        SkillTarget[]         @relation("skillTargetSetBy")
   /// Owners (2026-11-12): asks this person made or decided, and the proofs
   /// about them or recorded by them.
   ownershipAsked         OwnershipRequest[]    @relation("ownershipAskedBy")
@@ -1001,6 +1002,7 @@ model Company {
   /// Empty is off. The ledger is PluginSwitch.
   pluginsOn             String[]                @default([])
   pluginSwitches        PluginSwitch[]
+  skillTargets          SkillTarget[]
   /// Hides this firm's courses on its storefront whatever its plugin says
   /// (record 120, answer 3). A per-tenant setting; Tapin's is true.
   coursesHiddenOnStorefront Boolean @default(false)
@@ -8919,6 +8921,23 @@ model AgentRun {
   consideredCount Int?
   scoredCount     Int?
 
+  /// The skill layer (records 123, 125). All null on a row written before it,
+  /// and none is a foreign key.
+  /// The named skill this row ran, and the agent that ran it.
+  skillKey String?
+  agentKey String?
+  /// RULES · LOW · HIGH
+  tier     String?
+  /// A count only: the call went to the tenant's own model. Never a charge.
+  byTenantModel Boolean @default(false)
+  /// The model it fell back from, or the tier it escalated from.
+  fallbackFrom  String?
+  escalatedFrom String?
+  /// Planned is the agent's own in-scope count. Done is written only by the
+  /// grader, from what the checker re-read; never by the agent.
+  unitsPlanned Int?
+  unitsDone    Int?
+
   at DateTime @default(now())
 
   checks Check[]
@@ -8926,6 +8945,8 @@ model AgentRun {
   @@index([companyId, at])
   @@index([recordType, recordId])
   @@index([companyId, agent, at])
+  @@index([companyId, skillKey, at])
+  @@index([companyId, agentKey, at])
 }
 
 /// One check on one thing, and who did the checking.
@@ -11770,4 +11791,26 @@ model PodDeliverable {
   startedAt    DateTime?
 
   @@index([podProjectId])
+}
+
+/// The Owner's own number for a skill or an agent over a day, a week or a
+/// month (records 123, 125). Null until set: the screen shows a dash. A change
+/// is also a RecordAction (TARGET_SET), so there is no history table.
+model SkillTarget {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// SKILL · AGENT
+  subjectKind String
+  subjectKey  String
+  /// DAY · WEEK · MONTH
+  period      String
+  target      Int
+  setById     String
+  setBy       Person   @relation("skillTargetSetBy", fields: [setById], references: [id], onDelete: Restrict)
+  setAt       DateTime @default(now())
+
+  @@unique([companyId, subjectKind, subjectKey, period])
+  @@index([companyId])
+  @@index([setById])
 }

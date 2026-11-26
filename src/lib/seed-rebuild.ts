@@ -93,6 +93,8 @@ export const DELETE_ORDER = [
   'OutreachLetter', 'AgentTask', 'AgentSwitch',
   // A plugin switch (record 120) names the firm; the person who set it is by id alone.
   'PluginSwitch',
+  // The Owner's own targets name the firm and the person who set them (records 123, 125).
+  'SkillTarget',
   // Chains 1, 2, 3 and 6 (record 112): each names the firm, and some a submission or a petition, so they go before both.
   'PublicAccessFile', 'Petition', 'NoticePosting', 'ChecklistItem', 'Offer', 'SubmissionConfirmation',
   // The money loop's month, a decision a person opened and the record
