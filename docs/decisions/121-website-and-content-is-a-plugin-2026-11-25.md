@@ -38,3 +38,7 @@ All three must be true:
 The website and content module is the third module, after train-to-bench
 and pods. It goes through its own plan gate. Its flag is carried in the
 switch build now.
+
+## Overtaken, 2026-11-26
+
+The two live doors are grandfathered and the deploy takes nothing dark (record 123, the tester's follow-up rulings and six answers).

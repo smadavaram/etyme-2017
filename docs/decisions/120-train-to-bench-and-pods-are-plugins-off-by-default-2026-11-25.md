@@ -146,3 +146,13 @@ The owner said "yes to all five proposals" from the pods plan gate.
   member names, ids, costs or a firm below. The words are project,
   deliverable and team, never pod.
 - The client's milestone list is narrowed to the same set.
+
+## Pods: the tester confirms the two money rulings, 2026-11-26
+
+1. **Hours never bill on a milestone or fixed-price project sold from a
+   team.** Every other order is unchanged. Whether hours bill on any
+   milestone order in general is a wider money rule, and it stays the
+   owner's.
+2. **A deliverable is billed only once at least one team member's start
+   is confirmed.** The member lines go through the usual check of papers
+   first. The acceptance walk starts a member before it bills.

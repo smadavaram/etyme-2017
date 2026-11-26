@@ -93,3 +93,33 @@ included (record 122).
 - An approved task that is already running when the flag lands either
   completes visibly or pauses visibly. It is never dropped silently.
 - Drafting stays available while the flag is off.
+
+## The website and outreach flags: the tester's six answers, 2026-11-26
+
+The tester said yes to all six of the lead's recommendations.
+
+1. **The two grandfathered sites keep their content editor open**, while
+   the website switch cannot yet be turned on.
+2. **An Owner's first switch-off of a grandfathered site ends its
+   grandfathering for good.** Switching the site back on must pass the
+   three checks.
+3. **The two checks that hold no data yet get stored facts:**
+   - The branding approval is a dated record of who approved it, set by
+     the Owner on screen.
+   - Whether a compliance pass is required is a setting for each firm.
+     The pass itself is recorded with the person, the date and an
+     attached document.
+   - Until those facts exist, the switch refuses and names the check that
+     is missing.
+4. **The outreach flag covers only the letters that sell:** the outreach
+   batches, their follow-ups and the dormant-company check-ins. These
+   stay open: the submission chase, the money-owed chase, the timesheet
+   chase and the "still available?" ping.
+5. **A paused task resumes under its existing yes** and sends the same
+   approved text once the Owner turns outreach on.
+6. **A dark site reads "No company at that address"**, the same as for a
+   firm that does not exist.
+
+This makes record 121's line "the existing tenants' doors start off"
+and this record's first answer of 2026-11-26 ("Tapin's storefront goes
+dark") obsolete. The grandfathering ruling replaces both.
