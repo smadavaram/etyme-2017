@@ -39,8 +39,8 @@ describe('The seeded supplier seats read their own queue', () => {
 
   // Record 130: one person, one job, one next card. The same single card on
   // every seat is a list that is empty of the seat's own work. The Account
-  // Manager is not here: no card reads a job request a client sent a
-  // supplier, so she opens on the Recruiter's card until one does.
+  // Manager's job request is due in 12 days, so a late submission she may
+  // also act on rightly ranks first; the next test proves her card is there.
   it('each seeded supplier role\u2019s first card is its own kind of work', async () => {
     const OWN: Record<string, string> = {
       Recruiter: 'SUBMISSION_REVIEW',
@@ -60,5 +60,14 @@ describe('The seeded supplier seats read their own queue', () => {
     }
     console.log(report.join('\n'))
     expect(got).toEqual(OWN)
+  })
+
+  it('the Account Manager is shown the job requests clients sent the firm', async () => {
+    const am = seats.find((x) => x.role === 'Account Manager')
+    expect(am, 'the seed seats an Account Manager').toBeTruthy()
+    as(am!.email)
+    const res = await json(await oneCard(req('GET', '/api/conversations/one-card')))
+    const types = ((res.body?.data?.cards ?? []) as { type: string }[]).map((c) => c.type)
+    expect(types).toContain('JOB_REQUEST_ANSWER')
   })
 })

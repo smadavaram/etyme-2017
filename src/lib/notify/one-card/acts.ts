@@ -25,6 +25,7 @@ export const ACTS: Readonly<Record<string, ActName>> = {
   REQUISITION_APPROVAL: { act: 'Approve job request', verb: 'Approve' },
   SUPPLIER_REVIEW: { act: 'Approve supplier', verb: 'Approve' },
   SUBMISSION_REVIEW: { act: 'Review candidates', opens: 'Review' },
+  JOB_REQUEST_ANSWER: { act: 'Answer job request', opens: 'Answer' },
   INVOICE_RECEIPT_TO_PAY: { act: 'Pay invoice', opens: 'Pay', verb: 'Pay' },
   INVOICE_RECEIPT_HELD: { act: 'Clear held invoice', opens: 'Clear' },
   INVOICE_OVERDUE: { act: 'Chase invoice', opens: 'Chase' },

@@ -765,6 +765,42 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ── 2e. A job request a client sent this firm ─────
+  //
+  // The supplier seat that answers job requests holds `submissions.create`
+  // and `network.read`: the Account Manager. The Recruiter holds the first
+  // and not the second, and keeps her own queue of candidates. Only a live
+  // invitation (SENT, not past its date) is a card; the pay band on it is
+  // this firm's own and is not printed on the card.
+  if (hasAnyPermission(caller.permissions, ['submissions.create']) && hasAnyPermission(caller.permissions, ['network.read'])) {
+    const asked = await prisma.requirementInvitation.findMany({
+      where: { toCompanyId: companyId, status: 'SENT', expiresAt: { gt: now } },
+      select: {
+        id: true, expiresAt: true, createdAt: true, requirementId: true,
+        requirement: { select: { title: true } },
+        fromCompany: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 10,
+    })
+    for (const inv of asked) {
+      const left = Math.ceil((inv.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      decisions.push({
+        type: 'JOB_REQUEST_ANSWER',
+        title: `Answer job request — ${inv.requirement.title}`,
+        named: { whose: inv.requirement.title, what: 'job request', whats: 'job requests' },
+        subtitle: `from ${inv.fromCompany.name} · answer within ${left} ${left === 1 ? 'day' : 'days'}`,
+        urgency: left <= 2 ? 'HIGH' : left <= 5 ? 'MEDIUM' : 'LOW',
+        entityType: 'REQUIREMENT_INVITATION',
+        entityId: inv.id,
+        dueDate: inv.expiresAt.toISOString(),
+        actionUrl: `/dashboard/requirements/${inv.requirementId}`,
+        amount: null,
+        createdAt: inv.createdAt.toISOString(),
+      })
+    }
+  }
+
   // ── 3. Rolloff warnings ───────────────────────────
   //
   // Read by the desks that staff, run or pay the work — never by a seat
