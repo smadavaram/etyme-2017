@@ -91,3 +91,21 @@ service desk), all on one shared status record.
    Being built.
 6. The Ask box running skills. Part of this exists.
 7. The "Why" drawer. Part of this exists.
+
+## Ask Etyme is the end user's harness (the tester, 2026-11-26)
+
+The tester: "Ask Etyme is the end user harnesser."
+
+Ask Etyme is where a person drives their own agents. It is the
+harness's only surface for the end user.
+
+- **In:** a card's Yes or Not now, or the Ask box. A request in the box
+  calls a skill.
+- **Run:** the agents run the role's skills, within the Owner's
+  permissions.
+- **Out:** a card, a figure, or a ledger row.
+- **No second door.** The daily run, Teams and the web all end on the
+  same card and the same single approval route.
+- **The Owner configures; the person operates.** The Owner sets the
+  roles, the permissions and the agent switches. The person works only
+  inside them.
