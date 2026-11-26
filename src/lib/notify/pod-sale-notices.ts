@@ -16,7 +16,7 @@ import { mailLeaves } from '@/lib/notify/mail-leaves'
 const text = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null)
 
 /** The card's heading, and the acceptor's notice title. Read from the card's own payload. */
-export function podOfferTitle(payload: Record<string, unknown>): string {
+export function podOfferTitle(payload: { sellerName?: unknown; projectName?: unknown }): string {
   const seller = text(payload.sellerName) ?? 'A supplier'
   const project = text(payload.projectName) ?? 'a project'
   return `${seller} offers you the project ${project}`
