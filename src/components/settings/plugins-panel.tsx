@@ -10,6 +10,7 @@ interface PluginView {
   label: string
   says: string
   on: boolean
+  opensSays: string | null
   last: { on: boolean; by: string; atWords: string } | null
 }
 
@@ -62,7 +63,9 @@ export function PluginsPanel() {
                   {p.last ? `Last switched ${p.last.on ? 'on' : 'off'} by ${p.last.by}, ${p.last.atWords}.` : 'Never switched.'}
                 </p>
               </div>
-              {data.canSwitch ? (
+              {data.canSwitch && !p.on && p.opensSays ? (
+                <span className="text-[12px] text-etyme-muted max-w-[260px]">{p.opensSays}</span>
+              ) : data.canSwitch ? (
                 <button
                   type="button"
                   role="switch"

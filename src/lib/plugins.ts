@@ -23,6 +23,14 @@ export function pluginsOfferedTo(kind: string | null | undefined): typeof PLUGIN
   return kind === 'CLIENT' ? [] : PLUGINS
 }
 
+/** Record 120, ruling 3: Project teams does not turn on until the member-line work is built and walked. */
+export const PODS_CLOSED_SAYS = 'Project teams opens once client-safe billing is finished.'
+
+/** The sentence that refuses turning this plugin on, or null where it may be turned on. Turning off is never refused. */
+export function switchOnRefusal(plugin: PluginKey): string | null {
+  return plugin === 'PODS' ? PODS_CLOSED_SAYS : null
+}
+
 /** The one sentence for a module that is not offered to this company; it names no module. */
 export function notOfferedSays(): string {
   return 'That is not offered for your company.'

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { isOn, notOfferedSays, pluginsOfferedTo, isPluginKey, maySwitchPlugin, pluginLabel, type PluginKey } from '@/lib/plugins'
+import { isOn, notOfferedSays, pluginsOfferedTo, isPluginKey, maySwitchPlugin, pluginLabel, switchOnRefusal, type PluginKey } from '@/lib/plugins'
 import { momentFor } from '@/lib/when'
 
 /**
@@ -40,7 +40,7 @@ async function readScreen(companyId: string, kind: string | null) {
   return {
     plugins: pluginsOfferedTo(kind).map((p) => {
       const last = switches.find((s) => s.plugin === p.key) ?? null
-      return { key: p.key, label: p.label, says: p.says, on: isOn(company?.pluginsOn, p.key), last: last ? { on: last.on, by: last.by, at: last.at, atWords: last.atWords } : null }
+      return { key: p.key, label: p.label, says: p.says, on: isOn(company?.pluginsOn, p.key), opensSays: switchOnRefusal(p.key), last: last ? { on: last.on, by: last.by, at: last.at, atWords: last.atWords } : null }
     }),
     switches,
   }
@@ -78,6 +78,8 @@ export async function PATCH(request: NextRequest) {
   const companyId = caller.company!.id
   const plugin: PluginKey = body.plugin
   const on = body.on
+  const closed = on ? switchOnRefusal(plugin) : null
+  if (closed) return NextResponse.json({ error: { code: 'NOT_OPEN_YET', message: closed } }, { status: 409 })
   await prisma.$transaction(async (tx) => {
     const c = await tx.company.findUniqueOrThrow({ where: { id: companyId }, select: { pluginsOn: true } })
     const rest = c.pluginsOn.filter((k) => k !== plugin)

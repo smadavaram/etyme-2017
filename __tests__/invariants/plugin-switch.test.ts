@@ -141,3 +141,16 @@ describe('the files are registered', () => {
     expect(read('CLAUDE.md')).toContain('Training → Candidates, where the plugin is on.')
   })
 })
+
+describe('Project teams does not open yet (record 120, ruling 3)', () => {
+  it('switching Project teams on is refused in one sentence, and Train to bench is unaffected', async () => {
+    const { switchOnRefusal } = await import('@/lib/plugins')
+    expect(switchOnRefusal('PODS')).toBe('Project teams opens once client-safe billing is finished.')
+    expect(switchOnRefusal('TRAIN_TO_BENCH')).toBeNull()
+  })
+  it('both switch routes ask the refusal only when turning on, so off always works', () => {
+    for (const f of ['src/app/api/settings/plugins/route.ts', 'src/app/api/superadmin/plugins/route.ts']) {
+      expect(read(f)).toContain('on ? switchOnRefusal(plugin) : null')
+    }
+  })
+})

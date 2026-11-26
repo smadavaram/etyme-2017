@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, resetDatabase } from './harness'
-import { PATCH as switchPlugin } from '@/app/api/settings/plugins/route'
 import { GET as teamsGet } from '@/app/api/pods/route'
 import { POST as offerRoute } from '@/app/api/pods/[id]/offer/route'
 import { POST as decideCard } from '@/app/api/twin/approvals/[id]/route'
@@ -81,8 +80,8 @@ describe('the supplier offers a team to a client, and it is sold only by the nam
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('PLUGIN_OFF')
     expect(await cards()).toBe(0)
-    as(SELLER)
-    expect((await json(await switchPlugin(req('PATCH', '/api/settings/plugins', { plugin: 'PODS', on: true })))).status).toBe(200)
+    // The switch refuses Project teams for now (record 120, ruling 3); the fixture writes the flag.
+    await prisma.company.update({ where: { slug: 'pp-seller' }, data: { pluginsOn: ['PODS'] } })
   })
 
   it('a seat that may read jobs but not write them cannot make an offer', async () => {

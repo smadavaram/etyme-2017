@@ -74,20 +74,34 @@ describe('the Owner switches a plugin, and the flag and the ledger row are writt
     s.course = r.body.data.id
   })
 
-  it('Etyme staff switch Project teams on with a reason, and answer with the switch alone', async () => {
+  it('switching Project teams on is refused for an Owner and for Etyme staff, in one sentence, and nothing is written', async () => {
+    const before = await prisma.pluginSwitch.count({ where: { companyId: s.firm } })
+    const o = await patch(OWNER, { plugin: 'PODS', on: true })
+    expect(o.status).toBe(409)
+    expect(o.body.error.message).toBe('Project teams opens once client-safe billing is finished.')
     as(STAFF)
     const r = await json(await staffSwitch(req('PATCH', '/api/superadmin/plugins', { slug: 'quillbrook-plugins', plugin: 'PODS', on: true, reason: 'Asked for on a call' })))
+    expect(r.status).toBe(409)
+    expect(r.body.error.message).toBe('Project teams opens once client-safe billing is finished.')
+    expect((await prisma.company.findUniqueOrThrow({ where: { id: s.firm }, select: { pluginsOn: true } })).pluginsOn).not.toContain('PODS')
+    expect(await prisma.pluginSwitch.count({ where: { companyId: s.firm } })).toBe(before)
+  })
+
+  it('switching Project teams off still works for Etyme staff, with a reason, and answers with the switch alone', async () => {
+    await prisma.company.update({ where: { id: s.firm }, data: { pluginsOn: ['TRAIN_TO_BENCH', 'PODS'] } })
+    as(STAFF)
+    const r = await json(await staffSwitch(req('PATCH', '/api/superadmin/plugins', { slug: 'quillbrook-plugins', plugin: 'PODS', on: false, reason: 'Asked for on a call' })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body).toEqual({ data: { plugin: 'PODS', on: true } })
+    expect(r.body).toEqual({ data: { plugin: 'PODS', on: false } })
     const row = await prisma.pluginSwitch.findFirstOrThrow({ where: { companyId: s.firm, plugin: 'PODS' } })
-    expect(row).toMatchObject({ byStaff: true, reason: 'Asked for on a call' })
+    expect(row).toMatchObject({ byStaff: true, on: false, reason: 'Asked for on a call' })
   })
 
   it('an Owner is refused the staff switch, and the refusal is in the log', async () => {
     as(OWNER)
     const r = await json(await staffSwitch(req('PATCH', '/api/superadmin/plugins', { slug: 'quillbrook-plugins', plugin: 'PODS', on: false, reason: 'trying' })))
     expect(r.status).toBe(403)
-    expect((await prisma.company.findUniqueOrThrow({ where: { id: s.firm }, select: { pluginsOn: true } })).pluginsOn).toContain('PODS')
+    expect(await prisma.pluginSwitch.count({ where: { companyId: s.firm, byStaff: true } })).toBe(1)
   })
 
   it('the Owner reads the staff switch as Etyme staff, never an address', async () => {

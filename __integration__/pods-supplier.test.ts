@@ -21,7 +21,14 @@ const ASKED = 'pods-asked@seed.etyme.invalid'
 const s: Record<string, string> = {}
 const one = async (fn: any, method: string, id: string, body?: unknown, qs = '') =>
   json(await fn(req(method, `/api/pods/${id}${qs}`, body), { params: Promise.resolve({ id }) }))
-const switchTo = async (on: boolean) => { as(OWNER); return json(await switchPlugin(req('PATCH', '/api/settings/plugins', { plugin: 'PODS', on }))) }
+// Turning Project teams on is refused for real callers (record 120, ruling 3); the fixture writes the flag.
+const switchTo = async (on: boolean) => {
+  if (on) {
+    await prisma.company.update({ where: { id: s.firm }, data: { pluginsOn: ['PODS'] } })
+    return { status: 200, body: {} as any }
+  }
+  as(OWNER); return json(await switchPlugin(req('PATCH', '/api/settings/plugins', { plugin: 'PODS', on })))
+}
 const rows = async () => ({
   pods: await prisma.pod.count({ where: { companyId: s.firm } }),
   roles: await prisma.podRole.count({ where: { pod: { companyId: s.firm } } }),
