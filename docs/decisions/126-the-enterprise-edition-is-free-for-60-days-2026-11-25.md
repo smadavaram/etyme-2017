@@ -63,3 +63,26 @@ level of the network, not only from an enterprise to its suppliers.
 - **Every company is a free user in someone else's record**, and a
   potential paying tenant in its own. That is how Etyme spreads, at every
   level.
+
+## The tester's rulings on the two open questions, 2026-11-26
+
+1. **"Own business" is ruled as a rule the code can test.** A company
+   runs its own business on its own tenant when this count, read from its
+   own tenant record, is above zero:
+   - placements where the tenant is the supplier of record, plus
+   - invoices the tenant issued.
+
+   Being a user inside another tenant's record never counts. That covers
+   viewing, working together, and being named on a placement there. The
+   test decides whether a tenant pays. The 60-day clock still starts when
+   the tenant is activated.
+2. **Day 61 read-only, and work already done, is the owner's money call.**
+   It is with the owner now. The tester's recommendation is on the record:
+   - On day 61, block new work: no new placements, no new agent actions
+     and no new invoices.
+   - Work already done completes its money cycle. Timesheets in progress
+     can still be approved and invoiced, so workers already placed are
+     paid and nothing earned is trapped.
+
+   The 60-day mechanics are not built until the owner answers. The rest of
+   the queue does not wait for it.
