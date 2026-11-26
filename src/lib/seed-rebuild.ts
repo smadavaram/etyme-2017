@@ -166,6 +166,8 @@ export const DELETE_ORDER = [
   'VerificationDoc', 'DocumentEdition', 'DocumentBacking', 'GovernanceEvaluation',
   // Train-to-bench (record 120): a score, a certification and the ask name an enrollment, so they go before it; a cohort after its enrollments and before its course.
   'Assessment', 'Certification', 'BenchAsk', 'Enrollment',
+  // Project teams (record 120): a deliverable names its project and milestone, a project its team and order, a member its role; all before the milestone, the order, the person and the firm.
+  'PodDeliverable', 'PodProject', 'PodMember', 'PodRole', 'Pod',
   'DocumentShareItem', 'DocumentShareAccess', 'DocFile', 'WeekApprovalFile', 'WeekApprovalContract', 'DocumentRequirement', 'ImportRow', 'Holiday',
   'PacketItem', 'WebhookDelivery', 'CompanyDomain', 'SubdomainAlias', 'CustomDomain', 'Check', 'TextMessage',
   'CreditNote', 'PaymentRunItem', 'ClassificationCall', 'ExemptAssertion', 'MarketingLead',

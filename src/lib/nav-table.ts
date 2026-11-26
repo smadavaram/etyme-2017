@@ -198,6 +198,16 @@ const TRAINING: NavItem = {
 }
 
 /**
+ * Project teams (record 120, pods): named teams a firm sells as a project.
+ * A plugin, drawn only where PODS is on. A tab of Jobs, because a team is
+ * sold against work, not kept like a candidate. Supplier and integrator only.
+ */
+const PODS: NavItem = {
+  label: 'Project teams', href: '/dashboard/pods', icon: '⊞',
+  needs: ['requirements.read'], pageCalls: ['pods', 'pods/**'],
+}
+
+/**
  * The firm's paperwork: its templates, and asking somebody on its books
  * for a document. Who may be asked is read off the bench and the payroll
  * (`askTheBooks` in lib/document-request, which reads /api/bench), so a
@@ -692,7 +702,7 @@ const VENDOR_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY, OUR_SCORECARD]),
   tabbed('Network', [...FIRM_CANDIDATES, ...FIRM_COMPANIES]),
-  tabbed('Jobs', [JOBS, LEADS, QUESTIONS, SHARED_WITH_YOU]),
+  tabbed('Jobs', [JOBS, LEADS, QUESTIONS, SHARED_WITH_YOU, PODS]),
   tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
   tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
@@ -714,7 +724,7 @@ const GSI_NAV: NavSection[] = [
   ASK_ETYME_SECTION,
   tabbed('Today', [TODAY_PAGE, REPORTS, PROFITABILITY, RATE_HISTORY, OUR_SCORECARD]),
   tabbed('Network', [...FIRM_CANDIDATES, ...FIRM_COMPANIES]),
-  tabbed('Jobs', [JOBS, SHARED_WITH_YOU]),
+  tabbed('Jobs', [JOBS, SHARED_WITH_YOU, PODS]),
   tabbed('Submissions', [SUBMISSIONS, INTERVIEWS]),
   tabbed('Contracts', FIRM_CONTRACTS),
   tabbed('Timesheets', [TIMESHEETS, EXPENSES, ROLLOFF]),
@@ -1537,7 +1547,7 @@ export function mayOpen(href: string, permissions: readonly string[] | null | un
 }
 
 /** The pages a plugin draws, which are not drawn while it is off. */
-const PLUGIN_PAGES: Record<string, string> = { TRAIN_TO_BENCH: TRAINING.href }
+const PLUGIN_PAGES: Record<string, string> = { TRAIN_TO_BENCH: TRAINING.href, PODS: PODS.href }
 
 /**
  * The menu for a seat, less the pages of any plugin its company has off

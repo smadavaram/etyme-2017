@@ -168,6 +168,8 @@ export const DOMAINS: Domain[] = [
       'lib/order', 'lib/order-postings', 'lib/gl', 'lib/contract-links', 'lib/work-chain', 'lib/work-chain-read',
       'lib/profitability',
       'lib/pay-model', 'lib/bench-policy', 'lib/money', 'lib/money-display',
+      // What a sold team bills and earns (record 120, pods).
+      'lib/money/pod-sale', 'lib/money/pod-margin',
       // The generated world's rates: the pure bands and pairs the other three import, then the rows.
       'lib/seed-scale/rates',
       'lib/periods', 'lib/recurring', 'lib/cycle-generator', 'lib/cycle-kinds', 'lib/contract-cycles', 'lib/cycle-complete', 'lib/expense-billing', 'lib/commission', 'app/dashboard/payroll/commissions', 'lib/holidays',
@@ -261,6 +263,8 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/decisions', 'app/dashboard/program',
       'app/api/requisitions', 'app/api/invitations', 'app/api/leads',
       'app/api/openings', 'app/api/decisions', 'app/api/program',
+      // The client's side of a sold team: its deliverables and its yes (record 120, pods).
+      'app/api/program/pods',
       'app/api/checks', 'app/api/why',
       'lib/openings', 'lib/lead-reader', 'lib/requirement-quality',
       // The generated world's jobs, invitations, submissions and interviews.
@@ -309,6 +313,8 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/training', 'app/api/training',
       // Training that starts, finishes or stops.
       'lib/training',
+      // Project teams (record 120, pods): a plugin, off by default.
+      'lib/pods', 'app/api/pods', 'app/dashboard/pods',
       'app/api/alumni', 'app/api/releasing-soon', 'app/api/benchmark',
       'lib/match-engine', 'lib/candidate-fit', 'lib/bench-filter', 'lib/why',
       // Who a job request is matched against and what each viewer sees

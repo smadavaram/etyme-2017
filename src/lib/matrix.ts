@@ -515,6 +515,17 @@ export const MATRIX: L1[] = [
           testedBy: ['__tests__/invariants/train-to-bench-screen-faults.test.ts', '__tests__/invariants/train-to-bench-rules.test.ts', '__tests__/invariants/train-to-bench-proof.test.ts', '__integration__/train-to-bench-happy-path.test.ts',
             '__integration__/train-to-bench-email-link-and-seats.test.ts', '__integration__/train-to-bench-review-fixes.test.ts', '__tests__/invariants/courses-on-storefront.test.ts', '__tests__/invariants/courses-hidden-switch.test.ts',
             '__tests__/invariants/plugin-switch.test.ts', '__integration__/the-owners-plugin-switch-writes-the-flag-and-the-row-together.test.ts'] },
+        // Project teams (record 120, pods): a plugin, off by default. Schema and menu only so far.
+        { code: 'L3.1.2.11', name: 'Project teams: a named team is sold as a project, the client\u2019s named acceptor decides each deliverable, and the milestone bill comes from the existing chain', owner: 'Account manager', status: N,
+          tasks: [
+            'While the plugin is off the menu draws no Project teams and every route of it refuses in one sentence; the client still reads and decides deliverables already sold',
+            'A team goes to the client, and the client\u2019s named yes makes the project',
+            'Three deliverables: accept two, reject one with a reason; only the acceptor named on the deal decides',
+            'The milestone bill comes from the existing chain (OrderMilestone to invoice), with no new money path',
+            'The client view is clean: deliverables, their states, the acceptor, dates, reasons and roles with headcount; never a member name, cost, firm below, or the word pod',
+            'Deactivating a team hides it and reactivating restores it; nothing is deleted',
+          ],
+          testedBy: [] },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [
         { code: 'L3.1.4.1', name: 'What we say we are', owner: 'Etyme', status: B,

@@ -27,6 +27,8 @@ model Person {
   createdAt    DateTime @default(now())
 
   credentials              Credential[]
+  podMemberships           PodMember[]
+  podProjectsAccepted      PodProject[]
   /// The record ledger (2026-11-21 → 107): acts this person did, and decisions she owes or made.
   recordActions            RecordAction[]
   decisionsOwed            DecisionItem[]            @relation("decisionOwner")
@@ -1003,6 +1005,7 @@ model Company {
   /// (record 120, answer 3). A per-tenant setting; Tapin's is true.
   coursesHiddenOnStorefront Boolean @default(false)
   cohorts               Cohort[]
+  pods                  Pod[]
   docTemplates          DocTemplate[]
   msasAsVendor          MasterAgreement[]       @relation("vendor")
   msasAsClient          MasterAgreement[]       @relation("client")
@@ -1565,6 +1568,7 @@ model OrderMilestone {
 
   invoiceLines    InvoiceLine[]
   vendorBillLines VendorBillLine[]
+  podDeliverable  PodDeliverable?
 
   @@index([orderId, status])
 }
@@ -6179,6 +6183,7 @@ model ProjectOrder {
   buyContracts   BuyContract[]
   journalEntries JournalEntry[]
   vendorBills    VendorBill[]
+  podProject     PodProject?
 
   @@unique([companyId, code])
   @@index([companyId, status])
@@ -11686,4 +11691,83 @@ model PluginSwitch {
   at         DateTime @default(now())
 
   @@index([companyId, plugin, at])
+}
+
+/// Project teams (record 120): a named team a firm sells as a project. A plugin, off by default; the tables exist for every tenant and stay empty until one switches it on.
+model Pod {
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name             String
+  description      String?
+  /// SPRINT_PRICE | RATE_CARD
+  pricing          String
+  sprintPriceCents Int?
+  sprintWeeks      Int?
+  currency         String   @default("USD")
+  archivedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  roles    PodRole[]
+  projects PodProject[]
+
+  @@unique([companyId, name])
+}
+
+model PodRole {
+  id        String @id @default(cuid())
+  podId     String
+  pod       Pod    @relation(fields: [podId], references: [id], onDelete: Cascade)
+  title     String
+  headcount Int    @default(1)
+  rateCents Int?
+  sortOrder Int    @default(0)
+
+  members PodMember[]
+
+  @@index([podId])
+}
+
+/// A person on a team: the same person record, a reference only.
+model PodMember {
+  id        String   @id @default(cuid())
+  podRoleId String
+  podRole   PodRole  @relation(fields: [podRoleId], references: [id], onDelete: Cascade)
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id])
+  addedAt   DateTime @default(now())
+
+  @@unique([podRoleId, personId])
+  @@index([personId])
+}
+
+/// A sold team: the project on ProjectOrder, and the one person at the client who accepts or rejects its deliverables.
+model PodProject {
+  id              String       @id @default(cuid())
+  podId           String
+  pod             Pod          @relation(fields: [podId], references: [id])
+  projectOrderId  String       @unique
+  projectOrder    ProjectOrder @relation(fields: [projectOrderId], references: [id])
+  acceptorPersonId String
+  acceptor        Person       @relation(fields: [acceptorPersonId], references: [id])
+  fulfilledAt     DateTime?
+  createdAt       DateTime     @default(now())
+
+  deliverables PodDeliverable[]
+
+  @@index([podId])
+  @@index([acceptorPersonId])
+}
+
+/// A deliverable is an OrderMilestone; this row says it belongs to a pod project.
+model PodDeliverable {
+  id           String         @id @default(cuid())
+  podProjectId String
+  podProject   PodProject     @relation(fields: [podProjectId], references: [id], onDelete: Cascade)
+  milestoneId  String         @unique
+  milestone    OrderMilestone @relation(fields: [milestoneId], references: [id])
+  startedAt    DateTime?
+
+  @@index([podProjectId])
 }

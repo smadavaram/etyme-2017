@@ -78,6 +78,11 @@ const RUNTIME: Record<string, string> = {
   assessment: 'Written by a cohort’s trainer after the Train to bench plugin is on; off by default.',
   certification: 'Issued by a cohort’s trainer or assessor after the Train to bench plugin is on; off by default.',
   benchAsk: 'Written when a firm asks a trainee onto its bench, inside the Train to bench plugin; off by default.',
+  pod: 'Project teams is a plugin, off by default; a firm writes a team only after its Owner switches it on.',
+  podRole: 'Written with a team, inside the Project teams plugin; off by default.',
+  podMember: 'Written when a firm puts a person on a team, inside the Project teams plugin; off by default.',
+  podProject: 'Written when a client says yes to a sold team, inside the Project teams plugin; off by default.',
+  podDeliverable: 'Written with a sold team\u2019s milestones, inside the Project teams plugin; off by default.',
   agentTask: 'Proposed by an agent that is switched on, and released by a person’s yes on the decision queue; no agent runs in the seeded world.',
   moneyChain: 'Opened when a seat that runs payroll opens a month; every amount on it is typed by a person.',
   // Record 102, item 1 (2026-11-21). A stranger's question from a firm's public page.
