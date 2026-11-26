@@ -128,3 +128,25 @@ platform fee is always added on top and never counts toward the floor.
 Example: a supplier with 3 contractors pays $199 a month, because 3 ×
 $20 is $60, which is under the floor. It also pays the $1,000 platform
 fee for the year.
+
+## Amendment from the owner, Nov 25: Starter at $19.99, and affiliates earn 40%
+
+The owner: "Let starter be 19.99+ user and offer 40% to affiliates."
+
+1. **The Starter unit is $19.99 per active contractor per month.** It was
+   $20.
+   - The Starter floor stays $199 a month, and the $1,000 annual platform
+     fee is unchanged.
+   - The rate card's example: 15 contractors cost $299.85 a month. Over a
+     year that is $3,598.20, plus the $1,000 fee, so $4,598.20 all-in. The
+     tester quoted it as $4,598, rounded down.
+   - The floor example: 3 contractors come to $59.97, which is under the
+     floor, so the charge is $199 a month. The $1,000 a year is added on
+     top.
+   - The Enterprise rate per contractor stays $20, unless the owner
+     extends the change. No agent changes it.
+2. **Affiliates earn 40%. The 40% is locked; how it is paid is open.**
+   - The tester's proposal is with the owner: 40% of the referred tenant's
+     subscription revenue, for the first 12 months.
+   - No affiliate terms appear on the rate card, or anywhere else, until
+     those mechanics are ruled.
