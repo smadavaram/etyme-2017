@@ -573,13 +573,37 @@ export async function recordRefusal(
       return true
     })
     const row = actorRow({ ...params, subjectId: '' })
+    // A refusal about a firm that does not exist is still a refusal: the
+    // foreign key would reject the row and the refusal would be lost, so
+    // such a row names no subject and keeps the attempted id in its reason.
+    const firmIds = subjects.map((s) => subjectColumns(s).subjectCompanyId).filter((id): id is string => !!id)
+    let missing = new Set<string>()
+    if (firmIds.length > 0) {
+      try {
+        const found = await prisma.company.findMany({ where: { id: { in: firmIds } }, select: { id: true } })
+        const have = new Set(found.map((c) => c.id))
+        missing = new Set(firmIds.filter((id) => !have.has(id)))
+      } catch {
+        // The lookup failing must not lose the refusal: write as named.
+      }
+    }
     const written = await prisma.accessLog.createMany({
-      data: subjects.map((subject) => ({
-        ...subjectColumns(subject),
-        ...row,
-        action: params.action,
-        allowed: false,
-      })),
+      data: subjects.map((subject) => {
+        const cols = subjectColumns(subject)
+        const gone = cols.subjectCompanyId && missing.has(cols.subjectCompanyId) ? cols.subjectCompanyId : null
+        if (gone) {
+          const note = `(company ${gone} does not exist)`
+          return {
+            subjectId: null,
+            subjectCompanyId: null,
+            ...row,
+            reason: row.reason ? `${row.reason} ${note}` : note,
+            action: params.action,
+            allowed: false,
+          }
+        }
+        return { ...cols, ...row, action: params.action, allowed: false }
+      }),
     })
     return written.count
   } catch (err) {
