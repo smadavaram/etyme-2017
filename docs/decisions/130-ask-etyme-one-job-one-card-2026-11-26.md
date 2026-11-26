@@ -109,3 +109,38 @@ harness's only surface for the end user.
 - **The Owner configures; the person operates.** The Owner sets the
   roles, the permissions and the agent switches. The person works only
   inside them.
+
+## The capability goal (the tester, 2026-11-26)
+
+The tester: "Make it that dangerous." That means as capable as the
+leading general-purpose assistants. The power is in what Ask Etyme can
+do; the safety is in what it is allowed to do. The four targets are
+confirmed:
+
+`Power = Coverage × Autonomy × Accuracy × Speed`
+
+| Measure | Formula | Target |
+|---|---|---|
+| Coverage | skills reachable by ask ÷ all role skills | 100% |
+| Autonomy | acts done without a person ÷ acts allowed alone | 100% |
+| Accuracy | checker pass rate | 95% or more |
+| Speed | answers in 2 s or less ÷ all answers | 90% or more |
+
+**It never acts alone on these:**
+- releasing money;
+- signing;
+- a decision about a person;
+- publishing compliance copy;
+- reading another company's data;
+- sending outside an approved task.
+
+It does everything else within the role's permissions on its own, then
+shows one card.
+
+**Build order:**
+1. The skill layer.
+2. The model gateway.
+3. The Ask box turns a request into a plan of skills, possibly several
+   steps, then acts.
+4. Triggers fire as work arrives, not only once a day.
+5. Each seat keeps a memory of its open tasks and recent asks.
