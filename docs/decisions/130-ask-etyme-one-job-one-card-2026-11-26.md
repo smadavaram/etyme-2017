@@ -159,4 +159,6 @@ In the build:
 
 - **Yes and Not now** go through the verdict route each row already has: the twin approval route or the decision-item route. A row with no verdict route offers one button that opens its record. No new route is added.
 - **Urgency** falls back to the days a row has been open, because decision items have no due date. Adding a due date would be a schema change and is not made now.
-- **On time 
+- **On time %** reads "–" where nothing done had a due date, never 100.
+- **Value and confidence** read 1 until they are known.
+- **Build tracker:** row L3.1.2.12 is added.
