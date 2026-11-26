@@ -36,7 +36,7 @@ import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
 // is on, and the due date from `dueOn` under what those terms count
 // from. See "the bills for those weeks" below for what it was before.
 import { periodFor, iso, type Period } from '@/lib/periods'
-import { periodTermsFor, termsFor } from '@/lib/money/order-terms'
+import { AGREEMENT_TERMS_SELECT, periodTermsFor, termsFor } from '@/lib/money/order-terms'
 import { dueOn } from '@/lib/billing-cascade'
 import { holidayKeys } from '@/lib/seed-calendar'
 import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
@@ -846,6 +846,18 @@ export async function seedProgrammes(
     }
 
     // ── The placements ─────────────────────────────────────────────
+    // The agreement answers before any copy on an order or a line, so a
+    // bill that must fall due today is set on the agreement: net 1 from
+    // the invoice date, and that bill is issued yesterday. Set before any
+    // placement bills, because every placement on the same pair of firms
+    // shares the agreement and is due by the same terms.
+    for (const pl of p.placements) {
+      if (!pl.billsDueToday) continue
+      const { msa } = await agreement(pl.via[1], p.client, pl.role)
+      await db.masterAgreement.update({
+        where: { id: msa.id }, data: { paymentTerms: 1, paymentTermsFrom: 'INVOICE_DATE' },
+      })
+    }
     for (const pl of shareOf(p.placements, pick.share)) {
       const [, ...chain] = pl.via
       const employerSlug = chain[chain.length - 1]
@@ -882,7 +894,7 @@ export async function seedProgrammes(
       // than inventing one out of the weeks that happen to be signed.
       const contracts: {
         id: string; billRate: number; engagementId: string | null
-        clientCompanyId: string; companyId: string
+        clientCompanyId: string; companyId: string; msaId: string | null
         billFrequency: string; billAnchor: string; billStraddle: string
         paymentTerms: number; paymentTermsFrom: string
         startDate: Date; endDate: Date | null
@@ -905,6 +917,13 @@ export async function seedProgrammes(
               data: { overtimeAfterHours: pl.overtimeAfterHours ?? null },
             })
           }
+          if (i === 0 && pl.billsDueToday && (existing.paymentTerms !== 1 || existing.paymentTermsFrom !== 'INVOICE_DATE')) {
+            Object.assign(existing, await db.sellContract.update({
+              where: { id: existing.id }, data: {
+                paymentTerms: 1, paymentTermsFrom: 'INVOICE_DATE',
+              },
+            }))
+          }
           supplierSellContractId = existing.id
           contracts.push(existing)
           continue
@@ -916,7 +935,15 @@ export async function seedProgrammes(
             companyId: seller.id, clientCompanyId: buyer.id, endClientCompanyId: client.id,
             personId: who.id, requirementId: requirement.id, engagementId: eng.id, msaId: msa.id,
             hiringManagerId: desk.hiring.personId, orgUnitId: unitByName.get('Apps')?.id ?? null,
-            billRate: pl.rates[i], billCurrency: 'USD', paymentTerms: 45, state: pl.state,
+            billRate: pl.rates[i], billCurrency: 'USD', state: pl.state,
+            // Net 45 from the end of the period, except the placement
+            // whose bill must fall due today: net 1 from the invoice
+            // date, and that bill is issued yesterday.
+            ...(i === 0 && pl.billsDueToday
+              ? {
+                paymentTerms: 1, paymentTermsFrom: 'INVOICE_DATE',
+              }
+              : { paymentTerms: 45 }),
             startDate: start, endDate: end,
             // Which hours may be claimed. What they are worth is decided
             // week by week by whoever signs the week, never here.
@@ -1266,7 +1293,14 @@ export async function seedProgrammes(
       if (!pl.invoice || signed.length === 0) continue
       const topContract = contracts[contracts.length - 1]
       const billTerms = periodTermsFor('SELL', topContract)
-      const billed = termsFor('SELL', topContract)
+      // Asked with the agreement the line sits under, because that is
+      // the document that answers first. Every placement on one pair of
+      // firms shares it, so every bill on the pair is due by the same
+      // terms and the stored date can never differ from the computed one.
+      const billedUnder = topContract.msaId
+        ? await db.masterAgreement.findUnique({ where: { id: topContract.msaId }, select: AGREEMENT_TERMS_SELECT })
+        : null
+      const billed = termsFor('SELL', { ...topContract, msa: billedUnder })
 
       /** The signed weeks of one billing period, oldest period first. */
       const byPeriod = new Map<string, { period: Period; weeks: typeof signed }>()
@@ -1312,7 +1346,7 @@ export async function seedProgrammes(
 
         // Raised once the period's hours are in, and never in the
         // future — a bill issued tomorrow is a date nobody can explain.
-        const issuedAt = earlier(plusDays(period.end, 2), day(-1))
+        const issuedAt = pl.billsDueToday ? day(-1) : earlier(plusDays(period.end, 2), day(-1))
 
         // The one due date, counted the way the contract says to count
         // it. The seed used to write issue + 45 while the contract said
@@ -1335,7 +1369,7 @@ export async function seedProgrammes(
               engagementId: topContract.engagementId!, number,
               periodStart: period.start, periodEnd: period.end,
               currency: 'USD', total: cents / 100, paid: pl.invoice === 'PAID' ? cents / 100 : 0,
-              issuedAt, submittedAt: issuedAt, dueAt: pl.billsDueToday ? day(0) : due.dueAt,
+              issuedAt, submittedAt: issuedAt, dueAt: due.dueAt,
               status: pl.invoice,
               soldToId: client.id, billToId: client.id, payerId: client.id,
             },
