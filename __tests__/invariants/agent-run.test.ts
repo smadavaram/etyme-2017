@@ -47,8 +47,8 @@ describe('what a call costs', () => {
       cache_read_input_tokens: 10_000,
       output_tokens: 100,
     })
-    expect(warm).toBeLessThan(cold)
-    expect(warm - 100 * 25).toBe(Math.ceil(10_000 * 5 * 0.1))
+    expect(warm).toBeLessThan(cold as number)
+    expect((warm as number) - 100 * 25).toBe(Math.ceil(10_000 * 5 * 0.1))
   })
 
   it('charges writing to the cache a quarter more than reading it cold', () => {
@@ -56,12 +56,9 @@ describe('what a call costs', () => {
     expect(write).toBe(Math.ceil(1000 * 5 * 1.25))
   })
 
-  it('assumes the dearest price for a model it does not recognize', () => {
-    // Under-reporting your own cost is the one direction that lets a bad
-    // margin hide, so an unknown model is priced as an expensive one.
-    const unknown = costMicrosOf('some-model-shipped-last-tuesday', { input_tokens: 1000 })
-    const opus = costMicrosOf('claude-opus-5', { input_tokens: 1000 })
-    expect(unknown).toBe(opus)
+  it('records a model with no price as not set, never as a guessed price', () => {
+    // A guessed price is a number nobody can stand behind (record 125).
+    expect(costMicrosOf('some-model-shipped-last-tuesday', { input_tokens: 1000 })).toBeNull()
   })
 
   it('costs nothing when nothing was sent', () => {

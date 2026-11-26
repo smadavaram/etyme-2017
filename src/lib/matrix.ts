@@ -3625,10 +3625,10 @@ export const MATRIX: L1[] = [
             'A checker only reads: it re-derives what should exist from the rules\u2019 own readers and compares it with the record, never with what the agent passed it; one it cannot read returns unknown and is never counted as passed',
             'Actual is written only by the grader, from what the checker found; Planned is the agent\u2019s own count and is labeled Planned',
             'Each agent moves onto skills with the same ledger rows, tasks, cards, letters and automation rows on the seeded world before and after; the owner of each agent\u2019s file migrates it',
-            'PARTIAL 2026-11-26 (record 123, skill layer): schema and the registry are built; the runner, grader and checkers are next; no agent is migrated yet; no price anywhere'
+            'PARTIAL 2026-11-26 (record 123, skill layer): schema, the registry, the plans file and runSkill are built; the grader and checkers are next; no agent is migrated yet; no price anywhere'
           ],
-          implementedBy: ['src/lib/skills/registry.ts'],
-          testedBy: ['__tests__/unit/skills-registry.test.ts'] },
+          implementedBy: ['src/lib/skills/registry.ts', 'src/lib/skills/runner.ts', 'src/lib/agents/plans.ts', 'src/lib/agent-run.ts'],
+          testedBy: ['__tests__/unit/skills-registry.test.ts', '__tests__/unit/skills-plans.test.ts', '__integration__/skills-run.test.ts', '__tests__/invariants/agent-run.test.ts'] },
         { code: 'L3.6.3.47', name: 'Skills: planned, actual, target and variance for each skill and each agent, on Agent control', owner: 'Owner', status: S,
           tasks: [
             'Agent control shows, per skill and per agent, for a day, a week (the company\u2019s Sunday to Saturday) or a month: Planned, Actual, Target, Variance, Var %, Completion %',

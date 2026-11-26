@@ -63,7 +63,7 @@ export function registerAgent(key: string, def: AgentDef) { registry.set(key, de
 export function unregisterAgent(key: string) { registry.delete(key) }
 export const registeredAgents = (): string[] => [...registry.keys()]
 
-class CapReached extends Error {}
+export class CapReached extends Error {}
 
 /** Acts an agent did today, not counting the lines that say why it did nothing. */
 export async function actsToday(companyId: string, agentKey: string, now: Date): Promise<number> {

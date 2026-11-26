@@ -59,9 +59,6 @@ export type RecordType =
  */
 const PRICES = MODEL_PRICES
 
-/** What a model that is not in the table costs, per million tokens. */
-const UNKNOWN = { in: 5, out: 25 }
-
 export interface Usage {
   input_tokens?: number | null
   output_tokens?: number | null
@@ -75,9 +72,14 @@ export interface Usage {
  * Integer, like every other money column here. A scoring call lands around
  * 40,000 — four cents. Rounded up, because under-reporting your own cost
  * is the one direction that lets a bad margin hide.
+ *
+ * Null where the model has no price written down (record 125, plan C8):
+ * "price not set" is an honest blank, and a guessed price is a number
+ * nobody can stand behind.
  */
-export function costMicrosOf(model: string, usage: Usage): number {
-  const price = PRICES[model] ?? UNKNOWN
+export function costMicrosOf(model: string, usage: Usage): number | null {
+  const price = Object.prototype.hasOwnProperty.call(PRICES, model) ? PRICES[model] : null
+  if (!price) return null
 
   const input = usage.input_tokens ?? 0
   const output = usage.output_tokens ?? 0
@@ -118,6 +120,16 @@ export interface RunInput {
   ms: number
   consideredCount?: number | null
   scoredCount?: number | null
+  /** The skill layer (record 123). All optional; a row written without them reads as before. */
+  skillKey?: string | null
+  agentKey?: string | null
+  /** RULES · LOW · HIGH */
+  tier?: string | null
+  byTenantModel?: boolean
+  fallbackFrom?: string | null
+  escalatedFrom?: string | null
+  /** The agent's own in-scope count. Never "done": only the grader writes that. */
+  unitsPlanned?: number | null
 }
 
 /**
@@ -152,6 +164,13 @@ export async function record(input: RunInput): Promise<string | null> {
         ms: input.ms,
         consideredCount: input.consideredCount ?? null,
         scoredCount: input.scoredCount ?? null,
+        skillKey: input.skillKey ?? null,
+        agentKey: input.agentKey ?? null,
+        tier: input.tier ?? null,
+        byTenantModel: input.byTenantModel ?? false,
+        fallbackFrom: input.fallbackFrom ?? null,
+        escalatedFrom: input.escalatedFrom ?? null,
+        unitsPlanned: input.unitsPlanned ?? null,
       },
       select: { id: true },
     })
