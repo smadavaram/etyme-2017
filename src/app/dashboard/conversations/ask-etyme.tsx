@@ -207,8 +207,10 @@ export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
 
   // Newest at the bottom, and the thread follows it.
   useEffect(() => {
+    // While the one card is the screen and only the greeting is in the thread, the card stays at the top.
+    if (oneCard && history.length === 0 && turns.length <= 1) return
     end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [turns, pending])
+  }, [turns, pending, oneCard])
 
   /** "Show earlier": the lines older than the oldest one drawn, put above it. */
   async function showEarlier() {

@@ -1,0 +1,98 @@
+import { test, expect, type Page } from '@playwright/test'
+import { PrismaClient } from '@prisma/client'
+
+/**
+ * Ask Etyme, one card, pressed on the seeded world (record 130, build
+ * tracker row L3.1.2.12). A hiring manager says Yes to a week, and the
+ * test proves it three ways: the sentence on the card, the record on
+ * reload, and the ledger row.
+ */
+const db = new PrismaClient({ datasourceUrl: process.env.ONE_CARD_DB })
+const ASK = '/dashboard/conversations/etyme'
+
+async function sitAs(page: Page, as: string, desk: string) {
+  const res = await page.request.post('/api/demo', { data: { as, desk } })
+  expect(res.ok(), `the demo seat ${as}/${desk} opened`).toBe(true)
+}
+
+const num = async (page: Page, label: string) =>
+  Number((await page.locator('[data-one-card]').getByText(label, { exact: true }).locator('xpath=preceding-sibling::b').first().innerText()).trim())
+
+test.afterAll(async () => { await db.$disconnect() })
+
+test('a hiring manager presses Yes on a week, and the card, the record on reload and the ledger row all agree', async ({ page }) => {
+  await sitAs(page, 'world-nike', 'hiring')
+  await page.goto(ASK)
+  const screen = page.locator('[data-one-card]')
+  await expect(screen).toBeVisible()
+  await expect(screen.getByRole('button', { name: 'Why' })).toHaveAttribute('aria-expanded', 'false')
+
+  // Not now until the card in focus is a week with a Yes on it.
+  const card = screen.locator('article[data-card-key]')
+  for (let i = 0; i < 12; i++) {
+    const key = await card.getAttribute('data-card-key')
+    if (key?.startsWith('TIMESHEET_APPROVAL:') && (await card.getByRole('button', { name: 'Yes' }).count()) > 0) break
+    await card.getByRole('button', { name: 'Not now' }).click()
+    await expect(card).not.toHaveAttribute('data-card-key', key ?? '')
+  }
+  const key = (await card.getAttribute('data-card-key'))!
+  expect(key).toMatch(/^TIMESHEET_APPROVAL:/)
+  const timesheetId = key.split(':')[1]
+  const queueBefore = await num(page, 'Queue')
+  const doneBefore = await num(page, 'Done today')
+  const rowsBefore = await db.automationLog.count({ where: { action: 'TIMESHEET_APPROVED' } })
+  expect((await db.timesheet.findUniqueOrThrow({ where: { id: timesheetId } })).clientApprovedAt).toBeNull()
+
+  await card.getByRole('button', { name: 'Yes' }).click()
+
+  // 1. The card: the route's own sentence, and that card is no longer in focus.
+  await expect(page.locator('[data-said]')).toContainText(/\S/)
+  await expect(screen.locator(`article[data-card-key="${key}"]`)).toHaveCount(0)
+  await expect(async () => { expect(await num(page, 'Queue')).toBe(queueBefore - 1) }).toPass()
+
+  // 2. The record, on reload.
+  await page.reload()
+  await expect(screen).toBeVisible()
+  await expect(screen.locator(`article[data-card-key="${key}"]`)).toHaveCount(0)
+  expect(await num(page, 'Queue')).toBe(queueBefore - 1)
+  const ts = await db.timesheet.findUniqueOrThrow({ where: { id: timesheetId } })
+  expect(ts.clientApprovedAt).not.toBeNull()
+
+  // 3. The ledger row, written by the route the card pressed.
+  const rows = await db.automationLog.findMany({ where: { action: 'TIMESHEET_APPROVED' }, orderBy: { at: 'desc' }, take: 3 })
+  expect(await db.automationLog.count({ where: { action: 'TIMESHEET_APPROVED' } })).toBe(rowsBefore + 1)
+  expect(JSON.stringify(rows[0])).toContain(timesheetId)
+  expect(doneBefore).toBeGreaterThanOrEqual(0)
+})
+
+test('Why stays closed until it is tapped, then shows the rule, the source and the ledger line', async ({ page }) => {
+  await sitAs(page, 'world-nike', 'procurement')
+  await page.goto(ASK)
+  const screen = page.locator('[data-one-card]')
+  await expect(screen.locator('[data-why]')).toHaveCount(0)
+  await screen.getByRole('button', { name: 'Why' }).click()
+  const why = screen.locator('[data-why]')
+  await expect(why).toContainText('Rule')
+  await expect(why).toContainText('Source')
+  await expect(why).toContainText('Ledger')
+})
+
+test('the screen fits a 390 wide phone with no sideways scroll, for each of three seats', async ({ browser }) => {
+  for (const [as, desk] of [['world-brightmoor', 'recruiter'], ['world-nike', 'hiring'], ['world-nike', 'procurement']] as const) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
+    const page = await ctx.newPage()
+    await sitAs(page, as, desk)
+    await page.goto(ASK)
+    await expect(page.locator('[data-one-card]')).toBeVisible()
+    const wide = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+    expect(wide, `${as}/${desk} scrolls sideways by ${wide}px`).toBeLessThanOrEqual(0)
+    await ctx.close()
+  }
+})
+
+test('only the Owner is offered the agent switch', async ({ page }) => {
+  await sitAs(page, 'world-nike', 'procurement')
+  await page.goto(ASK)
+  await expect(page.locator('[data-one-card]').getByText('Agent', { exact: true })).toBeVisible()
+  await expect(page.locator('[data-one-card] a[aria-label^="Agent"]')).toHaveCount(0)
+})
