@@ -82,12 +82,12 @@ export function saleRefusal(input: SellPodInput, f: SaleFacts): { says: string; 
   if (/\bpods?\b/i.test(projectName)) return refuse(PROJECT_NAME_SAYS, 'projectName')
   if (!f.pod) return refuse('That team is not on file.', 'podId')
   if (f.pod.companyId !== input.sellerCompanyId) return refuse('That team is not the seller’s own, so it cannot be sold from here.', 'podId')
-  if (f.pod.archivedAt) return refuse(`${f.pod.name} is deactivated. Reactivate it before it is sold.`, 'podId')
+  if (f.pod.archivedAt) return refuse(`This offer can no longer be accepted: the team behind ${projectName} is deactivated. The supplier needs to send it again.`, 'podId')
   if (input.sellerCompanyId === input.clientCompanyId) return refuse('A firm cannot sell a team to itself.', 'clientCompanyId')
   if (!(SALE_KINDS as readonly string[]).includes(input.kind)) return refuse('Choose milestones, a fixed price, or time and materials.', 'kind')
   if (!isWholeCents(input.priceCents)) return refuse('The price is a whole number of cents, above zero.', 'priceCents')
   if (input.currency !== f.pod.currency) {
-    return refuse(`${f.pod.name} is priced in ${f.pod.currency}, and the sale is in ${input.currency}. Two currencies are never mixed on one project.`, 'currency')
+    return refuse(`${projectName} is priced in ${f.pod.currency}, and the sale is in ${input.currency}. Two currencies are never mixed on one project.`, 'currency')
   }
 
   if (input.kind === 'TIME_AND_MATERIALS') {
@@ -103,7 +103,7 @@ export function saleRefusal(input: SellPodInput, f: SaleFacts): { says: string; 
     }
   }
 
-  if (f.members.length === 0) return refuse(`${f.pod.name} has nobody on it, so there is no team to sell. Add its people first.`, 'podId')
+  if (f.members.length === 0) return refuse(`${projectName} has nobody on it, so there is no team to sell. The supplier needs to add its people first.`, 'podId')
   for (const m of f.members) {
     if (!m.verdict.ok) return refuse(m.verdict.says, 'podId')
   }

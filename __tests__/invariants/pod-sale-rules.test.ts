@@ -94,3 +94,32 @@ describe('a team sale is written only when every rule holds', () => {
     expect(saleRefusal(input({ projectName: 'Podium analytics build' }), facts())).toBeNull()
   })
 })
+
+describe('a refusal the client’s acceptor reads never prints the supplier’s internal team name', () => {
+  const teamName = 'Zephyr Internal Squad'
+  const pod = (o = {}) => ({ companyId: 'seller', name: teamName, currency: 'USD', archivedAt: null as Date | null, ...o })
+  it('the deactivated-team refusal names the project, not the team', () => {
+    const r = saleRefusal(input(), facts({ pod: pod({ archivedAt: new Date() }) }))
+    expect(r?.says).toContain('Data platform build')
+    expect(r?.says).not.toContain(teamName)
+  })
+  it('the currency-mismatch refusal names the project, not the team', () => {
+    const r = saleRefusal(input({ currency: 'INR' }), facts({ pod: pod() }))
+    expect(r?.says).toContain('Data platform build')
+    expect(r?.says).not.toContain(teamName)
+  })
+  it('the nobody-on-the-team refusal names the project, not the team', () => {
+    const r = saleRefusal(input(), facts({ pod: pod(), members: [] }))
+    expect(r?.says).toContain('Data platform build')
+    expect(r?.says).not.toContain(teamName)
+  })
+  it('no refusal on any other path holds the team name', () => {
+    const rs = [
+      saleRefusal(input({ priceCents: 0 }), facts({ pod: pod() })),
+      saleRefusal(input(), facts({ pod: pod(), acceptor: null })),
+      saleRefusal(input(), facts({ pod: pod(), decidedByAtClient: false })),
+      saleRefusal(input(), facts({ pod: pod({ companyId: 'other' }) })),
+    ]
+    for (const r of rs) expect(r?.says).not.toContain(teamName)
+  })
+})
