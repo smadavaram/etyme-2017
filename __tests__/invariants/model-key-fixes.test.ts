@@ -5,6 +5,7 @@ const checks: any[] = []
 const logs: any[] = []
 const engineCalls: any[] = []
 let switchOn: Record<string, boolean> = {}
+let agentRows: any[] = []
 
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -15,7 +16,12 @@ vi.mock('@/lib/db', () => ({
         { id: 'r2', title: 'Data', companyId: 'coB', _count: { matches: 0 } },
       ],
     },
-    agentRun: { count: async () => 0 },
+    agentRun: {
+      // Honors the filters the route asks with, so a skill row is counted only if the route lets it in.
+      count: async ({ where }: any) => agentRows.filter((r) =>
+        where.recordId.in.includes(r.recordId) && r.agent === where.agent && r.verdict === where.verdict && r.model !== null
+        && (!('skillKey' in where) || r.skillKey === where.skillKey)).length,
+    },
     automationLog: { create: async ({ data }: any) => { logs.push(data) } },
   },
 }))
@@ -39,6 +45,7 @@ import fs from 'node:fs'
 beforeEach(() => {
   recorded.length = 0; checks.length = 0; logs.length = 0; engineCalls.length = 0
   switchOn = {}
+  agentRows = []
   process.env.ANTHROPIC_API_KEY = 'sk-test'
 })
 
@@ -115,6 +122,19 @@ describe('the nightly proactive match asks each company before any model call', 
     switchOn = { coA: true, coB: true }
     await run()
     expect(engineCalls.every((c) => c.opts.rulesOnly === true)).toBe(true)
+  })
+  it('the model count is unchanged when skill rows exist for the same job', async () => {
+    switchOn = { coA: true, coB: true }
+    const scored = { agent: 'match.score', verdict: 'PASS', model: 'claude-haiku-5-5', skillKey: null }
+    agentRows = [{ ...scored, recordId: 'r2' }]
+    await run()
+    expect(logs.find((l) => l.companyId === 'coA').payload.decidedBy).toBe('RULE')
+    expect(logs.find((l) => l.companyId === 'coB').payload.decidedBy).toBe('MODEL')
+    logs.length = 0
+    agentRows = [{ ...scored, recordId: 'r2' }, { ...scored, recordId: 'r1', skillKey: 'match.rank' }]
+    await run()
+    expect(logs.find((l) => l.companyId === 'coA').payload.decidedBy).toBe('RULE')
+    expect(logs.find((l) => l.companyId === 'coB').payload.decidedBy).toBe('MODEL')
   })
   it('writes one automation log row under each company it acted for, not only the first', async () => {
     switchOn = { coA: true }

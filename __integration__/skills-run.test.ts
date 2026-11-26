@@ -116,4 +116,37 @@ describe('an agent runs skills through its plan', () => {
     ])
     expect(rows[1].costMicros).toBeNull()
   })
+
+  it('a step that claims a tier its skill does not allow is recorded as an error', async () => {
+    await clear()
+    registerPlan({ agentKey: KEY, skills: ['census.classify', 'bio.write'], outputSkill: 'bio.write' })
+    const tries: Array<[string, any]> = [['census.classify', 'HIGH'], ['bio.write', 'HIGH'], ['bio.write', 'MEDIUM']]
+    registerAgent(KEY, { ruleVersion: 'v1', step: async (ctx) => {
+      for (const [k, t] of tries) {
+        await runSkill(ctx, k, { recordType: 'COMPANY', recordId: ctx.companyId }, async () => ({ result: 1, tier: t, escalatedFrom: 'LOW' })).catch(() => {})
+      }
+    } })
+    await runAgent(KEY, w.firm.id)
+    const rows = await runs()
+    expect(rows.map((r) => [r.skillKey, r.verdict, r.tier, r.escalatedFrom])).toEqual([
+      ['census.classify', 'ERROR', 'RULES', null], ['bio.write', 'ERROR', 'LOW', null], ['bio.write', 'ERROR', 'LOW', null],
+    ])
+    expect(rows[0].failReason).toMatch(/rules skill and reported the HIGH tier/)
+    expect(rows[1].failReason).toMatch(/may not change its tier/)
+  })
+
+  it('a step may escalate only from low to high, and only where its skill allows it', async () => {
+    await clear()
+    registerPlan({ agentKey: KEY, skills: ['match.rank'], outputSkill: 'match.rank' })
+    registerAgent(KEY, { ruleVersion: 'v1', step: async (ctx) => {
+      const mk = (tier?: any, escalatedFrom?: string) => async () => ({ result: 1, tier, escalatedFrom, model: 'claude-haiku-5-5', usage: { input_tokens: 10 } })
+      const c = { recordType: 'COMPANY', recordId: ctx.companyId }
+      await runSkill(ctx, 'match.rank', c, mk('HIGH', 'nonsense'))
+      await runSkill(ctx, 'match.rank', c, mk(undefined, 'HIGH'))
+      await runSkill(ctx, 'match.rank', c, mk('RULES')).catch(() => {})
+    } })
+    await runAgent(KEY, w.firm.id)
+    const rows = await runs()
+    expect(rows.map((r) => [r.verdict, r.tier, r.escalatedFrom])).toEqual([['PASS', 'HIGH', 'LOW'], ['PASS', 'LOW', null], ['ERROR', 'LOW', null]])
+  })
 })

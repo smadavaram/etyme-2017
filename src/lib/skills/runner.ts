@@ -41,7 +41,6 @@ export interface SkillOutcome<T> {
   tier?: Tier
   byTenantModel?: boolean
   fallbackFrom?: string | null
-  escalatedFrom?: string | null
   unitsPlanned?: number | null
 }
 
@@ -86,7 +85,24 @@ export async function runSkill<T>(
     })
     throw new SkillRefused(`${skill.name} is a rules skill and may not call a model.`)
   }
-  const tier: Tier = skill.tier === 'RULES' ? 'RULES' : (out.tier ?? skill.tier)
+  // The tier is the registry's to say. A step may report a move from low to
+  // high where its skill allows it, and nothing else; escalatedFrom is set
+  // here from the registry tier, never taken from the step.
+  const claimed = out.tier ?? skill.tier
+  const moved = claimed !== skill.tier
+  let tierRefusal: string | null = null
+  if (moved) {
+    if (skill.tier === 'RULES') tierRefusal = `${skill.name} is a rules skill and reported the ${claimed} tier.`
+    else if (!skill.mayEscalate) tierRefusal = `${skill.name} may not change its tier and reported ${claimed}.`
+    else if (!(skill.tier === 'LOW' && claimed === 'HIGH')) tierRefusal = `${skill.name} may only move from the low tier to the high tier, and reported ${claimed}.`
+  }
+  if (tierRefusal) {
+    await record({
+      ...base, tier: skill.tier, verdict: 'ERROR', ms: Date.now() - started, failReason: tierRefusal,
+    })
+    throw new SkillRefused(tierRefusal)
+  }
+  const tier: Tier = claimed
   const runId = await record({
     ...base,
     tier,
@@ -97,7 +113,7 @@ export async function runSkill<T>(
     ms: Date.now() - started,
     byTenantModel: out.byTenantModel ?? false,
     fallbackFrom: out.fallbackFrom ?? null,
-    escalatedFrom: out.escalatedFrom ?? null,
+    escalatedFrom: moved ? skill.tier : null,
     ...(out.unitsPlanned !== undefined ? { unitsPlanned: out.unitsPlanned } : {}),
   })
   return { result: out.result, runId }

@@ -109,6 +109,7 @@ export async function GET(request: NextRequest) {
           recordType: 'REQUIREMENT',
           recordId: { in: mine.map((r) => r.id) },
           agent: 'match.score',
+          skillKey: null,
           verdict: 'PASS',
           model: { not: null },
           at: { gte: startedAt },
