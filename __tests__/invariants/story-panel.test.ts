@@ -36,7 +36,7 @@
  * front of each step (Marcus Oyelaran, Helena Marsh, Renata Kowal):
  *
  *   drawing                              seed, and so the panel
- *   "$60,000 a month: Helena Marsh,      $135,200 a month for the 7 contractors
+ *   "$60,000 a month: Helena Marsh,      $149,920 a month for the 8 contractors
  *   Omar Haddad and Lucía Fernández,     the seed puts on site through 4
  *   through 3 suppliers"                 suppliers — the question is "across
  *                                        every supplier", and the three named
@@ -99,7 +99,7 @@ const sayAll = (s: StoryStep) =>
   [...s.chat.flatMap((m) => [m.text, m.card?.t ?? '', m.card?.s ?? '', m.status?.t ?? '', m.status?.then.t ?? '']),
     ...s.table.rows.flat().map(text), ...(s.table.added ?? []).map(text), s.sum.big, s.sum.rest].join(' ')
 const said = (chip: string) => sayAll(step(chip))
-/** "$135,200" from cents. */
+/** "$149,920" from cents. */
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`
 /** The world's birthday, as any fixed day: every seeded date counts from it. */
 const BORN = new Date('2026-10-15T00:00:00.000Z')
@@ -142,25 +142,24 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     expect((STORY_STEP_MS * STORY.length) / 1000).toBeCloseTo(20.8)
   })
 
-  it('the job step opens on the headline’s own question, and answers it with what the seed’s seven contractors cost a month at current rates: $135,200', () => {
+  it('the job step opens on the headline’s own question, and answers it with what the seed’s contractors on site cost a month at current rates, counted from the seed', () => {
     const s = step('Job')
     expect(s.chat[0]).toEqual({ who: 'me', text: 'What am I paying across every supplier this month?' })
     const onSite = northbendOnSite()
-    expect(new Set(onSite.map((o) => o.person)).size).toBe(7)
-    expect(new Set(onSite.map((o) => o.firm)).size).toBe(4)
+    const contractors = new Set(onSite.map((o) => o.person)).size
+    const suppliers = new Set(onSite.map((o) => o.firm)).size
     // The dashboard's own arithmetic: each bill rate at a 160-hour month.
     // Worked out in one place the dashboard and Ask Etyme's greeting both read (`./figures`).
     expect(read('src/app/api/program/figures.ts')).toContain('programMonthlySpend(onSite.map((c) => ({ rateMinorPerHour: c.billRate ?? null })))')
     expect(read('src/app/api/program/view.ts')).toContain('const money = spendFigures(onSite, rates, now)')
     const month = programMonthlySpend(onSite.map((o) => ({ rateMinorPerHour: o.bill }))).totalMinor
-    expect(money(month)).toBe('$135,200')
-    expect(s.chat[1].text.startsWith(`${money(month)} a month: 7 contractors through 4 suppliers, at current rates.`)).toBe(true)
+    expect(s.chat[1].text.startsWith(`${money(month)} a month: ${contractors} contractors through ${suppliers} suppliers, at current rates.`)).toBe(true)
     expect(s.sum).toEqual({ big: money(month), rest: 'a month across every supplier, from current rates, in one answer' })
-    // The drawing's $60,000 is the three named rows alone, which are three of seven.
+    // The drawing's $60,000 is the three named rows alone, which are three of the seed's contractors.
     const three = programMonthlySpend(['Helena Marsh', 'Omar Haddad', 'Lucía Fernández'].map((n) => ({ rateMinorPerHour: onSite.find((o) => o.person === n)!.bill }))).totalMinor
     expect(money(three)).toBe('$60,000')
     expect(storyCopy().join(' ')).not.toContain('$60,000')
-    expect(s.table.title).toBe('Contractors on site · 3 of 7')
+    expect(s.table.title).toBe(`Contractors on site · 3 of ${contractors}`)
   })
 
   it('the job step’s contractors carry the supplier and rate the seed gives them, and their months here counted the way the time limit counts them: whole months, never rounded up', () => {
@@ -298,7 +297,7 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     ])
   })
 
-  it('the bar’s 7 contractors and 4 suppliers are the people and firms the seed puts on site at Northbend today', () => {
+  it('the bar’s contractor and supplier counts are the people and firms the seed puts on site at Northbend today', () => {
     // On site: every seeded line at Northbend still running. Its program's
     // own lines, the time-limit demo's, the rate-change seed's, and the
     // integrator's two moves (read off its source: its lines are not
@@ -308,8 +307,6 @@ describe('Every name and figure on the panel is the seeded demo’s', () => {
     expect(read('src/lib/seed-rate-change.ts')).toMatch(/on Brightmoor Staffing's own payroll/)
     const people = new Set(onSite.map((o) => o.person))
     const firms = new Set(onSite.map((o) => o.firm))
-    expect(people.size).toBe(7)
-    expect(firms.size).toBe(4)
     expect(STORY_BAR).toEqual({ company: 'Northbend Athletic', rest: `a sample company · ${people.size} contractors · ${firms.size} suppliers` })
     expect(firm('nike')).toBe(STORY_BAR.company)
   })
@@ -611,13 +608,13 @@ describe('Each door plays its own party’s person, every name and figure the se
     expect(after(st.table.rows[1][3])).toBe('Papers asked')
   })
 
-  it('Brightmoor’s bar counts the 3 people it has billing today: Omar Haddad and Rosa Delgado at Northbend, and one at Nordway Retail', () => {
+  it('Brightmoor’s bar counts the 4 people it has billing today: Anil Rao, Omar Haddad and Rosa Delgado at Northbend, and one at Nordway Retail', () => {
     const atNorthbend = northbendOnSite().filter((o) => o.firm === 'brightmoor').map((o) => o.person)
-    expect(atNorthbend.sort()).toEqual(['Omar Haddad', 'Rosa Delgado'])
+    expect(atNorthbend.sort()).toEqual(['Anil Rao', 'Omar Haddad', 'Rosa Delgado'])
     const elsewhere = WORLD_PLACEMENTS.map((via, i) => ({ via, person: WORLD_NAMES[i] })).filter((p) => p.via.includes('brightmoor'))
     expect(elsewhere.map((p) => [p.person, p.via[0]])).toEqual([['Ravi Subbarayan', 'nordway']])
-    // Lucía's and the time-limit person's Brightmoor lines have ended.
-    expect(nike.placements.filter((p) => p.via[1] === 'brightmoor' && p.state !== 'IN_PROGRESS').every((p) => p.state === 'ENDED')).toBe(true)
+    // Lucía's and the time-limit person's Brightmoor lines have ended, and a draft is not billing.
+    expect(nike.placements.filter((p) => p.via[1] === 'brightmoor' && p.state !== 'IN_PROGRESS').every((p) => ['ENDED', 'DRAFT'].includes(p.state))).toBe(true)
     expect(TENURE_DEMO.lines.find((l) => l.via === 'brightmoor')!.state).toBe('ENDED')
     expect(STORIES.brightmoor.bar.rest).toBe(`a sample supplier · ${atNorthbend.length + elsewhere.length} people billing`)
   })

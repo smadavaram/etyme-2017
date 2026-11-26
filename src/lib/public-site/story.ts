@@ -106,7 +106,7 @@ export interface StoryStep {
 /** Whose program this is, said on the bar, and how big it is. */
 export const STORY_BAR = {
   company: 'Northbend Athletic',
-  rest: 'a sample company · 7 contractors · 4 suppliers',
+  rest: 'a sample company · 8 contractors · 4 suppliers',
 } as const
 
 /** The label over the conversation. */
@@ -168,7 +168,7 @@ export function cellText(c: Cell, today: string | null = null): string {
 //
 // Where the drawing and the seed disagree the seed is said, and
 // `__tests__/invariants/story-panel.test.ts` lists each one. The two that
-// matter: the month is $135,200 for the seven contractors the seed puts
+// matter: the month is $149,920 for the eight contractors the seed puts
 // on site, not $60,000 for three, because the question is "across every
 // supplier"; and Helena's week is accepted next by Computer Systems Inc
 // and then by her employer, who pays her — Computer Systems Inc is not
@@ -227,7 +227,7 @@ export const STORY: StoryStep[] = [
       { who: 'me', text: 'What am I paying across every supplier this month?' },
       {
         who: 'etyme',
-        text: '$135,200 a month: 7 contractors through 4 suppliers, at current rates. Lucía Fernández has 14 months here across two suppliers. The limit is 18.',
+        text: '$149,920 a month: 8 contractors through 4 suppliers, at current rates. Lucía Fernández has 14 months here across two suppliers. The limit is 18.',
       },
       {
         who: 'etyme',
@@ -240,7 +240,7 @@ export const STORY: StoryStep[] = [
       },
     ],
     table: {
-      title: 'Contractors on site · 3 of 7',
+      title: 'Contractors on site · 3 of 8',
       head: [{ t: 'Contractor' }, { t: 'Supplier', wide: true }, { t: 'Rate', right: true }, { t: 'Months here', right: true }],
       rows: [
         ['Helena Marsh', 'Computer Systems Inc', '$145', '6'],
@@ -250,7 +250,7 @@ export const STORY: StoryStep[] = [
       added: ['HCM integration lead (open)', '3 suppliers', '$120–140', { pill: 'ok', t: 'Sent' }],
       flash: 3,
     },
-    sum: { big: '$135,200', rest: 'a month across every supplier, from current rates, in one answer' },
+    sum: { big: '$149,920', rest: 'a month across every supplier, from current rates, in one answer' },
   },
   {
     n: 2,
@@ -491,7 +491,7 @@ export const APTIVA_STORY_STEPS: StoryStep[] = [
 
 /** Brightmoor Staffing's account manager, at Northbend's open job. */
 export const BRIGHTMOOR_STORY: Story = {
-  bar: { company: 'Brightmoor Staffing', rest: 'a sample supplier · 3 people billing' },
+  bar: { company: 'Brightmoor Staffing', rest: 'a sample supplier · 4 people billing' },
   book: 'Brightmoor Staffing',
   steps: [
     {
