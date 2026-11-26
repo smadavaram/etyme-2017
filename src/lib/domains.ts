@@ -408,6 +408,9 @@ export const DOMAINS: Domain[] = [
       // The model boundary (2026-10-13): the per-company switch and the
       // log of what left. The masking at the edge is conversation's.
       'lib/model-boundary',
+      // The skill layer and the model gateway (records 123, 125): the
+      // registry, the runner, the grader and the one door for model calls.
+      'lib/skills', 'lib/model-gateway',
       // Which model each kind of call uses, the one place an id is written;
       // Ask Etyme's allowance per person and company; and whether the key
       // and the ids are ready, for health and /ready (2026-11-11).

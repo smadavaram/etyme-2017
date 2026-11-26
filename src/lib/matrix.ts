@@ -3617,6 +3617,37 @@ export const MATRIX: L1[] = [
           ],
           implementedBy: ['src/lib/outreach/audience-rules.ts', 'src/lib/outreach/offer-rules.ts', 'src/lib/outreach/batch-rules.ts', 'src/lib/outreach/batch.ts', 'src/lib/notify/outreach-interest.ts', 'src/lib/agents/outreach-batch.ts', 'src/lib/decision-queue.ts', 'src/app/api/outreach/preview/route.ts', 'src/app/api/outreach/batches/route.ts', 'src/app/api/outreach/batches/[id]/route.ts', 'src/app/api/answer/outreach-interest/[token]/route.ts', 'src/app/answer/outreach-interest/[token]/page.tsx', 'src/app/dashboard/companies/outreach/page.tsx', 'src/app/dashboard/companies/outreach/[id]/page.tsx', 'src/lib/nav-table.ts', 'src/app/api/cron/agents/route.ts'],
           testedBy: ['__tests__/invariants/outreach-audience.test.ts', '__tests__/invariants/outreach-offer.test.ts', '__tests__/invariants/outreach-batch.test.ts', '__integration__/outreach-batch.test.ts', '__integration__/outreach-chases.test.ts'] },
+        { code: 'L3.6.3.46', name: 'Skills: every agent act is a named skill with a tier, a plan and a checker that re-reads the record', owner: 'Owner', status: S,
+          tasks: [
+            'A registry names each skill with its unit, data class, tier (Rules, Low, High) and the checker that grades it; a skill with no checker, or a Lane C skill that is not rules only, fails the build',
+            'A skill that moves money, signs, ends a placement, decides about a person or publishes compliance copy cannot be registered; a skill that may send names its task kind and sends nothing outside an approved task',
+            'An agent runs only the skills in its own plan and acts only through the ledger writer; every skill call writes one run row with its tier, rules calls at zero cost',
+            'A checker only reads: it re-derives what should exist from the rules\u2019 own readers and compares it with the record, never with what the agent passed it; one it cannot read returns unknown and is never counted as passed',
+            'Actual is written only by the grader, from what the checker found; Planned is the agent\u2019s own count and is labeled Planned',
+            'Each agent moves onto skills with the same ledger rows, tasks, cards, letters and automation rows on the seeded world before and after; the owner of each agent\u2019s file migrates it',
+            'NOT BUILT 2026-11-26 (record 123, skill layer): rows and schema first (AgentRun skill columns, SkillTarget); no price anywhere'
+          ],
+          testedBy: [] },
+        { code: 'L3.6.3.47', name: 'Skills: planned, actual, target and variance for each skill and each agent, on Agent control', owner: 'Owner', status: S,
+          tasks: [
+            'Agent control shows, per skill and per agent, for a day, a week (the company\u2019s Sunday to Saturday) or a month: Planned, Actual, Target, Variance, Var %, Completion %',
+            'Target is the Owner\u2019s own number and a dash until set; only the Owner sets it and the change is a ledger row; one company never reads another\u2019s target',
+            'Variance is Actual minus Target; Var % is of the Target, rounded to a whole number; Completion % is Actual over Planned; nothing planned reads a dash',
+            'Every cell is a number, a dash or a label of three words or fewer with no verb; counts by Rules, Low tier and High tier with Fallback and Escalated; no price or charge appears',
+            'The Owner and Admins read the panel; an agent\u2019s line equals its output skill\u2019s line and its ledger acts count',
+            'NOT BUILT 2026-11-26 (record 123, skill layer)'
+          ],
+          testedBy: [] },
+        { code: 'L3.6.3.48', name: 'Skills: the model gateway, one door for every model call, tiered by data class', owner: 'Owner', status: S,
+          tasks: [
+            'Every model call goes through one gateway; no file outside it imports a provider SDK or calls a provider host (a list that may only shrink)',
+            'Tenant business data reaches only a US-hosted model under a data processing agreement, on the first try, on fallback and on escalation; a tenant\u2019s own model only with that or the tenant\u2019s recorded opt-in',
+            'Lane C data (tax ID, bank details, social security number, W-4, W-9, voided check, identity papers) reaches no model, refused by document type first and by pattern second, and the refusal is recorded',
+            'The first model failing falls to the next admitted one in the same tier; a failed key on the Low tier is retried once on the High tier; a second failure opens a card for a person',
+            'A model with no price set records its cost as not set, never a guess; with no model available the gateway says Not configured and blocks no release',
+            'NOT BUILT 2026-11-26 (records 123 and 125, skill layer)'
+          ],
+          testedBy: [] },
       ]},
     ],
   },
