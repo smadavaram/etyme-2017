@@ -12,6 +12,7 @@ import { seatedRoles } from '@/app/api/contracts/[id]/activate/gate'
 import { mayOpen } from '@/lib/nav-table'
 import { recordedContactsFor } from '@/lib/week-approval'
 import { whoRaisesBillsSays } from '@/lib/money/who-raises-bills'
+import { waitsForAStart, waitingForStartSays, START_STEP_HREF, START_STEP_LABEL } from '@/lib/money/pod-waits-for-start'
 
 /**
  * GET /api/invoices/generate — the engagements this firm may bill.
@@ -181,17 +182,51 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // A project with accepted deliverables and a team nobody has started yet:
+  // listed with the step it waits on, never offered as a bill (record 120).
+  const waiting = await projectsWaitingForAStart(caller.company!.id)
+
   const waits = await whatTheBillWaitsOn(caller, steps)
+  const onlyWaiting = billable.length === 0 && waiting.length > 0
   return NextResponse.json({
     data: {
       engagements: billable,
+      waiting,
       // Whether anything can be billed now. The Bills page draws its button
       // only where it can, and the same sentence in its place where not.
       canBill: waits.canBill,
-      says: waits.says,
-      link: waits.link,
+      says: onlyWaiting ? waiting[0].says : waits.says,
+      link: onlyWaiting ? waiting[0].link : waits.link,
     },
   })
+}
+
+/**
+ * Projects sold from a team whose accepted deliverables cannot be billed
+ * because no member's start is confirmed. The supplier reads the names.
+ */
+async function projectsWaitingForAStart(companyId: string) {
+  const rows = await prisma.engagement.findMany({
+    where: {
+      workOrders: { some: { issuedToId: companyId, milestones: { some: { status: 'ACCEPTED' } } } },
+      sellContracts: { some: { companyId, projectOrderId: { not: null } } },
+    },
+    select: {
+      id: true, title: true,
+      sellContracts: { where: { companyId }, select: { state: true, person: { select: { name: true } } } },
+    },
+    orderBy: [{ title: 'asc' }, { id: 'asc' }],
+    take: 50,
+  })
+  return rows
+    .map((e) => ({ e, lines: e.sellContracts.map((l) => ({ state: l.state as string, personName: l.person?.name ?? null })) }))
+    .filter((x) => waitsForAStart(x.lines))
+    .map((x) => ({
+      id: x.e.id,
+      title: x.e.title,
+      says: waitingForStartSays(x.lines, 'SUPPLIER'),
+      link: { href: START_STEP_HREF, label: START_STEP_LABEL },
+    }))
 }
 
 /**

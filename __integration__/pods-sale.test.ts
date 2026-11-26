@@ -186,7 +186,7 @@ describe('a team sold as a project, billed on the deliverables the client accept
     s.sheet = sheet.id
   })
 
-  it('a milestone project with nobody started bills nothing, and says nobody is placed', async () => {
+  it('a milestone project with nobody started bills nothing, and says it waits for a team member’s start', async () => {
     // Asked of the same engagement before any line runs would be the same refusal; here a second project proves it.
     const other = await prisma.$transaction((tx) => sale(tx, { deliverables: [{ name: 'Only stage', amountCents: 3_000_000, dueOn: null }], kind: 'FIXED_PRICE' }))
     expect(other.ok, JSON.stringify(other)).toBe(true)
@@ -195,7 +195,7 @@ describe('a team sold as a project, billed on the deliverables the client accept
     const company = await prisma.company.findUniqueOrThrow({ where: { id: s.seller }, select: { id: true, name: true, kind: true } })
     const made = await generateBill({ company, person: { id: null, name: 'Ask Etyme' } }, { engagementId: other.engagementId }, { status: 'DRAFT' })
     expect(made.ok).toBe(false)
-    expect(JSON.stringify((made as any).body)).toContain('Nobody is placed')
+    expect(JSON.stringify((made as any).body)).toContain('Waiting for a team member')
   })
 
   it('the bill run bills only the two accepted deliverables, marks them invoiced, and bills none of the member\u2019s hours', async () => {

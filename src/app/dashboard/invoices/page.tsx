@@ -218,6 +218,8 @@ function GenerateInvoiceModal({
   const [nothingToBill, setNothingToBill] = useState<string | null>(null)
   /** The act that unblocks it, where the route said this seat may do it. */
   const [nothingLink, setNothingLink] = useState<BillStepLink | null>(null)
+  /** Projects with accepted deliverables, waiting for a team member's start. */
+  const [waitingProjects, setWaitingProjects] = useState<{ id: string; title: string; says: string; link: BillStepLink }[]>([])
   const [engagementId, setEngagementId] = useState('')
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
@@ -248,6 +250,7 @@ function GenerateInvoiceModal({
         // missing step where not; the Bills page prints the same answer.
         const list: EngagementOption[] = body.data?.canBill === false ? [] : body.data?.engagements ?? []
         setEngagements(list)
+        setWaitingProjects(body.data?.waiting ?? [])
         setNothingToBill(list.length === 0 ? body.data?.says ?? null : null)
         setNothingLink(list.length === 0 ? body.data?.link ?? null : null)
         if (list.length === 1) setEngagementId(list[0].id)
@@ -282,6 +285,7 @@ function GenerateInvoiceModal({
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         setError(body.error?.message ?? 'That bill could not be raised. Try again.')
+        if (body.error?.link?.href) setNothingLink(body.error.link)
         if (body.error?.draft?.href) setHeldByDraft({ number: body.error.draft.number, href: body.error.draft.href })
         return
       }
@@ -317,6 +321,9 @@ function GenerateInvoiceModal({
         </div>
 
         {error && <div className="mb-4"><ErrorState says={error} /></div>}
+        {error && nothingLink && (
+          <p className="mb-4 text-sm"><a href={nothingLink.href} className="text-etyme-action hover:underline">{nothingLink.label}</a></p>
+        )}
         {heldByDraft && (
           <p className="mb-4 text-sm">
             <a href={heldByDraft.href} className="text-etyme-action hover:underline">Open draft bill {heldByDraft.number}</a>
@@ -342,6 +349,9 @@ function GenerateInvoiceModal({
                   <option key={eng.id} value={eng.id}>
                     {eng.label ?? (eng.clientName ? `${eng.title} — ${eng.clientName}` : eng.title)}
                   </option>
+                ))}
+                {waitingProjects.map((w) => (
+                  <option key={w.id} value="" disabled>{w.title} — {w.says}</option>
                 ))}
               </select>
             ) : (
