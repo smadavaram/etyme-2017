@@ -546,7 +546,7 @@ function firstWorkedDay(t: { periodStart: Date; days: unknown }): Date {
 }
 
 /** Shares each program's placements are cut into, one step each. */
-export const PROGRAM_SHARES = 2
+export const PROGRAM_SHARES = 3
 
 /**
  * Seed the three client programs — or one of them, or one share of one.

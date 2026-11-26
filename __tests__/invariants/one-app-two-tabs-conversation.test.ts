@@ -253,7 +253,7 @@ describe('Today’s decision rows: Yes, Not now, and Yes to all where every row 
     expect(rows).toContain("fetch('/api/decisions')")
     // The press takes the card's own act (its Yes) unless a No is chosen, and posts it to that act's route.
     expect(rows).toContain('chosen: QueueAct | null = card.act')
-    expect(rows).toContain('fetch(act.url, { method: \'POST\'')
+    expect(rows).toContain('fetch(act.url, { method: act.method ?? \'POST\'')
   })
 
   it('what a batch did is said as how many were done and the first that was not', () => {
