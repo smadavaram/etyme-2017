@@ -25,7 +25,7 @@ export interface StartPreflight {
   says: string | null
   /** The roles that start a placement at this kind of firm. */
   who?: string[]
-  terms: { blocks: boolean; says: string | null } | null
+  terms: { blocks: boolean; says: string | null; fix?: string | null } | null
   papers: {
     outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null
     /** Where the missing I-9 is recorded, for a seat that may record it. */
@@ -62,7 +62,9 @@ export function viewBefore(pre: StartPreflight | null): PanelView {
   // its text is the route's, not a sentence for a screen.
   if (!pre.may) return pre.code === 'FORBIDDEN' && pre.says ? { button: null, says: pre.says, box: null } : NOTHING
   // The terms first, as the press asks them first: a block, so no box.
-  if (pre.terms?.blocks) return { button: 'Activate', says: pre.terms.says, box: null }
+  // No button: the route will refuse it, so the sentence and the next step
+  // are drawn instead (a button is drawn only where its route will take it).
+  if (pre.terms?.blocks) return { button: null, says: [pre.terms.says, pre.terms.fix].filter(Boolean).join(' '), box: null }
   const p = pre.papers
   if (p?.outcome === 'BLOCK') {
     return { button: 'Activate', says: [p.says, p.fix, p.whoRecords].filter(Boolean).join(' '), box: null, door: p.door ?? null }

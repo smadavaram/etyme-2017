@@ -20,6 +20,7 @@ import { contractFor } from '@/lib/twin/role-contract'
 import { pastEndDate } from '@/lib/account-lifecycle'
 import { reportError } from '@/lib/alerts'
 import { tellAcceptor, tellProposer, type PodOffer } from '@/lib/notify/pod-sale-notices'
+import { format as formatMoney, fromMinor } from '@/lib/money'
 
 export const POD_SALE_ACT = 'pod.sale.accept'
 
@@ -181,7 +182,7 @@ export async function raisePodSaleCard(tx: Prisma.TransactionClient, input: PodS
       entityId: input.podId,
       partyCompanyIds: [input.clientCompanyId, input.sellerCompanyId],
       ruleCited: 'Only the person the client names accepts a sold team’s work, and only her yes makes the project.',
-      rationale: `${input.sellerName} proposes ${input.projectName}: ${n === 0 ? 'billed on hours' : `${n} deliverable${n === 1 ? '' : 's'}`}, ${input.priceCents} cents ${input.currency}, and names ${acceptor.name} to accept each one.`,
+      rationale: podSaleCardRationale({ sellerName: input.sellerName, projectName: input.projectName, acceptorName: acceptor.name, deliverableCount: n, priceCents: input.priceCents, currency: input.currency }),
       surface: 'WEB',
       payload: payload as unknown as Prisma.InputJsonValue,
     },
@@ -246,4 +247,10 @@ export async function tellCardProposer(approvalId: string, payload: unknown, ans
   } catch (err) {
     await reportError('pod-sale-notice', err, { companyId: offer.clientCompanyId, personId: offer.acceptorPersonId }).catch(() => undefined)
   }
+}
+
+/** The card's sentence. The price reads through the one money formatter, in its own currency. */
+export function podSaleCardRationale(f: { sellerName: string; projectName: string; acceptorName: string; deliverableCount: number; priceCents: number; currency: string }): string {
+  const what = f.deliverableCount === 0 ? 'billed on hours' : `${f.deliverableCount} deliverable${f.deliverableCount === 1 ? '' : 's'}`
+  return `${f.sellerName} proposes ${f.projectName}: ${what}, ${formatMoney(fromMinor(f.priceCents, f.currency))}, and names ${f.acceptorName} to accept each one.`
 }

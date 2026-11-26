@@ -81,6 +81,8 @@ const ACTION_SUMMARIES: Record<Action, string> = {
  * Nothing is written but the access log: the papers' verdict is a read of
  * the person's file.
  */
+const TERMS_PENDING_FIX = 'The firm that pays the person states the terms on the placement’s terms page, and the person agrees them on their own page.'
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -146,7 +148,7 @@ export async function GET(
       code: null,
       says: null,
       who,
-      terms: terms.blocks ? { blocks: true, says: terms.says } : null,
+      terms: terms.blocks ? { blocks: true, says: terms.says, fix: TERMS_PENDING_FIX } : null,
       papers: { outcome: papers.outcome, says: papers.says, fix: papers.fix, door: i9?.door ?? null, whoRecords: i9?.whoRecords ?? null },
     },
   })
@@ -253,7 +255,7 @@ export async function POST(
           error: {
             code: 'TERMS_PENDING',
             message: terms.says,
-            fix: 'The firm that pays the person states the terms on the placement’s terms page, and the person agrees them on their own page.',
+            fix: TERMS_PENDING_FIX,
           },
         },
         { status: 409 }
