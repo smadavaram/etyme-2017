@@ -6,7 +6,7 @@ import { pluginGate } from '@/lib/plugin-gate'
 import { podWriteRefusal } from '@/lib/pods/caller'
 import { readPods, soldTo } from '@/lib/pods/read'
 import { offerRule, soldTeamSays } from '@/lib/pods'
-import { raisePodSaleCard, holdsSeatAt } from '@/lib/twin/pod-sale-card'
+import { raisePodSaleCard, holdsSeatAt, tellCardAcceptor } from '@/lib/twin/pod-sale-card'
 import { dealingsWithSides } from '@/app/api/companies/dealings'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -80,5 +80,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     roles: team.roles.map((r) => ({ title: r.title, headcount: r.headcount })),
   }))
   if (!card.ok) return fail(card.field === 'podId' ? 409 : 422, 'REFUSED', card.says, card.field ?? undefined)
+  // The card is committed; only now is the named acceptor told it is waiting.
+  await tellCardAcceptor(card)
   return NextResponse.json({ data: { approvalId: card.approvalId, says: `${team.name} is offered to ${client.name}. Nothing is sold until the person you named says yes.` } }, { status: 201 })
 }

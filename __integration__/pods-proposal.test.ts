@@ -149,6 +149,15 @@ describe('the supplier offers a team to a client, and it is sold only by the nam
     expect(row).toEqual({ companyId: s.client, decision: 'PENDING' })
   })
 
+  it('the named person is told through the offer route that a card waits for her, and nobody else is', async () => {
+    const acceptor = await prisma.person.findFirstOrThrow({ where: { primaryEmail: ACCEPTOR }, select: { id: true } })
+    const notes = await prisma.notification.findMany({ where: { companyId: s.client, createdAt: { gte: new Date(Date.now() - 10 * 60_000) } }, select: { personId: true, title: true, body: true } })
+    const hers = notes.filter((n) => n.personId === acceptor.id)
+    expect(hers.length).toBeGreaterThanOrEqual(1)
+    expect(notes.every((n) => n.personId === acceptor.id)).toBe(true)
+    expect(JSON.stringify(hers)).not.toMatch(/\bpod\b/i)
+  })
+
   it('the team reads offered to the client, waiting for the person named', async () => {
     const d = await offers()
     expect(d.offers[s.pod]).toEqual({ client: 'Harrowgate Foods', acceptor: 'Imogen Daleford', decision: 'PENDING', says: 'Offered to Harrowgate Foods, waiting for Imogen Daleford' })
