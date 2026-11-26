@@ -273,6 +273,14 @@ export const PROGRAMMES: Program[] = [
       { role: 'Data engineer', skills: ['Cloud data warehouse', 'dbt', 'Python'], loc: 'Tualatin, OR',
         via: ['nike', 'computer-systems'], rates: [12400, 9100],
         person: 'Kwame Mensah', workAuth: 'H1B', startedDaysAgo: 790, endsInDays: -50, state: 'ENDED', papers: 'CLEAR' },
+      // Rolls off in three weeks, and nobody has started the roll-off: the
+      // supplier's own decision, so no supplier seat opens on an empty
+      // queue (the photo walk, 2026-11-26: "Nothing needs you today" on
+      // every Brightmoor seat over a seeded book).
+      { role: 'Integration test analyst', skills: ['Test automation', 'Node.js'], loc: 'Tualatin, OR',
+        via: ['nike', 'brightmoor'], rates: [9200, 7000],
+        person: 'Anil Rao', workAuth: 'USC', startedDaysAgo: 160, endsInDays: 21, state: 'IN_PROGRESS',
+        papers: 'CLEAR', weeks: { approved: 3, awaiting: 0 }, invoice: 'PAID' },
       // Awarded, starting next week, and cannot: no I-9 on file.
       { role: 'Cybersecurity analyst', skills: ['SIEM', 'Log analytics', 'Incident response'], loc: 'Tualatin, OR',
         via: ['nike', 'pinnacle'], rates: [11500, 8600],

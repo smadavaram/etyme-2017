@@ -1833,10 +1833,10 @@ describe('one app, two tabs: Ask Etyme | Dashboard at the top of the left column
     expect(viewOf(null)).toBe('dashboard')
   })
 
-  it('an AP clerk, AP & Payroll and a coordinator open on Dashboard, everybody else on Ask Etyme, and a person’s own last choice beats both', () => {
-    expect(firstTabFor('AP Clerk', null)).toBe('dashboard')
-    expect(firstTabFor('AP & Payroll', null)).toBe('dashboard')
-    expect(firstTabFor('Coordinator', null)).toBe('dashboard')
+  it('every role opens on Ask Etyme, the AP clerk, AP & Payroll and a coordinator included, and a person’s own last choice beats it', () => {
+    expect(firstTabFor('AP Clerk', null)).toBe('ask')
+    expect(firstTabFor('AP & Payroll', null)).toBe('ask')
+    expect(firstTabFor('Coordinator', null)).toBe('ask')
     expect(firstTabFor('Hiring Manager', null)).toBe('ask')
     expect(firstTabFor('Owner', null)).toBe('ask')
     expect(firstTabFor(null, null)).toBe('ask')

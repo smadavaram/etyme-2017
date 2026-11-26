@@ -1358,14 +1358,6 @@ export function viewOf(pathname: string | null | undefined): ShellView {
   return p === '/dashboard/conversations' || p.startsWith('/dashboard/conversations/') ? 'ask' : 'dashboard'
 }
 
-/**
- * The roles that clear a queue all day and open on Dashboard (founder's
- * sketch, 2026-11-08, a coordinator's call reversible in a sentence): the
- * AP clerk, AP & Payroll, and the coordinator. Everybody else opens on
- * Ask Etyme.
- */
-export const QUEUE_ROLES: readonly string[] = ['AP Clerk', 'AP & Payroll', 'Coordinator']
-
 /** Where this person's last choice is kept on the device, per person. */
 export function tabKey(personId: string | null | undefined): string {
   return `etyme_tab:${personId ?? 'anyone'}`
@@ -1378,12 +1370,14 @@ export function readTab(value: string | null | undefined): ShellView | null {
 
 /**
  * The tab a person opens on: their last choice on this device, else
- * Dashboard for a role that clears a queue all day, else Ask Etyme.
+ * Ask Etyme, for every role (record 130: Ask Etyme is every end user's
+ * harness; the AP clerk, AP & Payroll and the coordinator no longer open
+ * on Dashboard).
  */
 export function firstTabFor(roleName: string | null | undefined, remembered: ShellView | null | undefined): ShellView {
   if (remembered) return remembered
-  const role = (roleName ?? '').trim().toLowerCase()
-  return QUEUE_ROLES.some((r) => r.toLowerCase() === role) ? 'dashboard' : 'ask'
+  void roleName
+  return 'ask'
 }
 
 /**
