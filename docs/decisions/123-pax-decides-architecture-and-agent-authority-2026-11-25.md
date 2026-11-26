@@ -152,3 +152,28 @@ translate into Indian languages, and they follow the trade's own terms.
 **Order.** It is built after the website and outreach flags, together
 with the model gateway (record 125), and before pricing. It passes its
 plan gate first.
+
+## The skill layer: build now, and plan versus actual for team delivery (the tester, 2026-11-26)
+
+- **The skill layer is built next.** It moves ahead of the website and
+  outreach flags, because both touch the same plugin and agent files and
+  must run one after the other. It is built once its plan gate returns,
+  in the order that plan sets, starting with the schema.
+- **Plan, actual, target and variance on team delivery** belong inside
+  the Project teams plugin (record 120), not in a plugin of their own. A
+  team that is sold is already tracked by its deliverables. The view
+  adds:
+  - the baseline taken at the sale;
+  - the actual dates and amounts;
+  - the variance.
+
+  It uses the trade's terms: planned value (PV), earned value (EV),
+  actual cost (AC), schedule variance (SV) and cost variance (CV), and
+  the schedule and cost performance indexes (SPI and CPI). Figures and
+  short phrases only, never sentences.
+  - **The supplier** sees the schedule and the cost: SV, CV, SPI and CPI.
+    Cost reaches only a seat that may read margin.
+  - **The client** sees the schedule only: planned date, actual date and
+    days of variance per deliverable. It never sees cost or margin.
+  - **A tenant chooses whether to show it**, as a setting inside the
+    plugin. It is on by default once Project teams is on.
