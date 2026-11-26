@@ -1315,7 +1315,8 @@ read-only, nothing deleted, agents stopped. The rule is recursive: every
 company is a free user in another's record, a supplier's own clients
 included. The pricing strategy (→ 127) is for approval only; no agent
 quotes its numbers until locked. LOCKED Nov 25 (→ 127): $20 per active
-contractor a month, Starter floor $199 a month, Enterprise the same rate
+contractor a month, Starter $20 per contractor a month plus a $1,000 annual platform fee with a
+floor of $199 a month, Enterprise the same rate
 plus a $12,000 annual platform fee, usage metered per
 action by capability tier, about 15% off usage for paying a year ahead.
 Editions at launch: User, Starter, Enterprise. Consulting is $200 an hour.

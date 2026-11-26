@@ -105,3 +105,17 @@ published rate card page, with these exact figures.
   weekend). Saturday ships only what has passed its release check and its
   walk by Friday night. Anything that misses is named in the release
   notes and takes next weekend's first slot.
+
+## The supplier platform fee is locked: $1,000 a year (the owner, Nov 25)
+
+The supplier platform fee is $1,000 a year, charged once a year like the
+Enterprise fee.
+
+**Starter** is now $20 per active contractor per month plus a $1,000
+annual platform fee. The floor stays at $199 a month.
+
+**The rate card's example for a supplier:** 15 contractors cost $3,600 a
+year in usage (15 × $20 × 12). Add the $1,000 platform fee, and the total
+is $4,600 a year.
+
+The published rate card in the Saturday batch includes this figure.
