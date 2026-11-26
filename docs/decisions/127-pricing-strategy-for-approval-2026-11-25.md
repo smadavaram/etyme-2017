@@ -119,3 +119,12 @@ year in usage (15 × $20 × 12). Add the $1,000 platform fee, and the total
 is $4,600 a year.
 
 The published rate card in the Saturday batch includes this figure.
+
+## The floor covers the contractor charge only (the tester, 2026-11-26)
+
+The $199 monthly floor applies only to the charge per contractor. The
+platform fee is always added on top and never counts toward the floor.
+
+Example: a supplier with 3 contractors pays $199 a month, because 3 ×
+$20 is $60, which is under the floor. It also pays the $1,000 platform
+fee for the year.
