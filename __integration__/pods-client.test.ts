@@ -98,6 +98,7 @@ describe('the client reads and decides a sold team, through to every deliverable
     expect(r.status).toBe(403)
     expect(r.body.error.message).toBe('Imogen Daleford was named on this deal as the one who accepts or rejects its deliverables. Ask Imogen Daleford to decide.')
     expect(await prisma.accessLog.count({ where: { actorPersonId: s[COLLEAGUE], allowed: false } })).toBe(before + 1)
+    expect(await prisma.accessLog.count({ where: { actorPersonId: s[COLLEAGUE], allowed: false, action: 'DELIVERABLE_DECIDE_REFUSED' } })).toBe(1)
     expect((await prisma.orderMilestone.findUniqueOrThrow({ where: { id: s.ms[0] } })).status).toBe('DELIVERED')
   })
 

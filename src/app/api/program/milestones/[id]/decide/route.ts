@@ -108,7 +108,7 @@ export async function POST(
     await recordRefusal([{ companyId }], {
       actorPersonId: caller.person.id,
       actorCompanyId: companyId,
-      action: 'CONTRACT_VIEW',
+      action: 'DELIVERABLE_DECIDE_REFUSED',
       allowed: false,
       reason: `Refused a decision on deliverable ${milestone.name}: only the acceptor named on the deal decides it.`,
     })
