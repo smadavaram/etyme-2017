@@ -3629,16 +3629,17 @@ export const MATRIX: L1[] = [
           ],
           implementedBy: ['src/lib/skills/registry.ts', 'src/lib/skills/runner.ts', 'src/lib/skills/checker.ts', 'src/lib/skills/checkers/index.ts', 'src/lib/skills/grade.ts', 'src/lib/skills/meter.ts', 'src/lib/agents/plans.ts', 'src/lib/agent-run.ts'],
           testedBy: ['__tests__/unit/skills-registry.test.ts', '__tests__/unit/skills-plans.test.ts', '__integration__/skills-run.test.ts', '__tests__/unit/skills-grade.test.ts', '__integration__/skills-grade.test.ts', '__tests__/invariants/skill-checkers-read-only.test.ts', '__tests__/unit/skills-meter.test.ts', '__integration__/skills-meter.test.ts', '__tests__/invariants/agent-run.test.ts'] },
-        { code: 'L3.6.3.47', name: 'Skills: planned, actual, target and variance for each skill and each agent, on Agent control', owner: 'Owner', status: S,
+        { code: 'L3.6.3.47', name: 'Skills: planned, actual, target and variance for each skill and each agent, on Agent control', owner: 'Owner', status: P,
           tasks: [
             'Agent control shows, per skill and per agent, for a day, a week (the company\u2019s Sunday to Saturday) or a month: Planned, Actual, Target, Variance, Var %, Completion %',
             'Target is the Owner\u2019s own number and a dash until set; only the Owner sets it and the change is a ledger row; one company never reads another\u2019s target',
             'Variance is Actual minus Target; Var % is of the Target, rounded to a whole number; Completion % is Actual over Planned; nothing planned reads a dash',
             'Every cell is a number, a dash or a label of three words or fewer with no verb; counts by Rules, Low tier and High tier with Fallback and Escalated; no price or charge appears',
             'The Owner and Admins read the panel; an agent\u2019s line equals its output skill\u2019s line and its ledger acts count',
-            'NOT BUILT 2026-11-26 (record 123, skill layer)'
+            'PARTIAL 2026-11-26 (record 123, skill layer): the arithmetic is built (step 6a); the words, the routes and the panel follow'
           ],
-          testedBy: [] },
+          implementedBy: ['src/lib/skills/performance.ts'],
+          testedBy: ['__tests__/unit/skills-performance.test.ts'] },
         { code: 'L3.6.3.48', name: 'Skills: the model gateway, one door for every model call, tiered by data class', owner: 'Owner', status: S,
           tasks: [
             'Every model call goes through one gateway; no file outside it imports a provider SDK or calls a provider host (a list that may only shrink)',
