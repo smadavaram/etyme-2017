@@ -177,3 +177,17 @@ The tester said yes to the lead's recommendation, with the on-site option.
   the client's Program, Contracts, Reports, Decisions and Ask Etyme pages
   read the member lines as people placed with the client. They showed
   names and a made-up rate per hour.
+
+## Pods: the three rulings on member lines (the tester, 2026-11-26)
+
+The tester said yes to all three of the lead's recommendations.
+
+1. **The selling firm signs an outcome team member's week and expenses
+   at the top**, because the client buys the deliverables, not the hours.
+   The worker files her own week and never signs it.
+2. **"Never addressed to the client" means the client never reads the
+   member line.** The line still carries the client's company, so that
+   the supplier never becomes its own customer. Every reader on the
+   client's side reads through one filter, and a sweep test proves it.
+3. **The Project teams switch refuses to turn on** until the member-line
+   work is built and walked. The rest of pods rides Saturday safely.

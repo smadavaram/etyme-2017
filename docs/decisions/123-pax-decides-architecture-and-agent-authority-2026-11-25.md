@@ -123,3 +123,32 @@ The tester said yes to all six of the lead's recommendations.
 This makes record 121's line "the existing tenants' doors start off"
 and this record's first answer of 2026-11-26 ("Tapin's storefront goes
 dark") obsolete. The grandfathering ruling replaces both.
+
+## The skill layer goes ahead (the tester, 2026-11-26)
+
+The tester: "Go ahead with your recommendation … Build skill layer that
+agents can work with."
+
+**One piece of work, three parts:**
+
+1. **A skill registry.** Each capability is one named skill. A skill
+   declares:
+   - its inputs;
+   - its data class, which sets its model tier (record 125);
+   - whether it may send.
+2. **Agents are plans of skills.** Each agent names the skills it uses
+   instead of carrying its own code.
+3. **A read-only checker for each skill.** It grades the skill's output
+   against the tenant's answer key. Every verdict gives a reason. Success
+   is read from the record, never from the agent's report.
+
+Each skill call is metered on the ledger by tier, which is what the rate
+card prices.
+
+**Reporting.** Each skill reports planned, actual, target and variance as
+numbers or short phrases, never sentences. The words are plain enough to
+translate into Indian languages, and they follow the trade's own terms.
+
+**Order.** It is built after the website and outreach flags, together
+with the model gateway (record 125), and before pricing. It passes its
+plan gate first.
