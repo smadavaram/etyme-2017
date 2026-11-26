@@ -49,11 +49,15 @@ describe('a firm seated with an Owner, HR, an Account Manager and AP & Payroll',
       await prisma.context.create({ data: { personId: p.id, companyId: co.id, roleId: role.id, type: 'EMPLOYEE', grantReason: 'Walk' } })
     }
     const rosa = await prisma.person.findFirstOrThrow({ where: { name: 'Rosa Delgado' } })
-    const week = await prisma.timesheet.findFirstOrThrow({
+    // A week that crosses a month's edge bills whole in the month it ends in, so a
+    // request clipped to the month it starts in finds nothing: pick a week inside one month.
+    const weeks = await prisma.timesheet.findMany({
       where: { personId: rosa.id, sellContract: { companyId: co.id }, invoiceLines: { none: {} }, assertions: { some: { role: 'CLIENT_APPROVAL', state: 'LIVE' } } },
       orderBy: { periodStart: 'asc' },
       select: { id: true, periodStart: true, periodEnd: true, sellContract: { select: { engagementId: true } } },
     })
+    const week = weeks.find((w) => w.periodStart.getUTCMonth() === w.periodEnd.getUTCMonth())
+    if (!week) throw new Error('Rosa has no signed, unbilled week that sits inside one month')
     weekId = week.id
     engagementId = week.sellContract!.engagementId!
     period = { periodStart: week.periodStart.toISOString().slice(0, 10), periodEnd: week.periodEnd.toISOString().slice(0, 10) }
