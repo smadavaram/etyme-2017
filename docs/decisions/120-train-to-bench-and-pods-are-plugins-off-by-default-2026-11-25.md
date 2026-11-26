@@ -112,3 +112,37 @@ Two rules are confirmed:
 - Every acceptance number can be read back from the record.
 - Commits stay small, and STATE.md is kept current.
 - A conflict is named the moment it is seen.
+
+## Pods: the owner's yes to the five proposals, 2026-11-26
+
+The owner said "yes to all five proposals" from the pods plan gate.
+
+1. **Switching pods off.** The supplier's pages and routes are gone. The
+   client still reads and decides the deliverables already sold, so money
+   already owed is never stranded. Nothing is deleted.
+2. **One named acceptor.** For pod deliverables, only the acceptor named
+   on the deal accepts or rejects. The supplier proposes that person, and
+   the client's yes confirms them. Other milestones are unchanged.
+3. **A time-and-materials pod bills hours and has no deliverables** in
+   version 1. "Fulfilled" applies only to fixed-price and milestone
+   projects.
+4. **A bench member's own bench yes is enough** for her to be sold as
+   part of a team; there is no second yes. A firm's own employee is
+   told, not asked.
+5. **Plugin tables are never seeded**, because every plugin starts off.
+   The happy-path test builds its own world.
+
+**The lead's rulings, recorded under record 108:**
+- A fixed price is one deliverable or several, whose amounts sum exactly
+  to the price.
+- The client's yes goes through the one approval route. If that route
+  cannot serve a card to another company's seat, the lead stops and
+  names it.
+- Pod margin is accepted milestone revenue minus pay, burden and
+  premium. It is null when any member has no pay record. Only a seat
+  that may read margin reads it.
+- The client reads deliverables, their states, the acceptor and date,
+  the reason for any rejection, and roles and headcount. It never reads
+  member names, ids, costs or a firm below. The words are project,
+  deliverable and team, never pod.
+- The client's milestone list is narrowed to the same set.
