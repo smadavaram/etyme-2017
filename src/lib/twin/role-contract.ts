@@ -64,7 +64,19 @@ export interface Contract {
   actsAlone: readonly string[]
   needsApproval: readonly string[]
   neverTouches: readonly string[]
+  /** When the saved row was written. Absent on the default and on older fixtures. */
+  setAt?: Date | null
 }
+
+/**
+ * Acts introduced after contracts were already being saved, each with the
+ * day it was added. Only these are filled at their shipped tier, and only on
+ * a contract saved before that day: any other act missing from a saved
+ * contract was left out by the company and stays out.
+ */
+export const ACTS_ADDED_LATER: ReadonlyArray<{ act: string; addedOn: Date }> = [
+  { act: 'pod.sale.accept', addedOn: new Date('2026-11-25T00:00:00Z') },
+]
 
 /**
  * The shipped default for one twin, from each act's own properties in
@@ -94,8 +106,13 @@ export const DEFAULT_CONTRACT: Contract = defaultContractFor('PROGRAM_MANAGER')
  */
 export function withDefaultsForMissingActs(contract: Contract): Contract {
   const placed = new Set([...contract.actsAlone, ...contract.needsApproval, ...contract.neverTouches])
+  const fillable = new Set(
+    ACTS_ADDED_LATER
+      .filter((x) => !contract.setAt || contract.setAt < x.addedOn)
+      .map((x) => x.act),
+  )
   const d = defaultContractFor(contract.kind ?? 'PROGRAM_MANAGER')
-  const add = (list: readonly string[]) => list.filter((a) => !placed.has(a))
+  const add = (list: readonly string[]) => list.filter((a) => fillable.has(a) && !placed.has(a))
   const [a, n, v] = [add(d.actsAlone), add(d.needsApproval), add(d.neverTouches)]
   if (!a.length && !n.length && !v.length) return contract
   return {
@@ -168,7 +185,7 @@ export async function contractFor(companyId: string, kind: TwinKindName = 'PROGR
   const row = await prisma.roleContract.findFirst({
     where: { companyId, twinKind: kind },
     orderBy: { version: 'desc' },
-    select: { id: true, version: true, actsAlone: true, needsApproval: true, neverTouches: true },
+    select: { id: true, version: true, setAt: true, actsAlone: true, needsApproval: true, neverTouches: true },
   })
   return row ? withDefaultsForMissingActs({ kind, ...row }) : defaultContractFor(kind)
 }
