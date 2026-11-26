@@ -527,6 +527,19 @@ export const MATRIX: L1[] = [
           ],
           implementedBy: ['src/lib/pods.ts', 'src/lib/pods/caller.ts', 'src/lib/pods/read.ts', 'src/app/api/pods/route.ts', 'src/app/api/pods/[id]/route.ts', 'src/app/dashboard/pods/page.tsx', 'src/lib/money/pod-sale.ts', 'src/lib/money/pod-margin.ts', 'src/lib/money/pod-margin-read.ts', 'src/lib/money/milestone-only-lines.ts', 'src/app/api/program/milestones/pod-acceptor.ts', 'src/app/api/program/milestones/[id]/decide/route.ts', 'src/app/api/program/milestones/route.ts', 'src/app/api/program/pods/route.ts', 'src/app/api/program/pods/read.ts', 'src/app/dashboard/program/sold-work.tsx', 'src/app/api/pods/projects/[id]/margin/route.ts', 'src/lib/twin/pod-sale-card.ts', 'src/lib/twin/performers.ts', 'src/lib/twin/ledger.ts', 'src/lib/autonomy.ts', 'src/app/api/pods/[id]/offer/route.ts', 'src/lib/twin/role-contract.ts'],
           testedBy: ['__tests__/invariants/pods-rules.test.ts', '__tests__/invariants/pods-plugin-off.test.ts', '__tests__/invariants/pod-sale-rules.test.ts', '__tests__/invariants/pod-margin.test.ts', '__tests__/invariants/pod-sale-is-called-only-from-the-acceptors-yes.test.ts', '__integration__/pods-supplier.test.ts', '__integration__/pods-sale.test.ts', '__integration__/pods-client.test.ts', '__integration__/pods-supply-wiring.test.ts', '__tests__/invariants/pods-client-rules.test.ts', '__integration__/pod-sale-card.test.ts', '__tests__/invariants/pod-sale-card.test.ts', '__tests__/invariants/pods-offer-rules.test.ts', '__integration__/pods-proposal.test.ts', '__tests__/invariants/role-contract-act-added-later.test.ts'] },
+        { code: 'L3.1.2.12', name: 'Ask Etyme, one job one card: the score bar, one focused card ordered by urgency \u00d7 value \u00d7 confidence, Yes or Not now, Why on a tap', owner: 'Owner', status: N,
+          tasks: [
+            'The score bar reads Due, Late and On time % from the record; On time % is a dash where nothing done had a due date, never 100',
+            'One card in focus, ordered by urgency \u00d7 value \u00d7 confidence; urgency falls back to days open where a row has no due date; value and confidence read 1 until known',
+            'A card has a name, a figure and the act, in 12 words or fewer, and no sentence',
+            'Yes and Not now go through the existing verdict route of that row; a row with no verdict route offers one button that opens its record; no new route is added',
+            'Why is closed until tapped and shows the rule, the source and the ledger line',
+            'Queue, Done today and the Agent switch read the same as the Ask Etyme badge; only the Owner switches the agent',
+            'The screen fits 390 wide with no sideways scroll; a browser test presses Yes and proves the card, the record on reload and the ledger row',
+          ],
+          implementedBy: [],
+          testedBy: [],
+        },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [
         { code: 'L3.1.4.1', name: 'What we say we are', owner: 'Etyme', status: B,
@@ -3636,10 +3649,10 @@ export const MATRIX: L1[] = [
             'Variance is Actual minus Target; Var % is of the Target, rounded to a whole number; Completion % is Actual over Planned; nothing planned reads a dash',
             'Every cell is a number, a dash or a label of three words or fewer with no verb; counts by Rules, Low tier and High tier with Fallback and Escalated; no price or charge appears',
             'The Owner and Admins read the panel; an agent\u2019s line equals its output skill\u2019s line and its ledger acts count',
-            'PARTIAL 2026-11-26 (record 123, skill layer): the arithmetic and the words are built (steps 6a, 6b); the routes and the panel follow'
+            'PARTIAL 2026-11-26 (record 123, skill layer): the arithmetic, the words and the two routes (GET performance, PUT targets) are built (steps 6a to 6c); the panel follows'
           ],
-          implementedBy: ['src/lib/skills/performance.ts', 'src/lib/skills/performance-words.ts'],
-          testedBy: ['__tests__/unit/skills-performance.test.ts', '__tests__/unit/skills-words.test.ts'] },
+          implementedBy: ['src/lib/skills/performance.ts', 'src/lib/skills/performance-words.ts', 'src/lib/skills/performance-read.ts', 'src/app/api/decision-items/agents/performance/route.ts', 'src/app/api/decision-items/agents/targets/route.ts'],
+          testedBy: ['__tests__/unit/skills-performance.test.ts', '__tests__/unit/skills-words.test.ts', '__tests__/unit/skills-targets.test.ts', '__integration__/skills-performance-route.test.ts'] },
         { code: 'L3.6.3.48', name: 'Skills: the model gateway, one door for every model call, tiered by data class', owner: 'Owner', status: S,
           tasks: [
             'Every model call goes through one gateway; no file outside it imports a provider SDK or calls a provider host (a list that may only shrink)',

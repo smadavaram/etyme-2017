@@ -154,3 +154,9 @@ In the build:
 - The real fonts are used.
 - The "Why" drawer is closed until the person taps it.
 - Until the skill layer grades a skill, its confidence counts as 1.
+
+## The lead's rulings for the one-card build (2026-11-26)
+
+- **Yes and Not now** go through the verdict route each row already has: the twin approval route or the decision-item route. A row with no verdict route offers one button that opens its record. No new route is added.
+- **Urgency** falls back to the days a row has been open, because decision items have no due date. Adding a due date would be a schema change and is not made now.
+- **On time 
