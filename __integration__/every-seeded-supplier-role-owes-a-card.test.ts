@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as decisions } from '@/app/api/decisions/route'
+import { GET as oneCard } from '@/app/api/conversations/one-card/route'
 
 /**
  * A list that is empty on the seeded world is a bug (CLAUDE.md). The photo
@@ -34,5 +35,30 @@ describe('The seeded supplier seats read their own queue', () => {
     console.log(report.join('\n'))
     expect(seats.length).toBeGreaterThan(0)
     expect(empty).toEqual([])
+  })
+
+  // Record 130: one person, one job, one next card. The same single card on
+  // every seat is a list that is empty of the seat's own work. The Account
+  // Manager is not here: no card reads a job request a client sent a
+  // supplier, so she opens on the Recruiter's card until one does.
+  it('each seeded supplier role\u2019s first card is its own kind of work', async () => {
+    const OWN: Record<string, string> = {
+      Recruiter: 'SUBMISSION_REVIEW',
+      'AP & Payroll': 'TIMESHEET_APPROVAL',
+      'Accounts Receivable': 'INVOICE_OVERDUE',
+      HR: 'PAPER_TO_CHECK',
+      'Contract Manager': 'CONTRACT_PAPERING',
+    }
+    const got: Record<string, string> = {}
+    const report: string[] = []
+    for (const s of seats.filter((x) => OWN[x.role])) {
+      as(s.email)
+      const res = await json(await oneCard(req('GET', '/api/conversations/one-card')))
+      const cards = (res.body?.data?.cards ?? []) as { type: string; score: number }[]
+      report.push(`${s.role}: ${cards.map((c) => `${c.type}=${c.score.toFixed(3)}`).join(' ')}`)
+      got[s.role] = cards[0]?.type ?? 'none'
+    }
+    console.log(report.join('\n'))
+    expect(got).toEqual(OWN)
   })
 })

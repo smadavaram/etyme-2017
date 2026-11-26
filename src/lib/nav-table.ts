@@ -356,7 +356,7 @@ export const ASK_ETYME_HREF = '/dashboard/conversations/etyme'
 /** The icon value the sidebar draws as the Etyme mark (components/logo), not an emoji. */
 export const ETYME_MARK_ICON = 'etyme-mark'
 // Its page reads the seat's saved thread and its greeting from one route.
-export const ASK_ETYME: NavItem = { label: 'Ask Etyme', href: ASK_ETYME_HREF, icon: ETYME_MARK_ICON, api: ['conversations/twin'] }
+export const ASK_ETYME: NavItem = { label: 'Ask Etyme', href: ASK_ETYME_HREF, icon: ETYME_MARK_ICON, api: ['conversations/twin', 'conversations/one-card'] }
 const CONVERSATIONS: NavItem = { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' }
 const ASK_ETYME_SECTION: NavSection = { label: 'Ask Etyme', tabbed: true, items: [ASK_ETYME, CONVERSATIONS] }
 
