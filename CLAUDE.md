@@ -901,6 +901,13 @@ Full text → 12, 14, 24, 32, 35.
   come first. A cheap model is the default, and a stronger model only on
   a validator's reason. Restricted data reaches no model. Built in its
   own order, never ahead of stabilization.
+- **The model layer is a gateway, tiered by data class** (→ 125): the
+  provider is a setting per environment and per step, never in code.
+  Non-sensitive drafting takes the cheapest credible route; tenant business
+  data goes only to a US-hosted provider under a data processing agreement;
+  Lane C data reaches no model, ever. A step that fails the verifier moves
+  to a stronger model for that step only. A missing key is not a
+  production gate.
 - **The cheap tier does the clerical work** (founder, 2026-11-18 → 96):
   the stronger tier only when the cheap answer cannot be trusted, and a
   failure there goes to a person. Confidential data never goes to the
@@ -1298,6 +1305,11 @@ years, and never seen Etyme, do the right thing on the first try?
 ---
 
 ## Pricing — decided 2026-08-29
+
+**The enterprise edition is free for 60 days, then it pays** (owner,
+2026-11-25 → 126). Its suppliers use it free as users inside its record;
+a supplier's own tenant gets the same 60 days, then pays. Day 61 unpaid is
+read-only, nothing deleted, agents stopped. The price is the owner's.
 
 **Free while testing; the price is set after five real vendors are using
 it.** Founding firms keep the terms agreed with them, in writing, when a

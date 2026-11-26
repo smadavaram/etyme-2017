@@ -23,3 +23,7 @@ approves and submits, always. The agent never submits a proposal.
 It queues after plugins 1 to 4, and no build starts on it before them.
 If a government deadline falls before it ships, the work is delivered as
 consulting, on the record.
+
+## Amended, 2026-11-26 (record 126)
+
+"Switching it on is free" now reads: switching it on follows the tenant's edition, so a paying enterprise tenant switches modules on as a paid tenant. The plugin ruling itself stands.

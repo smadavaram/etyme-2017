@@ -140,3 +140,5 @@ built, every release check, every walk and every deploy.
 | 122 | Outreach is a plugin, off by default — 2026-11-25 | 150 | [122-outreach-is-a-plugin-2026-11-25.md](122-outreach-is-a-plugin-2026-11-25.md) |
 | 123 | The tester decides architecture; agents draft and propose — 2026-11-25 | 316 | [123-pax-decides-architecture-and-agent-authority-2026-11-25.md](123-pax-decides-architecture-and-agent-authority-2026-11-25.md) |
 | 124 | Public-sector proposal creation is plugin 5 — 2026-11-26 | 155 | [124-public-sector-proposals-is-plugin-5-2026-11-26.md](124-public-sector-proposals-is-plugin-5-2026-11-26.md) |
+| 125 | The model layer is a gateway, tiered by the data — 2026-11-26 | 399 | [125-the-model-layer-is-a-gateway-tiered-by-data-2026-11-26.md](125-the-model-layer-is-a-gateway-tiered-by-data-2026-11-26.md) |
+| 126 | The enterprise edition is free for 60 days, then it pays — 2026-11-25 | 364 | [126-the-enterprise-edition-is-free-for-60-days-2026-11-25.md](126-the-enterprise-edition-is-free-for-60-days-2026-11-25.md) |
