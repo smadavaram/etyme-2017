@@ -48,3 +48,18 @@ testing" for enterprises.
 
 The enterprise price is the owner's money decision. The tester brings him
 a structured recommendation separately. No agent invents a price.
+
+## Amended by the owner, Nov 25: the rule is recursive
+
+The owner: "Same for customer/client of a supplier."
+
+The rule "free as a user, pay for your own business" applies at every
+level of the network, not only from an enterprise to its suppliers.
+
+- **A supplier's customers and clients are free as users.** That holds
+  when the supplier invites them into its record. They pay only when they
+  run their own business on their own tenant.
+- **End clients named on placements are free as users too.**
+- **Every company is a free user in someone else's record**, and a
+  potential paying tenant in its own. That is how Etyme spreads, at every
+  level.

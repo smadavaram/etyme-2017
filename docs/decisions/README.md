@@ -142,3 +142,4 @@ built, every release check, every walk and every deploy.
 | 124 | Public-sector proposal creation is plugin 5 — 2026-11-26 | 155 | [124-public-sector-proposals-is-plugin-5-2026-11-26.md](124-public-sector-proposals-is-plugin-5-2026-11-26.md) |
 | 125 | The model layer is a gateway, tiered by the data — 2026-11-26 | 399 | [125-the-model-layer-is-a-gateway-tiered-by-data-2026-11-26.md](125-the-model-layer-is-a-gateway-tiered-by-data-2026-11-26.md) |
 | 126 | The enterprise edition is free for 60 days, then it pays — 2026-11-25 | 364 | [126-the-enterprise-edition-is-free-for-60-days-2026-11-25.md](126-the-enterprise-edition-is-free-for-60-days-2026-11-25.md) |
+| 127 | Pricing strategy, every number for approval — 2026-11-25 | 276 | [127-pricing-strategy-for-approval-2026-11-25.md](127-pricing-strategy-for-approval-2026-11-25.md) |

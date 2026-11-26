@@ -1309,7 +1309,10 @@ years, and never seen Etyme, do the right thing on the first try?
 **The enterprise edition is free for 60 days, then it pays** (owner,
 2026-11-25 → 126). Its suppliers use it free as users inside its record;
 a supplier's own tenant gets the same 60 days, then pays. Day 61 unpaid is
-read-only, nothing deleted, agents stopped. The price is the owner's.
+read-only, nothing deleted, agents stopped. The rule is recursive: every
+company is a free user in another's record, a supplier's own clients
+included. The pricing strategy (→ 127) is for approval only; no agent
+quotes its numbers. The price is the owner's.
 
 **Free while testing; the price is set after five real vendors are using
 it.** Founding firms keep the terms agreed with them, in writing, when a
