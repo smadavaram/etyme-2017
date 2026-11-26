@@ -115,7 +115,8 @@ describe('a supplier builds a project team, from the plugin switched on to a swi
     as(OWNER)
     const r = await one(teamPost, 'POST', s.pod, { kind: 'member', roleId: s.analyst, personId: s[STRANGER] })
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toBe('Cleo Marshwick is not on your bench and does not work for you, so she cannot join a team.')
+    expect(r.body.error.message).toBe('That person is not on your bench and does not work for you.')
+    expect(JSON.stringify(r.body)).not.toContain('Cleo')
     expect(await prisma.podMember.count({ where: { personId: s[STRANGER] } })).toBe(0)
   })
 

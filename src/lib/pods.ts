@@ -7,6 +7,8 @@
  * team, role, member and price.
  */
 
+import { amount } from '@/lib/money-display'
+
 // ── Who may be on a team ──────────────────────────────────────────────
 
 export interface RosterFacts {
@@ -89,11 +91,11 @@ export function fulfilled(states: readonly (DeliverableState | null)[]): boolean
 }
 
 /** A fixed or milestone sale: the deliverable amounts add up to the price exactly. Null where they do. */
-export function amountsRule(priceCents: number, amounts: readonly number[]): string | null {
+export function amountsRule(priceCents: number, amounts: readonly number[], currency = 'USD'): string | null {
   if (amounts.length === 0) return 'Add at least one deliverable.'
   if (amounts.some((a) => !isWholeCents(a))) return 'Every deliverable amount is in whole cents, above zero.'
   const sum = amounts.reduce((a, b) => a + b, 0)
-  if (sum !== priceCents) return `The deliverables add up to ${sum} cents, and the price is ${priceCents} cents. They must match exactly.`
+  if (sum !== priceCents) return `The deliverables add up to ${amount(sum, currency)}, and the price is ${amount(priceCents, currency)}. They must match exactly.`
   return null
 }
 
@@ -198,7 +200,7 @@ export function offerRule(body: unknown): OfferRead {
     if (due && Number.isNaN(due.getTime())) return no(`${name} has a due date that is not a date.`, 'deliverables')
     deliverables.push({ name, amountCents: d.amountCents as number, dueOn: due })
   }
-  const amounts = amountsRule(b.priceCents, deliverables.map((d) => d.amountCents))
+  const amounts = amountsRule(b.priceCents, deliverables.map((d) => d.amountCents), currency)
   if (amounts) return no(amounts, 'deliverables')
   return { ok: true, offer: { clientCompanyId, acceptorEmail, kind, priceCents: b.priceCents, currency, projectName, deliverables } }
 }
@@ -210,4 +212,32 @@ export function offerStateSays(o: { client: string; acceptor: string; decision: 
   if (o.decision === 'APPROVED') return `Sold to ${o.client}`
   if (o.decision === 'REJECTED') return `Declined by ${o.client}`
   return null
+}
+
+// ── Walk faults (2026-11-26) ──────────────────────────────────────────
+
+/** Null where a deliverable may be marked started: planned, and not started before. */
+export function startRule(m: { status: string }, startedAt: Date | null): string | null {
+  if (m.status !== 'PENDING') return 'A deliverable can only be marked started while it is planned.'
+  if (startedAt) return 'That deliverable is already marked started.'
+  return null
+}
+
+/** What creating a team says, and what to do next: roles first where it has none. */
+export function teamCreatedSays(name: string, roles: number): string {
+  return `${name} is created with ${roles} ${roles === 1 ? 'role' : 'roles'}. ${roles === 0 ? 'Add its roles next.' : 'Add its members next.'}`
+}
+
+/** Who the picker offers: everybody eligible who is not already on the team in any role. */
+export function peopleToAdd<P extends { personId: string }>(people: readonly P[], roles: readonly { members: readonly { personId: string }[] }[]): P[] {
+  const on = new Set(roles.flatMap((r) => r.members.map((m) => m.personId)))
+  return people.filter((p) => !on.has(p.personId))
+}
+
+/** The refusal for a person the firm holds nothing on. It names nobody. */
+export const NOT_ON_YOUR_BOOKS_SAYS = 'That person is not on your bench and does not work for you.'
+
+/** The sentence for somebody with no company seat who reaches a firm's page. */
+export function notYourFirmSays(): string {
+  return 'This page is for your firm’s own people. Your own work is under Your work.'
 }

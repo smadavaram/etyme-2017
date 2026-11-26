@@ -63,7 +63,7 @@ describe('project teams while the plugin is off', () => {
     expect(files.length).toBeGreaterThanOrEqual(2)
     for (const f of files) {
       const src = readFileSync(f, 'utf8')
-      const a = src.indexOf('staffOnly(caller'), b = src.indexOf("pluginGate(caller, 'PODS')"), c = src.search(/pod(Read|Write)Refusal\(/)
+      const a = src.indexOf('podStaffOnly(caller'), b = src.indexOf("pluginGate(caller, 'PODS')"), c = src.search(/pod(Read|Write|MarginRead)Refusal\(/)
       expect(a, f).toBeGreaterThan(-1)
       expect(b, f).toBeGreaterThan(a)
       expect(c, f).toBeGreaterThan(b)
@@ -80,7 +80,7 @@ describe('the Project teams page while the plugin is off', () => {
   })
   it('never says pod on the screen', () => {
     // The addresses are machine names and stay; everything else a person could read must not say it.
-    const shown = page.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n').replace(/\/(api|dashboard)\/pods/g, '')
+    const shown = page.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n').replace(/\/(api|dashboard)\/pods/g, '').replace(/@\/lib\/pods/g, '')
     expect(shown.match(/\bpods?\b/gi) ?? []).toEqual([])
   })
 })

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
 import { accessActor, recordRefusal } from '@/lib/access-log'
 import { marginUnknownSays } from '@/lib/pods'
-import { podReadRefusal } from '@/lib/pods/caller'
+import { podMarginReadRefusal, podStaffOnly } from '@/lib/pods/caller'
 import { mayReadCut } from '@/lib/money/profit-cut'
 import { marginReachFor, reachSays } from '@/lib/money/margin-reach'
 import { readPodMargin } from '@/lib/money/pod-margin-read'
@@ -23,11 +22,11 @@ type Ctx = { params: Promise<{ id: string }> }
 export async function GET(request: NextRequest, { params }: Ctx) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  const notStaff = staffOnly(caller, 'Project teams')
+  const notStaff = podStaffOnly(caller)
   if (notStaff) return notStaff
   const off = await pluginGate(caller, 'PODS')
   if (off) return off
-  const refused = await podReadRefusal(caller, request.nextUrl.pathname)
+  const refused = await podMarginReadRefusal(caller, request.nextUrl.pathname)
   if (refused) return refused
 
   const clientSays = mayReadCut({ kind: caller.company?.kind })

@@ -21,7 +21,7 @@ describe('the supplier’s proposal, before any card is raised', () => {
   })
   it('a project name that says pod is refused, because the client never reads that word', () => { expect(says({ projectName: 'Our pod build' })).toMatch(/^projectName:/) })
   it('deliverables that do not add up to the price are refused, with both figures', () => {
-    expect(says({ priceCents: 3_000_001 })).toContain('add up to 3000000 cents, and the price is 3000001 cents')
+    expect(says({ priceCents: 3_000_001 })).toContain('add up to $30,000.00, and the price is $30,000.01')
   })
   it('a fixed price with no deliverable is refused', () => { expect(says({ kind: 'FIXED_PRICE', deliverables: [] })).toContain('Add at least one deliverable') })
   it('a fixed price may be one deliverable carrying the whole price', () => {

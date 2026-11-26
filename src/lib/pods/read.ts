@@ -30,11 +30,13 @@ export async function readPods(companyId: string, podId?: string) {
 
 /** What the roster rule needs for one person at one firm. */
 export async function rosterFacts(companyId: string, personId: string): Promise<RosterFacts | null> {
-  const [person, seat, listings] = await Promise.all([
-    prisma.person.findUnique({ where: { id: personId }, select: { name: true } }),
+  const [seat, listings] = await Promise.all([
     prisma.context.findFirst({ where: { personId, companyId, type: 'EMPLOYEE', revokedAt: null }, select: { id: true } }),
     prisma.benchListing.findMany({ where: { companyId, consultant: { personId } }, select: { state: true, revokedAt: true } }),
   ])
+  // A person the firm holds nothing on is never looked up: no name leaves the table for a bare id.
+  if (!seat && listings.length === 0) return null
+  const person = await prisma.person.findUnique({ where: { id: personId }, select: { name: true } })
   if (!person) return null
   // The best listing she holds: a live granted one beats any other.
   const listing = listings.find((l) => l.state === 'GRANTED' && !l.revokedAt) ?? listings[0] ?? null
@@ -73,18 +75,19 @@ export async function soldTo(podId: string): Promise<{ clientName: string | null
 }
 
 /** The firm's sold projects, by team: who bought, and whether it is still open. No money here; the margin has its own door. */
-export async function readProjects(companyId: string): Promise<{ id: string; podId: string; name: string; clientName: string | null; open: boolean }[]> {
+export async function readProjects(companyId: string): Promise<{ id: string; podId: string; name: string; clientName: string | null; open: boolean; deliverables: { id: string; name: string; state: string | null }[] }[]> {
   const rows = await prisma.podProject.findMany({
     where: { pod: { companyId } },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true, podId: true, fulfilledAt: true,
       projectOrder: { select: { name: true, clientCompany: { select: { name: true } } } },
-      deliverables: { select: { startedAt: true, milestone: { select: { status: true, rejectionReason: true } } } },
+      deliverables: { orderBy: { milestone: { sortOrder: 'asc' } }, select: { id: true, startedAt: true, milestone: { select: { name: true, status: true, rejectionReason: true } } } },
     },
   })
   return rows.map((p) => ({
     id: p.id, podId: p.podId, name: p.projectOrder.name, clientName: p.projectOrder.clientCompany?.name ?? null,
+    deliverables: p.deliverables.map((d) => ({ id: d.id, name: d.milestone.name, state: deliverableState(d.milestone, d.startedAt)?.state ?? null })),
     open: projectIsOpen({ fulfilledAt: p.fulfilledAt, deliverableStates: p.deliverables.map((d) => deliverableState(d.milestone, d.startedAt)?.state ?? null) }),
   }))
 }

@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
-import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
-import { podReadRefusal, podWriteRefusal, logPodReads } from '@/lib/pods/caller'
+import { podReadRefusal, podWriteRefusal, logPodReads, podStaffOnly } from '@/lib/pods/caller'
 import { eligiblePeople, readOffers, readPods, readProjects } from '@/lib/pods/read'
 import { dealingsWithSides } from '@/app/api/companies/dealings'
-import { PRICINGS, isHeadcount, pricingRule } from '@/lib/pods'
+import { PRICINGS, isHeadcount, pricingRule, teamCreatedSays } from '@/lib/pods'
 
 /**
  * GET  /api/pods   the firm's project teams, their roles and members, and who may be put on one
@@ -19,7 +18,7 @@ import { PRICINGS, isHeadcount, pricingRule } from '@/lib/pods'
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  const notStaff = staffOnly(caller, 'Project teams')
+  const notStaff = podStaffOnly(caller)
   if (notStaff) return notStaff
   const off = await pluginGate(caller, 'PODS')
   if (off) return off
@@ -38,7 +37,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  const notStaff = staffOnly(caller, 'Project teams')
+  const notStaff = podStaffOnly(caller)
   if (notStaff) return notStaff
   const off = await pluginGate(caller, 'PODS')
   if (off) return off
@@ -80,7 +79,7 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true },
     })
-    return NextResponse.json({ data: { id: pod.id, says: `${name} is created with ${roles.length} ${roles.length === 1 ? 'role' : 'roles'}. Add its members next.` } }, { status: 201 })
+    return NextResponse.json({ data: { id: pod.id, says: teamCreatedSays(name, roles.length) } }, { status: 201 })
   } catch (e: any) {
     if (e?.code === 'P2002') return NextResponse.json({ error: { code: 'DUPLICATE', message: `You already have a team called ${name}.`, field: 'name' } }, { status: 409 })
     throw e

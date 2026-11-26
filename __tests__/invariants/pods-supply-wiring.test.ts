@@ -39,7 +39,7 @@ describe('the margin route', () => {
   const route = read('src/app/api/pods/projects/[id]/margin/route.ts')
   it('asks the seat, the plugin, the team caller, then margin.read, in that order, before the reader', () => {
     const at = (s: string) => route.indexOf(s)
-    const order = [at('staffOnly(caller'), at("pluginGate(caller, 'PODS')"), at('podReadRefusal('), at('mayReadCut('), at("'margin.read'"), at('marginReachFor('), at('readPodMargin(')]
+    const order = [at('podStaffOnly(caller'), at("pluginGate(caller, 'PODS')"), at('podMarginReadRefusal('), at('mayReadCut('), at("'margin.read'"), at('marginReachFor('), at('readPodMargin(')]
     expect(order.every((n) => n > -1)).toBe(true)
     expect([...order].sort((a, b) => a - b)).toEqual(order)
   })

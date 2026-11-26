@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { pickerLabels } from '@/lib/training'
+import { peopleToAdd } from '@/lib/pods'
 import { amount } from '@/lib/money-display'
 import { usePageSection } from '@/components/page-section'
 import { RefusedState, LoadingState } from '@/components/ui'
@@ -21,7 +22,7 @@ interface Team {
   sprintPriceCents: number | null; sprintWeeks: number | null; currency: string
   archivedAt: string | null; headcount: number; filled: number; roles: Role[]
 }
-interface Project { id: string; podId: string; name: string; clientName: string | null; open: boolean }
+interface Project { id: string; podId: string; name: string; clientName: string | null; open: boolean; deliverables: { id: string; name: string; state: string | null }[] }
 interface MarginRead { marginCents: number | null; earnedRevenueCents: number; unknownSays: string[]; currency: string }
 interface Offer { client: string; acceptor: string; decision: 'PENDING' | 'APPROVED' | 'REJECTED' | 'OVERTAKEN'; says: string | null }
 interface Client { id: string; name: string }
@@ -173,7 +174,7 @@ export default function ProjectTeamsPage() {
               </div>
               <p className="text-sm text-etyme-muted mb-3">{priceSays(t)}</p>
 
-              {offers[t.id]?.says && (
+              {offers[t.id]?.says && offers[t.id].decision !== 'APPROVED' && (
                 <p className="mb-3 text-sm text-etyme-ink" aria-label={`Offer on ${t.name}`}>{offers[t.id].says}</p>
               )}
 
@@ -182,6 +183,16 @@ export default function ProjectTeamsPage() {
                 return (
                   <div key={p.id} className="mb-3 rounded-md border border-etyme-rule px-3 py-2 text-sm" aria-label={`Project ${p.name}`}>
                     <p className="text-etyme-ink">Sold to {p.clientName ?? 'a client'} <span className="text-etyme-muted">· {p.open ? 'in progress' : 'fulfilled'}</span></p>
+                    {p.deliverables.length > 0 && (
+                      <ul className="mt-1 space-y-1">
+                        {p.deliverables.map((d) => (
+                          <li key={d.id} className="flex items-center justify-between gap-2 text-etyme-ink">
+                            <span>{d.name} <span className="text-etyme-muted">· {d.state ?? 'unknown'}</span></span>
+                            {mayWrite && d.state === 'planned' && <button onClick={() => send('POST', `/api/pods/projects/${p.id}/deliverables/${d.id}/start`)} className="text-xs text-etyme-action hover:underline">Mark started</button>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     {m && (m.marginCents !== null
                       ? <p className="text-etyme-muted tabular-nums">Earned margin {amount(m.marginCents, m.currency)} on {amount(m.earnedRevenueCents, m.currency)} accepted</p>
                       : m.unknownSays.map((u) => <p key={u} className="text-etyme-muted">{u}</p>))}
@@ -211,7 +222,7 @@ export default function ProjectTeamsPage() {
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <select aria-label={`Add to ${r.title}`} value={pick[r.id] ?? ''} onChange={(e) => setPick({ ...pick, [r.id]: e.target.value })} className={field}>
                           <option value="">Choose a person</option>
-                          {people.filter((p) => !r.members.some((m) => m.personId === p.personId)).map((p) => (
+                          {peopleToAdd(people, t.roles).map((p) => (
                             <option key={p.personId} value={p.personId}>{labels.get(p.personId) ?? p.name}</option>
                           ))}
                         </select>

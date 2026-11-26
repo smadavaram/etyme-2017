@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
-import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
-import { podReadRefusal, podWriteRefusal, logPodReads } from '@/lib/pods/caller'
+import { podReadRefusal, podWriteRefusal, logPodReads, podStaffOnly } from '@/lib/pods/caller'
 import { eligiblePeople, ownPod, readPods, rosterFacts, soldTo } from '@/lib/pods/read'
-import { PRICINGS, isHeadcount, isWholeCents, pricingRule, roleRoom, rosterRule, soldTeamSays } from '@/lib/pods'
+import { PRICINGS, isHeadcount, isWholeCents, pricingRule, roleRoom, rosterRule, soldTeamSays, NOT_ON_YOUR_BOOKS_SAYS } from '@/lib/pods'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -17,7 +16,7 @@ const fail = (status: number, code: string, message: string, field?: string) =>
 async function door(request: NextRequest, write: boolean) {
   const { caller, error } = await getCallerContext(request)
   if (error) return { res: error }
-  const notStaff = staffOnly(caller, 'Project teams')
+  const notStaff = podStaffOnly(caller)
   if (notStaff) return { res: notStaff }
   const off = await pluginGate(caller, 'PODS')
   if (off) return { res: off }
@@ -159,7 +158,7 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     const role = await prisma.podRole.findFirst({ where: { id: roleId, podId: id }, select: { id: true, title: true, headcount: true, _count: { select: { members: true } } } })
     if (!role) return fail(404, 'NOT_FOUND', 'That role is not on this team.')
     const facts = await rosterFacts(companyId, personId)
-    if (!facts) return fail(403, 'NOT_YOURS', 'That person is not on your bench and does not work for you, so she cannot join a team.')
+    if (!facts) return fail(403, 'NOT_YOURS', NOT_ON_YOUR_BOOKS_SAYS)
     const verdict = rosterRule(facts)
     if (!verdict.ok) return fail(403, 'NOT_ON_YOUR_BOOKS', verdict.says, 'personId')
     const already = await prisma.podMember.findUnique({ where: { podRoleId_personId: { podRoleId: roleId, personId } }, select: { id: true } })

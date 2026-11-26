@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { logBulkAccess, recordRefusal } from '@/lib/access-log'
+import { staffOnly } from '@/lib/seat'
+import { notYourFirmSays } from '@/lib/pods'
 
 type Caller = { person: { id: string }; company: { id: string; name: string } | null; permissions: Parameters<typeof hasPermission>[0] }
 
@@ -37,4 +39,25 @@ export function logPodReads(caller: { person: { id: string }; company: { id: str
     action: 'TALENT_VIEW_ANON',
     reason: `Read on Project teams: ${where}`,
   })
+}
+
+/**
+ * `staffOnly` for project teams. Somebody on a bench with no company seat is
+ * told the page is her firm's people's, never that she is "not signed in".
+ */
+export function podStaffOnly(caller: Parameters<typeof staffOnly>[0]): NextResponse | null {
+  const refused = staffOnly(caller, 'Project teams')
+  if (refused && (!caller.context.companyId || !caller.company?.name?.trim())) {
+    return NextResponse.json({ error: { code: 'NOT_STAFF', message: notYourFirmSays() } }, { status: 403 })
+  }
+  return refused
+}
+/**
+ * The margin of a sold team is read by whoever holds `margin.read` or
+ * `pnl.read` as well as by whoever reads jobs, over the firm's own projects
+ * only (the reach narrows it at the query). Finance holds margin and need not read jobs.
+ */
+export async function podMarginReadRefusal(caller: Caller, path: string): Promise<NextResponse | null> {
+  if (hasPermission(caller.permissions, 'margin.read') || hasPermission(caller.permissions, 'pnl.read')) return null
+  return podReadRefusal(caller, path)
 }

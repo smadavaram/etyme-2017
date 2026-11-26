@@ -90,8 +90,8 @@ describe('what a fixed price is made of', () => {
     expect(amountsRule(1000000, [400000, 350000, 250000])).toBeNull()
   })
   it('amounts one cent short or over are refused, with both totals named', () => {
-    expect(amountsRule(1000000, [400000, 599999])).toContain('999999 cents, and the price is 1000000 cents')
-    expect(amountsRule(1000000, [400000, 600001])).toContain('1000001')
+    expect(amountsRule(1000000, [400000, 599999])).toContain('$9,999.99, and the price is $10,000.00')
+    expect(amountsRule(1000000, [400000, 600001])).toContain('$10,000.01')
   })
   it('a sale with no deliverables, or an amount that is not whole cents, is refused', () => {
     expect(amountsRule(100, [])).toBe('Add at least one deliverable.')

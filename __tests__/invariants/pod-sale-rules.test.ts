@@ -26,8 +26,8 @@ describe('a team sale is written only when every rule holds', () => {
   })
   it('deliverables that do not add up to the price are refused, naming both figures', () => {
     const r = saleRefusal(input({ deliverables: [{ name: 'Stage 1', amountCents: 1_000_000, dueOn: null }] }), facts())
-    expect(r?.says).toContain('1000000 cents')
-    expect(r?.says).toContain('3000000 cents')
+    expect(r?.says).toContain('$10,000.00')
+    expect(r?.says).toContain('$30,000.00')
   })
   it('a deliverable worth nothing is refused', () => {
     expect(saleRefusal(input({ deliverables: [{ name: 'A', amountCents: 0, dueOn: null }, { name: 'B', amountCents: 3_000_000, dueOn: null }] }), facts())?.field).toBe('deliverables')

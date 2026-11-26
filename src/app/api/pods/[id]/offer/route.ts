@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
-import { podWriteRefusal } from '@/lib/pods/caller'
+import { podWriteRefusal, podStaffOnly } from '@/lib/pods/caller'
 import { readPods, soldTo } from '@/lib/pods/read'
 import { offerRule, soldTeamSays } from '@/lib/pods'
 import { raisePodSaleCard, holdsSeatAt, tellCardAcceptor } from '@/lib/twin/pod-sale-card'
@@ -29,7 +28,7 @@ const fail = (status: number, code: string, message: string, field?: string) =>
 export async function POST(request: NextRequest, { params }: Ctx) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
-  const notStaff = staffOnly(caller, 'Project teams')
+  const notStaff = podStaffOnly(caller)
   if (notStaff) return notStaff
   const off = await pluginGate(caller, 'PODS')
   if (off) return off
