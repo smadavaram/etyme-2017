@@ -31,6 +31,7 @@
 import type { Prisma } from '@prisma/client'
 import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
+import { milestoneOnlyLines } from '@/lib/money/milestone-only-lines'
 import { payToOnBill } from '@/lib/money/pay-to'
 import { completeCycles } from '@/lib/cycle-complete'
 import { sortForBill, expenseLine, expenseTotal, type LeftOff } from '@/lib/expense-billing'
@@ -633,13 +634,18 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
     timesheetWhere.periodStart = { lte: asked.end }
   }
 
-  const timesheets = sharedDays
+  const loadedWeeks = sharedDays
     ? weeksFromShared(await sharedWeeks(sharedDays), { contractIds, ownIds, asked })
     : await prisma.timesheet.findMany({
         where: timesheetWhere,
         include: BILL_WEEK_INCLUDE,
         orderBy: { periodStart: 'asc' },
       })
+
+  // A team sold on milestones or a fixed price bills its accepted deliverables
+  // and never its members' hours (record 120, pods).
+  const hoursNeverBill = await milestoneOnlyLines(prisma, [...new Set(loadedWeeks.map((ts) => billedBy.get(ts.sellContractId) ?? ts.sellContractId))])
+  const timesheets = loadedWeeks.filter((ts) => !hoursNeverBill.has(billedBy.get(ts.sellContractId) ?? ts.sellContractId))
 
   // Read through our own contract from here on.
   //
