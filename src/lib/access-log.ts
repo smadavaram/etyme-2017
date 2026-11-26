@@ -65,6 +65,7 @@ export type AccessAction =
   // them findable in a query: every read a firm made inside somebody
   // else's program, and nothing else.
   | 'PROGRAM_READ'        // read a client's program from a seat that client granted
+  | 'DELIVERABLE_DECIDE_REFUSED' // a deliverable decision (accept, reject) was refused
   // ── A person's own papers, opened or sent outside the company ──────
   //
   // These four were written by hand in their routes, outside this file,
