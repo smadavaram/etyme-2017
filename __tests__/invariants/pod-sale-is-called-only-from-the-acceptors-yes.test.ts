@@ -4,10 +4,11 @@ import { join } from 'node:path'
 
 /**
  * Record 120, pods: a team is sold by one writer, and it is called only from
- * the client acceptor's yes. Until that route is built, nothing imports it.
+ * the client acceptor's yes, which is the performer of `pod.sale.accept` on the
+ * one approval route.
  */
 
-const ALLOWED: string[] = []
+const ALLOWED: string[] = ['src/lib/twin/performers.ts']
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

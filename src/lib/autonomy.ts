@@ -637,6 +637,10 @@ ATTRIBUTED.TWIN_ROLE_CONTRACT_SET = { basis: 'RULE' }
 // in the same transaction as that person's act and attributed to them;
 // the twin decided nothing. Not reversible: what it asked about is done.
 ATTRIBUTED.TWIN_QUESTION_OVERTAKEN = { basis: 'RULE' }
+// A sold team made into a project (record 120, pods): written by `sellPod`
+// in the same transaction as the named acceptor's yes, attributed to her.
+// Not reversible: the order and its deliverables now exist.
+ATTRIBUTED.POD_SOLD = { basis: 'RULE' }
 ATTRIBUTED.TWIN_RULE_SET_SET = { basis: 'RULE' }
 // A settings desk turned Ask Etyme's model on or off for its company
 // (src/lib/model-boundary, 2026-10-13), with the reason in its own words.
@@ -907,6 +911,13 @@ export interface TwinAct {
    * the twin refuses in a sentence rather than asking a dead question.
    */
   byHand?: string
+  /**
+   * Set where one named person, and nobody else, answers the question,
+   * yes or no (record 120, pods): the key in the question's payload that
+   * holds that person's id. Such a question is shown to that person only,
+   * and the desk's permission is not what lets anybody answer it.
+   */
+  namedPerson?: string
 }
 
 export const TWIN_ACTS: Record<string, TwinAct> = {
@@ -1056,6 +1067,18 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     says: 'Tell the recruiters who comes off a project in the next 30 days and who has waited on the bench for more than 14. It changes nothing and tells nobody outside the firm.',
     money: false, external: false, reversible: false, decides: false, drafts: true, floor: false,
     approverNeeds: 'submissions.create', alone: 'TOLD',
+  },
+  // ── A sold team, accepted by the one person the client names (record 120) ──
+  //
+  // The supplier proposes a team as a project and names who at the client
+  // accepts its deliverables; that person's yes makes the project through
+  // `sellPod`. The card lives at the client and is read by that one person.
+  // Raised by `raisePodSaleCard` (lib/twin/pod-sale-card), never by a rule.
+  'pod.sale.accept': {
+    kinds: ['PROGRAM_MANAGER'],
+    says: 'Accept a project from a supplier, with its deliverables and price, and take on deciding each deliverable.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: false,
+    namedPerson: 'acceptorPersonId',
   },
   // ── Never ──
   'payroll.release': {

@@ -34,6 +34,8 @@ import { logPaymentRefused, refusalWhy } from '@/lib/money/payment-refused'
 import type { TwinKindName } from '@/lib/autonomy'
 import { SUPPLIER_ACT_PERFORMERS } from '@/lib/twin/supplier-performers'
 import { bankHoldTitle } from '@/lib/twin/rules/invoice'
+import { sellPod } from '@/lib/money/pod-sale'
+import { holdsSeatAt, podSaleFromPayload } from '@/lib/twin/pod-sale-card'
 
 export interface PerformContext {
   companyId: string
@@ -67,7 +69,23 @@ type Tx = Prisma.TransactionClient
 /** What an act's own door answered: done, with what it made, or refused in its own sentence. */
 export type DoorResult = { ok: true; result: Record<string, unknown> } | { ok: false; says: string }
 
+/**
+ * Thrown from an `inTx` where the act's own rule says no at the moment of
+ * the yes: the transaction rolls back and the person is told this sentence
+ * (422), not "nothing was done, staff have been told".
+ */
+export class PerformerRefusal extends Error {}
+
 export interface Performer {
+  /**
+   * Who may answer this question at all, yes or no (record 120, pods): a
+   * sentence where this person may not, null where she may. Read on both
+   * answers, before the desk's permission, for an act that names one person
+   * (`TWIN_ACTS[...].namedPerson`). `c.approverPersonId` is the person
+   * answering. Unlike `check`, it is never a reading of the record's state,
+   * so asking it of a no is safe.
+   */
+  checkWho?: (c: PerformContext) => Promise<string | null>
   check?: (c: PerformContext) => Promise<string | null>
   /**
    * The act's write, where it is another domain's door that cannot join the
@@ -387,6 +405,36 @@ const ledgerOnly: Performer = {}
 // supplier-bills imports only the Performer type from this file, so there
 // is no runtime loop.
 
+// ── A sold team (record 120, pods) ────────────────────────────────────
+
+/**
+ * The one person the card names, who still holds a seat at the client the
+ * card was raised at. A colleague, even one who holds every permission, is
+ * told whose answer it is; nothing else about the sale.
+ */
+const podSaleWho: Performer['checkWho'] = async (c) => {
+  const named = typeof c.payload.acceptorPersonId === 'string' ? c.payload.acceptorPersonId : null
+  const clientId = typeof c.payload.clientCompanyId === 'string' ? c.payload.clientCompanyId : null
+  const who = named ? await prisma.person.findUnique({ where: { id: named }, select: { name: true } }) : null
+  const only = who ? `Only ${who.name}, the person named to accept this work, can answer it. Ask ${who.name}.` : 'Nobody is named to answer this, so it cannot be answered.'
+  if (!named || !clientId || clientId !== c.companyId || c.approverPersonId !== named) return only
+  if (!(await holdsSeatAt(prisma, named, clientId))) return `${who?.name ?? 'The named person'} no longer holds a seat at this company, so this cannot be answered. Ask the seller to name somebody else.`
+  return null
+}
+
+/** The acceptor's yes makes the project, in the same transaction as the ledger's entry (`sellPod`). */
+const acceptPodSale: Performer = {
+  checkWho: podSaleWho,
+  check: async (c) => (podSaleFromPayload(c.payload) ? null : 'This card does not carry a whole sale, so it cannot be accepted. Ask the seller to propose it again.'),
+  inTx: async (tx, c) => {
+    const sale = podSaleFromPayload(c.payload)
+    if (!sale || !c.approverPersonId) throw new PerformerRefusal('This card does not carry a whole sale, so it cannot be accepted.')
+    const r = await sellPod(tx, { ...sale, decidedBy: c.approverPersonId })
+    if (!r.ok) throw new PerformerRefusal(r.says)
+    return { podProjectId: r.podProjectId, projectOrderId: r.projectOrderId, workOrderId: r.workOrderId, engagementId: r.engagementId, milestoneIds: r.milestoneIds }
+  },
+}
+
 export const PERFORMERS: Readonly<Record<string, Performer>> = {
   ...SUPPLIER_BILL_PERFORMERS,
   // The supplier's own acts (2026-10-29): putting a bench person forward,
@@ -402,6 +450,7 @@ export const PERFORMERS: Readonly<Record<string, Performer>> = {
   'invoice_receipt.approve': approveInvoiceReceipt,
   'invoice_receipt.pay': payInvoiceReceipt,
   'tenure.warning.notify_supplier': tellSupplier,
+  'pod.sale.accept': acceptPodSale,
 }
 
 /** The supplier on an invoice receipt, for the ledger's party list. */

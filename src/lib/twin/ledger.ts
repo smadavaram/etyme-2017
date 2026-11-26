@@ -47,7 +47,7 @@ import { twinRefusal, ownerOnlyAsked, ownerOnlyNoLonger, type TwinRefusalWhy } f
 import { logBulkAccess } from '@/lib/access-log'
 import type { CallerContext } from '@/lib/api-context'
 import { contractFor, tierIn, twinName, type Contract, type Tier, type TwinKindName } from '@/lib/twin/role-contract'
-import { PERFORMERS, type PerformContext } from '@/lib/twin/performers'
+import { PERFORMERS, PerformerRefusal, type PerformContext } from '@/lib/twin/performers'
 import { OWNER_DESKS } from '@/lib/twin/readers'
 import { feedLine, questionTitle, type QuestionFacts } from '@/lib/twin/feed-words'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
@@ -787,6 +787,19 @@ export function cleanAnswer(a: unknown): { reference: string | null; method: str
   return { reference: field(o.reference, 200), method: field(o.method, 60), ...(rateCents ? { rateCents } : {}) }
 }
 
+/**
+ * The one person who may answer a question, where its act names one
+ * (`TWIN_ACTS[act].namedPerson`, record 120): her id; '' where the act
+ * names a person and the card carries none, so nobody matches; null where
+ * the act is the desk's, answered by whoever holds the permission. Pure.
+ */
+export function namedPersonOf(action: string, payload: unknown): string | null {
+  const key = TWIN_ACTS[action]?.namedPerson
+  if (!key) return null
+  const v = (payload && typeof payload === 'object' ? (payload as Record<string, unknown>)[key] : null)
+  return typeof v === 'string' ? v : ''
+}
+
 export type DecideResult =
   | { ok: true; outcome: 'PERFORMED' | 'REJECTED'; entryId: string; result?: Record<string, unknown> }
   | { ok: false; status: 403 | 404 | 409 | 422 | 500; says: string }
@@ -895,6 +908,21 @@ export async function decideApproval(args: {
     return { ok: false, status, says }
   }
 
+  // A question put to one named person (record 120, pods) is answered by
+  // her alone, yes or no. Asked before anything else, so a colleague who
+  // holds every permission is told whose it is and nothing moves.
+  const namedOnly = namedPersonOf(asked.action, payload) !== null
+  if (namedOnly) {
+    const whoSays = await PERFORMERS[asked.action]?.checkWho?.({
+      companyId: approval.companyId, action: asked.action,
+      entity: { type: asked.entityType, id: asked.entityId, partyCompanyIds: asked.partyCompanyIds },
+      authorityPersonId: asked.authorityPersonId, approverPersonId: args.decider.personId,
+      ruleCited: asked.ruleCited, rationale: asked.rationale, payload,
+      twinKind: asked.twinKind as TwinKindName, carry: {},
+    })
+    if (whoSays !== null) return refused(403, whoSays ?? 'Nobody is named to answer this, so it cannot be answered.', 'Only the person the question names answers it')
+  }
+
   // Nobody signs their own first: a person the twin asked on behalf of is
   // told somebody else answers, never invited to widen a desk that would
   // still be refused.
@@ -911,7 +939,7 @@ export async function decideApproval(args: {
       twin: asked.twinKind,
     }), 'Segregation of duties: nobody signs their own')
   }
-  if (!hasPermission(args.decider.permissions, approval.needsPermission as Permission)) {
+  if (!namedOnly && !hasPermission(args.decider.permissions, approval.needsPermission as Permission)) {
     return refused(403, askTheDesk({
       doing: 'Answering this question from the twin',
       needs: approval.needsPermission as Permission,
@@ -1016,6 +1044,8 @@ export async function decideApproval(args: {
     }
     return { ok: true, outcome: 'PERFORMED', entryId: done.id, result: done.result }
   } catch (err) {
+    // The act's own rule said no at the moment of the yes: its sentence, and nothing written.
+    if (err instanceof PerformerRefusal) return refused(422, err.message, 'The record says no')
     if (opened) {
       await report(`Approval ${approval.id} went through its own door and the yes could not be recorded.`, err, approval.companyId, args.decider.personId)
       return { ok: false, status: 500, says: DONE_NOT_RECORDED }
@@ -1383,7 +1413,11 @@ export async function waitingQuestions(
       },
     },
   })
-  const visible = rows.filter((r) => owner || hasPermission(reader.permissions, r.needsPermission as Permission))
+  // A question that names one person is that person's alone: no desk reads it.
+  const visible = rows.filter((r) => {
+    const named = namedPersonOf(r.twinAction.action, r.twinAction.payload)
+    return named !== null ? named === reader.person.id : owner || hasPermission(reader.permissions, r.needsPermission as Permission)
+  })
   const names = await namesFor(visible.map((r) => r.twinAction))
   // The contract as it stands now: an act moved to Never since the twin
   // asked is refused on a yes, so no button is offered for it.
@@ -1409,7 +1443,7 @@ export async function waitingQuestions(
   return visible.map((r) => {
     const a = r.twinAction
     const payload = (a.payload ?? {}) as Record<string, unknown>
-    const holds = hasPermission(reader.permissions, r.needsPermission as Permission)
+    const holds = namedPersonOf(a.action, a.payload) !== null || hasPermission(reader.permissions, r.needsPermission as Permission)
     const ownerOnlyKey = `${r.needsPermission}\u0000${payload.requestedByPersonId ?? ''}`
     const ownerOnly = someoneElse.has(ownerOnlyKey) && !!r.selfApprovalReason && !!ownerOnlyException(a.action) &&
       reader.person.id === a.authorityPersonId && reader.person.id !== payload.requestedByPersonId

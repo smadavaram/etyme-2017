@@ -516,7 +516,7 @@ export const MATRIX: L1[] = [
             '__integration__/train-to-bench-email-link-and-seats.test.ts', '__integration__/train-to-bench-review-fixes.test.ts', '__tests__/invariants/courses-on-storefront.test.ts', '__tests__/invariants/courses-hidden-switch.test.ts',
             '__tests__/invariants/plugin-switch.test.ts', '__integration__/the-owners-plugin-switch-writes-the-flag-and-the-row-together.test.ts'] },
         // Project teams (record 120, pods): a plugin, off by default. Schema and menu only so far.
-        { code: 'L3.1.2.11', name: 'Project teams: a named team is sold as a project, the client\u2019s named acceptor decides each deliverable, and the milestone bill comes from the existing chain', owner: 'Account manager', status: N,
+        { code: 'L3.1.2.11', name: 'Project teams: a named team is sold as a project, the client\u2019s named acceptor decides each deliverable, and the milestone bill comes from the existing chain', owner: 'Account manager', status: P,
           tasks: [
             'While the plugin is off the menu draws no Project teams and every route of it refuses in one sentence; the client still reads and decides deliverables already sold',
             'A team goes to the client, and the client\u2019s named yes makes the project',
@@ -525,7 +525,8 @@ export const MATRIX: L1[] = [
             'The client view is clean: deliverables, their states, the acceptor, dates, reasons and roles with headcount; never a member name, cost, firm below, or the word pod',
             'Deactivating a team hides it and reactivating restores it; nothing is deleted',
           ],
-          testedBy: [] },
+          implementedBy: ['src/lib/pods.ts', 'src/lib/pods/caller.ts', 'src/lib/pods/read.ts', 'src/app/api/pods/route.ts', 'src/app/api/pods/[id]/route.ts', 'src/app/dashboard/pods/page.tsx', 'src/lib/money/pod-sale.ts', 'src/lib/money/pod-margin.ts', 'src/lib/money/pod-margin-read.ts', 'src/lib/money/milestone-only-lines.ts', 'src/app/api/program/milestones/pod-acceptor.ts', 'src/app/api/program/milestones/[id]/decide/route.ts', 'src/app/api/program/milestones/route.ts', 'src/app/api/program/pods/route.ts', 'src/app/api/program/pods/read.ts', 'src/app/dashboard/program/sold-work.tsx', 'src/app/api/pods/projects/[id]/margin/route.ts', 'src/lib/twin/pod-sale-card.ts', 'src/lib/twin/performers.ts', 'src/lib/twin/ledger.ts', 'src/lib/autonomy.ts'],
+          testedBy: ['__tests__/invariants/pods-rules.test.ts', '__tests__/invariants/pods-plugin-off.test.ts', '__tests__/invariants/pod-sale-rules.test.ts', '__tests__/invariants/pod-margin.test.ts', '__tests__/invariants/pod-sale-is-called-only-from-the-acceptors-yes.test.ts', '__integration__/pods-supplier.test.ts', '__integration__/pods-sale.test.ts', '__integration__/pods-client.test.ts', '__integration__/pods-supply-wiring.test.ts', '__tests__/invariants/pods-client-rules.test.ts', '__integration__/pod-sale-card.test.ts', '__tests__/invariants/pod-sale-card.test.ts'] },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [
         { code: 'L3.1.4.1', name: 'What we say we are', owner: 'Etyme', status: B,
