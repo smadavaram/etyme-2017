@@ -3649,10 +3649,10 @@ export const MATRIX: L1[] = [
             'Variance is Actual minus Target; Var % is of the Target, rounded to a whole number; Completion % is Actual over Planned; nothing planned reads a dash',
             'Every cell is a number, a dash or a label of three words or fewer with no verb; counts by Rules, Low tier and High tier with Fallback and Escalated; no price or charge appears',
             'The Owner and Admins read the panel; an agent\u2019s line equals its output skill\u2019s line and its ledger acts count',
-            'PARTIAL 2026-11-26 (record 123, skill layer): the arithmetic, the words and the two routes (GET performance, PUT targets) are built (steps 6a to 6c); the panel follows'
+            'PARTIAL 2026-11-26 (record 123, skill layer): the arithmetic, the words, the two routes (GET performance, PUT targets) and the panel on Agent control are built (steps 6a to 6d); every agent reads Not graded until it is moved onto skills; not yet photographed at phone width'
           ],
-          implementedBy: ['src/lib/skills/performance.ts', 'src/lib/skills/performance-words.ts', 'src/lib/skills/performance-read.ts', 'src/app/api/decision-items/agents/performance/route.ts', 'src/app/api/decision-items/agents/targets/route.ts'],
-          testedBy: ['__tests__/unit/skills-performance.test.ts', '__tests__/unit/skills-words.test.ts', '__tests__/unit/skills-targets.test.ts', '__integration__/skills-performance-route.test.ts'] },
+          implementedBy: ['src/lib/skills/performance.ts', 'src/lib/skills/performance-words.ts', 'src/lib/skills/performance-read.ts', 'src/app/api/decision-items/agents/performance/route.ts', 'src/app/api/decision-items/agents/targets/route.ts', 'src/app/dashboard/decisions/agents/performance-panel.tsx', 'src/app/dashboard/decisions/agents/page.tsx'],
+          testedBy: ['__tests__/unit/skills-performance.test.ts', '__tests__/unit/skills-words.test.ts', '__tests__/unit/skills-targets.test.ts', '__integration__/skills-performance-route.test.ts', '__tests__/invariants/skills-performance-panel.test.ts'] },
         { code: 'L3.6.3.48', name: 'Skills: the model gateway, one door for every model call, tiered by data class', owner: 'Owner', status: S,
           tasks: [
             'Every model call goes through one gateway; no file outside it imports a provider SDK or calls a provider host (a list that may only shrink)',

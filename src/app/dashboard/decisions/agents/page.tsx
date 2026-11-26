@@ -8,6 +8,7 @@ import { PageHead, Panel, ErrorState, LoadingState, RefusedState } from '@/compo
 import { QueueTabs } from '../queue-tabs'
 import { LedgerRows } from '@/components/ui/ledger-rows'
 import { QUEUE_EYEBROW_HREFS } from '@/lib/decision-queue'
+import { PerformancePanel } from './performance-panel'
 
 /**
  * Agent control (record 107, A5; record 112, chain 7). Each agent's real
@@ -156,6 +157,7 @@ export default function AgentControlPage() {
             {saying && <p className="mt-2 text-[13px] text-etyme-muted">{saying}</p>}
             <p className="mt-3 text-[13px] text-etyme-muted">Off stops the next run and any send of a running task at once. Drafts only prepares tasks and sends nothing, even after a yes. Only the Owner changes a switch.</p>
           </Panel>
+          <PerformancePanel canSet={data.canSwitch} entityId={entity || (data.entities.length === 1 ? data.entities[0].id : '')} />
           <div className="mt-6">
             <Panel title="Tasks" subtitle="Each asks for one yes. One yes releases the whole task; a new task asks again.">
               {data.tasks.length === 0 ? (
