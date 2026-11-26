@@ -74,7 +74,7 @@ describe('awarding a job stands the others down and calls off their interviews',
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.status).toBe(201)
     const said: string = r.body.data.message
-    expect(said).toMatch(/^Daniel Okafor is placed\. This fills the job: Two other candidates were told they were not chosen, and two interviews were called off/)
+    expect(said).toMatch(/^Daniel Okafor is placed\. This fills the job: Three other candidates were told they were not chosen, and two interviews were called off/)
     expect(said).not.toContain('(s)')
     expect(r.body.data.interviewsCalledOff).toBe(2)
   })
@@ -113,7 +113,7 @@ describe('awarding a job stands the others down and calls off their interviews',
     })
     const off = (log?.payload as any)?.interviewsCalledOff as { id: string; reason: string }[]
     expect(off.map((r) => r.id).sort()).toEqual([ids.rajeshRound, ids.meiLinRound].sort())
-    expect((log?.payload as any)?.candidatesStoodDown).toEqual({ count: 2, reason: 'TIMING' })
+    expect((log?.payload as any)?.candidatesStoodDown).toEqual({ count: 3, reason: 'TIMING' })
   })
 
   it('the job request then shows Daniel at the $132 the award agreed, not the $131 his supplier asked', async () => {

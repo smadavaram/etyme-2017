@@ -634,7 +634,7 @@ describe('the Today headline is one sentence with the names in it, and says the 
     }
   })
 
-  it('the program manager’s sentence names the start paperwork holds and the supplier with no agreement: "Two things need you: Ingrid Sørensen’s start, and Tellisford Solutions’ missing agreement."', async () => {
+  it('the program manager’s sentence names the start paperwork holds and the supplier with no agreement: "Three things need you: Ilse Varga’s start, Ingrid Sørensen’s start, and Tellisford Solutions’ missing agreement."', async () => {
     const { possessive } = await import('@/app/dashboard/program/needs-you')
     const { queue } = await read(PROGRAMME)
     const held = queue.decisions.filter((d: any) => d.type === 'START_HELD')
@@ -644,7 +644,7 @@ describe('the Today headline is one sentence with the names in it, and says the 
       for (const d of held) expect(queue.says).toContain(`${possessive(d.named.whose)} start`)
       for (const d of noPaper) expect(queue.says).toContain(`${possessive(d.named.whose)} missing agreement`)
     }
-    expect(queue.says).toBe("Two things need you: Ingrid Sørensen’s start, and Tellisford Solutions’ missing agreement.")
+    expect(queue.says).toBe("Three things need you: Ilse Varga’s start, Ingrid Sørensen’s start, and Tellisford Solutions’ missing agreement.")
   })
 
   it('a held start’s row says what is missing once, and never names the person a second time', async () => {
