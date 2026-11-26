@@ -45,6 +45,7 @@ function onBook(companyId: string, type: RecordType): Record<string, unknown> {
     case 'MoneyChain': return { companyId }
     case 'AgentTask': return { companyId }
     case 'AgentSwitch': return { companyId }
+    case 'SkillTarget': return { companyId }
     // The firm's own paperwork, offers, confirmations and drafts: each carries the firm that keeps it.
     // An offer is the buyer's paper, and the supplier whose person it is to reads it once it is made, never a draft (the offer route's own rule).
     case 'Offer': return { OR: [{ companyId }, { state: { not: 'DRAFT' }, submission: { fromCompanyId: companyId } }] }
@@ -124,6 +125,10 @@ export async function findOnBook(companyId: string, type: RecordType, id: string
       const r = await prisma.agentSwitch.findFirst({ where, select: { id: true, agentKey: true } })
       return r ? { id: r.id, name: `${agentNameOf(r.agentKey)} switch` } : null
     }
+    case 'SkillTarget': {
+      const r = await prisma.skillTarget.findFirst({ where, select: { id: true, subjectKey: true } })
+      return r ? { id: r.id, name: `Target for ${r.subjectKey}` } : null
+    }
     case 'AgentTask': {
       const r = await prisma.agentTask.findFirst({ where, select: { id: true, kind: true, agentKey: true, recordType: true, recordId: true } })
       // The task's own name, never the question its card asks (the card already says that).
@@ -196,6 +201,10 @@ export async function subjectOf(type: RecordType, id: string): Promise<{ company
     }
     case 'AgentSwitch': {
       const r = await prisma.agentSwitch.findUnique({ where: { id }, select: { companyId: true } })
+      return r ? { companyId: r.companyId } : null
+    }
+    case 'SkillTarget': {
+      const r = await prisma.skillTarget.findUnique({ where: { id }, select: { companyId: true } })
       return r ? { companyId: r.companyId } : null
     }
     case 'AgentTask': {
@@ -339,6 +348,10 @@ export async function factsOf(type: RecordType, id: string): Promise<Fact[]> {
     case 'AgentSwitch': {
       const r = await prisma.agentSwitch.findUnique({ where: { id }, select: { agentKey: true, state: true, dailyCap: true } })
       return r ? [...f('Agent', agentNameOf(r.agentKey)), ...f('Switch', r.state === 'ON' ? 'On' : r.state === 'DRAFT_ONLY' ? 'Drafts only' : 'Off'), ...f('Daily cap', r.dailyCap === null ? 'None' : String(r.dailyCap))] : []
+    }
+    case 'SkillTarget': {
+      const r = await prisma.skillTarget.findUnique({ where: { id }, select: { subjectKind: true, subjectKey: true, period: true, target: true } })
+      return r ? [...f('For', r.subjectKey), ...f('Kind', r.subjectKind === 'AGENT' ? 'Agent' : 'Skill'), ...f('Period', { DAY: 'Day', WEEK: 'Week', MONTH: 'Month' }[r.period] ?? r.period), ...f('Target', String(r.target))] : []
     }
     case 'AgentTask': {
       const r = await prisma.agentTask.findUnique({ where: { id }, select: { agentKey: true, kind: true, state: true, sentCount: true, closedReason: true } })

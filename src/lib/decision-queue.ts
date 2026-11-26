@@ -53,9 +53,9 @@ export type ProofType = (typeof PROOF_TYPES)[number]['type']
  * payroll record of lib/record-ledger). A month is never picked as proof
  * by hand; a disputed month's own decision links to it.
  */
-export type RecordType = ProofType | 'DecisionItem' | 'MoneyChain' | 'AgentTask' | 'AgentSwitch' | 'PayrollDraft'
+export type RecordType = ProofType | 'DecisionItem' | 'MoneyChain' | 'AgentTask' | 'AgentSwitch' | 'SkillTarget' | 'PayrollDraft'
 
-export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem', 'MoneyChain', 'AgentTask', 'AgentSwitch', 'PayrollDraft']
+export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem', 'MoneyChain', 'AgentTask', 'AgentSwitch', 'SkillTarget', 'PayrollDraft']
 
 export function isRecordType(t: unknown): t is RecordType {
   return typeof t === 'string' && (RECORD_TYPES as readonly string[]).includes(t)
@@ -141,6 +141,7 @@ export function ownPageOf(type: RecordType, id: string): { href: string; words: 
     case 'PublicAccessFile': return { href: '/dashboard/compliance', words: 'Open Compliance' }
     case 'PayrollDraft': return { href: '/dashboard/payroll', words: 'Open Payroll' }
     case 'AgentSwitch':
+    case 'SkillTarget':
     case 'AgentTask': return { href: '/dashboard/decisions/agents', words: 'Open Agent control' }
     // The month's own page needs its contract and month, which the route reads (`monthPageOf`); this is the page they are on.
     case 'MoneyChain': return { href: LOOP_HREF, words: 'Open Timesheet to payment' }
@@ -151,7 +152,7 @@ export function ownPageOf(type: RecordType, id: string): { href: string; words: 
 export function proofLabelOf(type: string): string {
   const picked = PROOF_TYPES.find((p) => p.type === type)?.label
   if (picked) return picked
-  return type === 'AgentTask' ? 'The agent’s task' : type === 'AgentSwitch' ? 'The agent’s switch' : type === 'DecisionItem' ? 'A decision' : 'A record'
+  return type === 'AgentTask' ? 'The agent’s task' : type === 'AgentSwitch' ? 'The agent’s switch' : type === 'SkillTarget' ? 'A target' : type === 'DecisionItem' ? 'A decision' : 'A record'
 }
 
 /** Where the record view for one record is. Pure. */
@@ -235,7 +236,7 @@ export function readOpenAsk(body: unknown, hasEntities: boolean): { ok: true; as
     const o = (l ?? {}) as Record<string, unknown>
     const type = o.recordType
     const id = typeof o.recordId === 'string' ? o.recordId.trim() : ''
-    if (!isRecordType(type) || type === 'DecisionItem' || type === 'MoneyChain' || type === 'AgentTask' || type === 'AgentSwitch' || type === 'PayrollDraft' || !id) {
+    if (!isRecordType(type) || type === 'DecisionItem' || type === 'MoneyChain' || type === 'AgentTask' || type === 'AgentSwitch' || type === 'SkillTarget' || type === 'PayrollDraft' || !id) {
       return { ok: false, field: 'proofLinks', says: 'Each proof link names a kind of record from the list and the record itself.' }
     }
     links.push({ recordType: type, recordId: id })
