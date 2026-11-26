@@ -61,3 +61,35 @@ that yes, and it never sends beyond the task. Nothing built changes.
    send, its follow-ups, and the dormant-contact and submission-chase
    letters. Drafting and preview stay open. A batch already approved
    stays a draft until the Owner switches outreach on.
+
+## The tester's follow-up rulings, 2026-11-26
+
+**Agent sends, reading (a) ruled.** An agent may send only inside a task
+that a person has approved with that task's one yes. It sends only the
+text that was approved. Outside an approved task, agents only draft. This
+is what ruling 1 means, so there is no conflict between them.
+
+**Website flag: the two live doors are grandfathered.** This replaces
+answer 1 above.
+- Tapin's storefront and the second firm's storefront keep rendering
+  after Saturday's deploy. The deploy itself takes nothing dark.
+- The flag governs new activations and the content editor.
+- Every other tenant starts off.
+- An Owner who switches their own site off takes it dark, and the
+  content is kept.
+- `/site/tapin` stays in the smoke test.
+
+**The checklist for switching a website on is enforced in code.** The
+switch refuses to turn on until all three checks hold:
+- the Owner has approved the branding;
+- the domain is pointed;
+- a compliance pass is recorded where one is required.
+
+A refusal names the missing check. Nothing is blocked silently.
+
+**The outreach flag starts off for every tenant**, the internal one
+included (record 122).
+- Inbound doors are not outreach and are unaffected.
+- An approved task that is already running when the flag lands either
+  completes visibly or pauses visibly. It is never dropped silently.
+- Drafting stays available while the flag is off.

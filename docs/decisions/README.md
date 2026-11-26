@@ -139,3 +139,4 @@ built, every release check, every walk and every deploy.
 | 121 | Website and content is a plugin, off by default — 2026-11-25 | 253 | [121-website-and-content-is-a-plugin-2026-11-25.md](121-website-and-content-is-a-plugin-2026-11-25.md) |
 | 122 | Outreach is a plugin, off by default — 2026-11-25 | 150 | [122-outreach-is-a-plugin-2026-11-25.md](122-outreach-is-a-plugin-2026-11-25.md) |
 | 123 | The tester decides architecture; agents draft and propose — 2026-11-25 | 316 | [123-pax-decides-architecture-and-agent-authority-2026-11-25.md](123-pax-decides-architecture-and-agent-authority-2026-11-25.md) |
+| 124 | Public-sector proposal creation is plugin 5 — 2026-11-26 | 155 | [124-public-sector-proposals-is-plugin-5-2026-11-26.md](124-public-sector-proposals-is-plugin-5-2026-11-26.md) |
