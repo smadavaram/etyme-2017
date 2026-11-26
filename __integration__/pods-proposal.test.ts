@@ -218,11 +218,11 @@ describe('the supplier offers a team to a client, and it is sold only by the nam
     expect(p.deliverables.map((d: any) => d.state)).toEqual(['accepted', 'accepted', 'rejected'])
   })
 
-  it('nothing bills while no member has started, and the refusal says nobody is placed', async () => {
+  it('nothing bills while no member has started, and the refusal says it is waiting for a start', async () => {
     const company = await prisma.company.findUniqueOrThrow({ where: { id: s.seller }, select: { id: true, name: true, kind: true } })
     const made = await generateBill({ company, person: { id: null, name: 'Ask Etyme' } }, { engagementId: s.engagement }, { status: 'DRAFT' })
     expect(made.ok).toBe(false)
-    expect(JSON.stringify((made as any).body)).toContain('Nobody is placed')
+    expect(JSON.stringify((made as any).body)).toContain('Waiting for a team member')
   })
 
   it('once one member has started, the bill run bills the two accepted deliverables and not the rejected one', async () => {

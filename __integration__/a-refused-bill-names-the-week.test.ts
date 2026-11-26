@@ -801,16 +801,16 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
     expect(compared).toBeGreaterThan(30)
   })
 
-  it('Brightmoor Staffing bills $59,680 a month at current rates: Omar Haddad and Rosa Delgado at Northbend Athletic, and Ravi Subbarayan at Nordway Retail', async () => {
+  it('Brightmoor Staffing bills $74,400 a month at current rates: Anil Rao, Omar Haddad and Rosa Delgado at Northbend Athletic, and Ravi Subbarayan at Nordway Retail', async () => {
     const { billingThisMonth: b } = await read('world-brightmoor')
     expect(b.people.map((p) => `${p.personName} at ${p.atName}`)).toEqual([
-      'Ravi Subbarayan at Nordway Retail', 'Omar Haddad at Northbend Athletic', 'Rosa Delgado at Northbend Athletic',
+      'Ravi Subbarayan at Nordway Retail', 'Anil Rao at Northbend Athletic', 'Omar Haddad at Northbend Athletic', 'Rosa Delgado at Northbend Athletic',
     ])
-    // $132, $112 and $129 an hour, 160 hours each.
-    expect(b.people.map((p) => p.monthlyMinor)).toEqual([2064000, 2112000, 1792000])
+    // $129, $92, $132 and $112 an hour, 160 hours each.
+    expect(b.people.map((p) => p.monthlyMinor)).toEqual([2064000, 1472000, 2112000, 1792000])
     // Ravi’s job states no hours, so 160 is assumed and said.
     expect(b.people.find((p) => p.personName === 'Ravi Subbarayan')!.hoursStated).toBe(false)
-    expect(b.totals).toEqual([{ currency: 'USD', amountMinor: 5968000, pricedMinor: 5968000, count: 3, unpriced: 0 }])
+    expect(b.totals).toEqual([{ currency: 'USD', amountMinor: 7440000, pricedMinor: 7440000, count: 4, unpriced: 0 }])
   })
 
   it('the monthly figure says it is an estimate from current rates, not signed time', async () => {
@@ -997,7 +997,7 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
     const t = await read('world-brightmoor')
     const ravi = t.billingThisMonth.people.find((p) => p.personName === 'Ravi Subbarayan')!
     expect(ravi).toMatchObject({ monthlyMinor: null, unpriced: 'no rate' })
-    expect(t.billingThisMonth.totals).toEqual([{ currency: 'USD', amountMinor: null, pricedMinor: 3904000, count: 3, unpriced: 1 }])
+    expect(t.billingThisMonth.totals).toEqual([{ currency: 'USD', amountMinor: null, pricedMinor: 5376000, count: 4, unpriced: 1 }])
     const week = t.signedNotBilled.weeks.find((w) => w.personName === 'Ravi Subbarayan')!
     expect(week).toMatchObject({ amountMinor: null, unpriced: 'no rate' })
   })

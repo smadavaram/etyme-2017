@@ -189,7 +189,15 @@ describe('nobody is shown a button the server will refuse them', () => {
     as(NIKE_HIRING)
     const { body } = await json(await timesheets(req('GET', '/api/timesheets?status=SUBMITTED&limit=50')))
     expect(body.data.timesheets.length).toBeGreaterThan(0)
-    for (const row of body.data.timesheets) expect(row.mayApprove).toBe(true)
+    // A week Northbend has already signed can wait further down the chain
+    // (Anil Rao's, still with Brightmoor): it is listed as submitted, and
+    // the client is told "Already approved.", not offered a second button.
+    const open = body.data.timesheets.filter((r: any) => r.mayApproveWhyNot !== 'Already approved.')
+    expect(open.length).toBeGreaterThan(0)
+    for (const row of open) expect(row.mayApprove).toBe(true)
+    for (const row of body.data.timesheets.filter((r: any) => r.mayApproveWhyNot === 'Already approved.')) {
+      expect(row.mayApprove).toBe(false)
+    }
   })
 })
 
@@ -261,11 +269,19 @@ describe('what a client has spent is counted at the desk that signed for it', ()
     const acceptedCents = accepted.reduce((n, a) => n + a.acceptedCents, 0)
     expect(acceptedCents).toBe(57_600)
 
+    // A week Northbend has signed that still waits further down the chain
+    // (Anil Rao's, with Brightmoor) lists as submitted and is spend all the
+    // same: the client's signature is what counts.
+    const waiting = await json(await timesheets(req('GET', '/api/timesheets?status=SUBMITTED&limit=50')))
+    const signedWaiting = waiting.body.data.timesheets
+      .filter((t: any) => t.mayApproveWhyNot === 'Already approved.')
+      .reduce((n: number, t: any) => n + (t.overtime.billableCents ?? 0), 0)
+
     // Helena's weeks hang off Tecwyn's leg, which no cost center is
     // allocated, so the budget missed every one of them: $18k against
     // the $35,800 the client had signed for.
     expect(signed).toBeGreaterThan(0)
-    expect(budgets.body.data.summary.actualCents).toBe(signed + acceptedCents)
+    expect(budgets.body.data.summary.actualCents).toBe(signed + signedWaiting + acceptedCents)
   })
 
   it('a sub-vendor\u2019s bill for the same week does not read as billed to the client on its budget', async () => {
