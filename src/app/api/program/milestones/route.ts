@@ -11,6 +11,7 @@ import {
   lateness,
   mayDecideAs,
   mayDeliverAs,
+  partiesRead,
   standing,
   type Milestone,
 } from './acceptance'
@@ -95,6 +96,14 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
+  // A deliverable of a sold team names the one person who decides it.
+  const named = new Map(
+    (await prisma.podDeliverable.findMany({
+      where: { milestoneId: { in: orders.flatMap((o) => o.milestones.map((m) => m.id)) } },
+      select: { milestoneId: true, podProject: { select: { acceptorPersonId: true, acceptor: { select: { name: true } } } } },
+    })).map((d) => [d.milestoneId, { name: d.podProject.acceptor.name, isYou: d.podProject.acceptorPersonId === caller.person.id }])
+  )
+
   const rows = orders.map((o) => {
     const sides = {
       sellerCompanyId: o.issuedToId,
@@ -127,8 +136,11 @@ export async function GET(request: NextRequest) {
       // screen is in. `amount` is a decimal on the row because that is
       // what a purchase order is written in.
       ceilingCents: minorFromWhole(o.amount, o.currency),
-      seller: o.issuedTo,
-      client: o.issuedBy,
+      // A reader sees the firm it deals with and nobody beyond it (record
+      // 119): the seller sees who issued the order, the client who issued
+      // it sees its seller, and a payer or bill-to that is neither sees no
+      // firm's name at all.
+      ...partiesRead(companyId, o),
       /** Which side of this order the reader is on. */
       yourRole: companyId === o.issuedToId ? 'SELLER' : 'CLIENT',
       may: { deliver: canDeliver, decide: canDecide },
@@ -148,6 +160,8 @@ export async function GET(request: NextRequest) {
           acceptedById: m.acceptedById,
           deliveredAt: m.deliveredAt?.toISOString() ?? null,
           note: humanNote(m.note),
+          /** Who alone decides it, where the deal names one; null where any client seat may. */
+          decider: named.get(m.id) ?? null,
           // The real column first; the labeled shadow prefix only for
           // rows written before the column existed.
           rejectionReason: m.rejectionReason ?? rejected?.reason ?? null,

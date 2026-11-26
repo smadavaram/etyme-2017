@@ -10,6 +10,8 @@ import {
   type RejectionReason,
 } from '../../acceptance'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
+import { recordRefusal } from '@/lib/access-log'
+import { acceptorRefusal } from '../../pod-acceptor'
 
 /**
  * POST /api/program/milestones/[id]/decide
@@ -90,6 +92,27 @@ export async function POST(
   })
   if (!may.ok) {
     return NextResponse.json({ error: { code: 'NOT_YOURS', message: may.says } }, { status: 403 })
+  }
+
+  // A deliverable of a sold team has one named decider (record 120). The
+  // refusal's row is written before the sentence goes out.
+  const sold = await prisma.podDeliverable.findUnique({
+    where: { milestoneId: id },
+    select: { podProject: { select: { acceptorPersonId: true, acceptor: { select: { name: true } } } } },
+  })
+  const noOne = acceptorRefusal(
+    realPersonId(caller),
+    sold ? { personId: sold.podProject.acceptorPersonId, name: sold.podProject.acceptor.name } : null
+  )
+  if (noOne) {
+    await recordRefusal([{ companyId }], {
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      allowed: false,
+      reason: `Refused a decision on deliverable ${milestone.name}: only the acceptor named on the deal decides it.`,
+    })
+    return NextResponse.json({ error: { code: 'NOT_THE_ACCEPTOR', message: noOne } }, { status: 403 })
   }
 
   const move = mayDecide(

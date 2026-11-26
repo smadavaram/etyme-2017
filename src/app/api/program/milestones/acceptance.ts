@@ -488,3 +488,13 @@ export function humanNote(note: string | null): string | null {
   if (decoded) return decoded.note
   return note && note.trim().length > 0 ? note : null
 }
+
+/** The two firms an order's reader may name. Pure. */
+export function partiesRead(
+  readerId: string,
+  o: { issuedToId: string; issuedById: string; issuedTo: { id: string; name: string }; issuedBy: { id: string; name: string } }
+): { seller: { id: string; name: string }; client: { id: string; name: string } } {
+  if (readerId === o.issuedToId) return { seller: o.issuedTo, client: o.issuedBy }
+  if (readerId === o.issuedById) return { seller: o.issuedTo, client: o.issuedBy }
+  return { seller: { id: '', name: 'Your supplier' }, client: { id: '', name: 'Your customer' } }
+}

@@ -38,6 +38,7 @@ interface Milestone {
   acceptedById: string | null
   note: string | null
   rejectionReason: string | null
+  decider: { name: string; isYou: boolean } | null
   billable: { ok: boolean; says: string }
   waited: { days: number | null; unknowns: string[]; says: string }
   late: { onUs: boolean; days: number | null; says: string } | null
@@ -317,7 +318,10 @@ export default function MilestonesPage() {
                           Submit for acceptance
                         </button>
                       )}
-                      {o.may.decide && m.status === 'DELIVERED' && (
+                      {o.may.decide && m.status === 'DELIVERED' && m.decider && !m.decider.isYou && (
+                        <p className="text-xs text-etyme-muted">Waiting on {m.decider.name}, who decides this one.</p>
+                      )}
+                      {o.may.decide && m.status === 'DELIVERED' && (!m.decider || m.decider.isYou) && (
                         <>
                           <button
                             onClick={() => decide(m, true)}

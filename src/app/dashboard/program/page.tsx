@@ -22,6 +22,7 @@ import { deskCounts, deskHeadline, onSiteSub, emptyQueueSays, doneAt, type Named
 import { formatDay } from '@/lib/format-date'
 import { ExtendForm } from './extend-form'
 import { ByRegion } from './by-region'
+import { SoldWork } from './sold-work'
 import { StartIdentity } from './start-identity'
 import { jobListWord, stageWordFor } from '../requirements/words'
 
@@ -945,6 +946,8 @@ function Today({ data, queue, queueLoaded, queueSays, tenure, tenureSays, busy, 
               </div>
             </section>
           )}
+
+          <SoldWork />
 
           {/* ── Tenure to watch — the wedge ── */}
           <section>
