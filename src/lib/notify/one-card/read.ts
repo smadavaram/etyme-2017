@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getCallerContext } from '@/lib/api-context'
+import type { CallerContext } from '@/lib/api-context'
 import { GET as decisionsList } from '@/app/api/decisions/route'
 import { FIRM_AGENTS, NOT_LIVE_AGENTS } from '@/lib/decision-queue'
 import { mayChangeSwitch } from '@/lib/agents/switch'
@@ -43,12 +43,10 @@ export function ledgerLine(r: { createdAt: Date; person: { name: string }; actio
   return `${at} · ${r.person.name} · ${r.summary}`
 }
 
-export async function readOneCard(request: NextRequest, now = new Date()): Promise<{ read: OneCardRead } | { refusal: Response }> {
+export async function readOneCard(request: NextRequest, caller: CallerContext, now = new Date()): Promise<{ read: OneCardRead } | { refusal: Response }> {
   const listed = await decisionsList(request)
   if (!listed.ok) return { refusal: listed }
   const body = await listed.json()
-  const { caller, error } = await getCallerContext(request)
-  if (error) return { refusal: error }
   const companyId = caller.company?.id
   if (!companyId) return { refusal: new Response(JSON.stringify({ error: { code: 'FORBIDDEN', message: 'The decision queue is a firm’s, and you are not signed in at one.' } }), { status: 403 }) }
 

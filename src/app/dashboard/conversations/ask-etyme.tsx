@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type R
 import Link from 'next/link'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import type { Route } from 'next'
+import { OneCard } from './one-card'
 import { useSession } from '@/components/session-provider'
 import { EtymeMark } from '@/components/logo'
 import { RefusedState, Textarea, FormMessage, Input, Select } from '@/components/ui'
@@ -127,6 +128,8 @@ export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
   // The saved lines from before this page load, oldest first; then this load's turns, greeting first.
   const [history, setHistory] = useState<Turn[]>([])
   const [turns, setTurns] = useState<Turn[]>([])
+  // The one-card screen drew (record 130): the greeting's cards would only repeat it.
+  const [oneCard, setOneCard] = useState(false)
   const [notKept, setNotKept] = useState<string | null>(null)
   const [earlier, setEarlier] = useState(false)
   const [oldestAt, setOldestAt] = useState<string | null>(null)
@@ -498,6 +501,7 @@ export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
       ) : (
         <>
           <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-6 sm:px-6">
+            {!worker && party !== 'WORKER' && <OneCard onShown={setOneCard} />}
             {notKept && (
               <p role="note" className="mx-auto mb-5 max-w-[760px] text-center text-[12.5px] leading-snug text-etyme-muted">{notKept}</p>
             )}
@@ -506,7 +510,7 @@ export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
                 <button type="button" onClick={() => void showEarlier()} className="text-[12.5px] text-etyme-action-press underline-offset-2 hover:underline">Show earlier</button>
               </p>
             )}
-            <ol className="mx-auto flex max-w-[760px] flex-col gap-5" aria-live="polite">
+            <ol className={`mx-auto flex max-w-[760px] flex-col gap-5${oneCard && !worker && history.length === 0 && turns.length === 1 && turns[0].from === 'etyme' ? ' hidden' : ''}`} aria-live="polite">
               {[...history, ...turns].map((t) => (
                 <li key={t.id}>
                   {t.from === 'you' && (

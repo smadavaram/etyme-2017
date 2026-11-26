@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
 import { readOneCard } from '@/lib/notify/one-card/read'
 
 /**
@@ -11,7 +12,9 @@ import { readOneCard } from '@/lib/notify/one-card/read'
  * already has.
  */
 export async function GET(request: NextRequest) {
-  const got = await readOneCard(request)
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const got = await readOneCard(request, caller)
   if ('refusal' in got) return got.refusal as NextResponse
   return NextResponse.json({ data: got.read })
 }
