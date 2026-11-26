@@ -4,7 +4,7 @@ import { saleRefusal, type SaleFacts, type SellPodInput } from '@/lib/money/pod-
 /** Record 120, pods: the sale's refusals, one sentence each, no database. */
 
 const input = (o: Partial<SellPodInput> = {}): SellPodInput => ({
-  podId: 'pod1', sellerCompanyId: 'seller', clientCompanyId: 'client', acceptorPersonId: 'acc', kind: 'MILESTONE',
+  podId: 'pod1', sellerCompanyId: 'seller', clientCompanyId: 'client', acceptorPersonId: 'acc', projectName: 'Data platform build', kind: 'MILESTONE',
   priceCents: 3_000_000, currency: 'USD', decidedBy: 'acc',
   deliverables: [1, 2, 3].map((n) => ({ name: `Stage ${n}`, amountCents: 1_000_000, dueOn: new Date('2027-01-15') })),
   ...o,
@@ -76,5 +76,21 @@ describe('a team sale is written only when every rule holds', () => {
   })
   it('a firm cannot sell a team to itself', () => {
     expect(saleRefusal(input({ clientCompanyId: 'seller' }), facts())?.says).toBe('A firm cannot sell a team to itself.')
+  })
+  it('a sale with no project name is refused with the sentence that shows how to name it', () => {
+    for (const projectName of ['', '   ']) {
+      const r = saleRefusal(input({ projectName }), facts())
+      expect(r?.field).toBe('projectName')
+      expect(r?.says).toContain('Name the project as your client would')
+      expect(r?.says).toContain('Data platform build')
+    }
+  })
+  it('a project name that contains the word pod is refused, in any case, alone or plural', () => {
+    for (const projectName of ['Data pod', 'The POD for Nike', 'Pods build']) {
+      expect(saleRefusal(input({ projectName }), facts())?.field).toBe('projectName')
+    }
+  })
+  it('a project name that merely contains the letters pod inside another word is allowed', () => {
+    expect(saleRefusal(input({ projectName: 'Podium analytics build' }), facts())).toBeNull()
   })
 })

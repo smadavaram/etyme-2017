@@ -41,6 +41,8 @@ export interface SellPodInput {
   clientCompanyId: string
   /** The one person at the client who accepts or rejects each deliverable. */
   acceptorPersonId: string
+  /** The name the supplier gives the project in the proposal. The client reads this; the team's own name stays the supplier's. */
+  projectName: string
   kind: SaleKind
   priceCents: number
   currency: string
@@ -69,10 +71,15 @@ export interface SaleFacts {
   decidedByAtClient: boolean
 }
 
+const PROJECT_NAME_SAYS = 'Name the project as your client would — for example ‘Data platform build’.'
+
 const refuse = (says: string, field: string | null = null) => ({ ok: false as const, says, field })
 
 /** Null where the sale may be written; otherwise the one sentence that says what is wrong. Pure. */
 export function saleRefusal(input: SellPodInput, f: SaleFacts): { says: string; field: string | null } | null {
+  const projectName = typeof input.projectName === 'string' ? input.projectName.trim() : ''
+  if (!projectName) return refuse(PROJECT_NAME_SAYS, 'projectName')
+  if (/\bpods?\b/i.test(projectName)) return refuse(PROJECT_NAME_SAYS, 'projectName')
   if (!f.pod) return refuse('That team is not on file.', 'podId')
   if (f.pod.companyId !== input.sellerCompanyId) return refuse('That team is not the seller’s own, so it cannot be sold from here.', 'podId')
   if (f.pod.archivedAt) return refuse(`${f.pod.name} is deactivated. Reactivate it before it is sold.`, 'podId')
@@ -194,7 +201,7 @@ export async function sellPod(tx: Prisma.TransactionClient, input: SellPodInput,
   const paymentTerms = terms.paymentTermsDays ?? 30
 
   const engagement = await tx.engagement.create({
-    data: { msaId: agreement?.id ?? null, title: pod.name, invoiceCycle: terms.frequency },
+    data: { msaId: agreement?.id ?? null, title: input.projectName.trim(), invoiceCycle: terms.frequency },
     select: { id: true },
   })
 
@@ -209,7 +216,7 @@ export async function sellPod(tx: Prisma.TransactionClient, input: SellPodInput,
     data: {
       number,
       sellerNumber: number.replace(/^PO-/, 'SO-'),
-      title: pod.name,
+      title: input.projectName.trim(),
       issuedById: input.clientCompanyId,
       issuedToId: input.sellerCompanyId,
       // The client's yes makes the order; the client typed it.
@@ -233,7 +240,7 @@ export async function sellPod(tx: Prisma.TransactionClient, input: SellPodInput,
     data: {
       companyId: input.sellerCompanyId,
       code: nextMasterContractCode(codes),
-      name: pod.name,
+      name: input.projectName.trim(),
       kind: input.kind,
       clientCompanyId: input.clientCompanyId,
       engagementId: engagement.id,

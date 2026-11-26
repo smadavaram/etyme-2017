@@ -46,6 +46,7 @@ describe('a sold team: its margin is the supplier’s, and the team stands still
     s.roles = pod.roles
     const input = {
       podId: pod.id, sellerCompanyId: seller.id, clientCompanyId: client.id, acceptorPersonId: acceptor.id,
+      projectName: 'Data platform build',
       kind: 'MILESTONE', priceCents: 2_000_000, currency: 'USD', decidedBy: acceptor.id,
       deliverables: [1, 2].map((n) => ({ name: `Stage ${n}`, amountCents: 1_000_000, dueOn: null })),
     } satisfies SellPodInput

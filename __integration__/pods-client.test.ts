@@ -59,7 +59,7 @@ describe('the client reads and decides a sold team, through to every deliverable
       select: { id: true },
     })
     const sold = await prisma.$transaction((tx) => sellPod(tx, {
-      podId: pod.id, sellerCompanyId: seller.id, clientCompanyId: client.id, acceptorPersonId: s[ACCEPTOR], decidedBy: s[ACCEPTOR],
+      podId: pod.id, sellerCompanyId: seller.id, clientCompanyId: client.id, acceptorPersonId: s[ACCEPTOR], decidedBy: s[ACCEPTOR], projectName: 'Data platform build',
       kind: 'MILESTONE', priceCents: 3_000_000, currency: 'USD',
       deliverables: [1, 2, 3].map((n) => ({ name: `Stage ${n}`, amountCents: 1_000_000, dueOn: new Date(Date.now() + n * 14 * 86_400_000) })),
     }))
@@ -72,7 +72,7 @@ describe('the client reads and decides a sold team, through to every deliverable
     const r = await view(COLLEAGUE)
     expect(r.status).toBe(200)
     const [p] = r.body.data.projects
-    expect(p).toMatchObject({ name: 'Data platform team', headcount: 2, fulfilled: false, acceptor: { name: 'Imogen Daleford', isYou: false } })
+    expect(p).toMatchObject({ name: 'Data platform build', headcount: 2, fulfilled: false, acceptor: { name: 'Imogen Daleford', isYou: false } })
     expect(p.roles).toEqual([{ title: 'Data engineer', headcount: 1 }, { title: 'Analyst', headcount: 1 }])
     expect(p.deliverables.map((d: any) => [d.name, d.state, d.mayDecide])).toEqual([['Stage 1', 'planned', false], ['Stage 2', 'planned', false], ['Stage 3', 'planned', false]])
     expect(p.deliverables.every((d: any) => d.dueOn)).toBe(true)

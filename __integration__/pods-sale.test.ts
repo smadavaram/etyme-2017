@@ -64,6 +64,7 @@ describe('a team sold as a project, billed on the deliverables the client accept
     s.pod = pod.id
     s.input = {
       podId: pod.id, sellerCompanyId: seller.id, clientCompanyId: client.id, acceptorPersonId: acceptor.id,
+      projectName: 'Data platform build',
       kind: 'MILESTONE', priceCents: 3_000_000, currency: 'USD', decidedBy: acceptor.id,
       deliverables: [1, 2, 3].map((n) => ({ name: `Stage ${n}`, amountCents: 1_000_000, dueOn: new Date(Date.now() + n * 14 * 86_400_000) })),
     } satisfies SellPodInput
@@ -131,6 +132,21 @@ describe('a team sold as a project, billed on the deliverables the client accept
     expect(milestones.reduce((n, m) => n + m.amountCents, 0)).toBe(project.budgetCents)
     expect(await prisma.podDeliverable.count({ where: { podProjectId: r.podProjectId } })).toBe(3)
     expect(await prisma.automationLog.count({ where: { action: 'POD_SOLD', companyId: s.seller } })).toBe(1)
+  })
+
+  it('the client reads the project name the seller gave, and never the team’s own name, on the engagement, the order and the project', async () => {
+    const eng = await prisma.engagement.findUniqueOrThrow({ where: { id: s.engagementId }, select: { title: true } })
+    const order = await prisma.workOrder.findUniqueOrThrow({ where: { id: s.workOrderId }, select: { title: true } })
+    const project = await prisma.projectOrder.findUniqueOrThrow({ where: { id: s.projectOrderId }, select: { name: true } })
+    expect([eng.title, order.title, project.name]).toEqual(['Data platform build', 'Data platform build', 'Data platform build'])
+    expect([eng.title, order.title, project.name]).not.toContain('Data platform team')
+  })
+
+  it('a sale with a project name containing pod is refused and writes nothing', async () => {
+    const before = await rowCounts()
+    const r = await prisma.$transaction((tx) => sale(tx, { projectName: 'Data pod' }))
+    expect(r).toMatchObject({ ok: false, field: 'projectName' })
+    expect(await rowCounts()).toEqual(before)
   })
 
   it('margin is not known before anything is accepted, and says so', async () => {
