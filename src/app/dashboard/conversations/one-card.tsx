@@ -125,12 +125,12 @@ export function OneCard({ onShown }: { onShown?: (shown: boolean) => void }) {
         <Cell value={String(read.queue)} label="Queue" />
         <Cell value={read.doneToday === null ? '–' : String(read.doneToday)} label="Done today" />
         {read.agent && (read.agent.ownerMaySwitch ? (
-          <Link href={read.agent.href as Route} aria-label={`Agent ${read.agent.words}. Change it in Agent control.`} className="min-w-0 flex-1 rounded-[12px] border border-etyme-rule bg-etyme-surface px-1.5 py-2.5">
+          <Link href={read.agent.href as Route} aria-label={`Agents on: ${read.agent.words}. Change it in Agent control.`} className="min-w-0 flex-1 rounded-[12px] border border-etyme-rule bg-etyme-surface px-1.5 py-2.5">
             <b className={`block font-mono text-[20px] font-medium ${read.agent.on > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>{read.agent.words}</b>
-            <span className="text-[12px] text-etyme-muted">Agent</span>
+            <span className="text-[12px] text-etyme-muted">Agents on</span>
           </Link>
         ) : (
-          <Cell value={read.agent.words} label="Agent" tone={read.agent.on > 0 ? 'ok' : undefined} />
+          <Cell value={read.agent.words} label="Agents on" tone={read.agent.on > 0 ? 'ok' : undefined} />
         ))}
       </div>
     </section>

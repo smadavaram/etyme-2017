@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ACTS, UNNAMED_ACT, actHeading } from '@/lib/notify/one-card/acts'
-import { oneCardsFrom } from '@/lib/notify/one-card/build'
+import { oneCardsFrom, type OneCard } from '@/lib/notify/one-card/build'
 import { barFigures, oldestDays } from '@/lib/notify/one-card/score-bar'
 import { agentCell } from '@/lib/notify/one-card/read'
 import { workerCardsFrom } from '@/lib/notify/one-card/worker'
@@ -109,5 +109,53 @@ describe('A worker reads her own queue as cards', () => {
     expect(cards[0].yes).toBeNull()
     expect(cards[0].open?.href).toContain('/dashboard')
     expect(cards[0].act).not.toMatch(/^Open/)
+  })
+})
+
+describe('No card\'s button reads Open', () => {
+  const buttonOf = (c: OneCard) => (c.yes ? c.verb : c.open?.words)
+  it('no card\'s button reads Open, for every kind of row the queue can hold', () => {
+    for (const type of Object.keys(ACTS)) {
+      const c = oneCardsFrom(body([row({ type, title: `${ACTS[type].act} — Someone`, entityId: 'x1', named: undefined, actionUrl: '/dashboard/contracts?id=x1' })]), new Map(), NOW)!.cards[0]
+      expect(buttonOf(c), type).toBeTruthy()
+      expect(buttonOf(c), type).not.toMatch(/^Open\b/)
+    }
+  })
+  it('an agreement to add reads Add and a contract to extend or end reads Decide', () => {
+    const one = (type: string) => oneCardsFrom(body([row({ type, title: 'x — Someone', entityId: 'x1', named: undefined, actionUrl: '/dashboard/contracts' })]), new Map(), NOW)!.cards[0]
+    expect(one('NO_AGREEMENT').open?.words).toBe('Add')
+    expect(one('ROLLOFF_ACTION').open?.words).toBe('Decide')
+  })
+  it('a receipt to pay still reads Pay and opens the receipt for its bank reference', () => {
+    const c = oneCardsFrom(body([row({ type: 'INVOICE_RECEIPT_TO_PAY', title: 'Pay invoice receipt — Acme', subtitle: 'Invoice IN-1 · $5,800.00', entityId: 'vb1', actionUrl: '/dashboard/ap', named: undefined })]), new Map(), NOW)!.cards[0]
+    expect(c.open?.words).toBe('Pay')
+    expect(c.yes).toBeNull()
+  })
+})
+
+describe('The agent cell says whose count it is', () => {
+  it('the screen labels the agent cell "Agents on", not the seat\'s own agent', () => {
+    const s = src('src/app/dashboard/conversations/one-card.tsx')
+    expect(s).toContain('Agents on')
+    expect(s).not.toMatch(/>Agent<|label="Agent"/)
+  })
+})
+
+describe('The worker card shows a figure and the due day', () => {
+  it('a week not yet filed reads 0 h and the day it is due', () => {
+    const facts = {
+      returned: [], sent: [], papers: [], interviews: [], stays: [], consent: { asking: [] },
+      toFile: [{ periodStart: '2026-11-15', periodEnd: '2026-11-21', ended: true, wholeWeek: true, expectedHours: 40, dueOn: '2026-11-23', site: 'Harlow Health' }],
+    } as unknown as WorkerFacts
+    const c = workerCardsFrom(cardsFor(facts), facts)[0]
+    expect(c.figure).toBe('0 h')
+    expect(c.tag).toBe('Due Nov 23')
+  })
+  it('a week saved and not sent reads the hours it holds', () => {
+    const facts = {
+      returned: [], papers: [], interviews: [], stays: [], consent: { asking: [] }, toFile: [],
+      sent: [{ id: 's1', periodStart: '2026-11-15', periodEnd: '2026-11-21', hours: 32, stage: 'NOT_SENT', waitingOn: null, client: null }],
+    } as unknown as WorkerFacts
+    expect(workerCardsFrom(cardsFor(facts), facts)[0].figure).toBe('32 h')
   })
 })

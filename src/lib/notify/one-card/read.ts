@@ -74,7 +74,8 @@ async function readsOwnWork(caller: CallerContext, request: NextRequest): Promis
 export async function readOneCard(request: NextRequest, caller: CallerContext, now = new Date()): Promise<{ read: OneCardRead } | { refusal: Response }> {
   // A seat with no firm queue reads the card it owns, never another seat's and never a refusal.
   if (await readsOwnWork(caller, request)) {
-    const cards = workerCardsFrom(cardsFor(await workerFacts(caller, request, now)))
+    const facts = await workerFacts(caller, request, now)
+    const cards = workerCardsFrom(cardsFor(facts), facts)
     return { read: { own: 'WORKER', cards, queue: cards.length, doneToday: null, onTimePct: null, agent: null } }
   }
   if (caller.region || !caller.company) return { read: { own: 'NONE', cards: [], queue: 0, doneToday: null, onTimePct: null, agent: null } }

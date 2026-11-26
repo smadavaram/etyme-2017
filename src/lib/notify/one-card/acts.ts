@@ -14,6 +14,8 @@ export interface ActName {
   act: string
   /** The button where one press does it. Where absent, the route's own label is used. */
   verb?: string
+  /** The button where the act needs a page or a form: the verb, never "Open". */
+  opens?: string
 }
 
 export const ACTS: Readonly<Record<string, ActName>> = {
@@ -22,25 +24,25 @@ export const ACTS: Readonly<Record<string, ActName>> = {
   EXPENSE_ACCEPTANCE: { act: 'Accept expense', verb: 'Accept' },
   REQUISITION_APPROVAL: { act: 'Approve job request', verb: 'Approve' },
   SUPPLIER_REVIEW: { act: 'Approve supplier', verb: 'Approve' },
-  SUBMISSION_REVIEW: { act: 'Review candidates' },
-  INVOICE_RECEIPT_TO_PAY: { act: 'Pay invoice', verb: 'Pay' },
-  INVOICE_RECEIPT_HELD: { act: 'Clear held invoice' },
-  INVOICE_OVERDUE: { act: 'Chase invoice' },
-  BILL_DISPUTED: { act: 'Answer bill dispute' },
+  SUBMISSION_REVIEW: { act: 'Review candidates', opens: 'Review' },
+  INVOICE_RECEIPT_TO_PAY: { act: 'Pay invoice', opens: 'Pay', verb: 'Pay' },
+  INVOICE_RECEIPT_HELD: { act: 'Clear held invoice', opens: 'Clear' },
+  INVOICE_OVERDUE: { act: 'Chase invoice', opens: 'Chase' },
+  BILL_DISPUTED: { act: 'Answer bill dispute', opens: 'Answer' },
   BILL_SEND: { act: 'Send bill', verb: 'Send' },
-  PAPER_TO_CHECK: { act: 'Check paper' },
-  ROLLOFF_ACTION: { act: 'Extend or end contract' },
-  CONTRACT_PAPERING: { act: 'Paper contract' },
-  CONTRACT_START: { act: 'Start contract' },
-  START_HELD: { act: 'Clear start' },
-  NO_AGREEMENT: { act: 'Add agreement' },
+  PAPER_TO_CHECK: { act: 'Check paper', opens: 'Check' },
+  ROLLOFF_ACTION: { act: 'Extend or end contract', opens: 'Decide' },
+  CONTRACT_PAPERING: { act: 'Paper contract', opens: 'Paper' },
+  CONTRACT_START: { act: 'Start contract', opens: 'Start' },
+  START_HELD: { act: 'Clear start', opens: 'Clear' },
+  NO_AGREEMENT: { act: 'Add agreement', opens: 'Add' },
   RATE_CONFIRMATION: { act: 'Confirm rate', verb: 'Confirm' },
-  TWIN_QUESTION: { act: 'Answer question' },
-  OWNER_ASK: { act: 'Answer Owner request' },
-  LINK_REQUEST: { act: 'Answer link request' },
-  JOIN_ASK: { act: 'Answer bench request' },
-  DECISION_ITEM: { act: 'Decide request' },
-  OWN_PAPER: { act: 'Sign papers' },
+  TWIN_QUESTION: { act: 'Answer question', opens: 'Answer' },
+  OWNER_ASK: { act: 'Answer Owner request', opens: 'Answer' },
+  LINK_REQUEST: { act: 'Answer link request', opens: 'Answer' },
+  JOIN_ASK: { act: 'Answer bench request', opens: 'Answer' },
+  DECISION_ITEM: { act: 'Decide request', opens: 'Decide' },
+  OWN_PAPER: { act: 'Sign papers', opens: 'Sign' },
   // A worker's own queue (twin/worker `WorkerAct`).
   FILE_WEEK: { act: 'File my week' },
   SEND_WEEK: { act: 'Send my week' },
@@ -67,4 +69,16 @@ export function actHeading(type: string, title: string | null | undefined, route
 export function actVerb(type: string, title: string | null | undefined, routeLabel: string): string {
   if (type === 'TIMESHEET_APPROVAL' && /^Accept\b/.test(title ?? '')) return 'Accept'
   return ACTS[type]?.verb ?? routeLabel
+}
+
+/**
+ * The words of a button that opens a page or a form: the route's own words
+ * where they are a verb ("Pay", "Prove ownership"), else the act's verb,
+ * never "Open".
+ */
+export function openWords(type: string, routeWords: string | null | undefined): string {
+  const w = routeWords?.trim()
+  if (w && !/^Open\b/.test(w)) return w
+  const a = ACTS[type]
+  return a?.opens ?? a?.verb ?? UNNAMED_ACT
 }

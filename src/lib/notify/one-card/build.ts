@@ -12,7 +12,7 @@
 import { queueFrom, type QueueAct, type QueueCard, type QueueItem } from '@/app/api/conversations/twin/ask'
 import { todayRows } from '@/components/twin-conversation/today-decisions'
 import { inOrder, medianAmount, scoreOf, type Scorable } from './score'
-import { actHeading, actVerb } from './acts'
+import { actHeading, actVerb, openWords } from './acts'
 import { fitCard, hoursFigure, moneyFigure, tagOf, type CardWords } from './wording'
 
 export interface Why {
@@ -88,7 +88,7 @@ export function oneCardsFrom(body: unknown, ledgerByEntity: ReadonlyMap<string, 
       key: card.key, type: card.type, ...words, dueOn, openedOn, amount, confidence: null as number | null,
       yes: card.act, no: card.no ?? null,
       verb: card.act ? actVerb(card.type, item?.title, card.act.label) : null,
-      open: card.act ? null : { href: card.href, words: card.open ?? 'Open' },
+      open: card.act ? null : { href: card.href, words: openWords(card.type, card.open) },
       why: {
         rule: card.why ?? RULES[card.type] ?? PLAIN_RULE,
         source: card.fact?.trim() || card.title.trim(),
