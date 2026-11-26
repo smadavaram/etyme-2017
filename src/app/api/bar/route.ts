@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       },
     }),
     prisma.agentRun.findMany({
-      where: { companyId, at: { gte: lastWeekStart } },
+      where: { companyId, at: { gte: lastWeekStart }, skillKey: null },
       select: {
         agent: true, verdict: true, attempt: true, costMicros: true, ms: true,
         consideredCount: true, scoredCount: true, at: true,
@@ -77,13 +77,13 @@ export async function GET(request: NextRequest) {
       // filtered to SUBMISSION, so a requirement quality check failing the
       // same way on forty roles was invisible — which is exactly the
       // upstream problem it exists to name.
-      where: { companyId, verdict: 'FAIL', at: { gte: patternSince } },
+      where: { companyId, verdict: 'FAIL', at: { gte: patternSince }, code: { not: { startsWith: 'SKILL_' } } },
       select: { code: true, recordId: true, at: true },
     }),
     // How many records any loop has actually checked, which is what the
     // share is out of.
     prisma.check.findMany({
-      where: { companyId, at: { gte: patternSince } },
+      where: { companyId, at: { gte: patternSince }, code: { not: { startsWith: 'SKILL_' } } },
       select: { recordType: true, recordId: true },
       distinct: ['recordType', 'recordId'],
     }),
