@@ -60,8 +60,12 @@ export function hoursFigure(subtitle: string | null | undefined): string | null 
   return m ? `${m[1]} h` : null
 }
 
-/** The first dollar amount the row itself states, verbatim; null where it states none. */
+/**
+ * The first amount the row itself states, verbatim with its own currency
+ * sign ("$5,800.00", "MX$36,000.00", "€3,800.00"); null where it states
+ * none. A rate ("$128/hr") is not an amount owed.
+ */
 export function moneyFigure(subtitle: string | null | undefined): string | null {
-  const m = (subtitle ?? '').match(/\$\d[\d,]*(?:\.\d{2})?/)
+  const m = (subtitle ?? '').match(/(?:[A-Z]{1,3})?[$€£₹₫]\d[\d,]*(?:\.\d+)?(?!\d|[,.]\d|\/)/)
   return m ? m[0] : null
 }

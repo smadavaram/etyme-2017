@@ -32,6 +32,14 @@ describe('The one-card queue is built from the decisions list the badge counts',
       expect(readsAsSentence(`${c.act} ${c.name}`)).toBe(false)
     }
   })
+  it('a receipt to pay with no route of its own reads Pay invoice and its one button opens the receipt', () => {
+    const c = oneCardsFrom(body([row({ type: 'INVOICE_RECEIPT_TO_PAY', title: 'Pay invoice receipt — Computer Systems Inc', subtitle: 'Invoice IN-1 · $5,800.00 · due in 19 days', entityId: 'vb1', actionUrl: '/dashboard/ap', named: undefined, dueDate: '2026-12-15T00:00:00.000Z' })]), new Map(), NOW)!.cards[0]
+    expect(c.act).toBe('Pay invoice')
+    expect(c.figure).toBe('$5,800.00')
+    expect(c.tag).toBe('Due in 19 d')
+    expect(c.yes).toBeNull()
+    expect(c.open?.words).toBe('Pay')
+  })
   it('a row with no verdict route offers one button that opens its record, and no Yes', () => {
     const c = oneCardsFrom(body([row({ type: 'SUBMISSION_REVIEW', title: 'Review candidates — Data engineer', entityId: 'rq1', actionUrl: '/dashboard/submissions?requirementId=rq1', named: undefined })]), new Map(), NOW)!.cards[0]
     expect(c.yes).toBeNull()

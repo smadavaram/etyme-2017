@@ -117,4 +117,9 @@ describe('A card is twelve words or fewer and holds no sentence', () => {
     expect(moneyFigure('Tecwyn · $7,600.00 outstanding · 3 days overdue')).toBe('$7,600.00')
     expect(moneyFigure('Tecwyn · 3 days overdue')).toBeNull()
   })
+  it('an amount keeps its own currency sign and a rate is never read as an amount owed', () => {
+    expect(moneyFigure('Invoice GTN-MX-2026-0410 · MX$36,000.00 · due in 49 days')).toBe('MX$36,000.00')
+    expect(moneyFigure('Invoice LR-NI · £2,880.00 · due in 49 days')).toBe('£2,880.00')
+    expect(moneyFigure('HCM lead · from Pinnacle · $128/hr · submitted 6 days ago')).toBeNull()
+  })
 })

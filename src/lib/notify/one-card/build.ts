@@ -43,6 +43,8 @@ export const RULES: Record<string, string> = {
   SUBMISSION_REVIEW: 'Answer each candidate put forward to the job.',
   START_HELD: 'Nobody starts without the paper that lets them.',
 }
+/** The headline of a card whose button only opens its record, where the button's own word is too short to say the job. */
+export const HEADLINES: Record<string, string> = { INVOICE_RECEIPT_TO_PAY: 'Pay invoice' }
 export const PLAIN_RULE = 'Yes is recorded under your name. Not now changes nothing.'
 export const NO_LEDGER_YET = 'No ledger line yet. Yes writes one.'
 
@@ -75,7 +77,7 @@ export function oneCardsFrom(body: unknown, ledgerByEntity: ReadonlyMap<string, 
     const openedOn = str(r?.createdAt)
     const amount = typeof r?.amount === 'number' && Number.isFinite(r.amount) ? r.amount : null
     const words = fitCard({
-      act: card.act?.label ?? card.open ?? 'Open',
+      act: card.act?.label ?? HEADLINES[card.type] ?? card.open ?? 'Open',
       name: nameOf(item, card),
       figure: moneyFigure(item?.subtitle) ?? hoursFigure(item?.subtitle),
       tag: tagOf({ dueOn, openedOn }, now),
