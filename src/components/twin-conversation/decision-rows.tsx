@@ -51,7 +51,7 @@ export function DecisionRows() {
     const act = chosen
     if (!act) return { ok: false, says: 'This one opens its page.' }
     try {
-      const res = await fetch(act.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(act.body) })
+      const res = await fetch(act.url, { method: act.method ?? 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(act.body) })
       const body = await res.json().catch(() => null)
       const said = res.ok
         ? { ok: true, says: typeof body?.data?.message === 'string' ? body.data.message : typeof body?.data?.says === 'string' ? body.data.says : act.done }

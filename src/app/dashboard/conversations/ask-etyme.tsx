@@ -379,7 +379,7 @@ export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
     if (!press) return
     setDeciding(card.key)
     try {
-      const res = await fetch(press.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(press.body) })
+      const res = await fetch(press.url, { method: press.method ?? 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(press.body) })
       const body = await res.json().catch(() => null)
       setActed((a) => ({
         ...a,

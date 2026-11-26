@@ -54,11 +54,11 @@ export function OneCard({ onShown }: { onShown?: (shown: boolean) => void }) {
   }, [read, later])
   const card = line[0] ?? null
 
-  async function answer(act: { url: string; body: Record<string, unknown>; done: string }) {
+  async function answer(act: { url: string; method?: 'PATCH'; body: Record<string, unknown>; done: string }) {
     setBusy(true)
     let result: Said
     try {
-      const res = await fetch(act.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(act.body) })
+      const res = await fetch(act.url, { method: act.method ?? 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(act.body) })
       const body = await res.json().catch(() => null)
       result = res.ok
         ? { ok: true, says: typeof body?.data?.message === 'string' ? body.data.message : typeof body?.data?.says === 'string' ? body.data.says : act.done }

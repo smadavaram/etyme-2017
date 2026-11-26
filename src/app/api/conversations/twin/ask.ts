@@ -3995,6 +3995,8 @@ export interface QueueAct {
   label: string
   /** The one route that already performs it; the chat adds no door. */
   url: string
+  /** POST unless the route is a PATCH (a supplier request's verdict). */
+  method?: 'PATCH'
   body: Record<string, unknown>
   /** What the card reads after the route said yes, where the route says nothing of its own. */
   done: string
@@ -4247,6 +4249,21 @@ export function queueAct(d: QueueItem): QueueAct | null {
   }
   if (d.type === 'EXPENSE_ACCEPTANCE') {
     return { label: 'Accept expense', url: `/api/expenses/${id}/accept`, body: { decision: 'accept' }, done: 'Accepted, and recorded under your name.' }
+  }
+  // A job request waiting on this seat's rank: the one route the request's
+  // own page presses. No reason is asked to approve (only to reject or send
+  // back), and the route refuses a seat whose turn it is not, in a sentence.
+  if (d.type === 'REQUISITION_APPROVAL') {
+    return { label: 'Approve job request', url: `/api/requisitions/${id}/approve`, body: { action: 'approve' }, done: 'Approved, and recorded under your name.' }
+  }
+  // A supplier review is one press only where this role has nothing left to
+  // verify: the row's own count reads "3 of 3 verified", or has no count
+  // (the department lead holds no paperwork). Paper still to verify opens
+  // the page, where the checking is done; the route refuses it as well.
+  if (d.type === 'SUPPLIER_REVIEW') {
+    const count = (d.subtitle ?? '').match(/(\d+) of (\d+) verified(, \d+ to verify)?\s*$/)
+    if (count && (count[3] || count[1] !== count[2])) return null
+    return { label: 'Approve supplier', url: `/api/supplier-requests/${id}`, method: 'PATCH', body: { action: 'approve' }, done: 'Approved, and recorded under your name.' }
   }
   return null
 }
