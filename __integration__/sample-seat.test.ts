@@ -120,7 +120,7 @@ describe('the shared sample seat the home page frames', () => {
     const panel = html.slice(html.indexOf('>Contractors<'), html.indexOf('>By supplier<'))
     const body = panel.slice(panel.indexOf('<tbody>'), panel.indexOf('</tbody>'))
     const names = [...body.matchAll(/<tr[^>]*><td[^>]*>([^<]*)<\/td>/g)].map((m) => m[1])
-    expect(onSiteFigure).toBe(7)
+    expect(onSiteFigure).toBe(8) // Anil Rao joined Brightmoor's program in the seed (1c6acb3e2, 6e539a74b)
     expect(names).toHaveLength(onSiteFigure)
     expect(new Set(names).size).toBe(onSiteFigure)
     // Somebody signed who starts after today is not a row beside the figure;

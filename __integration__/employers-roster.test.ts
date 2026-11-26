@@ -34,20 +34,20 @@ const TELLISFORD_PAYROLL = ['Amara Nwosu', 'Deepa Varma', 'Felix Brenner', 'Kart
 // placement, pay line or listing names is neither payroll nor bench.
 const TELLISFORD_STAFF = ['Ingrid Solberg', 'Rahul Dandekar', 'Farah Haddad', 'Ravi Kalathil']
 const SUNDARA = `world-sundara${D}`
-const TECWYN_BENCH = ['Grace Lindqvist', 'Helena Marsh', 'Ifeoma Balogun', 'Peter Halloran', 'Priya Ramesh']
+const TECWYN_BENCH = ['Grace Lindqvist', 'Helena Marsh', 'Ifeoma Balogun', 'Peter Halloran', 'Priya Ramesh', 'Pavel Novak']
 
 beforeAll(async () => {
   await freshWorld()
 }, 600_000)
 
 describe('a firm’s bench and its training page agree about how many of its people have skills', () => {
-  it('reads five on Tecwyn’s bench, every one of them with skills on record', async () => {
+  it('reads six on Tecwyn’s bench (five and Pavel Novak, whom it sent up to Brightmoor), every one of them with skills on record', async () => {
     as(TECWYN)
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
 
     const rows = [...r.body.data.tiers.RETAINED, ...r.body.data.tiers.MARKETING]
-    expect(rows).toHaveLength(5)
+    expect(rows).toHaveLength(TECWYN_BENCH.length)
     for (const name of TECWYN_BENCH) {
       expect(rows.map((l: any) => l.consultant.person.name)).toContain(name)
     }
@@ -64,11 +64,11 @@ describe('a firm’s bench and its training page agree about how many of its peo
     const r = await json(await bench(req('GET', '/api/bench?scope=company')))
     const reading = readBench(r.body)
     expect(reading.ok, reading.why ?? '').toBe(true)
-    expect(reading.rows).toHaveLength(5)
+    expect(reading.rows).toHaveLength(TECWYN_BENCH.length)
 
     const gap = skillGap([{ skills: ['ERP finance'] }], { people: reading.rows })
-    expect(gap.people).toBe(5)
-    expect(gap.peopleWithSkills).toBe(5)
+    expect(gap.people).toBe(TECWYN_BENCH.length)
+    expect(gap.peopleWithSkills).toBe(TECWYN_BENCH.length)
     expect(gap.comparable).toBe(true)
     // Three of the five hold ERP finance, so one open role asking for it
     // is a surplus and not a deficit — which is the number that used to
