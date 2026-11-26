@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { Route } from 'next'
 import { statusMeans } from '@/lib/read-response'
-import { barWords, dueCount, lateCount } from '@/lib/notify/one-card/score-bar'
+import { barFigures } from '@/lib/notify/one-card/score-bar'
 import type { OneCard as Card } from '@/lib/notify/one-card/build'
 import type { OneCardRead } from '@/lib/notify/one-card/read'
 
@@ -43,7 +43,7 @@ export function OneCard({ onShown }: { onShown?: (shown: boolean) => void }) {
     }
   }, [])
   useEffect(() => { void load() }, [load])
-  useEffect(() => { onShown?.(!!read && !refused) }, [read, refused, onShown])
+  useEffect(() => { onShown?.(!!read && !refused && read.own !== 'NONE') }, [read, refused, onShown])
 
   // The card in focus: the highest score that was not put off, then the ones that were, in the order they were put off.
   const line = useMemo(() => {
@@ -75,28 +75,26 @@ export function OneCard({ onShown }: { onShown?: (shown: boolean) => void }) {
   if (refused) return failed && read ? <p role="status" className="mx-auto mb-4 max-w-[480px] text-[13px] text-etyme-muted">{failed}</p> : null
   if (!read) return <p className="mx-auto mb-4 max-w-[480px] text-[13px] text-etyme-muted" role="status">Reading what needs you…</p>
 
-  const now = new Date()
-  const due = dueCount(read.cards, now)
-  const late = lateCount(read.cards, now)
+  // A seat with no queue of cards (a region seat) reads its greeting, not a block that says nothing is owed.
+  if (read.own === 'NONE') return null
+  const figures = barFigures(read.cards, read.queue, read.onTimePct, new Date())
 
   return (
-    <section aria-label="Your next decision" className="mx-auto mb-6 flex w-full max-w-[480px] flex-col gap-4" data-one-card>
+    <section aria-label="Your next decision" className="mx-auto mb-3 flex w-full max-w-[480px] flex-col gap-3 sm:mb-6 sm:gap-4" data-one-card>
       <div className="flex rounded-[12px] border border-etyme-rule bg-etyme-surface" role="group" aria-label="Score">
-        <Figure value={String(due)} label="Due" />
-        <Figure value={String(late)} label="Late" tone={late > 0 ? 'late' : undefined} />
-        <Figure value={barWords(read.onTimePct, '%')} label="On time" tone={read.onTimePct !== null ? 'ok' : undefined} />
+        {figures.map((f) => <Figure key={f.label} value={f.value} label={f.label} tone={f.tone} />)}
       </div>
 
       {card ? (
-        <article aria-label="Next card" data-card-key={card.key} className="rounded-[16px] border border-etyme-rule bg-etyme-raised p-6 shadow-[0_1px_2px_rgba(31,30,29,0.06),0_8px_24px_rgba(31,30,29,0.06)]">
-          <h2 className="font-serif text-[30px] font-normal leading-[1.15] tracking-[-0.02em] text-etyme-ink">{card.act}</h2>
-          <p className="mt-2 text-[18px] font-medium text-etyme-ink">{card.name}</p>
-          {card.figure && <p className="mt-3 font-mono text-[28px] font-medium tabular-nums text-etyme-ink">{card.figure}</p>}
-          {card.tag && <span className={`mt-3 inline-block text-[13px] font-medium ${/^Late/.test(card.tag) ? 'text-etyme-attention' : 'text-etyme-muted'}`}>{card.tag}</span>}
-          <div className="mt-6 flex gap-3">
+        <article aria-label="Next card" data-card-key={card.key} className="rounded-[16px] border border-etyme-rule bg-etyme-raised p-4 shadow-[0_1px_2px_rgba(31,30,29,0.06),0_8px_24px_rgba(31,30,29,0.06)] sm:p-6">
+          <h2 className="font-serif text-[24px] font-normal leading-[1.15] sm:text-[30px] tracking-[-0.02em] text-etyme-ink">{card.act}</h2>
+          <p className="mt-1.5 text-[17px] sm:mt-2 sm:text-[18px] font-medium text-etyme-ink">{card.name}</p>
+          {card.figure && <p className="mt-2 font-mono text-[24px] sm:mt-3 sm:text-[28px] font-medium tabular-nums text-etyme-ink">{card.figure}</p>}
+          {card.tag && <span className={`mt-2 inline-block sm:mt-3 text-[13px] font-medium ${/^Late/.test(card.tag) ? 'text-etyme-attention' : 'text-etyme-muted'}`}>{card.tag}</span>}
+          <div className="mt-4 flex gap-3 sm:mt-6">
             {card.yes ? (
               <button type="button" disabled={busy} onClick={() => void answer(card.yes!)} className="min-h-[48px] flex-1 rounded-[10px] bg-etyme-action px-5 py-3.5 text-[16px] font-medium text-white hover:bg-etyme-action-hover disabled:opacity-60">
-                {busy ? 'Recording…' : 'Yes'}
+                {busy ? 'Recording…' : card.verb ?? 'Yes'}
               </button>
             ) : card.open ? (
               <Link href={card.open.href as Route} className="flex min-h-[48px] flex-1 items-center justify-center rounded-[10px] bg-etyme-action px-5 py-3.5 text-[16px] font-medium text-white hover:bg-etyme-action-hover">{card.open.words}</Link>
@@ -106,7 +104,7 @@ export function OneCard({ onShown }: { onShown?: (shown: boolean) => void }) {
             )}
             <button type="button" disabled={busy} onClick={() => { setSaid({ ok: true, says: 'Kept waiting. Nothing changed.' }); setWhy(false); setLater((l) => [...l.filter((k) => k !== card.key), card.key]) }} className="min-h-[48px] flex-1 rounded-[10px] border border-etyme-rule px-5 py-3.5 text-[16px] font-medium text-etyme-ink disabled:opacity-60">Not now</button>
           </div>
-          <button type="button" aria-expanded={why} onClick={() => setWhy((w) => !w)} className="mt-4 py-1 text-[14px] text-etyme-action-press underline">Why</button>
+          <button type="button" aria-expanded={why} onClick={() => setWhy((w) => !w)} className="mt-2 py-1 text-[14px] sm:mt-4 text-etyme-action-press underline">Why</button>
           {why && (
             <dl className="mt-2 rounded-[10px] border border-etyme-rule bg-etyme-surface px-3.5 py-3 text-[13px] text-etyme-muted" data-why>
               <dt className="text-[11px] uppercase tracking-[0.06em] text-etyme-faint">Rule</dt>
@@ -119,21 +117,21 @@ export function OneCard({ onShown }: { onShown?: (shown: boolean) => void }) {
           )}
         </article>
       ) : (
-        <p className="rounded-[16px] border border-etyme-rule bg-etyme-raised p-6 font-serif text-[22px] text-etyme-ink">Nothing needs you today.</p>
+        <p className="rounded-[16px] border border-etyme-rule bg-etyme-raised p-4 font-serif text-[22px] text-etyme-ink">Nothing needs you today.</p>
       )}
       {said && <p role="status" className={`text-[13px] ${said.ok ? 'text-etyme-muted' : 'text-etyme-danger'}`} data-said>{said.says}</p>}
 
-      <div className="flex gap-2 text-center">
+      <div className="flex gap-2 text-center" data-one-card-row>
         <Cell value={String(read.queue)} label="Queue" />
-        <Cell value={String(read.doneToday)} label="Done today" />
-        {read.agent.ownerMaySwitch ? (
-          <Link href={read.agent.href as Route} aria-label={`Agent ${read.agent.state}. Change it in Agent control.`} className="min-w-0 flex-1 rounded-[12px] border border-etyme-rule bg-etyme-surface px-1.5 py-2.5">
-            <b className={`block font-mono text-[20px] font-medium ${read.agent.state === 'On' ? 'text-etyme-verified' : 'text-etyme-ink'}`}>{read.agent.state}</b>
+        <Cell value={read.doneToday === null ? '–' : String(read.doneToday)} label="Done today" />
+        {read.agent && (read.agent.ownerMaySwitch ? (
+          <Link href={read.agent.href as Route} aria-label={`Agent ${read.agent.words}. Change it in Agent control.`} className="min-w-0 flex-1 rounded-[12px] border border-etyme-rule bg-etyme-surface px-1.5 py-2.5">
+            <b className={`block font-mono text-[20px] font-medium ${read.agent.on > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>{read.agent.words}</b>
             <span className="text-[12px] text-etyme-muted">Agent</span>
           </Link>
         ) : (
-          <Cell value={read.agent.state} label="Agent" tone={read.agent.state === 'On' ? 'ok' : undefined} />
-        )}
+          <Cell value={read.agent.words} label="Agent" tone={read.agent.on > 0 ? 'ok' : undefined} />
+        ))}
       </div>
     </section>
   )
@@ -141,8 +139,8 @@ export function OneCard({ onShown }: { onShown?: (shown: boolean) => void }) {
 
 function Figure({ value, label, tone }: { value: string; label: string; tone?: 'late' | 'ok' }) {
   return (
-    <div className="min-w-0 flex-1 border-l border-etyme-rule p-3 text-center first:border-l-0">
-      <b className={`block font-mono text-[26px] font-medium tabular-nums ${tone === 'late' ? 'text-etyme-attention' : tone === 'ok' ? 'text-etyme-verified' : 'text-etyme-ink'}`}>{value}</b>
+    <div className="min-w-0 flex-1 border-l border-etyme-rule p-2 text-center first:border-l-0 sm:p-3">
+      <b className={`block font-mono text-[22px] sm:text-[26px] font-medium tabular-nums ${tone === 'late' ? 'text-etyme-attention' : tone === 'ok' ? 'text-etyme-verified' : 'text-etyme-ink'}`}>{value}</b>
       <span className="text-[12px] text-etyme-muted">{label}</span>
     </div>
   )

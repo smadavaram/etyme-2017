@@ -13,7 +13,7 @@
  * date was never late and never early.
  */
 
-import { daysToDue, type Scorable } from './score'
+import { daysOpen, daysToDue, type Scorable } from './score'
 
 export interface DoneCard {
   /** The day it was owed, where the record had one. */
@@ -57,4 +57,39 @@ export function touchSeconds(samples: readonly number[]): number | null {
 /** A figure on the bar: the number, or a dash where the record cannot say. */
 export function barWords(n: number | null, unit: '' | '%' = ''): string {
   return n === null ? '–' : `${n}${unit}`
+}
+
+/** Whole days the oldest card has been open; null where no card says when it appeared. */
+export function oldestDays(cards: ReadonlyArray<Pick<Scorable, 'dueOn' | 'openedOn'>>, now: Date): number | null {
+  const open = cards.map((c) => (c.openedOn ? daysOpen(c, now) : null)).filter((d): d is number => d !== null)
+  return open.length === 0 ? null : Math.max(...open)
+}
+
+export interface BarFigure { label: string; value: string; tone?: 'late' | 'ok' }
+
+/**
+ * The score bar's figures, each true on the record:
+ *   Waiting  = the queue total, the number on the Ask Etyme badge
+ *   Oldest   = days the oldest card has been open ("5 d"), a dash where none says
+ *   On time  = a dash until something done had a due date
+ * Due and Late join only where a card carries a real due date.
+ */
+export function barFigures(
+  cards: ReadonlyArray<Pick<Scorable, 'dueOn' | 'openedOn'>>,
+  queue: number,
+  onTime: number | null,
+  now: Date,
+): BarFigure[] {
+  const oldest = oldestDays(cards, now)
+  const figures: BarFigure[] = [
+    { label: 'Waiting', value: String(queue) },
+    { label: 'Oldest', value: oldest === null ? '–' : `${oldest} d` },
+  ]
+  if (cards.some((c) => c.dueOn != null)) {
+    const late = lateCount(cards, now)
+    figures.push({ label: 'Due', value: String(dueCount(cards, now)) })
+    figures.push({ label: 'Late', value: String(late), tone: late > 0 ? 'late' : undefined })
+  }
+  figures.push({ label: 'On time', value: barWords(onTime, '%'), tone: onTime !== null ? 'ok' : undefined })
+  return figures
 }

@@ -109,6 +109,33 @@ describe('the one-card screen reads the seeded world', () => {
     expect((await read(AP)).body.data.agent.state).toBe('On')
   })
 
+  it('a worker sees her own next card and never a 403', async () => {
+    for (const email of ['helena.marsh@seed.etyme.invalid', 'karthik.menon@seed.etyme.invalid', 'ruben.ortega@seed.etyme.invalid']) {
+      const got = await read(email)
+      expect(got.status, email).toBe(200)
+      expect(got.body.data.own, email).toBe('WORKER')
+      expect(got.body.data.queue, email).toBe(got.body.data.cards.length)
+      for (const c of got.body.data.cards) {
+        expect(c.act).not.toMatch(/^Open/)
+        expect(c.yes).toBeNull()
+        expect(c.open.href).toMatch(/^\/dashboard\//)
+      }
+    }
+  })
+
+  it('a regional manager is answered with no cards and never a 403', async () => {
+    const got = await read('world-corvane-region-us@demo.etyme.local')
+    expect(got.status).toBe(200)
+    expect(got.body.data.own).toBe('NONE')
+    expect(got.body.data.cards).toEqual([])
+  })
+
+  it('the agent cell reads the count of agents switched on, and the AP clerk is shown it without a link', async () => {
+    const got = await read(AP)
+    expect(got.body.data.agent.words).toMatch(/^(Off|\d+ on)$/)
+    expect(got.body.data.agent.on).toBeGreaterThanOrEqual(1)
+  })
+
   it('a caller with no seat is refused in a sentence, never handed an empty queue', async () => {
     as('nobody-at-all@example.invalid')
     const res = await json(await oneCard.GET(req('GET', '/api/conversations/one-card')))

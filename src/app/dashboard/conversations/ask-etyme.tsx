@@ -502,8 +502,9 @@ export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
         <div className="flex-1 overflow-y-auto p-4"><RefusedState says={refused} /></div>
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-6 sm:px-6">
-            {!worker && party !== 'WORKER' && <OneCard onShown={setOneCard} />}
+          {/* The one-card block sits directly under the header, outside the scrolling transcript: score bar, card and the Queue row are the first screen (record 130). */}
+          <div className="max-h-[calc(100%-9rem)] shrink-0 overflow-y-auto px-3 pt-3 empty:hidden sm:px-6 sm:pt-6"><OneCard onShown={setOneCard} /></div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-3 sm:px-6 sm:pt-6">
             {notKept && (
               <p role="note" className="mx-auto mb-5 max-w-[760px] text-center text-[12.5px] leading-snug text-etyme-muted">{notKept}</p>
             )}
@@ -512,7 +513,7 @@ export function AskEtyme({ threadId = null, onOpen, onKept, onShowList }: {
                 <button type="button" onClick={() => void showEarlier()} className="text-[12.5px] text-etyme-action-press underline-offset-2 hover:underline">Show earlier</button>
               </p>
             )}
-            <ol className={`mx-auto flex max-w-[760px] flex-col gap-5${oneCard && !worker && history.length === 0 && turns.length === 1 && turns[0].from === 'etyme' ? ' hidden' : ''}`} aria-live="polite">
+            <ol className={`mx-auto flex max-w-[760px] flex-col gap-5${oneCard && history.length === 0 && turns.length === 1 && turns[0].from === 'etyme' ? ' hidden' : ''}`} aria-live="polite">
               {[...history, ...turns].map((t) => (
                 <li key={t.id}>
                   {t.from === 'you' && (

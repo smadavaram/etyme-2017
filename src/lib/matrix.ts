@@ -529,7 +529,9 @@ export const MATRIX: L1[] = [
           testedBy: ['__tests__/invariants/pods-rules.test.ts', '__tests__/invariants/pods-plugin-off.test.ts', '__tests__/invariants/pod-sale-rules.test.ts', '__tests__/invariants/pod-margin.test.ts', '__tests__/invariants/pod-sale-is-called-only-from-the-acceptors-yes.test.ts', '__integration__/pods-supplier.test.ts', '__integration__/pods-sale.test.ts', '__integration__/pods-client.test.ts', '__integration__/pods-supply-wiring.test.ts', '__tests__/invariants/pods-client-rules.test.ts', '__integration__/pod-sale-card.test.ts', '__tests__/invariants/pod-sale-card.test.ts', '__tests__/invariants/pods-offer-rules.test.ts', '__integration__/pods-proposal.test.ts', '__tests__/invariants/role-contract-act-added-later.test.ts'] },
         { code: 'L3.1.2.12', name: 'Ask Etyme, one job one card: the score bar, one focused card ordered by urgency \u00d7 value \u00d7 confidence, Yes or Not now, Why on a tap', owner: 'Owner', status: P,
           tasks: [
-            'The score bar reads Due, Late and On time % from the record; On time % is a dash where nothing done had a due date, never 100',
+            'The score bar reads Waiting (the queue total), Oldest (days the oldest card has been open) and On time % from the record; Due and Late join only where a card carries a real due date; On time % is a dash where nothing done had a due date, never 100',
+            'Every kind of row has an act name on its card (Approve timesheet, Approve job request, Approve supplier, Pay invoice); the button reads the verb where one press does it; no heading reads Open',
+            'Every signed-in seat is answered from its own queue and never a 403: a worker reads her own work as cards, a region seat reads none; the Agent cell reads the count of agents switched on',
             'One card in focus, ordered by urgency \u00d7 value \u00d7 confidence; urgency falls back to days open where a row has no due date; value and confidence read 1 until known',
             'A card has a name, a figure and the act, in 12 words or fewer, and no sentence',
             'Yes and Not now go through the existing verdict route of that row; a row with no verdict route offers one button that opens its record; no new route is added',
@@ -537,8 +539,8 @@ export const MATRIX: L1[] = [
             'Queue, Done today and the Agent switch read the same as the Ask Etyme badge; only the Owner switches the agent',
             'The screen fits 390 wide with no sideways scroll; a browser test presses Yes and proves the card, the record on reload and the ledger row',
           ],
-          implementedBy: ['src/lib/notify/one-card/score.ts', 'src/lib/notify/one-card/score-bar.ts', 'src/lib/notify/one-card/wording.ts', 'src/lib/notify/one-card/build.ts', 'src/lib/notify/one-card/read.ts', 'src/app/api/conversations/one-card/route.ts', 'src/app/dashboard/conversations/one-card.tsx', 'src/app/dashboard/conversations/ask-etyme.tsx'],
-          testedBy: ['__tests__/unit/one-card-math.test.ts', '__tests__/unit/one-card-build.test.ts', '__integration__/one-card-screen.test.ts'],
+          implementedBy: ['src/lib/notify/one-card/score.ts', 'src/lib/notify/one-card/score-bar.ts', 'src/lib/notify/one-card/wording.ts', 'src/lib/notify/one-card/build.ts', 'src/lib/notify/one-card/read.ts', 'src/app/api/conversations/one-card/route.ts', 'src/app/dashboard/conversations/one-card.tsx', 'src/app/dashboard/conversations/ask-etyme.tsx', 'src/lib/notify/one-card/acts.ts', 'src/lib/notify/one-card/worker.ts'],
+          testedBy: ['__tests__/unit/one-card-math.test.ts', '__tests__/unit/one-card-build.test.ts', '__integration__/one-card-screen.test.ts', '__tests__/unit/one-card-acts.test.ts', '__tests__/browser/one-card.spec.ts'],
         },
       ]},
       { code: 'L2.1.4', name: 'Reaching the market, and moving work between firms', domain: 'MARKET', processes: [

@@ -31,7 +31,7 @@ test('a hiring manager presses Yes on a week, and the card, the record on reload
   const card = screen.locator('article[data-card-key]')
   for (let i = 0; i < 12; i++) {
     const key = await card.getAttribute('data-card-key')
-    if (key?.startsWith('TIMESHEET_APPROVAL:') && (await card.getByRole('button', { name: 'Yes' }).count()) > 0) break
+    if (key?.startsWith('TIMESHEET_APPROVAL:') && (await card.getByRole('button', { name: 'Approve', exact: true }).count()) > 0) break
     await card.getByRole('button', { name: 'Not now' }).click()
     await expect(card).not.toHaveAttribute('data-card-key', key ?? '')
   }
@@ -43,7 +43,7 @@ test('a hiring manager presses Yes on a week, and the card, the record on reload
   const rowsBefore = await db.automationLog.count({ where: { action: 'TIMESHEET_APPROVED' } })
   expect((await db.timesheet.findUniqueOrThrow({ where: { id: timesheetId } })).clientApprovedAt).toBeNull()
 
-  await card.getByRole('button', { name: 'Yes' }).click()
+  await card.getByRole('button', { name: 'Approve', exact: true }).click()
 
   // 1. The card: the route's own sentence, and that card is no longer in focus.
   await expect(page.locator('[data-said]')).toContainText(/\S/)
@@ -88,6 +88,46 @@ test('the screen fits a 390 wide phone with no sideways scroll, for each of thre
     expect(wide, `${as}/${desk} scrolls sideways by ${wide}px`).toBeLessThanOrEqual(0)
     await ctx.close()
   }
+})
+
+test('on a 390 by 844 phone the score bar, the card and the Queue, Done today and Agent row are all in the first screen', async ({ browser }) => {
+  for (const [as, desk] of [['world-nike', 'hiring'], ['world-nike', 'procurement'], ['world-brightmoor', 'recruiter']] as const) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
+    const page = await ctx.newPage()
+    await sitAs(page, as, desk)
+    await page.goto(ASK)
+    const screen = page.locator('[data-one-card]')
+    await expect(screen).toBeVisible()
+    for (const part of [screen.locator('[role="group"][aria-label="Score"]'), screen.locator('[data-one-card-row]')]) {
+      const box = await part.boundingBox()
+      expect(box, `${as}/${desk}: a part of the block is not drawn`).not.toBeNull()
+      expect(box!.y + box!.height, `${as}/${desk}: ends below the first screen`).toBeLessThanOrEqual(844)
+    }
+    // The Queue row is not inside a scrolling box of its own.
+    const scrolls = await screen.locator('[data-one-card-row]').evaluate((el) => {
+      for (let n = el.parentElement; n; n = n.parentElement) { const o = getComputedStyle(n).overflowY; if ((o === 'auto' || o === 'scroll') && n.scrollHeight > n.clientHeight) return true }
+      return false
+    })
+    expect(scrolls, `${as}/${desk}: the row is inside a box that scrolls`).toBe(false)
+    await ctx.close()
+  }
+})
+
+test('the score bar reads Waiting, Oldest and On time, and never 0 Due and 0 Late above a waiting card', async ({ page }) => {
+  await sitAs(page, 'world-nike', 'hiring')
+  await page.goto(ASK)
+  const screen = page.locator('[data-one-card]')
+  const score = screen.locator('[role="group"][aria-label="Score"]')
+  await expect(score.getByText('Waiting', { exact: true })).toBeVisible()
+  await expect(score.getByText('Oldest', { exact: true })).toBeVisible()
+  await expect(score.getByText('On time', { exact: true })).toBeVisible()
+  expect(Number(await num(page, 'Waiting'))).toBe(await num(page, 'Queue'))
+})
+
+test('a card heading names the act, never Open', async ({ page }) => {
+  await sitAs(page, 'world-nike', 'hiring')
+  await page.goto(ASK)
+  await expect(page.locator('[data-one-card] article h2')).not.toHaveText(/^Open\b/)
 })
 
 test('only the Owner is offered the agent switch', async ({ page }) => {

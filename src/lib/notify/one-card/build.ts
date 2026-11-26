@@ -12,6 +12,7 @@
 import { queueFrom, type QueueAct, type QueueCard, type QueueItem } from '@/app/api/conversations/twin/ask'
 import { todayRows } from '@/components/twin-conversation/today-decisions'
 import { inOrder, medianAmount, scoreOf, type Scorable } from './score'
+import { actHeading, actVerb } from './acts'
 import { fitCard, hoursFigure, moneyFigure, tagOf, type CardWords } from './wording'
 
 export interface Why {
@@ -27,6 +28,8 @@ export interface OneCard extends CardWords, Scorable {
   type: string
   /** The one route's act, where one route performs it; the card's Yes. */
   yes: QueueAct | null
+  /** The button of the card's one press: the verb ("Approve"), never "Yes"; null where the row only opens a page. */
+  verb: string | null
   /** A second act through the same route where a no is an answer (an Owner ask's No). */
   no: QueueAct | null
   /** Where a row with no verdict route opens its record: the one button. */
@@ -43,8 +46,6 @@ export const RULES: Record<string, string> = {
   SUBMISSION_REVIEW: 'Answer each candidate put forward to the job.',
   START_HELD: 'Nobody starts without the paper that lets them.',
 }
-/** The headline of a card whose button only opens its record, where the button's own word is too short to say the job. */
-export const HEADLINES: Record<string, string> = { INVOICE_RECEIPT_TO_PAY: 'Pay invoice' }
 export const PLAIN_RULE = 'Yes is recorded under your name. Not now changes nothing.'
 export const NO_LEDGER_YET = 'No ledger line yet. Yes writes one.'
 
@@ -77,7 +78,7 @@ export function oneCardsFrom(body: unknown, ledgerByEntity: ReadonlyMap<string, 
     const openedOn = str(r?.createdAt)
     const amount = typeof r?.amount === 'number' && Number.isFinite(r.amount) ? r.amount : null
     const words = fitCard({
-      act: card.act?.label ?? HEADLINES[card.type] ?? card.open ?? 'Open',
+      act: actHeading(card.type, item?.title, card.act?.label),
       name: nameOf(item, card),
       figure: moneyFigure(item?.subtitle) ?? hoursFigure(item?.subtitle),
       tag: tagOf({ dueOn, openedOn }, now),
@@ -86,6 +87,7 @@ export function oneCardsFrom(body: unknown, ledgerByEntity: ReadonlyMap<string, 
     return {
       key: card.key, type: card.type, ...words, dueOn, openedOn, amount, confidence: null as number | null,
       yes: card.act, no: card.no ?? null,
+      verb: card.act ? actVerb(card.type, item?.title, card.act.label) : null,
       open: card.act ? null : { href: card.href, words: card.open ?? 'Open' },
       why: {
         rule: card.why ?? RULES[card.type] ?? PLAIN_RULE,
