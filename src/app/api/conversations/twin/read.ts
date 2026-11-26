@@ -12,7 +12,8 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { isSent } from '@/lib/money/bill-state'
 import type { CallerContext } from '@/lib/api-context'
-import { feedWhere, ledgerFeed, waitingQuestions, ownerOnlyException } from '@/lib/twin/ledger'
+import { feedWhere, ledgerFeed, waitingQuestions, ownerOnlyException, namedPersonOf } from '@/lib/twin/ledger'
+import { podOfferTitle } from '@/lib/notify/pod-sale-notices'
 import { TWIN_ACTS } from '@/lib/autonomy'
 import { hasPermission, hasAnyPermission, desksHolding, type Permission } from '@/lib/permissions'
 import { tenureWarnings } from '@/lib/twin/rules/tenure'
@@ -405,6 +406,11 @@ export function readersFor(
         const p = asRecord(r.twinAction.payload)
         if (r.twinAction.action === RECEIPT_APPROVE && toPay.has(r.twinAction.entityId)) return false
         if (client && suppliersOnly(r.twinAction.action)) return false
+        // A question that names one person (record 120, pods) is hers alone:
+        // a colleague holding every permission does not read it, and she
+        // reads it whatever her desk holds.
+        const named = namedPersonOf(r.twinAction.action, r.twinAction.payload)
+        if (named !== null) return named === caller.person.id
         if (!hasPermission(caller.permissions, r.needsPermission as Permission)) return false
         if (askedYou.has(r.id)) return true
         return r.twinAction.authorityPersonId !== caller.person.id &&
@@ -431,6 +437,7 @@ export function readersFor(
         const bill = a.action === BILL_SEND ? liveBills.get(r.id) ?? billFromPayload(p) : null
         const putForward = a.action === PUT_FORWARD ? putForwardFromPayload(p, PUT_FORWARD_SENTENCES) : null
         const title = bill ? billItemTitle(bill)
+          : a.action === 'pod.sale.accept' ? podOfferTitle(p)
           : putForward ? putForwardItemTitle(putForward)
           : a.entityType === 'Invoice'
           ? `${typeof p.number === 'string' ? p.number : 'Invoice receipt'}${typeof p.supplierName === 'string' ? ` from ${p.supplierName}` : ''}`
