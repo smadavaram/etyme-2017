@@ -13,7 +13,8 @@
  * that is a no-op. On one with a month of real timesheets in it, it is
  * a very bad afternoon.
  *
- * So it does nothing unless DB_PUSH_ON_BUILD is set. Turn it on for the
+ * So a push that could lose data runs only when DB_PUSH_ON_BUILD is set;
+ * additive changes apply on every build (see below). Turn it on for the
  * deploy that needs it, turn it off again after. A destructive step that
  * runs on every build is one that eventually runs on the wrong build.
  */
@@ -35,15 +36,36 @@ const said = String(process.env.DB_PUSH_ON_BUILD ?? '').trim().toLowerCase()
 const asked = ['1', 'true', 'yes', 'on'].includes(said)
 
 if (!asked) {
-  // Said exactly, because this line is the one somebody reads in a build
-  // log to decide whether the deploy is safe. "Not set" when it is in
-  // fact set to something unrecognised sends them to look in the wrong
-  // place.
+  // Additive changes apply on every build (2026-11-26). The deploy of that
+  // day shipped new columns with the flag off: the build succeeded, and
+  // every storefront and signed-in page returned 500. A push WITHOUT
+  // --accept-data-loss only ever adds: Prisma refuses any change that
+  // would drop or narrow data. So new tables and columns land by
+  // themselves, and anything destructive still needs the flag, said on
+  // purpose. A refused push fails the build here, where somebody is
+  // watching, instead of shipping code against a schema it lacks.
   console.log(
     said === ''
-      ? 'db-sync: DB_PUSH_ON_BUILD is not set — leaving the database alone.'
-      : `db-sync: DB_PUSH_ON_BUILD is "${said}", which is not a yes — leaving the database alone.`
+      ? 'db-sync: DB_PUSH_ON_BUILD is not set — applying additive changes only.'
+      : `db-sync: DB_PUSH_ON_BUILD is "${said}", which is not a yes — applying additive changes only.`
   )
+  if (!process.env.DATABASE_URL) {
+    console.log('db-sync: no DATABASE_URL — leaving the database alone.')
+    process.exit(0)
+  }
+  try {
+    execSync('npx prisma db push --skip-generate', { stdio: 'inherit' })
+  } catch (err) {
+    console.error('db-sync: the schema has a change that would lose data. Set DB_PUSH_ON_BUILD=1 for this deploy if that is intended.')
+    process.exit(1)
+  }
+  try {
+    execSync('npx prisma db execute --file prisma/sql/append-only.sql --schema prisma/schema.prisma', { stdio: 'inherit' })
+  } catch (err) {
+    console.error('db-sync: the security log guard could not be applied (prisma/sql/append-only.sql).')
+    process.exit(1)
+  }
+  console.log('db-sync: additive changes applied.')
   process.exit(0)
 }
 
