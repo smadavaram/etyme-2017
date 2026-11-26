@@ -7,7 +7,7 @@ import { SALE_KINDS } from '@/lib/money/pod-sale'
 import { podSaleFromPayload, CARD_SALE_KINDS } from '@/lib/twin/pod-sale-card'
 
 const payload = {
-  podId: 'p1', sellerCompanyId: 's1', clientCompanyId: 'c1', acceptorPersonId: 'a1', currency: 'USD', kind: 'MILESTONE', priceCents: 200,
+  podId: 'p1', projectName: 'Data platform build', sellerCompanyId: 's1', clientCompanyId: 'c1', acceptorPersonId: 'a1', currency: 'USD', kind: 'MILESTONE', priceCents: 200,
   deliverables: [{ name: 'Stage 1', amountCents: 100, dueOn: '2026-12-01T00:00:00.000Z' }, { name: 'Stage 2', amountCents: 100, dueOn: null }],
 }
 
@@ -34,6 +34,10 @@ describe('the team sale card on the one approval route', () => {
     expect(sale).toMatchObject({ podId: 'p1', acceptorPersonId: 'a1', priceCents: 200 })
     expect(sale?.deliverables[0].dueOn).toEqual(new Date('2026-12-01T00:00:00.000Z'))
     expect(sale?.deliverables[1].dueOn).toBeNull()
+    expect(sale?.projectName).toBe('Data platform build')
+  })
+  it('a payload with no project name reads back as no sale at all', () => {
+    expect(podSaleFromPayload({ ...payload, projectName: undefined })).toBeNull()
   })
   it('the card offers exactly the kinds of sale the sale writer knows', () => {
     expect([...CARD_SALE_KINDS]).toEqual([...SALE_KINDS])

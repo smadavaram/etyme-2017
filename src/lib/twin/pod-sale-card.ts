@@ -18,6 +18,8 @@ import type { Prisma } from '@prisma/client'
 import { amountsRule, isWholeCents } from '@/lib/pods'
 import { contractFor } from '@/lib/twin/role-contract'
 import { pastEndDate } from '@/lib/account-lifecycle'
+import { reportError } from '@/lib/alerts'
+import { tellAcceptor, tellProposer, type PodOffer } from '@/lib/notify/pod-sale-notices'
 
 export const POD_SALE_ACT = 'pod.sale.accept'
 
@@ -61,7 +63,7 @@ export interface PodSaleCardInput {
 }
 
 export type PodSaleCardResult =
-  | { ok: true; approvalId: string; twinActionId: string }
+  | { ok: true; approvalId: string; twinActionId: string; offer: PodOffer }
   | { ok: false; says: string; field: string | null }
 
 /** What is kept on the card, as JSON. Dates are ISO strings. */
@@ -199,5 +201,49 @@ export async function raisePodSaleCard(tx: Prisma.TransactionClient, input: PodS
       reversible: false,
     },
   })
-  return { ok: true, approvalId: approval.id, twinActionId: row.id }
+  const offer: PodOffer = {
+    acceptorPersonId: input.acceptorPersonId, proposedByPersonId: input.proposedByPersonId,
+    clientCompanyId: input.clientCompanyId, sellerCompanyId: input.sellerCompanyId,
+    approvalId: approval.id, sellerName: input.sellerName, projectName: input.projectName,
+  }
+  return { ok: true, approvalId: approval.id, twinActionId: row.id, offer }
+}
+
+/** The offer a card carries, read from its payload and its approval; null where the payload is not a whole offer. Pure. */
+export function podOfferFromPayload(payload: unknown, approvalId: string): PodOffer | null {
+  const p = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>
+  const str = (v: unknown) => (typeof v === 'string' && v ? v : null)
+  const acceptorPersonId = str(p.acceptorPersonId), proposedByPersonId = str(p.proposedByPersonId)
+  const clientCompanyId = str(p.clientCompanyId), sellerCompanyId = str(p.sellerCompanyId)
+  const sellerName = str(p.sellerName), projectName = str(p.projectName)
+  if (!acceptorPersonId || !proposedByPersonId || !clientCompanyId || !sellerCompanyId || !sellerName || !projectName) return null
+  return { acceptorPersonId, proposedByPersonId, clientCompanyId, sellerCompanyId, approvalId, sellerName, projectName }
+}
+
+/**
+ * Tell the named acceptor a card is waiting. Call only AFTER the seller's
+ * transaction has committed (`raisePodSaleCard` runs inside it and cannot
+ * know). Never throws: a notice that fails is reported to staff and the
+ * card stands.
+ */
+export async function tellCardAcceptor(card: { approvalId: string; offer: PodOffer }): Promise<void> {
+  try {
+    await tellAcceptor(card.offer)
+  } catch (err) {
+    await reportError('pod-sale-notice', err, { companyId: card.offer.clientCompanyId, personId: card.offer.acceptorPersonId }).catch(() => undefined)
+  }
+}
+
+/**
+ * Tell the proposer the answer, once it has committed. Never throws.
+ * A card whose payload is not a whole offer tells nobody.
+ */
+export async function tellCardProposer(approvalId: string, payload: unknown, answer: 'APPROVED' | 'REJECTED', reason: string | null): Promise<void> {
+  const offer = podOfferFromPayload(payload, approvalId)
+  if (!offer) return
+  try {
+    await tellProposer(offer, answer, reason)
+  } catch (err) {
+    await reportError('pod-sale-notice', err, { companyId: offer.clientCompanyId, personId: offer.acceptorPersonId }).catch(() => undefined)
+  }
 }

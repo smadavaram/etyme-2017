@@ -35,7 +35,7 @@ import type { TwinKindName } from '@/lib/autonomy'
 import { SUPPLIER_ACT_PERFORMERS } from '@/lib/twin/supplier-performers'
 import { bankHoldTitle } from '@/lib/twin/rules/invoice'
 import { sellPod } from '@/lib/money/pod-sale'
-import { holdsSeatAt, podSaleFromPayload } from '@/lib/twin/pod-sale-card'
+import { holdsSeatAt, podSaleFromPayload, tellCardProposer } from '@/lib/twin/pod-sale-card'
 
 export interface PerformContext {
   companyId: string
@@ -49,6 +49,8 @@ export interface PerformContext {
    * the twin acts alone or is only asking, because nobody said yes.
    */
   approverPersonId: string | null
+  /** The question being decided, where one is; null when the twin acts alone. */
+  approvalId?: string
   /** The ledger entry's rule and rationale, for the notice's body. */
   ruleCited: string
   rationale: string
@@ -432,6 +434,10 @@ const acceptPodSale: Performer = {
     const r = await sellPod(tx, { ...sale, decidedBy: c.approverPersonId })
     if (!r.ok) throw new PerformerRefusal(r.says)
     return { podProjectId: r.podProjectId, projectOrderId: r.projectOrderId, workOrderId: r.workOrderId, engagementId: r.engagementId, milestoneIds: r.milestoneIds }
+  },
+  // The proposer is told of the yes once the project has committed.
+  async after(c) {
+    if (c.approvalId) await tellCardProposer(c.approvalId, c.payload, 'APPROVED', null)
   },
 }
 

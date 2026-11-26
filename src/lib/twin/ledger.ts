@@ -48,6 +48,7 @@ import { logBulkAccess } from '@/lib/access-log'
 import type { CallerContext } from '@/lib/api-context'
 import { contractFor, tierIn, twinName, type Contract, type Tier, type TwinKindName } from '@/lib/twin/role-contract'
 import { PERFORMERS, PerformerRefusal, type PerformContext } from '@/lib/twin/performers'
+import { POD_SALE_ACT, tellCardProposer } from '@/lib/twin/pod-sale-card'
 import { OWNER_DESKS } from '@/lib/twin/readers'
 import { feedLine, questionTitle, type QuestionFacts } from '@/lib/twin/feed-words'
 import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
@@ -971,6 +972,8 @@ export async function decideApproval(args: {
         })
         return row.id
       })
+      // The one act whose no is told to the person who asked, after it has committed.
+      if (asked.action === POD_SALE_ACT) await tellCardProposer(approval.id, asked.payload, 'REJECTED', reason)
       return { ok: true, outcome: 'REJECTED', entryId: id }
     } catch (err) {
       if (err instanceof Error && err.message === 'ALREADY_DECIDED') return { ok: false, status: 409, says: 'Somebody has already answered this.' }
@@ -993,6 +996,7 @@ export async function decideApproval(args: {
     // The person saying yes now, the same id written to the question's
     // approverPersonId below, so a performer never reads it back.
     approverPersonId: args.decider.personId,
+    approvalId: approval.id,
     ruleCited: asked.ruleCited,
     rationale: asked.rationale,
     payload,
