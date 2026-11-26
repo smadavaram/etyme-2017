@@ -5,7 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
 import { podReadRefusal, podWriteRefusal, logPodReads } from '@/lib/pods/caller'
-import { eligiblePeople, readPods } from '@/lib/pods/read'
+import { eligiblePeople, readPods, readProjects } from '@/lib/pods/read'
 import { PRICINGS, isHeadcount, pricingRule } from '@/lib/pods'
 
 /**
@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
   if (refused) return refused
 
   const companyId = caller.company!.id
-  const [teams, people] = await Promise.all([readPods(companyId), eligiblePeople(companyId)])
+  const [teams, people, projects] = await Promise.all([readPods(companyId), eligiblePeople(companyId), readProjects(companyId)])
   logPodReads(caller, teams.flatMap((t) => t.roles.flatMap((r) => r.members.map((m) => m.personId))), 'the people on its teams')
-  return NextResponse.json({ data: { teams, people, mayWrite: hasPermission(caller.permissions, 'requirements.write') } })
+  return NextResponse.json({ data: { teams, people, projects, mayWrite: hasPermission(caller.permissions, 'requirements.write') } })
 }
 
 export async function POST(request: NextRequest) {

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { rosterRule, type RosterFacts } from '@/lib/pods'
+import { rosterRule, projectIsOpen, deliverableState, type RosterFacts } from '@/lib/pods'
 
 /** The firm's teams with roles, headcount and members (names only). */
 export async function readPods(companyId: string, podId?: string) {
@@ -54,4 +54,35 @@ export async function eligiblePeople(companyId: string): Promise<{ personId: str
 /** The firm's own pod, or null. */
 export async function ownPod(companyId: string, id: string) {
   return prisma.pod.findFirst({ where: { id, companyId }, select: { id: true, name: true, pricing: true, sprintPriceCents: true, sprintWeeks: true, archivedAt: true } })
+}
+
+/** The client a team is sold to while a project of it is not fulfilled; null where it is free to change. */
+export async function soldTo(podId: string): Promise<{ clientName: string | null } | null> {
+  const projects = await prisma.podProject.findMany({
+    where: { podId },
+    select: {
+      fulfilledAt: true,
+      projectOrder: { select: { clientCompany: { select: { name: true } } } },
+      deliverables: { select: { startedAt: true, milestone: { select: { status: true, rejectionReason: true } } } },
+    },
+  })
+  const open = projects.find((p) => projectIsOpen({ fulfilledAt: p.fulfilledAt, deliverableStates: p.deliverables.map((d) => deliverableState(d.milestone, d.startedAt)?.state ?? null) }))
+  return open ? { clientName: open.projectOrder.clientCompany?.name ?? null } : null
+}
+
+/** The firm's sold projects, by team: who bought, and whether it is still open. No money here; the margin has its own door. */
+export async function readProjects(companyId: string): Promise<{ id: string; podId: string; name: string; clientName: string | null; open: boolean }[]> {
+  const rows = await prisma.podProject.findMany({
+    where: { pod: { companyId } },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true, podId: true, fulfilledAt: true,
+      projectOrder: { select: { name: true, clientCompany: { select: { name: true } } } },
+      deliverables: { select: { startedAt: true, milestone: { select: { status: true, rejectionReason: true } } } },
+    },
+  })
+  return rows.map((p) => ({
+    id: p.id, podId: p.podId, name: p.projectOrder.name, clientName: p.projectOrder.clientCompany?.name ?? null,
+    open: projectIsOpen({ fulfilledAt: p.fulfilledAt, deliverableStates: p.deliverables.map((d) => deliverableState(d.milestone, d.startedAt)?.state ?? null) }),
+  }))
 }

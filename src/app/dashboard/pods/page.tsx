@@ -21,6 +21,8 @@ interface Team {
   sprintPriceCents: number | null; sprintWeeks: number | null; currency: string
   archivedAt: string | null; headcount: number; filled: number; roles: Role[]
 }
+interface Project { id: string; podId: string; name: string; clientName: string | null; open: boolean }
+interface MarginRead { marginCents: number | null; earnedRevenueCents: number; unknownSays: string[]; currency: string }
 interface Person { personId: string; name: string; email: string | null; kind: 'EMPLOYEE' | 'BENCH' }
 
 const field = 'rounded-md border border-etyme-rule bg-etyme-raised px-2 py-1.5 text-sm text-etyme-ink w-full sm:w-auto'
@@ -37,6 +39,9 @@ export default function ProjectTeamsPage() {
   const section = usePageSection('/dashboard/pods')
   const [teams, setTeams] = useState<Team[] | null>(null)
   const [people, setPeople] = useState<Person[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  // Filled only for a project whose margin route said yes: a seat it refuses draws no margin at all.
+  const [margins, setMargins] = useState<Record<string, MarginRead>>({})
   const [mayWrite, setMayWrite] = useState(false)
   const [refused, setRefused] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
@@ -54,6 +59,14 @@ export default function ProjectTeamsPage() {
     setTeams(body.data.teams)
     setPeople(body.data.people)
     setMayWrite(Boolean(body.data.mayWrite))
+    const sold: Project[] = body.data.projects ?? []
+    setProjects(sold)
+    const got: Record<string, MarginRead> = {}
+    await Promise.all(sold.map(async (p) => {
+      const r = await fetch(`/api/pods/projects/${p.id}/margin`)
+      if (r.ok) { const d = (await r.json().catch(() => ({}))).data; if (d?.margin) got[p.id] = { ...d.margin, unknownSays: d.unknownSays ?? [] } }
+    }))
+    setMargins(got)
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -127,6 +140,18 @@ export default function ProjectTeamsPage() {
                 <span className="text-[11px] text-etyme-faint tabular-nums">{t.filled} of {t.headcount} filled</span>
               </div>
               <p className="text-sm text-etyme-muted mb-3">{priceSays(t)}</p>
+
+              {projects.filter((p) => p.podId === t.id).map((p) => {
+                const m = margins[p.id]
+                return (
+                  <div key={p.id} className="mb-3 rounded-md border border-etyme-rule px-3 py-2 text-sm" aria-label={`Project ${p.name}`}>
+                    <p className="text-etyme-ink">Sold to {p.clientName ?? 'a client'} <span className="text-etyme-muted">· {p.open ? 'in progress' : 'fulfilled'}</span></p>
+                    {m && (m.marginCents !== null
+                      ? <p className="text-etyme-muted tabular-nums">Earned margin {amount(m.marginCents, m.currency)} on {amount(m.earnedRevenueCents, m.currency)} accepted</p>
+                      : m.unknownSays.map((u) => <p key={u} className="text-etyme-muted">{u}</p>))}
+                  </div>
+                )
+              })}
 
               {t.roles.length === 0 && <p className="text-sm text-etyme-muted mb-3">No roles yet.</p>}
               <div className="divide-y divide-etyme-rule mb-3">

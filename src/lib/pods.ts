@@ -109,3 +109,36 @@ export function roleRoom(role: { title: string; headcount: number }, members: nu
 export function isHeadcount(n: unknown): n is number {
   return typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 500
 }
+
+// ── A team that is sold ───────────────────────────────────────────────
+
+/**
+ * The sentence that refuses a change to a team while a project it was sold
+ * on is not fulfilled. The project carries the deal; the team is what the
+ * client bought. Null where nothing is open.
+ */
+export function soldTeamSays(teamName: string, clientName: string | null): string {
+  return `${teamName} is sold to ${clientName ?? 'a client'}; change the project, not the team.`
+}
+
+/** A project is still open until fulfilledAt is set, or every deliverable it has is accepted. */
+export function projectIsOpen(p: { fulfilledAt: Date | null; deliverableStates: readonly (DeliverableState | null)[] }): boolean {
+  return p.fulfilledAt === null && !fulfilled(p.deliverableStates)
+}
+
+/**
+ * What the project row says where the margin is not a number: the unknown,
+ * named. Nothing accepted reads first; a member with no pay record is named;
+ * any other unknown the reader found is passed through unchanged.
+ */
+export function marginUnknownSays(m: { marginCents: number | null; earnedRevenueCents: number; unknowns: readonly string[] }): string[] {
+  if (m.marginCents !== null) return []
+  const out: string[] = []
+  if (m.earnedRevenueCents === 0) out.push('Margin shows once a deliverable is accepted')
+  for (const u of m.unknowns) {
+    if (u.startsWith('No deliverable has been accepted')) continue
+    const who = /^(.+?) has no pay record on this project/.exec(u)
+    out.push(who ? `${who[1]} has no pay record yet` : u)
+  }
+  return out.length ? out : ['Margin is not known yet']
+}

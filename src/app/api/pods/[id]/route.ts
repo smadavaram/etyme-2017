@@ -5,8 +5,8 @@ import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
 import { pluginGate } from '@/lib/plugin-gate'
 import { podReadRefusal, podWriteRefusal, logPodReads } from '@/lib/pods/caller'
-import { eligiblePeople, ownPod, readPods, rosterFacts } from '@/lib/pods/read'
-import { PRICINGS, isHeadcount, isWholeCents, pricingRule, roleRoom, rosterRule } from '@/lib/pods'
+import { eligiblePeople, ownPod, readPods, rosterFacts, soldTo } from '@/lib/pods/read'
+import { PRICINGS, isHeadcount, isWholeCents, pricingRule, roleRoom, rosterRule, soldTeamSays } from '@/lib/pods'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -85,6 +85,11 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
   }
 
   const touchesPrice = ['pricing', 'sprintPriceCents', 'sprintWeeks'].some((k) => body[k] !== undefined) || (roleData && 'rateCents' in roleData)
+  // A team sold on a project that is not fulfilled: its price and its shelf are the deal's, not the team's.
+  if (touchesPrice || body.archived === true) {
+    const sold = await soldTo(id)
+    if (sold) return fail(409, 'SOLD', soldTeamSays(pod.name, sold.clientName))
+  }
   if (touchesPrice) {
     const pricing = body.pricing !== undefined ? String(body.pricing) : pod.pricing
     if (!(PRICINGS as readonly string[]).includes(pricing)) return fail(422, 'VALIDATION', 'Choose a sprint price or a rate card.', 'pricing')
@@ -185,6 +190,11 @@ export async function DELETE(request: NextRequest, { params }: Ctx) {
   if (!pod) return notFound()
   const memberId = request.nextUrl.searchParams.get('memberId')
   const roleId = request.nextUrl.searchParams.get('roleId')
+
+  if (memberId || roleId) {
+    const sold = await soldTo(id)
+    if (sold) return fail(409, 'SOLD', soldTeamSays(pod.name, sold.clientName))
+  }
 
   if (memberId) {
     const m = await prisma.podMember.findFirst({ where: { id: memberId, podRole: { podId: id } }, select: { id: true, person: { select: { name: true } }, podRole: { select: { title: true } } } })
