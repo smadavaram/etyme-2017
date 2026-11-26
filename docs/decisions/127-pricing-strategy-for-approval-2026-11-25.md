@@ -91,3 +91,17 @@ is still open.
 
 The Saturday batch's scope now includes the whole pricing build and the
 published rate card page, with these exact figures.
+
+## The tester's answers on the rate card and the timing, 2026-11-26
+
+- **The rate card is published with the locked figures.** Agent usage is
+  listed by tier and reads: "Metered per action; rates published before
+  metered billing begins."
+  - The meter records every action from now on.
+  - Nothing is charged per action until the per-tier rates and the
+    platform-only rate are approved.
+  - No agent invents those rates.
+- **Pricing may slip a weekend** (record 107: one item ships each
+  weekend). Saturday ships only what has passed its release check and its
+  walk by Friday night. Anything that misses is named in the release
+  notes and takes next weekend's first slot.
