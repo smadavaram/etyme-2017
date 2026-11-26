@@ -907,7 +907,9 @@ Full text → 12, 14, 24, 32, 35.
   data goes only to a US-hosted provider under a data processing agreement;
   Lane C data reaches no model, ever. A step that fails the verifier moves
   to a stronger model for that step only. A missing key is not a
-  production gate.
+  production gate. Steps name a tier, never a model; a tenant may bring its
+  own model and keys; a failed model falls back within its tier, logged.
+  The rate card prices the tier, never the model.
 - **The cheap tier does the clerical work** (founder, 2026-11-18 → 96):
   the stronger tier only when the cheap answer cannot be trusted, and a
   failure there goes to a person. Confidential data never goes to the
