@@ -875,6 +875,11 @@ Full text → 49, 31, 17, 34, 35, 37, 20, 13.
 
 Full text → 12, 14, 24, 32, 35.
 
+- **One job, one card** (tester, 2026-11-26 → 130): the screen shows the
+  next decision for the person's one job: a score bar, one card (a name,
+  a figure, Yes or Not now), the queue, one input. The queue is ordered by
+  urgency × value × confidence. A card has 12 words at most, and its detail
+  sits under "Why". No versions: each piece is built whole.
 - **It is called Ask Etyme, it is a chat, and it is the first screen
   after sign-in.** Conversations are kept and listed per seat. An answer
   that is a list or a figure is shown as data beside the chat, from the
