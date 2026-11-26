@@ -75,3 +75,19 @@ behind one switchable rule.** New work is blocked. Timesheets and invoices
 already in progress complete, so workers already placed are paid. The
 release notes flag the rule, so the owner's answer can change it without
 a rebuild.
+
+## The platform fee is locked: $12,000 a year (the owner, Nov 25)
+
+The Enterprise platform fee is $12,000 a year. No number in the strategy
+is still open.
+
+| Item | Price |
+|---|---|
+| User edition | Free forever, inside another tenant's record, at every level of the network |
+| Starter | $20 per active contractor per month, with a floor of $199 a month and a 60-day trial |
+| Enterprise | $20 per active contractor per month, plus a $12,000 annual platform fee. A free 60-day pilot first, then a custom annual agreement |
+| Usage | Each agent action is metered on the ledger. A published rate card prices actions by capability tier. Paying a year ahead takes about 15% off. A tenant that brings its own model pays the platform-only rate per action |
+| Consulting | $200 an hour, unchanged |
+
+The Saturday batch's scope now includes the whole pricing build and the
+published rate card page, with these exact figures.

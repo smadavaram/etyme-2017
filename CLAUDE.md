@@ -1316,9 +1316,9 @@ company is a free user in another's record, a supplier's own clients
 included. The pricing strategy (→ 127) is for approval only; no agent
 quotes its numbers until locked. LOCKED Nov 25 (→ 127): $20 per active
 contractor a month, Starter floor $199 a month, Enterprise the same rate
-plus an annual platform fee whose amount is still open, usage metered per
+plus a $12,000 annual platform fee, usage metered per
 action by capability tier, about 15% off usage for paying a year ahead.
-Editions at launch: User, Starter, Enterprise. No agent invents the open fee.
+Editions at launch: User, Starter, Enterprise. Consulting is $200 an hour.
 
 **Free while testing; the price is set after five real vendors are using
 it.** Founding firms keep the terms agreed with them, in writing, when a
