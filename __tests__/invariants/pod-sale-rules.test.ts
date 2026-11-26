@@ -86,7 +86,7 @@ describe('a team sale is written only when every rule holds', () => {
     }
   })
   it('a project name that contains the word pod is refused, in any case, alone or plural', () => {
-    for (const projectName of ['Data pod', 'The POD for Nike', 'Pods build']) {
+    for (const projectName of ['Data pod', 'The POD for Northbend', 'Pods build']) {
       expect(saleRefusal(input({ projectName }), facts())?.field).toBe('projectName')
     }
   })
