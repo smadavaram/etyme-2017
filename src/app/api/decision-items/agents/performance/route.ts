@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { recordRefusal } from '@/lib/access-log'
 import { PERIODS, type Period } from '@/lib/skills/performance'
+import { PERFORMANCE_READERS } from '@/lib/skills/performance-readers'
 import { readPanel } from '@/lib/skills/performance-read'
 import { queueSeat, refused } from '../../door'
 
@@ -13,8 +14,6 @@ import { queueSeat, refused } from '../../door'
  * refused in a sentence, logged first. One company's book only. Every
  * figure is a number, a dash or a label; no price or charge is in it.
  */
-
-export const PERFORMANCE_READERS = 'The performance panel is read by the firm’s Owner and Admins.'
 
 export async function GET(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
