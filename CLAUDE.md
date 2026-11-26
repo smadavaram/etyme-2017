@@ -1335,6 +1335,12 @@ answered it. What they settle the lead decides and records. What still
 reaches him is a brief: the choice, what the experts agree on, one
 recommendation.
 
+**The tester decides architecture** (owner, 2026-11-25 → 123):
+business and IT architecture questions go to the tester in session,
+are ruled and recorded, and building goes on. Only money, signing, a
+person and outside sends go back to the owner. Agents draft and
+propose; a person approves and sends.
+
 **Build questions stop at the lead** (owner, 2026-11-21 → 108).
 Release, batching, architecture and acceptance follow the tester's
 documents; a gap is decided by the lead and written in STATE.md. The

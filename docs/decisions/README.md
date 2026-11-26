@@ -138,3 +138,4 @@ built, every release check, every walk and every deploy.
 | 120 | Train-to-bench and pods are plugins, off by default — 2026-11-25 | 457 | [120-train-to-bench-and-pods-are-plugins-off-by-default-2026-11-25.md](120-train-to-bench-and-pods-are-plugins-off-by-default-2026-11-25.md) |
 | 121 | Website and content is a plugin, off by default — 2026-11-25 | 253 | [121-website-and-content-is-a-plugin-2026-11-25.md](121-website-and-content-is-a-plugin-2026-11-25.md) |
 | 122 | Outreach is a plugin, off by default — 2026-11-25 | 150 | [122-outreach-is-a-plugin-2026-11-25.md](122-outreach-is-a-plugin-2026-11-25.md) |
+| 123 | The tester decides architecture; agents draft and propose — 2026-11-25 | 316 | [123-pax-decides-architecture-and-agent-authority-2026-11-25.md](123-pax-decides-architecture-and-agent-authority-2026-11-25.md) |
