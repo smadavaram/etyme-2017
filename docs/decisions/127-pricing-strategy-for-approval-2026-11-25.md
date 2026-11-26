@@ -152,3 +152,14 @@ The owner: "Let starter be 19.99+ user and offer 40% to affiliates."
      those mechanics are ruled.
 
 **The tester, 2026-11-26:** the rate card shows the supplier example exactly: $4,598.20 a year. A published price is never rounded.
+
+## The affiliate terms are locked (the owner, Nov 25): "And 20% forever."
+
+An affiliate earns:
+- 40% of the referred tenant's subscription revenue for the first 12
+  months;
+- then 20%, for as long as the referred tenant keeps paying.
+
+Subscription revenue is the charges per contractor plus the platform fee.
+Usage metered per agent action is not subscription revenue. Neither is
+consulting at $200 an hour. The rate card may now state these terms.

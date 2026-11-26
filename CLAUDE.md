@@ -1320,7 +1320,8 @@ annual platform fee with a floor of $199 a month, Enterprise the same rate
 plus a $12,000 annual platform fee, usage metered per
 action by capability tier, about 15% off usage for paying a year ahead.
 Editions at launch: User, Starter, Enterprise. Consulting is $200 an hour.
-Affiliates earn 40%; how it is paid is open, and no affiliate term is published.
+Affiliates earn 40% of a referred tenant's subscription (per-contractor
+charges plus platform fee) for 12 months, then 20% for as long as it pays.
 
 **Free while testing; the price is set after five real vendors are using
 it.** Founding firms keep the terms agreed with them, in writing, when a
