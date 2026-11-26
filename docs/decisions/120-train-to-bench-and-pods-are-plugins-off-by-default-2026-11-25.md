@@ -156,3 +156,24 @@ The owner said "yes to all five proposals" from the pods plan gate.
 2. **A deliverable is billed only once at least one team member's start
    is confirmed.** The member lines go through the usual check of papers
    first. The acceptance walk starts a member before it bills.
+
+## Pods: member lines and the client (the tester, 2026-11-26)
+
+The tester said yes to the lead's recommendation, with the on-site option.
+
+- **A team project is outcome work by default.** The members' lines stay
+  on the supplier's side and are never addressed to the client. The
+  client is billed through one line at the project level, with no person
+  on it. The client reads only the deliverables, their states, the
+  acceptor and the date, the reason for any rejection, and the roles and
+  headcount.
+- **On-site option.** The supplier may mark a project "the team works on
+  your site." The site and tenure rules then win. The client sees those
+  people as it sees any contractor on its site: by name and by standing
+  (insured, authorized). It counts their tenure, and it never sees their
+  rates. The client agrees to that mark with the same yes that accepts the
+  offer.
+- **Why.** Before this ruling, the browser walk of 2026-11-26 found that
+  the client's Program, Contracts, Reports, Decisions and Ask Etyme pages
+  read the member lines as people placed with the client. They showed
+  names and a made-up rate per hour.
