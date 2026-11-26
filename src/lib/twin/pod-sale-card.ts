@@ -31,6 +31,8 @@ export interface PodSale {
   sellerCompanyId: string
   clientCompanyId: string
   acceptorPersonId: string
+  /** The project's name as the client reads it; never the supplier's team name. */
+  projectName: string
   kind: SaleKind
   priceCents: number
   currency: string
@@ -83,16 +85,16 @@ export function podSaleFromPayload(payload: unknown): PodSale | null {
   const p = (payload && typeof payload === 'object' ? payload : {}) as Record<string, unknown>
   const str = (v: unknown) => (typeof v === 'string' && v ? v : null)
   const podId = str(p.podId), sellerCompanyId = str(p.sellerCompanyId), clientCompanyId = str(p.clientCompanyId)
-  const acceptorPersonId = str(p.acceptorPersonId), currency = str(p.currency)
+  const acceptorPersonId = str(p.acceptorPersonId), currency = str(p.currency), projectName = str(p.projectName)
   const kind = (CARD_SALE_KINDS as readonly unknown[]).includes(p.kind) ? (p.kind as SaleKind) : null
-  if (!podId || !sellerCompanyId || !clientCompanyId || !acceptorPersonId || !currency || !kind || !isWholeCents(p.priceCents) || !Array.isArray(p.deliverables)) return null
+  if (!projectName || !podId || !sellerCompanyId || !clientCompanyId || !acceptorPersonId || !currency || !kind || !isWholeCents(p.priceCents) || !Array.isArray(p.deliverables)) return null
   const deliverables: PodSale['deliverables'] = []
   for (const d of p.deliverables as Record<string, unknown>[]) {
     const due = typeof d?.dueOn === 'string' ? new Date(d.dueOn) : null
     if (typeof d?.name !== 'string' || typeof d.amountCents !== 'number' || (due && Number.isNaN(due.getTime()))) return null
     deliverables.push({ name: d.name, amountCents: d.amountCents, dueOn: due })
   }
-  return { podId, sellerCompanyId, clientCompanyId, acceptorPersonId, kind, priceCents: p.priceCents, currency, deliverables }
+  return { podId, sellerCompanyId, clientCompanyId, acceptorPersonId, projectName, kind, priceCents: p.priceCents, currency, deliverables }
 }
 
 /** Whether a person holds a live seat at a company on the day. */
