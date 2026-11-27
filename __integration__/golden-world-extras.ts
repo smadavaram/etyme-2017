@@ -245,3 +245,32 @@ export async function addPayrollWorld(w: GoldenWorld) {
   })
   return { client, clerk, leila, mo, leilaLine, moLine, moreWeek: () => week(moLine, mo, '2026-10-12', 9) }
 }
+
+/**
+ * Timesheet weeks for the timesheet chase: three of the firm's own people
+ * on the first customer's lines and one on a line the firm only resells.
+ * Ana's week fell due on the Monday and is not filed; Bea's fell due long
+ * before the chase looks back; Cal's was filed and marked done; Dev is a
+ * sub-vendor's worker, whose chase is the sub-vendor's. Every date fixed.
+ */
+export async function addTimesheetWorld(w: GoldenWorld) {
+  const busy = await prisma.company.findFirstOrThrow({ where: { name: 'Golden Busy Customer' } })
+  const worker = async (name: string, email: string, employed: boolean) => {
+    const p = await prisma.person.create({ data: { name, primaryEmail: mail(email) } })
+    if (employed) await prisma.context.create({ data: { personId: p.id, companyId: w.firm.id, type: 'EMPLOYEE' } as any })
+    const line = await prisma.sellContract.create({ data: { companyId: w.firm.id, clientCompanyId: busy.id, personId: p.id, startDate: d('2026-09-01'), state: 'IN_PROGRESS', billRate: 9000 } as any })
+    return { p, line }
+  }
+  const cycle = (sellContractId: string, dueOn: string, start: string, end: string, extra: Record<string, unknown> = {}) => prisma.cycle.create({
+    data: { sellContractId, kind: 'TIMESHEET_SUBMIT', dueOn: d(dueOn), periodStart: d(start), periodEnd: d(end), ...extra } as any,
+  })
+  const ana = await worker('Ana Ruiz', 'ana.ruiz', true)
+  const bea = await worker('Bea Okoye', 'bea.okoye', true)
+  const cal = await worker('Cal Mensah', 'cal.mensah', true)
+  const dev = await worker('Dev Rao', 'dev.rao', false)
+  const anaWeek = await cycle(ana.line.id, '2026-11-23', '2026-11-15', '2026-11-21')
+  const beaWeek = await cycle(bea.line.id, '2026-10-20', '2026-10-11', '2026-10-17')
+  await cycle(cal.line.id, '2026-11-23', '2026-11-15', '2026-11-21', { completedAt: d('2026-11-22') })
+  await cycle(dev.line.id, '2026-11-23', '2026-11-15', '2026-11-21')
+  return { ana, bea, cal, dev, anaWeek, beaWeek }
+}
