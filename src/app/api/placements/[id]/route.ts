@@ -12,6 +12,7 @@ import { categoryOf, labelOf } from '@/lib/cycle-kinds'
 import { ADVERSE_STEPS, canonicalEdition, contractClearance, lineExtras, startWords } from '@/lib/contract-clearance'
 import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { HIDDEN_TEAM_LINE } from '@/lib/money/team-lines'
 import { endsPastLimit } from '@/lib/governance'
 import { runsPastSentence } from '@/lib/tenure-days'
 import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
@@ -137,7 +138,12 @@ export async function GET(
   // opened by id (nor reached by a link) from the client's side. Before
   // this, `endClientCompanyId === mine` let the client in as END_CLIENT
   // and the page then withheld what it could.
-  const isParty = parties != null && mayOpenLine(mine, parties)
+  // A member line of a team sold as outcome work is never the client's to
+  // read (record 120): the selling firm opens it, a client reads it only
+  // where the team works on its site. Refused as not found, logged below.
+  const hiddenFromReader = parties != null && parties.companyId !== mine
+    && (await prisma.sellContract.count({ where: { AND: [{ id }, HIDDEN_TEAM_LINE] } })) > 0
+  const isParty = parties != null && mayOpenLine(mine, parties) && !hiddenFromReader
 
   // A seat with no desk — a Member, or a worker seated with only the
   // reads of their own work — reads the placement that names it and no
