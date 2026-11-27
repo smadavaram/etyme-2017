@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   })
   return NextResponse.json({
     data: rows.map((p) => ({
-      id: p.id, title: p.title, buyer: p.buyer, dueAt: p.dueAt?.toISOString().slice(0, 10) ?? null,
+      id: p.id, title: p.title, buyer: p.buyer, sourceUrl: p.sourceUrl, requirements: p.requirements, dueAt: p.dueAt?.toISOString().slice(0, 10) ?? null,
       state: p.state, stateSays: stateSays(p.state), draft: p.draft,
       approvedAt: p.approvedAt?.toISOString() ?? null, submittedAt: p.submittedAt?.toISOString() ?? null,
       missing: p.pieces.filter((x) => !x.haveIt).length,
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   }
   const off = await pluginGate(caller, 'PUBLIC_SECTOR')
   if (off) return off
-  const body = await request.json().catch(() => null) as { title?: unknown; buyer?: unknown; dueAt?: unknown; pieces?: unknown } | null
+  const body = await request.json().catch(() => null) as { title?: unknown; buyer?: unknown; dueAt?: unknown; pieces?: unknown; sourceUrl?: unknown; requirements?: unknown } | null
   const title = typeof body?.title === 'string' ? body.title.trim() : ''
   if (!title) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Name the proposal: the solicitation’s title or number.' } }, { status: 422 })
   let dueAt: Date | null = null
@@ -62,12 +62,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: 'VALIDATION', message: 'Each piece needs a name and a kind: bench, compliance, rates or past performance.' } }, { status: 422 })
     }
   }
+  // A bid comes from a person: the link and the requirements are pasted by her (lead ruling, record 124).
+  let sourceUrl: string | null = null
+  if (body?.sourceUrl != null && body.sourceUrl !== '') {
+    if (typeof body.sourceUrl !== 'string' || !/^https?:\/\/[^\s]+$/i.test(body.sourceUrl.trim()) || body.sourceUrl.length > 1000) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: 'The link is the web address of the solicitation, starting with https://.' } }, { status: 422 })
+    }
+    sourceUrl = body.sourceUrl.trim()
+  }
+  let requirements: string | null = null
+  if (body?.requirements != null && body.requirements !== '') {
+    if (typeof body.requirements !== 'string' || body.requirements.length > 50000) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Paste the requirements as text, up to 50,000 characters.' } }, { status: 422 })
+    }
+    requirements = body.requirements.trim() || null
+  }
   const by = realPersonId(caller)
   if (!by) return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Sign in as a person to start a proposal.' } }, { status: 403 })
   const row = await prisma.proposal.create({
     data: {
       companyId: caller.company.id, title, buyer: typeof body?.buyer === 'string' && body.buyer.trim() ? body.buyer.trim() : null,
-      dueAt, createdById: by, state: pieces.length ? 'NEEDS_PIECES' : 'DRAFT',
+      dueAt, sourceUrl, requirements, createdById: by, state: pieces.length ? 'NEEDS_PIECES' : 'DRAFT',
       pieces: { create: pieces.map((x) => ({ kind: String(x.kind), label: String(x.label).trim() })) },
     },
     select: { id: true, state: true },

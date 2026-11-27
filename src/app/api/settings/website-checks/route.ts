@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { maySwitchPlugin, pluginsOfferedTo, notOfferedSays, websiteChecklist, websiteFacts } from '@/lib/plugins'
 import { momentFor } from '@/lib/when'
+import { approvalHolds, brandingFingerprint, brandingIsStored, type Branding } from '@/lib/site-settings'
 
 /**
  * The Owner's two stored checks for the Website switch (records 121, 123).
@@ -20,9 +21,13 @@ import { momentFor } from '@/lib/when'
 const MAX_BYTES = 5 * 1024 * 1024
 const PASS_TEMPLATE = 'Site compliance pass'
 
+function storedOf(c: { siteLogoRef: string | null; sitePrimaryColor: string | null; siteSecondaryColor: string | null; siteFontPairing: string | null }): Branding {
+  return { logoRef: c.siteLogoRef, primaryColor: c.sitePrimaryColor, secondaryColor: c.siteSecondaryColor, fontPairing: c.siteFontPairing }
+}
+
 async function readScreen(companyId: string) {
   const [c, passes, facts] = await Promise.all([
-    prisma.company.findUnique({ where: { id: companyId }, select: { siteBrandingApprovedAt: true, siteBrandingApprovedById: true, siteCompliancePassRequired: true } }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { siteBrandingApprovedAt: true, siteBrandingApprovedById: true, siteBrandingApprovedHash: true, siteLogoRef: true, sitePrimaryColor: true, siteSecondaryColor: true, siteFontPairing: true, siteCompliancePassRequired: true } }),
     prisma.siteCompliancePass.findMany({ where: { companyId }, orderBy: { passedAt: 'desc' }, take: 50, include: { document: { select: { fileName: true } } } }),
     websiteFacts(companyId),
   ])
@@ -30,7 +35,7 @@ async function readScreen(companyId: string) {
   const people = await prisma.person.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
   const name = (id: string | null | undefined) => (id ? people.find((p) => p.id === id)?.name ?? 'Somebody who has left' : null)
   return {
-    branding: c?.siteBrandingApprovedAt
+    branding: c?.siteBrandingApprovedAt && approvalHolds(c.siteBrandingApprovedAt, c.siteBrandingApprovedHash, storedOf(c))
       ? { approved: true, by: name(c.siteBrandingApprovedById), at: c.siteBrandingApprovedAt.toISOString(), atWords: momentFor(c.siteBrandingApprovedAt, 'UTC') }
       : { approved: false, by: null, at: null, atWords: null },
     compliancePassRequired: Boolean(c?.siteCompliancePassRequired),
@@ -82,7 +87,17 @@ export async function PATCH(request: NextRequest) {
   }
   if (hasB) {
     const approved = body.brandingApproved as boolean
-    await prisma.company.update({ where: { id: companyId }, data: approved ? { siteBrandingApprovedAt: new Date(), siteBrandingApprovedById: by } : { siteBrandingApprovedAt: null, siteBrandingApprovedById: null } })
+    let hash: string | null = null
+    if (approved) {
+      // The yes is over the values stored now (record 111), so there must be some.
+      const stored = await prisma.company.findUnique({ where: { id: companyId }, select: { siteLogoRef: true, sitePrimaryColor: true, siteSecondaryColor: true, siteFontPairing: true } })
+      const b = stored ? storedOf(stored) : null
+      if (!b || !brandingIsStored(b)) {
+        return NextResponse.json({ error: { code: 'BRANDING_NOT_STORED', message: 'Save your branding first: at least the primary color. The yes is over what is saved.' } }, { status: 422 })
+      }
+      hash = brandingFingerprint(b)
+    }
+    await prisma.company.update({ where: { id: companyId }, data: approved ? { siteBrandingApprovedAt: new Date(), siteBrandingApprovedById: by, siteBrandingApprovedHash: hash } : { siteBrandingApprovedAt: null, siteBrandingApprovedById: null, siteBrandingApprovedHash: null } })
     await emit({ type: approved ? 'site.branding_approved' : 'site.branding_withdrawn', companyId, subjectType: 'Company', subjectId: companyId, actorPersonId: by, payload: {} })
   }
   if (hasR) {

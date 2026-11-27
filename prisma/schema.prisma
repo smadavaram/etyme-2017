@@ -317,6 +317,9 @@ model Person {
   proposalsCreated             Proposal[]            @relation("proposalCreator")
   proposalsApproved            Proposal[]            @relation("proposalApprover")
   proposalsSubmitted           Proposal[]            @relation("proposalSubmitter")
+  /// Her own yes to updates from firms (record 117). Given by her, revocable. A yes counts only while updatesRevokedAt is null or older than updatesYesAt.
+  updatesYesAt                 DateTime?
+  updatesRevokedAt             DateTime?
 
   @@index([name])
   @@index([createdAt])
@@ -1033,6 +1036,19 @@ model Company {
   /// Whether this firm's business requires a compliance pass before its site goes public. A per-firm setting, off until the Owner says so.
   siteCompliancePassRequired Boolean                 @default(false)
   siteCompliancePasses       SiteCompliancePass[]
+  /// The tenant's site settings (records 111, 79). The template is a layout, never a look; branding is the next four fields.
+  siteTemplate               SiteTemplate            @default(ASK_FIRST)
+  /// A reference to the logo: an https address or a stored file's id, as the Owner gave it. Null is the neutral default.
+  siteLogoRef                String?
+  /// Branding colors as #RRGGBB. Null is the neutral default.
+  sitePrimaryColor           String?
+  siteSecondaryColor         String?
+  /// A key from `lib/site-settings` FONT_PAIRINGS. Null is the neutral default.
+  siteFontPairing            String?
+  /// The page list and each page's words: [{ slug, title, body }]. Not part of the branding yes.
+  sitePages                  Json?
+  /// The fingerprint of the stored branding values (logo, colors, font) when the Owner said yes. The yes counts only while it equals the fingerprint of the values stored now.
+  siteBrandingApprovedHash   String?
   proposals                  Proposal[]
   skillTargets               SkillTarget[]
   /// Hides this firm's courses on its storefront whatever its plugin says
@@ -11922,6 +11938,10 @@ model Proposal {
   title         String
   /// The agency asking, as typed. Never read from a register.
   buyer         String?
+  /// The link the person pasted. The agent never searches or scrapes (lead ruling, record 124).
+  sourceUrl     String?
+  /// The requirements, pasted by a person. The agent reads this and nothing outside Etyme.
+  requirements  String?
   /// The deadline the person typed. Null is not known, and never guessed.
   dueAt         DateTime?
   state         ProposalState   @default(DRAFT)
@@ -11944,6 +11964,13 @@ model Proposal {
   @@index([createdById])
   @@index([approvedById])
   @@index([submittedById])
+}
+
+/// A tenant site's layout (record 79): never a look.
+enum SiteTemplate {
+  ASK_FIRST
+  FEED
+  BOARD
 }
 
 enum ProposalState {

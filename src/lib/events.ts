@@ -104,6 +104,11 @@ export const EVENT_TYPES = [
   'site.branding_withdrawn',
   'site.compliance_pass_required_set',
   'site.compliance_pass_recorded',
+  'site.settings_saved',
+
+  // A person's own yes to updates (record 117)
+  'person.updates_yes_given',
+  'person.updates_yes_revoked',
 
   // Public-sector proposals (record 124): only a person's acts are events
   'proposal.started',

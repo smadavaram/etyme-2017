@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { as, req, json, prisma, resetDatabase } from './harness'
 import { PATCH as switchPlugin } from '@/app/api/settings/plugins/route'
 import { PATCH as staffSwitch } from '@/app/api/superadmin/plugins/route'
+import { PATCH as saveSite } from '@/app/api/settings/site-branding/route'
 import { GET as readChecks, PATCH as setChecks, POST as recordPass } from '@/app/api/settings/website-checks/route'
 
 /** Records 121 and 123: the Website switch goes on only after branding, domain and any compliance pass. */
@@ -57,7 +58,16 @@ describe('the Website switch refuses until three checks hold', () => {
     expect((await prisma.company.findUniqueOrThrow({ where: { id: s.firm }, select: { siteBrandingApprovedAt: true } })).siteBrandingApprovedAt).toBeNull()
   })
 
+  it('the Owner cannot say yes to branding that is not saved, and nothing is written', async () => {
+    const r = await check(OWNER, { brandingApproved: true })
+    expect(r.status).toBe(422)
+    expect(r.body.error.code).toBe('BRANDING_NOT_STORED')
+    expect((await prisma.company.findUniqueOrThrow({ where: { id: s.firm }, select: { siteBrandingApprovedAt: true } })).siteBrandingApprovedAt).toBeNull()
+  })
+
   it('the Owner approves the branding and it is a dated record of who approved it', async () => {
+    as(OWNER)
+    expect((await saveSite(req('PATCH', '/api/settings/site-branding', { branding: { primaryColor: '#1B2A4A', secondaryColor: '#1F9E8F', fontPairing: 'SERIF_SANS' } }))).status).toBe(200)
     const r = await check(OWNER, { brandingApproved: true })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const c = await prisma.company.findUniqueOrThrow({ where: { id: s.firm }, select: { siteBrandingApprovedAt: true, siteBrandingApprovedById: true } })

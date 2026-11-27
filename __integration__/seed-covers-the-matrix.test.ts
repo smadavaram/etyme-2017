@@ -74,6 +74,7 @@ const RUNTIME: Record<string, string> = {
   recordAction: 'Written when a person acts on a record after the ledger began (2026-11-21); the seed acts through no screen.',
   decisionItem: 'Opened by an Owner or an Admin on the decision queue, or by a disputed month; the real questions are a firm\'s own and are never seeded.',
   agentSwitch: 'Written when the Owner switches an agent on, off or to drafts only; every agent is off until then, and a seeded switch would claim the Owner chose.',
+  tenantModelRoute: 'Written when an Owner brings their own model route for a step (record 125); a seeded row would claim a key and a provider the Owner chose.',
   pluginSwitch: 'Written when an Owner or Etyme staff switches a plugin; every plugin starts off, so the seeded world has none.',
   cohort: 'Train to bench is a plugin, off by default; a firm writes a cohort only after its Owner switches it on.',
   assessment: 'Written by a cohort’s trainer after the Train to bench plugin is on; off by default.',
