@@ -22,28 +22,20 @@ import { dayAround } from '@/lib/decision-queue'
 import { sendMail, mailSendsAbout } from '@/lib/notify/mail-door'
 import { registerAgent, AGENT_HELD_AS, type AgentContext } from '@/lib/agents/runner'
 import { TASK_RECORD, approvalOf, closeTask, proposeTask, type TaskPlan } from '@/lib/agents/tasks'
+import { registerPlan } from '@/lib/agents/plans'
+import { runSkill } from '@/lib/skills/runner'
+import {
+  TIMESHEET_CHASE_AGENT, TIMESHEET_CHASE_KIND, CHASE_RECORD, PROPOSED_CHASE_PLAN, CHASE_LOOKBACK_DAYS,
+  weekFiledWith, employsWorkerWith, type DueCycle,
+} from '@/lib/agents/timesheet-chase-rules'
 import { chaseNumbersOf, planWith, numbersSource } from '@/lib/agents/chase-numbers'
 import { TIMESHEET_CHASE_TEMPLATE, timesheetChaseLetter, weekWords } from './timesheet-chase-letter'
 
-export const TIMESHEET_CHASE_AGENT = 'timesheet-chase'
-export const TIMESHEET_CHASE_KIND = 'TIMESHEET_CHASE'
-/** A chase is about one due week: the hours-due date on the placement's calendar. */
-export const CHASE_RECORD = 'Cycle'
+// The names, the proposed plan and the week-filed rule live in the rules file, so the checkers read the same ones.
+export { TIMESHEET_CHASE_AGENT, TIMESHEET_CHASE_KIND, CHASE_RECORD, PROPOSED_CHASE, PROPOSED_CHASE_PLAN, CHASE_LOOKBACK_DAYS, periodCovered } from '@/lib/agents/timesheet-chase-rules'
 
-/**
- * PROPOSED DEFAULTS, AWAITING THE OWNER. Nobody has decided these numbers.
- * One letter, then up to two retries, two working days apart, closing when
- * the week is filed. The card shows them as proposals the Owner may change;
- * until the Owner sets them, these are what a task is proposed with.
- */
-export const PROPOSED_CHASE = { letters: 1, retries: 2, workingDaysApart: 2 } as const
-
-export const PROPOSED_CHASE_PLAN: TaskPlan = {
-  messages: [{ template: TIMESHEET_CHASE_TEMPLATE, label: 'Timesheet reminder' }],
-  retries: PROPOSED_CHASE.retries,
-  daysApart: PROPOSED_CHASE.workingDaysApart,
-  closesWhen: 'the week is filed',
-}
+// The skills this agent runs (record 123), registered where the agent is defined so every door that runs it holds the plan.
+registerPlan({ agentKey: TIMESHEET_CHASE_AGENT, skills: ['chase.propose', 'chase.send', 'chase.close'], outputSkill: 'chase.propose' })
 
 /** The card's question, with the proposal said as a proposal. Pure. */
 export function chaseQuestion(workerName: string, week: string, plan: TaskPlan = PROPOSED_CHASE_PLAN, ownerSet = false): string {
@@ -98,68 +90,12 @@ export function nextLetter(plan: TaskPlan, sent: number, lastSentAt: Date | null
   return sent >= total ? { act: 'END' } : { act: 'SEND', attempt: sent + 1 }
 }
 
-/**
- * PROPOSAL, AWAITING THE OWNER. A chase looks back this many days from the
- * day a week fell due. Older unfiled weeks go to a person on one card.
- */
-export const CHASE_LOOKBACK_DAYS = 14
-
 const OPEN = ['PROPOSED', 'APPROVED', 'RUNNING'] as const
 
 const DAY_MS = 86_400_000
-const dn = (d: Date) => Math.floor(d.getTime() / DAY_MS)
 
-/**
- * Whether the days of a period are covered by filed hours. Covered means
- * every working day of the period lies inside some filed sheet; a sheet on
- * other period boundaries still counts for the days it overlaps. Pure.
- */
-export function periodCovered(start: Date, end: Date, sheets: readonly { periodStart: Date; periodEnd: Date }[], daysOff: readonly number[]): boolean {
-  let any = false
-  let needed = 0
-  for (let n = dn(start); n <= dn(end); n++) {
-    const day = new Date(n * DAY_MS)
-    if (isDayOff(day, daysOff)) continue
-    needed++
-    if (sheets.some((t) => dn(t.periodStart) <= n && n <= dn(t.periodEnd))) any = true
-    else return false
-  }
-  if (needed === 0) return sheets.some((t) => dn(t.periodStart) <= dn(end) && dn(t.periodEnd) >= dn(start))
-  return any
-}
-
-interface DueCycle {
-  completedAt: Date | null
-  periodStart: Date | null
-  periodEnd: Date | null
-  sellContract: { personId: string; clientCompanyId: string; endClientCompanyId: string | null } | null
-}
-
-/**
- * Whether a week is filed, by any route: its hours-due date is completed, or
- * the worker filed hours (past OPEN) that cover its days on ANY line she has
- * at the same end client, her own employer's line included.
- */
-async function weekFiled(c: DueCycle, daysOff: readonly number[]): Promise<boolean> {
-  if (c.completedAt) return true
-  if (!c.sellContract || !c.periodStart || !c.periodEnd) return false
-  const end = c.sellContract.endClientCompanyId ?? c.sellContract.clientCompanyId
-  const sheets = await prisma.timesheet.findMany({
-    where: {
-      personId: c.sellContract.personId, status: { not: 'OPEN' },
-      periodStart: { lte: c.periodEnd }, periodEnd: { gte: c.periodStart },
-      sellContract: { OR: [{ endClientCompanyId: end }, { endClientCompanyId: null, clientCompanyId: end }] },
-    },
-    select: { periodStart: true, periodEnd: true },
-  })
-  return periodCovered(c.periodStart, c.periodEnd, sheets, daysOff)
-}
-
-/** Whether this firm employs the person itself: its own employee seat, or its own direct (no supplier) pay line. */
-async function employsWorker(companyId: string, personId: string): Promise<boolean> {
-  if (await prisma.context.count({ where: { personId, companyId, type: 'EMPLOYEE' } }) > 0) return true
-  return (await prisma.buyContractCandidate.count({ where: { personId, buyContract: { companyId, vendorCompanyId: null, supplierSellContractId: null } } })) > 0
-}
+const weekFiled = (c: DueCycle, daysOff: readonly number[]) => weekFiledWith(prisma, c, daysOff)
+const employsWorker = (companyId: string, personId: string) => employsWorkerWith(prisma, companyId, personId)
 
 /** The seat that owes the yes: AP & Payroll, else the Owner. Null where neither is working. */
 async function cardOwner(companyId: string, now: Date): Promise<string | null> {
@@ -213,12 +149,15 @@ export async function timesheetChaseStep(ctx: AgentContext, deps: { send?: typeo
     // The firm's own numbers, if the Owner set any, are taken now and kept in the task's plan.
     const set = await chaseNumbersOf(companyId, ctx.agentKey)
     const plan = planWith(PROPOSED_CHASE_PLAN, set)
-    const task = await proposeTask({
-      companyId, agentKey: ctx.agentKey, kind: TIMESHEET_CHASE_KIND, recordType: CHASE_RECORD, recordId: c.id,
-      plan, ownerPersonId, question: chaseQuestion(c.sellContract!.person.name, week, plan, set !== null), openedOn: now,
+    await runSkill(ctx, 'chase.propose', { recordType: CHASE_RECORD, recordId: c.id, unitsPlanned: 1 }, async () => {
+      const task = await proposeTask({
+        companyId, agentKey: ctx.agentKey, kind: TIMESHEET_CHASE_KIND, recordType: CHASE_RECORD, recordId: c.id,
+        plan, ownerPersonId, question: chaseQuestion(c.sellContract!.person.name, week, plan, set !== null), openedOn: now,
+      })
+      await prisma.decisionItem.update({ where: { id: task.decisionId }, data: { proof: chaseProof(plan, set !== null) } })
+      await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'CHASE_PROPOSED', summary: `Proposed a chase for ${c.sellContract!.person.name}, week of ${week}. Nothing is sent until a person says yes.` })
+      return { result: task }
     })
-    await prisma.decisionItem.update({ where: { id: task.decisionId }, data: { proof: chaseProof(plan, set !== null) } })
-    await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'CHASE_PROPOSED', summary: `Proposed a chase for ${c.sellContract!.person.name}, week of ${week}. Nothing is sent until a person says yes.` })
   }
 
   // Older unfiled weeks are one card for a person, once, never a chase each.
@@ -253,7 +192,13 @@ export async function timesheetChaseStep(ctx: AgentContext, deps: { send?: typeo
       select: { id: true, dueOn: true, periodStart: true, periodEnd: true, completedAt: true, sellContractId: true, sellContract: { select: { personId: true, clientCompanyId: true, endClientCompanyId: true, person: { select: { id: true, name: true, primaryEmail: true } } } } },
     })
     if (!c || !c.sellContract) { await closeTask(task.id, 'The week this chase was about is no longer on the record.', 'STOPPED'); continue }
-    if (await weekFiled(c, daysOff)) { await closeTask(task.id, 'The week was filed, so the chase is closed.', 'CLOSED_BY_ARRIVAL'); continue }
+    if (await weekFiled(c, daysOff)) {
+      await runSkill(ctx, 'chase.close', { recordType: CHASE_RECORD, recordId: c.id, unitsPlanned: 1 }, async () => {
+        await closeTask(task.id, 'The week was filed, so the chase is closed.', 'CLOSED_BY_ARRIVAL')
+        return { result: true }
+      })
+      continue
+    }
     if (ctx.mode !== 'ON') continue // Drafts only: nothing is sent, even after a yes.
 
     const plan = task.plan as unknown as TaskPlan
@@ -292,14 +237,17 @@ export async function timesheetChaseStep(ctx: AgentContext, deps: { send?: typeo
       workerName: c.sellContract.person.name, firmName: firm?.name ?? 'Your firm', periodStart: c.periodStart ?? c.dueOn, periodEnd: c.periodEnd ?? c.dueOn,
       dueOn: c.dueOn, link: base ? `${base}/dashboard/my-work` : '', attempt: next.attempt,
     })
-    const res = await send({
-      to: c.sellContract.person.primaryEmail, subject: letter.subject, text: letter.text,
-      about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: next.attempt, recordType: CHASE_RECORD, recordId: c.id, template: TIMESHEET_CHASE_TEMPLATE, chase: true },
-    })
-    const went = res.outcome === 'SENT'
-    await ctx.act({
-      recordType: TASK_RECORD, recordId: task.id, action: went ? 'CHASE_SENT' : 'CHASE_NOT_SENT',
-      summary: went ? `Sent letter ${next.attempt} to ${c.sellContract.person.name} for the week of ${week}.` : `Letter ${next.attempt} could not be sent: ${res.note}`,
+    const { result: res } = await runSkill(ctx, 'chase.send', { recordType: CHASE_RECORD, recordId: c.id, unitsPlanned: 1 }, async () => {
+      const r = await send({
+        to: c.sellContract!.person.primaryEmail, subject: letter.subject, text: letter.text,
+        about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: next.attempt, recordType: CHASE_RECORD, recordId: c.id, template: TIMESHEET_CHASE_TEMPLATE, chase: true },
+      })
+      const went = r.outcome === 'SENT'
+      await ctx.act({
+        recordType: TASK_RECORD, recordId: task.id, action: went ? 'CHASE_SENT' : 'CHASE_NOT_SENT',
+        summary: went ? `Sent letter ${next.attempt} to ${c.sellContract!.person.name} for the week of ${week}.` : `Letter ${next.attempt} could not be sent: ${r.note}`,
+      })
+      return { result: r }
     })
     if (res.outcome === 'FAILED_DELIVERY') {
       // The task's card reopens as a new card for its owner: "failed delivery".

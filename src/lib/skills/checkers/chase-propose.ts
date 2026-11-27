@@ -18,10 +18,13 @@ import { ownerForRoles } from '@/lib/money/agent-owners'
 import { SUBMISSION_CHASE_KIND, SUBMISSION_CHASE_TEMPLATE, PROPOSED_SUBMISSION_CHASE_PLAN, chaseProposal } from '@/lib/agents/submission-chase-rules'
 import { daysWaiting, wentOut } from '@/lib/agents/confirmation-rules'
 import { daysOffRead } from './calendar'
+import { CHASE_LOOKBACK_DAYS, CHASE_RECORD, PROPOSED_CHASE_PLAN, TIMESHEET_CHASE_AGENT, TIMESHEET_CHASE_KIND } from '@/lib/agents/timesheet-chase-rules'
+import { chaseNumbersFrom, planWith } from '@/lib/agents/chase-numbers'
+import { dueWeek, employsAtFirm, filedAsOf } from './timesheet-week'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 
 /** The plan each kind of chase task must carry. A kind not listed has no rule written yet. */
-const PLAN_OF_KIND: Record<string, unknown> = { ...Object.fromEntries(OUTREACH_KINDS.map((k) => [k, OUTREACH_PLAN])), [INTERVIEW_CHASE_KIND]: PROPOSED_INTERVIEW_PLAN, [SUBMISSION_CHASE_KIND]: PROPOSED_SUBMISSION_CHASE_PLAN }
+const PLAN_OF_KIND: Record<string, unknown> = { ...Object.fromEntries(OUTREACH_KINDS.map((k) => [k, OUTREACH_PLAN])), [INTERVIEW_CHASE_KIND]: PROPOSED_INTERVIEW_PLAN, [SUBMISSION_CHASE_KIND]: PROPOSED_SUBMISSION_CHASE_PLAN, [TIMESHEET_CHASE_KIND]: PROPOSED_CHASE_PLAN }
 
 const sortedJson = (v: unknown): string => JSON.stringify(v, (_k, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]])) : x)
 
@@ -39,7 +42,11 @@ export const chasePropose: SkillChecker<PrismaClient> = async (companyId, _key, 
   const contact = ref.recordType === OUTREACH_RECORD ? await read.companyContact.findUnique({ where: { id: ref.recordId }, select: { atCompanyId: true } }) : null
   const census = contact ? censusOn(await censusFacts(companyId), window.to) : []
   const forSubmission = ref.recordType === SUBMISSION_RECORD
-  const owner = await ownerForRoles(companyId, forSubmission ? CHASE_ROLES : ['Account Manager'], window.to)
+  const forWeek = ref.recordType === CHASE_RECORD
+  const owner = await ownerForRoles(companyId, forSubmission ? CHASE_ROLES : forWeek ? ['AP & Payroll'] : ['Account Manager'], window.to)
+  // A timesheet chase: the plan it was written with is the proposed plan, or the numbers the Owner had set on the agent's switch.
+  const ownerNumbers = forWeek ? chaseNumbersFrom((await read.agentSwitch.findUnique({ where: { companyId_agentKey: { companyId, agentKey: TIMESHEET_CHASE_AGENT } }, select: { chasePlan: true } }))?.chasePlan) : null
+  const week = forWeek ? await dueWeek(read, ref.recordId) : null
   const submissionChaseOwner = forSubmission ? await ownerForRoles(companyId, ['Account Manager'], window.to) : null
   // An interview chase is about a submission the firm put forward: re-read it, and how long the client had been quiet when the task was written.
   const sub = forSubmission ? await read.submission.findUnique({ where: { id: ref.recordId }, select: { fromCompanyId: true, submittedAt: true, checkState: true, _count: { select: { interviews: true } } } }) : null
@@ -49,7 +56,8 @@ export const chasePropose: SkillChecker<PrismaClient> = async (companyId, _key, 
   for (const t of tasks) {
     const side = t.kind.endsWith('SUPPLIER') ? 'SUPPLIER' : 'CUSTOMER'
     const mine: string[] = []
-    if (sortedJson(t.plan) !== sortedJson(PLAN_OF_KIND[t.kind])) mine.push('its plan is not the plan the rules give this kind')
+    const given = t.kind === TIMESHEET_CHASE_KIND && ownerNumbers ? [PLAN_OF_KIND[t.kind], planWith(PROPOSED_CHASE_PLAN, ownerNumbers)] : [PLAN_OF_KIND[t.kind]]
+    if (!given.some((p) => sortedJson(t.plan) === sortedJson(p))) mine.push('its plan is not the plan the rules give this kind')
     const expectedOwner = t.kind === SUBMISSION_CHASE_KIND ? submissionChaseOwner : owner
     if (!t.decision) mine.push('it has no card')
     else if (expectedOwner && t.decision.ownerPersonId !== expectedOwner) mine.push('its card is owed by a seat the owner reader does not name')
@@ -70,6 +78,17 @@ export const chasePropose: SkillChecker<PrismaClient> = async (companyId, _key, 
         })
         if (!proposal.propose) mine.push(`the rules would not have proposed it: ${proposal.why}`)
       }
+    }
+    if (t.kind === TIMESHEET_CHASE_KIND) {
+      // A timesheet chase: re-read the due week as it stood when the task was written. It fell due that day or within the look-back, was this firm's own worker's and was not yet filed.
+      const day = new Date(Date.UTC(t.createdAt.getUTCFullYear(), t.createdAt.getUTCMonth(), t.createdAt.getUTCDate()))
+      if (!week || week.kind !== 'TIMESHEET_SUBMIT' || !week.sellContract || week.sellContract.companyId !== companyId) mine.push('the week it is about is not one of this firm’s placements')
+      else if (week.sellContract.state !== 'IN_PROGRESS') mine.push('the placement it is about was not in progress')
+      else if (week.dueOn.getTime() >= day.getTime() + 86_400_000) mine.push('the week had not fallen due when it was written')
+      else if (week.dueOn.getTime() < day.getTime() - CHASE_LOOKBACK_DAYS * 86_400_000) mine.push(`the week fell due more than ${CHASE_LOOKBACK_DAYS} days before it was written, so it belongs on the one card for older weeks`)
+      else if (!(await employsAtFirm(read, companyId, week.sellContract.personId))) mine.push('the worker is not the firm’s own, so the chase is her employer’s')
+      else if (await filedAsOf(read, companyId, week, t.createdAt)) mine.push('the week was already filed when it was written')
+      if (await read.mailSend.count({ where: { agentTaskId: t.id, createdAt: { lt: t.approvedAt ?? t.createdAt } } }) > 0) mine.push('a letter went before anyone said yes')
     }
     if (t.kind === INTERVIEW_CHASE_KIND) {
       if (!sub || sub.fromCompanyId !== companyId) mine.push('the submission it is about is not this firm’s')

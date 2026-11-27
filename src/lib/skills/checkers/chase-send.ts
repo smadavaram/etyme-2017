@@ -11,7 +11,9 @@
  * silently.
  */
 import type { PrismaClient } from '@prisma/client'
+import { TIMESHEET_CHASE_KIND } from '@/lib/agents/timesheet-chase-rules'
 import { skillOf } from '../registry'
+import { dueWeek, filedAsOf } from './timesheet-week'
 import { type CheckerResult, type SkillChecker } from '../checker'
 
 export const chaseSend: SkillChecker<PrismaClient> = async (companyId, skillKey, window, refs, read): Promise<CheckerResult> => {
@@ -37,6 +39,12 @@ export const chaseSend: SkillChecker<PrismaClient> = async (companyId, skillKey,
       const most = (allowed?.messages?.length ?? 0) * (1 + (allowed?.retries ?? 0))
       const total = await read.mailSend.count({ where: { companyId, agentTaskId: task.id } })
       if (total > most) mine.push(`${total} letters are on the ledger for a task whose plan allows ${most}`)
+      if (task.kind === TIMESHEET_CHASE_KIND) {
+        // A timesheet letter goes only while the week is still unfiled: re-read the hours as they stood when it was written.
+        const week = await dueWeek(read, task.recordId)
+        if (!week) mine.push('the week it was about is no longer on the record')
+        else if (await filedAsOf(read, companyId, week, m.createdAt)) mine.push('the week was already filed when it was sent')
+      }
       const sw = await read.agentSwitch.findUnique({ where: { companyId_agentKey: { companyId, agentKey: task.agentKey } }, select: { state: true } })
       if (sw?.state !== 'ON') mine.push(`the agent’s switch reads ${sw?.state ?? 'missing'}, and only On sends`)
     }
