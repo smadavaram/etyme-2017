@@ -1,6 +1,6 @@
 import { coursesShown } from '@/lib/training/courses-shown'
 import { prisma } from '@/lib/db'
-import { clientLineWhere } from '@/lib/money/team-lines'
+import { clientLineWhere, isHiddenTeamLine } from '@/lib/money/team-lines'
 import { siteRendersFor } from '@/lib/plugins'
 import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
 import { releasing, summarize, type RollingOff } from '@/lib/releasing-soon'
@@ -318,7 +318,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   const [sellLines, profiles, verifications, courseRows] = await Promise.all([
     // Only lines where work started: a draft is no placement (walk tpf).
     prisma.sellContract.findMany({
-      where: clientLineWhere({ companyId: company.id, state: { in: [...STARTED_STATES] } }),
+      where: { companyId: company.id, state: { in: [...STARTED_STATES] } },
       select: { state: true, endClientCompanyId: true, clientCompanyId: true },
     }),
     // Only people who said yes, and yes to being shown beyond this firm:
@@ -479,13 +479,14 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   // trains people, because a client can open it (record 69).
   const [rollingOff, benchListings] = await Promise.all([
     prisma.sellContract.findMany({
-      where: clientLineWhere({
+      where: {
         companyId: company.id,
         state: { in: ['IN_PROGRESS', 'PAUSED'] },
         endDate: { not: null, gte: now, lte: new Date(now.getTime() + 90 * 86_400_000) },
-      }),
+      },
       select: {
         id: true, endDate: true, companyId: true,
+        projectOrder: { select: { podProject: { select: { onSite: true } } } },
         company: { select: { id: true, name: true } },
         clientCompany: { select: { name: true, kind: true } },
         endClientCompany: { select: { name: true, kind: true } },
@@ -525,7 +526,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   const working = new Set(
     benchPeople.length
       ? (await prisma.sellContract.findMany({
-          where: clientLineWhere({ personId: { in: benchPeople }, state: { in: ['IN_PROGRESS', 'PAUSED'] } }),
+          where: { personId: { in: benchPeople }, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
           select: { personId: true },
         })).map((c) => c.personId)
       : []
@@ -534,6 +535,8 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   const rows: RollingOff[] = []
   for (const c of rollingOff) {
     if (!c.endDate || !c.person.consultant) continue
+    // Outcome work: the member is the firm's own work, never named or rated here.
+    if (isHiddenTeamLine(c)) continue
     const listing = c.person.consultant.listings.find((l) => l.companyId === c.companyId)
     // A contract end date is not agreement to be advertised, least of all
     // on the open internet: the person's own yes, and their yes to being
