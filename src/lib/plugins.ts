@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
 import { approvalHolds } from '@/lib/site-settings'
+import { PLUGIN_REGISTRY, declOf, isOfferedTo, type PluginKey } from '@/lib/plugin-registry'
 
 /**
  * Plugins (record 120): modules a firm does not have until its Owner, or
@@ -9,22 +10,20 @@ import { approvalHolds } from '@/lib/site-settings'
  * `Company.pluginsOn`; the ledger is `PluginSwitch`.
  */
 
-export type PluginKey = 'TRAIN_TO_BENCH' | 'PODS' | 'WEBSITE' | 'OUTREACH' | 'PUBLIC_SECTOR'
+export { PLUGIN_REGISTRY, declOf, pluginOfAgent, pluginOfRoute, pluginDoors } from '@/lib/plugin-registry'
+export type { PluginKey, PluginDecl } from '@/lib/plugin-registry'
 
-export const PLUGINS: readonly { key: PluginKey; label: string; says: string }[] = [
-  { key: 'TRAIN_TO_BENCH', label: 'Train to bench', says: 'Courses and cohorts for your people, and a trainee who finishes joins your bench with her own yes.' },
-  { key: 'PODS', label: 'Project teams', says: 'Named teams sold as a project, with deliverables the client accepts and milestones billed from them.' },
-  { key: 'WEBSITE', label: 'Website and content', says: 'Your public site and the editor for its words. The site goes public after three checks: your branding, your domain, and any compliance pass.' },
-  { key: 'OUTREACH', label: 'Outreach', says: 'Letters that sell your firm: outreach batches, their follow-ups and check-ins with companies gone quiet. Drafting stays open while it is off.' },
-  { key: 'PUBLIC_SECTOR', label: 'Public-sector proposals', says: 'Record a public bid, draft the response from your own record, and track its deadlines. A person approves and submits.' },
-]
+/** The list every screen reads, in the registry's order: key, label and the sentence. */
+export const PLUGINS: readonly { key: PluginKey; label: string; says: string }[] = [...PLUGIN_REGISTRY]
+  .sort((a, b) => a.order - b.order)
+  .map((p) => ({ key: p.key, label: p.label, says: p.says }))
 
 /**
- * Both plugins are supplier modules. A company that only buys (kind
- * CLIENT) is offered neither, and is never told they exist.
+ * The plugins offered to a company's kind. A company that only buys (kind
+ * CLIENT) is offered none, and is never told they exist.
  */
 export function pluginsOfferedTo(kind: string | null | undefined): typeof PLUGINS {
-  return kind === 'CLIENT' ? [] : PLUGINS
+  return PLUGINS.filter((p) => isOfferedTo(declOf(p.key)!, kind))
 }
 
 /** Record 120, ruling 3: Project teams does not turn on until the member-line work is built and walked. */
@@ -32,7 +31,22 @@ export const PODS_CLOSED_SAYS = 'Project teams opens once client-safe billing is
 
 /** The sentence that refuses turning this plugin on, or null where it may be turned on. Turning off is never refused. */
 export function switchOnRefusal(plugin: PluginKey): string | null {
-  return plugin === 'PODS' ? PODS_CLOSED_SAYS : null
+  return declOf(plugin)?.onHold === 'CLOSED_UNTIL_BUILT' ? PODS_CLOSED_SAYS : null
+}
+
+/**
+ * Everything that may stop a plugin turning on, read from its declared hold:
+ * the one answer both switches (the Owner's and the Superadmin's) give.
+ * Null means it may go on. Turning off is never asked.
+ */
+export async function switchOnBlock(plugin: PluginKey, companyId: string): Promise<{ status: number; error: { code: string; message: string; missing?: string[] } } | null> {
+  const closed = switchOnRefusal(plugin)
+  if (closed) return { status: 409, error: { code: 'NOT_OPEN_YET', message: closed } }
+  if (declOf(plugin)?.onHold === 'WEBSITE_THREE_CHECKS') {
+    const missing = await websiteOnRefusal(companyId)
+    if (missing) return { status: 422, error: missing }
+  }
+  return null
 }
 
 /**
@@ -143,7 +157,7 @@ export function notOfferedSays(): string {
 }
 
 export function isPluginKey(v: unknown): v is PluginKey {
-  return PLUGINS.some((p) => p.key === v)
+  return PLUGIN_REGISTRY.some((p) => p.key === v)
 }
 
 export function pluginLabel(key: PluginKey): string {

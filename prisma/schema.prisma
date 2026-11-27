@@ -11622,6 +11622,9 @@ model AgentTask {
   companyId       String
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   agentKey        String
+  /// The plugin the task's agent belongs to (lib/plugin-registry), written when the task is proposed; null for a core agent.
+  /// A task whose plugin is off is paused, never deleted, and keeps its yes.
+  pluginKey       String?
   /// TIMESHEET_CHASE, ESCALATION, ...
   kind            String
   /// The record the task is about, by type and id.
@@ -11648,6 +11651,7 @@ model AgentTask {
   outreachLetters OutreachLetter[]
 
   @@index([companyId, agentKey, state])
+  @@index([companyId, pluginKey, state])
   @@index([decisionId])
   @@index([approvedById])
   @@index([parentTaskId])
@@ -11889,8 +11893,8 @@ model PluginSwitch {
   id         String   @id @default(cuid())
   companyId  String
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  /// The fifth key is PUBLIC_SECTOR (record 124).
-  plugin     String // TRAIN_TO_BENCH · PODS · WEBSITE · OUTREACH
+  /// A key of lib/plugin-registry: TRAIN_TO_BENCH · PODS · WEBSITE · OUTREACH · PUBLIC_SECTOR. The registry is the list.
+  plugin     String
   on         Boolean
   byPersonId String
   byStaff    Boolean  @default(false)

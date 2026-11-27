@@ -11,6 +11,7 @@ interface PluginView {
   says: string
   on: boolean
   opensSays: string | null
+  usage: { agents: string[]; actsToday: number; actsLast30Days: number } | null
   last: { on: boolean; by: string; atWords: string } | null
 }
 
@@ -59,6 +60,11 @@ export function PluginsPanel() {
                   {p.label} <span className={p.on ? 'text-etyme-verified' : 'text-etyme-muted'}>{p.on ? 'On' : 'Off'}</span>
                 </div>
                 <p className="text-[13px] text-etyme-ink">{p.says}</p>
+                {p.usage && p.usage.agents.length > 0 && (
+                  <p className="text-[12px] text-etyme-muted">
+                    Its agents did {p.usage.actsToday} {p.usage.actsToday === 1 ? 'act' : 'acts'} today and {p.usage.actsLast30Days} in the last 30 days.
+                  </p>
+                )}
                 <p className="text-[12px] text-etyme-muted">
                   {p.last ? `Last switched ${p.last.on ? 'on' : 'off'} by ${p.last.by}, ${p.last.atWords}.` : 'Never switched.'}
                 </p>

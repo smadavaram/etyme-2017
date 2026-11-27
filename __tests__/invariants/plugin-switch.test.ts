@@ -50,7 +50,9 @@ describe('the fifth plugin and the edition columns', () => {
   })
   it('the Superadmin screen offers every plugin there is', () => {
     const page = read('src/app/dashboard/superadmin/page.tsx')
-    for (const p of PLUGINS) expect(page).toContain(`value="${p.key}"`)
+    // The picker is drawn from the registry (lib/plugin-registry), one option per plugin, in its order.
+    expect(page).toMatch(/PLUGIN_REGISTRY[^\n]*sort[^\n]*<option key=\{p\.key\} value=\{p\.key\}>/)
+    expect(PLUGINS.length).toBe(5)
   })
 })
 
@@ -169,7 +171,7 @@ describe('Project teams does not open yet (record 120, ruling 3)', () => {
   })
   it('both switch routes ask the refusal only when turning on, so off always works', () => {
     for (const f of ['src/app/api/settings/plugins/route.ts', 'src/app/api/superadmin/plugins/route.ts']) {
-      expect(read(f)).toContain('on ? switchOnRefusal(plugin) : null')
+      expect(read(f)).toContain('on ? await switchOnBlock(plugin, companyId) : null')
     }
   })
 })

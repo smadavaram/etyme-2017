@@ -665,7 +665,7 @@ export const DOMAINS: Domain[] = [
       'lib/nav-table',
       // The per-tenant plugin switch (record 120): the state, who may switch,
       // and the one refusal every plugin's routes say. Every plugin reads it.
-      'lib/plugins', 'lib/plugin-gate',
+      'lib/plugins', 'lib/plugin-gate', 'lib/plugin-registry', 'lib/plugin-usage',
       // A tenant's template, branding and pages, and the Owner's yes tied to them (records 111, 79).
       'lib/site-settings', 'app/api/settings/site-branding',
       // A candidate's own yes to updates (record 117): the reader and the door she answers at.

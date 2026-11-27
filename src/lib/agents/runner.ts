@@ -22,6 +22,8 @@ import { prisma } from '@/lib/db'
 import { writeRecordAction } from '@/lib/record-ledger'
 import { reportError } from '@/lib/alerts'
 import { dayAround, agentNameOf } from '@/lib/decision-queue'
+import { pluginOfAgent, agentPausedSays, actFenceSays } from '@/lib/plugin-registry'
+import { isOn } from '@/lib/plugins'
 import { NOTE_ACTIONS, SWITCH_RECORD, agentKeys, capReachedSays, offSays } from './switch'
 
 export const AGENT_HELD_AS = 'agent'
@@ -103,6 +105,18 @@ export async function runAgent(agentKey: string, companyId: string, now: Date = 
     return { ran: false, why: READ_ONLY_SAYS, acts: 0 }
   }
 
+  // The plugin hook (records 120, 123): an agent that belongs to a plugin does not run while the plugin is off, and says so on the ledger.
+  // A plugin that holds only its sends (Outreach) still runs: drafting stays open and its sends wait under their task's yes.
+  const plugin = pluginOfAgent(agentKey)
+  if (plugin && plugin.whenOff === 'EVERYTHING') {
+    const firm = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true, pluginsOn: true } })
+    if (!firm || !isOn(firm.pluginsOn, plugin.key)) {
+      const why = agentPausedSays(agentNameOf(agentKey), plugin.label, firm?.name ?? 'the firm')
+      await note('NOT_RUN', why, null)
+      return { ran: false, why, acts: 0 }
+    }
+  }
+
   if (!sw || sw.state === 'OFF') {
     const why = offSays(agentKey)
     await note('NOT_RUN', why, null)
@@ -131,6 +145,8 @@ export async function runAgent(agentKey: string, companyId: string, now: Date = 
     },
     agentKey, companyId, now, mode: sw.state as 'DRAFT_ONLY' | 'ON', ruleVersion: def.ruleVersion,
     act: async (a) => {
+      // The act-kind fence: a plugin's agent writes only the acts its plugin declares.
+      if (plugin && !plugin.actions.includes(a.action)) throw new Error(actFenceSays(agentNameOf(agentKey), plugin.label, a.action))
       if (sw.dailyCap !== null && (await actsToday(companyId, agentKey, now)) >= sw.dailyCap) throw new CapReached()
       await writeRecordAction(prisma, {
         companyId, recordType: a.recordType, recordId: a.recordId, action: a.action, summary: a.summary,

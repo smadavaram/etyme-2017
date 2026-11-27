@@ -6,6 +6,7 @@ import type { Route } from 'next'
 import { readJson } from '@/lib/read-response'
 import { PageHead, Panel, LoadingState, RefusedState, ErrorState } from '@/components/ui'
 import { Field, Input, SubmitButton, FormMessage } from '@/components/ui/form'
+import { PLUGIN_REGISTRY } from '@/lib/plugin-registry'
 
 /**
  * The Superadmin screen (founder, 2026-11-11: "I should be able to
@@ -208,7 +209,7 @@ function PluginSwitchPanel() {
     const body = await res.json().catch(() => ({}))
     setBusy(false)
     if (!res.ok) { setSaid({ tone: 'error', text: body.error?.message ?? 'Not switched. Try again.' }); return }
-    setSaid({ tone: 'ok', text: `${({ TRAIN_TO_BENCH: 'Train to bench', PODS: 'Project teams', WEBSITE: 'Website and content', OUTREACH: 'Outreach', PUBLIC_SECTOR: 'Public-sector proposals' } as Record<string, string>)[body.data.plugin] ?? 'The plugin'} is now ${body.data.on ? 'on' : 'off'}. The firm’s Owner sees this as Etyme staff.` })
+    setSaid({ tone: 'ok', text: `${PLUGIN_REGISTRY.find((p) => p.key === body.data.plugin)?.label ?? 'The plugin'} is now ${body.data.on ? 'on' : 'off'}. The firm’s Owner sees this as Etyme staff.` })
   }
   const pick = 'w-full rounded-[8px] border border-etyme-rule bg-etyme-raised px-3 py-2 text-[14px] text-etyme-ink'
   return (
@@ -217,11 +218,7 @@ function PluginSwitchPanel() {
         <Field label="Company’s Etyme address (before .etyme.com)"><Input value={f.slug} onChange={set('slug')} /></Field>
         <Field label="Plugin">
           <select value={f.plugin} onChange={set('plugin')} className={pick}>
-            <option value="TRAIN_TO_BENCH">Train to bench</option>
-            <option value="PODS">Project teams</option>
-            <option value="WEBSITE">Website and content</option>
-            <option value="OUTREACH">Outreach</option>
-            <option value="PUBLIC_SECTOR">Public-sector proposals</option>
+            {[...PLUGIN_REGISTRY].sort((a, b) => a.order - b.order).map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
           </select>
         </Field>
         <Field label="Switch it">

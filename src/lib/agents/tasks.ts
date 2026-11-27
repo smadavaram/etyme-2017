@@ -20,7 +20,8 @@ import { writeRecordAction, LedgerRefusal } from '@/lib/record-ledger'
 import { openDecision } from '@/lib/decision-items'
 import { AGENT_HELD_AS } from './runner'
 import { agentKeys, agentName, offSays, type SwitchState } from './switch'
-import { outreachHeld } from '@/lib/plugins'
+import { outreachHeld, isOn } from '@/lib/plugins'
+import { pluginOfAgent } from '@/lib/plugin-registry'
 
 export const TASK_RECORD = 'AgentTask'
 
@@ -133,6 +134,12 @@ export async function proposeTask(input: ProposeInput) {
   if (refusal) throw new LedgerRefusal(refusal)
   const { sw, personId, actingEntityId } = await stampFor(input.companyId, input.agentKey)
   if (sw.state === 'OFF') throw new LedgerRefusal(offSays(input.agentKey))
+  // A task names its plugin. Where the plugin is off and holds everything, no task is proposed (nothing to approve, nothing to pause).
+  const plugin = pluginOfAgent(input.agentKey)
+  if (plugin && plugin.whenOff === 'EVERYTHING') {
+    const firm = await prisma.company.findUnique({ where: { id: input.companyId }, select: { name: true, pluginsOn: true } })
+    if (!isOn(firm?.pluginsOn, plugin.key)) throw new LedgerRefusal(pluginOffTaskSays(plugin.label, firm?.name ?? 'your firm'))
+  }
   if (input.parentTaskId) {
     const parent = await prisma.agentTask.findFirst({ where: { id: input.parentTaskId, companyId: input.companyId } })
     if (!parent) throw new LedgerRefusal('The task this one grows out of is not at this firm.')
@@ -147,7 +154,7 @@ export async function proposeTask(input: ProposeInput) {
     }, input.today, tx)
     const task = await tx.agentTask.create({
       data: {
-        companyId: input.companyId, agentKey: input.agentKey, kind, recordType: input.recordType, recordId: input.recordId,
+        companyId: input.companyId, agentKey: input.agentKey, pluginKey: plugin?.key ?? null, kind, recordType: input.recordType, recordId: input.recordId,
         plan: input.plan as unknown as Prisma.InputJsonValue, decisionId: decision.id, parentTaskId: input.parentTaskId ?? null,
         ...(input.payload !== undefined ? { payload: input.payload } : {}),
       },
@@ -207,7 +214,28 @@ export async function mayAgentSend(taskId: string, step: SendCheck['step']): Pro
   if (says) return { ok: false, says }
   // Outreach (records 122, 123): a letter that sells waits while the firm's switch is off, under the same yes.
   const held = await outreachPause(task)
-  return held ? { ok: false, says: held } : { ok: true }
+  if (held) return { ok: false, says: held }
+  // Any other plugin that holds everything while off: the task is paused, its yes kept, nothing deleted.
+  const firm = await prisma.company.findUnique({ where: { id: task.companyId }, select: { name: true, pluginsOn: true } })
+  const paused = pluginTaskPausedSays(task, firm)
+  return paused ? { ok: false, says: paused } : { ok: true }
+}
+
+/** The sentence for a task refused or paused because its plugin is off. Pure. */
+export function pluginOffTaskSays(pluginLabel: string, firmName: string): string {
+  return `${pluginLabel} is off for ${firmName}, so this task waits. The Owner turns it on in Settings. Nothing was deleted, and the task keeps its yes.`
+}
+
+/**
+ * Pure: the pause sentence for a released task whose plugin holds everything
+ * while it is off, else null. Outreach holds only its sends and keeps its own
+ * words (`outreachPause`), so it answers null here.
+ */
+export function pluginTaskPausedSays(task: { agentKey: string; state: string }, firm: { name: string; pluginsOn: readonly string[] } | null): string | null {
+  if (task.state !== 'APPROVED' && task.state !== 'RUNNING') return null
+  const plugin = pluginOfAgent(task.agentKey)
+  if (!plugin || plugin.whenOff !== 'EVERYTHING' || isOn(firm?.pluginsOn, plugin.key)) return null
+  return `Paused: ${pluginOffTaskSays(plugin.label, firm?.name ?? 'your firm')}`
 }
 
 export const OUTREACH_PAUSED = 'OUTREACH_PAUSED'
@@ -297,6 +325,6 @@ export async function openTasks(companyId: string) {
   return rows.filter((r) => agentKeys().includes(r.agentKey)).map((r) => ({
     id: r.id, agentKey: r.agentKey, kind: r.kind, state: r.state, question: r.decision.question, ownerName: r.decision.ownerPerson.name,
     decisionId: r.decision.id, sent: r.sentCount, escalationOf: r.parentTaskId,
-    paused: off && planSellsLetters(r.plan) && (r.state === 'APPROVED' || r.state === 'RUNNING') ? outreachPausedSays(firm?.name ?? 'your firm') : null,
+    paused: off && planSellsLetters(r.plan) && (r.state === 'APPROVED' || r.state === 'RUNNING') ? outreachPausedSays(firm?.name ?? 'your firm') : pluginTaskPausedSays(r, firm),
   }))
 }

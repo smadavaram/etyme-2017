@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { isOn, notOfferedSays, pluginsOfferedTo, isPluginKey, maySwitchPlugin, pluginLabel, switchOnRefusal, websiteOnRefusal, type PluginKey } from '@/lib/plugins'
+import { isOn, notOfferedSays, pluginsOfferedTo, isPluginKey, maySwitchPlugin, pluginLabel, switchOnBlock, switchOnRefusal, type PluginKey } from '@/lib/plugins'
 import { momentFor } from '@/lib/when'
+import { pluginUsage } from '@/lib/plugin-usage'
 
 /**
  * GET   /api/settings/plugins            both plugins with their state, and the switches
@@ -17,6 +18,7 @@ import { momentFor } from '@/lib/when'
 const WHO_STAFF = 'Etyme staff'
 
 async function readScreen(companyId: string, kind: string | null) {
+  const usage = await pluginUsage(companyId)
   const [company, rows] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId }, select: { pluginsOn: true } }),
     prisma.pluginSwitch.findMany({ where: { companyId }, orderBy: { at: 'desc' }, take: 200 }),
@@ -40,7 +42,7 @@ async function readScreen(companyId: string, kind: string | null) {
   return {
     plugins: pluginsOfferedTo(kind).map((p) => {
       const last = switches.find((s) => s.plugin === p.key) ?? null
-      return { key: p.key, label: p.label, says: p.says, on: isOn(company?.pluginsOn, p.key), opensSays: switchOnRefusal(p.key), last: last ? { on: last.on, by: last.by, at: last.at, atWords: last.atWords } : null }
+      return { key: p.key, label: p.label, says: p.says, on: isOn(company?.pluginsOn, p.key), opensSays: switchOnRefusal(p.key), usage: usage.find((u) => u.key === p.key) ?? null, last: last ? { on: last.on, by: last.by, at: last.at, atWords: last.atWords } : null }
     }),
     switches,
   }
@@ -78,12 +80,8 @@ export async function PATCH(request: NextRequest) {
   const companyId = caller.company!.id
   const plugin: PluginKey = body.plugin
   const on = body.on
-  const closed = on ? switchOnRefusal(plugin) : null
-  if (closed) return NextResponse.json({ error: { code: 'NOT_OPEN_YET', message: closed } }, { status: 409 })
-  if (on && plugin === 'WEBSITE') {
-    const missing = await websiteOnRefusal(companyId)
-    if (missing) return NextResponse.json({ error: missing }, { status: 422 })
-  }
+  const blocked = on ? await switchOnBlock(plugin, companyId) : null
+  if (blocked) return NextResponse.json({ error: blocked.error }, { status: blocked.status })
   await prisma.$transaction(async (tx) => {
     const c = await tx.company.findUniqueOrThrow({ where: { id: companyId }, select: { pluginsOn: true } })
     const rest = c.pluginsOn.filter((k) => k !== plugin)

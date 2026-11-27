@@ -20,6 +20,7 @@ import { IMPORT_PERMISSIONS } from '@/lib/importable'
 import { SETS_UP_A_PARTY } from '@/lib/party-onboarding'
 import { ENDING_SOON_READERS, CHECK_IN_READERS } from '@/lib/releasing-soon'
 import { TWIN_FEED_READERS } from '@/lib/twin/readers'
+import { PLUGIN_REGISTRY } from '@/lib/plugin-registry'
 
 /**
  * Sidebar navigation — from CLAUDE.md, "Navigation per company type".
@@ -1553,7 +1554,9 @@ export function mayOpen(href: string, permissions: readonly string[] | null | un
 }
 
 /** The pages a plugin draws, which are not drawn while it is off. */
-const PLUGIN_PAGES: Record<string, string> = { TRAIN_TO_BENCH: TRAINING.href, PODS: PODS.href, PUBLIC_SECTOR: PROPOSALS.href }
+const PLUGIN_PAGES: Record<string, string[]> = Object.fromEntries(
+  PLUGIN_REGISTRY.filter((p) => p.doors.length).map((p) => [p.key, [...p.doors]]),
+)
 
 /**
  * The menu for a seat, less the pages of any plugin its company has off
@@ -1564,7 +1567,7 @@ export function getNavForKind(
   isConsultant: boolean,
   seat: SeatFacts = {}
 ): NavSection[] {
-  const off = Object.entries(PLUGIN_PAGES).filter(([key]) => !seat.plugins?.includes(key)).map(([, href]) => href)
+  const off = Object.entries(PLUGIN_PAGES).filter(([key]) => !seat.plugins?.includes(key)).flatMap(([, hrefs]) => hrefs)
   const sections = navForKind(kind, isConsultant, seat)
   return sections
     .map((s) => ({ ...s, items: s.items.filter((i) => !off.includes(i.href)) }))

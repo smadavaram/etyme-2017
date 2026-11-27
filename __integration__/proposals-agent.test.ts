@@ -103,7 +103,9 @@ describe('while the plugin is off', () => {
     const own = await prisma.person.findFirstOrThrow({ where: { primaryEmail: AM } })
     const kept = await prisma.proposal.create({ data: { companyId: s.firm, title: 'Kept while off', createdById: own.id, requirements: BID } })
     const out = await run(MON)
-    expect(out.ran).toBe(true)
+    // The framework stops the run and says why on the ledger, instead of a silent no-op inside the step.
+    expect(out.ran).toBe(false)
+    expect(out.why).toBe('Proposals did not run: Public-sector proposals is off for Quillbrook Staffing. The Owner turns it on in Settings. Nothing was deleted.')
     expect((await proposal(kept.id)).draft).toBeNull()
     expect(await prisma.agentTask.count({ where: { companyId: s.firm } })).toBe(0)
     expect(await prisma.agentRun.count({ where: { companyId: s.firm, skillKey: { startsWith: 'proposal.' } } })).toBe(0)

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { accessActor, recordRefusal } from '@/lib/access-log'
-import { isOn, notOfferedSays, siteRendersFor, pluginLabel, type PluginKey } from '@/lib/plugins'
+import { isOn, notOfferedSays, siteRendersFor, pluginLabel, declOf, type PluginKey } from '@/lib/plugins'
+import { isOfferedTo } from '@/lib/plugin-registry'
 import { prisma } from '@/lib/db'
 
 /** Pure: the one sentence every route and page of a plugin says while it is off. */
@@ -20,7 +21,8 @@ export async function pluginGate(caller: GateCaller, key: PluginKey): Promise<Ne
   if (!caller.company) return null
   // A company that only buys is not offered a supplier module: one neutral
   // sentence that names no module, and no door to a switch.
-  if (caller.company.kind === 'CLIENT') {
+  const decl = declOf(key)
+  if (decl && !isOfferedTo(decl, caller.company.kind)) {
     await recordRefusal([{ companyId: caller.company.id }], {
       ...accessActor(caller),
       action: 'PLUGIN_OFF_REFUSED',
@@ -31,7 +33,7 @@ export async function pluginGate(caller: GateCaller, key: PluginKey): Promise<Ne
   const c = await prisma.company.findUnique({ where: { id: caller.company.id }, select: { pluginsOn: true, siteLiveAt: true } })
   if (isOn(c?.pluginsOn, key)) return null
   // A site live before the flag keeps its editor until an Owner switches it off (record 123).
-  if (key === 'WEBSITE' && c && (await siteRendersFor({ id: caller.company.id, siteLiveAt: c.siteLiveAt, pluginsOn: c.pluginsOn }))) return null
+  if (declOf(key)?.grandfathered && c && (await siteRendersFor({ id: caller.company.id, siteLiveAt: c.siteLiveAt, pluginsOn: c.pluginsOn }))) return null
   const says = pluginOffSays(key, caller.company.name)
   await recordRefusal([{ companyId: caller.company.id }], {
     ...accessActor(caller),

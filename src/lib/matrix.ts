@@ -1220,6 +1220,17 @@ export const MATRIX: L1[] = [
       ]},
       { code: 'L2.2.2', name: 'Party onboarding — five processes, one word', domain: 'PLATFORM', processes: [
         // Plugins 3 to 5 (records 121 to 124): switched per tenant, off by default.
+        { code: 'L3.2.2.34', name: 'Plugin framework: one registry every plugin rides on, off by default, switched by the Owner or Etyme staff, hidden and never deleted, with agents that stop and are metered per plugin', owner: 'Owner', status: B,
+          tasks: [
+            'BUILT 2026-11-27, records 120 to 124, 132, 133: one declaration per plugin (key, label, sentence, order, who it is offered to, micro-site root, menu doors, API prefixes and how each is kept, agent keys, automation actions, twin act kinds, what it holds while off, its matrix row); the settings list, the Superadmin picker, the menu doors and the route and agent gates read it',
+            'BUILT 2026-11-27: off by default, an Owner\u2019s or a Superadmin\u2019s switch only, each on the PluginSwitch ledger and shown to the Owner as Etyme staff; the Project teams hold and the Website three checks are registry fields read by both switches, and the grandfathered site is a registry field read by the gate',
+            'BUILT 2026-11-27: an agent that belongs to a plugin does not run while it is off (a NOT_RUN row says so), a task names its plugin, a released task is paused with its yes kept and resumes when the plugin is on, and an agent writes only the acts its plugin declares',
+            'BUILT 2026-11-27: what a plugin\u2019s agents did is counted per plugin from the same ledger rows and read by the Owner and Admin in Settings; there is no second counter',
+            'BUILT 2026-11-27: a sweep test fails when a route under a plugin\u2019s prefix does not call its gate and is not declared open with a reason, when a gate call sits outside its plugin\u2019s prefixes, when a menu door or an agent is not declared; docs/plugins.md says how to add a plugin',
+            'NOT BUILT: agents for Train to bench, Project teams and Website (none is declared, and the registry says so); a page for an Owner to read every plugin\u2019s usage over time; the Outreach routes stay open by design while drafting is open',
+          ],
+          implementedBy: ['src/lib/plugin-registry.ts', 'src/lib/plugins.ts', 'src/lib/plugin-gate.ts', 'src/lib/plugin-usage.ts', 'src/lib/agents/runner.ts', 'src/lib/agents/tasks.ts', 'src/lib/nav-table.ts', 'src/app/api/settings/plugins/route.ts', 'src/app/api/superadmin/plugins/route.ts', 'src/app/dashboard/superadmin/page.tsx', 'src/components/settings/plugins-panel.tsx', 'docs/plugins.md'],
+          testedBy: ['__tests__/invariants/plugin-registry.test.ts', '__integration__/plugin-framework.test.ts', '__tests__/invariants/plugin-switch.test.ts', '__tests__/invariants/plugin-menu-in-every-reader.test.ts', '__tests__/invariants/plugins-not-offered-to-a-client.test.ts', '__integration__/the-owners-plugin-switch-writes-the-flag-and-the-row-together.test.ts'] },
         { code: 'L3.2.2.30', name: 'Website and content plugin: a site goes public only after three checks hold, and dark means no firm', owner: 'Owner', status: P,
           tasks: [
             'BUILT 2026-11-27, records 121 and 123: the switch refuses to turn on until the Owner\u2019s branding yes, the firm\u2019s own domain and any compliance pass hold, in a sentence naming the missing check; a Superadmin is refused past the same checks',

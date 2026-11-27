@@ -72,7 +72,9 @@ describe('the Website switch refuses until three checks hold, and names each one
   })
   it('both switch routes ask the checklist when Website goes on, and never when it goes off', () => {
     for (const f of ['src/app/api/settings/plugins/route.ts', 'src/app/api/superadmin/plugins/route.ts']) {
-      expect(read(f)).toMatch(/if \(on && plugin === 'WEBSITE'\)[\s\S]*websiteOnRefusal[\s\S]*status: 422/)
+      // Both routes ask the one registry-driven answer, and only when turning on; that answer runs the checklist for the plugin whose hold is the three checks.
+      expect(read(f)).toContain('on ? await switchOnBlock(plugin, companyId) : null')
+      expect(read('src/lib/plugins.ts')).toMatch(/onHold === 'WEBSITE_THREE_CHECKS'[\s\S]*websiteOnRefusal[\s\S]*status: 422/)
     }
   })
 })
