@@ -146,3 +146,4 @@ built, every release check, every walk and every deploy.
 | 128 | The competitive frame: flat-tier platforms — 2026-11-25 | 398 | [128-the-competitive-frame-flat-tier-platforms-2026-11-25.md](128-the-competitive-frame-flat-tier-platforms-2026-11-25.md) |
 | 129 | The affiliate model: spec, queued behind pricing — 2026-11-26 | 353 | [129-the-affiliate-model-spec-queued-2026-11-26.md](129-the-affiliate-model-spec-queued-2026-11-26.md) |
 | 130 | Ask Etyme: one job, one card — 2026-11-26 | 574 | [130-ask-etyme-one-job-one-card-2026-11-26.md](130-ask-etyme-one-job-one-card-2026-11-26.md) |
+| 131 | Pax makes deployment decisions — 2026-11-27 | 193 | [131-pax-makes-deployment-decisions-2026-11-27.md](131-pax-makes-deployment-decisions-2026-11-27.md) |

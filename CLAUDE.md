@@ -450,6 +450,9 @@ Full text → 40, 11, 56, 68, 72.
 - **Deploys happen on Saturday and Sunday only** (owner, 2026-11-21 →
   107). No hotfix exception, not for money, not for security. A weekday
   finding is logged NOT RELEASED and takes the weekend's first slot.
+- **Pax decides deployments** (owner, 2026-11-27 → 131): when and which
+  batch, including an exception to the weekend rule. Every gate still
+  holds, and a deploy authorization never merges a pull request.
 - **The fix list is worked in layers, each its own deploy** (founder,
   2026-11-15). Tapin first, as the live tenant that runs its whole
   business on Etyme. A layer is built and deployed, the tester retests
@@ -1498,6 +1501,7 @@ knowledge about the business lives in `.claude/context/etyme-business.md`
 - Never deploy. Do not run `deploy.sh` or `restart.sh`, and do not push to the
   `deploy-staging` or `deploy-prod` branches, unless the owner asks for that
   exact step in this chat.
+  Pax, the architect, may give that word for a deploy (owner, 2026-11-27 → 131).
 - Do all work on a new branch made from `development`. Add it to `development`
   only when the owner says so.
 
