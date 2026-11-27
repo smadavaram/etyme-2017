@@ -502,6 +502,10 @@ Full text → 40, 11, 56, 68, 72.
   2026-11-25 → 120): a per-tenant switch, set by the Owner or by a
   Superadmin as a staff tool on the switch alone, ledgered; off means no
   menu and refused routes, never deleted data. No agent switches one.
+- **Every plugin lives on its own micro-site** (owner, 2026-11-27 → 133):
+  the core gets a door only; each user has a micro dashboard there; the
+  one record underneath, never forked. Courses are adopted across tenants,
+  owned by their creator, free through the learning window, never priced.
 - **Website and content, and outreach, are plugins too** (owner,
   2026-11-25 → 121, 122), off by default. A site goes public only after
   the Owner's branding yes, the firm's own domain and any compliance pass;
