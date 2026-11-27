@@ -10,15 +10,13 @@
  *   - What leaves is masked first (`maskForModel`): names, rates, pay,
  *     emails and phone numbers become tokens, and the answer is put back
  *     on the way in.
- *   - Every prompt and answer is logged, masked, through
- *     `recordModelPrompt`, which refuses a text that still holds a real
- *     value.
+ *   - Every prompt and answer is logged, masked, once, by the model
+ *     gateway (`extract` calls it); this file writes no log row of its own.
  *
  * Split from the route so it can be held by unit tests with the switch,
  * the reader and the log handed in.
  */
 import { prisma } from '@/lib/db'
-import { modelFor } from '@/lib/model-ids'
 import type { EntitySpec } from '@/lib/importable'
 import {
   extractWithModel,
@@ -31,17 +29,10 @@ import {
 import {
   maskForModel,
   modelOnFor,
-  recordModelPrompt,
   splitDelimited,
   tableShape,
   type MaskVocab,
-  type PromptToRecord,
 } from '@/lib/model-boundary'
-
-/** What lib/extract sends to. Logged beside each prompt; kept in step with lib/extract by hand. */
-export const IMPORT_MODEL = modelFor('READ')
-/** The prompt log's purpose for an import. */
-export const IMPORT_PURPOSE = 'IMPORT'
 
 export const SAY = {
   modelOff:
@@ -69,7 +60,6 @@ export interface ReadDeps {
   modelOn(companyId: string): Promise<boolean>
   readerSetUp(): boolean
   extract(spec: EntitySpec, maskedContent: string, who?: { companyId: string; personId: string }): Promise<ExtractionResult | null>
-  record(p: PromptToRecord): Promise<unknown>
   vocab(companyId: string): Promise<MaskVocab>
 }
 
@@ -99,7 +89,6 @@ export const liveDeps: ReadDeps = {
   modelOn: modelOnFor,
   readerSetUp: modelAvailable,
   extract: (spec, masked, who) => extractWithModel(spec, masked, undefined, who),
-  record: recordModelPrompt,
   vocab: vocabFor,
 }
 
@@ -135,22 +124,6 @@ export async function readImportContent(
   const vocab = await deps.vocab(companyId).catch(() => ({}))
   const mask = maskForModel(content, vocab)
   const extracted = await deps.extract(spec, mask.masked, { companyId, personId })
-
-  // Logged before anything is put back, so the log holds the masked text
-  // and nothing else. The prompt's frame (the field list) is lib/extract's
-  // and names no person; what is logged is the content that left.
-  await deps.record({
-    companyId,
-    personId,
-    provider: 'anthropic',
-    model: IMPORT_MODEL,
-    maskedPrompt: `Import: ${spec.label}\n---\n${mask.masked}`,
-    maskedAnswer: extracted
-      ? JSON.stringify({ records: extracted.records, unread: extracted.unread, note: extracted.note })
-      : '[no answer]',
-    purpose: IMPORT_PURPOSE,
-    realValues: mask.realValues(),
-  })
 
   if (!extracted || extracted.records.length === 0) {
     return {

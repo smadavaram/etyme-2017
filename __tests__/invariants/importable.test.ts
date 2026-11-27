@@ -205,10 +205,9 @@ describe('saying what a load will do before it does it', () => {
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readImportContent, SAY, IMPORT_PURPOSE, type ReadDeps } from '@/app/api/imports/sheets/read'
+import { readImportContent, SAY, type ReadDeps } from '@/app/api/imports/sheets/read'
 import { maskForModel } from '@/lib/model-boundary'
 import type { ExtractionResult } from '@/lib/extract'
-import type { PromptToRecord } from '@/lib/model-boundary'
 
 
 const SHEET = [
@@ -222,12 +221,10 @@ const PROSE =
 
 function fakeDeps(on: boolean, opts: { setUp?: boolean } = {}) {
   const sent: string[] = []
-  const logged: PromptToRecord[] = []
   const deps: ReadDeps = {
     modelOn: async () => on,
     readerSetUp: () => opts.setUp ?? true,
     vocab: async () => ({ firms: ['Tecwyn'], people: [] }),
-    record: async (p) => { logged.push(p); return { ok: true } },
     // A reader that answers the way the model does: it copies the tokens
     // it was handed into the fields it was asked for.
     extract: async (_spec, masked): Promise<ExtractionResult> => {
@@ -251,7 +248,7 @@ function fakeDeps(on: boolean, opts: { setUp?: boolean } = {}) {
       }
     },
   }
-  return { deps, sent, logged }
+  return { deps, sent }
 }
 
 const REAL = ['Helena Marsh', 'Helena', 'Marsh', 'helena.marsh@example.com', '503', '0142', '$98', '98.00', 'Tecwyn', 'Omar', '45 an hour']
@@ -261,7 +258,6 @@ describe('an import under the model boundary', () => {
     const off = fakeDeps(false)
     const table = await readImportContent({ companyId: 'c', personId: 'p', spec: CONSULTANTS, content: SHEET }, off.deps)
     expect(off.sent).toHaveLength(0)
-    expect(off.logged).toHaveLength(0)
     expect(table.ok && table.readBy).toBe('HEADERS')
     expect(table.ok && table.note).toBe(SAY.modelOff)
     expect(SAY.modelOff).toMatch(/has not turned the model on/)
@@ -306,22 +302,11 @@ describe('an import under the model boundary', () => {
     expect(m.unmask(m.masked)).toBe(PROSE)
   })
 
-  it('every import prompt and answer is logged on the record', async () => {
+  it('the sheet reader writes no prompt log row of its own, so the gateway logs each import read once', async () => {
     const on = fakeDeps(true)
     await readImportContent({ companyId: 'c1', personId: 'p1', spec: CONSULTANTS, content: SHEET }, on.deps)
-    expect(on.logged).toHaveLength(1)
-    const row = on.logged[0]
-    expect(row.companyId).toBe('c1')
-    expect(row.personId).toBe('p1')
-    expect(row.purpose).toBe(IMPORT_PURPOSE)
-    expect(row.maskedPrompt).toContain(on.sent[0])
-    expect(row.maskedAnswer).toMatch(/PERSON_\d+/)
-    // The log is handed the real values so it can refuse a text that still holds one.
-    expect(row.realValues).toEqual(expect.arrayContaining(['Helena Marsh', 'helena.marsh@example.com']))
-    for (const real of REAL) {
-      expect(row.maskedPrompt.toLowerCase()).not.toContain(real.toLowerCase())
-      expect(row.maskedAnswer.toLowerCase()).not.toContain(real.toLowerCase())
-    }
+    const src = readFileSync(join(process.cwd(), 'src/app/api/imports/sheets/read.ts'), 'utf8')
+    expect(src).not.toMatch(/recordModelPrompt|provider:|anthropic|modelFor\(/)
   })
 
   it('no sentence a person reads names a key or an environment variable', () => {
