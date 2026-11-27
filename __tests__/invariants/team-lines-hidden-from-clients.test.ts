@@ -23,38 +23,154 @@ const PAPERS = 'a hidden member still needs her papers: read by the firm that ho
 const WORKER = 'a worker reading her own work'
 const SEED = 'seed, demo or simulation data, never a request'
 
-/** [path prefix or regex source, the reason it is not a client reader]. Every entry must still match a file. */
+/** [one file, the reason it is not a client reader]. A whole folder is never named: a new file in it must say which side it reads. */
 const NOT_A_CLIENT_READER: [string, string][] = [
-  ['src/app/api/ar/', SELLER], ['src/app/api/ap/bills', DEAL],
-  ['src/app/api/invoices/', SELLER], ['src/app/api/purchase-orders', SELLER], ['src/app/api/rolloff', SELLER],
-  ['src/app/api/bench/', SELLER], ['src/app/api/money-loop/', SELLER], ['src/app/api/profitability', SELLER],
-  ['src/app/api/today/', SELLER], ['src/app/api/payroll/', SELLER], ['src/app/api/cron/', SELLER],
-  ['src/app/api/consultants/', SELLER], ['src/app/api/submissions/', SELLER], ['src/app/api/loose-ends', SELLER],
-  ['src/app/api/releasing-soon', SELLER], ['src/app/api/outbound-pack', SELLER], ['src/app/api/packet', SELLER],
-  ['src/app/api/records/', SELLER], ['src/app/api/requirements/', SELLER],
-  ['src/app/api/program/milestones/[id]/decide', BY_ID],
-  ['src/app/api/timesheets/', BY_ID], ['src/app/api/expenses', BY_ID], ['src/app/api/placements/', BY_ID],
-  ['src/app/api/contracts/', BY_ID], ['src/app/api/conversations/', BY_ID],
-  ['src/app/api/me/', WORKER],
-  ['src/app/api/companies/', DEAL], ['src/app/api/suppliers/', DEAL], ['src/app/api/contacts', DEAL],
-  ['src/app/api/counterparties', DEAL], ['src/app/api/settings/', DEAL], ['src/app/api/legal-holds', DEAL],
-  ['src/app/api/data-requests', DEAL], ['src/app/api/access/', DEAL], ['src/app/api/blacklist/', DEAL],
-  ['src/app/api/census/', SEED], ['src/app/api/vendors/', DEAL],
-  ['src/app/api/compliance/', PAPERS], ['src/app/api/documents/', PAPERS], ['src/app/api/interviews', PAPERS],
-  ['src/app/api/onboarding/', PAPERS],
+  ['src/app/api/access/[contextId]/route.ts', DEAL],
+  ['src/app/api/ap/bills/route.ts', DEAL],
+  ['src/app/api/ar/collections/route.ts', SELLER],
+  ['src/app/api/ar/route.ts', SELLER],
+  ['src/app/api/bench/burn/route.ts', SELLER],
+  ['src/app/api/bench/ours/flag/route.ts', SELLER],
+  ['src/app/api/bench/ours/holds/[id]/place/route.ts', SELLER],
+  ['src/app/api/bench/ours/holds/route.ts', SELLER],
+  ['src/app/api/bench/ours/route.ts', SELLER],
+  ['src/app/api/bench/profit/route.ts', SELLER],
+  ['src/app/api/bench/route.ts', SELLER],
+  ['src/app/api/blacklist/known.ts', DEAL],
+  ['src/app/api/census/import/route.ts', SEED],
+  ['src/app/api/census/page/route.ts', SEED],
+  ['src/app/api/census/review/route.ts', SEED],
+  ['src/app/api/companies/dealings.ts', DEAL],
+  ['src/app/api/companies/positions.ts', DEAL],
+  ['src/app/api/compliance/adverse-action/route.ts', PAPERS],
+  ['src/app/api/compliance/checklist-items/route.ts', PAPERS],
+  ['src/app/api/compliance/clearance/ask.ts', PAPERS],
+  ['src/app/api/compliance/clearance/route.ts', PAPERS],
+  ['src/app/api/compliance/verifications/record.ts', PAPERS],
+  ['src/app/api/compliance/verifications/route.ts', PAPERS],
+  ['src/app/api/consultants/[id]/rate-progression/route.ts', SELLER],
+  ['src/app/api/consultants/[id]/route.ts', SELLER],
+  ['src/app/api/contacts/route.ts', DEAL],
+  ['src/app/api/contracts/[id]/activate/route.ts', BY_ID],
+  ['src/app/api/contracts/[id]/allocations/route.ts', BY_ID],
+  ['src/app/api/contracts/[id]/commissions/route.ts', BY_ID],
+  ['src/app/api/contracts/[id]/extend/route.ts', BY_ID],
+  ['src/app/api/contracts/[id]/master-contract/route.ts', BY_ID],
+  ['src/app/api/contracts/[id]/pay-line/route.ts', BY_ID],
+  ['src/app/api/contracts/[id]/rolloff/route.ts', BY_ID],
+  ['src/app/api/conversations/twin/billing.ts', BY_ID],
+  ['src/app/api/conversations/twin/first-act-read.ts', BY_ID],
+  ['src/app/api/conversations/twin/notices.ts', BY_ID],
+  ['src/app/api/conversations/twin/worker-read.ts', BY_ID],
+  ['src/app/api/counterparties/route.ts', DEAL],
+  ['src/app/api/cron/auto-approve/route.ts', SELLER],
+  ['src/app/api/cron/end-contracts/route.ts', SELLER],
+  ['src/app/api/cron/freshness-ping/route.ts', SELLER],
+  ['src/app/api/cron/loose-ends/route.ts', SELLER],
+  ['src/app/api/cron/rolloff-scan/route.ts', SELLER],
+  ['src/app/api/data-requests/route.ts', DEAL],
+  ['src/app/api/documents/requirements/route.ts', PAPERS],
+  ['src/app/api/documents/route.ts', PAPERS],
+  ['src/app/api/expenses/route.ts', BY_ID],
+  ['src/app/api/interviews/route.ts', PAPERS],
+  ['src/app/api/invoices/[id]/coding/route.ts', SELLER],
+  ['src/app/api/invoices/generate/route.ts', SELLER],
+  ['src/app/api/legal-holds/route.ts', DEAL],
+  ['src/app/api/loose-ends/route.ts', SELLER],
+  ['src/app/api/me/benches/route.ts', WORKER],
+  ['src/app/api/me/papers/route.ts', WORKER],
+  ['src/app/api/me/scorecard/route.ts', WORKER],
+  ['src/app/api/me/work/route.ts', WORKER],
+  ['src/app/api/money-loop/periods/[month]/route.ts', SELLER],
+  ['src/app/api/money-loop/placements/[id]/route.ts', SELLER],
+  ['src/app/api/money-loop/read.ts', SELLER],
+  ['src/app/api/money-loop/route.ts', SELLER],
+  ['src/app/api/onboarding/confirm-start/route.ts', PAPERS],
+  ['src/app/api/onboarding/readiness/route.ts', PAPERS],
+  ['src/app/api/outbound-pack/route.ts', SELLER],
+  ['src/app/api/packet/[token]/route.ts', SELLER],
+  ['src/app/api/packets/route.ts', SELLER],
+  ['src/app/api/payroll/off-cycle/route.ts', SELLER],
+  ['src/app/api/payroll/window-repair/route.ts', SELLER],
+  ['src/app/api/placements/[id]/cut-overtime/route.ts', BY_ID],
+  ['src/app/api/placements/[id]/overtime-method/route.ts', BY_ID],
+  ['src/app/api/placements/[id]/replace/route.ts', BY_ID],
+  ['src/app/api/profitability/route.ts', SELLER],
+  ['src/app/api/program/milestones/[id]/decide/route.ts', BY_ID],
+  ['src/app/api/purchase-orders/route.ts', SELLER],
+  ['src/app/api/records/lookup.ts', SELLER],
+  ['src/app/api/releasing-soon/route.ts', SELLER],
+  ['src/app/api/requirements/[id]/matches/route.ts', SELLER],
+  ['src/app/api/rolloff/route.ts', SELLER],
+  ['src/app/api/settings/kind.ts', DEAL],
+  ['src/app/api/settings/site/route.ts', DEAL],
+  ['src/app/api/submissions/[id]/award/route.ts', SELLER],
+  ['src/app/api/submissions/[id]/convert/route.ts', SELLER],
+  ['src/app/api/submissions/[id]/offer/route.ts', SELLER],
+  ['src/app/api/submissions/[id]/terms/route.ts', SELLER],
+  ['src/app/api/submissions/name-if-known.ts', SELLER],
+  ['src/app/api/submissions/own-people/route.ts', SELLER],
+  ['src/app/api/suppliers/direct.ts', DEAL],
+  ['src/app/api/suppliers/join/route.ts', DEAL],
+  ['src/app/api/timesheets/[id]/assert/route.ts', BY_ID],
+  ['src/app/api/timesheets/ladder.ts', BY_ID],
+  ['src/app/api/today/reads.ts', SELLER],
+  ['src/app/api/today/route.ts', SELLER],
   ['src/app/dashboard/layout.tsx', 'a signed-in seat’s own lines for the hat switch'],
-  ['src/lib/document-stages/', PAPERS], ['src/lib/notify/', PAPERS], ['src/lib/contract-clearance', PAPERS],
-  ['src/lib/credential-chase', PAPERS], ['src/lib/document-request', PAPERS], ['src/lib/document-requirements', PAPERS],
-  ['src/lib/work-country', PAPERS], ['src/lib/erasure', 'erasing a person’s own record, never a read for a client'],
-  ['src/lib/money/', SELLER],
-  ['src/lib/work-chain-read', BY_ID], ['src/lib/invoice-match', BY_ID],
-  ['src/lib/agents/', SELLER], ['src/lib/skills/', SELLER], ['src/lib/twin/', SELLER],
-  ['src/lib/answers', SELLER], ['src/lib/own-seat', WORKER], ['src/lib/your-terms', WORKER],
-  ['src/lib/agreement-term', DEAL], ['src/lib/award/', SELLER], ['src/lib/order-postings', SELLER],
-  ['src/lib/contract-cycles', SELLER], ['src/lib/cycle-complete', SELLER], ['src/lib/expense-currency', BY_ID],
-  ['src/lib/rate-line', BY_ID], ['src/lib/company-create', DEAL], ['src/lib/setup-checklist-state', DEAL],
-  ['src/lib/suppliers-of', DEAL], ['src/lib/match-pool', DEAL], ['src/lib/sites', 'whether a site holds a placement, to refuse deleting it: a hidden line holds the site too'],
-  ['src/lib/team-structure/', SELLER], ['src/lib/consultant-portfolio/', SELLER], ['src/lib/census-import', SEED], ['src/lib/data-request', 'sandbox erase'],
+  ['src/lib/agents/census-keeper.ts', SELLER],
+  ['src/lib/agents/contracts-checklist.ts', SELLER],
+  ['src/lib/agreement-term.ts', DEAL],
+  ['src/lib/answers.ts', SELLER],
+  ['src/lib/award/terms-on-record.ts', SELLER],
+  ['src/lib/census-import.ts', SEED],
+  ['src/lib/company-create.ts', DEAL],
+  ['src/lib/consultant-portfolio/margin-reach.ts', SELLER],
+  ['src/lib/contract-clearance.ts', PAPERS],
+  ['src/lib/contract-cycles.ts', SELLER],
+  ['src/lib/credential-chase.ts', PAPERS],
+  ['src/lib/cycle-complete.ts', SELLER],
+  ['src/lib/data-request.ts', 'sandbox erase'],
+  ['src/lib/document-request.ts', PAPERS],
+  ['src/lib/document-requirements.ts', PAPERS],
+  ['src/lib/document-stages/chain-firms.ts', PAPERS],
+  ['src/lib/document-stages/degree-check.ts', PAPERS],
+  ['src/lib/document-stages/degree-told.ts', PAPERS],
+  ['src/lib/document-stages/line-paper-facts.ts', PAPERS],
+  ['src/lib/document-stages/paper-record.ts', PAPERS],
+  ['src/lib/document-stages/where-work-is-done.ts', PAPERS],
+  ['src/lib/erasure.ts', 'erasing a person’s own record, never a read for a client'],
+  ['src/lib/expense-currency.ts', BY_ID],
+  ['src/lib/invoice-match.ts', BY_ID],
+  ['src/lib/match-pool.ts', DEAL],
+  ['src/lib/money/commission-write.ts', SELLER],
+  ['src/lib/money/firm-today.ts', SELLER],
+  ['src/lib/money/line-ties.ts', SELLER],
+  ['src/lib/money/margin-reach.ts', SELLER],
+  ['src/lib/money/margin.ts', SELLER],
+  ['src/lib/money/milestone-only-lines.ts', SELLER],
+  ['src/lib/money/money-chain.ts', SELLER],
+  ['src/lib/money/payers-acceptance-read.ts', SELLER],
+  ['src/lib/money/placement-pay-terms.ts', SELLER],
+  ['src/lib/money/signed-unbilled.ts', SELLER],
+  ['src/lib/money/supplier-bills.ts', SELLER],
+  ['src/lib/money/week-bill.ts', SELLER],
+  ['src/lib/money/weeks-read.ts', SELLER],
+  ['src/lib/notify/documents.ts', PAPERS],
+  ['src/lib/notify/timesheet-chase-agent.ts', PAPERS],
+  ['src/lib/order-postings.ts', SELLER],
+  ['src/lib/own-seat.ts', WORKER],
+  ['src/lib/rate-line.ts', BY_ID],
+  ['src/lib/setup-checklist-state.ts', DEAL],
+  ['src/lib/sites.ts', 'whether a site holds a placement, to refuse deleting it: a hidden line holds the site too'],
+  ['src/lib/skills/checkers/checklist-list.ts', SELLER],
+  ['src/lib/skills/checkers/drift-flag.ts', SELLER],
+  ['src/lib/suppliers-of.ts', DEAL],
+  ['src/lib/team-structure/write.ts', SELLER],
+  ['src/lib/twin/supplier-performers.ts', SELLER],
+  ['src/lib/twin/supplier-run.ts', SELLER],
+  ['src/lib/work-chain-read.ts', BY_ID],
+  ['src/lib/work-country.ts', PAPERS],
+  ['src/lib/your-terms.ts', WORKER],
 ]
 
 /**
@@ -62,8 +178,6 @@ const NOT_A_CLIENT_READER: [string, string][] = [
  * may only shrink: fixing one means deleting its line here.
  */
 const KNOWN_OPEN: [string, string][] = [
-  ['src/lib/program-seat.ts', 'noteSeatRead lists every person on the client’s book for the access log, including a hidden member (the log row, not a screen); owner of lib/program-seat'],
-  ['src/lib/api-context.ts', 'a refusal logs the people the client’s lines name, including a hidden member (the log row, not a screen); owner of lib/api-context'],
   ['src/lib/supplier-desks.ts', 'finds one line to read a supplier’s terms; no figure or name of a member is printed; owner of lib/supplier-desks'],
   ['src/lib/public-site.ts', 'counts the client’s live lines for a public page; a hidden member is counted; owner of lib/public-site'],
   ['src/app/api/vendors/scorecards/route.ts', 'counts who started from each supplier by the client’s lines, a hidden member among them; SUPPLY owns it, the change is clientLineWhere on line 89'],
@@ -85,7 +199,7 @@ const readers = walk(join(ROOT, 'src')).filter((f) => {
   return READS.test(readFileSync(join(ROOT, f), 'utf8'))
 })
 const unfiltered = readers.filter((f) => !FILTERS.test(readFileSync(join(ROOT, f), 'utf8')))
-const reasonFor = (f: string) => NOT_A_CLIENT_READER.find(([p]) => f.startsWith(p))?.[1] ?? null
+const reasonFor = (f: string) => NOT_A_CLIENT_READER.find(([p]) => f === p)?.[1] ?? null
 const openFor = (f: string) => KNOWN_OPEN.find(([p]) => f === p)?.[1] ?? null
 
 describe('the member lines of a sold team on outcome work are hidden from every reader on the client’s side', () => {
@@ -95,8 +209,13 @@ describe('the member lines of a sold team on outcome work are hidden from every 
   })
 
   it('no allowlist entry names a file that no longer reads sell lines, or that now uses the filter', () => {
-    const stale = [...NOT_A_CLIENT_READER, ...KNOWN_OPEN].filter(([p]) => !unfiltered.some((f) => f.startsWith(p))).map(([p]) => p)
+    const stale = [...NOT_A_CLIENT_READER, ...KNOWN_OPEN].filter(([p]) => !unfiltered.includes(p)).map(([p]) => p)
     expect(stale).toEqual([])
+  })
+
+  it('the allowlist names single files, never a whole folder', () => {
+    const folders = NOT_A_CLIENT_READER.filter(([p]) => !/\.tsx?$/.test(p)).map(([p]) => p)
+    expect(folders).toEqual([])
   })
 
   it('the client readers that were fixed for pods still read through the filter', () => {
@@ -112,7 +231,7 @@ describe('the member lines of a sold team on outcome work are hidden from every 
 
   it('the open list names only files that still read through no filter, so it can only shrink', () => {
     for (const [p] of KNOWN_OPEN) expect(unfiltered, p).toContain(p)
-    expect(KNOWN_OPEN.length).toBeLessThanOrEqual(6)
+    expect(KNOWN_OPEN.length).toBeLessThanOrEqual(4)
   })
 
   it('a client-facing reader of a hidden line is found by this sweep, not by a person reading a file', () => {

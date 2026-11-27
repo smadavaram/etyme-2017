@@ -11,7 +11,8 @@
  *
  * A route is admitted by the same data-class rules as a platform model
  * (`admits`): tenant business data only to a US-hosted route under a signed
- * agreement, or on the tenant's recorded opt-in; Lane C data never.
+ * agreement, declared on the route; Lane C data never. The key's name is
+ * derived from the company's own id, so no company can name another's key.
  */
 
 import type { ModelTier, RegisteredModel } from './register'
@@ -22,6 +23,11 @@ type Env = Record<string, string | undefined>
 /** The name of a tenant's key in the platform's secret store. A reference can never name any other variable. */
 export const TENANT_KEY_REF_SHAPE = /^ETYME_TM_[A-Z0-9_]{1,60}$/
 
+/** The one key reference a company may hold for a tier. The server derives it; nobody types it. */
+export function tenantKeyRef(companyId: string, tier: string): string {
+  return `ETYME_TM_${companyId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_${tier}`
+}
+
 /** Set by the platform's operator once the secret store can take a tenant's key. */
 export const TENANT_KEYS_READY_ENV = 'ETYME_TENANT_KEYS_READY'
 
@@ -29,7 +35,7 @@ export const SAYS = {
   notEnterprise: (edition: string) => `Bringing your own model is part of the Enterprise edition. This company is on ${edition === 'USER' ? 'the User' : edition === 'STARTER' ? 'the Starter' : edition} edition.`,
   notOwner: 'Only an Owner sets the company’s own model.',
   storeNotReady: 'Your keys can be added once the secret store is set up.',
-  badRef: 'Name the key by its place in the secret store, for example ETYME_TM_ACME_LOW. A key itself is never accepted here.',
+  badRef: 'The key is named by Etyme from your company’s own place in the secret store. A key, or another company’s name for one, is never accepted here.',
   badTier: 'Choose the Low or the High tier.',
   needFields: 'A route needs a label, an adapter, a model and a region.',
   noProof: 'Check it is you first: a company’s own model is set only after a fresh second check.',
@@ -37,7 +43,7 @@ export const SAYS = {
 
 export interface RouteInput {
   tier: unknown; label: unknown; adapter: unknown; modelId: unknown; region: unknown
-  dpaSignedOn?: unknown; keyRef: unknown; allowPlatformFallback?: unknown
+  dpaSignedOn?: unknown; keyRef?: unknown; allowPlatformFallback?: unknown
 }
 
 export interface CleanRoute {
@@ -60,16 +66,18 @@ export function mayBringOwnModel(i: { edition: string; isOwner: boolean }): Verd
 
 /**
  * Read what the Owner typed. A key value pasted into any field is refused,
- * never stored: only a reference of the allowed shape passes.
+ * never stored. The reference is derived from the saving company's id; one
+ * typed that is not exactly that is refused.
  */
-export function cleanRoute(i: RouteInput, env: Env = process.env): Verdict<CleanRoute> {
+export function cleanRoute(i: RouteInput, companyId: string, env: Env = process.env): Verdict<CleanRoute> {
   if (!secretStoreReady(env)) return { ok: false, says: SAYS.storeNotReady, status: 409 }
   const s = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
   if (!MODEL_TIERS.includes(i.tier as ModelTier)) return { ok: false, says: SAYS.badTier, status: 422 }
   const label = s(i.label), adapter = s(i.adapter), modelId = s(i.modelId), region = s(i.region)
   if (!label || !adapter || !modelId || !region) return { ok: false, says: SAYS.needFields, status: 422 }
-  const keyRef = s(i.keyRef)
-  if (!keyRef || !TENANT_KEY_REF_SHAPE.test(keyRef)) return { ok: false, says: SAYS.badRef, status: 422 }
+  const keyRef = tenantKeyRef(companyId, i.tier as string)
+  const typed = s(i.keyRef)
+  if (typed !== null && typed !== keyRef) return { ok: false, says: SAYS.badRef, status: 422 }
   const day = s(i.dpaSignedOn)
   const dpaSignedOn = day && /^\d{4}-\d{2}-\d{2}$/.test(day) && !Number.isNaN(Date.parse(day)) ? day : null
   return {

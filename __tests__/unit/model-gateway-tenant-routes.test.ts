@@ -15,11 +15,11 @@ vi.mock('@/lib/identity/security-ledger', () => ({ recordSecurityEvent: async (e
 
 import { POST } from '@/app/api/settings/model-routes/route'
 import { callModel, type ModelAdapter } from '@/lib/model-gateway/call'
-import { cleanRoute, mayBringOwnModel, routeAsModel, TENANT_KEYS_READY_ENV, type RouteRow } from '@/lib/model-gateway/tenant-routes'
-import { meterBasis } from '@/lib/skills/meter'
+import { cleanRoute, mayBringOwnModel, tenantKeyRef, routeAsModel, TENANT_KEYS_READY_ENV, type RouteRow } from '@/lib/model-gateway/tenant-routes'
+import { meterBasis, meterOf } from '@/lib/skills/meter'
 import type { RegisteredModel } from '@/lib/model-gateway/register'
 
-const good = { tier: 'LOW', label: 'Our model', adapter: 'fake', modelId: 'own-1', region: 'us', dpaSignedOn: '2026-11-01', keyRef: 'ETYME_TM_OURS_LOW' }
+const good = { tier: 'LOW', label: 'Our model', adapter: 'fake', modelId: 'own-1', region: 'us', dpaSignedOn: '2026-11-01', keyRef: 'ETYME_TM_CO1_LOW' }
 const post = (b: unknown) => POST(new Request('http://x/api/settings/model-routes', { method: 'POST', body: JSON.stringify(b) }) as any)
 
 beforeEach(() => {
@@ -50,19 +50,40 @@ describe('a company’s own model is an Enterprise feature', () => {
     expect((await r.json()).error.code).toBe('SECOND_CHECK')
     expect(db.tenantModelRoute.upsert).not.toHaveBeenCalled()
   })
+  it('a company can never point its model route at another company’s key', async () => {
+    expect(cleanRoute({ ...good, keyRef: 'ETYME_TM_CO2_LOW' }, 'co1')).toMatchObject({ ok: false, status: 422 })
+    expect(cleanRoute({ ...good, keyRef: 'ETYME_TM_CO1_HIGH' }, 'co1')).toMatchObject({ ok: false })
+    db.company.findUnique.mockResolvedValue({ edition: 'ENTERPRISE' })
+    const r = await post({ ...good, keyRef: 'ETYME_TM_CO2_LOW', proof: 'p' })
+    expect(r.status).toBe(422)
+    expect(db.tenantModelRoute.upsert).not.toHaveBeenCalled()
+  })
+  it('the key reference is built from the saving company’s own id when the Owner types none', async () => {
+    expect(tenantKeyRef('co1', 'LOW')).toBe('ETYME_TM_CO1_LOW')
+    const { keyRef: _omit, ...noRef } = good
+    const c = cleanRoute(noRef, 'co1')
+    expect(c.ok && c.value.keyRef).toBe('ETYME_TM_CO1_LOW')
+  })
+  it('a stored route whose reference is not its own company’s is never read as a model', async () => {
+    db.company.findUnique.mockResolvedValue({ edition: 'ENTERPRISE' })
+    db.tenantModelRoute.findMany.mockResolvedValue([{ ...own, keyRef: 'ETYME_TM_CO2_LOW' }, own])
+    const { readTenantRoutes } = await import('@/lib/model-gateway/tenant-routes-db')
+    const r = await readTenantRoutes('co1')
+    expect(r.models.map((m) => m.keyEnv)).toEqual(['ETYME_TM_CO1_LOW'])
+  })
   it('an Enterprise Owner’s route is stored with a key reference and no key value anywhere in what is written or logged', async () => {
     db.company.findUnique.mockResolvedValue({ edition: 'ENTERPRISE' })
     const r = await post({ ...good, proof: 'p', apiKey: 'sk-live-should-never-be-kept' })
     expect(r.status).toBe(200)
     const written = JSON.stringify(db.tenantModelRoute.upsert.mock.calls[0][0])
-    expect(written).toContain('ETYME_TM_OURS_LOW')
+    expect(written).toContain('ETYME_TM_CO1_LOW')
     expect(written).not.toContain('sk-live')
     expect(JSON.stringify(sec.events)).not.toContain('sk-live')
     expect(sec.events.at(-1).event).toBe('MODEL_ROUTE_SET')
   })
   it('a key pasted where the reference goes is refused and never stored', async () => {
-    expect(cleanRoute({ ...good, keyRef: 'sk-ant-1234567890' })).toMatchObject({ ok: false, status: 422 })
-    expect(cleanRoute({ ...good, keyRef: 'PATH' })).toMatchObject({ ok: false })
+    expect(cleanRoute({ ...good, keyRef: 'sk-ant-1234567890' }, 'co1')).toMatchObject({ ok: false, status: 422 })
+    expect(cleanRoute({ ...good, keyRef: 'PATH' }, 'co1')).toMatchObject({ ok: false })
   })
   it('until the secret store can take a key the Owner reads that keys can be added once it is set up, and nothing is stored', async () => {
     delete process.env[TENANT_KEYS_READY_ENV]
@@ -74,9 +95,9 @@ describe('a company’s own model is an Enterprise feature', () => {
   })
 })
 
-const own: RouteRow = { tier: 'LOW', label: 'Own', adapter: 'fake', modelId: 'own-1', region: 'US', dpaSignedOn: '2026-11-01', keyRef: 'ETYME_TM_OURS_LOW', allowPlatformFallback: false, enabled: true }
+const own: RouteRow = { tier: 'LOW', label: 'Own', adapter: 'fake', modelId: 'own-1', region: 'US', dpaSignedOn: '2026-11-01', keyRef: 'ETYME_TM_CO1_LOW', allowPlatformFallback: false, enabled: true }
 const platform: RegisteredModel = { id: 'plat-1', label: 'Platform', adapter: 'fake', tier: 'LOW', classes: ['NON_SENSITIVE', 'TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'PK' }
-const env = { PK: 'x', ETYME_TM_OURS_LOW: 'y' }
+const env = { PK: 'x', ETYME_TM_CO1_LOW: 'y' }
 const req = { companyId: 'co1', personId: 'p1', skillKey: 'ask.answer', purpose: 'ASK_ETYME', prompt: 'Who is free?', record: { recordType: 'SUBMISSION' as const, recordId: 's1' } }
 function run(adapter: ModelAdapter, rows: RouteRow[], extra: Partial<Parameters<typeof callModel>[1]> = {}) {
   const runs: any[] = []
@@ -135,6 +156,15 @@ describe('a company’s own route follows the same rules as the platform’s', (
 })
 
 describe('usage on a company’s own model is metered platform-only', () => {
+  it('the statement’s meter carries the platform-only basis on every line, from the same rule', () => {
+    const m = meterOf([
+      { skillKey: 'a', agentKey: 'x', tier: 'LOW', byTenantModel: true, fallbackFrom: null, escalatedFrom: null },
+      { skillKey: 'a', agentKey: 'x', tier: 'LOW', byTenantModel: false, fallbackFrom: null, escalatedFrom: null },
+    ])
+    expect(m.total.basis).toEqual({ platformOnly: 1, withModel: 1 })
+    expect(m.bySkill[0].basis).toEqual({ platformOnly: 1, withModel: 1 })
+    expect(m.byAgent[0].basis).toEqual({ platformOnly: 1, withModel: 1 })
+  })
   it('calls on the own model count as platform-only and the rest are metered with the model', () => {
     expect(meterBasis({ calls: 10, ownModel: 4 })).toEqual({ platformOnly: 4, withModel: 6 })
   })

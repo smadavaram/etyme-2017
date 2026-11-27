@@ -12,8 +12,9 @@
  * Admission, by data class:
  *   NON_SENSITIVE    any model entered for it.
  *   TENANT_BUSINESS  only a model hosted in the US and under a data
- *                    processing agreement. A tenant's own model is the same,
- *                    or else the tenant's recorded opt-in (record 96).
+ *                    processing agreement. A tenant's own model is the same:
+ *                    the company declares region and agreement on the route,
+ *                    and an opt-in never replaces them (record 125).
  *   LANE_C           none, ever.
  * Fallback and escalation read the same function, so neither can reach a
  * model the first call could not.
@@ -47,7 +48,7 @@ export interface RegisteredModel {
   keyEnv: string | null
   /** Dollars per million tokens. Absent means no price is set, and cost is recorded as null. */
   price?: ModelPrice
-  /** A tenant's own model. Such a model may be admitted for tenant data on the tenant's opt-in. */
+  /** A tenant's own model. Admitted by the same rules as a platform model. */
   byTenant?: boolean
 }
 
@@ -62,16 +63,12 @@ export function usWithDpa(m: Pick<RegisteredModel, 'region' | 'dpaSignedOn'>): b
 
 export type Admission = { ok: true } | { ok: false; reason: string }
 
-/**
- * May this model be sent data of this class? `tenantOptIn` counts only for
- * a tenant's own model; nothing else is admitted by it.
- */
-export function admits(m: RegisteredModel, dataClass: DataClass, opts: { tenantOptIn?: boolean } = {}): Admission {
+/** May this model be sent data of this class? Tenant business data goes only to a US-hosted model under a signed agreement. */
+export function admits(m: RegisteredModel, dataClass: DataClass): Admission {
   if (dataClass === 'LANE_C') return { ok: false, reason: 'No model is admitted for tax IDs, bank details or social security numbers.' }
   if (!m.classes.includes(dataClass)) return { ok: false, reason: `${m.label} is not entered for this kind of data.` }
   if (dataClass === 'NON_SENSITIVE') return { ok: true }
   if (usWithDpa(m)) return { ok: true }
-  if (m.byTenant && opts.tenantOptIn === true) return { ok: true }
   return {
     ok: false,
     reason: m.region.trim().toUpperCase() !== 'US'
@@ -86,8 +83,7 @@ export interface ParsedRegister { models: RegisteredModel[]; problems: string[] 
  * Read the register from its setting. An entry that is malformed, or that
  * enters a model for tenant data without the US and the agreement, is left
  * out and named in `problems`: a model enters for one data class at a time,
- * and only on the terms for that class (a tenant's own model may enter on
- * the opt-in, so it is kept and admitted per call).
+ * and only on the terms for that class.
  */
 export function parseRegister(raw: string | undefined): ParsedRegister {
   const problems: string[] = []
@@ -116,7 +112,7 @@ export function parseRegister(raw: string | undefined): ParsedRegister {
       id, label: str('label') ?? id, adapter, tier, classes, region: region.toUpperCase(), dpaSignedOn: dpa,
       keyEnv: str('keyEnv'), ...(price ? { price } : {}), ...(o.byTenant === true ? { byTenant: true } : {}),
     }
-    if (classes.includes('TENANT_BUSINESS') && !usWithDpa(m) && !m.byTenant) {
+    if (classes.includes('TENANT_BUSINESS') && !usWithDpa(m)) {
       return void problems.push(`${where} is entered for tenant business data but is not hosted in the US under a signed data processing agreement, so it is left out.`)
     }
     models.push(m)
@@ -143,10 +139,10 @@ export function candidatesFor(
   tier: ModelTier,
   dataClass: DataClass,
   env: Env = process.env,
-  opts: { tenantOptIn?: boolean; models?: readonly RegisteredModel[] } = {},
+  opts: { models?: readonly RegisteredModel[] } = {},
 ): RegisteredModel[] {
   const models = opts.models ?? registerFrom(env).models
-  return models.filter((m) => m.tier === tier && admits(m, dataClass, opts).ok && keyPresent(m, env))
+  return models.filter((m) => m.tier === tier && admits(m, dataClass).ok && keyPresent(m, env))
 }
 
 /** The price of a registered model id, or null where none is set. Never a guess. */

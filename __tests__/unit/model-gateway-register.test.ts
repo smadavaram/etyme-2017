@@ -31,14 +31,16 @@ describe('the model register admits a model for one data class at a time', () =>
   it('no model is admitted for Lane C data', () => {
     expect(admits(m(), 'LANE_C').ok).toBe(false)
   })
-  it("a tenant's own model gets tenant business data only in the US with a signed agreement or the tenant's recorded opt-in", () => {
+  it("a company's own model outside the US never receives business data", () => {
     const own = m({ byTenant: true, region: 'DE', dpaSignedOn: null })
     expect(admits(own, 'TENANT_BUSINESS').ok).toBe(false)
-    expect(admits(own, 'TENANT_BUSINESS', { tenantOptIn: true }).ok).toBe(true)
-    expect(admits(m({ byTenant: true }), 'TENANT_BUSINESS').ok).toBe(true)
+    expect(admits(m({ byTenant: true, region: 'DE' }), 'TENANT_BUSINESS').ok).toBe(false)
   })
-  it("the tenant's opt-in never admits a model that is not the tenant's own", () => {
-    expect(admits(m({ region: 'DE' }), 'TENANT_BUSINESS', { tenantOptIn: true }).ok).toBe(false)
+  it("a company's own model in the US with no signed agreement never receives business data", () => {
+    expect(admits(m({ byTenant: true, region: 'US', dpaSignedOn: null }), 'TENANT_BUSINESS').ok).toBe(false)
+  })
+  it("a company's own model in the US under a signed agreement receives business data", () => {
+    expect(admits(m({ byTenant: true }), 'TENANT_BUSINESS').ok).toBe(true)
   })
 })
 

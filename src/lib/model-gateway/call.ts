@@ -54,8 +54,6 @@ export interface ModelRequest {
   maxTokens?: number
   /** The text the answer's quotes must come from, for a skill whose key checks quotes. */
   source?: string
-  /** The tenant's own recorded opt-in (record 96); counts for a tenant's own model only. */
-  tenantOptIn?: boolean
 }
 
 export interface ModelDeps {
@@ -139,8 +137,8 @@ export async function callModel(req: ModelRequest, deps: ModelDeps = {}): Promis
     : deps.models ? { rows: [], models: [] } : await readTenantRoutes(req.companyId).catch(() => ({ rows: [] as RouteRow[], models: [] as RegisteredModel[] }))
   /** A company's own routes first, the platform's only where the company allowed it; each admitted by the same data-class rules. */
   const pick = (tier: ModelTier): RegisteredModel[] => orderWithTenant(
-    candidatesFor(tier, dataClass, env, { models: own.models, tenantOptIn: req.tenantOptIn }),
-    candidatesFor(tier, dataClass, env, { models: register.models, tenantOptIn: req.tenantOptIn }),
+    candidatesFor(tier, dataClass, env, { models: own.models }),
+    candidatesFor(tier, dataClass, env, { models: register.models }),
     own.rows, tier,
   )
   const candidates = pick(startTier)

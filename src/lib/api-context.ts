@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { seatPermissions } from '@/lib/permission-grants'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
@@ -1066,7 +1067,8 @@ async function regionRefusalFor(
   if (READS_PEOPLE.includes(first)) {
     const companyId = caller.company.id
     const lines = await prisma.sellContract.findMany({
-      where: { OR: [{ clientCompanyId: companyId }, { endClientCompanyId: companyId }] },
+      // The client's own lines, less the members of outcome work it may not read: the log names only people it could have read.
+      where: clientLineWhere({ OR: [{ clientCompanyId: companyId }, { endClientCompanyId: companyId }] }),
       select: { personId: true },
       distinct: ['personId'],
       take: 500,
@@ -1140,7 +1142,7 @@ async function desklessRefusal(caller: CallerContext, request?: NextRequest): Pr
   if (verdict.readsPeople) {
     const companyId = caller.company.id
     const lines = await prisma.sellContract.findMany({
-      where: { OR: [{ companyId }, { clientCompanyId: companyId }, { endClientCompanyId: companyId }] },
+      where: { OR: [{ companyId }, clientLineWhere({ OR: [{ clientCompanyId: companyId }, { endClientCompanyId: companyId }] })] },
       select: { personId: true },
       distinct: ['personId'],
       take: 500,
@@ -1196,7 +1198,7 @@ async function recordAt(family: RecordFamily, id: string, companyId: string): Pr
   const c = t.sellContract
   const here = [c.companyId, c.clientCompanyId, c.endClientCompanyId].includes(companyId)
     || (await prisma.sellContract.count({
-      where: { personId: t.personId, OR: [{ companyId }, { clientCompanyId: companyId }, { endClientCompanyId: companyId }] },
+      where: { personId: t.personId, OR: [{ companyId }, clientLineWhere({ OR: [{ clientCompanyId: companyId }, { endClientCompanyId: companyId }] })] },
     })) > 0
   return { here, people: [t.personId] }
 }

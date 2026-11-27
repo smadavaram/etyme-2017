@@ -35,6 +35,8 @@ export interface MeterLine {
   escalated: number
   /** Calls that ran on the tenant's own model. */
   ownModel: number
+  /** What the statement reads: own-model calls count platform-only, the rest with the model. */
+  basis: { platformOnly: number; withModel: number }
 }
 
 export interface Meter {
@@ -43,7 +45,7 @@ export interface Meter {
   total: MeterLine
 }
 
-const empty = (key: string): MeterLine => ({ key, calls: 0, rules: 0, low: 0, high: 0, fallback: 0, escalated: 0, ownModel: 0 })
+const empty = (key: string): MeterLine => ({ key, calls: 0, rules: 0, low: 0, high: 0, fallback: 0, escalated: 0, ownModel: 0, basis: { platformOnly: 0, withModel: 0 } })
 
 function add(line: MeterLine, r: MeterRow) {
   line.calls++
@@ -51,6 +53,7 @@ function add(line: MeterLine, r: MeterRow) {
   if (r.fallbackFrom) line.fallback++
   if (r.escalatedFrom) line.escalated++
   if (r.byTenantModel) line.ownModel++
+  line.basis = meterBasis(line)
 }
 
 export function meterOf(rows: readonly MeterRow[]): Meter {

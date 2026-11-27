@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { logBulkAccess } from '@/lib/access-log'
 import { hasPermission } from '@/lib/permissions'
 import { mayHoldOutsideSeat } from '@/lib/access-grant'
@@ -264,13 +265,14 @@ export async function noteSeatRead(
   what: string
 ): Promise<void> {
   const contracts = await prisma.sellContract.findMany({
-    where: {
+    // Less the member lines of outcome work: the log names only people the program may read.
+    where: clientLineWhere({
       OR: [
         { endClientCompanyId: seat.clientCompany.id },
         { endClientCompanyId: null, clientCompanyId: seat.clientCompany.id },
       ],
       state: { in: ['IN_PROGRESS', 'PAUSED'] },
-    },
+    }),
     select: { personId: true },
   })
 

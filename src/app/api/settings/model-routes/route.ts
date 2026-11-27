@@ -14,7 +14,7 @@ import { readTenantRoutes, saveTenantRoute } from '@/lib/model-gateway/tenant-ro
  * is on the security log before it is sent.
  *
  * GET  — the routes and whether keys can be added yet.
- * POST — { tier, label, adapter, modelId, region, dpaSignedOn?, keyRef, allowPlatformFallback?, proof? }
+ * POST — { tier, label, adapter, modelId, region, dpaSignedOn?, allowPlatformFallback?, proof? }
  */
 
 const NO_STORE = { 'Cache-Control': 'no-store' }
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
   const allowed = mayBringOwnModel({ edition: c?.edition ?? 'USER', isOwner: await seatIsOwner(caller.context.roleId) })
   if (!allowed.ok) return refuse(allowed.status, 'FORBIDDEN', allowed.says, 'edition or seat')
 
-  const clean = cleanRoute(body)
+  const clean = cleanRoute(body, company.id)
   if (!clean.ok) return refuse(clean.status, clean.status === 409 ? 'STORE_NOT_READY' : 'VALIDATION', clean.says, 'route refused')
 
   const act = 'model.route' as const
