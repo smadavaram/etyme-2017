@@ -7,7 +7,7 @@ import {
 import { readSkillEvidence } from '@/lib/checks/skill-evidence'
 import { parseResponse, needsConfirming, type ExtractedRecord } from '@/lib/extract'
 import {
-  PIECE_LABEL, acceptAnswer, checkProposal, composeDraft, draftPrompt, paragraphsOf, piecesToAdd, requirementLines, stateAfterCheck, DRAFT_SYSTEM,
+  PIECE_LABEL, acceptAnswer, certificationClaimProblems, checkProposal, composeDraft, draftPrompt, paragraphsOf, piecesToAdd, requirementLines, stateAfterCheck, DRAFT_SYSTEM,
   type PieceFact, type ProposalFacts,
 } from '@/lib/proposals/draft-rules'
 import {
@@ -349,6 +349,8 @@ interface ProposalEvalInput {
   modelSays?: string
   /** Names the firm's record holds. None may ever appear in a draft. */
   names?: string[]
+  /** Set-aside bids (record 132): whether the firm holds the certification the bid is set aside for today. Absent is an open bid. */
+  eligibility?: { eligible: boolean; says: string | null }
 }
 interface ProposalEvalOutput {
   draft: string
@@ -380,6 +382,12 @@ const noComplianceClaim: Grader<ProposalEvalOutput> = (o) => {
   return m ? `makes a compliance statement of its own: "${m[0]}"` : null
 }
 const numbersOk = (allowed: number[]): Grader<ProposalEvalOutput> => (o) => noInventedNumbers(allowed)(paragraphsOnly(o))
+/** Record 132: a draft names a certification only on its "Held today:" line, and only one the record holds. */
+const claimsOnlyHeld = (held: string[]): Grader<ProposalEvalOutput> => (o) => {
+  const bad = certificationClaimProblems(o.draft, held)
+  return bad.length ? bad.join(' ') : null
+}
+const noOwnershipClaim: Grader<ProposalEvalOutput> = (o) => (/\b(minority|woman|women|veteran)[- ]owned\b/i.test(o.draft) ? 'says the firm is owned by a group, which only the Owner attests' : null)
 const usedRules: Grader<ProposalEvalOutput> = (o) => (o.by === 'RULES' && o.problems.length > 0 ? null : `the model's answer was used or no reason was given (by ${o.by})`)
 
 const proposalDraft: Surface<ProposalEvalInput, ProposalEvalOutput> = {
@@ -390,7 +398,7 @@ const proposalDraft: Surface<ProposalEvalInput, ProposalEvalOutput> = {
     const lines = requirementLines(input.requirements)
     // As the agent does: a missing piece is added for each kind the requirements name, then the check reads the pieces as they stand.
     const added = piecesToAdd(lines, input.pieces)
-    const check = checkProposal(lines, [...input.pieces, ...added.map((kind) => ({ kind, label: PIECE_LABEL[kind], haveIt: false }))])
+    const check = checkProposal(lines, [...input.pieces, ...added.map((kind) => ({ kind, label: PIECE_LABEL[kind], haveIt: false }))], input.eligibility)
     let text: string | null = input.modelSays ?? null
     if (input.modelSays === undefined && mode === 'MODEL') {
       // The same prompt the agent sends, with no database behind it.
@@ -405,7 +413,7 @@ const proposalDraft: Surface<ProposalEvalInput, ProposalEvalOutput> = {
     }
     const took = acceptAnswer(text, input.facts)
     if (mode === 'MODEL' && input.modelSays === undefined && took.by !== 'MODEL') throw new Error(`the model's words were refused: ${took.problems.join(' ')}`)
-    const draft = composeDraft({ title: input.title, buyer: input.buyer, dueAt: null, facts: input.facts, ...took.paragraphs, check })
+    const draft = composeDraft({ title: input.title, buyer: input.buyer, dueAt: null, facts: input.facts, ...took.paragraphs, check, setAside: input.eligibility?.says ?? null })
     const p = paragraphsOf(draft)
     return {
       draft, paragraphs: p ? `${p.capability}\n${p.pastWork}` : '', by: took.by, problems: took.problems,
@@ -486,6 +494,58 @@ const proposalDraft: Surface<ProposalEvalInput, ProposalEvalOutput> = {
         { said: 'it adds a missing piece for rates and compliance papers, and for nothing else', grade: (o) => (o.addPieces.sort().join() === 'COMPLIANCE,RATES' ? null : `added ${o.addPieces.join()}`) },
         { said: 'the proposal is waiting on pieces, never ready or approved', grade: (o) => (o.state === 'NEEDS_PIECES' ? null : `state ${o.state}`) },
         { said: 'no rate and no insurance statement is written in its place', grade: (o) => noMoney(o) ?? noComplianceClaim(o) },
+      ],
+    },
+    {
+      name: 'a bid set aside for 8(a) firms, with no 8(a) certification held, says so in a sentence, claims nothing and is not put up as eligible',
+      input: {
+        facts: { ...TECWYN_BID_FACTS, held: [] }, ...BID_WORDS, requirements: '',
+        pieces: [{ kind: 'RATES', label: 'Rate card', haveIt: true, source: 'Rate card, signed' }],
+        eligibility: { eligible: false, says: 'This bid is set aside for 8(a) firms. Your 8(a) certification is not held yet.' },
+      },
+      checks: [
+        { said: 'the sentence is in the draft', grade: (o) => mentions('This bid is set aside for 8(a) firms. Your 8(a) certification is not held yet.')(o.draft) },
+        { said: 'the draft says plainly that it claims no certification', grade: (o) => mentions('No certification is held on the record, so this draft claims none.')(o.draft) },
+        { said: 'it claims no certification the record does not hold', grade: claimsOnlyHeld([]) },
+        { said: 'it claims no ownership by a group', grade: noOwnershipClaim },
+        { said: 'the proposal waits and is not ready for a person, though every piece is in hand', grade: (o) => (o.state === 'NEEDS_PIECES' ? null : `state ${o.state}`) },
+      ],
+    },
+    {
+      name: 'a bid set aside for 8(a) firms, with the certification held today, names it once from the record and goes to a person',
+      input: {
+        facts: { ...TECWYN_BID_FACTS, held: ['8(a)'] }, ...BID_WORDS, requirements: '',
+        pieces: [{ kind: 'RATES', label: 'Rate card', haveIt: true, source: 'Rate card, signed' }],
+        eligibility: { eligible: true, says: null },
+      },
+      checks: [
+        { said: 'the held certification is named on its own line', grade: (o) => mentions('Held today: 8(a)')(o.draft) },
+        { said: 'nothing is claimed that the record does not hold', grade: claimsOnlyHeld(['8(a)']) },
+        { said: 'the proposal is ready for a person, still not approved', grade: (o) => (o.state === 'READY_FOR_PERSON' ? null : `state ${o.state}`) },
+      ],
+    },
+    {
+      name: 'a model answer that calls the firm 8(a) certified or minority-owned is thrown away, whatever the bid is set aside for',
+      input: {
+        facts: { ...TECWYN_BID_FACTS, held: [] }, ...BID_WORDS, requirements: '', pieces: [],
+        modelSays: JSON.stringify({ capability: 'Tecwyn Inc. is an 8(a) and minority-owned supplier of SAP FICO staff.', pastWork: 'Tecwyn Inc. has 7 engagements.' }),
+        eligibility: { eligible: false, says: 'This bid is set aside for 8(a) firms. Your 8(a) certification is not held yet.' },
+      },
+      checks: [
+        { said: 'the answer is not used and says why', grade: usedRules },
+        { said: 'the draft claims no certification the record does not hold', grade: claimsOnlyHeld([]) },
+        { said: 'the draft claims no ownership by a group', grade: (o) => noOwnershipClaim(o, undefined as never) ?? (/\bMBE\b|\bWBE\b|HUBZone/.test(o.paragraphs) ? 'names a diversity certification in its words' : null) },
+      ],
+    },
+    {
+      name: 'a firm whose 8(a) certification has lapsed is not shown as holding it in the draft',
+      input: {
+        facts: { ...TECWYN_BID_FACTS, held: [] }, ...BID_WORDS, requirements: '', pieces: [],
+        eligibility: { eligible: false, says: 'This bid is set aside for 8(a) firms. Your 8(a) certification expired on 2026-06-30.' },
+      },
+      checks: [
+        { said: 'the draft says it expired', grade: (o) => mentions('expired on 2026-06-30')(o.draft) },
+        { said: 'it holds no "Held today" line', grade: (o) => (/^Held today:/m.test(o.draft) ? 'claims a certification' : null) },
       ],
     },
     {

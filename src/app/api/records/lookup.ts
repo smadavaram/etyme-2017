@@ -55,7 +55,8 @@ function onBook(companyId: string, type: RecordType): Record<string, unknown> {
     case 'PublicAccessFile':
     case 'SubmissionConfirmation':
     case 'PayrollDraft':
-    case 'Proposal': return { companyId }
+    case 'Proposal':
+    case 'DiversityRegistration': return { companyId }
   }
 }
 
@@ -167,6 +168,10 @@ export async function findOnBook(companyId: string, type: RecordType, id: string
       const r = await prisma.proposal.findFirst({ where, select: { id: true, title: true } })
       return r ? { id: r.id, name: r.title } : null
     }
+    case 'DiversityRegistration': {
+      const r = await prisma.diversityRegistration.findFirst({ where, select: { id: true, buyerName: true } })
+      return r ? { id: r.id, name: `Supplier-diversity registration for ${r.buyerName}` } : null
+    }
     case 'MoneyChain': {
       const r = await prisma.moneyChain.findFirst({ where, select: { id: true, periodStart: true, periodEnd: true, person: { select: { name: true } } } })
       return r ? { id: r.id, name: `${r.person.name}, ${periodWords(r)}` } : null
@@ -228,6 +233,7 @@ export async function subjectOf(type: RecordType, id: string): Promise<{ company
     case 'PublicAccessFile': return ownerFirm(await prisma.publicAccessFile.findUnique({ where: { id }, select: { companyId: true } }))
     case 'PayrollDraft': return ownerFirm(await prisma.payrollDraft.findUnique({ where: { id }, select: { companyId: true } }))
     case 'Proposal': return ownerFirm(await prisma.proposal.findUnique({ where: { id }, select: { companyId: true } }))
+    case 'DiversityRegistration': return ownerFirm(await prisma.diversityRegistration.findUnique({ where: { id }, select: { companyId: true } }))
   }
 }
 
@@ -397,6 +403,10 @@ export async function factsOf(type: RecordType, id: string): Promise<Fact[]> {
         ...f('People', String(peopleIn(rows))), ...f('Total gross', grossSays(rows)),
         ...rows.map((x) => ({ label: x.person, value: `${x.hours} hours, ${amount(x.grossPay, x.currency)}${x.held.length ? `; ${x.held.join('; ')}` : ''}` })),
       ]
+    }
+    case 'DiversityRegistration': {
+      const r = await prisma.diversityRegistration.findUnique({ where: { id }, select: { buyerName: true, status: true, portalUrl: true, submittedAt: true } })
+      return r ? [...f('Buyer', r.buyerName), ...f('Portal', r.portalUrl), ...f('State', plainKind(r.status)), ...f('Submitted by a person', day(r.submittedAt))] : []
     }
     case 'Proposal': {
       const r = await prisma.proposal.findUnique({ where: { id }, select: { title: true, buyer: true, state: true, dueAt: true, approvedAt: true, submittedAt: true } })

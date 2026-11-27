@@ -21,7 +21,7 @@ import { confirmationMatch } from './confirmation-match'
 import { dualAuthBlock } from './dual-auth-block'
 import { paymentMatch } from './payment-match'
 import { payrollDraft } from './payroll-draft'
-import { proposalDraft, proposalCheck, proposalAsk, proposalChase } from './proposals'
+import { proposalDraft, proposalCheck, proposalAsk, proposalChase, registrationDraft } from './proposals'
 
 export const CHECKERS: Record<string, SkillChecker<any>> = {
   'weekly.summary': weeklySummaryChecker,
@@ -43,4 +43,5 @@ export const CHECKERS: Record<string, SkillChecker<any>> = {
   'proposal.check': proposalCheck,
   'proposal.ask': proposalAsk,
   'proposal.chase': proposalChase,
+  'registration.draft': registrationDraft,
 }

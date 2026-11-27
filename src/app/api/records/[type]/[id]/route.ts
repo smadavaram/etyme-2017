@@ -37,7 +37,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   const needs = readNeeds(type)
   const lacks = needs !== null && !hasPermission(seat.caller.permissions, needs)
   // A proposal is a plugin's record: while the plugin is off for the firm the view says so, as the Proposals page does.
-  if (!lacks && type === 'Proposal') {
+  if (!lacks && (type === 'Proposal' || type === 'DiversityRegistration')) {
     const off = await pluginGate(seat.caller, 'PUBLIC_SECTOR')
     if (off) return off
   }

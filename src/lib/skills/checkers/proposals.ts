@@ -10,13 +10,19 @@
  *    later edit makes it "not graded", never a fail.
  *  - proposal.check: every kind of piece the requirements name has a piece,
  *    the state agrees with the pieces, and only a person ever approved it.
+ *    It also claims no certification the record does not hold today (record 132).
+ *  - registration.draft: each answer drafted for a diversity portal is read back
+ *    against the record as it stands: no certification not held, no ownership
+ *    fact the Owner has not attested, no legal entity but the Owner's.
  *  - proposal.ask: the card is one task that sends nothing, in twelve words
  *    or fewer, and none is open for a proposal that is not ready.
  *  - proposal.chase: each reminder task is for one seat at the firm, names
  *    pieces on this proposal, and is closed only where they are in hand.
  */
 import type { PrismaClient } from '@prisma/client'
-import { checkProposal, draftProblems, paragraphsOf, piecesToAdd, requirementLines, stateAfterCheck, PROPOSAL_CHASE_KIND, PROPOSAL_REVIEW_KIND, PROPOSAL_RECORD } from '@/lib/proposals/draft-rules'
+import { bidEligibility, readDiversityFacts } from '@/lib/diversity/facts'
+import { registrationProblems } from '@/lib/diversity/registration-rules'
+import { certificationClaimProblems, checkProposal, draftProblems, paragraphsOf, piecesToAdd, requirementLines, stateAfterCheck, PROPOSAL_CHASE_KIND, PROPOSAL_REVIEW_KIND, PROPOSAL_RECORD } from '@/lib/proposals/draft-rules'
 import { readProposalFacts } from '@/lib/proposals/facts-read'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 
@@ -35,7 +41,7 @@ export const proposalDraft: SkillChecker<PrismaClient> = async (companyId, _k, w
   const words = paragraphsOf(p.draft)
   if (!words) return fail('The draft has lost its sections, so the paragraphs the agent wrote cannot be found.', evidence)
   const facts = await readProposalFacts(read as never, companyId)
-  const problems = draftProblems(words, facts)
+  const problems = [...draftProblems(words, facts), ...certificationClaimProblems(p.draft, facts.held ?? [])]
   return problems.length ? fail(problems.join(' '), evidence) : pass('The draft holds no amount of money, no compliance statement and no number the record does not hold.', evidence)
 }
 
@@ -50,9 +56,23 @@ export const proposalCheck: SkillChecker<PrismaClient> = async (companyId, _k, _
   const missingKinds = piecesToAdd(lines, p.pieces)
   if (missingKinds.length) return fail(`The requirements name ${missingKinds.map((k) => k.toLowerCase().replace(/_/g, ' ')).join(' and ')}, and the proposal has no piece for ${missingKinds.length === 1 ? 'it' : 'them'}.`, evidence)
   if (p.state === 'APPROVED' || p.state === 'SUBMITTED') return pass('A person approved it, and every kind of piece the requirements name is there.', evidence)
-  const want = stateAfterCheck(checkProposal(lines, p.pieces))
+  const want = stateAfterCheck(checkProposal(lines, p.pieces, await bidEligibility(read as never, companyId, p)))
   if (want !== 'DRAFT' && want !== p.state) return fail(`The pieces say ${want.toLowerCase().replace(/_/g, ' ')}, and the proposal reads ${p.state.toLowerCase().replace(/_/g, ' ')}.`, evidence)
   return pass('Every kind of piece the requirements name is there, and the state agrees with which pieces are in hand.', evidence)
+}
+
+export const registrationDraft: SkillChecker<PrismaClient> = async (companyId, _k, window, refs, read) => {
+  const ref = refs[0]
+  if (!ref) return unknownBecause('The run names no registration.')
+  const evidence = `Registration ${ref.recordId}`
+  const r = await read.diversityRegistration.findFirst({ where: { id: ref.recordId, companyId }, select: { answers: true, questions: true, status: true, submittedById: true } })
+  if (!r) return fail('The run drafted a registration that is not on the record.', evidence)
+  if (!r.answers?.trim()) return fail('The run drafted a registration and no answers are on the record.', evidence)
+  if (r.submittedById) return fail('The registration shows a person submitted it, and the agent only drafts. Check who marked it.', evidence)
+  const edited = await read.event.count({ where: { companyId, type: 'diversity.registration_edited', subjectId: ref.recordId, occurredAt: { gte: window.from } } })
+  if (edited > 0) return unknownBecause('A person edited the answers after the run, so the words it wrote can no longer be read back.')
+  const problems = registrationProblems(r.answers, await readDiversityFacts(read as never, companyId))
+  return problems.length ? fail(problems.join(' '), evidence) : pass('Every answer is from the record: no certification that is not held, no ownership fact the Owner has not attested.', evidence)
 }
 
 export const proposalAsk: SkillChecker<PrismaClient> = async (companyId, _k, _w, refs, read) => {

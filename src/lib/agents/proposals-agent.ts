@@ -21,6 +21,14 @@
  *     task (`proposal.chase`): one yes releases the whole task. On Drafts
  *     only nothing is sent, even after the yes.
  *
+ * Supplier diversity (record 132) adds two things to the same run. A bid a
+ * person recorded as set aside for a certification is checked against the
+ * one reader of what the firm holds today: where it does not hold it, the
+ * proposal waits and says so, and is never put up as eligible. And a portal
+ * registration a person pasted questions into gets its answers drafted from
+ * the record (`registration.draft`): no certification not held, no ownership
+ * fact the Owner has not attested. A person submits on the portal.
+ *
  * Every act is a row on the record ledger, a skill run, and a TwinAction
  * under the supplier twin's role contract: an act the contract puts at
  * "never" is not done. It never approves, signs, publishes compliance
@@ -44,6 +52,8 @@ import type { RecordType } from '@/lib/agent-run'
 import { ledger } from '@/lib/twin/ledger'
 import { contractFor, tierIn, twinKindFor } from '@/lib/twin/role-contract'
 import { proposalFacts } from '@/lib/proposals/facts'
+import { bidEligibility, readDiversityFacts } from '@/lib/diversity/facts'
+import { REGISTRATION_AGENT_ACT, REGISTRATION_RECORD, draftRegistration } from '@/lib/diversity/registration-rules'
 import { mayMove, type ProposalState } from '@/lib/proposals/rules'
 import {
   MAX_PROPOSALS_A_RUN, PIECE_LABEL, PIECE_ROLES, PROPOSAL_AGENT, PROPOSAL_CHASE_KIND, PROPOSAL_CHASE_TEMPLATE, PROPOSAL_DRAFT_PURPOSE,
@@ -55,7 +65,7 @@ import { TASK_RECORD, approvalOf, closeTask, proposeTask, type TaskPlan } from '
 import { registerPlan } from './plans'
 import { registerAgent, type AgentContext, type AgentDef } from './runner'
 
-registerPlan({ agentKey: PROPOSAL_AGENT, skills: ['proposal.draft', 'proposal.check', 'proposal.ask', 'proposal.chase', 'chase.send'], outputSkill: 'proposal.draft' })
+registerPlan({ agentKey: PROPOSAL_AGENT, skills: ['proposal.draft', 'proposal.check', 'proposal.ask', 'proposal.chase', 'registration.draft', 'chase.send'], outputSkill: 'proposal.draft' })
 
 const OPEN = ['PROPOSED', 'APPROVED', 'RUNNING'] as const
 const WORKING: ProposalState[] = ['DRAFT', 'NEEDS_PIECES', 'READY_FOR_PERSON']
@@ -73,7 +83,7 @@ export const CHASE_PLAN: TaskPlan = {
 export interface ProposalDeps { send?: typeof sendMail; gateway?: ModelDeps }
 
 /** The twin's one row for an act, under the supplier twin's contract. Nothing is written for an act the contract puts at never. */
-async function twinRow(ctx: AgentContext, a: { companyId: string; action: string; proposalId: string; person: string | null; rationale: string; rule: string; key: string }) {
+async function twinRow(ctx: AgentContext, a: { companyId: string; action: string; proposalId: string; person: string | null; rationale: string; rule: string; key: string; entityType?: string }) {
   const firm = await prisma.company.findUnique({ where: { id: a.companyId }, select: { kind: true } })
   const kind = twinKindFor(firm?.kind)
   const contract = await contractFor(a.companyId, kind)
@@ -82,7 +92,7 @@ async function twinRow(ctx: AgentContext, a: { companyId: string; action: string
   await ledger({
     companyId: a.companyId, twinKind: kind, actorType: 'TWIN', actorId: kind, onAuthorityOfRole: 'Account Manager', authorityPersonId: a.person,
     roleContractId: contract.id, roleContractVersion: contract.version, tier, outcome: 'PERFORMED', action: a.action,
-    entityType: PROPOSAL_RECORD, entityId: a.proposalId, partyCompanyIds: [a.companyId], ruleCited: a.rule, rationale: a.rationale,
+    entityType: a.entityType ?? PROPOSAL_RECORD, entityId: a.proposalId, partyCompanyIds: [a.companyId], ruleCited: a.rule, rationale: a.rationale,
     surface: 'CRON', payload: { agentKey: ctx.agentKey, ruleVersion: ctx.ruleVersion }, dedupKey: a.key,
   })
 }
@@ -100,7 +110,7 @@ async function actAllowed(companyId: string, action: string): Promise<boolean> {
 const seatFor = (seats: Awaited<ReturnType<typeof firmSeats>>, kind: PieceKind, now: Date) =>
   pickOwner(seats.filter((s) => hasPermission(s.rolePermissions, 'submissions.read')), PIECE_ROLES[kind], now)
 
-async function draftIt(ctx: AgentContext, p: { id: string; title: string; buyer: string | null; dueAt: Date | null }, lines: string[], pieces: { kind: string; haveIt: boolean; label: string; source: string | null }[], facts: ProposalFacts, personId: string, gateway?: ModelDeps) {
+async function draftIt(ctx: AgentContext, p: { id: string; title: string; buyer: string | null; dueAt: Date | null }, eligibility: { eligible: boolean; says: string | null }, lines: string[], pieces: { kind: string; haveIt: boolean; label: string; source: string | null }[], facts: ProposalFacts, personId: string, gateway?: ModelDeps) {
   const { result } = await runSkill(ctx, 'proposal.draft', { recordType: PROPOSAL_RECORD, recordId: p.id, unitsPlanned: 1 }, async () => {
     // The gateway's own run row is left to this skill's row, so one call is one row and the cost is counted once.
     const got = await callModel({
@@ -120,7 +130,7 @@ async function draftIt(ctx: AgentContext, p: { id: string; title: string; buyer:
     } else {
       note = got.status === 'NOT_CONFIGURED' || got.status === 'OFF' ? `Not configured: ${got.says} The rules wrote the draft.` : `${got.says} The rules wrote the draft.`
     }
-    const draft = composeDraft({ title: p.title, buyer: p.buyer, dueAt: p.dueAt, facts, ...paragraphs, check: checkProposal(lines, pieces) })
+    const draft = composeDraft({ title: p.title, buyer: p.buyer, dueAt: p.dueAt, facts, ...paragraphs, check: checkProposal(lines, pieces, eligibility), setAside: eligibility.says })
     return {
       result: { draft, by, note },
       verdict, failReason: note,
@@ -153,11 +163,13 @@ export async function proposalsAgentStep(ctx: AgentContext, deps: ProposalDeps =
     let pieces = p.pieces.map((x) => ({ id: x.id, kind: x.kind, label: x.label, haveIt: x.haveIt, source: x.source }))
     let state = p.state as ProposalState
     const facts = await proposalFacts(companyId)
+    // A bid set aside for a certification is eligible only where the firm holds it today (record 132).
+    const eligibility = await bidEligibility(prisma as never, companyId, p, now)
 
     // 1. Draft, once. A person's edit is never overwritten: only a proposal with no draft is written.
     if (p.draft === null && canDraft) {
       if (!(await ctx.mayAct())) return
-      const made = await draftIt(ctx, p, lines, pieces, facts, sw.changedById, deps.gateway)
+      const made = await draftIt(ctx, p, eligibility, lines, pieces, facts, sw.changedById, deps.gateway)
       const saved = await prisma.proposal.updateMany({ where: { id: p.id, draft: null }, data: { draft: made.draft } })
       if (saved.count === 1) {
         await ctx.act({ recordType: PROPOSAL_RECORD, recordId: p.id, action: 'PROPOSAL_DRAFTED', summary: `Drafted the proposal for ${p.title} from the firm’s own record, written by ${made.by === 'MODEL' ? 'the model, checked against the record' : 'the rules'}. A person reads and edits it.` })
@@ -175,7 +187,7 @@ export async function proposalsAgentStep(ctx: AgentContext, deps: ProposalDeps =
       const source = sourceFromRecord(kind, facts)
       after.push({ id: `new:${kind}`, kind, label: PIECE_LABEL[kind], haveIt: source !== null, source })
     }
-    const check = checkProposal(lines, after)
+    const check = checkProposal(lines, after, eligibility)
     const target = stateAfterCheck(check)
     const moves = target !== state && mayMove('AGENT', state, target)
     if (toAdd.length > 0 || fills.length > 0 || moves) {
@@ -193,7 +205,7 @@ export async function proposalsAgentStep(ctx: AgentContext, deps: ProposalDeps =
       if (moves) state = target
       await ctx.act({
         recordType: PROPOSAL_RECORD, recordId: p.id, action: 'PROPOSAL_CHECKED',
-        summary: `Checked the proposal for ${p.title}: ${check.missing.length} ${check.missing.length === 1 ? 'requirement needs' : 'requirements need'} a piece the record does not hold, ${check.toWrite.length} ${check.toWrite.length === 1 ? 'needs' : 'need'} a person’s words${toAdd.length ? `, ${toAdd.length} ${toAdd.length === 1 ? 'piece' : 'pieces'} added` : ''}.`,
+        summary: `Checked the proposal for ${p.title}: ${check.ineligible ? `${check.ineligible} It waits and is not put up as eligible. ` : ''}${check.missing.length} ${check.missing.length === 1 ? 'requirement needs' : 'requirements need'} a piece the record does not hold, ${check.toWrite.length} ${check.toWrite.length === 1 ? 'needs' : 'need'} a person’s words${toAdd.length ? `, ${toAdd.length} ${toAdd.length === 1 ? 'piece' : 'pieces'} added` : ''}.`,
       })
       await twinRow(ctx, { companyId, action: 'proposal.draft', proposalId: p.id, person: owner, rule: 'A requirement is answered only by a piece that is in hand; the rest are flagged, never filled in.', rationale: `Checked the requirements of ${p.title} against the pieces the firm holds.`, key: `${p.id}:check:${randomUUID()}` })
       pieces = (await prisma.proposalPiece.findMany({ where: { proposalId: p.id }, orderBy: { label: 'asc' } })).map((x) => ({ id: x.id, kind: x.kind, label: x.label, haveIt: x.haveIt, source: x.source }))
@@ -242,8 +254,37 @@ export async function proposalsAgentStep(ctx: AgentContext, deps: ProposalDeps =
     }
   }
 
+  await draftRegistrations(ctx, sw.changedById, owner)
   await walkReviewTasks(ctx)
   await walkChaseTasks(ctx, send, firm.name)
+}
+
+/**
+ * Portal registrations (record 132): for each one a person pasted questions into and nobody has
+ * answered, draft the answers from the record, once. A person's edit is never overwritten, the agent
+ * never marks one submitted, and a question the record does not answer is left to a person.
+ */
+async function draftRegistrations(ctx: AgentContext, _by: string, owner: string | null) {
+  const { companyId, now } = ctx
+  if (!(await actAllowed(companyId, REGISTRATION_AGENT_ACT))) return
+  const todo = await prisma.diversityRegistration.findMany({
+    where: { companyId, status: 'NOT_STARTED', answers: null, questions: { not: null } }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: MAX_PROPOSALS_A_RUN,
+  })
+  if (todo.length === 0) return
+  const facts = await readDiversityFacts(prisma as never, companyId, now)
+  for (const r of todo) {
+    const made = draftRegistration(r.questions, facts)
+    if (made.nothing) continue
+    if (!(await ctx.mayAct())) return
+    const { result } = await runSkill(ctx, 'registration.draft', { recordType: AS(REGISTRATION_RECORD), recordId: r.id, unitsPlanned: made.answers.length }, async () => {
+      const saved = await prisma.diversityRegistration.updateMany({ where: { id: r.id, answers: null, status: 'NOT_STARTED' }, data: { answers: made.text, status: 'DRAFTED', draftedAt: now } })
+      return { result: saved.count === 1 }
+    })
+    if (!result) continue
+    const left = made.answers.filter((a) => a.basis === 'A_PERSON').length
+    await ctx.act({ recordType: AS(REGISTRATION_RECORD), recordId: r.id, action: 'REGISTRATION_DRAFTED', summary: `Drafted answers for the ${r.buyerName} supplier-diversity portal from the firm’s own record: ${made.answers.length - left} from the record, ${left} left to a person. Nothing was submitted.` })
+    await twinRow(ctx, { companyId, action: REGISTRATION_AGENT_ACT, proposalId: r.id, entityType: REGISTRATION_RECORD, person: owner, rule: 'Only what the record holds: a certification held today, an ownership fact the Owner attested, the legal name the Owner entered.', rationale: `The ${r.buyerName} registration had questions and no answers.`, key: `${r.id}:registration` })
+  }
 }
 
 /** Close a review card that has nothing left to ask. A person's yes on the card approved the proposal as her own act; here it is only read. */

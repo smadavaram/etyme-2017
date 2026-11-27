@@ -180,8 +180,8 @@ describe('the agent’s skills and its limits', () => {
     expect(mine.map((s) => [s.key, s.tier])).toEqual([['proposal.draft', 'LOW'], ['proposal.check', 'RULES'], ['proposal.ask', 'RULES'], ['proposal.chase', 'RULES']])
   })
 
-  it('the agent’s plan names its four skills and the one letter-sending skill, and stands with no gap', () => {
-    expect(planOf('proposals-agent')?.skills).toEqual(['proposal.draft', 'proposal.check', 'proposal.ask', 'proposal.chase', 'chase.send'])
+  it('the agent’s plan names its four proposal skills, the portal answers skill and the one letter-sending skill, and stands with no gap', () => {
+    expect(planOf('proposals-agent')?.skills).toEqual(['proposal.draft', 'proposal.check', 'proposal.ask', 'proposal.chase', 'registration.draft', 'chase.send'])
     expect(planGaps(planOf('proposals-agent')!)).toEqual([])
   })
 

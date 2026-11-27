@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { usePageSection } from '@/components/page-section'
 import { RefusedState, LoadingState } from '@/components/ui'
+import { CertificationsPanel, RegistrationsList } from './diversity-panels'
 
 /**
  * Public-sector proposals (record 124, plugin 5): the firm's bids, what the
@@ -18,6 +19,7 @@ interface Flag { text: string; status: 'MISSING_PIECE' | 'A_PERSON_WRITES'; says
 interface Proposal {
   id: string; title: string; buyer: string | null; sourceUrl: string | null; dueAt: string | null
   state: string; stateSays: string; draft: string | null; missing: number; pieces: Piece[]; flags: Flag[]; nothingToCheck: string | null
+  setAside: string | null; eligibility: { eligible: boolean; says: string | null }
 }
 
 const field = 'rounded-md border border-etyme-rule bg-etyme-raised px-2 py-1.5 text-sm text-etyme-ink w-full'
@@ -30,7 +32,7 @@ export default function ProposalsPage() {
   const [refused, setRefused] = useState<string | null>(null)
   const [said, setSaid] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [form, setForm] = useState({ title: '', buyer: '', dueAt: '', sourceUrl: '', requirements: '' })
+  const [form, setForm] = useState({ title: '', buyer: '', dueAt: '', sourceUrl: '', requirements: '', requiresCertification: '', requiresCertificationName: '' })
   const [where, setWhere] = useState<Record<string, string>>({})
   const [edit, setEdit] = useState<Record<string, string>>({})
 
@@ -55,8 +57,9 @@ export default function ProposalsPage() {
     e.preventDefault()
     const done = await call('/api/proposals', 'POST', {
       title: form.title, buyer: form.buyer || undefined, dueAt: form.dueAt || undefined, sourceUrl: form.sourceUrl || undefined, requirements: form.requirements || undefined,
+      requiresCertification: form.requiresCertification || undefined, requiresCertificationName: form.requiresCertificationName || undefined,
     }, 'Recorded. The proposals agent drafts it from your record when it next runs.')
-    if (done) setForm({ title: '', buyer: '', dueAt: '', sourceUrl: '', requirements: '' })
+    if (done) setForm({ title: '', buyer: '', dueAt: '', sourceUrl: '', requirements: '', requiresCertification: '', requiresCertificationName: '' })
   }
 
   if (refused) return <RefusedState says={refused} />
@@ -73,6 +76,9 @@ export default function ProposalsPage() {
       {said && <p role="status" className="mb-3 text-sm text-etyme-verified">{said}</p>}
       {err && <p role="alert" className="mb-3 text-sm text-etyme-attention">{err}</p>}
 
+      <CertificationsPanel />
+      <RegistrationsList />
+
       {mayWrite && (
         <form onSubmit={start} className="panel mb-6 grid gap-3 sm:grid-cols-2">
           <label><span className={label}>Solicitation title or number</span>
@@ -83,6 +89,12 @@ export default function ProposalsPage() {
             <input type="date" value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} className={field} /></label>
           <label><span className={label}>Link to the solicitation</span>
             <input value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} placeholder="https://" className={field} /></label>
+          <label><span className={label}>Set aside for a certification? Leave empty for an open bid</span>
+            <select value={form.requiresCertification} onChange={(e) => setForm({ ...form, requiresCertification: e.target.value })} className={field}>
+              <option value="">Open bid</option><option value="MBE">MBE</option><option value="WBE">WBE</option><option value="EIGHT_A">8(a)</option><option value="HUBZONE">HUBZone</option><option value="OTHER">Another one</option>
+            </select></label>
+          {form.requiresCertification === 'OTHER' && <label><span className={label}>Its name</span>
+            <input value={form.requiresCertificationName} onChange={(e) => setForm({ ...form, requiresCertificationName: e.target.value })} className={field} /></label>}
           <label className="sm:col-span-2"><span className={label}>Requirements, pasted as text</span>
             <textarea value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} rows={5} className={field} /></label>
           <div className="sm:col-span-2"><button type="submit" className="btn-primary">Record the bid</button></div>
@@ -97,6 +109,7 @@ export default function ProposalsPage() {
               {p.title} <span className="text-xs text-etyme-muted">· {p.stateSays}{p.dueAt ? ` · due ${p.dueAt}` : ''}{p.buyer ? ` · ${p.buyer}` : ''}</span>
             </h2>
             {p.sourceUrl && <p className="text-xs text-etyme-muted">Solicitation: {p.sourceUrl}</p>}
+            {p.eligibility && !p.eligibility.eligible && <p role="alert" className="mt-1 text-etyme-attention">{p.eligibility.says} It is not put up for approval as eligible.</p>}
             <p className="mt-1 text-etyme-muted">{p.missing === 0 ? 'Every piece is in hand.' : `${p.missing} ${p.missing === 1 ? 'piece is' : 'pieces are'} still missing.`}</p>
 
             {p.nothingToCheck && <p className="mt-2 text-etyme-muted">{p.nothingToCheck}</p>}

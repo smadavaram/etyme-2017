@@ -7,12 +7,17 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { moveRefusal, type ProposalState } from './rules'
 import { PROPOSAL_RECORD, PROPOSAL_REVIEW_KIND } from './draft-rules'
+import { bidEligibility } from '@/lib/diversity/facts'
 
 /** The sentence that refuses this person's approval, or null where it may go ahead. Reads fresh. */
 export async function approvalRefusal(companyId: string, proposalId: string): Promise<string | null> {
   const p = await prisma.proposal.findFirst({ where: { id: proposalId, companyId }, include: { pieces: { select: { haveIt: true } } } })
   if (!p) return 'That proposal is not on this firm’s list.'
-  return moveRefusal('PERSON', p.state as ProposalState, 'APPROVED', p.pieces.filter((x) => !x.haveIt).length)
+  const no = moveRefusal('PERSON', p.state as ProposalState, 'APPROVED', p.pieces.filter((x) => !x.haveIt).length)
+  if (no) return no
+  // A bid set aside for a certification the firm does not hold today is never approved as eligible (record 132).
+  const eligibility = await bidEligibility(prisma, companyId, p)
+  return eligibility.eligible ? null : eligibility.says
 }
 
 export async function approveByPerson(input: { companyId: string; proposalId: string; personId: string }): Promise<{ ok: true } | { ok: false; says: string }> {

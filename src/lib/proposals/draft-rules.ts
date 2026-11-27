@@ -82,6 +82,8 @@ export type RequirementStatus = 'IN_HAND' | 'MISSING_PIECE' | 'A_PERSON_WRITES'
 export interface RequirementRow { text: string; kind: PieceKind | null; status: RequirementStatus; says: string }
 
 export interface ProposalCheck {
+  /** Set-aside bids (record 132): the sentence that says the firm does not hold the certification the bid is set aside for, or null. Where it is set the proposal is never put up as ready. */
+  ineligible: string | null
   rows: RequirementRow[]
   /** Requirements that need a piece the record does not hold yet. */
   missing: RequirementRow[]
@@ -94,7 +96,7 @@ export interface ProposalCheck {
 }
 
 /** Flag every requirement the record does not answer. Pure; the same answer the agent saves its state from and the screen draws. */
-export function checkProposal(lines: readonly string[], pieces: readonly PieceFact[]): ProposalCheck {
+export function checkProposal(lines: readonly string[], pieces: readonly PieceFact[], eligibility?: { eligible: boolean; says: string | null }): ProposalCheck {
   const rows: RequirementRow[] = lines.map((text) => {
     const kind = pieceKindOf(text)
     if (!kind) return { text, kind, status: 'A_PERSON_WRITES' as const, says: 'No piece answers this. A person writes it.' }
@@ -104,6 +106,7 @@ export function checkProposal(lines: readonly string[], pieces: readonly PieceFa
   })
   const missingPieces = pieces.filter((p) => !p.haveIt).length
   return {
+    ineligible: eligibility && !eligibility.eligible ? eligibility.says : null,
     rows,
     missing: rows.filter((r) => r.status === 'MISSING_PIECE'),
     toWrite: rows.filter((r) => r.status === 'A_PERSON_WRITES'),
@@ -114,6 +117,8 @@ export function checkProposal(lines: readonly string[], pieces: readonly PieceFa
 
 /** The state the agent moves a proposal to after a check. Never approved, never sent. */
 export function stateAfterCheck(c: ProposalCheck): 'DRAFT' | 'NEEDS_PIECES' | 'READY_FOR_PERSON' {
+  // A bid set aside for a certification the firm does not hold is never put up as eligible (record 132).
+  if (c.ineligible) return 'NEEDS_PIECES'
   if (c.nothingToCheck) return 'DRAFT'
   return c.missingPieces > 0 ? 'NEEDS_PIECES' : 'READY_FOR_PERSON'
 }
@@ -141,6 +146,10 @@ export interface ProposalFacts {
   engagements: number
   /** Distinct clients across them. A count, never a name. */
   clients: number
+  /** The legal entity the bid is made in: Company.legalName, entered by the Owner. Null or absent where nobody entered it. No name is written in code. */
+  legalName?: string | null
+  /** Certifications held today (record 132): the one reader's `claimableNames`. Absent reads as none. Only these may ever be claimed. */
+  held?: readonly string[]
 }
 
 /** What the record holds for a kind of piece: the words to keep as its source, or null where it holds nothing. Rates and compliance papers are never read from the record: a person says where they are. */
@@ -172,6 +181,8 @@ export interface DraftInput {
   capability: string
   pastWork: string
   check: ProposalCheck
+  /** Set-aside bids: the sentence that says the firm is not eligible yet, put in the draft so a person reads it first. */
+  setAside?: string | null
 }
 
 /**
@@ -202,9 +213,39 @@ export function composeDraft(i: DraftInput): string {
     '## Pricing',
     'The draft states no rate. A person adds the firm’s rates.',
     '',
+    ...certificationSection(i.facts, i.setAside ?? null),
     REQUIREMENTS_HEADING,
     ...reqs,
   ].join('\n')
+}
+
+/**
+ * The bidding entity and the certifications the record holds today (record 132).
+ * Only a certification held today, with its certificate on file and in date, is named.
+ * Nothing about ownership is said here: that is the Owner's attestation, and a person adds it.
+ */
+export function certificationSection(f: ProposalFacts, setAside: string | null): string[] {
+  const held = f.held ?? []
+  return [
+    '## Bidding entity',
+    f.legalName?.trim() ? `Entity: ${f.legalName.trim()}` : 'The legal entity name is not set. The Owner enters it on the Certifications panel, and a person adds it here.',
+    '',
+    '## Certifications',
+    held.length > 0 ? `Held today: ${held.join(', ')}` : 'No certification is held on the record, so this draft claims none.',
+    ...(setAside ? [setAside] : []),
+    '',
+  ]
+}
+
+/** The certifications this draft claims, as named on its "Held today:" line. */
+export function claimedCertifications(draft: string): string[] {
+  const m = draft.match(/^Held today: (.+)$/m)
+  return m ? m[1].split(',').map((x) => x.trim()).filter(Boolean) : []
+}
+
+/** What a draft claims that the record does not hold today: one sentence each. Empty means it claims nothing it may not. Pure. */
+export function certificationClaimProblems(draft: string, heldNow: readonly string[]): string[] {
+  return claimedCertifications(draft).filter((c) => !heldNow.includes(c)).map((c) => `The draft claims ${c}, which the record does not hold today.`)
 }
 
 export const REQUIREMENTS_HEADING = '## Requirements the buyer set'
@@ -222,6 +263,9 @@ const CURRENCY = /[$€£₹]\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|GBP|INR|dollars?)\b/
 /** A statement the firm would be making to a public buyer about itself. Compliance copy is a person's, never an agent's. */
 const COMPLIANCE_CLAIM = /\b(certified|certification|licensed|insured|insurance|bonded|compliant|compliance|SOC ?2|ISO ?\d+|FedRAMP|registered|debarred|small business|minority|woman-owned|veteran-owned|8\(a\)|HUBZone)\b/i
 
+/** Names a \b cannot see, because they end in a bracket, plus the diversity words (record 132). */
+const DIVERSITY_CLAIM = /(?<![\w])(?:MBE|WBE|8\s?\(a\)|HUB\s?zone)(?![\w])|\b(?:minority|women|woman|veteran)[- ]owned\b|\bdiversity[- ]certified\b/i
+
 const numbersIn = (s: string) => (s.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/,/g, ''))
 
 /** The reasons a model's paragraphs may not be used, one sentence each. Empty means they may. Pure. */
@@ -230,7 +274,7 @@ export function draftProblems(paragraphs: { capability: string; pastWork: string
   const problems: string[] = []
   if (!paragraphs.capability.trim() || !paragraphs.pastWork.trim()) problems.push('A paragraph came back empty.')
   if (CURRENCY.test(text)) problems.push('It states an amount of money, and a draft never states a rate or a price.')
-  if (COMPLIANCE_CLAIM.test(text)) problems.push('It makes a compliance statement as the firm’s own, which only a person writes.')
+  if (COMPLIANCE_CLAIM.test(text) || DIVERSITY_CLAIM.test(text)) problems.push('It makes a compliance statement as the firm’s own, which only a person writes.')
   const allowed = new Set([String(facts.people), String(facts.engagements), String(facts.clients), ...numbersIn(`${facts.firm} ${facts.skills.join(' ')}`)])
   const stray = numbersIn(text).filter((n) => !allowed.has(n))
   if (stray.length > 0) problems.push(`It uses a number the record does not hold: ${[...new Set(stray)].join(', ')}.`)

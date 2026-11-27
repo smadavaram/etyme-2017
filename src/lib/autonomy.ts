@@ -1136,6 +1136,30 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
     approverNeeds: 'submissions.create',
   },
+  // Supplier diversity (record 132): the agent drafts a portal's answers from the
+  // record. A person submits on the portal. Claiming a certification, attesting
+  // ownership and submitting are never the agent's.
+  'registration.draft': {
+    kinds: ['SUPPLIER'],
+    says: 'Draft the answers to a supplier-diversity portal\u2019s questions from the firm\u2019s own record. It claims no certification that is not held and no ownership fact the Owner has not attested.',
+    money: false, external: false, reversible: true, decides: false, drafts: true, floor: false,
+    approverNeeds: 'submissions.create', alone: 'DREW_UP',
+  },
+  'registration.submit': {
+    kinds: ['SUPPLIER'],
+    says: 'Submit a registration on a buyer\u2019s supplier-diversity portal.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'certification.claim': {
+    kinds: ['SUPPLIER'],
+    says: 'Record a certification as held, or say the firm holds one, on the Owner\u2019s behalf.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'ownership.attest': {
+    kinds: ['SUPPLIER'],
+    says: 'Attest that the firm is minority-owned, woman-owned or veteran-owned.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
   'proposal.submit': {
     kinds: ['SUPPLIER'],
     says: 'Send a public-sector proposal to the agency.',

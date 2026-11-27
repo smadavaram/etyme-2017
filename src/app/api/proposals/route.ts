@@ -6,6 +6,8 @@ import { pluginGate } from '@/lib/plugin-gate'
 import { emit } from '@/lib/events'
 import { PIECE_KINDS, stateSays } from '@/lib/proposals/rules'
 import { checkProposal, requirementLines } from '@/lib/proposals/draft-rules'
+import { CERTIFICATION_KINDS, kindName } from '@/lib/attestation/certification-held'
+import { bidEligibility } from '@/lib/diversity/facts'
 
 /**
  * GET  /api/proposals — the firm's public-sector proposals (record 124)
@@ -33,9 +35,11 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     // The page draws a button only where its route will take it.
     mayWrite: hasPermission(caller.permissions, 'submissions.create'),
-    data: rows.map((p) => {
+    data: await Promise.all(rows.map(async (p) => {
+      // A bid set aside for a certification is eligible only where the firm holds it today (record 132).
+      const eligibility = await bidEligibility(prisma as never, caller.company!.id, p)
       // The flags are read live from the pieces as they stand, never kept: a kept flag goes stale the day a piece arrives.
-      const check = checkProposal(requirementLines(p.requirements), p.pieces)
+      const check = checkProposal(requirementLines(p.requirements), p.pieces, eligibility)
       return {
       id: p.id, title: p.title, buyer: p.buyer, sourceUrl: p.sourceUrl, requirements: p.requirements, dueAt: p.dueAt?.toISOString().slice(0, 10) ?? null,
       state: p.state, stateSays: stateSays(p.state), draft: p.draft,
@@ -44,8 +48,10 @@ export async function GET(request: NextRequest) {
       pieces: p.pieces.map((x) => ({ id: x.id, kind: x.kind, label: x.label, source: x.source, haveIt: x.haveIt })),
       flags: check.rows.filter((r) => r.status !== 'IN_HAND').map((r) => ({ text: r.text, status: r.status, says: r.says })),
       nothingToCheck: check.nothingToCheck,
+      setAside: p.requiresCertification ? kindName(p.requiresCertification, p.requiresCertificationName) : null,
+      eligibility,
     }
-    }),
+    })),
   })
 }
 
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
   }
   const off = await pluginGate(caller, 'PUBLIC_SECTOR')
   if (off) return off
-  const body = await request.json().catch(() => null) as { title?: unknown; buyer?: unknown; dueAt?: unknown; pieces?: unknown; sourceUrl?: unknown; requirements?: unknown } | null
+  const body = await request.json().catch(() => null) as { title?: unknown; buyer?: unknown; dueAt?: unknown; pieces?: unknown; sourceUrl?: unknown; requirements?: unknown; requiresCertification?: unknown; requiresCertificationName?: unknown } | null
   const title = typeof body?.title === 'string' ? body.title.trim() : ''
   if (!title) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Name the proposal: the solicitation’s title or number.' } }, { status: 422 })
   let dueAt: Date | null = null
@@ -86,12 +92,26 @@ export async function POST(request: NextRequest) {
     }
     requirements = body.requirements.trim() || null
   }
+  // A set-aside bid names the certification it requires, as the person read it in the solicitation (record 132).
+  let requiresCertification: (typeof CERTIFICATION_KINDS)[number] | null = null
+  let requiresCertificationName: string | null = null
+  if (body?.requiresCertification != null && body.requiresCertification !== '') {
+    if (!(CERTIFICATION_KINDS as readonly string[]).includes(String(body.requiresCertification))) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Pick the certification the bid is set aside for: MBE, WBE, 8(a), HUBZone, or another one you name. Leave it empty for an open bid.' } }, { status: 422 })
+    }
+    requiresCertification = body.requiresCertification as (typeof CERTIFICATION_KINDS)[number]
+    if (requiresCertification === 'OTHER') {
+      const n = typeof body.requiresCertificationName === 'string' ? body.requiresCertificationName.trim() : ''
+      if (!n || n.length > 120) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Name the certification the bid is set aside for, since it is not MBE, WBE, 8(a) or HUBZone.' } }, { status: 422 })
+      requiresCertificationName = n
+    }
+  }
   const by = realPersonId(caller)
   if (!by) return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Sign in as a person to start a proposal.' } }, { status: 403 })
   const row = await prisma.proposal.create({
     data: {
       companyId: caller.company.id, title, buyer: typeof body?.buyer === 'string' && body.buyer.trim() ? body.buyer.trim() : null,
-      dueAt, sourceUrl, requirements, createdById: by, state: pieces.length ? 'NEEDS_PIECES' : 'DRAFT',
+      dueAt, sourceUrl, requirements, requiresCertification, requiresCertificationName, createdById: by, state: pieces.length ? 'NEEDS_PIECES' : 'DRAFT',
       pieces: { create: pieces.map((x) => ({ kind: String(x.kind), label: String(x.label).trim() })) },
     },
     select: { id: true, state: true },

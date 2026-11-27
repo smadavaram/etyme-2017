@@ -53,9 +53,9 @@ export type ProofType = (typeof PROOF_TYPES)[number]['type']
  * payroll record of lib/record-ledger). A month is never picked as proof
  * by hand; a disputed month's own decision links to it.
  */
-export type RecordType = ProofType | 'DecisionItem' | 'MoneyChain' | 'AgentTask' | 'AgentSwitch' | 'SkillTarget' | 'PayrollDraft' | 'Proposal'
+export type RecordType = ProofType | 'DecisionItem' | 'MoneyChain' | 'AgentTask' | 'AgentSwitch' | 'SkillTarget' | 'PayrollDraft' | 'Proposal' | 'DiversityRegistration'
 
-export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem', 'MoneyChain', 'AgentTask', 'AgentSwitch', 'SkillTarget', 'PayrollDraft', 'Proposal']
+export const RECORD_TYPES: readonly RecordType[] = [...PROOF_TYPES.map((p) => p.type), 'DecisionItem', 'MoneyChain', 'AgentTask', 'AgentSwitch', 'SkillTarget', 'PayrollDraft', 'Proposal', 'DiversityRegistration']
 
 export function isRecordType(t: unknown): t is RecordType {
   return typeof t === 'string' && (RECORD_TYPES as readonly string[]).includes(t)
@@ -69,7 +69,7 @@ export function isRecordType(t: unknown): t is RecordType {
 export function readNeeds(type: RecordType): 'invoices.read' | 'assignments.read' | 'consultants.read' | 'consultants.write' | 'submissions.read' | 'requirements.read' | 'governance.read' | typeof LOOP_READS | null {
   if (type === 'MoneyChain' || type === 'PayrollDraft') return LOOP_READS
   // A public-sector proposal is read by the seat its own page asks for; the plugin switch is asked by the route (pluginGate PUBLIC_SECTOR).
-  if (type === 'Offer' || type === 'SubmissionConfirmation' || type === 'Proposal') return 'submissions.read'
+  if (type === 'Offer' || type === 'SubmissionConfirmation' || type === 'Proposal' || type === 'DiversityRegistration') return 'submissions.read'
   // Petitions, posted notices and public access files are HR's and the compliance officer's (CLAUDE.md, ruling 114): the routes read them with governance.read.
   if (type === 'ChecklistItem' || type === 'Petition' || type === 'NoticePosting' || type === 'PublicAccessFile') return 'governance.read'
   if (type === 'Invoice' || type === 'VendorBill') return 'invoices.read'
@@ -99,7 +99,7 @@ export function cannotReadSays(type: RecordType): string {
   if (type === 'Requirement') return 'Your seat cannot read jobs.'
   if (type === 'Person') return 'Your seat cannot read people’s records.'
   if (type === 'PayrollDraft') return CANNOT_READ_MONTH_RECORD
-  if (type === 'Offer' || type === 'SubmissionConfirmation' || type === 'Proposal') return 'Your seat cannot read submissions.'
+  if (type === 'Offer' || type === 'SubmissionConfirmation' || type === 'Proposal' || type === 'DiversityRegistration') return 'Your seat cannot read submissions.'
   if (type === 'ChecklistItem' || type === 'Petition' || type === 'NoticePosting' || type === 'PublicAccessFile') return 'Your seat cannot read paperwork records.'
   return 'Your seat cannot read this record.'
 }
@@ -141,7 +141,8 @@ export function ownPageOf(type: RecordType, id: string): { href: string; words: 
     case 'NoticePosting':
     case 'PublicAccessFile': return { href: '/dashboard/compliance', words: 'Open Compliance' }
     case 'PayrollDraft': return { href: '/dashboard/payroll', words: 'Open Payroll' }
-    case 'Proposal': return { href: '/dashboard/proposals', words: 'Open Proposals' }
+    case 'Proposal':
+    case 'DiversityRegistration': return { href: '/dashboard/proposals', words: 'Open Proposals' }
     case 'AgentSwitch':
     case 'SkillTarget':
     case 'AgentTask': return { href: '/dashboard/decisions/agents', words: 'Open Agent control' }
@@ -238,7 +239,7 @@ export function readOpenAsk(body: unknown, hasEntities: boolean): { ok: true; as
     const o = (l ?? {}) as Record<string, unknown>
     const type = o.recordType
     const id = typeof o.recordId === 'string' ? o.recordId.trim() : ''
-    if (!isRecordType(type) || type === 'DecisionItem' || type === 'MoneyChain' || type === 'AgentTask' || type === 'AgentSwitch' || type === 'SkillTarget' || type === 'PayrollDraft' || type === 'Proposal' || !id) {
+    if (!isRecordType(type) || type === 'DecisionItem' || type === 'MoneyChain' || type === 'AgentTask' || type === 'AgentSwitch' || type === 'SkillTarget' || type === 'PayrollDraft' || type === 'Proposal' || type === 'DiversityRegistration' || !id) {
       return { ok: false, field: 'proofLinks', says: 'Each proof link names a kind of record from the list and the record itself.' }
     }
     links.push({ recordType: type, recordId: id })

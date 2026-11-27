@@ -210,12 +210,13 @@ const PODS: NavItem = {
 /**
  * Public-sector proposals (record 124, plugin 5): the firm's bids, drafted from
  * its own record. A plugin, drawn only where PUBLIC_SECTOR is on. A tab of Jobs,
- * because a bid is work being sought. Supplier and integrator only: an MSP places
+ * because a bid is work being sought. The same page holds the firm's Certifications panel and its portal Registrations list (record 132). Supplier and integrator only: an MSP places
  * nobody and a client only buys. The page's own route asks for submissions.read.
  */
 const PROPOSALS: NavItem = {
   label: 'Proposals', href: '/dashboard/proposals', icon: '▤',
-  needs: ['submissions.read'], pageCalls: ['proposals', 'proposals/**'],
+  // Supplier diversity (record 132) is a panel and a list on this same page, so its routes are this page's calls.
+  needs: ['submissions.read'], pageCalls: ['proposals', 'proposals/**', 'governance/certifications', 'governance/ownership-attestations', 'diversity/**'],
 }
 
 /**
