@@ -3668,16 +3668,17 @@ export const MATRIX: L1[] = [
           ],
           implementedBy: ['src/lib/skills/performance.ts', 'src/lib/skills/performance-words.ts', 'src/lib/skills/performance-read.ts', 'src/app/api/decision-items/agents/performance/route.ts', 'src/app/api/decision-items/agents/targets/route.ts', 'src/app/dashboard/decisions/agents/performance-panel.tsx', 'src/app/dashboard/decisions/agents/page.tsx'],
           testedBy: ['__tests__/unit/skills-performance.test.ts', '__tests__/unit/skills-words.test.ts', '__tests__/unit/skills-targets.test.ts', '__integration__/skills-performance-route.test.ts', '__tests__/invariants/skills-performance-panel.test.ts'] },
-        { code: 'L3.6.3.48', name: 'Skills: the model gateway, one door for every model call, tiered by data class', owner: 'Owner', status: S,
+        { code: 'L3.6.3.48', name: 'Skills: the model gateway, one door for every model call, tiered by data class', owner: 'Owner', status: P,
           tasks: [
             'Every model call goes through one gateway; no file outside it imports a provider SDK or calls a provider host (a list that may only shrink)',
             'Tenant business data reaches only a US-hosted model under a data processing agreement, on the first try, on fallback and on escalation; a tenant\u2019s own model only with that or the tenant\u2019s recorded opt-in',
             'Lane C data (tax ID, bank details, social security number, W-4, W-9, voided check, identity papers) reaches no model, refused by document type first and by pattern second, and the refusal is recorded',
             'The first model failing falls to the next admitted one in the same tier; a failed key on the Low tier is retried once on the High tier; a second failure opens a card for a person',
             'A model with no price set records its cost as not set, never a guess; with no model available the gateway says Not configured and blocks no release',
-            'NOT BUILT 2026-11-26 (records 123 and 125, skill layer)'
+            'PARTIAL 2026-11-27 (record 125, step 9a): the model register and its admission rules are built (US and a signed agreement for tenant data, none for Lane C); the call door, Lane C refusal and the readiness reads are not yet'
           ],
-          testedBy: [] },
+          implementedBy: ['src/lib/model-gateway/register.ts'],
+          testedBy: ['__tests__/unit/model-gateway-register.test.ts'] },
       ]},
     ],
   },
