@@ -55,3 +55,36 @@ export async function addImmigrationWorld(w: GoldenWorld) {
   await prisma.checklistItem.create({ data: { companyId: w.firm.id, ownerType: 'Petition', ownerId: petition.id, kind: 'PETITION_PAPER', label: 'Petition form', signatoryPersonId: hr.id } })
   return { hr, worker, petition }
 }
+
+/**
+ * Compliance watch: the golden firm is also a client with a twelve-month
+ * limit, and one worker has been on its site since Dec 24, 2025, so her
+ * limit lands inside the first warning. HR and a Program Manager hold seats.
+ * One notice went up on Oct 1 with ten working days long gone; a second was
+ * posted after the filing day it is measured against, and its period ends
+ * the day after the golden Monday. One petition was filed the Friday before,
+ * so its public access file is due on the Monday.
+ */
+export async function addComplianceWorld(w: GoldenWorld) {
+  const person = (name: string, email: string) => prisma.person.create({ data: { name, primaryEmail: mail(email) } })
+  const role = (name: string, permissions: string[]) => prisma.role.create({ data: { companyId: w.firm.id, name, permissions } })
+  const hr = await person('Hana Resources', 'hana.resources'); const pm = await person('Pia Program', 'pia.program')
+  await prisma.context.create({ data: { personId: hr.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: (await role('HR', ['governance.read', 'assignments.read'])).id } as any })
+  await prisma.context.create({ data: { personId: pm.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: (await role('Program Manager', ['assignments.read'])).id } as any })
+
+  const policy = await prisma.governancePolicy.create({ data: { companyId: w.firm.id, name: 'Time limit' } })
+  await prisma.governanceRule.create({ data: { policyId: policy.id, ruleType: 'TENURE_CAP', enforcementMode: 'BLOCK', parameters: { maxMonths: 12 }, description: 'No placement past twelve months' } as any })
+  const partner = await prisma.company.create({ data: { name: 'Golden Staffing Partner', slug: 'golden-staffing-partner', kind: 'VENDOR' } as any })
+  const worker = await prisma.person.findFirstOrThrow({ where: { name: 'Priya Nair' } })
+  const placement = await prisma.sellContract.create({
+    data: { companyId: partner.id, clientCompanyId: w.firm.id, personId: worker.id, startDate: d('2025-12-24'), state: 'IN_PROGRESS', billRate: 9000 } as any,
+  })
+
+  const site = await prisma.companyLocation.create({ data: { companyId: w.firm.id, name: 'Golden Plant Site' } as any })
+  const old = await prisma.noticePosting.create({ data: { companyId: w.firm.id, kind: 'LABOR_CONDITION', locationId: site.id, postedOn: d('2026-10-01') } })
+  const late = await prisma.noticePosting.create({ data: { companyId: w.firm.id, kind: 'LABOR_CONDITION', locationId: site.id, postedOn: d('2026-11-10'), measuredFromOn: d('2026-11-02') } })
+
+  const filedFor = await prisma.person.findFirstOrThrow({ where: { name: 'Tom Ruiz' } })
+  const petition = await prisma.petition.create({ data: { id: 'petition-golden-compliance', companyId: w.firm.id, personId: filedFor.id, kind: 'SPECIALTY_OCCUPATION', stage: 'FILED', filedOn: d('2026-11-20'), employerCompanyId: w.firm.id } })
+  return { hr, pm, partner, worker, placement, site, old, late, petition }
+}
