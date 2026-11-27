@@ -30,7 +30,7 @@ import { GET as payrollExport } from '@/app/api/payroll/export/route'
  */
 
 const ROSA = RATE_CHANGE_PERSON.email
-const NORTHBEND_HIRING = 'world-nike-hiring@demo.etyme.local'
+const NORTHBEND_HIRING = 'world-northbend-hiring@demo.etyme.local'
 const BRIGHTMOOR_PAYROLL = 'world-brightmoor-payroll@demo.etyme.local'
 const HELENA = 'helena.marsh@seed.etyme.invalid'
 

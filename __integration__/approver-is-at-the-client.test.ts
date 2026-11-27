@@ -14,7 +14,7 @@ import { NORTHBEND_MAIL } from '@/lib/seed-week-approval'
  */
 
 const HELENA = 'helena.marsh@seed.etyme.invalid'
-const NORTHBEND_HIRING = 'world-nike-hiring@demo.etyme.local'
+const NORTHBEND_HIRING = 'world-northbend-hiring@demo.etyme.local'
 const it_: Record<string, string> = {}
 
 const sendLink = async (body: unknown) => json(await sendOrAttach(req('POST', '/api/week-approvals', body)))

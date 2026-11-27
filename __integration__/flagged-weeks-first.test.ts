@@ -7,7 +7,7 @@ import { GET as listTimesheets } from '@/app/api/timesheets/route'
  * The seeded 44-hour week sat third, behind two plain ones.
  */
 
-const NIKE_HIRING = 'world-nike-hiring@demo.etyme.local'
+const NORTHBEND_HIRING = 'world-northbend-hiring@demo.etyme.local'
 
 describe('Northbend reads its flagged weeks first', () => {
   beforeAll(async () => {
@@ -15,7 +15,7 @@ describe('Northbend reads its flagged weeks first', () => {
   }, 240_000)
 
   it('the 44-hour week is at the top of Northbend’s timesheets, and every flagged week is listed before every unflagged one', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const r = await json(await listTimesheets(req('GET', '/api/timesheets?limit=50')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const rows: Array<{ totalHours: number; flag: string | null }> = r.body.data.timesheets

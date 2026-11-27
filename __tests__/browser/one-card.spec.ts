@@ -21,7 +21,7 @@ const num = async (page: Page, label: string) =>
 test.afterAll(async () => { await db.$disconnect() })
 
 test('a hiring manager presses Yes on a week, and the card, the record on reload and the ledger row all agree', async ({ page }) => {
-  await sitAs(page, 'world-nike', 'hiring')
+  await sitAs(page, 'world-northbend', 'hiring')
   await page.goto(ASK)
   const screen = page.locator('[data-one-card]')
   await expect(screen).toBeVisible()
@@ -66,7 +66,7 @@ test('a hiring manager presses Yes on a week, and the card, the record on reload
 })
 
 test('Why stays closed until it is tapped, then shows the rule, the source and the ledger line', async ({ page }) => {
-  await sitAs(page, 'world-nike', 'procurement')
+  await sitAs(page, 'world-northbend', 'procurement')
   await page.goto(ASK)
   const screen = page.locator('[data-one-card]')
   await expect(screen.locator('[data-why]')).toHaveCount(0)
@@ -78,7 +78,7 @@ test('Why stays closed until it is tapped, then shows the rule, the source and t
 })
 
 test('the screen fits a 390 wide phone with no sideways scroll, for each of three seats', async ({ browser }) => {
-  for (const [as, desk] of [['world-brightmoor', 'recruiter'], ['world-nike', 'hiring'], ['world-nike', 'procurement']] as const) {
+  for (const [as, desk] of [['world-brightmoor', 'recruiter'], ['world-northbend', 'hiring'], ['world-northbend', 'procurement']] as const) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
     const page = await ctx.newPage()
     await sitAs(page, as, desk)
@@ -91,7 +91,7 @@ test('the screen fits a 390 wide phone with no sideways scroll, for each of thre
 })
 
 test('on a 390 by 844 phone the score bar, the card and the Queue, Done today and Agent row are all in the first screen', async ({ browser }) => {
-  for (const [as, desk] of [['world-nike', 'hiring'], ['world-nike', 'procurement'], ['world-brightmoor', 'recruiter']] as const) {
+  for (const [as, desk] of [['world-northbend', 'hiring'], ['world-northbend', 'procurement'], ['world-brightmoor', 'recruiter']] as const) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } })
     const page = await ctx.newPage()
     await sitAs(page, as, desk)
@@ -114,7 +114,7 @@ test('on a 390 by 844 phone the score bar, the card and the Queue, Done today an
 })
 
 test('the score bar reads Waiting, Oldest and On time, and never 0 Due and 0 Late above a waiting card', async ({ page }) => {
-  await sitAs(page, 'world-nike', 'hiring')
+  await sitAs(page, 'world-northbend', 'hiring')
   await page.goto(ASK)
   const screen = page.locator('[data-one-card]')
   const score = screen.locator('[role="group"][aria-label="Score"]')
@@ -125,13 +125,13 @@ test('the score bar reads Waiting, Oldest and On time, and never 0 Due and 0 Lat
 })
 
 test('a card heading names the act, never Open', async ({ page }) => {
-  await sitAs(page, 'world-nike', 'hiring')
+  await sitAs(page, 'world-northbend', 'hiring')
   await page.goto(ASK)
   await expect(page.locator('[data-one-card] article h2')).not.toHaveText(/^Open\b/)
 })
 
 test('only the Owner is offered the agent switch', async ({ page }) => {
-  await sitAs(page, 'world-nike', 'procurement')
+  await sitAs(page, 'world-northbend', 'procurement')
   await page.goto(ASK)
   await expect(page.locator('[data-one-card]').getByText('Agent', { exact: true })).toBeVisible()
   await expect(page.locator('[data-one-card] a[aria-label^="Agent"]')).toHaveCount(0)

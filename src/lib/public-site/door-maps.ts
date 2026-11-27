@@ -214,7 +214,7 @@ export const ON_THE_DEMO = 'on the demo'
 /** The line under a live figure that was read. */
 export const READ_LIVE = 'read when this page opened'
 
-const NORTHBEND = PROGRAMMES.find((p) => p.client === 'nike')!
+const NORTHBEND = PROGRAMMES.find((p) => p.client === 'northbend')!
 const HIRING = NORTHBEND.people.hiring
 const running = NORTHBEND.placements.filter((x) => x.state === 'IN_PROGRESS')
 /** Helena Marsh: Northbend's running line through a chain of three, the one Tecwyn employs her on. */
@@ -779,7 +779,7 @@ export function byrneMap(): RoleMap<string, PersonTarget> {
 
 // ── Aptiva Workforce in Cavanaugh Glassworks' program: the MSPs' door ─
 
-const CAVANAUGH = PROGRAMMES.find((p) => p.client === 'corning')!
+const CAVANAUGH = PROGRAMMES.find((p) => p.client === 'cavanaugh')!
 /** Wendell Price's line: Cavanaugh's one forming-line technician, from an industrial supplier. */
 const QUARRYSTONE = SECTOR_SUPPLIERS.find((s) => s.client === CAVANAUGH.client)!
 /** A supplier's name, by its seed slug. */

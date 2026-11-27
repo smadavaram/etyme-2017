@@ -111,8 +111,8 @@ describe('naming somebody’s client to the market', () => {
 describe('one account seeing another', () => {
   // A practice with two accounts under it.
   const childrenOf = new Map([
-    ['practice', ['nike-account', 'terumo-account']],
-    ['nike-account', ['nike-platform']],
+    ['practice', ['northbend-account', 'talvern-account']],
+    ['northbend-account', ['northbend-platform']],
   ])
 
   it('shows the whole firm to somebody who sits on no account', () => {
@@ -122,25 +122,25 @@ describe('one account seeing another', () => {
   })
 
   it('shows an account lead their own account', () => {
-    const units = unitsVisibleTo({ walls: true, unitId: 'terumo-account', childrenOf })
-    expect(units).toEqual(['terumo-account'])
+    const units = unitsVisibleTo({ walls: true, unitId: 'talvern-account', childrenOf })
+    expect(units).toEqual(['talvern-account'])
   })
 
   it('never shows them the account next door', () => {
     // Another client's staffing, rates and rolloffs. Their contract with
     // that client says so, whatever our software thinks.
-    const units = unitsVisibleTo({ walls: true, unitId: 'terumo-account', childrenOf })
-    expect(units).not.toContain('nike-account')
+    const units = unitsVisibleTo({ walls: true, unitId: 'talvern-account', childrenOf })
+    expect(units).not.toContain('northbend-account')
   })
 
   it('shows a practice head everything under the practice', () => {
     const units = unitsVisibleTo({ walls: true, unitId: 'practice', childrenOf })!
-    expect(units.sort()).toEqual(['nike-account', 'nike-platform', 'practice', 'terumo-account'])
+    expect(units.sort()).toEqual(['northbend-account', 'northbend-platform', 'practice', 'talvern-account'])
   })
 
   it('walks the whole tree, not only the first level', () => {
-    const units = unitsVisibleTo({ walls: true, unitId: 'nike-account', childrenOf })!
-    expect(units).toContain('nike-platform')
+    const units = unitsVisibleTo({ walls: true, unitId: 'northbend-account', childrenOf })!
+    expect(units).toContain('northbend-platform')
   })
 
   it('survives a cycle in the tree rather than hanging', () => {
@@ -150,7 +150,7 @@ describe('one account seeing another', () => {
   })
 
   it('shows the whole firm where the company has not separated its accounts', () => {
-    expect(unitsVisibleTo({ walls: false, unitId: 'terumo-account', childrenOf })).toBeNull()
+    expect(unitsVisibleTo({ walls: false, unitId: 'talvern-account', childrenOf })).toBeNull()
   })
 })
 
@@ -162,7 +162,7 @@ describe('the filter that does the work', () => {
   it('keeps rows coded to no account visible', () => {
     // Unallocated work is not another account's secret, and hiding it
     // would quietly shrink every total a manager reconciles against.
-    const scope = accountScope(['terumo-account']) as { OR: Record<string, unknown>[] }
+    const scope = accountScope(['talvern-account']) as { OR: Record<string, unknown>[] }
     expect(scope.OR).toHaveLength(2)
     expect(scope.OR[1]).toEqual({ orgUnitId: null })
   })

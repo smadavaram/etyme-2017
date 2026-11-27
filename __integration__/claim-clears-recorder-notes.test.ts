@@ -11,7 +11,7 @@ let clientId = ''
 
 beforeAll(async () => {
   await freshWorld()
-  clientId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-corning' }, select: { id: true } })).id
+  clientId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-cavanaugh' }, select: { id: true } })).id
 }, 600_000)
 
 describe('a claimed company starts with its own answers', () => {

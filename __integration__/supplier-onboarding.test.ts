@@ -22,12 +22,12 @@ import { newChecklist, type Decision } from '@/lib/supplier-onboarding'
  */
 
 const D = '@demo.etyme.local'
-const HIRING = `world-nike-hiring${D}`
-const PROGRAMME = `world-nike-programme${D}`
-const LEAD = `world-nike-vp${D}`
-const AP = `world-nike-ap${D}`
-const HR = `world-nike-hr${D}`
-const PROCUREMENT = `world-nike-procurement${D}`
+const HIRING = `world-northbend-hiring${D}`
+const PROGRAMME = `world-northbend-programme${D}`
+const LEAD = `world-northbend-vp${D}`
+const AP = `world-northbend-ap${D}`
+const HR = `world-northbend-hr${D}`
+const PROCUREMENT = `world-northbend-procurement${D}`
 const call = async (fn: any, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
 const viaToken = async (fn: any, method: string, token: string, body?: unknown) =>
@@ -373,7 +373,7 @@ describe('a supplier walks four desks', () => {
 describe('Finance’s check of the bank goes on the supplier’s payment details', () => {
   /** A firm already on Etyme, with its own payment details, walked to Finance at Northbend. */
   const atFinance = async (name: string, last4: string) => {
-    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const people = await prisma.person.findMany({ where: { primaryEmail: { in: [HIRING, LEAD, PROCUREMENT, HR] } }, select: { id: true, primaryEmail: true, name: true } })
     const by = (e: string) => people.find((p) => p.primaryEmail === e)!
     const firm = await prisma.company.create({ data: { name, slug: `${name.toLowerCase().replace(/\W+/g, '-')}-${Date.now()}`, kind: 'VENDOR', currency: 'USD', isDemo: true } as any, select: { id: true } })
@@ -786,7 +786,7 @@ describe('a firm already on Etyme, approved by a client', () => {
     const made = await createCompany({
       name, kind: 'VENDOR', slug, domain, byPersonId: person.id, seatAsOwner: true, claimDomain: true, startsSetup: true,
     })
-    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { isDemo: true } })
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { isDemo: true } })
     await prisma.company.update({ where: { id: made.company.id }, data: { claimedAt: new Date(), isDemo: client.isDemo } })
     return made.company.id
   }
@@ -803,7 +803,7 @@ describe('a firm already on Etyme, approved by a client', () => {
     await prisma.supplierRequest.update({ where: { id }, data: { stage: 'FINANCE', state: 'IN_REVIEW', checklist: settled } })
     return { id, token: row.token }
   }
-  const northbend = async () => (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+  const northbend = async () => (await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })).id
 
   // Brought up to the rule on 2026-11-13: this sentence used to approve a
   // firm that had never answered its link, and attached to it on the

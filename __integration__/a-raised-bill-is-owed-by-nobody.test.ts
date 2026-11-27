@@ -19,8 +19,8 @@ import { awaitsPayment } from '@/lib/money/bill-sent-view'
  */
 
 const D = '@demo.etyme.local'
-const NORTHBEND_AP = `world-nike-ap${D}`
-const NORTHBEND_OWNER = `world-nike${D}`
+const NORTHBEND_AP = `world-northbend-ap${D}`
+const NORTHBEND_OWNER = `world-northbend${D}`
 const BRIGHTMOOR_AR = `world-brightmoor-ar${D}`
 
 let invoiceId = ''
@@ -46,7 +46,7 @@ describe('a bill raised and not sent is never owed on Payables or Bills, and eve
   beforeAll(async () => {
     await freshWorld()
     const [nb, bm] = await Promise.all([
-      prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } }),
+      prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } }),
       prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } }),
     ])
     northbendId = nb.id

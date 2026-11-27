@@ -390,7 +390,7 @@ export const parties = [
   {
     key: 'client', n: 1, name: 'Client', file: '1-client',
     tagline: 'The enterprise that buys, and never sells.',
-    kind: 'CLIENT', doors: ['world-nike', 'world-corning', 'world-terumo-bct'],
+    kind: 'CLIENT', doors: ['world-northbend', 'world-cavanaugh', 'world-talvern'],
     desks: ['Program Manager', 'Hiring Manager', 'Approver', 'HR Partner', 'Procurement Lead', 'AP Clerk', 'Compliance Officer', 'Viewer'],
     position: 'Buys from everyone below — a prime, an integrator, a program office, a bench vendor, a consultant’s own corporation. Sells to nobody. The customer of the product, and the only party with no Customer lane: it is the customer.',
     about: 'A client pays for the one thing none of its suppliers can give it: every contractor on its sites, across every supplier, with tenure added up, paperwork on file, hours signed and bills matched — from the desk of whoever does that job. In these drawings the client’s own desks are solid and every supplier collapses into one shaded lane: the client sees the rung it pays and nothing below it, unless its agreement demands disclosure.',

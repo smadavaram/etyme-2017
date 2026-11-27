@@ -28,7 +28,7 @@ import { GET as budget } from '@/app/api/program/budget/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE_HIRING = `world-nike-hiring${D}`
+const NORTHBEND_HIRING = `world-northbend-hiring${D}`
 
 const HELENA_SUB_RATE = 11800 // Tecwyn → Computer Systems
 const HELENA_TOP_RATE = 14500 // Computer Systems → Northbend Athletic
@@ -64,7 +64,7 @@ describe('a client sees the rate it pays, never the rate its supplier pays under
   })
 
   it('shows the hiring manager $145 an hour and never $118', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { status, body } = await json(await timesheets(req('GET', '/api/timesheets?limit=50')))
     expect(status).toBe(200)
 
@@ -77,7 +77,7 @@ describe('a client sees the rate it pays, never the rate its supplier pays under
   })
 
   it('never puts a supplier’s cost anywhere on the client’s whole list', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await timesheets(req('GET', '/api/timesheets?limit=50')))
     const everyNumber = body.data.timesheets.flatMap((t: any) => [
       t.rate.cents,
@@ -87,7 +87,7 @@ describe('a client sees the rate it pays, never the rate its supplier pays under
   })
 
   it('names the firm Northbend Athletic pays on the row, not the firm its prime pays', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await timesheets(req('GET', '/api/timesheets?limit=50')))
     const row = body.data.timesheets.find((t: any) => t.person.id === helenaId)
     expect(row.sellContract.clientCompany.name).toBe('Northbend Athletic')
@@ -96,7 +96,7 @@ describe('a client sees the rate it pays, never the rate its supplier pays under
 
 describe('the same person bought through a chain is one row and one rate on the client’s list', () => {
   it('gives Helena one week per week, not one per rung', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await timesheets(req('GET', '/api/timesheets?limit=50')))
     const hers = body.data.timesheets.filter((t: any) => t.person.id === helenaId)
     const periods = hers.map((t: any) => t.periodStart)
@@ -104,7 +104,7 @@ describe('the same person bought through a chain is one row and one rate on the 
   })
 
   it('carries one rate per row, and it is the same rate on every one of them', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await timesheets(req('GET', '/api/timesheets?limit=50')))
     const hers = body.data.timesheets.filter((t: any) => t.person.id === helenaId)
     expect(new Set(hers.map((t: any) => t.rate.cents)).size).toBe(1)
@@ -113,7 +113,7 @@ describe('the same person bought through a chain is one row and one rate on the 
 
 describe('what a client has approved is valued at the rate that client is billed', () => {
   it('values her approved weeks at $145 an hour', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await timesheets(req('GET', '/api/timesheets?status=APPROVED&limit=50')))
     const hers = body.data.timesheets.filter((t: any) => t.person.id === helenaId)
     expect(hers.length).toBeGreaterThan(0)
@@ -123,7 +123,7 @@ describe('what a client has approved is valued at the rate that client is billed
   })
 
   it('understated the client by the prime’s margin when it read the leg underneath', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await timesheets(req('GET', '/api/timesheets?status=APPROVED&limit=50')))
     const hers = body.data.timesheets.filter((t: any) => t.person.id === helenaId)
     const hours = hers.reduce((n: number, t: any) => n + t.totalHours, 0)
@@ -186,7 +186,7 @@ describe('nobody is shown a button the server will refuse them', () => {
   })
 
   it('offers the hiring manager the signature, because the buyer says the work happened', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await timesheets(req('GET', '/api/timesheets?status=SUBMITTED&limit=50')))
     expect(body.data.timesheets.length).toBeGreaterThan(0)
     // A week Northbend has already signed can wait further down the chain
@@ -203,7 +203,7 @@ describe('nobody is shown a button the server will refuse them', () => {
 
 describe('tenure counts days actually served, never the length of the contract', () => {
   it('reads the same months on the contractors page as on the tenure page', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const register = await json(await people(req('GET', '/api/people')))
     const ledger = await json(await tenure(req('GET', '/api/tenure')))
     expect(register.status).toBe(200)
@@ -221,7 +221,7 @@ describe('tenure counts days actually served, never the length of the contract',
   })
 
   it('does not say Helena is past a cap she is halfway to', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await people(req('GET', '/api/people')))
     const her = body.data.people.find((r: any) => r.personId === helenaId)
     // Two hundred days in on an eighteen-month cap. The register said
@@ -232,7 +232,7 @@ describe('tenure counts days actually served, never the length of the contract',
   })
 
   it('says the day somebody starts, for somebody who has not started yet', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await people(req('GET', '/api/people')))
     const ingrid = body.data.people.find((r: any) => r.name?.includes('Ingrid'))
     expect(ingrid).toBeDefined()
@@ -248,7 +248,7 @@ describe('tenure counts days actually served, never the length of the contract',
 
 describe('what a client has spent is counted at the desk that signed for it', () => {
   it('charges a week filed on a supplier\u2019s own leg to the cost center that owns the role, and an expense only once Northbend has accepted it', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const budgets = await json(await budget(req('GET', '/api/program/budget')))
     expect(budgets.status).toBe(200)
 
@@ -261,7 +261,7 @@ describe('what a client has spent is counted at the desk that signed for it', ()
     // accepted. An expense its supplier approved and Northbend has not
     // looked at yet is not spend: on the seeded world that is Rosa
     // Delgado's $576 trip, accepted, beside a $234 one still waiting.
-    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const accepted = await prisma.expenseAcceptance.findMany({
       where: { companyId: northbend.id, status: 'ACCEPTED', expense: { billable: true } },
       select: { acceptedCents: true },
@@ -291,7 +291,7 @@ describe('what a client has spent is counted at the desk that signed for it', ()
     // line on it aside, and give it instead a paid bill from Tecwyn to
     // Computer Systems. Northbend has still been billed nothing for that
     // week and has paid nothing for it, and its budget must say so.
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const before = (await json(await budget(req('GET', '/api/program/budget')))).body.data.summary
 
     const week = await prisma.timesheet.findFirstOrThrow({ orderBy: { id: 'asc' },
@@ -350,7 +350,7 @@ describe('what a client has spent is counted at the desk that signed for it', ()
 
 describe('a person bought through two legs of one chain has served one set of days, not two', () => {
   it('counts Helena’s chain once, the way lib/chain-top counts it on the dashboard', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const { body } = await json(await people(req('GET', '/api/people')))
     const her = body.data.people.find((r: any) => r.personId === helenaId)
 

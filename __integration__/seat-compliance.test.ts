@@ -125,7 +125,7 @@ beforeAll(async () => {
 
   for (const [key, slug] of [
     ['aptiva', 'world-aptiva'], ['kestrel', 'world-kestrel'],
-    ['cavanaugh', 'world-corning'], ['talvern', 'world-terumo-bct'], ['northbend', 'world-nike'],
+    ['cavanaugh', 'world-cavanaugh'], ['talvern', 'world-talvern'], ['northbend', 'world-northbend'],
   ] as const) {
     co[key] = (await prisma.company.findFirstOrThrow({ where: { slug } })).id
   }

@@ -16,7 +16,7 @@ const PELLWRIGHT = `world-pellwright${D}`
 const PELLWRIGHT_RECRUITER = `world-pellwright-recruiter${D}`
 const PELLWRIGHT_FINANCE = `world-pellwright-finance${D}`
 const SUNDARA = `world-sundara${D}`
-const NORTHBEND = `world-nike${D}`
+const NORTHBEND = `world-northbend${D}`
 const INGRID = `world-tellisford-delivery-portland${D}`
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 const listingsOf = (body: any): any[] => Object.values(body.data?.tiers ?? {}).flat() as any[]

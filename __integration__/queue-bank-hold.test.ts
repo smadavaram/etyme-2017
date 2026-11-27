@@ -11,7 +11,7 @@ import { GET as readDecisions } from '@/app/api/decisions/route'
  * the payment write asks, and says money's own sentence about the hold.
  */
 
-const AP = 'world-nike-ap@demo.etyme.local'
+const AP = 'world-northbend-ap@demo.etyme.local'
 const s = { pinnacle: '', receipt: '' }
 
 const read = async () => {

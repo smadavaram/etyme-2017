@@ -19,7 +19,7 @@
  * Each hop is its own submission, pointing at the one it came from:
  *
  *   Tecwyn → Vertex Global    $62/hr   the sub-vendor's submission
- *        └─ Vertex Global → Terumo    $95/hr   the prime's, marked up
+ *        └─ Vertex Global → Talvern    $95/hr   the prime's, marked up
  *
  * Two submissions, two rates, two decisions, one chain. That is the layer
  * cake exactly as it is, and it is why a flag would not do: a flag cannot
@@ -224,7 +224,7 @@ export interface MirroredRole {
    * with no end client, so the sub's contract recorded the prime as the
    * place of work — and tenure, which Addendum E requires to aggregate at
    * the end client across every vendor, quietly counted the wrong
-   * company. Twelve months at Nike direct and twelve at Nike through a
+   * company. Twelve months at Northbend direct and twelve at Northbend through a
    * prime read as two unrelated years at two firms.
    *
    * That is the exact blind spot the product exists to close, so it is

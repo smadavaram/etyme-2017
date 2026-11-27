@@ -118,7 +118,7 @@ export const STEP_PAGES: StepPage[] = [
         kind: 'WARN', source: 'src/lib/governance.ts', phrase: 'exceeds maximum $',
       },
     ],
-    demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/requisitions', seat: 'the hiring manager' },
+    demo: { as: 'world-northbend', desk: 'hiring', screen: '/dashboard/requisitions', seat: 'the hiring manager' },
   },
   {
     slug: 'candidates',
@@ -157,7 +157,7 @@ export const STEP_PAGES: StepPage[] = [
         kind: 'WARN', source: 'src/lib/contract-clearance.ts', phrase: 'The contract can start with a reason recorded.',
       },
     ],
-    demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
+    demo: { as: 'world-northbend', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
   },
   {
     slug: 'timesheets',
@@ -192,7 +192,7 @@ export const STEP_PAGES: StepPage[] = [
         kind: 'WARN', source: 'src/lib/timesheet-flag.ts', phrase: 'h-a-week job.',
       },
     ],
-    demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/timesheets', seat: 'the hiring manager' },
+    demo: { as: 'world-northbend', desk: 'hiring', screen: '/dashboard/timesheets', seat: 'the hiring manager' },
   },
   {
     slug: 'invoices',
@@ -231,7 +231,7 @@ export const STEP_PAGES: StepPage[] = [
         kind: 'WARN', source: 'src/lib/three-way-match.ts', phrase: 'this invoice is',
       },
     ],
-    demo: { as: 'world-nike', desk: 'ap', screen: '/dashboard/invoices', seat: 'the AP clerk' },
+    demo: { as: 'world-northbend', desk: 'ap', screen: '/dashboard/invoices', seat: 'the AP clerk' },
   },
   {
     slug: 'when-work-ends',
@@ -266,7 +266,7 @@ export const STEP_PAGES: StepPage[] = [
         kind: 'WARN', source: 'src/lib/governance.ts', phrase: '% of the time limit)',
       },
     ],
-    demo: { as: 'world-nike', desk: 'compliance', screen: '/dashboard/tenure', seat: 'the compliance officer' },
+    demo: { as: 'world-northbend', desk: 'compliance', screen: '/dashboard/tenure', seat: 'the compliance officer' },
   },
 ]
 

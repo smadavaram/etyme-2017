@@ -1,8 +1,8 @@
 /**
  * The address a company lives at.
  *
- * Sign-up guesses one from the email domain — terumobct.com becomes
- * terumobct.etyme.com — and until now nothing could change it. Which is
+ * Sign-up guesses one from the email domain — talvern-medical.example becomes
+ * talvern.etyme.com — and until now nothing could change it. Which is
  * fine for ninety seconds and wrong forever after: companies rebrand, the
  * guess is sometimes ugly, and a firm with its own domain wants its own
  * address rather than a subdomain of ours.

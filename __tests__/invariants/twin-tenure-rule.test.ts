@@ -103,7 +103,7 @@ describe('the job twin’s time-limit rule', () => {
   })
 
   it('the Northbend demo holds exactly one person 60 days from the limit', () => {
-    const nb = PROGRAMMES.find((p) => p.client === 'nike')!
+    const nb = PROGRAMMES.find((p) => p.client === 'northbend')!
     expect(NORTHBEND_LIMIT_MONTHS).toBe(nb.governance.tenureCapMonths)
     const names: Record<string, string> = { brightmoor: 'Brightmoor Staffing', pinnacle: 'Pinnacle Resourcing', 'computer-systems': 'Computer Systems' }
 

@@ -24,7 +24,7 @@ function inv(over: Partial<ArInvoice> = {}): ArInvoice {
     totalMinor: 1_000_000,
     paidMinor: 0,
     dueAt: new Date('2026-07-30T00:00:00Z'),
-    customerId: 'c-nike',
+    customerId: 'c-northbend',
     customerName: 'Northbend Athletic Inc',
     ...over,
   }

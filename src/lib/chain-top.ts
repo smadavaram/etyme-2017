@@ -1,7 +1,7 @@
 /**
  * The client's picture is what it buys, not how its suppliers staff it.
  *
- * In a chain — Nike buys Helena from Computer Systems, who buys her from
+ * In a chain — Northbend buys Helena from Computer Systems, who buys her from
  * Tecwyn — every rung is a sell contract at this end client. Counting
  * each rung made one person three contractors, a sub-supplier a
  * supplier, and put a rate the client has no business seeing on the
@@ -85,8 +85,8 @@ function overlaps(a: DatedRung, b: DatedRung): boolean {
  * One row per placement, priced only where this client is the payer.
  *
  * The client's org page asked the site the work happens at — every rung
- * of every chain at Nike's buildings — and put `billRate` on each. So
- * Helena stood there twice, once at the $145 Nike pays and once at the
+ * of every chain at Northbend's buildings — and put `billRate` on each. So
+ * Helena stood there twice, once at the $145 Northbend pays and once at the
  * $118 its supplier pays, and the headcount, the spend and the rate
  * spread were all computed over both.
  *

@@ -14,7 +14,7 @@ import type { World } from '@/lib/seed-programmes'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = `world-nike-hiring${D}`
+const NORTHBEND = `world-northbend-hiring${D}`
 const CS = `world-computer-systems${D}`
 const TECWYN = `world-tecwyn${D}`
 const it_: Record<string, any> = {}
@@ -29,7 +29,7 @@ async function open(email: string, id: string) {
 async function worldFromRows(): Promise<World> {
   const firmBySlug = new Map<string, { id: string }>()
   const seatBySlug = new Map<string, { personId: string; email: string }>()
-  for (const slug of ['nike', 'computer-systems', 'tecwyn']) {
+  for (const slug of ['northbend', 'computer-systems', 'tecwyn']) {
     const c = await prisma.company.findUniqueOrThrow({ where: { slug: `world-${slug}` }, select: { id: true } })
     const p = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: `world-${slug}${D}` }, select: { id: true, primaryEmail: true } })
     firmBySlug.set(slug, c)
@@ -51,7 +51,7 @@ describe('the client reads an approval email addressed to the firm it pays', () 
   }, 600_000)
 
   it('Northbend opens the seeded approval email and reads it addressed to Computer Systems, and Tecwyn is named nowhere in it', async () => {
-    const r = await open(NIKE, it_.approval)
+    const r = await open(NORTHBEND, it_.approval)
     expect(r.status).toBe(200)
     expect(r.text).toContain(`To: ${CS}`)
     expect(r.text).not.toMatch(/tecwyn/i)

@@ -113,7 +113,7 @@ describe('a narrowed reader is told the list is narrowed, not that the firm has 
   let firmLines = 0
   beforeAll(async () => {
     await freshWorld()
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const member = await prisma.role.findFirstOrThrow({ where: { companyId: firm.id, name: 'Member' }, select: { id: true } })
     const p = await prisma.person.create({ data: { primaryEmail: NORTHBEND_MEMBER, name: 'Mo Haddad' }, select: { id: true } })
     await prisma.context.create({
@@ -137,7 +137,7 @@ describe('a narrowed reader is told the list is narrowed, not that the firm has 
   })
 
   it('a desk that reads the firm’s lines is told the list is the firm’s', async () => {
-    as('world-nike-programme@demo.etyme.local')
+    as('world-northbend-programme@demo.etyme.local')
     const { status, body } = await json(await listContracts(req('GET', '/api/contracts?side=sell&limit=50')))
     expect(status, JSON.stringify(body)).toBe(200)
     expect(body.data.contracts.length).toBeGreaterThan(0)

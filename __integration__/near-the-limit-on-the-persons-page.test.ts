@@ -11,7 +11,7 @@ import { GET as ledger } from '@/app/api/tenure/route'
  * limit: not near it by default, near it where Northbend warns at 150.
  */
 
-const DESK = 'world-nike-compliance@demo.etyme.local'
+const DESK = 'world-northbend-compliance@demo.etyme.local'
 const s = { lucia: '', northbend: '', setBy: '' }
 
 const page = async () => {
@@ -29,7 +29,7 @@ const tenureStatus = async () => {
 beforeAll(async () => {
   await freshWorld()
   s.lucia = (await prisma.person.findFirstOrThrow({ where: { name: 'Lucía Fernández' }, select: { id: true } })).id
-  const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+  const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
   s.northbend = co.id
   s.setBy = (await prisma.person.findFirstOrThrow({ where: { primaryEmail: DESK }, select: { id: true } })).id
 }, 600_000)

@@ -115,11 +115,11 @@ describe('who may open one', () => {
 
   it('lets a client who was actually sent it', () => {
     // The point of a version: a client keeps what they were given.
-    expect(mayRead({ personId: 'mgr', companyId: 'terumo' }, owner, ['terumo']).ok).toBe(true)
+    expect(mayRead({ personId: 'mgr', companyId: 'talvern' }, owner, ['talvern']).ok).toBe(true)
   })
 
   it('refuses a company it was never sent to', () => {
-    const v = mayRead({ personId: 'x', companyId: 'northwind' }, owner, ['terumo'])
+    const v = mayRead({ personId: 'x', companyId: 'northwind' }, owner, ['talvern'])
     expect(v.ok).toBe(false)
     expect(v.reason).toMatch(/never sent to you/)
   })
@@ -147,7 +147,7 @@ describe('versions', () => {
   it('still shows a deleted one that was sent somewhere', () => {
     // It is out there. Hiding that from the person it belongs to helps
     // nobody — they are the one who might be asked about it.
-    expect(visibleTo([version({ deletedAt: NOW, sentTo: ['terumo'] })])).toHaveLength(1)
+    expect(visibleTo([version({ deletedAt: NOW, sentTo: ['talvern'] })])).toHaveLength(1)
   })
 
   it('sends the current one', () => {

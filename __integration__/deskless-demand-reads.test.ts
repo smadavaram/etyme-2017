@@ -20,8 +20,8 @@ import { rolesFor } from '@/lib/company-defaults'
  * read; a desk-less worker still reads their own weeks.
  */
 
-const PROGRAM = 'world-nike-programme@demo.etyme.local'
-const NIKE_MEMBER = 'new.colleague@northbend.demo.etyme.local'
+const PROGRAM = 'world-northbend-programme@demo.etyme.local'
+const NORTHBEND_MEMBER = 'new.colleague@northbend.demo.etyme.local'
 const FIRM_MEMBER = 'new.colleague@brightmoor.demo.etyme.local'
 
 /** A refusal's row is written before the 403 is sent (recordRefusal), so it is read at once. */
@@ -31,20 +31,20 @@ async function refusalsBy(actorPersonId: string, startsWith: string) {
 
 describe('a client colleague seated as Member with no desk', () => {
   let member = ''
-  let nike = ''
+  let northbend = ''
   beforeAll(async () => {
     await freshWorld()
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
-    nike = firm.id
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
+    northbend = firm.id
     const role = await prisma.role.findFirstOrThrow({ where: { companyId: firm.id, name: 'Member' }, select: { id: true } })
-    member = (await prisma.person.create({ data: { primaryEmail: NIKE_MEMBER, name: 'Lee Chen' }, select: { id: true } })).id
+    member = (await prisma.person.create({ data: { primaryEmail: NORTHBEND_MEMBER, name: 'Lee Chen' }, select: { id: true } })).id
     await prisma.context.create({
       data: { personId: member, companyId: firm.id, type: 'EMPLOYEE', roleId: role.id, grantReason: 'Joined on the domain' },
     })
   }, 240_000)
 
   it('is refused the budget in a sentence that names no permission key', async () => {
-    as(NIKE_MEMBER)
+    as(NORTHBEND_MEMBER)
     const { status, body } = await json(await readBudget(req('GET', '/api/program/budget')))
     expect(status, JSON.stringify(body)).toBe(403)
     expect(body.error.message).toBe('The budget is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
@@ -53,7 +53,7 @@ describe('a client colleague seated as Member with no desk', () => {
 
   it('has each person the budget would have named logged as a refused read', async () => {
     const allocated = await prisma.contractCostAllocation.findMany({
-      where: { costCenter: { companyId: nike } },
+      where: { costCenter: { companyId: northbend } },
       select: { sellContract: { select: { personId: true } } },
     })
     const people = new Set(allocated.map((a) => a.sellContract.personId))
@@ -63,7 +63,7 @@ describe('a client colleague seated as Member with no desk', () => {
   })
 
   it('is refused the org view in a sentence, and every person on site is logged as a refused read', async () => {
-    as(NIKE_MEMBER)
+    as(NORTHBEND_MEMBER)
     const { status, body } = await json(await readOrg(req('GET', '/api/program/org')))
     expect(status, JSON.stringify(body)).toBe(403)
     expect(body.error.message).toBe('The org view is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
@@ -72,7 +72,7 @@ describe('a client colleague seated as Member with no desk', () => {
   })
 
   it('is refused the timesheets of everybody on site, and each is logged as a refused read', async () => {
-    as(NIKE_MEMBER)
+    as(NORTHBEND_MEMBER)
     const { status, body } = await json(await listTimesheets(req('GET', '/api/timesheets')))
     expect(status, JSON.stringify(body)).toBe(403)
     expect(body.error.message).toBe('Timesheets is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.')
@@ -351,11 +351,11 @@ describe('a person’s terms with their firm, read from a seat with no desk (rou
       select: { id: true },
     })).id
 
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
-    const nikeMember = await prisma.role.findFirstOrThrow({ where: { companyId: nike.id, name: 'Member' }, select: { id: true } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
+    const northbendMember = await prisma.role.findFirstOrThrow({ where: { companyId: northbend.id, name: 'Member' }, select: { id: true } })
     moId = (await prisma.person.create({ data: { primaryEmail: MO, name: 'Mo Walker' }, select: { id: true } })).id
     moCtx = (await prisma.context.create({
-      data: { personId: moId, companyId: nike.id, type: 'EMPLOYEE', roleId: nikeMember.id, grantReason: 'Joined on the domain' },
+      data: { personId: moId, companyId: northbend.id, type: 'EMPLOYEE', roleId: northbendMember.id, grantReason: 'Joined on the domain' },
       select: { id: true },
     })).id
   }, 240_000)
@@ -453,10 +453,10 @@ describe('a filled job request shows the client the rate it pays (round six)', (
   }
 
   it('Northbend’s ERP finance lead says Helena Marsh was filled at the $145 Northbend pays, never the $118 a rung below', async () => {
-    expect(await placed('world-nike-programme@demo.etyme.local', 'Northbend Athletic', 'ERP finance lead', 'Helena Marsh')).toBe(14_500)
+    expect(await placed('world-northbend-programme@demo.etyme.local', 'Northbend Athletic', 'ERP finance lead', 'Helena Marsh')).toBe(14_500)
   })
 
   it('Cavanaugh’s process validation engineer says Tomasz Nowak was filled at the $128 Cavanaugh pays, never $103', async () => {
-    expect(await placed('world-corning-programme@demo.etyme.local', 'Cavanaugh Glassworks', 'Process validation engineer', 'Tomasz Nowak')).toBe(12_800)
+    expect(await placed('world-cavanaugh-programme@demo.etyme.local', 'Cavanaugh Glassworks', 'Process validation engineer', 'Tomasz Nowak')).toBe(12_800)
   })
 })

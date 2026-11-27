@@ -14,7 +14,7 @@ import { POST as award } from '@/app/api/submissions/[id]/award/route'
  */
 
 const D = '@demo.etyme.local'
-const HIRING = `world-nike-hiring${D}`
+const HIRING = `world-northbend-hiring${D}`
 
 const ids: Record<string, string> = {}
 
@@ -22,7 +22,7 @@ describe('a supplier whose candidate never reached an interview is told when the
   beforeAll(async () => {
     await freshWorld()
     const job = await prisma.requirement.findFirstOrThrow({
-      where: { title: 'HCM integration lead', company: { slug: 'world-nike' } },
+      where: { title: 'HCM integration lead', company: { slug: 'world-northbend' } },
       select: { id: true },
     })
     ids.job = job.id

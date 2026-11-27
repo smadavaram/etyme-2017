@@ -24,7 +24,7 @@ export interface Call {
   at: string
   /** The stage that made it, or "harness" for opening seats and running nightly jobs. */
   stage: string
-  /** The seat key, e.g. `world-nike/hiring`, `person/helena-marsh`, `cron`. */
+  /** The seat key, e.g. `world-northbend/hiring`, `person/helena-marsh`, `cron`. */
   seat: string
   method: Method
   /** The path called, without the query. */

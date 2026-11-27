@@ -27,7 +27,7 @@ function call(over: Partial<Call>): Call {
   const path = over.path ?? '/api/requisitions'
   const ref = routeOf(path)
   return {
-    n, at: new Date(0).toISOString(), stage: 'post-jobs', seat: 'world-nike/hiring', method: 'POST',
+    n, at: new Date(0).toISOString(), stage: 'post-jobs', seat: 'world-northbend/hiring', method: 'POST',
     path, route: ref.route, owner: ref.owner, status: 201, ms: 100, ...over,
   }
 }

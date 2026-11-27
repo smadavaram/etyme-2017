@@ -7,7 +7,7 @@ import { GET as listContracts } from '@/app/api/contracts/route'
  * client. Found live: GET /api/contracts returned the buy line's id and
  * the sub-vendor's name to the client reading its own sell line.
  */
-const CLIENT = 'world-nike-programme@demo.etyme.local'
+const CLIENT = 'world-northbend-programme@demo.etyme.local'
 const PRIME = 'world-computer-systems@demo.etyme.local'
 const co: Record<string, string> = {}
 
@@ -21,11 +21,11 @@ const ofChain = (rows: any[]) => rows.filter((c) => c.pairedWith)
 
 beforeAll(async () => {
   await freshWorld()
-  for (const slug of ['world-nike', 'world-computer-systems', 'world-tecwyn']) {
+  for (const slug of ['world-northbend', 'world-computer-systems', 'world-tecwyn']) {
     co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
   }
   await prisma.masterAgreement.updateMany({
-    where: { clientId: co['world-nike'], vendorId: co['world-computer-systems'] },
+    where: { clientId: co['world-northbend'], vendorId: co['world-computer-systems'] },
     data: { disclosesSubVendors: false },
   })
 }, 600_000)
@@ -48,7 +48,7 @@ describe('a client reading its contract list', () => {
 
   it('where the client’s agreement requires disclosure, the firm below is named and its id is still withheld', async () => {
     const a = await prisma.masterAgreement.findFirstOrThrow({
-      where: { clientId: co['world-nike'], vendorId: co['world-computer-systems'] },
+      where: { clientId: co['world-northbend'], vendorId: co['world-computer-systems'] },
       select: { id: true },
     })
     await prisma.masterAgreement.update({ where: { id: a.id }, data: { disclosesSubVendors: true } })
@@ -79,7 +79,7 @@ describe('a client opening the line between its supplier and a firm below it', (
 
   async function lineBelow() {
     return prisma.sellContract.findFirstOrThrow({
-      where: { companyId: co['world-tecwyn'], clientCompanyId: co['world-computer-systems'], endClientCompanyId: co['world-nike'], state: 'IN_PROGRESS' },
+      where: { companyId: co['world-tecwyn'], clientCompanyId: co['world-computer-systems'], endClientCompanyId: co['world-northbend'], state: 'IN_PROGRESS' },
       select: { id: true },
       orderBy: { id: 'asc' },
     })
@@ -96,10 +96,10 @@ describe('a client opening the line between its supplier and a firm below it', (
 
   it('a firm that is no party to a placement is refused without being told who is on it', async () => {
     const line = await lineBelow()
-    as('world-corning-programme@demo.etyme.local')
+    as('world-cavanaugh-programme@demo.etyme.local')
     const r = await json(await rollOff(req('POST', `/api/contracts/${line.id}/rolloff`, {}), ctx(line.id) as any))
     expect(r.status).toBe(403)
-    expect(JSON.stringify(r.body)).not.toMatch(/tecwyn|computer systems|northbend|nike/i)
+    expect(JSON.stringify(r.body)).not.toMatch(/tecwyn|computer systems|northbend|northbend/i)
   })
 
   it('a client asking about the pay line behind a placement is told nothing about a firm below', async () => {

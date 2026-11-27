@@ -51,7 +51,7 @@ beforeAll(async () => {
 
   const victor = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-computer-systems@demo.etyme.local' } })
   const computerSystems = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
-  const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+  const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
   const anders = await prisma.person.findFirstOrThrow({ where: { name: 'Anders Lund' } })
 
   // A company outside the world, with its own owner.
@@ -81,14 +81,14 @@ beforeAll(async () => {
   const verify = await prisma.person.create({ data: { name: 'Verify Three', primaryEmail: 'verify.three@seed.etyme.invalid' } })
   const verifySeat = await prisma.context.create({ data: { personId: verify.id, companyId: sandbox.id, roleId: sandboxRole.id, type: 'EMPLOYEE' } })
   await prisma.companyContact.create({
-    data: { companyId: computerSystems.id, atCompanyId: nike.id, name: 'Verify Three', personId: verify.id },
+    data: { companyId: computerSystems.id, atCompanyId: northbend.id, name: 'Verify Three', personId: verify.id },
   })
 
   // Two ties nothing here releases: a star on a demo person, and a real
   // person's seat at a demo client.
   const star = await prisma.favorite.create({ data: { companyId: acme.id, targetType: 'PERSON', targetId: anders.id, byId: priya.id } })
-  const nikeRole = await prisma.role.findFirstOrThrow({ where: { companyId: nike.id, name: 'Owner' } })
-  const priyaAtNike = await prisma.context.create({ data: { personId: priya.id, companyId: nike.id, roleId: nikeRole.id, type: 'EMPLOYEE' } })
+  const northbendRole = await prisma.role.findFirstOrThrow({ where: { companyId: northbend.id, name: 'Owner' } })
+  const priyaAtNorthbend = await prisma.context.create({ data: { personId: priya.id, companyId: northbend.id, roleId: northbendRole.id, type: 'EMPLOYEE' } })
 
   // For the cleanup: a seed file on Priya's check, and a seed CV on a
   // visitor seated only in their sandbox.
@@ -107,7 +107,7 @@ beforeAll(async () => {
   Object.assign(ids, {
     victor: victor.id, verify: verify.id, computerSystems: computerSystems.id, ownSupplier: ownSupplier.id,
     acme: acme.id, sandbox: sandbox.id, priya: priya.id, victorSeat: victorSeat.id, verifySeat: verifySeat.id,
-    requirement: requirement.id, star: star.id, priyaAtNike: priyaAtNike.id,
+    requirement: requirement.id, star: star.id, priyaAtNorthbend: priyaAtNorthbend.id,
   })
 }, 600_000)
 
@@ -226,7 +226,7 @@ describe('whose records tie the demo world down', () => {
 
     // What nothing here releases is left exactly as it was.
     expect(await prisma.favorite.findUnique({ where: { id: ids.star } })).not.toBeNull()
-    expect(await prisma.context.findUnique({ where: { id: ids.priyaAtNike } })).not.toBeNull()
+    expect(await prisma.context.findUnique({ where: { id: ids.priyaAtNorthbend } })).not.toBeNull()
 
     const log = await prisma.automationLog.findFirstOrThrow({ where: { action: 'DEMO_TIES_RELEASED' } })
     expect(log.reversible).toBe(false)
@@ -238,7 +238,7 @@ describe('whose records tie the demo world down', () => {
   it('after the ties are released the demo world can be rebuilt', async () => {
     // What only deleting would release, ended by hand — the founder's call.
     await prisma.favorite.delete({ where: { id: ids.star } })
-    await prisma.context.delete({ where: { id: ids.priyaAtNike } })
+    await prisma.context.delete({ where: { id: ids.priyaAtNorthbend } })
 
     const r = await dryRun()
     expect(r.body.data.ties).toEqual([])

@@ -82,8 +82,8 @@ beforeAll(async () => {
   await freshWorld()
 
   id.aptiva = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-aptiva' } })).id
-  id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })).id
-  id.talvern = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-terumo-bct' } })).id
+  id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-cavanaugh' } })).id
+  id.talvern = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-talvern' } })).id
 
   // Cavanaugh's own supplier invoice: Wrenfield Technical billed it for a
   // week of Elsa Thornquist against the purchase order it raised. No MSA

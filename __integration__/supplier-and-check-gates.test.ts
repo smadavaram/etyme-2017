@@ -22,9 +22,9 @@ import { GET as pairsOf, POST as joinRecords } from '@/app/api/suppliers/join/ro
 
 const D = '@demo.etyme.local'
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
-const PROCUREMENT = `world-nike-procurement${D}`
-const HIRING = `world-nike-hiring${D}`
-const AP = `world-nike-ap${D}`
+const PROCUREMENT = `world-northbend-procurement${D}`
+const HIRING = `world-northbend-hiring${D}`
+const AP = `world-northbend-ap${D}`
 const TELLISFORD_HR = `world-tellisford-hr${D}`
 
 /** The one door's refusal for a seat with no desk: the page named, no permission key, nothing read. */
@@ -136,25 +136,25 @@ describe('who adds suppliers from a pasted list', () => {
 describe('who joins two records of one supplier', () => {
   /** Two shells Northbend listed on one domain, each invited to a job. */
   async function twoRecordsOfOneFirm(tag: string) {
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const domain = `${tag}.invalid`
     const [a, b] = await Promise.all([1, 2].map((n) =>
       prisma.company.create({
-        data: { name: `${tag} Staffing ${n}`, slug: `${tag}-staffing-${n}`, kind: 'VENDOR', currency: 'USD', listedById: nike.id, isDemo: true },
+        data: { name: `${tag} Staffing ${n}`, slug: `${tag}-staffing-${n}`, kind: 'VENDOR', currency: 'USD', listedById: northbend.id, isDemo: true },
         select: { id: true },
       })
     ))
     for (const [n, c] of [a, b].entries()) {
       await prisma.supplierInvite.create({
-        data: { companyId: c.id, byId: nike.id, email: `desk${n}@${domain}`, domain, token: `${tag}-${n}-token` },
+        data: { companyId: c.id, byId: northbend.id, email: `desk${n}@${domain}`, domain, token: `${tag}-${n}-token` },
       })
     }
     // One job invitation on each, so whichever the rule keeps, the other
     // has something to move.
-    const requirements = await prisma.requirement.findMany({ where: { companyId: nike.id }, select: { id: true }, take: 2 })
+    const requirements = await prisma.requirement.findMany({ where: { companyId: northbend.id }, select: { id: true }, take: 2 })
     for (const [n, c] of [a, b].entries()) {
       await prisma.requirementInvitation.create({
-        data: { requirementId: requirements[n].id, fromCompanyId: nike.id, toCompanyId: c.id, expiresAt: new Date(Date.now() + 7 * 86400000) },
+        data: { requirementId: requirements[n].id, fromCompanyId: northbend.id, toCompanyId: c.id, expiresAt: new Date(Date.now() + 7 * 86400000) },
       })
     }
     return { a: a.id, b: b.id }

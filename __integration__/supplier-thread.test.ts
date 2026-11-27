@@ -17,7 +17,7 @@ import { GET as read, POST as reply } from '@/app/api/conversations/messages/rou
  */
 
 const D = '@demo.etyme.local'
-const NIKE_PM = `world-nike-programme${D}`
+const NORTHBEND_PM = `world-northbend-programme${D}`
 
 /**
  * Notices are fire-and-forget; give the bell a moment to ring. `until`
@@ -36,7 +36,7 @@ async function noticesAbout(
   return prisma.notification.findMany({ where: { entityId: threadId }, orderBy: { createdAt: 'asc' } })
 }
 
-let nike: { id: string; pmPersonId: string }
+let northbend: { id: string; pmPersonId: string }
 let role: { id: string; title: string }
 let pinnacle: { id: string; name: string; seat: string; staff: string[] }
 /** Pinnacle's AP & Payroll clerk (Ingrid Halvorsen, seeded) and the seats that work its jobs. */
@@ -51,12 +51,12 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
   beforeAll(async () => {
     await freshWorld()
 
-    const n = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
-    const pm = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE_PM }, select: { id: true } })
-    nike = { id: n.id, pmPersonId: pm.id }
+    const n = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
+    const pm = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND_PM }, select: { id: true } })
+    northbend = { id: n.id, pmPersonId: pm.id }
 
     const r = await prisma.requirement.findFirstOrThrow({
-      where: { companyId: nike.id, title: 'HCM integration lead' },
+      where: { companyId: northbend.id, title: 'HCM integration lead' },
       select: { id: true, title: true, invitations: { select: { toCompanyId: true } } },
     })
     role = { id: r.id, title: r.title }
@@ -98,14 +98,14 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
     stranger = { id: other.id, name: other.name, seat: staffOf(other).seat }
 
     const ml = await prisma.submission.findFirstOrThrow({
-      where: { toCompanyId: nike.id, requirementId: role.id, person: { name: 'Mei-Lin Chao' } },
+      where: { toCompanyId: northbend.id, requirementId: role.id, person: { name: 'Mei-Lin Chao' } },
       select: { id: true, person: { select: { primaryEmail: true } } },
     })
     meiLin = { email: ml.person.primaryEmail, submissionId: ml.id }
   }, 120_000)
 
   it('the program desk opens a thread with Pinnacle from the role, with its first question', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const res = json(await open(req('POST', '/api/conversations', {
       topic: 'REQUIREMENT', topicId: role.id, withCompanyId: pinnacle.id,
       initialMessage: 'Can your Workday people start before the end of the month?',
@@ -157,10 +157,10 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
   it('the answer reaches the desk that asked, and the rest of Pinnacle is not told about its own reply', async () => {
     // Wait for the reply's notice itself: every desk at Pinnacle that was
     // told of the first note already has a row on this thread.
-    const rows = await noticesAbout(roleThread, 1, 30, (n) => n.personId === nike.pmPersonId)
-    const toNike = rows.filter((n) => n.personId === nike.pmPersonId)
-    expect(toNike).toHaveLength(1)
-    expect(toNike[0].title).toMatch(new RegExp(`^.+ at ${pinnacle.name} on ${role.title}$`))
+    const rows = await noticesAbout(roleThread, 1, 30, (n) => n.personId === northbend.pmPersonId)
+    const toNorthbend = rows.filter((n) => n.personId === northbend.pmPersonId)
+    expect(toNorthbend).toHaveLength(1)
+    expect(toNorthbend[0].title).toMatch(new RegExp(`^.+ at ${pinnacle.name} on ${role.title}$`))
     // Every notice on this thread went to one side or the other; nobody
     // was told about their own note.
     const pinnacleHeard = rows.filter((n) => pinnacle.staff.includes(n.personId))
@@ -168,7 +168,7 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
   })
 
   it('both sides read the same thread, each note marked with the firm that wrote it', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const r = await json(await read(req('GET', `/api/conversations/messages?conversationId=${roleThread}`)))
     expect(r.status).toBe(200)
     expect(r.body.data.messages.map((m: any) => m.authorCompany)).toEqual(['Northbend Athletic', pinnacle.name])
@@ -178,7 +178,7 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
   it('Pinnacle cannot open a thread with Northbend Athletic; it is told to submit or answer the invitation instead', async () => {
     as(pinnacle.seat)
     const r = await json(await open(req('POST', '/api/conversations', {
-      topic: 'REQUIREMENT', topicId: role.id, withCompanyId: nike.id, initialMessage: 'We have great people!',
+      topic: 'REQUIREMENT', topicId: role.id, withCompanyId: northbend.id, initialMessage: 'We have great people!',
     })))
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('SUPPLY_ANSWERS')
@@ -197,7 +197,7 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
   })
 
   it('Northbend Athletic cannot write to a firm that is not on the role, and is told to invite them first', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const r = await json(await open(req('POST', '/api/conversations', {
       topic: 'REQUIREMENT', topicId: role.id, withCompanyId: stranger.id, initialMessage: 'Hello?',
     })))
@@ -209,7 +209,7 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
   })
 
   it("Northbend Athletic's own Discussion on the role stays at Northbend Athletic; Pinnacle's list never shows it", async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const own = await json(await open(req('POST', '/api/conversations', {
       topic: 'REQUIREMENT', topicId: role.id, title: role.title, initialMessage: 'Between us: Pinnacle is our first choice.',
     })))
@@ -227,7 +227,7 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
   })
 
   it('a question about Mei-Lin goes to Pinnacle, who sent her, and to no other firm', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const wrong = await json(await open(req('POST', '/api/conversations', {
       topic: 'SUBMISSION', topicId: meiLin.submissionId, withCompanyId: stranger.id, initialMessage: 'Is she available?',
     })))
@@ -250,7 +250,7 @@ describe('Northbend Athletic writes to Pinnacle about a role, and Pinnacle answe
   })
 
   it('asking again lands on the same thread rather than a second one', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const again = await json(await open(req('POST', '/api/conversations', {
       topic: 'SUBMISSION', topicId: meiLin.submissionId, withCompanyId: pinnacle.id,
     })))

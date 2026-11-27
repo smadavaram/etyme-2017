@@ -21,7 +21,7 @@ import { GET as bench } from '@/app/api/bench/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}` }
+const NORTHBEND = { programme: `world-northbend-programme${D}`, hiring: `world-northbend-hiring${D}` }
 const PRIME = `world-computer-systems${D}`
 const SUB = `world-tecwyn${D}`
 
@@ -39,7 +39,7 @@ const put = async (personId: string, extra: Record<string, unknown> = {}) =>
 describe('a prime puts forward somebody its network offered it', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-computer-systems', 'world-tecwyn']) {
+    for (const slug of ['world-northbend', 'world-computer-systems', 'world-tecwyn']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
     it_.grace = (await prisma.person.findFirstOrThrow({ where: { name: 'Grace Lindqvist' } })).id
@@ -62,12 +62,12 @@ describe('a prime puts forward somebody its network offered it', () => {
     // agreement Tecwyn is Computer Systems' sub-vendor and nothing more,
     // and the release door refuses to send Northbend's job to it: a
     // sub-vendor's name is the prime's to keep (CLAUDE.md, 2026-09-17).
-    await prisma.masterAgreement.create({ data: { clientId: co['world-nike'], vendorId: co['world-tecwyn'], paymentTerms: 30 } })
+    await prisma.masterAgreement.create({ data: { clientId: co['world-northbend'], vendorId: co['world-tecwyn'], paymentTerms: 30 } })
   }, 240_000)
 
   it('Northbend raises a role and releases it to Computer Systems and to Tecwyn', async () => {
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-    as(NIKE.hiring)
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+    as(NORTHBEND.hiring)
     const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
       title: 'Demand planning analyst', skills: ['SAP IBP'], location: 'Beaverton, OR',
       billMin: 3200, billMax: 4500, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -76,7 +76,7 @@ describe('a prime puts forward somebody its network offered it', () => {
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     it_.requisition = r.body.data.requisition.id
 
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const sent = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [
         { companyId: co['world-computer-systems'], payMin: 3400, payMax: 4400 },
@@ -84,7 +84,7 @@ describe('a prime puts forward somebody its network offered it', () => {
       ],
     })
     expect(sent.body?.error, JSON.stringify(sent.body)).toBeUndefined()
-    it_.rolesAtNorthbend = await prisma.requirement.count({ where: { companyId: co['world-nike'] } })
+    it_.rolesAtNorthbend = await prisma.requirement.count({ where: { companyId: co['world-northbend'] } })
   })
 
   it('Computer Systems reads Grace Lindqvist on its network, offered by Tecwyn', async () => {
@@ -114,12 +114,12 @@ describe('a prime puts forward somebody its network offered it', () => {
     const ours = await prisma.submission.findUniqueOrThrow({ where: { id: item.submissionId } })
     expect(ours.requirementId).toBe(it_.requisition)
     expect(ours.fromCompanyId).toBe(co['world-computer-systems'])
-    expect(ours.toCompanyId).toBe(co['world-nike'])
+    expect(ours.toCompanyId).toBe(co['world-northbend'])
     expect(ours.kind).toBe('NETWORK')
     expect(ours.rate).toBe(4200)
     it_.ours = ours
     // Nothing written onto Northbend's books.
-    expect(await prisma.requirement.count({ where: { companyId: co['world-nike'] } })).toBe(it_.rolesAtNorthbend)
+    expect(await prisma.requirement.count({ where: { companyId: co['world-northbend'] } })).toBe(it_.rolesAtNorthbend)
   })
 
   it('the rung below is written with it: Tecwyn supplies Grace to Computer Systems at the agreed rate, on Computer Systems’ own record of the role, already sent on', async () => {
@@ -135,7 +135,7 @@ describe('a prime puts forward somebody its network offered it', () => {
     expect(below.forwardedAt).not.toBeNull()
     expect(below.requirement.companyId).toBe(co['world-computer-systems'])
     expect(below.requirement.mirroredFromId).toBe(it_.requisition)
-    expect(below.requirement.endClientCompanyId).toBe(co['world-nike'])
+    expect(below.requirement.endClientCompanyId).toBe(co['world-northbend'])
     // No band on a requirement another firm could read.
     expect(below.requirement.billMin).toBeNull()
     expect(below.requirement.billMax).toBeNull()
@@ -145,12 +145,12 @@ describe('a prime puts forward somebody its network offered it', () => {
     const told = await prisma.notification.findFirst({ where: { personId: it_.grace, type: 'SUBMISSION' }, orderBy: { createdAt: 'desc' } })
     expect(told?.body).toContain('Computer Systems Inc put you forward to Northbend Athletic')
     expect(told?.body).toContain('Tecwyn, who you agreed may market you, offered you to them')
-    const hold = await prisma.representation.findFirst({ where: { personId: it_.grace, clientCompanyId: co['world-nike'] } })
+    const hold = await prisma.representation.findFirst({ where: { personId: it_.grace, clientCompanyId: co['world-northbend'] } })
     expect(hold?.companyId).toBe(co['world-tecwyn'])
   })
 
   it('Northbend’s requisition shows Grace under Computer Systems’ name and never Tecwyn’s', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(requisitionDetail, 'GET', `/api/requisitions/${it_.requisition}`, it_.requisition)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const row = r.body.data.candidates.find((c: any) => c.person.name === 'Grace Lindqvist')
@@ -193,7 +193,7 @@ describe('a prime puts forward somebody its network offered it', () => {
   })
 
   it('Northbend awards Grace, and Computer Systems buys her from Tecwyn — not from its own payroll', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.ours.id}/award`, it_.ours.id, {
       rate: 4200, startDate: day(7).toISOString().slice(0, 10), endDate: day(190).toISOString().slice(0, 10),
     })

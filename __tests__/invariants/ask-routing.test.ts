@@ -18,15 +18,15 @@ import { askGoesTo } from '@/lib/chain-top'
 const rung = (id: string, personId: string, companyId: string, clientCompanyId: string) =>
   ({ id, personId, companyId, clientCompanyId })
 
-const NIKE = 'nike'
+const NORTHBEND = 'northbend'
 
 describe('where an ask for a person goes', () => {
   it('an ask for somebody the client buys through one supplier goes to that supplier', () => {
     const route = askGoesTo({
-      rungs: [rung('a', 'omar', 'brightmoor', NIKE)],
+      rungs: [rung('a', 'omar', 'brightmoor', NORTHBEND)],
       benchHolderIds: ['brightmoor'],
       submitterIds: ['brightmoor'],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual(['brightmoor'])
     expect(route.throughAPrime).toBe(false)
@@ -36,11 +36,11 @@ describe('where an ask for a person goes', () => {
     const route = askGoesTo({
       rungs: [
         rung('sub', 'helena', 'tecwyn', 'computer-systems'),
-        rung('top', 'helena', 'computer-systems', NIKE),
+        rung('top', 'helena', 'computer-systems', NORTHBEND),
       ],
       benchHolderIds: ['tecwyn'],
       submitterIds: ['computer-systems'],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual(['computer-systems'])
     expect(route.toCompanyIds).not.toContain('tecwyn')
@@ -52,21 +52,21 @@ describe('where an ask for a person goes', () => {
       rungs: [
         rung('c3', 'helena', 'bench-co', 'tecwyn'),
         rung('c2', 'helena', 'tecwyn', 'computer-systems'),
-        rung('c1', 'helena', 'computer-systems', NIKE),
+        rung('c1', 'helena', 'computer-systems', NORTHBEND),
       ],
       benchHolderIds: ['bench-co'],
       submitterIds: [],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual(['computer-systems'])
   })
 
   it('where the client pays the bench holder itself there is no rung in between and nothing changes', () => {
     const route = askGoesTo({
-      rungs: [rung('a', 'lucia', 'pinnacle', NIKE)],
+      rungs: [rung('a', 'lucia', 'pinnacle', NORTHBEND)],
       benchHolderIds: ['pinnacle'],
       submitterIds: [],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual(['pinnacle'])
     expect(route.reason).toBe('YOUR_OWN_SUPPLIER')
@@ -78,7 +78,7 @@ describe('where an ask for a person goes', () => {
       rungs: [],
       benchHolderIds: ['computer-systems'],
       submitterIds: ['computer-systems'],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual(['computer-systems'])
     expect(route.reason).toBe('YOUR_OWN_SUPPLIER')
@@ -86,10 +86,10 @@ describe('where an ask for a person goes', () => {
 
   it('a bench holder the client has no deal with is never the firm asked', () => {
     const route = askGoesTo({
-      rungs: [rung('top', 'helena', 'computer-systems', NIKE)],
-      benchHolderIds: ['a-firm-nike-never-heard-of'],
+      rungs: [rung('top', 'helena', 'computer-systems', NORTHBEND)],
+      benchHolderIds: ['a-firm-northbend-never-heard-of'],
       submitterIds: [],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual(['computer-systems'])
     expect(route.reason).toBe('THE_RUNG_YOU_PAY')
@@ -98,9 +98,9 @@ describe('where an ask for a person goes', () => {
   it('and where there is no rung either, whoever last put them forward here is asked', () => {
     const route = askGoesTo({
       rungs: [],
-      benchHolderIds: ['a-firm-nike-never-heard-of'],
+      benchHolderIds: ['a-firm-northbend-never-heard-of'],
       submitterIds: ['brightmoor', 'pinnacle'],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual(['brightmoor'])
     expect(route.reason).toBe('PUT_THEM_FORWARD')
@@ -109,9 +109,9 @@ describe('where an ask for a person goes', () => {
   it('a person the client has never bought and was never offered routes to nobody, so the caller refuses in a sentence', () => {
     const route = askGoesTo({
       rungs: [],
-      benchHolderIds: ['a-firm-nike-never-heard-of'],
+      benchHolderIds: ['a-firm-northbend-never-heard-of'],
       submitterIds: [],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual([])
     expect(route.reason).toBe('NO_SUPPLIER_OF_YOUR_OWN')
@@ -124,7 +124,7 @@ describe('where an ask for a person goes', () => {
       rungs: [rung('sub', 'helena', 'tecwyn', 'computer-systems')],
       benchHolderIds: ['tecwyn'],
       submitterIds: [],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual([])
     expect(route.reason).toBe('NO_SUPPLIER_OF_YOUR_OWN')
@@ -134,12 +134,12 @@ describe('where an ask for a person goes', () => {
     const route = askGoesTo({
       rungs: [
         rung('sub', 'helena', 'tecwyn', 'computer-systems'),
-        rung('top', 'helena', 'computer-systems', NIKE),
+        rung('top', 'helena', 'computer-systems', NORTHBEND),
         rung('other', 'helena', 'computer-systems', 'somebody-else'),
       ],
       benchHolderIds: ['tecwyn'],
       submitterIds: [],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds).toEqual(['computer-systems'])
     expect(route.reason).toBe('THE_RUNG_YOU_PAY')
@@ -149,23 +149,23 @@ describe('where an ask for a person goes', () => {
     const route = askGoesTo({
       rungs: [
         rung('s1', 'helena', 'tecwyn', 'computer-systems'),
-        rung('t1', 'helena', 'computer-systems', NIKE),
+        rung('t1', 'helena', 'computer-systems', NORTHBEND),
         rung('s2', 'helena', 'tecwyn', 'pinnacle'),
-        rung('t2', 'helena', 'pinnacle', NIKE),
+        rung('t2', 'helena', 'pinnacle', NORTHBEND),
       ],
       benchHolderIds: ['tecwyn'],
       submitterIds: [],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     })
     expect(route.toCompanyIds.sort()).toEqual(['computer-systems', 'pinnacle'])
     expect(route.toCompanyIds).not.toContain('tecwyn')
   })
 
   it('the route says when it went through a prime, so the message to the prime can say why it came', () => {
-    const direct = askGoesTo({ rungs: [rung('a', 'omar', 'brightmoor', NIKE)], benchHolderIds: ['brightmoor'], submitterIds: [], clientCompanyId: NIKE })
+    const direct = askGoesTo({ rungs: [rung('a', 'omar', 'brightmoor', NORTHBEND)], benchHolderIds: ['brightmoor'], submitterIds: [], clientCompanyId: NORTHBEND })
     const viaPrime = askGoesTo({
-      rungs: [rung('sub', 'helena', 'tecwyn', 'computer-systems'), rung('top', 'helena', 'computer-systems', NIKE)],
-      benchHolderIds: ['tecwyn'], submitterIds: [], clientCompanyId: NIKE,
+      rungs: [rung('sub', 'helena', 'tecwyn', 'computer-systems'), rung('top', 'helena', 'computer-systems', NORTHBEND)],
+      benchHolderIds: ['tecwyn'], submitterIds: [], clientCompanyId: NORTHBEND,
     })
     expect(direct.throughAPrime).toBe(false)
     expect(viaPrime.throughAPrime).toBe(true)
@@ -177,10 +177,10 @@ describe('where an ask for a person goes', () => {
     // with the prime and it is not a contract with the sub, so it can
     // open no thread. The function cannot be told about it at all.
     const facts = {
-      rungs: [rung('sub', 'helena', 'tecwyn', 'computer-systems'), rung('top', 'helena', 'computer-systems', NIKE)],
+      rungs: [rung('sub', 'helena', 'tecwyn', 'computer-systems'), rung('top', 'helena', 'computer-systems', NORTHBEND)],
       benchHolderIds: ['tecwyn'],
       submitterIds: [],
-      clientCompanyId: NIKE,
+      clientCompanyId: NORTHBEND,
     }
     expect(Object.keys(facts).some((k) => /disclos/i.test(k))).toBe(false)
     expect(askGoesTo(facts).toCompanyIds).toEqual(['computer-systems'])

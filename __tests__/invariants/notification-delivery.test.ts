@@ -22,7 +22,7 @@ const NOW = new Date('2026-08-16T09:00:00Z')
 function recipient(over: Partial<Recipient> = {}): Recipient {
   return {
     isConsultant: false,
-    email: 'd.whitfield@terumobct.com',
+    email: 'd.whitfield@talvern-medical.test',
     // A Workflows link. The Office 365 Connector kind this used to be
     // was switched off by Microsoft in May 2026; see teams-workflows.test.ts.
     teamsWebhookUrl: 'https://prod-27.westus.logic.azure.com:443/workflows/abc/triggers/manual/paths/invoke?sig=x',
@@ -86,7 +86,7 @@ describe('Whether it left is not the same question as whether it was read', () =
     // SENT would be a lie, and saying FAILED would send somebody hunting a
     // bounce that never happened.
     const o = await attemptDelivery(
-      routeFor(recipient({ teamsWebhookUrl: null })), 'd@terumobct.com', 'T', 'B', [], NOW
+      routeFor(recipient({ teamsWebhookUrl: null })), 'd@talvern-medical.test', 'T', 'B', [], NOW
     )
     expect(o.state).toBe('NOT_CONFIGURED')
     expect(o.note).toContain('Nothing is set up to send email')
@@ -95,7 +95,7 @@ describe('Whether it left is not the same question as whether it was read', () =
 
   it('a sender that throws is FAILED, and keeps the reason', async () => {
     const o = await attemptDelivery(
-      routeFor(recipient({ teamsWebhookUrl: null })), 'd@terumobct.com', 'T', 'B', [brokenEmail], NOW
+      routeFor(recipient({ teamsWebhookUrl: null })), 'd@talvern-medical.test', 'T', 'B', [brokenEmail], NOW
     )
     expect(o.state).toBe('FAILED')
     expect(o.note).toContain('550 mailbox unavailable')

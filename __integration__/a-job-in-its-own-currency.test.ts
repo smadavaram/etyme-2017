@@ -9,12 +9,12 @@ import { POST as raiseRequisition } from '@/app/api/requisitions/route'
  * approval is not decided by the currency.
  */
 
-const HIRING = 'world-corning-hiring@demo.etyme.local'
+const HIRING = 'world-cavanaugh-hiring@demo.etyme.local'
 const s = { company: '' }
 
 beforeAll(async () => {
   await freshWorld()
-  const company = await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' }, select: { id: true } })
+  const company = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cavanaugh' }, select: { id: true } })
   s.company = company.id
 }, 600_000)
 

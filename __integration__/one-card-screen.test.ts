@@ -13,8 +13,8 @@ import * as twin from '@/app/api/conversations/twin/route'
 import { openDecision } from '@/lib/decision-items'
 import { cardWordCount } from '@/lib/notify/one-card/wording'
 
-const AP = 'world-nike-ap@demo.etyme.local'
-const HIRING = 'world-nike-hiring@demo.etyme.local'
+const AP = 'world-northbend-ap@demo.etyme.local'
+const HIRING = 'world-northbend-hiring@demo.etyme.local'
 const read = async (email: string) => { as(email); return json(await oneCard.GET(req('GET', '/api/conversations/one-card'))) }
 
 beforeAll(async () => { await freshWorld() }, 600_000)
@@ -95,7 +95,7 @@ describe('the one-card screen reads the seeded world', () => {
   })
 
   it('only an Owner may switch the agent, and the AP clerk is shown the word without the switch', async () => {
-    const owner = await prisma.context.findFirstOrThrow({ where: { revokedAt: null, suspendedAt: null, role: { name: 'Owner' }, company: { slug: 'world-nike' } }, select: { person: { select: { primaryEmail: true } } } })
+    const owner = await prisma.context.findFirstOrThrow({ where: { revokedAt: null, suspendedAt: null, role: { name: 'Owner' }, company: { slug: 'world-northbend' } }, select: { person: { select: { primaryEmail: true } } } })
     const clerk = await read(AP)
     expect(clerk.body.data.agent.ownerMaySwitch).toBe(false)
     expect((await read(owner.person.primaryEmail!)).body.data.agent.ownerMaySwitch).toBe(true)
@@ -103,7 +103,7 @@ describe('the one-card screen reads the seeded world', () => {
 
   it('the agent reads Off until the Owner switches one on, then On', async () => {
     expect((await read(AP)).body.data.agent.state).toBe('Off')
-    const companyId = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+    const companyId = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })).id
     const by = await prisma.person.findFirstOrThrow({ where: { primaryEmail: AP }, select: { id: true } })
     await prisma.agentSwitch.upsert({ where: { companyId_agentKey: { companyId, agentKey: 'timesheet-chase' } }, create: { companyId, agentKey: 'timesheet-chase', state: 'ON', changedById: by.id }, update: { state: 'ON' } })
     expect((await read(AP)).body.data.agent.state).toBe('On')

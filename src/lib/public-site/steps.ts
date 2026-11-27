@@ -102,7 +102,7 @@ export const STEPS: Step[] = [
     next: 'Suppliers send people for the job. You interview, choose one, and the paperwork is written.',
     process: ['source-to-contract'],
     doc: '/docs/job',
-    demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/requisitions', seat: 'the hiring manager' },
+    demo: { as: 'world-northbend', desk: 'hiring', screen: '/dashboard/requisitions', seat: 'the hiring manager' },
   },
   {
     n: 2,
@@ -128,7 +128,7 @@ export const STEPS: Step[] = [
     next: 'The contractor starts work and files their first week.',
     process: ['source-to-contract', 'contract-to-onboard'],
     doc: '/docs/candidates',
-    demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
+    demo: { as: 'world-northbend', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
   },
   {
     n: 3,
@@ -152,7 +152,7 @@ export const STEPS: Step[] = [
     next: 'Each supplier bills from the signed week, and you pay what matched.',
     process: ['work-to-approve', 'expenses'],
     doc: '/docs/timesheets',
-    demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/timesheets', seat: 'the hiring manager' },
+    demo: { as: 'world-northbend', desk: 'hiring', screen: '/dashboard/timesheets', seat: 'the hiring manager' },
   },
   {
     n: 4,
@@ -178,7 +178,7 @@ export const STEPS: Step[] = [
     next: 'The same signed weeks add up time on site, per person, across every supplier.',
     process: ['approve-to-bill', 'approve-to-pay'],
     doc: '/docs/invoices',
-    demo: { as: 'world-nike', desk: 'ap', screen: '/dashboard/invoices', seat: 'the AP clerk' },
+    demo: { as: 'world-northbend', desk: 'ap', screen: '/dashboard/invoices', seat: 'the AP clerk' },
   },
 ]
 

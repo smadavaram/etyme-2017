@@ -29,7 +29,7 @@ const ago = (days: number) => new Date(NOW.getTime() - days * 86_400_000)
 function hold(over: Partial<Hold> = {}): Hold {
   return {
     companyId: 'other-vendor',
-    clientCompanyId: 'terumo',
+    clientCompanyId: 'talvern',
     state: 'HELD',
     takenAt: ago(3),
     expiresAt: ahead(27),

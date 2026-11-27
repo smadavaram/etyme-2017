@@ -61,10 +61,10 @@ import { GET as tenure } from '@/app/api/tenure/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = {
-  hiring: `world-nike-hiring${D}`,
-  program: `world-nike-programme${D}`,
-  ap: `world-nike-ap${D}`,
+const NORTHBEND = {
+  hiring: `world-northbend-hiring${D}`,
+  program: `world-northbend-programme${D}`,
+  ap: `world-northbend-ap${D}`,
 }
 /**
  * The MSP row is Kestrel, not Aptiva.
@@ -83,7 +83,7 @@ const NIKE = {
  * gap it holds the sentence for has closed.
  */
 const SEAT: Record<Party, string> = {
-  CLIENT: NIKE.hiring,
+  CLIENT: NORTHBEND.hiring,
   MSP: `world-kestrel${D}`,
   GSI: `world-tellisford${D}`,
   PRIME: `world-pinnacle${D}`,
@@ -102,7 +102,7 @@ const FIRM: Record<Party, string> = {
 const OWN_FIRM = (party: Party): string =>
   party === 'SOLOPRENEUR' ? co['marsh']
   : party === 'CANDIDATE' ? co['world-pinnacle']
-  : co[{ CLIENT: 'world-nike', MSP: 'world-kestrel', GSI: 'world-tellisford', PRIME: 'world-pinnacle', SUB: 'world-brightmoor', BENCH_VENDOR: 'world-conisby' }[party as 'CLIENT']]
+  : co[{ CLIENT: 'world-northbend', MSP: 'world-kestrel', GSI: 'world-tellisford', PRIME: 'world-pinnacle', SUB: 'world-brightmoor', BENCH_VENDOR: 'world-conisby' }[party as 'CLIENT']]
 
 const call = async (fn: (r: any, ctx: any) => Promise<Response>, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
@@ -156,7 +156,7 @@ function refusalsAreSentences(grid: Grid) {
 
 beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-corning', 'world-kestrel', 'world-tellisford', 'world-pinnacle', 'world-brightmoor', 'world-conisby']) {
+    for (const slug of ['world-northbend', 'world-cavanaugh', 'world-kestrel', 'world-tellisford', 'world-pinnacle', 'world-brightmoor', 'world-conisby']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
 
@@ -226,7 +226,7 @@ describe('the grid itself', () => {
 
 describe('1 · a role is posted', () => {
   it('a role belongs to the company hiring: a client opens one on its own cost center, a prime or a bench vendor opens its own, and the consultant, who buys nobody, cannot', async () => {
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
     const grid = await eachParty(async (party) =>
       json(await raiseRequisition(req('POST', '/api/requisitions', {
         title: `Sustainability data analyst — ${FIRM[party]}`,
@@ -264,7 +264,7 @@ describe('1 · a role is posted', () => {
     }
     it_.turnedAway = grid
     it_.requisition = (await prisma.requirement.findFirstOrThrow({
-      where: { companyId: co['world-nike'], title: 'Sustainability data analyst — Northbend Athletic' },
+      where: { companyId: co['world-northbend'], title: 'Sustainability data analyst — Northbend Athletic' },
     })).id
   })
 
@@ -313,7 +313,7 @@ describe('2 · the role is put in front of suppliers', () => {
   })
 
   it('the program office sends it to Pinnacle and Tellisford, each seeing only its own band', async () => {
-    as(NIKE.program)
+    as(NORTHBEND.program)
     const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [
         { companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 },
@@ -368,7 +368,7 @@ describe('4 · the award, and the contracts it writes', () => {
     expect(grid.PRIME.says, 'the supplier that submitted was refused without a word').toBeTruthy()
     refusalsAreSentences(grid)
 
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 3800, startDate: day(-7).toISOString().slice(0, 10), endDate: day(173).toISOString().slice(0, 10),
       ...UNDER_WAY,
@@ -378,7 +378,7 @@ describe('4 · the award, and the contracts it writes', () => {
     // Her own terms with the firm that holds her, before anything else.
     await agreeTerms({ submissionId: it_.submission, firmEmail: SEAT.PRIME, personEmail: SEAT.CANDIDATE, payRate: 3000 })
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
-    expect(sell.clientCompanyId).toBe(co['world-nike'])
+    expect(sell.clientCompanyId).toBe(co['world-northbend'])
     expect(sell.buyLinks).toHaveLength(1)
     it_.buyContract = sell.buyLinks[0].buyContractId
     it_.engagement = sell.engagementId
@@ -397,7 +397,7 @@ describe('4 · the award, and the contracts it writes', () => {
   })
 
   it('what the supplier pays its consultant never reaches the client’s copy of the thread', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(placement, 'GET', `/api/placements/${it_.contract}`, it_.contract)
     expect(r.body.data.timeline.pay).toEqual([])
   })
@@ -494,7 +494,7 @@ describe('7 · the work is signed', () => {
   })
 
   it('the client signs the work and the supplier accepts what it pays — two signatures, two sides, neither standing in for the other', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const client = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, {})
     expect(client.body?.error, JSON.stringify(client.body)).toBeUndefined()
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.timesheet } })).status).toBe('SUBMITTED')
@@ -540,14 +540,14 @@ describe('9 · the client pays what came through the match', () => {
   })
 
   it('the client’s clerk pays what the match passed, and the payment says who paid whom', async () => {
-    as(NIKE.ap)
+    as(NORTHBEND.ap)
     const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: it_.invoice } })
     const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, {
       amount: Number(inv.total), method: 'ACH', reference: 'ACH-GRID-1',
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const p = await prisma.payment.findFirstOrThrow({ where: { invoiceId: it_.invoice } })
-    expect(p.payerCompanyId).toBe(co['world-nike'])
+    expect(p.payerCompanyId).toBe(co['world-northbend'])
     expect(p.receivedByCompanyId).toBe(co['world-pinnacle'])
   })
 
@@ -567,7 +567,7 @@ describe('10 · the tenure is the person’s, and every read of it leaves a trai
     const grid = await eachParty(async () => json(await tenure(req('GET', '/api/tenure'))))
     refusalsAreSentences(grid)
 
-    as(`world-nike-compliance${D}`)
+    as(`world-northbend-compliance${D}`)
     const officer = await json(await tenure(req('GET', '/api/tenure')))
     expect(officer.body?.error, JSON.stringify(officer.body)).toBeUndefined()
     const rhea = officer.body.data.people.find((p: any) => p.name === 'Rhea Saunders')
@@ -613,8 +613,8 @@ describe('11 · a program office acts in a seat the client granted, or it does n
   }
 
   const owner = (slug: string) => `${slug}${D}`
-  const NORTHBEND_OWNER = owner('world-nike')
-  const CAVANAUGH_OWNER = owner('world-corning')
+  const NORTHBEND_OWNER = owner('world-northbend')
+  const CAVANAUGH_OWNER = owner('world-cavanaugh')
 
   it('a program office reads the seats it holds, and no seat at Northbend until Northbend grants one', async () => {
     // This used to assert Kestrel held no live seat at all and read the
@@ -629,7 +629,7 @@ describe('11 · a program office acts in a seat the client granted, or it does n
     expect(
       live.map((s: any) => s.clientCompany?.id ?? s.clientCompanyId),
       'Kestrel held a seat at Northbend before Northbend granted one'
-    ).not.toContain(co['world-nike'])
+    ).not.toContain(co['world-northbend'])
   })
 
   it('a program office cannot grant itself a seat', async () => {
@@ -648,9 +648,9 @@ describe('11 · a program office acts in a seat the client granted, or it does n
 
   it('only an owner or the program manager at the client may grant a seat — a hiring manager cannot', async () => {
     const pm = await prisma.role.findFirstOrThrow({
-      where: { companyId: co['world-nike'], name: 'Program Manager' }, select: { id: true },
+      where: { companyId: co['world-northbend'], name: 'Program Manager' }, select: { id: true },
     })
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const { status, body } = await seatRoute('POST', {
       officeCompanyId: co['world-kestrel'],
       roleId: pm.id,
@@ -676,7 +676,7 @@ describe('11 · a program office acts in a seat the client granted, or it does n
     const row = await prisma.programSeat.findUniqueOrThrow({
       where: { id: it_.seat }, include: { role: true },
     })
-    expect(row.role.companyId).toBe(co['world-nike'])
+    expect(row.role.companyId).toBe(co['world-northbend'])
 
     // And the same firm that was refused at station 1 now reads the
     // program — the tenure ledger it is there to answer for.
@@ -708,7 +708,7 @@ describe('11 · a program office acts in a seat the client granted, or it does n
   it('a seat at one client shows nothing of another client', async () => {
     as(SEAT.MSP)
     const { status, body } = await json(
-      await tenure(req('GET', `/api/tenure?clientCompanyId=${co['world-corning']}`))
+      await tenure(req('GET', `/api/tenure?clientCompanyId=${co['world-cavanaugh']}`))
     )
     expect(status).toBeGreaterThanOrEqual(400)
     expect(body.error.message).toMatch(/[a-z]{3,}\s+[a-z]{2,}/i)
@@ -737,7 +737,7 @@ describe('11 · a program office acts in a seat the client granted, or it does n
     as(SEAT.MSP)
     const after = await json(await tenure(req('GET', '/api/tenure')))
     const stillReading = after.body?.data?.client?.id ?? null
-    expect(stillReading, 'a revoked seat still read the client that took it back').not.toBe(co['world-nike'])
+    expect(stillReading, 'a revoked seat still read the client that took it back').not.toBe(co['world-northbend'])
     if (after.status >= 400) {
       expect(after.body.error.message).toMatch(/not tied to a client yet/)
       expect(after.body.error.message).toContain('Kestrel MSP')

@@ -16,7 +16,7 @@ import { GET as decisions } from '@/app/api/decisions/route'
 
 const D = '@demo.etyme.local'
 const PINNACLE = `world-pinnacle${D}`
-const NIKE_AP = `world-nike-ap${D}`
+const NORTHBEND_AP = `world-northbend-ap${D}`
 const WORKER = 'tariq.al.amin@seed.etyme.invalid'
 const call = async (fn: any, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
@@ -26,7 +26,7 @@ const it_: Record<string, any> = {}
 describe('the last money moves', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-pinnacle']) co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
+    for (const slug of ['world-northbend', 'world-pinnacle']) co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     const tariq = await prisma.person.create({ data: { name: 'Tariq Al-Amin', primaryEmail: WORKER } })
     it_.worker = tariq.id
     const profile = await prisma.consultantProfile.create({ data: { personId: tariq.id, skills: ['Power BI'], location: 'Portland, OR', visibility: 'VERIFIED', workAuth: 'USC' } })
@@ -34,7 +34,7 @@ describe('the last money moves', () => {
     await prisma.context.create({ data: { personId: tariq.id, companyId: co['world-pinnacle'], type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' } })
 
     const omar = await prisma.sellContract.findFirstOrThrow({
-      where: { companyId: co['world-pinnacle'], clientCompanyId: co['world-nike'], state: 'IN_PROGRESS', person: { name: 'Lucía Fernández' } },
+      where: { companyId: co['world-pinnacle'], clientCompanyId: co['world-northbend'], state: 'IN_PROGRESS', person: { name: 'Lucía Fernández' } },
       include: { buyLinks: true },
     })
     it_.omar = omar
@@ -50,7 +50,7 @@ describe('the last money moves', () => {
     const old = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.omar.id } })
     expect(old.state).toBe('ENDED')
     const next = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.next }, include: { buyLinks: true } })
-    expect([next.personId, next.state, next.billRate, next.clientCompanyId]).toEqual([it_.worker, 'IN_PROGRESS', it_.omar.billRate, co['world-nike']])
+    expect([next.personId, next.state, next.billRate, next.clientCompanyId]).toEqual([it_.worker, 'IN_PROGRESS', it_.omar.billRate, co['world-northbend']])
     expect(next.buyLinks.length).toBe(1)
     const cands = await prisma.buyContractCandidate.findMany({ where: { buyContractId: next.buyLinks[0].buyContractId }, orderBy: { createdAt: 'asc' } })
     expect(cands.map((c) => c.state).sort()).toEqual(['ACTIVE', 'REPLACED'])
@@ -82,7 +82,7 @@ describe('the last money moves', () => {
 
   it('a milestone Northbend Athletic accepted bills on the next invoice as a line with the acceptance behind it, and the match takes it as the receipt', async () => {
     const order = await prisma.workOrder.create({
-      data: { issuedToId: co['world-pinnacle'], recordedById: co['world-pinnacle'], engagementId: it_.omar.engagementId!, number: 'SO-NORTHBEND-01', title: 'Analytics phase one', issuedById: co['world-nike'], status: 'OPEN', billingBasis: 'MILESTONE', amount: 500, startDate: day(-30) },
+      data: { issuedToId: co['world-pinnacle'], recordedById: co['world-pinnacle'], engagementId: it_.omar.engagementId!, number: 'SO-NORTHBEND-01', title: 'Analytics phase one', issuedById: co['world-northbend'], status: 'OPEN', billingBasis: 'MILESTONE', amount: 500, startDate: day(-30) },
       select: { id: true },
     })
     const m = await prisma.orderMilestone.create({ data: { orderId: order.id, name: 'Data model signed off', amountCents: 500_000, status: 'ACCEPTED', acceptedAt: day(-2) }, select: { id: true } })
@@ -100,10 +100,10 @@ describe('the last money moves', () => {
 
   it("a bill that did not match sits on Northbend Athletic's AP desk as a decision, held out of payment runs", async () => {
     const bill = await prisma.vendorBill.create({
-      data: { companyId: co['world-nike'], vendorCompanyId: co['world-pinnacle'], number: 'PIN-9001', totalCents: 123_400, receivedAt: day(-1), dueAt: day(29), status: 'DISPUTED' },
+      data: { companyId: co['world-northbend'], vendorCompanyId: co['world-pinnacle'], number: 'PIN-9001', totalCents: 123_400, receivedAt: day(-1), dueAt: day(29), status: 'DISPUTED' },
       select: { id: true },
     })
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     const r = await json(await decisions(req('GET', '/api/decisions')))
     const mine = r.body.data.decisions.find((d: any) => d.type === 'BILL_DISPUTED' && d.entityId === bill.id)
     expect(mine?.title).toBe('Invoice receipt PIN-9001 from Pinnacle Resourcing does not match')

@@ -242,7 +242,7 @@ export async function seedStanding(ctx: SeedContext, parts: readonly StandingPar
     // shown countersigning. `__integration__/agreement-lifecycle.test.ts`
     // walks exactly that on one of them, from recording the term through
     // both signatures to tearing it up.
-    const PROGRAM_CLIENTS = ['nike', 'corning', 'terumo-bct'].map((s) => ctx.prefix + s)
+    const PROGRAM_CLIENTS = ['northbend', 'cavanaugh', 'talvern'].map((s) => ctx.prefix + s)
     const msas = await db.masterAgreement.findMany({
       where: {
         signedAt: { not: null },
@@ -504,17 +504,17 @@ export async function seedStanding(ctx: SeedContext, parts: readonly StandingPar
     // it is tracking.
     const ownTypes: { slug: string; key: string; label: string; hint: string; purpose: string; shape: string; months: number | null; blocks: boolean; suppliedBy: string }[] = [
       {
-        slug: 'terumo-bct', key: 'STERILE_FIELD_TRAINING', label: 'Sterile field training',
+        slug: 'talvern', key: 'STERILE_FIELD_TRAINING', label: 'Sterile field training',
         hint: 'Our own two-day course. Anybody going into a clean room needs it and it lapses after two years.',
         purpose: 'COMPLIANCE', shape: 'START_AND_END', months: 24, blocks: true, suppliedBy: 'CANDIDATE',
       },
       {
-        slug: 'corning', key: 'HOT_FLOOR_INDUCTION', label: 'Hot floor induction',
+        slug: 'cavanaugh', key: 'HOT_FLOOR_INDUCTION', label: 'Hot floor induction',
         hint: 'Site safety induction for the furnace floor. Annual, and site-specific — another plant’s does not count.',
         purpose: 'COMPLIANCE', shape: 'START_AND_END', months: 12, blocks: true, suppliedBy: 'EMPLOYEE',
       },
       {
-        slug: 'nike', key: 'PRODUCT_CONFIDENTIALITY', label: 'Product confidentiality undertaking',
+        slug: 'northbend', key: 'PRODUCT_CONFIDENTIALITY', label: 'Product confidentiality undertaking',
         hint: 'Unreleased product lines. Signed once, before the first day on site.',
         purpose: 'AGREEMENT', shape: 'NONE', months: null, blocks: false, suppliedBy: 'CANDIDATE',
       },
@@ -542,7 +542,7 @@ export async function seedStanding(ctx: SeedContext, parts: readonly StandingPar
     // The I-9, recorded by the programs that track which edition is
     // current. The values are the shipped ones — what is company data here
     // is the editions hanging off it.
-    for (const slug of ['nike', 'corning', 'terumo-bct']) {
+    for (const slug of ['northbend', 'cavanaugh', 'talvern']) {
       const firm = ctx.firmBySlug.get(slug)
       if (!firm) continue
       const existing = await db.documentType.findFirst({ where: { companyId: firm.id, key: 'I9_EVERIFY' }, select: { id: true } })

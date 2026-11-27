@@ -31,8 +31,8 @@ const D = '@demo.etyme.local'
 const ENGINEER = 'engineer.sundara@seed.etyme.invalid'
 const COMPLIANCE = 'compliance.sundara@seed.etyme.invalid'
 const RECEIVABLE = 'receivable.sundara@seed.etyme.invalid'
-const NORTHBEND_COMPLIANCE = `world-nike-compliance${D}`
-const NORTHBEND_PROGRAM = `world-nike-programme${D}`
+const NORTHBEND_COMPLIANCE = `world-northbend-compliance${D}`
+const NORTHBEND_PROGRAM = `world-northbend-programme${D}`
 
 const co = { sundara: '', northbend: '' }
 let engineerRoleId = ''
@@ -58,7 +58,7 @@ beforeAll(async () => {
   await freshWorld()
 
   co.sundara = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-sundara' } })).id
-  co.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id
+  co.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' } })).id
 
   // The exact seat the walk signed a cookie for: somebody who files a
   // week and reads the contract they are on, and nothing else. Not a

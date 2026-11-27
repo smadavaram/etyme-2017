@@ -21,7 +21,7 @@ const HELENA = 'helena.marsh@seed.etyme.invalid'
 const CHIDI = 'chidi.okafor@seed.etyme.invalid'
 const MARISOL = 'marisol.quintero@seed.etyme.invalid'
 const COLLEEN = 'colleen.byrne@seed.etyme.invalid'
-const NIKE_HIRING = 'world-nike-hiring@demo.etyme.local'
+const NORTHBEND_HIRING = 'world-northbend-hiring@demo.etyme.local'
 
 const it_: Record<string, any> = {}
 
@@ -103,14 +103,14 @@ describe('a worker files their own week', () => {
   })
 
   it('Northbend’s hiring desk finds her week waiting for a signature', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const r = await json(await timesheets(req('GET', '/api/timesheets?status=SUBMITTED&limit=50')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.timesheets.map((t: any) => t.id)).toContain(it_.filed.id)
   })
 
   it('Northbend sends her week back with a reason, and her page offers it again with her hours and the reason', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const r = await json(await reject(req('POST', `/api/timesheets/${it_.filed.id}/reject`, { reason: 'The second day was a site shutdown' }), { params: Promise.resolve({ id: it_.filed.id }) }))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
 

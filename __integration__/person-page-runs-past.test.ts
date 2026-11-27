@@ -11,7 +11,7 @@ import { runsPastWords } from '@/app/dashboard/tenure/words'
  * 2026-10-06). It now says it in the same sentence, naming the same day.
  */
 
-const DESK = 'world-nike-programme@demo.etyme.local'
+const DESK = 'world-northbend-programme@demo.etyme.local'
 let lucia = ''
 
 beforeAll(async () => {

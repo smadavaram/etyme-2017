@@ -37,7 +37,7 @@ beforeAll(async () => {
 
 describe('an agreement on a company somebody recorded', () => {
   it('an agreement is never recorded against another firm’s record of a company', async () => {
-    const other = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const other = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const theirs = await prisma.company.create({
       data: { name: 'Quarry Logistics', slug: 'quarry-logistics-walk', kind: 'VENDOR', currency: 'USD', claimedAt: null, listedById: other.id, isDemo },
       select: { id: true },

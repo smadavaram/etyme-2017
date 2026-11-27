@@ -13,7 +13,7 @@ import { GET as ledger } from '@/app/api/tenure/route'
  * and inside its 90-day break.
  */
 
-const DESK = 'world-nike-programme@demo.etyme.local'
+const DESK = 'world-northbend-programme@demo.etyme.local'
 let kwame = ''
 
 beforeAll(async () => {
@@ -38,9 +38,9 @@ describe('one person’s page and the ledger agree', () => {
   })
 
   it('with no break rule, a person past the limit is not eligible on their page, and the page says there is no day they may come back', async () => {
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     await prisma.governanceRule.updateMany({
-      where: { policy: { companyId: nike.id }, ruleType: 'BREAK_IN_SERVICE' },
+      where: { policy: { companyId: northbend.id }, ruleType: 'BREAK_IN_SERVICE' },
       data: { isActive: false },
     })
     as(DESK)

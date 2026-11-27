@@ -15,7 +15,7 @@ import { weekSays } from '@/app/api/timesheets/chain-turn'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = `world-nike-hiring${D}`
+const NORTHBEND = `world-northbend-hiring${D}`
 const CS = `world-computer-systems${D}`
 const TECWYN = `world-tecwyn${D}`
 
@@ -71,7 +71,7 @@ describe('the signed week travels down the chain, and each rung accepts it in tu
   })
 
   it('Northbend signs first, and Computer Systems is told the week has reached it, on its desk and by email', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const r = await sign(it_.week)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const row = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week } })
@@ -181,7 +181,7 @@ describe('below the top of a chain, the client decided the overtime', () => {
   const note = 'A go-live week, agreed with the account manager.'
 
   it('Northbend signs at the top and decides the five hours itself, at double time on its own contract', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const asked = await sign(ot.week, { note })
     expect(asked.status).toBe(422)
     expect(asked.body.error.code).toBe('OVERTIME_UNDECIDED')
@@ -212,8 +212,8 @@ describe('below the top of a chain, the client decided the overtime', () => {
     expect(r.body.data.message).not.toMatch(/\$[\d,]+\.\d{2} to pay/)
     // Nothing of Computer Systems' own is written: the client's answer is the only one.
     const answers = await prisma.overtimeDecision.findMany({ where: { timesheetId: ot.week }, select: { decidedByCompanyId: true } })
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
-    expect(answers.map((a) => a.decidedByCompanyId)).toEqual([nike.id])
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
+    expect(answers.map((a) => a.decidedByCompanyId)).toEqual([northbend.id])
   })
 
   it('an overtime answer from a rung below the top is refused in a sentence', async () => {

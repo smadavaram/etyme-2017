@@ -89,6 +89,37 @@ export const RENAMED_FIRMS: readonly RenamedFirm[] = [
     on: '2026-11-22',
     why: 'a real bank holds that name, and the demo is shown outside',
   },
+  // The three program clients kept the slug of the real company each name
+  // replaced. The display names moved on 2026-09-17; the addresses move now,
+  // 2026-11-27, because CLAUDE.md forbids a real company's name anywhere,
+  // slug and seeded address included.
+  {
+    fromSlug: 'nike',
+    toSlug: 'northbend',
+    fromName: 'Nike',
+    toName: 'Northbend',
+    companyName: 'Northbend Athletic',
+    on: '2026-11-27',
+    why: 'a slug is still a real company\u2019s name, and no name of one may stand anywhere',
+  },
+  {
+    fromSlug: 'corning',
+    toSlug: 'cavanaugh',
+    fromName: 'Corning',
+    toName: 'Cavanaugh',
+    companyName: 'Cavanaugh Glassworks',
+    on: '2026-11-27',
+    why: 'a slug is still a real company\u2019s name, and no name of one may stand anywhere',
+  },
+  {
+    fromSlug: 'terumo-bct',
+    toSlug: 'talvern',
+    fromName: 'Terumo BCT',
+    toName: 'Talvern',
+    companyName: 'Talvern Medical',
+    on: '2026-11-27',
+    why: 'a slug is still a real company\u2019s name, and no name of one may stand anywhere',
+  },
 ]
 
 /**
@@ -176,10 +207,18 @@ export async function renameRetiredFirms(
   firms: readonly RenamedFirm[] = RENAMED_FIRMS
 ): Promise<RenameResult[]> {
   const done: RenameResult[] = []
+  // One question for the whole map. Every call of the stepped seed asks
+  // it, so a question per entry was eight queries a call on a world with
+  // nothing left to rename (seed-step-size).
+  const held = await db.company.findMany({
+    where: { slug: { in: firms.map((f) => opts.prefix + f.fromSlug) } },
+    select: { id: true, slug: true },
+  })
+  if (!held.length) return done
   for (const firm of firms) {
     const oldSlug = opts.prefix + firm.fromSlug
     const newSlug = opts.prefix + firm.toSlug
-    const old = await db.company.findUnique({ where: { slug: oldSlug }, select: { id: true } })
+    const old = held.find((h) => h.slug === oldSlug)
     if (!old) continue
     if (await db.company.findUnique({ where: { slug: newSlug }, select: { id: true } })) {
       throw new Error(

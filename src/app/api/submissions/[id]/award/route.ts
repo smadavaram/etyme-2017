@@ -1568,7 +1568,7 @@ export async function POST(
               outsideOrderWindow: false,
             },
         // Not just the number — where it came from. "Net 60, from your
-        // agreement with Terumo BCT" names the document to read when
+        // agreement with Talvern Medical" names the document to read when
         // somebody queries a due date.
         paymentTerms: {
           days: terms.paymentTermsDays.value,

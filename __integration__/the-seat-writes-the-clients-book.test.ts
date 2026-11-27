@@ -54,7 +54,7 @@ const order = (number: string) => ({
 beforeAll(async () => {
   await freshWorld()
   id.aptiva = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-aptiva' } })).id
-  id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })).id
+  id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-cavanaugh' } })).id
   id.wrenfield = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-wrenfield' } })).id
   // A firm Aptiva itself buys from, read the way the order route reads
   // it. Wrenfield is Cavanaugh's supplier, not Aptiva's, and an order on
@@ -135,7 +135,7 @@ describe('a purchase order goes only to one of the buyer’s suppliers', () => {
     await seatAptivaAt('Owner')
     // Talvern Medical is a client, and buys nothing from anybody's
     // order — it is no firm's supplier, Cavanaugh's least of all.
-    const talvern = await prisma.company.findFirstOrThrow({ where: { slug: 'world-terumo-bct' } })
+    const talvern = await prisma.company.findFirstOrThrow({ where: { slug: 'world-talvern' } })
     const r = await json(
       await raiseOrder(req('POST', '/api/purchase-orders', { ...order('CAV-NOT-A-SUPPLIER'), issuedToId: talvern.id }))
     )

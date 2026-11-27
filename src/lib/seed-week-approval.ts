@@ -47,7 +47,7 @@ export function approvalEmail(a: { approverName: string; approverEmail: string; 
 export const NORTHBEND_MAIL = 'northbend.example'
 
 export async function seedWeekApproval(world: World): Promise<{ written: boolean }> {
-  const client = world.firmBySlug.get('nike')
+  const client = world.firmBySlug.get('northbend')
   const tecwyn = world.firmBySlug.get('tecwyn')
   const sender = world.seatBySlug.get('tecwyn')
   // Who the client actually wrote to: the account desk of the firm it pays.
@@ -67,7 +67,7 @@ export async function seedWeekApproval(world: World): Promise<{ written: boolean
   }
 
   const approver = await db.person.findUnique({
-    where: { primaryEmail: `${world.prefix}nike-hiring@${world.domain}` },
+    where: { primaryEmail: `${world.prefix}northbend-hiring@${world.domain}` },
     select: { name: true, primaryEmail: true },
   })
   const helena = await db.person.findFirst({ where: { name: 'Helena Marsh' }, select: { id: true } })

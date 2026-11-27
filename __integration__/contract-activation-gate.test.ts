@@ -285,7 +285,7 @@ describe('activating a contract on paperwork', () => {
     // Cavanaugh Glassworks buys Wrenfield Technical's contractor on a
     // purchase order with no agreement behind it, which is the line in
     // the seeded world that carries an order at all.
-    const cavanaugh = await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })
+    const cavanaugh = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cavanaugh' } })
     const wrenfield = await prisma.company.findFirstOrThrow({ where: { slug: 'world-wrenfield' } })
     // The line first, then the order it sits on — the order the LINE
     // carries is the one the clearance will read, and a firm can be on

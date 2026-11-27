@@ -67,11 +67,11 @@ describe('Ask Etyme’s answers agree with the record on the seeded world', () =
       })
       return { email: c.person.primaryEmail, id: c.id }
     }
-    seats.PM = await seat('world-nike', 'Program Manager')
-    seats.AP = await seat('world-nike', 'AP Clerk')
-    seats.HM = await seat('world-nike', 'Hiring Manager')
+    seats.PM = await seat('world-northbend', 'Program Manager')
+    seats.AP = await seat('world-northbend', 'AP Clerk')
+    seats.HM = await seat('world-northbend', 'Hiring Manager')
     seats.AM = await seat('world-pinnacle', 'Account Manager')
-    northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+    northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })).id
   }, 600_000)
 
   // ── What needs you: the decisions list ─────────────────────────────

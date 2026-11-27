@@ -84,7 +84,7 @@ import { GET as signInSettings } from '@/app/api/settings/sign-in/route'
 import { GET as me } from '@/app/api/me/route'
 import { POST as invite } from '@/app/api/access/invite/route'
 
-const NB_SLUG = 'world-nike'
+const NB_SLUG = 'world-northbend'
 const NB_ISSUER = mockIssuerFor(NB_SLUG)
 const HB_ISSUER = 'https://login.harborline-tech.example/v2'
 const SECRET = 'integration-test-secret'

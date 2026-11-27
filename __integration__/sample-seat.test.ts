@@ -36,19 +36,19 @@ import { POST as raiseRequisition } from '@/app/api/requisitions/route'
 const SAMPLE = { cookie: `${SAMPLE_COOKIE}=${SAMPLE_COOKIE_VALUE}` }
 
 /** The program manager who works at Northbend: never the sample. */
-const LORENA = 'world-nike-programme@demo.etyme.local'
+const LORENA = 'world-northbend-programme@demo.etyme.local'
 
 /** The sample's own seat: its person and its Context. */
 async function sampleSeat() {
   return prisma.context.findFirstOrThrow({
-    where: { company: { slug: 'world-nike' }, person: { primaryEmail: SAMPLE_PERSON_EMAIL } },
+    where: { company: { slug: 'world-northbend' }, person: { primaryEmail: SAMPLE_PERSON_EMAIL } },
     select: { id: true, personId: true, companyId: true, person: { select: { name: true } }, role: { select: { name: true } } },
   })
 }
 
 /** What a stranger could have changed, counted and read back whole. */
 async function theWorld() {
-  const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+  const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
   const pm = await prisma.context.findFirstOrThrow({
     where: { companyId: northbend.id, person: { primaryEmail: LORENA } },
     select: { lastUsedAt: true },
@@ -230,12 +230,12 @@ describe('the shared sample seat the home page frames', () => {
   it('no demo door seats a visitor at the shared sample\u2019s seat: asking for it by name is answered with who holds the desk', async () => {
     as('')
     const { POST: demo } = await import('@/app/api/demo/route')
-    const res = await demo(req('POST', '/api/demo', { as: 'world-nike', desk: 'programme', who: SAMPLE_PERSON_NAME }))
+    const res = await demo(req('POST', '/api/demo', { as: 'world-northbend', desk: 'programme', who: SAMPLE_PERSON_NAME }))
     expect(res.status).toBe(404)
     expect((await res.json()).error.message).toBe(
       'Shared sample does not hold the Program Manager role at Northbend Athletic in the demo, so no seat was taken. The Program Manager role there is held by Lorena Kellerman.'
     )
-    const plain = await demo(req('POST', '/api/demo', { as: 'world-nike', desk: 'programme' }))
+    const plain = await demo(req('POST', '/api/demo', { as: 'world-northbend', desk: 'programme' }))
     expect(plain.status).toBeLessThan(400)
     const cookie = (plain.headers.get('set-cookie') ?? '').match(new RegExp(`${DEMO_COOKIE}=([^;]+)`))?.[1]
     expect(readDemo(cookie)).toBe(LORENA)
@@ -251,7 +251,7 @@ describe('the shared sample seat the home page frames', () => {
 
   it('the sample seat cannot read another company’s program', async () => {
     as('')
-    const other = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-corning' }, select: { id: true } })
+    const other = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-cavanaugh' }, select: { id: true } })
     const res = await program(req('GET', `/api/program?clientCompanyId=${other.id}`, undefined, SAMPLE))
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(JSON.stringify(await res.json())).not.toContain('Cavanaugh Glassworks')
@@ -260,7 +260,7 @@ describe('the shared sample seat the home page frames', () => {
   it('the read-only flag cannot be lifted by a request header or a body field', async () => {
     as('')
     const owner = await prisma.context.findFirstOrThrow({
-      where: { company: { slug: 'world-nike' }, role: { name: 'Owner' } },
+      where: { company: { slug: 'world-northbend' }, role: { name: 'Owner' } },
       select: { id: true },
     })
     const res = await approveWeek(
@@ -282,7 +282,7 @@ describe('the shared sample seat the home page frames', () => {
   }, 60_000)
 
   it('somebody signed in who carries the sample cookie is themselves, never the sample', async () => {
-    as('world-nike-programme@demo.etyme.local')
+    as('world-northbend-programme@demo.etyme.local')
     const res = await approveWeek(req('POST', `/api/timesheets/${weekId}/approve`, {}, SAMPLE), { params: { id: weekId } } as any)
     as('')
     const body = await res.json()

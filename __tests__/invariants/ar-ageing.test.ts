@@ -29,7 +29,7 @@ const invoice = (over: Partial<ArInvoice> = {}): ArInvoice => ({
   totalMinor: 960_000, // £9,600
   paidMinor: 0,
   dueAt: dueAgo(10),
-  customerId: 'cus-nike',
+  customerId: 'cus-northbend',
   customerName: 'Northbend Athletic',
   ...over,
 })
@@ -331,9 +331,9 @@ describe('Four letters and then a person, because the fifth is filed by a rule',
   it('a run over the whole book decides once per customer, worst first', () => {
     const book = ageBook(
       [
-        invoice({ id: 'a', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(50) }),
-        invoice({ id: 'b', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(12) }),
-        invoice({ id: 'c', customerId: 'terumo', customerName: 'Talvern Medical', dueAt: dueAgo(9) }),
+        invoice({ id: 'a', customerId: 'northbend', customerName: 'Northbend Athletic', dueAt: dueAgo(50) }),
+        invoice({ id: 'b', customerId: 'northbend', customerName: 'Northbend Athletic', dueAt: dueAgo(12) }),
+        invoice({ id: 'c', customerId: 'talvern', customerName: 'Talvern Medical', dueAt: dueAgo(9) }),
       ],
       NOW
     ).byCurrency[0]
@@ -353,7 +353,7 @@ describe('Money owed to us and money we owe are never the same total', () => {
   const US = 'us'
 
   it('an invoice we raised to a client is money owed to us', () => {
-    expect(directionOf({ vendorId: US, clientId: 'nike' }, US)).toBe('RECEIVABLE')
+    expect(directionOf({ vendorId: US, clientId: 'northbend' }, US)).toBe('RECEIVABLE')
   })
 
   it('an invoice a supplier raised to us is money we owe, and never joins the owed-to-us bar', () => {
@@ -361,7 +361,7 @@ describe('Money owed to us and money we owe are never the same total', () => {
   })
 
   it('an invoice between two other companies is neither ours to collect nor ours to pay', () => {
-    expect(directionOf({ vendorId: 'sub-vendor', clientId: 'nike' }, US)).toBe('NEITHER')
+    expect(directionOf({ vendorId: 'sub-vendor', clientId: 'northbend' }, US)).toBe('NEITHER')
   })
 
   it('a firm that both sells and buys sees two totals, never one', () => {
@@ -369,7 +369,7 @@ describe('Money owed to us and money we owe are never the same total', () => {
     // mentions us anywhere" and added every row into one figure, so its
     // own supplier bills raised the bar labeled money owed to us.
     const rows = [
-      { id: 'sold', vendorId: US, clientId: 'nike', minor: 500_000 },
+      { id: 'sold', vendorId: US, clientId: 'northbend', minor: 500_000 },
       { id: 'bought', vendorId: 'sub-vendor', clientId: US, minor: 300_000 },
     ]
     const owedToUs = rows
@@ -412,23 +412,23 @@ describe('Money owed to us and money we owe are never the same total', () => {
 describe('The ladder can only stop repeating itself if something records a send', () => {
 
   const letter = (over: Partial<SentLetter> = {}): SentLetter => ({
-    clientCompanyId: 'nike',
+    clientCompanyId: 'northbend',
     step: 'FIRST',
     sentAt: dueAgo(3),
     invoiceIds: ['a'],
     ...over,
   })
 
-  const nikeBook = (over: Partial<ArInvoice> = {}) =>
+  const northbendBook = (over: Partial<ArInvoice> = {}) =>
     ageBook(
-      [invoice({ id: 'a', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(12), ...over })],
+      [invoice({ id: 'a', customerId: 'northbend', customerName: 'Northbend Athletic', dueAt: dueAgo(12), ...over })],
       NOW
     ).byCurrency[0]
 
   it('a reminder already sent is not sent again the next morning', () => {
-    const book = nikeBook()
+    const book = northbendBook()
     const sent = stepsAlreadySent([letter()], openInvoiceIds(book))
-    expect(sent).toEqual({ nike: ['FIRST'] })
+    expect(sent).toEqual({ northbend: ['FIRST'] })
 
     const run = dunningRun(book, sent)
     expect(run.send).toHaveLength(0)
@@ -436,7 +436,7 @@ describe('The ladder can only stop repeating itself if something records a send'
   })
 
   it('with nothing recorded the same letter goes out again, which is the bug the record exists to stop', () => {
-    const run = dunningRun(nikeBook(), {})
+    const run = dunningRun(northbendBook(), {})
     expect(run.send).toHaveLength(1)
     expect(run.send[0].step).toBe('FIRST')
   })
@@ -447,8 +447,8 @@ describe('The ladder can only stop repeating itself if something records a send'
     // row exists from six months ago is worse than saying nothing.
     const book = ageBook(
       [
-        invoice({ id: 'a', customerId: 'nike', customerName: 'Northbend Athletic', paidMinor: 960_000, dueAt: dueAgo(200) }),
-        invoice({ id: 'b', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(12) }),
+        invoice({ id: 'a', customerId: 'northbend', customerName: 'Northbend Athletic', paidMinor: 960_000, dueAt: dueAgo(200) }),
+        invoice({ id: 'b', customerId: 'northbend', customerName: 'Northbend Athletic', dueAt: dueAgo(12) }),
       ],
       NOW
     ).byCurrency[0]
@@ -464,7 +464,7 @@ describe('The ladder can only stop repeating itself if something records a send'
   })
 
   it('a send recorded before this run of arrears does not silence today\'s letter', () => {
-    const book = nikeBook()
+    const book = northbendBook()
     const sent = stepsAlreadySent(
       [letter({ step: 'FIRST', invoiceIds: ['some-old-invoice'] })],
       openInvoiceIds(book)
@@ -474,7 +474,7 @@ describe('The ladder can only stop repeating itself if something records a send'
 
   it('once a person owns the debt nothing automated goes out', () => {
     const book = ageBook(
-      [invoice({ id: 'a', customerId: 'nike', customerName: 'Northbend Athletic', dueAt: dueAgo(70) })],
+      [invoice({ id: 'a', customerId: 'northbend', customerName: 'Northbend Athletic', dueAt: dueAgo(70) })],
       NOW
     ).byCurrency[0]
     const sent = stepsAlreadySent([letter({ step: 'ESCALATED' })], openInvoiceIds(book))
@@ -484,20 +484,20 @@ describe('The ladder can only stop repeating itself if something records a send'
   })
 
   it('a step nobody recognizes is ignored rather than standing in for a final notice', () => {
-    const book = nikeBook()
+    const book = northbendBook()
     const sent = stepsAlreadySent([letter({ step: 'REMINDER_3' })], openInvoiceIds(book))
     expect(sent).toEqual({})
   })
 
   it('a letter that named no invoices belongs to no run and silences nothing', () => {
-    const book = nikeBook()
+    const book = northbendBook()
     const sent = stepsAlreadySent([letter({ invoiceIds: [] })], openInvoiceIds(book))
     expect(sent).toEqual({})
   })
 
   it('the same rung recorded twice is still one rung', () => {
-    const book = nikeBook()
+    const book = northbendBook()
     const sent = stepsAlreadySent([letter(), letter({ sentAt: dueAgo(1) })], openInvoiceIds(book))
-    expect(sent.nike).toEqual(['FIRST'])
+    expect(sent.northbend).toEqual(['FIRST'])
   })
 })

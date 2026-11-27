@@ -46,11 +46,11 @@ import { GET as ownPeople } from '@/app/api/submissions/own-people/route'
  * `full-spine` builds its own.
  */
 
-const CORNING_PM = 'program@corning.test'
+const CAVANAUGH_PM = 'program@cavanaugh.test'
 const ARDENT_DM = 'delivery@ardent.test'
 const VERTEX = 'owner@vertex.test'
 
-const co = { corning: '', ardent: '', vertex: '' }
+const co = { cavanaugh: '', ardent: '', vertex: '' }
 const who = { pm: '', dm: '', vertexLead: '', arun: '', lena: '', maya: '', stranger: '' }
 const it_ = { requirement: '', internal: '', network: '' }
 
@@ -85,9 +85,9 @@ async function insure(companyId: string, uploadedById: string) {
 beforeAll(async () => {
   await resetDatabase()
 
-  const corning = await company('Cavanaugh Glassworks', 'corning', 'CLIENT', CORNING_PM)
-  co.corning = corning.companyId
-  who.pm = corning.personId
+  const cavanaugh = await company('Cavanaugh Glassworks', 'cavanaugh', 'CLIENT', CAVANAUGH_PM)
+  co.cavanaugh = cavanaugh.companyId
+  who.pm = cavanaugh.personId
 
   const ardent = await company('Ardent Systems', 'ardent-systems', 'GSI', ARDENT_DM)
   co.ardent = ardent.companyId
@@ -135,7 +135,7 @@ beforeAll(async () => {
     },
   })
   await prisma.doNotSubmit.create({
-    data: { personId: maya.id, companyId: co.corning },
+    data: { personId: maya.id, companyId: co.cavanaugh },
   })
 
   // Lena is nobody's employee. She granted Vertex a listing, the old way
@@ -169,7 +169,7 @@ beforeAll(async () => {
   // what happened to the other.
   const requirement = await prisma.requirement.create({
     data: {
-      companyId: co.corning, title: 'Validation engineer — Sullivan Park',
+      companyId: co.cavanaugh, title: 'Validation engineer — Sullivan Park',
       skills: ['Validation', 'GxP'], location: 'Cavanaugh Glassworks, New York',
       status: 'OPEN', approvalState: 'APPROVED', headcount: 2,
       billMin: 9_000, billMax: 13_000, months: 12,
@@ -181,7 +181,7 @@ beforeAll(async () => {
   for (const toCompanyId of [co.ardent, co.vertex]) {
     await prisma.requirementInvitation.create({
       data: {
-        requirementId: requirement.id, fromCompanyId: co.corning, toCompanyId,
+        requirementId: requirement.id, fromCompanyId: co.cavanaugh, toCompanyId,
         status: 'SENT', payMin: 9_000, payMax: 13_000,
         expiresAt: new Date('2026-10-01'),
       },
@@ -209,7 +209,7 @@ describe('A GSI puts its own employee in front of a client', () => {
     const submission = await prisma.submission.findUniqueOrThrow({ where: { id: it_.internal } })
     expect(submission.kind).toBe('INTERNAL')
     expect(submission.fromCompanyId).toBe(co.ardent)
-    expect(submission.toCompanyId).toBe(co.corning)
+    expect(submission.toCompanyId).toBe(co.cavanaugh)
   })
 
   it('never asked Arun for a bench listing, because his employment is the consent', async () => {
@@ -368,7 +368,7 @@ describe('The rule has a door, so somebody can actually pick an employee', () =>
 
 describe('Cavanaugh Glassworks awards the employee, and Ardent gets a contract pair with nobody underneath', () => {
   it('lets Cavanaugh Glassworks award Ardent’s own employee', async () => {
-    as(CORNING_PM)
+    as(CAVANAUGH_PM)
     const r = await json(await awardSubmission(
       req('POST', `/api/submissions/${it_.internal}/award`, {
         rate: 11_500, startDate: '2026-10-05', endDate: '2027-10-04', ...UNDER_WAY,
@@ -386,7 +386,7 @@ describe('Cavanaugh Glassworks awards the employee, and Ardent gets a contract p
 
   it('writes the sell contract Ardent bills Cavanaugh Glassworks under', async () => {
     const sell = await prisma.sellContract.findFirstOrThrow({
-      where: { companyId: co.ardent, clientCompanyId: co.corning, personId: who.arun },
+      where: { companyId: co.ardent, clientCompanyId: co.cavanaugh, personId: who.arun },
     })
     expect(sell.billRate).toBe(11_500)
   })

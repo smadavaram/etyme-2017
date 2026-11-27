@@ -12,8 +12,8 @@ import { matchInvoice, matchRefusal } from '@/lib/invoice-match'
  * Walked on Northbend Athletic's seeded invoice receipts, as four desks.
  */
 
-const AP = 'world-nike-ap@demo.etyme.local'
-const PROGRAM = 'world-nike-programme@demo.etyme.local'
+const AP = 'world-northbend-ap@demo.etyme.local'
+const PROGRAM = 'world-northbend-programme@demo.etyme.local'
 const s: Record<string, any> = {}
 const params = () => ({ params: Promise.resolve({ id: s.id }) })
 const body = { code: 'QUANTITY', reason: 'Hours under query with the manager' }
@@ -35,7 +35,7 @@ async function payerAt(where: Record<string, unknown>): Promise<string> {
 describe('a failed check is waived only by the desk that pays the invoice, and only in its own books', () => {
   beforeAll(async () => {
     await freshWorld()
-    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
     const inv = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { engagement: { msa: { clientId: northbend.id } } },
       include: { engagement: { include: { msa: true } } },

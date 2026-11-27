@@ -86,15 +86,15 @@ export interface ContactInput {
  * A rolodex exists to answer "who do I call", so an address on a row is
  * a promise that mail sent there arrives. The browser walk of
  * 2026-09-21 read Contacts as Vertex Global and found
- * `world-corning-procurement@demo.etyme.local`,
- * `world-terumo-bct-hr@demo.etyme.local` and
- * `world-corning-programme@…` printed in blue as three people's email
+ * `world-cavanaugh-procurement@demo.etyme.local`,
+ * `world-talvern-hr@demo.etyme.local` and
+ * `world-cavanaugh-programme@…` printed in blue as three people's email
  * addresses — with two retired company names and a British spelling
  * inside them.
  *
  * Those are sign-in handles for seeded seats, not addresses, and they
  * stay: CLAUDE.md's own precedent is that a slug is an address nobody
- * reads and `world-nike` keeps its name for that reason. What was wrong
+ * reads and `world-northbend` keeps its name for that reason. What was wrong
  * is that a screen read one out. Nothing at `.local`, `.invalid` or
  * `.example` can receive mail — none of those can be registered — so a
  * row at one of them shows the name, the desk and the firm, and no

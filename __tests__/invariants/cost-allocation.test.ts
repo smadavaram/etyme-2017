@@ -239,18 +239,18 @@ describe('Coding is labeled with the company that owns it', () => {
   }
 
   it('on a direct placement the codes belong to the company being billed', () => {
-    expect(codingIsPayers('terumo', 'terumo')).toBe(true)
+    expect(codingIsPayers('talvern', 'talvern')).toBe(true)
   })
 
   it('on an MSP leg the codes belong to the end client, not the payer', () => {
     // Tecwyn invoices GlobalStaff; David Chen sits at Talvern Medical
-    expect(codingIsPayers('terumo', 'globalstaff-msp')).toBe(false)
+    expect(codingIsPayers('talvern', 'globalstaff-msp')).toBe(false)
   })
 
   it('a vendor never sees its own profit-centre coding on a client invoice', () => {
     // Only the client's dimensions are carried — the vendor's COGS and
     // profit center are a separate set and are not exported here
-    expect(codingIsPayers('tecwyn', 'terumo')).toBe(false)
+    expect(codingIsPayers('tecwyn', 'talvern')).toBe(false)
   })
 })
 

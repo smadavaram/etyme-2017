@@ -21,7 +21,7 @@ import { TERMS_PAPER } from '@/lib/award/hire-terms'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}` }
+const NORTHBEND = { programme: `world-northbend-programme${D}`, hiring: `world-northbend-hiring${D}` }
 const BRIGHTMOOR = `world-brightmoor${D}`
 const MARISOL = 'marisol.quintero@seed.etyme.invalid'
 
@@ -33,7 +33,7 @@ const co: Record<string, string> = {}
 /** Marisol says yes to Brightmoor's listing, which carries the terms given; Northbend places her. */
 async function placeMarisolWith(terms: { statedAt: Date; agreedAt: Date | null; statedBy: string }) {
   await freshWorld()
-  for (const slug of ['world-nike', 'world-brightmoor']) {
+  for (const slug of ['world-northbend', 'world-brightmoor']) {
     co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
   }
   const marisol = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: MARISOL } })).id
@@ -52,8 +52,8 @@ async function placeMarisolWith(terms: { statedAt: Date; agreedAt: Date | null; 
     },
   })
 
-  const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-  as(NIKE.hiring)
+  const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+  as(NORTHBEND.hiring)
   const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
     title: 'Controls engineer', skills: ['PLC programming', 'SCADA'],
     location: 'Tualatin, OR', billMin: 12_000, billMax: 16_000, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -62,7 +62,7 @@ async function placeMarisolWith(terms: { statedAt: Date; agreedAt: Date | null; 
   expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
   const requisition = r.body.data.requisition.id as string
   await prisma.requirement.update({ where: { id: requisition }, data: { approvalState: 'APPROVED', status: 'OPEN' } })
-  as(NIKE.programme)
+  as(NORTHBEND.programme)
   const sent = await call(distribute, 'POST', `/api/requisitions/${requisition}/distribute`, requisition, {
     vendors: [{ companyId: co['world-brightmoor'], payMin: 12_000, payMax: 15_000 }],
   })
@@ -73,7 +73,7 @@ async function placeMarisolWith(terms: { statedAt: Date; agreedAt: Date | null; 
   })))
   expect(s.body?.error, JSON.stringify(s.body)).toBeUndefined()
   const submission = (await prisma.submission.findFirstOrThrow({ where: { requirementId: requisition, personId: marisol } })).id
-  as(NIKE.hiring)
+  as(NORTHBEND.hiring)
   const awarded = await call(award, 'POST', `/api/submissions/${submission}/award`, submission, {
     rate: 14_000, startDate: day(7).toISOString().slice(0, 10), endDate: day(190).toISOString().slice(0, 10),
   })
@@ -135,7 +135,7 @@ describe('the rate each signature records on Helena Marsh’s week', () => {
 
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['nike', 'computer-systems', 'tecwyn']) {
+    for (const slug of ['northbend', 'computer-systems', 'tecwyn']) {
       ids[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug: `world-${slug}` } })).id
     }
     const helena = await prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' } })
@@ -166,7 +166,7 @@ describe('the rate each signature records on Helena Marsh’s week', () => {
     expect(top).not.toBe(bottom.billRate)
 
     // Northbend signs, Computer Systems accepts what it pays, Tecwyn last.
-    for (const email of [NIKE.programme, `world-computer-systems${D}`, `world-tecwyn${D}`]) {
+    for (const email of [NORTHBEND.programme, `world-computer-systems${D}`, `world-tecwyn${D}`]) {
       as(email)
       const r = await call(assertWeek, 'POST', `/api/timesheets/${week.id}/assert`, week.id, {})
       expect(r.body?.error, `${email}: ${JSON.stringify(r.body)}`).toBeUndefined()
@@ -178,7 +178,7 @@ describe('the rate each signature records on Helena Marsh’s week', () => {
     })
     const rateOf = (id: string) => signed.find((s) => s.companyId === id)?.rateCents
     expect(signed.map((s) => s.role).sort()).toEqual(['CLIENT_APPROVAL', 'EMPLOYER_ACCEPTANCE', 'PASS_THROUGH'])
-    expect(rateOf(ids.nike)).toBe(top)
+    expect(rateOf(ids.northbend)).toBe(top)
     expect(rateOf(ids['computer-systems'])).toBe(csBuy.candidates[0].payRate)
     expect(rateOf(ids.tecwyn)).toBe(tpPay.payRate)
   })

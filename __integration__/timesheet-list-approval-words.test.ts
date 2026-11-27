@@ -16,7 +16,7 @@ import { readWeekChain, needsSigningInEtyme } from '@/lib/week-approval'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = `world-nike-hiring${D}`
+const NORTHBEND = `world-northbend-hiring${D}`
 const TECWYN = `world-tecwyn${D}`
 const HELENA = 'helena.marsh@seed.etyme.invalid'
 
@@ -46,7 +46,7 @@ describe('the timesheet list says who approved a week by email', () => {
     // ever leaves for one. Northbend proves a second domain on the .test
     // name the suite uses for a real address, so the letter to its
     // approver goes out and can be read back.
-    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     await prisma.companyDomain.create({
       data: { companyId: northbend.id, domain: 'northbend.test', verifiedAt: new Date(), verifiedVia: 'MANUAL' },
     })
@@ -62,7 +62,7 @@ describe('the timesheet list says who approved a week by email', () => {
   })
 
   it('the client’s list reads the seeded Northbend week as approved by email by Marcus Oyelaran, with the evidence attached', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const t = await row(it_.seeded)
     expect(t.approvedBy).toMatch(/^Approved by email: Marcus Oyelaran, [A-Z][a-z]{2} \d{1,2}(, \d{4})? — evidence attached$/)
     // The client did not sign in Etyme, so its row does not say it did.
@@ -71,14 +71,14 @@ describe('the timesheet list says who approved a week by email', () => {
   })
 
   it('the sentence on the client’s list carries no rate and names no firm below the one the client pays', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const t = await row(it_.seeded)
     expect(`${t.approvedBy} ${t.signature.says}`).not.toMatch(/\$|rate/i)
     expect(`${t.approvedBy} ${t.signature.says}`).not.toContain('Tecwyn')
   })
 
   it('every week on the list links to its own page, where “Approve by email” is sent from', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const t = await row(it_.seeded)
     expect(t.href).toBe(`/dashboard/weeks/${it_.seeded}`)
   })
@@ -96,7 +96,7 @@ describe('the timesheet list says who approved a week by email', () => {
   })
 
   it('reading who approved a week on the list leaves an access log row naming the worker', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const before = await prisma.accessLog.count({ where: { action: 'WEEK_APPROVAL_WORDS_VIEW', subjectId: it_.helena, allowed: true } })
     await row(it_.seeded)
     const after = await prisma.accessLog.count({ where: { action: 'WEEK_APPROVAL_WORDS_VIEW', subjectId: it_.helena, allowed: true } })
@@ -104,7 +104,7 @@ describe('the timesheet list says who approved a week by email', () => {
   })
 
   it('a week the client signed in Etyme carries no email sentence', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const signed = await prisma.timesheet.findFirst({ orderBy: { id: 'asc' },
       where: { personId: it_.helena, clientApprovedAt: { not: null }, id: { not: it_.seeded }, weekApprovals: { none: {} } },
       select: { id: true },

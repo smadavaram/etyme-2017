@@ -48,7 +48,7 @@ import { POST as approveTimesheet } from '@/app/api/timesheets/[id]/approve/rout
  */
 
 const D = '@demo.etyme.local'
-const CAVANAUGH_OWNER = `world-corning${D}`
+const CAVANAUGH_OWNER = `world-cavanaugh${D}`
 /** A thin desk at the office. Its own firm gave it almost nothing. */
 const APTIVA_ANALYST = 'aptiva.analyst@aptiva.invalid'
 const KESTREL_OWNER = `world-kestrel${D}`
@@ -98,14 +98,14 @@ async function seat(opts: {
 beforeAll(async () => {
   await freshWorld()
 
-  for (const slug of ['world-corning', 'world-aptiva', 'world-kestrel', 'world-halcyon', 'world-vertex-global']) {
+  for (const slug of ['world-cavanaugh', 'world-aptiva', 'world-kestrel', 'world-halcyon', 'world-vertex-global']) {
     const c = await prisma.company.findUnique({ where: { slug } })
     if (c) co[slug] = c.id
   }
 
   for (const name of ['Technology', 'Apps', 'Security']) {
     const u = await prisma.orgUnit.findFirstOrThrow({
-      where: { companyId: co['world-corning'], name },
+      where: { companyId: co['world-cavanaugh'], name },
       select: { id: true },
     })
     unit[name] = u.id
@@ -142,7 +142,7 @@ beforeAll(async () => {
 
   it_.aptivaSeat = (
     await prisma.programSeat.findFirstOrThrow({
-      where: { clientCompanyId: co['world-corning'], officeCompanyId: co['world-aptiva'] },
+      where: { clientCompanyId: co['world-cavanaugh'], officeCompanyId: co['world-aptiva'] },
       select: { id: true },
     })
   ).id
@@ -178,7 +178,7 @@ describe('a program office acts at the client’s desk', () => {
       where: { id: body.data.requisition.id },
       select: { companyId: true, raisedById: true },
     })
-    expect(row.companyId).toBe(co['world-corning'])
+    expect(row.companyId).toBe(co['world-cavanaugh'])
     expect(row.raisedById).toBe(it_.clerkPersonId)
     it_.raised = body.data.requisition.id
   })
@@ -253,7 +253,7 @@ describe('a program office acts at the client’s desk', () => {
     expect(roles.body?.error, JSON.stringify(roles.body)).toBeUndefined()
     expect(roles.body.data.requirements.length).toBeGreaterThan(0)
     for (const r of roles.body.data.requirements) {
-      expect(r.company?.id ?? co['world-corning']).not.toBe(co['world-aptiva'])
+      expect(r.company?.id ?? co['world-cavanaugh']).not.toBe(co['world-aptiva'])
     }
 
     const papers = await json(await agreements(req('GET', '/api/program/agreements')))
@@ -277,7 +277,7 @@ describe('a program office acts at the client’s desk', () => {
     // to say "0 submissions" beside nine of the client's roles.
     expect(body.data.submissions.length).toBeGreaterThan(0)
     for (const row of body.data.submissions) {
-      expect(row.toCompany.id).toBe(co['world-corning'])
+      expect(row.toCompany.id).toBe(co['world-cavanaugh'])
     }
   })
 
@@ -302,7 +302,7 @@ describe('a program office acts at the client’s desk', () => {
       where: { id: body.data.id },
       select: { companyId: true },
     })
-    expect(created.companyId).toBe(co['world-corning'])
+    expect(created.companyId).toBe(co['world-cavanaugh'])
   })
 
   it('every read under a seat names the seat in the trail', async () => {
@@ -338,14 +338,14 @@ describe('a seat reaches the unit it was granted over, and no further', () => {
     // One of Cavanaugh's contractors is moved to Security; the rest stay
     // on Apps. Both sit under Technology.
     const moved = await prisma.sellContract.findFirstOrThrow({
-      where: { endClientCompanyId: co['world-corning'], state: 'IN_PROGRESS', orgUnitId: unit['Apps'] },
+      where: { endClientCompanyId: co['world-cavanaugh'], state: 'IN_PROGRESS', orgUnitId: unit['Apps'] },
       select: { id: true, personId: true },
       orderBy: { id: 'asc' },
     })
     await prisma.sellContract.update({ where: { id: moved.id }, data: { orgUnitId: unit['Security'] } })
     it_.movedPersonId = moved.personId
     it_.securitySeat = (await seat({
-      office: 'world-kestrel', client: 'world-corning',
+      office: 'world-kestrel', client: 'world-cavanaugh',
       roleName: 'Program Manager', orgUnitId: unit['Security'],
     })).id
   })
@@ -402,7 +402,7 @@ describe('a seated coordinator signs the client’s week, if the client’s desk
       where: {
         status: 'SUBMITTED',
         clientApprovedAt: null,
-        sellContract: { endClientCompanyId: co['world-corning'] },
+        sellContract: { endClientCompanyId: co['world-cavanaugh'] },
       },
       select: { id: true, personId: true },
       orderBy: { periodEnd: 'desc' },
@@ -434,7 +434,7 @@ describe('a seated coordinator signs the client’s week, if the client’s desk
     // The client widens the desk the office sits at. Nothing about the
     // office changes; the client's own role does.
     const hiring = await prisma.role.findFirstOrThrow({
-      where: { companyId: co['world-corning'], name: 'Hiring Manager' },
+      where: { companyId: co['world-cavanaugh'], name: 'Hiring Manager' },
       select: { id: true },
     })
     await prisma.programSeat.update({ where: { id: it_.aptivaSeat }, data: { roleId: hiring.id } })
@@ -462,7 +462,7 @@ describe('a seated coordinator signs the client’s week, if the client’s desk
       where: { timesheetId: it_.week.id, role: 'CLIENT_APPROVAL' },
       select: { companyId: true, byId: true },
     })
-    expect(assertion.companyId).toBe(co['world-corning'])
+    expect(assertion.companyId).toBe(co['world-cavanaugh'])
     expect(assertion.byId).toBe(it_.clerkPersonId)
   })
 })
@@ -492,7 +492,7 @@ describe('a revoked seat is refused the next second', () => {
     // CLAUDE.md's 2026-09-17 correction says is ordinary — so an
     // unnamed read resolves to *that* client and answers 200 correctly.
     // What must be refused is Cavanaugh, the program it no longer runs.
-    const at = `?clientCompanyId=${co['world-corning']}`
+    const at = `?clientCompanyId=${co['world-cavanaugh']}`
     await note('program', json(await program(req('GET', `/api/program${at}`))))
     await note('org', json(await orgView(req('GET', `/api/program/org${at}`))))
     await note('requisitions', json(await requisitions(req('GET', `/api/requisitions${at}`))))
@@ -528,7 +528,7 @@ describe('a revoked seat is refused the next second', () => {
     // Aptiva sells people of its own, so it has a client it is entitled
     // to. That entitlement is a placement and has nothing to do with the
     // seat, and it must not quietly stand in for the seat.
-    expect(body?.data?.client?.id ?? null).not.toBe(co['world-corning'])
+    expect(body?.data?.client?.id ?? null).not.toBe(co['world-cavanaugh'])
   })
 
   it('a revoked seat reads the client’s register and its suppliers no longer, and its own thin desk is refused both at the door in a sentence', async () => {
@@ -558,7 +558,7 @@ describe('a revoked seat is refused the next second', () => {
     )
     expect(body.data.desk.seated).toBe(false)
     for (const row of body.data.submissions ?? []) {
-      expect(row.toCompany.id).not.toBe(co['world-corning'])
+      expect(row.toCompany.id).not.toBe(co['world-cavanaugh'])
     }
   })
 
@@ -596,8 +596,8 @@ describe('what two suppliers charge for one role', () => {
     // role, which is itself why this was never visible.
     const theirs = await prisma.sellContract.findFirstOrThrow({
       where: {
-        endClientCompanyId: co['world-corning'],
-        clientCompanyId: co['world-corning'],
+        endClientCompanyId: co['world-cavanaugh'],
+        clientCompanyId: co['world-cavanaugh'],
         state: 'IN_PROGRESS',
         requirement: { isNot: null },
       },
@@ -621,8 +621,8 @@ describe('what two suppliers charge for one role', () => {
     await prisma.sellContract.create({
       data: {
         companyId: co['world-halcyon'],
-        clientCompanyId: co['world-corning'],
-        endClientCompanyId: co['world-corning'],
+        clientCompanyId: co['world-cavanaugh'],
+        endClientCompanyId: co['world-cavanaugh'],
         personId: second.id,
         requirementId: theirs.requirementId,
         engagementId: theirs.engagementId,
@@ -676,11 +676,11 @@ describe('what two suppliers charge for one role', () => {
     // buys him from Sahasra at $103. Both legs name Cavanaugh as the
     // site. Subtracting one from the other is Vertex's entire margin.
     const rungs = await prisma.sellContract.findMany({
-      where: { endClientCompanyId: co['world-corning'], state: 'IN_PROGRESS' },
+      where: { endClientCompanyId: co['world-cavanaugh'], state: 'IN_PROGRESS' },
       select: { billRate: true, clientCompanyId: true },
     })
     const belowTheTop = rungs
-      .filter((r) => r.clientCompanyId !== co['world-corning'])
+      .filter((r) => r.clientCompanyId !== co['world-cavanaugh'])
       .map((r) => r.billRate)
     expect(belowTheTop.length, 'the seeded world has no chain to test this with').toBeGreaterThan(0)
 
@@ -702,7 +702,7 @@ describe('what two suppliers charge for one role', () => {
     // somebody is not a claim on the buyer's book (2026-09-21).
     as(`world-halcyon${D}`)
     const { status, body } = await json(
-      await program(req('GET', `/api/program?clientCompanyId=${co['world-corning']}`))
+      await program(req('GET', `/api/program?clientCompanyId=${co['world-cavanaugh']}`))
     )
     expect(status).toBe(403)
     expect(body.error.message).toContain('Cavanaugh Glassworks')

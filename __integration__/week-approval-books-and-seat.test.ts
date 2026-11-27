@@ -61,7 +61,7 @@ describe('a week approved by email reaches the books, and a program office reads
     // ever leaves for one. Northbend proves a second domain on the .test
     // name the suite uses for a real address, so the letter to its
     // approver goes out and can be read back.
-    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     await prisma.companyDomain.create({
       data: { companyId: northbend.id, domain: 'northbend.test', verifiedAt: new Date(), verifiedVia: 'MANUAL' },
     })

@@ -34,7 +34,7 @@ const the = { sheetId: '', filedSays: '' }
 describe('a worker whose client is not on Etyme, on her own page', () => {
   beforeAll(async () => {
     await freshWorld()
-    const moved = await prisma.company.updateMany({ where: { slug: 'world-nike' }, data: { claimedAt: null } })
+    const moved = await prisma.company.updateMany({ where: { slug: 'world-northbend' }, data: { claimedAt: null } })
     expect(moved.count).toBe(1)
   }, 900_000)
 

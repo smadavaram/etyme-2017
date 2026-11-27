@@ -366,7 +366,7 @@ describe('Every product page and party door is the home page’s shape, opened a
     for (const m of MODULES) {
       const screen = m.demo.screen.replace('/dashboard', '')
       expect(existsSync(join(ROOT, 'src/app/dashboard', screen, 'page.tsx')), `${m.route} opens ${m.demo.screen}`).toBe(true)
-      expect(m.demo.as, m.route).toBe('world-nike')
+      expect(m.demo.as, m.route).toBe('world-northbend')
     }
     expect(VIEW).toContain('<DemoLink target={demo.target}')
     expect(read('src/lib/public-site/module-page.tsx')).toContain('<DemoLink target={m.demo}')

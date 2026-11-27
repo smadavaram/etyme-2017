@@ -37,7 +37,7 @@ async function seatAptivaAt(roleName: string) {
 beforeAll(async () => {
   await freshWorld()
   id.aptiva = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-aptiva' } })).id
-  id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })).id
+  id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-cavanaugh' } })).id
   id.wrenfield = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-wrenfield' } })).id
   as(APTIVA)
 }, 300_000)

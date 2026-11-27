@@ -148,7 +148,7 @@ rule set, the nightly run. What is short of that:
    Northbend's access log cannot tell her from the public. A `SAMPLE`
    actor kind beside PERSON and TWIN is the fix, also regulatory's.
 3. **The full demo door still writes to the seeded world.** `POST /api/demo
-   {"as":"world-nike"}` seats a stranger at the real seeded desk with every
+   {"as":"world-northbend"}` seats a stranger at the real seeded desk with every
    permission. Only the sample seat is read-only; "nothing a stranger does
    can touch the seeded world" is true of the frame, not of that door.
 4. **A GET that writes is not caught.** The door refuses every method but

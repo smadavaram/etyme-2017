@@ -23,12 +23,12 @@ import { agreeTerms, UNDER_WAY } from './hire-terms-walk'
  *                          the shipped default.
  */
 
-const CORNING_PM = 'program@corning.test'
+const CAVANAUGH_PM = 'program@cavanaugh.test'
 const ARDENT_OWNER = 'owner@ardent.test'
 const ARDENT_RECRUITER = 'nia@ardent.test'
 const VERTEX = 'owner@vertex.test'
 
-const co = { corning: '', ardent: '', vertex: '' }
+const co = { cavanaugh: '', ardent: '', vertex: '' }
 const who = { pm: '', owner: '', nia: '', omar: '', priya: '', arun: '', maya: '', lena: '', vertexLead: '' }
 const it_ = { requirement: '', arun: '', lena: '', lastLine: '', award: null as any }
 
@@ -63,9 +63,9 @@ async function insure(companyId: string, uploadedById: string) {
 
 beforeAll(async () => {
   await resetDatabase()
-  const corning = await company('Cavanaugh Glassworks', 'corning', 'CLIENT', CORNING_PM)
-  co.corning = corning.companyId
-  who.pm = corning.personId
+  const cavanaugh = await company('Cavanaugh Glassworks', 'cavanaugh', 'CLIENT', CAVANAUGH_PM)
+  co.cavanaugh = cavanaugh.companyId
+  who.pm = cavanaugh.personId
   const ardent = await company('Ardent Systems', 'ardent-systems', 'GSI', ARDENT_OWNER)
   co.ardent = ardent.companyId
   who.owner = ardent.personId
@@ -129,7 +129,7 @@ beforeAll(async () => {
 
   // Omar put Cavanaugh on Ardent's register: the account manager on the relationship.
   await prisma.counterparty.create({
-    data: { companyId: co.ardent, otherCompanyId: co.corning, relationship: 'CLIENT', createdById: omar.id },
+    data: { companyId: co.ardent, otherCompanyId: co.cavanaugh, relationship: 'CLIENT', createdById: omar.id },
   })
 
   // Ardent's own defaults: 10% of the margin to whoever recruited, 5% of what is billed to whoever sold.
@@ -158,7 +158,7 @@ beforeAll(async () => {
   // The job is the client's: its owner (the program manager) sits at no supplier.
   const requirement = await prisma.requirement.create({
     data: {
-      companyId: co.corning, title: 'Validation engineer — Sullivan Park',
+      companyId: co.cavanaugh, title: 'Validation engineer — Sullivan Park',
       skills: ['Validation', 'GxP'], location: 'Cavanaugh Glassworks, New York',
       status: 'OPEN', approvalState: 'APPROVED', headcount: 3,
       billMin: 9_000, billMax: 13_000, months: 12,
@@ -168,7 +168,7 @@ beforeAll(async () => {
   it_.requirement = requirement.id
   for (const toCompanyId of [co.ardent, co.vertex]) {
     await prisma.requirementInvitation.create({
-      data: { requirementId: requirement.id, fromCompanyId: co.corning, toCompanyId, status: 'SENT', payMin: 9_000, payMax: 13_000, expiresAt: new Date('2026-10-01') },
+      data: { requirementId: requirement.id, fromCompanyId: co.cavanaugh, toCompanyId, status: 'SENT', payMin: 9_000, payMax: 13_000, expiresAt: new Date('2026-10-01') },
     })
   }
 }, 240_000)
@@ -201,7 +201,7 @@ describe('the submission names the seat that put the person forward', () => {
 
   it('a submission written before the column keeps no name, and nothing fills one in', async () => {
     const older = await prisma.submission.create({
-      data: { requirementId: it_.requirement, personId: who.owner, fromCompanyId: co.ardent, toCompanyId: co.corning, kind: 'INTERNAL', rate: 11_000, status: 'SUBMITTED' },
+      data: { requirementId: it_.requirement, personId: who.owner, fromCompanyId: co.ardent, toCompanyId: co.cavanaugh, kind: 'INTERNAL', rate: 11_000, status: 'SUBMITTED' },
     })
     expect(older.submittedById).toBeNull()
     await prisma.submission.delete({ where: { id: older.id } })
@@ -210,7 +210,7 @@ describe('the submission names the seat that put the person forward', () => {
 
 describe('the award writes the firm’s default commissions on the two lines', () => {
   it('the client awards Arun, and the award is never refused for a commission', async () => {
-    as(CORNING_PM)
+    as(CAVANAUGH_PM)
     const r = await json(await awardSubmission(
       req('POST', `/api/submissions/${it_.arun}/award`, { rate: 11_500, startDate: '2026-10-05', endDate: '2027-10-04', ...UNDER_WAY }),
       { params: Promise.resolve({ id: it_.arun }) }
@@ -243,7 +243,7 @@ describe('the award writes the firm’s default commissions on the two lines', (
   })
 
   it('a firm that set no default commissions gets no rows, and the award says nothing is missing', async () => {
-    as(CORNING_PM)
+    as(CAVANAUGH_PM)
     const r = await json(await awardSubmission(
       req('POST', `/api/submissions/${it_.lena}/award`, { rate: 10_500, startDate: '2026-10-05', endDate: '2027-10-04', ...UNDER_WAY }),
       { params: Promise.resolve({ id: it_.lena }) }
@@ -258,11 +258,11 @@ describe('a firm that names nobody gets a sentence, never a refused award', () =
   it('an older submission that names nobody is still awarded, with the sales row written and a sentence saying no recruiting commission was written', async () => {
     // Ardent names Priya as the account manager on Cavanaugh, so she sells
     // it, ahead of Omar, who only recorded the client.
-    await prisma.counterparty.updateMany({ where: { companyId: co.ardent, otherCompanyId: co.corning }, data: { accountManagerId: who.priya } })
+    await prisma.counterparty.updateMany({ where: { companyId: co.ardent, otherCompanyId: co.cavanaugh }, data: { accountManagerId: who.priya } })
     const older = await prisma.submission.create({
-      data: { requirementId: it_.requirement, personId: who.maya, fromCompanyId: co.ardent, toCompanyId: co.corning, kind: 'INTERNAL', rate: 11_000, status: 'SUBMITTED', submittedAt: new Date('2026-09-20') },
+      data: { requirementId: it_.requirement, personId: who.maya, fromCompanyId: co.ardent, toCompanyId: co.cavanaugh, kind: 'INTERNAL', rate: 11_000, status: 'SUBMITTED', submittedAt: new Date('2026-09-20') },
     })
-    as(CORNING_PM)
+    as(CAVANAUGH_PM)
     const r = await json(await awardSubmission(
       req('POST', `/api/submissions/${older.id}/award`, { rate: 11_000, startDate: '2026-10-05', endDate: '2027-10-04', ...UNDER_WAY }),
       { params: Promise.resolve({ id: older.id }) }

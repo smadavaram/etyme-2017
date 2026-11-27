@@ -170,7 +170,7 @@ describe('guessing the country from the email domain', () => {
   })
 
   it('handles a two-part suffix, so a UK company is not read as a US one', () => {
-    expect(countryFromDomain('terumobct.co.uk')).toBe('GB')
+    expect(countryFromDomain('example.co.uk')).toBe('GB')
     expect(countryFromDomain('example.co.in')).toBe('IN')
   })
 

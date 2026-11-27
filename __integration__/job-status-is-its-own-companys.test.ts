@@ -13,7 +13,7 @@ import { join } from 'node:path'
 const status = await import('@/app/api/requirements/[id]/status/route')
 
 const D = '@demo.etyme.local'
-const CLIENT_OWNER = `world-nike${D}`
+const CLIENT_OWNER = `world-northbend${D}`
 const SUPPLIER_OWNER = `world-brightmoor${D}`
 
 let jobId = ''
@@ -25,7 +25,7 @@ const logged = (id: string) => prisma.automationLog.count({ where: { action: 'RE
 describe('a job is opened or closed only by its own company', () => {
   beforeAll(async () => {
     await freshWorld()
-    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     // The test's own job, so no seeded row's state or order is relied on.
     const made = await prisma.requirement.create({
       data: { companyId: client.id, title: 'Controls engineer, the status door', status: 'OPEN' },

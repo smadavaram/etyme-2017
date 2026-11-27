@@ -35,7 +35,7 @@ import { GET as readAr } from '@/app/api/ar/route'
 import { GET as readProfitability } from '@/app/api/profitability/route'
 
 const SHARATH = 'sharath.solo@gmail.com'
-const DANA = 'dana@terumoclientcorp.com'
+const DANA = 'dana@talvern-client.example'
 
 // The story's shared state, chapter to chapter.
 let soloCompanyId = ''

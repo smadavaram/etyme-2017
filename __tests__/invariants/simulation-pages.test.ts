@@ -29,14 +29,14 @@ function seat(key: string, over: Partial<SeatSpec> = {}): SeatSpec {
 const noBusy: Busy = { firms: new Map(), people: new Map(), seated: new Set() }
 
 function hit(over: Partial<Hit>): Hit {
-  return { party: 'client', seat: 'world-nike/hiring', kind: 'page', label: 'Jobs', path: '/dashboard/requisitions', status: 200, ms: 100, owner: 'DEMAND', ...over }
+  return { party: 'client', seat: 'world-northbend/hiring', kind: 'page', label: 'Jobs', path: '/dashboard/requisitions', status: 200, ms: 100, owner: 'DEMAND', ...over }
 }
 
 function record(over: Partial<PagesRecord> = {}): PagesRecord {
   return {
     stamp: '20261101120000', startedAt: new Date(0), finishedAt: new Date(60_000), db: 'etyme_sim_20261101110000', base: 'http://localhost:1',
     build: 'the existing build was reused', args: { concurrency: 40, rounds: 3, warmup: 1, firms: 2, timeoutMs: 60_000 },
-    seats: [{ party: 'client', role: 'hiring manager', key: 'world-nike/hiring', personName: 'Dana Whitfield', firm: 'Northbend Athletic', why: 'named', pages: 23, reads: 26, seatedAt: null, region: null }],
+    seats: [{ party: 'client', role: 'hiring manager', key: 'world-northbend/hiring', personName: 'Dana Whitfield', firm: 'Northbend Athletic', why: 'named', pages: 23, reads: 26, seatedAt: null, region: null }],
     countsBefore: { Requirement: 10, Timesheet: 50 }, countsAfter: { Requirement: 10, Timesheet: 50, AccessLog: 7 },
     hits: [hit({}), hit({ kind: 'read', label: '/api/requisitions', path: '/api/requisitions', status: 403, sentence: 'Only HR reads this.' })],
     warmupErrors: [], ...over,
@@ -64,10 +64,10 @@ describe('Who the pages are read as', () => {
   })
 
   it('each role is read at the firm the demo names first, then at the busiest other firm of the same kind', () => {
-    const seats = [seat('world-quiet/hiring'), seat('world-busy/hiring'), seat('world-nike/hiring'), seat('world-acme/hiring', { company: { id: 'c-acme', slug: 'world-acme', name: 'Acme', kind: 'VENDOR' } })]
+    const seats = [seat('world-quiet/hiring'), seat('world-busy/hiring'), seat('world-northbend/hiring'), seat('world-acme/hiring', { company: { id: 'c-acme', slug: 'world-acme', name: 'Acme', kind: 'VENDOR' } })]
     const busy: Busy = { ...noBusy, firms: new Map([['c-busy', 900], ['c-quiet', 3], ['c-acme', 5000]]) }
     const picked = pickSeats(seats, PROBES.filter((p) => p.role === 'hiring manager'), busy, 2)
-    expect(picked.map((p) => [p.seat.key, p.why])).toEqual([['world-nike/hiring', 'named'], ['world-busy/hiring', 'busiest']])
+    expect(picked.map((p) => [p.seat.key, p.why])).toEqual([['world-northbend/hiring', 'named'], ['world-busy/hiring', 'busiest']])
   })
 
   it('an MSP is read only where it holds a live seat in a client’s program', () => {
@@ -88,9 +88,9 @@ describe('Who the pages are read as', () => {
   })
 
   it('one seat is read once, whichever roles it would answer for', () => {
-    const seats = [seat('world-nike/ap'), seat('world-nike/compliance')]
+    const seats = [seat('world-northbend/ap'), seat('world-northbend/compliance')]
     const probes = [PROBES.find((p) => p.role === 'AP clerk')!, { ...PROBES.find((p) => p.role === 'AP clerk')!, role: 'the same seat again' }]
-    expect(pickSeats(seats, probes, noBusy, 2).map((p) => p.seat.key)).toEqual(['world-nike/ap'])
+    expect(pickSeats(seats, probes, noBusy, 2).map((p) => p.seat.key)).toEqual(['world-northbend/ap'])
   })
 })
 

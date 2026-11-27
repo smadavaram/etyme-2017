@@ -15,7 +15,7 @@ const NOW = new Date('2026-08-29T00:00:00Z')
 function receipt(over: Partial<Receipt> = {}): Receipt {
   return {
     id: 'r1',
-    payerCompanyId: 'c-nike',
+    payerCompanyId: 'c-northbend',
     payerName: 'Northbend Athletic Inc',
     currency: 'USD',
     amountMinor: 500_000,

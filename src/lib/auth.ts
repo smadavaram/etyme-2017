@@ -85,7 +85,7 @@ export function configuredProviders(): Provider[] {
         clientId: process.env.AZURE_AD_CLIENT_ID,
         clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
         // 'common' lets any Microsoft tenant in, which is what a platform
-        // wants — Terumo BCT and Nike are different tenants.
+        // wants — Talvern Medical and Northbend are different tenants.
         tenantId: process.env.AZURE_AD_TENANT_ID || 'common',
         authorization: { params: { ...ACCOUNT_CHOOSER.params } },
         httpOptions: OAUTH_HTTP,

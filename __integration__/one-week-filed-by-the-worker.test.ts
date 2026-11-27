@@ -19,7 +19,7 @@ import { POST as approveTimesheet } from '@/app/api/timesheets/[id]/approve/rout
  */
 
 const D = '@demo.etyme.local'
-const NIKE = { hiring: `world-nike-hiring${D}` }
+const NORTHBEND = { hiring: `world-northbend-hiring${D}` }
 const TECWYN = `world-tecwyn${D}`
 
 const call = async (fn: (r: any, ctx: any) => Promise<Response>, url: string, id: string, body?: unknown) =>
@@ -96,7 +96,7 @@ describe('one week, filed once by the worker, signed at the top', () => {
   })
 
   it('Northbend sends it back, and Helena files the same week again with the right hours — the same row, both signatures cleared', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const back = await call(rejectTimesheet, `/api/timesheets/${it_.week}/reject`, it_.week, { reason: 'Monday was a half day' })
     expect(back.body?.error, JSON.stringify(back.body)).toBeUndefined()
 
@@ -128,7 +128,7 @@ describe('one week, filed once by the worker, signed at the top', () => {
   })
 
   it('Northbend signs the one week, on Tecwyn’s rung — no rung above holds a copy, so every rung bills this week', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const signed = await call(approveTimesheet, `/api/timesheets/${it_.week}/approve`, it_.week, {})
     expect(signed.body?.error, JSON.stringify(signed.body)).toBeUndefined()
     const row = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.week } })

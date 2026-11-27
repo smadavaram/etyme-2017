@@ -14,7 +14,7 @@ import { supplierAuthorityAt } from '@/lib/twin/run'
  * on the seeded world.
  */
 
-const AP = 'world-nike-ap@demo.etyme.local'
+const AP = 'world-northbend-ap@demo.etyme.local'
 const withId = (id: string) => ({ params: Promise.resolve({ id }) })
 const s: Record<string, string> = {}
 

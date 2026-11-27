@@ -35,7 +35,7 @@ function viewer(over: Partial<Viewer> = {}): Viewer {
 const CONTRACT = {
   personId: 'meera',
   companyId: 'ravenmoor',
-  clientCompanyId: 'nike',
+  clientCompanyId: 'northbend',
   endClientCompanyId: null,
   deliveryUnitId: 'retail',
   orgUnitId: null,
@@ -86,7 +86,7 @@ describe('why somebody can see a placement', () => {
     // A supplier's accounts and a buyer's departments are two different
     // companies' structures, and filtering one by the other is meaningless.
     const w = whyContract(
-      viewer({ companyId: 'nike', unitsVisible: ['footwear'], unitName: 'Footwear' }),
+      viewer({ companyId: 'northbend', unitsVisible: ['footwear'], unitName: 'Footwear' }),
       { ...CONTRACT, deliveryUnitId: 'retail', orgUnitId: 'footwear' }
     )
     expect(w.visible).toBe(true)
@@ -148,7 +148,7 @@ describe('why somebody can see a person', () => {
 
 describe('why somebody can see a piece of demand', () => {
   const REQ = {
-    companyId: 'terumo',
+    companyId: 'talvern',
     openToNetwork: false,
     status: 'OPEN',
     invited: ['tecwyn'],
@@ -156,7 +156,7 @@ describe('why somebody can see a piece of demand', () => {
   }
 
   it('lets the company that raised it read it', () => {
-    expect(whyRequirement(viewer({ companyId: 'terumo' }), REQ).visible).toBe(true)
+    expect(whyRequirement(viewer({ companyId: 'talvern' }), REQ).visible).toBe(true)
   })
 
   it('lets an invited supplier read it, and hides the band', () => {

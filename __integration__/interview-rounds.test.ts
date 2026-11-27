@@ -17,7 +17,7 @@ import { POST as answer } from '@/app/api/me/interviews/[id]/respond/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE_PM = `world-nike-programme${D}`
+const NORTHBEND_PM = `world-northbend-programme${D}`
 
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 const call = async (fn: any, r: Request, id: string) => json(await fn(r, params(id)))
@@ -52,7 +52,7 @@ async function untilNotices(interviewId: string, arrived: (rows: Notice[]) => bo
   return read()
 }
 
-let nike: { id: string }
+let northbend: { id: string }
 let pinnacle: { id: string; seat: string; staff: string[] }
 let meiLin: { personId: string; email: string; submissionId: string }
 let daniel: { submissionId: string }
@@ -63,7 +63,7 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
   beforeAll(async () => {
     await freshWorld()
 
-    nike = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } }))
+    northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } }))
     const pin = await prisma.company.findUniqueOrThrow({
       where: { slug: 'world-pinnacle' },
       select: {
@@ -78,13 +78,13 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
     pinnacle = { id: pin.id, seat: pin.contexts[0].person.primaryEmail, staff: pin.contexts.map((c) => c.personId) }
 
     const ml = await prisma.submission.findFirstOrThrow({
-      where: { toCompanyId: nike.id, person: { name: 'Mei-Lin Chao' } },
+      where: { toCompanyId: northbend.id, person: { name: 'Mei-Lin Chao' } },
       select: { id: true, person: { select: { id: true, primaryEmail: true } } },
     })
     meiLin = { personId: ml.person.id, email: ml.person.primaryEmail, submissionId: ml.id }
 
     const dk = await prisma.submission.findFirstOrThrow({
-      where: { toCompanyId: nike.id, person: { name: 'Daniel Okafor' } },
+      where: { toCompanyId: northbend.id, person: { name: 'Daniel Okafor' } },
       select: { id: true },
     })
     daniel = { submissionId: dk.id }
@@ -101,7 +101,7 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
     })
     expect(problems).toEqual([])
 
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const res = await call(propose, req('POST', `/api/submissions/${meiLin.submissionId}/interviews`, body), meiLin.submissionId)
     expect(res.body?.error, JSON.stringify(res.body)).toBeUndefined()
     expect(res.body.data.round).toBe(1)
@@ -130,7 +130,7 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
   })
 
   it('a second round cannot be proposed while the first is still ahead', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const { body } = buildProposal({ ...EMPTY_FORM, times: [timeIn(5)] })
     const res = await call(propose, req('POST', `/api/submissions/${meiLin.submissionId}/interviews`, body), meiLin.submissionId)
     expect(res.status).toBe(409)
@@ -151,14 +151,14 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
     const res = await call(decide, req('POST', `/api/interviews/${round1}`, { action: 'confirm', forConsultant: true }), round1)
     expect(res.body?.error, JSON.stringify(res.body)).toBeUndefined()
 
-    const requester = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE_PM }, select: { id: true } })
+    const requester = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND_PM }, select: { id: true } })
     const confirmed = (n: Notice) => n.personId === requester.id && n.title.startsWith('Pinnacle Resourcing confirmed')
     const told = (await untilNotices(round1, (all) => all.some(confirmed))).filter(confirmed)
     expect(told, `no confirmation reached the desk that asked (had ${before} notices before)`).toHaveLength(1)
   })
 
   it('the client says she goes through; the supplier hears the outcome and never the notes', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const notes = 'Sharp on Studio, thin on Prism. Wants the integrations team to see her.'
     const res = await call(decide, req('POST', `/api/interviews/${round1}`, { action: 'outcome', outcome: 'ADVANCE', feedback: notes }), round1)
     expect(res.body?.error, JSON.stringify(res.body)).toBeUndefined()
@@ -177,7 +177,7 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
   })
 
   it('round two is numbered two', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const { body } = buildProposal({ ...EMPTY_FORM, stage: 'Technical', mode: 'VIDEO', times: [timeIn(7), timeIn(8), timeIn(9)] })
     const res = await call(propose, req('POST', `/api/submissions/${meiLin.submissionId}/interviews`, body), meiLin.submissionId)
     expect(res.body?.error, JSON.stringify(res.body)).toBeUndefined()
@@ -186,7 +186,7 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
   })
 
   it('a candidate already through round one can be given round two straight away', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const { body } = buildProposal({ ...EMPTY_FORM, times: [timeIn(4)] })
     const res = await call(propose, req('POST', `/api/submissions/${daniel.submissionId}/interviews`, body), daniel.submissionId)
     expect(res.body?.error, JSON.stringify(res.body)).toBeUndefined()
@@ -209,7 +209,7 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
     // not booked yet — accepted is not the same as in the diary.
     expect(after.state).toBe('PROPOSED')
 
-    const requester = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE_PM }, select: { id: true } })
+    const requester = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND_PM }, select: { id: true } })
     const accepted = (n: Notice) => n.title.includes('accepted round 2')
     const rows = (
       await untilNotices(
@@ -229,7 +229,7 @@ describe('Northbend Athletic interviews a candidate, from the desk that received
     const res = await call(answer, req('POST', `/api/me/interviews/${iv.id}/respond`, { action: 'DECLINE', reason: 'I start a new contract that week.' }), iv.id)
     expect(res.body?.error, JSON.stringify(res.body)).toBeUndefined()
 
-    const requester = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE_PM }, select: { id: true } })
+    const requester = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND_PM }, select: { id: true } })
     const toDesk = (n: Notice) => n.personId === requester.id
     const rows = (await untilNotices(iv.id, (all) => all.some(toDesk))).filter(toDesk)
     expect(rows).toHaveLength(1)

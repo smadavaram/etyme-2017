@@ -11,7 +11,7 @@ import { POST as ask } from '@/app/api/people/[id]/ask/route'
  */
 
 const D = '@demo.etyme.local'
-const HIRING = `world-nike-hiring${D}`
+const HIRING = `world-northbend-hiring${D}`
 const call = async (fn: any, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
 const it_: Record<string, any> = {}
@@ -19,10 +19,10 @@ const it_: Record<string, any> = {}
 describe('asking for a person you were shown', () => {
   beforeAll(async () => {
     await freshWorld()
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
-    it_.nike = nike.id
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
+    it_.northbend = northbend.id
     const sub = await prisma.submission.findFirstOrThrow({
-      where: { toCompanyId: nike.id, status: { notIn: ['PLACED'] }, person: { name: 'Daniel Okafor' } },
+      where: { toCompanyId: northbend.id, status: { notIn: ['PLACED'] }, person: { name: 'Daniel Okafor' } },
       select: { personId: true, requirementId: true, fromCompanyId: true, fromCompany: { select: { name: true } } },
     })
     it_.daniel = sub.personId; it_.role = sub.requirementId; it_.supplier = sub.fromCompanyId; it_.supplierName = sub.fromCompany.name
@@ -30,7 +30,7 @@ describe('asking for a person you were shown', () => {
     const first = await prisma.requirement.findUniqueOrThrow({ where: { id: sub.requirementId } })
     const other = await prisma.requirement.create({
       data: {
-        companyId: nike.id, title: 'Integration analyst', skills: first.skills, location: first.location, billMin: first.billMin, billMax: first.billMax,
+        companyId: northbend.id, title: 'Integration analyst', skills: first.skills, location: first.location, billMin: first.billMin, billMax: first.billMax,
         months: 6, headcount: 1, status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', raisedById: first.raisedById, hoursPerWeek: 40,
       },
       select: { id: true },
@@ -38,7 +38,7 @@ describe('asking for a person you were shown', () => {
     it_.other = other.id
     const draft = await prisma.requirement.create({
       data: {
-        companyId: nike.id, title: 'Not published yet', skills: first.skills, location: first.location, billMin: first.billMin, billMax: first.billMax,
+        companyId: northbend.id, title: 'Not published yet', skills: first.skills, location: first.location, billMin: first.billMin, billMax: first.billMax,
         months: 6, headcount: 1, status: 'DRAFT', approvalState: 'DRAFT', source: 'MANUAL', raisedById: first.raisedById, hoursPerWeek: 40,
       },
       select: { id: true },
@@ -84,7 +84,7 @@ describe('asking for a person you were shown', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     expect(r.body.data.says).toContain(`asked to put Daniel Okafor forward for Integration analyst`)
     const thread = await prisma.conversation.findFirst({
-      where: { companyId: it_.nike, withCompanyId: it_.supplier, topic: 'REQUIREMENT', topicId: it_.other },
+      where: { companyId: it_.northbend, withCompanyId: it_.supplier, topic: 'REQUIREMENT', topicId: it_.other },
       include: { messages: true },
     })
     expect(thread?.messages.map((m) => m.body).join(' ')).toContain('would like to see Daniel Okafor for Integration analyst')
@@ -119,10 +119,10 @@ describe('asking for a person you were shown', () => {
       it_.prime = prime.id; it_.primeName = prime.name
       it_.sub = sub.id; it_.subName = sub.name
       it_.helena = helena.id
-      const raisedBy = await prisma.requirement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: it_.nike }, select: { raisedById: true, skills: true, location: true } })
+      const raisedBy = await prisma.requirement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: it_.northbend }, select: { raisedById: true, skills: true, location: true } })
       const role = async (title: string) => (await prisma.requirement.create({
         data: {
-          companyId: it_.nike, title, skills: raisedBy.skills, location: raisedBy.location, billMin: 10000, billMax: 15000,
+          companyId: it_.northbend, title, skills: raisedBy.skills, location: raisedBy.location, billMin: 10000, billMax: 15000,
           months: 6, headcount: 1, status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', raisedById: raisedBy.raisedById, hoursPerWeek: 40,
         },
         select: { id: true },
@@ -135,7 +135,7 @@ describe('asking for a person you were shown', () => {
       const profile = await prisma.consultantProfile.create({ data: { personId: stranger.id, skills: ['HCM integration'], location: 'Beaverton, OR', visibility: 'VERIFIED', workAuth: 'USC' }, select: { id: true } })
       await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: it_.sub, tier: 'RETAINED', state: 'GRANTED' } })
       it_.stranger = stranger.id
-      it_.openRole = (await prisma.requirement.findFirstOrThrow({ where: { companyId: it_.nike, title: 'HCM integration lead' }, select: { id: true } })).id
+      it_.openRole = (await prisma.requirement.findFirstOrThrow({ where: { companyId: it_.northbend, title: 'HCM integration lead' }, select: { id: true } })).id
     }, 120_000)
 
     it('a person bought through a chain shows the firm the client pays once, with the count of firms below it and never their names', async () => {
@@ -169,7 +169,7 @@ describe('asking for a person you were shown', () => {
         select: { companyId: true },
       })
       expect(listing.companyId).toBe(it_.sub)
-      const paid = await prisma.sellContract.findFirstOrThrow({ where: { personId: it_.helena, clientCompanyId: it_.nike }, select: { companyId: true } })
+      const paid = await prisma.sellContract.findFirstOrThrow({ where: { personId: it_.helena, clientCompanyId: it_.northbend }, select: { companyId: true } })
       expect(paid.companyId).toBe(it_.prime)
     })
 
@@ -179,15 +179,15 @@ describe('asking for a person you were shown', () => {
       expect(r.status, JSON.stringify(r.body)).toBe(201)
       expect(r.body.data.asked).toEqual([it_.primeName])
       expect(r.body.data.throughAPrime).toBe(true)
-      const withPrime = await prisma.conversation.findFirst({ where: { companyId: it_.nike, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole } })
-      const withSub = await prisma.conversation.findFirst({ where: { companyId: it_.nike, withCompanyId: it_.sub, topic: 'REQUIREMENT', topicId: it_.chainRole } })
+      const withPrime = await prisma.conversation.findFirst({ where: { companyId: it_.northbend, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole } })
+      const withSub = await prisma.conversation.findFirst({ where: { companyId: it_.northbend, withCompanyId: it_.sub, topic: 'REQUIREMENT', topicId: it_.chainRole } })
       expect(withPrime).not.toBeNull()
       expect(withSub).toBeNull()
     })
 
     it('and nothing in the reply, the thread title, the message or its metadata names the firm below the rung Northbend Athletic pays', async () => {
       const thread = await prisma.conversation.findFirstOrThrow({
-        where: { companyId: it_.nike, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole },
+        where: { companyId: it_.northbend, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole },
         include: { messages: true },
       })
       const everything = JSON.stringify({ title: thread.title, messages: thread.messages })
@@ -200,7 +200,7 @@ describe('asking for a person you were shown', () => {
 
     it('the prime is told who was asked for and on which role, and why it came to them', async () => {
       const thread = await prisma.conversation.findFirstOrThrow({
-        where: { companyId: it_.nike, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole },
+        where: { companyId: it_.northbend, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole },
         include: { messages: true },
       })
       const asked = thread.messages.find((m) => m.type === 'ASK')!
@@ -218,14 +218,14 @@ describe('asking for a person you were shown', () => {
     })
 
     it('a client whose agreement discloses sub-vendor names still asks through the prime, because reading a name is not having a channel', async () => {
-      await prisma.masterAgreement.updateMany({ where: { clientId: it_.nike, vendorId: it_.prime }, data: { disclosesSubVendors: true } })
+      await prisma.masterAgreement.updateMany({ where: { clientId: it_.northbend, vendorId: it_.prime }, data: { disclosesSubVendors: true } })
       as(HIRING)
       const r = await call(ask, 'POST', `/api/people/${it_.helena}/ask`, it_.helena, { requirementId: it_.discloseRole })
       expect(r.status, JSON.stringify(r.body)).toBe(201)
       expect(r.body.data.asked).toEqual([it_.primeName])
-      const withSub = await prisma.conversation.findFirst({ where: { companyId: it_.nike, withCompanyId: it_.sub, topic: 'REQUIREMENT', topicId: it_.discloseRole } })
+      const withSub = await prisma.conversation.findFirst({ where: { companyId: it_.northbend, withCompanyId: it_.sub, topic: 'REQUIREMENT', topicId: it_.discloseRole } })
       expect(withSub).toBeNull()
-      await prisma.masterAgreement.updateMany({ where: { clientId: it_.nike, vendorId: it_.prime }, data: { disclosesSubVendors: false } })
+      await prisma.masterAgreement.updateMany({ where: { clientId: it_.northbend, vendorId: it_.prime }, data: { disclosesSubVendors: false } })
     })
 
     it('somebody Northbend Athletic has never bought through anyone is refused in a sentence that names Northbend Athletic’s own suppliers and not the firm holding them', async () => {
@@ -236,14 +236,14 @@ describe('asking for a person you were shown', () => {
       expect(r.body.error.message).toContain('You have no supplier for Anselm Roche yet')
       expect(r.body.error.message).toContain(it_.primeName)
       expect(r.body.error.message).not.toContain(it_.subName)
-      const anywhere = await prisma.conversation.findFirst({ where: { companyId: it_.nike, topicId: it_.openRole, withCompanyId: it_.sub } })
+      const anywhere = await prisma.conversation.findFirst({ where: { companyId: it_.northbend, topicId: it_.openRole, withCompanyId: it_.sub } })
       expect(anywhere).toBeNull()
     })
   })
 
   it('a blocked person cannot be asked for until the block is lifted', async () => {
     const hm = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: HIRING }, select: { id: true } })
-    await prisma.blacklist.create({ data: { companyId: it_.nike, targetType: 'PERSON', targetId: it_.daniel, reason: 'Left mid-project in 2023.', blockedById: hm.id } })
+    await prisma.blacklist.create({ data: { companyId: it_.northbend, targetType: 'PERSON', targetId: it_.daniel, reason: 'Left mid-project in 2023.', blockedById: hm.id } })
     as(HIRING)
     const r = await call(ask, 'POST', `/api/people/${it_.daniel}/ask`, it_.daniel, { requirementId: it_.other })
     expect(r.status).toBe(409)

@@ -36,7 +36,7 @@ describe('the money screens read who is actually here', () => {
   beforeAll(async () => {
     await freshWorld()
     id.supplier = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })).id
-    id.client = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })).id
+    id.client = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })).id
   }, 600_000)
 
   it('does not call the payment chain blind past a supplier that is here', async () => {

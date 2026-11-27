@@ -20,13 +20,13 @@ const NONE = new Set<string>()
 
 describe('choosing a subdomain', () => {
   it('accepts an ordinary name', () => {
-    const v = checkSubdomain('terumobct', NONE)
+    const v = checkSubdomain('talvern', NONE)
     expect(v.ok).toBe(true)
-    expect(v.value).toBe('terumobct')
+    expect(v.value).toBe('talvern')
   })
 
   it('tidies up capitals and spaces rather than refusing them', () => {
-    expect(checkSubdomain('  TerumoBCT  ', NONE).value).toBe('terumobct')
+    expect(checkSubdomain('  Talvern  ', NONE).value).toBe('talvern')
   })
 
   it('refuses a name already taken, and says so plainly', () => {
@@ -82,18 +82,18 @@ describe('choosing a subdomain', () => {
 
 describe('mapping a domain you own', () => {
   it('accepts a subdomain of your own company', () => {
-    const v = checkCustomDomain('talent.terumobct.com', NONE)
+    const v = checkCustomDomain('talent.talvern-medical.example', NONE)
     expect(v.ok).toBe(true)
-    expect(v.value).toBe('talent.terumobct.com')
+    expect(v.value).toBe('talent.talvern-medical.example')
   })
 
   it('accepts a pasted URL, because that is what is in the address bar', () => {
-    expect(checkCustomDomain('https://talent.terumobct.com/careers', NONE).value)
-      .toBe('talent.terumobct.com')
+    expect(checkCustomDomain('https://talent.talvern-medical.example/careers', NONE).value)
+      .toBe('talent.talvern-medical.example')
   })
 
   it('refuses a bare word that is not a domain', () => {
-    expect(checkCustomDomain('terumobct', NONE).reason).toMatch(/full domain/i)
+    expect(checkCustomDomain('talvern', NONE).reason).toMatch(/full domain/i)
   })
 
   it('refuses one of our own hosts, and points at the right field', () => {
@@ -103,7 +103,7 @@ describe('mapping a domain you own', () => {
   })
 
   it('refuses a domain already mapped to somebody else', () => {
-    expect(checkCustomDomain('nike.com', new Set(['nike.com'])).ok).toBe(false)
+    expect(checkCustomDomain('northbend-athletic.example', new Set(['northbend-athletic.example'])).ok).toBe(false)
   })
 
   it('accepts a shape it cannot yet prove, because shape is not evidence', () => {
@@ -117,9 +117,9 @@ describe('mapping a domain you own', () => {
 
 describe('proving ownership', () => {
   it('asks for a record only somebody controlling the zone can publish', () => {
-    const r = verificationRecord('talent.terumobct.com', 'tok_abc123')
+    const r = verificationRecord('talent.talvern-medical.example', 'tok_abc123')
     expect(r.type).toBe('TXT')
-    expect(r.name).toBe('_etyme-verify.talent.terumobct.com')
+    expect(r.name).toBe('_etyme-verify.talent.talvern-medical.example')
     expect(r.value).toContain('tok_abc123')
   })
 
@@ -137,14 +137,14 @@ describe('proving ownership', () => {
 
 describe('where a verified domain points', () => {
   it('gives a subdomain a CNAME', () => {
-    const r = servingRecord('talent.terumobct.com')
+    const r = servingRecord('talent.talvern-medical.example')
     expect(r.type).toBe('CNAME')
     expect(r.value).toBe('cname.etyme.com')
   })
 
   it('gives a bare domain an ALIAS, because DNS forbids a CNAME there', () => {
     // The commonest support conversation in this whole feature.
-    const r = servingRecord('terumobct.com')
+    const r = servingRecord('talvern-medical.example')
     expect(r.type).toBe('ALIAS')
     expect(r.note).toMatch(/cannot hold a CNAME/i)
     expect(r.note).toMatch(/subdomain/i)
@@ -203,9 +203,9 @@ describe('working out whose company a visitor is looking at', () => {
   })
 
   it('reads anything else as a mapped domain', () => {
-    expect(tenantFromHost('talent.terumobct.com')).toEqual({
+    expect(tenantFromHost('talent.talvern-medical.example')).toEqual({
       kind: 'CUSTOM',
-      value: 'talent.terumobct.com',
+      value: 'talent.talvern-medical.example',
     })
   })
 

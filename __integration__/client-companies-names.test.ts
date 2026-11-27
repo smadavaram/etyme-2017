@@ -14,7 +14,7 @@ import { GET as listCompanies } from '@/app/api/companies/route'
  * line naming Northbend as the end client added its seller to the list.
  */
 
-const NIKE_PROGRAMME = 'world-nike-programme@demo.etyme.local'
+const NORTHBEND_PROGRAMME = 'world-northbend-programme@demo.etyme.local'
 const COMPUTER_SYSTEMS = 'world-computer-systems@demo.etyme.local'
 const TECWYN = 'world-tecwyn@demo.etyme.local'
 
@@ -29,42 +29,42 @@ async function namesFor(email: string): Promise<string[]> {
 
 beforeAll(async () => {
   await freshWorld()
-  for (const slug of ['world-nike', 'world-computer-systems', 'world-tecwyn']) {
+  for (const slug of ['world-northbend', 'world-computer-systems', 'world-tecwyn']) {
     co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
   }
   // The world as the tester found it: Tecwyn sells to Computer Systems,
   // which sells to Northbend, and Northbend's paper with Computer Systems
   // does not ask for the names below.
   const chain = await prisma.sellContract.count({
-    where: { companyId: co['world-tecwyn'], clientCompanyId: co['world-computer-systems'], endClientCompanyId: co['world-nike'] },
+    where: { companyId: co['world-tecwyn'], clientCompanyId: co['world-computer-systems'], endClientCompanyId: co['world-northbend'] },
   })
   expect(chain).toBeGreaterThan(0)
   await prisma.masterAgreement.updateMany({
-    where: { clientId: co['world-nike'], vendorId: co['world-computer-systems'] },
+    where: { clientId: co['world-northbend'], vendorId: co['world-computer-systems'] },
     data: { disclosesSubVendors: false },
   })
 }, 600_000)
 
 describe('whose names a client reads on its Companies page', () => {
   it('a client’s companies list never names a firm below its prime unless its agreement requires disclosure', async () => {
-    const names = await namesFor(NIKE_PROGRAMME)
+    const names = await namesFor(NORTHBEND_PROGRAMME)
     expect(names).toContain('world-computer-systems')
     expect(names).not.toContain('world-tecwyn')
   })
 
   it('once the client’s agreement with the prime requires disclosure, the firm below is named', async () => {
     const agreement = await prisma.masterAgreement.findFirst({
-      where: { clientId: co['world-nike'], vendorId: co['world-computer-systems'] },
+      where: { clientId: co['world-northbend'], vendorId: co['world-computer-systems'] },
       select: { id: true },
     })
     const made = agreement
       ? null
       : await prisma.masterAgreement.create({
-          data: { clientId: co['world-nike'], vendorId: co['world-computer-systems'], disclosesSubVendors: true, status: 'ACTIVE' } as any,
+          data: { clientId: co['world-northbend'], vendorId: co['world-computer-systems'], disclosesSubVendors: true, status: 'ACTIVE' } as any,
         })
     if (agreement) await prisma.masterAgreement.update({ where: { id: agreement.id }, data: { disclosesSubVendors: true } })
     try {
-      expect(await namesFor(NIKE_PROGRAMME)).toContain('world-tecwyn')
+      expect(await namesFor(NORTHBEND_PROGRAMME)).toContain('world-tecwyn')
     } finally {
       if (made) await prisma.masterAgreement.delete({ where: { id: made.id } })
       if (agreement) await prisma.masterAgreement.update({ where: { id: agreement.id }, data: { disclosesSubVendors: false } })
@@ -73,13 +73,13 @@ describe('whose names a client reads on its Companies page', () => {
 
   it('the prime reads both its client and its own sub-vendor, because it is a party to both lines', async () => {
     const names = await namesFor(COMPUTER_SYSTEMS)
-    expect(names).toContain('world-nike')
+    expect(names).toContain('world-northbend')
     expect(names).toContain('world-tecwyn')
   })
 
   it('the sub-vendor reads the firm it sells to and the site its person works at', async () => {
     const names = await namesFor(TECWYN)
     expect(names).toContain('world-computer-systems')
-    expect(names).toContain('world-nike')
+    expect(names).toContain('world-northbend')
   })
 })

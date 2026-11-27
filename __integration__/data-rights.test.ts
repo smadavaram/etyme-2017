@@ -35,8 +35,8 @@ import { isTombstone } from '@/lib/erasure'
 const D = '@demo.etyme.local'
 const HELENA = 'helena.marsh@seed.etyme.invalid'
 const ANDERS = 'anders.lund@seed.etyme.invalid'
-const NORTHBEND_COMPLIANCE = `world-nike-compliance${D}`
-const TALVERN_COMPLIANCE = `world-terumo-bct-compliance${D}`
+const NORTHBEND_COMPLIANCE = `world-northbend-compliance${D}`
+const TALVERN_COMPLIANCE = `world-talvern-compliance${D}`
 const STAFF = 'ops@etyme.example'
 
 const who = { helena: '', anders: '' }
@@ -104,8 +104,8 @@ beforeAll(async () => {
 
   who.helena = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: HELENA } })).id
   who.anders = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: ANDERS } })).id
-  co.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id
-  co.talvern = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-terumo-bct' } })).id
+  co.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' } })).id
+  co.talvern = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-talvern' } })).id
 
   helenaDaysBefore = await daysAt(who.helena, co.northbend)
 
@@ -549,7 +549,7 @@ describe('a breach opens a clock, or says that nobody has decided one', () => {
     // the governance read the menu link asks for, so the page he is
     // offered must answer him: refusing the desk the page is named for
     // made the page draw a refusal as "Incidents 0" (round five, #13).
-    as(`world-corning-programme${D}`)
+    as(`world-cavanaugh-programme${D}`)
     const requests = await json(await deskQueue(req('GET', '/api/data-requests')))
     const holds = await json(await holdList(req('GET', '/api/legal-holds')))
     const incidents = await json(await breachList(req('GET', '/api/breaches')))
@@ -561,7 +561,7 @@ describe('a breach opens a clock, or says that nobody has decided one', () => {
   })
 
   it('a client seat without the governance read is still refused the incident register, and told which desk reads it', async () => {
-    as(`world-corning-ap${D}`)
+    as(`world-cavanaugh-ap${D}`)
     const { status, body } = await json(await breachList(req('GET', '/api/breaches')))
     expect(status).toBe(403)
     expect(body.error).toContain('compliance officer')

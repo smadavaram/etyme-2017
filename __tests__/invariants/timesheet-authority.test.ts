@@ -16,16 +16,16 @@ import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authori
 const CONTRACT = {
   personId: 'anita',
   vendorCompanyId: 'tecwyn',
-  clientCompanyId: 'terumo',
+  clientCompanyId: 'talvern',
   endClientCompanyId: null,
 }
 
-const THREE_PARTY = { ...CONTRACT, clientCompanyId: 'globalstaff-msp', endClientCompanyId: 'terumo' }
+const THREE_PARTY = { ...CONTRACT, clientCompanyId: 'globalstaff-msp', endClientCompanyId: 'talvern' }
 
 function actor(over: Partial<Parameters<typeof mayEnter>[0]> = {}) {
   return {
     personId: 'somebody',
-    companyId: 'terumo',
+    companyId: 'talvern',
     permissions: ['timesheets.approve'] as readonly string[],
     ...over,
   }
@@ -54,7 +54,7 @@ describe('entering hours', () => {
   })
 
   it('refuses the client, who receives the work rather than reports it', () => {
-    expect(mayEnter(actor({ companyId: 'terumo' }), CONTRACT).ok).toBe(false)
+    expect(mayEnter(actor({ companyId: 'talvern' }), CONTRACT).ok).toBe(false)
   })
 
   it('says who may, rather than just refusing', () => {
@@ -65,17 +65,17 @@ describe('entering hours', () => {
 
 describe('approving hours', () => {
   it('lets the client approve work done for them', () => {
-    expect(mayApprove(actor({ companyId: 'terumo' }), CONTRACT).ok).toBe(true)
+    expect(mayApprove(actor({ companyId: 'talvern' }), CONTRACT).ok).toBe(true)
   })
 
   it('lets the end client approve where somebody else is billed', () => {
     // The layer cake: an MSP is invoiced, the work happens at the
     // enterprise, and it is the enterprise that knows whether it happened.
-    expect(mayApprove(actor({ companyId: 'terumo' }), THREE_PARTY).ok).toBe(true)
+    expect(mayApprove(actor({ companyId: 'talvern' }), THREE_PARTY).ok).toBe(true)
   })
 
   it('needs the permission, not merely the right company', () => {
-    expect(mayApprove(actor({ companyId: 'terumo', permissions: [] }), CONTRACT).ok).toBe(false)
+    expect(mayApprove(actor({ companyId: 'talvern', permissions: [] }), CONTRACT).ok).toBe(false)
   })
 
   it('refuses a company with nothing to do with the contract', () => {
@@ -95,23 +95,23 @@ describe('approving hours', () => {
   it('never lets anybody approve their own hours', () => {
     // Whatever else they hold. A consultant with a role at the client
     // would otherwise sign off their own week.
-    expect(approvingOwnHours(actor({ personId: 'anita', companyId: 'terumo' }), CONTRACT)).toBe(true)
+    expect(approvingOwnHours(actor({ personId: 'anita', companyId: 'talvern' }), CONTRACT)).toBe(true)
   })
 
   it('treats a wildcard permission as holding the permission', () => {
-    expect(mayApprove(actor({ companyId: 'terumo', permissions: ['*'] }), CONTRACT).ok).toBe(true)
+    expect(mayApprove(actor({ companyId: 'talvern', permissions: ['*'] }), CONTRACT).ok).toBe(true)
   })
 })
 
 describe('a seat on a public address is told its address is why it may not sign hours', () => {
   it('a seat invited on a public address is told its address, not its role, is why it may not sign hours off', () => {
-    const v = mayApprove({ ...actor({ companyId: 'terumo', permissions: [] }), companyName: 'Tapin', publicSeat: true }, CONTRACT)
+    const v = mayApprove({ ...actor({ companyId: 'talvern', permissions: [] }), companyName: 'Tapin', publicSeat: true }, CONTRACT)
     expect(v.ok).toBe(false)
     expect(v.reason).toMatch(/^You were invited to Tapin on a public address/)
   })
 
   it('a seat on its company’s own address that cannot sign hours is still told who at the firm does', () => {
-    const v = mayApprove({ ...actor({ companyId: 'terumo', permissions: [] }), companyName: 'Tapin', publicSeat: false }, CONTRACT)
+    const v = mayApprove({ ...actor({ companyId: 'talvern', permissions: [] }), companyName: 'Tapin', publicSeat: false }, CONTRACT)
     expect(v.ok).toBe(false)
     expect(v.reason).not.toMatch(/public address/)
   })

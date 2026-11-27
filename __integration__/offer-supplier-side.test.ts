@@ -16,7 +16,7 @@ import { GET as readRecord } from '@/app/api/records/[type]/[id]/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}` }
+const NORTHBEND = { programme: `world-northbend-programme${D}`, hiring: `world-northbend-hiring${D}` }
 const PINNACLE = `world-pinnacle${D}`
 const OUTSIDER = `world-tecwyn${D}`
 const w: Record<string, any> = {}
@@ -38,15 +38,15 @@ async function submitTo(personName: string, email: string, title: string) {
     data: { consultantId: profile.id, companyId: co['world-pinnacle'], tier: 'RETAINED', state: 'GRANTED', invitedAt: day(-20), respondedAt: day(-19), grantedAt: day(-19) },
   })
   await prisma.context.create({ data: { personId: person.id, companyId: co['world-pinnacle'], type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' } })
-  const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-  as(NIKE.hiring)
+  const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+  as(NORTHBEND.hiring)
   const role = await json(await raiseRequisition(req('POST', '/api/requisitions', {
     title, skills: ['Demand planning'], location: 'Beaverton, OR', billMin: 3200, billMax: 4000, months: 6, headcount: 1, hoursPerWeek: 40,
     costCenterId: cc.id, neededBy: day(7).toISOString(),
   })))
   expect(role.body?.error, JSON.stringify(role.body)).toBeUndefined()
   const requisition = role.body.data.requisition.id
-  as(NIKE.programme)
+  as(NORTHBEND.programme)
   const sent = await json(await distribute(req('POST', `/api/requisitions/${requisition}/distribute`, { vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3900 }] }), p(requisition)))
   expect(sent.body?.error, JSON.stringify(sent.body)).toBeUndefined()
   as(PINNACLE)
@@ -65,12 +65,12 @@ const rowOf = async (email: string) => {
 describe('the supplier’s side of an offer', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-pinnacle']) co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
+    for (const slug of ['world-northbend', 'world-pinnacle']) co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     w.submission = await submitTo('Rowan Pell', 'rowan.pell@seed.etyme.invalid', 'Planning analyst, supplier side')
   }, 240_000)
 
   it('a supplier does not see a draft offer to its candidate', async () => {
-    const made = await offer(NIKE.hiring, 'POST', { rate: 41.5, startDate: '2027-02-01' })
+    const made = await offer(NORTHBEND.hiring, 'POST', { rate: 41.5, startDate: '2027-02-01' })
     expect(made.status, JSON.stringify(made.body)).toBe(201)
     w.offer = made.body.data.id
     expect((await offer(PINNACLE, 'GET')).body.data.offers).toEqual([])
@@ -78,7 +78,7 @@ describe('the supplier’s side of an offer', () => {
   })
 
   it('a supplier sees the offer made to its candidate and records her answer', async () => {
-    await offer(NIKE.hiring, 'PATCH', { offerId: w.offer, action: 'PROPOSE' })
+    await offer(NORTHBEND.hiring, 'PATCH', { offerId: w.offer, action: 'PROPOSE' })
     const row = await rowOf(PINNACLE)
     expect(row.offer).toMatchObject({ state: 'PROPOSED', rate: 41.5, currency: 'USD', startDate: '2027-02-01', side: 'SUPPLIER', mayAnswer: true })
     const read = await offer(PINNACLE, 'GET')
@@ -94,7 +94,7 @@ describe('the supplier’s side of an offer', () => {
   })
 
   it('a supplier cannot change an offer’s rate or start', async () => {
-    const again = await offer(NIKE.hiring, 'POST', { rate: 50, startDate: '2027-03-01', propose: true })
+    const again = await offer(NORTHBEND.hiring, 'POST', { rate: 50, startDate: '2027-03-01', propose: true })
     expect(again.status, JSON.stringify(again.body)).toBe(201)
     const id = again.body.data.id
     const made = await offer(PINNACLE, 'POST', { rate: 60, startDate: '2027-04-01' })
@@ -125,7 +125,7 @@ describe('the supplier’s side of an offer', () => {
     // A firm beside the deal still reads nothing, and a draft is the buyer's paper alone.
     as(OUTSIDER)
     expect((await json(await readRecord(req('GET', `/api/records/Offer/${w.offer}`), { params: Promise.resolve({ type: 'Offer', id: w.offer }) }))).status).toBe(403)
-    const draft = await prisma.offer.create({ data: { submissionId: w.submission, companyId: co['world-nike'], state: 'DRAFT', rate: 40, currency: 'USD' } as any })
+    const draft = await prisma.offer.create({ data: { submissionId: w.submission, companyId: co['world-northbend'], state: 'DRAFT', rate: 40, currency: 'USD' } as any })
     as(PINNACLE)
     expect((await json(await readRecord(req('GET', `/api/records/Offer/${draft.id}`), { params: Promise.resolve({ type: 'Offer', id: draft.id }) }))).status).toBe(403)
   })

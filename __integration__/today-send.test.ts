@@ -25,7 +25,7 @@ describe('Send on Today, at Brightmoor', () => {
   beforeAll(async () => {
     await freshWorld()
     const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' } })
-    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
     await prisma.masterAgreement.updateMany({
       where: { vendorId: brightmoor.id, clientId: northbend.id },
       data: { billFrequency: 'MONTHLY', billAnchor: 'CALENDAR', billStraddle: 'END' },

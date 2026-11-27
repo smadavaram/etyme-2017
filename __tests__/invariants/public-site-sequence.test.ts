@@ -191,7 +191,7 @@ describe('“See this step in the demo” opens the exact screen as the right de
   it('every demo door names a seeded client desk the demo door already seats, and a screen that exists', () => {
     const clientDesks = CLIENT_DESKS.map((d) => d.desk)
     for (const [where, t] of targets) {
-      expect(t.as, where).toBe('world-nike')
+      expect(t.as, where).toBe('world-northbend')
       expect(DESKS as readonly string[], `${where}: ${t.desk}`).toContain(t.desk)
       expect(clientDesks, `${where}: ${t.desk}`).toContain(t.desk)
       expect(t.screen.startsWith('/dashboard/'), where).toBe(true)
@@ -203,7 +203,7 @@ describe('“See this step in the demo” opens the exact screen as the right de
     const step = STEPS[2]
     expect(demoRequest(step.demo)).toEqual({
       url: '/api/demo',
-      body: { as: 'world-nike', desk: 'hiring' },
+      body: { as: 'world-northbend', desk: 'hiring' },
       then: '/dashboard/timesheets',
     })
     // The timesheets page's button seats the same desk at the same screen.

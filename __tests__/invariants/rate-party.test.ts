@@ -125,7 +125,7 @@ const calls = (source: string, fn: string) =>
 
 // ── Callers, as three seats ───────────────────────────────────────────
 
-const NIKE = 'nike'
+const NORTHBEND = 'northbend'
 const PRIME = 'computer-systems'
 const SUB = 'tecwyn'
 
@@ -158,7 +158,7 @@ const nobody = {
 
 describe('a rate is a term of a contract, and only its two parties may read it', () => {
   it('scopes a client to the contracts it is itself billed on, and to no others', () => {
-    expect(payerScope(seat('CLIENT', NIKE))).toEqual({ clientCompanyId: NIKE })
+    expect(payerScope(seat('CLIENT', NORTHBEND))).toEqual({ clientCompanyId: NORTHBEND })
   })
 
   it('never lets the site the work happens at stand in for the firm that pays', () => {
@@ -166,7 +166,7 @@ describe('a rate is a term of a contract, and only its two parties may read it',
     // as the prime's — so an end-client clause on a list that carries a
     // rate is the leak itself, not a route to it.
     for (const kind of ['CLIENT', 'VENDOR', 'MSP', 'GSI']) {
-      expect(JSON.stringify(payerScope(seat(kind, NIKE)))).not.toContain('endClient')
+      expect(JSON.stringify(payerScope(seat(kind, NORTHBEND)))).not.toContain('endClient')
     }
   })
 
@@ -203,7 +203,7 @@ describe('a rate is a term of a contract, and only its two parties may read it',
       | undefined
     if (!wide) return // Deleted. Better than any assertion here.
     for (const kind of ['CLIENT', 'VENDOR', 'MSP', 'GSI']) {
-      expect(wide(seat(kind, NIKE))).toEqual(payerScope(seat(kind, NIKE)))
+      expect(wide(seat(kind, NORTHBEND))).toEqual(payerScope(seat(kind, NORTHBEND)))
     }
     expect(wide(onBench('helena', SUB))).toEqual(payerScope(onBench('helena', SUB)))
     expect(wide(nobody)).toEqual(payerScope(nobody))
@@ -378,7 +378,7 @@ const BOTTOM: DatedRung & { billRate: number } = {
   startDate: new Date('2026-02-27'), endDate: new Date('2027-02-22'), billRate: 11800,
 }
 const TOP: DatedRung & { billRate: number } = {
-  id: 'top', personId: 'helena', companyId: PRIME, clientCompanyId: NIKE,
+  id: 'top', personId: 'helena', companyId: PRIME, clientCompanyId: NORTHBEND,
   startDate: new Date('2026-02-27'), endDate: new Date('2027-02-22'), billRate: 14500,
 }
 

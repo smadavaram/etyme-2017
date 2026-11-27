@@ -15,7 +15,7 @@ const PELLWRIGHT = `world-pellwright${D}`
 const PELLWRIGHT_FINANCE = `world-pellwright-finance${D}`
 const PELLWRIGHT_RECRUITER = `world-pellwright-recruiter${D}`
 const SUNDARA = `world-sundara${D}`
-const NORTHBEND = `world-nike${D}`
+const NORTHBEND = `world-northbend${D}`
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 
 async function benchAs(email: string, scope: string) {

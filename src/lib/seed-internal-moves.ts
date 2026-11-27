@@ -68,12 +68,12 @@ interface Line {
 
 const LINES: Line[] = [
   {
-    person: 'Felix Brenner', client: 'nike', site: { name: 'Tualatin site', city: 'Tualatin', state: 'OR' },
+    person: 'Felix Brenner', client: 'northbend', site: { name: 'Tualatin site', city: 'Tualatin', state: 'OR' },
     role: 'Retail finance systems consultant', skills: ['ERP finance', 'General ledger', 'Retail'],
     unit: PORTLAND_PROJECT, bill: 13_200, pay: 8_600, start: -120, end: 18, release: { keepUntil: null },
   },
   {
-    person: 'Amara Nwosu', client: 'nike', site: { name: 'Tualatin site', city: 'Tualatin', state: 'OR' },
+    person: 'Amara Nwosu', client: 'northbend', site: { name: 'Tualatin site', city: 'Tualatin', state: 'OR' },
     role: 'Retail data engineer', skills: ['Data pipelines', 'SQL', 'Retail analytics'],
     unit: PORTLAND_PROJECT, bill: 12_400, pay: 8_100, start: -90, end: 25, release: { keepUntil: 45 },
   },

@@ -249,7 +249,7 @@ describe('A purchased list is refused, in the words you would use to whoever bou
   it('accepts an import where every single person asked, and says who they are', () => {
     const real = [
       {
-        email: 'asha@terumo.example', source: 'EVENT',
+        email: 'asha@talvern.example', source: 'EVENT',
         asked: 'Send me whatever you have on tenure across suppliers',
         consentAt: at('2026-08-01T09:00:00Z'),
         whereTheyAsked: 'HR Tech, booth 214',

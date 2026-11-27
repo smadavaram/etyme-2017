@@ -50,7 +50,7 @@ export const SAMPLE_COOKIE_PATHS = ['/embed', '/api'] as const
 export const SAMPLE_COOKIE_SECONDS = 24 * 60 * 60
 
 /** The seeded company and desk the sample seat sits at. */
-export const SAMPLE_WORLD = 'world-nike'
+export const SAMPLE_WORLD = 'world-northbend'
 export const SAMPLE_DESK = 'programme' as const
 
 /**
@@ -71,7 +71,7 @@ export const SAMPLE_DESK = 'programme' as const
  * column for one seat is not worth a migration.
  */
 export const SAMPLE_PERSON_NAME = 'Shared sample'
-export const SAMPLE_PERSON_EMAIL = 'world-nike-sample@demo.etyme.local'
+export const SAMPLE_PERSON_EMAIL = 'world-northbend-sample@demo.etyme.local'
 
 /** Whether an address is the sample's person. */
 export function isSamplePerson(email: string | null | undefined): boolean {

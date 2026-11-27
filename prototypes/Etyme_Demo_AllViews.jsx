@@ -394,7 +394,7 @@ function CandControl() {
           </div>
         </Panel>
         <Panel title="Where you have been sent">
-          {[["TechVista to Nike", "2 days ago · interviewing"], ["CloudStaff to Terumo", "6 days ago · no decision"]].map(function (s, i) {
+          {[["TechVista to Northbend", "2 days ago · interviewing"], ["CloudStaff to Talvern", "6 days ago · no decision"]].map(function (s, i) {
             return (
               <div key={i} style={{ padding: "8px 0", borderBottom: i === 0 ? "1px solid " + T.rule : "none" }}>
                 <div style={{ fontSize: 13.5 }}>{s[0]}</div><div style={{ fontSize: 11.5, color: T.faint, marginTop: 2 }}>{s[1]}</div>
@@ -414,12 +414,12 @@ function CandControl() {
 function VendToday() {
   const [rev, setRev] = useState([]);
   const gates = [
-    { k: "Submission drafted", who: "Rajesh Venkataraman", what: "SAP BRIM Consultant · Nike · proposed at $168 an hour",
+    { k: "Submission drafted", who: "Rajesh Venkataraman", what: "SAP BRIM Consultant · Northbend · proposed at $168 an hour",
       s: 87, conf: "high", basis: "34 BRIM placements at this kind of client over eighteen months",
       f: [["Skill overlap", "strong", 92], ["Free on the start date", "exact", 100], ["Rate inside client band", "yes", 88], ["Extensions earned before", "two", 74]],
       u: "whether this manager prefers onsite-first candidates. Nothing in the record says.",
       stake: "Placing him here also ends twenty thousand dollars a month of H1B bench pay from the sixteenth of August." },
-    { k: "Rate response needed", who: "Nike offered $185", what: "Your margin at that rate is thirty-two percent",
+    { k: "Rate response needed", who: "Northbend offered $185", what: "Your margin at that rate is thirty-two percent",
       s: 71, conf: "moderate", basis: "eleven rate negotiations with this client",
       f: [["Above your floor of 18 percent", "well above", 90], ["Against recent comparables", "slightly under", 62], ["Client has accepted counters", "twice of three", 66]],
       u: "their budget ceiling. They have never disclosed one.", stake: null },
@@ -430,11 +430,11 @@ function VendToday() {
       stake: "Held rather than rejected. Too thin a basis for a machine to decide." },
   ];
   const ran = [
-    { t: "Distributed the Nike requirement to four vendors", d: "Chose those four on reply rates above seventy percent. Held the band at $120 to $135, your standing floor.", r: true },
+    { t: "Distributed the Northbend requirement to four vendors", d: "Chose those four on reply rates above seventy percent. Held the band at $120 to $135, your standing floor.", r: true },
     { t: "Approved fourteen timesheets that matched their pattern", d: "Each within eight percent of the assignment's usual week and signed by the client approver.", r: true },
     { t: "Issued six invoices totalling $248,400", d: "Generated on the billing cycle from approved hours only.", r: false },
     { t: "Opened rolloff for Rajesh Venkataraman", d: "Four weeks before contract end. Notified the consultant, the sub-vendor, the client and resourcing.", r: true },
-    { t: "Chased three overdue invoices", d: "Terumo at sixty-eight days was escalated to you rather than chased again.", r: false },
+    { t: "Chased three overdue invoices", d: "Talvern at sixty-eight days was escalated to you rather than chased again.", r: false },
   ];
   return (
     <div>
@@ -488,9 +488,9 @@ function VendReqs() {
   const rows = [
     { t: "SAP RAR Consultant", cl: "via Apex SAP Solutions", ev: "$126k", conf: "low",
       why: "Most of this is avoided bench cost, and that assumes Rajesh stays the full six months. If the engagement is shorter the figure falls steeply. Treat it as a reason to look, not a promise." },
-    { t: "SAP BRIM Consultant", cl: "Nike · your client", ev: "$93k", conf: "high",
+    { t: "SAP BRIM Consultant", cl: "Northbend · your client", ev: "$93k", conf: "high",
       why: "Exclusive to you, twelve month term, three matches already on the bench. Very little of this is guesswork." },
-    { t: "SAP S/4 Migration Lead", cl: "Terumo BCT · your client", ev: "$21k", conf: "moderate",
+    { t: "SAP S/4 Migration Lead", cl: "Talvern Medical · your client", ev: "$21k", conf: "moderate",
       why: "Three vendors competing. Fill odds are the softest part of the estimate." },
     { t: "SAP BW/BI Lead", cl: "via CloudStaff Inc", ev: "$2k", conf: "moderate",
       why: "Nine vendors have this. Honestly, not worth working." },
@@ -734,7 +734,7 @@ function VendSite() {
 function InfyDemand() {
   return (
     <div>
-      <Head eyebrow="Demand · raised by Meera R." title="SAP BRIM consultant, Terumo, eight weeks"
+      <Head eyebrow="Demand · raised by Meera R." title="SAP BRIM consultant, Talvern, eight weeks"
         sub="Internal supply is checked before any external spend is approved. That gate is not optional." />
       <div style={{ background: T.surface, border: "1px solid #C9D6CA", borderRadius: 6, padding: 20, marginBottom: 13 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -807,7 +807,7 @@ function InfyUtil() {
             );
           })}
           <div style={{ fontSize: 12, color: T.muted, marginTop: 4, lineHeight: 1.6 }}>
-            IS-Retail is carrying the bench. BRIM is over-committed, which is why the Terumo demand had only one strong internal match.
+            IS-Retail is carrying the bench. BRIM is over-committed, which is why the Talvern demand had only one strong internal match.
           </div>
         </Panel>
         <Panel title="Rolloff, next ninety days" sub="Four of eleven have no plan yet.">

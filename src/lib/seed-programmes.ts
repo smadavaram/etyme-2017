@@ -57,7 +57,7 @@ export interface World {
 // ── The desks ────────────────────────────────────────────────────────
 //
 // One seat per job, not one seat per company. The email says which desk
-// it is, so `world-nike-ap@` can be read off a URL by somebody who has
+// it is, so `world-northbend-ap@` can be read off a URL by somebody who has
 // never seen the roster.
 export interface Desk {
   key: 'programme' | 'hiring' | 'hr' | 'procurement' | 'ap' | 'compliance'
@@ -249,13 +249,13 @@ export const EAD_ENDS_AFTER_LINE_DAYS = 42
 
 export const PROGRAMMES: Program[] = [
   {
-    client: 'nike', loc: 'Tualatin, OR',
+    client: 'northbend', loc: 'Tualatin, OR',
     people: { programme: 'Lorena Kellerman', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
     recommend: { name: 'Veritan Talent', contactEmail: 'priya@veritantalent.example', reason: 'Placed two planning analysts for us in Portland in 2024; both extended.', held: [] },
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
     placements: [
       { role: 'ERP finance lead', skills: ['ERP finance', 'General ledger', 'Central finance'], loc: 'Tualatin, OR',
-        via: ['nike', 'computer-systems', 'tecwyn'], rates: [14500, 11800, 9000], takeAgain: true,
+        via: ['northbend', 'computer-systems', 'tecwyn'], rates: [14500, 11800, 9000], takeAgain: true,
         person: 'Helena Marsh', workAuth: 'GC', startedDaysAgo: 200, endsInDays: 160, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
       // A week over the line, and nobody has said what it is worth. The
@@ -267,24 +267,24 @@ export const PROGRAMMES: Program[] = [
       // leg the hours sit on, and on a chain that is not yet the leg the
       // client pays.
       { role: 'Commerce platform architect', skills: ['Commerce platform', 'Node.js'], loc: 'Tualatin, OR',
-        via: ['nike', 'brightmoor'], rates: [13200, 9600],
+        via: ['northbend', 'brightmoor'], rates: [13200, 9600],
         overtimeAfterHours: 40, overtimeWeekHours: 45,
         person: 'Omar Haddad', workAuth: 'USC', startedDaysAgo: 45, endsInDays: 320, state: 'IN_PROGRESS',
         papers: 'BGC_EXPIRED', filesFromStart: true, invoice: 'PAID' },
       { role: 'Supply chain planning analyst', skills: ['Supply planning', 'Demand planning'], loc: 'Tualatin, OR',
         // Kept past the limit on purpose; the ledger says it and the doors would refuse it today.
-        via: ['nike', 'pinnacle'], rates: [9800, 7400], exceptionHours: 44,
+        via: ['northbend', 'pinnacle'], rates: [9800, 7400], exceptionHours: 44,
         person: 'Lucía Fernández', workAuth: 'USC', startedDaysAgo: 30, endsInDays: 335, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 2, awaiting: 1 }, invoice: null },
       // The same person, a year earlier, through a different supplier.
       // Pinnacle sees one month; Brightmoor saw thirteen; only the client
       // can add them up, and only here.
       { role: 'Demand planner', skills: ['Demand planning', 'Excel'], loc: 'Tualatin, OR',
-        via: ['nike', 'brightmoor'], rates: [8900, 6800],
+        via: ['northbend', 'brightmoor'], rates: [8900, 6800],
         person: 'Lucía Fernández', workAuth: 'USC', startedDaysAgo: 470, endsInDays: -75, state: 'ENDED', papers: 'CLEAR' },
       // Past the cap and inside the break. The ask-back button is a date.
       { role: 'Data engineer', skills: ['Cloud data warehouse', 'dbt', 'Python'], loc: 'Tualatin, OR',
-        via: ['nike', 'computer-systems'], rates: [12400, 9100],
+        via: ['northbend', 'computer-systems'], rates: [12400, 9100],
         person: 'Kwame Mensah', workAuth: 'H1B', startedDaysAgo: 790, endsInDays: -50, state: 'ENDED', papers: 'CLEAR' },
       // Rolls off in three weeks, and nobody has started the roll-off: the
       // supplier's own decision, so no supplier seat opens on an empty
@@ -295,17 +295,17 @@ export const PROGRAMMES: Program[] = [
       // accept it (AP & Payroll), and the bill for the other two was sent
       // and fell due this morning (AR).
       { role: 'Integration test analyst', skills: ['Test automation', 'Node.js'], loc: 'Tualatin, OR',
-        via: ['nike', 'brightmoor'], rates: [9200, 7000],
+        via: ['northbend', 'brightmoor'], rates: [9200, 7000],
         person: 'Anil Rao', workAuth: 'USC', startedDaysAgo: 160, endsInDays: 21, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 0 }, employerWaits: true, billsDueToday: true, invoice: 'SUBMITTED' },
       // Awarded to Brightmoor and still a draft two days past its start: the
       // contract manager's to send. Her I-9 arrived and nobody has examined it: HR's.
       { role: 'Reporting analyst', skills: ['Reporting', 'SQL'], loc: 'Tualatin, OR',
-        via: ['nike', 'brightmoor'], rates: [8800, 6700],
+        via: ['northbend', 'brightmoor'], rates: [8800, 6700],
         person: 'Ilse Varga', workAuth: 'USC', startedDaysAgo: 2, endsInDays: 360, state: 'DRAFT', papers: 'NO_I9' },
       // Awarded, starting next week, and cannot: no I-9 on file.
       { role: 'Cybersecurity analyst', skills: ['SIEM', 'Log analytics', 'Incident response'], loc: 'Tualatin, OR',
-        via: ['nike', 'pinnacle'], rates: [11500, 8600],
+        via: ['northbend', 'pinnacle'], rates: [11500, 8600],
         person: 'Ingrid Sørensen', workAuth: 'GC', startedDaysAgo: -7, endsInDays: 372, state: 'DRAFT', papers: 'NO_I9' },
     ],
     open: {
@@ -339,31 +339,31 @@ export const PROGRAMMES: Program[] = [
     cover: { 'computer-systems': { gl: 150, wc: 150 }, brightmoor: { gl: 20, wc: 200 }, pinnacle: { gl: 180, wc: 180 } },
   },
   {
-    client: 'corning', loc: 'Elmira, NY',
+    client: 'cavanaugh', loc: 'Elmira, NY',
     people: { programme: 'Eleanor Vance', hiring: 'Derek Halvorsen', hr: 'Priya Nagarkar', procurement: 'Colin Mabry', ap: 'Patrice Boyd', compliance: 'Miriam Osei' },
     governance: { tenureCapMonths: 24, breakDays: 90, band: [6500, 14000] },
     placements: [
       { role: 'Process validation engineer', skills: ['Process validation', 'Glass forming', 'Minitab'], loc: 'Elmira, NY',
-        via: ['corning', 'vertex-global', 'sahasra'], rates: [12800, 10300, 8000],
+        via: ['cavanaugh', 'vertex-global', 'sahasra'], rates: [12800, 10300, 8000],
         person: 'Tomasz Nowak', workAuth: 'GC', startedDaysAgo: 120, endsInDays: 245, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
       { role: 'MES specialist', skills: ['Rockwell FactoryTalk', 'MES', 'OPC UA'], loc: 'Elmira, NY',
-        via: ['corning', 'halcyon'], rates: [11900, 8800],
+        via: ['cavanaugh', 'halcyon'], rates: [11900, 8800],
         person: 'Aisha Bello', workAuth: 'USC', startedDaysAgo: 60, endsInDays: 305, state: 'IN_PROGRESS',
         papers: 'BGC_MISSING', weeks: { approved: 2, awaiting: 0 }, invoice: 'PAID' },
       { role: 'Quality systems auditor', skills: ['ISO 9001', 'IATF 16949', 'CAPA'], loc: 'Elmira, NY',
-        via: ['corning', 'arcadia'], rates: [10400, 7900],
+        via: ['cavanaugh', 'arcadia'], rates: [10400, 7900],
         person: 'Felix Brandt', workAuth: 'USC', startedDaysAgo: 20, endsInDays: 345, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 1, awaiting: 1 }, invoice: null },
       { role: 'Supplier quality engineer', skills: ['PPAP', 'CAPA'], loc: 'Elmira, NY',
-        via: ['corning', 'halcyon'], rates: [9900, 7500],
+        via: ['cavanaugh', 'halcyon'], rates: [9900, 7500],
         person: 'Felix Brandt', workAuth: 'USC', startedDaysAgo: 520, endsInDays: -90, state: 'ENDED', papers: 'CLEAR' },
       // Out long enough. Eligible to be asked back, and the button says so.
       { role: 'Optical test technician', skills: ['Optical metrology', 'LabVIEW'], loc: 'Elmira, NY',
-        via: ['corning', 'vertex-global'], rates: [7800, 5900],
+        via: ['cavanaugh', 'vertex-global'], rates: [7800, 5900],
         person: 'Nadia Pavlenko', workAuth: 'GC', startedDaysAgo: 900, endsInDays: -100, state: 'ENDED', papers: 'CLEAR' },
       { role: 'Controls engineer', skills: ['Allen-Bradley PLC', 'Studio 5000'], loc: 'Elmira, NY',
-        via: ['corning', 'halcyon'], rates: [10800, 8100],
+        via: ['cavanaugh', 'halcyon'], rates: [10800, 8100],
         person: 'Samuel Adeyinka', workAuth: 'H1B', startedDaysAgo: -10, endsInDays: 355, state: 'DRAFT', papers: 'NO_I9' },
     ],
     open: {
@@ -399,7 +399,7 @@ export const PROGRAMMES: Program[] = [
     },
   },
   {
-    client: 'terumo-bct', loc: 'Westminster, CO',
+    client: 'talvern', loc: 'Westminster, CO',
     people: { programme: 'Claire Ashworth', hiring: 'Rohan Desai', hr: 'Lena Fischer', procurement: 'Andre Boateng', ap: 'Gloria Mendes', compliance: 'Hannah Baptiste' },
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15500] },
     placements: [
@@ -415,18 +415,18 @@ export const PROGRAMMES: Program[] = [
       // the demo's "twenty-three months" stays true for a month after
       // seeding.
       { role: 'Billing systems consultant', skills: ['Convergent invoicing', 'Billing systems', 'Revenue accounting'], loc: 'Westminster, CO',
-        via: ['terumo-bct', 'computer-systems'], rates: [14800, 10900],
+        via: ['talvern', 'computer-systems'], rates: [14800, 10900],
         person: 'Anders Lund', workAuth: 'GC', startedDaysAgo: 300, endsInDays: 60, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
       { role: 'ERP finance analyst', skills: ['ERP finance', 'Cost accounting'], loc: 'Westminster, CO',
-        via: ['terumo-bct', 'vertex-global'], rates: [12600, 9400],
+        via: ['talvern', 'vertex-global'], rates: [12600, 9400],
         person: 'Anders Lund', workAuth: 'GC', startedDaysAgo: 730, endsInDays: -330, state: 'ENDED', papers: 'CLEAR' },
       { role: 'Computer system validation engineer', skills: ['CSV', 'GAMP 5', '21 CFR Part 11'], loc: 'Westminster, CO',
-        via: ['terumo-bct', 'sundara', 'nimbus'], rates: [12200, 9900, 7700],
+        via: ['talvern', 'sundara', 'nimbus'], rates: [12200, 9900, 7700],
         person: 'Chidi Okafor', workAuth: 'H1B', startedDaysAgo: 90, endsInDays: 275, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 0 }, invoice: 'PAID' },
       { role: 'Data platform engineer', skills: ['Databricks', 'Azure', 'Python'], loc: 'Westminster, CO',
-        via: ['terumo-bct', 'vertex-global'], rates: [13000, 9800],
+        via: ['talvern', 'vertex-global'], rates: [13000, 9800],
         // On a work permit (EAD), with her I-9 completed from it. Both run
         // out six weeks after her line does, so an extension of three
         // months is refused on papers: the extension demo's refusal.
@@ -434,10 +434,10 @@ export const PROGRAMMES: Program[] = [
         papers: 'BGC_EXPIRED', weeks: { approved: 1, awaiting: 1 }, invoice: null },
       // Forty days out of a ninety-day break. Eligible in fifty.
       { role: 'Quality systems analyst', skills: ['QMS', 'TrackWise', 'CAPA'], loc: 'Westminster, CO',
-        via: ['terumo-bct', 'computer-systems'], rates: [9700, 7200],
+        via: ['talvern', 'computer-systems'], rates: [9700, 7200],
         person: 'Hiro Sato', workAuth: 'USC', startedDaysAgo: 600, endsInDays: -40, state: 'ENDED', papers: 'CLEAR' },
       { role: 'Regulatory affairs specialist', skills: ['510(k)', 'EU MDR', 'Technical files'], loc: 'Westminster, CO',
-        via: ['terumo-bct', 'vertex-global'], rates: [11200, 8300],
+        via: ['talvern', 'vertex-global'], rates: [11200, 8300],
         person: 'Beatriz Souza', workAuth: 'GC', startedDaysAgo: -5, endsInDays: 360, state: 'DRAFT', papers: 'NO_I9' },
     ],
     open: {
@@ -1463,8 +1463,8 @@ export async function seedProgrammes(
       // The number a counterparty reads as its own purchase order, so it
       // is in the shape the product writes one — `PO-<year>-<5>`, the
       // same shape `lib/seed-order-to-cash` uses — and never the demo
-      // slug. `world-nike` is an address and nobody reads an address;
-      // `PO-WORLD-CORNING-0001` was printed on a supplier's compliance
+      // slug. `world-northbend` is an address and nobody reads an address;
+      // `PO-WORLD-CAVANAUGH-0001` was printed on a supplier's compliance
       // page as a commercial document number, which somebody does read.
       //
       // Keyed on the client's own id, which a re-seed finds rather than
@@ -1796,7 +1796,7 @@ export async function seedProgrammes(
     // send. Two more things are owed here, written once for Northbend's program: a candidate a
     // firm below sent up to Brightmoor to put forward (the recruiter's),
     // and the I-9 Ilse Varga uploaded that nobody has examined (HR's).
-    if (p.client === 'nike') {
+    if (p.client === 'northbend') {
       const brightmoor = firmBySlug.get('brightmoor')
       const below = firmBySlug.get('tecwyn')
       const ilse = await db.person.findUnique({ where: { primaryEmail: emailOf('Ilse Varga') } })
@@ -1828,28 +1828,47 @@ export async function seedProgrammes(
       }
     }
 
-    // ── What Cavanaugh's Approver and Compliance Officer are each owed ──
+    // ── What each client's Approver is owed, and Cavanaugh's Compliance Officer ──
     //
-    // The photo walk of 2026-11-26 read "Nothing needs you today" on both.
-    // The Approver's only job request waits on HR first (rank 1), so it is
-    // not the Approver's turn yet. This one has cleared HR and sourcing and
-    // waits on the final word, which is the Approver's alone. The
-    // Compliance Officer is told of a paper that arrived at the plant and
-    // nobody has checked.
-    if (p.client === 'corning' && vp) {
-      const title = 'Furnace line rebuild — three controls engineers'
-      const why = 'Planned shutdown — the furnace line is rebuilt once the winter order book is shipped.'
-      const billMax = 12500
-      const heads = 3
+    // The photo walk of 2026-11-26 read "Nothing needs you today" on every
+    // client Approver. Each program's routed job request waits on HR first
+    // (rank 1), so it is not the Approver's turn yet. The one here has
+    // cleared HR and sourcing and waits on the final word, which is the
+    // Approver's alone. The Compliance Officer at Cavanaugh is told of a
+    // paper that arrived at the plant and nobody has checked.
+    const FINAL_WORD: Record<string, { title: string; skills: string[]; why: string; heads: number; billMax: number; work: string }> = {
+      cavanaugh: {
+        title: 'Furnace line rebuild — three controls engineers',
+        skills: ['Furnace controls', 'PLC', 'Safety systems'], heads: 3, billMax: 12500,
+        why: 'Planned shutdown — the furnace line is rebuilt once the winter order book is shipped.',
+        work: 'Rebuild the controls on the number two furnace line during the winter shutdown: replace the PLC racks, ' +
+          're-test the safety interlocks, and hand the line back to operations with the test record.',
+      },
+      northbend: {
+        title: 'Holiday demand planning — three planning analysts',
+        skills: ['Demand planning', 'Forecasting', 'SQL'], heads: 3, billMax: 9800,
+        why: 'Seasonal peak — the holiday forecast is rebuilt every year and last year’s team has moved on.',
+        work: 'Rebuild the holiday demand forecast by region, reconcile it with the stores’ own plans, ' +
+          'and hand the planning team a forecast it can run without help.',
+      },
+      talvern: {
+        title: 'Batch record review — four validation engineers',
+        skills: ['Validation', 'GMP', 'Documentation'], heads: 4, billMax: 11200,
+        why: 'Audit window — the new filling line’s batch records must be reviewed before the regulator visits.',
+        work: 'Review the batch records for the new filling line against the validated procedure, ' +
+          'close every deviation, and hand quality a signed review for each batch.',
+      },
+    }
+    const finalWord = FINAL_WORD[p.client]
+    if (finalWord && vp) {
+      const { title, why, billMax, heads } = finalWord
       const rebuild =
         (await db.requirement.findFirst({ where: { companyId: client.id, title } })) ??
         (await db.requirement.create({
           data: {
-            companyId: client.id, title, skills: ['Furnace controls', 'PLC', 'Safety systems'], location: p.loc,
+            companyId: client.id, title, skills: finalWord.skills, location: p.loc,
             billMin: billMax - 2000, billMax, months: 12, headcount: heads, hoursPerWeek: 40,
-            description:
-              'Rebuild the controls on the number two furnace line during the winter shutdown: replace the PLC racks, ' +
-              're-test the safety interlocks, and hand the line back to operations with the test record.',
+            description: finalWord.work,
             justification: why, startDate: day(60), ...openShape(why, desk.hiring.personId),
             status: 'DRAFT', approvalState: 'PENDING_APPROVAL', source: 'MANUAL', neededBy: day(60),
             raisedById: desk.hiring.personId, costCenterId: costCentre?.id ?? null, orgUnitId: unitByName.get('Apps')?.id ?? null,
@@ -1860,7 +1879,7 @@ export async function seedProgrammes(
         await db.requirementApproval.createMany({
           data: [
             { requirementId: rebuild.id, approverId: desk.hr.personId, rank: 1, stage: 'ROLE', outcome: 'APPROVED', decidedAt: day(-3),
-              reason: `${heads} heads against the plant's plan. HR read the job and it is one the plan meant.` },
+              reason: `${heads} heads against the plan. HR read the job and it is one the plan meant.` },
             { requirementId: rebuild.id, approverId: null, rank: 1, stage: 'SOURCING', outcome: 'AUTO_CLEARED', decidedAt: day(-3),
               reason: 'Within the going rate. Procurement not needed.' },
             { requirementId: rebuild.id, approverId: vp.id, rank: 2, stage: 'FINAL', outcome: 'PENDING',
@@ -1868,6 +1887,9 @@ export async function seedProgrammes(
           ],
         })
       }
+    }
+
+    if (p.client === 'cavanaugh' && vp) {
 
       const felix = await person('Felix Brandt')
       const paperName = 'Plant safety orientation acknowledgement'

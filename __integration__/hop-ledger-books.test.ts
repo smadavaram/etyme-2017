@@ -27,7 +27,7 @@ import { placementBooks } from '@/lib/money/margin'
  */
 
 const OWNER = {
-  northbend: 'world-nike@demo.etyme.local',
+  northbend: 'world-northbend@demo.etyme.local',
   cs: 'world-computer-systems@demo.etyme.local',
   tecwyn: 'world-tecwyn@demo.etyme.local',
 }
@@ -41,7 +41,7 @@ const ask = async (email: string, query: string) => {
 
 beforeAll(async () => {
   await freshWorld()
-  for (const [k, slug] of [['northbend', 'world-nike'], ['cs', 'world-computer-systems'], ['tecwyn', 'world-tecwyn']]) {
+  for (const [k, slug] of [['northbend', 'world-northbend'], ['cs', 'world-computer-systems'], ['tecwyn', 'world-tecwyn']]) {
     co[k] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
   }
   const sell = async (person: string, companyId: string) =>

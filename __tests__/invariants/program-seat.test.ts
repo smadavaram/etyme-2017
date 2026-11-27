@@ -146,7 +146,7 @@ describe('the trail names the seat, so a client can read back who looked and on 
     const trail = seatTrail(
       {
         id: 'seat-abc',
-        clientCompany: { id: 'c', name: 'Cavanaugh Glassworks', slug: 'world-corning', kind: 'CLIENT' },
+        clientCompany: { id: 'c', name: 'Cavanaugh Glassworks', slug: 'world-cavanaugh', kind: 'CLIENT' },
         officeCompany: { id: 'o', name: 'Aptiva Workforce' },
         role: { id: 'r', name: 'Program Manager', permissions: [] },
         orgUnitId: null,

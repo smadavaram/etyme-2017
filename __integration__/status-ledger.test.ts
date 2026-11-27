@@ -40,7 +40,7 @@ import { loadContractHolidays } from '@/lib/holidays'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}`, ap: `world-nike-ap${D}` }
+const NORTHBEND = { programme: `world-northbend-programme${D}`, hiring: `world-northbend-hiring${D}`, ap: `world-northbend-ap${D}` }
 const PINNACLE = `world-pinnacle${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
 const WORKER = 'tariq.al.amin@seed.etyme.invalid'
@@ -79,8 +79,8 @@ async function invoiceDates(): Promise<string[]> {
     where: { id: it_.contract },
     select: { id: true, startDate: true, endDate: true, companyId: true, company: { select: { templatePack: true } } },
   })
-  const site = await prisma.companyLocation.findFirst({ where: { companyId: co['world-nike'] }, orderBy: [{ isPrimary: 'desc' }], select: { country: true } })
-  const holidays = await loadContractHolidays(sell.companyId, co['world-nike'], sell.startDate.getFullYear(), sell.endDate!.getFullYear(), site?.country ?? null)
+  const site = await prisma.companyLocation.findFirst({ where: { companyId: co['world-northbend'] }, orderBy: [{ isPrimary: 'desc' }], select: { country: true } })
+  const holidays = await loadContractHolidays(sell.companyId, co['world-northbend'], sell.startDate.getFullYear(), sell.endDate!.getFullYear(), site?.country ?? null)
   const dates: string[] = []
   const nowhere = {
     sellContract: prisma.sellContract,
@@ -103,7 +103,7 @@ async function invoiceDates(): Promise<string[]> {
 describe('the ledger: one placement, every table, every station', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-pinnacle', 'world-brightmoor']) {
+    for (const slug of ['world-northbend', 'world-pinnacle', 'world-brightmoor']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }
     // Somebody on Pinnacle's bench, who can sign in and file their own hours.
@@ -121,8 +121,8 @@ describe('the ledger: one placement, every table, every station', () => {
   }, 240_000)
 
   it('a requirement is raised inside plan and is OPEN and auto-approved at once', async () => {
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-    as(NIKE.hiring)
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+    as(NORTHBEND.hiring)
     const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
       title: 'Workforce analytics lead', skills: ['Power BI', 'Workforce planning'],
       location: 'Beaverton, OR', billMin: 3200, billMax: 4000, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -135,7 +135,7 @@ describe('the ledger: one placement, every table, every station', () => {
   })
 
   it('sent to two suppliers: both invitations are SENT', async () => {
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [
         { companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 },
@@ -170,7 +170,7 @@ describe('the ledger: one placement, every table, every station', () => {
   })
 
   it('the award: submission PLACED, requirement FILLED and archived, the contract DRAFT with Tariq’s own terms pending, cycles written and none done', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 3800, startDate: day(-14).toISOString().slice(0, 10), endDate: day(180).toISOString().slice(0, 10),
       ...UNDER_WAY,
@@ -287,7 +287,7 @@ describe('the ledger: one placement, every table, every station', () => {
   })
 
   it('both signatures: timesheet APPROVED, and the approval date it closes is its own week’s, never the next week’s', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const c = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, {})
     expect(c.body?.error, JSON.stringify(c.body)).toBeUndefined()
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.timesheet } })).status).toBe('SUBMITTED')
@@ -333,10 +333,10 @@ describe('the ledger: one placement, every table, every station', () => {
 
     // Pinnacle approved it to reimburse Tariq; Northbend, which pays for
     // it, accepts it before it goes on a bill (the founder, 2026-10-19).
-    as(NIKE.ap)
+    as(NORTHBEND.ap)
     const a = await call(acceptExpense, 'POST', `/api/expenses/${it_.expense}/accept`, it_.expense, { decision: 'accept' })
     expect(a.body?.error, JSON.stringify(a.body)).toBeUndefined()
-    expect(await prisma.expenseAcceptance.findUniqueOrThrow({ where: { expenseId_companyId: { expenseId: it_.expense, companyId: co['world-nike'] } } }))
+    expect(await prisma.expenseAcceptance.findUniqueOrThrow({ where: { expenseId_companyId: { expenseId: it_.expense, companyId: co['world-northbend'] } } }))
       .toMatchObject({ status: 'ACCEPTED', acceptedCents: 41_250 })
   })
 
@@ -378,7 +378,7 @@ describe('the ledger: one placement, every table, every station', () => {
       select: { personId: true, companyId: true },
     })
     expect(told.length).toBeGreaterThan(0)
-    for (const n of told) expect(n.companyId).toBe(co['world-nike'])
+    for (const n of told) expect(n.companyId).toBe(co['world-northbend'])
     expect(new Set(told.map((n) => n.personId)).size).toBe(told.length)
 
     as(PINNACLE)
@@ -390,21 +390,21 @@ describe('the ledger: one placement, every table, every station', () => {
   })
 
   it('the payment: invoice PAID with its expense, and a payment row saying who paid whom', async () => {
-    as(NIKE.ap)
-    const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1932.5, method: 'ACH', reference: 'NIKE-AP-1001' })
+    as(NORTHBEND.ap)
+    const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1932.5, method: 'ACH', reference: 'NORTHBEND-AP-1001' })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: it_.invoice } })).status).toBe('PAID')
     // The flight is paid with the invoice it rode on.
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: it_.expense } })).status).toBe('PAID')
     const p = await prisma.payment.findFirstOrThrow({ where: { invoiceId: it_.invoice } })
-    expect([p.payerCompanyId, p.receivedByCompanyId]).toEqual([co['world-nike'], co['world-pinnacle']])
+    expect([p.payerCompanyId, p.receivedByCompanyId]).toEqual([co['world-northbend'], co['world-pinnacle']])
     // Nothing closes an invoice-due cycle, because nothing opens one.
     // The invoice's own status is what says it was paid.
     expect((await cycles({ sellContractId: it_.contract })).INVOICE_DUE).toBeUndefined()
   })
 
   it('the placement timeline reads the bill done for that week where its date was written, the later weeks’ hours and bills still open, and nothing overdue', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(placement, 'GET', `/api/placements/${it_.contract}`, it_.contract)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const t = r.body.data.timeline

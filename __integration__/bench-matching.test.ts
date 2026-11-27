@@ -23,11 +23,11 @@ import { GET as benchStays } from '@/app/api/cron/bench-stays/route'
  */
 
 const D = '@demo.etyme.local'
-const HIRING = `world-nike-hiring${D}`
-const AP = `world-nike-ap${D}`
-const LEAD = `world-nike-vp${D}`
-const HR = `world-nike-hr${D}`
-const PROCUREMENT = `world-nike-procurement${D}`
+const HIRING = `world-northbend-hiring${D}`
+const AP = `world-northbend-ap${D}`
+const LEAD = `world-northbend-vp${D}`
+const HR = `world-northbend-hr${D}`
+const PROCUREMENT = `world-northbend-procurement${D}`
 const CS = `world-computer-systems${D}`
 const PINNACLE = `world-pinnacle${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
@@ -71,7 +71,7 @@ beforeAll(async () => {
   await freshWorld()
   process.env.NEXTAUTH_SECRET = 'integration-test-secret'
   const job = await prisma.requirement.findFirstOrThrow({
-    where: { title: 'HCM integration lead', company: { slug: 'world-nike' } },
+    where: { title: 'HCM integration lead', company: { slug: 'world-northbend' } },
     select: { id: true, companyId: true },
   })
   s.job = job.id

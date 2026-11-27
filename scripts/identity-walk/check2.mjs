@@ -3,7 +3,7 @@ const r = await passwordSignIn('rosa.lindqvist@northbend.example', 'a-long-walk-
 say('Password door for rosa@northbend.example under directory only:', JSON.stringify({ ok: r.ok, location: r.location }))
 // the demo door into a Northbend seat
 const jar = new Jar()
-const d = await go(jar, '/api/demo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ as: 'world-nike', desk: 'hiring' }) })
+const d = await go(jar, '/api/demo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ as: 'world-northbend', desk: 'hiring' }) })
 say('Demo door into a Northbend seat:', d.status)
 const q = await json(jar, '/api/requirements')
 say('  then a Northbend route:', q.status, q.body?.error?.code, q.body?.error?.message?.slice(0, 90) ?? '')

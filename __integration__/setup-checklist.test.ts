@@ -346,7 +346,7 @@ describe('the admin’s setup checklist', () => {
 
   it('a seeded client reads every item the seed holds as done, so its Today page asks only for what is missing', async () => {
     const owner = await prisma.context.findFirstOrThrow({
-      where: { company: { slug: 'world-nike' }, role: { name: 'Owner' }, revokedAt: null },
+      where: { company: { slug: 'world-northbend' }, role: { name: 'Owner' }, revokedAt: null },
       include: { person: true },
     })
     as(owner.person.primaryEmail)

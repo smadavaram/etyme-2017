@@ -67,7 +67,7 @@ const stat = (v: { stats: { label: string; value: string; sub?: string }[] }, la
 }
 const cells = (v: { rows: { t: string; sub?: string }[][] }) => v.rows.flatMap((r) => r.map((c) => c.t))
 
-const NORTHBEND = PROGRAMMES.find((p) => p.client === 'nike')!
+const NORTHBEND = PROGRAMMES.find((p) => p.client === 'northbend')!
 const nameOf = (slug: string) => WORLD_CLIENTS.find((c) => c.slug === slug)!.name
 const HELENA = NORTHBEND.placements.find((x) => x.person === 'Helena Marsh' && x.state === 'IN_PROGRESS')!
 const OMAR = NORTHBEND.placements.find((x) => x.person === 'Omar Haddad' && x.state === 'IN_PROGRESS')!
@@ -234,7 +234,7 @@ describe('Every value a door map copies from the seed is the value the seed file
     expect(WORLD).toContain('const email = `${PREFIX}aptiva-${d.desk}@${DOMAIN}`')
     for (const desk of [...Object.keys(SEED.APTIVA_TEAM), 'programme', 'hiring', 'ap']) {
       expect(reservedAddress(`world-aptiva-${desk}@demo.etyme.local`)).toBe(true)
-      expect(reservedAddress(`world-corning-${desk}@demo.etyme.local`)).toBe(true)
+      expect(reservedAddress(`world-cavanaugh-${desk}@demo.etyme.local`)).toBe(true)
     }
   })
 
@@ -247,7 +247,7 @@ describe('Every value a door map copies from the seed is the value the seed file
       'Jenna', 'Marisa', 'Imelda', 'Desmond', 'Bhavesh', 'Linnea', 'Ingrid', 'Rahul', 'Farah', 'Ravi',
       'Tualatin', 'San Jose', 'Corveldt', 'Northbend', 'Nimbus', 'Brightmoor Staffing', 'Computer Systems', 'Halcyon', 'Wisconsin',
       'Aptiva', 'Cavanaugh', 'Rashida', 'Delphine', 'Wierzbicki', 'Hollis', 'Samuel', 'Derek', 'Ashby', 'Yuki', 'Priyanka',
-      'Vertex', 'Arcadia', 'Wrenfield', 'Quarrystone', 'Elsa', 'Wendell', '84,000', '$128', 'world-corning',
+      'Vertex', 'Arcadia', 'Wrenfield', 'Quarrystone', 'Elsa', 'Wendell', '84,000', '$128', 'world-cavanaugh',
     ]) {
       expect(code.includes(figure), `${figure} is typed into door-maps.ts`).toBe(false)
       expect(page.includes(figure), `${figure} is typed into party-page.tsx`).toBe(false)
@@ -278,7 +278,7 @@ describe('The integrators’ map is Tellisford Solutions’ own book, read as it
   it('Ingrid Solberg reads Felix Brenner off Northbend Athletic in 18 days and free then, Amara Nwosu off in 25 and kept until 45, and $40,960 a month: $132 and $124 an hour at 160 hours', () => {
     const v = view(M, 'tualatin')
     expect(v.headline).toBe(
-      `${felix.person} comes off ${nameOf('nike')} in 18 days and is free from then. ` +
+      `${felix.person} comes off ${nameOf('northbend')} in 18 days and is free from then. ` +
       `${amara.person} comes off in 25 days, and you keep her until 45 days from today.`,
     )
     expect(HOURS_PER_MONTH).toBe(160)
@@ -397,7 +397,7 @@ describe('The suppliers’ map is Brightmoor’s book on Prime vendor and Tecwyn
   })
 
   it('Tecwyn’s owner bills Computer Systems Inc $118 and pays Helena Marsh $90, and its recruiter’s seat shows no rate at all', () => {
-    expect(HELENA.via).toEqual(['nike', 'computer-systems', 'tecwyn'])
+    expect(HELENA.via).toEqual(['northbend', 'computer-systems', 'tecwyn'])
     expect(HELENA.rates).toEqual([14_500, 11_800, 9_000])
     const owner = view(T, 'owner')
     expect(stat(owner, 'You bill').value).toBe('$118')
@@ -420,8 +420,8 @@ describe('The suppliers’ map is Brightmoor’s book on Prime vendor and Tecwyn
 
 describe('The MSPs’ map is Cavanaugh Glassworks’ program, read from the seat it granted Aptiva Workforce, as Aptiva’s four roles', () => {
   const M = aptivaMap(NO_FACTS)
-  const CAV = PROGRAMMES.find((p) => p.client === 'corning')!
-  const QUARRY = SECTOR_SUPPLIERS.find((x) => x.client === 'corning')!
+  const CAV = PROGRAMMES.find((p) => p.client === 'cavanaugh')!
+  const QUARRY = SECTOR_SUPPLIERS.find((x) => x.client === 'cavanaugh')!
   const running = CAV.placements.filter((x) => x.state === 'IN_PROGRESS')
   const samuel = CAV.placements.find((x) => x.state === 'DRAFT')!
 
@@ -444,7 +444,7 @@ describe('The MSPs’ map is Cavanaugh Glassworks’ program, read from the seat
     expect([samuel.person, samuel.startedDaysAgo, samuel.papers]).toEqual(['Samuel Adeyinka', -10, 'NO_I9'])
     expect(running.reduce((a, x) => a + (x.weeks?.awaiting ?? 0), 0)).toBe(2)
     expect(QUARRY.lastWeekAwaiting).toBe(false)
-    expect(WORLD_CLIENTS.find((c) => c.slug === 'corning')!.vp).toBe('Robert Ashby')
+    expect(WORLD_CLIENTS.find((c) => c.slug === 'cavanaugh')!.vp).toBe('Robert Ashby')
     expect(view(M, 'pm').headline).toBe(
       'Samuel Adeyinka cannot start in 10 days without an I-9. 2 weeks wait for Derek Halvorsen to sign. ' +
       'The fab expansion job, six automation engineers, waits for Robert Ashby.',
@@ -654,8 +654,8 @@ describe('The live figures are read, bounded, and never guessed', () => {
   })
 
   it('the MSPs’ door reads only Cavanaugh Glassworks’ program, by its demo slug, and only where it is the seed’s; anything slower, broken or real reads as on the demo', async () => {
-    expect(PROGRAM_READS['program-offices'].client).toBe('world-corning')
-    expect(SEEDED_SLUGS).toContain('world-corning')
+    expect(PROGRAM_READS['program-offices'].client).toBe('world-cavanaugh')
+    expect(SEEDED_SLUGS).toContain('world-cavanaugh')
     expect(SEEDED_SLUGS).not.toContain('world-aptiva')
     const asked: string[] = []
     const reader: FactsReader = {
@@ -665,7 +665,7 @@ describe('The live figures are read, bounded, and never guessed', () => {
       program: async (id) => { asked.push(id); return PROGRAM_INVOICES },
     }
     const f = await doorFacts('program-offices', reader, 500)
-    expect(asked).toEqual(['world-corning', 'id-world-corning'])
+    expect(asked).toEqual(['world-cavanaugh', 'id-world-cavanaugh'])
     expect(f.program!.receipts).toHaveLength(3)
     expect(f.firm).toBeNull()
     const real: FactsReader = { ...reader, company: async (slug) => seededAs(slug, { seatEmails: ['ap@cavanaugh-glass.com'] }), program: async () => { throw new Error('read a real firm') } }

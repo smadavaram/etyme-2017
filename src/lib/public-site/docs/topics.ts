@@ -57,7 +57,7 @@ export const TOPICS: TopicPage[] = [
       'It sees the supplier it pays and the rate it pays, and nothing below.',
       'It always sees whether the firm employing a person on its site is insured.',
     ],
-    demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/program', seat: 'the program manager' },
+    demo: { as: 'world-northbend', desk: 'programme', screen: '/dashboard/program', seat: 'the program manager' },
   },
   {
     group: 'master-data',
@@ -72,7 +72,7 @@ export const TOPICS: TopicPage[] = [
       'A firm that is not on Etyme is outside the record. What it forwards by email, Etyme cannot see.',
       'On a client’s menu, its suppliers are under Network, in Suppliers.',
     ],
-    demo: { as: 'world-nike', desk: 'procurement', screen: '/dashboard/suppliers', seat: 'Procurement' },
+    demo: { as: 'world-northbend', desk: 'procurement', screen: '/dashboard/suppliers', seat: 'Procurement' },
   },
   {
     group: 'master-data',
@@ -87,7 +87,7 @@ export const TOPICS: TopicPage[] = [
       'On a client’s menu, people it may ask for again are under Network, in Candidates. People working there now are under HR, in Contracts.',
       'On a supplier’s menu, its bench and its people are under Network, in Candidates. Its sell and buy lines are under HR, in Contracts, with their papers.',
     ],
-    demo: { as: 'world-nike', desk: 'programme', screen: '/dashboard/people', seat: 'the program manager' },
+    demo: { as: 'world-northbend', desk: 'programme', screen: '/dashboard/people', seat: 'the program manager' },
   },
 
   // ── Recruiting ─────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ export const TOPICS: TopicPage[] = [
       'The time limit and the client’s own do-not-send list are respected.',
       'A failed check goes back to the supplier with the fix. After two tries, it goes to a person.',
     ],
-    demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
+    demo: { as: 'world-northbend', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
   },
   {
     group: 'recruiting',
@@ -130,7 +130,7 @@ export const TOPICS: TopicPage[] = [
       'When the last position is filled, the other suppliers are told.',
       'On the menu this is Submissions: who applied, at the client, and who it put forward, at a supplier.',
     ],
-    demo: { as: 'world-nike', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
+    demo: { as: 'world-northbend', desk: 'hiring', screen: '/dashboard/submissions', seat: 'the hiring manager' },
   },
 ]
 

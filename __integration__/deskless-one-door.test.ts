@@ -19,7 +19,7 @@ import { invoiceBetween } from '@/lib/money/invoice-parties'
  * tomorrow.
  */
 
-const PROGRAM = 'world-nike-programme@demo.etyme.local'
+const PROGRAM = 'world-northbend-programme@demo.etyme.local'
 const MO = 'mo@walk4.example'
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
 
@@ -63,13 +63,13 @@ async function get(route: string, query = ''): Promise<{ status: number; body: a
 describe('a Member with no desk at Northbend Athletic reads nothing of the firmâ€™s by URL', () => {
   let mo = ''
   let others: string[] = []
-  let nike = ''
+  let northbend = ''
   const walked: Record<string, { status: number; body: any; text: string }> = {}
 
   beforeAll(async () => {
     await freshWorld()
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
-    nike = firm.id
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
+    northbend = firm.id
     const role = await prisma.role.findFirstOrThrow({ where: { companyId: firm.id, name: 'Member' }, select: { id: true, permissions: true } })
     expect(role.permissions).toEqual([])
     mo = (await prisma.person.create({ data: { primaryEmail: MO, name: 'Mo Haddad' }, select: { id: true } })).id
@@ -121,7 +121,7 @@ describe('a Member with no desk at Northbend Athletic reads nothing of the firmâ
   it('a clientâ€™s Member with no desk is refused Candidates in the doorâ€™s words, because a client puts nobody forward', async () => {
     as(MO)
     for (const direction of ['sent', 'received']) {
-      const r = await get('submissions', `?direction=${direction}&companyId=${nike}&limit=50`)
+      const r = await get('submissions', `?direction=${direction}&companyId=${northbend}&limit=50`)
       expect(r.status, r.text.slice(0, 200)).toBe(403)
       expect(r.body.error.code).toBe('NO_DESK')
       expect(r.body.error.message).toBe('Candidates is not part of your seat at Northbend Athletic. Ask your companyâ€™s owner if you need it.')
@@ -135,7 +135,7 @@ describe('a Member with no desk at Northbend Athletic reads nothing of the firmâ
       select: { subjectId: true },
     })
     const onSite = await prisma.sellContract.findMany({
-      where: { OR: [{ companyId: nike }, { clientCompanyId: nike }, { endClientCompanyId: nike }] },
+      where: { OR: [{ companyId: northbend }, { clientCompanyId: northbend }, { endClientCompanyId: northbend }] },
       select: { personId: true }, distinct: ['personId'],
     })
     expect(onSite.length).toBeGreaterThan(0)
@@ -152,7 +152,7 @@ describe('a Member with no desk at Northbend Athletic reads nothing of the firmâ
     as(PROGRAM)
     const shut: string[] = []
     // The page asks for the firm's own submissions by name, as the screen does.
-    const query: Record<string, string> = { submissions: `?companyId=${nike}&direction=received` }
+    const query: Record<string, string> = { submissions: `?companyId=${northbend}&direction=received` }
     // Concentration is the owner's report, refused to the program manager by
     // its own route in its own sentence before this door existed.
     for (const route of ROUND_FOUR.filter((r) => r !== 'vendors/concentration')) {
@@ -345,9 +345,9 @@ describe('Karthik Menon, an integratorâ€™s own W2 with no desk, reads his own wo
   it('a job request, a bill and a week at another company are answered to him as not there, never as something his owner could give him (round seven, problem 8)', async () => {
     const seat = await prisma.context.findFirstOrThrow({ where: { personId: karthik, revokedAt: null }, select: { companyId: true } })
     const tw = seat.companyId!
-    const nike = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+    const northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })).id
     const job = await prisma.requirement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      where: { companyId: nike, invitations: { none: { toCompanyId: tw } }, submissions: { none: { OR: [{ fromCompanyId: tw }, { toCompanyId: tw }] } } },
+      where: { companyId: northbend, invitations: { none: { toCompanyId: tw } }, submissions: { none: { OR: [{ fromCompanyId: tw }, { toCompanyId: tw }] } } },
       select: { id: true },
     })
     const bill = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' }, where: { NOT: invoiceBetween(tw) }, select: { id: true } })
@@ -414,11 +414,11 @@ describe('nobody imports into, or reads an import of, a company that is not thei
 
   beforeAll(async () => {
     await freshWorld()
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     tellisford = (await prisma.company.findFirstOrThrow({ where: { name: 'Tellisford Solutions' }, select: { id: true } })).id
-    const role = await prisma.role.findFirstOrThrow({ where: { companyId: nike.id, name: 'Member' }, select: { id: true } })
+    const role = await prisma.role.findFirstOrThrow({ where: { companyId: northbend.id, name: 'Member' }, select: { id: true } })
     const mo = await prisma.person.create({ data: { primaryEmail: 'mo5@walk5.example', name: 'Mo Haddad' }, select: { id: true } })
-    await prisma.context.create({ data: { personId: mo.id, companyId: nike.id, type: 'EMPLOYEE', roleId: role.id, grantReason: 'Joined on the domain' } })
+    await prisma.context.create({ data: { personId: mo.id, companyId: northbend.id, type: 'EMPLOYEE', roleId: role.id, grantReason: 'Joined on the domain' } })
     await prisma.person.create({ data: { primaryEmail: NINA, name: 'Nina Park' } })
     // Tellisford's own import, not yet committed, with a rate in a row.
     theirs = (await prisma.import.create({

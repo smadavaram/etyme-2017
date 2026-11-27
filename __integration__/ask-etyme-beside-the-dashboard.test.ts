@@ -27,7 +27,7 @@ describe('Ask Etyme says what the dashboard says', () => {
     await freshWorld()
     s.tecwyn = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' } })
     s.cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
-    s.cavanaugh = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-corning' } })
+    s.cavanaugh = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-cavanaugh' } })
   }, 240_000)
 
   it('Tecwyn’s signed weeks not yet billed in Ask Etyme are exactly the weeks its Today page counts, in the same order', async () => {
@@ -136,7 +136,7 @@ describe('Ask Etyme says what the dashboard says', () => {
     }
   })
   it('Northbend’s hiring manager is offered neither the time limit nor spend, and asks who applied for the HCM integration lead job and reads the names', async () => {
-    as(`world-nike-hiring${D}`)
+    as(`world-northbend-hiring${D}`)
     const g = await json(await greet(req('GET', '/api/conversations/twin')))
     expect(g.status, JSON.stringify(g.body)).toBe(200)
     const chips: string[] = g.body.data.chips
@@ -169,7 +169,7 @@ describe('Ask Etyme says what the dashboard says', () => {
     expect(a.kind, JSON.stringify(a)).toBe('LIST')
   })
   it('no chip refuses the seat it is shown to: Northbend’s program manager and AP clerk, Tecwyn, and Aptiva in Cavanaugh’s program', async () => {
-    for (const email of [`world-nike-programme${D}`, `world-nike-ap${D}`, TECWYN, APTIVA]) {
+    for (const email of [`world-northbend-programme${D}`, `world-northbend-ap${D}`, TECWYN, APTIVA]) {
       as(email)
       const g = await json(await greet(req('GET', '/api/conversations/twin')))
       expect(g.status, `${email} ${JSON.stringify(g.body)}`).toBe(200)
@@ -183,9 +183,9 @@ describe('Ask Etyme says what the dashboard says', () => {
     }
   })
   it('Northbend’s AP clerk is asked to pay a clean invoice receipt, cannot say yes without the bank reference, and pays it with one', async () => {
-    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
     await runTwin(northbend.id)
-    as(`world-nike-ap${D}`)
+    as(`world-northbend-ap${D}`)
     const g = await json(await greet(req('GET', '/api/conversations/twin')))
     expect(g.status, JSON.stringify(g.body)).toBe(200)
     const items: any[] = g.body.data.answer.items ?? []
@@ -218,7 +218,7 @@ describe('Ask Etyme says what the dashboard says', () => {
 describe('the setup line in the Ask Etyme greeting', () => {
   beforeAll(async () => {
     // Run alone (-t), the world above was never made.
-    if (!(await prisma.company.findUnique({ where: { slug: 'world-nike' } }).catch(() => null))) await freshWorld()
+    if (!(await prisma.company.findUnique({ where: { slug: 'world-northbend' } }).catch(() => null))) await freshWorld()
   }, 240_000)
   const lineOf = (answer: any) => (answer.more ?? []).filter((l: any) => /^Finish setting up:/.test(l.says))
   const ownerOf = (slug: string) => prisma.context.findFirstOrThrow({
@@ -228,7 +228,7 @@ describe('the setup line in the Ask Etyme greeting', () => {
   const emailOf = (o: { person: { primaryEmail: string | null } }) => o.person.primaryEmail!
 
   it('a seeded client’s Owner is reminded only of what the seed does not hold', async () => {
-    const owner = await ownerOf('world-nike')
+    const owner = await ownerOf('world-northbend')
     as(emailOf(owner))
     const g = await json(await greet(req('GET', '/api/conversations/twin', undefined, { 'x-context-id': owner.id })))
     expect(g.status, JSON.stringify(g.body)).toBe(200)
@@ -245,14 +245,14 @@ describe('the setup line in the Ask Etyme greeting', () => {
   })
 
   it('a seat that cannot run setup never reads the line', async () => {
-    as(`world-nike-ap${D}`)
+    as(`world-northbend-ap${D}`)
     const g = await json(await greet(req('GET', '/api/conversations/twin')))
     expect(g.status, JSON.stringify(g.body)).toBe(200)
     expect(JSON.stringify(g.body.data.answer)).not.toContain('Finish setting up')
   })
 
   it('the setup line is never counted in the mark', async () => {
-    const owner = await ownerOf('world-nike')
+    const owner = await ownerOf('world-northbend')
     as(emailOf(owner))
     const h = { 'x-context-id': owner.id }
     const owed = await json(await greet(req('GET', '/api/conversations/twin?only=owed', undefined, h)))

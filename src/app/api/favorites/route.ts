@@ -7,8 +7,8 @@ import { staffOnly } from '@/lib/seat'
  * GET  /api/favorites                       — the people and firms this company would take again
  * POST /api/favorites { targetType, targetId, on }  — mark or unmark one
  *
- * The opposite of a block, and just as private: Nike's star on a person
- * is Nike's, and no supplier and no other client can read it.
+ * The opposite of a block, and just as private: Northbend's star on a person
+ * is Northbend's, and no supplier and no other client can read it.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)

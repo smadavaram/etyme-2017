@@ -277,7 +277,7 @@ describe('the working-surface table', () => {
 describe('the shell', () => {
   const client = sidebarPropsFrom({
     loading: false, isWorker: false, permissions: ['*'], contextType: 'EMPLOYEE' as const,
-    company: { id: 'c1', name: 'Northbend Athletic', slug: 'world-nike', kind: 'CLIENT' as const },
+    company: { id: 'c1', name: 'Northbend Athletic', slug: 'world-northbend', kind: 'CLIENT' as const },
   } as any)
 
   it('the active page on the menu is marked by a fill, a bar and aria-current, never by color alone', () => {

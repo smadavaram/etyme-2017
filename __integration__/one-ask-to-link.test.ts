@@ -31,10 +31,10 @@ let camille = ''
 
 beforeAll(async () => {
   await freshWorld()
-  const n = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true, isDemo: true } })
+  const n = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true, isDemo: true } })
   northbend = n.id
   isDemo = n.isDemo
-  camille = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: `world-nike${D}` }, select: { id: true } })).id
+  camille = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: `world-northbend${D}` }, select: { id: true } })).id
 }, 600_000)
 
 /** A firm on Etyme with an Owner who may answer, working with nobody. */

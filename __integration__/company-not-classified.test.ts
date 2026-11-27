@@ -236,7 +236,7 @@ describe('the Kind and the position never set each other', () => {
     expect(await prisma.role.count({ where: { companyId: id, name: 'Owner' } })).toBe(1)
     // Setting the Kind gave no position.
     expect(await prisma.counterparty.count({ where: { companyId: brightmoor, otherCompanyId: id } })).toBe(0)
-    const northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+    const northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })).id
     const refused = await call(kind.PATCH as any, 'PATCH', `/api/companies/${northbend}/kind`, northbend, { kind: 'VENDOR' })
     expect(refused.status).toBe(403)
   })
@@ -270,7 +270,7 @@ describe('nothing leaves and nothing else moves', () => {
   })
 
   it('a firm’s recorded companies and contacts are never read by another firm', async () => {
-    as(`world-nike${D}`)
+    as(`world-northbend${D}`)
     const mine = (await listed()).map((c) => c.id)
     const recorded = await prisma.company.findMany({ where: { listedById: brightmoor, kind: 'UNCLASSIFIED' }, select: { id: true } })
     for (const r of recorded) expect(mine).not.toContain(r.id)
@@ -287,7 +287,7 @@ describe('nothing leaves and nothing else moves', () => {
 describe('another firm’s record is never given a position from outside', () => {
   it('a register row for a company another firm recorded is refused in a sentence, so nothing can name it on a contract', async () => {
     const mine = await prisma.company.findFirstOrThrow({ where: { listedById: brightmoor, kind: 'UNCLASSIFIED' }, select: { id: true } })
-    as(`world-nike${D}`)
+    as(`world-northbend${D}`)
     const r = await call(counterparties.POST as any, 'POST', '/api/counterparties', '', { otherCompanyId: mine.id, relationship: 'SUPPLIER' })
     expect(r.status).toBe(403)
     expect(r.body.error.message).toBe('That company is not on your Companies list. Add it there first.')
@@ -547,7 +547,7 @@ describe('the founder’s acceptance walk', () => {
     const asClient = await json(await (await contractsRoute).POST(req('POST', '/api/contracts', { personId: partner, companyId: brightmoor, clientCompanyId: fresh, billRate: 100, startDate: '2026-12-01' })))
     expect(asClient.status).toBe(403)
     expect(asClient.body.error).toMatchObject({ field: 'clientCompanyId', message: 'Vesna Medical Partners is on your Companies list and is not classified yet. Extend it to Customer first.' })
-    const client = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+    const client = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })).id
     const asSupplier = await json(await (await contractsRoute).POST(req('POST', '/api/contracts', { personId: partner, companyId: brightmoor, clientCompanyId: client, billRate: 100, payRate: 80, engagementType: 'OTHER_EMPLOYER', boughtFromId: fresh, startDate: '2026-12-01' })))
     expect(asSupplier.status).toBe(403)
     expect(asSupplier.body.error).toMatchObject({ field: 'boughtFromId', message: 'Vesna Medical Partners is on your Companies list and is not classified yet. Extend it to Supplier first.' })
@@ -562,7 +562,7 @@ describe('the founder’s acceptance walk', () => {
   })
 
   it('another company reads none of it: not the record, its positions, its history nor its contacts', async () => {
-    as(`world-nike${D}`)
+    as(`world-northbend${D}`)
     expect((await listed()).map((c) => c.id)).not.toContain(id)
     expect((await call(extend.GET as any, 'GET', `/api/companies/${id}/extend`, id)).status).toBe(404)
     expect(JSON.stringify((await call(contacts.GET as any, 'GET', '/api/contacts', '')).body)).not.toContain('Petra Lindqvist')

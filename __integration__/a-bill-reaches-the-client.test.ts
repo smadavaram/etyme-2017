@@ -159,7 +159,7 @@ describe('a bill reaches the firm that pays it', () => {
     expect(!refused.ok && refused.says).toMatch(/^Sending a bill again is done by .+ at Brightmoor Staffing/)
 
     // Another firm cannot send Brightmoor's bill at all.
-    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const stranger = await resendBillToCustomer({ invoiceId: it_.bill, byPersonId: it_.owner, companyId: northbend.id })
     expect(stranger).toMatchObject({ ok: false, status: 404 })
 
@@ -199,7 +199,7 @@ describe('a bill reaches the firm that pays it', () => {
   })
 
   it('a bill sent to a client on Etyme reaches the seats that record payments there, in the app and on their channel, and no stranger is emailed a link', async () => {
-    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const seeded = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: { invoiceLines: { some: { sellContract: { companyId: it_.brightmoor, clientCompanyId: northbend.id } } } },
       select: { id: true, number: true },
@@ -209,10 +209,10 @@ describe('a bill reaches the firm that pays it', () => {
 
     const r = await sendBillToCustomer({ invoiceId: seeded.id, byPersonId: it_.owner })
     expect(r.says).toBe(`Sent on Etyme to Northbend Athletic’s AP Clerk on ${today()}`)
-    expect(r.to).toEqual(['world-nike-ap@demo.etyme.local'])
+    expect(r.to).toEqual(['world-northbend-ap@demo.etyme.local'])
     expect(mail.length).toBe(before)
 
-    const ap = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-nike-ap@demo.etyme.local' }, select: { id: true } })
+    const ap = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-northbend-ap@demo.etyme.local' }, select: { id: true } })
     const notice = await prisma.notification.findFirstOrThrow({ where: { personId: ap.id, type: 'INVOICE', entityId: seeded.id } })
     expect(notice.title).toMatch(new RegExp(`^Brightmoor Staffing’s invoice ${seeded.number}: \\$`))
     expect(notice.body).not.toMatch(/https?:\/\//)
@@ -247,7 +247,7 @@ describe('a bill reaches the firm that pays it', () => {
   })
 
   it('a bill sent to a client on Etyme tells its payer inside the sending itself, so a sent bill always has somebody told and a rolled-back one told nobody', async () => {
-    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     // The world bills its first three seeded weeks once per billing period,
     // so it holds one or two of Brightmoor's bills to Northbend depending on
     // the day it was seeded, and the case above sends the first. This case
@@ -263,7 +263,7 @@ describe('a bill reaches the firm that pays it', () => {
     // The same bill, sent twice: the first sending rolls back, the second commits.
     const [kept] = bills
     const rolled = kept
-    const ap = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-nike-ap@demo.etyme.local' }, select: { id: true } })
+    const ap = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-northbend-ap@demo.etyme.local' }, select: { id: true } })
 
     // Rolled back: the bill is not sent, and nobody was told.
     await prisma.$transaction(async (tx) => {
@@ -288,7 +288,7 @@ describe('a bill reaches the firm that pays it', () => {
 
     // After the commit, the sending delivers that notice by email or Teams and writes no second one.
     const r = await sendBillToCustomer({ invoiceId: kept.id, byPersonId: it_.owner })
-    expect(r.to).toEqual(['world-nike-ap@demo.etyme.local'])
+    expect(r.to).toEqual(['world-northbend-ap@demo.etyme.local'])
     expect(r.says).toBe(`Sent on Etyme to Northbend Athletic’s AP Clerk on ${today()}`)
     const rows = await prisma.notification.findMany({ where: { entityId: kept.id, type: 'INVOICE' }, select: { deliveryState: true } })
     expect(rows).toHaveLength(1)

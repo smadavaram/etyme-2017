@@ -27,7 +27,7 @@ import { GET as autoApprove } from '@/app/api/cron/auto-approve/route'
 
 const D = '@demo.etyme.local'
 const HELENA = 'helena.marsh@seed.etyme.invalid'
-const NORTHBEND = { hiring: `world-nike-hiring${D}`, programme: `world-nike-programme${D}` }
+const NORTHBEND = { hiring: `world-northbend-hiring${D}`, programme: `world-northbend-programme${D}` }
 const CRON_SECRET = 'a-sent-week-carries-its-day'
 const DAY = 86_400_000
 
@@ -167,8 +167,8 @@ describe('the approval window counts from when the week was sent', () => {
     const line = await prisma.sellContract.findFirst({
       where: {
         state: 'IN_PROGRESS',
-        clientCompany: { slug: 'world-corning' },
-        workOrder: { autoApproveTimesheets: true, issuedBy: { slug: 'world-corning' } },
+        clientCompany: { slug: 'world-cavanaugh' },
+        workOrder: { autoApproveTimesheets: true, issuedBy: { slug: 'world-cavanaugh' } },
       },
       select: {
         id: true,

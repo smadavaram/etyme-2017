@@ -106,7 +106,7 @@ export async function POST(
   if (notStaff) return notStaff
 
   // Asking for a round is for whoever is hiring — the permission that
-  // raises a requisition. Nike's AP clerk is a party to the program
+  // raises a requisition. Northbend's AP clerk is a party to the program
   // and saw the button; a clerk booking interviews is not a thing that
   // happens, and the refusal says who does.
   if (!hasPermission(deskPermissions, 'requirements.write')) {

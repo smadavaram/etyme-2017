@@ -28,11 +28,11 @@ const review = await import('@/app/api/supplier-requests/[id]/route')
 
 const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
-const HIRING = `world-nike-hiring${D}`
-const LEAD = `world-nike-vp${D}`
-const AP = `world-nike-ap${D}`
-const HR = `world-nike-hr${D}`
-const PROCUREMENT = `world-nike-procurement${D}`
+const HIRING = `world-northbend-hiring${D}`
+const LEAD = `world-northbend-vp${D}`
+const AP = `world-northbend-ap${D}`
+const HR = `world-northbend-hr${D}`
+const PROCUREMENT = `world-northbend-procurement${D}`
 
 let brightmoor = ''
 let northbend = ''
@@ -78,7 +78,7 @@ const approve = async (id: string) => {
 beforeAll(async () => {
   await freshWorld()
   brightmoor = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })).id
-  const n = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true, isDemo: true } })
+  const n = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true, isDemo: true } })
   northbend = n.id
   isDemo = n.isDemo
 }, 600_000)
@@ -189,7 +189,7 @@ describe('the supplier approval knows a company by its domain', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const supplierId = r.body.data.supplier.id
     expect(await prisma.company.findUniqueOrThrow({ where: { id: supplierId }, select: { domain: true, website: true } })).toEqual({ domain: null, website: 'saltmarsh-eng.example' })
-    as(`world-nike-procurement${D}`)
+    as(`world-northbend-procurement${D}`)
     const row = (await listed()).find((c) => c.id === supplierId)
     expect(row).toMatchObject({ domain: null, notedDomain: 'saltmarsh-eng.example' })
   })

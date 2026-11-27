@@ -117,9 +117,9 @@ describe('The blind key lets two rivals find a collision without learning anythi
   })
 
   it('says nothing about the client it came from', () => {
-    const k = seatKey('terumo-bct', 'req-1', SALT)
+    const k = seatKey('talvern', 'req-1', SALT)
     expect(k).toMatch(/^seat_[a-z0-9]+$/)
-    expect(k).not.toContain('terumo')
+    expect(k).not.toContain('talvern')
   })
 
   it('stops a second submission and refuses to say who got there first', () => {

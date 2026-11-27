@@ -98,7 +98,7 @@ describe('Join the bench on a firm’s public page', () => {
     expect(suppliersPage).not.toContain('JoinBench')
 
     // And the route refuses a client's page too, not only the screen.
-    h.site = { name: 'Northbend Athletic', slug: 'world-nike', joinBench: false }
+    h.site = { name: 'Northbend Athletic', slug: 'world-northbend', joinBench: false }
     const res = await ask({ name: 'Ada Lovelace', email: 'ada@example.com' })
     expect(res.status).toBe(404)
     expect(h.listings).toHaveLength(0)

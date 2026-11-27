@@ -19,8 +19,8 @@ import { policyOf, splitWeeks, valueOf, weekStart, type Decision } from '@/lib/o
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 /** Omar Haddad's leg: Brightmoor bills Northbend Athletic direct, $132 an hour. */
-const nike = PROGRAMMES.find((p) => p.client === 'nike')!
-const over = nike.placements.filter((pl) => pl.overtimeWeekHours)
+const northbend = PROGRAMMES.find((p) => p.client === 'northbend')!
+const over = northbend.placements.filter((pl) => pl.overtimeWeekHours)
 
 describe('the seeded week somebody has to decide the overtime on', () => {
   it('the seeded Northbend Athletic desk has a week somebody must decide the overtime on', () => {
@@ -104,7 +104,7 @@ describe('the seeded week somebody has to decide the overtime on', () => {
     // Lucía Fernández's 44-hour week: the exception the client desk
     // reads. It said 44 and showed five eights, which is a figure with
     // nothing behind it.
-    const exception = nike.placements.find((pl) => pl.exceptionHours)!
+    const exception = northbend.placements.find((pl) => pl.exceptionHours)!
     expect(exception.exceptionHours).toBe(44)
     const { days } = week(1, exception.exceptionHours!)
     expect(Object.values(days).reduce((a, b) => a + b, 0)).toBe(44)
@@ -156,7 +156,7 @@ describe('the seeded week somebody has to decide the overtime on', () => {
     // written against the hours' leg whoever approved it. Seeding a
     // chain here would show a client deciding on somebody else's
     // agreement, which is half-built and not a demo.
-    expect(over[0].via).toEqual(['nike', 'brightmoor'])
+    expect(over[0].via).toEqual(['northbend', 'brightmoor'])
     expect(over[0].via).toHaveLength(2)
   })
 })

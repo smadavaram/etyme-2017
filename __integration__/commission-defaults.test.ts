@@ -16,7 +16,7 @@ const OWNER = `world-brightmoor${D}`
 const CONTRACTS = `world-brightmoor-contracts${D}`
 const RECRUITER = `world-brightmoor-recruiter${D}`
 const PAYROLL = `world-brightmoor-payroll${D}`
-const CLIENT_AP = `world-nike-ap${D}`
+const CLIENT_AP = `world-northbend-ap${D}`
 
 const s: Record<string, any> = {}
 const read = async () => json(await readCommissions(req('GET', '/api/payroll/commissions')))
@@ -25,7 +25,7 @@ describe('the firm’s default commission rates', () => {
   beforeAll(async () => {
     await freshWorld()
     s.brightmoor = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-brightmoor' } })).id
-    s.nike = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id
+    s.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' } })).id
   })
 
   it('a firm that never set defaults reads that the award writes none', async () => {
@@ -105,11 +105,11 @@ describe('the firm’s default commission rates', () => {
     as(CLIENT_AP)
     const r = await read()
     if (r.status === 200) expect(JSON.stringify(r.body.data.defaults ?? {})).not.toContain('1000')
-    const nike = await prisma.company.findUniqueOrThrow({ where: { id: s.nike }, select: { commissionDefaults: true } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { id: s.northbend }, select: { commissionDefaults: true } })
     const w = await json(await setDefaults(req('PATCH', '/api/payroll/commissions', { defaults: { SALES: null } })))
     expect(w.status).toBe(403)
-    const after = await prisma.company.findUniqueOrThrow({ where: { id: s.nike }, select: { commissionDefaults: true } })
-    expect(after.commissionDefaults).toEqual(nike.commissionDefaults)
+    const after = await prisma.company.findUniqueOrThrow({ where: { id: s.northbend }, select: { commissionDefaults: true } })
+    expect(after.commissionDefaults).toEqual(northbend.commissionDefaults)
   })
 
   it('a fixed-amount default in dollars is never written on a line paid in another currency, and the award says why', async () => {

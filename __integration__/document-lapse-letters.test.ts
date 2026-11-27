@@ -75,7 +75,7 @@ describe('when a document a line depends on runs out, every party it costs is to
     expect(told.leftToDemand, 'an agreement nobody papered has no row for demand to warn about').toBe(0)
 
     const wrenfieldOwner = await person(`world-wrenfield${D}`)
-    const officer = await person(`world-corning-compliance${D}`)
+    const officer = await person(`world-cavanaugh-compliance${D}`)
 
     const chase = to(told.letters, wrenfieldOwner.id)
     expect(chase.length, 'the firm that owes it is asked for it').toBe(1)
@@ -105,8 +105,8 @@ describe('when a document a line depends on runs out, every party it costs is to
 
     // The program manager runs the program and holds the rule, so they
     // hear too; the AP clerk and the hiring manager do not.
-    const ap = await person(`world-corning-ap${D}`)
-    const hiring = await person(`world-corning-hiring${D}`)
+    const ap = await person(`world-cavanaugh-ap${D}`)
+    const hiring = await person(`world-cavanaugh-hiring${D}`)
     expect(to(told.letters, ap.id)).toEqual([])
     expect(to(told.letters, hiring.id)).toEqual([])
   })
@@ -225,7 +225,7 @@ describe('when a document a line depends on runs out, every party it costs is to
 
   it('an agreement with a term on it is left to the letters that already go for it', async () => {
     const wrenfield = await firm('world-wrenfield')
-    const cavanaugh = await firm('world-corning')
+    const cavanaugh = await firm('world-cavanaugh')
     // Paper the agreement that was missing, with a date inside the
     // window, and the watch's own letters stop being this file's to
     // write — `cron/agreement-terms` tells both signers about it.
@@ -254,7 +254,7 @@ describe('when a document a line depends on runs out, every party it costs is to
   it('a supplier\u2019s lapsed cover is told to the client whose site its people stand on, by its compliance officer and program manager', async () => {
     const now = new Date()
     const pinnacle = await firm('world-pinnacle')
-    const northbend = await firm('world-nike')
+    const northbend = await firm('world-northbend')
     // The walk's finding, on this copy of the world: Pinnacle's liability
     // cover ran out two days ago while its people stood on Northbend's site.
     await prisma.verification.updateMany({
@@ -265,10 +265,10 @@ describe('when a document a line depends on runs out, every party it costs is to
     expect(cover.length, 'Pinnacle Resourcing has a certificate running out or gone').toBeGreaterThan(0)
 
     const told = await tellAbout(cover, now)
-    const officer = await person(`world-nike-compliance${D}`)
-    const manager = await person(`world-nike-programme${D}`)
-    const owner = await person(`world-nike${D}`)
-    const ap = await person(`world-nike-ap${D}`)
+    const officer = await person(`world-northbend-compliance${D}`)
+    const manager = await person(`world-northbend-programme${D}`)
+    const owner = await person(`world-northbend${D}`)
+    const ap = await person(`world-northbend-ap${D}`)
 
     for (const p of [officer, manager]) {
       const theirs = to(told.letters, p.id)
@@ -334,7 +334,7 @@ describe('when a document a line depends on runs out, every party it costs is to
 
     // The client's owner, its AP clerk and its hiring manager are not the
     // desk for papers, and the first night wrote to the owner twenty-one times.
-    for (const email of [`world-nike${D}`, `world-nike-ap${D}`, `world-nike-hiring${D}`]) {
+    for (const email of [`world-northbend${D}`, `world-northbend-ap${D}`, `world-northbend-hiring${D}`]) {
       const p = await person(email)
       expect(perPerson.get(p.id) ?? 0, `${email} is not written to`).toBe(0)
     }
@@ -356,7 +356,7 @@ describe('when a document a line depends on runs out, every party it costs is to
     const night = await tellDocumentLapses(await documentsToChase(now), now)
     const withPapers = night.letters[0]
     expect(withPapers, 'somebody is owed a paper on this day').toBeTruthy()
-    const ap = await person(`world-nike-ap${D}`)
+    const ap = await person(`world-northbend-ap${D}`)
     const finding = (personId: string, key: string) => ({
       personId, companyId: withPapers.companyId ?? undefined, type: 'SYSTEM' as const,
       title: 'Order PO-1001 is nearly spent', body: '92% of the ceiling is billed.', entityId: `po-${key}`,

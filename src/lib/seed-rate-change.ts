@@ -168,14 +168,14 @@ export interface RateChangeSeed {
 
 export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> {
   const firm = ctx.firmBySlug.get('brightmoor')
-  const client = ctx.firmBySlug.get('nike')
+  const client = ctx.firmBySlug.get('northbend')
   const owner = ctx.seatBySlug.get('brightmoor')
-  const clientOwner = ctx.seatBySlug.get('nike')
+  const clientOwner = ctx.seatBySlug.get('northbend')
   if (!firm || !client || !owner || !clientOwner) return { weeks: 0, written: false }
 
   const deskAt = (slug: string, desk: string) =>
     db.person.findUnique({ where: { primaryEmail: `${ctx.prefix}${slug}-${desk}@${ctx.domain}` }, select: { id: true, name: true } })
-  const hiring = await deskAt('nike', 'hiring')
+  const hiring = await deskAt('northbend', 'hiring')
   const payroll = await deskAt('brightmoor', 'payroll')
   if (!hiring || !payroll) return { weeks: 0, written: false }
 
@@ -230,7 +230,7 @@ export async function seedRateChange(ctx: SeedContext): Promise<RateChangeSeed> 
   // The budget the job is charged to, as Northbend coded it when the
   // job was raised. The award carries it onto the line below.
   const coding = await departmentAt({
-    clientId: client.id, clientSlug: 'nike', clientName: 'Northbend Athletic', ownerId: clientOwner.personId,
+    clientId: client.id, clientSlug: 'northbend', clientName: 'Northbend Athletic', ownerId: clientOwner.personId,
     dept: RATE_CHANGE_DEPARTMENT, billCents: RATE_CHANGE_RATES.bill,
   })
   const requirement =

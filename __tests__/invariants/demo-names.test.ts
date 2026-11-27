@@ -458,10 +458,10 @@ describe('A seeded firm\u2019s files are named for that firm', () => {
   })
 })
 
-describe('The slugs stay, because an address is not a word anybody reads', () => {
-  it('still answers to world-nike, world-corning and world-terumo-bct, which every test and every demo link uses', () => {
+describe('The slugs are invented too, since 2026-11-27, and the demo links answer to them', () => {
+  it('answers to world-northbend, world-cavanaugh and world-talvern, which every test and every demo link uses', () => {
     const seats = SURFACES['src/app/demo/seats.ts']
-    for (const slug of ['world-nike', 'world-corning', 'world-terumo-bct']) {
+    for (const slug of ['world-northbend', 'world-cavanaugh', 'world-talvern']) {
       expect(seats, slug).toContain(slug)
     }
   })
@@ -683,5 +683,60 @@ describe('The retired firm’s name is nowhere in the repository but the rename 
       [...source.matchAll(/[\w.+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g)].map((m) => m[1])
     )
     expect(addresses.filter((d) => RETIRED_FIRM.test(d))).toEqual([])
+  })
+})
+
+/**
+ * ── And no slug, address or variable either (2026-11-27) ─────────────
+ *
+ * The sheet kept `nike`, `corning` and `terumo-bct` as slugs, "an
+ * address nobody reads". CLAUDE.md says no real company's name stands
+ * anywhere: page, document, screen, test name, code comment. A slug is
+ * code, and it printed itself into seeded email addresses, cost center
+ * codes and an invoice number. They are `northbend`, `cavanaugh` and
+ * `talvern` now, and a deployed demo is carried across by the rename
+ * map in `lib/seed-renames`, which is the one place that may spell the
+ * old ones, with the home page's own guard list.
+ */
+describe('No slug, address, code or variable spells a retired client in any case', () => {
+  const MAY_SPELL = new Set([
+    ...MAY_NAME,
+    'src/lib/seed-renames.ts',
+    'src/lib/positioning.ts',
+  ])
+  const OLD = /(nike|corning|terumo)/i
+  function sourceFiles(dir: string): string[] {
+    const out: string[] = []
+    for (const entry of readdirSync(join(process.cwd(), dir), { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules' && entry.name !== '.next') out.push(...sourceFiles(path))
+      } else if (/\.(tsx?|mjs|jsx)$/.test(entry.name) && !MAY_SPELL.has(path)) out.push(path)
+    }
+    return out
+  }
+
+  it('reads the source, the seeds, the scripts, the prototypes and every test, rather than passing on an empty list', () => {
+    const files = ['src', 'prisma', 'scripts', 'prototypes', '__tests__', '__integration__'].flatMap(sourceFiles)
+    expect(files.length).toBeGreaterThan(500)
+  })
+
+  it('names none of Nike, Corning or Terumo, in a slug, an email address, a constant or a comment', () => {
+    const left = ['src', 'prisma', 'scripts', 'prototypes', '__tests__', '__integration__']
+      .flatMap(sourceFiles)
+      .flatMap((file) =>
+        read(file)
+          .split('\n')
+          .map((line, i) => ({ line, n: i + 1 }))
+          .filter(({ line }) => OLD.test(line))
+          .map(({ line, n }) => `${file} line ${n}: ${line.trim().slice(0, 120)}`)
+      )
+    expect(left, 'A real company\u2019s name is still written down. docs/demo-names.md holds the invented one.').toEqual([])
+  })
+
+  it('still bites: the old slug and the old address are found', () => {
+    expect(OLD.test("slug: 'world-nike'")).toBe(true)
+    expect(OLD.test('world-terumo-bct-hr@demo.etyme.local')).toBe(true)
+    expect(OLD.test("slug: 'world-northbend'")).toBe(false)
   })
 })

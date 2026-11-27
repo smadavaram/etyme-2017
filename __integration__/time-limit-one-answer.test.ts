@@ -20,7 +20,7 @@ import { plainDate } from '@/lib/plain-date'
  *   Kwame Mensah        741 days on site, left fifty days ago: inside the break.
  */
 
-const OFFICER = 'world-nike-compliance@demo.etyme.local'
+const OFFICER = 'world-northbend-compliance@demo.etyme.local'
 const DAY = 86_400_000
 
 let northbend = ''

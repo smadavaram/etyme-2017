@@ -37,7 +37,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma as db } from '@/lib/db'
 import { renameRetiredFirms } from '@/lib/seed-renames'
 import { DEMO_MONTHLY_PAY, writeCyclesFor } from '@/lib/contract-cycles'
-import { seedProgrammes, PROGRAMMES, PROGRAM_SHARES } from '@/lib/seed-programmes'
+import { seedProgrammes, PROGRAMMES, PROGRAM_SHARES, openShape } from '@/lib/seed-programmes'
 import { seedTenureDemo } from '@/lib/twin/seed-tenure-demo'
 import { seedTwinInvoiceDemo } from '@/lib/twin/seed-demo'
 import { seedDoors, NURSE_CORP_SLUG } from '@/lib/seed-doors'
@@ -107,7 +107,7 @@ export interface Firm {
   seatless?: true
 }
 /** The VP who owns the money at each client, by name. */
-const VP_NAMES: Record<string, string> = {'harlow-health': 'Marianne Cole', 'merrowfield-bank': 'Theo Lindsay', 'corveldt': 'Helga Brandt', 'nordway': 'Sigrid Hansen', 'nike': 'Dana Whitfield', 'corning': 'Robert Ashby', 'terumo-bct': 'Elena Vasquez'}
+const VP_NAMES: Record<string, string> = {'harlow-health': 'Marianne Cole', 'merrowfield-bank': 'Theo Lindsay', 'corveldt': 'Helga Brandt', 'nordway': 'Sigrid Hansen', 'northbend': 'Dana Whitfield', 'cavanaugh': 'Robert Ashby', 'talvern': 'Elena Vasquez'}
 
 export const FIRMS: readonly Firm[] = [
   { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Program manager', who: 'Grace Whitmore' },
@@ -119,9 +119,9 @@ export const FIRMS: readonly Firm[] = [
   // hiring, approval, payables, compliance. The client is who pays for
   // this product, and these are the accounts it is shown on. What each
   // of them has on its books is in lib/seed-programmes.
-  { slug: 'nike',             name: 'Northbend Athletic',   kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Camille Ostrander' },
-  { slug: 'corning',          name: 'Cavanaugh Glassworks', kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Ethan Garland' },
-  { slug: 'terumo-bct',       name: 'Talvern Medical',      kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Naomi Feldman' },
+  { slug: 'northbend',             name: 'Northbend Athletic',   kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Camille Ostrander' },
+  { slug: 'cavanaugh',          name: 'Cavanaugh Glassworks', kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Ethan Garland' },
+  { slug: 'talvern',       name: 'Talvern Medical',      kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Naomi Feldman' },
 
   { slug: 'aptiva',           name: 'Aptiva Workforce',     kind: 'MSP',     seat: 'Program manager', who: 'Rashida Coleman' },
   { slug: 'kestrel',          name: 'Kestrel MSP',          kind: 'MSP',     seat: 'Program manager', who: 'Piotr Zborowski' },
@@ -404,13 +404,13 @@ async function worldId(): Promise<string | null> {
 export async function seedRosaExpenses(ctx: SeedContext): Promise<{ expenses: number; acceptances: number }> {
   const done = { expenses: 0, acceptances: 0 }
   const firm = ctx.firmBySlug.get('brightmoor')
-  const client = ctx.firmBySlug.get('nike')
+  const client = ctx.firmBySlug.get('northbend')
   if (!firm || !client) return done
   const desk = (slug: string, key: string) =>
     db.person.findUnique({ where: { primaryEmail: `${ctx.prefix}${slug}-${key}@${ctx.domain}` }, select: { id: true } })
   const [payroll, ap, rosa] = await Promise.all([
     desk('brightmoor', 'payroll'),
-    desk('nike', 'ap'),
+    desk('northbend', 'ap'),
     db.person.findUnique({ where: { primaryEmail: RATE_CHANGE_PERSON.email }, select: { id: true } }),
   ])
   if (!payroll || !ap || !rosa) return done
@@ -952,6 +952,63 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
           approverId: approver.id, rank: 2, isActive: true, authoredById: p.id,
         },
       })
+    }
+
+    // What each of these four clients' Approver is owed. The photo walk of
+    // 2026-11-26 read "Nothing needs you today" on every client Approver.
+    // The three programs' own job requests are in lib/seed-programmes; this
+    // is the same card for the four that have no program: one job request
+    // over the VP's line that HR and sourcing have already cleared, so the
+    // final word is the Approver's alone.
+    const FINAL_WORD: Record<string, { title: string; skills: string[]; why: string; heads: number; billMax: number; work: string }> = {
+      'harlow-health': {
+        title: 'Clinical documentation — three coding specialists', skills: ['Medical coding', 'ICD-10', 'Epic'],
+        heads: 3, billMax: 9000, why: 'Backfill — the coding team lost three people at the end of the quarter.',
+        work: 'Clear the discharge coding backlog and keep the coding queue under two days.',
+      },
+      'merrowfield-bank': {
+        title: 'Loan operations — three reconciliation analysts', skills: ['Reconciliation', 'Excel', 'Banking operations'],
+        heads: 3, billMax: 8800, why: 'New project — the loan servicing system moves over in the spring.',
+        work: 'Reconcile the old and new servicing ledgers each day through the move and sign off the break report.',
+      },
+      corveldt: {
+        title: 'Wing assembly — three manufacturing engineers', skills: ['Manufacturing engineering', 'CAD', 'Lean'],
+        heads: 3, billMax: 12000, why: 'New project — a second wing assembly line opens next quarter.',
+        work: 'Plan the work instructions and tooling for the second wing assembly line and hand them to the floor.',
+      },
+      nordway: {
+        title: 'Store systems rollout — three support engineers', skills: ['Point of sale', 'Networking', 'Field support'],
+        heads: 3, billMax: 8500, why: 'New project — new checkout systems go into every store before the holiday.',
+        work: 'Install and test the new checkout systems store by store and train the store managers.',
+      },
+    }
+    const finalWord = FINAL_WORD[f.slug]
+    if (finalWord) {
+      const { title, why, billMax, heads } = finalWord
+      const raised =
+        (await db.requirement.findFirst({ where: { companyId: c.id, title } })) ??
+        (await db.requirement.create({
+          data: {
+            companyId: c.id, title, skills: finalWord.skills, location: 'On site',
+            billMin: billMax - 2000, billMax, months: 12, headcount: heads, hoursPerWeek: 40,
+            description: finalWord.work, justification: why, startDate: day(60), ...openShape(why, p.id),
+            status: 'DRAFT', approvalState: 'PENDING_APPROVAL', source: 'MANUAL', neededBy: day(60),
+            raisedById: p.id, orgUnitId: unitByName.get('Apps')?.id ?? null,
+          },
+        }))
+      if (!(await db.requirementApproval.findFirst({ where: { requirementId: raised.id } }))) {
+        const annual = Math.round((billMax * 160 * 12 * heads) / 100)
+        await db.requirementApproval.createMany({
+          data: [
+            { requirementId: raised.id, approverId: p.id, rank: 1, stage: 'ROLE', outcome: 'APPROVED', decidedAt: day(-3),
+              reason: `${heads} heads against the plan. It is a job the plan meant.` },
+            { requirementId: raised.id, approverId: null, rank: 1, stage: 'SOURCING', outcome: 'AUTO_CLEARED', decidedAt: day(-3),
+              reason: 'Within the going rate. Procurement not needed.' },
+            { requirementId: raised.id, approverId: approver.id, rank: 2, stage: 'FINAL', outcome: 'PENDING',
+              reason: `Over $500k: about $${annual.toLocaleString('en-US')} a year across ${heads} heads.` },
+          ],
+        })
+      }
     }
   }
 
@@ -1830,9 +1887,9 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // Granted by Cavanaugh's account owner, because a seat is an owner's or
   // the program manager's to give and nobody else's.
   await step('program-office-seat', async () => {
-    const cavanaugh = firmBySlug.get('corning')
+    const cavanaugh = firmBySlug.get('cavanaugh')
     const aptiva = firmBySlug.get('aptiva')
-    const cavanaughOwner = seatBySlug.get('corning')
+    const cavanaughOwner = seatBySlug.get('cavanaugh')
     if (cavanaugh && aptiva && cavanaughOwner) {
       const pmRole = await db.role.findFirst({
         where: { companyId: cavanaugh.id, name: 'Program Manager' },
@@ -2087,9 +2144,9 @@ export async function seedWorld(plan: SeedPlan = {}): Promise<{
   // read a client would most want accounted for afterwards — and until
   // this existed there was nowhere on the demo to walk it.
   await step('compliance-desk', async () => {
-    const talvern = firmBySlug.get('terumo-bct')
+    const talvern = firmBySlug.get('talvern')
     const kestrel = firmBySlug.get('kestrel')
-    const talvernOwner = seatBySlug.get('terumo-bct')
+    const talvernOwner = seatBySlug.get('talvern')
     if (talvern && kestrel && talvernOwner) {
       const coRole = await db.role.findFirst({
         where: { companyId: talvern.id, name: 'Compliance Officer' },

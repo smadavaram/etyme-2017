@@ -29,7 +29,7 @@ beforeAll(async () => {
     where: { personId: helena.id, status: 'APPROVED' },
     select: { id: true },
   })
-  for (const slug of ['nike', 'computer-systems', 'tecwyn']) {
+  for (const slug of ['northbend', 'computer-systems', 'tecwyn']) {
     ids[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug: `world-${slug}` } })).id
   }
 }, 600_000)
@@ -77,7 +77,7 @@ describe('a seeded week on a chain is signed down the chain', () => {
     for (const w of helenaWeeks) {
       const signed = await signaturesOn(w.id)
       expect(signed.map((s) => [s.companyId, s.role])).toEqual([
-        [ids.nike, 'CLIENT_APPROVAL'],
+        [ids.northbend, 'CLIENT_APPROVAL'],
         [ids['computer-systems'], 'PASS_THROUGH'],
         [ids.tecwyn, 'EMPLOYER_ACCEPTANCE'],
       ])
@@ -105,7 +105,7 @@ describe('a seeded week on a chain is signed down the chain', () => {
     const signed = await signaturesOn(helenaWeeks[0].id)
     const has = (s: { companyId: string; role: string }) =>
       signed.some((x) => x.companyId === s.companyId && x.role === s.role)
-    for (const firm of [ids.nike, ids['computer-systems'], ids.tecwyn]) {
+    for (const firm of [ids.northbend, ids['computer-systems'], ids.tecwyn]) {
       const turn = turnOf(signers, firm, has, () => 'somebody')
       expect(turn.ok ? 'still to sign' : turn.code, firm).toBe('ALREADY_SIGNED')
     }

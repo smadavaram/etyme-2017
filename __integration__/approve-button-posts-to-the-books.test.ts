@@ -20,7 +20,7 @@ import { POST as assertHours } from '@/app/api/timesheets/[id]/assert/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = `world-nike-hiring${D}`
+const NORTHBEND = `world-northbend-hiring${D}`
 const CS = `world-computer-systems${D}`
 const TECWYN = `world-tecwyn${D}`
 
@@ -48,7 +48,7 @@ describe('a week signed from the approve button is posted to the books once', ()
   }, 240_000)
 
   it('the client’s approval from the approve button is posted as revenue once', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const r = await sign(s.week)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.postingSays).toBeNull()

@@ -19,7 +19,7 @@ import { GET as requisitionDetail } from '@/app/api/requisitions/[id]/route'
  */
 
 const D = '@demo.etyme.local'
-const HIRING = `world-nike-hiring${D}`
+const HIRING = `world-northbend-hiring${D}`
 
 const call = async (fn: (r: any, ctx: any) => Promise<Response>, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
@@ -37,7 +37,7 @@ describe('awarding a job stands the others down and calls off their interviews',
   beforeAll(async () => {
     await freshWorld()
     const job = await prisma.requirement.findFirstOrThrow({
-      where: { title: 'HCM integration lead', company: { slug: 'world-nike' } },
+      where: { title: 'HCM integration lead', company: { slug: 'world-northbend' } },
       select: { id: true },
     })
     ids.job = job.id

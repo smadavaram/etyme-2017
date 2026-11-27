@@ -1057,7 +1057,7 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
   if (chidi) {
     people++
     await asked({
-      companySlug: 'terumo-bct',
+      companySlug: 'talvern',
       name: 'Site access and data integrity attestation',
       needsSignature: true,
       audience: 'CANDIDATE',

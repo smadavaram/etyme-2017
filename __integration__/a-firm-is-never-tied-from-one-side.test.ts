@@ -92,7 +92,7 @@ describe('a company door answers a stranger as it answers an id that does not ex
   let unknown: { status: number; message: string }
   beforeAll(async () => {
     stranger = await claimedFirm('Corvid Bay Partners', 'corvid-bay-walk', 'CLIENT')
-    as(`world-nike${D}`)
+    as(`world-northbend${D}`)
     theirs = (await record('Pellmore Advisory')).body.data.company.id
     as(OWNER)
     const r = await call(extend.GET as any, 'GET', '/api/companies/no-such-company/extend', 'no-such-company')
@@ -150,7 +150,7 @@ describe('a purchase-order sheet names only a firm you may write an order to', (
     supplierName = firms.find((f) => firms.filter((g) => g.name.toLowerCase() === f.name.toLowerCase()).length === 1)!.name
     ownRecord = (await record('Tidewater Couriers')).body.data.company.id
     stranger = await claimedFirm('Marrow Lane Staffing', 'marrow-lane-walk')
-    as(`world-nike${D}`)
+    as(`world-northbend${D}`)
     await record('Bellwether Freight')
     as(OWNER)
   })
@@ -222,8 +222,8 @@ describe('a company that claims a record is never handed the recorder’s note a
   })
 
   it('a seeded client’s own website is offered on its setup exactly as before', async () => {
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true, website: true } })
-    expect((await readSetup(nike.id, { personId: 'nobody', email: `world-nike${D}` })).detail.COMPANY.website).toBe(nike.website ?? '')
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true, website: true } })
+    expect((await readSetup(northbend.id, { personId: 'nobody', email: `world-northbend${D}` })).detail.COMPANY.website).toBe(northbend.website ?? '')
   })
 })
 

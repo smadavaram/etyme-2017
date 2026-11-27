@@ -37,15 +37,15 @@ import { GET as programDesk } from '@/app/api/program/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = {
-  office: `world-nike${D}`,
-  programme: `world-nike-programme${D}`,
-  hiring: `world-nike-hiring${D}`,
-  hr: `world-nike-hr${D}`,
-  procurement: `world-nike-procurement${D}`,
-  vp: `world-nike-vp${D}`,
-  ap: `world-nike-ap${D}`,
-  compliance: `world-nike-compliance${D}`,
+const NORTHBEND = {
+  office: `world-northbend${D}`,
+  programme: `world-northbend-programme${D}`,
+  hiring: `world-northbend-hiring${D}`,
+  hr: `world-northbend-hr${D}`,
+  procurement: `world-northbend-procurement${D}`,
+  vp: `world-northbend-vp${D}`,
+  ap: `world-northbend-ap${D}`,
+  compliance: `world-northbend-compliance${D}`,
 }
 const PINNACLE = `world-pinnacle${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
@@ -60,7 +60,7 @@ const it_: Record<string, any> = {}
 describe('a client program, seeded', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-pinnacle', 'world-brightmoor', 'world-corning', 'world-terumo-bct']) {
+    for (const slug of ['world-northbend', 'world-pinnacle', 'world-brightmoor', 'world-cavanaugh', 'world-talvern']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
     // Somebody on Pinnacle's bench, who can sign in and file their own hours.
@@ -79,26 +79,26 @@ describe('a client program, seeded', () => {
 
   it('every desk exists, with the role its job needs and no more', async () => {
     const desks = await prisma.context.findMany({
-      where: { companyId: co['world-nike'], person: { primaryEmail: { in: Object.values(NIKE) } } },
+      where: { companyId: co['world-northbend'], person: { primaryEmail: { in: Object.values(NORTHBEND) } } },
       select: { person: { select: { primaryEmail: true } }, role: { select: { name: true, permissions: true } } },
     })
     const roleOf = (email: string) => desks.find((d) => d.person.primaryEmail === email)?.role
-    expect(roleOf(NIKE.hiring)?.name).toBe('Hiring Manager')
-    expect(roleOf(NIKE.ap)?.name).toBe('AP Clerk')
-    expect(roleOf(NIKE.compliance)?.name).toBe('Compliance Officer')
-    expect(roleOf(NIKE.programme)?.name).toBe('Program Manager')
+    expect(roleOf(NORTHBEND.hiring)?.name).toBe('Hiring Manager')
+    expect(roleOf(NORTHBEND.ap)?.name).toBe('AP Clerk')
+    expect(roleOf(NORTHBEND.compliance)?.name).toBe('Compliance Officer')
+    expect(roleOf(NORTHBEND.programme)?.name).toBe('Program Manager')
     // The clerk pays and does not hire; the manager hires and does not pay.
-    expect(roleOf(NIKE.ap)?.permissions).toContain('payments.record')
-    expect(roleOf(NIKE.ap)?.permissions).not.toContain('requirements.write')
-    expect(roleOf(NIKE.hiring)?.permissions).toContain('timesheets.approve')
-    expect(roleOf(NIKE.hiring)?.permissions).not.toContain('payments.record')
+    expect(roleOf(NORTHBEND.ap)?.permissions).toContain('payments.record')
+    expect(roleOf(NORTHBEND.ap)?.permissions).not.toContain('requirements.write')
+    expect(roleOf(NORTHBEND.hiring)?.permissions).toContain('timesheets.approve')
+    expect(roleOf(NORTHBEND.hiring)?.permissions).not.toContain('payments.record')
   })
 })
 
 describe('1 · the hiring manager posts a requirement', () => {
   it('a role inside plan and under every line opens itself — nobody has to approve it', async () => {
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-    as(NIKE.hiring)
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+    as(NORTHBEND.hiring)
     const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
       title: 'Sustainability data analyst', skills: ['Sustainability reporting', 'Power BI'],
       location: 'Beaverton, OR', billMin: 3200, billMax: 4000, months: 12, headcount: 1, hoursPerWeek: 40,
@@ -112,7 +112,7 @@ describe('1 · the hiring manager posts a requirement', () => {
 
   it('a role over the plan and over the line waits on HR\'s read of the role, then the money — and the manager who raised it cannot wave it through', async () => {
     const routed = await prisma.requirement.findFirstOrThrow({
-      where: { companyId: co['world-nike'], approvalState: 'PENDING_APPROVAL' },
+      where: { companyId: co['world-northbend'], approvalState: 'PENDING_APPROVAL' },
       include: { approvals: true },
     })
     // Three stages on the row: HR asked, Procurement cleared by rule, the money at the end.
@@ -120,25 +120,25 @@ describe('1 · the hiring manager posts a requirement', () => {
     expect(routed.approvals.find(a => a.stage === 'SOURCING')?.outcome).toBe('AUTO_CLEARED')
     expect(routed.approvals.filter(a => a.stage === 'FINAL').every(a => a.outcome === 'PENDING')).toBe(true)
 
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const mine = await call(decideRequisition, 'POST', `/api/requisitions/${routed.id}/approve`, routed.id, { action: 'approve' })
     expect(mine.status).toBe(403)
 
     // The VP is not asked before HR has read the role.
-    as(NIKE.vp)
+    as(NORTHBEND.vp)
     const early = await call(decideRequisition, 'POST', `/api/requisitions/${routed.id}/approve`, routed.id, { action: 'approve' })
     expect(early.status).toBe(403)
 
-    as(NIKE.hr)
+    as(NORTHBEND.hr)
     const hr = await call(decideRequisition, 'POST', `/api/requisitions/${routed.id}/approve`, routed.id, { action: 'approve', reason: 'A real role, and the plan will be amended.' })
     expect(hr.body?.error, JSON.stringify(hr.body)).toBeUndefined()
     expect((await prisma.requirement.findUniqueOrThrow({ where: { id: routed.id } })).status).not.toBe('OPEN')
 
     // Then the money: everyone at the final rank, in either order.
     const finals = routed.approvals.filter(a => a.stage === 'FINAL' && a.approverId)
-    const vpPerson = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE.vp }, select: { id: true } })
+    const vpPerson = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND.vp }, select: { id: true } })
     for (const a of finals) {
-      const who = a.approverId === vpPerson.id ? NIKE.vp : (await prisma.person.findUniqueOrThrow({ where: { id: a.approverId! }, select: { primaryEmail: true } })).primaryEmail
+      const who = a.approverId === vpPerson.id ? NORTHBEND.vp : (await prisma.person.findUniqueOrThrow({ where: { id: a.approverId! }, select: { primaryEmail: true } })).primaryEmail
       as(who)
       const r = await call(decideRequisition, 'POST', `/api/requisitions/${routed.id}/approve`, routed.id, { action: 'approve' })
       expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -150,7 +150,7 @@ describe('1 · the hiring manager posts a requirement', () => {
   it('the release can only go to the suppliers Procurement cleared', async () => {
     // Procurement's yes named Pinnacle alone; the office tries Brightmoor as well.
     await prisma.requirement.update({ where: { id: it_.requisition }, data: { clearedSupplierIds: [co['world-pinnacle']] } })
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 }, { companyId: co['world-brightmoor'], payMin: 3200, payMax: 3800 }],
     })
@@ -164,7 +164,7 @@ describe('1 · the hiring manager posts a requirement', () => {
 
 describe('2 · the program office sends it to suppliers, and a supplier answers', () => {
   it('the hiring manager cannot choose which suppliers see it — that is the program office\'s control', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 }],
     })
@@ -173,7 +173,7 @@ describe('2 · the program office sends it to suppliers, and a supplier answers'
   })
 
   it('the program office sends it to Pinnacle with a band Pinnacle alone can see', async () => {
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 }],
     })
@@ -210,7 +210,7 @@ describe('3 · the hiring manager awards, and both contracts exist with their du
   })
 
   it('the award writes the sell contract and its cycles, and Tariq’s own pay line waits for his terms', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 3800, startDate: day(-7).toISOString().slice(0, 10), endDate: day(173).toISOString().slice(0, 10),
       ...UNDER_WAY,
@@ -219,7 +219,7 @@ describe('3 · the hiring manager awards, and both contracts exist with their du
     it_.contract = r.body.data.contractId
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
     expect(sell.state).toBe('DRAFT')
-    expect(sell.clientCompanyId).toBe(co['world-nike'])
+    expect(sell.clientCompanyId).toBe(co['world-northbend'])
     expect(sell.buyLinks).toHaveLength(0)
     it_.engagement = sell.engagementId
     // The thing the award path never did: a placement made by awarding
@@ -237,7 +237,7 @@ describe('3 · the hiring manager awards, and both contracts exist with their du
 
 describe('4 · nobody starts without paperwork', () => {
   it('the hiring manager can see on the thread why Tariq cannot start, before anybody presses activate', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(placement, 'GET', `/api/placements/${it_.contract}`, it_.contract)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.checklist.outcome).toBe('BLOCK')
@@ -258,7 +258,7 @@ describe('4 · nobody starts without paperwork', () => {
   })
 
   it('the AP clerk is a party and still cannot start somebody — that is not the clerk\'s job', async () => {
-    as(NIKE.ap)
+    as(NORTHBEND.ap)
     const r = await call(activate, 'POST', `/api/contracts/${it_.contract}/activate`, it_.contract, { action: 'activate' })
     expect(r.status).toBe(403)
     // The refusal names the roles this firm has seated that do this, never the permission key.
@@ -307,7 +307,7 @@ describe('5 · Tariq files a week; the hiring manager signs it', () => {
   for (let i = 0; i < 5; i++) days[day(-7 + i).toISOString().slice(0, 10)] = 8
 
   it('the AP clerk cannot enter hours for him', async () => {
-    as(NIKE.ap)
+    as(NORTHBEND.ap)
     const r = await json(await fileTimesheet(req('POST', '/api/timesheets', { sellContractId: it_.contract, ...WEEK, days })))
     expect(r.status).toBe(403)
   })
@@ -326,13 +326,13 @@ describe('5 · Tariq files a week; the hiring manager signs it', () => {
     as(WORKER)
     const own = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, {})
     expect(own.status).toBe(403)
-    as(NIKE.ap)
+    as(NORTHBEND.ap)
     const clerk = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, {})
     expect(clerk.status).toBe(403)
   })
 
   it('the hiring manager approves the work; the supplier accepts what it will pay; only then is the week approved', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, {})
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const half = await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.timesheet } })
@@ -364,7 +364,7 @@ describe('6 · Pinnacle invoices; Northbend Athletic pays what matched', () => {
   })
 
   it('the clerk cannot pay an invoice the supplier has not submitted through the match', async () => {
-    as(NIKE.ap)
+    as(NORTHBEND.ap)
     const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1520, method: 'ACH' })
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('NOT_SUBMITTED')
@@ -384,25 +384,25 @@ describe('6 · Pinnacle invoices; Northbend Athletic pays what matched', () => {
   })
 
   it('the compliance officer cannot pay it either — reading is not paying', async () => {
-    as(NIKE.compliance)
+    as(NORTHBEND.compliance)
     const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1520, method: 'ACH' })
     expect(r.status).toBe(403)
   })
 
   it('the AP clerk pays it, and the payment says who paid whom', async () => {
-    as(NIKE.ap)
-    const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1520, method: 'ACH', reference: 'NIKE-AP-0917' })
+    as(NORTHBEND.ap)
+    const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1520, method: 'ACH', reference: 'NORTHBEND-AP-0917' })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.invoice.status).toBe('PAID')
     const p = await prisma.payment.findFirstOrThrow({ where: { invoiceId: it_.invoice } })
-    expect(p.payerCompanyId).toBe(co['world-nike'])
+    expect(p.payerCompanyId).toBe(co['world-northbend'])
     expect(p.receivedByCompanyId).toBe(co['world-pinnacle'])
   })
 })
 
 describe('7 · tenure is the person\'s, across every supplier', () => {
   it('Lucía has fourteen months at Northbend Athletic — thirteen through Brightmoor, one through Pinnacle — and Pinnacle knows only the one', async () => {
-    as(NIKE.compliance)
+    as(NORTHBEND.compliance)
     const r = await json(await tenure(req('GET', '/api/tenure')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const lucia = r.body.data.people.find((p: any) => p.name === 'Lucía Fernández')
@@ -415,7 +415,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   })
 
   it('the Tenure page names the same people near the time limit as the nightly warnings Ask Etyme reads', async () => {
-    as(NIKE.compliance)
+    as(NORTHBEND.compliance)
     const r = await json(await tenure(req('GET', '/api/tenure')))
     const near = r.body.data.people.filter((p: any) => p.status === 'WARNING').map((p: any) => p.name).sort()
     expect(near).toContain('Tobias Lindqvist')
@@ -423,7 +423,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   })
 
   it('Kwame is over the cap and inside the break — the ledger shows the date he is eligible', async () => {
-    as(NIKE.compliance)
+    as(NORTHBEND.compliance)
     const r = await json(await tenure(req('GET', '/api/tenure')))
     const kwame = r.body.data.people.find((p: any) => p.name === 'Kwame Mensah')
     expect(kwame.status).toBe('IN_BREAK')
@@ -433,7 +433,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   })
 
   it('at Talvern Medical, Anders is twenty-three months on site across two suppliers against a cap of eighteen', async () => {
-    as(`world-terumo-bct-compliance${D}`)
+    as(`world-talvern-compliance${D}`)
     const r = await json(await tenure(req('GET', '/api/tenure')))
     const anders = r.body.data.people.find((p: any) => p.name === 'Anders Lund')
     expect(anders.cumulativeMonths).toBe(23)
@@ -442,7 +442,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   })
 
   it('a person supplied through a prime and a bench vendor is counted once, not once per rung', async () => {
-    as(NIKE.compliance)
+    as(NORTHBEND.compliance)
     const r = await json(await tenure(req('GET', '/api/tenure')))
     // Helena Marsh: Northbend Athletic ← Computer Systems ← Tecwyn, 200 days. Two
     // contracts, one person, one stretch.
@@ -454,7 +454,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   })
 
   it('a person bought through a chain shows the firm the client pays once, with the count of firms below it and never their names', async () => {
-    as(NIKE.compliance)
+    as(NORTHBEND.compliance)
     const r = await json(await tenure(req('GET', '/api/tenure')))
     const helena = r.body.data.people.find((p: any) => p.name === 'Helena Marsh')
 
@@ -471,7 +471,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   })
 
   it('the cross-vendor chip means two firms the client pays, not two rungs of one chain', async () => {
-    as(NIKE.compliance)
+    as(NORTHBEND.compliance)
     const r = await json(await tenure(req('GET', '/api/tenure')))
     const helena = r.body.data.people.find((p: any) => p.name === 'Helena Marsh')
     const lucia = r.body.data.people.find((p: any) => p.name === 'Lucía Fernández')
@@ -488,7 +488,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   })
 
   it('an alumnus bought through a chain shows the firm the client pays once, with the count of firms below it and never their names', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await json(await alumni(req('GET', '/api/alumni')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const helena = r.body.data.alumni.find((a: any) => a.name === 'Helena Marsh')
@@ -515,7 +515,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   })
 
   it('asking somebody back is a date inside the break, and a button after it', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await json(await alumni(req('GET', '/api/alumni')))
     const kwame = r.body.data.alumni.find((a: any) => a.name === 'Kwame Mensah')
     expect(kwame.canReengage).toBe(false)
@@ -523,14 +523,14 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
     // ninety-day break runs from the day after: forty-one days from now.
     expect(kwame.eligibleDate).toBe(day(41).toISOString().slice(0, 10))
 
-    as(`world-corning-hiring${D}`)
+    as(`world-cavanaugh-hiring${D}`)
     const c = await json(await alumni(req('GET', '/api/alumni')))
     const nadia = c.body.data.alumni.find((a: any) => a.name === 'Nadia Pavlenko')
     expect(nadia.canReengage).toBe(true)
   })
 
   it('the compliance officer sees which supplier\'s cover is about to run out', async () => {
-    as(NIKE.compliance)
+    as(NORTHBEND.compliance)
     const r = await json(await compliance(req('GET', '/api/compliance')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const brightmoor = r.body.data.verifications.companies.find((c: any) => c.name === 'Brightmoor Staffing')
@@ -539,7 +539,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
   })
 
   it('every one of those reads left a trail', async () => {
-    const officer = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE.compliance } })
+    const officer = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND.compliance } })
     const n = await prisma.accessLog.count({ where: { actorPersonId: officer.id, action: 'TENURE_VIEW' } })
     expect(n).toBeGreaterThan(0)
   })
@@ -556,7 +556,7 @@ describe('7 · tenure is the person\'s, across every supplier', () => {
  * day of the start.
  */
 describe('the week-early verdict reads the client\u2019s own order', () => {
-  const CAVANAUGH_PM = 'world-corning-programme@demo.etyme.local'
+  const CAVANAUGH_PM = 'world-cavanaugh-programme@demo.etyme.local'
 
   it('the week-early paperwork verdict on the dashboard reads what the client\u2019s own order asked for', async () => {
     // Cavanaugh Glassworks sent Wrenfield Technical one purchase order
@@ -564,7 +564,7 @@ describe('the week-early verdict reads the client\u2019s own order', () => {
     // already on site in the seeded world, so the line is read a week
     // before a start here and put back exactly as it was.
     const line = await prisma.sellContract.findFirstOrThrow({
-      where: { clientCompany: { slug: 'world-corning' }, company: { slug: 'world-wrenfield' } },
+      where: { clientCompany: { slug: 'world-cavanaugh' }, company: { slug: 'world-wrenfield' } },
       select: { id: true, state: true, startDate: true, workOrder: { select: { number: true, msaId: true } } },
     })
     expect(line.workOrder?.msaId, 'the order with no agreement behind it').toBeNull()
@@ -583,7 +583,7 @@ describe('the week-early verdict reads the client\u2019s own order', () => {
       // Both items the order asked for, each naming the order that asked.
       //
       // The number is read off the record rather than written in here.
-      // It used to be pinned as `PO-WORLD-CORNING-0001`, which is a demo
+      // It used to be pinned as `PO-WORLD-CAVANAUGH-0001`, which is a demo
       // slug printed on a supplier's own compliance page as a commercial
       // document number — a counterparty reads that as its own purchase
       // order, so the seed now mints it in the shape the product writes
@@ -610,10 +610,10 @@ describe('the week-early verdict reads the client\u2019s own order', () => {
 
 describe('jobs of one title, sent one after another (handoffs on the generated world, 2026-10-22)', () => {
   it('a supplier told of two jobs of one title in one minute reads one notice that tells them apart by place', async () => {
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
     const ids: string[] = []
     for (const location of ['Tualatin, OR', 'Beaverton, OR']) {
-      as(NIKE.hiring)
+      as(NORTHBEND.hiring)
       const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
         title: 'Retail analytics engineer', skills: ['Retail analytics', 'Forecasting'],
         location, billMin: 3200, billMax: 4000, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -626,7 +626,7 @@ describe('jobs of one title, sent one after another (handoffs on the generated w
       if ((await prisma.requirement.findUniqueOrThrow({ where: { id } })).status !== 'OPEN') {
         await prisma.requirement.update({ where: { id }, data: { status: 'OPEN', approvalState: 'AUTO_APPROVED' } })
       }
-      as(NIKE.programme)
+      as(NORTHBEND.programme)
       const r = await call(distribute, 'POST', `/api/requisitions/${id}/distribute`, id, {
         vendors: [{ companyId: co['world-brightmoor'], payMin: 3200, payMax: 3800 }],
       })

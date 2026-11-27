@@ -78,8 +78,8 @@ describe('the shell says Demo in front of a demo company’s name', () => {
     permissions: ['*'],
     contextType: 'EMPLOYEE' as const,
     isDemo,
-    person: { id: 'p1', name: 'Dana Whitlock', email: 'world-nike-hiring@demo.etyme.local' },
-    company: { id: 'c1', name: 'Northbend Athletic', slug: 'world-nike', kind: 'CLIENT' as const },
+    person: { id: 'p1', name: 'Dana Whitlock', email: 'world-northbend-hiring@demo.etyme.local' },
+    company: { id: 'c1', name: 'Northbend Athletic', slug: 'world-northbend', kind: 'CLIENT' as const },
   })
   const rail = (isDemo: boolean, sheet = false) =>
     renderToStaticMarkup(createElement(Sidebar, { ...sidebarPropsFrom(session(isDemo)), sheet }))

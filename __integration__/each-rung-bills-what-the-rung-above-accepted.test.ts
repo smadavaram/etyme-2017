@@ -24,7 +24,7 @@ import { GET as proposeRun } from '@/app/api/ap/payment-runs/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = `world-nike-hiring${D}`
+const NORTHBEND = `world-northbend-hiring${D}`
 const CS = `world-computer-systems${D}`
 const TECWYN = `world-tecwyn${D}`
 
@@ -70,7 +70,7 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
     })
     const cs = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' } })
     const tecwyn = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tecwyn' } })
-    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
 
     // The two contracts that bill Helena's week: Computer Systems' to
     // Northbend at the top, Tecwyn's to Computer Systems underneath â€”
@@ -162,7 +162,7 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
   })
 
   it('Northbend signs thirty-eight of Helenaâ€™s forty hours, with its reason', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const r = await sign(s.week, { acceptedHours: 38, note: 'Two hours were a Friday training session we do not pay for.' })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const mine = await prisma.workAssertion.findFirstOrThrow({ where: { timesheetId: s.week, companyId: s.northbend, state: 'LIVE' } })
@@ -377,7 +377,7 @@ describe('each rung bills what the rung above it accepted, upward on the clientâ
       },
     })
 
-    as(NIKE)
+    as(NORTHBEND)
     const signed = await sign(ts.id, {
       acceptedHours: 42,
       note: 'Three hours of Friday were a vendor demo we did not ask for.',

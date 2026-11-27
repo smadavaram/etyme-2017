@@ -31,12 +31,12 @@ import { agreeTerms } from './hire-terms-walk'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = {
-  hiring: `world-nike-hiring${D}`,
-  program: `world-nike-programme${D}`,
-  ap: `world-nike-ap${D}`,
-  procurement: `world-nike-procurement${D}`,
-  compliance: `world-nike-compliance${D}`,
+const NORTHBEND = {
+  hiring: `world-northbend-hiring${D}`,
+  program: `world-northbend-programme${D}`,
+  ap: `world-northbend-ap${D}`,
+  procurement: `world-northbend-procurement${D}`,
+  compliance: `world-northbend-compliance${D}`,
 }
 /** Desks this test needs that the world does not seed. */
 const SEAT = {
@@ -78,14 +78,14 @@ async function seat(companyId: string, kind: 'CLIENT' | 'VENDOR', roleName: stri
 describe('the desk inside the company, and not only the company', () => {
   beforeAll(async () => {
     await freshWorld()
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const pinnacle = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' }, select: { id: true } })
-    it_.nike = nike.id
+    it_.northbend = northbend.id
     it_.pinnacle = pinnacle.id
 
     // A Viewer at the client. The world seeds five desks and not this
     // one, and it is the desk this whole file exists for.
-    await seat(nike.id, 'CLIENT', 'Viewer', SEAT.viewer, 'Wendy Voss')
+    await seat(northbend.id, 'CLIENT', 'Viewer', SEAT.viewer, 'Wendy Voss')
     // Three desks at the supplier: two that do not sell, one that does.
     await seat(pinnacle.id, 'VENDOR', 'HR', SEAT.supplierHr, 'Harriet Roe')
     await seat(pinnacle.id, 'VENDOR', 'Compliance Officer', SEAT.supplierCompliance, 'Colin Off')
@@ -126,13 +126,13 @@ describe('the desk inside the company, and not only the company', () => {
 
     beforeAll(async () => {
       const cc = await prisma.costCenter.findFirstOrThrow({
-        where: { companyId: it_.nike, code: { startsWith: 'APPS-' } },
+        where: { companyId: it_.northbend, code: { startsWith: 'APPS-' } },
       })
       it_.costCenter = cc.id
     })
 
     it('the clerk who pays for a requisition cannot raise one', async () => {
-      as(NIKE.ap)
+      as(NORTHBEND.ap)
       const r = await json(await raiseRequisition(req('POST', '/api/requisitions', role())))
       expect(r.status).toBe(403)
       isASentence(r.body.error.message)
@@ -140,7 +140,7 @@ describe('the desk inside the company, and not only the company', () => {
     })
 
     it('the compliance officer who clears the paperwork cannot raise one either', async () => {
-      as(NIKE.compliance)
+      as(NORTHBEND.compliance)
       const r = await json(await raiseRequisition(req('POST', '/api/requisitions', role())))
       expect(r.status).toBe(403)
       isASentence(r.body.error.message)
@@ -149,14 +149,14 @@ describe('the desk inside the company, and not only the company', () => {
     it('the procurement lead, who chooses which suppliers see a role, may not open the role', async () => {
       // The two halves of the same control. Procurement releases and does
       // not raise; the hiring manager raises and does not release.
-      as(NIKE.procurement)
+      as(NORTHBEND.procurement)
       const r = await json(await raiseRequisition(req('POST', '/api/requisitions', role())))
       expect(r.status).toBe(403)
       isASentence(r.body.error.message)
     })
 
     it('the hiring manager raises it, and nothing about the seat stands in the way', async () => {
-      as(NIKE.hiring)
+      as(NORTHBEND.hiring)
       const r = await json(await raiseRequisition(req('POST', '/api/requisitions', role())))
       expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
       it_.requisition = r.body.data.requisition.id
@@ -165,7 +165,7 @@ describe('the desk inside the company, and not only the company', () => {
     })
 
     it('and the hiring manager who raised it still cannot choose who sees it', async () => {
-      as(NIKE.hiring)
+      as(NORTHBEND.hiring)
       const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
         vendors: [{ companyId: it_.pinnacle, payMin: 3200, payMax: 3800 }],
       })
@@ -174,7 +174,7 @@ describe('the desk inside the company, and not only the company', () => {
     })
 
     it('the program office releases it to the supplier', async () => {
-      as(NIKE.program)
+      as(NORTHBEND.program)
       const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
         vendors: [{ companyId: it_.pinnacle, payMin: 3200, payMax: 3800 }],
       })
@@ -238,14 +238,14 @@ describe('the desk inside the company, and not only the company', () => {
     })
 
     it('neither can the AP clerk who will pay for it', async () => {
-      as(NIKE.ap)
+      as(NORTHBEND.ap)
       const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, terms())
       expect(r.status).toBe(403)
       isASentence(r.body.error.message)
     })
 
     it('neither can the compliance officer who clears the person', async () => {
-      as(NIKE.compliance)
+      as(NORTHBEND.compliance)
       const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, terms())
       expect(r.status).toBe(403)
       isASentence(r.body.error.message)
@@ -257,7 +257,7 @@ describe('the desk inside the company, and not only the company', () => {
     })
 
     it('the hiring manager awards it: the sell side is written, and the buy side waits on Nadia’s own terms', async () => {
-      as(NIKE.hiring)
+      as(NORTHBEND.hiring)
       const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, terms())
       expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
       await prisma.sellContract.findFirstOrThrow({
@@ -279,7 +279,7 @@ describe('the desk inside the company, and not only the company', () => {
     })
 
     it('the client cannot state or read Nadia’s terms with the supplier', async () => {
-      as(NIKE.hiring)
+      as(NORTHBEND.hiring)
       const r = await call(actOnTerms, 'POST', `/api/submissions/${it_.submission}/terms`, it_.submission, {
         action: 'state', engagementType: 'W2', payRate: 3000,
       })
@@ -301,8 +301,8 @@ describe('the desk inside the company, and not only the company', () => {
 
     it('the program manager could have awarded it too — the split is hiring against reading, not manager against manager', async () => {
       const pm = await prisma.person.findUniqueOrThrow({
-        where: { primaryEmail: NIKE.program },
-        select: { contexts: { where: { companyId: it_.nike }, select: { role: { select: { permissions: true } } } } },
+        where: { primaryEmail: NORTHBEND.program },
+        select: { contexts: { where: { companyId: it_.northbend }, select: { role: { select: { permissions: true } } } } },
       })
       expect(pm.contexts[0].role!.permissions).toContain('requirements.write')
       const viewer = await prisma.person.findUniqueOrThrow({

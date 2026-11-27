@@ -85,7 +85,7 @@ describe('the loop of documents, between the parties', () => {
   })
 
   it('the compliance page reads a supplier’s standing to trade beside its cover, not its insurance alone', async () => {
-    const cavanaugh = await firm('world-corning')
+    const cavanaugh = await firm('world-cavanaugh')
     const wrenfield = await firm('world-wrenfield')
     // The state that registered the firm says it may not contract: a
     // certificate that ran out last month, on file.
@@ -109,7 +109,7 @@ describe('the loop of documents, between the parties', () => {
       },
     })
 
-    as(`world-corning-compliance${D}`)
+    as(`world-cavanaugh-compliance${D}`)
     const r = await json(await compliance(req('GET', '/api/compliance')))
     expect(r.status, JSON.stringify(r.body).slice(0, 400)).toBe(200)
 
@@ -126,7 +126,7 @@ describe('the loop of documents, between the parties', () => {
   })
 
   it('a client adds a document type of its own to an order and the next start asks for it', async () => {
-    const cavanaugh = await firm('world-corning')
+    const cavanaugh = await firm('world-cavanaugh')
     await prisma.documentType.upsert({
       where: { companyId_key: { companyId: cavanaugh.id, key: 'CRANE_SIGNALLER' } },
       create: {
@@ -142,7 +142,7 @@ describe('the loop of documents, between the parties', () => {
       update: {},
     })
 
-    as(`world-corning-programme${D}`)
+    as(`world-cavanaugh-programme${D}`)
     const wrote = await json(
       await setRequirement(
         req('POST', '/api/documents/requirements', {
@@ -180,7 +180,7 @@ describe('the loop of documents, between the parties', () => {
   })
 
   it('a compliance officer waives one item with a reason and the start proceeds with the waiver on the record', async () => {
-    as(`world-corning-compliance${D}`)
+    as(`world-cavanaugh-compliance${D}`)
     const r = await json(
       await setRequirement(
         req('POST', '/api/documents/requirements', {
@@ -214,7 +214,7 @@ describe('the loop of documents, between the parties', () => {
   })
 
   it('work authorization cannot be waived, whoever asks and however urgent', async () => {
-    as(`world-corning-programme${D}`)
+    as(`world-cavanaugh-programme${D}`)
     const r = await json(
       await setRequirement(
         req('POST', '/api/documents/requirements', {
@@ -263,7 +263,7 @@ describe('the loop of documents, between the parties', () => {
 
     // And a desk at the client that is not the program manager or the
     // compliance officer is refused in words rather than by a code.
-    as(`world-corning-ap${D}`)
+    as(`world-cavanaugh-ap${D}`)
     const clerk = await json(
       await setRequirement(
         req('POST', '/api/documents/requirements', {
@@ -555,7 +555,7 @@ describe('the packet, the pack and the verdict ask one question of one door', ()
 
   it('a supplier is asked for the certificate of good standing its customer’s own order requires, in the packet that customer sends it', async () => {
     const wrenfield = await firm('world-wrenfield')
-    const desk = await seatAt('world-corning', ['vendors.manage', 'consultants.write'])
+    const desk = await seatAt('world-cavanaugh', ['vendors.manage', 'consultants.write'])
     expect(desk, 'somebody at the client may ask a supplier for documents').toBeTruthy()
     as(desk!)
 
@@ -639,7 +639,7 @@ describe('the packet, the pack and the verdict ask one question of one door', ()
   })
 
   it('the pack a supplier sends its customer carries what that customer’s order asks of the firm, and none of the worker’s own file', async () => {
-    const cavanaugh = await firm('world-corning')
+    const cavanaugh = await firm('world-cavanaugh')
     const desk = await seatAt('world-wrenfield', ['settings.manage', 'vendors.manage'])
     expect(desk, 'somebody at the supplier may send its own documents out').toBeTruthy()
     as(desk!)
@@ -666,7 +666,7 @@ describe('the packet, the pack and the verdict ask one question of one door', ()
   })
 
   it('a certificate the customer’s order asks for, lapsed, stops the pack rather than being left out of it quietly', async () => {
-    const cavanaugh = await firm('world-corning')
+    const cavanaugh = await firm('world-cavanaugh')
     const desk = await seatAt('world-wrenfield', ['settings.manage', 'vendors.manage'])
     expect(desk, 'somebody at the supplier may send its own documents out').toBeTruthy()
     as(desk!)

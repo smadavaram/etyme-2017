@@ -72,7 +72,7 @@ export function read(value: string | undefined | null): string | null {
   // seeded company seat and `seed.etyme.invalid` for the seeded world's
   // consultants — and the cost of that was on the screen rather than
   // here: every seeded seat had to be addressed
-  // `world-corning-procurement@demo.etyme.local`, and Contacts printed
+  // `world-cavanaugh-procurement@demo.etyme.local`, and Contacts printed
   // exactly that as a person's email, with a retired company name and a
   // British spelling inside it (the browser walk, 2026-09-21). Widening
   // the rule from two names to the reserved suffixes those two names

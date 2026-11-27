@@ -19,7 +19,7 @@ import { paperRows, workStops } from '@/app/dashboard/my-work/paperwork-rows'
  */
 
 const HELENA = 'helena.marsh@seed.etyme.invalid'
-const NORTHBEND_HIRING = 'world-nike-hiring@demo.etyme.local'
+const NORTHBEND_HIRING = 'world-northbend-hiring@demo.etyme.local'
 
 async function page() {
   as(HELENA)
@@ -119,7 +119,7 @@ describe('on the seeded Helena Marsh, one week reads one way on every tile and r
 })
 
 
-const NORTHBEND_PROGRAM = 'world-nike-programme@demo.etyme.local'
+const NORTHBEND_PROGRAM = 'world-northbend-programme@demo.etyme.local'
 
 describe('Northbend Athletic’s Ending soon, as its program office reads it', () => {
   it('Felix Brenner ends at the Tualatin site, with the rate Northbend pays', async () => {

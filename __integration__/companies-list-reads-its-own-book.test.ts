@@ -30,7 +30,7 @@ const { companyTiles } = await import('@/lib/counterparty')
 
 const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
-const SEATS = ['brightmoor', 'tecwyn', 'nike', 'aptiva', 'tellisford', 'computer-systems', 'kestrel'].map((s) => `world-${s}${D}`)
+const SEATS = ['brightmoor', 'tecwyn', 'northbend', 'aptiva', 'tellisford', 'computer-systems', 'kestrel'].map((s) => `world-${s}${D}`)
 
 let brightmoor = ''
 const listed = async (q = '?records=1') => {

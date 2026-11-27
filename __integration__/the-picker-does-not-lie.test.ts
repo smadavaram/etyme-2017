@@ -24,7 +24,7 @@ import { GET as billable, POST as generate } from '@/app/api/invoices/generate/r
 const D = '@demo.etyme.local'
 const OFFICE = `world-aptiva${D}`
 const SUPPLIER = `world-computer-systems${D}`
-const CLIENT = `world-nike${D}`
+const CLIENT = `world-northbend${D}`
 
 let supplierId = ''
 let officeId = ''
@@ -132,7 +132,7 @@ describe('a picker does not offer what the button will refuse', () => {
     // state was a text box asking a human to type an engagement id.
     as(CLIENT)
     const { body } = await json(await billable(req('GET', '/api/invoices/generate')))
-    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { name: true } })
+    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { name: true } })
     expect(body.data.says).toContain(client.name)
     expect(body.data.says).toContain('no engagement it can bill')
     expect(body.data.says).not.toMatch(/invoices\.issue|NOT_THE_SUPPLIER/)

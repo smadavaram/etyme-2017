@@ -148,7 +148,7 @@ describe('Etyme records exempt status and never decides it', () => {
   it('only the employer may assert it, because only the employer carries the bill for getting it wrong', () => {
     const check = checkAssertion({
       status: 'EXEMPT', basis: 'PROFESSIONAL', screen: screenExemption(SALARIED),
-      assertedByCompanyId: 'nike', employerCompanyId: 'brightmoor', assertedAt: MARCH,
+      assertedByCompanyId: 'northbend', employerCompanyId: 'brightmoor', assertedAt: MARCH,
     })
     expect(check.ok).toBe(false)
     expect(check.code).toBe('NOT_THE_EMPLOYER')

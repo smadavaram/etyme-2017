@@ -20,8 +20,8 @@ import { askedWords, examinedWords, receivedWords } from '@/app/dashboard/placem
  * supplier's name, and the papers the sub-vendor asked for do not carry it.
  */
 const HALCYON = 'world-halcyon@demo.etyme.local'
-const CORNING = 'world-corning@demo.etyme.local'
-const NIKE = 'world-nike@demo.etyme.local'
+const CAVANAUGH = 'world-cavanaugh@demo.etyme.local'
+const NORTHBEND = 'world-northbend@demo.etyme.local'
 const TECWYN = 'world-tecwyn@demo.etyme.local'
 const CS = 'world-computer-systems@demo.etyme.local'
 const HARLOW = 'world-harlow-health@demo.etyme.local'
@@ -41,11 +41,11 @@ const slug = (s: string) => prisma.company.findFirstOrThrow({ where: { slug: s }
 
 beforeAll(async () => {
   await freshWorld()
-  const [halcyon, corning, tecwyn, cs, harlow] = await Promise.all(['world-halcyon', 'world-corning', 'world-tecwyn', 'world-computer-systems', 'world-harlow-health'].map(slug))
+  const [halcyon, cavanaugh, tecwyn, cs, harlow] = await Promise.all(['world-halcyon', 'world-cavanaugh', 'world-tecwyn', 'world-computer-systems', 'world-harlow-health'].map(slug))
   halcyonName = halcyon.name
   tecwynName = tecwyn.name
   tecwynId = tecwyn.id
-  samuelLine = (await prisma.sellContract.findFirstOrThrow({ where: { companyId: halcyon.id, clientCompanyId: corning.id, person: { name: 'Samuel Adeyinka' } }, select: { id: true } })).id
+  samuelLine = (await prisma.sellContract.findFirstOrThrow({ where: { companyId: halcyon.id, clientCompanyId: cavanaugh.id, person: { name: 'Samuel Adeyinka' } }, select: { id: true } })).id
   tecwynLine = (await prisma.sellContract.findFirstOrThrow({ where: { companyId: tecwyn.id, clientCompanyId: cs.id, person: { name: 'Priya Ramesh' } }, select: { id: true } })).id
   csToHarlow = (await prisma.sellContract.findFirstOrThrow({ where: { companyId: cs.id, clientCompanyId: harlow.id, person: { name: 'Priya Ramesh' } }, select: { id: true } })).id
 }, 600_000)
@@ -105,7 +105,7 @@ describe('the papers on a customer line, which is a firm’s own W2', () => {
 
   it('a paper that arrived and nobody examined reads Arrived, not examined, to the firm and to its client', async () => {
     await prisma.docInstance.update({ where: { id: instanceId }, data: { status: 'UPLOADED', signedAt: new Date(), fileName: 'arrived.pdf' } })
-    for (const seat of [HALCYON, CORNING]) {
+    for (const seat of [HALCYON, CAVANAUGH]) {
       const r = await open(seat, samuelLine)
       expect(r.status, seat).toBe(200)
       const it = item(r.body, key)
@@ -116,12 +116,12 @@ describe('the papers on a customer line, which is a firm’s own W2', () => {
   })
 
   it('the client reads the seller it pays by name, because the seller is the rung it pays', async () => {
-    const r = await open(CORNING, samuelLine)
+    const r = await open(CAVANAUGH, samuelLine)
     expect(item(r.body, key).asked.firmName).toBe(halcyonName)
   })
 
   it('a seat with no part in the line is refused and reads no paper facts at all', async () => {
-    const r = await open(NIKE, samuelLine)
+    const r = await open(NORTHBEND, samuelLine)
     expect(r.status).not.toBe(200)
     expect(JSON.stringify(r.body)).not.toContain('arrived.pdf')
     expect(JSON.stringify(r.body)).not.toContain('"asked"')
@@ -166,7 +166,7 @@ describe('the papers on a supplier’s person, one rung below the client', () =>
   })
 
   it('a seat that is a stranger to the sub-vendor’s line is refused and reads no facts', async () => {
-    const r = await open(NIKE, tecwynLine)
+    const r = await open(NORTHBEND, tecwynLine)
     expect(r.status).not.toBe(200)
     expect(JSON.stringify(r.body)).not.toContain(tecwynName)
   })

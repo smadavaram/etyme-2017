@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { GET as decisions } from '@/app/api/decisions/route'
 import { GET as oneCard } from '@/app/api/conversations/one-card/route'
+import { WORLD_CLIENTS } from '@/lib/seed-world'
 
 /**
  * A list that is empty on the seeded world is a bug (CLAUDE.md). The photo
@@ -10,8 +11,8 @@ import { GET as oneCard } from '@/app/api/conversations/one-card/route'
  * Cavanaugh Glassworks, and the owner of Colleen Byrne's one-person firm.
  */
 const D = '@demo.etyme.local'
-const APPROVER = `world-corning-vp${D}`
-const COMPLIANCE = `world-corning-compliance${D}`
+const APPROVER = `world-cavanaugh-vp${D}`
+const COMPLIANCE = `world-cavanaugh-compliance${D}`
 
 let byrneOwner = { email: '', seat: '' }
 
@@ -60,5 +61,21 @@ describe('every seeded seat owes a card', () => {
     as(byrneOwner.email)
     const res = await json(await oneCard(req('GET', '/api/conversations/one-card', undefined, { 'x-context-id': byrneOwner.seat })))
     expect(((res.body?.data?.cards ?? []) as unknown[]).length).toBeGreaterThan(0)
+  })
+
+  // The photo walk of 2026-11-26 read "Nothing needs you today" on the other
+  // clients' Approvers too: their routed job request waits on HR first.
+  for (const c of WORLD_CLIENTS.filter((x) => x.vp)) {
+    it(`the Approver at ${c.name} owes a job request only an approver signs`, async () => {
+      const types = (await queue(`world-${c.slug}-vp${D}`)).map((d) => d.type)
+      expect(types).toContain('REQUISITION_APPROVAL')
+    })
+  }
+
+  it('every client the world seeds has an Approver in this list, so none is missed', () => {
+    expect(WORLD_CLIENTS.filter((x) => x.vp).map((x) => x.slug)).toEqual(
+      expect.arrayContaining(['northbend', 'cavanaugh', 'talvern'])
+    )
+    expect(WORLD_CLIENTS.every((x) => x.vp)).toBe(true)
   })
 })

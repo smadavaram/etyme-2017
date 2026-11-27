@@ -55,7 +55,7 @@ const WIDTH = Number(process.env.PHONE_WIDTH ?? 390)
 const HEIGHT = 844
 const OUT = process.env.PHONE_OUT ?? 'phone-report'
 const ONLY = process.env.PHONE_ONLY // a substring of a url, to re-check one page
-const PERSONA = process.env.PHONE_PERSONA // one seat (CLIENT, PRIME, CANDIDATE, NIKE-AP), to re-check one
+const PERSONA = process.env.PHONE_PERSONA // one seat (CLIENT, PRIME, CANDIDATE, NORTHBEND-AP), to re-check one
 
 // Resolved rather than pinned: the sandbox image bumps the chromium
 // build number and a hard-coded path breaks on the next one.
@@ -74,7 +74,7 @@ const PERSONAS = [
   { seat: 'CLIENT', body: { side: 'CLIENT' } },
   { seat: 'PRIME', body: { side: 'PRIME' } },
   { seat: 'CANDIDATE', body: { side: 'CANDIDATE' } },
-  { seat: 'NIKE-AP', body: { as: 'world-nike', desk: 'ap' }, optional: true },
+  { seat: 'NORTHBEND-AP', body: { as: 'world-northbend', desk: 'ap' }, optional: true },
 ]
 
 /** Pages a stranger opens. */

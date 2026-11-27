@@ -138,7 +138,7 @@ describe('a demo door that cannot be opened says which ones can', () => {
 describe('a seeded order carries a number in the shape the product writes', () => {
   it('gives a seeded order a number a counterparty reads as its own purchase order, not a demo slug', () => {
     const seed = read('src/lib/seed-programmes.ts')
-    // `PO-WORLD-CORNING-0001` was printed on Wrenfield Technical's own
+    // `PO-WORLD-CAVANAUGH-0001` was printed on Wrenfield Technical's own
     // compliance page as a commercial document number. A slug is an
     // address and nobody reads an address; this one was read.
     expect(seed).not.toContain('`PO-${slug.toUpperCase()}-0001`\n      const dOrder')

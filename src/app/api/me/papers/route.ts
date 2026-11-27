@@ -37,7 +37,7 @@ import { Prisma, VerificationType } from '@prisma/client'
 /**
  * GET /api/me/papers — the documents asked of me, by whom, and what each needs.
  *
- * A consultant's own view: their W-9 for Pinnacle, the NDA Nike wants
+ * A consultant's own view: their W-9 for Pinnacle, the NDA Northbend wants
  * signed, the license renewal the nightly chase asked them for. Never
  * another person's, and nothing about what the companies say to each
  * other. A document sent for signature is answered from the same page

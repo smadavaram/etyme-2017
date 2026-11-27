@@ -69,7 +69,7 @@ describe('one reader counts a company’s people the same way on every screen', 
   })
 
   it('the shared sample seat of the home page is never counted among a company’s people', () => {
-    const sample = row({ id: 's', person: { name: 'Shared sample', primaryEmail: 'world-nike-sample@demo.etyme.local' } })
+    const sample = row({ id: 's', person: { name: 'Shared sample', primaryEmail: 'world-northbend-sample@demo.etyme.local' } })
     expect(peopleOf(seatsFrom([row({ id: 'a' }), sample], 'Northbend Athletic'))).toHaveLength(1)
   })
 

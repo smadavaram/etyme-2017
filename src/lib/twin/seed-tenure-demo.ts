@@ -38,7 +38,7 @@ import { holidayKeys } from '@/lib/seed-calendar'
 /** Days from the world's birthday to the day the demo person reaches the limit. */
 export const DAYS_TO_LIMIT = 60
 
-const northbend = PROGRAMMES.find((p) => p.client === 'nike')!
+const northbend = PROGRAMMES.find((p) => p.client === 'northbend')!
 
 /** Northbend's own time limit, in months, as its governance rule is seeded. */
 export const NORTHBEND_LIMIT_MONTHS = northbend.governance.tenureCapMonths
@@ -80,7 +80,7 @@ const emailOf = (name: string) =>
  * lines were created (zero on a reseed).
  */
 export async function seedTenureDemo(world: World): Promise<{ created: number; moved: number }> {
-  const client = world.firmBySlug.get('nike')
+  const client = world.firmBySlug.get('northbend')
   if (!client) return { created: 0, moved: 0 }
   const who = await db.person.upsert({
     where: { primaryEmail: emailOf(TENURE_DEMO.person) },

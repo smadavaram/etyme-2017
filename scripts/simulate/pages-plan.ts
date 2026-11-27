@@ -116,10 +116,10 @@ export interface Probe {
 
 /** The roles the founder named, at the firms the demo seeds for them; the busiest firm of the same kind beside each. */
 export const PROBES: readonly Probe[] = [
-  { party: 'client', role: 'program manager', kinds: ['CLIENT'], seat: 'programme', prefer: ['world-nike'] },
-  { party: 'client', role: 'hiring manager', kinds: ['CLIENT'], seat: 'hiring', prefer: ['world-nike'] },
-  { party: 'client', role: 'AP clerk', kinds: ['CLIENT'], seat: 'ap', prefer: ['world-nike'] },
-  { party: 'client', role: 'compliance officer', kinds: ['CLIENT'], seat: 'compliance', prefer: ['world-nike'] },
+  { party: 'client', role: 'program manager', kinds: ['CLIENT'], seat: 'programme', prefer: ['world-northbend'] },
+  { party: 'client', role: 'hiring manager', kinds: ['CLIENT'], seat: 'hiring', prefer: ['world-northbend'] },
+  { party: 'client', role: 'AP clerk', kinds: ['CLIENT'], seat: 'ap', prefer: ['world-northbend'] },
+  { party: 'client', role: 'compliance officer', kinds: ['CLIENT'], seat: 'compliance', prefer: ['world-northbend'] },
   { party: 'client', role: 'regional manager', kinds: ['CLIENT'], seat: 'region', prefer: ['world-corvane'] },
   { party: 'supplier', role: 'owner', kinds: ['VENDOR'], seat: 'owner', prefer: ['world-brightmoor'] },
   { party: 'supplier', role: 'account manager', kinds: ['VENDOR'], seat: 'account', prefer: ['world-brightmoor'] },

@@ -68,7 +68,7 @@ export const OFFERED: Offered[] = [
 export const NORTHBEND_JOB = 'HCM integration lead'
 
 export async function seedBenchMatching(ctx: SeedContext): Promise<{ listings: number; matches: number }> {
-  const northbend = ctx.firmBySlug.get('nike')
+  const northbend = ctx.firmBySlug.get('northbend')
   const halcyon = ctx.firmBySlug.get('halcyon')
   if (!northbend || !halcyon) return { listings: 0, matches: 0 }
 

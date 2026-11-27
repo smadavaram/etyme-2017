@@ -146,7 +146,7 @@ async function main() {
   const client = await prisma.company.create({
     data: {
       name: 'Talvern Medical',
-      slug: 'terumobct',
+      slug: 'talvern',
       domain: 'talvern-medical.example',
       domainVerified: true,
       kind: 'CLIENT',
@@ -159,7 +159,7 @@ async function main() {
   const client2 = await prisma.company.create({
     data: {
       name: 'Northbend Athletic Inc.',
-      slug: 'nike',
+      slug: 'northbend',
       domain: 'northbend-athletic.example',
       domainVerified: true,
       kind: 'CLIENT',
@@ -1903,14 +1903,14 @@ async function main() {
     },
     // Northbend Athletic engagement — paid
     {
-      engId: eng2.id, number: 'IN_NIKE01_001',
+      engId: eng2.id, number: 'IN_NORTHBEND01_001',
       periodStartDays: -60, periodEndDays: -31,
       total: 16200, paid: 16200, // 120hrs × $135/hr
       dueDays: -1, status: 'PAID',
     },
     // Northbend Athletic engagement — issued, current
     {
-      engId: eng2.id, number: 'IN_NIKE01_002',
+      engId: eng2.id, number: 'IN_NORTHBEND01_002',
       periodStartDays: -30, periodEndDays: -1,
       total: 10800, paid: 0, // 80hrs × $135/hr
       dueDays: 29, status: 'ISSUED',
@@ -2999,7 +2999,7 @@ async function main() {
 
   // ── Governance Policy + Rules (Talvern Medical) ────────────
 
-  const terumoPolicy = await prisma.governancePolicy.create({
+  const talvernPolicy = await prisma.governancePolicy.create({
     data: {
       companyId: client.id,
       name: 'Talvern Medical Contingent Workforce Policy',
@@ -3020,7 +3020,7 @@ async function main() {
   for (const r of governanceRulesData) {
     const rule = await prisma.governanceRule.create({
       data: {
-        policyId: terumoPolicy.id,
+        policyId: talvernPolicy.id,
         ruleType: r.ruleType,
         enforcementMode: r.enforcementMode,
         parameters: r.parameters,

@@ -67,8 +67,8 @@ const APTIVA_COMPLIANCE = 'compliance.aptiva@seed.etyme.invalid'
 const HALVARD_COMPLIANCE = 'compliance.halvard@seed.etyme.invalid'
 const TECWYN_OWNER = `world-tecwyn${D}`
 const HARLOW_OWNER = `world-harlow-health${D}`
-const NORTHBEND_AP = `world-nike-ap${D}`
-const NORTHBEND_HIRING = `world-nike-hiring${D}`
+const NORTHBEND_AP = `world-northbend-ap${D}`
+const NORTHBEND_HIRING = `world-northbend-hiring${D}`
 const KARTHIK = 'karthik.menon@seed.etyme.invalid'
 const ANDERS = 'anders.lund@seed.etyme.invalid'
 
@@ -132,7 +132,7 @@ beforeAll(async () => {
   for (const [key, slug] of [
     ['tecwyn', 'world-tecwyn'], ['tellisford', 'world-tellisford'],
     ['aptiva', 'world-aptiva'], ['kestrel', 'world-kestrel'],
-    ['northbend', 'world-nike'], ['harlow', 'world-harlow-health'],
+    ['northbend', 'world-northbend'], ['harlow', 'world-harlow-health'],
   ] as const) {
     co[key] = (await prisma.company.findFirstOrThrow({ where: { slug } })).id
   }
@@ -196,7 +196,7 @@ describe('a supplier answers for its own people, from its own desk', () => {
 
   it('a supplier’s compliance officer sees the requests its own desk logged, and not a request another company logged about somebody else', async () => {
     // Another firm's desk logs one about its own person, on the same day.
-    as(`world-terumo-bct-compliance${D}`)
+    as(`world-talvern-compliance${D}`)
     await deskAct(req('POST', '/api/data-requests', { kind: 'EXPORT', subjectPersonId: who.anders }))
 
     as(TECWYN_COMPLIANCE)
@@ -459,12 +459,12 @@ describe('a business user asks for their own data from their firm’s seat', () 
     const hers = await prisma.dataRequest.findFirstOrThrow({
       where: { subjectPersonId: who.ap, kind: 'EXPORT' },
     })
-    as(`world-nike${D}`)
+    as(`world-northbend${D}`)
     const { status, body } = await json(await myData(req('GET', `/api/me/data?download=${hers.id}`)))
     expect(status).toBe(404)
     expect(body.error).toContain('not yours')
 
-    const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: `world-nike${D}` } })
+    const owner = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: `world-northbend${D}` } })
     const refused = await eventually(
       () => prisma.accessLog.findFirst({
         where: { subjectId: owner.id, action: 'DATA_EXPORT', allowed: false },
@@ -644,7 +644,7 @@ describe('the compliance desk reads its own page', () => {
   }
 
   it('a compliance officer who holds the governance read is shown the desk, and is never told they do not hold it', async () => {
-    as(`world-nike-compliance${D}`)
+    as(`world-northbend-compliance${D}`)
     const requests = await asThePageReads(() => deskQueue(req('GET', '/api/data-requests')))
     const holds = await asThePageReads(() => holdList(req('GET', '/api/legal-holds')))
 
@@ -659,7 +659,7 @@ describe('the compliance desk reads its own page', () => {
     // Talvern Medical rather than Northbend: Northbend's records were in
     // the incident above, and a client in no incident is the case this
     // sentence is about.
-    as(`world-terumo-bct-compliance${D}`)
+    as(`world-talvern-compliance${D}`)
     const breaches = await asThePageReads(() => breachList(req('GET', '/api/breaches')))
     expect(breaches.error, 'this client is in no incident, which is the ordinary case, and is answered').toBeNull()
     expect(breaches.data.breaches).toEqual([])

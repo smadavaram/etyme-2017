@@ -84,7 +84,7 @@ type Held = Seat | 'CANDIDATE'
  *
  * The roster is in lib/seed-programmes for a client and lib/seed-world
  * for a supplier; the words here are what a visitor reads. The address
- * still carries the desk in it — `world-nike-ap@` is the AP clerk — but
+ * still carries the desk in it — `world-northbend-ap@` is the AP clerk — but
  * nothing looks a seat up that way any more: a role is the fact and an
  * address is a handle.
  */
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
   // seat is an explicit intent and gets a workspace of its own; the old
   // one is reaped with the rest.
   //
-  // And never for a world seat. `{ as: "world-nike" }` carries no `side`,
+  // And never for a world seat. `{ as: "world-northbend" }` carries no `side`,
   // so it read as the default CLIENT seat here — and a visitor who had
   // ever held a private client sandbox was handed that sandbox back
   // instead of Northbend Athletic. The world branch below is the only answer to `as`.

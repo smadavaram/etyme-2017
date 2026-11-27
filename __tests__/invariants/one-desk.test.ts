@@ -149,7 +149,7 @@ describe('a requisition, where the lead who owns the money is the one who raised
 describe('a week of hours, where the worker and the firm are the same person', () => {
   const parties = {
     personId: 'p-solo', vendorCompanyId: 'c-marsh',
-    clientCompanyId: 'c-nike', endClientCompanyId: null,
+    clientCompanyId: 'c-northbend', endClientCompanyId: null,
   }
 
   it('the owner of a one-person corporation cannot sign their own week, whatever else they hold', () => {

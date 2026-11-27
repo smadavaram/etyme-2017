@@ -24,7 +24,7 @@ import { POST as award } from '@/app/api/submissions/[id]/award/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}`, ap: `world-nike-ap${D}` }
+const NORTHBEND = { programme: `world-northbend-programme${D}`, hiring: `world-northbend-hiring${D}`, ap: `world-northbend-ap${D}` }
 const PINNACLE = `world-pinnacle${D}`
 const JUNIPER = 'juniper.aldana@seed.etyme.invalid'
 
@@ -52,7 +52,7 @@ async function roundAs(email: string) {
 describe('the interview page, from an offer to a placement', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-pinnacle']) {
+    for (const slug of ['world-northbend', 'world-pinnacle']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
     const person = await prisma.person.create({ data: { name: 'Juniper Aldana', primaryEmail: JUNIPER } })
@@ -67,8 +67,8 @@ describe('the interview page, from an offer to a placement', () => {
       data: { personId: person.id, companyId: co['world-pinnacle'], type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' },
     })
 
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-    as(NIKE.hiring)
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+    as(NORTHBEND.hiring)
     const role = await json(await raiseRequisition(req('POST', '/api/requisitions', {
       title: 'Demand planning analyst', skills: ['Demand planning'],
       location: 'Beaverton, OR', billMin: 3200, billMax: 4000, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -77,7 +77,7 @@ describe('the interview page, from an offer to a placement', () => {
     expect(role.body?.error, JSON.stringify(role.body)).toBeUndefined()
     it_.requisition = role.body.data.requisition.id
 
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const sent = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3900 }],
     })
@@ -92,7 +92,7 @@ describe('the interview page, from an offer to a placement', () => {
 
     const { body, problems } = buildProposal({ ...EMPTY_FORM, stage: 'Panel', mode: 'VIDEO', durationMins: 45, times: [inTwoDays()] })
     expect(problems).toEqual([])
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const round = await call(proposeRound, 'POST', `/api/submissions/${it_.submission}/interviews`, it_.submission, body)
     expect(round.body?.error, JSON.stringify(round.body)).toBeUndefined()
     it_.round = round.body.data.id
@@ -103,12 +103,12 @@ describe('the interview page, from an offer to a placement', () => {
   }, 240_000)
 
   it('before the round is decided, the interview page offers nobody Place', async () => {
-    const row = await roundAs(NIKE.hiring)
+    const row = await roundAs(NORTHBEND.hiring)
     expect(row.place).toEqual({ kind: 'NONE' })
   })
 
   it('making an offer tells the client to place the candidate, not to raise a contract by hand', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const offer = await call(decideRound, 'POST', `/api/interviews/${it_.round}`, it_.round, {
       action: 'outcome', outcome: 'OFFER', feedback: 'The team wants her.',
     })
@@ -139,7 +139,7 @@ describe('the interview page, from an offer to a placement', () => {
   })
 
   it('the hiring manager is offered Place on the offered round', async () => {
-    const row = await roundAs(NIKE.hiring)
+    const row = await roundAs(NORTHBEND.hiring)
     expect(row.place).toEqual({
       kind: 'PLACE',
       says: 'Place Juniper Aldana: this writes the contract, the order and the billing dates in one step.',
@@ -147,7 +147,7 @@ describe('the interview page, from an offer to a placement', () => {
   })
 
   it('the AP clerk reads why she cannot place Juniper, and is offered no button', async () => {
-    const row = await roundAs(NIKE.ap)
+    const row = await roundAs(NORTHBEND.ap)
     expect(row.place.kind).toBe('SAID')
     expect(row.place.says).toContain('Ask them to award Juniper Aldana.')
   })
@@ -161,7 +161,7 @@ describe('the interview page, from an offer to a placement', () => {
   })
 
   it('Place on the interview page is the award: the hiring manager places Juniper and the contract is written', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 3700, startDate: day(3).toISOString().slice(0, 10),
     })
@@ -171,7 +171,7 @@ describe('the interview page, from an offer to a placement', () => {
   })
 
   it('once placed, every desk reads the placement on the round, and nobody is offered Place again', async () => {
-    for (const email of [NIKE.hiring, NIKE.ap, PINNACLE]) {
+    for (const email of [NORTHBEND.hiring, NORTHBEND.ap, PINNACLE]) {
       const row = await roundAs(email)
       expect(row.place, email).toEqual({ kind: 'PLACED', says: 'Juniper Aldana is placed.', contractId: it_.contract })
     }

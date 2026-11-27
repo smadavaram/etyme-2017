@@ -38,7 +38,7 @@ describe('the company door leads into the seeded world, not a sandbox with a mad
   const seats = worldSeats()
 
   it('a company hiring contractors sits at Northbend Athletic, from the program manager\'s desk', () => {
-    expect(seats.CLIENT).toEqual({ as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' })
+    expect(seats.CLIENT).toEqual({ as: 'world-northbend', desk: 'programme', firm: 'Northbend Athletic' })
   })
 
   it('a staffing firm with a bench sits at Tecwyn', () => {
@@ -46,7 +46,7 @@ describe('the company door leads into the seeded world, not a sandbox with a mad
   })
 
   it('the old buyer\'s door means the client\'s chair — Northbend Athletic as well', () => {
-    expect(seats.HIRING).toMatchObject({ as: 'world-nike' })
+    expect(seats.HIRING).toMatchObject({ as: 'world-northbend' })
   })
 
   it('every company seat has a firm behind it, and that firm is in the world', () => {

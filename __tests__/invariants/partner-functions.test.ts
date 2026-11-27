@@ -10,19 +10,19 @@
 import { describe, it, expect } from 'vitest'
 import { partnerFunctions, mayConsolidate, selfBilling } from '@/lib/billing-cascade'
 
-const NIKE = { id: 'c-nike', name: 'Northbend Athletic Inc' }
-const NIKE_SSC = { id: 'c-ssc', name: 'Northbend Athletic Shared Services BV' }
-const NIKE_TREASURY = { id: 'c-tre', name: 'Northbend Athletic Treasury Ltd' }
+const NORTHBEND = { id: 'c-northbend', name: 'Northbend Athletic Inc' }
+const NORTHBEND_SSC = { id: 'c-ssc', name: 'Northbend Athletic Shared Services BV' }
+const NORTHBEND_TREASURY = { id: 'c-tre', name: 'Northbend Athletic Treasury Ltd' }
 const BEAVERTON = {
   id: 'loc-bv', name: 'Beaverton campus', country: 'US', state: 'OR',
 }
 
 describe('Four parties, one client, and only one of them needs setting up', () => {
   it('when nobody has said otherwise, all four partner functions are the client on the agreement', () => {
-    const p = partnerFunctions({ agreementClient: NIKE })
-    expect(p.soldTo.party).toEqual(NIKE)
-    expect(p.billTo.party).toEqual(NIKE)
-    expect(p.payer.party).toEqual(NIKE)
+    const p = partnerFunctions({ agreementClient: NORTHBEND })
+    expect(p.soldTo.party).toEqual(NORTHBEND)
+    expect(p.billTo.party).toEqual(NORTHBEND)
+    expect(p.payer.party).toEqual(NORTHBEND)
     expect(p.soldTo.isDefault).toBe(true)
     expect(p.split).toBe(false)
     expect(p.says).toContain('Northbend Athletic Inc throughout')
@@ -30,21 +30,21 @@ describe('Four parties, one client, and only one of them needs setting up', () =
 
   it('an invoice is addressed to the bill-to and settled by the payer, and they are allowed to differ', () => {
     const p = partnerFunctions({
-      agreementClient: NIKE,
-      engagement: { billTo: NIKE_SSC, payer: NIKE_TREASURY },
+      agreementClient: NORTHBEND,
+      engagement: { billTo: NORTHBEND_SSC, payer: NORTHBEND_TREASURY },
     })
-    expect(p.billTo.party).toEqual(NIKE_SSC)
+    expect(p.billTo.party).toEqual(NORTHBEND_SSC)
     expect(p.billTo.source).toBe('ENGAGEMENT')
-    expect(p.payer.party).toEqual(NIKE_TREASURY)
+    expect(p.payer.party).toEqual(NORTHBEND_TREASURY)
     // The agreement is still with Northbend Athletic Inc — that is what was signed.
-    expect(p.soldTo.party).toEqual(NIKE)
+    expect(p.soldTo.party).toEqual(NORTHBEND)
     expect(p.split).toBe(true)
   })
 
   it('a bill whose sold-to, bill-to and payer are one firm named on the contract says that firm throughout, never that they are not all the same company', () => {
     const p = partnerFunctions({
-      agreementClient: NIKE,
-      contract: { soldTo: NIKE, billTo: NIKE, payer: NIKE },
+      agreementClient: NORTHBEND,
+      contract: { soldTo: NORTHBEND, billTo: NORTHBEND, payer: NORTHBEND },
     })
     expect(p.says).toBe('Northbend Athletic Inc throughout — signs, is billed, and pays.')
     expect(p.says).not.toContain('not all the same company')
@@ -53,8 +53,8 @@ describe('Four parties, one client, and only one of them needs setting up', () =
   it('a contract beats the engagement, because the most specific thing somebody said wins', () => {
     const other = { id: 'c-oth', name: 'Northbend Athletic Retail GmbH' }
     const p = partnerFunctions({
-      agreementClient: NIKE,
-      engagement: { billTo: NIKE_SSC },
+      agreementClient: NORTHBEND,
+      engagement: { billTo: NORTHBEND_SSC },
       contract: { billTo: other },
     })
     expect(p.billTo.party).toEqual(other)
@@ -63,7 +63,7 @@ describe('Four parties, one client, and only one of them needs setting up', () =
 
   it('the ship-to is where the work was done, which is what decides the tax', () => {
     const p = partnerFunctions({
-      agreementClient: NIKE,
+      agreementClient: NORTHBEND,
       contract: { shipTo: BEAVERTON },
     })
     expect(p.shipTo?.party.state).toBe('OR')
@@ -71,7 +71,7 @@ describe('Four parties, one client, and only one of them needs setting up', () =
   })
 
   it('a ship-to nobody stated stays null rather than defaulting to the client’s head office', () => {
-    const p = partnerFunctions({ agreementClient: NIKE })
+    const p = partnerFunctions({ agreementClient: NORTHBEND })
     expect(p.shipTo).toBeNull()
   })
 })

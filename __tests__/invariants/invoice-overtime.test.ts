@@ -383,12 +383,12 @@ describe('what an invoice may bill for a week that went over the line', () => {
     // five over the line signed at the contract's time and a half. The
     // line says $6,270 and forty-five times $132 is $5,940, so the
     // amount on its own cannot be checked by anybody.
-    const NIKE = 13_200
+    const NORTHBEND = 13_200
     const b = billableInPeriod(
-      sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', NIKE, OT,
+      sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', NORTHBEND, OT,
       [decided('2026-09-06', 'PREMIUM', 15_000, 5)]
     )!
-    const bands = bandsOf(b.split, NIKE)
+    const bands = bandsOf(b.split, NORTHBEND)
 
     // Two bands, each of which multiplies out on its own, adding to what
     // was billed.

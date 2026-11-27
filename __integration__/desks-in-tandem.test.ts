@@ -51,11 +51,11 @@ import { GET as profitability } from '@/app/api/profitability/route'
 const D = '@demo.etyme.local'
 
 /** Northbend Athletic — a client, whose desks the world seed already seats. */
-const NIKE = {
-  owner: `world-nike${D}`,
-  programme: `world-nike-programme${D}`,
-  hiring: `world-nike-hiring${D}`,
-  ap: `world-nike-ap${D}`,
+const NORTHBEND = {
+  owner: `world-northbend${D}`,
+  programme: `world-northbend-programme${D}`,
+  hiring: `world-northbend-hiring${D}`,
+  ap: `world-northbend-ap${D}`,
   viewer: 'wren.holloway@northbend.invalid',
 }
 
@@ -103,7 +103,7 @@ function refused(r: { status: number; body: any }) {
 describe('the desks, in tandem: one placement, and at every station the wrong desk is refused', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-brightmoor']) {
+    for (const slug of ['world-northbend', 'world-brightmoor']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }
 
@@ -120,8 +120,8 @@ describe('the desks, in tandem: one placement, and at every station the wrong de
 
     // The client's desks are seeded; it has no Viewer, and the whole
     // point of a Viewer is that they change nothing.
-    const nk = await rolesAt(NIKE.owner)
-    await seat(NIKE.owner, nk, 'Viewer', 'Wren Holloway', NIKE.viewer)
+    const nk = await rolesAt(NORTHBEND.owner)
+    await seat(NORTHBEND.owner, nk, 'Viewer', 'Wren Holloway', NORTHBEND.viewer)
 
     // Rosalind is on Brightmoor's bench, with consent actually recorded,
     // and employed by Brightmoor on W2 — so the money out is payroll.
@@ -141,7 +141,7 @@ describe('the desks, in tandem: one placement, and at every station the wrong de
   // ── 1 ────────────────────────────────────────────────────────────────
 
   it('the hiring manager raises the requisition, and the AP clerk who will pay for it cannot', async () => {
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
     it_.costCenter = cc.id
     const body = {
       title: 'Workforce analytics lead', skills: ['Power BI', 'Workforce planning'],
@@ -149,17 +149,17 @@ describe('the desks, in tandem: one placement, and at every station the wrong de
       costCenterId: cc.id, neededBy: day(7).toISOString(),
     }
 
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const mine = await json(await raiseRequisition(req('POST', '/api/requisitions', body)))
     expect(mine.body?.error, JSON.stringify(mine.body)).toBeUndefined()
     it_.requisition = mine.body.data.requisition.id
 
-    as(NIKE.ap)
+    as(NORTHBEND.ap)
     refused(await json(await raiseRequisition(req('POST', '/api/requisitions', body))))
   })
 
   it('a viewer who reads the whole program cannot raise one either', async () => {
-    as(NIKE.viewer)
+    as(NORTHBEND.viewer)
     refused(await json(await raiseRequisition(req('POST', '/api/requisitions', {
       title: 'Second analytics lead', skills: ['Power BI'], location: 'Beaverton, OR',
       billMin: 3200, billMax: 4000, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -172,10 +172,10 @@ describe('the desks, in tandem: one placement, and at every station the wrong de
   it('the program office chooses which suppliers see it, and the hiring manager who raised it cannot', async () => {
     const release = { vendors: [{ companyId: co['world-brightmoor'], payMin: 3200, payMax: 3800 }] }
 
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     refused(await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, release))
 
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const ok = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, release)
     expect(ok.body?.error, JSON.stringify(ok.body)).toBeUndefined()
     expect((await prisma.requirementInvitation.findFirstOrThrow({ where: { requirementId: it_.requisition } })).status).toBe('SENT')
@@ -207,10 +207,10 @@ describe('the desks, in tandem: one placement, and at every station the wrong de
   it('the client’s hiring manager awards the seat, and the viewer cannot', async () => {
     const terms = { rate: 3800, startDate: day(-14).toISOString().slice(0, 10), endDate: day(180).toISOString().slice(0, 10), ...UNDER_WAY }
 
-    as(NIKE.viewer)
+    as(NORTHBEND.viewer)
     refused(await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, terms))
 
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const ok = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, terms)
     expect(ok.body?.error, JSON.stringify(ok.body)).toBeUndefined()
     it_.contract = ok.body.data.contractId
@@ -308,7 +308,7 @@ describe('the desks, in tandem: one placement, and at every station the wrong de
     expect(own.status, JSON.stringify(own.body)).toBe(403)
     expect(String(own.body?.error?.message)).toContain('Nobody approves their own hours')
 
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const ok = await call(approveTimesheet, 'POST', `/api/timesheets/${it_.timesheet}/approve`, it_.timesheet, {})
     expect(ok.body?.error, JSON.stringify(ok.body)).toBeUndefined()
     expect((await prisma.timesheet.findUniqueOrThrow({ where: { id: it_.timesheet } })).clientApprovedAt).not.toBeNull()

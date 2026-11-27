@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     !hasPermission(caller.permissions, 'settings.manage') &&
     !hasPermission(caller.permissions, 'team.manage')
   ) {
-    // A sentence, not a code. The AP clerk at Nike read "needs
+    // A sentence, not a code. The AP clerk at Northbend read "needs
     // requirements.write" on a phone and had no idea what to do about
     // it. The code is for the machine; the sentence says who they are
     // not and who can change that.

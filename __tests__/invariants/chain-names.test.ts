@@ -18,7 +18,7 @@ const rung = (id: string, personId: string, companyId: string, companyName: stri
 // Northbend Athletic buys Helena from Computer Systems, who buys her from Tecwyn.
 const CHAIN = [
   rung('sub', 'helena', 'tecwyn', 'Tecwyn', 'computer-systems'),
-  rung('top', 'helena', 'computer-systems', 'Computer Systems Inc', 'nike'),
+  rung('top', 'helena', 'computer-systems', 'Computer Systems Inc', 'northbend'),
 ]
 
 const never = () => false
@@ -29,19 +29,19 @@ const term = (clientId: string, vendorId: string, disclosesSubVendors: boolean, 
 
 describe('whose name a client may read in a chain', () => {
   it('a client sees the name of the firm it pays', () => {
-    const seen = nameForClient(CHAIN[1], CHAIN, 'nike', never)
+    const seen = nameForClient(CHAIN[1], CHAIN, 'northbend', never)
     expect(seen.name).toBe('Computer Systems Inc')
     expect(seen.masked).toBe(false)
   })
 
   it('a client does not see the name of the firm below the one it pays', () => {
-    const seen = nameForClient(CHAIN[0], CHAIN, 'nike', never)
+    const seen = nameForClient(CHAIN[0], CHAIN, 'northbend', never)
     expect(seen.name).not.toContain('Tecwyn')
     expect(seen.masked).toBe(true)
   })
 
   it('where a name is withheld the row says which firm it comes through, and is never a blank or a dash', () => {
-    const seen = nameForClient(CHAIN[0], CHAIN, 'nike', never)
+    const seen = nameForClient(CHAIN[0], CHAIN, 'northbend', never)
     expect(seen.name).toBe('Supplied through Computer Systems Inc.')
     expect(seen.through).toBe('Computer Systems Inc')
     expect(seen.name.trim()).not.toBe('')
@@ -49,37 +49,37 @@ describe('whose name a client may read in a chain', () => {
   })
 
   it('a client whose agreement with its supplier requires disclosure sees the sub-vendor by name', () => {
-    const terms = [term('nike', 'computer-systems', true)]
-    const mayName = (prime: string) => mayNameSubVendors(terms, 'nike', prime)
-    const seen = nameForClient(CHAIN[0], CHAIN, 'nike', mayName)
+    const terms = [term('northbend', 'computer-systems', true)]
+    const mayName = (prime: string) => mayNameSubVendors(terms, 'northbend', prime)
+    const seen = nameForClient(CHAIN[0], CHAIN, 'northbend', mayName)
     expect(seen.name).toBe('Tecwyn')
     expect(seen.masked).toBe(false)
     expect(seen.says).toBe('Tecwyn — supplied through Computer Systems Inc.')
   })
 
   it('disclosure written into one supplier’s agreement does not uncover another supplier’s sub-vendor', () => {
-    const terms = [term('nike', 'pinnacle', true)]
-    const mayName = (prime: string) => mayNameSubVendors(terms, 'nike', prime)
-    expect(nameForClient(CHAIN[0], CHAIN, 'nike', mayName).masked).toBe(true)
+    const terms = [term('northbend', 'pinnacle', true)]
+    const mayName = (prime: string) => mayNameSubVendors(terms, 'northbend', prime)
+    expect(nameForClient(CHAIN[0], CHAIN, 'northbend', mayName).masked).toBe(true)
   })
 
   it('a disclosure term another client demanded does not open this client’s chain', () => {
     const terms = [term('adobe', 'computer-systems', true)]
-    expect(mayNameSubVendors(terms, 'nike', 'computer-systems')).toBe(false)
+    expect(mayNameSubVendors(terms, 'northbend', 'computer-systems')).toBe(false)
   })
 
   it('an agreement that was terminated or has run out no longer names anybody', () => {
-    expect(mayNameSubVendors([term('nike', 'computer-systems', true, 'TERMINATED')], 'nike', 'computer-systems')).toBe(false)
-    expect(mayNameSubVendors([term('nike', 'computer-systems', true, 'EXPIRED')], 'nike', 'computer-systems')).toBe(false)
+    expect(mayNameSubVendors([term('northbend', 'computer-systems', true, 'TERMINATED')], 'northbend', 'computer-systems')).toBe(false)
+    expect(mayNameSubVendors([term('northbend', 'computer-systems', true, 'EXPIRED')], 'northbend', 'computer-systems')).toBe(false)
   })
 
   it('a placement recorded before the paper was signed still honors the term the client demanded', () => {
-    expect(mayNameSubVendors([term('nike', 'computer-systems', true, 'DRAFT')], 'nike', 'computer-systems')).toBe(true)
+    expect(mayNameSubVendors([term('northbend', 'computer-systems', true, 'DRAFT')], 'northbend', 'computer-systems')).toBe(true)
   })
 
   it('nothing is disclosed where no agreement between the client and the supplier says so', () => {
-    expect(mayNameSubVendors([], 'nike', 'computer-systems')).toBe(false)
-    expect(mayNameSubVendors([term('nike', 'computer-systems', false)], 'nike', 'computer-systems')).toBe(false)
+    expect(mayNameSubVendors([], 'northbend', 'computer-systems')).toBe(false)
+    expect(mayNameSubVendors([term('northbend', 'computer-systems', false)], 'northbend', 'computer-systems')).toBe(false)
   })
 
   it('a firm three rungs down is said to come through the firm the client pays, not the firm above it', () => {
@@ -87,13 +87,13 @@ describe('whose name a client may read in a chain', () => {
       rung('bottom', 'helena', 'bench-co', 'Bench Co', 'tecwyn'),
       ...CHAIN,
     ]
-    const seen = nameForClient(deep[0], deep, 'nike', never)
+    const seen = nameForClient(deep[0], deep, 'northbend', never)
     expect(seen.name).toBe('Supplied through Computer Systems Inc.')
   })
 
   it('a rung whose chain above it is not on file says so rather than guessing at a supplier', () => {
     const orphan = [rung('lost', 'helena', 'tecwyn', 'Tecwyn', 'some-firm-nobody-listed')]
-    const seen = nameForClient(orphan[0], orphan, 'nike', never)
+    const seen = nameForClient(orphan[0], orphan, 'northbend', never)
     expect(seen.masked).toBe(true)
     expect(seen.name).not.toContain('Tecwyn')
     expect(seen.name).toContain('not on file')
@@ -105,9 +105,9 @@ describe('whose name a client may read in a chain', () => {
       ...CHAIN,
       // Computer Systems also sits under Pinnacle for somebody else.
       rung('under', 'omar', 'computer-systems', 'Computer Systems Inc', 'pinnacle'),
-      rung('over', 'omar', 'pinnacle', 'Pinnacle Resourcing', 'nike'),
+      rung('over', 'omar', 'pinnacle', 'Pinnacle Resourcing', 'northbend'),
     ]
-    const names = namesForClient(both, 'nike', never)
+    const names = namesForClient(both, 'northbend', never)
     expect(names.get('computer-systems')?.name).toBe('Computer Systems Inc')
     expect(names.get('tecwyn')?.masked).toBe(true)
   })
@@ -116,9 +116,9 @@ describe('whose name a client may read in a chain', () => {
     const two = [
       ...CHAIN,
       rung('sub2', 'omar', 'tecwyn', 'Tecwyn', 'pinnacle'),
-      rung('top2', 'omar', 'pinnacle', 'Pinnacle Resourcing', 'nike'),
+      rung('top2', 'omar', 'pinnacle', 'Pinnacle Resourcing', 'northbend'),
     ]
-    const names = namesForClient(two, 'nike', never)
+    const names = namesForClient(two, 'northbend', never)
     const hidden = names.get('tecwyn')!
     expect(hidden.masked).toBe(true)
     expect(hidden.name).toContain('Computer Systems Inc')
@@ -130,27 +130,27 @@ describe('whose name a client may read in a chain', () => {
     // Systems: its own walk up finds nothing. Helena's walks cleanly.
     const hole = rung('draft', 'nora', 'tecwyn', 'Tecwyn', 'computer-systems')
     for (const rows of [[hole, ...CHAIN], [...CHAIN, hole]]) {
-      const seen = namesForClient(rows, 'nike', never).get('tecwyn')
+      const seen = namesForClient(rows, 'northbend', never).get('tecwyn')
       expect(seen?.through).toBe('Computer Systems Inc')
       expect(seen?.name).not.toContain('Tecwyn')
     }
   })
 
   it('a direct supplier with nobody underneath is named exactly as it always was', () => {
-    const direct = [rung('a', 'omar', 'brightmoor', 'Brightmoor Staffing', 'nike')]
-    expect(namesForClient(direct, 'nike', never).get('brightmoor')?.name).toBe('Brightmoor Staffing')
+    const direct = [rung('a', 'omar', 'brightmoor', 'Brightmoor Staffing', 'northbend')]
+    expect(namesForClient(direct, 'northbend', never).get('brightmoor')?.name).toBe('Brightmoor Staffing')
   })
 
   it('a withheld name still reads as English inside a sentence somebody else writes', () => {
-    const seen = nameForClient(CHAIN[0], CHAIN, 'nike', never)
+    const seen = nameForClient(CHAIN[0], CHAIN, 'northbend', never)
     expect(`${seen.phrase} has no current general liability certificate.`).toBe(
       'the firm supplied through Computer Systems Inc has no current general liability certificate.'
     )
   })
 
   it('withholding a name never withholds the firm it belongs to, so its standing still has a row to sit on', () => {
-    const seen = nameForClient(CHAIN[0], CHAIN, 'nike', always)
-    const hidden = nameForClient(CHAIN[0], CHAIN, 'nike', never)
+    const seen = nameForClient(CHAIN[0], CHAIN, 'northbend', always)
+    const hidden = nameForClient(CHAIN[0], CHAIN, 'northbend', never)
     expect(seen.companyId).toBe('tecwyn')
     expect(hidden.companyId).toBe('tecwyn')
   })
@@ -170,7 +170,7 @@ describe('reading the chain upward, from a firm that sells into it', () => {
   const DEEP = [
     rung('bottom', 'helena', 'bench-co', 'Bench Co', 'tecwyn'),
     rung('sub', 'helena', 'tecwyn', 'Tecwyn', 'computer-systems'),
-    rung('top', 'helena', 'computer-systems', 'Computer Systems Inc', 'nike'),
+    rung('top', 'helena', 'computer-systems', 'Computer Systems Inc', 'northbend'),
   ]
 
   it('a firm is told the counterparty above it by name, and never a rung beyond it, in the same words either direction', () => {
@@ -183,8 +183,8 @@ describe('reading the chain upward, from a firm that sells into it', () => {
     // And Northbend, one rung beyond it: withheld, and the sentence says
     // which of Tecwyn's own counterparties it sits above.
     const beyond = nameForClient(
-      rung('client', 'helena', 'nike', 'Northbend Athletic', 'nobody'),
-      [...DEEP, rung('client', 'helena', 'nike', 'Northbend Athletic', 'nobody')],
+      rung('client', 'helena', 'northbend', 'Northbend Athletic', 'nobody'),
+      [...DEEP, rung('client', 'helena', 'northbend', 'Northbend Athletic', 'nobody')],
       'tecwyn',
       never
     )
@@ -220,14 +220,14 @@ describe('reading the chain upward, from a firm that sells into it', () => {
     // A client reading its own book is the case this file was written
     // for, and it is untouched: Northbend sees the firm it pays and a
     // sentence about anything under it.
-    expect(nameForClient(DEEP[2], DEEP, 'nike', never).name).toBe('Computer Systems Inc')
-    expect(nameForClient(DEEP[1], DEEP, 'nike', never).name).toBe('Supplied through Computer Systems Inc.')
+    expect(nameForClient(DEEP[2], DEEP, 'northbend', never).name).toBe('Computer Systems Inc')
+    expect(nameForClient(DEEP[1], DEEP, 'northbend', never).name).toBe('Supplied through Computer Systems Inc.')
   })
 
   it('a chain with a hole above the reader says so rather than naming a direction it cannot prove', () => {
     const orphan = [
       rung('mine', 'helena', 'tecwyn', 'Tecwyn', 'somebody-not-on-file'),
-      rung('far', 'helena', 'nike', 'Northbend Athletic', 'nobody'),
+      rung('far', 'helena', 'northbend', 'Northbend Athletic', 'nobody'),
     ]
     const seen = nameForClient(orphan[1], orphan, 'tecwyn', never)
     expect(seen.masked).toBe(true)

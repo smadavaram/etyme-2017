@@ -22,7 +22,7 @@ import { mayIssueBill, mayPayFirm, NO_BILLING_ADDRESS, bankNotChecked, bankCheck
  * file and checked, is refused nowhere.
  */
 
-const AP = 'world-nike-ap@demo.etyme.local'
+const AP = 'world-northbend-ap@demo.etyme.local'
 const withId = (id: string) => ({ params: Promise.resolve({ id }) })
 const s = { firm: '', ownerEmail: '', bill: '', billStatus: '', ownerPersonId: '', ownerPerms: [] as string[], receipt: '', payer: '', payee: '', payeeName: '' }
 

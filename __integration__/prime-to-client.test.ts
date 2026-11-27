@@ -23,7 +23,7 @@ import { POST as award } from '@/app/api/submissions/[id]/award/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}` }
+const NORTHBEND = { programme: `world-northbend-programme${D}`, hiring: `world-northbend-hiring${D}` }
 const PRIME = `world-computer-systems${D}`
 const SUB = `world-tecwyn${D}`
 
@@ -50,7 +50,7 @@ async function onBench(name: string, email: string, companyId: string) {
 describe('a prime’s candidate reaches the client’s requisition', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-computer-systems', 'world-tecwyn']) {
+    for (const slug of ['world-northbend', 'world-computer-systems', 'world-tecwyn']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
     it_.direct = await onBench('Anika Varga', 'anika.varga@seed.etyme.invalid', co['world-tecwyn'])
@@ -62,12 +62,12 @@ describe('a prime’s candidate reaches the client’s requisition', () => {
     // agreement Tecwyn is Computer Systems' sub-vendor and nothing more,
     // and the release door refuses to send Northbend's job to it: a
     // sub-vendor's name is the prime's to keep (CLAUDE.md, 2026-09-17).
-    await prisma.masterAgreement.create({ data: { clientId: co['world-nike'], vendorId: co['world-tecwyn'], paymentTerms: 30 } })
+    await prisma.masterAgreement.create({ data: { clientId: co['world-northbend'], vendorId: co['world-tecwyn'], paymentTerms: 30 } })
   }, 240_000)
 
   it('Northbend raises a role and sends it to Tecwyn and to Computer Systems', async () => {
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-    as(NIKE.hiring)
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+    as(NORTHBEND.hiring)
     const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
       title: 'Supply planning analyst', skills: ['Supply planning', 'SAP IBP'],
       location: 'Beaverton, OR', billMin: 3200, billMax: 4500, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -76,7 +76,7 @@ describe('a prime’s candidate reaches the client’s requisition', () => {
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     it_.requisition = r.body.data.requisition.id
 
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const sent = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [
         { companyId: co['world-tecwyn'], payMin: 3200, payMax: 4000 },
@@ -85,7 +85,7 @@ describe('a prime’s candidate reaches the client’s requisition', () => {
     })
     expect(sent.body?.error, JSON.stringify(sent.body)).toBeUndefined()
     expect(sent.body.data.summary.sent).toBe(2)
-    it_.rolesAtNorthbend = await prisma.requirement.count({ where: { companyId: co['world-nike'] } })
+    it_.rolesAtNorthbend = await prisma.requirement.count({ where: { companyId: co['world-northbend'] } })
   })
 
   it('Tecwyn submits straight onto the requisition, and Northbend sees the candidate there', async () => {
@@ -94,7 +94,7 @@ describe('a prime’s candidate reaches the client’s requisition', () => {
       requirementId: it_.requisition, personIds: [it_.direct], rate: 3900, fromCompanyId: co['world-tecwyn'],
     })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    const landed = await prisma.submission.findFirstOrThrow({ where: { personId: it_.direct, toCompanyId: co['world-nike'] } })
+    const landed = await prisma.submission.findFirstOrThrow({ where: { personId: it_.direct, toCompanyId: co['world-northbend'] } })
     expect(landed.requirementId).toBe(it_.requisition)
   })
 
@@ -103,7 +103,7 @@ describe('a prime’s candidate reaches the client’s requisition', () => {
     const r = await json(await recordRole(req('POST', '/api/requirements', {
       title: 'Supply planning analyst', skills: ['Supply planning', 'SAP IBP'],
       location: 'Beaverton, OR', billMin: 3000, billMax: 3800, months: 6,
-      endClientCompanyId: co['world-nike'],
+      endClientCompanyId: co['world-northbend'],
     })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     it_.primeRole = r.body.data.requirement.id
@@ -125,21 +125,21 @@ describe('a prime’s candidate reaches the client’s requisition', () => {
   it('a candidate the prime sends on lands on the requisition Northbend raised and sent it, not on a copy', async () => {
     as(PRIME)
     const r = await call(forward, 'POST', `/api/submissions/${it_.subSubmission}/forward`, it_.subSubmission, {
-      via: 'ONWARD', toCompanyId: co['world-nike'], rate: 4200,
+      via: 'ONWARD', toCompanyId: co['world-northbend'], rate: 4200,
     })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const child = await prisma.submission.findUniqueOrThrow({ where: { id: r.body.data.childSubmissionId } })
     it_.primeSubmission = child.id
     expect(child.requirementId).toBe(it_.requisition)
     expect(child.fromCompanyId).toBe(co['world-computer-systems'])
-    expect(child.toCompanyId).toBe(co['world-nike'])
+    expect(child.toCompanyId).toBe(co['world-northbend'])
     expect(child.parentSubmissionId).toBe(it_.subSubmission)
     // Nothing new was written onto Northbend's books.
-    expect(await prisma.requirement.count({ where: { companyId: co['world-nike'] } })).toBe(it_.rolesAtNorthbend)
+    expect(await prisma.requirement.count({ where: { companyId: co['world-northbend'] } })).toBe(it_.rolesAtNorthbend)
   })
 
   it('Northbend’s requisition shows both candidates, the prime’s under the prime’s name and never the sub-vendor’s', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(requisitionDetail, 'GET', `/api/requisitions/${it_.requisition}`, it_.requisition)
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     const names = r.body.data.candidates.map((c: any) => `${c.person.name} via ${c.vendor.name}`).sort()
@@ -149,7 +149,7 @@ describe('a prime’s candidate reaches the client’s requisition', () => {
   it('the same person sent on after another firm already put them forward is refused — first in wins, and nothing is duplicated', async () => {
     as(PRIME)
     const r = await call(forward, 'POST', `/api/submissions/${it_.subSubmissionDirect}/forward`, it_.subSubmissionDirect, {
-      via: 'ONWARD', toCompanyId: co['world-nike'], rate: 4200,
+      via: 'ONWARD', toCompanyId: co['world-northbend'], rate: 4200,
     })
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('ALREADY_SUBMITTED')
@@ -158,7 +158,7 @@ describe('a prime’s candidate reaches the client’s requisition', () => {
   })
 
   it('Northbend awards the prime’s candidate on its own requisition, and the contract carries its cost center and the sub-vendor below', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.primeSubmission}/award`, it_.primeSubmission, {
       rate: 4200, startDate: day(7).toISOString().slice(0, 10), endDate: day(190).toISOString().slice(0, 10),
     })

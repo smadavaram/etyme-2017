@@ -290,3 +290,16 @@ The four world firms are on `RETIRED` in `demo-names.test.ts`.
 - **Worked examples outside the seeds.** Unit fixtures, code comments
   and the simulation name real screening companies and insurers as
   examples. None is seeded into the demo.
+
+## The slugs moved too, 2026-11-27
+
+"Slugs stay" is withdrawn. CLAUDE.md forbids a real company's name
+anywhere, and a slug printed itself into seeded addresses, cost center
+codes and a purchase order number. `nike` is `northbend`, `corning` is
+`cavanaugh`, `terumo-bct` is `talvern`; `world-nike` is
+`world-northbend`, and `terumobct.com` is `talvern-medical.example`.
+A deployed demo is carried across in place by the rename map in
+`src/lib/seed-renames.ts` (same rows, new slug, new addresses).
+`demo-names.test.ts` fails on any of the three old names, in any case,
+in source, seeds, scripts, prototypes and tests. Older records under
+`docs/decisions/` and `docs/results/` keep the words as written.

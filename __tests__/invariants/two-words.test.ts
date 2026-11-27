@@ -17,7 +17,7 @@ import { domainOf, type DomainKey } from '@/lib/domains'
  * clerk, HR, Procurement, the hiring manager), or "team" where no role
  * fits. Machine names do not move — `deskHome`, the demo key
  * `programme`, an enum, a route, a file name, a comment — by the same
- * rule that kept `world-nike`: an address is not a word anybody reads.
+ * rule that kept `world-northbend`: an address is not a word anybody reads.
  *
  * So the guard parses every .ts and .tsx under src and reads only what a
  * person reads: JSX text, and string and template literals that are not
@@ -199,7 +199,7 @@ describe('nobody reads "program office" or "desk"', () => {
       "type Kind = 'desk'",
       "const route = '/dashboard/desk/program-office'",
       "function cls() { return <div className=\"desk-row\" key=\"desk\">{deskHome}</div> }",
-      'const json = `POST /api/demo {"as":"world-nike","desk":"ap"} to sit there`',
+      'const json = `POST /api/demo {"as":"world-northbend","desk":"ap"} to sit there`',
       "const a = 'Send it to the AP desk.'",
       'const b = `${who} runs the program office`',
       'function c() { return <p>Back to your desk</p> }',

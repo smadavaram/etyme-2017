@@ -11,7 +11,7 @@ import { PATCH as setStatus } from '@/app/api/submissions/[id]/status/route'
  * log row names the rounds.
  */
 
-const HIRING = 'world-nike-hiring@demo.etyme.local'
+const HIRING = 'world-northbend-hiring@demo.etyme.local'
 
 const call = async (fn: (r: any, ctx: any) => Promise<Response>, method: string, url: string, id: string, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve({ id }) }))
@@ -22,7 +22,7 @@ describe('turning a candidate down calls off the rounds they had left', () => {
   beforeAll(async () => {
     await freshWorld()
     const s = await prisma.submission.findFirstOrThrow({
-      where: { requirement: { title: 'HCM integration lead', company: { slug: 'world-nike' } }, person: { name: 'Rajesh Iyer' } },
+      where: { requirement: { title: 'HCM integration lead', company: { slug: 'world-northbend' } }, person: { name: 'Rajesh Iyer' } },
       select: { id: true },
     })
     ids.rajesh = s.id

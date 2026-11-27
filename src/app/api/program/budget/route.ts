@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
   // A cost center is allocated the contract the client pays. In a chain
   // the hours hang off the bottom rung instead — the leg where the
   // employer is — so a person bought through a prime had every one of
-  // their weeks miss the budget entirely. Nike's cost center read $18k
+  // their weeks miss the budget entirely. Northbend's cost center read $18k
   // against $35,800 of work it had signed for.
   //
   // So each rung is walked up to the contract the client pays, and a

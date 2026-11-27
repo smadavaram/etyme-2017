@@ -13,10 +13,10 @@ import { GET as documentsGET } from '@/app/api/documents/route'
  */
 const HIM = 'samuel.adeyinka@seed.etyme.invalid'
 const HALCYON_HR = 'world-halcyon@demo.etyme.local'
-const CAVANAUGH = 'world-corning-compliance@demo.etyme.local'
+const CAVANAUGH = 'world-cavanaugh-compliance@demo.etyme.local'
 const HELENA = 'helena.marsh@seed.etyme.invalid'
 const TECWYN = 'world-tecwyn@demo.etyme.local'
-const NORTHBEND = 'world-nike-compliance@demo.etyme.local'
+const NORTHBEND = 'world-northbend-compliance@demo.etyme.local'
 
 async function uploadAt(firmSeatEmail: string, personEmail: string, name: string) {
   const [person, seatPerson] = await Promise.all([

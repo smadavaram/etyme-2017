@@ -97,8 +97,8 @@ export interface TellisfordLine {
 }
 
 export const TELLISFORD_LINES: readonly TellisfordLine[] = [
-  { person: 'Felix Brenner', client: 'nike', city: 'Tualatin', job: 'Retail finance systems consultant', bill: 13_200, pay: 8_600, start: -120, end: 18, release: { keepUntil: null } },
-  { person: 'Amara Nwosu', client: 'nike', city: 'Tualatin', job: 'Retail data engineer', bill: 12_400, pay: 8_100, start: -90, end: 25, release: { keepUntil: 45 } },
+  { person: 'Felix Brenner', client: 'northbend', city: 'Tualatin', job: 'Retail finance systems consultant', bill: 13_200, pay: 8_600, start: -120, end: 18, release: { keepUntil: null } },
+  { person: 'Amara Nwosu', client: 'northbend', city: 'Tualatin', job: 'Retail data engineer', bill: 12_400, pay: 8_100, start: -90, end: 25, release: { keepUntil: 45 } },
   { person: 'Deepa Varma', client: 'harlow-health', city: 'San Jose', job: 'ERP finance migration — integration architect', bill: 14_800, pay: 9_700, start: -60, end: 240 },
 ]
 

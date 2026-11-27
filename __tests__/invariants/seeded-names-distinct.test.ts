@@ -46,7 +46,7 @@ function clashes(names: string[], key: (n: string) => string): string[] {
 
 describe('Everybody seated at one seeded client has a name nobody else there shares', () => {
   it('reads the three program clients and their desks, rather than passing on an empty list', () => {
-    for (const slug of ['nike', 'corning', 'terumo-bct']) {
+    for (const slug of ['northbend', 'cavanaugh', 'talvern']) {
       expect(staffAt(slug).length, slug).toBeGreaterThanOrEqual(8)
     }
   })
@@ -64,8 +64,8 @@ describe('Everybody seated at one seeded client has a name nobody else there sha
   }
 
   it('Northbend Athletic’s owner, approver and program manager read as three different people', () => {
-    const [owner, vp] = [WORLD_CLIENTS.find((c) => c.slug === 'nike')!.owner, WORLD_CLIENTS.find((c) => c.slug === 'nike')!.vp]
-    const programme = PROGRAMMES.find((p) => p.client === 'nike')!.people.programme
+    const [owner, vp] = [WORLD_CLIENTS.find((c) => c.slug === 'northbend')!.owner, WORLD_CLIENTS.find((c) => c.slug === 'northbend')!.vp]
+    const programme = PROGRAMMES.find((p) => p.client === 'northbend')!.people.programme
     expect([owner, vp, programme]).toEqual(['Camille Ostrander', 'Dana Whitfield', 'Lorena Kellerman'])
   })
 })

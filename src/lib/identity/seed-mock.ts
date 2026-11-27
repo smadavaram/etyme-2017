@@ -27,7 +27,7 @@ export const MOCK_PEOPLE = [
 
 export const MOCK_GROUP = { groupId: 'nb-hiring-managers', groupName: 'Northbend hiring managers', role: 'Hiring Manager' } as const
 
-export async function seedMockDirectory(slug = 'world-nike'): Promise<{ written: boolean }> {
+export async function seedMockDirectory(slug = 'world-northbend'): Promise<{ written: boolean }> {
   const company = await db.company.findUnique({ where: { slug }, select: { id: true, slug: true } })
   if (!company) return { written: false }
   // The mock never serves a company with a registrable domain.

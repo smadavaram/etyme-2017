@@ -21,7 +21,7 @@ beforeAll(async () => {
   await freshWorld()
   s.tellisford = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-tellisford' } })).id
   const job = await prisma.requirement.findFirstOrThrow({
-    where: { title: 'HCM integration lead', company: { slug: 'world-nike' } },
+    where: { title: 'HCM integration lead', company: { slug: 'world-northbend' } },
     select: { id: true, companyId: true },
   })
   s.job = job.id

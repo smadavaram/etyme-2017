@@ -13,20 +13,20 @@ import { GET as coldOpenings } from '@/app/api/cron/cold-openings/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE_OFFICE = `world-nike${D}`
+const NORTHBEND_OFFICE = `world-northbend${D}`
 const PINNACLE = `world-pinnacle${D}`
 const co: Record<string, string> = {}
 
 describe('standing, units and cold seats', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-pinnacle', 'world-brightmoor']) {
+    for (const slug of ['world-northbend', 'world-pinnacle', 'world-brightmoor']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }
   }, 240_000)
 
   it('Northbend Athletic rates Pinnacle on probation and Brightmoor preferred, and the suppliers page says so', async () => {
-    as(NIKE_OFFICE)
+    as(NORTHBEND_OFFICE)
     for (const [slug, tier] of [['world-pinnacle', 'PROBATION'], ['world-brightmoor', 'PREFERRED']]) {
       const r = await json(await setStanding(req('PATCH', '/api/counterparties', { otherCompanyId: co[slug], relationship: 'SUPPLIER', tier })))
       expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
@@ -39,15 +39,15 @@ describe('standing, units and cold seats', () => {
   })
 
   it('a word not on the list is refused in a sentence', async () => {
-    as(NIKE_OFFICE)
+    as(NORTHBEND_OFFICE)
     const r = await json(await setStanding(req('PATCH', '/api/counterparties', { otherCompanyId: co['world-pinnacle'], relationship: 'SUPPLIER', tier: 'GOLD' })))
     expect(r.status).toBe(422)
     expect(r.body.error.message).toContain('not "GOLD"')
   })
 
   it('Northbend Athletic adds a Data practice under Technology; adding it twice hands back the first', async () => {
-    as(NIKE_OFFICE)
-    const tech = await prisma.orgUnit.findFirstOrThrow({ where: { companyId: co['world-nike'], name: 'Technology' }, select: { id: true } })
+    as(NORTHBEND_OFFICE)
+    const tech = await prisma.orgUnit.findFirstOrThrow({ where: { companyId: co['world-northbend'], name: 'Technology' }, select: { id: true } })
     const r = await json(await addUnit(req('POST', '/api/program/units', { name: 'Data practice', kind: 'PRACTICE', parentId: tech.id })))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
     const unit = await prisma.orgUnit.findUniqueOrThrow({ where: { id: r.body.data.id } })
@@ -57,7 +57,7 @@ describe('standing, units and cold seats', () => {
   })
 
   it('a kind the schema does not name is refused', async () => {
-    as(NIKE_OFFICE)
+    as(NORTHBEND_OFFICE)
     const r = await json(await addUnit(req('POST', '/api/program/units', { name: 'Guild', kind: 'GUILD' })))
     expect(r.status).toBe(422)
   })

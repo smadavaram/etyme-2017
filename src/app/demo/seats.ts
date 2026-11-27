@@ -92,7 +92,7 @@ export interface ClientProgram extends Program {
 
 export const CLIENT_PROGRAMS: ClientProgram[] = [
   {
-    slug: 'world-nike',
+    slug: 'world-northbend',
     name: 'Northbend Athletic',
     where: 'Tualatin, OR',
     industry: 'Retail · apparel',
@@ -102,7 +102,7 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
       'and never names it. A planning analyst is fourteen months into an eighteen-month time limit.',
   },
   {
-    slug: 'world-corning',
+    slug: 'world-cavanaugh',
     name: 'Cavanaugh Glassworks',
     where: 'Elmira, NY',
     industry: 'Manufacturing · glass',
@@ -122,7 +122,7 @@ export const CLIENT_PROGRAMS: ClientProgram[] = [
       'long enough to be asked back.',
   },
   {
-    slug: 'world-terumo-bct',
+    slug: 'world-talvern',
     name: 'Talvern Medical',
     where: 'Westminster, CO',
     industry: 'Healthcare · medical devices',

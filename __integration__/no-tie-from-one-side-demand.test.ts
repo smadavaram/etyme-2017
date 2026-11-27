@@ -34,11 +34,11 @@ const review = await import('@/app/api/supplier-requests/[id]/route')
 
 const D = '@demo.etyme.local'
 const OWNER = `world-brightmoor${D}`
-const HIRING = `world-nike-hiring${D}`
-const LEAD = `world-nike-vp${D}`
-const AP = `world-nike-ap${D}`
-const HR = `world-nike-hr${D}`
-const PROCUREMENT = `world-nike-procurement${D}`
+const HIRING = `world-northbend-hiring${D}`
+const LEAD = `world-northbend-vp${D}`
+const AP = `world-northbend-ap${D}`
+const HR = `world-northbend-hr${D}`
+const PROCUREMENT = `world-northbend-procurement${D}`
 
 let brightmoor = ''
 let isDemo = false
@@ -209,7 +209,7 @@ describe('joining two records of one supplier', () => {
 
   it('another firm\u2019s record is not yours to join, and nothing moves', async () => {
     as(OWNER)
-    const other = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const other = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const theirs = await prisma.company.create({
       data: { name: 'Fallowmere Staffing', slug: `fallowmere-a-${Date.now()}`, kind: 'VENDOR', currency: 'USD', listedById: other.id, isDemo },
       select: { id: true },
@@ -307,7 +307,7 @@ describe('a firm on Etyme is never tied to you from your side alone, on the dema
   })
 
   it('Finance’s bank check on a firm a match named, that has not taken part, neither reads nor marks its own payment details', async () => {
-    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const people = await prisma.person.findMany({ where: { primaryEmail: { in: [HIRING, LEAD, PROCUREMENT, HR] } }, select: { id: true, primaryEmail: true, name: true } })
     const by = (e: string) => people.find((p) => p.primaryEmail === e)!
     const at = new Date().toISOString()

@@ -31,7 +31,7 @@ import { acceptanceChain } from '@/lib/money/expense-acceptance'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = `world-nike-hiring${D}`
+const NORTHBEND = `world-northbend-hiring${D}`
 const CS = `world-computer-systems${D}`
 const TECWYN = `world-tecwyn${D}`
 
@@ -120,7 +120,7 @@ describe('a supplier’s invoice is matched against the paying firm’s own acce
   })
 
   it('Northbend’s signature is not Computer Systems’ acceptance: the invoice still cannot be matched once the client has signed', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const signed = await sign(s.week)
     expect(signed.body?.error, JSON.stringify(signed.body)).toBeUndefined()
 
@@ -390,7 +390,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
       },
     })
     Object.assign(t, { week: sheet.id, from: sheet.periodStart.toISOString(), to: sheet.periodEnd.toISOString(), helena: helena.id })
-    for (const who of [NIKE, CS, TECWYN]) {
+    for (const who of [NORTHBEND, CS, TECWYN]) {
       as(who)
       const r = await sign(sheet.id)
       expect(r.body?.error, `${who}: ${JSON.stringify(r.body)}`).toBeUndefined()
@@ -654,7 +654,7 @@ describe('a typed-in receipt is matched line by line, its differences waived wit
     const own = await accept(TECWYN)
     expect(own.status).toBe(403)
     expect(own.body.error.code).toBe('OWN_EXPENSE')
-    expect((await accept(NIKE)).status).toBe(200)
+    expect((await accept(NORTHBEND)).status).toBe(200)
     expect((await accept(CS)).status).toBe(200)
     expect(await prisma.expenseAcceptance.count({ where: { expenseId: t.expense, status: 'ACCEPTED' } })).toBe(2)
 
@@ -874,7 +874,7 @@ describe('a supplier’s bill sent on the platform closes the payer’s receipt 
         days, totalHours: 40, status: 'SUBMITTED', submittedAt: new Date(),
       },
     })
-    for (const who of [NIKE, CS, TECWYN]) {
+    for (const who of [NORTHBEND, CS, TECWYN]) {
       as(who)
       const r = await sign(sheet.id)
       expect(r.body?.error, `${who}: ${JSON.stringify(r.body)}`).toBeUndefined()

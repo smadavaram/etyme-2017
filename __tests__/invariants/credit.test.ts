@@ -82,7 +82,7 @@ describe('Work promised is exposure even though no invoice exists for it yet', (
 describe('Exposure is three numbers, and the smallest of them is the invoices', () => {
 
   const base = {
-    customerId: 'cus-nike',
+    customerId: 'cus-northbend',
     customerName: 'Northbend Athletic',
     currency: 'GBP',
   }
@@ -172,7 +172,7 @@ describe('Exposure is three numbers, and the smallest of them is the invoices', 
 describe('A credit limit warns, and never blocks, and is never silently permitted', () => {
 
   const exposure = (minor: number, complete = true) => ({
-    customerId: 'cus-nike',
+    customerId: 'cus-northbend',
     customerName: 'Northbend Athletic',
     currency: 'GBP',
     minor,

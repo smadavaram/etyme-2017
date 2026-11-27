@@ -17,8 +17,8 @@ import { GET as people } from '@/app/api/people/route'
  */
 
 const D = '@demo.etyme.local'
-const HIRING = `world-nike-hiring${D}`
-const AP = `world-nike-ap${D}`
+const HIRING = `world-northbend-hiring${D}`
+const AP = `world-northbend-ap${D}`
 const PINNACLE = `world-pinnacle${D}`
 
 const call = async (fn: any, method: string, url: string, id: string, body?: unknown) =>
@@ -31,7 +31,7 @@ const it_: Record<string, any> = {}
 
 beforeAll(async () => {
   await freshWorld()
-  for (const slug of ['world-nike', 'world-pinnacle']) {
+  for (const slug of ['world-northbend', 'world-pinnacle']) {
     co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
   }
 }, 300_000)

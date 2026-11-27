@@ -168,7 +168,7 @@ export default function ClientOps() {
           </div>
           <div className="h-7 w-px hidden sm:block" style={{ background: RULE }} />
           <div className="flex items-center gap-2.5">
-            <span className="plex text-[13px]" style={{ color: INK, fontWeight: 500 }}>Terumo BCT</span>
+            <span className="plex text-[13px]" style={{ color: INK, fontWeight: 500 }}>Talvern Medical</span>
             <span className="mono text-[11px]" style={{ color: MUTE }}>
               · {scope === "mine" ? "D. Whitfield, Mfg Finance" : "IT — all departments"}
             </span>

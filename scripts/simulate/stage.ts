@@ -7,9 +7,9 @@
  *   export default defineStage({
  *     name: 'post-jobs', domain: 'DEMAND',
  *     async run(ctx) {
- *       const hm = ctx.cast.seat('world-nike/hiring')
+ *       const hm = ctx.cast.seat('world-northbend/hiring')
  *       const res = await hm.post('/api/requisitions', { title: 'Data engineer', skills: ['dbt'] })
- *       if (res.ok) ctx.world.jobs.push({ id: res.json.data.requisition.id, clientSlug: 'world-nike', … })
+ *       if (res.ok) ctx.world.jobs.push({ id: res.json.data.requisition.id, clientSlug: 'world-northbend', … })
  *       return { closed: ctx.world.jobs.length, of: ctx.options.placements }
  *     },
  *   })

@@ -15,7 +15,7 @@ import { firmTuesday } from '@/lib/money/firm-today'
  * the cent on the seeded world, found by its facts.
  */
 
-const PROGRAM = 'world-nike-programme@demo.etyme.local'
+const PROGRAM = 'world-northbend-programme@demo.etyme.local'
 
 /** Signed, as the reconciliation reads it: what sent bills carry, less what they carry past the signed hours, plus what is not billed yet. */
 const signedMoney = (s: LineBilling) => s.billed.amountMinor - s.billedOverSigned.amountMinor + s.notBilled.amountMinor
@@ -24,7 +24,7 @@ describe('signed and not billed is one figure, priced as the next bill would pri
   beforeAll(async () => { await freshWorld() }, 600_000)
 
   it('for every placement Northbend pays, Signed equals Billed less what was billed past the signed hours, plus Signed-not-billed, to the cent', async () => {
-    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const lines = await prisma.sellContract.findMany({ where: { clientCompanyId: client.id }, select: { id: true } })
     const read = await signedAndBilled(lines.map((l) => l.id))
     expect(read.size).toBeGreaterThan(0)
@@ -79,7 +79,7 @@ describe('signed and not billed is one figure, priced as the next bill would pri
   })
 
   it('a decided overtime premium is in the figure: a week over the line is priced above straight time where somebody decided it', async () => {
-    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const lines = await prisma.sellContract.findMany({ where: { clientCompanyId: client.id }, select: { id: true, billRate: true } })
     const read = await signedAndBilled(lines.map((l) => l.id))
     for (const s of read.values()) {

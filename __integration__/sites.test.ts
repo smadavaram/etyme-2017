@@ -146,7 +146,7 @@ describe('who may change a site', () => {
 
 describe('no seeded client reads an empty Sites page', () => {
   it('Northbend, Cavanaugh and Talvern each have a primary site that names suppliers approved for them', async () => {
-    for (const slug of ['world-nike', 'world-corning', 'world-terumo-bct']) {
+    for (const slug of ['world-northbend', 'world-cavanaugh', 'world-talvern']) {
       const co = await prisma.company.findUniqueOrThrow({ where: { slug } })
       const primary = await prisma.companyLocation.findFirstOrThrow({ where: { companyId: co.id, isPrimary: true } })
       const named = await prisma.siteSupplier.findMany({ where: { locationId: primary.id } })

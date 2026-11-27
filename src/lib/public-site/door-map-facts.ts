@@ -129,7 +129,7 @@ export const LIVE_READS = {
  * (`program-office-seat` in lib/seed-world).
  */
 export const PROGRAM_READS = {
-  'program-offices': { client: 'world-corning' },
+  'program-offices': { client: 'world-cavanaugh' },
 } as const
 
 export type LiveDoor = keyof typeof LIVE_READS | keyof typeof PROGRAM_READS

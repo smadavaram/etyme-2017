@@ -20,10 +20,10 @@ import { signedAndBilled, rollUp } from '@/lib/money/signed-unbilled'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = `world-nike-hiring${D}`
+const NORTHBEND = `world-northbend-hiring${D}`
 const CS = `world-computer-systems${D}`
 const TECWYN = `world-tecwyn${D}`
-const PROGRAM = `world-nike-programme${D}`
+const PROGRAM = `world-northbend-programme${D}`
 
 const sign = async (id: string, body: unknown = {}) =>
   json(await approve(req('POST', `/api/timesheets/${id}/approve`, body), { params: Promise.resolve({ id }) }))
@@ -46,7 +46,7 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
       include: { sellContract: true },
     })
     Object.assign(s, { week: week.id, filed: Number(week.totalHours), rate: week.sellContract.billRate, currency: week.sellContract.billCurrency })
-    as(NIKE)
+    as(NORTHBEND)
     const signed = await sign(week.id, Number(week.totalHours) > 40 ? { note: 'Agreed with the manager.' } : {})
     expect(signed.body?.error, JSON.stringify(signed.body)).toBeUndefined()
   }, 240_000)
@@ -101,7 +101,7 @@ describe('walk 8 on the seeded world: a week accepted for fewer hours, and a wee
   })
 
   it('saving the job’s Edit form writes only the fields changed', async () => {
-    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
     const job = await prisma.requirement.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: northbend.id, archivedAt: null, status: { in: ['DRAFT', 'OPEN'] } } })
     await prisma.requirement.update({ where: { id: job.id }, data: { workMode: 'HYBRID', requiredQualification: 'BSN' } })
     const before = await prisma.requirement.findUniqueOrThrow({ where: { id: job.id } })

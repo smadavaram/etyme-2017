@@ -36,7 +36,7 @@ const SUB = `world-tecwyn${D}`
 const PRIME = `world-computer-systems${D}`
 const OTHER_BENCH = `world-conisby${D}`
 const STRANGER = `world-halcyon${D}`
-const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}` }
+const NORTHBEND = { programme: `world-northbend-programme${D}`, hiring: `world-northbend-hiring${D}` }
 const LENA = 'lena.ostrova@seed.etyme.invalid'
 
 const co: Record<string, string> = {}
@@ -55,7 +55,7 @@ async function networkNames(email: string): Promise<string[]> {
 describe('a new consultant reaches the prime their bench vendor sells through', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-tecwyn', 'world-computer-systems', 'world-nike', 'world-conisby', 'world-vertex-global', 'world-halcyon']) {
+    for (const slug of ['world-tecwyn', 'world-computer-systems', 'world-northbend', 'world-conisby', 'world-vertex-global', 'world-halcyon']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
   }, 600_000)
@@ -169,8 +169,8 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
   })
 
   it('Northbend raises a role and sends it to Computer Systems', async () => {
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-    as(NIKE.hiring)
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+    as(NORTHBEND.hiring)
     const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
       title: 'Supply planning lead', skills: ['Supply planning', 'SAP IBP'],
       location: 'Beaverton, OR', billMin: 3200, billMax: 4500, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -179,7 +179,7 @@ describe('a new consultant reaches the prime their bench vendor sells through', 
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     it_.requisition = r.body.data.requisition.id
 
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const sent = await withId(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-computer-systems'], payMin: 3400, payMax: 4400 }],
     })

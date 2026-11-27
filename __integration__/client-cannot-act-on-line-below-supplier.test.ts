@@ -8,21 +8,21 @@ import { GET as extendGet, POST as extendPost } from '@/app/api/contracts/[id]/e
  * deal between two other firms. The client is the site on it, never its
  * payer, and is refused as if it were not there, naming no firm.
  */
-const CLIENT = 'world-nike-programme@demo.etyme.local'
+const CLIENT = 'world-northbend-programme@demo.etyme.local'
 const co: Record<string, string> = {}
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) }) as any
 const names = /tecwyn|computer systems/i
 
 beforeAll(async () => {
   await freshWorld()
-  for (const slug of ['world-nike', 'world-computer-systems', 'world-tecwyn']) {
+  for (const slug of ['world-northbend', 'world-computer-systems', 'world-tecwyn']) {
     co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
   }
 }, 600_000)
 
 async function lineBelow() {
   return prisma.sellContract.findFirstOrThrow({
-    where: { companyId: co['world-tecwyn'], clientCompanyId: co['world-computer-systems'], endClientCompanyId: co['world-nike'], state: 'IN_PROGRESS' },
+    where: { companyId: co['world-tecwyn'], clientCompanyId: co['world-computer-systems'], endClientCompanyId: co['world-northbend'], state: 'IN_PROGRESS' },
     select: { id: true, endDate: true, state: true },
     orderBy: { id: 'asc' },
   })

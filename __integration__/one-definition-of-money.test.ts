@@ -15,7 +15,7 @@ import { signedAndBilled } from '@/lib/money/signed-unbilled'
  */
 
 const D = '@demo.etyme.local'
-const NORTHBEND_AP = `world-nike-ap${D}`
+const NORTHBEND_AP = `world-northbend-ap${D}`
 const BRIGHTMOOR_AR = `world-brightmoor-ar${D}`
 const CSI = `world-computer-systems${D}`
 const APTIVA = `world-aptiva${D}`
@@ -82,7 +82,7 @@ describe('one definition of what an order authorized, billed and has left', () =
   })
 
   it('a draft on Northbend’s order with Brightmoor is said apart as not sent and leaves Billed and Left as they were', async () => {
-    const order = await orderBetween('world-nike', 'world-brightmoor')
+    const order = await orderBetween('world-northbend', 'world-brightmoor')
     const before = (await orderLedgers([order.id])).get(order.id)!
     const engagementId = order.engagementId ?? (await prisma.sellContract.findFirstOrThrow({
       where: { workOrderId: order.id, engagementId: { not: null } }, select: { engagementId: true },
@@ -107,7 +107,7 @@ describe('one definition of what an order authorized, billed and has left', () =
   })
 
   it('on Northbend’s order with Computer Systems, Left after each sent bill in the three-way check is the order’s own Left', async () => {
-    const order = await orderBetween('world-nike', 'world-computer-systems')
+    const order = await orderBetween('world-northbend', 'world-computer-systems')
     const ledger = (await orderLedgers([order.id])).get(order.id)!
     const sent = await prisma.invoice.findMany({
       where: { workOrderId: order.id, status: { notIn: ['DRAFT', 'ISSUED', 'CANCELLED', 'VOID'] } },
@@ -134,7 +134,7 @@ describe('signed, billed and signed and not billed on the seeded world', () => {
   }
 
   it('Rosa Delgado’s placement shows its signed hours, its billed hours and the hours signed and not billed, aged by week', async () => {
-    const line = await lineOf('Rosa Delgado', 'world-brightmoor', 'world-nike')
+    const line = await lineOf('Rosa Delgado', 'world-brightmoor', 'world-northbend')
     const b = (await signedAndBilled([line.id])).get(line.id)!
     expect(b.signed.weeks).toBeGreaterThan(0)
     expect(b.notBilled.hours).toBe(Math.round((b.signed.hours - b.billed.hours) * 100) / 100)
@@ -150,7 +150,7 @@ describe('signed, billed and signed and not billed on the seeded world', () => {
   })
 
   it('a draft bill’s number is never shown as the total of what is unbilled', async () => {
-    const line = await lineOf('Rosa Delgado', 'world-brightmoor', 'world-nike')
+    const line = await lineOf('Rosa Delgado', 'world-brightmoor', 'world-northbend')
     const b = (await signedAndBilled([line.id])).get(line.id)!
     for (const w of b.notBilled.weeks.filter((x) => x.onDraft)) {
       expect(w.onDraft!.amountMinor).toBeLessThanOrEqual(w.amountMinor ?? 0)
@@ -161,7 +161,7 @@ describe('signed, billed and signed and not billed on the seeded world', () => {
   })
 
   it('for Helena Marsh, billed hours × rate equals the invoiced figure, and the client’s and the supplier’s seats show the same money', async () => {
-    const line = await lineOf('Helena Marsh', 'world-computer-systems', 'world-nike')
+    const line = await lineOf('Helena Marsh', 'world-computer-systems', 'world-northbend')
     const b = (await signedAndBilled([line.id])).get(line.id)!
     expect(b.billed.hours).toBeGreaterThan(0)
     expect(b.billed.amountMinor).toBe(Math.round(b.billed.hours * line.billRate))

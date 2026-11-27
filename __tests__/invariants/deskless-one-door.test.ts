@@ -414,13 +414,13 @@ describe('the demo door counts a demo start once per visit', () => {
 
   it('a seat taken from the demo page counts under the visit id the page sent, on /demo', async () => {
     const { demoVisit } = await import('@/lib/demo-session')
-    expect(demoVisit({ as: 'world-nike', desk: 'ap', visit, page: '/demo' })).toEqual({ page: '/demo', visit })
+    expect(demoVisit({ as: 'world-northbend', desk: 'ap', visit, page: '/demo' })).toEqual({ page: '/demo', visit })
     expect(demoVisit({ person: 'helena-marsh', visit })).toEqual({ page: '/demo', visit })
   })
 
   it('a seat taken with no visit id, or a malformed one, counts nothing rather than counting under a made-up visit', async () => {
     const { demoVisit } = await import('@/lib/demo-session')
-    expect(demoVisit({ as: 'world-nike' })).toBeNull()
+    expect(demoVisit({ as: 'world-northbend' })).toBeNull()
     expect(demoVisit({ visit: 'not-a-visit' })).toBeNull()
     expect(demoVisit({ visit: 'A'.repeat(32) })).toBeNull()
     expect(demoVisit(null)).toBeNull()

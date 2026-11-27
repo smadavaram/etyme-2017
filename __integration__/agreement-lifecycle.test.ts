@@ -21,7 +21,7 @@ import { notify } from '@/lib/notify'
 
 const D = '@demo.etyme.local'
 const PINNACLE = `world-pinnacle${D}`
-const NIKE_AP = `world-nike-ap${D}`
+const NORTHBEND_AP = `world-northbend-ap${D}`
 const RECRUITER = 'desk.without.rates@seed.etyme.invalid'
 
 const call = async (fn: any, method: string, url: string, id: string, body?: unknown) =>
@@ -34,12 +34,12 @@ const day = (n: number) => new Date(Date.now() + n * 86_400_000)
 describe('a master agreement gets a term, a signature and a trail', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-pinnacle']) {
+    for (const slug of ['world-northbend', 'world-pinnacle']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }
 
     const msa = await prisma.masterAgreement.findFirstOrThrow({
-      where: { vendorId: co['world-pinnacle'], clientId: co['world-nike'] },
+      where: { vendorId: co['world-pinnacle'], clientId: co['world-northbend'] },
       select: { id: true, paymentTerms: true, createdAt: true },
     })
     it_.msa = msa.id
@@ -85,7 +85,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
   })
 
   it('a client reading the supplier’s agreement is told whose terms they are, and cannot change them', async () => {
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     const r = await call(amend, 'PATCH', `/api/program/agreements/${it_.msa}`, it_.msa, {
       paymentTerms: 60,
     })
@@ -171,7 +171,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
     as(PINNACLE)
     const r = await call(amend, 'PATCH', `/api/program/agreements/${it_.msa}`, it_.msa, {
       executedFileName: 'Northbend Athletic-Pinnacle-MSA-executed.pdf',
-      executedFileUrl: 'https://files.etyme.test/nike-pinnacle-msa.pdf',
+      executedFileUrl: 'https://files.etyme.test/northbend-pinnacle-msa.pdf',
       executedFileHash: 'a'.repeat(64),
     })
     expect(r.status, JSON.stringify(r.body)).toBe(200)
@@ -305,7 +305,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
 
   it('a client reading the history sees the payment days and never the supplier’s margin floor', async () => {
     await prisma.masterAgreement.update({ where: { id: it_.msa }, data: { minMarginPct: 22 } })
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     const r = await call(history, 'GET', `/api/program/agreements/${it_.msa}/history`, it_.msa)
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.role).toBe('CLIENT')
@@ -367,7 +367,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
     const rolling = await prisma.masterAgreement.create({
       data: {
         vendorId: co['world-pinnacle'],
-        clientId: co['world-nike'],
+        clientId: co['world-northbend'],
         paymentTerms: 30,
         expiresAt: day(-2),
         renewalKind: 'AUTO_RENEW',
@@ -492,7 +492,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
     // start. It is now written DRAFT, so a placeholder never reads as an
     // agreement somebody negotiated.
     const drafted = await prisma.masterAgreement.create({
-      data: { vendorId: co['world-pinnacle'], clientId: co['world-nike'], status: 'DRAFT', signedAt: null },
+      data: { vendorId: co['world-pinnacle'], clientId: co['world-northbend'], status: 'DRAFT', signedAt: null },
     })
     const row = await prisma.masterAgreement.findUniqueOrThrow({ where: { id: drafted.id } })
     expect(row.status).toBe('DRAFT')
@@ -516,7 +516,7 @@ describe('a master agreement gets a term, a signature and a trail', () => {
       where: { id: co['world-pinnacle'] }, select: { ownerProofRequiredAt: true, ownerVerifiedAt: true },
     })
     const unsigned = await prisma.masterAgreement.create({
-      data: { vendorId: co['world-pinnacle'], clientId: co['world-nike'], status: 'DRAFT', signedAt: null },
+      data: { vendorId: co['world-pinnacle'], clientId: co['world-northbend'], status: 'DRAFT', signedAt: null },
     })
     await prisma.company.update({ where: { id: co['world-pinnacle'] }, data: { ownerProofRequiredAt: new Date(), ownerVerifiedAt: null } })
     try {
@@ -566,7 +566,7 @@ describe('both firms that signed an agreement hear that it is running out', () =
   /** Brightmoor Staffing sells to Northbend Athletic, with one person on site under it. */
   const theDeal = async () => {
     const vendor = await at('world-brightmoor')
-    const client = await at('world-nike')
+    const client = await at('world-northbend')
     const msa = await prisma.masterAgreement.findFirstOrThrow({
       where: { vendorId: vendor.id, clientId: client.id },
       select: { id: true },
@@ -604,11 +604,11 @@ describe('both firms that signed an agreement hear that it is running out', () =
       select: { primaryEmail: true },
     })
     const emails = told.map((p) => p.primaryEmail)
-    expect(emails).toContain('world-nike-programme@demo.etyme.local')
-    expect(emails).toContain('world-nike-compliance@demo.etyme.local')
+    expect(emails).toContain('world-northbend-programme@demo.etyme.local')
+    expect(emails).toContain('world-northbend-compliance@demo.etyme.local')
     // Not the desks that could only forward it.
-    expect(emails).not.toContain(NIKE_AP)
-    expect(emails).not.toContain('world-nike-hiring@demo.etyme.local')
+    expect(emails).not.toContain(NORTHBEND_AP)
+    expect(emails).not.toContain('world-northbend-hiring@demo.etyme.local')
   })
 
   it('a client is told how many people are on its sites under the agreement that is running out', async () => {
@@ -630,7 +630,7 @@ describe('both firms that signed an agreement hear that it is running out', () =
 
   it('where nothing links anybody to the agreement the client is told no count at all, rather than told nobody is there', async () => {
     const vendor = await at('world-pinnacle')
-    const client = await at('world-nike')
+    const client = await at('world-northbend')
     // The seeded world holds three Pinnacle agreements with Northbend and
     // two of them carry no contracts at all. An agreement with nothing
     // hanging off it may mean nobody is working under it or may mean
@@ -650,7 +650,7 @@ describe('both firms that signed an agreement hear that it is running out', () =
   it('a sub-vendor\u2019s agreement with its prime is told to those two firms and never to the client', async () => {
     const wrenfield = await at('world-wrenfield')
     const brightmoor = await at('world-brightmoor')
-    const nike = await at('world-nike')
+    const northbend = await at('world-northbend')
     const chain = await prisma.masterAgreement.create({
       data: { vendorId: wrenfield.id, clientId: brightmoor.id, paymentTerms: 30, expiresAt: day(20), status: 'ACTIVE' },
       select: { id: true },
@@ -659,8 +659,8 @@ describe('both firms that signed an agreement hear that it is running out', () =
     expect(out.length).toBeGreaterThan(0)
     expect([...new Set(out.map((n) => n.companyId))].sort()).toEqual([brightmoor.id, wrenfield.id].sort())
     for (const n of out) {
-      expect(n.companyId).not.toBe(nike.id)
-      expect(JSON.stringify(n)).not.toContain(nike.name)
+      expect(n.companyId).not.toBe(northbend.id)
+      expect(JSON.stringify(n)).not.toContain(northbend.name)
     }
     await prisma.masterAgreement.delete({ where: { id: chain.id } })
   })

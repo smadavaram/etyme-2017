@@ -24,7 +24,7 @@ const reject = async (id: string, body: unknown) =>
 
 beforeAll(async () => {
   await freshWorld()
-  for (const slug of ['world-corning', 'world-aptiva']) {
+  for (const slug of ['world-cavanaugh', 'world-aptiva']) {
     co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
   }
   const analystRole = await prisma.role.findFirstOrThrow({
@@ -36,11 +36,11 @@ beforeAll(async () => {
     data: { personId: analyst.id, companyId: co['world-aptiva'], roleId: analystRole.id, type: 'EMPLOYEE', grantReason: 'reject walk' },
   })
   seatId = (await prisma.programSeat.findFirstOrThrow({
-    where: { clientCompanyId: co['world-corning'], officeCompanyId: co['world-aptiva'] },
+    where: { clientCompanyId: co['world-cavanaugh'], officeCompanyId: co['world-aptiva'] },
     select: { id: true },
   })).id
   weekId = (await prisma.timesheet.findFirstOrThrow({
-    where: { status: 'SUBMITTED', clientApprovedAt: null, sellContract: { endClientCompanyId: co['world-corning'] } },
+    where: { status: 'SUBMITTED', clientApprovedAt: null, sellContract: { endClientCompanyId: co['world-cavanaugh'] } },
     select: { id: true },
     orderBy: { periodEnd: 'desc' },
   })).id
@@ -58,7 +58,7 @@ describe('a seated program office sends a week back from the client’s desk', (
 
   it('a seated program office that may sign the client’s week may also send it back, judged by the client’s role and not its own', async () => {
     const hiring = await prisma.role.findFirstOrThrow({
-      where: { companyId: co['world-corning'], name: 'Hiring Manager' },
+      where: { companyId: co['world-cavanaugh'], name: 'Hiring Manager' },
       select: { id: true },
     })
     await prisma.programSeat.update({ where: { id: seatId }, data: { roleId: hiring.id } })

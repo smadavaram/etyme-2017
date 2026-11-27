@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
   // A role filled or closed without a good candidate ever arriving —
   // history loaded by hand, or withdrawn — is not waiting for one, and
   // a draft nobody can submit to is waiting on the client. Only a
-  // published role with nothing worth reading is stuck. Nike's page
+  // published role with nothing worth reading is stuck. Northbend's page
   // said seven roles were waiting when two were open.
   const counts = (r: (typeof requirements)[number]) =>
     r.status === 'OPEN' || (byRole.get(r.id) ?? []).some((a) => a.cleared === true)

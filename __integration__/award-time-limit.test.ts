@@ -13,7 +13,7 @@ import { POST as award } from '@/app/api/submissions/[id]/award/route'
  * Northbend Athletic is seeded with an 18-month limit that blocks.
  */
 
-const HIRING = 'world-nike-hiring@demo.etyme.local'
+const HIRING = 'world-northbend-hiring@demo.etyme.local'
 const MONTH_NAME = /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}, \d{4}/
 
 const call = async (id: string, body: unknown) =>
@@ -25,7 +25,7 @@ describe('the award asks the client’s time limit before it writes a line', () 
   beforeAll(async () => {
     await freshWorld()
     daniel = (await prisma.submission.findFirstOrThrow({
-      where: { requirement: { title: 'HCM integration lead', company: { slug: 'world-nike' } }, person: { name: 'Daniel Okafor' } },
+      where: { requirement: { title: 'HCM integration lead', company: { slug: 'world-northbend' } }, person: { name: 'Daniel Okafor' } },
       select: { id: true },
     })).id
   }, 240_000)

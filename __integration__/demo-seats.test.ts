@@ -711,8 +711,8 @@ describe('an MSP that sells and buys, and a sub-vendor that only ever sees the r
     // either direction, so naming a sell side or a buy side would be a
     // sentence the world behind the door does not hold.
     for (const s of [...ALL_SEATS].filter((x) =>
-      !x.slug.startsWith('world-nike') && !x.slug.startsWith('world-corning') &&
-      !x.slug.startsWith('world-terumo') && x.slug !== 'world-kestrel'
+      !x.slug.startsWith('world-northbend') && !x.slug.startsWith('world-cavanaugh') &&
+      !x.slug.startsWith('world-talvern') && x.slug !== 'world-kestrel'
     )) {
       const says = `${s.waiting} ${s.about}`.toLowerCase()
       expect(/sell|sells/.test(says), `${s.name} never says what it sells`).toBe(true)
@@ -848,7 +848,7 @@ describe('every client door says something true of the seeded world', () => {
   }, 120_000)
 
   it('has the 44-hour week its first door promises, filed and waiting for a signature', async () => {
-    const client = await bySlug('world-nike')
+    const client = await bySlug('world-northbend')
     const waiting = await prisma.timesheet.findMany({
       where: { sellContract: { clientCompanyId: client.id }, status: 'SUBMITTED', clientApprovedAt: null },
     })
@@ -861,7 +861,7 @@ describe('every client door says something true of the seeded world', () => {
   }, 60_000)
 
   it('has somebody starting in ten days with no I-9 on file, as the second door says', async () => {
-    const client = await bySlug('world-corning')
+    const client = await bySlug('world-cavanaugh')
     const starting = await prisma.sellContract.findMany({
       where: { clientCompanyId: client.id, startDate: { gt: new Date() } },
       select: { personId: true, startDate: true, person: { select: { name: true } } },
@@ -882,7 +882,7 @@ describe('every client door says something true of the seeded world', () => {
   }, 60_000)
 
   it('has the contractor on a purchase order with no agreement behind it at all', async () => {
-    const client = await bySlug('world-corning')
+    const client = await bySlug('world-cavanaugh')
     const line = await prisma.sellContract.findFirst({
       where: { clientCompanyId: client.id, msaId: null, NOT: { workOrderId: null } },
       include: { workOrder: { select: { number: true, msaId: true } } },
@@ -893,7 +893,7 @@ describe('every client door says something true of the seeded world', () => {
   }, 60_000)
 
   it('has the consultant twenty-three months on site across two suppliers, against a cap of eighteen', async () => {
-    const client = await bySlug('world-terumo-bct')
+    const client = await bySlug('world-talvern')
     const lines = await prisma.sellContract.findMany({
       where: { clientCompanyId: client.id },
       select: {

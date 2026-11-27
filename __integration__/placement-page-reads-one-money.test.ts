@@ -15,7 +15,7 @@ import { weeksWhere } from '@/lib/money/weeks-read'
  */
 
 const D = '@demo.etyme.local'
-const SEATS_AT_THE_CLIENT = [`world-nike-ap${D}`, `world-nike-programme${D}`]
+const SEATS_AT_THE_CLIENT = [`world-northbend-ap${D}`, `world-northbend-programme${D}`]
 const SEATS_AT_THE_SUPPLIER = [`world-brightmoor-ar${D}`, `world-brightmoor${D}`]
 
 /** The first supplier seat whose page reads money on this line. */
@@ -45,13 +45,13 @@ describe('the placement page says the order ledger’s figures and the line’s,
 
   beforeAll(async () => {
     await freshWorld()
-    const [nike, brightmoor] = await Promise.all([
-      prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } }),
+    const [northbend, brightmoor] = await Promise.all([
+      prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } }),
       prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } }),
     ])
     // A Brightmoor line billing Northbend, on an order, with a bill on it.
     const line = await prisma.sellContract.findFirstOrThrow({
-      where: { companyId: brightmoor.id, clientCompanyId: nike.id, workOrderId: { not: null }, invoiceLines: { some: {} } },
+      where: { companyId: brightmoor.id, clientCompanyId: northbend.id, workOrderId: { not: null }, invoiceLines: { some: {} } },
       orderBy: { startDate: 'asc' },
       select: { id: true, workOrderId: true },
     })

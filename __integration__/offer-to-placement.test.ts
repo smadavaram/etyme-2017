@@ -32,10 +32,10 @@ import { POST as fileTimesheet } from '@/app/api/timesheets/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = {
-  programme: `world-nike-programme${D}`,
-  hiring: `world-nike-hiring${D}`,
-  ap: `world-nike-ap${D}`,
+const NORTHBEND = {
+  programme: `world-northbend-programme${D}`,
+  hiring: `world-northbend-hiring${D}`,
+  ap: `world-northbend-ap${D}`,
 }
 const PINNACLE = `world-pinnacle${D}`
 const WREN = 'wren.castellano@seed.etyme.invalid'
@@ -64,7 +64,7 @@ async function rowFor(email: string, direction: 'sent' | 'received', companyId: 
 describe('a fresh consultant, from an offer to a first week of hours', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-pinnacle']) {
+    for (const slug of ['world-northbend', 'world-pinnacle']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug } })).id
     }
     const wren = await prisma.person.create({ data: { name: 'Wren Castellano', primaryEmail: WREN } })
@@ -81,8 +81,8 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
   }, 240_000)
 
   it('the hiring manager raises a role inside plan, and it publishes itself', async () => {
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-    as(NIKE.hiring)
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+    as(NORTHBEND.hiring)
     const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
       title: 'Supply planning analyst', skills: ['Supply planning', 'SAP IBP'],
       location: 'Beaverton, OR', billMin: 3200, billMax: 4000, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -92,7 +92,7 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
     expect(r.body.data.requisition.status).toBe('OPEN')
     it_.requisition = r.body.data.requisition.id
 
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const sent = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3900 }],
     })
@@ -111,7 +111,7 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
   it('the hiring manager interviews Wren, the supplier confirms, and the round ends in an offer', async () => {
     const { body, problems } = buildProposal({ ...EMPTY_FORM, stage: 'Panel', mode: 'VIDEO', durationMins: 45, times: [inTwoDays()] })
     expect(problems).toEqual([])
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const round = await call(proposeRound, 'POST', `/api/submissions/${it_.submission}/interviews`, it_.submission, body)
     expect(round.body?.error, JSON.stringify(round.body)).toBeUndefined()
     it_.round = round.body.data.id
@@ -120,7 +120,7 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
     const confirmed = await call(decideRound, 'POST', `/api/interviews/${it_.round}`, it_.round, { action: 'confirm', forConsultant: true })
     expect(confirmed.body?.error, JSON.stringify(confirmed.body)).toBeUndefined()
 
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const offer = await call(decideRound, 'POST', `/api/interviews/${it_.round}`, it_.round, {
       action: 'outcome', outcome: 'OFFER', feedback: 'Strong on IBP; the team wants her.',
     })
@@ -129,7 +129,7 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
   })
 
   it('a bare status change to placed is refused for the client, and the sentence points to Place', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(setStatus, 'PATCH', `/api/submissions/${it_.submission}/status`, it_.submission, { status: 'PLACED' })
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('PLACE_BY_AWARD')
@@ -151,12 +151,12 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
   })
 
   it('the offered row offers Place to the hiring manager, and to nobody who would be refused', async () => {
-    const hiring = await rowFor(NIKE.hiring, 'received', co['world-nike'])
+    const hiring = await rowFor(NORTHBEND.hiring, 'received', co['world-northbend'])
     expect(hiring.status).toBe('OFFERED')
     expect(hiring.award.open).toBe(true)
     expect(hiring.contractId).toBeNull()
 
-    const clerk = await rowFor(NIKE.ap, 'received', co['world-nike'])
+    const clerk = await rowFor(NORTHBEND.ap, 'received', co['world-northbend'])
     expect(clerk.award.open).toBe(false)
     expect(clerk.award.says).toContain('Ask them to award Wren Castellano.')
 
@@ -165,7 +165,7 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
     expect(supplier.award.says).toBe('A supplier never awards its own candidate. Northbend Athletic decides whether Wren Castellano is placed.')
 
     // The requisition page answers the same way.
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const detail = await call(requisitionDetail, 'GET', `/api/requisitions/${it_.requisition}`, it_.requisition)
     const onRole = detail.body.data.candidates.find((c: any) => c.id === it_.submission)
     expect(onRole.award.open).toBe(true)
@@ -179,14 +179,14 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
   })
 
   it('the AP clerk cannot award, because placing is the hiring desk’s', async () => {
-    as(NIKE.ap)
+    as(NORTHBEND.ap)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, { rate: 3800 })
     expect(r.status).toBe(403)
     expect(r.body.error.code).toBe('NOT_HIRING')
   })
 
   it('the hiring manager places Wren from the offer, and once Pinnacle and Wren agree her terms, both sides and their dates exist', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 3800, startDate: day(-7).toISOString().slice(0, 10), endDate: day(173).toISOString().slice(0, 10),
       ...UNDER_WAY,
@@ -199,7 +199,7 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
 
     const sell = await prisma.sellContract.findUniqueOrThrow({ where: { id: it_.contract }, include: { buyLinks: true } })
     expect(sell.personId).toBe(it_.worker)
-    expect(sell.clientCompanyId).toBe(co['world-nike'])
+    expect(sell.clientCompanyId).toBe(co['world-northbend'])
     expect(sell.companyId).toBe(co['world-pinnacle'])
     expect(sell.buyLinks).toHaveLength(1)
     expect(await prisma.cycle.count({ where: { sellContractId: sell.id } })).toBeGreaterThan(0)
@@ -213,12 +213,12 @@ describe('a fresh consultant, from an offer to a first week of hours', () => {
   })
 
   it('the placed row leads to its placement and offers no second award', async () => {
-    const row = await rowFor(NIKE.hiring, 'received', co['world-nike'])
+    const row = await rowFor(NORTHBEND.hiring, 'received', co['world-northbend'])
     expect(row.status).toBe('PLACED')
     expect(row.contractId).toBe(it_.contract)
     expect(row.award.open).toBe(false)
 
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const again = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, { rate: 3800 })
     expect(again.status).toBe(409)
     expect(again.body.error.code).toBe('ALREADY_AWARDED')

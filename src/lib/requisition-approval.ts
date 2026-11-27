@@ -13,7 +13,7 @@
  * ── Three desks, not a dollar line ───────────────────────────────────
  *
  * The chain used to be "over $250k → a VP", one flat list of people in
- * rank order, and every rule on Nike pointed at the same person. The
+ * rank order, and every rule on Northbend pointed at the same person. The
  * founder's description of how it actually works:
  *
  *   A hiring manager who needs people raises it, against a cost center

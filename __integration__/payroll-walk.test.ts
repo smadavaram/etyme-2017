@@ -199,7 +199,7 @@ describe('wages count in the year they were paid', () => {
     })))
     expect(filed.body?.error, JSON.stringify(filed.body)).toBeUndefined()
     const id = filed.body.data.timesheetId
-    for (const desk of ['world-nike-hiring@demo.etyme.local', 'world-brightmoor-payroll@demo.etyme.local']) {
+    for (const desk of ['world-northbend-hiring@demo.etyme.local', 'world-brightmoor-payroll@demo.etyme.local']) {
       as(desk)
       const ok = await json(await assertHours(req('POST', `/api/timesheets/${id}/assert`, {}), { params: Promise.resolve({ id }) }))
       expect(ok.status, JSON.stringify(ok.body)).toBe(200)

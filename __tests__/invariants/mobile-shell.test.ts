@@ -162,7 +162,7 @@ describe('the sidebar props are read off the session the same way for both surfa
     const props = sidebarPropsFrom({
       ...base,
       contextType: 'CLIENT_CONTACT',
-      company: { id: 'c', name: 'Northbend Athletic', slug: 'nike', kind: 'CLIENT' },
+      company: { id: 'c', name: 'Northbend Athletic', slug: 'northbend', kind: 'CLIENT' },
     })
     expect(props).toMatchObject({ companyKind: 'CLIENT', isConsultant: false, companyName: 'Northbend Athletic', companyLabel: 'Client · No role yet' })
   })

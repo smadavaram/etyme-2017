@@ -14,7 +14,7 @@ import { decisionsAddress } from '@/app/dashboard/decisions/chips'
 
 const D = '@demo.etyme.local'
 const APTIVA = `world-aptiva${D}`
-const CAVANAUGH_PM = `world-corning-programme${D}`
+const CAVANAUGH_PM = `world-cavanaugh-programme${D}`
 
 const keyOf = (r: any) => `${r.type}:${r.entityId}`
 const says = (r: any) => `${r.title ?? ''} ${r.subtitle ?? ''} ${r.named?.whose ?? ''}`

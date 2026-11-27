@@ -115,13 +115,13 @@ const CHAIN_ASKS: Ask[] = [
  * asking for them.
  */
 const OWN_TYPE_ASKS: Record<string, Ask> = {
-  nike: { key: 'PRODUCT_CONFIDENTIALITY', owedBy: 'WORKER', note: 'Unreleased product lines. Signed before the first day on site.' },
-  corning: { key: 'HOT_FLOOR_INDUCTION', owedBy: 'WORKER', note: 'Site-specific. Another plant’s induction does not count.' },
-  'terumo-bct': { key: 'STERILE_FIELD_TRAINING', owedBy: 'WORKER', note: 'Anybody going into a clean room needs it.' },
+  northbend: { key: 'PRODUCT_CONFIDENTIALITY', owedBy: 'WORKER', note: 'Unreleased product lines. Signed before the first day on site.' },
+  cavanaugh: { key: 'HOT_FLOOR_INDUCTION', owedBy: 'WORKER', note: 'Site-specific. Another plant’s induction does not count.' },
+  'talvern': { key: 'STERILE_FIELD_TRAINING', owedBy: 'WORKER', note: 'Anybody going into a clean room needs it.' },
 }
 
 /** The clients that also require their own non-disclosure agreement. */
-const NDA_CLIENTS = ['nike', 'terumo-bct']
+const NDA_CLIENTS = ['northbend', 'talvern']
 
 async function deskAt(ctx: SeedContext, clientSlug: string, key: string) {
   return db.person.findUnique({
@@ -138,7 +138,7 @@ export async function seedDocumentRequirements(ctx: SeedContext): Promise<Docume
     select: { id: true, slug: true, kind: true },
   })
   const firmById = new Map(firms.map((f) => [f.id, f]))
-  /** The slug without the demo prefix — 'corning', not 'world-corning'. */
+  /** The slug without the demo prefix — 'cavanaugh', not 'world-cavanaugh'. */
   const bare = (slug: string) => slug.slice(ctx.prefix.length)
 
   const orders = await db.workOrder.findMany({
@@ -208,13 +208,13 @@ export async function seedDocumentRequirements(ctx: SeedContext): Promise<Docume
   // with her name and the day on the record: WARN, capture a reason,
   // proceed, which is Addendum E's rule for everything that is not
   // legally grounded.
-  const cavanaugh = ctx.firmBySlug.get('corning')
+  const cavanaugh = ctx.firmBySlug.get('cavanaugh')
   if (cavanaugh) {
     const line = await db.sellContract.findFirst({
       where: { clientCompanyId: cavanaugh.id, person: { name: 'Aisha Bello' } },
       select: { id: true, workOrderId: true },
     })
-    const officer = await deskAt(ctx, 'corning', 'compliance')
+    const officer = await deskAt(ctx, 'cavanaugh', 'compliance')
     if (line && officer) {
       const already = await db.documentRequirement.findFirst({
         where: { sellContractId: line.id, documentTypeKey: 'BACKGROUND_CHECK' },

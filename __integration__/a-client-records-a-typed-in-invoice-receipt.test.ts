@@ -15,7 +15,7 @@ import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
  */
 
 const D = '@demo.etyme.local'
-const NIKE_AP = `world-nike-ap${D}`
+const NORTHBEND_AP = `world-northbend-ap${D}`
 const CS = `world-computer-systems${D}`
 
 const s: Record<string, any> = {}
@@ -26,13 +26,13 @@ const options = async (query = '') =>
 describe('a client’s AP clerk records a typed-in invoice receipt from a supplier it pays', () => {
   beforeAll(async () => {
     await freshWorld()
-    s.nike = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id
+    s.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' } })).id
     s.cs = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-computer-systems' } })).id
     s.tecwyn = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })).id
   })
 
   it('a client’s AP clerk recording a typed-in invoice receipt is offered the suppliers it pays, with the person on each line', async () => {
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     const r = await options()
     expect(r.status).toBe(200)
     const suppliers = r.body.data.suppliers as any[]
@@ -49,10 +49,10 @@ describe('a client’s AP clerk records a typed-in invoice receipt from a suppli
   })
 
   it('a firm the caller does not trade with is never offered', async () => {
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     const suppliers = (await options()).body.data.suppliers as any[]
     const paysOn = new Set(
-      (await prisma.sellContract.findMany({ where: { clientCompanyId: s.nike, state: { not: 'DRAFT' } }, select: { companyId: true } }))
+      (await prisma.sellContract.findMany({ where: { clientCompanyId: s.northbend, state: { not: 'DRAFT' } }, select: { companyId: true } }))
         .map((x) => x.companyId)
     )
     for (const sup of suppliers) expect(paysOn.has(sup.id), sup.name).toBe(true)
@@ -76,7 +76,7 @@ describe('a client’s AP clerk records a typed-in invoice receipt from a suppli
   })
 
   it('a client records a week it signed, typed in from the supplier’s invoice, and the check reads it back', async () => {
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     // Every week Northbend signed on a line no bill holds yet; the seed bills most of them.
     let free: any = null
     for (const sup of (await options()).body.data.suppliers as any[]) {

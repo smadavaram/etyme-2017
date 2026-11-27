@@ -10,7 +10,7 @@ import { GET as contacts } from '@/app/api/contacts/route'
  */
 const D = '@demo.etyme.local'
 const BRIGHTMOOR = `world-brightmoor${D}`
-const NIKE_PM = `world-nike-programme${D}`
+const NORTHBEND_PM = `world-northbend-programme${D}`
 const it_: Record<string, any> = {}
 
 describe('a supplier brings its team in', () => {
@@ -54,7 +54,7 @@ describe('a supplier brings its team in', () => {
   })
 
   it('Northbend Athletic’s Contacts page now lists Brightmoor’s account manager, HR, contract manager and finance, sorted into the right chips', async () => {
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const r = await json(await contacts(req('GET', '/api/contacts')))
     const at = r.body.data.contacts.filter((c: any) => c.at.name === 'Brightmoor Staffing')
     const byName = Object.fromEntries(at.map((c: any) => [c.name, c]))

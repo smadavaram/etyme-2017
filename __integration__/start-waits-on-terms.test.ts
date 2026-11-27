@@ -25,7 +25,7 @@ import { termsGate } from '@/lib/award/terms-on-record'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}` }
+const NORTHBEND = { programme: `world-northbend-programme${D}`, hiring: `world-northbend-hiring${D}` }
 const BRIGHTMOOR = `world-brightmoor${D}`
 const MARISOL = 'marisol.quintero@seed.etyme.invalid'
 
@@ -38,7 +38,7 @@ const it_: Record<string, any> = {}
 describe('the start waits on the person’s own terms', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-brightmoor']) {
+    for (const slug of ['world-northbend', 'world-brightmoor']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }
     it_.marisol = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: MARISOL } })).id
@@ -52,8 +52,8 @@ describe('the start waits on the person’s own terms', () => {
     const said = await call(respond, 'POST', `/api/me/benches/${listing.id}/respond`, listing.id, { said: 'ACCEPT' })
     expect(said.body?.error, JSON.stringify(said.body)).toBeUndefined()
 
-    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-    as(NIKE.hiring)
+    const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+    as(NORTHBEND.hiring)
     const raised = await json(await raiseRequisition(req('POST', '/api/requisitions', {
       title: 'Controls engineer', skills: ['PLC programming', 'SCADA'],
       location: 'Tualatin, OR', billMin: 12_000, billMax: 16_000, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -63,7 +63,7 @@ describe('the start waits on the person’s own terms', () => {
     it_.requisition = raised.body.data.requisition.id
     await prisma.requirement.update({ where: { id: it_.requisition }, data: { approvalState: 'APPROVED', status: 'OPEN' } })
 
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const sent = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-brightmoor'], payMin: 12_000, payMax: 15_000 }],
     })
@@ -76,7 +76,7 @@ describe('the start waits on the person’s own terms', () => {
     expect(put.body?.error, JSON.stringify(put.body)).toBeUndefined()
     it_.submission = (await prisma.submission.findFirstOrThrow({ where: { requirementId: it_.requisition, personId: it_.marisol } })).id
 
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const awarded = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 14_000, startDate: day(7).toISOString().slice(0, 10), endDate: day(190).toISOString().slice(0, 10),
     })
@@ -126,7 +126,7 @@ describe('the start waits on the person’s own terms', () => {
 describe('"Record a placement" writes a pay line only under the same rules', () => {
   const record = async (body: Record<string, unknown>) =>
     json(await recordPlacement(req('POST', '/api/contracts', {
-      personId: it_.marisol, companyId: co['world-brightmoor'], clientCompanyId: co['world-nike'],
+      personId: it_.marisol, companyId: co['world-brightmoor'], clientCompanyId: co['world-northbend'],
       billRate: 14_000, startDate: day(14).toISOString().slice(0, 10), endDate: day(200).toISOString().slice(0, 10),
       ...body,
     })))
@@ -180,11 +180,11 @@ describe('"Record a placement" is only for somebody the firm already knows', () 
   it('a firm cannot record a placement for a person it has no record of', async () => {
     // Northbend's hiring manager: a seat at the client, nothing at all at
     // Brightmoor — no seat, no listing, no line, never put forward.
-    const stranger = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE.hiring }, select: { id: true, name: true } })
+    const stranger = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND.hiring }, select: { id: true, name: true } })
     const before = await prisma.sellContract.count({ where: { personId: stranger.id } })
     as(BRIGHTMOOR)
     const r = await json(await recordPlacement(req('POST', '/api/contracts', {
-      personId: stranger.id, companyId: co['world-brightmoor'], clientCompanyId: co['world-nike'],
+      personId: stranger.id, companyId: co['world-brightmoor'], clientCompanyId: co['world-northbend'],
       billRate: 14_000, startDate: day(14).toISOString().slice(0, 10), endDate: day(200).toISOString().slice(0, 10),
       engagementType: 'W2', payRate: 9_000,
     })))
@@ -202,7 +202,7 @@ describe('"Record a placement" is only for somebody the firm already knows', () 
     await prisma.company.update({ where: { id: co['world-brightmoor'] }, data: { templatePack: 'US_SAP' } })
     as(BRIGHTMOOR)
     const r = await json(await recordPlacement(req('POST', '/api/contracts', {
-      personId: it_.marisol, companyId: co['world-brightmoor'], clientCompanyId: co['world-nike'],
+      personId: it_.marisol, companyId: co['world-brightmoor'], clientCompanyId: co['world-northbend'],
       billRate: 14_000, startDate: day(-60).toISOString().slice(0, 10), endDate: day(120).toISOString().slice(0, 10),
       engagementType: 'W2', payRate: 9_000,
     })))

@@ -32,7 +32,7 @@ describe('a program office at a client\'s desk reads the client\'s expenses', ()
   beforeAll(async () => {
     await freshWorld()
     id.aptiva = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-aptiva' } })).id
-    id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })).id
+    id.cavanaugh = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-cavanaugh' } })).id
 
     // One billable expense on a placement at Cavanaugh's site, raised by
     // the supplier that holds the line. This is what the client's own

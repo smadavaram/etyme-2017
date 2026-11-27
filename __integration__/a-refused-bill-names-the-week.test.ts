@@ -90,7 +90,7 @@ describe('a refused bill names the week, the person and who must sign first', ()
  */
 describe('the supplier’s twin drafts the bill and a person sends it', () => {
   const t: Record<string, any> = {}
-  const NORTHBEND_AP = 'world-nike-ap@demo.etyme.local'
+  const NORTHBEND_AP = 'world-northbend-ap@demo.etyme.local'
 
   const decider = async (email: string) => {
     const seat = await prisma.context.findFirstOrThrow({
@@ -105,7 +105,7 @@ describe('the supplier’s twin drafts the bill and a person sends it', () => {
 
   beforeAll(async () => {
     const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' } })
-    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
     t.brightmoor = brightmoor.id
     t.northbend = northbend.id
     // The agreement says how often it bills. Demand's agreement routes
@@ -840,7 +840,7 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
   })
 
   it('a client buys and never sells, so it has no Tuesday of this shape', async () => {
-    expect(await firmTuesday(await slugId('world-nike'))).toBeNull()
+    expect(await firmTuesday(await slugId('world-northbend'))).toBeNull()
   })
 
   it('a week the client signed and no bill of the firm’s holds is counted with the person, the client, the week, its hours and what it bills at the firm’s own rate', async () => {
@@ -895,18 +895,18 @@ describe('a firm’s Tuesday: what it bills a month, and what is signed and not 
 
   it('a signed week whose hours over the line nobody has decided is counted with no amount, never priced at a guess', async () => {
     const brightmoor = await slugId('world-brightmoor')
-    const nike = await slugId('world-nike')
+    const northbend = await slugId('world-northbend')
     const omar = await prisma.timesheet.findFirstOrThrow({
       where: { person: { name: 'Omar Haddad' }, sellContract: { companyId: brightmoor }, totalHours: { gt: 40 }, assertions: { none: { role: 'CLIENT_APPROVAL', state: 'LIVE' } } },
       select: { id: true, totalHours: true },
     })
-    await prisma.workAssertion.create({ data: { timesheetId: omar.id, companyId: nike, role: 'CLIENT_APPROVAL', hours: omar.totalHours, rateCents: 13200 } })
+    await prisma.workAssertion.create({ data: { timesheetId: omar.id, companyId: northbend, role: 'CLIENT_APPROVAL', hours: omar.totalHours, rateCents: 13200 } })
     const { signedNotBilled: s } = await read('world-brightmoor')
     const w = s.weeks.find((x) => x.timesheetId === omar.id)!
     expect(w).toMatchObject({ personName: 'Omar Haddad', amountMinor: null, unpriced: 'overtime' })
     expect(w.says).toContain('nobody has decided')
     expect(s.totals[0].amountMinor).toBeNull()
-    await prisma.workAssertion.deleteMany({ where: { timesheetId: omar.id, companyId: nike, role: 'CLIENT_APPROVAL' } })
+    await prisma.workAssertion.deleteMany({ where: { timesheetId: omar.id, companyId: northbend, role: 'CLIENT_APPROVAL' } })
   })
 
   it('a week on a draft bill is still signed and not yet billed, at the draft’s amount, and says which draft holds it', async () => {
@@ -1084,7 +1084,7 @@ describe('a selling firm’s Today page names who is where, what is unbilled, wh
   })
 
   it('a client is told in a sentence that its Today is its program page', async () => {
-    const { status, body } = await readToday('world-nike-programme@demo.etyme.local')
+    const { status, body } = await readToday('world-northbend-programme@demo.etyme.local')
     expect(status).toBe(403)
     expect(body.error.code).toBe('NOT_A_SELLER')
     expect(body.error.message).toBe('Northbend Athletic buys from its suppliers and bills nobody, so its Today is its program page.')

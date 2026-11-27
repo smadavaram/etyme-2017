@@ -32,7 +32,7 @@ import {
  *   Topics: GENERAL · REQUIREMENT · CONTRACT · SUBMISSION · DOCUMENT · INVOICE · EXPENSE · DIRECT
  *
  * Two kinds of thread sit in the one list, and a row says which: your
- * own people's, and one across a deal with another firm ("with Nike").
+ * own people's, and one across a deal with another firm ("with Northbend").
  * The second kind is opened by the demand side from the role or the
  * candidate — never from here, because a conversation with a supplier is
  * about something — and answered from either side. A supplier hears

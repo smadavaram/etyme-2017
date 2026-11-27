@@ -29,20 +29,20 @@ import { runTwin } from '@/lib/twin/run'
  */
 
 const D = '@demo.etyme.local'
-const HIRING = `world-nike-hiring${D}`
-const PROGRAMME = `world-nike-programme${D}`
+const HIRING = `world-northbend-hiring${D}`
+const PROGRAMME = `world-northbend-programme${D}`
 const PRIME = `world-computer-systems${D}`
 const SUB = `world-tecwyn${D}`
-const AP = `world-nike-ap${D}`
+const AP = `world-northbend-ap${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
-const COMPLIANCE = `world-nike-compliance${D}`
+const COMPLIANCE = `world-northbend-compliance${D}`
 const withId = (id: string) => ({ params: Promise.resolve({ id }) })
 const s: Record<string, any> = {}
 
 beforeAll(async () => {
   await freshWorld()
   const job = await prisma.requirement.findFirstOrThrow({
-    where: { title: 'HCM integration lead', company: { slug: 'world-nike' } },
+    where: { title: 'HCM integration lead', company: { slug: 'world-northbend' } },
     select: { id: true, companyId: true },
   })
   s.job = job.id

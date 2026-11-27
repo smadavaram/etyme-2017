@@ -110,7 +110,7 @@ describe('a route reads the book and the permissions off one desk, on the seeded
   })
 
   it('a client is never in a seat at itself, and is judged by its own role', async () => {
-    const desk = await actingDesk(await callerAt('world-terumo-bct'))
+    const desk = await actingDesk(await callerAt('world-talvern'))
     expect(desk!.companyName).toBe('Talvern Medical')
     expect(desk!.seat).toBeNull()
   })

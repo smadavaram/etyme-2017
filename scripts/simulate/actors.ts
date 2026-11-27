@@ -39,7 +39,7 @@ export type Door =
   | { email: string }
 
 export interface SeatSpec {
-  /** `world-nike/hiring`, `world-tellisford/delivery/Rahul Dandekar`, `world-brightmoor/owner`, `person/helena-marsh`, `worker/<email>`. */
+  /** `world-northbend/hiring`, `world-tellisford/delivery/Rahul Dandekar`, `world-brightmoor/owner`, `person/helena-marsh`, `worker/<email>`. */
   key: string
   door: Door
   /** Who sits there, as the world holds them. */

@@ -73,8 +73,8 @@ const YEAR_HOURS = 2_080
  * name a person reads — `NORTHBEND` for Northbend Athletic.
  *
  * It was the first four letters of the slug, and the slugs are the
- * retired real names kept as addresses (`world-nike`), so the budget
- * picker on the job request form read `APPS-NIKE-4100`. A slug is an
+ * retired real names kept as addresses (`world-northbend`), so the budget
+ * picker on the job request form read `APPS-NORTHBEND-4100`. A slug is an
  * address nobody reads; a cost center code is printed on the form, the
  * job request and the program page, so it is built from the display
  * name like every other word on a screen.

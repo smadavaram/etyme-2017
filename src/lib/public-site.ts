@@ -185,7 +185,7 @@ export function describeSite(
  * Who this company's public page is talking to.
  *
  * A GSI is genuinely both — Infosys buys bench from three firms and sells
- * delivery to Nike in the same week — and it gets the supplier-facing page
+ * delivery to Northbend in the same week — and it gets the supplier-facing page
  * because that is the side with something to offer a stranger. Their own
  * bench belongs on an internal marketplace, not on the open internet.
  */

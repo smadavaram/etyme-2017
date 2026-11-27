@@ -851,7 +851,7 @@ export const ON_ETYME_NO_PAGE = 'On Etyme, no page'
 export function addressCell(row: { slug: string; onEtyme: boolean; notLinked?: boolean; hasPage?: boolean }): { slug: string | null; note: string | null } {
   if (row.notLinked) return { slug: null, note: 'Not linked yet' }
   // A firm on Etyme with no page has no address to show: its slug is a
-  // machine name (the press walk l2b, 2026-11-15, read "world-nike").
+  // machine name (the press walk l2b, 2026-11-15, read "world-northbend").
   if (row.onEtyme && row.hasPage === false) return { slug: null, note: ON_ETYME_NO_PAGE }
   if (row.onEtyme) return { slug: row.slug, note: null }
   return { slug: null, note: 'Not on Etyme' }

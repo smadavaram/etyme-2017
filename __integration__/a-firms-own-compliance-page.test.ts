@@ -66,7 +66,7 @@ async function deskAt(companyId: string, roleName: string): Promise<{ email: str
 beforeAll(async () => {
   await freshWorld()
   co.tellisford = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-tellisford' } })).id
-  co.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id
+  co.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' } })).id
   who.karthik = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: KARTHIK } })).id
   await seatAt(co.tellisford, 'GSI', 'Compliance Officer', 'Nalini Rao', TW_COMPLIANCE)
   await seatAt(co.tellisford, 'GSI', 'HR', 'Owen Tallis', TW_HR)

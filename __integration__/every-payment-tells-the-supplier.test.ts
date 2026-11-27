@@ -19,7 +19,7 @@ import { mayPayInvoiceReceipt } from '@/lib/invoice-match'
 const D = '@demo.etyme.local'
 const PAYROLL = `world-brightmoor-payroll${D}`
 const FINANCE = `world-brightmoor-finance${D}`
-const NIKE_AP = `world-nike-ap${D}`
+const NORTHBEND_AP = `world-northbend-ap${D}`
 
 const s: Record<string, any> = {}
 const today = () => new Date().toISOString().slice(0, 10)
@@ -78,9 +78,9 @@ describe('every payment goes through one function, and the supplier is told ever
     s.found = await prisma.vendorBill.findUniqueOrThrow({ where: { id: payable[0].id }, select: { status: true, paidCents: true, paidAt: true } })
 
     // A supplier's bill that arrived on Etyme, which Northbend's AP clerk may pay now.
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const candidates = await prisma.invoice.findMany({
-      where: { status: { in: ['SUBMITTED', 'ISSUED'] }, OR: [{ engagement: { msa: { clientId: nike.id } } }, { workOrder: { issuedById: nike.id } }] },
+      where: { status: { in: ['SUBMITTED', 'ISSUED'] }, OR: [{ engagement: { msa: { clientId: northbend.id } } }, { workOrder: { issuedById: northbend.id } }] },
       select: { id: true, total: true, paid: true, currency: true },
       orderBy: { number: 'asc' },
     })
@@ -189,7 +189,7 @@ describe('every payment goes through one function, and the supplier is told ever
   it('a supplier’s bill paid from its page writes one Payment row, tells the supplier once in the bill’s currency and names that bill', async () => {
     expect(s.invoice, 'the seeded world holds a supplier’s bill Northbend may pay now').toBeTruthy()
     const paidBefore = await prisma.payment.count({ where: { invoiceId: s.invoice } })
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     const params = { params: Promise.resolve({ id: s.invoice }) }
     const r = await json(await payInvoice(req('POST', `/api/invoices/${s.invoice}/payments`, { amount: s.invoiceOwed, method: 'ACH', reference: 'ACH-INV-1' }), params))
     expect(r.status, JSON.stringify(r.body)).toBe(201)
@@ -207,7 +207,7 @@ describe('every payment goes through one function, and the supplier is told ever
     }
 
     // The second press is refused as paid, and nobody is told again.
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     const again = await json(await payInvoice(req('POST', `/api/invoices/${s.invoice}/payments`, { amount: s.invoiceOwed, method: 'ACH', reference: 'ACH-INV-1' }), params))
     expect(again.status).toBeGreaterThanOrEqual(400)
     expect(await prisma.payment.count({ where: { invoiceId: s.invoice } })).toBe(paidBefore + 1)
@@ -273,18 +273,18 @@ describe('a company waiting for a verified Owner is told before anybody presses 
   })
 
   it('a supplier’s bill on its own page reads the gate’s sentence and no Pay where its payer waits for a verified Owner', async () => {
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     let target: string | null = null
     for (const c of await prisma.invoice.findMany({
-      where: { status: { in: ['SUBMITTED', 'ISSUED'] }, OR: [{ engagement: { msa: { clientId: nike.id } } }, { workOrder: { issuedById: nike.id } }] },
+      where: { status: { in: ['SUBMITTED', 'ISSUED'] }, OR: [{ engagement: { msa: { clientId: northbend.id } } }, { workOrder: { issuedById: northbend.id } }] },
       select: { id: true }, orderBy: { number: 'asc' },
     })) {
       if ((await mayPayInvoiceReceipt(c.id))?.ok) { target = c.id; break }
     }
     expect(target, 'Northbend has a supplier’s bill it may pay now').toBeTruthy()
-    await prisma.company.update({ where: { id: nike.id }, data: { ownerProofRequiredAt: new Date(), ownerVerifiedAt: null } })
-    const says = (await needsVerifiedOwnerAt(nike.id, 'PAY') as { says: string }).says
-    as(NIKE_AP)
+    await prisma.company.update({ where: { id: northbend.id }, data: { ownerProofRequiredAt: new Date(), ownerVerifiedAt: null } })
+    const says = (await needsVerifiedOwnerAt(northbend.id, 'PAY') as { says: string }).says
+    as(NORTHBEND_AP)
     const r = await json(await invoicePage(req('GET', `/api/invoices/${target}`), { params: Promise.resolve({ id: target! }) }))
     expect(r.status).toBe(200)
     expect(r.body.data.payPanel).toEqual({ kind: 'OWNER_WAITS', says, href: '/dashboard/settings/setup/ownership', linkSays: 'Prove ownership' })

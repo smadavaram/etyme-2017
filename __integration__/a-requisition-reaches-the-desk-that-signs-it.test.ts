@@ -29,10 +29,10 @@ import { GET as decisions } from '@/app/api/decisions/route'
 const D = '@demo.etyme.local'
 
 const CAVANAUGH = {
-  hiring: `world-corning-hiring${D}`,
-  hr: `world-corning-hr${D}`,
-  owner: `world-corning${D}`,
-  ap: `world-corning-ap${D}`,
+  hiring: `world-cavanaugh-hiring${D}`,
+  hr: `world-cavanaugh-hr${D}`,
+  owner: `world-cavanaugh${D}`,
+  ap: `world-cavanaugh-ap${D}`,
 }
 
 const it_: Record<string, string> = {}
@@ -52,7 +52,7 @@ describe('A requisition waiting on a desk is in the queue that desk reads', () =
   }, 600_000)
 
   it('a requisition over the plan is raised and routed to somebody', async () => {
-    const company = await prisma.company.findFirstOrThrow({ where: { slug: 'world-corning' } })
+    const company = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cavanaugh' } })
     const cc = await prisma.costCenter.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: company.id } })
 
     as(CAVANAUGH.hiring)

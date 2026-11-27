@@ -29,7 +29,7 @@ import { GET as bench } from '@/app/api/bench/route'
  */
 
 const D = '@demo.etyme.local'
-const NORTHBEND_OWNER = `world-nike${D}`
+const NORTHBEND_OWNER = `world-northbend${D}`
 const TELLISFORD_OWNER = `world-tellisford${D}`
 const QUARRY_OWNER = 'maeve.oduya@quarrybrook.example'
 const PALLISER_OWNER = 'tomas.reyes@palliser.example'
@@ -80,7 +80,7 @@ async function eventually(read: () => Promise<number>, want: number): Promise<nu
 
 beforeAll(async () => {
   await freshWorld()
-  for (const slug of ['world-nike', 'world-tellisford', 'world-corning', 'world-terumo-bct']) {
+  for (const slug of ['world-northbend', 'world-tellisford', 'world-cavanaugh', 'world-talvern']) {
     co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
   }
   who.northbendOwner = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NORTHBEND_OWNER } })).id
@@ -112,12 +112,12 @@ describe('one firm, one tenant', () => {
   })
 
   it('a record another firm wrote down is never returned as a firm on Etyme', async () => {
-    await approvalShell('world-corning')
-    expect(await findFirm({ etymeAddress: 'quarrybrook-staffing-world-corning-maeve-oduya' })).toBeNull()
+    await approvalShell('world-cavanaugh')
+    expect(await findFirm({ etymeAddress: 'quarrybrook-staffing-world-cavanaugh-maeve-oduya' })).toBeNull()
   })
 
   it('a claim link taken by somebody already seated at a firm on the same domain joins that firm', async () => {
-    const { shellId, token } = await approvalShell('world-nike')
+    const { shellId, token } = await approvalShell('world-northbend')
     await prisma.verification.create({
       data: { companyId: shellId, type: 'INSURANCE_GL', status: 'CLEAR', provider: 'Hartford', uploadedById: who.northbendOwner, issuedAt: new Date(), validFrom: new Date(), expiresAt: new Date(Date.now() + 200 * 86_400_000) },
     })
@@ -129,11 +129,11 @@ describe('one firm, one tenant', () => {
     expect(r.says).toContain('No second company was made')
 
     // One Quarrybrook at Northbend, holding everything the client's record held.
-    expect(await prisma.counterparty.count({ where: { companyId: co['world-nike'], otherCompany: { name: 'Quarrybrook Staffing' } } })).toBe(1)
+    expect(await prisma.counterparty.count({ where: { companyId: co['world-northbend'], otherCompany: { name: 'Quarrybrook Staffing' } } })).toBe(1)
     expect(await prisma.company.findUnique({ where: { id: shellId } })).toBeNull()
-    const row = await prisma.counterparty.findFirstOrThrow({ where: { companyId: co['world-nike'], otherCompanyId: co.quarrybrook, relationship: 'SUPPLIER' } })
+    const row = await prisma.counterparty.findFirstOrThrow({ where: { companyId: co['world-northbend'], otherCompanyId: co.quarrybrook, relationship: 'SUPPLIER' } })
     expect(row.tier).toBe('APPROVED')
-    expect(await prisma.masterAgreement.count({ where: { vendorId: co.quarrybrook, clientId: co['world-nike'] } })).toBe(1)
+    expect(await prisma.masterAgreement.count({ where: { vendorId: co.quarrybrook, clientId: co['world-northbend'] } })).toBe(1)
     expect(await prisma.verification.count({ where: { companyId: co.quarrybrook, type: 'INSURANCE_GL' } })).toBe(1)
     const invite = await prisma.supplierInvite.findUniqueOrThrow({ where: { token } })
     expect(invite.companyId).toBe(co.quarrybrook)
@@ -146,7 +146,7 @@ describe('one firm, one tenant', () => {
   })
 
   it('a claim link is never folded into a firm when the record holds history a join would move; nothing changes and it says so', async () => {
-    const { shellId, token } = await approvalShell('world-terumo-bct')
+    const { shellId, token } = await approvalShell('world-talvern')
     // Both hold a cost center coded alike: one would overwrite the other.
     await prisma.costCenter.create({ data: { companyId: shellId, code: 'QB-100', name: 'Quarrybrook delivery' } })
     await prisma.costCenter.create({ data: { companyId: co.quarrybrook, code: 'QB-100', name: 'Delivery' } })
@@ -177,7 +177,7 @@ describe('one firm, one tenant', () => {
   it('nobody is asked to set a password for a claim link to a company nobody has said the kind of', async () => {
     // A .test address: the password door turns every demo address away first.
     const email = 'first.hire@quarrybrook.test'
-    const { shellId, token } = await approvalShell('world-corning', email)
+    const { shellId, token } = await approvalShell('world-cavanaugh', email)
     await prisma.company.update({ where: { id: shellId }, data: { kind: 'UNCLASSIFIED' } })
 
     const r = await signUpClaim({ token, email, password: 'a long walk to the quarry gate', personName: 'First Hire' })
@@ -196,7 +196,7 @@ describe('one firm, one tenant', () => {
   it('a worker’s typed “never send me to” is honored when the real company joins, though a firm recorded one of that name not classified yet', async () => {
     const worker = await prisma.person.create({ data: { name: 'Odalys Fenwick', primaryEmail: 'odalys.fenwick@worker.example' } })
     await prisma.doNotSubmit.create({ data: { personId: worker.id, companyName: 'Harrowgate Mills' } })
-    await prisma.company.create({ data: { name: 'Harrowgate Mills', slug: 'harrowgate-mills-recorded', kind: 'UNCLASSIFIED', currency: 'USD', listedById: co['world-nike'] } })
+    await prisma.company.create({ data: { name: 'Harrowgate Mills', slug: 'harrowgate-mills-recorded', kind: 'UNCLASSIFIED', currency: 'USD', listedById: co['world-northbend'] } })
 
     const made = await createCompany({ name: 'Harrowgate Mills', kind: 'CLIENT', slug: 'harrowgate-mills', domain: null, byPersonId: worker.id, seatAsOwner: false, claimDomain: false, startsSetup: false })
     const row = await prisma.doNotSubmit.findFirstOrThrow({ where: { personId: worker.id } })
@@ -205,7 +205,7 @@ describe('one firm, one tenant', () => {
 
   it('a claim link taken by somebody who runs no firm on that domain is an ordinary claim', async () => {
     const stranger = await prisma.person.create({ data: { name: 'New Hire', primaryEmail: 'new.hire@quarrybrook.example' } })
-    const { token } = await approvalShell('world-corning', stranger.primaryEmail)
+    const { token } = await approvalShell('world-cavanaugh', stranger.primaryEmail)
     expect((await claimOrJoin(token, { personId: stranger.id, email: stranger.primaryEmail })).kind).toBe('CLAIM')
   })
 
@@ -287,10 +287,10 @@ describe('an MSP and a client find each other for a seat', () => {
     // Before the grant the MSP has no program of its own to read.
     as(PALLISER_OWNER)
     const before = await call(program, 'GET', '/api/program')
-    expect(before.body?.data?.company?.id ?? null).not.toBe(co['world-nike'])
+    expect(before.body?.data?.company?.id ?? null).not.toBe(co['world-northbend'])
 
     as(NORTHBEND_OWNER)
-    const role = await prisma.role.findFirstOrThrow({ where: { companyId: co['world-nike'], name: 'Program Manager' }, select: { id: true } })
+    const role = await prisma.role.findFirstOrThrow({ where: { companyId: co['world-northbend'], name: 'Program Manager' }, select: { id: true } })
     const granted = await call(grantSeat, 'POST', '/api/program/seats', undefined, {
       officeCompanyId: found.body.data.firm.id, roleId: role.id, reason: 'Palliser runs our contractor program from January',
     })
@@ -475,7 +475,7 @@ describe('two firms already on Etyme link by one ask and one yes', () => {
 
   it('an outside firm is never granted a client\u2019s Owner role on a seat', async () => {
     as(NORTHBEND_OWNER)
-    const owner = await prisma.role.findFirstOrThrow({ where: { companyId: co['world-nike'], name: 'Owner' }, select: { id: true } })
+    const owner = await prisma.role.findFirstOrThrow({ where: { companyId: co['world-northbend'], name: 'Owner' }, select: { id: true } })
     const r = await call(grantSeat, 'POST', '/api/program/seats', undefined, { officeCompanyId: co.ostrander, roleId: owner.id, reason: 'Testing that the owner role is never handed over' })
     expect(r.status).toBe(422)
     expect(r.body.error.code).toBe('NEVER_FOR_AN_OUTSIDE_FIRM')

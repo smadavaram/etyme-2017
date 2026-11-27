@@ -150,7 +150,7 @@ passes against a stale schema. Beyond the commit:
 
   ```
   curl -s -c ck.txt -X POST https://etyme2040.vercel.app/api/demo \
-    -H 'content-type: application/json' -d '{"as":"world-nike","desk":"programme"}'
+    -H 'content-type: application/json' -d '{"as":"world-northbend","desk":"programme"}'
   curl -s -b ck.txt 'https://etyme2040.vercel.app/api/requirements?limit=1'
   ```
 

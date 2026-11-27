@@ -502,7 +502,7 @@ export async function seedOrderToCash(
         // client's own order. Cavanaugh Glassworks is the program that
         // agreed it; the other two answer their weeks by hand, which is the
         // ordinary case and the one the queue on the desk is for.
-        const autoApproves = p.buyerSlug === `${ctx.prefix}corning`
+        const autoApproves = p.buyerSlug === `${ctx.prefix}cavanaugh`
 
         const raised = await db.workOrder.create({
           data: {

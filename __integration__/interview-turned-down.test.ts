@@ -15,7 +15,7 @@ import { cancelRoundsFor, turnedDownReason } from '@/lib/interview-notices'
  */
 
 const D = '@demo.etyme.local'
-const NIKE_PM = `world-nike-programme${D}`
+const NORTHBEND_PM = `world-northbend-programme${D}`
 
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 const call = async (fn: any, r: Request, id: string) => json(await fn(r, params(id)))
@@ -47,7 +47,7 @@ const REASON = turnedDownReason('NOT_SELECTED')
 describe('when a candidate is turned down their open rounds are cancelled and both the supplier and the candidate are told', () => {
   beforeAll(async () => {
     await freshWorld()
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const pin = await prisma.company.findUniqueOrThrow({
       where: { slug: 'world-pinnacle' },
       select: {
@@ -61,14 +61,14 @@ describe('when a candidate is turned down their open rounds are cancelled and bo
     seat = pin.contexts[0].person.primaryEmail
     staff = pin.contexts.map((c) => c.personId)
     const ml = await prisma.submission.findFirstOrThrow({
-      where: { toCompanyId: nike.id, person: { name: 'Mei-Lin Chao' } },
+      where: { toCompanyId: northbend.id, person: { name: 'Mei-Lin Chao' } },
       select: { id: true, personId: true },
     })
     meiLin = { personId: ml.personId, submissionId: ml.id }
 
     // A round booked the way the screens book it: the client proposes,
     // the supplier confirms for the candidate.
-    as(NIKE_PM)
+    as(NORTHBEND_PM)
     const { body } = buildProposal({ ...EMPTY_FORM, stage: 'Screen', mode: 'PHONE', durationMins: 30, times: [timeIn(3)] })
     const made = await call(propose, req('POST', `/api/submissions/${meiLin.submissionId}/interviews`, body), meiLin.submissionId)
     expect(made.body?.error, JSON.stringify(made.body)).toBeUndefined()

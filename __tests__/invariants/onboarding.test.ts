@@ -19,12 +19,12 @@ import { namedCompanies } from '@/lib/positioning'
 import { rolesFor } from '@/lib/company-defaults'
 import { getNavForKind } from '@/components/shell/sidebar'
 
-const terumo = { id: 'c1', name: 'Talvern Medical', kind: 'CLIENT', memberCount: 12 }
+const talvern = { id: 'c1', name: 'Talvern Medical', kind: 'CLIENT', memberCount: 12 }
 
 describe('Who is signing in', () => {
 
   it('a work address is corporate', () => {
-    expect(classifyEmail('d.whitfield@terumobct.com')).toBe('CORPORATE')
+    expect(classifyEmail('d.whitfield@talvern.example')).toBe('CORPORATE')
   })
 
   it('gmail is a person, not a company', () => {
@@ -44,32 +44,32 @@ describe('Who is signing in', () => {
   })
 
   it('a mail subdomain is the same company, not a second one', () => {
-    // This used to keep contractors.nike.com as the domain, so somebody at
-    // nike.com matched nothing and created a second tenant for the same
+    // This used to keep contractors.northbend.example as the domain, so somebody at
+    // northbend.example matched nothing and created a second tenant for the same
     // organization — neither able to see the other's requisitions,
     // invoices or people. Reducing to the registrable domain is what makes
     // join-beats-create actually hold.
-    expect(classifyEmail('j.smith@contractors.nike.com')).toBe('CORPORATE')
-    expect(domainOf('j.smith@contractors.nike.com')).toBe('nike.com')
-    expect(domainOf('other@nike.com')).toBe('nike.com')
+    expect(classifyEmail('j.smith@contractors.northbend.example')).toBe('CORPORATE')
+    expect(domainOf('j.smith@contractors.northbend.example')).toBe('northbend.example')
+    expect(domainOf('other@northbend.example')).toBe('northbend.example')
   })
 
   it('case and spacing do not change the answer', () => {
-    expect(classifyEmail('  D.Whitfield@TerumoBCT.com ')).toBe('CORPORATE')
+    expect(classifyEmail('  D.Whitfield@talvern.example ')).toBe('CORPORATE')
   })
 })
 
 describe('The domain is the company', () => {
 
   it('the first person from a domain sets the company up', () => {
-    const d = decideEntry('d.whitfield@terumobct.com', null)
+    const d = decideEntry('d.whitfield@talvern.example', null)
     expect(d.action).toBe('CREATE')
-    expect(d.message).toContain('Nobody from terumobct.com is here yet')
+    expect(d.message).toContain('Nobody from talvern.example is here yet')
   })
 
   it('everybody after them joins it', () => {
     // The whole point. No search box, no invite code, no duplicate.
-    const d = decideEntry('m.okafor@terumobct.com', terumo)
+    const d = decideEntry('m.okafor@talvern.example', talvern)
     expect(d.action).toBe('JOIN')
     expect(d.message).toContain('12 colleagues')
   })
@@ -77,12 +77,12 @@ describe('The domain is the company', () => {
   it('joining is never offered as a choice against creating', () => {
     // Offering the choice is how duplicates get made: the person who is
     // unsure picks create.
-    const d = decideEntry('m.okafor@terumobct.com', terumo)
+    const d = decideEntry('m.okafor@talvern.example', talvern)
     expect(d.action).not.toBe('CREATE')
   })
 
   it('the second person ever is told they are joining one colleague', () => {
-    const d = decideEntry('m.okafor@terumobct.com', { ...terumo, memberCount: 1 })
+    const d = decideEntry('m.okafor@talvern.example', { ...talvern, memberCount: 1 })
     expect(d.message).toContain('already on Etyme')
     expect(d.message).not.toContain('colleagues')
   })
@@ -90,7 +90,7 @@ describe('The domain is the company', () => {
   it('a company with nobody in it yet does not say "0 colleagues"', () => {
     // Companies exist before their first sign-in — imported from a client
     // list, or seeded. The count is true and reads as broken.
-    const d = decideEntry('a@nike.com', { ...terumo, name: 'Northbend Athletic Inc.', memberCount: 0 })
+    const d = decideEntry('a@northbend.example', { ...talvern, name: 'Northbend Athletic Inc.', memberCount: 0 })
     expect(d.message).toBe('Northbend Athletic Inc. is already on Etyme. Joining it.')
     expect(d.message).not.toContain('0 colleagues')
   })
@@ -115,18 +115,18 @@ describe('The domain is the company', () => {
 describe('The company address', () => {
 
   it('comes from the domain', () => {
-    expect(slugFromDomain('terumobct.com', new Set())).toBe('terumobct')
+    expect(slugFromDomain('talvern.example', new Set())).toBe('talvern')
   })
 
   it('drops www', () => {
-    expect(slugFromDomain('www.nike.com', new Set())).toBe('nike')
+    expect(slugFromDomain('www.northbend.example', new Set())).toBe('northbend')
   })
 
   it('numbers a collision rather than refusing it', () => {
     // Two companies can genuinely own similar domains. Telling the second
     // to think of another name is a poor first minute.
-    expect(slugFromDomain('nike.com', new Set(['nike']))).toBe('nike-2')
-    expect(slugFromDomain('nike.com', new Set(['nike', 'nike-2']))).toBe('nike-3')
+    expect(slugFromDomain('northbend.example', new Set(['northbend']))).toBe('northbend-2')
+    expect(slugFromDomain('northbend.example', new Set(['northbend', 'northbend-2']))).toBe('northbend-3')
   })
 
   it('will not hand out a word the product uses', () => {
@@ -146,7 +146,7 @@ describe('The company address', () => {
 describe('The first screen is not an empty box', () => {
 
   it('a name is guessed from the domain', () => {
-    expect(guessCompanyName('terumobct.com')).toBe('Terumobct')
+    expect(guessCompanyName('talvern.example')).toBe('Talvern')
   })
 
   it('hyphens become words', () => {
@@ -198,7 +198,7 @@ describe('What this company does here', () => {
   // rule that string was standing in for, so the next example added to
   // this list is checked rather than trusted. Nothing else in this file
   // was touched — the domain-is-the-company rule is etyme-supply's, and
-  // the `terumo` fixture above is a fixture, which nobody reads.
+  // the `talvern` fixture above is a fixture, which nobody reads.
   it('offers no real company as an example, because an example beside "we hire contractors" reads as who already does', () => {
     const everything = COMPANY_TYPES
       .map((t) => `${t.label} ${t.blurb} ${t.example}`)

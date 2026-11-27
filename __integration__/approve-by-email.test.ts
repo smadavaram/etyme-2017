@@ -33,7 +33,7 @@ async function seatedAt(clientId: string): Promise<string> {
  */
 
 const D = '@demo.etyme.local'
-const NIKE = `world-nike-hiring${D}`
+const NORTHBEND = `world-northbend-hiring${D}`
 const CS = `world-computer-systems${D}`
 const TECWYN = `world-tecwyn${D}`
 const BRIGHTMOOR = `world-brightmoor${D}`
@@ -79,7 +79,7 @@ describe('a client approves a week by email, and the proof travels down the chai
     // ever leaves for one. Northbend proves a second domain on the .test
     // name the suite uses for a real address, so the letter to its
     // approver goes out and the link inside it can be read back.
-    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     await prisma.companyDomain.create({
       data: { companyId: northbend.id, domain: 'northbend.test', verifiedAt: new Date(), verifiedVia: 'MANUAL' },
     })
@@ -114,7 +114,7 @@ describe('a client approves a week by email, and the proof travels down the chai
   })
 
   it('the client’s own desk is told to approve in Etyme rather than by email', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const r = await sendLink({ timesheetId: it_.week, how: 'LINK', ...DANA })
     expect(r.status).toBe(403)
     expect(r.body.error.message).toBe('Northbend Athletic approves this week in Etyme itself. Evidence is for an approval given outside it.')
@@ -183,7 +183,7 @@ describe('a client approves a week by email, and the proof travels down the chai
 
   it('the week says whether its client is on Etyme, so the page opens on "Attach evidence" for a client that is not', async () => {
     as(HELENA)
-    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true, claimedAt: true } })
+    const client = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true, claimedAt: true } })
     try {
       await prisma.company.update({ where: { id: client.id }, data: { claimedAt: new Date() } })
       expect((await read(it_.week)).body.data.week.clientOffPlatform).toBe(false)
@@ -328,7 +328,7 @@ describe('a client approves a week by email, and the proof travels down the chai
   })
 
   it('every rung reads “Approved by email”, each sees only its own contracts, and a sub-vendor’s contract is never shown to the client', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     const client = await read(it_.week)
     expect(client.body?.error, JSON.stringify(client.body)).toBeUndefined()
     const a = client.body.data.approvals[0]
@@ -359,11 +359,11 @@ describe('a client approves a week by email, and the proof travels down the chai
 
   it('the seeded week approved with evidence says so, and every rung it applies to can open the evidence; a stranger cannot', async () => {
     const seeded = await prisma.weekApproval.findFirstOrThrow({ where: { how: 'EVIDENCE', timesheet: { personId: it_.helena } } })
-    as(NIKE)
+    as(NORTHBEND)
     const shown = await read(seeded.timesheetId)
     expect(shown.body.data.approvals[0].words).toMatch(/^Approved by email: Marcus Oyelaran, .+ — evidence attached$/)
 
-    for (const who of [NIKE, CS, TECWYN, HELENA]) {
+    for (const who of [NORTHBEND, CS, TECWYN, HELENA]) {
       as(who)
       const res = await openFile(req('GET', `/api/week-approvals/${seeded.id}/file`), { params: Promise.resolve({ id: seeded.id }) })
       expect(res.status, who).toBe(200)

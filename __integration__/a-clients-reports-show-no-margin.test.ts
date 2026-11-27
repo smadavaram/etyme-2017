@@ -18,16 +18,16 @@ import { mayReadCut } from '@/lib/money/profit-cut'
  */
 
 const D = '@demo.etyme.local'
-const NIKE_AP = `world-nike-ap${D}`
-const NIKE_OWNER = `world-nike${D}`
+const NORTHBEND_AP = `world-northbend-ap${D}`
+const NORTHBEND_OWNER = `world-northbend${D}`
 
 let body: any
 let northbend: { id: string }
 
 beforeAll(async () => {
   await freshWorld()
-  northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
-  as(NIKE_AP)
+  northbend = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
+  as(NORTHBEND_AP)
   const res = await json(await ap(req('GET', '/api/ap?view=cash-flow&period=90d&grain=month')))
   expect(res.status, JSON.stringify(res.body)).toBe(200)
   body = res.body.data
@@ -87,7 +87,7 @@ describe('a client never reads the profit page', () => {
   const VIEWS = ['book', 'order', 'contract', 'candidate', 'customer', 'cut']
 
   it('a client’s Owner is refused the profit page in a sentence, and never told there are no placements', async () => {
-    as(NIKE_OWNER)
+    as(NORTHBEND_OWNER)
     const before = await prisma.accessLog.count({ where: { subjectCompanyId: northbend.id, allowed: false } })
     for (const by of VIEWS) {
       const res = await json(await profitability(req('GET', `/api/profitability?by=${by}`)))
@@ -101,7 +101,7 @@ describe('a client never reads the profit page', () => {
   })
 
   it('a client’s AP clerk is not told the Owner reads it', async () => {
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     const res = await json(await profitability(req('GET', '/api/profitability?by=order')))
     expect(res.status).toBe(403)
     expect(res.body.error.message).toBe(mayReadCut({ kind: 'CLIENT' }))

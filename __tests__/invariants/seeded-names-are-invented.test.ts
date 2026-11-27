@@ -206,6 +206,13 @@ describe('The bench vendor’s misspelled name and three real firms’ names are
     expect(today.map((f) => f.toSlug)).toEqual(['tecwyn', 'tellisford', 'conisby', 'merrowfield-bank'])
   })
 
+  it('the three program clients\u2019 slugs moved off the real companies\u2019 names on 2026-11-27', () => {
+    const later = RENAMED_FIRMS.filter((f) => f.on === '2026-11-27')
+    expect(later.map((f) => f.toSlug)).toEqual(['northbend', 'cavanaugh', 'talvern'])
+    expect(later.map((f) => f.companyName)).toEqual(['Northbend Athletic', 'Cavanaugh Glassworks', 'Talvern Medical'])
+    expect(WORLD_FIRMS.map((f) => f.slug)).toEqual(expect.arrayContaining(['northbend', 'cavanaugh', 'talvern']))
+  })
+
   it('the world seed seats every renamed firm under its new slug and never its old one', () => {
     const slugs = WORLD_FIRMS.map((f) => f.slug)
     for (const f of RENAMED_FIRMS) {

@@ -47,7 +47,7 @@ describe('what every order asks for on paper', () => {
     // a staffing document, no migration created it, and it reaches the
     // line through the client's own order like anything else.
     const cavanaugh = await prisma.company.findFirst({
-      where: { slug: 'world-corning' },
+      where: { slug: 'world-cavanaugh' },
       select: { id: true, name: true },
     })
     // An order that has a line on it: Cavanaugh has five and one carries
@@ -101,7 +101,7 @@ describe('what every order asks for on paper', () => {
 
   it('a line reads its order’s set through one door, and the item somebody waived says who and why', async () => {
     const line = await prisma.sellContract.findFirst({
-      where: { clientCompany: { slug: 'world-corning' }, person: { name: 'Aisha Bello' } },
+      where: { clientCompany: { slug: 'world-cavanaugh' }, person: { name: 'Aisha Bello' } },
       select: { id: true },
     })
     const answer = await requirementsFor({ sellContractId: line!.id })

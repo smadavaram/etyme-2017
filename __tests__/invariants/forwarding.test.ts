@@ -30,7 +30,7 @@ function actor(over: Partial<Actor> = {}): Actor {
 }
 
 function to(over: Partial<Destination> = {}): Destination {
-  return { via: 'ONWARD', companyId: 'terumo', rateCents: 9500, ...over }
+  return { via: 'ONWARD', companyId: 'talvern', rateCents: 9500, ...over }
 }
 
 describe('who may send somebody onward', () => {
@@ -110,7 +110,7 @@ describe('what cannot be sent on', () => {
 
 describe('when the next party is not on Etyme', () => {
   it('records an email as sent from the firm’s own mailbox, and never says Etyme emailed it', () => {
-    const v = mayForward(actor(), SUB, { via: 'EMAIL', email: 'staffing@terumobct.com' })
+    const v = mayForward(actor(), SUB, { via: 'EMAIL', email: 'staffing@talvern-medical.example' })
     expect(v.ok).toBe(true)
     expect(v.ok === true && v.note).toMatch(/sent by email from your own mailbox; Etyme sends nothing to that address/)
     expect(v.ok === true && v.note).not.toMatch(/emailed/)
@@ -160,7 +160,7 @@ describe('the rate on the way up', () => {
 describe('what each party sees of the journey', () => {
   const hops: Hop[] = [
     { from: 'tecwyn', to: 'vertex', rateCents: 6200, status: 'SUBMITTED', at: new Date('2026-08-18'), yours: false },
-    { from: 'vertex', to: 'terumo', rateCents: 9500, status: 'SHORTLISTED', at: new Date('2026-08-20'), yours: false },
+    { from: 'vertex', to: 'talvern', rateCents: 9500, status: 'SHORTLISTED', at: new Date('2026-08-20'), yours: false },
   ]
 
   it('shows the sub-vendor their own rate and not the prime’s', () => {
@@ -178,7 +178,7 @@ describe('what each party sees of the journey', () => {
   })
 
   it('shows the client only their own', () => {
-    const seen = journeyFor(hops, 'terumo')
+    const seen = journeyFor(hops, 'talvern')
     expect(seen[0].rateCents).toBeNull()
     expect(seen[1].rateCents).toBe(9500)
   })
@@ -186,7 +186,7 @@ describe('what each party sees of the journey', () => {
   it('shows everybody the shape, whatever they may see of the money', () => {
     // How many hands it passed through is not a secret — how far it got is
     // the whole question.
-    for (const who of ['tecwyn', 'vertex', 'terumo', null]) {
+    for (const who of ['tecwyn', 'vertex', 'talvern', null]) {
       expect(journeyFor(hops, who)).toHaveLength(2)
     }
   })
@@ -198,10 +198,10 @@ describe('what each party sees of the journey', () => {
 })
 
 describe('what the consultant is told', () => {
-  const names = { tecwyn: 'Tecwyn Inc.', vertex: 'Vertex Global', terumo: 'Talvern Medical' }
+  const names = { tecwyn: 'Tecwyn Inc.', vertex: 'Vertex Global', talvern: 'Talvern Medical' }
   const hops: Hop[] = [
     { from: 'tecwyn', to: 'vertex', rateCents: null, status: 'SUBMITTED', at: new Date('2026-08-18'), yours: false },
-    { from: 'vertex', to: 'terumo', rateCents: null, status: 'SUBMITTED', at: new Date('2026-08-20'), yours: false },
+    { from: 'vertex', to: 'talvern', rateCents: null, status: 'SUBMITTED', at: new Date('2026-08-20'), yours: false },
   ]
 
   it('reads as the answer to the question they asked', () => {
@@ -231,7 +231,7 @@ describe('putting a chain back in order', () => {
 
   it('reads a chain from its root, whatever order the rows arrive in', () => {
     const rows = [
-      row('c', 'vertex', 'terumo', 'b', 20),
+      row('c', 'vertex', 'talvern', 'b', 20),
       row('a', 'anita', 'tecwyn', null, 16),
       row('b', 'tecwyn', 'vertex', 'a', 18),
     ]
@@ -269,17 +269,17 @@ describe('the role on the way up', () => {
     // that stops one name reaching a client twice. Reusing the sender's
     // row collides with exactly the rule most worth keeping — found by
     // running the chain, not by reading it.
-    const m = mirrorRole(source, 'terumo')
-    expect(m.companyId).toBe('terumo')
+    const m = mirrorRole(source, 'talvern')
+    expect(m.companyId).toBe('talvern')
     expect(m.title).toBe(source.title)
   })
 
   it('remembers where it was mirrored from', () => {
-    expect(mirrorRole(source, 'terumo').mirroredFromRequirementId).toBe('req-prime')
+    expect(mirrorRole(source, 'talvern').mirroredFromRequirementId).toBe('req-prime')
   })
 
   it('carries the skills and the place across', () => {
-    const m = mirrorRole(source, 'terumo')
+    const m = mirrorRole(source, 'talvern')
     expect(m.skills).toEqual(['SAP FICO'])
     expect(m.location).toBe('Lakewood, CO')
   })
@@ -303,23 +303,23 @@ describe('Where the work actually is survives being forwarded', () => {
     const m = mirrorRole(
       {
         id: 'req-1', title: 'Validation engineer', skills: ['GxP'], location: 'Denver',
-        endClientCompanyId: 'terumo', companyId: 'prime-systems',
+        endClientCompanyId: 'talvern', companyId: 'prime-systems',
       },
       'sub-staffing'
     )
-    expect(m.endClientCompanyId).toBe('terumo')
+    expect(m.endClientCompanyId).toBe('talvern')
   })
 
   it('survives a second hop, because a chain is rarely two companies long', () => {
     const first = mirrorRole(
-      { id: 'req-1', title: 'X', skills: [], location: null, endClientCompanyId: 'terumo', companyId: 'client' },
+      { id: 'req-1', title: 'X', skills: [], location: null, endClientCompanyId: 'talvern', companyId: 'client' },
       'prime'
     )
     const second = mirrorRole(
       { id: 'req-2', title: 'X', skills: [], location: null, endClientCompanyId: first.endClientCompanyId, companyId: 'prime' },
       'sub'
     )
-    expect(second.endClientCompanyId).toBe('terumo')
+    expect(second.endClientCompanyId).toBe('talvern')
   })
 
   it('falls back to the sender where nobody set an end client', () => {
@@ -340,7 +340,7 @@ describe('Where the work actually is survives being forwarded', () => {
 
   it('still records which role it was mirrored from, for anybody auditing', () => {
     const m = mirrorRole(
-      { id: 'req-1', title: 'X', skills: [], location: null, endClientCompanyId: 'terumo' },
+      { id: 'req-1', title: 'X', skills: [], location: null, endClientCompanyId: 'talvern' },
       'sub'
     )
     expect(m.mirroredFromRequirementId).toBe('req-1')

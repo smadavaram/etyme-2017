@@ -159,7 +159,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Which firm each author writes for, so a thread across a deal can say
-  // "Dana at Nike" and "Ravi at Pinnacle" without the reader guessing, and
+  // "Dana at Northbend" and "Ravi at Pinnacle" without the reader guessing, and
   // "Aptiva Workforce, for Cavanaugh Glassworks" under a seat.
   const firmName = (p: Participant | undefined) =>
     writesFor(p, { company: conversation.company, withCompany: conversation.withCompany })

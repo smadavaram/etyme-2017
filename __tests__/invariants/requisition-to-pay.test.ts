@@ -109,7 +109,7 @@ describe('2 · It goes to three vendors, each at its own rate', () => {
     message: 'Preferred supplier rate', status: 'SENT',
     expiresAt: new Date('2026-09-30T00:00:00Z'),
     createdAt: new Date('2026-08-16T00:00:00Z'),
-    fromCompany: { id: 'terumo', name: 'Talvern Medical', slug: 'terumo' },
+    fromCompany: { id: 'talvern', name: 'Talvern Medical', slug: 'talvern' },
     requirement: {
       id: 'r-1', title: 'SAP MM Analyst', skills: ['SAP MM'],
       location: 'Lakewood, CO', headcount: 2, months: 6,

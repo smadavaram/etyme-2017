@@ -45,7 +45,7 @@ describe('how long a visitor’s sandbox is kept', () => {
   it('reads only the addresses the demo door writes, and a chain’s firms as one sandbox', () => {
     expect(sandboxHandle('demo-84d952625583')).toBe('84d952625583')
     expect(sandboxHandle('demo-270fead24d43-msp')).toBe('270fead24d43')
-    expect(sandboxHandle('world-nike')).toBeNull()
+    expect(sandboxHandle('world-northbend')).toBeNull()
     expect(sandboxHandle('acme-verify')).toBeNull()
   })
 

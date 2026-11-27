@@ -27,7 +27,7 @@ import { setupStateFor, beginClaimedSetup } from '@/lib/setup-state'
  * POST /api/onboarding — do it
  *
  * The rule this exists to hold: the verified work-email domain IS the
- * company. The first person from terumobct.com sets Terumo BCT up and
+ * company. The first person from talvern-medical.example sets Talvern Medical up and
  * everybody after them joins it, with no search box and no invite code —
  * both are ways of getting the answer wrong, and the duplicate company is
  * the failure that costs support conversations for months.

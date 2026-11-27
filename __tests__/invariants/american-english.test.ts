@@ -15,7 +15,7 @@ import { join } from 'path'
  * So no British spelling on a screen. This reads every file that can
  * put words in front of a person and fails on the first one. Machine
  * names are left alone: the demo desk key `programme`, the seeded email
- * `world-nike-programme@`, the file `seed-programmes.ts`, and anything
+ * `world-northbend-programme@`, the file `seed-programmes.ts`, and anything
  * in ALL CAPS — those are addresses, and changing an address strands
  * whoever already holds it.
  */

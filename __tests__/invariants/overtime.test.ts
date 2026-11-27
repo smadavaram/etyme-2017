@@ -294,7 +294,7 @@ describe('who may say what a week is worth', () => {
   const leg = {
     personId: 'priya',
     employerCompanyId: 'brightmoor',
-    clientCompanyId: 'nike',
+    clientCompanyId: 'northbend',
     endClientCompanyId: null,
     clientName: 'Northbend Athletic',
     employerName: 'Brightmoor',
@@ -315,13 +315,13 @@ describe('who may say what a week is worth', () => {
   })
 
   it('the client who is billed for the week may decide it, and so may the supplier who pays for it', () => {
-    expect(mayDecide({ personId: 'manager', companyId: 'nike' }, leg).ok).toBe(true)
+    expect(mayDecide({ personId: 'manager', companyId: 'northbend' }, leg).ok).toBe(true)
     expect(mayDecide({ personId: 'recruiter', companyId: 'brightmoor' }, leg).ok).toBe(true)
   })
 
   it('an end client further up the chain is a party to the week and may decide it', () => {
-    const chain = { ...leg, clientCompanyId: 'prime', endClientCompanyId: 'nike' }
-    expect(mayDecide({ personId: 'manager', companyId: 'nike' }, chain).ok).toBe(true)
+    const chain = { ...leg, clientCompanyId: 'prime', endClientCompanyId: 'northbend' }
+    expect(mayDecide({ personId: 'manager', companyId: 'northbend' }, chain).ok).toBe(true)
   })
 
   it('somebody with no company at all is told whose week it is rather than shown a code', () => {
@@ -465,19 +465,19 @@ describe('in a chain, nobody decides their own leg', () => {
 
   it('a direct placement has one leg, and deciding it is the ordinary case', () => {
     const only: ChainRung = {
-      sellContractId: 'brightmoor-nike',
+      sellContractId: 'brightmoor-northbend',
       companyId: 'brightmoor',
-      clientCompanyId: 'nike',
+      clientCompanyId: 'northbend',
       endClientCompanyId: null,
       supplierSellContractId: null,
     }
-    for (const who of ['nike', 'brightmoor']) {
-      const leg = decidingLeg(who, [only], 'brightmoor-nike')
-      expect(leg.sellContractId).toBe('brightmoor-nike')
+    for (const who of ['northbend', 'brightmoor']) {
+      const leg = decidingLeg(who, [only], 'brightmoor-northbend')
+      expect(leg.sellContractId).toBe('brightmoor-northbend')
       expect(leg.onHoursLeg).toBe(true)
     }
-    expect(decidingLeg('nike', [only], 'brightmoor-nike').role).toBe('CLIENT_APPROVAL')
-    expect(decidingLeg('brightmoor', [only], 'brightmoor-nike').role).toBe('EMPLOYER_ACCEPTANCE')
+    expect(decidingLeg('northbend', [only], 'brightmoor-northbend').role).toBe('CLIENT_APPROVAL')
+    expect(decidingLeg('brightmoor', [only], 'brightmoor-northbend').role).toBe('EMPLOYER_ACCEPTANCE')
   })
 
   it('the end client is named on every rung and buys only on the top one', () => {

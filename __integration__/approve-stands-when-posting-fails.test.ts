@@ -27,7 +27,7 @@ vi.mock('@/lib/order-postings', async (orig) => ({
 
 import { POST as approve } from '@/app/api/timesheets/[id]/approve/route'
 
-const NIKE = 'world-nike-hiring@demo.etyme.local'
+const NORTHBEND = 'world-northbend-hiring@demo.etyme.local'
 const s: Record<string, string> = {}
 
 describe('an approval whose posting to the books fails', () => {
@@ -56,7 +56,7 @@ describe('an approval whose posting to the books fails', () => {
   }, 240_000)
 
   it('an approval stands and is reported to staff when its posting to the books fails', async () => {
-    as(NIKE)
+    as(NORTHBEND)
     fake.mode = 'failed'
     const before = await prisma.incident.count()
     const r = await json(await approve(req('POST', `/api/timesheets/${s.week}/approve`, {}), { params: Promise.resolve({ id: s.week }) }))
@@ -73,7 +73,7 @@ describe('an approval whose posting to the books fails', () => {
 
   it('an approval stands and is reported to staff when reading the week for the books breaks', async () => {
     expect(s.other, 'the client has a second week waiting to be approved').not.toBe('')
-    as(NIKE)
+    as(NORTHBEND)
     fake.mode = 'throws'
     const before = await prisma.incident.count()
     const press = async (body: Record<string, unknown>) =>

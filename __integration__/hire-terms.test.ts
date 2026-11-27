@@ -32,7 +32,7 @@ import { placementStatus } from '@/lib/award/placement-status'
  */
 
 const D = '@demo.etyme.local'
-const NIKE = { programme: `world-nike-programme${D}`, hiring: `world-nike-hiring${D}` }
+const NORTHBEND = { programme: `world-northbend-programme${D}`, hiring: `world-northbend-hiring${D}` }
 const BRIGHTMOOR = `world-brightmoor${D}`
 const PRIME = `world-computer-systems${D}`
 const SUB = `world-tecwyn${D}`
@@ -48,8 +48,8 @@ const it_: Record<string, any> = {}
 const startOfToday = () => new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`)
 
 async function raise(title: string) {
-  const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-nike'], code: { startsWith: 'APPS-' } } })
-  as(NIKE.hiring)
+  const cc = await prisma.costCenter.findFirstOrThrow({ where: { companyId: co['world-northbend'], code: { startsWith: 'APPS-' } } })
+  as(NORTHBEND.hiring)
   const r = await json(await raiseRequisition(req('POST', '/api/requisitions', {
     title, skills: ['PLC programming', 'SCADA'],
     location: 'Tualatin, OR', billMin: 12_000, billMax: 16_000, months: 6, headcount: 1, hoursPerWeek: 40,
@@ -68,7 +68,7 @@ async function raise(title: string) {
 describe('hire terms: Marisol Quintero at Brightmoor, the audit’s own case', () => {
   beforeAll(async () => {
     await freshWorld()
-    for (const slug of ['world-nike', 'world-brightmoor', 'world-computer-systems', 'world-tecwyn', 'world-pinnacle']) {
+    for (const slug of ['world-northbend', 'world-brightmoor', 'world-computer-systems', 'world-tecwyn', 'world-pinnacle']) {
       co[slug] = (await prisma.company.findUniqueOrThrow({ where: { slug }, select: { id: true } })).id
     }
     it_.marisol = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: MARISOL } })).id
@@ -86,7 +86,7 @@ describe('hire terms: Marisol Quintero at Brightmoor, the audit’s own case', (
 
   it('Northbend raises a controls job and sends it to Brightmoor, and Brightmoor puts Marisol forward at $140', async () => {
     it_.requisition = await raise('Controls engineer')
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const sent = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-brightmoor'], payMin: 12_000, payMax: 15_000 }],
     })
@@ -105,14 +105,14 @@ describe('hire terms: Marisol Quintero at Brightmoor, the audit’s own case', (
     expect(sent.body?.error, JSON.stringify(sent.body)).toBeUndefined()
     const mine = sent.body.data.submissions.find((s: any) => s.id === it_.submission)
     expect(mine.came).toEqual({ chained: false, through: null })
-    as(NIKE.hiring)
-    const got = await json(await listSubmissions(req('GET', `/api/submissions?direction=received&companyId=${co['world-nike']}`)))
+    as(NORTHBEND.hiring)
+    const got = await json(await listSubmissions(req('GET', `/api/submissions?direction=received&companyId=${co['world-northbend']}`)))
     const theirs = got.body.data.submissions.find((s: any) => s.id === it_.submission)
     expect(theirs.came).toEqual({ chained: false, through: null })
   })
 
   it('a start date before the award is refused unless the awarder says the work is already under way', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const early = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 14_000, startDate: day(-7).toISOString().slice(0, 10),
     })
@@ -128,7 +128,7 @@ describe('hire terms: Marisol Quintero at Brightmoor, the audit’s own case', (
   })
 
   it('the buyer cannot set what Brightmoor pays Marisol at the award', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 14_000, payRate: 0, startDate: day(7).toISOString().slice(0, 10),
     })
@@ -137,7 +137,7 @@ describe('hire terms: Marisol Quintero at Brightmoor, the audit’s own case', (
   })
 
   it('awarding a bench-listed person writes no employment and no $0 rate; the placement reads awarded, terms pending', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.submission}/award`, it_.submission, {
       rate: 14_000, startDate: day(7).toISOString().slice(0, 10), endDate: day(190).toISOString().slice(0, 10),
     })
@@ -183,7 +183,7 @@ describe('hire terms: Marisol Quintero at Brightmoor, the audit’s own case', (
   })
 
   it('Northbend cannot read the terms between Marisol and Brightmoor', async () => {
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(readTerms, 'GET', `/api/submissions/${it_.submission}/terms`, it_.submission)
     expect(r.status).toBe(403)
     expect(r.body.error.message).toBe('These are the terms between Marisol Quintero and the firm that holds them. Only those two can read them.')
@@ -233,7 +233,7 @@ describe('hire terms: Marisol Quintero at Brightmoor, the audit’s own case', (
   })
 
   it('every screen reads one status for one placement', async () => {
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const register = await json(await people(req('GET', '/api/people')))
     const row = register.body.data.people.find((p: any) => p.personId === it_.marisol)
     const prog = await json(await program(req('GET', '/api/program')))
@@ -270,7 +270,7 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
 
   it('Northbend sends a job to Computer Systems, which sends it to Tecwyn, which sends it to Pinnacle', async () => {
     it_.top = await raise('Commissioning engineer')
-    as(NIKE.programme)
+    as(NORTHBEND.programme)
     const a = await call(distribute, 'POST', `/api/requisitions/${it_.top}/distribute`, it_.top, {
       vendors: [{ companyId: co['world-computer-systems'], payMin: 13_000, payMax: 16_000 }],
     })
@@ -284,7 +284,7 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
       const r = await json(await recordRole(req('POST', '/api/requirements', {
         title: 'Commissioning engineer', skills: ['PLC programming', 'SCADA'],
         location: 'Tualatin, OR', billMin: 10_000, billMax: 14_000, months: 6,
-        endClientCompanyId: co['world-nike'],
+        endClientCompanyId: co['world-northbend'],
       })))
       expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
       it_[slot] = r.body.data.requirement.id
@@ -312,7 +312,7 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
 
     as(PRIME)
     const up2 = await call(forward, 'POST', `/api/submissions/${it_.subSub}/forward`, it_.subSub, {
-      via: 'ONWARD', toCompanyId: co['world-nike'], rate: 15_000,
+      via: 'ONWARD', toCompanyId: co['world-northbend'], rate: 15_000,
     })
     expect(up2.body?.error, JSON.stringify(up2.body)).toBeUndefined()
     it_.primeSub = up2.body.data.childSubmissionId
@@ -332,7 +332,7 @@ describe('the award cascade across four tiers: client, prime, sub, bench, person
       await new Promise((r) => setTimeout(r, 50))
     }
     const before = new Date()
-    as(NIKE.hiring)
+    as(NORTHBEND.hiring)
     const r = await call(award, 'POST', `/api/submissions/${it_.primeSub}/award`, it_.primeSub, {
       rate: 15_000, startDate: day(14).toISOString().slice(0, 10), endDate: day(200).toISOString().slice(0, 10),
     })

@@ -46,7 +46,7 @@ describe('an address is lowercase letters, digits and hyphens, never a reserved 
     for (const word of ['www', 'api', 'demo', 'admin', 'etyme']) {
       expect(checkAddress(word, new Set()).ok, word).toBe(false)
     }
-    expect(checkAddress('world-nike', new Set()).says).toBe('Addresses that start with world- or demo- are kept for the demo.')
+    expect(checkAddress('world-northbend', new Set()).says).toBe('Addresses that start with world- or demo- are kept for the demo.')
     expect(checkAddress('demo-acme', new Set()).ok).toBe(false)
   })
 

@@ -112,7 +112,7 @@ export const SECTOR_SUPPLIERS: SectorSupplier[] = [
   {
     slug: 'sorrelwood',
     name: 'Sorrelwood Clinical Staffing',
-    client: 'terumo-bct',
+    client: 'talvern',
     clientName: 'Talvern Medical',
     role: 'Occupational health nurse',
     skills: ['Occupational health', 'Employee health screening', 'OSHA recordkeeping'],
@@ -129,7 +129,7 @@ export const SECTOR_SUPPLIERS: SectorSupplier[] = [
   {
     slug: 'quarrystone',
     name: 'Quarrystone Industrial Staffing',
-    client: 'corning',
+    client: 'cavanaugh',
     clientName: 'Cavanaugh Glassworks',
     role: 'Forming line maintenance technician',
     skills: ['Industrial maintenance', 'Hydraulics', 'Preventive maintenance'],

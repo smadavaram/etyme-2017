@@ -17,7 +17,7 @@ import { prisma } from '@/lib/db'
  * Runs in the daily job. Both sides of the trade, because a buy contract
  * ends with the sell contract it supplies. One automation-log line per
  * company, naming the people, so the vendor's morning reads "Tariq's
- * contract at Nike ended yesterday" rather than nothing.
+ * contract at Northbend ended yesterday" rather than nothing.
  */
 export async function GET(request: NextRequest) {
   if (!cronAuthorized(request)) {

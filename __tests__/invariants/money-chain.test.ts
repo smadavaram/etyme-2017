@@ -55,22 +55,22 @@ describe('who the candidate goes to', () => {
   })
 
   it('goes to the client on their own requisition', () => {
-    expect(recipientOf({ companyId: 'terumo', payerCompanyId: null })).toBe('terumo')
+    expect(recipientOf({ companyId: 'talvern', payerCompanyId: null })).toBe('talvern')
   })
 
   it('never goes to the vendor who wrote the role down', () => {
     // This was the whole failure: a vendor submitted to themselves, and a
     // contract with no counterparty came out the other end.
-    const to = recipientOf({ companyId: 'tecwyn', payerCompanyId: 'terumo' })
+    const to = recipientOf({ companyId: 'tecwyn', payerCompanyId: 'talvern' })
     expect(to).not.toBe('tecwyn')
   })
 })
 
 describe('who gets the invoice', () => {
   it('is the company they submitted to', () => {
-    const p = payerOf({ fromCompanyId: 'tecwyn', toCompanyId: 'terumo' })
+    const p = payerOf({ fromCompanyId: 'tecwyn', toCompanyId: 'talvern' })
     expect(p.ok).toBe(true)
-    expect(p.payerId).toBe('terumo')
+    expect(p.payerId).toBe('talvern')
   })
 
   it('refuses a placement with no counterparty rather than inventing one', () => {
@@ -88,7 +88,7 @@ describe('what an award has to leave behind', () => {
   // agreement. An award created neither, so work done through the platform
   // could never be billed.
   const afterAward = {
-    contract: { engagementId: 'eng-1', msaId: 'msa-1', clientCompanyId: 'terumo' },
+    contract: { engagementId: 'eng-1', msaId: 'msa-1', clientCompanyId: 'talvern' },
     msa: { signedAt: null as Date | null },
   }
 
@@ -105,7 +105,7 @@ describe('what an award has to leave behind', () => {
   })
 
   it('names somebody other than the vendor as the payer', () => {
-    expect(afterAward.contract.clientCompanyId).toBe('terumo')
+    expect(afterAward.contract.clientCompanyId).toBe('talvern')
   })
 })
 

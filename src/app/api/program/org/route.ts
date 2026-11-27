@@ -105,9 +105,9 @@ export async function GET(request: NextRequest) {
 
   // Every rung standing at this end client, across every vendor.
   //
-  // A chain puts the same person here more than once — Nike buys Helena
+  // A chain puts the same person here more than once — Northbend buys Helena
   // from Computer Systems, who buys her from Tecwyn, and both legs
-  // name Nike as the site. Read as rows that was two contractors, two
+  // name Northbend as the site. Read as rows that was two contractors, two
   // vendors and two rates, the lower of them the prime's cost.
   const rungs = await prisma.sellContract.findMany({
     where: {

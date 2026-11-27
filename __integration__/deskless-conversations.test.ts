@@ -19,7 +19,7 @@ import { PAYROLL_RUN } from '@/lib/payroll-paid'
  * threads at Northbend: one that names Mo, one that does not.
  */
 
-const PROGRAM = 'world-nike-programme@demo.etyme.local'
+const PROGRAM = 'world-northbend-programme@demo.etyme.local'
 const MO = 'mo.conversations@walk4.example'
 const REFUSED = 'That conversation is not part of your seat at Northbend Athletic. Ask your company’s owner if you need it.'
 
@@ -30,7 +30,7 @@ describe('a Member with no desk at Northbend Athletic reads only the conversatio
 
   beforeAll(async () => {
     await freshWorld()
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const role = await prisma.role.findFirstOrThrow({ where: { companyId: firm.id, name: 'Member' }, select: { id: true, permissions: true } })
     expect(role.permissions).toEqual([])
     mo = (await prisma.person.create({ data: { primaryEmail: MO, name: 'Mo Haddad' }, select: { id: true } })).id
@@ -93,7 +93,7 @@ describe('a Member with no desk at Northbend Athletic reads only the conversatio
     const ids = r.body.data.conversations.map((c: any) => c.id)
     expect(ids).toContain(theirs)
     expect(ids).toContain(notTheirs)
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const all = await prisma.conversation.count({
       where: { archivedAt: null, OR: [{ companyId: firm.id }, { withCompanyId: firm.id }] },
     })
@@ -198,9 +198,9 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
   const AVERY = 'avery.recruits@pinnacle-staff.test'
   const JUN = 'jun.accounts@pinnacle-staff.test'
   let pinnacle = { id: '', name: '' }
-  let nike = { id: '' }
+  let northbend = { id: '' }
   let avery = { id: '', seat: '' }
-  let jun = { id: '', seat: '', nikeSeat: '' }
+  let jun = { id: '', seat: '', northbendSeat: '' }
   let question = ''
   let averyTurn = ''
 
@@ -216,7 +216,7 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
     await freshWorld()
     const p = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' }, select: { id: true, name: true } })
     pinnacle = p
-    nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const role = (companyId: string, name: string) =>
       prisma.role.findFirstOrThrow({ where: { companyId, name }, select: { id: true } })
     const seat = async (personId: string, companyId: string, roleName: string) =>
@@ -228,7 +228,7 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
     jun.id = (await prisma.person.create({ data: { primaryEmail: JUN, name: 'Jun Takeda' }, select: { id: true } })).id
     avery.seat = await seat(avery.id, pinnacle.id, 'Recruiter')
     jun.seat = await seat(jun.id, pinnacle.id, 'Account Manager')
-    jun.nikeSeat = await seat(jun.id, nike.id, 'Member')
+    jun.northbendSeat = await seat(jun.id, northbend.id, 'Member')
 
     // One question Ask Etyme put to Pinnacle's people: send a bill.
     const asked = await prisma.twinAction.create({
@@ -290,11 +290,11 @@ describe('one Ask Etyme conversation per seat, kept on the record, and read by n
   })
 
   it('the same person seated at two companies keeps two threads, and the seat at Northbend Athletic never reads what was said at Pinnacle', async () => {
-    const atNike = await seatOf(JUN, jun.nikeSeat)
-    const empty = await readThread(atNike)
+    const atNorthbend = await seatOf(JUN, jun.northbendSeat)
+    const empty = await readThread(atNorthbend)
     if (!empty.ok) throw new Error(empty.says)
     expect(empty.thread.turns).toEqual([])
-    await appendTurn(atNike, { speaker: 'PERSON', text: 'Who is near the time limit?' })
+    await appendTurn(atNorthbend, { speaker: 'PERSON', text: 'Who is near the time limit?' })
 
     const atPinnacle = await readThread(await seatOf(JUN, jun.seat))
     if (!atPinnacle.ok) throw new Error(atPinnacle.says)

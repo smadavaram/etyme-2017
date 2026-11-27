@@ -36,7 +36,7 @@ describe('a team sold as a project, billed on the deliverables the client accept
   beforeAll(async () => {
     await freshWorld()
     const seller = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
-    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     s.seller = seller.id
     s.client = client.id
     // The client's named acceptor: a person with a seat at the client.

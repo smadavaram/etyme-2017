@@ -189,16 +189,16 @@ export async function seedPipeline(ctx: SeedContext): Promise<Pipeline> {
       })
     }
   }
-  const nike = ctx.firmBySlug.get('nike')
+  const northbend = ctx.firmBySlug.get('northbend')
   const blockedFirm = ctx.firmBySlug.get('arcadia')
   const hiring = await db.person.findUnique({
-    where: { primaryEmail: `${ctx.prefix}nike-hiring@${ctx.domain}` }, select: { id: true },
+    where: { primaryEmail: `${ctx.prefix}northbend-hiring@${ctx.domain}` }, select: { id: true },
   })
-  if (nike && blockedFirm && hiring) {
-    if (!(await db.blacklist.findFirst({ where: { companyId: nike.id, targetType: 'COMPANY', targetId: blockedFirm.id } }))) {
+  if (northbend && blockedFirm && hiring) {
+    if (!(await db.blacklist.findFirst({ where: { companyId: northbend.id, targetType: 'COMPANY', targetId: blockedFirm.id } }))) {
       await db.blacklist.create({
         data: {
-          companyId: nike.id, targetType: 'COMPANY', targetId: blockedFirm.id,
+          companyId: northbend.id, targetType: 'COMPANY', targetId: blockedFirm.id,
           reason: 'Submitted the same consultant through two of their own recruiters and argued about which one owned the fee. Not again.',
           blockedById: hiring.id,
           blockedAt: day(-75),

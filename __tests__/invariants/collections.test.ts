@@ -16,7 +16,7 @@ const NOW = new Date('2026-08-29T00:00:00Z')
 
 function caseOf(over: Partial<CollectionCase> = {}): CollectionCase {
   return {
-    customerId: 'c-nike',
+    customerId: 'c-northbend',
     customerName: 'Northbend Athletic Inc',
     currency: 'USD',
     overdueMinor: 4_000_000,

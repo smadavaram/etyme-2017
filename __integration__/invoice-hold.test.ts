@@ -10,14 +10,14 @@ import { GET as greet } from '@/app/api/conversations/twin/route'
  * works again once the hold is lifted.
  */
 
-const AP = 'world-nike-ap@demo.etyme.local'
+const AP = 'world-northbend-ap@demo.etyme.local'
 const s: Record<string, any> = {}
 const params = () => ({ params: Promise.resolve({ id: s.id }) })
 
 describe('an invoice receipt held with a reason cannot be paid until the hold is lifted, and the supplier is told why', () => {
   beforeAll(async () => {
     await freshWorld()
-    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
     const inv = await prisma.invoice.findFirstOrThrow({ orderBy: { id: 'asc' },
       where: {
         status: 'SUBMITTED',

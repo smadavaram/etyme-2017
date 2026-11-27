@@ -145,7 +145,7 @@ describe('what the page shows', () => {
     // A client did not agree to appear on somebody's portfolio.
     const p = buildPortfolio(input(), NOW)
     expect(p.engagements[0].sector).toBe('Medical devices')
-    expect(JSON.stringify(p)).not.toMatch(/terumo|nike|acme/i)
+    expect(JSON.stringify(p)).not.toMatch(/talvern|northbend|acme/i)
   })
 
   it('says how long each engagement lasted rather than two dates', () => {

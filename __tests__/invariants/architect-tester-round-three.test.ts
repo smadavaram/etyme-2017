@@ -24,11 +24,11 @@ const noQuery = { get: () => null }
 describe('the client reads an approval email addressed to the firm it pays', () => {
   it('the seeded approval email is addressed to the address it is given, and names the client and the approver', () => {
     const text = approvalEmail({
-      approverName: 'Marcus Oyelaran', approverEmail: 'world-nike-hiring@demo.etyme.local',
+      approverName: 'Marcus Oyelaran', approverEmail: 'world-northbend-hiring@demo.etyme.local',
       to: 'world-computer-systems@demo.etyme.local', period: 'Aug 31 – Sep 4', hours: 40,
     })
     expect(text).toContain('To: world-computer-systems@demo.etyme.local')
-    expect(text).toContain('From: Marcus Oyelaran <world-nike-hiring@demo.etyme.local>')
+    expect(text).toContain('From: Marcus Oyelaran <world-northbend-hiring@demo.etyme.local>')
     expect(text).not.toMatch(/tecwyn/i)
   })
 

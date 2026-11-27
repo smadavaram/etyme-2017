@@ -18,7 +18,7 @@ let brightmoor = '', northbend = '', marisa = '', tobias = '', stranger = ''
 beforeAll(async () => {
   await freshWorld()
   brightmoor = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })).id
-  northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+  northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })).id
   marisa = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: ACCOUNT }, select: { id: true } })).id
   tobias = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: RECRUITER }, select: { id: true } })).id
   stranger = (await prisma.person.findUniqueOrThrow({ where: { primaryEmail: 'world-tecwyn@demo.etyme.local' }, select: { id: true } })).id

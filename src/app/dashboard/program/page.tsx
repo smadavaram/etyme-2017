@@ -30,7 +30,7 @@ import { jobListWord, stageWordFor } from '../requirements/words'
  * Client Program Overview
  *
  * BRD §17.1 — the enterprise/demand perspective.
- * What a hiring manager at Terumo BCT sees: their contractors,
+ * What a hiring manager at Talvern Medical sees: their contractors,
  * pending approvals, vendor performance, and upcoming endings.
  *
  * This is the demand-side demo centerpiece — the contingent

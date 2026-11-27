@@ -59,8 +59,8 @@ import { ADDS_CONSULTANTS } from '@/lib/consultant-portfolio/who-adds'
  *
  * A client is owed what it pays. In a chain the hours hang off the
  * bottom rung — the leg where the employer is — so reading the rate off
- * the timesheet's own contract printed Tecwyn's $118 on Nike's screen
- * beside the $145 Nike is billed, and the difference is the prime's
+ * the timesheet's own contract printed Tecwyn's $118 on Northbend's screen
+ * beside the $145 Northbend is billed, and the difference is the prime's
  * entire margin. The rows stay, because a client signs the hours of
  * people it never contracted with; the rate is walked up the chain to
  * the contract the client actually pays.

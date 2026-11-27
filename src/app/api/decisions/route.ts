@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
     // Two signatures, two desks. The sheet lives on the employer's
     // contract, which in a chain is two firms away from the site — and
     // the client desk that signs the work never heard it was waiting.
-    // Nike's hiring manager read "Nothing needs you" over six weeks of
+    // Northbend's hiring manager read "Nothing needs you" over six weeks of
     // unsigned hours.
     const pendingTimesheets = await prisma.timesheet.findMany({
       where: {

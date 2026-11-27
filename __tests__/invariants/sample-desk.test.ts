@@ -18,7 +18,7 @@ import { amount } from '@/lib/money-display'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const NORTHBEND = PROGRAMMES.find((p) => p.client === 'nike')!
+const NORTHBEND = PROGRAMMES.find((p) => p.client === 'northbend')!
 const WORLD_NAMES: Record<string, string> = {
   'computer-systems': 'Computer Systems Inc', brightmoor: 'Brightmoor Staffing', pinnacle: 'Pinnacle Resourcing',
 }

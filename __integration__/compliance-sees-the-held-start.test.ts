@@ -18,7 +18,7 @@ import { GET as packetList, POST as askForPackets } from '@/app/api/packets/rout
  * nothing to press.
  */
 
-const OFFICER = 'world-nike-compliance@demo.etyme.local'
+const OFFICER = 'world-northbend-compliance@demo.etyme.local'
 
 let page: any
 

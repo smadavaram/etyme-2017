@@ -28,7 +28,7 @@ import { GET as tenure } from '@/app/api/tenure/route'
 
 const SECRET = 'rebuild-test-secret'
 const CONFIRM = { confirm: 'delete the demo world' }
-const TALVERN_COMPLIANCE = 'world-terumo-bct-compliance@demo.etyme.local'
+const TALVERN_COMPLIANCE = 'world-talvern-compliance@demo.etyme.local'
 
 const call = (body?: unknown, authorization: string | null = `Bearer ${SECRET}`) =>
   rebuild(req('POST', '/api/seed-world/rebuild', body, authorization ? { authorization } : {}))
@@ -149,10 +149,10 @@ beforeAll(async () => {
 
   // Records that outlive what they mention — the incident happened at a
   // demo firm, and it stays anyway.
-  const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+  const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
   const lead = await prisma.marketingLead.create({ data: { email: 'cfo@example-buyer.com', source: 'home' } })
   const incident = await prisma.incident.create({
-    data: { where: 'api/timesheets', message: 'a real error at a demo desk', companyId: nike.id },
+    data: { where: 'api/timesheets', message: 'a real error at a demo desk', companyId: northbend.id },
   })
   const jobRun = await prisma.jobRun.create({ data: { job: 'daily', ok: true, ran: 12 } })
 
@@ -210,9 +210,9 @@ describe('rebuilding the demo world', () => {
   })
 
   it('refuses when a real firm has a contract with a demo client, names the firm, and deletes nothing', async () => {
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
     const tie = await prisma.sellContract.create({
-      data: { companyId: real.wwt, clientCompanyId: nike.id, personId: real.luis, billRate: 12_000, startDate: new Date('2026-07-01') },
+      data: { companyId: real.wwt, clientCompanyId: northbend.id, personId: real.luis, billRate: 12_000, startDate: new Date('2026-07-01') },
     })
     try {
       const before = await census()
@@ -231,10 +231,10 @@ describe('rebuilding the demo world', () => {
   }, 120_000)
 
   it('refuses when somebody at a real address holds a seat at a demo firm, rather than delete their seat', async () => {
-    const nike = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })
-    const role = await prisma.role.findFirstOrThrow({ where: { companyId: nike.id, name: 'Owner' } })
+    const northbend = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })
+    const role = await prisma.role.findFirstOrThrow({ where: { companyId: northbend.id, name: 'Owner' } })
     const seat = await prisma.context.create({
-      data: { personId: real.jane, companyId: nike.id, roleId: role.id, type: 'EMPLOYEE' },
+      data: { personId: real.jane, companyId: northbend.id, roleId: role.id, type: 'EMPLOYEE' },
     })
     try {
       const r = await json(await call(CONFIRM))

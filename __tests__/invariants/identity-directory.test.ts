@@ -6,7 +6,7 @@ const db = vi.hoisted(() => ({
   person: { update: vi.fn(), findUnique: vi.fn() },
   company: { findUniqueOrThrow: vi.fn(async () => ({ name: 'Northbend Athletic' })), findUnique: vi.fn() },
   companySignInPolicy: { findUnique: vi.fn(async () => ({ mode: 'SSO_ONLY', scim: true })), findMany: vi.fn(async () => []) },
-  identityProvider: { findMany: vi.fn(async () => [{ issuer: 'https://mock-directory.etyme.invalid/world-nike' }]), findFirst: vi.fn() },
+  identityProvider: { findMany: vi.fn(async () => [{ issuer: 'https://mock-directory.etyme.invalid/world-northbend' }]), findFirst: vi.fn() },
   scimToken: { findUnique: vi.fn(), update: vi.fn(async () => ({})) },
   accessLog: { createMany: vi.fn(async (_a: any) => ({ count: 1 })) },
   incident: { create: vi.fn() },
@@ -149,27 +149,27 @@ describe('the mock directory is a mock, for demo companies only', () => {
     expect(mockMayServe(['northbend.example', 'northbend.com'])).toBe(false)
     expect(mockMayServe(['acme.com'])).toBe(false)
     expect(mockMayServe([])).toBe(false)
-    expect(isMockIssuer(mockIssuerFor('world-nike'))).toBe(true)
+    expect(isMockIssuer(mockIssuerFor('world-northbend'))).toBe(true)
     expect(isMockIssuer(ISS)).toBe(false)
   })
 
   it('its token is signed the way a real directory signs, and checks against its published key', () => {
     const { verifier, challenge } = pkce()
     const redirectUri = 'http://localhost:3000/api/sso/callback'
-    const code = issueMockCode({ slug: 'world-nike', person: { subject: 'nb-1', email: 'priya@northbend.example', name: 'Priya', groups: [] }, nonce: 'n-9', clientId: mockClientId('world-nike'), redirectUri, codeChallenge: challenge }, SECRET, NOW)
-    const r = redeemMockCode({ slug: 'world-nike', code, clientId: mockClientId('world-nike'), clientSecret: mockClientSecret('world-nike', SECRET), redirectUri, codeVerifier: verifier }, SECRET, NOW)
+    const code = issueMockCode({ slug: 'world-northbend', person: { subject: 'nb-1', email: 'priya@northbend.example', name: 'Priya', groups: [] }, nonce: 'n-9', clientId: mockClientId('world-northbend'), redirectUri, codeChallenge: challenge }, SECRET, NOW)
+    const r = redeemMockCode({ slug: 'world-northbend', code, clientId: mockClientId('world-northbend'), clientSecret: mockClientSecret('world-northbend', SECRET), redirectUri, codeVerifier: verifier }, SECRET, NOW)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    const v = verifyIdToken({ token: r.idToken, jwks: mockJwks(SECRET), issuer: mockIssuerFor('world-nike'), audience: mockClientId('world-nike'), nonce: 'n-9', now: NOW })
+    const v = verifyIdToken({ token: r.idToken, jwks: mockJwks(SECRET), issuer: mockIssuerFor('world-northbend'), audience: mockClientId('world-northbend'), nonce: 'n-9', now: NOW })
     expect(v.ok).toBe(true)
   })
 
   it('its code is refused with the wrong PKCE verifier, the wrong client secret or another redirect address', () => {
     const { challenge } = pkce()
     const redirectUri = 'http://localhost:3000/api/sso/callback'
-    const args = { slug: 'world-nike', person: { subject: 'nb-1', email: 'p@northbend.example', name: 'P', groups: [] }, nonce: 'n', clientId: mockClientId('world-nike'), redirectUri, codeChallenge: challenge }
+    const args = { slug: 'world-northbend', person: { subject: 'nb-1', email: 'p@northbend.example', name: 'P', groups: [] }, nonce: 'n', clientId: mockClientId('world-northbend'), redirectUri, codeChallenge: challenge }
     const code = issueMockCode(args, SECRET, NOW)
-    const base = { slug: 'world-nike', code, clientId: mockClientId('world-nike'), clientSecret: mockClientSecret('world-nike', SECRET), redirectUri, codeVerifier: pkce().verifier }
+    const base = { slug: 'world-northbend', code, clientId: mockClientId('world-northbend'), clientSecret: mockClientSecret('world-northbend', SECRET), redirectUri, codeVerifier: pkce().verifier }
     expect(redeemMockCode(base, SECRET, NOW)).toMatchObject({ ok: false, error: 'invalid_grant' })
     expect(redeemMockCode({ ...base, clientSecret: 'guess' }, SECRET, NOW)).toMatchObject({ ok: false, error: 'invalid_client' })
     expect(redeemMockCode({ ...base, redirectUri: 'https://evil.example/cb' }, SECRET, NOW)).toMatchObject({ ok: false, error: 'invalid_grant' })
@@ -205,7 +205,7 @@ describe('removing somebody in the directory removes them here, at once', () => 
     db.$transaction.mockImplementation(async (fn: any) => fn(db))
     db.accessLog.createMany.mockResolvedValue({ count: 1 })
     db.companySignInPolicy.findUnique.mockResolvedValue({ mode: 'SSO_ONLY', scim: true })
-    db.identityProvider.findMany.mockResolvedValue([{ issuer: 'https://mock-directory.etyme.invalid/world-nike' }])
+    db.identityProvider.findMany.mockResolvedValue([{ issuer: 'https://mock-directory.etyme.invalid/world-northbend' }])
     db.company.findUniqueOrThrow.mockResolvedValue({ name: 'Northbend Athletic' })
   })
 

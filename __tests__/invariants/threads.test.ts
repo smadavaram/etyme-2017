@@ -17,7 +17,7 @@ import { rolesFor } from '@/lib/company-defaults'
  * answers, and a thread reaches nobody who is not on the deal.
  */
 
-const nike = { id: 'c-nike', name: 'Northbend Athletic' }
+const northbend = { id: 'c-northbend', name: 'Northbend Athletic' }
 const tecwyn = { id: 'c-tecwyn', name: 'Tecwyn' }
 const pinnacle = { id: 'c-pinnacle', name: 'Pinnacle' }
 const stranger = { id: 'c-stranger', name: 'Somebody Else Staffing' }
@@ -26,7 +26,7 @@ const role: RoleFacts = {
   kind: 'REQUIREMENT',
   id: 'r1',
   title: 'Kinaxis planners',
-  demandCompanyId: nike.id,
+  demandCompanyId: northbend.id,
   supplierIds: [tecwyn.id, pinnacle.id],
 }
 
@@ -35,18 +35,18 @@ const candidate: CandidateFacts = {
   id: 's1',
   roleTitle: 'Kinaxis planners',
   candidateName: 'Mei-Lin Chao',
-  toCompanyId: nike.id,
+  toCompanyId: northbend.id,
   fromCompanyId: pinnacle.id,
   fromCompanyName: 'Pinnacle',
 }
 
 describe('who may open a conversation about a role', () => {
   it('the client can open one with a supplier it asked to work the role', () => {
-    expect(whoMayOpen(role, nike, tecwyn)).toEqual({ ok: true, title: 'Kinaxis planners' })
+    expect(whoMayOpen(role, northbend, tecwyn)).toEqual({ ok: true, title: 'Kinaxis planners' })
   })
 
   it('a supplier cannot open one with the client; it is told to submit or answer the invitation instead', () => {
-    const v = whoMayOpen(role, tecwyn, nike)
+    const v = whoMayOpen(role, tecwyn, northbend)
     expect(v.ok).toBe(false)
     if (v.ok) return
     expect(v.code).toBe('SUPPLY_ANSWERS')
@@ -57,17 +57,17 @@ describe('who may open a conversation about a role', () => {
   })
 
   it('the client cannot message a firm that is not on the role, and is told to invite them', () => {
-    const v = whoMayOpen(role, nike, stranger)
+    const v = whoMayOpen(role, northbend, stranger)
     expect(v).toMatchObject({ ok: false, code: 'NOT_ON_THE_ROLE' })
     if (!v.ok) expect(v.message).toContain('Invite them')
   })
 
   it('a firm with nothing to do with the role is refused in one line', () => {
-    expect(whoMayOpen(role, stranger, nike)).toMatchObject({ ok: false, code: 'NOT_YOURS' })
+    expect(whoMayOpen(role, stranger, northbend)).toMatchObject({ ok: false, code: 'NOT_YOURS' })
   })
 
   it('a thread with yourself is a note, and the refusal says where notes go', () => {
-    const v = whoMayOpen(role, nike, nike)
+    const v = whoMayOpen(role, northbend, northbend)
     expect(v).toMatchObject({ ok: false, code: 'SAME_SIDE' })
     if (!v.ok) expect(v.message).toContain('Discussion')
   })
@@ -81,17 +81,17 @@ describe('who may open a conversation about a role', () => {
 
 describe('who may open a conversation about a candidate', () => {
   it('the firm that received the candidate can open one with the firm that sent them, titled by both', () => {
-    expect(whoMayOpen(candidate, nike, pinnacle)).toEqual({ ok: true, title: 'Mei-Lin Chao · Kinaxis planners' })
+    expect(whoMayOpen(candidate, northbend, pinnacle)).toEqual({ ok: true, title: 'Mei-Lin Chao · Kinaxis planners' })
   })
 
   it('the firm that sent the candidate cannot open one; the status and the rounds are already theirs to read', () => {
-    const v = whoMayOpen(candidate, pinnacle, nike)
+    const v = whoMayOpen(candidate, pinnacle, northbend)
     expect(v).toMatchObject({ ok: false, code: 'SUPPLY_ANSWERS' })
     if (!v.ok) expect(v.message).toContain('interview rounds are already yours to read')
   })
 
   it('the client cannot open one about this candidate with a different supplier', () => {
-    const v = whoMayOpen(candidate, nike, tecwyn)
+    const v = whoMayOpen(candidate, northbend, tecwyn)
     expect(v).toMatchObject({ ok: false, code: 'NOT_ON_THE_ROLE' })
     if (!v.ok) expect(v.message).toBe('Mei-Lin Chao came from Pinnacle, not Tecwyn.')
   })
@@ -99,28 +99,28 @@ describe('who may open a conversation about a candidate', () => {
 
 describe('a firm seated in a client’s program writes to the client’s suppliers as the program does', () => {
   const aptiva = { id: 'c-aptiva', name: 'Aptiva Workforce' }
-  const pmSeat = { clientCompanyId: nike.id, permissions: ['requirements.read', 'requirements.write', 'submissions.read'] }
-  const apSeat = { clientCompanyId: nike.id, permissions: ['timesheets.read', 'payments.record'] }
+  const pmSeat = { clientCompanyId: northbend.id, permissions: ['requirements.read', 'requirements.write', 'submissions.read'] }
+  const apSeat = { clientCompanyId: northbend.id, permissions: ['timesheets.read', 'payments.record'] }
 
   it('“Message <supplier>” is drawn for the firm the candidate was submitted to and for a seat in its program that writes for it, exactly where the route lets it open', () => {
-    expect(mayMessageSupplier(candidate, nike.id)).toBe(true)
+    expect(mayMessageSupplier(candidate, northbend.id)).toBe(true)
     expect(mayMessageSupplier(candidate, aptiva.id, pmSeat)).toBe(true)
-    expect(whoMayOpen(candidate, aptiva, pinnacle, { seatedAt: nike, seatWrites: true })).toEqual({ ok: true, title: 'Mei-Lin Chao · Kinaxis planners' })
+    expect(whoMayOpen(candidate, aptiva, pinnacle, { seatedAt: northbend, seatWrites: true })).toEqual({ ok: true, title: 'Mei-Lin Chao · Kinaxis planners' })
     // The same seat on a role: it writes to a supplier on the job as the client does.
-    expect(whoMayOpen(role, aptiva, tecwyn, { seatedAt: nike, seatWrites: true })).toEqual({ ok: true, title: 'Kinaxis planners' })
+    expect(whoMayOpen(role, aptiva, tecwyn, { seatedAt: northbend, seatWrites: true })).toEqual({ ok: true, title: 'Kinaxis planners' })
     // And never past the client's own rule: a supplier the candidate did not come from is still refused.
-    expect(whoMayOpen(candidate, aptiva, tecwyn, { seatedAt: nike, seatWrites: true })).toMatchObject({ ok: false, code: 'NOT_ON_THE_ROLE' })
+    expect(whoMayOpen(candidate, aptiva, tecwyn, { seatedAt: northbend, seatWrites: true })).toMatchObject({ ok: false, code: 'NOT_ON_THE_ROLE' })
   })
 
   it('a seat writes under the permission the client’s own program manager holds for it, and a seat whose role does not hold it is told, by name, that the client writes', () => {
     expect(PROGRAM_WRITES).toBe('requirements.write')
-    expect(seatWritesFor(pmSeat, nike.id)).toBe(true)
-    expect(seatWritesFor(apSeat, nike.id)).toBe(false)
+    expect(seatWritesFor(pmSeat, northbend.id)).toBe(true)
+    expect(seatWritesFor(apSeat, northbend.id)).toBe(false)
     expect(seatWritesFor(pmSeat, 'c-another-client')).toBe(false)
     expect(mayMessageSupplier(candidate, aptiva.id, apSeat)).toBe(false)
-    const v = whoMayOpen(candidate, aptiva, pinnacle, { seatedAt: nike, seatWrites: false })
+    const v = whoMayOpen(candidate, aptiva, pinnacle, { seatedAt: northbend, seatWrites: false })
     expect(v).toEqual({ ok: false, code: 'NOT_YOURS', message: 'Mei-Lin Chao was put forward to Northbend Athletic, so only Northbend Athletic writes to Pinnacle about them.' })
-    const r = whoMayOpen(role, aptiva, tecwyn, { seatedAt: nike, seatWrites: false })
+    const r = whoMayOpen(role, aptiva, tecwyn, { seatedAt: northbend, seatWrites: false })
     expect(r).toEqual({ ok: false, code: 'NOT_YOURS', message: 'Kinaxis planners is Northbend Athletic’s job, so only Northbend Athletic writes to Tecwyn about it.' })
   })
 
@@ -135,9 +135,9 @@ describe('a firm seated in a client’s program writes to the client’s supplie
   })
 
   it('the supplier always reads who wrote: a seat’s note says its own firm beside the client’s', () => {
-    const sides = { company: nike, withCompany: pinnacle }
-    expect(writesFor({ companyId: nike.id, asOffice: 'Aptiva Workforce' }, sides)).toBe('Aptiva Workforce, for Northbend Athletic')
-    expect(writesFor({ companyId: nike.id }, sides)).toBe('Northbend Athletic')
+    const sides = { company: northbend, withCompany: pinnacle }
+    expect(writesFor({ companyId: northbend.id, asOffice: 'Aptiva Workforce' }, sides)).toBe('Aptiva Workforce, for Northbend Athletic')
+    expect(writesFor({ companyId: northbend.id }, sides)).toBe('Northbend Athletic')
     expect(writesFor({ companyId: pinnacle.id }, sides)).toBe('Pinnacle')
     expect(writesFor({ companyId: stranger.id }, sides)).toBeNull()
   })
@@ -158,42 +158,42 @@ describe('a firm seated in a client’s program writes to the client’s supplie
 })
 
 describe('who may read a thread', () => {
-  const across = { companyId: nike.id, withCompanyId: pinnacle.id }
-  const own = { companyId: nike.id, withCompanyId: null }
+  const across = { companyId: northbend.id, withCompanyId: pinnacle.id }
+  const own = { companyId: northbend.id, withCompanyId: null }
 
   it('both companies on the thread can read it, and nobody else', () => {
-    expect(canRead(across, nike.id)).toBe(true)
+    expect(canRead(across, northbend.id)).toBe(true)
     expect(canRead(across, pinnacle.id)).toBe(true)
     expect(canRead(across, tecwyn.id)).toBe(false)
     expect(canRead(across, null)).toBe(false)
   })
 
   it("a company's own notes are read by that company only — a supplier on the role never sees Discussion", () => {
-    expect(canRead(own, nike.id)).toBe(true)
+    expect(canRead(own, northbend.id)).toBe(true)
     expect(canRead(own, pinnacle.id)).toBe(false)
   })
 
   it('each side knows which side it is', () => {
-    expect(sideOf(across, nike.id)).toBe('OPENED')
+    expect(sideOf(across, northbend.id)).toBe('OPENED')
     expect(sideOf(across, pinnacle.id)).toBe('ANSWERS')
     expect(sideOf(across, tecwyn.id)).toBeNull()
   })
 })
 
 describe('who hears when somebody writes', () => {
-  const dana = { personId: 'p-dana', name: 'Dana Whitlock', companyId: nike.id }
-  const marcus = { personId: 'p-marcus', name: 'Marcus Oyelaran', companyId: nike.id }
+  const dana = { personId: 'p-dana', name: 'Dana Whitlock', companyId: northbend.id }
+  const marcus = { personId: 'p-marcus', name: 'Marcus Oyelaran', companyId: northbend.id }
   const ravi = { personId: 'p-ravi', name: 'Ravi Iyer', companyId: pinnacle.id }
 
   it("the client's first note reaches the supplier's staff, because nobody there is on the thread yet", () => {
     expect(
-      whoHears({ authorId: dana.personId, authorCompanyId: nike.id, participants: [dana], otherSideStaffIds: ['p-ravi', 'p-asha'] }).sort()
+      whoHears({ authorId: dana.personId, authorCompanyId: northbend.id, participants: [dana], otherSideStaffIds: ['p-ravi', 'p-asha'] }).sort()
     ).toEqual(['p-asha', 'p-ravi'])
   })
 
   it('once somebody at the supplier has answered, the thread is theirs and the rest of the firm is left alone', () => {
     expect(
-      whoHears({ authorId: dana.personId, authorCompanyId: nike.id, participants: [dana, ravi], otherSideStaffIds: ['p-ravi', 'p-asha'] })
+      whoHears({ authorId: dana.personId, authorCompanyId: northbend.id, participants: [dana, ravi], otherSideStaffIds: ['p-ravi', 'p-asha'] })
     ).toEqual(['p-ravi'])
   })
 

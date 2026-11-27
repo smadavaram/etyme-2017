@@ -301,7 +301,7 @@ const RESERVED = new Set([
 ])
 
 /**
- * A readable address from the domain: terumobct.com becomes terumobct.
+ * A readable address from the domain: talvern-medical.example becomes talvern.
  *
  * Collisions are numbered rather than refused. Two different companies can
  * genuinely own similar domains, and telling the second one to think of

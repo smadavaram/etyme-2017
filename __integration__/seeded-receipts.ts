@@ -22,7 +22,7 @@ import { DRAWS_NOTHING } from '@/lib/money/bill-state'
  */
 export async function pinnacleReceiptsAtNorthbend(): Promise<{ clean: string; held: string; northbend: string; pinnacle: string }> {
   const [northbend, pinnacle] = await Promise.all([
-    prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } }),
+    prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } }),
     prisma.company.findUniqueOrThrow({ where: { slug: 'world-pinnacle' }, select: { id: true } }),
   ])
   const theirs = new Set(

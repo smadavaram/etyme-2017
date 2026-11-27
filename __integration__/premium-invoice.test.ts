@@ -396,7 +396,7 @@ describe('a sub-vendor’s bill sent on the platform prices the overtime the cli
  */
 describe('an expense on Brightmoor’s bill to Northbend is the amount Northbend accepted', () => {
   const x: Record<string, any> = {}
-  const NIKE_HIRING = `world-nike-hiring${D}`
+  const NORTHBEND_HIRING = `world-northbend-hiring${D}`
   const plan = async () => {
     const company = await prisma.company.findUniqueOrThrow({ where: { id: it_.contract.companyId }, select: { id: true, name: true, kind: true } })
     return generateBill({ company, person: { id: null, name: 'Ask Etyme' } }, { engagementId: it_.contract.engagementId }, { dryRun: true })
@@ -423,7 +423,7 @@ describe('an expense on Brightmoor’s bill to Northbend is the amount Northbend
   })
 
   it('a bill carries the expense at the amount the firm above accepted, never the amount the worker claimed', async () => {
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const a = await json(await acceptExpense(
       req('POST', `/api/expenses/${x.flight}/accept`, { decision: 'accept', amountCents: 38_000, reason: 'Economy fare is $380 on this route.' }),
       { params: Promise.resolve({ id: x.flight }) }
@@ -460,7 +460,7 @@ describe('an expense on Brightmoor’s bill to Northbend is the amount Northbend
         `Omar Haddad’s training expense is not on this bill: The agreement between ${leg.agreement!.clientName} and ${leg.agreement!.vendorName} does not list training expenses as billable, so Northbend Athletic does not pay for this one.`
       )
       // And Northbend has nothing to accept on it.
-      as(NIKE_HIRING)
+      as(NORTHBEND_HIRING)
       const a = await json(await acceptExpense(req('POST', `/api/expenses/${course}/accept`, { decision: 'accept' }), { params: Promise.resolve({ id: course }) }))
       expect(a.status).toBe(422)
       expect(a.body.error.code).toBe('NOT_BILLABLE')
@@ -476,7 +476,7 @@ describe('an expense on Brightmoor’s bill to Northbend is the amount Northbend
  * accepts it on the row, through the one route that records it.
  */
 describe('the expenses page reads each expense as the firm reading it, and the AP clerk accepts on the row', () => {
-  const AP = `world-nike-ap${D}`
+  const AP = `world-northbend-ap${D}`
   const x: Record<string, any> = {}
   const list = async () => {
     const r = await json(await listExpenses(req('GET', '/api/expenses?limit=100')))
@@ -589,8 +589,8 @@ describe('the expenses page reads each expense as the firm reading it, and the A
  * above reads billed and paid from its own lines.
  */
 describe('Helena Marsh’s train fare is billed up the chain a rung at a time and paid down it', () => {
-  const NIKE_HIRING = `world-nike-hiring${D}`
-  const NIKE_AP = `world-nike-ap${D}`
+  const NORTHBEND_HIRING = `world-northbend-hiring${D}`
+  const NORTHBEND_AP = `world-northbend-ap${D}`
   const w: Record<string, any> = {}
   const params = (id: string) => ({ params: Promise.resolve({ id }) })
   const day = (d: Date) => d.toISOString().slice(0, 10)
@@ -643,7 +643,7 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     Object.assign(w, { train: train.id, tpLine, csLine, day: day(d) })
 
     // Northbend accepts it first, then Computer Systems.
-    for (const who of [NIKE_HIRING, CS]) {
+    for (const who of [NORTHBEND_HIRING, CS]) {
       as(who)
       const a = await json(await acceptExpense(req('POST', `/api/expenses/${w.train}/accept`, { decision: 'accept' }), params(w.train)))
       expect(a.status, `${who}: ${JSON.stringify(a.body)}`).toBe(200)
@@ -711,11 +711,11 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     const tpNumber = (await prisma.invoice.findUniqueOrThrow({ where: { id: w.tpBill } })).number
 
     // Northbend pays Computer Systems. Tecwyn has not been paid, and its column says so.
-    const nb = await pay(NIKE_AP, w.csBill)
+    const nb = await pay(NORTHBEND_AP, w.csBill)
     expect(nb.status, JSON.stringify(nb.body)).toBeLessThan(300)
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).status).toBe('INVOICED')
 
-    const top = await rowAs(NIKE_AP)
+    const top = await rowAs(NORTHBEND_AP)
     expect(top.status).toBe('PAID')
     expect(top.chain.line).toBe(`Approved by the employer · accepted by you $250.00 · accepted by Computer Systems Inc $250.00 · billed to you on ${csNumber}, paid`)
     expect(JSON.stringify(top)).not.toContain(tpNumber)
@@ -738,7 +738,7 @@ describe('Helena Marsh’s train fare is billed up the chain a rung at a time an
     expect((await prisma.expense.findUniqueOrThrow({ where: { id: w.train } })).status).toBe('PAID')
     expect((await rowAs(TECWYN)).chain.line).toContain(`billed to Computer Systems Inc on ${tpNumber}, paid`)
     // And the client's own reading did not move with it.
-    expect((await rowAs(NIKE_AP)).chain.line).not.toContain(tpNumber)
+    expect((await rowAs(NORTHBEND_AP)).chain.line).not.toContain(tpNumber)
   })
 })
 
@@ -873,7 +873,7 @@ describe('a bill sent from the Bills page reaches the person the supplier record
     expect(resent.actorPersonId).toBe(h.owner)
 
     // Another firm cannot send Brightmoor's bill at all.
-    as('world-nike-ap@demo.etyme.local')
+    as('world-northbend-ap@demo.etyme.local')
     const stranger = await json(await resendBill(req('POST', `/api/invoices/${h.bill}/resend`, {}), params(h.bill)))
     expect([403, 404]).toContain(stranger.status)
     expect(mail).toHaveLength(2)

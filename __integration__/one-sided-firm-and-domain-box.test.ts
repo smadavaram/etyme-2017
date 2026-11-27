@@ -25,7 +25,7 @@ const clients = await import('@/app/api/clients/route')
 const contacts = await import('@/app/api/contacts/route')
 
 const D = '@demo.etyme.local'
-const CLIENT_OWNER = `world-nike${D}`
+const CLIENT_OWNER = `world-northbend${D}`
 const SUPPLIER_OWNER = `world-brightmoor${D}`
 
 let client = ''
@@ -56,7 +56,7 @@ async function firmOnEtyme(name: string, slug: string, domain: string, person: s
 
 beforeAll(async () => {
   await freshWorld()
-  client = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })).id
+  client = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })).id
   brightmoor = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })).id
 }, 600_000)
 

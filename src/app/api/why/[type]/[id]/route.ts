@@ -14,7 +14,7 @@ import {
  * GET /api/why/:type/:id?person=…   — why can they, which is the real question
  *
  * The second form is the one an administrator actually has. Somebody says
- * "I can't see the Nike contract", and today the only way to answer is to
+ * "I can't see the Northbend contract", and today the only way to answer is to
  * read four rule sets and guess. This answers it, in the words the person
  * would need, and says which of the two things to change.
  *

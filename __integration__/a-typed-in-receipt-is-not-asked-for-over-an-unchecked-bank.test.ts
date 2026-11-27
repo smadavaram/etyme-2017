@@ -16,7 +16,7 @@ import { PERFORMERS } from '@/lib/twin/performers'
  */
 
 const D = '@demo.etyme.local'
-const NIKE_AP = `world-nike-ap${D}`
+const NORTHBEND_AP = `world-northbend-ap${D}`
 const s: Record<string, any> = {}
 
 const options = async (query = '') =>
@@ -25,8 +25,8 @@ const options = async (query = '') =>
 describe('every reader of "may this typed-in receipt be paid" reads the supplier’s bank', () => {
   beforeAll(async () => {
     await freshWorld()
-    s.nike = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' } })).id
-    as(NIKE_AP)
+    s.northbend = (await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' } })).id
+    as(NORTHBEND_AP)
     let free: any = null
     for (const sup of (await options()).body.data.suppliers as any[]) {
       for (const l of sup.lines) {
@@ -58,7 +58,7 @@ describe('every reader of "may this typed-in receipt be paid" reads the supplier
   it('the same receipt is held, in the bank’s own sentence, once nobody has checked the supplier’s bank', async () => {
     await prisma.remitTo.updateMany({ where: { companyId: s.vendor }, data: { verifiedAt: null } })
     await prisma.supplierRequest.deleteMany({
-      where: { companyId: s.nike, OR: [{ supplierCompanyId: s.vendor }, { firmCompanyId: s.vendor }] },
+      where: { companyId: s.northbend, OR: [{ supplierCompanyId: s.vendor }, { firmCompanyId: s.vendor }] },
     })
     const gate = await mayPayKeyedReceipt(s.bill)
     expect(gate?.ok).toBe(false)
@@ -68,8 +68,8 @@ describe('every reader of "may this typed-in receipt be paid" reads the supplier
 
   it('the twin is not allowed to ask the AP desk to approve a typed-in receipt whose supplier’s bank nobody checked', async () => {
     const refusal = await PERFORMERS['invoice_receipt.approve'].check!({
-      companyId: s.nike, action: 'invoice_receipt.approve',
-      entity: { type: 'VendorBill', id: s.bill, partyCompanyIds: [s.nike, s.vendor] },
+      companyId: s.northbend, action: 'invoice_receipt.approve',
+      entity: { type: 'VendorBill', id: s.bill, partyCompanyIds: [s.northbend, s.vendor] },
       authorityPersonId: null, approverPersonId: null, ruleCited: 'test', rationale: 'test', payload: {},
     })
     expect(refusal).toMatch(/bank/i)
@@ -77,7 +77,7 @@ describe('every reader of "may this typed-in receipt be paid" reads the supplier
 
   it('an approved typed-in receipt over an unchecked bank is left out of a payment run with the bank’s reason, not the check’s', async () => {
     await prisma.vendorBill.update({ where: { id: s.bill }, data: { status: 'APPROVED' } })
-    as(NIKE_AP)
+    as(NORTHBEND_AP)
     const r = await json(await paymentRuns(req('GET', '/api/ap/payment-runs?currency=USD')))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     const excluded = (r.body.data.proposed.excluded as any[]).find((e) => e.billId === s.bill)

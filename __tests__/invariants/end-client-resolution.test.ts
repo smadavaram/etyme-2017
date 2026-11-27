@@ -40,9 +40,9 @@ describe('resolvedEndClientId()', () => {
   it('handles the three-party MSP case — vendor bills MSP, consultant works at enterprise', () => {
     const contract = {
       clientCompanyId: 'globalstaff-msp',
-      endClientCompanyId: 'terumo-bct',
+      endClientCompanyId: 'talvern',
     }
-    expect(resolvedEndClientId(contract)).toBe('terumo-bct')
+    expect(resolvedEndClientId(contract)).toBe('talvern')
   })
 
   it('handles the prime SI case — vendor bills prime SI, consultant works at enterprise', () => {

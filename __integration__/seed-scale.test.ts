@@ -128,7 +128,7 @@ describe('the generated world at the founder’s scale', () => {
     for (const f of frame.firms.filter((x) => !['CLIENT', 'MSP'].includes(x.position))) expect(reaches(f.id), f.name).toBe(true)
     // Invented names, ids that sort after the base world's, and no two ids sharing the tail an invoice number is cut from.
     expect(namedFirms(frame)).toEqual([])
-    const base = await prisma.company.findFirstOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const base = await prisma.company.findFirstOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     for (const f of frame.firms) expect(f.id > base.id, f.name).toBe(true)
     expect(sharedTails(frame.firms.flatMap((f) => [f.id, ...f.seats.map((x) => x.personId)]))).toEqual([])
   })

@@ -22,13 +22,13 @@ const RECRUITER = `world-brightmoor-recruiter${D}`       // Tobias Ferrand
 const CONISBY = `world-conisby${D}`
 const params = (id: string) => ({ params: Promise.resolve({ id }) })
 
-let nike = ''
+let northbend = ''
 let conisby = ''
 let job = ''
 
 beforeAll(async () => {
   await freshWorld()
-  nike = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' } })).id
+  northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })).id
   conisby = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-conisby' } })).id
 }, 600_000)
 
@@ -36,7 +36,7 @@ describe('a prime sends a job it was sent down to its sub-vendor', () => {
   it('a supplier’s account manager sends a job down to its sub-vendor, and the refusal names the right role', async () => {
     as(ACCOUNT_MANAGER)
     const made = await json(await raiseOwnCopy(req('POST', '/api/requirements', {
-      title: 'HCM integration lead', skills: ['Workday', 'Integration'], months: 6, endClientCompanyId: nike,
+      title: 'HCM integration lead', skills: ['Workday', 'Integration'], months: 6, endClientCompanyId: northbend,
     })))
     expect(made.status, JSON.stringify(made.body)).toBe(201)
     job = made.body.data.requirement.id

@@ -15,10 +15,10 @@ import { GET as tenure } from '@/app/api/tenure/route'
  */
 
 const D = '@demo.etyme.local'
-const NIKE_OFFICER = `world-nike-compliance${D}`
-const CORNING_OFFICER = `world-corning-compliance${D}`
-const NIKE_HIRING = `world-nike-hiring${D}`
-const CORNING_HIRING = `world-corning-hiring${D}`
+const NORTHBEND_OFFICER = `world-northbend-compliance${D}`
+const CAVANAUGH_OFFICER = `world-cavanaugh-compliance${D}`
+const NORTHBEND_HIRING = `world-northbend-hiring${D}`
+const CAVANAUGH_HIRING = `world-cavanaugh-hiring${D}`
 
 async function rowOn(email: string, route: typeof alumni | typeof tenure, path: string, list: 'alumni' | 'people', name: string) {
   as(email)
@@ -44,8 +44,8 @@ beforeAll(async () => {
 
 describe('ask them back reads the time-limit ledger', () => {
   it('Kwame Mensah, inside his break, is shown the eligibility date the ledger shows instead of an ask-back button', async () => {
-    const ledger = await rowOn(NIKE_OFFICER, tenure, '/api/tenure', 'people', 'Kwame Mensah')
-    const row = await rowOn(NIKE_OFFICER, alumni, '/api/alumni', 'alumni', 'Kwame Mensah')
+    const ledger = await rowOn(NORTHBEND_OFFICER, tenure, '/api/tenure', 'people', 'Kwame Mensah')
+    const row = await rowOn(NORTHBEND_OFFICER, alumni, '/api/alumni', 'alumni', 'Kwame Mensah')
     expect(ledger.status).toBe('IN_BREAK')
     expect(row.canReengage).toBe(false)
     expect(row.ledgerStatus).toBe(ledger.status)
@@ -54,8 +54,8 @@ describe('ask them back reads the time-limit ledger', () => {
   })
 
   it('asking Kwame Mensah back is refused inside his break, with the same day the list and the ledger show', async () => {
-    const ledger = await rowOn(NIKE_OFFICER, tenure, '/api/tenure', 'people', 'Kwame Mensah')
-    as(NIKE_HIRING)
+    const ledger = await rowOn(NORTHBEND_OFFICER, tenure, '/api/tenure', 'people', 'Kwame Mensah')
+    as(NORTHBEND_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: kwame, clientCompanyId: northbend })))
     expect(r.status).toBe(409)
     expect(r.body.error.code).toBe('BREAK_PERIOD')
@@ -64,15 +64,15 @@ describe('ask them back reads the time-limit ledger', () => {
   })
 
   it('Nadia Pavlenko, out longer than the break, is offered ask them back where the ledger reads her eligible', async () => {
-    const ledger = await rowOn(CORNING_OFFICER, tenure, '/api/tenure', 'people', 'Nadia Pavlenko')
-    const row = await rowOn(CORNING_OFFICER, alumni, '/api/alumni', 'alumni', 'Nadia Pavlenko')
+    const ledger = await rowOn(CAVANAUGH_OFFICER, tenure, '/api/tenure', 'people', 'Nadia Pavlenko')
+    const row = await rowOn(CAVANAUGH_OFFICER, alumni, '/api/alumni', 'alumni', 'Nadia Pavlenko')
     expect(row.ledgerStatus).toBe(ledger.status)
     expect(row.canReengage).toBe(true)
     expect(row.eligibleDate).toBeNull()
   })
 
   it('every former worker on Northbend Athletic’s alumni list reads the ledger’s status, and only an eligible one has a button', async () => {
-    as(NIKE_OFFICER)
+    as(NORTHBEND_OFFICER)
     const led = await json(await tenure(req('GET', '/api/tenure')))
     const al = await json(await alumni(req('GET', '/api/alumni')))
     const byId = new Map(led.body.data.people.map((p: any) => [p.personId, p]))
@@ -95,7 +95,7 @@ const askBacksAt = (companyId: string) =>
 describe('ask them back is written only for a client the caller acts for, and goes to a supplier', () => {
   it('a caller cannot write an ask-back against a client it does not act for', async () => {
     const before = await askBacksAt(cavanaugh)
-    as(NIKE_HIRING)
+    as(NORTHBEND_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia, clientCompanyId: cavanaugh })))
     expect(r.status).toBe(403)
     expect(r.body.error.message).toMatch(/your own company/i)
@@ -113,7 +113,7 @@ describe('ask them back is written only for a client the caller acts for, and go
   })
 
   it('asking somebody back who never worked at the client is refused in a sentence', async () => {
-    as(CORNING_HIRING)
+    as(CAVANAUGH_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: kwame, clientCompanyId: cavanaugh })))
     expect(r.status).toBe(404)
     expect(r.body.error.message).toContain('has not worked at Cavanaugh Glassworks')
@@ -122,7 +122,7 @@ describe('ask them back is written only for a client the caller acts for, and go
   it('asking Nadia Pavlenko back goes to the supplier Cavanaugh Glassworks paid for her, and none of Cavanaugh’s own people is told it as a supplier', async () => {
     const vertex = await prisma.company.findFirstOrThrow({ where: { name: 'Vertex Global' }, select: { id: true } })
     const since = new Date()
-    as(CORNING_HIRING)
+    as(CAVANAUGH_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia })))
     expect(r.status, JSON.stringify(r.body)).toBe(200)
     expect(r.body.data.clientName).toBe('Cavanaugh Glassworks')
@@ -145,7 +145,7 @@ describe('ask them back is written only for a client the caller acts for, and go
   })
 
   it('the ask-back never names a firm below the rung the client pays', async () => {
-    as(CORNING_HIRING)
+    as(CAVANAUGH_HIRING)
     const r = await json(await askBack(req('POST', '/api/alumni/ask-back', { personId: nadia, clientCompanyId: cavanaugh })))
     expect(r.status).toBe(200)
     const sahasra = await prisma.company.findFirst({ where: { slug: 'world-sahasra' }, select: { name: true } })
@@ -155,7 +155,7 @@ describe('ask them back is written only for a client the caller acts for, and go
 
 describe('whose desk asks somebody back', () => {
   it('a compliance officer may read who worked here before, and is told whose desk asks them back', async () => {
-    as(CORNING_OFFICER)
+    as(CAVANAUGH_OFFICER)
     const list = await json(await alumni(req('GET', '/api/alumni')))
     expect(list.body?.error, JSON.stringify(list.body)).toBeUndefined()
     expect(list.body.data.alumni.some((a: any) => a.name === 'Nadia Pavlenko')).toBe(true)
@@ -171,7 +171,7 @@ describe('whose desk asks somebody back', () => {
 
 describe('the alumni list draws Ask back only for the desk that may ask', () => {
   it('a compliance officer reads who worked here before with no Ask back button, and the sentence says whose desk asks', async () => {
-    as(CORNING_OFFICER)
+    as(CAVANAUGH_OFFICER)
     const r = await json(await alumni(req('GET', '/api/alumni')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect(r.body.data.alumni.find((a: any) => a.name === 'Nadia Pavlenko')?.canReengage, 'the ledger reads her eligible').toBe(true)
@@ -185,7 +185,7 @@ describe('the alumni list draws Ask back only for the desk that may ask', () => 
   })
 
   it('a hiring manager reads the same list with the Ask back button and no sentence', async () => {
-    as(CORNING_HIRING)
+    as(CAVANAUGH_HIRING)
     const r = await json(await alumni(req('GET', '/api/alumni')))
     expect(r.body.data.askBack).toEqual({ mayAsk: true, says: null })
   })
@@ -228,7 +228,7 @@ describe('a Member opening Past contractors sees a page, never an error', () => 
   })
 
   it('a list with people on it says nothing extra', async () => {
-    as(NIKE_OFFICER)
+    as(NORTHBEND_OFFICER)
     const r = await json(await alumni(req('GET', '/api/alumni')))
     expect(r.body.data.alumni.length).toBeGreaterThan(0)
     expect(r.body.data.says).toBeNull()

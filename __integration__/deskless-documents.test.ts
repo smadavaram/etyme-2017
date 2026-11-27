@@ -18,7 +18,7 @@ import { rolesFor } from '@/lib/company-defaults'
  */
 
 const MO = 'mo@walk4-docs.example'
-const HR = 'world-nike-hr@demo.etyme.local'
+const HR = 'world-northbend-hr@demo.etyme.local'
 
 async function act(action: 'sign' | 'upload', id: string, body: unknown) {
   const res: Response = await (action === 'sign' ? sign : upload)(req('POST', `/api/documents/${id}/${action}`, body), { params: Promise.resolve({ id }) })
@@ -34,7 +34,7 @@ describe('a Member with no desk at Northbend Athletic and the firm’s paperwork
 
   beforeAll(async () => {
     await freshWorld()
-    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const firm = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     const role = await prisma.role.findFirstOrThrow({ where: { companyId: firm.id, name: 'Member' }, select: { id: true, permissions: true } })
     expect(role.permissions).toEqual([])
     mo = (await prisma.person.create({ data: { primaryEmail: MO, name: 'Mo Haddad' }, select: { id: true } })).id

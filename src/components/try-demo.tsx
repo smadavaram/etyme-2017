@@ -37,13 +37,13 @@ import { useRouter } from 'next/navigation'
  * who tries both seats is looking at one deal from both ends.
  */
 const WORLD_SEAT: Record<string, { as: string; desk?: string; firm: string }> = {
-  CLIENT: { as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' },
+  CLIENT: { as: 'world-northbend', desk: 'programme', firm: 'Northbend Athletic' },
   MSP:    { as: 'world-aptiva', firm: 'Aptiva Workforce' },
   GSI:    { as: 'world-tellisford', firm: 'Tellisford Solutions' },
   PRIME:  { as: 'world-computer-systems', firm: 'Computer Systems Inc' },
   BENCH:  { as: 'world-tecwyn', firm: 'Tecwyn' },
   // The old buyer's door means the client's chair.
-  HIRING: { as: 'world-nike', desk: 'programme', firm: 'Northbend Athletic' },
+  HIRING: { as: 'world-northbend', desk: 'programme', firm: 'Northbend Athletic' },
 }
 /**
  * Where each door lands when nothing runs the click.

@@ -21,7 +21,7 @@ describe('a sold team: its margin is the supplier’s, and the team stands still
   beforeAll(async () => {
     await freshWorld()
     const seller = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' }, select: { id: true } })
-    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-nike' }, select: { id: true } })
+    const client = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' }, select: { id: true } })
     await prisma.company.update({ where: { id: seller.id }, data: { pluginsOn: ['PODS'] } })
     const acceptor = await prisma.person.findFirstOrThrow({ where: { name: 'Marcus Oyelaran', contexts: { some: { companyId: client.id, revokedAt: null } } }, select: { id: true, primaryEmail: true } })
     s.clientEmail = acceptor.primaryEmail
