@@ -7,7 +7,13 @@
  */
 import type { SkillChecker } from '../checker'
 import { weeklySummaryChecker } from './weekly-summary'
+import { censusClassifyChecker } from './census-classify'
+import { chasePropose } from './chase-propose'
+import { chaseSend } from './chase-send'
 
 export const CHECKERS: Record<string, SkillChecker<any>> = {
   'weekly.summary': weeklySummaryChecker,
+  'census.classify': censusClassifyChecker,
+  'chase.propose': chasePropose,
+  'chase.send': chaseSend,
 }

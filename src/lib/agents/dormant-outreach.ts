@@ -28,6 +28,7 @@ import { sendMail, mailSendsAbout } from '@/lib/notify/mail-door'
 import { unsubscribeUrlFor } from '@/lib/notify/outreach-optout'
 import { baseUrl } from '@/lib/signed-link'
 import { AGENT_HELD_AS, type AgentContext } from './runner'
+import { runSkill } from '@/lib/skills/runner'
 import type { CensusRow, Side } from './census-rules'
 import { TASK_RECORD, approvalOf, closeTask, proposeTask } from './tasks'
 import {
@@ -119,17 +120,22 @@ export async function draftDormantOutreach(ctx: AgentContext, census: { before: 
     }
 
     const card = outreachCard({ ...quiet, postal, today: now, recipient: picked.to, unsubscribeUrl: null })
-    try {
-      const task = await proposeTask({
-        companyId, agentKey: ctx.agentKey, kind: outreachKind(row.side), recordType: OUTREACH_RECORD, recordId: picked.to.id,
-        plan: OUTREACH_PLAN, ownerPersonId: owner, openedOn: now, today: now, question: card.question, detail: card.detail,
-        actingEntityId: entities.length === 1 ? entities[0].id : null,
-      })
-      await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'DORMANT_OUTREACH_PROPOSED', summary: `Drafted a check-in letter for ${row.name} as a ${row.side === 'CUSTOMER' ? 'customer' : 'supplier'}. Nothing is sent until a person says yes.` })
-    } catch (e) {
-      if (e instanceof LedgerRefusal) continue
-      throw e
-    }
+    // One skill run per letter proposed. A refusal by the ledger is the old `continue`, said on the run as a failed call.
+    const { result: proposed } = await runSkill(ctx, 'chase.propose', { recordType: OUTREACH_RECORD, recordId: picked.to.id, unitsPlanned: 1 }, async () => {
+      try {
+        const task = await proposeTask({
+          companyId, agentKey: ctx.agentKey, kind: outreachKind(row.side), recordType: OUTREACH_RECORD, recordId: picked.to.id,
+          plan: OUTREACH_PLAN, ownerPersonId: owner, openedOn: now, today: now, question: card.question, detail: card.detail,
+          actingEntityId: entities.length === 1 ? entities[0].id : null,
+        })
+        await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'DORMANT_OUTREACH_PROPOSED', summary: `Drafted a check-in letter for ${row.name} as a ${row.side === 'CUSTOMER' ? 'customer' : 'supplier'}. Nothing is sent until a person says yes.` })
+        return { result: true }
+      } catch (e) {
+        if (e instanceof LedgerRefusal) return { result: false, verdict: 'FAIL' as const, failReason: e.message.slice(0, 300) }
+        throw e
+      }
+    })
+    if (!proposed) continue
   }
 }
 
@@ -173,15 +179,19 @@ export async function walkOutreach(ctx: AgentContext, rows: () => Promise<readon
 
     if (!(await ctx.mayAct(2))) return // the letter, its row and the close row are one unit
     const letter = outreachLetter({ side, firmName: firm?.name ?? 'We', postal, companyName: row.name, lastActivity: row.lastActivity, today: now, recipient: { name: contact.name }, unsubscribeUrl: url })
-    const res = await send({
-      to: contact.email.trim(), subject: letter.subject, text: letter.text,
-      about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: 1, recordType: OUTREACH_RECORD, recordId: contact.id, template: OUTREACH_TEMPLATE },
+    const { result: res } = await runSkill(ctx, 'chase.send', { recordType: OUTREACH_RECORD, recordId: contact.id, unitsPlanned: 1 }, async () => {
+      const r = await send({
+        to: contact.email!.trim(), subject: letter.subject, text: letter.text,
+        about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: 1, recordType: OUTREACH_RECORD, recordId: contact.id, template: OUTREACH_TEMPLATE },
+      })
+      const sent = r.outcome === 'SENT'
+      await ctx.act({
+        recordType: TASK_RECORD, recordId: task.id, action: sent ? 'DORMANT_OUTREACH_SENT' : 'DORMANT_OUTREACH_NOT_SENT',
+        summary: sent ? `Sent the check-in letter to ${contact.name} at ${row.name}.` : `The check-in letter to ${contact.name} at ${row.name} was not sent: ${r.note}`,
+      })
+      return { result: r }
     })
     const went = res.outcome === 'SENT'
-    await ctx.act({
-      recordType: TASK_RECORD, recordId: task.id, action: went ? 'DORMANT_OUTREACH_SENT' : 'DORMANT_OUTREACH_NOT_SENT',
-      summary: went ? `Sent the check-in letter to ${contact.name} at ${row.name}.` : `The check-in letter to ${contact.name} at ${row.name} was not sent: ${res.note}`,
-    })
     await closeTask(task.id, went ? 'The letter went. One letter, no reminders; anything more is a new task and asks again.' : `No letter could leave: ${res.note} Nothing was sent. A person follows up.`, 'DONE')
   }
 }

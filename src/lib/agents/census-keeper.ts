@@ -20,12 +20,19 @@ import { ownerForRoles } from '@/lib/money/agent-owners'
 import { draftDormantOutreach, walkOutreach } from './dormant-outreach'
 import type { sendMail } from '@/lib/notify/mail-door'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
+import { registerPlan } from './plans'
+import { runSkill } from '@/lib/skills/runner'
 import {
   CENSUS_AGENT, CENSUS_RULE, censusOn, censusProof, censusQuestion, changesBetween, sideOf, weeklyLine,
   type CensusFacts, type Window,
 } from './census-rules'
 
 export const CENSUS_RECORD = 'Company'
+/** What the census skill is about: one firm and the day it was taken (`<companyId>:<yyyy-mm-dd>`). The checker re-reads that day. */
+export const CENSUS_DAY_RECORD = 'COMPANY_DAY'
+
+// The skills this agent runs (record 123), registered where the agent is defined so every door that runs it holds the plan.
+registerPlan({ agentKey: CENSUS_AGENT, skills: ['census.classify', 'chase.propose', 'chase.send'], outputSkill: 'census.classify' })
 const NOT_A_CONTRACT = ['DRAFT', 'CANCELLED']
 const weekStart = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - d.getUTCDay()))
 
@@ -84,11 +91,17 @@ export async function censusKeeperStep(ctx: AgentContext, deps: { send?: typeof 
   const done = await prisma.recordAction.count({ where: { companyId, agentKey: ctx.agentKey, action: 'CENSUS_WEEKLY', createdAt: { gte: from } } })
   if (done > 0) return
   if (!(await ctx.mayAct())) return
-  const facts = await censusFacts(companyId)
-  const rows = censusOn(facts, now)
-  const before = censusOn(facts, new Date(now.getTime() - 7 * 86_400_000))
-  const changes = changesBetween(before, rows)
-  await ctx.act({ recordType: CENSUS_RECORD, recordId: companyId, action: 'CENSUS_WEEKLY', summary: weeklyLine(rows, changes, from) })
+  const { result: counted } = await runSkill(ctx, 'census.classify',
+    { recordType: CENSUS_DAY_RECORD, recordId: `${companyId}:${now.toISOString().slice(0, 10)}` },
+    async () => {
+      const facts = await censusFacts(companyId)
+      const rows = censusOn(facts, now)
+      const before = censusOn(facts, new Date(now.getTime() - 7 * 86_400_000))
+      const changes = changesBetween(before, rows)
+      await ctx.act({ recordType: CENSUS_RECORD, recordId: companyId, action: 'CENSUS_WEEKLY', summary: weeklyLine(rows, changes, from) })
+      return { result: { rows, before, changes }, unitsPlanned: rows.length }
+    })
+  const { rows, before, changes } = counted
   // A company gone quiet gets a draft check-in on a card; a person sends it.
   await draftDormantOutreach(ctx, { before, after: rows })
   if (changes.length === 0) return
