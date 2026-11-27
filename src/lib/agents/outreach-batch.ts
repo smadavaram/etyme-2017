@@ -21,12 +21,17 @@ import { sendMail, mailSendsAboutMany } from '@/lib/notify/mail-door'
 import { unsubscribeUrlFor } from '@/lib/notify/outreach-optout'
 import { interestedUrlFor } from '@/lib/notify/outreach-interest'
 import { postalLine } from './dormant-outreach-rules'
-import { TASK_RECORD, approvalOf, closeTask, mayAgentSend } from './tasks'
+import { TASK_RECORD, approvalOf, closeTask, mayAgentSend, outreachPause } from './tasks'
+import { registerPlan } from './plans'
+import { runSkill } from '@/lib/skills/runner'
 import { registerAgent, type AgentContext, type AgentDef } from './runner'
 import {
   OUTREACH_BATCH_AGENT, OUTREACH_BATCH_KIND, OUTREACH_BATCH_RULE, OUTREACH_BATCH_TEMPLATE, OUTREACH_LETTER_TYPE,
   batchBlock, buildLetter, letterDue, letterOpen, settleLetter, stopFor,
 } from '@/lib/outreach/batch-rules'
+
+// The skill this agent runs (record 123). The batch is raised by a person from Companies, Outreach, so the agent only sends.
+registerPlan({ agentKey: OUTREACH_BATCH_AGENT, skills: ['chase.send'], outputSkill: 'chase.send' })
 
 const OPEN = ['PROPOSED', 'APPROVED', 'RUNNING'] as const
 
@@ -48,6 +53,7 @@ export async function walkOutreachBatches(ctx: AgentContext, deps: { send?: type
     const { task } = await approvalOf(t0.id)
     if (task.state !== 'APPROVED' && task.state !== 'RUNNING') continue // nothing is sent before a person's yes
     if (ctx.mode !== 'ON') continue // Drafts only: nothing is sent, even after a yes.
+    if (await outreachPause(task)) continue // Outreach is off: the batch waits under its yes (record 123, answer 5)
     const block = batchBlock({ postal, base: baseUrl() })
     if (block || !postal || !firm) { await closeTask(task.id, `${block?.says ?? 'The firm has no postal address on record.'} Nothing more is sent.`, 'STOPPED'); continue }
     const payload = (task.payload ?? {}) as { subject?: string; body?: string }
@@ -88,10 +94,12 @@ export async function walkOutreachBatches(ctx: AgentContext, deps: { send?: type
       // Claim the letter first, so two runs at once can never both send it: only the run whose claim moves it sends.
       const claimed = await prisma.outreachLetter.updateMany({ where: { id: l.id, state: l.state, attempt: l.attempt }, data: { attempt: l.attempt + 1, nextDueAt: null } })
       if (claimed.count !== 1) continue
-      const res = await send({
-        to: email, subject: letter.subject, text: letter.text,
-        about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: l.attempt + 1, recordType: OUTREACH_LETTER_TYPE, recordId: l.id, template: OUTREACH_BATCH_TEMPLATE },
-      })
+      const { result: res } = await runSkill(ctx, 'chase.send', { recordType: OUTREACH_LETTER_TYPE, recordId: l.id, unitsPlanned: 1 }, async () => ({
+        result: await send({
+          to: email, subject: letter.subject, text: letter.text,
+          about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: l.attempt + 1, recordType: OUTREACH_LETTER_TYPE, recordId: l.id, template: OUTREACH_BATCH_TEMPLATE },
+        }),
+      }))
       if (res.outcome === 'NOT_CONFIGURED') { // nothing can leave this deployment; the letter is let go and stays as it was
         await prisma.outreachLetter.update({ where: { id: l.id }, data: { attempt: l.attempt, nextDueAt: l.nextDueAt } })
         return

@@ -14,10 +14,12 @@ import type { PrismaClient } from '@prisma/client'
 import { TIMESHEET_CHASE_KIND } from '@/lib/agents/timesheet-chase-rules'
 import { skillOf } from '../registry'
 import { dueWeek, filedAsOf } from './timesheet-week'
+import { chaseSendLetter, isBatchLetterRef } from './chase-letter'
 import { type CheckerResult, type SkillChecker } from '../checker'
 
 export const chaseSend: SkillChecker<PrismaClient> = async (companyId, skillKey, window, refs, read): Promise<CheckerResult> => {
   const ref = refs[0]
+  if (isBatchLetterRef(ref)) return chaseSendLetter(companyId, window, ref, read)
   const kinds = skillOf(skillKey)?.taskKinds ?? []
   const rows = await read.mailSend.findMany({
     where: { companyId, recordType: ref?.recordType, recordId: ref?.recordId, agentTaskId: { not: null }, createdAt: { gte: window.from, lte: window.to } },

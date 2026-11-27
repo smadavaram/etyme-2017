@@ -16,13 +16,14 @@ import { mailSendsAbout, mailSendsAboutMany } from '@/lib/notify/mail-door'
 import { censusFacts } from '@/lib/agents/census-keeper'
 import { censusOn, type Side } from '@/lib/agents/census-rules'
 import { postalLine, outreachKind, OUTREACH_RECORD, OUTREACH_TEMPLATE } from '@/lib/agents/dormant-outreach-rules'
-import { proposeTask, approvalOf } from '@/lib/agents/tasks'
+import { proposeTask, approvalOf, planSellsLetters, outreachPausedSays } from '@/lib/agents/tasks'
+import { outreachHeld } from '@/lib/plugins'
 import { stoppedSays } from '@/lib/agents/control-view'
 import { agentNameOf } from '@/lib/decision-queue'
 import { standingWith, lacksPosition } from '@/app/api/companies/positions'
 import { AUDIENCE_LABELS, buildAudience, sideOfAudience, type Audience, type PoolCompany, type PoolContact } from './audience-rules'
 import {
-  OUTREACH_BATCH_AGENT, OUTREACH_BATCH_KIND, batchBlock, batchCard, batchPlan, buildLetter, countsOf, letterWords, readBatchAsk,
+  OUTREACH_BATCH_AGENT, OUTREACH_BATCH_KIND, OUTREACH_BATCH_TEMPLATE, batchBlock, batchCard, batchPlan, buildLetter, countsOf, letterWords, readBatchAsk,
   type BatchAsk,
 } from './batch-rules'
 
@@ -211,7 +212,8 @@ export async function batchView(companyId: string, id: string, now: Date = new D
   if (!found) return null
   const { task } = await approvalOf(id)
   const payload = (task.payload ?? {}) as { audience?: Audience; offerKind?: keyof typeof OFFER_LABELS; subject?: string; held?: { companyName: string; reason: string; says: string }[] }
-  const [letters, sw, card] = await Promise.all([
+  const [firm, letters, sw, card] = await Promise.all([
+    prisma.company.findUnique({ where: { id: companyId }, select: { name: true, pluginsOn: true } }),
     prisma.outreachLetter.findMany({ where: { agentTaskId: id }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
     prisma.agentSwitch.findUnique({ where: { companyId_agentKey: { companyId, agentKey: task.agentKey } } }),
     prisma.decisionItem.findUnique({ where: { id: task.decisionId }, select: { id: true, state: true, question: true } }),
@@ -239,11 +241,14 @@ export async function batchView(companyId: string, id: string, now: Date = new D
     sends: sends.map((s) => ({ recordId: s.recordId, outcome: s.outcome })),
   })
   const switchState = (sw?.state ?? 'OFF') as 'OFF' | 'DRAFT_ONLY' | 'ON'
+  // Paused under its own yes while the firm's Outreach is off: the control list's sentence, read without writing a row.
+  const paused = (task.state === 'APPROVED' || task.state === 'RUNNING') && planSellsLetters(task.plan) && outreachHeld(firm?.pluginsOn, OUTREACH_BATCH_TEMPLATE)
+    ? outreachPausedSays(firm?.name ?? 'your firm') : null
   return {
     id, state: task.state, subject: payload.subject ?? null, audience: payload.audience ? AUDIENCE_LABELS[payload.audience] : null,
     offer: payload.offerKind ? OFFER_LABELS[payload.offerKind] : null, createdAt: task.createdAt, closedReason: task.closedReason,
     card: card ? { id: card.id, state: card.state } : null,
-    stopped: stoppedSays(task.state, switchState, agentNameOf(task.agentKey)),
+    stopped: stoppedSays(task.state, switchState, agentNameOf(task.agentKey)) ?? paused, paused,
     counts, rows, held: payload.held ?? [], daysOld: Math.floor((now.getTime() - task.createdAt.getTime()) / DAYS),
   }
 }

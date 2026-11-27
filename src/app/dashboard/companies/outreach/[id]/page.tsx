@@ -17,7 +17,7 @@ import { ErrorState, LoadingState, PageHead, Panel, Stat } from '@/components/ui
 
 interface View {
   id: string; state: string; subject: string | null; audience: string | null; offer: string | null; closedReason: string | null
-  card: { id: string; state: string } | null; stopped: string | null
+  card: { id: string; state: string } | null; stopped: string | null; pausedHref: string | null
   counts: { contacts: number; sent: number; interested: number; unsubscribed: number; bounced: number; waiting: number }
   rows: { id: string; name: string; email: string; companyName: string; times: number; interested: boolean; unsubscribed: boolean; bounced: boolean; says: string }[]
   held: { companyName: string; says: string }[]
@@ -54,7 +54,11 @@ export default function OutreachBatchPage() {
         subtitle={`${view.audience ?? ''}${view.offer ? ` · ${view.offer}` : ''}. ${STATE[view.state] ?? ''}${view.closedReason ? ` ${view.closedReason}` : ''}`.trim()}
         actions={<Link className="text-[13px] text-etyme-action" href={'/dashboard/companies/outreach' as Route}>All batches</Link>}
       />
-      {view.stopped && <p className="mb-4 text-[13px] text-etyme-attention">{view.stopped}</p>}
+      {view.stopped && (
+        <p className="mb-4 text-[13px] text-etyme-attention">
+          {view.stopped}{view.pausedHref && <> <Link className="text-etyme-action" href={view.pausedHref as Route}>Open Settings</Link></>}
+        </p>
+      )}
       {view.state === 'PROPOSED' && view.card && (
         <p className="mb-4 text-[13px] text-etyme-muted">The one yes is on a card for the Account Manager, or the Owner. <Link className="text-etyme-action" href={'/dashboard' as Route}>Open the decisions</Link>.</p>
       )}

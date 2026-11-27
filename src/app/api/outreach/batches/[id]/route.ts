@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { queueSeat, refused } from '../../../decision-items/door'
 import { batchView } from '@/lib/outreach/batch'
+import { OUTREACH_SETTINGS_HREF } from '@/lib/agents/tasks'
 
 /**
  * GET /api/outreach/batches/:id  one batch, counted per contact
@@ -21,5 +22,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const view = await batchView(seat.companyId, id)
   if (!view) return refused(404, 'That batch is not one of this firm’s.')
-  return NextResponse.json({ data: view })
+  // Only the Owner may turn Outreach on, so only the Owner is shown the way to it.
+  return NextResponse.json({ data: { ...view, pausedHref: view.paused && seat.roleName === 'Owner' ? OUTREACH_SETTINGS_HREF : null } })
 }
