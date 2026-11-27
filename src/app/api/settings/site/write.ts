@@ -15,19 +15,16 @@
  *     written from the fixed templates (`writeFromRules`), nothing is
  *     sent, and the note says why in a sentence naming where the switch is.
  *   - The switch on: the model writes it from the facts, and the facts
- *     that left and the words that came back are logged through
- *     `recordModelPrompt` as SITE_PAGE. Where no usable answer came back,
+ *     that left and the words that came back are logged by the model
+ *     gateway (`callModel`) as SITE_PAGE, under the register's label. Where no usable answer came back,
  *     the rules write the page and the log says so.
  *
  * Split from the route so a unit test holds it with the switch, the
  * writer and the log handed in.
  */
-import { modelOnFor, recordModelPrompt, type PromptToRecord } from '@/lib/model-boundary'
-import { modelFor } from '@/lib/model-ids'
-import { modelAvailable, writeFromRules, writeWithModel, DEFAULT_HEADINGS, type SiteFacts, type SiteVoice } from '@/lib/site-voice'
+import { modelOnFor } from '@/lib/model-boundary'
+import { modelAvailable, writeFromRules, writeWithModel, DEFAULT_HEADINGS, type SiteDoor, type SiteFacts, type SiteVoice } from '@/lib/site-voice'
 
-/** What lib/site-voice sends to. Logged beside each prompt; kept in step with lib/site-voice by hand. */
-export const SITE_MODEL = modelFor('READ')
 /** The prompt log's purpose for a firm's public page. */
 export const SITE_PURPOSE = 'SITE_PAGE'
 
@@ -45,9 +42,9 @@ export const SITE_SAY = {
 export interface WriteDeps {
   modelOn(companyId: string): Promise<boolean>
   writerSetUp(): boolean
-  model(facts: SiteFacts): Promise<SiteVoice | null>
+  /** Goes through the model gateway, which writes the prompt log under the register's label. */
+  model(facts: SiteFacts, who: SiteDoor): Promise<SiteVoice | null>
   rules(facts: SiteFacts): SiteVoice
-  record(p: PromptToRecord): Promise<unknown>
 }
 
 export const liveDeps: WriteDeps = {
@@ -55,7 +52,6 @@ export const liveDeps: WriteDeps = {
   writerSetUp: modelAvailable,
   model: writeWithModel,
   rules: writeFromRules,
-  record: recordModelPrompt,
 }
 
 /** What leaves for the model, as the log keeps it: the facts the writer is handed, each on its own line. Pure. */
@@ -96,19 +92,8 @@ export async function writePage(
   const may = await modelWritesFor(a.companyId, deps)
   if (!may.yes) return { ...deps.rules(a.facts), note: may.says!, asked: false }
 
-  const voice = await deps.model(a.facts).catch(() => null)
-  // Logged whether or not the answer could be used: the facts left either way.
-  await deps.record({
-    companyId: a.companyId,
-    personId: a.personId,
-    provider: 'anthropic',
-    model: SITE_MODEL,
-    purpose: SITE_PURPOSE,
-    maskedPrompt: `Public page: ${a.facts.name}\n---\n${factsThatLeave(a.facts)}`,
-    maskedAnswer: voice
-      ? JSON.stringify({ tagline: voice.tagline, intro: voice.intro, headings: voice.headings })
-      : SITE_SAY.answerNotUsed,
-  })
+  // The gateway logs the prompt and the answer, whether or not the answer could be used.
+  const voice = await deps.model(a.facts, { companyId: a.companyId, personId: a.personId }).catch(() => null)
   if (!voice) return { ...deps.rules(a.facts), note: SITE_SAY.noUsableAnswer, asked: true }
   return { ...voice, asked: true }
 }
