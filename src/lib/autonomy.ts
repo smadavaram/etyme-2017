@@ -167,6 +167,11 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RECORDED',
     says: 'It scored people against an open job nobody had matched yet. Scores only — nobody is submitted until a recruiter does it.',
   },
+  LEARNING_PATH_PROPOSED: {
+    rung: 'L1',
+    basis: 'RULE',
+    says: 'A learning path was drafted for a worker, from her record or from the goal she stated. It is not live until its mentor says yes.',
+  },
   ROLLOFF_SCAN: {
     rung: 'L2',
     basis: 'RULE',
@@ -686,6 +691,13 @@ ATTRIBUTED.BENCH_INVITATION_RESENT = { basis: 'RECORDED' }
 // A firm's own employee finishing a course is told she is on its bench: the finish is a person's act, the row records that she was told (record 120).
 ATTRIBUTED.BENCH_ASK_EMPLOYEE_TOLD = { basis: 'RECORDED' }
 ATTRIBUTED.BENCH_STAY_RENEW_ASKED = { basis: 'RECORDED' }
+// The training micro-site (record 133). Each is a person's act and the row records it: a firm adopting or copying a course, a learner asking to join, a worker finishing a track, a mentor adjusting or approving a path. Not reversible.
+ATTRIBUTED.COURSE_ADOPTED = { basis: 'RECORDED' }
+ATTRIBUTED.COURSE_MADE_FROM_SOURCE = { basis: 'RECORDED' }
+ATTRIBUTED.LEARNER_ASKED_TO_JOIN = { basis: 'RECORDED' }
+ATTRIBUTED.LEARNING_COMPLETED = { basis: 'RECORDED' }
+ATTRIBUTED.LEARNING_PATH_ADJUSTED = { basis: 'RECORDED' }
+ATTRIBUTED.LEARNING_PATH_APPROVED = { basis: 'RECORDED' }
 
 // A person withdrew a draft bill nobody had sent — usually the supplier's
 // twin's draft — with a reason (lib/money/bill-withdraw, 2026-10-18). A

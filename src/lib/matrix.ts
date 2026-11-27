@@ -521,8 +521,8 @@ export const MATRIX: L1[] = [
           testedBy: ['__tests__/invariants/train-to-bench-screen-faults.test.ts', '__tests__/invariants/train-to-bench-rules.test.ts', '__tests__/invariants/train-to-bench-proof.test.ts', '__integration__/train-to-bench-happy-path.test.ts',
             '__integration__/train-to-bench-email-link-and-seats.test.ts', '__integration__/train-to-bench-review-fixes.test.ts', '__tests__/invariants/courses-on-storefront.test.ts', '__tests__/invariants/courses-hidden-switch.test.ts',
             '__tests__/invariants/plugin-switch.test.ts', '__integration__/the-owners-plugin-switch-writes-the-flag-and-the-row-together.test.ts'] },
-        // The training micro-site (record 133): its own route tree under the plugin switch. Schema only so far: Course provenance, CourseAdoption, LearningPath, Enrollment.companyId/adoptionId/trackKey/progress.
-        { code: 'L3.1.2.13', name: 'Training micro-site: a learner opens one question, takes her track one lesson per screen, free and without signing in, and a signed-in worker’s progress writes to her record', owner: 'Recruiter', status: S,
+        // The training micro-site (record 133): its own route tree under the plugin switch. Built 2026-11-27: routes, screens and the IT track. Open: the learner home's Due line is a stub ("Nothing is due"); Kids, Entry Level and Non-IT read "Not live yet"; no browser case yet.
+        { code: 'L3.1.2.13', name: 'Training micro-site: a learner opens one question, takes her track one lesson per screen, free and without signing in, and a signed-in worker’s progress writes to her record', owner: 'Recruiter', status: P,
           tasks: [
             'A separate route tree under /learn in the tenant’s own branding; the core dashboard keeps one door link where Training sat; while the plugin is off the tree reads as no firm',
             'The opening screen asks “What are you?” with four cards (Kids/student, Entry Level, Non-IT, IT — Upgrade); the answer routes; no catalog; “Version: Dec 2026” is one constant read by the opening screen, the track sidebars and the footer',
@@ -532,9 +532,9 @@ export const MATRIX: L1[] = [
             'No screen under /learn shows or implies a price; a lesson with no video reads “Video coming” and still works',
             'Function-ready is reported by builders; the owner’s UI seat accepts the look',
           ],
-          implementedBy: [],
-          testedBy: [] },
-        { code: 'L3.1.2.14', name: 'Training paths: a path is made from the record or from a prompt, and a named mentor’s yes makes it live', owner: 'Recruiter', status: S,
+          implementedBy: ['src/app/learn/[tenant]/page.tsx', 'src/app/learn/[tenant]/home/page.tsx', 'src/app/learn/[tenant]/layout.tsx', 'src/app/learn/_components/micro-home.tsx', 'src/app/api/learn/[tenant]/progress/route.ts', 'src/app/api/learn/[tenant]/join/route.ts', 'src/lib/training/learn-gate.ts', 'src/lib/training/learn-db.ts'],
+          testedBy: ['__tests__/invariants/learn-micro-site.test.ts', '__integration__/learn-micro-site.test.ts'] },
+        { code: 'L3.1.2.14', name: 'Training paths: a path is made from the record or from a prompt, and a named mentor’s yes makes it live', owner: 'Recruiter', status: B,
           tasks: [
             'A path records how it was made: generation type, source prompt or record signals, mentor, video source',
             'A system path is made by rules from role, skills, bench status, requirements, gaps and prior completions',
@@ -542,18 +542,18 @@ export const MATRIX: L1[] = [
             'A prompt-generated path is not live until the mentor says yes; the mentor assigns, adjusts and reviews',
             'Completion writes back to the worker’s record and the ledger',
           ],
-          implementedBy: [],
-          testedBy: [] },
-        { code: 'L3.1.2.15', name: 'Training adoption: a company adopts another’s course for its own teams, and the creator reads counts only', owner: 'Recruiter', status: S,
+          implementedBy: ['src/app/api/learn/paths/route.ts', 'src/app/api/learn/paths/[id]/route.ts', 'src/lib/training/paths/system.ts', 'src/lib/training/paths/prompt.ts', 'src/lib/training/paths/state.ts', 'src/lib/training/learn-db.ts'],
+          testedBy: ['__tests__/invariants/learn-micro-site.test.ts', '__integration__/learn-micro-site.test.ts'] },
+        { code: 'L3.1.2.15', name: 'Training adoption: a company adopts another’s course for its own teams, and the creator reads counts only', owner: 'Recruiter', status: B,
           tasks: [
             'A course stays owned by the company that made it; adopting it creates assignments and paths inside the adopter’s company',
             'Progress and completions live on the adopter’s record; the creator reads aggregate completion counts only unless the adoption grants named evidence',
             'A company may create its own course from another’s; the new course is its own, with source course and supplier in its provenance',
             'The mentor may be the creator’s or the adopter’s; no price appears anywhere',
           ],
-          implementedBy: [],
-          testedBy: [] },
-        { code: 'L3.1.2.16', name: 'First course, one per track: nine chapters in three levels, a project closing each level, built IT first', owner: 'Recruiter', status: S,
+          implementedBy: ['src/app/api/learn/adopt/route.ts', 'src/app/api/learn/adoptions/route.ts', 'src/app/api/learn/courses/from-source/route.ts', 'src/lib/training/adoption.ts', 'src/lib/training/cohort-read.ts'],
+          testedBy: ['__tests__/invariants/learn-micro-site.test.ts', '__integration__/learn-micro-site.test.ts'] },
+        { code: 'L3.1.2.16', name: 'First course, one per track: nine chapters in three levels, a project closing each level, built IT first', owner: 'Recruiter', status: P,
           tasks: [
             'Four tracks: Kids/student, Entry Level, Non-IT, IT — Upgrade; IT — Upgrade is built first (chatbot, then answering from documents, then an agent)',
             'Each track has nine chapters in three levels (Simple, Medium, Complex), three chapters each, and one hands-on project closes each level',
@@ -561,8 +561,8 @@ export const MATRIX: L1[] = [
             'No lesson uses a term before the step that builds it; each lesson has an intro, an example, a try-it judged by deterministic rules and an exercise with a one-line reason',
             'Original words and graphics only; no real company, product or website is named',
           ],
-          implementedBy: [],
-          testedBy: [] },
+          implementedBy: ['src/lib/training/courses/it-upgrade.ts', 'src/lib/training/courses/it-upgrade-simple.ts', 'src/lib/training/courses/it-upgrade-medium.ts', 'src/lib/training/courses/it-upgrade-complex.ts', 'src/lib/training/courses/shape.ts', 'src/lib/training/courses/try-it.ts', 'src/lib/training/courses/opening.ts'],
+          testedBy: ['__tests__/invariants/learn-micro-site.test.ts', '__tests__/invariants/learn-it-upgrade-simple.test.ts', '__tests__/invariants/learn-it-upgrade-medium.test.ts', '__tests__/invariants/learn-it-upgrade-complex.test.ts'] },
         // Project teams (record 120, pods): a plugin, off by default. Schema and menu only so far.
         { code: 'L3.1.2.11', name: 'Project teams: a named team is sold as a project, the client\u2019s named acceptor decides each deliverable, and the milestone bill comes from the existing chain', owner: 'Account manager', status: P,
           tasks: [
