@@ -46,7 +46,7 @@ export async function saveProgress(o: { tenantId: string; tenantName: string; tr
     select: { id: true, status: true },
   })
   // Her path: the mentor's yes already made it hers. Starting and finishing follow the lessons.
-  const path = await prisma.learningPath.findFirst({ where: { personId: o.personId, companyId: o.tenantId, courseId: c.id, state: { in: ['APPROVED', 'ACTIVE'] } }, orderBy: { createdAt: 'desc' } })
+  const path = await prisma.learningPath.findFirst({ where: { personId: o.personId, companyId: o.tenantId, OR: [{ courseId: c.id }, { course: { trackKey: o.trackKey } }], state: { in: ['APPROVED', 'ACTIVE'] } }, orderBy: { createdAt: 'desc' } })
   if (path) {
     const move = complete ? (path.state === 'APPROVED' ? 'start' : 'complete') : 'start'
     const n = pathNext(path.state, move)

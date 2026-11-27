@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db'
 import { lookFor, type SiteLook } from '@/lib/public-site/site-look'
 import { learnOpen } from './learn-gate'
+import { readVideo, type LessonVideoView } from './video'
+import { mayShowCredential, type CredentialRefusal } from './credential'
 
 export interface LearnTenant { id: string; name: string; slug: string; look: SiteLook }
 
@@ -20,4 +22,36 @@ export async function learnTenant(slug: string): Promise<LearnTenant | null> {
   })
   if (!c || !learnOpen(c)) return null
   return { id: c.id, name: c.name, slug: c.slug, look: lookFor(c) }
+}
+
+/** The video a firm anchored to one lesson, or null. Read by the lesson page; nothing is fetched from the link. */
+export async function videoFor(tenantId: string, trackKey: string, lessonKey: string): Promise<LessonVideoView | null> {
+  const row = await prisma.lessonVideo.findFirst({
+    where: { companyId: tenantId, lessonKey, course: { trackKey } },
+    select: { sourceUrl: true, startSec: true, endSec: true, steps: true, frames: true },
+  })
+  return readVideo(row)
+}
+
+export interface CredentialView { courseTitle: string; issuer: string; learnerName: string; completedAt: Date; code: string; certId: string }
+
+/**
+ * The public credential page's one reader. It checks the code against the
+ * record each time: the plugin, the code, the firm, a COMPLETED enrollment,
+ * her yes and no revoke. Any refusal is returned with its reason; the page
+ * shows all of them as no page.
+ */
+export async function readCredential(slug: string, code: string): Promise<{ ok: true; view: CredentialView; tenantSlug: string } | { ok: false; reason: CredentialRefusal }> {
+  const c = await prisma.company.findFirst({ where: { OR: [{ slug }, { subdomainAliases: { some: { subdomain: slug } } }] }, select: { id: true, name: true, slug: true, pluginsOn: true } })
+  if (!c) return { ok: false, reason: 'PLUGIN_OFF' }
+  const row = code ? await prisma.learnCredential.findUnique({
+    where: { verificationCode: code },
+    select: { companyId: true, shownAt: true, revokedAt: true, verificationCode: true, enrollment: { select: { status: true, completedAt: true, course: { select: { title: true } }, person: { select: { name: true } } } } },
+  }) : null
+  const may = mayShowCredential({ pluginOn: learnOpen(c), row, tenantId: c.id, enrollmentStatus: row?.enrollment.status })
+  if (!may.ok || !row) return { ok: false, reason: may.ok ? 'NO_SUCH_CODE' : may.reason }
+  return {
+    ok: true, tenantSlug: c.slug,
+    view: { courseTitle: row.enrollment.course.title, issuer: c.name, learnerName: row.enrollment.person.name, completedAt: row.enrollment.completedAt ?? row.shownAt!, code: row.verificationCode, certId: row.verificationCode },
+  }
 }

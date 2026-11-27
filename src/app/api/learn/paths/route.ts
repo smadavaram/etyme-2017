@@ -95,3 +95,23 @@ export async function POST(request: NextRequest) {
   })
   return NextResponse.json({ data: { id: row.id, state: 'PROPOSED', steps, madeBy: by, says: 'Proposed. It is not live until its mentor says yes.' } }, { status: 201 })
 }
+
+/**
+ * GET /api/learn/paths  — the mentor's queue: every path waiting for this
+ * seat's yes, with the learner's name and what is already due. Only paths
+ * naming the caller as mentor, at the caller's firm.
+ */
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const notStaff = staffOnly(caller, 'Training')
+  if (notStaff) return notStaff
+  const off = await pluginGate(caller, 'TRAIN_TO_BENCH')
+  if (off) return off
+  const rows = await prisma.learningPath.findMany({
+    where: { companyId: caller.company!.id, mentorPersonId: caller.person.id, state: 'PROPOSED' },
+    orderBy: { createdAt: 'asc' }, take: 100,
+    select: { id: true, steps: true, dueOn: true, stepDues: true, generationType: true, person: { select: { name: true } } },
+  })
+  return NextResponse.json({ data: rows.map((r) => ({ id: r.id, learner: r.person.name, lessons: Array.isArray(r.steps) ? (r.steps as string[]).length : 0, dueOn: r.dueOn ? r.dueOn.toISOString().slice(0, 10) : null, madeBy: r.generationType })) })
+}

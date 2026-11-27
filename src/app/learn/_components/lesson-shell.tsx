@@ -2,15 +2,17 @@
 import { useState } from 'react'
 import type { Track } from '@/lib/training/courses/types'
 import { evaluateTryIt, checkExercise, type TryResult } from '@/lib/training/courses/try-it'
-import { videoSlotWords } from '@/lib/training/courses/shape'
+import type { LessonVideoView } from '@/lib/training/video'
 import { percentDone } from '@/lib/training/learn-progress'
 import { useProgress } from './use-progress'
 import { JoinPanel } from './join-panel'
+import { VideoSlot } from './video-slot'
+import { CredentialPanel } from './credential-panel'
 
-type Props = { tenant: string; firm: string; version: string; track: Track; lessonKey: string }
+type Props = { tenant: string; firm: string; version: string; track: Track; lessonKey: string; video?: LessonVideoView | null }
 
 /** One lesson per screen, with its track's chapters beside it (a drawer on a phone). */
-export function LessonShell({ tenant, firm, version, track, lessonKey }: Props) {
+export function LessonShell({ tenant, firm, version, track, lessonKey, video = null }: Props) {
   const flat = track.levels.flatMap((lv) => lv.chapters.flatMap((ch) => ch.lessons.map((l) => ({ l, level: lv.title, chapter: ch.title }))))
   const keys = flat.map((f) => f.l.key)
   const i = keys.indexOf(lessonKey)
@@ -70,7 +72,7 @@ export function LessonShell({ tenant, firm, version, track, lessonKey }: Props) 
         <div className="hidden md:block">{side}</div>
       </aside>
       <article>
-        {cur && <Lesson key={cur.l.key} lesson={cur.l} label={`${cur.level} · ${cur.chapter}`} Nav={Nav} onRight={() => finish(cur.l.key)} done={progress.done.includes(cur.l.key)} />}
+        {cur && <Lesson key={cur.l.key} video={video} lesson={cur.l} label={`${cur.level} · ${cur.chapter}`} Nav={Nav} onRight={() => finish(cur.l.key)} done={progress.done.includes(cur.l.key)} />}
         {track.levels.map((lv) => (
           <details key={lv.key} className="mt-4 learn-example">
             <summary className="cursor-pointer font-semibold">Project: {lv.project.title}</summary>
@@ -86,6 +88,7 @@ export function LessonShell({ tenant, firm, version, track, lessonKey }: Props) 
           <>
             <div className="mt-6"><h2 className="text-lg font-semibold">What you are now good at</h2><ul className="list-disc pl-5">{track.goodAt.map((g) => <li key={g}>{g}</li>)}</ul></div>
             {track.recap && <div className="mt-4"><h2 className="text-lg font-semibold">What you did</h2><ul className="list-disc pl-5">{track.recap.map((r) => <li key={r.goodAt}><strong>{r.goodAt}.</strong> {r.youDid}</li>)}</ul></div>}
+            {signedIn && <CredentialPanel tenant={tenant} track={track.key} />}
             <JoinPanel tenant={tenant} firm={firm} signedIn={signedIn} />
           </>
         )}
@@ -94,7 +97,7 @@ export function LessonShell({ tenant, firm, version, track, lessonKey }: Props) 
   )
 }
 
-function Lesson({ lesson: l, label, Nav, onRight, done }: { lesson: Track['levels'][0]['chapters'][0]['lessons'][0]; label: string; Nav: (p: { pos: string }) => JSX.Element; onRight: () => void; done: boolean }) {
+function Lesson({ lesson: l, label, Nav, onRight, done, video }: { video: LessonVideoView | null; lesson: Track['levels'][0]['chapters'][0]['lessons'][0]; label: string; Nav: (p: { pos: string }) => JSX.Element; onRight: () => void; done: boolean }) {
   const [input, setInput] = useState(l.tryIt.starter)
   const [result, setResult] = useState<TryResult | null>(null)
   const [picked, setPicked] = useState<number | null>(null)
@@ -105,7 +108,7 @@ function Lesson({ lesson: l, label, Nav, onRight, done }: { lesson: Track['level
       <Nav pos="top" />
       <h1 className="text-2xl mb-2" style={{ fontFamily: "'Iowan Old Style', Palatino, Georgia, serif" }}>{l.title}</h1>
       <p className="max-w-prose">{l.intro}</p>
-      <div className="learn-video mt-4" data-video>{videoSlotWords(l.video)}</div>
+      <VideoSlot video={video} />
       <h2 className="text-lg font-semibold mt-6 mb-2">Example</h2>
       <div className="learn-example"><p className={l.example.mono ? 'learn-mono' : ''}>{l.example.text}</p></div>
       <h2 className="text-lg font-semibold mt-6 mb-2">Try it Yourself</h2>
