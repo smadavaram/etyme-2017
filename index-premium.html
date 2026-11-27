@@ -1,0 +1,814 @@
+<title>Etyme</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+:root {
+  --navy: #0f172a;
+  --slate-950: #0f172a;
+  --slate-900: #0f172a;
+  --slate-800: #1e293b;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --slate-300: #cbd5e1;
+  --slate-200: #e2e8f0;
+  --slate-100: #f1f5f9;
+  --slate-50: #f8fafc;
+
+  --primary: #0066cc;
+  --primary-dark: #0052a3;
+  --primary-light: #e6f2ff;
+
+  --accent-teal: #06b6d4;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --critical: #ef4444;
+
+  --white: #ffffff;
+  --black: #000000;
+
+  --border-light: #e2e8f0;
+  --border-dark: #334155;
+
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -1px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 10px 10px -5px rgba(15, 23, 42, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy: #0f172a;
+    --slate-950: #020617;
+    --slate-900: #0f172a;
+    --slate-800: #1e293b;
+    --slate-700: #334155;
+    --slate-600: #475569;
+    --slate-500: #64748b;
+    --slate-400: #94a3b8;
+    --slate-300: #cbd5e1;
+    --slate-200: #e2e8f0;
+    --slate-100: #f1f5f9;
+    --slate-50: #f8fafc;
+
+    --primary: #3b82f6;
+    --primary-dark: #1d4ed8;
+    --primary-light: #0f172a;
+
+    --accent-teal: #06b6d4;
+    --white: #0f172a;
+    --black: #f8fafc;
+    --border-light: #334155;
+    --border-dark: #64748b;
+  }
+}
+
+:root[data-theme="dark"] {
+  --navy: #0f172a;
+  --slate-950: #020617;
+  --slate-900: #0f172a;
+  --slate-800: #1e293b;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --slate-300: #cbd5e1;
+  --slate-200: #e2e8f0;
+  --slate-100: #f1f5f9;
+  --slate-50: #f8fafc;
+
+  --primary: #3b82f6;
+  --primary-dark: #1d4ed8;
+  --primary-light: #0f172a;
+
+  --accent-teal: #06b6d4;
+  --white: #0f172a;
+  --black: #f8fafc;
+  --border-light: #334155;
+  --border-dark: #64748b;
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--white);
+  color: var(--slate-700);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-weight: 400;
+  margin: 0;
+  color: var(--slate-900);
+}
+
+h1 { font-size: clamp(28px, 5vw, 48px); line-height: 1.1; }
+h2 { font-size: clamp(24px, 4vw, 36px); line-height: 1.15; margin-bottom: 12px; }
+h3 { font-size: 20px; margin-bottom: 8px; }
+h4 { font-size: 16px; font-weight: 600; }
+
+p { margin: 0 0 16px 0; }
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* Header */
+header {
+  background: var(--white);
+  border-bottom: 1px solid var(--slate-200);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+@media (prefers-color-scheme: dark) {
+  header:not([data-theme="light"]) {
+    background: rgba(15, 23, 42, 0.8);
+    border-bottom-color: var(--slate-700);
+  }
+}
+
+header[data-theme="dark"] {
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom-color: var(--slate-700);
+  color-scheme: dark;
+}
+
+.header-wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.logo {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--slate-900);
+  letter-spacing: -0.5px;
+}
+
+nav {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.nav-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--slate-600);
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: var(--slate-900);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 8px 12px rgba(0, 102, 204, 0.25);
+}
+
+.btn-secondary {
+  background: var(--slate-100);
+  color: var(--slate-900);
+  border: 1px solid var(--slate-200);
+}
+
+.btn-secondary:hover {
+  background: var(--slate-50);
+  border-color: var(--slate-300);
+}
+
+/* Main */
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Hero */
+.hero {
+  padding: 80px 0 60px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.hero-content h1 {
+  margin-bottom: 16px;
+}
+
+.hero-content p {
+  font-size: 18px;
+  color: var(--slate-600);
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.hero-ctas {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-visual {
+  background: linear-gradient(135deg, var(--slate-100) 0%, var(--slate-50) 100%);
+  border-radius: 12px;
+  padding: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  border: 1px solid var(--slate-200);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-visual::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, var(--primary-light) 0%, transparent 70%);
+  opacity: 0.5;
+}
+
+.dashboard-preview {
+  background: var(--white);
+  border-radius: 8px;
+  padding: 24px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dashboard-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.metric-card {
+  background: var(--slate-50);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--slate-200);
+}
+
+.metric-label {
+  font-size: 11px;
+  color: var(--slate-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--slate-900);
+}
+
+/* Section */
+section {
+  padding: 80px 0;
+  border-bottom: 1px solid var(--slate-100);
+}
+
+section:last-of-type {
+  border-bottom: none;
+}
+
+.section-header {
+  max-width: 700px;
+  margin-bottom: 48px;
+}
+
+.section-header h2 {
+  margin-bottom: 16px;
+}
+
+.section-header p {
+  font-size: 18px;
+  color: var(--slate-600);
+  line-height: 1.7;
+}
+
+/* Grid of items */
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.item {
+  background: var(--white);
+  border: 1px solid var(--slate-200);
+  border-radius: 8px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.item:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+}
+
+.item h3 {
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+
+.item p {
+  font-size: 15px;
+  color: var(--slate-600);
+  margin-bottom: 0;
+}
+
+/* Value proposition */
+.value-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.value-item {
+  display: flex;
+  gap: 16px;
+}
+
+.value-icon {
+  min-width: 40px;
+  height: 40px;
+  background: var(--primary-light);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.value-content h4 {
+  margin-bottom: 4px;
+}
+
+.value-content p {
+  margin-bottom: 0;
+  font-size: 14px;
+  color: var(--slate-600);
+}
+
+/* Form section */
+.form-section {
+  background: var(--slate-50);
+  border-radius: 12px;
+  padding: 48px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.form-section h2 {
+  margin-bottom: 8px;
+}
+
+.form-section > p:first-of-type {
+  color: var(--slate-600);
+  font-size: 16px;
+  margin-bottom: 24px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--slate-700);
+  margin-bottom: 6px;
+}
+
+input, textarea, select {
+  padding: 12px;
+  border: 1px solid var(--slate-300);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: all 0.2s;
+  background: var(--white);
+  color: var(--slate-900);
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-hint {
+  font-size: 13px;
+  color: var(--slate-500);
+  margin-top: 4px;
+}
+
+.form-submit {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.form-submit button {
+  flex: 1;
+}
+
+.form-fine {
+  font-size: 13px;
+  color: var(--slate-500);
+  text-align: center;
+}
+
+.form-message {
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.form-message.success {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.form-message.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* Footer */
+footer {
+  background: var(--slate-900);
+  color: var(--slate-300);
+  padding: 48px 24px;
+  border-top: 1px solid var(--slate-800);
+}
+
+.footer-wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.footer-section h4 {
+  color: var(--white);
+  margin-bottom: 12px;
+}
+
+.footer-section a {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--slate-300);
+  font-size: 14px;
+}
+
+.footer-section a:hover {
+  color: var(--white);
+}
+
+.footer-bottom {
+  border-top: 1px solid var(--slate-800);
+  padding-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 60px 0 40px;
+  }
+
+  .hero-visual {
+    min-height: 300px;
+  }
+
+  .value-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .item-grid {
+    grid-template-columns: 1fr;
+  }
+
+  section {
+    padding: 60px 0;
+  }
+
+  .form-section {
+    padding: 32px;
+  }
+
+  nav {
+    display: none;
+  }
+}
+</style>
+
+<header>
+  <div class="header-wrap">
+    <div class="logo">Etyme</div>
+    <nav>
+      <a href="#product" class="nav-link">Product</a>
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#pricing" class="nav-link">Pricing</a>
+      <a href="#contact" class="nav-link">Contact</a>
+    </nav>
+    <div>
+      <a href="#contact" class="btn btn-primary">Get Started</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Enterprise contractor management, unified</h1>
+      <p>Consolidate supplier networks, enforce compliance, and control spend across your entire contingent workforce. One system. Complete visibility.</p>
+      <div class="hero-ctas">
+        <a href="#contact" class="btn btn-primary">Start Free →</a>
+        <a href="#features" class="btn btn-secondary">Explore Features</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="dashboard-preview">
+        <div class="dashboard-header">
+          <h3 style="font-family: 'Instrument Serif', Georgia, serif; font-size: 14px;">Program Overview</h3>
+          <span style="font-size: 12px; color: var(--slate-500); font-weight: 600;">Today</span>
+        </div>
+        <div class="metric-row">
+          <div class="metric-card">
+            <div class="metric-label">Active Contractors</div>
+            <div class="metric-value">847</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Monthly Spend</div>
+            <div class="metric-value">$2.4M</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Pending Actions</div>
+            <div class="metric-value" style="color: var(--warning);">12</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- What We Solve -->
+  <section id="features">
+    <div class="section-header">
+      <h2>The contractor management problem</h2>
+      <p>Most enterprises manage multiple suppliers through email, spreadsheets, and disconnected systems. The result: lost visibility, compliance risk, and wasted budget.</p>
+    </div>
+    <div class="value-grid">
+      <div class="value-item">
+        <div class="value-icon">⏱️</div>
+        <div class="value-content">
+          <h4>Payment delays cost you</h4>
+          <p>14+ days between timesheet and payment. Your suppliers wait. Your cash flow suffers.</p>
+        </div>
+      </div>
+      <div class="value-item">
+        <div class="value-icon">💰</div>
+        <div class="value-content">
+          <h4>Rate inconsistencies hidden</h4>
+          <p>3-6 different rates for the same role, scattered across emails and contracts. Until an audit finds them.</p>
+        </div>
+      </div>
+      <div class="value-item">
+        <div class="value-icon">📋</div>
+        <div class="value-content">
+          <h4>Approvals are a bottleneck</h4>
+          <p>6+ approval loops across systems nobody integrates. Timesheets stall. Invoices languish.</p>
+        </div>
+      </div>
+      <div class="value-item">
+        <div class="value-icon">⚖️</div>
+        <div class="value-content">
+          <h4>Compliance risk accumulates</h4>
+          <p>Tenure miscounted. Right-to-work papers missing. Insurance expired. You discover it during an audit.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Product -->
+  <section id="product">
+    <div class="section-header">
+      <h2>One system for the entire workflow</h2>
+      <p>From requisition to payment, every contractor flows through a single record. Complete visibility. Enforced controls. Real-time compliance.</p>
+    </div>
+    <div class="item-grid">
+      <div class="item">
+        <h3>Requisitions</h3>
+        <p>Define roles, set rules, route for approval. Suppliers see only what Procurement released.</p>
+      </div>
+      <div class="item">
+        <h3>Submissions</h3>
+        <p>Every supplier submitting at their band. Rate parity enforced. Duplicates blocked automatically.</p>
+      </div>
+      <div class="item">
+        <h3>Contracts</h3>
+        <p>Awards write the contract. Work authorization and insurance verified before day one.</p>
+      </div>
+      <div class="item">
+        <h3>Timesheets</h3>
+        <p>Filed once, signed twice. Nobody approves their own. Flags before pay, never after.</p>
+      </div>
+      <div class="item">
+        <h3>Invoices</h3>
+        <p>Three-way match enforced. Bills without signed time or room on order aren't paid.</p>
+      </div>
+      <div class="item">
+        <h3>Compliance</h3>
+        <p>Tenure tracked per person across suppliers. Tenure cap enforced. Visa expiry warnings at 90/60/30 days.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="form-section" id="contact">
+    <h2>Ready to move faster?</h2>
+    <p>Start free, no card required. Explore the example program or build your own.</p>
+    <form>
+      <div class="form-group">
+        <label for="email">Work email</label>
+        <input type="email" id="email" name="email" placeholder="you@company.com" required>
+      </div>
+      <div class="form-group">
+        <label for="company">Company</label>
+        <input type="text" id="company" name="company" placeholder="Acme Corp">
+      </div>
+      <div class="form-group">
+        <label for="role">Your role</label>
+        <select id="role" name="role">
+          <option value="">Select your role</option>
+          <option value="cfo">CFO / VP Finance</option>
+          <option value="procurement">VP Procurement</option>
+          <option value="hr">VP HR / Compliance</option>
+          <option value="program">Program Manager</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="message">What's your biggest challenge with contractors?</label>
+        <textarea id="message" name="message" placeholder="We have 40+ contractors across 3 suppliers and can't see them in one place..."></textarea>
+        <p class="form-hint">A sentence is enough. We read every message.</p>
+      </div>
+      <div class="form-submit">
+        <button type="submit" class="btn btn-primary" style="flex: 1;">Send It</button>
+      </div>
+      <p class="form-fine">No list. No marketing emails. One person reads it and writes back.</p>
+    </form>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-wrap">
+    <div class="footer-section">
+      <h4>Product</h4>
+      <a href="#product">Overview</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+    <div class="footer-section">
+      <h4>Resources</h4>
+      <a href="#">Documentation</a>
+      <a href="#">Security</a>
+      <a href="#">DPA</a>
+    </div>
+    <div class="footer-section">
+      <h4>Company</h4>
+      <a href="#">About</a>
+      <a href="#contact">Contact</a>
+      <a href="#">Blog</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; 2026 Etyme. All rights reserved.</span>
+    <div style="display: flex; gap: 24px;">
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+    </div>
+  </div>
+</footer>
+
+<script src="ask.js" defer></script>
+<script>
+// Form handler
+const form = document.querySelector('form');
+if (form) {
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = {
+      email: document.getElementById('email').value,
+      company: document.getElementById('company').value,
+      role: document.getElementById('role').value,
+      message: document.getElementById('message').value,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('Form submitted:', formData);
+
+    // Show success message
+    const message = document.createElement('div');
+    message.className = 'form-message success';
+    message.textContent = '✓ Got it! Check your email for next steps.';
+    form.parentElement.insertBefore(message, form.nextSibling);
+
+    form.reset();
+    setTimeout(() => message.remove(), 3000);
+  });
+}
+</script>

@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{color-scheme:light}body{margin:0;background:#F0EEE6}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Brand kit · Etyme</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gelasio:wght@400;500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="icon" href="img/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="kit.css">
+<script src="ask.js" defer></script>
+<style>body{background:#F0EEE6}</style>
+<style>
+  .kit-sec{margin-top:60px} .kit-sec h2{font-size:27px;margin-top:6px} .kit-h3{font-family:var(--sans);font-weight:600;font-size:13.5px;letter-spacing:0;margin-top:22px;color:var(--ink)}
+  .kit-p{margin-top:12px;font-size:15.5px;line-height:1.65;color:var(--muted);max-width:68ch} .kit-small{margin-top:8px;font-size:13.5px;line-height:1.55;color:var(--muted)}
+  .kit-list{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:9px} .kit-list li{font-size:13.5px;line-height:1.55;color:var(--muted)} .kit-list li b{color:var(--ink);font-weight:600;margin-right:4px}
+  .sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+  .sw>div{border:1px solid var(--rule);border-radius:var(--r);overflow:hidden;background:var(--raised)} .sw i{display:block;height:54px} .sw b{display:block;font:600 12.5px/1.3 var(--sans);padding:9px 10px 0} .sw span{display:block;font:400 11px/1.45 var(--mono);color:var(--muted);padding:3px 10px 9px}
+  .demo{margin-top:16px;padding:22px;border:1px dashed var(--rule);border-radius:var(--r-lg);background:var(--surface)} .demo+.demo{margin-top:10px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px}
+  .spec{display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--rule)} .spec:last-child{border-bottom:0} .spec>span{font:400 11.5px/1.5 var(--mono);color:var(--faint)} .spec p{margin:0}
+  .icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:16px}
+  .icons>div{text-align:center;padding:12px 6px 10px;border:1px solid var(--rule);border-radius:var(--r);background:var(--raised);font:400 10.5px/1.3 var(--mono);color:var(--muted);overflow-wrap:anywhere}
+  .icons svg{display:block;width:22px;height:22px;margin:0 auto 8px;color:var(--ink)}
+  .d-side.kit{border:1px solid var(--rule);border-radius:var(--r);max-width:260px} .d-side.kit .d-nav{gap:9px;text-decoration:none} .d-side.kit .ic{opacity:.6} .d-side.kit [aria-current="page"] .ic{opacity:1}
+  .kit-static.modal,.kit-static.menu{position:static;animation:none;transform:none} .kit-static.menu{margin-top:8px;display:block}
+  .refuse .ic,.callout .ic{margin-top:2px} .refuse .ic{color:var(--danger)} .refuse.warn .ic{color:var(--orange-p)} .refuse.ok .ic{color:var(--green-p)} .callout .ic{color:var(--violet-p)}
+  .toast>span:first-child{color:var(--green-p);display:inline-flex;margin-top:2px} .toast.warn>span:first-child{color:var(--orange-p)} .toast.bad>span:first-child{color:var(--danger)}
+  .empty>.ic{width:26px;height:26px;color:var(--faint);margin:0 auto}
+  .filt{text-decoration:none} .filt:hover{text-decoration:none}
+  @media (max-width:820px){ .two{grid-template-columns:1fr} .spec{grid-template-columns:1fr;gap:4px} }
+</style>
+</head>
+<body>
+
+<header class="eh"><div class="wrap">
+  <a class="logo" href="index.html"><img src="img/wordmark.svg" alt="Etyme"></a>
+  <nav class="eh-nav" aria-label="Main">
+    <div class="item"><button aria-expanded="false" aria-controls="m-product">Product<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="mega" id="m-product" hidden><div class="mega-in cols4"><div class="col"><p class="grp">Source</p><a href="requisitions.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></svg><span><b>Requisitions &amp; suppliers</b><em>A role raised, cleared by rule or by a manager, released only to the suppliers Procurement named.</em></span></a><a href="submissions.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></svg><span><b>Submissions &amp; screening</b><em>Every supplier against the same role, on one screen, each at its own rate.</em></span></a></div><div class="col"><p class="grp">Start</p><a href="contracts.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13l2 2 4-4"/></svg><span><b>Contracts &amp; onboarding</b><em>The award writes the contract. Work authorization and insurance are checked before day one.</em></span></a></div><div class="col"><p class="grp">Work and pay</p><a href="timesheets.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span><b>Timesheets &amp; expenses</b><em>Filed once, signed twice, flagged first. Nobody approves their own.</em></span></a><a href="invoices.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span><b>Invoices &amp; the three-way match</b><em>A bill with no signed week, or no room on the order, is not paid.</em></span></a></div><div class="col"><p class="grp">Govern</p><a href="compliance.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Compliance &amp; tenure</b><em>Counted per person across suppliers, warned at three quarters, blocked at your cap.</em></span></a><a href="chain.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span><b>The chain</b><em>Every step recorded, every rate kept to its level, insurance visible at every depth.</em></span></a><a href="governance.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M5 20h14M12 6l-6 2 6-2 6 2"/><path d="M3.5 13.5L6 8l2.5 5.5a2.5 2.5 0 0 1-5 0zM15.5 13.5L18 8l2.5 5.5a2.5 2.5 0 0 1-5 0z"/></svg><span><b>Governance</b><em>Blocks where the law is behind it, warns everywhere else, records even a pass.</em></span></a></div></div></div></div>
+    <div class="item"><button aria-expanded="false" aria-controls="m-solutions">Solutions<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="mega" id="m-solutions" hidden><div class="mega-in cols1"><div class="col"><p class="grp">By role</p><a href="index.html#role-program"><span><b>The program office</b></span></a><a href="index.html#role-procurement"><span><b>Procurement</b></span></a><a href="index.html#role-hr"><span><b>HR and compliance</b></span></a><a href="index.html#role-finance"><span><b>Finance</b></span></a><a href="index.html#role-managers"><span><b>Hiring managers</b></span></a><a href="index.html#role-suppliers"><span><b>Suppliers</b></span></a></div></div></div></div>
+    <div class="item"><button aria-expanded="false" aria-controls="m-resources">Resources<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="mega" id="m-resources" hidden><div class="mega-in cols2"><div class="col"><p class="grp">Read</p>
+      <a href="docs.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13l2 2 4-4"/></svg><span><b>Documentation</b><em>Every flow, station by station, behind sign-in</em></span></a>
+      <a href="https://claude.ai/artifact/9uFH9xQMtd3J61UfYFLTqn"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Security position</b><em>What is done, what is not, and when</em></span></a>
+      <a href="docs.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg><span><b>Data processing addendum</b><em>Retention by category, sub-processors</em></span></a></div>
+      <div class="col"><p class="grp">Try</p>
+      <a href="index.html#ask"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.8"/></svg><span><b>Open the example program</b><em>A month of data, no card, no sign-up</em></span></a>
+      <a href="contact.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></svg><span><b>Ask a person</b><em>An email and a sentence. Somebody writes back</em></span></a></div></div></div></div>
+    <div class="item"><button aria-expanded="false" aria-controls="m-company">Company<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="mega" id="m-company" hidden><div class="mega-in cols1"><div class="col"><p class="grp">Company</p><a href="about.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h3M13 7h3M8 11h3M13 11h3M8 15h3M13 15h3M10 21v-3h4v3"/></svg><span><b>About Etyme</b><em>What we build, how we work, where we are</em></span></a><a href="contact.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span><b>Contact</b><em>Durham, North Carolina. A person answers</em></span></a><a href="audit.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M7 16v-6M12 16V6M17 16v-3"/></svg><span><b>Free contractor spend audit</b><em>Ten minutes, no card. Your numbers back in 24 hours</em></span></a></div></div></div></div>
+    <a class="plain" href="index.html#free">Free to start</a>
+  </nav>
+  <div class="eh-right">
+    <a class="plain" href="signin.html">Sign in</a>
+    <a class="btn btn-p btn-sm" href="signup.html">Start free</a>
+    <button class="burger" aria-label="Menu" aria-expanded="false" aria-controls="eh-drawer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </div>
+</div>
+<div class="eh-drawer" id="eh-drawer" hidden>
+  <details open><summary>Product</summary><div class="col"><p class="grp">Source</p><a href="requisitions.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></svg><span><b>Requisitions &amp; suppliers</b><em>A role raised, cleared by rule or by a manager, released only to the suppliers Procurement named.</em></span></a><a href="submissions.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></svg><span><b>Submissions &amp; screening</b><em>Every supplier against the same role, on one screen, each at its own rate.</em></span></a></div><div class="col"><p class="grp">Start</p><a href="contracts.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13l2 2 4-4"/></svg><span><b>Contracts &amp; onboarding</b><em>The award writes the contract. Work authorization and insurance are checked before day one.</em></span></a></div><div class="col"><p class="grp">Work and pay</p><a href="timesheets.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span><b>Timesheets &amp; expenses</b><em>Filed once, signed twice, flagged first. Nobody approves their own.</em></span></a><a href="invoices.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span><b>Invoices &amp; the three-way match</b><em>A bill with no signed week, or no room on the order, is not paid.</em></span></a></div><div class="col"><p class="grp">Govern</p><a href="compliance.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Compliance &amp; tenure</b><em>Counted per person across suppliers, warned at three quarters, blocked at your cap.</em></span></a><a href="chain.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span><b>The chain</b><em>Every step recorded, every rate kept to its level, insurance visible at every depth.</em></span></a><a href="governance.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M5 20h14M12 6l-6 2 6-2 6 2"/><path d="M3.5 13.5L6 8l2.5 5.5a2.5 2.5 0 0 1-5 0zM15.5 13.5L18 8l2.5 5.5a2.5 2.5 0 0 1-5 0z"/></svg><span><b>Governance</b><em>Blocks where the law is behind it, warns everywhere else, records even a pass.</em></span></a></div></details>
+  <details><summary>Solutions</summary><div class="col"><p class="grp">By role</p><a href="index.html#role-program"><span><b>The program office</b></span></a><a href="index.html#role-procurement"><span><b>Procurement</b></span></a><a href="index.html#role-hr"><span><b>HR and compliance</b></span></a><a href="index.html#role-finance"><span><b>Finance</b></span></a><a href="index.html#role-managers"><span><b>Hiring managers</b></span></a><a href="index.html#role-suppliers"><span><b>Suppliers</b></span></a></div></details>
+  <details><summary>Resources</summary><div class="col"><p class="grp">Read</p>
+      <a href="docs.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13l2 2 4-4"/></svg><span><b>Documentation</b><em>Every flow, station by station, behind sign-in</em></span></a>
+      <a href="https://claude.ai/artifact/9uFH9xQMtd3J61UfYFLTqn"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span><b>Security position</b><em>What is done, what is not, and when</em></span></a>
+      <a href="docs.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></svg><span><b>Data processing addendum</b><em>Retention by category, sub-processors</em></span></a></div>
+      <div class="col"><p class="grp">Try</p>
+      <a href="index.html#ask"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.8"/></svg><span><b>Open the example program</b><em>A month of data, no card, no sign-up</em></span></a>
+      <a href="contact.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></svg><span><b>Ask a person</b><em>An email and a sentence. Somebody writes back</em></span></a></div></details>
+  <details><summary>Company</summary><div class="col"><p class="grp">Company</p><a href="about.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h3M13 7h3M8 11h3M13 11h3M8 15h3M13 15h3M10 21v-3h4v3"/></svg><span><b>About Etyme</b><em>What we build, how we work, where we are</em></span></a><a href="contact.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span><b>Contact</b><em>Durham, North Carolina. A person answers</em></span></a><a href="audit.html"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M7 16v-6M12 16V6M17 16v-3"/></svg><span><b>Free contractor spend audit</b><em>Ten minutes, no card. Your numbers back in 24 hours</em></span></a></div></details>
+  <a class="row" href="index.html#free">Free to start</a>
+  <a class="row" href="signin.html">Sign in</a>
+</div></header>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+<symbol id="i-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+<symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></symbol>
+<symbol id="i-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/></symbol>
+<symbol id="i-briefcase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12h18"/></symbol>
+<symbol id="i-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h3M13 7h3M8 11h3M13 11h3M8 15h3M13 15h3M10 21v-3h4v3"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="i-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-chevron-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-compliance" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+<symbol id="i-contract" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 13l2 2 4-4"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 19h16"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M13.5 8.5l3 3"/></symbol>
+<symbol id="i-expense" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M12 7v9M14.3 9.2c0-.9-1-1.6-2.3-1.6s-2.3.7-2.3 1.6 1 1.4 2.3 1.7 2.3.8 2.3 1.7-1 1.6-2.3 1.6-2.3-.7-2.3-1.6"/></symbol>
+<symbol id="i-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+<symbol id="i-factory" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l6 3V10l6 3V10l6 3v8z"/><path d="M7 21v-4M12 21v-4M17 21v-4"/></symbol>
+<symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6.5 8v5l-3 2v-7z"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4h12l-2 4 2 4H5"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="i-id-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M6 16c.4-1.6 1.6-2.5 3-2.5s2.6.9 3 2.5M14 10h4M14 13h4"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></symbol>
+<symbol id="i-integration" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v5M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></symbol>
+<symbol id="i-invoice" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+<symbol id="i-lanes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5"/><path d="M14 8l4 4-4 4M18 12H9"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></symbol>
+<symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7 7l4 9M17 7l-4 9M7.2 6h9.6"/></symbol>
+<symbol id="i-payment" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9h.01M18 15h.01"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-14.5 4.6M4 12a8 8 0 0 1 14.5-4.6"/><path d="M4 4v5h5M20 20v-5h-5"/></symbol>
+<symbol id="i-report" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M7 16v-6M12 16V6M17 16v-3"/></symbol>
+<symbol id="i-requisition" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L3 10.5l7.5 2.5L13 20z"/><path d="M10.5 13L21 3"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></symbol>
+<symbol id="i-sign" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17c3-6 5-6 7 0s4 3 6-3"/><path d="M3 21h18"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.9l-5.3 2.8 1.1-5.9-4.3-4.1 5.9-.8z"/></symbol>
+<symbol id="i-swap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></symbol>
+<symbol id="i-timesheet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7 9l5-5 5 5"/><path d="M4 19h16"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.8 3.4-6 7-6s6.2 2.2 7 6"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.6-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.4c2.5.2 4.2 1.7 4.8 4.6"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+</svg>
+
+<main class="page" id="top">
+<div class="prose" style="margin-top:44px">
+  <p class="eyebrow">Resources · Brand kit</p>
+  <h1 class="ch-h1">The Etyme brand kit</h1>
+  <p class="ch-lede">Every colour, type size, component and icon on this site, collected so the dashboard can use the same ones. This page is about how things look. It says nothing about what the product does.</p>
+  <p class="legal meta" style="margin-top:14px">Files: <code>brand-kit/</code> in the repository — README.md, tokens.css, tailwind.tokens.ts, tokens.json, icons.svg, kit.css, logo/</p>
+</div>
+
+<nav class="flow" style="margin-top:26px" aria-label="Sections">
+  <a class="filt" href="#colour">Colour</a><a class="filt" href="#type">Type</a><a class="filt" href="#logo">Logo</a><a class="filt" href="#buttons">Buttons</a><a class="filt" href="#chips">Chips and dots</a><a class="filt" href="#forms">Forms</a><a class="filt" href="#nav">Navigation</a><a class="filt" href="#cards">Cards and tiles</a><a class="filt" href="#tables">Tables</a><a class="filt" href="#messages">Messages</a><a class="filt" href="#overlays">Overlays</a><a class="filt" href="#icons">Icons</a><a class="filt" href="#layout">Layout and motion</a><a class="filt" href="#voice">Words</a>
+</nav>
+
+<section class="kit-sec" id="colour">
+  <p class="eyebrow">1</p><h2>Colour</h2>
+  <p class="kit-p">One warm cream ground. There is no dark mode. Text is ink, never pure black; lines are rule, never grey. The violet is the only strong colour on a screen; orange, green and red say something is waiting, verified or refused.</p>
+  <h3 class="kit-h3">Surfaces</h3>
+  <div class="sw">
+    <div><i style="background:#F0EEE6"></i><b>canvas</b><span>#F0EEE6 · page background</span></div>
+    <div><i style="background:#FBFAF7"></i><b>surface</b><span>#FBFAF7 · panels, rails, row hover</span></div>
+    <div><i style="background:#FFFFFF"></i><b>raised</b><span>#FFFFFF · cards, inputs, menus</span></div>
+    <div><i style="background:#E7E4DA"></i><b>sunk</b><span>#E7E4DA · hover fills, meters</span></div>
+  </div>
+  <h3 class="kit-h3">Text and lines</h3>
+  <div class="sw">
+    <div><i style="background:#1F1E1D"></i><b>ink</b><span>#1F1E1D · text</span></div>
+    <div><i style="background:#6B6862"></i><b>muted</b><span>#6B6862 · second text</span></div>
+    <div><i style="background:#9C9891"></i><b>faint</b><span>#9C9891 · eyebrows, headers</span></div>
+    <div><i style="background:#E3DFD5"></i><b>rule</b><span>#E3DFD5 · borders</span></div>
+  </div>
+  <h3 class="kit-h3">Brand strength — logo, primary buttons, links</h3>
+  <div class="sw">
+    <div><i style="background:#5228FF"></i><b>violet</b><span>#5228FF · buttons, links, focus</span></div>
+    <div><i style="background:#3F16E8"></i><b>violet hover</b><span>#3F16E8</span></div>
+    <div><i style="background:#3512C4"></i><b>violet pressed</b><span>#3512C4</span></div>
+    <div><i style="background:#E16400"></i><b>orange</b><span>#E16400 · logo, quote rule</span></div>
+    <div><i style="background:#00C800"></i><b>green</b><span>#00C800 · logo only</span></div>
+  </div>
+  <h3 class="kit-h3">Product strength — chips, active navigation, small marks</h3>
+  <div class="sw">
+    <div><i style="background:#4421D6"></i><b>violet-p</b><span>#4421D6 · action</span></div>
+    <div><i style="background:#C0622E"></i><b>orange-p</b><span>#C0622E · attention</span></div>
+    <div><i style="background:#2F7D3E"></i><b>green-p</b><span>#2F7D3E · verified</span></div>
+    <div><i style="background:#B83A3A"></i><b>danger</b><span>#B83A3A · refused, error</span></div>
+  </div>
+  <h3 class="kit-h3">Washes and lines — chip fills and borders, active nav fill, focus halo</h3>
+  <div class="sw">
+    <div><i style="background:#EDE9FF;border-bottom:3px solid #C7CDF5"></i><b>violet wash / line</b><span>#EDE9FF / #C7CDF5</span></div>
+    <div><i style="background:#F7EDE6;border-bottom:3px solid #E5C9B5"></i><b>orange wash / line</b><span>#F7EDE6 / #E5C9B5</span></div>
+    <div><i style="background:#EDF1ED;border-bottom:3px solid #C9D6CA"></i><b>green wash / line</b><span>#EDF1ED / #C9D6CA</span></div>
+    <div><i style="background:#FDE8E8;border-bottom:3px solid #F0C0C0"></i><b>danger wash / line</b><span>#FDE8E8 / #F0C0C0</span></div>
+  </div>
+</section>
+
+<section class="kit-sec" id="type">
+  <p class="eyebrow">2</p><h2>Type</h2>
+  <p class="kit-p">Three families. A serif for headings and big numbers, Inter for everything you read or click, and a mono for numbers that sit in columns, dates, ids and keyboard keys. Headings are regular weight, never bold. Eyebrows and column headers are small capitals with wide spacing.</p>
+  <div class="demo">
+    <div class="spec"><span>serif 54 · hero</span><p style="font-family:var(--serif);font-size:54px;line-height:1.04;letter-spacing:-.022em">One requisition becomes one award.</p></div>
+    <div class="spec"><span>serif 31 · page title</span><p style="font-family:var(--serif);font-size:31px;line-height:1.15;letter-spacing:-.02em">Source to contract</p></div>
+    <div class="spec"><span>serif 27 · section</span><p style="font-family:var(--serif);font-size:27px;line-height:1.15;letter-spacing:-.02em">What the desk does</p></div>
+    <div class="spec"><span>serif 19 · card title</span><p style="font-family:var(--serif);font-size:19px;line-height:1.25">Approve to invoice</p></div>
+    <div class="spec"><span>sans 16 / 1.6 · body</span><p style="font-size:16px;line-height:1.6">The due date belongs to the document, counted from the day the client received it. Nothing schedules one on the calendar to disagree with it.</p></div>
+    <div class="spec"><span>sans 14.5 / 1.65 · dashboard body</span><p style="font-size:14.5px;line-height:1.65;color:var(--muted)">Two signatures from two companies, one row of hours, never one per hop.</p></div>
+    <div class="spec"><span>sans 13.5 · tables, navigation, hints</span><p style="font-size:13.5px;line-height:1.6">Nobody signs their own week.</p></div>
+    <div class="spec"><span>sans 10 · 600 · .14em · eyebrow</span><p class="eyebrow">Integration points</p></div>
+    <div class="spec"><span>sans 9.5 · 600 · .12em · column header</span><p style="font:600 9.5px/1.4 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)">What happens</p></div>
+    <div class="spec"><span>mono 12.5 · tabular · numbers, dates, ids</span><p class="num" style="font-size:12.5px">INV-0412 · 2026-09-26 · 1,240.00 · <kbd>⌘K</kbd></p></div>
+    <div class="spec"><span>serif 27 · tile number</span><p style="font-family:var(--serif);font-size:27px;line-height:1.1;font-variant-numeric:tabular-nums">13 <span style="font:400 11.5px/1 var(--sans);color:var(--muted)">stations</span></p></div>
+  </div>
+  <p class="kit-p">Fonts are loaded from Google Fonts: Gelasio (the serif when Iowan Old Style or Palatino is not on the machine), Inter 400–700, IBM Plex Mono 400–500.</p>
+</section>
+
+<section class="kit-sec" id="logo">
+  <p class="eyebrow">3</p><h2>Logo</h2>
+  <p class="kit-p">The wordmark is “etyme” in ink. The crossbar of the t is replaced by three rising strokes in violet, orange and green; that stroke on its own is the mark. On a dark band the letters turn white and the strokes stay. Height is 26px in the site header, 22px in a running head, 28px for the mark beside a rail. Leave clear space of one x-height around it. Do not recolour, stretch, add a gradient, or put it in a circle.</p>
+  <div class="two">
+    <div class="card" style="display:flex;align-items:center;justify-content:center;min-height:130px"><img src="brand-kit/logo/wordmark.svg" alt="Etyme wordmark" style="height:40px"></div>
+    <div class="m-band" style="display:flex;align-items:center;justify-content:center;min-height:130px"><img src="brand-kit/logo/wordmark-on-dark.svg" alt="Etyme wordmark on dark" style="height:40px"></div>
+    <div class="panel" style="display:flex;align-items:center;gap:22px;justify-content:center;min-height:100px"><img src="brand-kit/logo/mark.svg" alt="Etyme mark" style="height:44px"><img src="brand-kit/logo/mark.svg" alt="" style="height:28px"><img src="brand-kit/logo/mark.svg" alt="" style="height:20px"></div>
+    <div class="panel" style="display:flex;align-items:center;gap:12px;min-height:100px"><img src="brand-kit/logo/mark.svg" alt="" style="height:28px"><span style="font:600 14px/1 var(--sans);letter-spacing:-.02em">etyme</span><span class="legal meta" style="margin:0 0 0 auto">mark + name, as a rail header</span></div>
+  </div>
+  <p class="kit-p">Files: <code>brand-kit/logo/wordmark.svg</code>, <code>wordmark-on-dark.svg</code>, <code>mark.svg</code>. The mural band (<code>mural-band.svg</code>) is for the documentation home only.</p>
+</section>
+
+<section class="kit-sec" id="buttons">
+  <p class="eyebrow">4</p><h2>Buttons</h2>
+  <p class="kit-p">One primary button per screen. Secondary buttons are white with a rule border. Tertiary buttons are text. The danger button is only for something that cannot be undone. Corners are 8px, text is 14px semibold, small is 13px, large is 15px.</p>
+  <div class="demo row">
+    <button class="btn btn-p">Start free</button><button class="btn btn-s">Read the drawing →</button><button class="btn btn-t">Cancel</button><button class="btn btn-d">Close the program</button>
+    <button class="btn btn-p btn-sm">+ New</button><button class="btn btn-s btn-sm">Export CSV</button><button class="btn btn-p btn-lg">Open the example program</button>
+  </div>
+  <div class="demo row">
+    <button class="btn btn-p" disabled>Disabled</button><button class="btn btn-p loading">Saving</button><button class="btn btn-s loading">Loading</button><button class="btn btn-s fakefocus">Focused</button>
+  </div>
+  <p class="kit-p">Hover darkens the violet to #3F16E8, pressing to #3512C4 and moves the button down 1px. Loading hides the label and shows a spinner. Disabled is 45% and keeps its colour. Focus is a 2px violet outline, 2px out, on everything that can take the keyboard.</p>
+</section>
+
+<section class="kit-sec" id="chips">
+  <p class="eyebrow">5</p><h2>Chips and dots</h2>
+  <p class="kit-p">A chip is a status in small capitals, 10px, with a wash fill and a line border. Five tones and no others. A dot is the same meaning at 6px, for a row that has no room for words.</p>
+  <div class="demo row">
+    <span class="chip chip--action">Hiring manager</span><span class="chip chip--attention">Waiting on you</span><span class="chip chip--verified">Signed</span><span class="chip chip--danger">Nobody signs their own</span><span class="chip chip--passive">Records</span>
+    <span class="boxrow"><i class="dot dot--action"></i>action</span><span class="boxrow"><i class="dot dot--pending"></i>pending</span><span class="boxrow"><i class="dot"></i>verified</span><span class="boxrow"><i class="dot dot--blocked"></i>blocked</span><span class="boxrow"><i class="dot dot--off"></i>off</span>
+    <span class="badge">3</span><span class="live"><i class="pip"></i>Live</span><span class="rung">Tier <b>2</b></span><span class="rung hi">Tier <b>1</b></span>
+  </div>
+</section>
+
+<section class="kit-sec" id="forms">
+  <p class="eyebrow">6</p><h2>Forms</h2>
+  <p class="kit-p">Labels are eyebrows above the field. Inputs are white, 8px corners, 15px text, with a violet border and a soft violet halo on focus. A hint sits under the field; an error turns the border and the hint red and says what to do. Switches, boxes and radios use the same violet.</p>
+  <div class="demo two">
+    <div class="field"><label for="k1">Work email</label><input id="k1" type="email" placeholder="you@company.com"><p class="hint">A sign-in link is sent here. There is no password.</p></div>
+    <div class="field bad"><label for="k2">Purchase order</label><input id="k2" value="PO-2026-" ><p class="hint">Finish the number. The client’s PO has ten digits.</p></div>
+    <div class="field"><label for="k3">Supplier</label><select id="k3"><option>Computer Systems Inc</option><option>Vertex Global</option></select></div>
+    <div class="field"><label for="k4">Reason</label><textarea id="k4" rows="2" placeholder="Written to be read by the other desk"></textarea></div>
+  </div>
+  <div class="demo row">
+    <span class="boxrow"><button class="tog" role="switch" aria-checked="true" aria-label="On"></button>Notify by email</span>
+    <span class="boxrow"><button class="tog" role="switch" aria-checked="false" aria-label="Off"></button>Weekly digest</span>
+    <span class="boxrow"><i class="box on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></i>Checked</span><span class="boxrow"><i class="box"></i>Unchecked</span>
+    <span class="boxrow"><i class="rad on"></i>Chosen</span><span class="boxrow"><i class="rad"></i>Not chosen</span>
+  </div>
+  <div class="demo row">
+    <div class="seg"><button aria-pressed="true">All stations</button><button aria-pressed="false">With a refusal</button><button aria-pressed="false">Records only</button></div>
+    <button class="filt" aria-pressed="true">Open</button><button class="filt" aria-pressed="false">Closed</button><button class="filt" aria-pressed="false">Mine</button>
+  </div>
+</section>
+
+<section class="kit-sec" id="nav">
+  <p class="eyebrow">7</p><h2>Navigation</h2>
+  <p class="kit-p">The site header and the dashboard rail use the same states: a quiet item in muted, a hover fill in sunk, the current page in violet wash with violet-p text at semibold. Section labels in the rail are eyebrows. Tabs underline the current one in ink. The rail’s structure, sections and menus are the product’s own; only these looks are the kit’s.</p>
+  <div class="two">
+    <div class="d-side kit">
+      <p class="grp">Operate</p>
+      <a class="d-nav" href="#nav"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-contract"/></svg> Contracts</a>
+      <a class="d-nav" href="#nav" aria-current="page"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-timesheet"/></svg> Timesheets <span class="ct">12</span></a>
+      <a class="d-nav" href="#nav"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-expense"/></svg> Expenses</a>
+      <a class="d-nav" href="#nav"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-invoice"/></svg> Invoices</a>
+      <p class="grp">Governance</p>
+      <a class="d-nav" href="#nav"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-compliance"/></svg> Compliance</a>
+      <a class="d-nav" href="#nav"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-settings"/></svg> Settings</a>
+      <a class="d-nav" href="#nav"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-integration"/></svg> Integrations</a>
+    </div>
+    <div>
+      <div class="d-bar" style="padding:0 0 14px"><div class="d-search"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-search"/></svg> Search Northbend Athletic <kbd style="margin-left:auto">⌘K</kbd></div><button class="btn btn-p btn-sm"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-plus"/></svg> New</button><span class="av">NA</span></div>
+      <div class="tabs" style="margin-top:18px"><button aria-selected="true">Open <span class="ct">8</span></button><button aria-selected="false">Signed</button><button aria-selected="false">Ended</button></div>
+      <div class="crumb" style="margin-top:18px">Contracts <span>›</span> Northbend Athletic <span>›</span> CT-0142</div>
+      <div class="pager" style="margin-top:18px"><button>‹</button><button aria-current="page">1</button><button>2</button><button>3</button><button>›</button></div>
+    </div>
+  </div>
+</section>
+
+<section class="kit-sec" id="cards">
+  <p class="eyebrow">8</p><h2>Cards and tiles</h2>
+  <p class="kit-p">A panel is surface with a rule border; a card is white. Both have 8px corners and no shadow at rest. A tile is a panel with an eyebrow, a serif number and a line under it. A card that can be clicked lifts 2px on hover.</p>
+  <div class="d-tiles" style="margin-top:16px">
+    <div class="d-tile"><p class="k">Stations</p><p class="v">13</p><p class="s">in the order the work happens</p></div>
+    <div class="d-tile"><p class="k">Refusals</p><p class="v">4</p><p class="s">blocks said in a sentence</p></div>
+    <div class="d-tile"><p class="k">Waiting on you</p><p class="v">2</p><p class="s">a week and an invoice</p></div>
+    <div class="d-tile"><p class="k">Paid this month</p><p class="v tabular">$41,280</p><p class="s">of $44,000 billed</p></div>
+  </div>
+  <div class="two" style="margin-top:12px">
+    <div class="panel"><p class="eyebrow">Panel</p><h3 style="font-size:19px;margin-top:8px">Surface, rule border</h3><p class="kit-small">For groups of things: a filter strip, an integration list, a rail.</p></div>
+    <div class="card tap"><p class="eyebrow">Card · tap</p><h3 style="font-size:19px;margin-top:8px">White, lifts on hover</h3><p class="kit-small">For one thing you can open: a contract, a supplier, a report.</p></div>
+  </div>
+  <div class="meter-row" style="margin-top:16px"><div><b>Budget used</b><div class="meter" style="margin-top:6px"><i style="width:62%;background:var(--violet-p)"></i><i style="width:14%;background:var(--orange-p)"></i></div></div><span class="n">76%</span></div>
+</section>
+
+<section class="kit-sec" id="tables">
+  <p class="eyebrow">9</p><h2>Tables</h2>
+  <p class="kit-p">Column headers are 9.5px small capitals in faint. Rows are 13.5px with a rule under each and a surface fill on hover. Numbers are mono and tabular so they line up. A person or company gets an avatar circle. Status is a chip in the last column. On a phone the table scrolls sideways inside its own box; the page never does.</p>
+  <div class="card scrollx" style="padding:0 6px;margin-top:16px"><table class="tabular">
+    <thead><tr><th>#</th><th>Week</th><th>Contractor</th><th>Hours</th><th>Client signed</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td><span class="num">1</span></td><td><span class="num">2026-W38</span></td><td><span class="who"><span class="av">HM</span>Helena Marsh</span></td><td><span class="num">40.0</span></td><td><span class="num">Sep 22</span></td><td><span class="chip chip--verified">Signed</span></td></tr>
+      <tr><td><span class="num">2</span></td><td><span class="num">2026-W38</span></td><td><span class="who"><span class="av">KM</span>Karthik Menon</span></td><td><span class="num">38.5</span></td><td><span class="num">—</span></td><td><span class="chip chip--attention">Waiting on client</span></td></tr>
+      <tr><td><span class="num">3</span></td><td><span class="num">2026-W37</span></td><td><span class="who"><span class="av">MQ</span>Marisol Quintero</span></td><td><span class="num">44.0</span></td><td><span class="num">Sep 15</span></td><td><span class="chip chip--danger">Nobody signs their own</span></td></tr>
+    </tbody></table></div>
+</section>
+
+<section class="kit-sec" id="messages">
+  <p class="eyebrow">10</p><h2>Messages</h2>
+  <p class="kit-p">A refusal is a red box that says the rule in one sentence and what to do next. Warn is orange, ok is green. A callout is violet and explains. A toast confirms something that just happened and goes away. An empty state says what belongs here and how to add the first one. While something loads, the shape of it shimmers.</p>
+  <div class="two" style="margin-top:16px">
+    <div class="refuse"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-block"/></svg> <div><b>Nobody signs their own week.</b><span>Send it to the client’s approver. The hours stay as you filed them.</span></div></div>
+    <div class="refuse warn"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-warn"/></svg> <div><b>The PO has $2,400 left.</b><span>This invoice is $3,100. Ask the client to raise the PO before you send it.</span></div></div>
+    <div class="refuse ok"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg> <div><b>Three-way match passed.</b><span>Week, PO and invoice agree. It is in the pay run on Friday.</span></div></div>
+    <div class="callout"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-info"/></svg> <div><b>Rates travel on the invitation.</b><p>No supplier ever reads another supplier’s rate. The requisition carries the role and the months only.</p></div></div>
+  </div>
+  <div class="two" style="margin-top:12px">
+    <div style="display:grid;gap:9px;align-content:start">
+      <div class="toast"><span><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg></span><div><b>Week filed</b><span>2026-W38 went to Northbend Athletic for signature.</span></div><button aria-label="Dismiss">×</button></div>
+      <div class="toast warn"><span><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-warn"/></svg></span><div><b>Paperwork expires in 9 days</b><span>The I-9 for Karthik Menon. Ask for a new one now.</span></div><button aria-label="Dismiss">×</button></div>
+      <div class="toast bad"><span><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-block"/></svg></span><div><b>Not sent</b><span>The invoice has no signed week behind it.</span></div><button aria-label="Dismiss">×</button></div>
+    </div>
+    <div style="display:grid;gap:12px">
+      <div class="empty"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-requisition"/></svg><h4>No requisitions yet</h4><p>A requisition is one role for some months. Raise the first one and the suppliers you invite will see it.</p><p style="margin-top:14px"><button class="btn btn-p btn-sm">+ New requisition</button></p></div>
+      <div class="card" style="display:grid;gap:10px"><div class="sk t" style="width:40%"></div><div class="sk"></div><div class="sk" style="width:70%"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="kit-sec" id="overlays">
+  <p class="eyebrow">11</p><h2>Overlays</h2>
+  <p class="kit-p">A modal is for one decision, 460px wide, with the buttons in a surface footer. A drawer slides in from the right for one record’s detail. A menu drops from the thing you clicked. Everything that floats has the float shadow, a rule border and 12px corners. The scrim behind a modal is ink at 36%.</p>
+  <div class="two" style="margin-top:16px;align-items:start">
+    <div class="modal kit-static"><header><h4>End this contract?</h4></header><div class="body">The last signed week is 2026-W38. Nothing after it will be billed. The record stays for seven years and can be exported at any time.</div><footer><button class="btn btn-s">Keep it</button><button class="btn btn-d">End on Sep 30</button></footer></div>
+    <div>
+      <div class="menu-wrap"><button class="btn btn-s btn-sm">Actions <svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-chevron-down"/></svg></button><div class="menu kit-static"><button><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-edit"/></svg> Edit <span class="k">E</span></button><button><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-copy"/></svg> Duplicate</button><button><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-download"/></svg> Export CSV <span class="k">⌘E</span></button><hr><button class="bad"><svg class="ic" width="16" height="16" aria-hidden="true"><use href="#i-trash"/></svg> Delete</button></div></div>
+      <div class="kit-small" style="margin-top:14px">Keyboard keys are shown as <kbd>⌘K</kbd> <kbd>Esc</kbd> <kbd>↵</kbd> in mono.</div>
+    </div>
+  </div>
+</section>
+
+<section class="kit-sec" id="icons">
+  <p class="eyebrow">12</p><h2>Icons</h2>
+  <p class="kit-p">Line icons on a 24-unit grid, 1.8 stroke, round caps and joins, drawn in the text colour. They are used at 15px in navigation, 16px in buttons and chips, 18px in menus and 26px on capability tiles. The set below is the site’s own; anything missing should be drawn in the same style, not taken from a different set. No emoji, no filled icons, no text glyphs.</p>
+  <div class="icons" id="icon-grid"><div><svg aria-hidden="true"><use href="#i-arrow-left"/></svg>arrow-left</div><div><svg aria-hidden="true"><use href="#i-arrow-right"/></svg>arrow-right</div><div><svg aria-hidden="true"><use href="#i-bell"/></svg>bell</div><div><svg aria-hidden="true"><use href="#i-block"/></svg>block</div><div><svg aria-hidden="true"><use href="#i-book"/></svg>book</div><div><svg aria-hidden="true"><use href="#i-briefcase"/></svg>briefcase</div><div><svg aria-hidden="true"><use href="#i-building"/></svg>building</div><div><svg aria-hidden="true"><use href="#i-calendar"/></svg>calendar</div><div><svg aria-hidden="true"><use href="#i-chat"/></svg>chat</div><div><svg aria-hidden="true"><use href="#i-check"/></svg>check</div><div><svg aria-hidden="true"><use href="#i-chevron-down"/></svg>chevron-down</div><div><svg aria-hidden="true"><use href="#i-chevron-left"/></svg>chevron-left</div><div><svg aria-hidden="true"><use href="#i-chevron-right"/></svg>chevron-right</div><div><svg aria-hidden="true"><use href="#i-chevron-up"/></svg>chevron-up</div><div><svg aria-hidden="true"><use href="#i-clock"/></svg>clock</div><div><svg aria-hidden="true"><use href="#i-close"/></svg>close</div><div><svg aria-hidden="true"><use href="#i-compliance"/></svg>compliance</div><div><svg aria-hidden="true"><use href="#i-contract"/></svg>contract</div><div><svg aria-hidden="true"><use href="#i-copy"/></svg>copy</div><div><svg aria-hidden="true"><use href="#i-database"/></svg>database</div><div><svg aria-hidden="true"><use href="#i-download"/></svg>download</div><div><svg aria-hidden="true"><use href="#i-edit"/></svg>edit</div><div><svg aria-hidden="true"><use href="#i-expense"/></svg>expense</div><div><svg aria-hidden="true"><use href="#i-external"/></svg>external</div><div><svg aria-hidden="true"><use href="#i-eye"/></svg>eye</div><div><svg aria-hidden="true"><use href="#i-factory"/></svg>factory</div><div><svg aria-hidden="true"><use href="#i-filter"/></svg>filter</div><div><svg aria-hidden="true"><use href="#i-flag"/></svg>flag</div><div><svg aria-hidden="true"><use href="#i-grid"/></svg>grid</div><div><svg aria-hidden="true"><use href="#i-home"/></svg>home</div><div><svg aria-hidden="true"><use href="#i-id-card"/></svg>id-card</div><div><svg aria-hidden="true"><use href="#i-info"/></svg>info</div><div><svg aria-hidden="true"><use href="#i-integration"/></svg>integration</div><div><svg aria-hidden="true"><use href="#i-invoice"/></svg>invoice</div><div><svg aria-hidden="true"><use href="#i-lanes"/></svg>lanes</div><div><svg aria-hidden="true"><use href="#i-link"/></svg>link</div><div><svg aria-hidden="true"><use href="#i-list"/></svg>list</div><div><svg aria-hidden="true"><use href="#i-lock"/></svg>lock</div><div><svg aria-hidden="true"><use href="#i-logout"/></svg>logout</div><div><svg aria-hidden="true"><use href="#i-mail"/></svg>mail</div><div><svg aria-hidden="true"><use href="#i-menu"/></svg>menu</div><div><svg aria-hidden="true"><use href="#i-more"/></svg>more</div><div><svg aria-hidden="true"><use href="#i-network"/></svg>network</div><div><svg aria-hidden="true"><use href="#i-payment"/></svg>payment</div><div><svg aria-hidden="true"><use href="#i-phone"/></svg>phone</div><div><svg aria-hidden="true"><use href="#i-plus"/></svg>plus</div><div><svg aria-hidden="true"><use href="#i-refresh"/></svg>refresh</div><div><svg aria-hidden="true"><use href="#i-report"/></svg>report</div><div><svg aria-hidden="true"><use href="#i-requisition"/></svg>requisition</div><div><svg aria-hidden="true"><use href="#i-search"/></svg>search</div><div><svg aria-hidden="true"><use href="#i-send"/></svg>send</div><div><svg aria-hidden="true"><use href="#i-settings"/></svg>settings</div><div><svg aria-hidden="true"><use href="#i-shield"/></svg>shield</div><div><svg aria-hidden="true"><use href="#i-sign"/></svg>sign</div><div><svg aria-hidden="true"><use href="#i-star"/></svg>star</div><div><svg aria-hidden="true"><use href="#i-swap"/></svg>swap</div><div><svg aria-hidden="true"><use href="#i-timesheet"/></svg>timesheet</div><div><svg aria-hidden="true"><use href="#i-trash"/></svg>trash</div><div><svg aria-hidden="true"><use href="#i-upload"/></svg>upload</div><div><svg aria-hidden="true"><use href="#i-user"/></svg>user</div><div><svg aria-hidden="true"><use href="#i-users"/></svg>users</div><div><svg aria-hidden="true"><use href="#i-warn"/></svg>warn</div></div>
+  <p class="kit-p">File: <code>brand-kit/icons.svg</code>, a sprite. Use one with <code>&lt;svg class="ic" width="16" height="16"&gt;&lt;use href="icons.svg#i-name"/&gt;&lt;/svg&gt;</code>.</p>
+</section>
+
+<section class="kit-sec" id="layout">
+  <p class="eyebrow">13</p><h2>Layout and motion</h2>
+  <div class="two" style="margin-top:16px">
+    <div class="panel"><p class="eyebrow">Layout</p><ul class="kit-list">
+      <li><b>Page width</b> 1180px on the site, 1200px inside the dashboard, with 20–24px side gutters. On a phone the gutter is 16px and nothing scrolls sideways except a table or a drawing in its own box.</li>
+      <li><b>Rail</b> 186–220px, surface, a rule on its right. It hides under 900px and comes back as a drawer from the menu button.</li>
+      <li><b>Breakpoints</b> 900px (rail folds, header collapses to a drawer), 820px (grids go to one column), 480px (tiles go to one column).</li>
+      <li><b>Spacing</b> 8px steps. Groups use gap, not margins. Cards pad 22px, tiles 14px, table cells 12px by 10px.</li>
+      <li><b>Corners</b> 8px on most things, 12px on shells and overlays, 6px on navigation items, 5px on chips, 4px on boxes and keys, pill on filters and badges.</li>
+    </ul></div>
+    <div class="panel"><p class="eyebrow">Motion and states</p><ul class="kit-list">
+      <li><b>Durations</b> 120ms for colour, 180ms for shape, 260ms for anything entering the screen. One curve: cubic-bezier(.2,.7,.3,1).</li>
+      <li><b>Hover</b> fills with sunk or surface; a clickable card lifts 2px with the lift shadow. <b>Press</b> moves a button down 1px.</li>
+      <li><b>Focus</b> is a 2px violet outline offset 2px, on every control, never removed.</li>
+      <li><b>Entering</b> a menu pops in 120ms; a modal or toast slides up 260ms; a drawer slides in from the right.</li>
+      <li><b>Reduced motion</b> turns every transition off.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="kit-sec" id="voice">
+  <p class="eyebrow">14</p><h2>Words</h2>
+  <p class="kit-p">Plain English, sentence case, no metaphors. A screen says what it is for in its first line. A rule is one sentence in the present tense that names who and what: “Nobody signs their own week.” A button says the verb and the thing: “Raise requisition”, “Export CSV”, never “Submit” or “OK”. Numbers keep their unit and their date. An empty screen says what belongs there and how to add the first one. Errors say what to do next, not what went wrong inside.</p>
+  <div class="two" style="margin-top:16px">
+    <div class="panel"><p class="eyebrow" style="color:var(--green-p)">Say</p><ul class="kit-list"><li>Waiting on the client’s approver since Sep 22.</li><li>The PO has $2,400 left. This invoice is $3,100.</li><li>No suppliers yet. Invite the first one.</li><li>Signed by Northbend Athletic, Sep 22, 4:10 pm.</li></ul></div>
+    <div class="panel"><p class="eyebrow" style="color:var(--danger)">Do not say</p><ul class="kit-list"><li>Pending approval workflow.</li><li>Insufficient PO balance (error 4102).</li><li>Let’s get started on your supplier journey!</li><li>Status: APPROVED ✓</li></ul></div>
+  </div>
+</section>
+
+<div class="turn three" style="margin-top:64px">
+  <a href="docs.html"><span class="d">Read</span><span class="t">Documentation</span></a>
+  <a href="requisitions.html"><span class="d">See it used</span><span class="t">Product pages</span></a>
+  <a href="#top"><span class="d">Back</span><span class="t">Top of the kit</span></a>
+</div>
+</main>
+
+<footer class="book"><div class="page book-wide">
+  <div class="book-cols">
+    <div><p class="grp">Product</p><a href="requisitions.html">Requisitions &amp; suppliers</a><a href="submissions.html">Submissions &amp; screening</a><a href="contracts.html">Contracts &amp; onboarding</a><a href="timesheets.html">Timesheets &amp; expenses</a><a href="invoices.html">Invoices &amp; the three-way match</a><a href="compliance.html">Compliance &amp; tenure</a><a href="chain.html">The chain</a><a href="governance.html">Governance</a></div>
+    <div><p class="grp">Solutions</p><a href="index.html#role-program">The program office</a><a href="index.html#role-procurement">Procurement</a><a href="index.html#role-hr">HR and compliance</a><a href="index.html#role-finance">Finance</a><a href="index.html#role-managers">Hiring managers</a><a href="index.html#role-suppliers">Suppliers</a></div>
+    <div><p class="grp">Resources</p><a href="docs.html">Documentation</a><a href="docs-client.html">The operating model, from one desk</a><a href="docs-integrations.html">Integrations</a><a href="docs-time-and-money.html">Time and money</a><a href="docs.html#gate">Security position</a><a href="docs.html#gate">Data processing addendum</a><a href="audit.html">Free contractor spend audit</a></div>
+    <div><p class="grp">Company</p><a href="about.html">About Etyme</a><a href="contact.html">Contact</a><a href="signin.html">Sign in</a><a href="signup.html">Start free</a></div>
+    <div><p class="grp">Legal</p><a href="privacy.html">Privacy policy</a><a href="terms.html">Terms of service</a></div>
+  </div>
+  <div class="book-base">
+    <div class="addr"><b>Etyme Inc.</b><br>3201 Yorktown Ave, Ste. 110B, Durham, NC 27713<br><a href="tel:919-228-9961">919-228-9961</a> &middot; <a href="mailto:support@etyme.com">support@etyme.com</a></div>
+    <div class="right">Resources · Brand kit<br>&copy; 2026 Etyme Inc.</div>
+  </div>
+</div></footer>
+</body>
+</html>

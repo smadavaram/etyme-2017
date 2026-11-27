@@ -1,0 +1,49 @@
+/* Etyme brand kit — design tokens.
+   Paste into the product's globals.css :root (or keep as its own file and import it first).
+   Source of truth: kit.css at the root of the etyme-2017 repository. */
+:root{
+  /* Surfaces — one warm cream ground, no dark mode */
+  --canvas:#F0EEE6;   /* page background */
+  --surface:#FBFAF7;  /* panels, rails, table row hover */
+  --raised:#FFFFFF;   /* cards, inputs, menus, modals */
+  --sunk:#E7E4DA;     /* hover fill on nav items and secondary buttons, meters, skeletons */
+
+  /* Text and lines */
+  --ink:#1F1E1D;      /* primary text */
+  --muted:#6B6862;    /* secondary text, table body labels */
+  --faint:#9C9891;    /* eyebrows, column headers, placeholders */
+  --rule:#E3DFD5;     /* borders and dividers */
+
+  /* Brand strength — logo, primary buttons, links, focus ring */
+  --violet:#5228FF; --orange:#E16400; --green:#00C800;
+  --violet-hover:#3F16E8; --violet-press:#3512C4;
+
+  /* Product strength — small text, chips, active navigation, dots */
+  --violet-p:#4421D6; --orange-p:#C0622E; --green-p:#2F7D3E; --danger:#B83A3A;
+
+  /* Washes and lines — chip fills, active nav fill, focus halo */
+  --violet-wash:#EDE9FF; --violet-line:#C7CDF5;
+  --orange-wash:#F7EDE6; --orange-line:#E5C9B5;
+  --green-wash:#EDF1ED;  --green-line:#C9D6CA;
+  --danger-wash:#FDE8E8; --danger-line:#F0C0C0;
+
+  /* Type */
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,Gelasio,serif; /* headings, big numbers */
+  --sans:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;                   /* everything else */
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;           /* numbers in columns, codes, dates, keyboard keys */
+
+  /* Radii */
+  --r:8px;       /* buttons, inputs, cards, panels, tiles */
+  --r-lg:12px;   /* shells, modals, figures, large tiles */
+  --r-pill:99px; /* filter pills, badges, meters */
+  /* also used: 6px on navigation items and pager buttons, 5px on chips, 4px on checkboxes and kbd */
+
+  /* Motion — three durations, one curve */
+  --t-fast:120ms; --t:180ms; --t-slow:260ms;
+  --ease:cubic-bezier(.2,.7,.3,1);
+
+  /* Shadows — only on things that float */
+  --lift:0 1px 2px #1f1e1d0f, 0 4px 14px #1f1e1d0f;      /* hovered card or tile */
+  --float:0 8px 20px #1f1e1d14, 0 24px 56px #1f1e1d1a;   /* menus, modals, drawers, toasts */
+  --scrim:#1f1e1d5c;                                     /* behind a modal or drawer */
+}
