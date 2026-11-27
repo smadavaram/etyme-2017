@@ -167,8 +167,9 @@ export const DELETE_ORDER = [
   // company, and the company's switch beside them.
   'InboundEmailAttachment', 'InboundEmail', 'EmailIntake',
   'VerificationDoc', 'DocumentEdition', 'DocumentBacking', 'GovernanceEvaluation',
+  // Training micro-site (record 133): a path names its enrollment and an adoption names its course, so they go before both.
   // Train-to-bench (record 120): a score, a certification and the ask name an enrollment, so they go before it; a cohort after its enrollments and before its course.
-  'Assessment', 'Certification', 'BenchAsk', 'Enrollment',
+  'Assessment', 'Certification', 'BenchAsk', 'LearningPath', 'Enrollment', 'CourseAdoption',
   // Project teams (record 120): a deliverable names its project and milestone, a project its team and order, a member its role; all before the milestone, the order, the person and the firm.
   'PodDeliverable', 'PodProject', 'PodMember', 'PodRole', 'Pod',
   // Public-sector proposals (record 124): a piece names its proposal, so it goes first.
@@ -258,6 +259,12 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'BenchAsk.companyId': { as: 'OWNED', to: ['Company'] },
   'BenchAsk.benchListingId': { as: 'LINK', to: ['BenchListing'] },
   'PluginSwitch.byPersonId': { as: 'RECORD' },
+  // Training micro-site (record 133): provenance and people named by id alone, kept as history.
+  'Course.sourceCourseId': { as: 'RECORD' },
+  'Course.sourceCompanyId': { as: 'RECORD' },
+  'CourseAdoption.adoptedByPersonId': { as: 'RECORD' },
+  'LearningPath.mentorPersonId': { as: 'RECORD' },
+  'LearningPath.approvedByPersonId': { as: 'RECORD' },
   // A company's own model route: the provider's name for the model, and the Owner who set it, are history, no row's key.
   'TenantModelRoute.modelId': { as: 'RECORD' },
   'TenantModelRoute.setByPersonId': { as: 'RECORD' },

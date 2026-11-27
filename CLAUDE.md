@@ -502,6 +502,7 @@ Full text → 40, 11, 56, 68, 72.
   2026-11-25 → 120): a per-tenant switch, set by the Owner or by a
   Superadmin as a staff tool on the switch alone, ledgered; off means no
   menu and refused routes, never deleted data. No agent switches one.
+- **A plugin runs on its own micro-site** (owner, 2026-11-27 → 133): the training plugin's learner tree is `/learn`, free and public, in the tenant's branding; the core dashboard keeps one door link. No price on any course screen through about Feb 2027.
 - **Every plugin lives on its own micro-site** (owner, 2026-11-27 → 133):
   the core gets a door only; each user has a micro dashboard there; the
   one record underneath, never forked. Courses are adopted across tenants,

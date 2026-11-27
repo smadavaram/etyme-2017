@@ -93,6 +93,7 @@ model Person {
   matchOverrides           InvoiceMatchOverride[]
   verifications            Verification[]
   enrollments              Enrollment[]
+  learningPaths            LearningPath[]
   expenses                 Expense[]
   /// Expense acceptances this person decided for their firm (2026-10-19).
   expensesAccepted         ExpenseAcceptance[]       @relation("expenseAcceptedBy")
@@ -1062,6 +1063,9 @@ model Company {
   /// (record 120, answer 3). A per-tenant setting; Tapin's is true.
   coursesHiddenOnStorefront  Boolean                 @default(false)
   cohorts                    Cohort[]
+  enrollmentsHere            Enrollment[]
+  courseAdoptions            CourseAdoption[]
+  learningPaths              LearningPath[]
   pods                       Pod[]
   docTemplates               DocTemplate[]
   msasAsVendor               MasterAgreement[]       @relation("vendor")
@@ -7787,11 +7791,23 @@ model Course {
   isPublic    Boolean  @default(false) // visible to candidates outside the company
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  /// Record 133. companyId is the creator and stays the owner. The lessons
+  /// live in typed content read by key, never in a table. No price is read
+  /// by the learner micro-site.
+  slug            String?
+  trackKey        String? // kids · entry · non-it · it-upgrade
+  /// Made from another firm's course: the source course and its creator,
+  /// kept as history.
+  sourceCourseId  String?
+  sourceCompanyId String?
 
   enrollments Enrollment[]
   cohorts     Cohort[]
+  adoptions   CourseAdoption[]
+  paths       LearningPath[]
 
   @@index([companyId, isPublic])
+  @@index([companyId, slug])
 }
 
 model Enrollment {
@@ -7808,13 +7824,79 @@ model Enrollment {
   /// The cohort she took the course in, where there was one (record 120).
   cohortId       String?
   cohort         Cohort?         @relation(fields: [cohortId], references: [id])
+  /// Record 133. The tenant the progress lives with: the adopter, where the
+  /// course was adopted; Course.companyId is the creator.
+  companyId      String?
+  company        Company?        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  adoptionId     String?
+  adoption       CourseAdoption? @relation(fields: [adoptionId], references: [id])
+  trackKey       String?
+  /// Lessons done and answers given, by lesson key. Small; read with the row.
+  progress       Json?
   assessments    Assessment[]
   certifications Certification[]
   benchAsks      BenchAsk[]
+  paths          LearningPath[]
 
   @@unique([courseId, personId])
   @@index([personId, status])
   @@index([cohortId])
+  @@index([companyId])
+  @@index([adoptionId])
+}
+
+/// A company takes another's course and assigns it to its own teams
+/// (record 133). Progress rides on the adopter's enrollments. The creator
+/// reads completion counts only, unless grantsNamedEvidence.
+model CourseAdoption {
+  id                  String       @id @default(cuid())
+  courseId            String
+  course              Course       @relation(fields: [courseId], references: [id])
+  adopterCompanyId    String
+  adopterCompany      Company      @relation(fields: [adopterCompanyId], references: [id], onDelete: Cascade)
+  adoptedByPersonId   String
+  /// The adopter's own team the course is assigned to, where one was named.
+  teamRef             String?
+  grantsNamedEvidence Boolean      @default(false)
+  createdAt           DateTime     @default(now())
+  enrollments         Enrollment[]
+
+  @@unique([courseId, adopterCompanyId])
+  @@index([adopterCompanyId])
+}
+
+/// One learner's path through a course (record 133). Provenance is the
+/// point: how it was made, from what, who the mentor is, which video.
+/// PROPOSED until the mentor's yes, then APPROVED, ACTIVE, COMPLETE.
+model LearningPath {
+  id                 String      @id @default(cuid())
+  companyId          String
+  company            Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  personId           String
+  person             Person      @relation(fields: [personId], references: [id])
+  courseId           String?
+  course             Course?     @relation(fields: [courseId], references: [id])
+  enrollmentId       String?
+  enrollment         Enrollment? @relation(fields: [enrollmentId], references: [id])
+  /// PROMPT or SYSTEM.
+  generationType     String
+  sourcePrompt       String?
+  /// The record signals a system path was made from: role, skills, bench status, gaps, prior completions.
+  sourceSignals      Json?
+  mentorPersonId     String?
+  videoSource        String?
+  /// Lesson keys in order, read against the typed content.
+  steps              Json?
+  state              String      @default("PROPOSED")
+  approvedAt         DateTime?
+  approvedByPersonId String?
+  completedAt        DateTime?
+  createdAt          DateTime    @default(now())
+
+  @@index([companyId, state])
+  @@index([personId])
+  @@index([courseId])
+  @@index([enrollmentId])
 }
 
 /// A group taking one course together (record 120, train-to-bench).

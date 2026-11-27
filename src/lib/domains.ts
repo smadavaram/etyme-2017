@@ -313,6 +313,8 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/training', 'app/api/training',
       // Training that starts, finishes or stops.
       'lib/training',
+      // The training micro-site (record 133): its own route tree and its own routes, under the plugin switch.
+      'app/learn', 'app/api/learn',
       // Project teams (record 120, pods): a plugin, off by default.
       'lib/pods', 'app/api/pods', 'app/dashboard/pods',
       'app/api/alumni', 'app/api/releasing-soon', 'app/api/benchmark',
