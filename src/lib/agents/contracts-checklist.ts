@@ -27,11 +27,14 @@
  * it never sends. Every act goes on the ledger through the runner.
  */
 
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { dayAround } from '@/lib/decision-queue'
 import { previewFor } from '@/app/api/compliance/clearance/ask'
 import { registerAgent, type AgentContext } from './runner'
-import { openOnce, ownerOf } from './open-once'
+import { registerPlan } from './plans'
+import { openOnce, ownerOf, cardOutcome } from './open-once'
+import { runSkill } from '@/lib/skills/runner'
 import {
   PROPOSED_PACK_LEAD_DAYS, contractItemsFor, daysFromTo, driftWords, judgeContractItem, packCompleteWords, packDue, packWords, placementWords, type ItemState,
 } from './checklist-rules'
@@ -49,23 +52,43 @@ export const ITEM_RECORD = 'ChecklistItem'
  */
 export const PLACEMENT_CARD_LABEL = 'PlacementRecord'
 export const PACK_CARD_LABEL = 'OnboardingPack'
+/** What a checklist skill run is about: one term on one placement (`<lineId>:<label>`). The checker re-reads the line and that term. */
+export const TERM_RECORD = 'CONTRACT_TERM'
+/** The kind of card a run opened, for the card skill: the pack that is missing papers (its own link is the placement). */
+export const PACK_INCOMPLETE_KIND = 'PackIncomplete'
+
+// The skills this agent runs (record 123), registered where the agent is defined so every door that runs it holds the plan.
+registerPlan({ agentKey: CONTRACTS_CHECKLIST_AGENT, skills: ['checklist.list', 'drift.flag', 'card.open'], outputSkill: 'checklist.list' })
 
 const NOT_STARTED = ['DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] as const
 const LIVE = [...NOT_STARTED, 'IN_PROGRESS', 'PAUSED'] as const
+
+export const LINE_SELECT = {
+  id: true, state: true, billRate: true, billCurrency: true, paymentTerms: true, startDate: true, endDate: true, personId: true,
+  clientCompanyId: true, endClientCompanyId: true,
+  person: { select: { name: true } },
+  clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } },
+  msa: { select: { paymentTerms: true } },
+  engagement: { select: { statementOfWork: true, sowSignedAt: true } },
+  workOrder: { select: { number: true, startDate: true, endDate: true, engagement: { select: { statementOfWork: true, sowSignedAt: true } } } },
+} as const
+export type LineRow = Prisma.SellContractGetPayload<{ select: typeof LINE_SELECT }>
+
+/** The items a placement's record supports, from its own facts: what the agent lists and what its checker re-derives. */
+export function wantedOf(line: LineRow) {
+  const eng = line.engagement ?? line.workOrder?.engagement ?? null
+  const sow = eng?.statementOfWork?.trim() ? { signedAt: eng.sowSignedAt } : null
+  return contractItemsFor({
+    billRateCents: line.billRate, billCurrency: line.billCurrency, paymentTerms: line.paymentTerms,
+    startDate: line.startDate, endDate: line.endDate, msa: line.msa, order: line.workOrder, sow,
+  })
+}
 
 export async function contractsChecklistStep(ctx: AgentContext): Promise<void> {
   const { companyId, now } = ctx
   const lines = await prisma.sellContract.findMany({
     where: { companyId, state: { in: [...LIVE] } },
-    select: {
-      id: true, state: true, billRate: true, billCurrency: true, paymentTerms: true, startDate: true, endDate: true, personId: true,
-      clientCompanyId: true, endClientCompanyId: true,
-      person: { select: { name: true } },
-      clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } },
-      msa: { select: { paymentTerms: true } },
-      engagement: { select: { statementOfWork: true, sowSignedAt: true } },
-      workOrder: { select: { number: true, startDate: true, endDate: true, engagement: { select: { statementOfWork: true, sowSignedAt: true } } } },
-    },
+    select: LINE_SELECT,
     orderBy: { id: 'asc' },
     take: 500,
   })
@@ -75,34 +98,38 @@ export async function contractsChecklistStep(ctx: AgentContext): Promise<void> {
 
   for (const line of lines) {
     const client = line.endClientCompany?.name ?? line.clientCompany.name
-    const eng = line.engagement ?? line.workOrder?.engagement ?? null
-    const sow = eng?.statementOfWork?.trim() ? { signedAt: eng.sowSignedAt } : null
-    const wanted = contractItemsFor({
-      billRateCents: line.billRate, billCurrency: line.billCurrency, paymentTerms: line.paymentTerms,
-      startDate: line.startDate, endDate: line.endDate, msa: line.msa, order: line.workOrder, sow,
-    })
+    const wanted = wantedOf(line)
     const have = await prisma.checklistItem.findMany({ where: { companyId, ownerType: LINE_RECORD, ownerId: line.id, kind: 'CONTRACT_TERM' } })
 
     for (const w of wanted) {
       let item = have.find((h) => h.label === w.label)
+      const term = { recordType: TERM_RECORD, recordId: `${line.id}:${w.label}`, unitsPlanned: 1 }
       if (!item) {
         if (!(await ctx.mayAct())) return
         const state: ItemState = judgeContractItem(w.label, w.firstAgreed, w.actual)
-        item = await prisma.checklistItem.create({
-          data: { companyId, ownerType: LINE_RECORD, ownerId: line.id, kind: 'CONTRACT_TERM', label: w.label, agreedValue: w.firstAgreed, actualValue: w.actual, state },
-        })
-        await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'CHECKLIST_LISTED', summary: `Listed “${w.label}” on ${line.person.name}’s placement at ${client}: ${state === 'MET' ? 'agreed and actual match' : state === 'OPEN' ? 'no signed paper recorded' : 'agreed and actual differ'}.` })
+        item = (await runSkill(ctx, 'checklist.list', term, async () => {
+          const made = await prisma.checklistItem.create({
+            data: { companyId, ownerType: LINE_RECORD, ownerId: line.id, kind: 'CONTRACT_TERM', label: w.label, agreedValue: w.firstAgreed, actualValue: w.actual, state },
+          })
+          await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'CHECKLIST_LISTED', summary: `Listed “${w.label}” on ${line.person.name}’s placement at ${client}: ${state === 'MET' ? 'agreed and actual match' : state === 'OPEN' ? 'no signed paper recorded' : 'agreed and actual differ'}.` })
+          return { result: made }
+        })).result
       } else if (item.state !== 'WAIVED_WITH_REASON') {
         const state = judgeContractItem(w.label, item.agreedValue, w.actual)
         if (item.actualValue !== w.actual || item.state !== state) {
-          item = await prisma.checklistItem.update({ where: { id: item.id }, data: { actualValue: w.actual, state } })
+          const was = item
+          item = (await runSkill(ctx, 'checklist.list', term, async () => ({ result: await prisma.checklistItem.update({ where: { id: was.id }, data: { actualValue: w.actual, state } }) }))).result
         }
       }
       if (item.state !== 'DRIFT') continue
       const words = driftWords({ person: line.person.name, client, label: w.label, agreed: item.agreedValue, actual: item.actualValue })
       if (!(await ctx.mayAct())) return
-      const r = await openOnce(ctx, contractsOwner, { recordType: ITEM_RECORD, recordId: item.id }, words, [{ recordType: LINE_RECORD, recordId: line.id }])
-      if (r === 'OPENED') await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'DRIFT_FLAGGED', summary: `${words.question} A decision is open. Nothing was changed.` })
+      const flagged = item
+      await runSkill(ctx, 'drift.flag', { recordType: ITEM_RECORD, recordId: flagged.id, unitsPlanned: 1 }, async () => {
+        const r = await openOnce(ctx, contractsOwner, { recordType: ITEM_RECORD, recordId: flagged.id }, words, [{ recordType: LINE_RECORD, recordId: line.id }])
+        if (r === 'OPENED') await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'DRIFT_FLAGGED', summary: `${words.question} A decision is open. Nothing was changed.` })
+        return cardOutcome(r)
+      })
     }
   }
 
@@ -122,8 +149,11 @@ export async function contractsChecklistStep(ctx: AgentContext): Promise<void> {
       billRateCents: line.billRate, currency: line.billCurrency, startDate: line.startDate, endDate: line.endDate, suppliers,
     })
     if (!(await ctx.mayAct())) return
-    const r = await openOnce(ctx, contractsOwnerOrAccount, { recordType: PLACEMENT_CARD_LABEL, recordId: line.id }, words, [{ recordType: LINE_RECORD, recordId: line.id }])
-    if (r === 'OPENED') await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'PLACEMENT_RECORD_ASSEMBLED', summary: `${words.question} A decision is open. Nothing was changed and nothing was signed.` })
+    await runSkill(ctx, 'card.open', { recordType: PLACEMENT_CARD_LABEL, recordId: line.id, unitsPlanned: 1 }, async () => {
+      const r = await openOnce(ctx, contractsOwnerOrAccount, { recordType: PLACEMENT_CARD_LABEL, recordId: line.id }, words, [{ recordType: LINE_RECORD, recordId: line.id }])
+      if (r === 'OPENED') await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'PLACEMENT_RECORD_ASSEMBLED', summary: `${words.question} A decision is open. Nothing was changed and nothing was signed.` })
+      return cardOutcome(r)
+    })
   }
 
   // The onboarding pack, complete before day one.
@@ -143,14 +173,20 @@ export async function contractsChecklistStep(ctx: AgentContext): Promise<void> {
       if (papers.length === 0) continue
       const done = packCompleteWords({ person: line.person.name, client, startDate: line.startDate, days, papers })
       if (!(await ctx.mayAct())) return
-      const o = await openOnce(ctx, hrOwner, { recordType: PACK_CARD_LABEL, recordId: line.id }, done, [{ recordType: LINE_RECORD, recordId: line.id }])
-      if (o === 'OPENED') await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'PACK_COMPLETE_FLAGGED', summary: `Asked HR to confirm ${line.person.name}’s pack is ready for ${client}: ${papers.length} ${papers.length === 1 ? 'paper' : 'papers'} on file. Nobody was started.` })
+      await runSkill(ctx, 'card.open', { recordType: PACK_CARD_LABEL, recordId: line.id, unitsPlanned: 1 }, async () => {
+        const o = await openOnce(ctx, hrOwner, { recordType: PACK_CARD_LABEL, recordId: line.id }, done, [{ recordType: LINE_RECORD, recordId: line.id }])
+        if (o === 'OPENED') await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'PACK_COMPLETE_FLAGGED', summary: `Asked HR to confirm ${line.person.name}’s pack is ready for ${client}: ${papers.length} ${papers.length === 1 ? 'paper' : 'papers'} on file. Nobody was started.` })
+        return cardOutcome(o)
+      })
       continue
     }
     const words = packWords({ person: line.person.name, client, startDate: line.startDate, days, missing })
     if (!(await ctx.mayAct())) return
-    const r = await openOnce(ctx, hrOwner, { recordType: LINE_RECORD, recordId: line.id }, words)
-    if (r === 'OPENED') await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'PACK_INCOMPLETE_FLAGGED', summary: `Told HR that ${line.person.name} starts at ${client} with ${missing.length} ${missing.length === 1 ? 'paper' : 'papers'} missing: ${missing.join('; ')}.` })
+    await runSkill(ctx, 'card.open', { recordType: PACK_INCOMPLETE_KIND, recordId: line.id, unitsPlanned: 1 }, async () => {
+      const r = await openOnce(ctx, hrOwner, { recordType: LINE_RECORD, recordId: line.id }, words)
+      if (r === 'OPENED') await ctx.act({ recordType: LINE_RECORD, recordId: line.id, action: 'PACK_INCOMPLETE_FLAGGED', summary: `Told HR that ${line.person.name} starts at ${client} with ${missing.length} ${missing.length === 1 ? 'paper' : 'papers'} missing: ${missing.join('; ')}.` })
+      return cardOutcome(r)
+    })
   }
 }
 

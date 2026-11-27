@@ -17,6 +17,18 @@ export type Opened = 'OPENED' | 'ALREADY_OPEN' | 'ALREADY_DECIDED' | 'NO_OWNER' 
 
 export interface Card { question: string; proof: string }
 
+/**
+ * What a card-opening skill reports about one `openOnce` (record 123): a card
+ * that was opened, or was already there, is a pass; a card nobody could be
+ * owed, or the ledger refused, is a failed call and says so. A card already
+ * decided on these very words is a pass: the question was asked and answered.
+ */
+export function cardOutcome(r: Opened): { result: Opened; verdict?: 'FAIL'; failReason?: string } {
+  if (r === 'NO_OWNER') return { result: r, verdict: 'FAIL', failReason: 'Nobody holds a seat that could be owed this card.' }
+  if (r === 'REFUSED') return { result: r, verdict: 'FAIL', failReason: 'The ledger refused the card, or the agent has no switch.' }
+  return { result: r }
+}
+
 /** The seat that owes a card: the first of these roles with a working seat, else the Owner; null where nobody does. */
 export const ownerOf = (ctx: AgentContext, roles: readonly string[]) => ownerForRoles(ctx.companyId, roles, ctx.now)
 

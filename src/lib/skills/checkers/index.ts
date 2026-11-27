@@ -11,6 +11,9 @@ import { censusClassifyChecker } from './census-classify'
 import { chasePropose } from './chase-propose'
 import { chaseSend } from './chase-send'
 import { chaseClose } from './chase-close'
+import { checklistList } from './checklist-list'
+import { driftFlag } from './drift-flag'
+import { cardOpen } from './card-open'
 
 export const CHECKERS: Record<string, SkillChecker<any>> = {
   'weekly.summary': weeklySummaryChecker,
@@ -18,4 +21,7 @@ export const CHECKERS: Record<string, SkillChecker<any>> = {
   'chase.propose': chasePropose,
   'chase.send': chaseSend,
   'chase.close': chaseClose,
+  'checklist.list': checklistList,
+  'drift.flag': driftFlag,
+  'card.open': cardOpen,
 }
