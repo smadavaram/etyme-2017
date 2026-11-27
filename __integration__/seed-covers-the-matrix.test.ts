@@ -84,6 +84,7 @@ const RUNTIME: Record<string, string> = {
   podMember: 'Written when a firm puts a person on a team, inside the Project teams plugin; off by default.',
   podProject: 'Written when a client says yes to a sold team, inside the Project teams plugin; off by default.',
   podDeliverable: 'Written with a sold team\u2019s milestones, inside the Project teams plugin; off by default.',
+  siteCompliancePass: 'Written when a person records a compliance pass on a tenant site, inside the Website plugin; off by default, so the seeded world has none.',
   agentTask: 'Proposed by an agent that is switched on, and released by a person’s yes on the decision queue; no agent runs in the seeded world.',
   moneyChain: 'Opened when a seat that runs payroll opens a month; every amount on it is typed by a person.',
   // Record 102, item 1 (2026-11-21). A stranger's question from a firm's public page.
