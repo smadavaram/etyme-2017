@@ -171,6 +171,7 @@ const NOT_A_CLIENT_READER: [string, string][] = [
   ['src/lib/work-chain-read.ts', BY_ID],
   ['src/lib/work-country.ts', PAPERS],
   ['src/lib/your-terms.ts', WORKER],
+  ['src/app/api/packets/examination.ts', 'seller side: the recording firm reads its own placement (companyId is the caller), and the buyer tie check returns only yes or no for the supplier, never a name, rate or member; a hidden member line is still the supplier\u2019s real tie to the client'],
 ]
 
 /**
@@ -181,7 +182,6 @@ const KNOWN_OPEN: [string, string][] = [
   ['src/lib/supplier-desks.ts', 'finds one line to read a supplier’s terms; no figure or name of a member is printed; owner of lib/supplier-desks'],
   ['src/lib/public-site.ts', 'counts the client’s live lines for a public page; a hidden member is counted; owner of lib/public-site'],
   ['src/app/api/vendors/scorecards/route.ts', 'counts who started from each supplier by the client’s lines, a hidden member among them; SUPPLY owns it, the change is clientLineWhere on line 89'],
-  ['src/app/api/packets/examination.ts', 'a supplier reads the lines it holds at a buyer: seller side, listed for the owner to confirm'],
 ]
 
 function walk(dir: string, out: string[] = []): string[] {
