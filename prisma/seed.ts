@@ -26,6 +26,7 @@ import { defaultPostureFor } from '../src/lib/walls'
 import { rolesFor } from '../src/lib/company-defaults'
 import { usFederalHolidays } from '../src/lib/holidays'
 import { PERMISSIONS } from '../src/lib/permissions'
+import { SEEDED_SITE_LIVE_AT } from '../src/lib/plugins'
 
 const prisma = new PrismaClient()
 
@@ -138,7 +139,7 @@ async function main() {
       outsideAccess: defaultPostureFor('VENDOR'),
       templatePack: 'US_SAP',
       currency: 'USD',
-      siteLiveAt: new Date(),
+      siteLiveAt: SEEDED_SITE_LIVE_AT,
       networkVerifiedAt: new Date(),
     },
   })
@@ -152,7 +153,7 @@ async function main() {
       kind: 'CLIENT',
       outsideAccess: defaultPostureFor('CLIENT'),
       currency: 'USD',
-      siteLiveAt: new Date(),
+      siteLiveAt: SEEDED_SITE_LIVE_AT,
     },
   })
 
@@ -185,7 +186,7 @@ async function main() {
       supplierPosture: 'PRIME',
       currency: 'USD',
       templatePack: 'US_SAP',
-      siteLiveAt: new Date(),
+      siteLiveAt: SEEDED_SITE_LIVE_AT,
       // Named people only, which is what a GSI gets at sign-up.
       outsideAccess: 'NAMED_ONLY',
       // One client account cannot read another's.
@@ -377,7 +378,7 @@ async function main() {
       outsideAccess: defaultPostureFor('VENDOR'),
       templatePack: 'US_SAP',
       currency: 'USD',
-      siteLiveAt: new Date(),
+      siteLiveAt: SEEDED_SITE_LIVE_AT,
       networkVerifiedAt: new Date(),
     },
   })
@@ -401,7 +402,7 @@ async function main() {
       kind: 'MSP',
       outsideAccess: defaultPostureFor('MSP'),
       currency: 'USD',
-      siteLiveAt: new Date(),
+      siteLiveAt: SEEDED_SITE_LIVE_AT,
       networkVerifiedAt: new Date(),
     },
   })
@@ -1413,7 +1414,7 @@ async function main() {
       outsideAccess: defaultPostureFor('VENDOR'),
       supplierPosture: 'PRIME',
       currency: 'USD',
-      siteLiveAt: new Date(),
+      siteLiveAt: SEEDED_SITE_LIVE_AT,
     },
   })
 

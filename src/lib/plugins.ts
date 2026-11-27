@@ -43,6 +43,13 @@ export function switchOnRefusal(plugin: PluginKey): string | null {
  */
 export const GRANDFATHER_CUTOFF = new Date('2026-11-27T00:00:00Z')
 
+/**
+ * The one day the dev seed gives every storefront it writes: a day before the
+ * cutoff, because those sites stand for sites that were live before the flag.
+ * Fixed, never new Date(), so a database seeded on any day shows them alike.
+ */
+export const SEEDED_SITE_LIVE_AT = new Date(GRANDFATHER_CUTOFF.getTime() - 24 * 60 * 60 * 1000)
+
 export function liveBeforeTheFlag(siteLiveAt: Date | null | undefined): boolean {
   return Boolean(siteLiveAt) && siteLiveAt!.getTime() < GRANDFATHER_CUTOFF.getTime()
 }
