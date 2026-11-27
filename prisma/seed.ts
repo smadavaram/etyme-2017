@@ -71,6 +71,7 @@ async function main() {
     prisma.documentShareItem.deleteMany(),
     prisma.documentShare.deleteMany(),
     prisma.enrollment.deleteMany(),
+    prisma.lessonVideo.deleteMany(),
     prisma.course.deleteMany(),
     prisma.governanceRule.deleteMany(),
     prisma.governancePolicy.deleteMany(),

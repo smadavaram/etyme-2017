@@ -282,46 +282,46 @@ model Person {
   /// is behind this one is refused on its next request (lib/identity).
   /// Raised by "sign out everywhere" today, and by a directory that
   /// disables the person in pass 1's second stage.
-  sessionVersion               Int                   @default(0)
+  sessionVersion               Int                     @default(0)
   /// When it was last raised, and by whom, for the screen's one line.
   sessionsEndedAt              DateTime?
   sessionsEndedById            String?
   /// The identities a company's directory vouches for: issuer and subject.
   externalIdentities           ExternalIdentity[]
-  signInPoliciesSet            CompanySignInPolicy[] @relation("signInPolicySetBy")
-  skillTargetsSet              SkillTarget[]         @relation("skillTargetSetBy")
+  signInPoliciesSet            CompanySignInPolicy[]   @relation("signInPolicySetBy")
+  skillTargetsSet              SkillTarget[]           @relation("skillTargetSetBy")
   /// Owners (2026-11-12): asks this person made or decided, and the proofs
   /// about them or recorded by them.
-  ownershipAsked               OwnershipRequest[]    @relation("ownershipAskedBy")
-  ownershipDecided             OwnershipRequest[]    @relation("ownershipDecidedBy")
-  ownerProofs                  OwnerProof[]          @relation("ownerProofOf")
-  ownerProofsRecorded          OwnerProof[]          @relation("ownerProofRecordedBy")
-  pageAsksTaken                PageAsk[]             @relation("pageAskAssignee")
-  pageAsksClosed               PageAsk[]             @relation("pageAskClosedBy")
-  identityProvidersSet         IdentityProvider[]    @relation("identityProviderSetBy")
-  scimTokensMade               ScimToken[]           @relation("scimTokenMadeBy")
-  directoryGroupRolesSet       DirectoryGroupRole[]  @relation("directoryGroupRoleSetBy")
+  ownershipAsked               OwnershipRequest[]      @relation("ownershipAskedBy")
+  ownershipDecided             OwnershipRequest[]      @relation("ownershipDecidedBy")
+  ownerProofs                  OwnerProof[]            @relation("ownerProofOf")
+  ownerProofsRecorded          OwnerProof[]            @relation("ownerProofRecordedBy")
+  pageAsksTaken                PageAsk[]               @relation("pageAskAssignee")
+  pageAsksClosed               PageAsk[]               @relation("pageAskClosedBy")
+  identityProvidersSet         IdentityProvider[]      @relation("identityProviderSetBy")
+  scimTokensMade               ScimToken[]             @relation("scimTokenMadeBy")
+  directoryGroupRolesSet       DirectoryGroupRole[]    @relation("directoryGroupRoleSetBy")
   signInFailures               SignInFailure[]
   adverseActionsGiven          AdverseAction[]
   // Who set an exchange rate (2026-10-27).
-  fxRatesSet                   FxRate[]              @relation("fxRateSetBy")
-  permissionsGranted           PermissionGrant[]     @relation("permissionGrantedBy")
-  permissionsRevoked           PermissionGrant[]     @relation("permissionRevokedBy")
-  submissionsSubmitted         Submission[]          @relation("submissionSubmittedBy")
-  commissionsEarned            ContractCommission[]  @relation("commissionEarnedBy")
-  commissionsSet               ContractCommission[]  @relation("commissionSetBy")
+  fxRatesSet                   FxRate[]                @relation("fxRateSetBy")
+  permissionsGranted           PermissionGrant[]       @relation("permissionGrantedBy")
+  permissionsRevoked           PermissionGrant[]       @relation("permissionRevokedBy")
+  submissionsSubmitted         Submission[]            @relation("submissionSubmittedBy")
+  commissionsEarned            ContractCommission[]    @relation("commissionEarnedBy")
+  commissionsSet               ContractCommission[]    @relation("commissionSetBy")
   /// The second check before money is released (Layer 7, record 86).
   passkeys                     Passkey[]
   authenticatorApps            AuthenticatorApp[]
-  siteBrandingApprovals        Company[]             @relation("siteBrandingApprover")
-  siteCompliancePassesRecorded SiteCompliancePass[]  @relation("siteCompliancePassRecorder")
-  proposalsCreated             Proposal[]            @relation("proposalCreator")
-  proposalsApproved            Proposal[]            @relation("proposalApprover")
-  proposalsSubmitted           Proposal[]            @relation("proposalSubmitter")
-  certificationsSet               SupplierCertification[] @relation("certificationSetter")
-  ownershipAttestations           OwnershipAttestation[]  @relation("ownershipAttester")
-  diversityRegsMade    DiversityRegistration[] @relation("diversityRegistrationCreator")
-  diversityRegsSubmitted DiversityRegistration[] @relation("diversityRegistrationSubmitter")
+  siteBrandingApprovals        Company[]               @relation("siteBrandingApprover")
+  siteCompliancePassesRecorded SiteCompliancePass[]    @relation("siteCompliancePassRecorder")
+  proposalsCreated             Proposal[]              @relation("proposalCreator")
+  proposalsApproved            Proposal[]              @relation("proposalApprover")
+  proposalsSubmitted           Proposal[]              @relation("proposalSubmitter")
+  certificationsSet            SupplierCertification[] @relation("certificationSetter")
+  ownershipAttestations        OwnershipAttestation[]  @relation("ownershipAttester")
+  diversityRegsMade            DiversityRegistration[] @relation("diversityRegistrationCreator")
+  diversityRegsSubmitted       DiversityRegistration[] @relation("diversityRegistrationSubmitter")
   /// Her own yes to updates from firms (record 117). Given by her, revocable. A yes counts only while updatesRevokedAt is null or older than updatesYesAt.
   updatesYesAt                 DateTime?
   updatesRevokedAt             DateTime?
@@ -1066,6 +1066,8 @@ model Company {
   enrollmentsHere            Enrollment[]
   courseAdoptions            CourseAdoption[]
   learningPaths              LearningPath[]
+  lessonVideos               LessonVideo[]
+  learnCredentials           LearnCredential[]
   pods                       Pod[]
   docTemplates               DocTemplate[]
   msasAsVendor               MasterAgreement[]       @relation("vendor")
@@ -7779,18 +7781,18 @@ model GovernanceEvaluation {
 // ─────────────────────────────────────────────
 
 model Course {
-  id          String   @id @default(cuid())
-  companyId   String
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  category    String? // TECH · COMPLIANCE · SOFT_SKILLS · CERTIFICATION · AI_UPSKILLING
-  duration    Int? // estimated hours
-  price       Int? // cents — null = free
-  currency    String   @default("USD")
-  isPublic    Boolean  @default(false) // visible to candidates outside the company
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  category        String? // TECH · COMPLIANCE · SOFT_SKILLS · CERTIFICATION · AI_UPSKILLING
+  duration        Int? // estimated hours
+  price           Int? // cents — null = free
+  currency        String   @default("USD")
+  isPublic        Boolean  @default(false) // visible to candidates outside the company
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   /// Record 133. companyId is the creator and stays the owner. The lessons
   /// live in typed content read by key, never in a table. No price is read
   /// by the learner micro-site.
@@ -7801,35 +7803,36 @@ model Course {
   sourceCourseId  String?
   sourceCompanyId String?
 
-  enrollments Enrollment[]
-  cohorts     Cohort[]
-  adoptions   CourseAdoption[]
-  paths       LearningPath[]
+  enrollments  Enrollment[]
+  cohorts      Cohort[]
+  adoptions    CourseAdoption[]
+  paths        LearningPath[]
+  lessonVideos LessonVideo[]
 
   @@index([companyId, isPublic])
   @@index([companyId, slug])
 }
 
 model Enrollment {
-  id             String          @id @default(cuid())
+  id             String           @id @default(cuid())
   courseId       String
-  course         Course          @relation(fields: [courseId], references: [id])
+  course         Course           @relation(fields: [courseId], references: [id])
   personId       String
-  person         Person          @relation(fields: [personId], references: [id])
-  status         String          @default("ENROLLED") // ENROLLED · IN_PROGRESS · COMPLETED · DROPPED
-  enrolledAt     DateTime        @default(now())
+  person         Person           @relation(fields: [personId], references: [id])
+  status         String           @default("ENROLLED") // ENROLLED · IN_PROGRESS · COMPLETED · DROPPED
+  enrolledAt     DateTime         @default(now())
   completedAt    DateTime?
   score          Int?
   certificateUrl String?
   /// The cohort she took the course in, where there was one (record 120).
   cohortId       String?
-  cohort         Cohort?         @relation(fields: [cohortId], references: [id])
+  cohort         Cohort?          @relation(fields: [cohortId], references: [id])
   /// Record 133. The tenant the progress lives with: the adopter, where the
   /// course was adopted; Course.companyId is the creator.
   companyId      String?
-  company        Company?        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company        Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   adoptionId     String?
-  adoption       CourseAdoption? @relation(fields: [adoptionId], references: [id])
+  adoption       CourseAdoption?  @relation(fields: [adoptionId], references: [id])
   trackKey       String?
   /// Lessons done and answers given, by lesson key. Small; read with the row.
   progress       Json?
@@ -7837,6 +7840,7 @@ model Enrollment {
   certifications Certification[]
   benchAsks      BenchAsk[]
   paths          LearningPath[]
+  credential     LearnCredential?
 
   @@unique([courseId, personId])
   @@index([personId, status])
@@ -7891,12 +7895,17 @@ model LearningPath {
   approvedAt         DateTime?
   approvedByPersonId String?
   completedAt        DateTime?
+  /// When the whole path is due, set by the mentor or the adoption. Null reads "Nothing is due".
+  dueOn              DateTime?
+  /// Due date per lesson key, ISO date strings: { "lesson-key": "2026-12-04" }.
+  stepDues           Json?
   createdAt          DateTime    @default(now())
 
   @@index([companyId, state])
   @@index([personId])
   @@index([courseId])
   @@index([enrollmentId])
+  @@index([personId, dueOn])
 }
 
 /// A group taking one course together (record 120, train-to-bench).
@@ -8144,8 +8153,8 @@ model DocInstance {
   examinedById String?
   examinedAt   DateTime?
 
-  adverseActions       AdverseAction[]
-  siteCompliancePasses SiteCompliancePass[]
+  adverseActions         AdverseAction[]
+  siteCompliancePasses   SiteCompliancePass[]
   supplierCertifications SupplierCertification[]
 
   @@index([subjectType, subjectId, status])
@@ -12021,38 +12030,38 @@ model SkillTarget {
 /// records that they submitted it. The agent never writes APPROVED or
 /// SUBMITTED, and `lib/proposals/rules` is the one door that says so.
 model Proposal {
-  id            String          @id @default(cuid())
-  companyId     String
-  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id                        String             @id @default(cuid())
+  companyId                 String
+  company                   Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   /// The solicitation's own title or number, as the person typed it.
-  title         String
+  title                     String
   /// The agency asking, as typed. Never read from a register.
-  buyer         String?
+  buyer                     String?
   /// The link the person pasted. The agent never searches or scrapes (lead ruling, record 124).
-  sourceUrl     String?
+  sourceUrl                 String?
   /// The requirements, pasted by a person. The agent reads this and nothing outside Etyme.
-  requirements  String?
+  requirements              String?
   /// The deadline the person typed. Null is not known, and never guessed.
-  dueAt         DateTime?
+  dueAt                     DateTime?
   /// Set-aside bids (record 132): the certification the solicitation requires, as a person read it. Null is an open bid.
   requiresCertification     CertificationKind?
   /// The certifier's own name for it, where requiresCertification is OTHER.
   requiresCertificationName String?
-  state         ProposalState   @default(DRAFT)
+  state                     ProposalState      @default(DRAFT)
   /// The drafted response. Words only; the person edits it before approving.
-  draft         String?
-  createdById   String
-  createdBy     Person          @relation("proposalCreator", fields: [createdById], references: [id])
-  approvedById  String?
-  approvedBy    Person?         @relation("proposalApprover", fields: [approvedById], references: [id])
-  approvedAt    DateTime?
+  draft                     String?
+  createdById               String
+  createdBy                 Person             @relation("proposalCreator", fields: [createdById], references: [id])
+  approvedById              String?
+  approvedBy                Person?            @relation("proposalApprover", fields: [approvedById], references: [id])
+  approvedAt                DateTime?
   /// A person saying they sent it to the agency, outside Etyme. Etyme sends nothing.
-  submittedById String?
-  submittedBy   Person?         @relation("proposalSubmitter", fields: [submittedById], references: [id])
-  submittedAt   DateTime?
-  pieces        ProposalPiece[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  submittedById             String?
+  submittedBy               Person?            @relation("proposalSubmitter", fields: [submittedById], references: [id])
+  submittedAt               DateTime?
+  pieces                    ProposalPiece[]
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
 
   @@index([companyId, state])
   @@index([createdById])
@@ -12198,4 +12207,51 @@ model DiversityRegistration {
   @@index([companyId, status])
   @@index([createdById])
   @@index([submittedById])
+}
+
+/// The video behind one lesson (record 133, Phase 1). A link the tenant
+/// typed or a file it stored; the server never fetches either, the learner's
+/// own browser opens it. `steps` ties a span of the video to each lesson
+/// step: [{ step, startSec, endSec }]. `frames` is the animation slot's
+/// list, played one frame at a time: [{ step, caption, holdMs }]. Written by
+/// the tenant's mentor or Owner; nothing on this row is course content.
+model LessonVideo {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  courseId          String
+  course            Course   @relation(fields: [courseId], references: [id])
+  lessonKey         String
+  sourceUrl         String?
+  storedFileId      String?
+  startSec          Int?
+  endSec            Int?
+  steps             Json?
+  frames            Json?
+  createdByPersonId String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([companyId, courseId, lessonKey])
+  @@index([courseId])
+}
+
+/// A completed course shown on a public page, with the learner's own yes
+/// (record 133, Phase 1). One per enrollment. `verificationCode` is the id
+/// the public page and the add-to-profile link carry; it checks against this
+/// row and the COMPLETED enrollment. The page shows only while shownAt is
+/// set and revokedAt is null; she may revoke at any time.
+model LearnCredential {
+  id               String     @id @default(cuid())
+  enrollmentId     String     @unique
+  enrollment       Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  companyId        String
+  company          Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  verificationCode String     @unique
+  /// Her yes to showing it.
+  shownAt          DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime   @default(now())
+
+  @@index([companyId])
 }

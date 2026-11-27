@@ -530,6 +530,7 @@ export const MATRIX: L1[] = [
             'A signed-in worker’s progress and completion write to her enrollment and the ledger; no seat and no bench row exist before her own yes',
             'The learner home shows one next action, the path with progress, the mentor’s name and what is due, and nothing else',
             'No screen under /learn shows or implies a price; a lesson with no video reads “Video coming” and still works',
+            'Phase 1 schema is in (not yet written by any route): LearningPath.dueOn and stepDues for what is due; LessonVideo for a tenant-entered link or stored file with per-step start and end and an animation frames list, never fetched by the server; LearnCredential for a public, revocable credential page shown only with the learner’s own yes and checked by a verification code against a completed enrollment',
             'Function-ready is reported by builders; the owner’s UI seat accepts the look',
           ],
           implementedBy: ['src/app/learn/[tenant]/page.tsx', 'src/app/learn/[tenant]/home/page.tsx', 'src/app/learn/[tenant]/layout.tsx', 'src/app/learn/_components/micro-home.tsx', 'src/app/api/learn/[tenant]/progress/route.ts', 'src/app/api/learn/[tenant]/join/route.ts', 'src/lib/training/learn-gate.ts', 'src/lib/training/learn-db.ts'],

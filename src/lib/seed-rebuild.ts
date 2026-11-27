@@ -169,7 +169,7 @@ export const DELETE_ORDER = [
   'VerificationDoc', 'DocumentEdition', 'DocumentBacking', 'GovernanceEvaluation',
   // Training micro-site (record 133): a path names its enrollment and an adoption names its course, so they go before both.
   // Train-to-bench (record 120): a score, a certification and the ask name an enrollment, so they go before it; a cohort after its enrollments and before its course.
-  'Assessment', 'Certification', 'BenchAsk', 'LearningPath', 'Enrollment', 'CourseAdoption',
+  'Assessment', 'Certification', 'BenchAsk', 'LearningPath', 'LearnCredential', 'LessonVideo', 'Enrollment', 'CourseAdoption',
   // Project teams (record 120): a deliverable names its project and milestone, a project its team and order, a member its role; all before the milestone, the order, the person and the firm.
   'PodDeliverable', 'PodProject', 'PodMember', 'PodRole', 'Pod',
   // Public-sector proposals (record 124): a piece names its proposal, so it goes first.
@@ -265,6 +265,9 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'CourseAdoption.adoptedByPersonId': { as: 'RECORD' },
   'LearningPath.mentorPersonId': { as: 'RECORD' },
   'LearningPath.approvedByPersonId': { as: 'RECORD' },
+  // Phase 1 training infrastructure: the author and a stored file are named by id, kept as history.
+  'LessonVideo.createdByPersonId': { as: 'RECORD' },
+  'LessonVideo.storedFileId': { as: 'RECORD' },
   // A company's own model route: the provider's name for the model, and the Owner who set it, are history, no row's key.
   'TenantModelRoute.modelId': { as: 'RECORD' },
   'TenantModelRoute.setByPersonId': { as: 'RECORD' },
