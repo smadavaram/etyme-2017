@@ -14,6 +14,9 @@ import { chaseClose } from './chase-close'
 import { checklistList } from './checklist-list'
 import { driftFlag } from './drift-flag'
 import { cardOpen } from './card-open'
+import { tenureWatch } from './tenure-watch'
+import { noticeClock } from './notice-clock'
+import { accessFileTrack } from './access-file-track'
 
 export const CHECKERS: Record<string, SkillChecker<any>> = {
   'weekly.summary': weeklySummaryChecker,
@@ -24,4 +27,7 @@ export const CHECKERS: Record<string, SkillChecker<any>> = {
   'checklist.list': checklistList,
   'drift.flag': driftFlag,
   'card.open': cardOpen,
+  'tenure.watch': tenureWatch,
+  'notice.clock': noticeClock,
+  'access-file.track': accessFileTrack,
 }

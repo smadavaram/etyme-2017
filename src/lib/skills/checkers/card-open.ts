@@ -11,7 +11,7 @@
  * tracked for an access file really is not yet approved.
  */
 import type { PrismaClient } from '@prisma/client'
-import { noticeTiming } from '@/lib/agents/checklist-rules'
+import { dayStart, noticeTiming } from '@/lib/agents/checklist-rules'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 import { cardsAt, judgeCards, ownerFor, signatoryOrOwner } from './cards'
 
@@ -44,6 +44,14 @@ export const cardOpen: SkillChecker<PrismaClient> = async (companyId, _key, wind
     const t = n ? noticeTiming(n.postedOn, n.measuredFromOn) : null
     if (!n) return { verdict: 'FAIL', reason: 'The notice the card is about is not on this firm’s record.', evidence, unitsFound: 0 }
     if (t === null || t === 'ON_TIME') return { verdict: 'FAIL', reason: 'The notice reads on time against its filing day, so no card was owed.', evidence, unitsFound: 0 }
+  }
+
+  if (ref.recordType === 'AccessFile') {
+    const file = await read.publicAccessFile.findFirst({ where: { id: baseId, companyId } })
+    if (!file) return { verdict: 'FAIL', reason: 'The public access file the card is about is not on this firm’s record.', evidence, unitsFound: 0 }
+    if (ref.recordId.endsWith(':overdue') && dayStart(window.to).getTime() <= file.readyBy.getTime()) {
+      return { verdict: 'FAIL', reason: `The file is due ${file.readyBy.toISOString().slice(0, 10)}, so it was not overdue when its second card opened.`, evidence, unitsFound: 0 }
+    }
   }
 
   let expected: string | null

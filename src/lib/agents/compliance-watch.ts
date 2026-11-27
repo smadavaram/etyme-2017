@@ -32,7 +32,9 @@ import { daysOffFor } from '@/lib/days-off'
 import { loadCompanyHolidays } from '@/lib/holidays'
 import { bookedLimitDay, linesCounted, standingAgainstLimit } from '@/lib/tenure-days'
 import { registerAgent, type AgentContext } from './runner'
-import { openOnce, ownerOf } from './open-once'
+import { registerPlan } from './plans'
+import { openOnce, ownerOf, cardOutcome } from './open-once'
+import { runSkill } from '@/lib/skills/runner'
 import {
   accessFileReadyBy, accessFileWords, crossedWarning, daysFromTo, dayStart, noticeEndsOn, noticePeriodOver, noticeTiming, noticeTimingWords, noticeWords, tenureWords,
 } from './checklist-rules'
@@ -43,9 +45,31 @@ export const COMPLIANCE_WATCH_RULES = 'compliance-watch-1'
 export const TENURE_RECORD = 'SellContract'
 export const NOTICE_RECORD = 'NoticePosting'
 export const ACCESS_FILE_RECORD = 'PublicAccessFile'
+/** The kinds of card this agent opens through the card skill; each names the record its card is about. */
+export const NOTICE_TIMING_KIND = 'NoticeTiming'
+export const ACCESS_FILE_KIND = 'AccessFile'
 
-async function tenureStep(ctx: AgentContext): Promise<void> {
-  const { companyId, now } = ctx
+// The skills this agent runs (record 123), registered where the agent is defined so every door that runs it holds the plan.
+registerPlan({ agentKey: COMPLIANCE_WATCH_AGENT, skills: ['tenure.watch', 'notice.clock', 'access-file.track', 'card.open'], outputSkill: 'tenure.watch' })
+
+export interface TenureWarning {
+  personId: string
+  person: string
+  client: string
+  capMonths: number
+  limitDay: Date
+  daysLeft: number
+  /** The placement the card is tied to: the one the person is on now. */
+  placementId: string
+}
+
+/**
+ * Who is at one of the client's warning days, or past its limit and still on
+ * site, from the one ledger every door reads. The agent opens its cards from
+ * this and its checker reads it again. Only a client that set a limit is
+ * watched; with none, nobody is.
+ */
+export async function tenureWarnings(companyId: string, now: Date): Promise<TenureWarning[]> {
   const rules = await prisma.governanceRule.findMany({
     where: { policy: { companyId, isActive: true }, ruleType: { in: ['TENURE_CAP', 'BREAK_IN_SERVICE'] }, isActive: true },
     orderBy: { id: 'asc' },
@@ -53,12 +77,11 @@ async function tenureStep(ctx: AgentContext): Promise<void> {
   const cap = rules.find((r) => r.ruleType === 'TENURE_CAP')
   const capMonths = cap ? Number((cap.parameters as { maxMonths?: unknown }).maxMonths) : NaN
   // No limit set by this client, nothing to watch: a supplier never reads another firm's days.
-  if (!Number.isFinite(capMonths) || capMonths <= 0) return
+  if (!Number.isFinite(capMonths) || capMonths <= 0) return []
   const breakRule = rules.find((r) => r.ruleType === 'BREAK_IN_SERVICE')
   const breakDays = breakRule ? Number((breakRule.parameters as { breakDays?: unknown }).breakDays) : null
   const warnAt = (await ruleSetFor(companyId)).tenureWarnAtDays
   const widest = Math.max(0, ...warnAt) || null
-  const owner = await ownerOf(ctx, ['Program Manager'])
 
   const lines = await prisma.sellContract.findMany({
     where: { ...endClientFilter(companyId), state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] } },
@@ -69,6 +92,7 @@ async function tenureStep(ctx: AgentContext): Promise<void> {
   const byPerson = new Map<string, typeof lines>()
   for (const l of lines) byPerson.set(l.personId, [...(byPerson.get(l.personId) ?? []), l])
 
+  const out: TenureWarning[] = []
   for (const [personId, own] of byPerson) {
     if (!own.some((l) => l.state !== 'ENDED')) continue
     const standing = standingAgainstLimit(own.map((l) => ({ startDate: l.startDate, endDate: l.endDate, live: l.state !== 'ENDED' })), { capMonths, breakDays, warnWithinDays: widest }, now)
@@ -81,13 +105,27 @@ async function tenureStep(ctx: AgentContext): Promise<void> {
     const daysLeft = daysFromTo(now, limitDay)
     const step = daysLeft < 0 ? 0 : crossedWarning(daysLeft, warnAt)
     if (step === null) continue
-    const words = tenureWords({ person: own[0].person.name, client, capMonths, limitDay, daysLeft })
-    // One card per person, per limit day, per warning crossed.
-    if (!(await ctx.mayAct())) return
     // The card is tied to the placement the person is on now (a contract the record view opens), one open card each.
     const placement = own.filter((l) => l.state !== 'ENDED').sort((a, b) => (b.endDate?.getTime() ?? Infinity) - (a.endDate?.getTime() ?? Infinity))[0]
-    const r = await openOnce(ctx, owner, { recordType: TENURE_RECORD, recordId: placement.id }, words, [{ recordType: 'Person', recordId: personId }])
-    if (r === 'OPENED') await ctx.act({ recordType: 'Person', recordId: personId, action: 'TENURE_WARNING_OPENED', summary: `${words.question} A decision is open. Nothing was changed.` })
+    out.push({ personId, person: own[0].person.name, client, capMonths, limitDay, daysLeft, placementId: placement.id })
+  }
+  return out
+}
+
+async function tenureStep(ctx: AgentContext): Promise<void> {
+  const { companyId, now } = ctx
+  const warnings = await tenureWarnings(companyId, now)
+  if (warnings.length === 0) return
+  const owner = await ownerOf(ctx, ['Program Manager'])
+  for (const t of warnings) {
+    const words = tenureWords({ person: t.person, client: t.client, capMonths: t.capMonths, limitDay: t.limitDay, daysLeft: t.daysLeft })
+    // One card per person, per limit day, per warning crossed.
+    if (!(await ctx.mayAct())) return
+    await runSkill(ctx, 'tenure.watch', { recordType: 'Person', recordId: t.personId, unitsPlanned: 1 }, async () => {
+      const r = await openOnce(ctx, owner, { recordType: TENURE_RECORD, recordId: t.placementId }, words, [{ recordType: 'Person', recordId: t.personId }])
+      if (r === 'OPENED') await ctx.act({ recordType: 'Person', recordId: t.personId, action: 'TENURE_WARNING_OPENED', summary: `${words.question} A decision is open. Nothing was changed.` })
+      return cardOutcome(r)
+    })
   }
 }
 
@@ -103,8 +141,11 @@ async function noticeStep(ctx: AgentContext, daysOff: number[], holidays: Set<st
     const site = sites.find((s) => s.id === n.locationId)?.name ?? 'the site'
     const words = noticeWords({ kind: n.kind, site, postedOn: n.postedOn, endsOn })
     if (!(await ctx.mayAct())) return
-    const r = await openOnce(ctx, owner, { recordType: NOTICE_RECORD, recordId: n.id }, words, [])
-    if (r === 'OPENED') await ctx.act({ recordType: NOTICE_RECORD, recordId: n.id, action: 'NOTICE_PERIOD_ENDED', summary: `${words.question} A decision is open. Nothing was taken down.` })
+    await runSkill(ctx, 'notice.clock', { recordType: NOTICE_RECORD, recordId: n.id, unitsPlanned: 1 }, async () => {
+      const r = await openOnce(ctx, owner, { recordType: NOTICE_RECORD, recordId: n.id }, words, [])
+      if (r === 'OPENED') await ctx.act({ recordType: NOTICE_RECORD, recordId: n.id, action: 'NOTICE_PERIOD_ENDED', summary: `${words.question} A decision is open. Nothing was taken down.` })
+      return cardOutcome(r)
+    })
   }
 }
 
@@ -125,8 +166,11 @@ async function noticeTimingStep(ctx: AgentContext): Promise<void> {
     const timing = noticeTiming(n.postedOn, n.measuredFromOn) as 'LATE' | 'TOO_EARLY'
     const words = noticeTimingWords({ kind: n.kind, site: sites.find((s) => s.id === n.locationId)?.name ?? 'the site', postedOn: n.postedOn, measuredFromOn: n.measuredFromOn!, timing })
     if (!(await ctx.mayAct())) return
-    const r = await openOnce(ctx, owner, { recordType: NOTICE_RECORD, recordId: `${n.id}:timing` }, words, [{ recordType: NOTICE_RECORD, recordId: n.id }])
-    if (r === 'OPENED') await ctx.act({ recordType: NOTICE_RECORD, recordId: n.id, action: 'NOTICE_TIMING_FLAGGED', summary: `${words.question} A decision is open. Nothing was posted, removed or changed.` })
+    await runSkill(ctx, 'card.open', { recordType: NOTICE_TIMING_KIND, recordId: `${n.id}:timing`, unitsPlanned: 1 }, async () => {
+      const r = await openOnce(ctx, owner, { recordType: NOTICE_RECORD, recordId: `${n.id}:timing` }, words, [{ recordType: NOTICE_RECORD, recordId: n.id }])
+      if (r === 'OPENED') await ctx.act({ recordType: NOTICE_RECORD, recordId: n.id, action: 'NOTICE_TIMING_FLAGGED', summary: `${words.question} A decision is open. Nothing was posted, removed or changed.` })
+      return cardOutcome(r)
+    })
   }
 }
 
@@ -142,16 +186,23 @@ async function accessFileStep(ctx: AgentContext, daysOff: number[], holidays: Se
     let file = p.accessFiles[0]
     if (!file) {
       if (!(await ctx.mayAct())) return
-      file = await prisma.publicAccessFile.create({ data: { companyId, petitionId: p.id, readyBy: accessFileReadyBy(p.filedOn!, daysOff, holidays) } })
-      await ctx.act({ recordType: ACCESS_FILE_RECORD, recordId: file.id, action: 'ACCESS_FILE_TRACKED', summary: `Started tracking the public access file for ${person}’s petition. It is due ${file.readyBy.toISOString().slice(0, 10)}. A person approves it.` })
+      file = (await runSkill(ctx, 'access-file.track', { recordType: 'Petition', recordId: p.id, unitsPlanned: 1 }, async () => {
+        const made = await prisma.publicAccessFile.create({ data: { companyId, petitionId: p.id, readyBy: accessFileReadyBy(p.filedOn!, daysOff, holidays) } })
+        await ctx.act({ recordType: ACCESS_FILE_RECORD, recordId: made.id, action: 'ACCESS_FILE_TRACKED', summary: `Started tracking the public access file for ${person}’s petition. It is due ${made.readyBy.toISOString().slice(0, 10)}. A person approves it.` })
+        return { result: made }
+      })).result
     }
     if (file.approvedById) continue
     const words = accessFileWords({ person, readyBy: file.readyBy, today })
     // Once when it is due, and once more if it passes its day unapproved: two links, so the second is its own card.
     const late = dayStart(now).getTime() > file.readyBy.getTime()
     if (!(await ctx.mayAct())) return
-    const r = await openOnce(ctx, owner, { recordType: ACCESS_FILE_RECORD, recordId: late ? `${file.id}:overdue` : file.id }, words, late ? [{ recordType: ACCESS_FILE_RECORD, recordId: file.id }] : [{ recordType: 'Petition', recordId: p.id }])
-    if (r === 'OPENED') await ctx.act({ recordType: ACCESS_FILE_RECORD, recordId: file.id, action: 'ACCESS_FILE_CARD_OPENED', summary: `${words.question} A decision is open. Nothing was approved or published.` })
+    const tracked = file
+    await runSkill(ctx, 'card.open', { recordType: ACCESS_FILE_KIND, recordId: late ? `${tracked.id}:overdue` : tracked.id, unitsPlanned: 1 }, async () => {
+      const r = await openOnce(ctx, owner, { recordType: ACCESS_FILE_RECORD, recordId: late ? `${tracked.id}:overdue` : tracked.id }, words, late ? [{ recordType: ACCESS_FILE_RECORD, recordId: tracked.id }] : [{ recordType: 'Petition', recordId: p.id }])
+      if (r === 'OPENED') await ctx.act({ recordType: ACCESS_FILE_RECORD, recordId: tracked.id, action: 'ACCESS_FILE_CARD_OPENED', summary: `${words.question} A decision is open. Nothing was approved or published.` })
+      return cardOutcome(r)
+    })
   }
 }
 
