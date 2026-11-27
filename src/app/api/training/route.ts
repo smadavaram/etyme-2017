@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
   logTraineeReads(caller, courses.flatMap((c) => c.enrollments.map((e) => e.person.id)), 'the people on its courses')
   return NextResponse.json({
     data: {
+      // The door into this firm's own learning site (record 133). The site is its own route tree.
+      learnPath: `/learn/${caller.company!.slug}`,
       courses: courses.map((c) => ({
         id: c.id,
         title: c.title,

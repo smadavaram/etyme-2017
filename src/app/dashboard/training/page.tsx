@@ -78,6 +78,7 @@ export default function TrainingPage() {
    * (sign-up walk round five, 11).
    */
   const [refused, setRefused] = useState<string | null>(null)
+  const [learnPath, setLearnPath] = useState<string | null>(null)
   /** Where the Owner turns Training on, when it is off (record 120). Nobody else is sent there. */
 
   const fetchData = useCallback(async () => {
@@ -92,6 +93,8 @@ export default function TrainingPage() {
         return
       }
       setRefused(null)
+      const gateBody = await gate.json().catch(() => null)
+      setLearnPath(typeof gateBody?.data?.learnPath === 'string' ? gateBody.data.learnPath : null)
       const [reqsRes, benchRes, payrollRes] = await Promise.all([
         fetch('/api/requirements?status=OPEN&limit=100').then(async (r) => {
           const body = await r.json().catch(() => null)
@@ -181,6 +184,7 @@ export default function TrainingPage() {
         {/* The section this page sits under on the reader's own menu. */}
         {section && <p className="eyebrow">{section}</p>}
         <h1>Training</h1>
+        {learnPath && <p><a href={learnPath} className="text-etyme-action-text underline">Open the learning site</a></p>}
         <p>
           What clients are asking for, against the people you could field — your bench
           and your own payroll. Invest where more jobs want a skill than you have people for.
