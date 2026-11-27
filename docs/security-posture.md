@@ -309,7 +309,7 @@ systems drop and the half an investigation needs.
 `src/lib/access-log.ts`, `AccessLog` in `prisma/schema.prisma`.
 
 **Coverage, stated honestly.** 116 route files write an access-log row
-through `src/lib/access-log.ts`, out of 458 API route files. They are the routes that
+through `src/lib/access-log.ts`, out of 465 API route files. They are the routes that
 read a named person: a profile, a consultant record, a resume file, a
 placement, submissions, a shared document packet, a bench list, an alumni
 list, match results, a compliance record, a classification position, a
@@ -494,8 +494,8 @@ Recomputed from the module on 2026-11-15:
 
 | | Count |
 |---|---|
-| Actions named in the automation log | **248** |
-| Unprompted — the system did it and nobody asked | **38** |
+| Actions named in the automation log | **249** |
+| Unprompted — the system did it and nobody asked | **39** |
 | Enforcement — the system decided what a person was allowed to do | **15** |
 | Attributed — a person did it and the row is the record | **195** |
 
@@ -503,7 +503,7 @@ Recomputed from the module on 2026-11-15:
 is an audit trail of human acts, not automation. Giving those a rung
 would inflate every claim.
 
-Of the thirty-eight unprompted actions, **thirty-five are plain rules** — a date
+Of the thirty-nine unprompted actions, **thirty-six are plain rules** — a date
 comparison, a threshold, a count. `cron/end-contracts` is fully
 autonomous and is also `endDate < today`; both are true and the product
 says both. Three are not asserted as rules. Proactive matching's basis is
@@ -892,7 +892,7 @@ Stated in one place so a reviewer does not have to assemble it.
   feed in the message metadata. It is a write path rather than a read, so
   the scanner above does not look at it. `etyme-demand` owns it and is
   closing it; it is recorded here as **open** until that commit lands.
-- Access logging covers 116 route files of 458 (section 4).
+- Access logging covers 116 route files of 465 (section 4).
 - An ordinary read or a list of people is logged fire-and-forget, so a log
   write failure there does not fail the request; staff are told instead.
   Refusals and the reads that must not proceed unlogged wait for their

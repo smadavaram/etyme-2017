@@ -157,6 +157,11 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'It could have approved this week on its own and chose not to, and said why. Holding it back is the whole act.',
   },
+  CERTIFICATION_LAPSED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'Every night it marks a held certification lapsed the day after its expiry date, so it is never claimed past it. The Owner records it as held again with a new certificate.',
+  },
   PROACTIVE_MATCH: {
     rung: 'L1',
     basis: 'RECORDED',
