@@ -3079,6 +3079,8 @@ export async function today(read: Readers, opts: TodayOptions = {}): Promise<Ans
   // Who owns the company (./owner-asks), outside the six lines and never
   // counted: the asker's own ask waiting on somebody else's yes, once, and
   // the Become Owner offer for an Admin whose proofs both stand.
+  // The Owner's clock (./plan-clock): from day 50 of the free 60, one counting line, never counted as a decision.
+  if (opts.greeting && opts.plan) more.splice(opts.setup ? 1 : 0, 0, opts.plan)
   if (opts.greeting && opts.owners?.waiting) more.splice(opts.setup ? 1 : 0, 0, opts.owners.waiting)
   if (opts.greeting && opts.owners?.become) more.splice(opts.setup ? 1 : 0, 0, opts.owners.become)
   // Start papers Ask Etyme could not ask for, because the set was never
@@ -3203,6 +3205,8 @@ export interface TodayOptions {
    * and the Become Owner offer. The two lines are facts, never counted.
    */
   owners?: { ask?: RichLine | null; waiting?: RichLine | null; become?: RichLine | null }
+  /** The Owner's counting line for the last ten days of the free 60 (`planLineFor` in ./plan-clock). Greeting only, never counted. */
+  plan?: RichLine | null
 }
 
 /**
@@ -3849,6 +3853,8 @@ export function placedSays(f: { personName: string; siteName: string; throughNam
 export const LINK_REQUEST = 'LINK_REQUEST'
 /** An Owner ask addressed to this reader: pass ownership, or remove or move an Owner (./owner-asks). */
 export const OWNER_ASK = 'OWNER_ASK'
+/** The Owner's one day-61 card: the account is read-only, a plan is chosen in Settings (./plan-clock). */
+export const PLAN_CLOCK = 'PLAN_CLOCK'
 /** Somebody asked from the firm's public page to join its bench, where no letter could leave (./firm-asks). */
 export const JOIN_ASK = 'JOIN_ASK'
 
@@ -4169,6 +4175,7 @@ export function queueName(d: QueueItem, twin: readonly WaitingItem[] = []): stri
     // An Owner ask addressed to this reader (./owner-asks): the ask's own
     // sentence, "Camille Ostrander asks you to take over as Owner of …".
     case OWNER_ASK:
+    case PLAN_CLOCK:
       return cap(d.title)
     case 'OWN_PAPER':
       // A one-person firm's own paper, asked of her as the worker: the card's own name.
@@ -4379,13 +4386,14 @@ export function queueCards(
         // A title that already ends its own sentence keeps its mark: a decision's question read "…further?." (the walk of 2026-11-22).
         title: /[.!?]$/.test(queueName(d)) ? queueName(d) : `${queueName(d)}.`,
         fact: d.type === 'NO_AGREEMENT' ? lastSentence(d.subtitle)
-          : d.type === LINK_REQUEST || d.type === JOIN_ASK || d.type === OWNER_ASK ? (d.subtitle ?? '')
+          : d.type === LINK_REQUEST || d.type === JOIN_ASK || d.type === OWNER_ASK || d.type === PLAN_CLOCK ? (d.subtitle ?? '')
           : d.type === 'TIMESHEET_APPROVAL' && d.flag ? `${factOf(d.subtitle)} ${d.flag.replace(/[.\s]*$/, '.')} Open it to approve with a reason.`.trim()
           : pay ? `${factOf(d.subtitle)} ${PAY_OPENS_THE_RECEIPT}`.trim()
           : factOf(d.subtitle),
         href: d.actionUrl ?? (pay ? RECEIPTS_HREF : DECISIONS_HREF),
         act: queueAct(d),
         ...(pay ? { open: 'Pay' } : {}),
+        ...(d.type === PLAN_CLOCK ? { open: 'Choose a plan' } : {}),
         ...(d.type === OWNER_ASK && d.reason ? { why: d.reason } : {}),
         ...(d.type === OWNER_ASK ? { no: ownerAskNo(d.entityId) } : {}),
       }

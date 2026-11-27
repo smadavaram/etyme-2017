@@ -25,6 +25,7 @@ import { setupReminderFor } from '@/lib/setup-checklist-state'
 import { hasPermission } from '@/lib/permissions'
 import { firstActFacts } from './first-act-read'
 import { linkAsksFor, joinAsksFor, firmAskItems, withFirmAsks } from './firm-asks'
+import { planClockFor, withPlanCard, NO_PLAN_CLOCK, type PlanClock } from './plan-clock'
 import { ownerAsksFor, withOwnerAsks, ownerAskLead, ownerAsksHeadline, becomeOwnerLineFor, NO_OWNER_ASKS, type OwnerAskRead } from './owner-asks'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { ownPageFor } from '@/lib/portfolio-data'
@@ -324,7 +325,8 @@ function queueFor(request: NextRequest, caller: Caller): () => Promise<QueueRead
       ])
       // An Owner ask addressed to this person (./owner-asks): first, and counted.
       const owners = await ownerAsksOf(caller)
-      return withOwnerAsks(withFirmAsks(mine, firmAskItems(links, joins, caller.company.kind ?? '')), owners.items)
+      const plan = await planClockOf(caller)
+      return withPlanCard(withOwnerAsks(withFirmAsks(mine, firmAskItems(links, joins, caller.company.kind ?? '')), owners.items), plan.card)
     } catch {
       return null
     }
@@ -350,6 +352,27 @@ function ownerAsksOf(caller: Caller): Promise<OwnerAskRead> {
       return NO_OWNER_ASKS
     })
     ownerAskReads.set(caller, got)
+  }
+  return got
+}
+
+/**
+ * The Owner's clock (./plan-clock): the counting line for the last ten free
+ * days and the day-61 card, read once per request. Nobody but an Owner of
+ * her own company reads one; a read that fails says nothing, and staff are told.
+ */
+const planClockReads = new WeakMap<object, Promise<PlanClock>>()
+function planClockOf(caller: Caller): Promise<PlanClock> {
+  let got = planClockReads.get(caller)
+  if (!got) {
+    got = (async () => {
+      if (!caller.company || caller.isService || (await seatOf(caller))) return NO_PLAN_CLOCK
+      return planClockFor({ companyId: caller.company.id, roleName: await roleOf(caller) })
+    })().catch(async (err) => {
+      await reportError('Ask Etyme could not read the plan clock', err, { path: '/api/conversations/twin', personId: caller.person.id, companyId: caller.company?.id })
+      return NO_PLAN_CLOCK
+    })
+    planClockReads.set(caller, got)
   }
   return got
 }
@@ -645,6 +668,7 @@ export async function GET(request: NextRequest) {
       greeting: true, picture, needs: queue, notices, threads, model, modelHeld, party: party.party, client: party.client, ownWeek: week,
       self: caller.person.name, firstAct, setup: await setupLine,
       owners: await ownersLines(owners, seat ? Promise.resolve(null) : become),
+      plan: (await planClockOf(caller)).line,
     })
     const answer = await withWelcome(caller, greeted, party.party, await thread)
     // Said, so read: the section empties itself on the next greeting. One write for both.
