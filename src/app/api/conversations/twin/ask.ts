@@ -33,6 +33,7 @@
 import { formatDay, formatMonth, formatMonthLong } from '@/lib/format-date'
 import { receiptsLink } from '@/lib/money/ap-words'
 import { modelFor } from '@/lib/model-ids'
+import { gatewayHealth } from '@/lib/model-gateway/health'
 import { format, fromMinor } from '@/lib/money'
 import { desksHolding, type Permission, hasPermission, hasAnyPermission } from '@/lib/permissions'
 import { newMasker, type MaskVocabulary } from './mask'
@@ -1067,9 +1068,9 @@ export function voiceBreaks(text: string): string[] {
 
 // ── The model ────────────────────────────────────────────────────────
 
-/** Whether a model can be asked on this deployment. The key only, never its value. */
+/** Whether a model can be asked on this deployment: the gateway's register holds a keyed model. Never one provider's key variable. */
 export function modelConfigured(env: Record<string, string | undefined>): boolean {
-  return Boolean(env.ANTHROPIC_API_KEY && env.ANTHROPIC_API_KEY.trim())
+  return gatewayHealth(env).configured
 }
 
 export const NO_MODEL =

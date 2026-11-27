@@ -69,7 +69,7 @@ import {
   FILE_IT_YOURSELF, NOT_THEIR_RATE, ONLY_YOUR_WORK, WORKER_FOOTER, latestWeekLine, type WorkerFacts, type WorkerAnswer, type SentWeek,
 } from '@/app/api/conversations/twin/worker'
 import {
-  respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, neverSays, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, WHAT_I_ANSWER, payingDesks,
+  respond, today, othersSay, modelConfigured, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, neverSays, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, WHAT_I_ANSWER, payingDesks,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, seatSays, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
   FIRM_QUESTIONS, SOLO_QUESTIONS, questionsFor, closeFor, placeholderFor, partyOf, queueFrom, queueCards, queueName, namedNeedsSays,
   threadsSay, whenSays, weekDueOn, billedSays, billingSays, rolloffSays, benchSays, unbilledSays, unpaidSays, OPEN_THE_LIST,
@@ -168,7 +168,7 @@ function readers(over: Partial<Readers> = {}): Readers & { model: ReturnType<typ
 }
 
 const NO_KEY = {}
-const KEY = { ANTHROPIC_API_KEY: 'sk-test' }
+const KEY = { ETYME_MODEL_REGISTER: process.env.ETYME_MODEL_REGISTER, TEST_MODEL_KEY: 'x' }
 
 describe('the twin’s conversation answers from the ledger by rules before any model', () => {
   it('the variance question is answered from the ledger by rules, with one row per supplier and the hours over accepted', async () => {
@@ -625,7 +625,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
   it('a leaked real value is withheld by the log', async () => {
     stored.length = 0
     const clean = await recordModelPrompt({
-      companyId: 'co-nb', personId: 'p-lorena', provider: 'anthropic', model: SMALL_MODEL,
+      companyId: 'co-nb', personId: 'p-lorena', provider: 'test-model-small', model: SMALL_MODEL,
       maskedPrompt: 'Question: what did FIRM_1 bill?', maskedAnswer: 'FIRM_1 billed AMOUNT_2.',
       purpose: 'ASK_ETYME', realValues: ['Pinnacle Resourcing', '$3,920.00'],
     })
@@ -633,7 +633,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     expect(stored[0]).toMatchObject({ maskedAnswer: 'FIRM_1 billed AMOUNT_2.', model: 'test-model-small', purpose: 'ASK_ETYME' })
 
     const leaked = await recordModelPrompt({
-      companyId: 'co-nb', personId: 'p-lorena', provider: 'anthropic', model: SMALL_MODEL,
+      companyId: 'co-nb', personId: 'p-lorena', provider: 'test-model-small', model: SMALL_MODEL,
       maskedPrompt: 'Question: what did FIRM_1 bill?', maskedAnswer: 'Pinnacle Resourcing billed AMOUNT_2.',
       purpose: 'ASK_ETYME', realValues: ['Pinnacle Resourcing', '$3,920.00'],
     })
@@ -1832,5 +1832,14 @@ describe('Ask Etyme says so when the model was asked and did not answer', () => 
     const read = readers({ model: vi.fn(async () => ({ missed: 'Not configured: no model is set up for this kind of data, so nothing was sent. The rules answer.' })) })
     const a = await respond('Which supplier is slowest to send its invoice?', read, { env: KEY })
     expect(a.says).toMatch(/Not configured/)
+  })
+})
+
+describe('whether Ask Etyme has a model is read from the register, never from one provider’s key', () => {
+  it('a model is set up where the register holds a keyed model, whatever the provider', () => {
+    expect(modelConfigured(KEY)).toBe(true)
+  })
+  it('no model is set up where the register is empty, even with a provider key variable present', () => {
+    expect(modelConfigured({ ANTHROPIC_API_KEY: 'sk-test' })).toBe(false)
   })
 })

@@ -18,7 +18,6 @@ const READS_A_MODEL_ID: Record<string, string> = {
   'src/app/api/conversations/twin/ask.ts': 'CONVERSATION',
   'src/app/api/imports/sheets/read.ts': 'SUPPLY',
   'src/app/api/settings/site/write.ts': 'MARKET',
-  'src/lib/setup-fill-model.ts': 'CONVERSATION',
 }
 
 const PROVIDER_CALL = /@anthropic-ai\/sdk|api\.anthropic\.com|api\.openai\.com|generativelanguage\.googleapis|openrouter\.ai|api\.mistral\.ai|api\.cohere\.(?:ai|com)|api\.groq\.com|api\.together\.xyz/

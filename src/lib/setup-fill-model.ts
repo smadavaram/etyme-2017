@@ -9,19 +9,17 @@
  *  - On: the text is masked (`maskForModel`: names, firms, rates, emails,
  *    phones), and every tax number is cut out before that, because the
  *    rules read the EIN or the person types it; a tax number never leaves.
- *    The masked prompt and answer are logged through `recordModelPrompt`.
+ *    The call is logged once, by the gateway, under the register's label.
  *  - Every value the model returns carries the words it was read from,
  *    and is a suggestion a person confirms. It is never recorded here.
  */
 
 import type { EntitySpec, FieldSpec } from '@/lib/importable'
-import { modelFor } from '@/lib/model-ids'
 import { extractWithModel, modelAvailable, type ExtractionResult } from '@/lib/extract'
-import { maskForModel, modelOnFor, recordModelPrompt, type MaskVocab, type PromptToRecord } from '@/lib/model-boundary'
+import { maskForModel, modelOnFor, type MaskVocab } from '@/lib/model-boundary'
 import { prisma } from '@/lib/db'
 import { FILL_FIELD_WORDS, type FillField, type PaperKind, type ReadValue } from '@/lib/setup-fill'
 
-export const SETUP_MODEL = modelFor('READ')
 export const SETUP_PURPOSE = 'SETUP_PAPER'
 
 export const MODEL_SAYS = {
@@ -33,8 +31,7 @@ export const MODEL_SAYS = {
 export interface FillDeps {
   modelOn(companyId: string): Promise<boolean>
   readerSetUp(): boolean
-  extract(spec: EntitySpec, masked: string): Promise<ExtractionResult | null>
-  record(p: PromptToRecord): Promise<unknown>
+  extract(spec: EntitySpec, masked: string, who: { companyId: string; personId: string }): Promise<ExtractionResult | null>
   vocab(companyId: string): Promise<MaskVocab>
 }
 
@@ -46,8 +43,7 @@ async function vocabFor(companyId: string): Promise<MaskVocab> {
 export const liveFillDeps: FillDeps = {
   modelOn: modelOnFor,
   readerSetUp: modelAvailable,
-  extract: (spec, masked) => extractWithModel(spec, masked, 1),
-  record: recordModelPrompt,
+  extract: (spec, masked, who) => extractWithModel(spec, masked, 1, { ...who }),
   vocab: vocabFor,
 }
 
@@ -92,17 +88,7 @@ export async function readMissingWithModel(
   const vocab = await deps.vocab(input.companyId).catch(() => ({}))
   const mask = maskForModel(withoutTaxNumbers(input.text), vocab)
   const spec = specFor(input.kind, asked)
-  const got = await deps.extract(spec, mask.masked)
-  await deps.record({
-    companyId: input.companyId,
-    personId: input.personId,
-    provider: 'anthropic',
-    model: SETUP_MODEL,
-    maskedPrompt: `Setup: ${spec.label}, fields ${asked.join(', ')}\n---\n${mask.masked}`,
-    maskedAnswer: got ? JSON.stringify({ records: got.records, unread: got.unread }) : '[no answer]',
-    purpose: SETUP_PURPOSE,
-    realValues: mask.realValues(),
-  })
+  const got = await deps.extract(spec, mask.masked, { companyId: input.companyId, personId: input.personId })
   const fields = got?.records[0]?.fields ?? []
   const values: ReadValue[] = []
   for (const f of fields) {

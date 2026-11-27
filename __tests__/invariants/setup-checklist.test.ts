@@ -237,13 +237,13 @@ describe('where an answer came from', () => {
     let sent = 0
     const r = await readMissingWithModel(
       { companyId: 'c', personId: 'p', kind: 'W9', text: W9, missing: ['legalName'] },
-      { modelOn: async () => false, readerSetUp: () => true, extract: async () => { sent++; return null }, record: async () => { sent++ }, vocab: async () => ({}) },
+      { modelOn: async () => false, readerSetUp: () => true, extract: async () => { sent++; return null }, vocab: async () => ({}) },
     )
     expect(r).toEqual({ values: [], says: MODEL_SAYS.off })
     expect(sent).toBe(0)
   })
 
-  it('where the model is on, it is asked only what the rules missed, masked, never a tax number, and the prompt is logged', async () => {
+  it('where the model is on, it is asked only what the rules missed, masked, never a tax number, and the call is logged once by the gateway', async () => {
     const logged: any[] = []
     let asked = ''
     const r = await readMissingWithModel(
@@ -255,14 +255,12 @@ describe('where an answer came from', () => {
           expect(spec.fields.map((f) => f.key)).toEqual(['legal.city'])
           return { method: 'MODEL', note: '', unread: [], records: [{ rowNumber: 1, problems: [], fields: [{ field: 'legal.city', value: 'Dallas', confidence: 0.9, foundIn: 'Dallas, TX 75202', concern: null }] }] }
         },
-        record: async (p) => { logged.push(p) },
         vocab: async () => ({ firms: ['Tapin LLC'] }),
       },
     )
     expect(asked).not.toContain('12-3456789')
     expect(asked).not.toContain('Tapin LLC')
-    expect(logged).toHaveLength(1)
-    expect(logged[0].purpose).toBe('SETUP_PAPER')
+    expect(logged).toHaveLength(0) // the gateway logs the call; there is no second row here
     expect(r.values).toEqual([{ field: 'legal.city', value: 'Dallas', quote: 'Dallas, TX 75202', readBy: 'MODEL' }])
     expect(withoutTaxNumbers('EIN 12-3456789, SSN 123-45-6789')).toBe('EIN [tax number], SSN [tax number]')
   })
