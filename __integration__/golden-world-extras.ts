@@ -330,6 +330,6 @@ export async function addMoneyChaseWorld(w: GoldenWorld) {
       data: { companyId: w.firm.id, agentKey: 'money-owed-chase', agentTaskId: ended.id, recordType: 'Invoice', recordId: lastBill.id, fromAddress: 'hello@etyme.example', toAddresses: [mail(`ap.${last.slug}`)], bccAddresses: [], subject: 'Bill GOLD-OWED-E', template: 'money-owed-chase', templateVersion: '1', outcome: 'SENT', createdAt: d(on) } as any,
     })
   }
-  const payB = () => prisma.payment.create({ data: { invoiceId: payInFull.id, amount: '500.00', receivedByCompanyId: w.firm.id, receivedAt: d('2026-11-24'), appliedAt: d('2026-11-24') } as any })
+  const payB = () => prisma.payment.create({ data: { invoiceId: payInFull.id, amount: '500.00', receivedByCompanyId: w.firm.id, receivedAt: new Date(), appliedAt: new Date() } as any })
   return { ar, dunning, noContact, held, last, partPaid, payInFull, nobodyBill, heldBill, lastBill, ended, payB }
 }

@@ -51,11 +51,16 @@ import { billLinkOpen, billLinkToken, billLinkUrl } from '@/lib/notify/bill-lett
 import { chaseNumbersOf, planWith, numbersSource } from '@/lib/agents/chase-numbers'
 import { nextLetter, agentStamp } from '@/lib/notify/timesheet-chase-agent'
 import { registerAgent, type AgentContext } from '@/lib/agents/runner'
+import { registerPlan } from '@/lib/agents/plans'
+import { runSkill } from '@/lib/skills/runner'
 import { TASK_RECORD, approvalOf, closeTask, proposeTask, type TaskPlan } from '@/lib/agents/tasks'
 
 export const MONEY_OWED_CHASE_KIND = 'MONEY_OWED_CHASE'
 export const MONEY_OWED_CHASE_TEMPLATE = 'money-owed-chase'
 export const MONEY_OWED_RECORD = 'Invoice'
+/** What a card run is about, for `card.open`: the task whose letter did not arrive, or the customer nobody is recorded at. */
+export const FAILED_DELIVERY_CARD = 'MoneyChaseFailedDelivery'
+export const NO_CONTACT_CARD = 'MoneyChaseNoContact'
 
 /**
  * PROPOSED DEFAULTS, AWAITING THE OWNER. Nobody has decided these numbers.
@@ -276,11 +281,16 @@ async function billingContact(supplierId: string, customerId: string, workerEmai
   return pick ? { email: pick.email!.trim(), name: pick.name } : null
 }
 
+type RaiseInput = { companyId: string; agentKey: string; owner: string | null; now: Date; prefix: string; link: { recordType: string; recordId: string }; question: string; proof: string }
+
+/** Whether a card of this wording on this link was ever asked, open or decided. Reads only. */
+const askedBefore = async (i: RaiseInput): Promise<boolean> =>
+  (await prisma.decisionItem.count({ where: { companyId: i.companyId, question: { startsWith: i.prefix }, proofLinks: { array_contains: [i.link] } } })) > 0
+
 /** Open one card for a gap, the first time only: any card of this wording on this link, open or decided, means it was asked. Returns whether it opened one. */
-async function raiseOnce(i: { companyId: string; agentKey: string; owner: string | null; now: Date; prefix: string; link: { recordType: string; recordId: string }; question: string; proof: string }): Promise<boolean> {
+async function raiseOnce(i: RaiseInput): Promise<boolean> {
   if (!i.owner) return false
-  const asked = await prisma.decisionItem.count({ where: { companyId: i.companyId, question: { startsWith: i.prefix }, proofLinks: { array_contains: [i.link] } } })
-  if (asked > 0) return false
+  if (await askedBefore(i)) return false
   const stamp = await agentStamp(i.companyId, i.agentKey)
   if (!stamp) return false
   await openDecision({ ...stamp, companyId: i.companyId, ownerPersonId: i.owner, openedOn: i.now, question: i.question, proof: i.proof, proofLinks: [i.link] })
@@ -336,12 +346,15 @@ async function proposeFinalNotices(ctx: AgentContext, owner: string | null): Pro
     }
     // The draft goes under the card's plan, written with the card, for the person who sends it. It carries no link: a bill link is a token and never sits on a card.
     const letter = finalNoticeLetter(f)
+    await runSkill(ctx, 'chase.propose', { recordType: MONEY_OWED_RECORD, recordId: b.id, unitsPlanned: 1 }, async () => {
     const task = await proposeTask({
       companyId, agentKey: ctx.agentKey, kind: MONEY_OWED_CHASE_KIND, recordType: MONEY_OWED_RECORD, recordId: b.id,
       plan: PROPOSED_FINAL_NOTICE_PLAN, ownerPersonId: owner, openedOn: now, parentTaskId: t.id, question: finalNoticeQuestion(f),
       detail: `Draft, to ${contact.name ? `${contact.name} ` : ''}<${contact.email}>.\nSubject: ${letter.subject}\n\n${letter.text}\n\nThe link to the bill is not on this card: open the bill and copy its link before you send.`,
     })
     await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_FINAL_NOTICE_PROPOSED', summary: `Drafted a final notice for bill ${b.number} to ${customer.name}, ${amount(owed, b.currency)} owed, and asked for a yes. A person sends it; Etyme sends nothing.` })
+    return { result: task }
+    })
   }
 }
 
@@ -357,7 +370,13 @@ async function closeFinalNotices(ctx: AgentContext): Promise<void> {
     if (task.state !== 'APPROVED' && task.state !== 'RUNNING') continue
     const b = await prisma.invoice.findUnique({ where: { id: task.recordId }, select: billRead })
     if (!b || ['CANCELLED', 'VOID'].includes(b.status)) { await closeTask(task.id, 'The bill this final notice was about is no longer on the record as owed.', 'STOPPED'); continue }
-    if (owedCents(b, b.payments) <= 0 || b.status === 'PAID') { await closeTask(task.id, 'The bill is paid in full, so the final notice is closed.', 'CLOSED_BY_ARRIVAL'); continue }
+    if (owedCents(b, b.payments) <= 0 || b.status === 'PAID') {
+      await runSkill(ctx, 'chase.close', { recordType: MONEY_OWED_RECORD, recordId: b.id, unitsPlanned: 1 }, async () => {
+        await closeTask(task.id, 'The bill is paid in full, so the final notice is closed.', 'CLOSED_BY_ARRIVAL')
+        return { result: true }
+      })
+      continue
+    }
     await closeTask(task.id, `A person said yes and will send the final notice for bill ${b.number} themselves. Etyme sent nothing. Any further step, such as collections or a call, is a person’s.`, 'DONE')
   }
 }
@@ -394,12 +413,15 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     // The firm's own numbers, if the Owner set any, are taken now and kept in the task's plan.
     const set = await chaseNumbersOf(companyId, ctx.agentKey)
     const plan = planWith(PROPOSED_MONEY_CHASE_PLAN, set)
-    const task = await proposeTask({
-      companyId, agentKey: ctx.agentKey, kind: MONEY_OWED_CHASE_KIND, recordType: MONEY_OWED_RECORD, recordId: b.id,
-      plan, ownerPersonId: owner, openedOn: now,
-      question: moneyChaseQuestion({ customer: customer.name, number: b.number, owedMinor: owed, currency: b.currency, dueAt: b.dueAt, daysPast }, plan, set !== null),
+    await runSkill(ctx, 'chase.propose', { recordType: MONEY_OWED_RECORD, recordId: b.id, unitsPlanned: 1 }, async () => {
+      const task = await proposeTask({
+        companyId, agentKey: ctx.agentKey, kind: MONEY_OWED_CHASE_KIND, recordType: MONEY_OWED_RECORD, recordId: b.id,
+        plan, ownerPersonId: owner, openedOn: now,
+        question: moneyChaseQuestion({ customer: customer.name, number: b.number, owedMinor: owed, currency: b.currency, dueAt: b.dueAt, daysPast }, plan, set !== null),
+      })
+      await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_PROPOSED', summary: `Proposed a chase of ${customer.name} for bill ${b.number}, ${amount(owed, b.currency)} owed. Nothing is sent until a person says yes.` })
+      return { result: task }
     })
-    await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_PROPOSED', summary: `Proposed a chase of ${customer.name} for bill ${b.number}, ${amount(owed, b.currency)} owed. Nothing is sent until a person says yes.` })
   }
 
   // Nobody to hand them to: one line for the firm while that stays true, again only after a seat was filled and later emptied.
@@ -430,7 +452,13 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     const b = await prisma.invoice.findUnique({ where: { id: task.recordId }, select: billRead })
     if (!b || ['CANCELLED', 'VOID'].includes(b.status)) { await closeTask(task.id, 'The bill this chase was about is no longer on the record as owed.', 'STOPPED'); continue }
     const owed = owedCents(b, b.payments)
-    if (owed <= 0 || b.status === 'PAID') { await closeTask(task.id, 'The bill is paid in full, so the chase is closed.', 'CLOSED_BY_ARRIVAL'); continue }
+    if (owed <= 0 || b.status === 'PAID') {
+      await runSkill(ctx, 'chase.close', { recordType: MONEY_OWED_RECORD, recordId: b.id, unitsPlanned: 1 }, async () => {
+        await closeTask(task.id, 'The bill is paid in full, so the chase is closed.', 'CLOSED_BY_ARRIVAL')
+        return { result: true }
+      })
+      continue
+    }
     if (ctx.mode !== 'ON') continue // Drafts only: nothing is sent, even after a yes.
     if (!CHASEABLE_STATUSES.includes(b.status)) continue // Held or disputed by the customer: a person's to settle.
     const heldBy = await openDecisionAbout(companyId, b)
@@ -452,11 +480,14 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
         const stampNL = await agentStamp(companyId, ctx.agentKey)
         const ownerNL = owner
         if (stampNL && ownerNL) {
-          await openDecision({
-            ...stampNL, companyId, ownerPersonId: ownerNL, openedOn: now,
-            question: `Failed delivery: no letter about bill ${b.number} could leave. Follow up by hand?`,
-            proof: `Every attempt in the plan was made and none left. The last reason: ${why}`,
-            proofLinks: [{ recordType: TASK_RECORD, recordId: task.id }],
+          await runSkill(ctx, 'card.open', { recordType: FAILED_DELIVERY_CARD, recordId: task.id, unitsPlanned: 1 }, async () => {
+            await openDecision({
+              ...stampNL, companyId, ownerPersonId: ownerNL, openedOn: now,
+              question: `Failed delivery: no letter about bill ${b.number} could leave. Follow up by hand?`,
+              proof: `Every attempt in the plan was made and none left. The last reason: ${why}`,
+              proofLinks: [{ recordType: TASK_RECORD, recordId: task.id }],
+            })
+            return { result: true }
           })
         }
         continue
@@ -468,13 +499,20 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
     if (!customer || !contact) {
       // One card for a person the first time, then quiet until a contact is recorded (the next run then sends as planned).
       const who = customer?.name ?? 'The customer'
-      const raised = await raiseOnce({
+      const ask: RaiseInput = {
         companyId, agentKey: ctx.agentKey, owner, now, prefix: `${who} has no one recorded to receive bills`,
         link: { recordType: 'Company', recordId: customer?.id ?? companyId },
         question: `${who} has no one recorded to receive bills, so bill ${b.number} cannot be chased. Add someone to receive bills (a contact at ${who}) on the customer’s page?`,
         proof: `Letter ${next.attempt} was ready and has nowhere to go. Once someone to receive bills is recorded for this customer, the chase goes ahead as approved.`,
+      }
+      // A run is written only for a card that is about to be asked, never for the nights it is already asked.
+      if (!owner || (await askedBefore(ask))) continue
+      await runSkill(ctx, 'card.open', { recordType: NO_CONTACT_CARD, recordId: ask.link.recordId, unitsPlanned: 1 }, async () => {
+        const raised = await raiseOnce(ask)
+        if (!raised) return { result: false, verdict: 'FAIL' as const, failReason: 'The ledger would not take the card, or the agent has no switch.' }
+        await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_NOT_SENT', summary: `Letter ${next.attempt} for bill ${b.number} was not sent: no one to receive bills is recorded at ${who}. One card asks for it.` })
+        return { result: true }
       })
-      if (raised) await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'MONEY_CHASE_NOT_SENT', summary: `Letter ${next.attempt} for bill ${b.number} was not sent: no one to receive bills is recorded at ${who}. One card asks for it.` })
       continue
     }
     const base = mailedBase()
@@ -494,23 +532,29 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
       owedMinor: owed, currency: b.currency, dueAt: b.dueAt, daysPast: daysPastDue(b.dueAt, now),
       link: billLinkOpen(b.dueAt, now) ? url : null, linkClosed: !billLinkOpen(b.dueAt, now), weeks: signedWeeksOf(b), attempt: next.attempt,
     })
-    const res = await send({
-      to: contact.email, subject: letter.subject, text: letter.text,
-      about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: next.attempt, recordType: MONEY_OWED_RECORD, recordId: b.id, template: MONEY_OWED_CHASE_TEMPLATE, chase: true },
-    })
-    const went = res.outcome === 'SENT'
-    await ctx.act({
-      recordType: TASK_RECORD, recordId: task.id, action: went ? 'MONEY_CHASE_SENT' : 'MONEY_CHASE_NOT_SENT',
-      summary: went ? `Sent letter ${next.attempt} to ${customer.name} for bill ${b.number}, ${amount(owed, b.currency)} owed.` : `Letter ${next.attempt} to ${customer.name} for bill ${b.number} was not sent: ${res.note}`,
+    const { result: res } = await runSkill(ctx, 'chase.send', { recordType: MONEY_OWED_RECORD, recordId: b.id, unitsPlanned: 1 }, async () => {
+      const r = await send({
+        to: contact.email, subject: letter.subject, text: letter.text,
+        about: { companyId, agentKey: ctx.agentKey, agentTaskId: task.id, agentAttempt: next.attempt, recordType: MONEY_OWED_RECORD, recordId: b.id, template: MONEY_OWED_CHASE_TEMPLATE, chase: true },
+      })
+      const went = r.outcome === 'SENT'
+      await ctx.act({
+        recordType: TASK_RECORD, recordId: task.id, action: went ? 'MONEY_CHASE_SENT' : 'MONEY_CHASE_NOT_SENT',
+        summary: went ? `Sent letter ${next.attempt} to ${customer.name} for bill ${b.number}, ${amount(owed, b.currency)} owed.` : `Letter ${next.attempt} to ${customer.name} for bill ${b.number} was not sent: ${r.note}`,
+      })
+      return { result: r }
     })
     if (res.outcome === 'FAILED_DELIVERY') {
       const stamp = await agentStamp(companyId, ctx.agentKey)
       if (stamp && owner) {
-        await openDecision({
-          ...stamp, companyId, ownerPersonId: owner, openedOn: now,
-          question: `Failed delivery: letter ${next.attempt} to ${customer.name} for bill ${b.number} did not arrive. Check the address recorded for the person who receives bills.`,
-          proof: `The mail service said: ${res.note}`,
-          proofLinks: [{ recordType: TASK_RECORD, recordId: task.id }],
+        await runSkill(ctx, 'card.open', { recordType: FAILED_DELIVERY_CARD, recordId: task.id, unitsPlanned: 1 }, async () => {
+          await openDecision({
+            ...stamp, companyId, ownerPersonId: owner, openedOn: now,
+            question: `Failed delivery: letter ${next.attempt} to ${customer.name} for bill ${b.number} did not arrive. Check the address recorded for the person who receives bills.`,
+            proof: `The mail service said: ${res.note}`,
+            proofLinks: [{ recordType: TASK_RECORD, recordId: task.id }],
+          })
+          return { result: true }
         })
       }
     }
@@ -519,6 +563,9 @@ export async function moneyOwedChaseStep(ctx: AgentContext, deps: { send?: typeo
 
 export const MONEY_OWED_CHASE_AGENT = 'money-owed-chase'
 export const MONEY_OWED_CHASE_RULES = 'money-owed-chase-1'
+
+// The skills this agent runs (record 123). The final notice is proposed with `chase.propose` and is never sent: it holds no send path.
+registerPlan({ agentKey: MONEY_OWED_CHASE_AGENT, skills: ['chase.propose', 'chase.send', 'chase.close', 'card.open'], outputSkill: 'chase.propose' })
 
 /** Put the step in the runner's registry under its own key. Called by the cron route that runs agents. */
 export function registerMoneyOwedChase() {

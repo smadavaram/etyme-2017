@@ -15,6 +15,8 @@ import { dayStart, noticeTiming } from '@/lib/agents/checklist-rules'
 import { lastLetterBounced, failedQuestion } from '@/lib/agents/confirmation-rules'
 import { FAILED_DELIVERY_CARD_KIND } from '@/lib/agents/confirmation-tracker'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
+import { FAILED_DELIVERY_CARD, NO_CONTACT_CARD } from '@/lib/money/money-owed-chase'
+import { moneyCardVerdict } from './chase-money'
 import { cardsAt, judgeCards, ownerFor, signatoryOrOwner } from './cards'
 
 interface Kind {
@@ -32,6 +34,8 @@ export const CARD_KINDS: Record<string, Kind> = {
   SignatureCard: { link: 'ChecklistItem', roles: 'SIGNATORY', what: 'the signature a petition paper needs' },
   NoticeTiming: { link: 'NoticePosting', roles: ['HR', 'Compliance Officer'], what: 'the notice dated off its filing day' },
   AccessFile: { link: 'PublicAccessFile', roles: ['HR'], what: 'the public access file to approve' },
+  [FAILED_DELIVERY_CARD]: { link: 'AgentTask', roles: ['Accounts Receivable', 'Finance'], what: 'the letter that did not reach the customer' },
+  [NO_CONTACT_CARD]: { link: 'Company', roles: ['Accounts Receivable', 'Finance'], what: 'the customer nobody is recorded at to receive bills' },
   [FAILED_DELIVERY_CARD_KIND]: { link: 'Person', roles: ['Account Manager'], what: 'the letter that did not reach the other side' },
 }
 
@@ -39,6 +43,7 @@ export const cardOpen: SkillChecker<PrismaClient> = async (companyId, _key, wind
   const ref = refs[0]
   const kind = ref ? CARD_KINDS[ref.recordType] : undefined
   if (!ref || !kind) return unknownBecause('The run does not name a kind of card this check knows, so there is nothing to look for.')
+  if (ref.recordType === FAILED_DELIVERY_CARD || ref.recordType === NO_CONTACT_CARD) return moneyCardVerdict(read, companyId, ref, window)
   const evidence = `${ref.recordType} ${ref.recordId}`
   const baseId = ref.recordId.split(':')[0]
 

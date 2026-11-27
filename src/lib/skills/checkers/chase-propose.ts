@@ -18,6 +18,7 @@ import { ownerForRoles } from '@/lib/money/agent-owners'
 import { SUBMISSION_CHASE_KIND, SUBMISSION_CHASE_TEMPLATE, PROPOSED_SUBMISSION_CHASE_PLAN, chaseProposal } from '@/lib/agents/submission-chase-rules'
 import { daysWaiting, wentOut } from '@/lib/agents/confirmation-rules'
 import { daysOffRead } from './calendar'
+import { isMoneyTask, moneyProposalProblems } from './chase-money'
 import { CHASE_LOOKBACK_DAYS, CHASE_RECORD, PROPOSED_CHASE_PLAN, TIMESHEET_CHASE_AGENT, TIMESHEET_CHASE_KIND } from '@/lib/agents/timesheet-chase-rules'
 import { chaseNumbersFrom, planWith } from '@/lib/agents/chase-numbers'
 import { dueWeek, employsAtFirm, filedAsOf } from './timesheet-week'
@@ -36,7 +37,7 @@ export const chasePropose: SkillChecker<PrismaClient> = async (companyId, _key, 
     include: { decision: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   })
   if (tasks.length === 0) return { verdict: 'FAIL', reason: 'The run proposed a chase but no task was written for the record in its window.', evidence: `${ref.recordType} ${ref.recordId}`, unitsFound: 0 }
-  const unruled = tasks.filter((t) => !(t.kind in PLAN_OF_KIND))
+  const unruled = tasks.filter((t) => !(t.kind in PLAN_OF_KIND) && !isMoneyTask(t))
   if (unruled.length) return unknownBecause(`No plan rule is written for ${unruled[0].kind} yet, so its proposal cannot be checked.`)
 
   const contact = ref.recordType === OUTREACH_RECORD ? await read.companyContact.findUnique({ where: { id: ref.recordId }, select: { atCompanyId: true } }) : null
@@ -54,6 +55,13 @@ export const chasePropose: SkillChecker<PrismaClient> = async (companyId, _key, 
   const problems: string[] = []
   let good = 0
   for (const t of tasks) {
+    if (isMoneyTask(t)) {
+      // The money-owed chase and its final notice: re-read the bill, its payments, the mail ledger and the seats.
+      const found = await moneyProposalProblems(read, companyId, t, window)
+      if (found.length === 0) good++
+      else problems.push(`task ${t.kind}: ${found.join(', ')}`)
+      continue
+    }
     const side = t.kind.endsWith('SUPPLIER') ? 'SUPPLIER' : 'CUSTOMER'
     const mine: string[] = []
     const given = t.kind === TIMESHEET_CHASE_KIND && ownerNumbers ? [PLAN_OF_KIND[t.kind], planWith(PROPOSED_CHASE_PLAN, ownerNumbers)] : [PLAN_OF_KIND[t.kind]]
