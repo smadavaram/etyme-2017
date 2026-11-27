@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { learnTenant } from '@/lib/training/learn-read'
 import { styleOf } from '@/lib/public-site/site-look'
 import { VERSION } from '@/lib/training/courses/index'
+import { VisitorNote } from '../_components/visitor-note'
 import '../learn.css'
 
 /**
@@ -23,7 +24,7 @@ export default async function LearnLayout({ children, params }: { children: Reac
       </header>
       <main className="mx-auto max-w-5xl px-5 py-8">{children}</main>
       <footer className="px-5 py-6 text-sm border-t" style={{ borderColor: '#E3DFD5', color: '#6B6862' }}>
-        <span>Free to take. Your progress stays in this browser until you sign in.</span>
+        <span>Free to take.<VisitorNote tenant={t.slug} /></span>
         <span className="float-right tabular-nums">{VERSION}</span>
       </footer>
     </div>

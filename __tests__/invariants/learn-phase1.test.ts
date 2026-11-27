@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { isCalendarDate, cleanDues, dueLine, dayWords } from '@/lib/training/due'
 import { cleanVideo, cleanLink, readVideo, framesOf, nextFrame, playsInPage, clock, FRAME_FADE_MS, FRAME_HOLD_MS, LESSON_STEPS } from '@/lib/training/video'
-import { mayShowCredential, addToProfileUrl, newVerificationCode, ADD_TO_PROFILE_PARAMS, credentialPath } from '@/lib/training/credential'
+import { mayShowCredential, addToProfileUrl, newVerificationCode, ADD_TO_PROFILE_PARAMS, credentialPath, credentialCourseTitle } from '@/lib/training/credential'
 
 const root = process.cwd()
 const walk = (dir: string, out: string[] = []): string[] => {
@@ -176,5 +176,42 @@ describe('the public credential page', () => {
     const page = src(join(root, 'src/app/learn/[tenant]/credential/[id]/page.tsx'))
     expect(page).toContain('index: false')
     expect(page).not.toMatch(/rate|price|bench/i)
+  })
+})
+
+describe('the credential page and the footer on a firm’s learning site', () => {
+  const page = () => src(join(root, 'src/app/learn/[tenant]/credential/[id]/page.tsx'))
+  it('the credential page prints its date through the one date formatter', () => {
+    expect(page()).toContain("from '@/lib/format-date'")
+    expect(page()).not.toContain('toLocaleDateString')
+  })
+  it('the credential page stacks its facts on a phone and splits them at sm', () => {
+    expect(page()).toContain('grid-cols-1 sm:grid-cols-[120px_1fr]')
+    expect(page()).not.toMatch(/className="[^"]*(?<!sm:)grid-cols-\[120px_1fr\]/)
+  })
+  it('another firm’s name is cut out of the course title on the page of the firm that issued it', () => {
+    expect(credentialCourseTitle('Working in the AI era — Tapin onboarding', ['Tapin'], 'Acme Staffing')).toBe('Working in the AI era — onboarding')
+  })
+  it('the course title is left as written where the issuer is the creator', () => {
+    expect(credentialCourseTitle('Working in the AI era — Tapin onboarding', ['Tapin'], 'Tapin')).toBe('Working in the AI era — Tapin onboarding')
+  })
+  it('a creator’s name inside a longer word is not cut', () => {
+    expect(credentialCourseTitle('Tapinade basics', ['Tapin'], 'Acme')).toBe('Tapinade basics')
+  })
+  it('a title that is only the creator’s name is kept rather than printed empty', () => {
+    expect(credentialCourseTitle('Tapin', ['Tapin'], 'Acme')).toBe('Tapin')
+  })
+  it('the credential page title is the course and the track, and the issuer is on its own line', () => {
+    expect(page()).toContain("{v.courseTitle}{v.trackTitle ? ` — ${v.trackTitle}` : ''}")
+    expect(page()).toContain('Issued by')
+    expect(page()).not.toContain('finished this course at')
+  })
+  it('the footer says progress stays in this browser only to a visitor who is not signed in', () => {
+    const layout = src(join(root, 'src/app/learn/[tenant]/layout.tsx'))
+    expect(layout).not.toContain('stays in this browser')
+    expect(layout).toContain('<VisitorNote')
+    const note = src(join(root, 'src/app/learn/_components/visitor-note.tsx'))
+    expect(note).toContain('stays in this browser until you sign in')
+    expect(note).toMatch(/!r\.ok/)
   })
 })

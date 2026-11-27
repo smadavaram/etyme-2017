@@ -32,6 +32,25 @@ export function mayShowCredential(o: {
   return { ok: true }
 }
 
+/**
+ * The course's own title for a credential, with no other firm's name in it.
+ * A course made by one firm and taken at another carries its creator's name
+ * in the title ("... Tapin onboarding"); the page of the issuing firm must
+ * not. Names of firms that are not the issuer are cut out; where the issuer
+ * is the creator the title stands as written.
+ */
+export function credentialCourseTitle(title: string, creatorNames: readonly (string | null | undefined)[], issuer: string): string {
+  let out = title
+  for (const n of creatorNames) {
+    const name = n?.trim()
+    if (!name || name.toLowerCase() === issuer.trim().toLowerCase()) continue
+    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    out = out.replace(new RegExp(`(^|[^\\p{L}\\p{N}])${esc}(?![\\p{L}\\p{N}])\\s*`, 'giu'), '$1')
+  }
+  out = out.replace(/\s{2,}/g, ' ').replace(/\s+([—–:,-])\s*$/, '').replace(/^\s*[—–:,-]\s*/, '').trim()
+  return out || title
+}
+
 /** The address a credential lives at on its firm's learning site. */
 export const credentialPath = (tenantSlug: string, code: string): string => `/learn/${tenantSlug}/credential/${code}`
 

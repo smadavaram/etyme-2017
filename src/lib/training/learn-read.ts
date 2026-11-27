@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/db'
 import { lookFor, type SiteLook } from '@/lib/public-site/site-look'
+import { trackOf } from './courses/index'
 import { learnOpen } from './learn-gate'
 import { readVideo, type LessonVideoView } from './video'
-import { mayShowCredential, type CredentialRefusal } from './credential'
+import { credentialCourseTitle, mayShowCredential, type CredentialRefusal } from './credential'
 
 export interface LearnTenant { id: string; name: string; slug: string; look: SiteLook }
 
@@ -33,7 +34,10 @@ export async function videoFor(tenantId: string, trackKey: string, lessonKey: st
   return readVideo(row)
 }
 
-export interface CredentialView { courseTitle: string; issuer: string; learnerName: string; completedAt: Date; code: string; certId: string }
+/** The typed course content was written by Tapin, and its title says so; another firm's page must not. */
+const COURSE_CONTENT_AUTHOR = 'Tapin'
+
+export interface CredentialView { courseTitle: string; trackTitle: string | null; issuer: string; learnerName: string; completedAt: Date; code: string; certId: string }
 
 /**
  * The public credential page's one reader. It checks the code against the
@@ -46,12 +50,14 @@ export async function readCredential(slug: string, code: string): Promise<{ ok: 
   if (!c) return { ok: false, reason: 'PLUGIN_OFF' }
   const row = code ? await prisma.learnCredential.findUnique({
     where: { verificationCode: code },
-    select: { companyId: true, shownAt: true, revokedAt: true, verificationCode: true, enrollment: { select: { status: true, completedAt: true, course: { select: { title: true } }, person: { select: { name: true } } } } },
+    select: { companyId: true, shownAt: true, revokedAt: true, verificationCode: true, enrollment: { select: { status: true, completedAt: true, course: { select: { title: true, trackKey: true, sourceCompanyId: true, company: { select: { name: true } } } }, person: { select: { name: true } } } } },
   }) : null
   const may = mayShowCredential({ pluginOn: learnOpen(c), row, tenantId: c.id, enrollmentStatus: row?.enrollment.status })
   if (!may.ok || !row) return { ok: false, reason: may.ok ? 'NO_SUCH_CODE' : may.reason }
+  const course = row.enrollment.course
+  const source = course.sourceCompanyId ? await prisma.company.findUnique({ where: { id: course.sourceCompanyId }, select: { name: true } }) : null
   return {
     ok: true, tenantSlug: c.slug,
-    view: { courseTitle: row.enrollment.course.title, issuer: c.name, learnerName: row.enrollment.person.name, completedAt: row.enrollment.completedAt ?? row.shownAt!, code: row.verificationCode, certId: row.verificationCode },
+    view: { courseTitle: credentialCourseTitle(course.title, [course.company.name, source?.name, COURSE_CONTENT_AUTHOR], c.name), trackTitle: (course.trackKey && trackOf(course.trackKey)?.title) || null, issuer: c.name, learnerName: row.enrollment.person.name, completedAt: row.enrollment.completedAt ?? row.shownAt!, code: row.verificationCode, certId: row.verificationCode },
   }
 }

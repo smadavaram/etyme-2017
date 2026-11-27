@@ -212,6 +212,7 @@ describe('Phase 1 of the training plugin, door to record', () => {
       expect(read.view).toMatchObject({ issuer: expect.any(String), learnerName: 'Wren Worker', code: s.code })
       expect(read.view.courseTitle).toContain('IT')
       expect(read.view.completedAt).toBeInstanceOf(Date)
+      expect(read.view.courseTitle).not.toContain('Tapin')
     }
     const home = await route(progressGet, 'GET', '/x?track=it-upgrade', { tenant: s.maker.slug })
     expect(home.body.data.credential).toMatchObject({ shown: true, code: s.code })
