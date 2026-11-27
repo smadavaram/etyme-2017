@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       agents: rows.map((r) => ({ ...r, chaseNumbers: CHASE_AGENT_KEYS.includes(r.key) ? chaseNumbersFrom(switches.find((s) => s.agentKey === r.key)?.chasePlan) : null })),
       tasks: tasks.map((t) => {
         const a = rows.find((r) => r.key === t.agentKey)
-        return { ...t, stopped: stoppedSays(t.state, a?.switchState ?? 'OFF', a?.name ?? t.agentKey) ?? t.paused, pausedHref: t.paused ? OUTREACH_SETTINGS_HREF : null }
+        return { ...t, stopped: stoppedSays(t.state, a?.switchState ?? 'OFF', a?.name ?? t.agentKey) ?? t.paused, pausedHref: t.paused && seat.roleName === 'Owner' ? OUTREACH_SETTINGS_HREF : null }
       }),
       ledgerHidden: ledger ? null : LEDGER_IS_FOR,
       ledger: !ledger ? null : {

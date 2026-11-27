@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import type { Route } from 'next'
 import { useCallback, useEffect, useState } from 'react'
 import { readJson, isRefusal } from '@/lib/read-response'
 import { useFirstPageSection } from '@/components/page-section'
@@ -28,7 +29,7 @@ interface Data {
   canSwitch: boolean
   entities: { id: string; name: string }[]
   agents: { key: string; name: string; switchState: 'OFF' | 'DRAFT_ONLY' | 'ON'; live: boolean; state: string; dailyCap: number | null; actionsToday: number; meter: string; cap: string; chaseNumbers: { retries: number; daysApart: number } | null }[]
-  tasks: { id: string; agentKey: string; kind: string; state: string; question: string; ownerName: string; decisionId: string; sent: number; escalationOf: string | null; stopped: string | null }[]
+  tasks: { id: string; agentKey: string; kind: string; state: string; question: string; ownerName: string; decisionId: string; sent: number; escalationOf: string | null; stopped: string | null; pausedHref: string | null }[]
   thisWeek: { at: string; says: string } | null
   proposedDefaults: { agentKey: string; name: string; says: string }[]
   /** Set for a seat that does not read the firm's ledger: who does, in a sentence. */
@@ -171,6 +172,7 @@ export default function AgentControlPage() {
                         {t.state === 'PROPOSED' ? `Waiting for a yes from ${t.ownerName}` : `Running, ${t.sent} sent`}{t.escalationOf ? ' · an escalation' : ''}
                       </span>
                       {t.stopped && <span className="ml-2 text-[13px] text-etyme-attention">{t.stopped}</span>}
+                      {t.pausedHref && <Link className="ml-2 text-[13px] text-etyme-action" href={t.pausedHref as Route}>Open Settings</Link>}
                     </li>
                   ))}
                 </ul>

@@ -228,6 +228,13 @@ describe('how the queue’s pages are framed and drawn (the walk of Flow A)', ()
     expect(card('Renew the supplier agreement').title).toBe('Renew the supplier agreement.')
   })
 
+  it('only the Owner is offered the Settings link beside a paused outreach task', () => {
+    expect(src('src/app/api/decision-items/agents/route.ts')).toMatch(/pausedHref: t\.paused && seat\.roleName === 'Owner' \? OUTREACH_SETTINGS_HREF : null/)
+    const page = src('src/app/dashboard/decisions/agents/page.tsx')
+    expect(page).toContain('pausedHref: string | null')
+    expect(page).toContain('{t.pausedHref && <')
+  })
+
   it('agent control tells a seat that does not read payroll how many acts on payroll records it is not shown', () => {
     expect(src('src/app/dashboard/decisions/agents/page.tsx')).toContain('{data.ledger.payrollHidden && <p')
     expect(src('src/app/api/decision-items/agents/route.ts')).toContain('payrollHidden: payrollRowsHiddenSays(ledger.hidden)')
