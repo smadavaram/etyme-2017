@@ -1,3 +1,4 @@
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { reachFor, jobInReach, outsideReachSays } from '../grant-reach'
 import { jobCurrency, jobCurrencyOf, companyLimitConverter } from '../job-currency'
 import { NextRequest, NextResponse } from 'next/server'
@@ -1200,7 +1201,7 @@ async function medianRateForSkills(clientId: string, skills: string[]): Promise<
   if (skills.length === 0) return null
 
   const contracts = await prisma.sellContract.findMany({
-    where: { clientCompanyId: clientId, state: { in: ['IN_PROGRESS', 'VERIFIED'] } },
+    where: clientLineWhere({ clientCompanyId: clientId, state: { in: ['IN_PROGRESS', 'VERIFIED'] } }),
     select: {
       clientCompanyId: true,
       billRate: true,

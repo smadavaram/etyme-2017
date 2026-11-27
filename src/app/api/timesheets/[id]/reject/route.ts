@@ -1,3 +1,4 @@
+import { sellerIsTheTop } from '../../team-top'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { mayApprove } from '@/lib/timesheet-authority'
@@ -54,6 +55,9 @@ export async function POST(
     )
   }
 
+  // A member's week on outcome work is the selling firm's to send back (record 120).
+  const hiddenTeamWeek = await sellerIsTheTop(timesheet.sellContractId, timesheet.sellContract)
+
   // Same authority as approving. Sending somebody's week back is a
   // decision about their pay, and it was open to anybody signed in.
   //
@@ -84,6 +88,9 @@ export async function POST(
     }
   )
   if (!allowed.ok) {
+    if (hiddenTeamWeek) {
+      return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Timesheet not found' } }, { status: 404 })
+    }
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: allowed.reason } },
       { status: 403 }

@@ -1,3 +1,4 @@
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -48,10 +49,10 @@ export async function POST(request: NextRequest) {
   const contractId = typeof body?.contractId === 'string' ? body.contractId : ''
 
   const contract = await prisma.sellContract.findFirst({
-    where: {
+    where: clientLineWhere({
       id: contractId,
       OR: [{ clientCompanyId: desk.companyId }, { endClientCompanyId: desk.companyId }],
-    },
+    }),
     select: {
       id: true, personId: true, companyId: true,
       person: { select: { name: true } },

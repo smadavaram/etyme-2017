@@ -1,3 +1,4 @@
+import { sellerIsTheTop } from '../../team-top'
 import { NextRequest, NextResponse } from 'next/server'
 import { notSignableSays } from '../../not-signable'
 import { getCallerContext } from '@/lib/api-context'
@@ -105,6 +106,10 @@ export async function POST(
     )
   }
 
+  // A member's week on outcome work has no client step: the selling firm
+  // signs it at the top, in one press (`../../team-top`, record 120).
+  const hiddenTeamWeek = await sellerIsTheTop(timesheet.sellContractId, timesheet.sellContract)
+
   // An approved timesheet is the goods receipt: the invoice, the
   // three-way match, the payment and the margin all rest on it. This
   // required nothing but a session, so any account on the platform could
@@ -200,6 +205,11 @@ export async function POST(
   const verdict = mayApprove(signingAs, parties)
   const allowed = verdict.ok || !onTheChain ? verdict : { ok: true, reason: 'Accepting what it pays, in its turn down the chain.' }
   if (!allowed.ok) {
+    // The client never reads a member line of outcome work: not a refusal that
+    // says the week exists, but the same answer as a week that is not there.
+    if (hiddenTeamWeek) {
+      return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Timesheet not found' } }, { status: 404 })
+    }
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: allowed.reason } },
       { status: 403 }

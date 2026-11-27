@@ -1,3 +1,4 @@
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 import { getCallerContext } from '@/lib/api-context'
@@ -107,7 +108,8 @@ export async function GET(request: NextRequest) {
     // Who has people here now, and when we last dealt with each: the
     // contracts this client pays, by supplier.
     prisma.sellContract.findMany({
-      where: { clientCompanyId: companyId },
+      // Not the member lines of outcome work: those are not people here (record 120).
+      where: clientLineWhere({ clientCompanyId: companyId }),
       select: {
         companyId: true, state: true, startDate: true, endDate: true,
         company: { select: { id: true, name: true, claimedAt: true } },

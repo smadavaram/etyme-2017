@@ -21,6 +21,7 @@
  * Everyone else is refused.
  */
 
+import { HIDDEN_TEAM_LINE } from '@/lib/money/team-lines'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   resolveClientCompany,
@@ -330,6 +331,8 @@ describe('Expense scoping — a client never sees a vendor\'s internal costs', (
         { endClientCompanyId: TALVERN.id },
         { clientCompanyId: TALVERN.id, endClientCompanyId: null },
       ],
+      // Never an expense of a member of a team sold as outcome work (record 120).
+      NOT: HIDDEN_TEAM_LINE,
     })
   })
 

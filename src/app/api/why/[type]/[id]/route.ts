@@ -1,3 +1,4 @@
+import { isHiddenTeamLine } from '@/lib/money/team-lines'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -132,9 +133,11 @@ export async function GET(
           endClientCompanyId: true, deliveryUnitId: true, orgUnitId: true,
           person: { select: { name: true } },
           company: { select: { name: true } },
+          projectOrder: { select: { podProject: { select: { onSite: true } } } },
         },
       })
-      if (!c) return notFound('placement')
+      // A member of outcome work is never the buyer's to read: it is not found to anybody but the seller (record 120).
+      if (!c || (isHiddenTeamLine(c) && caller.company?.id !== c.companyId)) return notFound('placement')
       const why = whyContract(viewer, c)
 
       // ── The subject is read off the verdict, never before it ────────

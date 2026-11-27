@@ -11,6 +11,8 @@
  * Tenure (Addendum E) aggregates at the end client, not the paying customer.
  */
 
+import { HIDDEN_TEAM_LINE } from '@/lib/money/team-lines'
+
 /** Returns the company ID where the consultant works. */
 export function resolvedEndClientId(contract: {
   clientCompanyId: string
@@ -32,5 +34,11 @@ export function endClientFilter(endClientId: string) {
       { endClientCompanyId: endClientId },
       { clientCompanyId: endClientId, endClientCompanyId: null },
     ],
+    // A member of a team sold as outcome work is never the client's to read
+    // (record 120, pods): the line carries the client's company so the seller
+    // never becomes its own customer, and every reader on the client's side
+    // goes through this door. A team marked on site passes: it is read as
+    // any contractor on the client's site.
+    NOT: HIDDEN_TEAM_LINE,
   }
 }

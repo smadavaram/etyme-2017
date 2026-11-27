@@ -1,3 +1,4 @@
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { reachFor, jobInReach, outsideReachSays } from './grant-reach'
 import { wholeFromMinor } from '@/lib/money'
 import { jobCurrency, companyLimitConverter } from './job-currency'
@@ -768,10 +769,12 @@ async function medianRateForSkills(
   if (skills.length === 0) return null
 
   const contracts = await prisma.sellContract.findMany({
-    where: {
+    // Never the member lines of outcome work: they carry no rate, and a rate of
+    // zero would pull the median down (record 120).
+    where: clientLineWhere({
       clientCompanyId: clientId,
       state: { in: ['IN_PROGRESS', 'VERIFIED'] },
-    },
+    }),
     select: {
       clientCompanyId: true,
       billRate: true,

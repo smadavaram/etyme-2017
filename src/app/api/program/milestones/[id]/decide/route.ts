@@ -12,6 +12,8 @@ import {
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { recordRefusal } from '@/lib/access-log'
 import { acceptorRefusal } from '../../pod-acceptor'
+import { acceptedAnswer, waitsForAStart, waitingForStartSays, START_STEP_HREF, START_STEP_LABEL } from '@/lib/money/pod-waits-for-start'
+import { notify } from '@/lib/notify'
 
 /**
  * POST /api/program/milestones/[id]/decide
@@ -171,6 +173,34 @@ export async function POST(
     },
   })
 
+  // A deliverable of a sold team: the client reads "<name> accepted." and
+  // nothing about a bill, because the bill waits for a member's start, a step
+  // that is the supplier's. The supplier is told which members must still
+  // start, with where it is done (record 120; `lib/money/pod-waits-for-start`).
+  let says = move.says
+  if (accept && sold) {
+    const team = (await prisma.sellContract.findMany({
+      where: { projectOrder: { podProject: { deliverables: { some: { milestoneId: id } } } } },
+      select: { state: true, person: { select: { name: true } } },
+    })).map((l) => ({ state: l.state as string, personName: l.person?.name ?? null }))
+    says = acceptedAnswer(saved.name, team, 'OTHER')
+    if (waitsForAStart(team)) {
+      const toTell = (await prisma.orderMilestone.findUnique({ where: { id }, select: { deliveredById: true } }))?.deliveredById
+      if (toTell) {
+        await notify({
+          personId: toTell,
+          companyId: milestone.order.issuedToId,
+          type: 'SYSTEM',
+          title: `${saved.name} was accepted`,
+          body: `${saved.name} was accepted. ${waitingForStartSays(team, 'SUPPLIER')}`,
+          entityId: id,
+          channel: 'IN_APP',
+          data: { href: START_STEP_HREF, label: START_STEP_LABEL },
+        }).catch(() => null)
+      }
+    }
+  }
+
   return NextResponse.json({
     data: {
       id: saved.id,
@@ -192,7 +222,7 @@ export async function POST(
         },
         now
       ),
-      says: move.says,
+      says,
     },
   })
 }

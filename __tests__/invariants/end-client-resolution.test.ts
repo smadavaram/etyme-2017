@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { resolvedEndClientId, endClientFilter } from '@/lib/resolve-end-client'
+import { HIDDEN_TEAM_LINE } from '@/lib/money/team-lines'
 
 /**
  * End client resolution — Addendum C "layer cake"
@@ -63,13 +64,14 @@ describe('resolvedEndClientId()', () => {
 })
 
 describe('endClientFilter()', () => {
-  it('generates an OR clause matching end client or direct placement', () => {
+  it('generates an OR clause matching end client or direct placement, less the member lines of outcome work', () => {
     const filter = endClientFilter('enterprise-1')
     expect(filter).toEqual({
       OR: [
         { endClientCompanyId: 'enterprise-1' },
         { clientCompanyId: 'enterprise-1', endClientCompanyId: null },
       ],
+      NOT: HIDDEN_TEAM_LINE,
     })
   })
 
