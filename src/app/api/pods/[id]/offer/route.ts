@@ -5,7 +5,7 @@ import { pluginGate } from '@/lib/plugin-gate'
 import { podWriteRefusal, podStaffOnly } from '@/lib/pods/caller'
 import { readPods, soldTo } from '@/lib/pods/read'
 import { offerRule, soldTeamSays } from '@/lib/pods'
-import { raisePodSaleCard, holdsSeatAt, tellCardAcceptor } from '@/lib/twin/pod-sale-card'
+import { raisePodSaleCard, holdsSeatAt, tellCardAcceptor, type PodSaleCardInput } from '@/lib/twin/pod-sale-card'
 import { dealingsWithSides } from '@/app/api/companies/dealings'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -15,7 +15,7 @@ const fail = (status: number, code: string, message: string, field?: string) =>
 
 /**
  * POST /api/pods/[id]/offer
- *   { clientCompanyId, acceptorEmail, kind, priceCents, currency, projectName, deliverables?: [{ name, amountCents, dueOn? }] }
+ *   { clientCompanyId, acceptorEmail, kind, priceCents, currency, projectName, onSite?, deliverables?: [{ name, amountCents, dueOn? }] }
  *
  * The supplier's proposal (record 120). It raises one card at the client,
  * for the one person named, and writes nothing else on the client's side:
@@ -64,7 +64,8 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   for (const p of named) if (await holdsSeatAt(prisma, p.id, client.id)) { acceptorId = p.id; break }
   if (!acceptorId) return fail(422, 'NO_SEAT', `Nobody at ${client.name} holds that address as a seat. Ask them for the work address of the person who will accept the work.`, 'acceptorEmail')
 
-  const card = await prisma.$transaction((tx) => raisePodSaleCard(tx, {
+  // `onSite` is the supplier's mark, "the team works on your site"; the card carries it to the client's yes.
+  const cardInput: PodSaleCardInput & { onSite: boolean } = {
     podId: id,
     sellerCompanyId: seller.id,
     clientCompanyId: client.id,
@@ -77,7 +78,9 @@ export async function POST(request: NextRequest, { params }: Ctx) {
     currency: offer.currency,
     deliverables: offer.deliverables,
     roles: team.roles.map((r) => ({ title: r.title, headcount: r.headcount })),
-  }))
+    onSite: offer.onSite,
+  }
+  const card = await prisma.$transaction((tx) => raisePodSaleCard(tx, cardInput))
   if (!card.ok) return fail(card.field === 'podId' ? 409 : 422, 'REFUSED', card.says, card.field ?? undefined)
   // The card is committed; only now is the named acceptor told it is waiting.
   await tellCardAcceptor(card)

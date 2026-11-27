@@ -159,6 +159,12 @@ export interface Offer {
   currency: string
   projectName: string
   deliverables: { name: string; amountCents: number; dueOn: Date | null }[]
+  /**
+   * "The team works on your site." False is outcome work: the client reads
+   * deliverables and never a member. True only where the supplier marked it,
+   * and the client's yes on the offer accepts it (record 120).
+   */
+  onSite: boolean
 }
 
 export type OfferRead = { ok: true; offer: Offer } | { ok: false; says: string; field: string }
@@ -185,12 +191,13 @@ export function offerRule(body: unknown): OfferRead {
   const currency = typeof b.currency === 'string' ? b.currency.trim().toUpperCase() : ''
   if (!/^[A-Z]{3}$/.test(currency)) return no('Give the currency as three letters, for example USD.', 'currency')
   const projectName = typeof b.projectName === 'string' ? b.projectName.trim().slice(0, 200) : ''
+  const onSite = b.onSite === true
   if (!projectName || /\bpods?\b/i.test(projectName)) return no(OFFER_NAME_SAYS, 'projectName')
 
   const listed = Array.isArray(b.deliverables) ? (b.deliverables as Record<string, unknown>[]) : []
   if (kind === 'TIME_AND_MATERIALS') {
     if (listed.length > 0) return no('A time-and-materials team bills hours and has no deliverables. Sell it on milestones or a fixed price to list deliverables.', 'deliverables')
-    return { ok: true, offer: { clientCompanyId, acceptorEmail, kind, priceCents: b.priceCents, currency, projectName, deliverables: [] } }
+    return { ok: true, offer: { clientCompanyId, acceptorEmail, kind, priceCents: b.priceCents, currency, projectName, deliverables: [], onSite } }
   }
   const deliverables: Offer['deliverables'] = []
   for (const d of listed) {
@@ -202,7 +209,7 @@ export function offerRule(body: unknown): OfferRead {
   }
   const amounts = amountsRule(b.priceCents, deliverables.map((d) => d.amountCents), currency)
   if (amounts) return no(amounts, 'deliverables')
-  return { ok: true, offer: { clientCompanyId, acceptorEmail, kind, priceCents: b.priceCents, currency, projectName, deliverables } }
+  return { ok: true, offer: { clientCompanyId, acceptorEmail, kind, priceCents: b.priceCents, currency, projectName, deliverables, onSite } }
 }
 
 /** What the team's row says about its offer, in the supplier's words. Null where no offer was made. */

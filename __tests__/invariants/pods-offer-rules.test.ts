@@ -46,3 +46,21 @@ describe('what the team’s row says about its offer', () => {
   })
   it('a team never offered says nothing', () => { expect(offerStateSays(null)).toBeNull() })
 })
+
+describe('the on-site choice in the supplier’s proposal', () => {
+  it('a proposal not marked on site is outcome work, and says so as false', () => {
+    const r = offerRule(good)
+    expect(r.ok && r.offer.onSite).toBe(false)
+  })
+  it('a proposal marked the team works on your site carries that mark', () => {
+    const r = offerRule({ ...good, onSite: true })
+    expect(r.ok && r.offer.onSite).toBe(true)
+  })
+  it('anything other than a plain yes is read as outcome work, never as on site', () => {
+    for (const odd of ['true', 1, 'yes', null]) { const r = offerRule({ ...good, onSite: odd }); expect(r.ok && r.offer.onSite).toBe(false) }
+  })
+  it('a time-and-materials proposal carries the mark too', () => {
+    const r = offerRule({ ...good, kind: 'TIME_AND_MATERIALS', deliverables: [], onSite: true })
+    expect(r.ok && r.offer.onSite).toBe(true)
+  })
+})

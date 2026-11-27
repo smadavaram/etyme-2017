@@ -75,9 +75,10 @@ export async function soldTo(podId: string): Promise<{ clientName: string | null
 }
 
 /** The firm's sold projects, by team: who bought, and whether it is still open. No money here; the margin has its own door. */
-export async function readProjects(companyId: string): Promise<{ id: string; podId: string; name: string; clientName: string | null; open: boolean; deliverables: { id: string; name: string; state: string | null }[] }[]> {
+export async function readProjects(companyId: string, lineIds?: string[] | null): Promise<{ id: string; podId: string; name: string; clientName: string | null; open: boolean; deliverables: { id: string; name: string; state: string | null }[] }[]> {
   const rows = await prisma.podProject.findMany({
-    where: { pod: { companyId } },
+    // `lineIds` narrows to the projects with a line in a margin reader's reach; null or absent is every project.
+    where: { pod: { companyId }, ...(lineIds ? { projectOrder: { sellContracts: { some: { id: { in: lineIds } } } } } : {}) },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true, podId: true, fulfilledAt: true,

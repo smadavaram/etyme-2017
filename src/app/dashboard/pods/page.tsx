@@ -27,7 +27,18 @@ interface MarginRead { marginCents: number | null; earnedRevenueCents: number; u
 interface Offer { client: string; acceptor: string; decision: 'PENDING' | 'APPROVED' | 'REJECTED' | 'OVERTAKEN'; says: string | null }
 interface Client { id: string; name: string }
 interface Row { name: string; amount: string; due: string }
-interface OfferForm { clientCompanyId: string; email: string; kind: string; projectName: string; price: string; rows: Row[] }
+interface OfferForm { clientCompanyId: string; email: string; kind: string; projectName: string; price: string; onSite: boolean; rows: Row[] }
+interface Variance {
+  currency: string
+  schedule: { pvCents: number | null; evCents: number | null; svCents: number | null; spi: number | null; unknowns: string[] }
+  cost: { acCents: number | null; cvCents: number | null; cpi: number | null; unknowns: string[] } | null
+  deliverables: { name: string; plannedOn: string | null; actualOn: string | null; daysVariance: number | null; basis: 'ACCEPTED' | 'OVERDUE' | null }[]
+}
+
+/** A figure, or a dash with the reason on hover. */
+const fig = (v: number | null, cur: string, why: string | undefined) => <span title={v === null ? why : undefined}>{v === null ? '—' : amount(v, cur)}</span>
+const idx = (v: number | null, why: string | undefined) => <span title={v === null ? why : undefined}>{v === null ? '—' : v.toFixed(2)}</span>
+const dayWord = (n: number) => `${n > 0 ? '+' : ''}${n} ${Math.abs(n) === 1 ? 'day' : 'days'}`
 interface Person { personId: string; name: string; email: string | null; kind: 'EMPLOYEE' | 'BENCH' }
 
 const field = 'rounded-md border border-etyme-rule bg-etyme-raised px-2 py-1.5 text-sm text-etyme-ink w-full sm:w-auto'
@@ -47,6 +58,9 @@ export default function ProjectTeamsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   // Filled only for a project whose margin route said yes: a seat it refuses draws no margin at all.
   const [margins, setMargins] = useState<Record<string, MarginRead>>({})
+  const [variances, setVariances] = useState<Record<string, Variance>>({})
+  // Finance reads margin and not jobs: the route answers with the projects alone.
+  const [projectsOnly, setProjectsOnly] = useState(false)
   const [offers, setOffers] = useState<Record<string, Offer>>({})
   const [clients, setClients] = useState<Client[]>([])
   const [offerForm, setOfferForm] = useState<Record<string, OfferForm>>({})
@@ -65,19 +79,23 @@ export default function ProjectTeamsPage() {
     if (res.status === 403) { setRefused(body.error?.message ?? 'This page is not part of your seat.'); return }
     if (!res.ok) { setErr(body.error?.message ?? 'The teams could not be read.'); return }
     setRefused(null)
-    setTeams(body.data.teams)
-    setPeople(body.data.people)
+    setProjectsOnly(body.data.view === 'PROJECTS')
+    setTeams(body.data.teams ?? [])
+    setPeople(body.data.people ?? [])
     setOffers(body.data.offers ?? {})
     setClients(body.data.clients ?? [])
     setMayWrite(Boolean(body.data.mayWrite))
     const sold: Project[] = body.data.projects ?? []
     setProjects(sold)
     const got: Record<string, MarginRead> = {}
+    const planned: Record<string, Variance> = {}
     await Promise.all(sold.map(async (p) => {
-      const r = await fetch(`/api/pods/projects/${p.id}/margin`)
+      const [r, v] = await Promise.all([fetch(`/api/pods/projects/${p.id}/margin`), fetch(`/api/pods/projects/${p.id}/variance`)])
       if (r.ok) { const d = (await r.json().catch(() => ({}))).data; if (d?.margin) got[p.id] = { ...d.margin, unknownSays: d.unknownSays ?? [] } }
+      if (v.ok) { const d = (await v.json().catch(() => ({}))).data; if (d?.variance) planned[p.id] = d.variance }
     }))
     setMargins(got)
+    setVariances(planned)
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -97,7 +115,7 @@ export default function ProjectTeamsPage() {
   const labels = pickerLabels(people)
   const dollarsToCents = (v: string) => Math.round(Number(v) * 100)
 
-  const blank: OfferForm = { clientCompanyId: '', email: '', kind: 'MILESTONE', projectName: '', price: '', rows: [{ name: '', amount: '', due: '' }] }
+  const blank: OfferForm = { clientCompanyId: '', email: '', kind: 'MILESTONE', projectName: '', price: '', onSite: false, rows: [{ name: '', amount: '', due: '' }] }
 
   // The people the supplier already knows at that client, by name; she may type any other work address.
   async function knowAt(clientId: string) {
@@ -112,7 +130,7 @@ export default function ProjectTeamsPage() {
   async function offer(teamId: string, f: OfferForm) {
     const tm = f.kind === 'TIME_AND_MATERIALS'
     const ok = await send('POST', `/api/pods/${teamId}/offer`, {
-      clientCompanyId: f.clientCompanyId, acceptorEmail: f.email, kind: f.kind, projectName: f.projectName,
+      clientCompanyId: f.clientCompanyId, acceptorEmail: f.email, kind: f.kind, projectName: f.projectName, onSite: f.onSite,
       priceCents: dollarsToCents(f.price), currency: teams!.find((t) => t.id === teamId)!.currency,
       deliverables: tm ? [] : f.rows.filter((r) => r.name.trim() || r.amount).map((r) => ({ name: r.name, amountCents: dollarsToCents(r.amount), ...(r.due ? { dueOn: r.due } : {}) })),
     })
@@ -129,12 +147,33 @@ export default function ProjectTeamsPage() {
     if (ok) setForm({ name: '', pricing: 'SPRINT_PRICE', price: '', weeks: '' })
   }
 
+  // Planned against actual: figures and short labels only. Cost shows only where the route sent it.
+  const plan = (p: Project) => {
+    const v = variances[p.id]
+    if (!v) return null
+    const s = v.schedule, c = v.cost, why = s.unknowns[0]
+    return (
+      <div className="mt-2 text-xs text-etyme-muted tabular-nums" aria-label={`Plan against actual for ${p.name}`}>
+        <p className="flex flex-wrap gap-x-4">
+          <span>PV {fig(s.pvCents, v.currency, why)}</span><span>EV {fig(s.evCents, v.currency, why)}</span>
+          <span>SV {fig(s.svCents, v.currency, why)}</span><span>SPI {idx(s.spi, why)}</span>
+          {c && <><span>AC {fig(c.acCents, v.currency, c.unknowns[0])}</span><span>CV {fig(c.cvCents, v.currency, c.unknowns[0] ?? why)}</span><span>CPI {idx(c.cpi, c.unknowns[0] ?? why)}</span></>}
+        </p>
+        <ul className="mt-1 space-y-0.5">
+          {v.deliverables.map((d) => (
+            <li key={d.name}>{d.name} · Planned {d.plannedOn ?? '—'} · {d.actualOn ? `Accepted ${d.actualOn}` : 'Not accepted'}{d.daysVariance !== null ? ` · ${dayWord(d.daysVariance)}${d.basis === 'OVERDUE' ? ' so far' : ''}` : ''}</li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
   return (
     <div className="animate-fade-in">
       <div className="page-head mb-6">
         {section && <p className="eyebrow">{section}</p>}
         <h1>Project teams</h1>
-        <p>Named teams you can sell as a project: the roles, who fills each one, and the price. Only your own employees and people on your bench, with their yes, can be on a team.</p>
+        {projectsOnly ? <p>The projects your firm has sold, what each has earned, and how it stands against its plan.</p> : <p>Named teams you can sell as a project: the roles, who fills each one, and the price. Only your own employees and people on your bench, with their yes, can be on a team.</p>}
       </div>
 
       {said && <p role="status" className="mb-3 text-sm text-etyme-verified">{said}</p>}
@@ -161,7 +200,26 @@ export default function ProjectTeamsPage() {
         </form>
       )}
 
-      {teams.length === 0 && <p className="text-sm text-etyme-muted">No teams yet.{mayWrite ? ' Create one above, then give it roles.' : ''}</p>}
+      {projectsOnly && (
+        <div className="space-y-3">
+          {projects.length === 0 && <p className="text-sm text-etyme-muted">No sold projects in the part of the book you read.</p>}
+          {projects.map((p) => {
+            const m = margins[p.id]
+            return (
+              <section key={p.id} className="panel text-sm" aria-label={`Project ${p.name}`}>
+                <h2 className="text-base font-medium text-etyme-ink">{p.name} <span className="text-xs text-etyme-muted">· {p.open ? 'in progress' : 'fulfilled'}</span></h2>
+                <ul className="mt-1 space-y-1">{p.deliverables.map((d) => <li key={d.id} className="text-etyme-ink">{d.name} <span className="text-etyme-muted">· {d.state ?? 'unknown'}</span></li>)}</ul>
+                {m && (m.marginCents !== null
+                  ? <p className="text-etyme-muted tabular-nums">Earned margin {amount(m.marginCents, m.currency)} on {amount(m.earnedRevenueCents, m.currency)} accepted</p>
+                  : m.unknownSays.map((u) => <p key={u} className="text-etyme-muted">{u}</p>))}
+                {plan(p)}
+              </section>
+            )
+          })}
+        </div>
+      )}
+
+      {!projectsOnly && teams.length === 0 && <p className="text-sm text-etyme-muted">No teams yet.{mayWrite ? ' Create one above, then give it roles.' : ''}</p>}
 
       <div className="space-y-4">
         {teams.map((t) => {
@@ -196,6 +254,7 @@ export default function ProjectTeamsPage() {
                     {m && (m.marginCents !== null
                       ? <p className="text-etyme-muted tabular-nums">Earned margin {amount(m.marginCents, m.currency)} on {amount(m.earnedRevenueCents, m.currency)} accepted</p>
                       : m.unknownSays.map((u) => <p key={u} className="text-etyme-muted">{u}</p>))}
+                    {plan(p)}
                   </div>
                 )
               })}
@@ -284,8 +343,13 @@ export default function ProjectTeamsPage() {
                             <p className="text-xs text-etyme-muted">The deliverables must add up to the price exactly.</p>
                           </div>
                         )}
+                      <label className="flex w-full items-center gap-2 text-sm text-etyme-ink">
+                        <input type="checkbox" checked={f.onSite} onChange={(e) => set({ onSite: e.target.checked })} />
+                        The team works on your site</label>
                       <button type="submit" className="btn-primary">Send offer</button>
-                      <p className="w-full text-xs text-etyme-muted">The client sees the project, its price and deliverables, and the roles. Never the people on it.</p>
+                      <p className="w-full text-xs text-etyme-muted">{f.onSite
+                        ? 'The client sees the people on it by name and standing, and counts their time on site. Never their rates.'
+                        : 'The client sees the project, its price and deliverables, and the roles. Never the people on it.'}</p>
                     </form>
                   </details>
                 )
