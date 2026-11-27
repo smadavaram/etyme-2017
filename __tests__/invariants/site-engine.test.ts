@@ -58,6 +58,7 @@ function record(look: SiteLook, over: Partial<PublicSite> = {}): PublicSite {
     joinBench: true, askBox: true,
     contact: { phone: '(415) 555-0142', accountsEmail: 'accounts@tapin.example', people: [] },
     courses: [{ title: 'Spark basics', hours: 12 }],
+    learnOpen: false,
     look,
     ...over,
   }
@@ -101,7 +102,7 @@ describe('the same record drawn by each template', () => {
   })
 
   it('a template never drops a section the record has, whichever sections it has', () => {
-    const all: SectionKey[] = ['ask', 'contact', 'comingFree', 'openPositions', 'reputation', 'track', 'skills', 'courses', 'joinBench', 'credentials']
+    const all: SectionKey[] = ['ask', 'contact', 'comingFree', 'openPositions', 'reputation', 'track', 'skills', 'courses', 'learn', 'joinBench', 'credentials']
     for (const t of SITE_TEMPLATES) {
       expect([...orderFor(t, all)].sort()).toEqual([...all].sort())
       expect(orderFor(t, ['track', 'ask'])).toHaveLength(2)
@@ -259,5 +260,49 @@ describe('what the Owner reads in settings about a color', () => {
     expect(warned).toContain('kept as you chose')
     expect(warned).not.toContain('secondary')
     expect(renderToStaticMarkup(createElement(LookWarnings, { branding: { primaryColor: '#1F3A5F', secondaryColor: null } }))).toBe('')
+  })
+})
+
+describe('the door into the learning site on a firm\u2019s public page', () => {
+  const firm = (pluginsOn: string[]) => ({
+    id: 'tapin', name: 'Tapin', slug: 'tapin', kind: 'VENDOR', supplierPosture: 'BENCH', pluginsOn,
+    siteLiveAt: new Date('2026-10-29T00:00:00Z'), networkVerifiedAt: null, domain: null, domainVerified: false,
+    claimedAt: new Date('2026-10-17T00:00:00Z'), _count: { contexts: 3 },
+    siteTagline: null, siteIntro: null, siteHeadings: null, siteWrittenBy: null,
+    phone: null, accountsEmail: null, showPeopleOnPage: false, peopleInCharge: [], locations: [],
+    siteTemplate: 'ASK_FIRST', sitePages: null,
+  })
+
+  it('a firm with Train to bench on is read as having its learning door open', async () => {
+    h.company = firm(['TRAIN_TO_BENCH'])
+    expect((await publicSite('tapin'))!.learnOpen).toBe(true)
+  })
+
+  it('a firm with Train to bench off is read as having its learning door shut', async () => {
+    h.company = firm([])
+    expect((await publicSite('tapin'))!.learnOpen).toBe(false)
+  })
+
+  it('the page links to the firm\u2019s learning site where the plugin is on', () => {
+    const html = draw(record(lookOf('ASK_FIRST'), { learnOpen: true }))
+    expect(html).toContain('href="/learn/tapin"')
+    expect(sectionsIn(html)).toContain('learn')
+  })
+
+  it('the page draws no learning link where the plugin is off', () => {
+    const html = draw(record(lookOf('ASK_FIRST'), { learnOpen: false }))
+    expect(html).not.toContain('/learn/')
+    expect(sectionsIn(html)).not.toContain('learn')
+  })
+
+  it('hiding the course list does not close the door, and the door does not need a course', () => {
+    const html = draw(record(lookOf('ASK_FIRST'), { learnOpen: true, courses: [] }))
+    expect(html).toContain('href="/learn/tapin"')
+  })
+
+  it('the door is free to take, says so, and names no price', () => {
+    const html = draw(record(lookOf('ASK_FIRST'), { learnOpen: true }))
+    expect(html).toContain('Free, no sign-in')
+    expect(html).not.toMatch(/\$\d|per month|\/month/i)
   })
 })

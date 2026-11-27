@@ -8,6 +8,7 @@ import { orderFor, layoutOf, styleOf, type SectionKey, type SiteLook } from '@/l
 import { JoinBench } from './join-bench'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { Ask } from '../ask'
+import { LearnDoor } from '@/app/learn/_components/learn-door'
 
 /**
  * A company's public page, drawn by the one engine (record 111).
@@ -277,6 +278,13 @@ function sectionsOf(site: PublicSite): Partial<Record<SectionKey, ReactNode>> {
           </ul>
         </>
       )
+    }
+
+    // The door into the firm's learning site, drawn only where its Train to
+    // bench plugin is on (`learnOpen`, record 133). Independent of whether
+    // the course list is shown: hiding courses does not close the door.
+    if (site.learnOpen) {
+      out.learn = <LearnDoor slug={site.slug} company={{ pluginsOn: ['TRAIN_TO_BENCH'] }} />
     }
 
     // One door for a candidate, a staffing or bench firm's page only: the

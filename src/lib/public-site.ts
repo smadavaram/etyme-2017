@@ -1,4 +1,5 @@
 import { coursesShown } from '@/lib/training/courses-shown'
+import { learnOpen } from '@/lib/training/learn-gate'
 import { prisma } from '@/lib/db'
 import { clientLineWhere, isHiddenTeamLine } from '@/lib/money/team-lines'
 import { siteRendersFor } from '@/lib/plugins'
@@ -105,6 +106,8 @@ export interface PublicSite {
    * on and the firm has not hidden them (record 120). Empty otherwise.
    */
   courses: { title: string; hours: number | null }[]
+  /** True where the firm's Train to bench plugin is on, read by `learnOpen`: the page then draws its door into /learn/<slug>. */
+  learnOpen: boolean
   /** The tenant's stored template, branding and pages (record 111). The layout always applies; the look only while the Owner's yes covers it. */
   look: SiteLook
 }
@@ -385,6 +388,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     askBox: offersAsk(company.kind),
     contact,
     courses: courseRows.map((c) => ({ title: c.title, hours: c.duration ?? null })),
+    learnOpen: learnOpen(company),
     look: lookFor(company),
   }
 
