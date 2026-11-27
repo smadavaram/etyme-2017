@@ -39,7 +39,6 @@ import { ownerForRoles, pickOwner } from '@/lib/money/agent-owners'
 import { hasPermission } from '@/lib/permissions'
 import { firmSeats, seatAtFirm } from '@/lib/decision-items'
 import { callModel, type ModelDeps } from '@/lib/model-gateway/call'
-import { jsonIn } from '@/lib/skills/inline-keys'
 import { runSkill } from '@/lib/skills/runner'
 import type { RecordType } from '@/lib/agent-run'
 import { ledger } from '@/lib/twin/ledger'
@@ -48,7 +47,7 @@ import { proposalFacts } from '@/lib/proposals/facts'
 import { mayMove, type ProposalState } from '@/lib/proposals/rules'
 import {
   MAX_PROPOSALS_A_RUN, PIECE_LABEL, PIECE_ROLES, PROPOSAL_AGENT, PROPOSAL_CHASE_KIND, PROPOSAL_CHASE_TEMPLATE, PROPOSAL_DRAFT_PURPOSE,
-  PROPOSAL_RECORD, PROPOSAL_REVIEW_KIND, PROPOSAL_RULE, DRAFT_SYSTEM, checkProposal, composeDraft, draftPrompt, draftProblems,
+  PROPOSAL_RECORD, PROPOSAL_REVIEW_KIND, PROPOSAL_RULE, DRAFT_SYSTEM, acceptAnswer, checkProposal, composeDraft, draftPrompt,
   paragraphsFromRules, piecesToAdd, reminderLetter, requirementLines, reviewProof, reviewQuestion, sourceFromRecord, stateAfterCheck,
   type PieceKind, type ProposalFacts,
 } from '@/lib/proposals/draft-rules'
@@ -115,10 +114,9 @@ async function draftIt(ctx: AgentContext, p: { id: string; title: string; buyer:
     let note: string | null = null
     let verdict: 'PASS' | 'FAIL' = 'PASS'
     if (got.ok) {
-      const j = jsonIn(got.text) as { capability?: unknown; pastWork?: unknown } | null
-      const wrote = { capability: typeof j?.capability === 'string' ? j.capability.trim() : '', pastWork: typeof j?.pastWork === 'string' ? j.pastWork.trim() : '' }
-      const problems = j ? draftProblems(wrote, facts) : ['The answer could not be read as two paragraphs.']
-      if (problems.length === 0) { paragraphs = wrote; by = 'MODEL' } else { verdict = 'FAIL'; note = `The model’s words were not used: ${problems.join(' ')} The rules wrote the draft.` }
+      const took = acceptAnswer(got.text, facts)
+      paragraphs = took.paragraphs; by = took.by
+      if (took.problems.length > 0) { verdict = 'FAIL'; note = `The model’s words were not used: ${took.problems.join(' ')} The rules wrote the draft.` }
     } else {
       note = got.status === 'NOT_CONFIGURED' || got.status === 'OFF' ? `Not configured: ${got.says} The rules wrote the draft.` : `${got.says} The rules wrote the draft.`
     }

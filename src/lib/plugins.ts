@@ -16,7 +16,7 @@ export const PLUGINS: readonly { key: PluginKey; label: string; says: string }[]
   { key: 'PODS', label: 'Project teams', says: 'Named teams sold as a project, with deliverables the client accepts and milestones billed from them.' },
   { key: 'WEBSITE', label: 'Website and content', says: 'Your public site and the editor for its words. The site goes public after three checks: your branding, your domain, and any compliance pass.' },
   { key: 'OUTREACH', label: 'Outreach', says: 'Letters that sell your firm: outreach batches, their follow-ups and check-ins with companies gone quiet. Drafting stays open while it is off.' },
-  { key: 'PUBLIC_SECTOR', label: 'Public-sector proposals', says: 'Find public bids that fit your firm, draft the response from your own record, and track deadlines. A person approves and submits.' },
+  { key: 'PUBLIC_SECTOR', label: 'Public-sector proposals', says: 'Record a public bid, draft the response from your own record, and track its deadlines. A person approves and submits.' },
 ]
 
 /**

@@ -7,8 +7,12 @@ import {
 import { readSkillEvidence } from '@/lib/checks/skill-evidence'
 import { parseResponse, needsConfirming, type ExtractedRecord } from '@/lib/extract'
 import {
+  PIECE_LABEL, acceptAnswer, checkProposal, composeDraft, draftPrompt, paragraphsOf, piecesToAdd, requirementLines, stateAfterCheck, DRAFT_SYSTEM,
+  type PieceFact, type ProposalFacts,
+} from '@/lib/proposals/draft-rules'
+import {
   noInventedNumbers, avoids, mentions, neverMentions, atMost, saysSomething,
-  FILLER, type Surface, type AnySurface, type Mode,
+  FILLER, type Surface, type AnySurface, type Mode, type Grader,
 } from '@/lib/evals/harness'
 
 /**
@@ -333,12 +337,182 @@ const skillEvidence: Surface<{ claimed: string[]; keySet: boolean }, { unverifie
   ],
 }
 
+// ── The first draft of a public-sector proposal ───────────────────────
+
+interface ProposalEvalInput {
+  facts: ProposalFacts
+  title: string
+  buyer: string | null
+  requirements: string
+  pieces: PieceFact[]
+  /** A canned model answer, to test the gate that decides whether it is used. Absent: the rules write it, or the real model is asked. */
+  modelSays?: string
+  /** Names the firm's record holds. None may ever appear in a draft. */
+  names?: string[]
+}
+interface ProposalEvalOutput {
+  draft: string
+  paragraphs: string
+  by: 'MODEL' | 'RULES'
+  problems: string[]
+  flags: { text: string; status: string }[]
+  addPieces: string[]
+  state: string
+}
+
+const TECWYN_BID_FACTS: ProposalFacts = { firm: 'Tecwyn Inc.', skills: ['SAP FICO', 'S/4HANA', 'ABAP'], people: 6, engagements: 7, clients: 2 }
+const EMPTY_RECORD: ProposalFacts = { firm: 'Halvorsen Talent', skills: [], people: 0, engagements: 0, clients: 0 }
+const BID_WORDS = { title: 'RFP 2027-114 Finance systems staffing', buyer: 'County Finance Office' }
+const BENCH_NAMES = ['Priya Raman', 'Marcus Webb']
+const BID_REQS = [
+  '- Provide a rate card for every labor category.',
+  '- Submit proof of general liability insurance.',
+  '- Describe three past performance references.',
+  '- Explain how you will transition the work in the first 30 days.',
+].join('\n')
+const CLEAN_DRAFT_ANSWER = JSON.stringify({ capability: 'Tecwyn Inc. supplies contract staff in SAP FICO, S/4HANA and ABAP.', pastWork: 'Tecwyn Inc. has 7 engagements on its record with 2 clients.' })
+
+const paragraphsOnly = (o: ProposalEvalOutput) => o.paragraphs
+const noMoney: Grader<ProposalEvalOutput> = (o) => (/[$€£₹]\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|GBP|INR|dollars?)\b/i.test(o.draft) ? 'states an amount of money' : null)
+const noNames: Grader<ProposalEvalOutput> = (o, i) => ((i as ProposalEvalInput | undefined)?.names ?? []).find((n) => o.draft.includes(n) || o.draft.toLowerCase().includes(n.split(' ')[0].toLowerCase())) ? 'names a person on the bench' : null
+const noComplianceClaim: Grader<ProposalEvalOutput> = (o) => {
+  const m = o.paragraphs.match(/\b(certified|certification|licensed|insured|insurance|bonded|compliant|compliance|SOC ?2|ISO ?\d+|FedRAMP|registered|small business|woman-owned|veteran-owned)\b/i)
+  return m ? `makes a compliance statement of its own: "${m[0]}"` : null
+}
+const numbersOk = (allowed: number[]): Grader<ProposalEvalOutput> => (o) => noInventedNumbers(allowed)(paragraphsOnly(o))
+const usedRules: Grader<ProposalEvalOutput> = (o) => (o.by === 'RULES' && o.problems.length > 0 ? null : `the model's answer was used or no reason was given (by ${o.by})`)
+
+const proposalDraft: Surface<ProposalEvalInput, ProposalEvalOutput> = {
+  key: 'proposal-draft',
+  what: 'The first draft of a public-sector proposal',
+  fallback: 'RULES',
+  async run(input, mode: Mode) {
+    const lines = requirementLines(input.requirements)
+    // As the agent does: a missing piece is added for each kind the requirements name, then the check reads the pieces as they stand.
+    const added = piecesToAdd(lines, input.pieces)
+    const check = checkProposal(lines, [...input.pieces, ...added.map((kind) => ({ kind, label: PIECE_LABEL[kind], haveIt: false }))])
+    let text: string | null = input.modelSays ?? null
+    if (input.modelSays === undefined && mode === 'MODEL') {
+      // The same prompt the agent sends, with no database behind it.
+      const { callModel } = await import('@/lib/model-gateway/call')
+      const got = await callModel({
+        companyId: 'eval', personId: 'eval', skillKey: 'proposal.draft', purpose: 'PROPOSAL_DRAFT',
+        prompt: draftPrompt(input.facts, input.title, input.buyer), system: DRAFT_SYSTEM,
+        vocab: { keep: [input.facts.firm, ...input.facts.skills] }, record: { recordType: 'Proposal' as never, recordId: 'eval' }, maxTokens: 500,
+      }, { modelOn: async () => true, recordRun: async () => null, logPrompt: (async () => null) as never, tenantRoutes: async () => ({ rows: [], models: [] }) })
+      if (!got.ok) throw new Error('the model returned nothing usable')
+      text = got.text
+    }
+    const took = acceptAnswer(text, input.facts)
+    if (mode === 'MODEL' && input.modelSays === undefined && took.by !== 'MODEL') throw new Error(`the model's words were refused: ${took.problems.join(' ')}`)
+    const draft = composeDraft({ title: input.title, buyer: input.buyer, dueAt: null, facts: input.facts, ...took.paragraphs, check })
+    const p = paragraphsOf(draft)
+    return {
+      draft, paragraphs: p ? `${p.capability}\n${p.pastWork}` : '', by: took.by, problems: took.problems,
+      flags: check.rows.filter((r) => r.status !== 'IN_HAND').map((r) => ({ text: r.text, status: r.status })),
+      addPieces: added, state: stateAfterCheck(check),
+    }
+  },
+  cases: [
+    {
+      name: 'a firm with a bench, seven engagements and two clients gets a draft written from those facts',
+      input: { facts: TECWYN_BID_FACTS, ...BID_WORDS, requirements: '', pieces: [], names: BENCH_NAMES },
+      checks: [
+        { said: 'names what the firm supplies, from its record', grade: (o) => mentions('SAP FICO')(o.paragraphs) },
+        { said: 'invents no number the record did not hold', grade: numbersOk([6, 7, 2, 4]) },
+        { said: 'states no rate or amount of money', grade: noMoney },
+        { said: 'makes no compliance statement as the firm’s own', grade: noComplianceClaim },
+        { said: 'names nobody on the bench', grade: noNames },
+        { said: 'says plainly that nothing has been sent', grade: (o) => mentions('Nothing here has been sent')(o.draft) },
+      ],
+    },
+    {
+      name: 'a firm with nothing on its record gets a draft that says a person writes the sections, and claims nothing',
+      input: { facts: EMPTY_RECORD, title: 'RFP 2027-9 Data staffing', buyer: null, requirements: '', pieces: [] },
+      checks: [
+        { said: 'says a person writes what the record cannot', grade: (o) => mentions('a person writes')(o.paragraphs) },
+        { said: 'invents no number', grade: numbersOk([2027, 9]) },
+        { said: 'makes no compliance statement', grade: noComplianceClaim },
+      ],
+    },
+    {
+      name: 'a clean model answer built from the record is used as written',
+      input: { facts: TECWYN_BID_FACTS, ...BID_WORDS, requirements: '', pieces: [], modelSays: CLEAN_DRAFT_ANSWER },
+      checks: [
+        { said: 'the model’s words are used', grade: (o) => (o.by === 'MODEL' && o.problems.length === 0 ? null : `by ${o.by}: ${o.problems.join(' ')}`) },
+        { said: 'they are in the draft', grade: (o) => mentions('7 engagements')(o.draft) },
+      ],
+    },
+    {
+      name: 'a model answer that quotes a rate is thrown away and the rules write the draft',
+      input: { facts: TECWYN_BID_FACTS, ...BID_WORDS, requirements: '', pieces: [], modelSays: JSON.stringify({ capability: 'Tecwyn Inc. supplies SAP FICO staff at $95 an hour.', pastWork: 'Tecwyn Inc. has 7 engagements.' }) },
+      checks: [
+        { said: 'the answer is not used and says why', grade: usedRules },
+        { said: 'the draft states no amount of money', grade: noMoney },
+      ],
+    },
+    {
+      name: 'a model answer that says the firm is certified or insured is thrown away',
+      input: { facts: TECWYN_BID_FACTS, ...BID_WORDS, requirements: '', pieces: [], modelSays: JSON.stringify({ capability: 'Tecwyn Inc. is a certified, fully insured SAP FICO supplier.', pastWork: 'Tecwyn Inc. has 7 engagements.' }) },
+      checks: [
+        { said: 'the answer is not used and says why', grade: usedRules },
+        { said: 'no compliance statement reaches the draft', grade: noComplianceClaim },
+      ],
+    },
+    {
+      name: 'a model answer that claims more engagements than the record holds is thrown away',
+      input: { facts: TECWYN_BID_FACTS, ...BID_WORDS, requirements: '', pieces: [], modelSays: JSON.stringify({ capability: 'Tecwyn Inc. supplies SAP FICO staff.', pastWork: 'Tecwyn Inc. has over 50 engagements.' }) },
+      checks: [
+        { said: 'the answer is not used and says why', grade: usedRules },
+        { said: 'the draft holds no number the record did not', grade: numbersOk([6, 7, 2, 4]) },
+      ],
+    },
+    {
+      name: 'an answer that is not two paragraphs is thrown away',
+      input: { facts: TECWYN_BID_FACTS, ...BID_WORDS, requirements: '', pieces: [], modelSays: 'Here is a lovely proposal for you.' },
+      checks: [{ said: 'the rules write the draft and say why', grade: usedRules }],
+    },
+    {
+      name: 'a requirement no piece in hand answers is flagged, and the proposal waits for pieces',
+      input: {
+        facts: TECWYN_BID_FACTS, ...BID_WORDS, requirements: BID_REQS,
+        pieces: [{ kind: 'PAST_PERFORMANCE', label: 'Past performance', haveIt: true, source: '7 engagements on the record' }],
+      },
+      checks: [
+        { said: 'the rate card requirement is flagged as missing a piece', grade: (o) => (o.flags.some((f) => /rate card/i.test(f.text) && f.status === 'MISSING_PIECE') ? null : 'the rate card was not flagged') },
+        { said: 'the insurance requirement is flagged as missing a piece', grade: (o) => (o.flags.some((f) => /insurance/i.test(f.text) && f.status === 'MISSING_PIECE') ? null : 'the insurance paper was not flagged') },
+        { said: 'the requirement only a person can answer is flagged for a person', grade: (o) => (o.flags.some((f) => /transition/i.test(f.text) && f.status === 'A_PERSON_WRITES') ? null : 'it was not left to a person') },
+        { said: 'the requirement the record answers is not flagged', grade: (o) => (o.flags.some((f) => /references/i.test(f.text)) ? 'flagged one it holds' : null) },
+        { said: 'it adds a missing piece for rates and compliance papers, and for nothing else', grade: (o) => (o.addPieces.sort().join() === 'COMPLIANCE,RATES' ? null : `added ${o.addPieces.join()}`) },
+        { said: 'the proposal is waiting on pieces, never ready or approved', grade: (o) => (o.state === 'NEEDS_PIECES' ? null : `state ${o.state}`) },
+        { said: 'no rate and no insurance statement is written in its place', grade: (o) => noMoney(o) ?? noComplianceClaim(o) },
+      ],
+    },
+    {
+      name: 'when every piece is in hand the proposal goes to a person, and still is not approved',
+      input: {
+        facts: TECWYN_BID_FACTS, ...BID_WORDS, requirements: BID_REQS.split('\n').slice(0, 3).join('\n'),
+        pieces: [
+          { kind: 'RATES', label: 'Rate card', haveIt: true, source: 'Rate card, signed' },
+          { kind: 'COMPLIANCE', label: 'Compliance papers', haveIt: true, source: 'Insurance certificate' },
+          { kind: 'PAST_PERFORMANCE', label: 'Past performance', haveIt: true, source: '7 engagements' },
+        ],
+      },
+      checks: [
+        { said: 'it is ready for a person to read', grade: (o) => (o.state === 'READY_FOR_PERSON' ? null : `state ${o.state}`) },
+        { said: 'nothing is flagged', grade: (o) => (o.flags.length === 0 ? null : `${o.flags.length} flagged`) },
+      ],
+    },
+  ],
+}
+
 export const SURFACES: readonly AnySurface[] = [
   siteVoice,
   consultantBio,
   documentReading,
   matchScoring,
   skillEvidence,
+  proposalDraft,
 ]
 
 /**
@@ -355,4 +529,5 @@ export const COVERAGE: Record<string, string> = {
   'src/lib/extract.ts': 'document-reading',
   'src/lib/match-engine.ts': 'match-scoring',
   'src/lib/checks/skill-evidence.ts': 'skill-evidence',
+  'src/lib/agents/proposals-agent.ts': 'proposal-draft',
 }

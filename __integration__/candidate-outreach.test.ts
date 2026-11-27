@@ -21,6 +21,7 @@ import { sendMail } from '@/lib/notify/mail-door'
 import { mayAgentSend } from '@/lib/agents/tasks'
 import { stopUpdatesUrlFor, yesToUpdatesUrlFor } from '@/lib/notify/updates-links'
 import { saidYesToUpdates } from '@/lib/updates-consent'
+import { gradeSkillRun } from '@/lib/skills/grade'
 
 process.env.NEXTAUTH_SECRET ||= 'test-secret-for-candidate-outreach'
 process.env.NEXTAUTH_URL = 'https://etyme.example'
@@ -182,6 +183,23 @@ describe('the batch and its one yes', () => {
     await run(new Date(Date.now() + 30 * 86_400_000))
     expect(sent).toHaveLength(0)
     expect((await lettersOf(w.task.id)).find((l) => l.contactId === w.asha.id)).toMatchObject({ state: 'SENT', attempt: 1, nextDueAt: null })
+  })
+  it('the check on the send passes for the update letter a candidate with a standing yes was sent, and fails the same letter once she is shown to have taken her yes back before it left', async () => {
+    const l = (await lettersOf(w.task.id)).find((x) => x.contactId === w.asha.id)!
+    const runRow = await prisma.agentRun.findFirstOrThrow({ where: { companyId: w.firm.id, skillKey: 'chase.send', recordId: l.id } })
+    expect(await gradeSkillRun(runRow.id)).toMatchObject({ graded: true, verdict: 'PASS', unitsDone: 1 })
+    const before = await prisma.person.findUniqueOrThrow({ where: { id: w.asha.id }, select: { updatesYesAt: true, updatesRevokedAt: true } })
+    const mail = await prisma.mailSend.findFirstOrThrow({ where: { companyId: w.firm.id, recordId: l.id } })
+    try {
+      await prisma.person.update({ where: { id: w.asha.id }, data: { updatesRevokedAt: new Date(mail.createdAt.getTime() - 1000), updatesYesAt: new Date(mail.createdAt.getTime() - 86_400_000) } })
+      await prisma.check.deleteMany({ where: { runId: runRow.id } })
+      const out = await gradeSkillRun(runRow.id)
+      expect(out).toMatchObject({ graded: true, verdict: 'FAIL' })
+      expect(out.graded && out.reason).toMatch(/she had taken her yes to updates back when it was sent/)
+    } finally {
+      await prisma.person.update({ where: { id: w.asha.id }, data: before })
+      await prisma.check.deleteMany({ where: { runId: runRow.id } })
+    }
   })
   it('a second send of the same letter is refused by the task ledger, so one yes releases one letter each and no more', async () => {
     const l = (await lettersOf(w.task.id))[0]

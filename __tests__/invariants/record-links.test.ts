@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { isRecordType, readNeeds, ownPageOf, cannotReadSays, PROOF_TYPES } from '@/lib/decision-queue'
 import { TENURE_RECORD } from '@/lib/agents/compliance-watch'
 import { MATCH_RECORD } from '@/lib/agents/match-ranker'
+import { PROPOSAL_RECORD } from '@/lib/proposals/draft-rules'
 
 /**
  * Record 112, chains 1 to 3: a card or a ledger row links only to a kind
@@ -38,6 +39,17 @@ describe('records a card or ledger row names', () => {
     expect(cannotReadSays('Requirement')).toBe('Your seat cannot read jobs.')
     expect(ownPageOf('Requirement', 'r1').href).toBe('/dashboard/requirements/r1')
     expect(PROOF_TYPES.some((p) => p.type === 'Requirement')).toBe(true)
+  })
+
+  it('a public-sector proposal is a record the record view opens, read by a seat that reads submissions, and its page is Proposals', () => {
+    expect(PROPOSAL_RECORD).toBe('Proposal')
+    expect(isRecordType('Proposal')).toBe(true)
+    expect(readNeeds('Proposal')).toBe('submissions.read')
+    expect(cannotReadSays('Proposal')).toBe('Your seat cannot read submissions.')
+    expect(ownPageOf('Proposal', 'p1').href).toBe('/dashboard/proposals')
+    // It is a plugin's record, never a proof a person picks on a decision, and the view asks the plugin switch.
+    expect(PROOF_TYPES.some((p) => (p.type as string) === 'Proposal')).toBe(false)
+    expect(readFileSync(join(process.cwd(), 'src/app/api/records/[type]/[id]/route.ts'), 'utf8')).toContain("pluginGate(seat.caller, 'PUBLIC_SECTOR')")
   })
 
   it('the tenure card is tied to the placement, a contract the record view opens, and not to a kind that does not exist', () => {

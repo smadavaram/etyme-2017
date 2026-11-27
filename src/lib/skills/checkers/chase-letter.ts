@@ -11,7 +11,49 @@
 import type { PrismaClient } from '@prisma/client'
 import { OUTREACH_BATCH_KIND, OUTREACH_BATCH_TEMPLATE, OUTREACH_LETTER_TYPE, FOLLOW_UPS } from '@/lib/outreach/batch-rules'
 import { isOn } from '@/lib/plugins'
+import { CANDIDATE_SIDE } from '@/lib/outreach/candidate-rules'
+import { postalLine } from '@/lib/agents/dormant-outreach-rules'
+import { stopUpdatesUrlFor } from '@/lib/notify/updates-links'
 import type { CheckerResult, CheckWindow, ReadDb, RecordRef } from '../checker'
+
+/**
+ * What a candidate's update letter is held to (record 117). Not the selling
+ * letter's rules: she is not a company contact and has no "interested" link.
+ * Hers are: her own standing yes to updates when it left, which her stop link
+ * ends for every firm; the firm still keeps her; one address she gave; the
+ * sender named with its postal address; a stop link that can be made; and one
+ * letter only. Pure.
+ */
+export interface CandidateLetterFacts {
+  sentAt: Date
+  yesAt: Date | null
+  revokedAt: Date | null
+  /** The firm still keeps her: a granted listing or a seat. */
+  kept: boolean
+  personEmail: string | null
+  letterEmail: string
+  to: readonly string[]
+  /** The firm's postal address as the letter prints it; null where it has none on record. */
+  postal: string | null
+  /** The stop link can be made on this deployment. */
+  stopLink: boolean
+  /** Letters of this one row that left. */
+  timesSent: number
+}
+
+export function candidateLetterProblems(f: CandidateLetterFacts): string[] {
+  const out: string[] = []
+  if (!f.yesAt || f.yesAt > f.sentAt) out.push('she had not said yes to updates when it was sent')
+  else if (f.revokedAt && f.revokedAt <= f.sentAt && f.revokedAt >= f.yesAt) out.push('she had taken her yes to updates back when it was sent')
+  if (!f.kept) out.push('the firm does not keep her any more')
+  const to = f.to.map((a) => a.trim().toLowerCase())
+  const mine = f.letterEmail.trim().toLowerCase()
+  if (to.length !== 1 || to[0] !== mine || f.personEmail?.trim().toLowerCase() !== mine) out.push('it went to an address that is not the one on her own record')
+  if (!f.postal) out.push('the firm has no postal address on record, so the letter could not say who sends it and where')
+  if (!f.stopLink) out.push('the link that ends updates could not be made, so the letter had no way to stop it')
+  if (f.timesSent > 1) out.push('the same letter left more than once, and an update letter goes once')
+  return out
+}
 
 export const isBatchLetterRef = (ref: RecordRef | undefined): boolean => ref?.recordType === OUTREACH_LETTER_TYPE
 
@@ -30,7 +72,15 @@ export async function chaseSendLetter(companyId: string, window: CheckWindow, re
   })
   if (rows.length === 0) return { verdict: 'FAIL', reason: 'The run sent a letter but no row for it is on the mail ledger in its window.', evidence, unitsFound: 0 }
   const letter = await read.outreachLetter.findUnique({ where: { id: ref.recordId } })
-  const contact = letter ? await read.companyContact.findUnique({ where: { id: letter.contactId }, select: { companyId: true, email: true, outreachOptOutAt: true } }) : null
+  const letterTask = letter ? await read.agentTask.findUnique({ where: { id: letter.agentTaskId }, select: { payload: true } }) : null
+  const candidate = (letterTask?.payload as { side?: string } | null)?.side === CANDIDATE_SIDE
+  const person = letter && candidate ? await read.person.findUnique({ where: { id: letter.contactId }, select: { primaryEmail: true, updatesYesAt: true, updatesRevokedAt: true } }) : null
+  const kept = letter && candidate ? (await read.consultantProfile.count({
+    where: { personId: letter.contactId, OR: [{ listings: { some: { companyId, revokedAt: null, state: 'GRANTED' } } }, { person: { contexts: { some: { companyId, revokedAt: null } } } }] },
+  })) > 0 : false
+  const addresses = candidate ? await read.companyAddress.findMany({ where: { companyId } }) : []
+  const postal = candidate ? postalLine(addresses.find((a) => a.kind === 'LEGAL') ?? addresses.find((a) => a.kind === 'BILLING') ?? null) : null
+  const contact = letter && !candidate ? await read.companyContact.findUnique({ where: { id: letter.contactId }, select: { companyId: true, email: true, outreachOptOutAt: true } }) : null
   const problems: string[] = []
   let good = 0
   for (const m of rows) {
@@ -52,7 +102,16 @@ export async function chaseSendLetter(companyId: string, window: CheckWindow, re
     }
     if (m.template !== OUTREACH_BATCH_TEMPLATE) mine.push(`its template ${m.template} is not the batch letter`)
     if (!(await outreachOnAt(read, companyId, m.createdAt))) mine.push('Outreach is off for the firm, and a letter that sells waits')
-    if (letter && (!contact || contact.companyId !== companyId)) mine.push('the contact is not one of this firm’s')
+    if (letter && candidate) {
+      if (!person) mine.push('the candidate is not on the record')
+      else {
+        const timesSent = await read.mailSend.count({ where: { companyId, recordType: ref.recordType, recordId: ref.recordId, outcome: 'SENT' } })
+        mine.push(...candidateLetterProblems({
+          sentAt: m.createdAt, yesAt: person.updatesYesAt, revokedAt: person.updatesRevokedAt, kept, personEmail: person.primaryEmail,
+          letterEmail: letter.email, to: m.toAddresses, postal, stopLink: stopUpdatesUrlFor(letter.contactId) !== null, timesSent,
+        }))
+      }
+    } else if (letter && (!contact || contact.companyId !== companyId)) mine.push('the contact is not one of this firm’s')
     else if (letter && contact) {
       if (contact.outreachOptOutAt && contact.outreachOptOutAt <= m.createdAt) mine.push('the contact had unsubscribed when it was sent')
       if (letter.interestedAt && letter.interestedAt <= m.createdAt) mine.push('the contact had said she was interested when it was sent')
@@ -65,6 +124,7 @@ export async function chaseSendLetter(companyId: string, window: CheckWindow, re
     else problems.push(`mail ${m.id}: ${mine.join(', ')}`)
   }
   const found = `${rows.length} row${rows.length === 1 ? '' : 's'} on the mail ledger`
+  if (problems.length === 0 && candidate) return { verdict: 'PASS', reason: 'Every update letter ties to a batch of this firm that a person said yes to, went once to the address on her own record, while her own yes to updates stood, with the firm’s postal address and a link that ends updates, and with Outreach and the agent On.', evidence: found, unitsFound: good }
   if (problems.length === 0) return { verdict: 'PASS', reason: 'Every letter ties to a batch of this firm that a person said yes to, went to the address it was drafted for, to a contact who had not stopped it, with Outreach and the agent On.', evidence: found, unitsFound: good }
   return { verdict: 'FAIL', reason: `${problems.join('; ')}.`, evidence: found, unitsFound: good }
 }

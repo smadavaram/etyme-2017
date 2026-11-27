@@ -162,6 +162,7 @@ const NOT_A_CLIENT_READER: [string, string][] = [
   ['src/lib/rate-line.ts', BY_ID],
   ['src/lib/setup-checklist-state.ts', DEAL],
   ['src/lib/sites.ts', 'whether a site holds a placement, to refuse deleting it: a hidden line holds the site too'],
+  ['src/lib/proposals/facts-read.ts', 'the firm counts its own engagements and clients for its own public-sector bid: proposals are a supplier plugin that a client company is never offered, and the read returns counts only, never a member'],
   ['src/lib/skills/checkers/checklist-list.ts', SELLER],
   ['src/lib/skills/checkers/drift-flag.ts', SELLER],
   ['src/lib/suppliers-of.ts', DEAL],
@@ -224,6 +225,14 @@ describe('the member lines of a sold team on outcome work are hidden from every 
     ]
     const loose = fixed.filter((f) => !FILTERS.test(readFileSync(join(ROOT, f), 'utf8')))
     expect(loose).toEqual([])
+  })
+
+  it('a proposal’s facts count the firm’s own lines and never select a person, so a hidden member of outcome work cannot be named in a bid', () => {
+    const text = readFileSync(join(ROOT, 'src/lib/proposals/facts-read.ts'), 'utf8')
+    const lineReads = text.split('\n').filter((l) => /sellContract\.(count|groupBy)/.test(l))
+    expect(lineReads).toHaveLength(2)
+    for (const l of lineReads) expect(l).not.toMatch(/person|select|include/)
+    expect(text).toMatch(/Counts and skills\s+\*?\s*only: never a name/)
   })
 
   it('the open list names only files that still read through no filter, so it can only shrink', () => {

@@ -6,6 +6,7 @@ import { recordTimeline, aboutPayroll, PAYROLL_RECORD, PAYROLL_RECORDS, PAYROLL_
 import { DECISION_RECORD, mayReadProof, proofIsFor } from '@/lib/decision-items'
 import { agentByWords, NOT_ON_YOUR_BOOK, cannotReadSays, isRecordType, ledgerBeganSays, mayOpenOwnPage, ownPageOf, readNeeds } from '@/lib/decision-queue'
 import { findOnBook, subjectOf, factsOf, monthPageOf } from '../../lookup'
+import { pluginGate } from '@/lib/plugin-gate'
 import { queueSeat, refused, logRefusal } from '../../../decision-items/door'
 
 /**
@@ -35,6 +36,11 @@ export async function GET(request: NextRequest, { params }: Params) {
   const action = type === 'Person' ? 'PROFILE_VIEW' as const : PAYROLL_RECORDS.includes(type) ? 'PAYROLL_VIEW' as const : 'CONTRACT_VIEW' as const
   const needs = readNeeds(type)
   const lacks = needs !== null && !hasPermission(seat.caller.permissions, needs)
+  // A proposal is a plugin's record: while the plugin is off for the firm the view says so, as the Proposals page does.
+  if (!lacks && type === 'Proposal') {
+    const off = await pluginGate(seat.caller, 'PUBLIC_SECTOR')
+    if (off) return off
+  }
   const found = lacks ? null : await findOnBook(seat.companyId, type, id)
   let why = lacks ? cannotReadSays(type) : NOT_ON_YOUR_BOOK
   let refuse = !found

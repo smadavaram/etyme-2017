@@ -54,7 +54,8 @@ function onBook(companyId: string, type: RecordType): Record<string, unknown> {
     case 'NoticePosting':
     case 'PublicAccessFile':
     case 'SubmissionConfirmation':
-    case 'PayrollDraft': return { companyId }
+    case 'PayrollDraft':
+    case 'Proposal': return { companyId }
   }
 }
 
@@ -162,6 +163,10 @@ export async function findOnBook(companyId: string, type: RecordType, id: string
       const r = await prisma.payrollDraft.findFirst({ where, select: { id: true, periodStart: true, periodEnd: true } })
       return r ? { id: r.id, name: `Payroll draft for ${daySpan(day(r.periodStart)!, day(r.periodEnd)!)}` } : null
     }
+    case 'Proposal': {
+      const r = await prisma.proposal.findFirst({ where, select: { id: true, title: true } })
+      return r ? { id: r.id, name: r.title } : null
+    }
     case 'MoneyChain': {
       const r = await prisma.moneyChain.findFirst({ where, select: { id: true, periodStart: true, periodEnd: true, person: { select: { name: true } } } })
       return r ? { id: r.id, name: `${r.person.name}, ${periodWords(r)}` } : null
@@ -222,6 +227,7 @@ export async function subjectOf(type: RecordType, id: string): Promise<{ company
     case 'NoticePosting': return ownerFirm(await prisma.noticePosting.findUnique({ where: { id }, select: { companyId: true } }))
     case 'PublicAccessFile': return ownerFirm(await prisma.publicAccessFile.findUnique({ where: { id }, select: { companyId: true } }))
     case 'PayrollDraft': return ownerFirm(await prisma.payrollDraft.findUnique({ where: { id }, select: { companyId: true } }))
+    case 'Proposal': return ownerFirm(await prisma.proposal.findUnique({ where: { id }, select: { companyId: true } }))
   }
 }
 
@@ -391,6 +397,10 @@ export async function factsOf(type: RecordType, id: string): Promise<Fact[]> {
         ...f('People', String(peopleIn(rows))), ...f('Total gross', grossSays(rows)),
         ...rows.map((x) => ({ label: x.person, value: `${x.hours} hours, ${amount(x.grossPay, x.currency)}${x.held.length ? `; ${x.held.join('; ')}` : ''}` })),
       ]
+    }
+    case 'Proposal': {
+      const r = await prisma.proposal.findUnique({ where: { id }, select: { title: true, buyer: true, state: true, dueAt: true, approvedAt: true, submittedAt: true } })
+      return r ? [...f('Proposal', r.title), ...f('Agency', r.buyer), ...f('State', plainKind(r.state)), ...f('Due', day(r.dueAt)), ...f('Approved', day(r.approvedAt)), ...f('Sent by a person', day(r.submittedAt))] : []
     }
     case 'MoneyChain': {
       // Read only after the route found a seat that reads payroll: these are the amounts people stated.

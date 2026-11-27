@@ -11,6 +11,7 @@
  */
 
 import { PIECE_KINDS } from './rules'
+import { jsonIn } from '@/lib/skills/inline-keys'
 
 export const PROPOSAL_AGENT = 'proposals-agent'
 export const PROPOSAL_RULE = 'proposals-agent-v1'
@@ -234,6 +235,20 @@ export function draftProblems(paragraphs: { capability: string; pastWork: string
   const stray = numbersIn(text).filter((n) => !allowed.has(n))
   if (stray.length > 0) problems.push(`It uses a number the record does not hold: ${[...new Set(stray)].join(', ')}.`)
   return problems
+}
+
+/**
+ * What the agent does with a model's answer: the two paragraphs where they
+ * pass every rule above, else the rules' own, with the sentence that says why.
+ * `text` is null where the model gave nothing. Pure; the agent and its evals read this one door.
+ */
+export function acceptAnswer(text: string | null, facts: ProposalFacts): { paragraphs: { capability: string; pastWork: string }; by: 'MODEL' | 'RULES'; problems: string[] } {
+  const fallback = paragraphsFromRules(facts)
+  if (text === null) return { paragraphs: fallback, by: 'RULES', problems: [] }
+  const j = jsonIn(text) as { capability?: unknown; pastWork?: unknown } | null
+  const wrote = { capability: typeof j?.capability === 'string' ? j.capability.trim() : '', pastWork: typeof j?.pastWork === 'string' ? j.pastWork.trim() : '' }
+  const problems = j ? draftProblems(wrote, facts) : ['The answer could not be read as two paragraphs.']
+  return problems.length === 0 ? { paragraphs: wrote, by: 'MODEL', problems } : { paragraphs: fallback, by: 'RULES', problems }
 }
 
 export const DRAFT_SYSTEM = [
