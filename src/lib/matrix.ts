@@ -3675,10 +3675,10 @@ export const MATRIX: L1[] = [
             'Lane C data (tax ID, bank details, social security number, W-4, W-9, voided check, identity papers) reaches no model, refused by document type first and by pattern second, and the refusal is recorded',
             'The first model failing falls to the next admitted one in the same tier; a failed key on the Low tier is retried once on the High tier; a second failure opens a card for a person',
             'A model with no price set records its cost as not set, never a guess; with no model available the gateway says Not configured and blocks no release',
-            'PARTIAL 2026-11-27 (record 125, step 9a): the model register and its admission rules are built (US and a signed agreement for tenant data, none for Lane C); the call door, Lane C refusal and the readiness reads are not yet'
+            'PARTIAL 2026-11-27 (record 125, steps 9a and 9b): the model register and its admission rules, and the Lane C refusal by paper type then by pattern, are built; the call door and the readiness reads are not yet'
           ],
-          implementedBy: ['src/lib/model-gateway/register.ts'],
-          testedBy: ['__tests__/unit/model-gateway-register.test.ts'] },
+          implementedBy: ['src/lib/model-gateway/register.ts', 'src/lib/model-gateway/lane-c.ts'],
+          testedBy: ['__tests__/unit/model-gateway-register.test.ts', '__tests__/unit/model-gateway-lane-c.test.ts'] },
       ]},
     ],
   },
