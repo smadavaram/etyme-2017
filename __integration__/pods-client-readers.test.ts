@@ -18,6 +18,9 @@ import { GET as identityGet } from '@/app/api/identity/route'
 import { GET as complianceGet } from '@/app/api/compliance/route'
 import { GET as contractsGet } from '@/app/api/contracts/route'
 import { GET as suppliersGet } from '@/app/api/suppliers/route'
+import { GET as agreementsGet } from '@/app/api/program/agreements/route'
+import { GET as todayGet } from '@/app/api/today/route'
+import { GET as placementGet } from '@/app/api/placements/[id]/route'
 import { GET as whyGet } from '@/app/api/why/[type]/[id]/route'
 import { POST as startIdentityPost } from '@/app/api/program/start-identity/route'
 import { POST as approvePost } from '@/app/api/timesheets/[id]/approve/route'
@@ -91,6 +94,9 @@ describe('a team sold as outcome work is never the client’s to read, and a tea
     // Both teams have started, a month ago, and each member filed a week.
     const start = new Date(Date.now() - 35 * 86_400_000)
     await prisma.sellContract.updateMany({ where: { projectOrderId: { in: [one.projectOrderId, two.projectOrderId] } }, data: { state: 'IN_PROGRESS', startDate: start, startConfirmedAt: start } })
+    // The seller and the client have signed an agreement, and both teams' lines sit under it.
+    const msa = await prisma.masterAgreement.create({ data: { vendorId: seller.id, clientId: client.id, paymentTerms: 30 } })
+    await prisma.sellContract.updateMany({ where: { projectOrderId: { in: [one.projectOrderId, two.projectOrderId] } }, data: { msaId: msa.id } })
     s.lines = await prisma.sellContract.findMany({ where: { projectOrderId: { in: [one.projectOrderId, two.projectOrderId] } }, select: { id: true, personId: true, projectOrderId: true } })
     const weekEnd = new Date(Date.now() - 3 * 86_400_000)
     weekEnd.setUTCHours(0, 0, 0, 0)
@@ -123,6 +129,8 @@ describe('a team sold as outcome work is never the client’s to read, and a tea
     ['Identity checks', identityGet, '/api/identity'],
     ['Compliance', complianceGet, '/api/compliance'],
     ['Contracts', contractsGet, '/api/contracts?limit=200'],
+    ['Agreements', agreementsGet, '/api/program/agreements'],
+    ['Today', todayGet, '/api/today'],
   ]
 
   for (const [label, fn, url] of readers) {
@@ -182,6 +190,32 @@ describe('a team sold as outcome work is never the client’s to read, and a tea
     as(CLIENT)
     const open = await json(await whyGet(req('GET', `/api/why/contract/${onSite.id}`), { params: Promise.resolve({ type: 'contract', id: onSite.id }) } as any))
     expect(open.status).toBe(200)
+  })
+
+  it('the client’s Agreements counts a member on site as live under the agreement and never counts a member of outcome work', async () => {
+    const r = await get(agreementsGet, '/api/program/agreements')
+    expect(r.status).toBe(200)
+    const ag = JSON.stringify(r.body)
+    expect(mention(ag, ONSITE).length).toBeGreaterThan(0)
+    const rows = (r.body.data?.agreements ?? r.body.agreements ?? []) as any[]
+    expect(rows.length).toBeGreaterThan(0)
+    const lines = rows.flatMap((a) => a.contracts ?? [])
+    expect(lines.length).toBe(ONSITE.length)
+  })
+
+  it('the selling firm’s Agreements still names its own members of outcome work', async () => {
+    const r = await get(agreementsGet, '/api/program/agreements', SELLER)
+    expect(mention(r.body, OUTCOME).length).toBe(OUTCOME.length)
+  })
+
+  it('the client cannot open the placement of a member of outcome work, and opens one on site', async () => {
+    const open = async (id: string) => { as(CLIENT); return json(await placementGet(req('GET', `/api/placements/${id}`), { params: Promise.resolve({ id }) } as any)) }
+    const line = s.lines.find((l: any) => l.projectOrderId === s.one.projectOrderId)
+    const hidden = await open(line.id)
+    expect(hidden.status).toBeGreaterThanOrEqual(400)
+    expect(mention(hidden.body, [...OUTCOME, ...s.outcomeIds])).toEqual([])
+    const onSite = s.lines.find((l: any) => l.projectOrderId === s.two.projectOrderId)
+    expect((await open(onSite.id)).status).toBe(200)
   })
 
   it('the client’s suppliers list does not count the member lines of outcome work as people here', async () => {
