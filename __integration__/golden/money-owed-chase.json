@@ -1,0 +1,211 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "Invoice",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "DECISION",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "MONEY_OWED_CHASE",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "MONEY_OWED_CHASE",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "MONEY_OWED_CHASE",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "ESCALATION",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "Company",
+      "owedSeat": "Accounts Receivable"
+    }
+  ],
+  "mail": [
+    {
+      "template": "money-owed-chase",
+      "to": "ap.golden-dunning-customer@example.invalid"
+    },
+    {
+      "template": "money-owed-chase",
+      "to": "ap.golden-dunning-customer@example.invalid"
+    }
+  ],
+  "recordActions": [
+    {
+      "action": "TASK_PROPOSED",
+      "order": 1,
+      "recordType": "AgentTask",
+      "summary": "Money-owed chase proposed a task and asked for a yes: Golden Dunning Customer owes $600.00 on bill GOLD-OWED-A, due Nov 2, 2026, 21 days past it. Send a letter asking for it? Proposed: one letter, then up to 2 reminders, 5 working days apart, closing when the bill is paid in full. These numbers are proposals; the Owner can change them in Agent control."
+    },
+    {
+      "action": "MONEY_CHASE_PROPOSED",
+      "order": 2,
+      "recordType": "AgentTask",
+      "summary": "Proposed a chase of Golden Dunning Customer for bill GOLD-OWED-A, $600.00 owed. Nothing is sent until a person says yes."
+    },
+    {
+      "action": "TASK_PROPOSED",
+      "order": 3,
+      "recordType": "AgentTask",
+      "summary": "Money-owed chase proposed a task and asked for a yes: Golden Dunning Customer owes $500.00 on bill GOLD-OWED-B, due Nov 3, 2026, 20 days past it. Send a letter asking for it? Proposed: one letter, then up to 2 reminders, 5 working days apart, closing when the bill is paid in full. These numbers are proposals; the Owner can change them in Agent control."
+    },
+    {
+      "action": "MONEY_CHASE_PROPOSED",
+      "order": 4,
+      "recordType": "AgentTask",
+      "summary": "Proposed a chase of Golden Dunning Customer for bill GOLD-OWED-B, $500.00 owed. Nothing is sent until a person says yes."
+    },
+    {
+      "action": "TASK_PROPOSED",
+      "order": 5,
+      "recordType": "AgentTask",
+      "summary": "Money-owed chase proposed a task and asked for a yes: Golden No Contact Customer owes $600.00 on bill GOLD-OWED-C, due Nov 4, 2026, 19 days past it. Send a letter asking for it? Proposed: one letter, then up to 2 reminders, 5 working days apart, closing when the bill is paid in full. These numbers are proposals; the Owner can change them in Agent control."
+    },
+    {
+      "action": "MONEY_CHASE_PROPOSED",
+      "order": 6,
+      "recordType": "AgentTask",
+      "summary": "Proposed a chase of Golden No Contact Customer for bill GOLD-OWED-C, $600.00 owed. Nothing is sent until a person says yes."
+    },
+    {
+      "action": "MONEY_CHASE_HELD",
+      "order": 7,
+      "recordType": "Invoice",
+      "summary": "Bill GOLD-OWED-D to Golden Held Customer was not chased, and nothing was sent: a payment question about it is still open. Once that question is recorded, the next run proposes the chase."
+    },
+    {
+      "action": "TASK_PROPOSED",
+      "order": 8,
+      "recordType": "AgentTask",
+      "summary": "Money-owed chase proposed a task and asked for a yes: Final notice for bill GOLD-OWED-E: Golden Last Letter Customer still owes $300.00 on bill GOLD-OWED-E, due Oct 10, 2026, 44 days past it. 3 letters were sent, on Oct 13, Oct 20 and Oct 27, and the bill is still owed. A final notice is drafted in the details. Say yes to record that you will send it yourself. A person sends this; Etyme sent nothing."
+    },
+    {
+      "action": "MONEY_FINAL_NOTICE_PROPOSED",
+      "order": 9,
+      "recordType": "AgentTask",
+      "summary": "Drafted a final notice for bill GOLD-OWED-E to Golden Last Letter Customer, $300.00 owed, and asked for a yes. A person sends it; Etyme sends nothing."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 10,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "TASK_DONE",
+      "order": 11,
+      "recordType": "AgentTask",
+      "summary": "A person said yes and will send the final notice for bill GOLD-OWED-E themselves. Etyme sent nothing. Any further step, such as collections or a call, is a person’s."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 12,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "MONEY_CHASE_SENT",
+      "order": 13,
+      "recordType": "AgentTask",
+      "summary": "Sent letter 1 to Golden Dunning Customer for bill GOLD-OWED-A, $600.00 owed."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 14,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "MONEY_CHASE_SENT",
+      "order": 15,
+      "recordType": "AgentTask",
+      "summary": "Sent letter 1 to Golden Dunning Customer for bill GOLD-OWED-B, $500.00 owed."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 16,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "MONEY_CHASE_NOT_SENT",
+      "order": 17,
+      "recordType": "AgentTask",
+      "summary": "Letter 1 for bill GOLD-OWED-C was not sent: no one to receive bills is recorded at Golden No Contact Customer. One card asks for it."
+    },
+    {
+      "action": "TASK_CLOSED_BY_ARRIVAL",
+      "order": 18,
+      "recordType": "AgentTask",
+      "summary": "The bill is paid in full, so the chase is closed."
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "MONEY_OWED_CHASE",
+      "plan": {
+        "closesWhen": "the bill is paid in full",
+        "daysApart": 5,
+        "messages": [
+          {
+            "label": "Overdue bill reminder",
+            "template": "money-owed-chase"
+          }
+        ],
+        "retries": 2
+      },
+      "status": "RUNNING"
+    },
+    {
+      "kind": "MONEY_OWED_CHASE",
+      "plan": {
+        "closesWhen": "the bill is paid in full",
+        "daysApart": 5,
+        "messages": [
+          {
+            "label": "Overdue bill reminder",
+            "template": "money-owed-chase"
+          }
+        ],
+        "retries": 2
+      },
+      "status": "CLOSED_BY_ARRIVAL"
+    },
+    {
+      "kind": "MONEY_OWED_CHASE",
+      "plan": {
+        "closesWhen": "the bill is paid in full",
+        "daysApart": 5,
+        "messages": [
+          {
+            "label": "Overdue bill reminder",
+            "template": "money-owed-chase"
+          }
+        ],
+        "retries": 2
+      },
+      "status": "APPROVED"
+    },
+    {
+      "kind": "ESCALATION",
+      "plan": {
+        "closesWhen": "a person has decided what to do about the bill",
+        "daysApart": 0,
+        "messages": [],
+        "retries": 0,
+        "sendsNothing": true
+      },
+      "status": "DONE"
+    }
+  ]
+}

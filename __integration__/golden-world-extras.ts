@@ -274,3 +274,62 @@ export async function addTimesheetWorld(w: GoldenWorld) {
   await cycle(dev.line.id, '2026-11-23', '2026-11-15', '2026-11-21')
   return { ana, bea, cal, dev, anaWeek, beaWeek }
 }
+
+/**
+ * Money owed: a receivables seat and four customers, each with its own
+ * engagement. One customer records an accounts payable contact and owes two
+ * bills past due (the first part paid, the second not), one customer has no
+ * contact and owes one, one customer has a payment question open on its
+ * bill, and one customer's earlier chase ended with no answer after three
+ * letters left, so its bill is ready for a final notice. Every due date is
+ * fixed in the weeks before the golden Monday.
+ */
+export async function addMoneyChaseWorld(w: GoldenWorld) {
+  const role = (name: string, permissions: string[]) => prisma.role.create({ data: { companyId: w.firm.id, name, permissions } })
+  const ar = await prisma.person.create({ data: { name: 'Rita Receivable', primaryEmail: mail('rita.receivable') } })
+  await prisma.context.create({ data: { personId: ar.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: (await role('Accounts Receivable', [])).id } as any })
+  const customer = (name: string) => prisma.company.create({ data: { name, slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), kind: 'CLIENT' } as any })
+  const dunning = await customer('Golden Dunning Customer'); const noContact = await customer('Golden No Contact Customer')
+  const held = await customer('Golden Held Customer'); const last = await customer('Golden Last Letter Customer')
+  for (const c of [dunning, held, last]) await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: c.id, name: `AP at ${c.name}`, email: mail(`ap.${c.slug}`), kind: 'AP' } as any })
+  const bill = async (client: any, who: string, number: string, total: string, due: string) => {
+    const person = await prisma.person.create({ data: { name: who, primaryEmail: mail(who.toLowerCase().replace(/[^a-z]+/g, '.')) } })
+    const msa = await prisma.masterAgreement.create({ data: { vendorId: w.firm.id, clientId: client.id } as any })
+    const engagement = await prisma.engagement.create({ data: { title: `Golden ${number}`, msaId: msa.id } })
+    const line = await prisma.sellContract.create({ data: { companyId: w.firm.id, clientCompanyId: client.id, personId: person.id, engagementId: engagement.id, billRate: 10000, startDate: d('2026-08-01'), state: 'IN_PROGRESS' } as any })
+    const ts = await prisma.timesheet.create({ data: { sellContractId: line.id, personId: person.id, periodStart: d('2026-09-20'), periodEnd: d('2026-09-26'), days: {}, totalHours: '40.00', clientApprovedAt: d('2026-09-28') } as any })
+    return prisma.invoice.create({
+      data: {
+        engagementId: engagement.id, number, currency: 'USD', total, periodStart: d('2026-09-20'), periodEnd: d('2026-09-26'), dueAt: d(due), status: 'SUBMITTED',
+        invoiceLines: { create: [{ sellContractId: line.id, personId: person.id, timesheetId: ts.id, hours: '40.00', rateCents: 2500, amountCents: Math.round(Number(total) * 100) }] },
+      } as any,
+    })
+  }
+  const partPaid = await bill(dunning, 'Una Dunn', 'GOLD-OWED-A', '1000.00', '2026-11-02')
+  const payInFull = await bill(dunning, 'Vik Dunn', 'GOLD-OWED-B', '500.00', '2026-11-03')
+  const nobodyBill = await bill(noContact, 'Wes Dunn', 'GOLD-OWED-C', '600.00', '2026-11-04')
+  const heldBill = await bill(held, 'Xia Dunn', 'GOLD-OWED-D', '700.00', '2026-11-05')
+  const lastBill = await bill(last, 'Yan Dunn', 'GOLD-OWED-E', '300.00', '2026-10-10')
+  await prisma.payment.create({ data: { invoiceId: partPaid.id, amount: '400.00', receivedByCompanyId: w.firm.id, receivedAt: d('2026-11-10'), appliedAt: d('2026-11-11') } as any })
+  await prisma.decisionItem.create({
+    data: { companyId: w.firm.id, question: 'Short pay on bill GOLD-OWED-D', proof: 'A payment came in short.', ownerPersonId: ar.id, state: 'OPEN', proofLinks: [{ recordType: 'Invoice', recordId: heldBill.id }], openedOn: d('2026-11-12') } as any,
+  })
+  // The last customer's chase: approved in October, three letters left, ended with no answer.
+  const card = await prisma.decisionItem.create({
+    data: { companyId: w.firm.id, question: 'Chase Golden Last Letter Customer for bill GOLD-OWED-E', proof: 'Proposed.', ownerPersonId: ar.id, state: 'APPROVED', decidedByPersonId: ar.id, decidedAt: d('2026-10-12'), proofLinks: [], openedOn: d('2026-10-11') } as any,
+  })
+  const ended = await prisma.agentTask.create({
+    data: {
+      companyId: w.firm.id, agentKey: 'money-owed-chase', kind: 'MONEY_OWED_CHASE', recordType: 'Invoice', recordId: lastBill.id, state: 'DONE', decisionId: card.id,
+      plan: { messages: [{ template: 'money-owed-chase', label: 'Overdue bill reminder' }], retries: 2, daysApart: 5, closesWhen: 'the bill is paid in full' },
+      approvedById: ar.id, approvedAt: d('2026-10-12'), sentCount: 3, closedReason: 'No answer: every attempt in the plan was made and the bill is still owed. Any further step is a person’s to take.', createdAt: d('2026-10-11'),
+    } as any,
+  })
+  for (const on of ['2026-10-13', '2026-10-20', '2026-10-27']) {
+    await prisma.mailSend.create({
+      data: { companyId: w.firm.id, agentKey: 'money-owed-chase', agentTaskId: ended.id, recordType: 'Invoice', recordId: lastBill.id, fromAddress: 'hello@etyme.example', toAddresses: [mail(`ap.${last.slug}`)], bccAddresses: [], subject: 'Bill GOLD-OWED-E', template: 'money-owed-chase', templateVersion: '1', outcome: 'SENT', createdAt: d(on) } as any,
+    })
+  }
+  const payB = () => prisma.payment.create({ data: { invoiceId: payInFull.id, amount: '500.00', receivedByCompanyId: w.firm.id, receivedAt: d('2026-11-24'), appliedAt: d('2026-11-24') } as any })
+  return { ar, dunning, noContact, held, last, partPaid, payInFull, nobodyBill, heldBill, lastBill, ended, payB }
+}
