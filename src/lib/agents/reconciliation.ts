@@ -38,9 +38,20 @@ import {
   type Finding, type OpenBill, type PaymentFact,
 } from '@/lib/money/payment-match'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
+import { registerPlan } from './plans'
+import { runSkill } from '@/lib/skills/runner'
 
 export const RECONCILIATION_RULE = 'reconcile-v1'
 export const CHASE_AND_RECONCILIATION = 'chase-and-reconciliation'
+
+// The skills this agent runs (record 123), registered where the agent is defined so every door that runs it holds the plan.
+registerPlan({ agentKey: CHASE_AND_RECONCILIATION, skills: ['payment.match', 'drift.flag'], outputSkill: 'payment.match' })
+
+/** What a skill run says when no card could be opened: a failed call, said plainly, never a pass. */
+const noCard = (r: 'NO_OWNER' | 'REFUSED') => ({
+  result: false, verdict: 'FAIL' as const,
+  failReason: r === 'NO_OWNER' ? 'Nobody holds receivables or the Owner seat, so no card was opened.' : 'The ledger refused the card, or the agent has no switch.',
+})
 
 /** A bill in any of these is not one a payment is matched to. */
 const NOT_A_LIVE_BILL = ['DRAFT', 'CANCELLED', 'VOID']
@@ -59,6 +70,18 @@ export async function reconcileStep(ctx: AgentContext): Promise<void> {
   const entities = await prisma.legalEntity.findMany({ where: { companyId }, select: { id: true } })
   const entityId = entities.length === 1 ? entities[0].id : null
   const moves = ctx.mode === 'ON'
+
+  /** Whether a decision is already open, or was decided on these very figures. Reads only. */
+  const known = async (link: { recordType: string; recordId: string }, f: Finding): Promise<'ALREADY_OPEN' | 'ALREADY_DECIDED' | null> => {
+    if (!owner) return null
+    const same = await prisma.decisionItem.findMany({
+      where: { companyId, proofLinks: { array_contains: [link] }, agentTasks: { none: {} } },
+      select: { state: true, proof: true },
+    })
+    if (same.some((d) => d.state === 'OPEN')) return 'ALREADY_OPEN'
+    if (same.some((d) => d.proof === f.proof.trim())) return 'ALREADY_DECIDED'
+    return null
+  }
 
   /** One decision per thing: nothing opens where one is open, or where one was decided on these very figures. */
   const flag = async (link: { recordType: string; recordId: string }, f: Finding, actingEntityId: string | null): Promise<Opened | 'NO_OWNER' | 'REFUSED'> => {
@@ -145,10 +168,12 @@ export async function reconcileStep(ctx: AgentContext): Promise<void> {
       if (v.kind === 'CURRENCY') {
         if (!newIds.has(v.payment.id)) continue
         if (!(await ctx.mayAct())) return
-        const r = await flag({ recordType: 'Payment', recordId: v.payment.id }, currencyWords(bill, v.payment), null)
-        if (r === 'OPENED' || r === 'ALREADY_OPEN' || r === 'ALREADY_DECIDED') {
+        await runSkill(ctx, 'payment.match', { recordType: 'Payment', recordId: v.payment.id, unitsPlanned: 1 }, async () => {
+          const r = await flag({ recordType: 'Payment', recordId: v.payment.id }, currencyWords(bill, v.payment), null)
+          if (r === 'NO_OWNER' || r === 'REFUSED') return noCard(r)
           await mark(v.payment.id, 'PAYMENT_FLAGGED', `Payment of a different currency than bill ${bill.number}: a decision is open. Nothing was moved.`)
-        }
+          return { result: true }
+        })
         continue
       }
       const mine = news.filter((p) => p.currency === bill.currency)
@@ -157,15 +182,31 @@ export async function reconcileStep(ctx: AgentContext): Promise<void> {
         if (!moves) continue
         if (!(await ctx.mayAct(mine.length))) return
         const lineContractIds = [...new Set(inv.invoiceLines.map((l) => l.sellContractId).filter((x): x is string => !!x))]
-        const said = await moveMonth({ ...bill, periodStart: inv.periodStart, periodEnd: inv.periodEnd, lineContractIds })
-        for (const p of mine) await mark(p.id, 'PAYMENT_MATCHED', `Matched to bill ${bill.number} to the cent.${said}`)
+        // One run for each payment matched; the month is moved once, inside the first.
+        let said: string | null = null
+        for (const p of mine) {
+          await runSkill(ctx, 'payment.match', { recordType: 'Payment', recordId: p.id, unitsPlanned: 1 }, async () => {
+            said ??= await moveMonth({ ...bill, periodStart: inv.periodStart, periodEnd: inv.periodEnd, lineContractIds })
+            await mark(p.id, 'PAYMENT_MATCHED', `Matched to bill ${bill.number} to the cent.${said}`)
+            return { result: true }
+          })
+        }
         continue
       }
       if (!(await ctx.mayAct(mine.length))) return
       const words = v.kind === 'SHORT' ? shortPayWords(bill, v) : overPayWords(bill, v)
-      const r = await flag({ recordType: 'Invoice', recordId: inv.id }, words, null)
-      if (r === 'OPENED' || r === 'ALREADY_DECIDED') {
-        for (const p of mine) await mark(p.id, 'PAYMENT_FLAGGED', `${v.kind === 'SHORT' ? 'Short pay' : 'Overpay'} on bill ${bill.number}: a decision is open. Nothing was moved.`)
+      const link = { recordType: 'Invoice', recordId: inv.id }
+      let r: Opened | 'NO_OWNER' | 'REFUSED' | null = await known(link, words)
+      if (r === 'ALREADY_OPEN') continue // a card is open and nothing more is done, as before
+      // One run for each payment placed against the bill; the card is opened once, inside the first.
+      for (const p of mine) {
+        await runSkill(ctx, 'payment.match', { recordType: 'Payment', recordId: p.id, unitsPlanned: 1 }, async () => {
+          r ??= await flag(link, words, null)
+          if (r === 'NO_OWNER' || r === 'REFUSED') return noCard(r)
+          if (r === 'ALREADY_OPEN') return { result: false }
+          await mark(p.id, 'PAYMENT_FLAGGED', `${v.kind === 'SHORT' ? 'Short pay' : 'Overpay'} on bill ${bill.number}: a decision is open. Nothing was moved.`)
+          return { result: true }
+        })
       }
     }
   }
@@ -190,18 +231,23 @@ export async function reconcileStep(ctx: AgentContext): Promise<void> {
         if (!(await ctx.mayAct())) return
         const b = open.find((x) => x.id === v.bill.id)!
         const lineContractIds = [...new Set(b.invoiceLines.map((l) => l.sellContractId).filter((x): x is string => !!x))]
-        const said = await moveMonth({ id: b.id, periodStart: b.periodStart, periodEnd: b.periodEnd, currency: b.currency, lineContractIds, minor: f.minor })
-        await mark(p.id, 'PAYMENT_MATCHED', `Matched to bill ${b.number}, which is owed exactly this amount. The payment is not yet placed against it: placing it is a person’s.${said}`)
+        await runSkill(ctx, 'payment.match', { recordType: 'Payment', recordId: p.id, unitsPlanned: 1 }, async () => {
+          const said = await moveMonth({ id: b.id, periodStart: b.periodStart, periodEnd: b.periodEnd, currency: b.currency, lineContractIds, minor: f.minor })
+          await mark(p.id, 'PAYMENT_MATCHED', `Matched to bill ${b.number}, which is owed exactly this amount. The payment is not yet placed against it: placing it is a person’s.${said}`)
+          return { result: true }
+        })
         continue
       }
       if (!(await ctx.mayAct())) return
       const words = v.kind === 'NO_BILL' ? noBillWords(f)
         : v.kind === 'MANY_BILLS' ? manyBillsWords(f, v.bills)
         : currencyWords(v.bill, f)
-      const r = await flag({ recordType: 'Payment', recordId: p.id }, words, null)
-      if (r === 'OPENED' || r === 'ALREADY_OPEN' || r === 'ALREADY_DECIDED') {
+      await runSkill(ctx, 'payment.match', { recordType: 'Payment', recordId: p.id, unitsPlanned: 1 }, async () => {
+        const r = await flag({ recordType: 'Payment', recordId: p.id }, words, null)
+        if (r === 'NO_OWNER' || r === 'REFUSED') return noCard(r)
         await mark(p.id, 'PAYMENT_FLAGGED', `${words.question} A decision is open. Nothing was moved.`)
-      }
+        return { result: true }
+      })
     }
   }
 
@@ -235,8 +281,14 @@ export async function reconcileStep(ctx: AgentContext): Promise<void> {
       if (!d) continue
       if (!(await ctx.mayAct())) return
       const words = driftWords(b, l.person?.name ?? 'the consultant', d)
-      const r = await flag({ recordType: 'InvoiceLine', recordId: l.id }, words, null)
-      if (r === 'OPENED') await ctx.act({ recordType: 'InvoiceLine', recordId: l.id, action: 'RATE_DRIFT_FLAGGED', summary: `${words.question} A decision is open. Nothing was changed.` })
+      const link = { recordType: 'InvoiceLine', recordId: l.id }
+      if (await known(link, words)) continue // a card is open, or was decided on these figures: nothing more is done, as before
+      await runSkill(ctx, 'drift.flag', { recordType: 'InvoiceLine', recordId: l.id, unitsPlanned: 1 }, async () => {
+        const r = await flag(link, words, null)
+        if (r !== 'OPENED') return r === 'NO_OWNER' || r === 'REFUSED' ? noCard(r) : { result: false }
+        await ctx.act({ recordType: 'InvoiceLine', recordId: l.id, action: 'RATE_DRIFT_FLAGGED', summary: `${words.question} A decision is open. Nothing was changed.` })
+        return { result: true }
+      })
     }
   }
 }
