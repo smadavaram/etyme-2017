@@ -149,6 +149,6 @@ describe('being honest about which reader ran', () => {
     // A degraded result presented as a good one is the failure this whole
     // file exists to avoid.
     expect(typeof modelAvailable()).toBe('boolean')
-    expect(modelAvailable()).toBe(Boolean(process.env.ANTHROPIC_API_KEY))
+    expect(modelAvailable({})).toBe(false)
   })
 })

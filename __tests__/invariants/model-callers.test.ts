@@ -14,7 +14,6 @@ const DIRECT_CALLERS: Record<string, string> = {
   'src/app/api/conversations/twin/read.ts': 'CONVERSATION',
   'src/lib/checks/skill-evidence.ts': 'DEMAND',
   'src/lib/consultant-portfolio.ts': 'SUPPLY',
-  'src/lib/extract.ts': 'SUPPLY',
   'src/lib/match-engine.ts': 'SUPPLY',
   'src/lib/site-voice.ts': 'MARKET',
 }
@@ -26,7 +25,6 @@ const READS_A_MODEL_ID: Record<string, string> = {
   'src/app/api/settings/site/write.ts': 'MARKET',
   'src/lib/checks/skill-evidence.ts': 'DEMAND',
   'src/lib/consultant-portfolio.ts': 'SUPPLY',
-  'src/lib/extract.ts': 'SUPPLY',
   'src/lib/match-engine.ts': 'SUPPLY',
   'src/lib/setup-fill-model.ts': 'CONVERSATION',
   'src/lib/site-voice.ts': 'MARKET',

@@ -1,8 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk'
-import { modelFor } from '@/lib/model-ids'
+import { callModel, type ModelDeps } from '@/lib/model-gateway/call'
+import { candidatesFor } from '@/lib/model-gateway/register'
 import type { EntitySpec, FieldSpec } from '@/lib/importable'
 import { splitDelimited, tableShape } from '@/lib/model-boundary'
-import { record as recordRun, type RecordType, type Usage } from '@/lib/agent-run'
+import type { RecordType, Usage } from '@/lib/agent-run'
 
 /**
  * Reading what somebody sent, rather than matching column headings.
@@ -143,18 +143,24 @@ export function withoutLaneC(text: string): { text: string; removed: LaneCKind[]
   return { text: out, removed: [...found] }
 }
 
-/** What a call needs to be written on the ledger. Without it the call is still made, and still says what it used. */
+/**
+ * Who is asking, so the gateway can check the company's switch and write the ledger and prompt log.
+ * Without a company and a person nothing is sent: the caller falls back to the rules.
+ */
 export interface ExtractContext {
   companyId?: string
+  personId?: string
   /** What the ledger row hangs on; the spec's key where not given. */
   recordId?: string
-  /** For tests: the client that answers. */
-  client?: { messages: { create(args: any): Promise<any> } }
+  /** For a paper: its type, so a paper of a kind that reaches no model is refused before its text is looked at. */
+  documentType?: string | null
+  /** For tests: the gateway's own dependencies (adapters, register, switch, ledger). */
+  gateway?: ModelDeps
 }
 
-/** Whether the model path is available at all. */
-export function modelAvailable(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY)
+/** Whether a model is registered, admitted for tenant business data and keyed for reading a paper. */
+export function modelAvailable(env: Record<string, string | undefined> = process.env): boolean {
+  return candidatesFor('LOW', 'TENANT_BUSINESS', env).length > 0
 }
 
 function describeFields(fields: FieldSpec[]): string {
@@ -195,8 +201,10 @@ Return only JSON of this shape:
 /**
  * Read source content into the shape of an entity.
  *
- * Returns null when there is no key, so the caller falls back rather than
- * this pretending to have tried.
+ * Returns null when no model is set up, the company's switch is off, or
+ * nobody is named to ask on behalf of, so the caller falls back rather than
+ * this pretending to have tried. Every call goes through the gateway
+ * (lib/model-gateway), as the document.read skill.
  */
 export async function extractWithModel(
   spec: EntitySpec,
@@ -204,10 +212,7 @@ export async function extractWithModel(
   maxRecords = 200,
   ctx: ExtractContext = {},
 ): Promise<ExtractionResult | null> {
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!key && !ctx.client) return null
-
-  const client = ctx.client ?? new Anthropic({ apiKey: key })
+  if (!ctx.companyId || !ctx.personId) return null
 
   // Lane C goes first, before the length cut and before any call: this data
   // reaches no model (record 96). Every caller passes through here.
@@ -234,80 +239,62 @@ ${trimmed}
 
 Return at most ${maxRecords} records.`
 
-  const model = modelFor('READ')
-  const started = Date.now()
-  const ledger = (verdict: 'PASS' | 'ERROR', usage: Usage | null, failReason: string | null, scored: number) =>
-    ctx.companyId
-      ? recordRun({
-          companyId: ctx.companyId,
-          agent: 'extract.read',
-          // The ledger's list has no import kind yet; the column is a string.
-          recordType: 'IMPORT' as RecordType,
-          recordId: ctx.recordId ?? spec.key,
-          verdict,
-          failReason,
-          model,
-          usage,
-          ms: Date.now() - started,
-          scoredCount: scored,
-        })
-      : Promise.resolve(null)
+  const got = await callModel({
+    companyId: ctx.companyId,
+    personId: ctx.personId,
+    skillKey: 'document.read',
+    purpose: 'DOCUMENT_READ',
+    prompt,
+    system: SYSTEM,
+    documentType: ctx.documentType,
+    // The ledger's list has no import kind yet; the column is a string.
+    record: { recordType: 'IMPORT' as RecordType, recordId: ctx.recordId ?? spec.key },
+    maxTokens: 8000,
+    source: trimmed,
+  }, { timeoutMs: 120_000, ...ctx.gateway })
 
-  try {
-    const response = await client.messages.create({
-      model,
-      max_tokens: 8000,
-      system: SYSTEM,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const text = (response.content as { type: string; text?: string }[])
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text ?? '')
-      .join('')
-
-    const usage: Usage | null = response.usage ?? null
-    const parsed = parseResponse(text)
-    await ledger('PASS', usage, parsed ? null : 'the answer could not be understood', parsed?.records.length ?? 0)
-    if (!parsed) {
-      return {
-        method: 'MODEL',
-        records: [],
-        note: 'The reader returned something that could not be understood. Nothing was written.',
-        unread: [text.slice(0, 200)],
-        model, usage, removed,
-      }
-    }
-
-    const known = new Set(spec.fields.map((f) => f.key))
-
-    return {
-      method: 'MODEL',
-      records: parsed.records.slice(0, maxRecords).map((r, i) => ({
-        rowNumber: i + 1,
-        // A field nobody checks is a field that grants nothing, so unknown
-        // names are dropped rather than stored.
-        fields: (r.fields ?? []).filter((f) => known.has(f.field)),
-        problems: r.problems ?? [],
-      })),
-      note: wasTrimmed
-        ? `Read the first 60,000 characters. The rest was not looked at — split the file and load it again.${cutNote}`
-        : `Read by the document reader, with confidence and a source quote on every value.${cutNote}`,
-      unread: parsed.unread ?? [],
-      model, usage, removed,
-    }
-  } catch (err) {
-    await ledger('ERROR', null, String((err as Error)?.message ?? err).slice(0, 300), 0)
+  if (!got.ok) {
+    // Not configured, or the company's switch is off: nothing was tried, so the caller's rules answer.
+    if (got.status === 'NOT_CONFIGURED' || got.status === 'OFF') return null
     // Named rather than swallowed. "Import failed" sends somebody to
     // guess; "the reader is not answering" sends them to try again.
     return {
       method: 'MODEL',
       records: [],
-      note: `The document reader could not be reached: ${err instanceof Error ? err.message.slice(0, 120) : 'unknown error'}. Nothing was written.`,
+      note: `The document reader did not read this: ${got.says} Nothing was written.${cutNote}`,
       unread: [],
-      model,
       removed,
     }
+  }
+
+  const { text, model, usage } = got
+  const parsed = parseResponse(text)
+  if (!parsed) {
+    return {
+      method: 'MODEL',
+      records: [],
+      note: 'The reader returned something that could not be understood. Nothing was written.',
+      unread: [text.slice(0, 200)],
+      model, usage, removed,
+    }
+  }
+
+  const known = new Set(spec.fields.map((f) => f.key))
+
+  return {
+    method: 'MODEL',
+    records: parsed.records.slice(0, maxRecords).map((r, i) => ({
+      rowNumber: i + 1,
+      // A field nobody checks is a field that grants nothing, so unknown
+      // names are dropped rather than stored.
+      fields: (r.fields ?? []).filter((f) => known.has(f.field)),
+      problems: r.problems ?? [],
+    })),
+    note: wasTrimmed
+      ? `Read the first 60,000 characters. The rest was not looked at — split the file and load it again.${cutNote}`
+      : `Read by the document reader, with confidence and a source quote on every value.${cutNote}`,
+    unread: parsed.unread ?? [],
+    model, usage, removed,
   }
 }
 

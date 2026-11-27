@@ -68,7 +68,7 @@ export type ReadOutcome =
 export interface ReadDeps {
   modelOn(companyId: string): Promise<boolean>
   readerSetUp(): boolean
-  extract(spec: EntitySpec, maskedContent: string): Promise<ExtractionResult | null>
+  extract(spec: EntitySpec, maskedContent: string, who?: { companyId: string; personId: string }): Promise<ExtractionResult | null>
   record(p: PromptToRecord): Promise<unknown>
   vocab(companyId: string): Promise<MaskVocab>
 }
@@ -98,7 +98,7 @@ async function vocabFor(companyId: string): Promise<MaskVocab> {
 export const liveDeps: ReadDeps = {
   modelOn: modelOnFor,
   readerSetUp: modelAvailable,
-  extract: (spec, masked) => extractWithModel(spec, masked),
+  extract: (spec, masked, who) => extractWithModel(spec, masked, undefined, who),
   record: recordModelPrompt,
   vocab: vocabFor,
 }
@@ -134,7 +134,7 @@ export async function readImportContent(
 
   const vocab = await deps.vocab(companyId).catch(() => ({}))
   const mask = maskForModel(content, vocab)
-  const extracted = await deps.extract(spec, mask.masked)
+  const extracted = await deps.extract(spec, mask.masked, { companyId, personId })
 
   // Logged before anything is put back, so the log holds the masked text
   // and nothing else. The prompt's frame (the field list) is lib/extract's
