@@ -1,0 +1,49 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "INTERVIEW_CHASE",
+      "owedSeat": "Account Manager"
+    }
+  ],
+  "mail": [],
+  "recordActions": [
+    {
+      "action": "TASK_PROPOSED",
+      "order": 1,
+      "recordType": "AgentTask",
+      "summary": "Interview chase proposed a task and asked for a yes: Golden Quiet Customer has not moved Priya Nair for Analyst for Golden Quiet Customer in 3 working days. A person follows up with Hana Hiring about Priya Nair; the agent does not write to the client."
+    },
+    {
+      "action": "CHASE_PROPOSED",
+      "order": 2,
+      "recordType": "AgentTask",
+      "summary": "Proposed a follow-up with Golden Quiet Customer for Priya Nair, Analyst for Golden Quiet Customer. The agent writes to nobody."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 3,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "TASK_CLOSED_BY_ARRIVAL",
+      "order": 4,
+      "recordType": "AgentTask",
+      "summary": "The client moved the submission, so the chase is closed."
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "INTERVIEW_CHASE",
+      "plan": {
+        "closesWhen": "the client moves the submission",
+        "daysApart": 0,
+        "messages": [],
+        "retries": 0,
+        "sendsNothing": true
+      },
+      "status": "CLOSED_BY_ARRIVAL"
+    }
+  ]
+}
