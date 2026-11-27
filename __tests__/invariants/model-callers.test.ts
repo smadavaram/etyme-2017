@@ -12,8 +12,6 @@ import { join, relative } from 'node:path'
 /** Files outside the gateway that import a provider's SDK or call a provider host. Each owner retires its own (plan step 11). */
 const DIRECT_CALLERS: Record<string, string> = {
   'src/lib/checks/skill-evidence.ts': 'DEMAND',
-  'src/lib/consultant-portfolio.ts': 'SUPPLY',
-  'src/lib/match-engine.ts': 'SUPPLY',
   'src/lib/site-voice.ts': 'MARKET',
 }
 
@@ -23,8 +21,6 @@ const READS_A_MODEL_ID: Record<string, string> = {
   'src/app/api/imports/sheets/read.ts': 'SUPPLY',
   'src/app/api/settings/site/write.ts': 'MARKET',
   'src/lib/checks/skill-evidence.ts': 'DEMAND',
-  'src/lib/consultant-portfolio.ts': 'SUPPLY',
-  'src/lib/match-engine.ts': 'SUPPLY',
   'src/lib/setup-fill-model.ts': 'CONVERSATION',
   'src/lib/site-voice.ts': 'MARKET',
 }
