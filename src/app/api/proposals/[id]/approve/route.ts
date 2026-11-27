@@ -3,8 +3,8 @@ import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { pluginGate } from '@/lib/plugin-gate'
-import { emit } from '@/lib/events'
 import { moveRefusal, stateSays } from '@/lib/proposals/rules'
+import { approveByPerson } from '@/lib/proposals/approve'
 
 /**
  * POST /api/proposals/[id]/approve (record 124): a person only. The agent has
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (no) return NextResponse.json({ error: { code: 'REFUSED', message: no } }, { status: 409 })
   const by = realPersonId(caller)
   if (!by) return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'Only a signed-in person can do this. An agent cannot.' } }, { status: 403 })
-  await prisma.proposal.update({ where: { id: p.id }, data: { state: 'APPROVED', approvedAt: new Date(), approvedById: by } })
-  await emit({ type: 'proposal.approved', companyId: caller.company.id, subjectType: 'Proposal', subjectId: p.id, actorPersonId: by, payload: {} })
+  const done = await approveByPerson({ companyId: caller.company.id, proposalId: p.id, personId: by })
+  if (!done.ok) return NextResponse.json({ error: { code: 'REFUSED', message: done.says } }, { status: 409 })
   return NextResponse.json({ data: { id: p.id, state: 'APPROVED', stateSays: stateSays('APPROVED') } })
 }

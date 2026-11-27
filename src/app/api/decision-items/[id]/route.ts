@@ -7,6 +7,7 @@ import { isRecordType, readDecideAsk, readNeeds, recordViewHref, proofLabelOf } 
 import { findOnBook } from '@/app/api/records/lookup'
 import { queueSeat, refused, refusalOf, logRefusal } from '../door'
 import { isChainProof, chainProofLink } from '../../money-loop/proof-link'
+import { approvalRefusal, approveByPerson, proposalOfReviewCard } from '@/lib/proposals/approve'
 
 /**
  * GET  /api/decision-items/[id] — one decision, its proof, and the record of it (A3, A4)
@@ -92,10 +93,21 @@ export async function POST(request: NextRequest, { params }: Params) {
   const read = readDecideAsk(await request.json().catch(() => ({})), seat.entities.length > 1)
   if (!read.ok) return refused(422, read.says, read.field)
   try {
+    // The proposals agent's card (record 124): her yes on it is her own approval of the proposal, under the same rule as the proposal's own Approve.
+    const proposalId = read.ask.verdict === 'APPROVE' ? await proposalOfReviewCard(seat.companyId, id) : null
+    if (proposalId) {
+      if (!hasPermission(seat.caller.permissions, 'submissions.create')) return refused(403, 'Approving a proposal needs a seat that may put proposals forward.')
+      const no = await approvalRefusal(seat.companyId, proposalId)
+      if (no) return refused(409, no)
+    }
     const item = await decideDecision({
       companyId: seat.companyId, personId: seat.personId, heldAs: seat.heldAs, actingEntityId: read.ask.actingEntityId,
       decisionId: id, verdict: read.ask.verdict, note: read.ask.reason,
     })
+    if (proposalId) {
+      const done = await approveByPerson({ companyId: seat.companyId, proposalId, personId: seat.personId })
+      if (!done.ok) return refused(409, done.says)
+    }
     const message = read.ask.verdict === 'SEND_BACK' ? 'Sent back. It stays on the queue with your reason.' : read.ask.verdict === 'APPROVE' ? 'Approved and recorded.' : 'Rejected and recorded.'
     return NextResponse.json({ data: { id: item.id, state: item.state, message } })
   } catch (e) {

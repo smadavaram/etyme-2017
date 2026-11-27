@@ -60,7 +60,7 @@ describe('the performance panel route', () => {
 
   it('every agent reads Not graded before any agent is moved onto skills', async () => {
     const r = await get(w.owner.primaryEmail)
-    expect(r.body.data.agents).toHaveLength(14)
+    expect(r.body.data.agents).toHaveLength(15)
     const ag = agent(r, 'weekly-summary')
     expect([ag.cells.actual.text, ag.cells.actual.why, ag.cells.target.text, ag.cells.target.why]).toEqual(['—', 'Not graded', '—', 'No target'])
     expect(ag.outputSkill).toBeNull()

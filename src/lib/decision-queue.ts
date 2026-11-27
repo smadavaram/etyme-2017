@@ -326,6 +326,7 @@ export const FIRM_AGENTS = [
   { key: 'money-owed-chase', name: 'Money-owed chase' },
   { key: 'weekly-summary', name: 'Weekly summary' },
   { key: 'outreach-batch', name: 'Outreach batch' },
+  { key: 'proposals-agent', name: 'Proposals' },
 ] as const
 
 /** Agents named on Agent control that have no step behind them yet: they read "Not live yet" and cannot be switched on. */

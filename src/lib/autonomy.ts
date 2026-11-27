@@ -1115,6 +1115,27 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
   },
   // Public-sector proposals (record 124): the agent drafts and chases; these
   // three are never its. A person approves and sends, and signs.
+  // The proposals agent's own acts (record 124). It drafts words from the firm's
+  // record, asks a person for a yes, and reminds a colleague inside a task a
+  // person released. Nothing here speaks outside the firm.
+  'proposal.draft': {
+    kinds: ['SUPPLIER'],
+    says: 'Draft a public-sector proposal from the firm\u2019s own record and flag every requirement it does not answer. It states no rate and names nobody.',
+    money: false, external: false, reversible: true, decides: false, drafts: true, floor: false,
+    approverNeeds: 'submissions.create', alone: 'DREW_UP',
+  },
+  'proposal.ask': {
+    kinds: ['SUPPLIER'],
+    says: 'Put a finished proposal draft to a person for a yes. Nothing goes to the agency.',
+    money: false, external: false, reversible: true, decides: false, drafts: true, floor: false,
+    approverNeeds: 'submissions.create', alone: 'DREW_UP',
+  },
+  'proposal.chase': {
+    kinds: ['SUPPLIER'],
+    says: 'Remind a colleague that a piece of a proposal is waiting on them, once a person has said yes to the task.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'submissions.create',
+  },
   'proposal.submit': {
     kinds: ['SUPPLIER'],
     says: 'Send a public-sector proposal to the agency.',

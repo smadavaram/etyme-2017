@@ -80,10 +80,10 @@ export interface Skill {
 }
 
 const TENANT: DataClass = 'TENANT_BUSINESS'
-const CHASE_AGENTS = ['timesheet-chase', 'money-owed-chase', 'confirmation-tracker', 'interview-chase', 'census-keeper', 'outreach-batch']
+const CHASE_AGENTS = ['timesheet-chase', 'money-owed-chase', 'confirmation-tracker', 'interview-chase', 'census-keeper', 'outreach-batch', 'proposals-agent']
 const CHASE_KINDS = [
   'TIMESHEET_CHASE', 'MONEY_OWED_CHASE', 'SUBMISSION_CHASE', 'INTERVIEW_CHASE',
-  'DORMANT_OUTREACH_CUSTOMER', 'DORMANT_OUTREACH_SUPPLIER', 'OUTREACH_BATCH',
+  'DORMANT_OUTREACH_CUSTOMER', 'DORMANT_OUTREACH_SUPPLIER', 'OUTREACH_BATCH', 'PROPOSAL_CHASE',
 ]
 
 const rule = (s: Omit<Skill, 'dataClass' | 'tier' | 'mayEscalate' | 'maySend' | 'taskKinds' | 'acts'> & Partial<Skill>): Skill => ({
@@ -130,6 +130,14 @@ export const SKILLS: readonly Skill[] = [
     answerKey: { checker: 'bio.write', says: 'every number and proper noun appears on her own record; no currency; no company outside her own placements' } }),
   model({ key: 'ask.answer', name: 'Ask Etyme answer', unit: 'answer', inputs: ['question', 'data'], output: 'an answer from the data beside it', mayEscalate: false, usedBy: ['twin read'],
     answerKey: { checker: 'ask.answer', says: 'every number in the answer appears in the data payload handed to the model' } }),
+  model({ key: 'proposal.draft', name: 'Proposal draft', unit: 'draft', inputs: ['proposalId', 'facts'], output: 'a draft response from the firm’s own record', mayEscalate: false, usedBy: ['proposals-agent'],
+    answerKey: { checker: 'proposal.draft', says: 'the draft is on the proposal with its sections; the paragraphs hold no amount of money, no compliance statement and no number the record does not hold' } }),
+  rule({ key: 'proposal.check', name: 'Proposal requirement check', unit: 'proposal', inputs: ['proposalId'], output: 'pieces added, the state moved, every unanswered requirement flagged', usedBy: ['proposals-agent'],
+    answerKey: { checker: 'proposal.check', says: 'every kind of piece the requirements name has a piece; the state agrees with which pieces are in hand; only a person ever approved it' } }),
+  rule({ key: 'proposal.ask', name: 'Ask a person to approve a proposal', unit: 'card', inputs: ['proposalId'], output: 'one card for a yes', acts: ['READ', 'WRITE_ROW', 'OPEN_CARD'], usedBy: ['proposals-agent'],
+    answerKey: { checker: 'proposal.ask', says: 'one task sending nothing, a question of twelve words or fewer, open only for a proposal that is ready' } }),
+  rule({ key: 'proposal.chase', name: 'Proposal reminder task', unit: 'task', inputs: ['proposalId', 'seat'], output: 'a proposed reminder task or a closed one', acts: ['READ', 'WRITE_ROW', 'OPEN_CARD'], usedBy: ['proposals-agent'],
+    answerKey: { checker: 'proposal.chase', says: 'each task is for one colleague holding a seat at the firm, names pieces on the proposal, and is closed as answered only where they are in hand' } }),
   rule({ key: 'chase.propose', name: 'Propose chase task', unit: 'task', inputs: ['companyId', 'record', 'plan'], output: 'a proposed task and an open card', acts: ['READ', 'WRITE_ROW', 'OPEN_CARD'], usedBy: CHASE_AGENTS,
     answerKey: { checker: 'chase.propose', says: 'AgentTask PROPOSED with its plan, a card OPEN, any amount equals the ledger figure' } }),
   rule({ key: 'chase.send', name: 'Send approved letter', unit: 'letter', inputs: ['taskId', 'letter'], output: 'a letter on the mail ledger', acts: ['READ', 'SEND'], maySend: true, taskKinds: CHASE_KINDS, usedBy: CHASE_AGENTS,

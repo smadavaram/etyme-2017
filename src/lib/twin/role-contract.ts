@@ -76,6 +76,10 @@ export interface Contract {
  */
 export const ACTS_ADDED_LATER: ReadonlyArray<{ act: string; addedOn: Date }> = [
   { act: 'pod.sale.accept', addedOn: new Date('2026-11-25T00:00:00Z') },
+  // The proposals agent's acts (record 124): a supplier's contract saved before this day reads them at the shipped tier.
+  { act: 'proposal.draft', addedOn: new Date('2026-11-27T00:00:00Z') },
+  { act: 'proposal.ask', addedOn: new Date('2026-11-27T00:00:00Z') },
+  { act: 'proposal.chase', addedOn: new Date('2026-11-27T00:00:00Z') },
 ]
 
 /**

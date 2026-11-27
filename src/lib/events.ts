@@ -114,6 +114,8 @@ export const EVENT_TYPES = [
   'proposal.started',
   'proposal.approved',
   'proposal.submitted_by_person',
+  'proposal.draft_edited',
+  'proposal.piece_marked',
 
   // Compliance
   'verification.recorded',

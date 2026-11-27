@@ -401,9 +401,9 @@ describe('every party reads the menu CLAUDE.md says it reads', () => {
   const KIND: Record<string, Parameters<typeof getNavForKind>[0]> = {
     Client: 'CLIENT', Supplier: 'VENDOR', Integrator: 'GSI', MSP: 'MSP', 'One-person firm': 'CONSULTANT_CORP', Worker: null,
   }
-  const sectionsOf = (party: string) => getNavForKind(KIND[party], KIND[party] == null, { plugins: ['TRAIN_TO_BENCH', 'PODS'] })
+  const sectionsOf = (party: string) => getNavForKind(KIND[party], KIND[party] == null, { plugins: ['TRAIN_TO_BENCH', 'PODS', 'PUBLIC_SECTOR'] })
   // Training is a plugin (record 120): the table names it "where the plugin is on", so it is read with the plugin on.
-  const columnOf = (party: string) => menuFor(KIND[party], KIND[party] == null, { plugins: ['TRAIN_TO_BENCH', 'PODS'] })
+  const columnOf = (party: string) => menuFor(KIND[party], KIND[party] == null, { plugins: ['TRAIN_TO_BENCH', 'PODS', 'PUBLIC_SECTOR'] })
 
   it('names all six parties in the table, and nobody else', () => {
     expect([...documented.keys()].sort()).toEqual(

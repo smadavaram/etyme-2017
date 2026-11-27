@@ -60,7 +60,7 @@ describe('the skill registry', () => {
 
   it('only the skills that call a model start above the rules tier', () => {
     const models = SKILLS.filter((s) => s.tier !== 'RULES').map((s) => s.key).sort()
-    expect(models).toEqual(['ask.answer', 'bio.write', 'document.read', 'match.rank', 'site.voice', 'skills.evidence'])
+    expect(models).toEqual(['ask.answer', 'bio.write', 'document.read', 'match.rank', 'proposal.draft', 'site.voice', 'skills.evidence'])
   })
 
   it('a W-4, W-9, voided check or identity document is never read by a model, by its type', () => {

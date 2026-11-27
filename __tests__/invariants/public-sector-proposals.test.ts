@@ -46,7 +46,7 @@ describe('public-sector proposals: every route asks the switch', () => {
   }
   it('every proposals route asks the Public-sector proposals switch before it reads or writes', () => {
     const files = walk('src/app/api/proposals')
-    expect(files.length).toBe(3)
+    expect(files.length).toBe(5)
     for (const f of files) expect(readFileSync(f, 'utf8')).toContain("pluginGate(caller, 'PUBLIC_SECTOR')")
   })
   it('no proposals route sets a proposal to submitted for the agent: only a person’s seat reaches them', () => {

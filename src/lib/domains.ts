@@ -670,7 +670,7 @@ export const DOMAINS: Domain[] = [
       'lib/updates-consent', 'app/api/updates-consent',
       // Public-sector proposals (record 124, plugin 5): the states a proposal may
       // move through and who may move it, and the routes behind the switch.
-      'lib/proposals', 'app/api/proposals',
+      'lib/proposals', 'app/api/proposals', 'app/dashboard/proposals',
       // Day 61 unpaid: the one read-only rule, its switch and the writes that stay open.
       'lib/tenant-state',
       // One order, three names, and the rule for a counterparty that is

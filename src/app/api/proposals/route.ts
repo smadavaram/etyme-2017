@@ -5,6 +5,7 @@ import { hasPermission, askTheDesk } from '@/lib/permissions'
 import { pluginGate } from '@/lib/plugin-gate'
 import { emit } from '@/lib/events'
 import { PIECE_KINDS, stateSays } from '@/lib/proposals/rules'
+import { checkProposal, requirementLines } from '@/lib/proposals/draft-rules'
 
 /**
  * GET  /api/proposals — the firm's public-sector proposals (record 124)
@@ -30,13 +31,21 @@ export async function GET(request: NextRequest) {
     include: { pieces: { orderBy: { label: 'asc' } } },
   })
   return NextResponse.json({
-    data: rows.map((p) => ({
+    // The page draws a button only where its route will take it.
+    mayWrite: hasPermission(caller.permissions, 'submissions.create'),
+    data: rows.map((p) => {
+      // The flags are read live from the pieces as they stand, never kept: a kept flag goes stale the day a piece arrives.
+      const check = checkProposal(requirementLines(p.requirements), p.pieces)
+      return {
       id: p.id, title: p.title, buyer: p.buyer, sourceUrl: p.sourceUrl, requirements: p.requirements, dueAt: p.dueAt?.toISOString().slice(0, 10) ?? null,
       state: p.state, stateSays: stateSays(p.state), draft: p.draft,
       approvedAt: p.approvedAt?.toISOString() ?? null, submittedAt: p.submittedAt?.toISOString() ?? null,
       missing: p.pieces.filter((x) => !x.haveIt).length,
       pieces: p.pieces.map((x) => ({ id: x.id, kind: x.kind, label: x.label, source: x.source, haveIt: x.haveIt })),
-    })),
+      flags: check.rows.filter((r) => r.status !== 'IN_HAND').map((r) => ({ text: r.text, status: r.status, says: r.says })),
+      nothingToCheck: check.nothingToCheck,
+    }
+    }),
   })
 }
 
