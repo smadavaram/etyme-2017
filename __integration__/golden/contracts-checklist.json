@@ -1,0 +1,63 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "ChecklistItem",
+      "owedSeat": "Contract Manager"
+    },
+    {
+      "kind": "PlacementRecord",
+      "owedSeat": "Contract Manager"
+    },
+    {
+      "kind": "SellContract",
+      "owedSeat": "HR"
+    }
+  ],
+  "mail": [],
+  "recordActions": [
+    {
+      "action": "CHECKLIST_LISTED",
+      "order": 1,
+      "recordType": "SellContract",
+      "summary": "Listed “Bill rate” on Priya Nair’s placement at Golden Busy Customer: no signed paper recorded."
+    },
+    {
+      "action": "CHECKLIST_LISTED",
+      "order": 2,
+      "recordType": "SellContract",
+      "summary": "Listed “Payment terms” on Priya Nair’s placement at Golden Busy Customer: agreed and actual differ."
+    },
+    {
+      "action": "DRIFT_FLAGGED",
+      "order": 3,
+      "recordType": "SellContract",
+      "summary": "Payment terms for Priya Nair at Golden Busy Customer reads Net 45 on the line. The agreed value is Net 30. Look at it? A decision is open. Nothing was changed."
+    },
+    {
+      "action": "CHECKLIST_LISTED",
+      "order": 4,
+      "recordType": "SellContract",
+      "summary": "Listed “Bill rate” on Tom Ruiz’s placement at Golden Second Customer: no signed paper recorded."
+    },
+    {
+      "action": "CHECKLIST_LISTED",
+      "order": 5,
+      "recordType": "SellContract",
+      "summary": "Listed “Bill rate” on Nia Newhire’s placement at Golden Busy Customer: no signed paper recorded."
+    },
+    {
+      "action": "PLACEMENT_RECORD_ASSEMBLED",
+      "order": 6,
+      "recordType": "SellContract",
+      "summary": "Confirm the placement record for Nia Newhire at Golden Busy Customer? A decision is open. Nothing was changed and nothing was signed."
+    },
+    {
+      "action": "PACK_INCOMPLETE_FLAGGED",
+      "order": 7,
+      "recordType": "SellContract",
+      "summary": "Told HR that Nia Newhire starts at Golden Busy Customer with 3 papers missing: Proof of right to work; I-9; Background check."
+    }
+  ],
+  "tasks": []
+}
