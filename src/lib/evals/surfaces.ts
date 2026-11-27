@@ -294,8 +294,6 @@ const matchScoring: Surface<string, { ok: boolean }> = {
 // unverified with a reason, never as a pass that looks verified. The
 // fake deps below are the states this deployment can be in.
 
-const noModel = { modelOn: async () => false, heldSays: async () => null, keySet: () => false }
-
 const skillEvidence: Surface<{ claimed: string[]; keySet: boolean }, { unverified: boolean | null; reason: string | null; asked: boolean }> = {
   key: 'skill-evidence',
   what: 'Checking a CV against the skills claimed for it',
@@ -303,13 +301,10 @@ const skillEvidence: Surface<{ claimed: string[]; keySet: boolean }, { unverifie
   async run(input) {
     let asked = false
     const read = await readSkillEvidence(
-      { companyId: 'eval', personId: null, personName: 'Eval Person', claimed: input.claimed, cvText: 'Built services in Java.' },
+      { companyId: 'eval', personId: null, personName: 'Eval Person', recordId: 'eval', claimed: input.claimed, cvText: 'Built services in Java.' },
       {
-        ...noModel,
-        keySet: () => input.keySet,
-        call: async () => { asked = true; return { text: '', usage: {} as never } },
-        record: (async () => ({ ok: false })) as never,
-        modelId: () => 'eval',
+        heldSays: async () => null,
+        call: async () => { asked = true; return { ok: false, status: 'NOT_CONFIGURED', says: 'Not configured.' } },
       }
     )
     return { unverified: read.finding ? read.finding.unverified === true : null, reason: read.unverifiedBecause, asked }

@@ -256,6 +256,8 @@ export interface MaskVocab {
   people?: readonly string[]
   /** Firms named on the record that the text may mention. */
   firms?: readonly string[]
+  /** Terms that are not a name and are never masked as one: the skills a CV is checked for. */
+  keep?: readonly string[]
 }
 
 export interface ModelMask {
@@ -411,8 +413,10 @@ export function maskForModel(text: string, vocab: MaskVocab = {}): ModelMask {
   }
 
   /** A run of capitalized words in prose, unless every word is a common one. */
+  const keptWords = new Set((vocab.keep ?? []).flatMap((t) => t.toLowerCase().split(/\s+/)).filter(Boolean))
   const byProse = (s: string): string =>
     s.replace(PROSE_NAME, (m) => {
+      if (keptWords.size > 0 && m.split(/\s+/).every((w) => keptWords.has(w.toLowerCase()))) return m
       const words = m.split(/\s+/)
       if (words.every((w) => NOT_A_NAME.has(w.toLowerCase()))) return m
       if (NOT_A_NAME.has(words[0].toLowerCase()) && words.length === 2) return m

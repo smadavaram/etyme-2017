@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as runMatches } from '@/app/api/requirements/[id]/matches/route'
-import { stampModelRun } from '@/lib/checks/skill-evidence'
+import { noteUnverified } from '@/lib/checks/skill-evidence'
 
 /**
  * Skills will write AgentRun rows of their own (records 123, 125). The
@@ -48,12 +48,12 @@ describe('skill rows in the agent ledger leave the match screens unchanged', () 
     expect(withSkill).toBe('RULE')
   }, 120_000)
 
-  it('stamping a scoring pass with its model never touches a skill row for the same record', async () => {
+  it('noting a skipped check on a scoring pass never touches a skill row for the same record', async () => {
     const base = { companyId, agent: 'cv.evidence', recordType: 'SUBMISSION', recordId: 'sub-x', verdict: 'PASS', ms: 1 }
     const pass = await prisma.agentRun.create({ data: { ...base, attempt: 1 } })
     const skill = await prisma.agentRun.create({ data: { ...base, attempt: 1, skillKey: 'cv.read', agentKey: 'x', tier: 'LOW' } })
-    await stampModelRun({ companyId, agent: 'cv.evidence', recordId: 'sub-x', attempt: 1, read: { model: 'm1', usage: { input_tokens: 5, output_tokens: 2 } } as any })
-    expect((await prisma.agentRun.findUniqueOrThrow({ where: { id: pass.id } })).model).toBe('m1')
-    expect((await prisma.agentRun.findUniqueOrThrow({ where: { id: skill.id } })).model).toBeNull()
+    await noteUnverified({ companyId, agent: 'cv.evidence', recordId: 'sub-x', attempt: 1, read: { unverifiedBecause: 'Not configured.' } as any })
+    expect((await prisma.agentRun.findUniqueOrThrow({ where: { id: pass.id } })).failReason).toBe('Unverified: Not configured.')
+    expect((await prisma.agentRun.findUniqueOrThrow({ where: { id: skill.id } })).failReason).toBeNull()
   })
 })

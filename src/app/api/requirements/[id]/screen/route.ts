@@ -5,7 +5,7 @@ import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { runLoop, lastVerdict, type Finding, type Step } from '@/lib/loop'
-import { readSkillEvidence, stampModelRun, type SkillRead } from '@/lib/checks/skill-evidence'
+import { readSkillEvidence, noteUnverified, type SkillRead } from '@/lib/checks/skill-evidence'
 import { evaluateGovernance } from '@/lib/governance'
 import { assessFit } from '@/lib/candidate-fit'
 import { endClientFilter } from '@/lib/resolve-end-client'
@@ -330,6 +330,7 @@ export async function POST(
             companyId,
             personId: realPersonId(caller),
             personName: s.person.name,
+            recordId: s.id,
             claimed,
             cvText,
           })
@@ -349,7 +350,7 @@ export async function POST(
       { companyId, recordId: s.id, attempt }
     )
 
-    await stampModelRun({
+    await noteUnverified({
       companyId, agent: 'submission.screen.skills_evidenced', recordId: s.id, attempt, read: skillRead,
     })
 

@@ -7,7 +7,7 @@ import {
   ruleChecks, marketCheck, MAX_ATTEMPTS,
   type Package,
 } from '@/lib/checks'
-import { readSkillEvidence, stampModelRun, unverifiedSkills, type SkillRead } from '@/lib/checks/skill-evidence'
+import { readSkillEvidence, noteUnverified, unverifiedSkills, type SkillRead } from '@/lib/checks/skill-evidence'
 import { runLoop, lastVerdict, mayProceed, type Finding, type Step } from '@/lib/loop'
 import { band, warnAbout, WINDOW_DAYS, type Observation } from '@/lib/benchmark'
 
@@ -213,6 +213,7 @@ export async function POST(
           personId: realPersonId(caller),
           personName: p.personName,
           claimed: p.claimedSkills,
+          recordId: submission.id,
           cvText,
         })
         return skillRead.finding
@@ -226,8 +227,8 @@ export async function POST(
     { companyId, recordId: submission.id, attempt }
   )
 
-  // The model and its cost go on the ledger row the loop wrote.
-  await stampModelRun({
+  // Where nothing was verified, the loop's row says why; the model and cost are the gateway's row.
+  await noteUnverified({
     companyId, agent: 'submission.check.skills_evidenced', recordId: submission.id, attempt, read: skillRead,
   })
 
