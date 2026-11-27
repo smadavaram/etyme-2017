@@ -2,6 +2,7 @@ import { totals, amount as amountOf } from '@/lib/money-display'
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
+import { outcomeTeamLines } from '@/lib/money/team-lines'
 import { pairsFor, AGREED_SPREAD } from '@/lib/money/margin'
 import { spreadOn, blendedSpread } from '@/lib/money/placement-margin'
 import { resolveOwnCompany } from '@/lib/resolve-client-company'
@@ -313,6 +314,9 @@ export async function GET(request: NextRequest) {
         },
       })
     : []
+  // A member's week of outcome work has no client step: the selling firm's
+  // acceptance is the top, and payroll reads that (record 120, lib/money/team-lines).
+  const outcomeWeeks = await outcomeTeamLines(prisma, notAcceptedSheets.map((t) => t.sellContractId))
 
   // Payroll pays our own employees and nobody else. A worker bought from
   // a supplier, through their own company or as a 1099 individual is paid
@@ -747,6 +751,7 @@ export async function GET(request: NextRequest) {
               week: daySpan(ts.periodStart.toISOString(), ts.periodEnd.toISOString()),
               hours: share.hours,
               clientApproved: ts.clientApprovedAt != null,
+              topIsSeller: outcomeWeeks.has(ts.sellContractId),
               clientName: clientCo?.name ?? null,
               employerName: bc.company?.name ?? null,
             })

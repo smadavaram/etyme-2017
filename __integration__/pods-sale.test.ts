@@ -122,9 +122,10 @@ describe('a team sold as a project, billed on the deliverables the client accept
     const pp = await prisma.podProject.findUniqueOrThrow({ where: { id: r.podProjectId } })
     expect(pp).toMatchObject({ podId: s.pod, projectOrderId: r.projectOrderId, acceptorPersonId: s.acceptor, fulfilledAt: null })
 
-    const lines = await prisma.sellContract.findMany({ where: { projectOrderId: r.projectOrderId }, orderBy: { billRate: 'desc' } })
+    const lines = await prisma.sellContract.findMany({ where: { projectOrderId: r.projectOrderId }, orderBy: { createdAt: 'asc' } })
     expect(lines.map((l) => l.personId)).toEqual(s.people)
-    expect(lines.map((l) => l.billRate)).toEqual([15_000, 9_000])
+    // A milestone sale bills deliverables, so a member's line carries no rate at all (record 120): 0, never an invented one.
+    expect(lines.map((l) => l.billRate)).toEqual([0, 0])
     expect(lines.every((l) => l.state === 'DRAFT' && l.workOrderId === r.workOrderId && l.clientCompanyId === s.client)).toBe(true)
 
     const milestones = await prisma.orderMilestone.findMany({ where: { orderId: r.workOrderId }, orderBy: { sortOrder: 'asc' } })
@@ -214,6 +215,8 @@ describe('a team sold as a project, billed on the deliverables the client accept
 
   it('the same hours do bill once the project is sold on time and materials, so the milestone sale is what held them back', async () => {
     await prisma.projectOrder.update({ where: { id: s.projectOrderId }, data: { kind: 'TIME_AND_MATERIALS' } })
+    // The milestone sale wrote no rate; a time-and-materials sale writes the rate card's. Put it on the line the hours are on.
+    await prisma.sellContract.updateMany({ where: { projectOrderId: s.projectOrderId }, data: { billRate: 15_000 } })
     const company = await prisma.company.findUniqueOrThrow({ where: { id: s.seller }, select: { id: true, name: true, kind: true } })
     const made = await generateBill({ company, person: { id: null, name: 'Ask Etyme' } }, { engagementId: s.engagementId }, { status: 'DRAFT' })
     expect(made.ok, JSON.stringify((made as any).body)).toBe(true)

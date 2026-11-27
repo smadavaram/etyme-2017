@@ -30,6 +30,7 @@ import { orderNumbers, orderNumberAttempt } from '@/lib/award'
 import { headerRhythmFrom, termsFor, AGREEMENT_TERMS_SELECT } from '@/lib/money/order-terms'
 import { nextMasterContractCode } from '@/lib/money/master-contract'
 import { wholeFromMinor } from '@/lib/money'
+import { amount } from '@/lib/money-display'
 import { pastEndDate } from '@/lib/account-lifecycle'
 
 export const SALE_KINDS = ['MILESTONE', 'FIXED_PRICE', 'TIME_AND_MATERIALS'] as const
@@ -47,6 +48,12 @@ export interface SellPodInput {
   priceCents: number
   currency: string
   deliverables: { name: string; amountCents: number; dueOn: Date | null }[]
+  /**
+   * True only where the supplier marked "the team works on your site" and the
+   * client's yes on the offer accepted it. Absent or false is outcome work:
+   * the members' lines are never the client's. Fixed at the sale.
+   */
+  onSite?: boolean
   /** The person at the client whose yes this is. */
   decidedBy: string
 }
@@ -95,7 +102,7 @@ export function saleRefusal(input: SellPodInput, f: SaleFacts): { says: string; 
       return refuse('A time-and-materials team bills hours and has no deliverables. Sell it on milestones or a fixed price to list deliverables.', 'deliverables')
     }
   } else {
-    const amounts = amountsRule(input.priceCents, input.deliverables.map((d) => d.amountCents))
+    const amounts = amountsRule(input.priceCents, input.deliverables.map((d) => d.amountCents), input.currency)
     if (amounts) return refuse(amounts, 'deliverables')
     for (const d of input.deliverables) {
       if (typeof d.name !== 'string' || d.name.trim().length < 2) return refuse('A deliverable needs a name the client will recognize.', 'deliverables')
@@ -254,9 +261,12 @@ export async function sellPod(tx: Prisma.TransactionClient, input: SellPodInput,
   })
 
   // ── One line per member, in draft ───────────────────────────────────
-  // The rate is the role's rate-card rate, or the price shared evenly as a
-  // reference. A line in draft starts through the usual papers; the bill run
-  // never bills a member's hours on a milestone or fixed sale.
+  // A milestone or fixed sale bills deliverables and never hours, so a member's
+  // line carries no rate at all: 0, never an invented figure that a reader
+  // could print as a per-hour rate. A time-and-materials sale bills hours, so
+  // its lines keep the role's rate-card rate, or the price shared evenly.
+  // A line in draft starts through the usual papers.
+  const billsHours = input.kind === 'TIME_AND_MATERIALS'
   const even = Math.max(1, Math.floor(input.priceCents / memberRows.length))
   const sellContractIds: string[] = []
   for (const m of memberRows) {
@@ -269,7 +279,7 @@ export async function sellPod(tx: Prisma.TransactionClient, input: SellPodInput,
         msaId: agreement?.id ?? null,
         workOrderId: order.id,
         projectOrderId: project.id,
-        billRate: pod.pricing === 'RATE_CARD' && m.roleRate ? m.roleRate : even,
+        billRate: !billsHours ? 0 : pod.pricing === 'RATE_CARD' && m.roleRate ? m.roleRate : even,
         billCurrency: input.currency,
         billFrequency: terms.frequency,
         billAnchor: terms.anchor,
@@ -286,7 +296,7 @@ export async function sellPod(tx: Prisma.TransactionClient, input: SellPodInput,
   }
 
   const podProject = await tx.podProject.create({
-    data: { podId: pod.id, projectOrderId: project.id, acceptorPersonId: input.acceptorPersonId },
+    data: { podId: pod.id, projectOrderId: project.id, acceptorPersonId: input.acceptorPersonId, onSite: input.onSite === true },
     select: { id: true },
   })
 
@@ -297,7 +307,10 @@ export async function sellPod(tx: Prisma.TransactionClient, input: SellPodInput,
       data: { orderId: order.id, name: d.name.trim(), amountCents: d.amountCents, dueOn: d.dueOn, sortOrder: i, status: 'PENDING' },
       select: { id: true },
     })
-    await tx.podDeliverable.create({ data: { podProjectId: podProject.id, milestoneId: milestone.id } })
+    // The plan as sold, written once and never edited (record 123): planned versus actual reads it.
+    await tx.podDeliverable.create({
+      data: { podProjectId: podProject.id, milestoneId: milestone.id, baselineDueOn: d.dueOn, baselineAmountCents: d.amountCents },
+    })
     milestoneIds.push(milestone.id)
   }
 
@@ -305,9 +318,9 @@ export async function sellPod(tx: Prisma.TransactionClient, input: SellPodInput,
     data: {
       companyId: input.sellerCompanyId,
       action: 'POD_SOLD',
-      summary: `${pod.name} sold as a project: ${input.deliverables.length} deliverable(s), ${input.priceCents} cents ${input.currency}.`,
+      summary: `${pod.name} sold as a project: ${input.deliverables.length} deliverable(s), ${amount(input.priceCents, input.currency)}.`,
       reason: 'The named acceptor at the client said yes, so the project, its order and its deliverables were written together.',
-      payload: { podProjectId: podProject.id, projectOrderId: project.id, workOrderId: order.id, decidedBy: input.decidedBy, acceptorPersonId: input.acceptorPersonId, kind: input.kind },
+      payload: { podProjectId: podProject.id, projectOrderId: project.id, workOrderId: order.id, decidedBy: input.decidedBy, acceptorPersonId: input.acceptorPersonId, kind: input.kind, onSite: input.onSite === true },
       reversible: false,
     },
   })

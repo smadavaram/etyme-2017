@@ -11,12 +11,14 @@
  * another stays on the one row its own reader prices.
  */
 
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { minorPerUnit } from '@/lib/money'
 import { laddersOver } from '@/lib/work-chain-read'
 import type { AcceptanceRow, ExpenseOnRecord, Leg, LegAgreement } from '@/lib/money/expense-acceptance'
 import { acceptanceChain, waitingOn, APPROVED_BY_EMPLOYER } from '@/lib/money/expense-acceptance'
 import { currencyOfExpense, currencyOfLine, LINE_CURRENCY_SELECT } from '@/lib/expense-currency'
+import { clientLineWhere, outcomeTeamLines } from '@/lib/money/team-lines'
 
 const AGREEMENT = {
   select: {
@@ -69,9 +71,14 @@ export function legOf(row: LegRow): Leg {
 export async function legsOver(sellContractId: string): Promise<Leg[]> {
   const ladder = (await laddersOver([sellContractId])).get(sellContractId) ?? []
   const ids = ladder.length > 0 ? ladder.map((r) => r.sellContractId) : [sellContractId]
-  const rows = await prisma.sellContract.findMany({ where: { id: { in: ids } }, select: LEG_SELECT })
+  const [rows, hidden] = await Promise.all([
+    prisma.sellContract.findMany({ where: { id: { in: ids } }, select: LEG_SELECT }),
+    outcomeTeamLines(prisma, ids),
+  ])
   const by = new Map(rows.map((r) => [r.id, r]))
-  return ids.flatMap((id) => (by.has(id) ? [legOf(by.get(id)!)] : []))
+  // A member's line of outcome work has no client leg: the client never reads it,
+  // so the selling firm's own approval is the top (record 120, pods).
+  return ids.flatMap((id) => (by.has(id) && !hidden.has(id) ? [legOf(by.get(id)!)] : []))
 }
 
 /** Each billed line as one leg: the seller, its payer and the agreement between them. */
@@ -196,7 +203,7 @@ export interface ExpenseToAccept {
  */
 export async function expensesWaitingOn(companyId: string, take = 25): Promise<ExpenseToAccept[]> {
   const paid = await prisma.sellContract.findMany({
-    where: { clientCompanyId: companyId, state: { in: ['IN_PROGRESS', 'ENDED'] } },
+    where: clientLineWhere({ clientCompanyId: companyId, state: { in: ['IN_PROGRESS', 'ENDED'] } }),
     select: { id: true },
     take: 500,
   })
@@ -261,7 +268,8 @@ export async function expensesWaitingOn(companyId: string, take = 25): Promise<E
  * long program costs a list of strings.
  */
 export async function linesBelowPaid(paidWhere: Record<string, unknown>): Promise<Set<string>> {
-  const paid = await prisma.sellContract.findMany({ where: paidWhere, select: { id: true } })
+  // A member's line of outcome work is never the client's to read (record 120): through the one filter.
+  const paid = await prisma.sellContract.findMany({ where: clientLineWhere(paidWhere as Prisma.SellContractWhereInput), select: { id: true } })
   const below = new Set<string>(paid.map((p) => p.id))
   let frontier = paid.map((p) => p.id)
   for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {
@@ -294,9 +302,12 @@ export async function legsOverMany(lineIds: readonly string[]): Promise<Map<stri
     order.set(id, chain)
     chain.forEach((c) => every.add(c))
   }
-  const rows = await prisma.sellContract.findMany({ where: { id: { in: [...every] } }, select: LEG_SELECT })
+  const [rows, hidden] = await Promise.all([
+    prisma.sellContract.findMany({ where: { id: { in: [...every] } }, select: LEG_SELECT }),
+    outcomeTeamLines(prisma, [...every]),
+  ])
   const by = new Map(rows.map((r) => [r.id, legOf(r)]))
-  for (const [id, chain] of order) out.set(id, chain.flatMap((c) => (by.has(c) ? [by.get(c)!] : [])))
+  for (const [id, chain] of order) out.set(id, chain.flatMap((c) => (by.has(c) && !hidden.has(c) ? [by.get(c)!] : [])))
   return out
 }
 

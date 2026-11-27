@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { lineDates } from '@/lib/money/line-dates'
+import { isTeamLine, printsRate, visibleToReader } from '@/lib/money/team-lines'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import type { Prisma } from '@prisma/client'
 import { rate } from '@/lib/money-display'
@@ -1208,7 +1209,9 @@ export async function GET(request: NextRequest) {
   // AND, never a spread. Both fragments express themselves as OR, and
   // spreading one over the other keeps only the second — which is how a
   // walled manager briefly saw every contract on the platform.
-  const where: any = andAll(scope, wall.where)
+  // A member's line of outcome work is read only by the firm that sells it (record 120).
+  const readerCompanyId = reading?.companyId ?? caller.company?.id ?? null
+  const where: any = andAll(!isConsultant && readerCompanyId ? visibleToReader(scope as any, readerCompanyId) as any : scope, wall.where)
   if (state) where.state = state.toUpperCase()
   if (filterPersonId) where.personId = filterPersonId
   // A delivery engineer reads the lines that name him, never his
@@ -1236,7 +1239,7 @@ export async function GET(request: NextRequest) {
             _count: { select: { sellContracts: true } },
           },
         },
-        projectOrder: { select: { id: true, code: true, name: true, status: true } },
+        projectOrder: { select: { id: true, code: true, name: true, status: true, podProject: { select: { onSite: true } } } },
         // The buy line that funds it: who we pay, or nobody where we
         // employ the person and payroll pays them.
         buyLinks: {
@@ -1327,7 +1330,7 @@ export async function GET(request: NextRequest) {
               lines: c.workOrder._count.sellContracts,
             }
           : null,
-        masterContract: c.projectOrder,
+        masterContract: c.projectOrder ? { id: c.projectOrder.id, code: c.projectOrder.code, name: c.projectOrder.name, status: c.projectOrder.status } : null,
         // True where the client reads its own line: the screen says nothing
         // of a pair, never "no line on the other side", which would be false.
         pairedWithHidden: !!billViewer.companyId && billViewer.companyId === c.clientCompanyId && c.clientCompanyId !== c.companyId,
@@ -1359,9 +1362,10 @@ export async function GET(request: NextRequest) {
         // own contracts — the right rows — and the rows carried the bill
         // rate anyway. Whose rate a caller may read is the same question
         // `/api/placements/[id]` already asks before it renders one.
-        billRate: seesBill(c) ? c.billRate : null,
+        billRate: seesBill(c) && printsRate(c, billViewer.companyId) ? c.billRate : null,
         billCurrency: isConsultant ? null : c.billCurrency,
         billWithheld: !isConsultant && !seesBill(c),
+        billedByDeliverable: isTeamLine(c),
         startDate: c.startDate.toISOString(),
         endDate: c.endDate?.toISOString() ?? null,
         timesheets: c._count.timesheets,

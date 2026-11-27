@@ -182,10 +182,16 @@ export function notAcceptedSays(w: {
   clientApproved: boolean
   clientName: string | null
   employerName: string | null
+  /**
+   * True on a member's week of outcome work: the client buys deliverables and
+   * never reads the week, so the selling firm's acceptance is the top rung
+   * (`topSignerFor`). The sentence never names a client step or the client.
+   */
+  topIsSeller?: boolean
 }): string {
   const hours = Math.round(w.hours * 100) / 100
   const employer = w.employerName ?? 'your firm'
-  const until = w.clientApproved
+  const until = w.clientApproved || w.topIsSeller
     ? `${employer} accepts it`
     : `${w.clientName ?? 'the client'} approves it and ${employer} accepts it`
   return `${w.personName}'s week of ${w.week}, ${hours} hours, is not in this pay until ${until}.`

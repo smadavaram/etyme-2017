@@ -11,6 +11,7 @@ import {
   type ActingDesk, type LiveSeat,
 } from '@/lib/program-seat'
 import { invoiceBetween } from './invoice-parties'
+import { clientLineWhere } from './team-lines'
 import type { CallerContext } from '@/lib/api-context'
 
 /**
@@ -148,7 +149,7 @@ export function whoseBooks(input: BooksInput): BooksDecision {
     companyKind: client.kind,
     // The client's own scope, which is the rung the client pays and no
     // rung below it.
-    sellContractWhere: { clientCompanyId: client.id, ...unit },
+    sellContractWhere: clientLineWhere({ clientCompanyId: client.id, ...unit }),
     buyContractWhere: { companyId: client.id },
     invoiceWhere: invoiceBetween(client.id),
     // A sentence, never a parameter. The way back to the office's own

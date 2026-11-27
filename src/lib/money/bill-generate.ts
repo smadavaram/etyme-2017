@@ -33,6 +33,7 @@ import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { waitsForAStart, waitingForStartSays, START_STEP_HREF, START_STEP_LABEL } from '@/lib/money/pod-waits-for-start'
 import { milestoneOnlyLines } from '@/lib/money/milestone-only-lines'
+import { outcomeTeamLines } from '@/lib/money/team-lines'
 import { payToOnBill } from '@/lib/money/pay-to'
 import { completeCycles } from '@/lib/cycle-complete'
 import { sortForBill, expenseLine, expenseTotal, type LeftOff } from '@/lib/expense-billing'
@@ -800,6 +801,12 @@ export async function generateBill(caller: BillCaller, body: Record<string, any>
         include: BILL_EXPENSE_INCLUDE,
         orderBy: { periodEnd: 'asc' },
       })
+
+  // An expense on a member's line of outcome work is the supplier's own cost:
+  // the client buys deliverables and never reads the member, so the expense is
+  // never on its bill, by whichever query found it (record 120, pods).
+  const outcomeExpenseLines = await outcomeTeamLines(prisma, [...new Set(expenseRows.map((e) => e.sellContractId))])
+  if (outcomeExpenseLines.size > 0) expenseRows = expenseRows.filter((e) => !outcomeExpenseLines.has(e.sellContractId))
 
   // ── Milestones accepted under this engagement's orders ──────────────
   //
