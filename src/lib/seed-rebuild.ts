@@ -173,6 +173,8 @@ export const DELETE_ORDER = [
   'PodDeliverable', 'PodProject', 'PodMember', 'PodRole', 'Pod',
   // Public-sector proposals (record 124): a piece names its proposal, so it goes first.
   'ProposalPiece', 'Proposal',
+  // Supplier diversity (record 132): a certification names its paper, so it goes before the paper; nothing names the rest.
+  'SupplierCertification', 'OwnershipAttestation', 'DiversityRegistration',
   'DocumentShareItem', 'DocumentShareAccess', 'SiteCompliancePass', 'DocFile', 'WeekApprovalFile', 'WeekApprovalContract', 'DocumentRequirement', 'ImportRow', 'Holiday',
   'PacketItem', 'WebhookDelivery', 'CompanyDomain', 'SubdomainAlias', 'CustomDomain', 'Check', 'TextMessage',
   'CreditNote', 'PaymentRunItem', 'ClassificationCall', 'ExemptAssertion', 'MarketingLead',
@@ -264,6 +266,14 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'Proposal.approvedById': { as: 'LINK', to: ['Person'] },
   'Proposal.submittedById': { as: 'LINK', to: ['Person'] },
   'ProposalPiece.proposalId': { as: 'OWNED', to: ['Proposal'] },
+  'SupplierCertification.companyId': { as: 'OWNED', to: ['Company'] },
+  'SupplierCertification.documentId': { as: 'LINK', to: ['DocInstance'] },
+  'SupplierCertification.setById': { as: 'LINK', to: ['Person'] },
+  'OwnershipAttestation.companyId': { as: 'OWNED', to: ['Company'] },
+  'OwnershipAttestation.attestedById': { as: 'LINK', to: ['Person'] },
+  'DiversityRegistration.companyId': { as: 'OWNED', to: ['Company'] },
+  'DiversityRegistration.createdById': { as: 'LINK', to: ['Person'] },
+  'DiversityRegistration.submittedById': { as: 'LINK', to: ['Person'] },
   'SiteCompliancePass.companyId': { as: 'OWNED', to: ['Company'] },
   'SiteCompliancePass.recordedById': { as: 'LINK', to: ['Person'] },
   'SiteCompliancePass.documentId': { as: 'LINK', to: ['DocInstance'] },

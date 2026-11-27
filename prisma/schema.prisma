@@ -317,6 +317,10 @@ model Person {
   proposalsCreated             Proposal[]            @relation("proposalCreator")
   proposalsApproved            Proposal[]            @relation("proposalApprover")
   proposalsSubmitted           Proposal[]            @relation("proposalSubmitter")
+  certificationsSet               SupplierCertification[] @relation("certificationSetter")
+  ownershipAttestations           OwnershipAttestation[]  @relation("ownershipAttester")
+  diversityRegsMade    DiversityRegistration[] @relation("diversityRegistrationCreator")
+  diversityRegsSubmitted DiversityRegistration[] @relation("diversityRegistrationSubmitter")
   /// Her own yes to updates from firms (record 117). Given by her, revocable. A yes counts only while updatesRevokedAt is null or older than updatesYesAt.
   updatesYesAt                 DateTime?
   updatesRevokedAt             DateTime?
@@ -1050,6 +1054,9 @@ model Company {
   /// The fingerprint of the stored branding values (logo, colors, font) when the Owner said yes. The yes counts only while it equals the fingerprint of the values stored now.
   siteBrandingApprovedHash   String?
   proposals                  Proposal[]
+  certifications             SupplierCertification[]
+  ownershipAttestations      OwnershipAttestation[]
+  diversityRegistrations     DiversityRegistration[]
   skillTargets               SkillTarget[]
   /// Hides this firm's courses on its storefront whatever its plugin says
   /// (record 120, answer 3). A per-tenant setting; Tapin's is true.
@@ -8057,6 +8064,7 @@ model DocInstance {
 
   adverseActions       AdverseAction[]
   siteCompliancePasses SiteCompliancePass[]
+  supplierCertifications SupplierCertification[]
 
   @@index([subjectType, subjectId, status])
   @@index([templateId])
@@ -11944,6 +11952,10 @@ model Proposal {
   requirements  String?
   /// The deadline the person typed. Null is not known, and never guessed.
   dueAt         DateTime?
+  /// Set-aside bids (record 132): the certification the solicitation requires, as a person read it. Null is an open bid.
+  requiresCertification     CertificationKind?
+  /// The certifier's own name for it, where requiresCertification is OTHER.
+  requiresCertificationName String?
   state         ProposalState   @default(DRAFT)
   /// The drafted response. Words only; the person edits it before approving.
   draft         String?
@@ -11996,4 +12008,112 @@ model ProposalPiece {
   chasedAt   DateTime?
 
   @@index([proposalId])
+}
+
+// ── Supplier diversity, the second half of plugin 5 (record 132) ────────
+// Everything below is written by a person. The agent reads these rows and
+// drafts from them; it never writes a certification, an ownership fact or a
+// "submitted" mark. The legal entity name a bid is made in is the existing
+// Company.legalName, entered by the Owner; no name is written in code.
+
+enum CertificationKind {
+  MBE
+  WBE
+  EIGHT_A
+  HUBZONE
+  OTHER
+}
+
+enum CertificationStatus {
+  NOT_HELD
+  APPLIED
+  HELD
+  LAPSED
+}
+
+/// A certification on the tenant (record 132). Only HELD, with a certificate
+/// on file and an expiry day not yet past, counts as held (`lib/diversity`).
+/// Set by the Owner or a seat she grants, never by an agent; each change is
+/// an event on the record ledger. Expiry flips HELD to LAPSED by date, with
+/// an event, never silently.
+model SupplierCertification {
+  id         String              @id @default(cuid())
+  companyId  String
+  company    Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind       CertificationKind
+  /// The certification's own name, where kind is OTHER.
+  otherName  String?
+  /// The body that certifies it, as the Owner typed it.
+  certifier  String?
+  status     CertificationStatus @default(NOT_HELD)
+  number     String?
+  issuedOn   DateTime?
+  expiresOn  DateTime?
+  /// The certificate as a paper: a DocInstance with its DocFile. Null reads as not on file.
+  documentId String?
+  document   DocInstance?        @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  setById    String
+  setBy      Person              @relation("certificationSetter", fields: [setById], references: [id])
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@index([companyId, kind])
+  @@index([documentId])
+  @@index([setById])
+}
+
+/// An ownership fact (for example minority-owned) as the Owner's own
+/// attestation, with who and when (record 132). Append-only: a withdrawal is
+/// a new row with attested false, and the newest row for a fact is the answer.
+/// The agent never asserts one and never writes this table.
+model OwnershipAttestation {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// MINORITY_OWNED · WOMAN_OWNED · VETERAN_OWNED · OTHER, as `lib/diversity` names them.
+  fact         String
+  attested     Boolean
+  attestedById String
+  attestedBy   Person   @relation("ownershipAttester", fields: [attestedById], references: [id])
+  attestedAt   DateTime @default(now())
+  note         String?
+
+  @@index([companyId, fact, attestedAt])
+  @@index([attestedById])
+}
+
+enum RegistrationStatus {
+  NOT_STARTED
+  DRAFTED
+  SUBMITTED
+}
+
+/// A registration on one buyer's supplier-diversity portal (record 132). The
+/// agent drafts the answers from the firm's own record; a person submits on
+/// the portal, outside Etyme, and marks it here. Etyme submits nothing.
+model DiversityRegistration {
+  id            String             @id @default(cuid())
+  companyId     String
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// The buyer as the person typed it. Never read from a register.
+  buyerName     String
+  portalUrl     String?
+  status        RegistrationStatus @default(NOT_STARTED)
+  /// The portal's questions, pasted by a person. The agent reads this and nothing outside Etyme.
+  questions     String?
+  /// The answers the agent drafted from the record. A person edits before submitting.
+  answers       String?
+  draftedAt     DateTime?
+  createdById   String
+  createdBy     Person             @relation("diversityRegistrationCreator", fields: [createdById], references: [id])
+  /// A person saying she submitted it on the portal, and when.
+  submittedById String?
+  submittedBy   Person?            @relation("diversityRegistrationSubmitter", fields: [submittedById], references: [id])
+  submittedAt   DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([companyId, status])
+  @@index([createdById])
+  @@index([submittedById])
 }

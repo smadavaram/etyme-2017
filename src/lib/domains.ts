@@ -671,6 +671,8 @@ export const DOMAINS: Domain[] = [
       // Public-sector proposals (record 124, plugin 5): the states a proposal may
       // move through and who may move it, and the routes behind the switch.
       'lib/proposals', 'app/api/proposals', 'app/dashboard/proposals',
+      // Supplier diversity (record 132, plugin 5): certifications, the Owner's ownership attestation and portal registrations.
+      'lib/diversity', 'app/api/diversity',
       // Day 61 unpaid: the one read-only rule, its switch and the writes that stay open.
       'lib/tenant-state',
       // One order, three names, and the rule for a counterparty that is
