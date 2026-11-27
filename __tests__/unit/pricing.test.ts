@@ -129,6 +129,12 @@ describe('a tenant’s own statement', () => {
     expect(s.dueMonthlyCents).toBe(29985)
     expect(s.says).toContain('read-only')
   })
+  it('a tenant not activated yet owes nothing', () => {
+    const s = statementOf({ ...i, activatedAt: null, now: D('2027-06-01T00:00:00Z') })
+    expect(s.trial.state).toBe('NO_CLOCK')
+    expect(s.dueMonthlyCents).toBe(0)
+    expect(s.says).toContain('the 60 days have not started')
+  })
   it('prints usage as not priced, never as zero', () => {
     const s = statementOf({ ...i, now: D('2026-12-10T00:00:00Z') })
     expect(s.usage).toEqual({ cents: null, says: USAGE_SAYS })

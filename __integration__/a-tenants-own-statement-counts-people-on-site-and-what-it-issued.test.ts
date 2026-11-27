@@ -29,6 +29,23 @@ describe('a tenant’s own statement, read from the seeded record', () => {
     expect(s!.ownBusiness.pays).toBe(true)
   })
 
+  it('an invoice another firm issued on a shared engagement never makes a free user pay', async () => {
+    const issued = await prisma.invoice.findFirst({
+      where: { issuedAt: { not: null }, invoiceLines: { some: {} }, engagement: { sellContracts: { some: {} } } },
+      select: { engagementId: true, invoiceLines: { select: { sellContract: { select: { companyId: true } } }, take: 1 } },
+    })
+    const issuer = issued!.invoiceLines[0].sellContract!.companyId
+    const theirLine = await prisma.sellContract.findFirstOrThrow({ where: { engagementId: issued!.engagementId, companyId: issuer } })
+    const other = await prisma.company.create({ data: { name: 'Shared Engagement Bystander', slug: 'shared-engagement-bystander', kind: 'VENDOR' }, select: { id: true } })
+    const { id: _id, ...copy } = theirLine
+    await prisma.sellContract.create({ data: { ...copy, companyId: other.id, state: 'DRAFT' } as never })
+    const s = await readOwnStatement(other.id)
+    expect(s!.ownBusiness.placements).toBe(0)
+    expect(s!.ownBusiness.invoices).toBe(0)
+    expect(s!.ownBusiness.pays).toBe(false)
+    expect((await readOwnStatement(issuer))!.ownBusiness.invoices).toBeGreaterThan(0)
+  })
+
   it('a company that does not exist has no statement', async () => {
     expect(await readOwnStatement('nobody')).toBeNull()
   })

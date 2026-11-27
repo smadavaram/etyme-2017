@@ -3,7 +3,9 @@
  * and what is due. A statement, never a payment (Etyme never moves money).
  * The pure part is `statementOf`; `readOwnStatement` reads the record.
  */
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
 import { amount } from '@/lib/money-display'
 import { onSiteOf, headcount } from '@/app/api/program/figures'
 import {
@@ -18,7 +20,7 @@ export interface Statement {
   ownBusiness: { placements: number; invoices: number; pays: boolean }
   /** What the edition comes to; null where the headcount is not a count. */
   charge: EditionCharge | null
-  /** Due this month: nothing on trial, exempt or free; the month's charge once paying. Null where unknown. */
+  /** Due this month: nothing on trial, before activation, exempt or free; the month's charge once paying. Null where unknown. */
   dueMonthlyCents: number | null
   prepaid: boolean
   usage: { cents: number | null; says: string }
@@ -38,7 +40,7 @@ export function statementOf(i: {
 }): Statement {
   const trial = trialOf(i)
   const charge = editionCharge(i.edition, i.activeContractors)
-  const owes = trial.state === 'PAID' || trial.state === 'UNPAID' || trial.state === 'NO_CLOCK'
+  const owes = trial.state === 'PAID' || trial.state === 'UNPAID'
   const dueMonthlyCents = charge == null ? null : owes ? charge.monthlyCents : 0
   const money = (c: EditionCharge | null) => (c ? amount(c.monthlyCents) : 'not known')
   const says =
@@ -77,7 +79,7 @@ export async function readOwnStatement(companyId: string, now: Date = new Date()
     prisma.sellContract.findMany({ where: side, select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, billRate: true, billCurrency: true } }),
     prisma.sellContract.count({ where: { companyId, state: { not: 'DRAFT' } } }),
     prisma.invoice.count({
-      where: { issuedAt: { not: null }, engagement: { sellContracts: { some: { companyId } } } },
+      where: { issuedAt: { not: null }, ...(invoicesRaisedBy(companyId) as Prisma.InvoiceWhereInput) },
     }),
   ])
   const { activeContractors } = headcount(lines, onSiteOf(lines))
