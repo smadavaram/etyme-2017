@@ -9,6 +9,7 @@ import {
   scorecard, order, nothingScoredSays, WINDOW_DAYS, type Sent, type Put,
 } from '@/lib/scorecard'
 import type { Reason } from '@/lib/outcomes'
+import { clientLineWhere } from '@/lib/money/team-lines'
 
 /**
  * GET /api/vendors/scorecards — what your suppliers are like to work with
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
   // Who actually started. A submission's own status is the pipeline's
   // view and can lag; a contract is the fact.
   const placements = await prisma.sellContract.findMany({
-    where: { clientCompanyId: companyId, startDate: { gte: since } },
+    where: clientLineWhere({ clientCompanyId: companyId, startDate: { gte: since } }),
     select: { personId: true, companyId: true },
   })
   const placed = new Set(placements.map((p) => `${p.companyId}:${p.personId}`))

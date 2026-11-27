@@ -180,7 +180,6 @@ const NOT_A_CLIENT_READER: [string, string][] = [
  */
 const KNOWN_OPEN: [string, string][] = [
   ['src/lib/supplier-desks.ts', 'finds one line to read a supplier’s terms; no figure or name of a member is printed; owner of lib/supplier-desks'],
-  ['src/app/api/vendors/scorecards/route.ts', 'counts who started from each supplier by the client’s lines, a hidden member among them; SUPPLY owns it, the change is clientLineWhere on line 89'],
 ]
 
 function walk(dir: string, out: string[] = []): string[] {
