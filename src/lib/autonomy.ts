@@ -1113,6 +1113,23 @@ export const TWIN_ACTS: Record<string, TwinAct> = {
     says: 'Read another company\u2019s data.',
     money: false, external: true, reversible: false, decides: false, drafts: false, floor: true,
   },
+  // Public-sector proposals (record 124): the agent drafts and chases; these
+  // three are never its. A person approves and sends, and signs.
+  'proposal.submit': {
+    kinds: ['SUPPLIER'],
+    says: 'Send a public-sector proposal to the agency.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'proposal.sign': {
+    kinds: ['SUPPLIER'],
+    says: 'Sign a public-sector proposal or its certifications for the firm.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'proposal.publish_compliance_copy': {
+    kinds: ['SUPPLIER'],
+    says: 'Publish compliance wording in a public-sector proposal as the firm\u2019s own statement.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
   'approval.decide': {
     says: 'Answer a question the twin itself put to a person.',
     money: false, external: false, reversible: false, decides: true, drafts: false, floor: true,

@@ -105,6 +105,11 @@ export const EVENT_TYPES = [
   'site.compliance_pass_required_set',
   'site.compliance_pass_recorded',
 
+  // Public-sector proposals (record 124): only a person's acts are events
+  'proposal.started',
+  'proposal.approved',
+  'proposal.submitted_by_person',
+
   // Compliance
   'verification.recorded',
   'verification.expired',

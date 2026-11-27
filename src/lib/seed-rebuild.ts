@@ -171,6 +171,8 @@ export const DELETE_ORDER = [
   'Assessment', 'Certification', 'BenchAsk', 'Enrollment',
   // Project teams (record 120): a deliverable names its project and milestone, a project its team and order, a member its role; all before the milestone, the order, the person and the firm.
   'PodDeliverable', 'PodProject', 'PodMember', 'PodRole', 'Pod',
+  // Public-sector proposals (record 124): a piece names its proposal, so it goes first.
+  'ProposalPiece', 'Proposal',
   'DocumentShareItem', 'DocumentShareAccess', 'SiteCompliancePass', 'DocFile', 'WeekApprovalFile', 'WeekApprovalContract', 'DocumentRequirement', 'ImportRow', 'Holiday',
   'PacketItem', 'WebhookDelivery', 'CompanyDomain', 'SubdomainAlias', 'CustomDomain', 'Check', 'TextMessage',
   'CreditNote', 'PaymentRunItem', 'ClassificationCall', 'ExemptAssertion', 'MarketingLead',
@@ -257,6 +259,11 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   // A company's own model route: the provider's name for the model, and the Owner who set it, are history, no row's key.
   'TenantModelRoute.modelId': { as: 'RECORD' },
   'TenantModelRoute.setByPersonId': { as: 'RECORD' },
+  'Proposal.companyId': { as: 'OWNED', to: ['Company'] },
+  'Proposal.createdById': { as: 'LINK', to: ['Person'] },
+  'Proposal.approvedById': { as: 'LINK', to: ['Person'] },
+  'Proposal.submittedById': { as: 'LINK', to: ['Person'] },
+  'ProposalPiece.proposalId': { as: 'OWNED', to: ['Proposal'] },
   'SiteCompliancePass.companyId': { as: 'OWNED', to: ['Company'] },
   'SiteCompliancePass.recordedById': { as: 'LINK', to: ['Person'] },
   'SiteCompliancePass.documentId': { as: 'LINK', to: ['DocInstance'] },

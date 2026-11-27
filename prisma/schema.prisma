@@ -314,6 +314,9 @@ model Person {
   authenticatorApps            AuthenticatorApp[]
   siteBrandingApprovals        Company[]             @relation("siteBrandingApprover")
   siteCompliancePassesRecorded SiteCompliancePass[]  @relation("siteCompliancePassRecorder")
+  proposalsCreated             Proposal[]            @relation("proposalCreator")
+  proposalsApproved            Proposal[]            @relation("proposalApprover")
+  proposalsSubmitted           Proposal[]            @relation("proposalSubmitter")
 
   @@index([name])
   @@index([createdAt])
@@ -1030,6 +1033,7 @@ model Company {
   /// Whether this firm's business requires a compliance pass before its site goes public. A per-firm setting, off until the Owner says so.
   siteCompliancePassRequired Boolean                 @default(false)
   siteCompliancePasses       SiteCompliancePass[]
+  proposals                  Proposal[]
   skillTargets               SkillTarget[]
   /// Hides this firm's courses on its storefront whatever its plugin says
   /// (record 120, answer 3). A per-tenant setting; Tapin's is true.
@@ -11904,4 +11908,65 @@ model SkillTarget {
   @@unique([companyId, subjectKind, subjectKey, period])
   @@index([companyId])
   @@index([setById])
+}
+
+/// A public-sector proposal the firm is working on (record 124, plugin 5).
+/// Drafted from the firm's own record; a person approves and a person
+/// records that they submitted it. The agent never writes APPROVED or
+/// SUBMITTED, and `lib/proposals/rules` is the one door that says so.
+model Proposal {
+  id            String          @id @default(cuid())
+  companyId     String
+  company       Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// The solicitation's own title or number, as the person typed it.
+  title         String
+  /// The agency asking, as typed. Never read from a register.
+  buyer         String?
+  /// The deadline the person typed. Null is not known, and never guessed.
+  dueAt         DateTime?
+  state         ProposalState   @default(DRAFT)
+  /// The drafted response. Words only; the person edits it before approving.
+  draft         String?
+  createdById   String
+  createdBy     Person          @relation("proposalCreator", fields: [createdById], references: [id])
+  approvedById  String?
+  approvedBy    Person?         @relation("proposalApprover", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  /// A person saying they sent it to the agency, outside Etyme. Etyme sends nothing.
+  submittedById String?
+  submittedBy   Person?         @relation("proposalSubmitter", fields: [submittedById], references: [id])
+  submittedAt   DateTime?
+  pieces        ProposalPiece[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([companyId, state])
+  @@index([createdById])
+  @@index([approvedById])
+  @@index([submittedById])
+}
+
+enum ProposalState {
+  DRAFT
+  NEEDS_PIECES
+  READY_FOR_PERSON
+  APPROVED
+  SUBMITTED
+}
+
+/// One piece a proposal needs from the firm's own record, and whether the firm has it.
+model ProposalPiece {
+  id         String    @id @default(cuid())
+  proposalId String
+  proposal   Proposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  /// BENCH · COMPLIANCE · RATES · PAST_PERFORMANCE
+  kind       String
+  label      String
+  /// Where the firm's own record holds it. Null while missing.
+  source     String?
+  haveIt     Boolean   @default(false)
+  /// Last time somebody inside the firm was told it is missing.
+  chasedAt   DateTime?
+
+  @@index([proposalId])
 }
