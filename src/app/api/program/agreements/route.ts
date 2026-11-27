@@ -1,3 +1,4 @@
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { NextRequest, NextResponse } from 'next/server'
 import {
   mayReadPayOf, payTrail, PAY_WITHHELD_SAYS, mayReadBillRate, billTrail, BILL_WITHHELD_SAYS,
@@ -80,6 +81,11 @@ export async function GET(request: NextRequest) {
   // two refreshes.
   const now = new Date()
 
+  // A member of a team sold as outcome work is never the client's to read
+  // (record 120, pods), on the lines, the engagement counts and the
+  // people swept for the access log alike. The selling firm reads its own.
+  const lineReadable = { OR: [{ companyId }, clientLineWhere()] }
+
   const agreements = await prisma.masterAgreement.findMany({
     where: { OR: [{ vendorId: companyId }, { clientId: companyId }] },
     select: {
@@ -119,10 +125,11 @@ export async function GET(request: NextRequest) {
           invoiceCycle: true,
           statementOfWork: true,
           sowSignedAt: true,
-          sellContracts: { select: { id: true, state: true } },
+          sellContracts: { where: lineReadable, select: { id: true, state: true } },
         },
       },
       sellContracts: {
+        where: lineReadable,
         select: {
           id: true,
           state: true,
