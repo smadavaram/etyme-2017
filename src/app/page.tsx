@@ -178,6 +178,7 @@ export default function LandingPage() {
               <h2 className="mb-3.5 text-[34px] font-semibold leading-[1.12]" style={GELASIO}>{PRICE.heading}</h2>
               <p className="text-[17.5px] leading-[1.65]">{PRICE.body}</p>
               <a href={START_FREE.href} className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-white px-6 py-3 text-[16px] font-semibold text-etyme-action-press hover:opacity-90">{PRICE.button}</a>
+              <a href={PRICE.rateCard.href} className="mt-4 block text-[15.5px] font-semibold text-white underline underline-offset-4 hover:opacity-90">{PRICE.rateCard.t}</a>
             </div>
             <div className={`px-[30px] py-7 ${CARD}`}>
               <h3 className="mb-3 text-[20px] font-semibold" style={GELASIO}>{PRICE.notHeading}</h3>

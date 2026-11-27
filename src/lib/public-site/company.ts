@@ -40,6 +40,7 @@
  */
 
 import { ADDRESS } from './nav'
+import { PRICING_BLOCKS, PRICING_LEDE } from './pricing-words'
 
 export interface Block {
   id: string
@@ -75,7 +76,7 @@ export const TWO_WAYS: { label: string; says: string }[] = [
 ]
 
 export interface CompanyPage {
-  route: '/about' | '/contact' | '/security'
+  route: '/about' | '/contact' | '/security' | '/pricing'
   eyebrow: string
   title: string
   lede: string
@@ -215,7 +216,15 @@ export const SECURITY: CompanyPage = {
   ],
 }
 
-export const COMPANY_PAGES: CompanyPage[] = [ABOUT, CONTACT, SECURITY]
+export const PRICING: CompanyPage = {
+  route: '/pricing',
+  eyebrow: 'Price',
+  title: 'Price',
+  lede: PRICING_LEDE,
+  blocks: PRICING_BLOCKS,
+}
+
+export const COMPANY_PAGES: CompanyPage[] = [ABOUT, CONTACT, SECURITY, PRICING]
 
 /** Every word a reader sees on a company page, split at the fold. */
 export function copyOfCompanyPage(p: CompanyPage): { hero: string[]; body: string[] } {

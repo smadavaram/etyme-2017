@@ -113,6 +113,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
 
   { route: '/security', title: 'Security position', kind: 'COMPANY', routeFile: `${SITE_GROUP}/security/page.tsx` },
   { route: '/about', title: 'About Etyme', kind: 'COMPANY', routeFile: `${SITE_GROUP}/about/page.tsx` },
+  { route: '/pricing', title: 'Price', kind: 'COMPANY', routeFile: `${SITE_GROUP}/pricing/page.tsx` },
   { route: '/contact', title: 'Contact', kind: 'COMPANY', routeFile: `${SITE_GROUP}/contact/page.tsx` },
 
   ...PARTY_PAGES.map((p) => ({

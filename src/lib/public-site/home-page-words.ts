@@ -96,8 +96,9 @@ export const DOORS = {
 export const PRICE = {
   kicker: 'Founding firms',
   heading: 'Price',
-  body: 'Free for the first five firms. No card, no contract — we set it up with you. Founding firms keep their terms when pricing starts. No cost for suppliers and contractors to join.',
+  body: 'Free for the first five firms. Enterprise free for 60 days. No card, no contract — we set it up with you. Founding firms keep their terms when pricing starts. No cost for suppliers and contractors to join.',
   button: 'Claim a founding spot — Start free',
+  rateCard: { t: 'See the rate card', href: '/pricing' },
   notHeading: "What Etyme doesn't do yet",
   not: [
     { b: 'No SOC 2 yet.', t: "We're a small team building in the open — ask us what we do today before you rely on us." },
@@ -141,7 +142,7 @@ export function homeBodyLines(sample: string[] = []): string[] {
     GUARANTEE.kicker, GUARANTEE.heading, GUARANTEE.sub, ...GUARANTEE.items, GUARANTEE.cta, GUARANTEE.ctaLine,
     FEATURES,
     DOORS.kicker, DOORS.heading, ...DOORS.items.flatMap((d) => [d.h, d.p]), DOORS.noteLead, DOORS.note, DOORS.cta, DOORS.ctaLine,
-    PRICE.kicker, PRICE.heading, PRICE.body, PRICE.button, PRICE.notHeading, ...PRICE.not.flatMap((n) => [n.b, n.t]),
+    PRICE.kicker, PRICE.heading, PRICE.body, PRICE.button, PRICE.rateCard.t, PRICE.notHeading, ...PRICE.not.flatMap((n) => [n.b, n.t]),
     START.kicker, START.heading, START.lead, ...START.points, `${START.talkLead} ${START.address} ${START.talkTail}`,
     START.panelHeading, START.panelLine, START_FREE.t,
     SAMPLE_NOTE,
