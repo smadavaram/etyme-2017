@@ -17,6 +17,7 @@
  * No agent is registered by this file. The registry starts empty.
  */
 
+import { tenantIsReadOnly, READ_ONLY_SAYS } from '@/lib/tenant-state'
 import { prisma } from '@/lib/db'
 import { writeRecordAction } from '@/lib/record-ledger'
 import { reportError } from '@/lib/alerts'
@@ -94,6 +95,12 @@ export async function runAgent(agentKey: string, companyId: string, now: Date = 
         personId: sw.changedById, heldAs: AGENT_HELD_AS, agentKey, ruleVersion,
       })
     } catch { /* the incident below is the record where the ledger will not take it */ }
+  }
+
+  // Day 61 unpaid: the tenant's agents stop (lib/tenant-state). Nothing is deleted.
+  if (await tenantIsReadOnly(companyId, now)) {
+    await note('NOT_RUN', READ_ONLY_SAYS, null)
+    return { ran: false, why: READ_ONLY_SAYS, acts: 0 }
   }
 
   if (!sw || sw.state === 'OFF') {

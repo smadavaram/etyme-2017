@@ -664,6 +664,8 @@ export const DOMAINS: Domain[] = [
       // The per-tenant plugin switch (record 120): the state, who may switch,
       // and the one refusal every plugin's routes say. Every plugin reads it.
       'lib/plugins', 'lib/plugin-gate',
+      // Day 61 unpaid: the one read-only rule, its switch and the writes that stay open.
+      'lib/tenant-state',
       // One order, three names, and the rule for a counterparty that is
       // not on the system. Both are read by money, demand and the
       // platform's own routes at once, so they queue here with the

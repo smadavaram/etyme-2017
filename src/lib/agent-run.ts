@@ -26,6 +26,7 @@
  * down on every run, so both are written down on every run.
  */
 
+import { tenantIsReadOnly, READ_ONLY_SAYS } from '@/lib/tenant-state'
 import { priceFromRegister } from '@/lib/model-gateway/register'
 import { prisma } from '@/lib/db'
 
@@ -186,6 +187,11 @@ export async function record(input: RunInput): Promise<string | null> {
  * remember. Every path out — returned, threw — writes a row, because the
  * runs that error are the ones worth counting.
  */
+/** Day 61 unpaid: an agent run is refused before it starts. Nothing is recorded or charged. */
+export class TenantReadOnly extends Error {
+  constructor() { super(READ_ONLY_SAYS) }
+}
+
 export async function runAgent<T>(
   meta: Omit<RunInput, 'verdict' | 'ms' | 'model' | 'usage' | 'failReason'>,
   fn: () => Promise<{
@@ -198,6 +204,7 @@ export async function runAgent<T>(
     scoredCount?: number | null
   }>
 ): Promise<{ result: T; runId: string | null }> {
+  if (await tenantIsReadOnly(meta.companyId)) throw new TenantReadOnly()
   const started = Date.now()
 
   try {

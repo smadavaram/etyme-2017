@@ -14,6 +14,7 @@
  *   checker re-read (`lib/skills/grade`).
  */
 
+import { tenantIsReadOnly, READ_ONLY_SAYS } from '@/lib/tenant-state'
 import { record, type RecordType, type Usage, type Verdict } from '@/lib/agent-run'
 import { CapReached, type AgentContext } from '@/lib/agents/runner'
 import { planOf } from '@/lib/agents/plans'
@@ -56,6 +57,7 @@ export async function runSkill<T>(
   if (!plan || !plan.skills.includes(skillKey)) {
     throw new SkillRefused(`${skill.name} is not in the plan of ${ctx.agentKey}, so it did not run.`)
   }
+  if (await tenantIsReadOnly(ctx.companyId)) throw new SkillRefused(READ_ONLY_SAYS)
   const base = {
     companyId: ctx.companyId,
     agent: skill.key,
