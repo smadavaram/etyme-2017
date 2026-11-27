@@ -179,3 +179,69 @@ export async function addReconciliationWorld(w: GoldenWorld) {
   const strayPay = await pay(null, '123.45', { reference: 'WIRE-6' })
   return { ar, clerk, client, exactBill, shortBill, overBill, fxBill, looseBill, driftBill, exactChain, looseChain, exactPay, shortPay, overPay, fxPay, loosePay, strayPay }
 }
+
+/**
+ * Payroll draft: an AP & Payroll seat, and two people paid by the firm every
+ * month on a W2 line. October holds four accepted weeks of 40 hours for the
+ * first, whose exemption is recorded, and one 45-hour week for the second,
+ * whose exemption nobody has recorded, so that week is held with its reason.
+ * September was run already, day by day, and is not drafted.
+ */
+export async function addPayrollWorld(w: GoldenWorld) {
+  const client = await prisma.company.create({ data: { name: 'Golden Payroll Customer', slug: 'golden-payroll-customer', kind: 'CLIENT' } as any })
+  const person = (name: string, email: string) => prisma.person.create({ data: { name, primaryEmail: mail(email) } })
+  const clerk = await person('Ravi Payroll', 'ravi.payroll')
+  const apRole = await prisma.role.create({ data: { companyId: w.firm.id, name: 'AP & Payroll', permissions: ['payroll.read', 'payroll.run'] } })
+  await prisma.context.create({ data: { personId: clerk.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: apRole.id } as any })
+  const leila = await person('Leila Farouk', 'leila.farouk'); const mo = await person('Mo Ito', 'mo.ito')
+  const line = async (who: any, exempt: boolean) => {
+    const start = d('2026-09-01')
+    const sell = await prisma.sellContract.create({ data: { companyId: w.firm.id, clientCompanyId: client.id, personId: who.id, billRate: 11200, startDate: start, state: 'IN_PROGRESS' } as any })
+    const buy = await prisma.buyContract.create({
+      data: {
+        companyId: w.firm.id, contractType: 'W2', state: 'IN_PROGRESS', startDate: start, payCurrency: 'USD',
+        payFrequency: 'MONTHLY', payAnchor: 'CALENDAR', payStraddle: 'SPLIT', overtimeAfterHours: 40, overtimeMultiplierBps: 15000,
+        candidates: { create: { personId: who.id, payRate: 6600, startDate: start } },
+      } as any,
+    })
+    await prisma.contractLink.create({ data: { sellContractId: sell.id, buyContractId: buy.id, effectiveFrom: start } })
+    if (exempt) {
+      await prisma.exemptAssertion.create({
+        data: {
+          buyContractId: buy.id, personId: who.id, assertedByCompanyId: w.firm.id, status: 'NONEXEMPT', wageRule: 'US_FLSA',
+          screenOutcome: 'CANNOT_BE_EXEMPT', screenRulesOut: [], screenSays: 'Paid by the hour.', assertedById: w.owner.id,
+        } as any,
+      })
+    }
+    return { sell, buy }
+  }
+  const week = async (l: { sell: any }, who: any, monday: string, perDay: number) => {
+    const m = d(monday)
+    const days: Record<string, number> = {}
+    for (let i = 0; i < 5; i++) days[new Date(+m + i * 86_400_000).toISOString().slice(0, 10)] = perDay
+    const end = new Date(+m + 4 * 86_400_000)
+    const ts = await prisma.timesheet.create({
+      data: {
+        sellContractId: l.sell.id, personId: who.id, periodStart: m, periodEnd: end, days, totalHours: perDay * 5,
+        status: 'APPROVED', submittedAt: end, approvedAt: end, clientApprovedAt: end, employerAcceptedAt: end, employerAcceptedById: w.owner.id,
+      } as any,
+    })
+    await prisma.workAssertion.create({ data: { timesheetId: ts.id, companyId: w.firm.id, role: 'EMPLOYER_ACCEPTANCE', hours: perDay * 5, rateCents: 6600, state: 'LIVE', byId: w.owner.id } as any })
+    return ts
+  }
+  const leilaLine = await line(leila, true); const moLine = await line(mo, false)
+  for (const m of ['2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26']) await week(leilaLine, leila, m, 8)
+  await week(moLine, mo, '2026-10-05', 9)
+  const paid: any[] = []
+  for (const m of ['2026-09-07', '2026-09-14', '2026-09-21']) {
+    const ts = await week(leilaLine, leila, m, 8)
+    for (const day of Object.keys(ts.days as object)) paid.push({ personId: leila.id, timesheetId: ts.id, day, hours: 8, rateCents: 6600 })
+  }
+  await prisma.automationLog.create({
+    data: {
+      companyId: w.firm.id, action: 'PAYROLL_RUN', summary: 'Payroll process: 1 contracts', reason: 'Payroll process initiated by test', reversible: false, at: d('2026-10-05'),
+      payload: { action: 'process', period: '2026-09', contracts: [{ buyContractId: leilaLine.buy.id, buyContractCandidateId: 'x', person: 'Leila Farouk', hours: 120, grossPay: 792000, currency: 'USD', refused: null, paid, premiumsPriced: true }], runBy: w.owner.id, runAt: '2026-10-05T00:00:00Z' } as any,
+    },
+  })
+  return { client, clerk, leila, mo, leilaLine, moLine, moreWeek: () => week(moLine, mo, '2026-10-12', 9) }
+}
