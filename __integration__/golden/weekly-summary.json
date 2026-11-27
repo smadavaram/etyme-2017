@@ -1,0 +1,19 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "Company",
+      "owedSeat": "Owner"
+    }
+  ],
+  "mail": [],
+  "recordActions": [
+    {
+      "action": "WEEKLY_SUMMARY",
+      "order": 1,
+      "recordType": "Company",
+      "summary": "This week: 2 customers active, 2 dormant; 1 supplier active, 1 dormant; 2 consultants billing; 36 hours accepted for the week of November 15; 24 hours waiting for acceptance."
+    }
+  ],
+  "tasks": []
+}
