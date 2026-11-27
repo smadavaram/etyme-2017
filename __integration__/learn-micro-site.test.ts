@@ -12,6 +12,7 @@ import { GET as adoptions } from '@/app/api/learn/adoptions/route'
 import { POST as fromSource } from '@/app/api/learn/courses/from-source/route'
 import { POST as addConsultant } from '@/app/api/consultants/route'
 import { GET as trainingGet } from '@/app/api/training/route'
+import { trackOf, lessonsOf } from '@/lib/training/courses/index'
 
 const D = '@demo.etyme.local'
 const MAKER = `world-brightmoor${D}`
@@ -20,7 +21,8 @@ const CLIENT = `world-harlow-health${D}`
 const MENTOR = 'mara.mentor@seed.etyme.invalid'
 const WORKER = 'wren.worker@seed.etyme.invalid'
 const ADOPTED = 'ines.adopted@seed.etyme.invalid'
-const LESSON = 'it-1-1-1'
+const KEYS = lessonsOf(trackOf('it-upgrade')!).map((l) => l.lesson.key)
+const LESSON = KEYS[0]
 const s: Record<string, any> = {}
 const route = async (fn: any, method: string, url: string, params: Record<string, string>, body?: unknown) =>
   json(await fn(req(method, url, body), { params: Promise.resolve(params) }))
@@ -120,13 +122,17 @@ describe('the learning micro-site on the one record', () => {
   it('a signed-in worker finishing the track writes her enrollment, completes her path and the ledger', async () => {
     as(WORKER)
     const before = await ledger(s.maker.id, 'LEARNING_COMPLETED')
-    const r = await route(progressPost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', lessonKey: LESSON })
-    expect(r.status, JSON.stringify(r.body)).toBe(200)
-    expect(r.body.data.complete).toBe(true)
+    // Every lesson of the track as it is written today; only the last one completes it.
+    let r: any
+    for (const lessonKey of KEYS) {
+      r = await route(progressPost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', lessonKey })
+      expect(r.status, JSON.stringify(r.body)).toBe(200)
+      expect(r.body.data.complete, lessonKey).toBe(lessonKey === KEYS[KEYS.length - 1])
+    }
     const e = await prisma.enrollment.findFirstOrThrow({ where: { personId: s.worker, companyId: s.maker.id } })
     expect(e).toMatchObject({ status: 'COMPLETED', trackKey: 'it-upgrade' })
     expect(e.completedAt).not.toBeNull()
-    expect((e.progress as any).done).toEqual([LESSON])
+    expect((e.progress as any).done).toEqual(KEYS)
     expect((await prisma.learningPath.findUniqueOrThrow({ where: { id: s.path } })).state).toBe('COMPLETE')
     expect(await ledger(s.maker.id, 'LEARNING_COMPLETED')).toBe(before + 1)
     // Saying it twice writes it once.
