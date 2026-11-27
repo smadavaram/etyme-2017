@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import type { RegionScope } from '@/lib/region-scope'
+import { clientLineWhere } from '@/lib/money/team-lines'
 
 /**
  * Which of a regional manager's own threads sit inside her region
@@ -53,19 +54,21 @@ export async function threadsInRegion<T extends ThreadTopic>(threads: readonly T
   const ids = (topic: string) => [...new Set(threads.filter((t) => t.topic === topic && t.topicId).map((t) => t.topicId as string))]
   const req = ids('REQUIREMENT'), sub = ids('SUBMISSION'), con = ids('CONTRACT'), inv = ids('INVOICE'), exp = ids('EXPENSE')
   const atSites = { workLocationId: { in: scope.siteIds } }
+  // The region seat is the client's: a member of outcome work is no line of hers, nor are its bills or expenses.
+  const seen = clientLineWhere(atSites)
   const [requirements, submissions, contracts, invoices, expenses] = await Promise.all([
     req.length ? prisma.requirement.findMany({ where: { id: { in: req }, orgUnitId: { in: scope.unitIds } }, select: { id: true } }) : [],
     sub.length ? prisma.submission.findMany({ where: { id: { in: sub }, requirement: { orgUnitId: { in: scope.unitIds } } }, select: { id: true } }) : [],
-    con.length ? prisma.sellContract.findMany({ where: { id: { in: con }, ...atSites }, select: { id: true } }) : [],
+    con.length ? prisma.sellContract.findMany({ where: clientLineWhere({ id: { in: con }, ...atSites }), select: { id: true } }) : [],
     // A bill is in the region only where every line on it is: one line at a
     // plant outside it would carry that plant's hours into her list.
     inv.length
       ? prisma.invoice.findMany({
-          where: { id: { in: inv }, invoiceLines: { some: { sellContract: atSites } }, NOT: { invoiceLines: { some: { NOT: { sellContract: atSites } } } } },
+          where: { id: { in: inv }, invoiceLines: { some: { sellContract: seen } }, NOT: { invoiceLines: { some: { NOT: { sellContract: seen } } } } },
           select: { id: true },
         })
       : [],
-    exp.length ? prisma.expense.findMany({ where: { id: { in: exp }, sellContract: atSites }, select: { id: true } }) : [],
+    exp.length ? prisma.expense.findMany({ where: { id: { in: exp }, sellContract: seen }, select: { id: true } }) : [],
   ])
   const set = (rows: { id: string }[]) => new Set(rows.map((r) => r.id))
   const placed: PlacedTopics = {

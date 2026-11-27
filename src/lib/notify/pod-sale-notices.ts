@@ -71,3 +71,37 @@ export async function tellProposer(o: PodOffer, answer: 'APPROVED' | 'REJECTED',
   const client = await prisma.company.findUnique({ where: { id: o.clientCompanyId }, select: { name: true } }).catch(() => null)
   await notify(offerAnsweredNotice(o, answer, client?.name ?? 'The client', reason)).catch(() => null)
 }
+
+export interface MilestoneAccepted {
+  sellerPersonId: string
+  sellerCompanyId: string
+  milestoneId: string
+  milestoneName: string
+  clientName: string
+  /** The members whose start is not yet confirmed. Names are the seller's to read. */
+  waitingNames: readonly string[]
+}
+
+/**
+ * Told to the supplier's person who delivered a deliverable when the client
+ * accepts it. Said to the seller only, so it may name the members. Where no
+ * member has started the deliverable cannot be billed yet, and the notice
+ * says that and the one act: confirm a start in Contracts. Where one has,
+ * it says the deliverable can be billed.
+ */
+export function milestoneAcceptedNotice(m: MilestoneAccepted, mail: boolean = mailLeaves()): NotifyParams {
+  const waiting = m.waitingNames.length > 0
+  const who = m.waitingNames.join(', ')
+  return {
+    personId: m.sellerPersonId,
+    companyId: m.sellerCompanyId,
+    type: 'SYSTEM',
+    title: `${m.clientName} accepted ${m.milestoneName}`,
+    body: waiting
+      ? `${m.clientName} accepted ${m.milestoneName}. It cannot be billed until a start is confirmed for ${who}. Open Contracts to confirm one.`
+      : `${m.clientName} accepted ${m.milestoneName}. It can be billed now.`,
+    entityId: m.milestoneId,
+    channel: mail ? 'EMAIL' : 'IN_APP',
+    data: waiting ? { href: '/dashboard/contracts', label: 'Open Contracts' } : { href: '/dashboard/invoices', label: 'Open Bills' },
+  }
+}
