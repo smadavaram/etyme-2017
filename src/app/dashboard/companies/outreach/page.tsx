@@ -30,6 +30,7 @@ interface Setup {
   hotList: { skills: string; availability: string }[]
   postal: boolean
   link: boolean
+  mail: boolean
 }
 interface BatchRow { id: string; state: string; question: string; contacts: number; subject: string | null }
 
@@ -223,7 +224,7 @@ export default function OutreachPage() {
                 disabled={!preview.draft || !subject.trim() || !body.trim() || preview.to.length === 0 || !!preview.blocked}
                 whyDisabled={preview.blocked ? preview.blocked.says : preview.to.length === 0 ? 'Nobody can be written to yet.' : 'Draft the letter first.'}
               >Ask for a yes</SubmitButton>
-              <p className="mt-2 text-[12px] text-etyme-muted">This raises one card for the Account Manager, or the Owner. Nothing is sent until they say yes, and only if the Outreach batch agent is On.</p>
+              <p className="mt-2 text-[12px] text-etyme-muted">This raises one card for the Account Manager, or the Owner. Nothing is sent until they say yes, and only if the Outreach batch agent is On.{!setup.mail && ' No email can be sent from here yet, so after the yes the letters wait until email is set up.'}</p>
             </div>
           </Panel>
         </>

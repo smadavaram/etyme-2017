@@ -5,6 +5,7 @@
  * The rules are in `audience-rules`, `offer-rules` and `batch-rules`.
  */
 
+import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { prisma } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 import { LedgerRefusal } from '@/lib/record-ledger'
@@ -113,7 +114,7 @@ export async function suggestions(companyId: string) {
     const site = firm ? await publicSite(firm.slug) : null
     hotList = site ? suggestHotList(site.comingFree) : []
   } catch { hotList = [] }
-  return { hotList, postal: (await postalOf(companyId)) !== null, link: baseUrl() !== '' }
+  return { hotList, postal: (await postalOf(companyId)) !== null, link: baseUrl() !== '', mail: mailLeaves() }
 }
 
 const placeholderLetter = (a: { firm: string; postal: string; subject: string; body: string; companyName: string; recipientName: string; storefront: string | null }) =>

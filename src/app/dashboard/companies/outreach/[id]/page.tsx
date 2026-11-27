@@ -17,6 +17,7 @@ import { ErrorState, LoadingState, PageHead, Panel, Stat } from '@/components/ui
 
 interface View {
   id: string; state: string; subject: string | null; audience: string | null; offer: string | null; closedReason: string | null
+  mail: boolean
   card: { id: string; state: string } | null; stopped: string | null; pausedHref: string | null
   counts: { contacts: number; sent: number; interested: number; unsubscribed: number; bounced: number; waiting: number }
   rows: { id: string; name: string; email: string; companyName: string; times: number; interested: boolean; unsubscribed: boolean; bounced: boolean; says: string }[]
@@ -24,7 +25,7 @@ interface View {
 }
 
 const STATE: Record<string, string> = {
-  PROPOSED: 'Waiting for a yes on its card.', APPROVED: 'Approved. The letters go on the next run.', RUNNING: 'Sending.',
+  PROPOSED: 'Waiting for a yes on its card.', APPROVED: 'Approved.', RUNNING: 'Sending.',
   DONE: 'Finished.', STOPPED: 'Stopped.', REFUSED: 'Not approved. Nothing was sent.',
 }
 
@@ -51,7 +52,7 @@ export default function OutreachBatchPage() {
       <PageHead
         eyebrow={eyebrow}
         title={view.subject ?? 'Outreach batch'}
-        subtitle={`${view.audience ?? ''}${view.offer ? ` · ${view.offer}` : ''}. ${STATE[view.state] ?? ''}${view.closedReason ? ` ${view.closedReason}` : ''}`.trim()}
+        subtitle={`${view.audience ?? ''}${view.offer ? ` · ${view.offer}` : ''}. ${STATE[view.state] ?? ''}${view.state === 'APPROVED' ? (view.mail ? ' The letters go on the next run.' : ' No email can be sent from here yet.') : ''}${view.closedReason ? ` ${view.closedReason}` : ''}`.trim()}
         actions={<Link className="text-[13px] text-etyme-action" href={'/dashboard/companies/outreach' as Route}>All batches</Link>}
       />
       {view.stopped && (
@@ -69,7 +70,7 @@ export default function OutreachBatchPage() {
         <Stat label="Unsubscribed" value={c.unsubscribed} />
         <Stat label="Bounced" value={c.bounced} />
       </div>
-      {c.waiting > 0 && <p className="mt-3 text-[13px] text-etyme-muted">{c.waiting} {c.waiting === 1 ? 'letter is' : 'letters are'} waiting. {c.waiting === 1 ? 'It goes' : 'They go'} on the next run, within the agent’s daily cap.</p>}
+      {c.waiting > 0 && <p className="mt-3 text-[13px] text-etyme-muted">{c.waiting} {c.waiting === 1 ? 'letter is' : 'letters are'} waiting. {view.mail ? `${c.waiting === 1 ? 'It goes' : 'They go'} on the next run, within the agent’s daily cap.` : 'No email can be sent from here yet, so nothing goes until email is set up.'}</p>}
       <Panel className="mt-4">
         <h2 className="headline-serif text-[20px]">Contacts</h2>
         <ul className="mt-2 divide-y divide-etyme-rule text-[13px]">
