@@ -40,3 +40,18 @@ export async function addContractsWorld(w: GoldenWorld) {
   })
   return { cm, hr, line, msa, hire, soon }
 }
+
+/**
+ * Immigration: an HR seat, and a specialty-occupation petition for the
+ * firm's first worker, not yet filed. The petition form already has a line
+ * with HR named as its signatory; the other papers the agent lists itself.
+ */
+export async function addImmigrationWorld(w: GoldenWorld) {
+  const hr = await prisma.person.create({ data: { name: 'Hana Resources', primaryEmail: mail('hana.resources') } })
+  const role = await prisma.role.create({ data: { companyId: w.firm.id, name: 'HR', permissions: ['consultants.write', 'assignments.read', 'governance.read'] } })
+  await prisma.context.create({ data: { personId: hr.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: role.id } as any })
+  const worker = await prisma.person.findFirstOrThrow({ where: { name: 'Priya Nair' } })
+  const petition = await prisma.petition.create({ data: { id: 'petition-golden-immigration', companyId: w.firm.id, personId: worker.id, kind: 'SPECIALTY_OCCUPATION', stage: 'PREPARING', employerCompanyId: w.firm.id } })
+  await prisma.checklistItem.create({ data: { companyId: w.firm.id, ownerType: 'Petition', ownerId: petition.id, kind: 'PETITION_PAPER', label: 'Petition form', signatoryPersonId: hr.id } })
+  return { hr, worker, petition }
+}
