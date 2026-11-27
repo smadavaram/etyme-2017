@@ -216,6 +216,8 @@ export const MATRIX: L1[] = [
             'src/lib/training.ts', 'src/app/dashboard/training/page.tsx',
             // The per-tenant plugin switch (record 120): Training is drawn and served only where the Owner or Etyme staff switched it on.
             'src/lib/plugins.ts', 'src/lib/plugin-gate.ts', 'src/app/api/settings/plugins/route.ts', 'src/app/api/superadmin/plugins/route.ts', 'src/components/settings/plugins-panel.tsx',
+            // Website and content and Outreach flags (records 121-123): the three checks the Owner sets, and the pure helpers.
+            'src/app/api/settings/website-checks/route.ts',
             'src/app/api/bench/burn/route.ts',
             'src/app/api/requirements/[id]/matches/asked.ts', 'src/app/api/requirements/[id]/matches/asked-read.ts',
             'src/app/api/bench/wants/route.ts', 'src/app/api/bench/wants/[id]/route.ts', 'src/app/dashboard/bench/what-we-need.tsx',
@@ -230,7 +232,8 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/bench-tester-fixes.test.ts', '__integration__/bench-tester-fixes.test.ts',
             '__tests__/invariants/bench-tester-round-two.test.ts', '__integration__/bench-tester-round-two.test.ts',
             '__tests__/invariants/bench-tester-round-three.test.ts', '__integration__/bench-tester-round-three.test.ts',
-            '__tests__/invariants/plugin-switch.test.ts', '__integration__/the-owners-plugin-switch-writes-the-flag-and-the-row-together.test.ts', '__integration__/training.test.ts'] },
+            '__tests__/invariants/plugin-switch.test.ts', '__integration__/the-owners-plugin-switch-writes-the-flag-and-the-row-together.test.ts', '__integration__/training.test.ts',
+            '__tests__/invariants/website-and-outreach-flags.test.ts', '__integration__/the-website-switch-refuses-until-three-checks-hold.test.ts'] },
         // A match from a firm that is not a supplier yet is a door, not a
         // dead end (founder, 2026-09-30).
         { code: 'L3.1.2.5', name: 'A suggestion from matching opens supplier onboarding', owner: 'Hiring manager', status: B,

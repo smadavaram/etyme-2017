@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { isOn, notOfferedSays, pluginsOfferedTo, isPluginKey, maySwitchPlugin, pluginLabel, switchOnRefusal, type PluginKey } from '@/lib/plugins'
+import { isOn, notOfferedSays, pluginsOfferedTo, isPluginKey, maySwitchPlugin, pluginLabel, switchOnRefusal, websiteOnRefusal, type PluginKey } from '@/lib/plugins'
 import { momentFor } from '@/lib/when'
 
 /**
@@ -80,6 +80,10 @@ export async function PATCH(request: NextRequest) {
   const on = body.on
   const closed = on ? switchOnRefusal(plugin) : null
   if (closed) return NextResponse.json({ error: { code: 'NOT_OPEN_YET', message: closed } }, { status: 409 })
+  if (on && plugin === 'WEBSITE') {
+    const missing = await websiteOnRefusal(companyId)
+    if (missing) return NextResponse.json({ error: missing }, { status: 422 })
+  }
   await prisma.$transaction(async (tx) => {
     const c = await tx.company.findUniqueOrThrow({ where: { id: companyId }, select: { pluginsOn: true } })
     const rest = c.pluginsOn.filter((k) => k !== plugin)

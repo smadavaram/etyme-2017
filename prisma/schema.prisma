@@ -268,12 +268,12 @@ model Person {
   // rather than Microsoft or Google. The hash is argon2id and is never
   // returned or logged (`lib/password`). Null for everybody who came in
   // through an identity provider, which proved the address itself.
-  passwordHash           String?
+  passwordHash                 String?
   /// When this person proved they read this mailbox, by clicking the
   /// one-time link. Nothing is created for a password sign-up until it is
   /// set, and a password sign-in is refused while it is null.
-  emailVerifiedAt        DateTime?
-  emailTokens            EmailToken[]
+  emailVerifiedAt              DateTime?
+  emailTokens                  EmailToken[]
   // ── Enterprise identity, pass 1 (founder, 2026-11-11) ──────────────
   //
   /// Raised by one to end every live session this person holds: a session
@@ -281,37 +281,39 @@ model Person {
   /// is behind this one is refused on its next request (lib/identity).
   /// Raised by "sign out everywhere" today, and by a directory that
   /// disables the person in pass 1's second stage.
-  sessionVersion         Int                   @default(0)
+  sessionVersion               Int                   @default(0)
   /// When it was last raised, and by whom, for the screen's one line.
-  sessionsEndedAt        DateTime?
-  sessionsEndedById      String?
+  sessionsEndedAt              DateTime?
+  sessionsEndedById            String?
   /// The identities a company's directory vouches for: issuer and subject.
-  externalIdentities     ExternalIdentity[]
-  signInPoliciesSet      CompanySignInPolicy[] @relation("signInPolicySetBy")
-  skillTargetsSet        SkillTarget[]         @relation("skillTargetSetBy")
+  externalIdentities           ExternalIdentity[]
+  signInPoliciesSet            CompanySignInPolicy[] @relation("signInPolicySetBy")
+  skillTargetsSet              SkillTarget[]         @relation("skillTargetSetBy")
   /// Owners (2026-11-12): asks this person made or decided, and the proofs
   /// about them or recorded by them.
-  ownershipAsked         OwnershipRequest[]    @relation("ownershipAskedBy")
-  ownershipDecided       OwnershipRequest[]    @relation("ownershipDecidedBy")
-  ownerProofs            OwnerProof[]          @relation("ownerProofOf")
-  ownerProofsRecorded    OwnerProof[]          @relation("ownerProofRecordedBy")
-  pageAsksTaken          PageAsk[]             @relation("pageAskAssignee")
-  pageAsksClosed         PageAsk[]             @relation("pageAskClosedBy")
-  identityProvidersSet   IdentityProvider[]    @relation("identityProviderSetBy")
-  scimTokensMade         ScimToken[]           @relation("scimTokenMadeBy")
-  directoryGroupRolesSet DirectoryGroupRole[]  @relation("directoryGroupRoleSetBy")
-  signInFailures         SignInFailure[]
-  adverseActionsGiven    AdverseAction[]
+  ownershipAsked               OwnershipRequest[]    @relation("ownershipAskedBy")
+  ownershipDecided             OwnershipRequest[]    @relation("ownershipDecidedBy")
+  ownerProofs                  OwnerProof[]          @relation("ownerProofOf")
+  ownerProofsRecorded          OwnerProof[]          @relation("ownerProofRecordedBy")
+  pageAsksTaken                PageAsk[]             @relation("pageAskAssignee")
+  pageAsksClosed               PageAsk[]             @relation("pageAskClosedBy")
+  identityProvidersSet         IdentityProvider[]    @relation("identityProviderSetBy")
+  scimTokensMade               ScimToken[]           @relation("scimTokenMadeBy")
+  directoryGroupRolesSet       DirectoryGroupRole[]  @relation("directoryGroupRoleSetBy")
+  signInFailures               SignInFailure[]
+  adverseActionsGiven          AdverseAction[]
   // Who set an exchange rate (2026-10-27).
-  fxRatesSet             FxRate[]              @relation("fxRateSetBy")
-  permissionsGranted     PermissionGrant[]     @relation("permissionGrantedBy")
-  permissionsRevoked     PermissionGrant[]     @relation("permissionRevokedBy")
-  submissionsSubmitted   Submission[]          @relation("submissionSubmittedBy")
-  commissionsEarned      ContractCommission[]  @relation("commissionEarnedBy")
-  commissionsSet         ContractCommission[]  @relation("commissionSetBy")
+  fxRatesSet                   FxRate[]              @relation("fxRateSetBy")
+  permissionsGranted           PermissionGrant[]     @relation("permissionGrantedBy")
+  permissionsRevoked           PermissionGrant[]     @relation("permissionRevokedBy")
+  submissionsSubmitted         Submission[]          @relation("submissionSubmittedBy")
+  commissionsEarned            ContractCommission[]  @relation("commissionEarnedBy")
+  commissionsSet               ContractCommission[]  @relation("commissionSetBy")
   /// The second check before money is released (Layer 7, record 86).
-  passkeys               Passkey[]
-  authenticatorApps      AuthenticatorApp[]
+  passkeys                     Passkey[]
+  authenticatorApps            AuthenticatorApp[]
+  siteBrandingApprovals        Company[]             @relation("siteBrandingApprover")
+  siteCompliancePassesRecorded SiteCompliancePass[]  @relation("siteCompliancePassRecorder")
 
   @@index([name])
   @@index([createdAt])
@@ -690,14 +692,14 @@ model Company {
   noticePostings          NoticePosting[]
   publicAccessFiles       PublicAccessFile[]
   /// Payroll drafts the payroll agent prepared (record 112, chain 4).
-  payrollDrafts PayrollDraft[]
-  id             String      @id @default(cuid())
-  name           String
-  slug           String      @unique // {slug}.etyme.com — 2017 create_slug, collision numbered
-  domain         String?     @unique
-  domainVerified Boolean     @default(false) // true when it came from an OAuth tenant
-  kind           CompanyKind
-  entityType     String?
+  payrollDrafts           PayrollDraft[]
+  id                      String                   @id @default(cuid())
+  name                    String
+  slug                    String                   @unique // {slug}.etyme.com — 2017 create_slug, collision numbered
+  domain                  String?                  @unique
+  domainVerified          Boolean                  @default(false) // true when it came from an OAuth tenant
+  kind                    CompanyKind
+  entityType              String?
 
   // ── House policy ────────────────────────────────────────────────────
   //
@@ -971,155 +973,162 @@ model Company {
   askEtymeModelSetAt   DateTime?
   createdAt            DateTime  @default(now())
 
-  contexts              Context[]
-  roles                 Role[]
-  orgUnits              OrgUnit[]
+  contexts                   Context[]
+  roles                      Role[]
+  orgUnits                   OrgUnit[]
   /// Every change to its team structure (2026-11-09).
-  orgChanges            OrgChange[]
-  directoryConnections  DirectoryConnection[]
+  orgChanges                 OrgChange[]
+  directoryConnections       DirectoryConnection[]
   /// How this company's people sign in (2026-11-11). No row is today's behavior.
-  signInPolicy          CompanySignInPolicy?
-  ownershipRequests     OwnershipRequest[]
-  ownerProofs           OwnerProof[]
+  signInPolicy               CompanySignInPolicy?
+  ownershipRequests          OwnershipRequest[]
+  ownerProofs                OwnerProof[]
   /// Questions asked on this firm's public page (2026-11-21).
-  pageAsks              PageAsk[]
-  identityProviders     IdentityProvider[]
-  scimTokens            ScimToken[]
-  directoryGroupRoles   DirectoryGroupRole[]
-  externalIdentities    ExternalIdentity[]
-  entities              LegalEntity[]
+  pageAsks                   PageAsk[]
+  identityProviders          IdentityProvider[]
+  scimTokens                 ScimToken[]
+  directoryGroupRoles        DirectoryGroupRole[]
+  externalIdentities         ExternalIdentity[]
+  entities                   LegalEntity[]
   /// The record ledger and the decisions a person opened (2026-11-21 → 107).
-  recordActions         RecordAction[]
-  decisionItems         DecisionItem[]
-  agentSwitches         AgentSwitch[]
-  agentTasks            AgentTask[]
+  recordActions              RecordAction[]
+  decisionItems              DecisionItem[]
+  agentSwitches              AgentSwitch[]
+  agentTasks                 AgentTask[]
   /// Money chains, one per placement per period (Flow B, → 105, 107).
-  moneyChains           MoneyChain[]
+  moneyChains                MoneyChain[]
   /// Where a signed-in seat at this firm lands. Null is the standing rule
   /// (lib/console-home); DECISIONS opens the decision queue (→ 107).
-  homePage              HomePage?
-  /// Plugins switched on for this firm (record 120): TRAIN_TO_BENCH, PODS.
+  homePage                   HomePage?
+  /// Plugins switched on for this firm (record 120): TRAIN_TO_BENCH, PODS, WEBSITE, OUTREACH.
   /// Empty is off. The ledger is PluginSwitch.
-  pluginsOn             String[]                @default([])
-  pluginSwitches        PluginSwitch[]
-  skillTargets          SkillTarget[]
+  pluginsOn                  String[]                @default([])
+  pluginSwitches             PluginSwitch[]
+  /// Website and content (records 121, 123): the Owner's dated yes to the branding, and who gave it. Null is not approved.
+  siteBrandingApprovedAt     DateTime?
+  siteBrandingApprovedById   String?
+  siteBrandingApprovedBy     Person?                 @relation("siteBrandingApprover", fields: [siteBrandingApprovedById], references: [id], onDelete: SetNull)
+  /// Whether this firm's business requires a compliance pass before its site goes public. A per-firm setting, off until the Owner says so.
+  siteCompliancePassRequired Boolean                 @default(false)
+  siteCompliancePasses       SiteCompliancePass[]
+  skillTargets               SkillTarget[]
   /// Hides this firm's courses on its storefront whatever its plugin says
   /// (record 120, answer 3). A per-tenant setting; Tapin's is true.
-  coursesHiddenOnStorefront Boolean @default(false)
-  cohorts               Cohort[]
-  pods                  Pod[]
-  docTemplates          DocTemplate[]
-  msasAsVendor          MasterAgreement[]       @relation("vendor")
-  msasAsClient          MasterAgreement[]       @relation("client")
-  requirements          Requirement[]
-  invitationsOut        RequirementInvitation[] @relation("from")
-  invitationsIn         RequirementInvitation[] @relation("to")
-  benchListings         BenchListing[]
-  benchWants            BenchWant[]
-  benchHolidaySwitches  BenchHolidaySwitch[]
-  submissionsOut        Submission[]            @relation("from")
-  submissionsIn         Submission[]            @relation("to")
-  automationLog         AutomationLog[]
-  accessLogs            AccessLog[]             @relation("accessActorCompany")
+  coursesHiddenOnStorefront  Boolean                 @default(false)
+  cohorts                    Cohort[]
+  pods                       Pod[]
+  docTemplates               DocTemplate[]
+  msasAsVendor               MasterAgreement[]       @relation("vendor")
+  msasAsClient               MasterAgreement[]       @relation("client")
+  requirements               Requirement[]
+  invitationsOut             RequirementInvitation[] @relation("from")
+  invitationsIn              RequirementInvitation[] @relation("to")
+  benchListings              BenchListing[]
+  benchWants                 BenchWant[]
+  benchHolidaySwitches       BenchHolidaySwitch[]
+  submissionsOut             Submission[]            @relation("from")
+  submissionsIn              Submission[]            @relation("to")
+  automationLog              AutomationLog[]
+  accessLogs                 AccessLog[]             @relation("accessActorCompany")
   /// Reads of this firm's own data (its papers), each logged with the firm as its subject.
-  accessedBy            AccessLog[]             @relation("accessSubjectCompany")
-  programSeatsGranted   ProgramSeat[]           @relation("seatClient")
-  programSeatsHeld      ProgramSeat[]           @relation("seatOffice")
-  seatAsksMade          ProgramSeatRequest[]    @relation("seatAskOffice")
-  tradeAsksMade         TradeLinkRequest[]      @relation("tradeAskFrom")
-  tradeAsksReceived     TradeLinkRequest[]      @relation("tradeAskTo")
-  paperSet              DocumentRequirement[]   @relation("companyPaperSet")
-  seatAsksReceived      ProgramSeatRequest[]    @relation("seatAskClient")
+  accessedBy                 AccessLog[]             @relation("accessSubjectCompany")
+  programSeatsGranted        ProgramSeat[]           @relation("seatClient")
+  programSeatsHeld           ProgramSeat[]           @relation("seatOffice")
+  seatAsksMade               ProgramSeatRequest[]    @relation("seatAskOffice")
+  tradeAsksMade              TradeLinkRequest[]      @relation("tradeAskFrom")
+  tradeAsksReceived          TradeLinkRequest[]      @relation("tradeAskTo")
+  paperSet                   DocumentRequirement[]   @relation("companyPaperSet")
+  seatAsksReceived           ProgramSeatRequest[]    @relation("seatAskClient")
   /// The setup checklist (2026-10-28): each item's outcome, where each
   /// answer came from, the legal and billing addresses, the people in charge.
-  setupItems            SetupItem[]
-  setupAnswers          SetupAnswer[]
-  addresses             CompanyAddress[]
-  peopleInCharge        CompanyInCharge[]
-  roleContracts         RoleContract[]
-  twinRuleSets          RuleSet[]
-  twinActions           TwinAction[]
-  twinApprovals         TwinApproval[]
-  teamsConversations    TeamsConversation[]
-  modelPrompts          ModelPrompt[]
-  askEtymeThreads       AskEtymeThread[]
+  setupItems                 SetupItem[]
+  setupAnswers               SetupAnswer[]
+  addresses                  CompanyAddress[]
+  peopleInCharge             CompanyInCharge[]
+  roleContracts              RoleContract[]
+  twinRuleSets               RuleSet[]
+  twinActions                TwinAction[]
+  twinApprovals              TwinApproval[]
+  teamsConversations         TeamsConversation[]
+  modelPrompts               ModelPrompt[]
+  askEtymeThreads            AskEtymeThread[]
   /// Forwarded business email: the switch and its address, and every message in (2026-10-22).
-  emailIntake           EmailIntake?
-  inboundEmails         InboundEmail[]
-  counterparties        Counterparty[]          @relation("counterpartyOwner")
-  counterpartyOf        Counterparty[]          @relation("counterpartyOther")
+  emailIntake                EmailIntake?
+  inboundEmails              InboundEmail[]
+  counterparties             Counterparty[]          @relation("counterpartyOwner")
+  counterpartyOf             Counterparty[]          @relation("counterpartyOther")
   /// The client sites this firm is named at as a supplier (SiteSupplier).
-  namedAtSites          SiteSupplier[]          @relation("siteSupplierFirm")
-  contacts              CompanyContact[]        @relation("contactOwner")
-  contactsAt            CompanyContact[]        @relation("contactAt")
+  namedAtSites               SiteSupplier[]          @relation("siteSupplierFirm")
+  contacts                   CompanyContact[]        @relation("contactOwner")
+  contactsAt                 CompanyContact[]        @relation("contactAt")
   // Contract relations — each company manages their own buy and sell contracts
-  sellContractsOut      SellContract[]          @relation("sellVendor") // we sell talent
-  sellContractsIn       SellContract[]          @relation("sellClient") // talent sold to us
-  buyContractsOut       BuyContract[]           @relation("buyer") // we buy talent
-  buyContractsIn        BuyContract[]           @relation("buyVendor") // talent bought from us
+  sellContractsOut           SellContract[]          @relation("sellVendor") // we sell talent
+  sellContractsIn            SellContract[]          @relation("sellClient") // talent sold to us
+  buyContractsOut            BuyContract[]           @relation("buyer") // we buy talent
+  buyContractsIn             BuyContract[]           @relation("buyVendor") // talent bought from us
   // Compliance & governance
-  verifications         Verification[]
+  verifications              Verification[]
   /// Checks this firm ordered from a screening company about somebody
   /// else's person. Not the same set as `verifications`, which is what
   /// was checked ABOUT this firm.
-  verificationsOrdered  Verification[]          @relation("verificationOrderedBy")
-  governancePolicies    GovernancePolicy[]
+  verificationsOrdered       Verification[]          @relation("verificationOrderedBy")
+  governancePolicies         GovernancePolicy[]
   // Training
-  courses               Course[]
+  courses                    Course[]
   // Expenses
-  expenses              Expense[]
+  expenses                   Expense[]
   /// Expenses this firm accepted or sent back for its own rung (2026-10-19).
-  expenseAcceptances    ExpenseAcceptance[]
+  expenseAcceptances         ExpenseAcceptance[]
   // Conversations
-  conversations         Conversation[]
+  conversations              Conversation[]
   // Threads another company opened with this one (a client to its supplier).
-  threadsWithMe         Conversation[]          @relation("ConversationWith")
+  threadsWithMe              Conversation[]          @relation("ConversationWith")
   // Blacklist
-  blacklists            Blacklist[]
+  blacklists                 Blacklist[]
   // The people and firms this company would take again
-  favorites             Favorite[]
+  favorites                  Favorite[]
   /// Its own people coming off a project, and held for the next one.
-  projectReleases       ProjectRelease[]
-  projectHolds          ProjectHold[]
+  projectReleases            ProjectRelease[]
+  projectHolds               ProjectHold[]
   // Suppliers recommended here, waiting on Procurement
-  supplierRequests      SupplierRequest[]
-  contractorInvitations ContractorInvitation[]
+  supplierRequests           SupplierRequest[]
+  contractorInvitations      ContractorInvitation[]
   // Locations
-  locations             CompanyLocation[]
+  locations                  CompanyLocation[]
   // Holidays
-  holidays              Holiday[]
+  holidays                   Holiday[]
   // End-client contracts (where consultants actually work, when ≠ billing client)
-  endClientContracts    SellContract[]          @relation("sellEndClient")
-  endClientRequirements Requirement[]           @relation("requirementEndClient")
-  payerRequirements     Requirement[]           @relation("requirementPayer")
-  openings              Opening[]               @relation("openingOwner")
-  openingsAsClient      Opening[]               @relation("openingClient")
-  leads                 Lead[]                  @relation("leadOwner")
-  leadsPosted           Lead[]                  @relation("leadPoster")
-  resumesUploaded       Resume[]                @relation("resumeUploader")
-  representationsHeld   Representation[]        @relation("representingVendor")
-  representationsAt     Representation[]        @relation("representedAtClient")
-  doNotSubmitTo         DoNotSubmit[]           @relation("doNotSubmitCompany")
+  endClientContracts         SellContract[]          @relation("sellEndClient")
+  endClientRequirements      Requirement[]           @relation("requirementEndClient")
+  payerRequirements          Requirement[]           @relation("requirementPayer")
+  openings                   Opening[]               @relation("openingOwner")
+  openingsAsClient           Opening[]               @relation("openingClient")
+  leads                      Lead[]                  @relation("leadOwner")
+  leadsPosted                Lead[]                  @relation("leadPoster")
+  resumesUploaded            Resume[]                @relation("resumeUploader")
+  representationsHeld        Representation[]        @relation("representingVendor")
+  representationsAt          Representation[]        @relation("representedAtClient")
+  doNotSubmitTo              DoNotSubmit[]           @relation("doNotSubmitCompany")
   // Finance dimensions — owned per company, never shared across parties
-  costCenters           CostCenter[]
-  ordersIssued          WorkOrder[]             @relation("orderIssuer")
-  ordersReceived        WorkOrder[]             @relation("orderRecipient")
-  ordersRecorded        WorkOrder[]             @relation("orderRecorder")
-  remitTos              RemitTo[]
-  consultantsBehind     ConsultantProfile[]     @relation("consultantCorp")
-  documentShares        DocumentShare[]
-  approvalRules         ApprovalRule[]
-  events                Event[]
-  packets               DocumentPacket[]
-  packetsAbout          DocumentPacket[]        @relation("packetSubjectCompany")
-  serviceAccounts       ServiceAccount[]
-  webhooks              WebhookSubscription[]
-  subdomainAliases      SubdomainAlias[]
-  customDomains         CustomDomain[]
-  claimedDomains        CompanyDomain[]
-  agentRuns             AgentRun[]
-  checks                Check[]
-  TextMessage           TextMessage[]
+  costCenters                CostCenter[]
+  ordersIssued               WorkOrder[]             @relation("orderIssuer")
+  ordersReceived             WorkOrder[]             @relation("orderRecipient")
+  ordersRecorded             WorkOrder[]             @relation("orderRecorder")
+  remitTos                   RemitTo[]
+  consultantsBehind          ConsultantProfile[]     @relation("consultantCorp")
+  documentShares             DocumentShare[]
+  approvalRules              ApprovalRule[]
+  events                     Event[]
+  packets                    DocumentPacket[]
+  packetsAbout               DocumentPacket[]        @relation("packetSubjectCompany")
+  serviceAccounts            ServiceAccount[]
+  webhooks                   WebhookSubscription[]
+  subdomainAliases           SubdomainAlias[]
+  customDomains              CustomDomain[]
+  claimedDomains             CompanyDomain[]
+  agentRuns                  AgentRun[]
+  checks                     Check[]
+  TextMessage                TextMessage[]
 
   // ── A demo company ─────────────────────────────────────────────────
   //
@@ -1279,6 +1288,7 @@ model Company {
   supplierChangesAbout SupplierChangeMessage[] @relation("supplierChangeSupplier")
 
   @@index([listedById])
+  @@index([siteBrandingApprovedById])
 }
 
 /// Where a submission actually gets decided.
@@ -2759,7 +2769,7 @@ model BenchListing {
   lapsedAt       DateTime?
   /// The cohort she finished before her yes made this row (record 120).
   sourceCohortId String?
-  sourceCohort   Cohort? @relation(fields: [sourceCohortId], references: [id])
+  sourceCohort   Cohort?   @relation(fields: [sourceCohortId], references: [id])
 
   // ── The person's own terms, where the firm stated them at listing ───
   //
@@ -3871,15 +3881,15 @@ model Match {
 model Submission {
   confirmations SubmissionConfirmation[]
   offers        Offer[]
-  id            String         @id @default(cuid())
+  id            String                   @id @default(cuid())
   requirementId String
-  requirement   Requirement    @relation(fields: [requirementId], references: [id])
+  requirement   Requirement              @relation(fields: [requirementId], references: [id])
   personId      String
-  person        Person         @relation(fields: [personId], references: [id])
+  person        Person                   @relation(fields: [personId], references: [id])
   fromCompanyId String
-  fromCompany   Company        @relation("from", fields: [fromCompanyId], references: [id])
+  fromCompany   Company                  @relation("from", fields: [fromCompanyId], references: [id])
   toCompanyId   String
-  toCompany     Company        @relation("to", fields: [toCompanyId], references: [id])
+  toCompany     Company                  @relation("to", fields: [toCompanyId], references: [id])
   kind          SubmissionKind
   rate          Int
   // How the vendor engages this person: W2 of the vendor, corp-to-corp with
@@ -3892,8 +3902,8 @@ model Submission {
   //
   // Null on submissions made before this existed.
   contractType  ContractType?
-  status        String         @default("SUBMITTED")
-  submittedAt   DateTime       @default(now()) // first timestamp wins on a duplicate
+  status        String                   @default("SUBMITTED")
+  submittedAt   DateTime                 @default(now()) // first timestamp wins on a duplicate
 
   /// The CV that actually went with this submission.
   ///
@@ -7738,19 +7748,19 @@ model Course {
 }
 
 model Enrollment {
-  id             String    @id @default(cuid())
+  id             String          @id @default(cuid())
   courseId       String
-  course         Course    @relation(fields: [courseId], references: [id])
+  course         Course          @relation(fields: [courseId], references: [id])
   personId       String
-  person         Person    @relation(fields: [personId], references: [id])
-  status         String    @default("ENROLLED") // ENROLLED · IN_PROGRESS · COMPLETED · DROPPED
-  enrolledAt     DateTime  @default(now())
+  person         Person          @relation(fields: [personId], references: [id])
+  status         String          @default("ENROLLED") // ENROLLED · IN_PROGRESS · COMPLETED · DROPPED
+  enrolledAt     DateTime        @default(now())
   completedAt    DateTime?
   score          Int?
   certificateUrl String?
   /// The cohort she took the course in, where there was one (record 120).
   cohortId       String?
-  cohort         Cohort?   @relation(fields: [cohortId], references: [id])
+  cohort         Cohort?         @relation(fields: [cohortId], references: [id])
   assessments    Assessment[]
   certifications Certification[]
   benchAsks      BenchAsk[]
@@ -7763,18 +7773,18 @@ model Enrollment {
 /// A group taking one course together (record 120, train-to-bench).
 /// States: PLANNED, RUNNING, COMPLETE, CANCELLED.
 model Cohort {
-  id              String       @id @default(cuid())
+  id              String         @id @default(cuid())
   companyId       String
-  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   courseId        String
-  course          Course       @relation(fields: [courseId], references: [id])
+  course          Course         @relation(fields: [courseId], references: [id])
   name            String
   startsOn        DateTime
   endsOn          DateTime?
   trainerPersonId String?
   capacity        Int?
-  state           String       @default("PLANNED")
-  createdAt       DateTime     @default(now())
+  state           String         @default("PLANNED")
+  createdAt       DateTime       @default(now())
   enrollments     Enrollment[]
   benchListings   BenchListing[]
 
@@ -7815,18 +7825,18 @@ model Certification {
 /// Append-only. The answer columns are written only by her own doors, once.
 /// EMAIL_LINK, OWN_PAGE or EMPLOYEE_TOLD (a firm's own W-2 is told, not asked).
 model BenchAsk {
-  id            String     @id @default(cuid())
-  companyId     String
-  enrollmentId  String
-  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id])
-  benchListingId String?
+  id              String     @id @default(cuid())
+  companyId       String
+  enrollmentId    String
+  enrollment      Enrollment @relation(fields: [enrollmentId], references: [id])
+  benchListingId  String?
   askedByPersonId String
-  askedAt       DateTime   @default(now())
-  method        String
+  askedAt         DateTime   @default(now())
+  method          String
   /// YES or NO. Null until she answers; nothing is pre-filled.
-  answer        String?
-  answeredAt    DateTime?
-  answeredVia   String?
+  answer          String?
+  answeredAt      DateTime?
+  answeredVia     String?
 
   @@index([companyId, askedAt])
   @@index([enrollmentId])
@@ -8005,7 +8015,8 @@ model DocInstance {
   examinedById String?
   examinedAt   DateTime?
 
-  adverseActions AdverseAction[]
+  adverseActions       AdverseAction[]
+  siteCompliancePasses SiteCompliancePass[]
 
   @@index([subjectType, subjectId, status])
   @@index([templateId])
@@ -8924,10 +8935,10 @@ model AgentRun {
   /// The skill layer (records 123, 125). All null on a row written before it,
   /// and none is a foreign key.
   /// The named skill this row ran, and the agent that ran it.
-  skillKey String?
-  agentKey String?
+  skillKey      String?
+  agentKey      String?
   /// RULES · LOW · HIGH
-  tier     String?
+  tier          String?
   /// A count only: the call went to the tenant's own model. Never a charge.
   byTenantModel Boolean @default(false)
   /// The model it fell back from, or the tier it escalated from.
@@ -8935,8 +8946,8 @@ model AgentRun {
   escalatedFrom String?
   /// Planned is the agent's own in-scope count. Done is written only by the
   /// grader, from what the checker re-read; never by the agent.
-  unitsPlanned Int?
-  unitsDone    Int?
+  unitsPlanned  Int?
+  unitsDone     Int?
 
   at DateTime @default(now())
 
@@ -11241,31 +11252,31 @@ enum DecisionState {
 /// until it is recorded here. Closed by one verdict, APPROVED or
 /// REJECTED; a send back keeps it OPEN and its age counting.
 model DecisionItem {
-  id                 String        @id @default(cuid())
+  id                 String         @id @default(cuid())
   companyId          String
-  company            Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company            Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   question           String
   ownerPersonId      String
-  ownerPerson        Person        @relation("decisionOwner", fields: [ownerPersonId], references: [id])
+  ownerPerson        Person         @relation("decisionOwner", fields: [ownerPersonId], references: [id])
   /// The legal entity it was opened for; same rule as the ledger.
   actingEntityId     String?
-  actingEntity       LegalEntity?  @relation(fields: [actingEntityId], references: [id], onDelete: NoAction)
-  openedOn           DateTime      @db.Date
+  actingEntity       LegalEntity?   @relation(fields: [actingEntityId], references: [id], onDelete: NoAction)
+  openedOn           DateTime       @db.Date
   proof              String
   /// The records the proof points at: [{ recordType, recordId }].
-  proofLinks         Json          @default("[]")
-  state              DecisionState @default(OPEN)
+  proofLinks         Json           @default("[]")
+  state              DecisionState  @default(OPEN)
   /// The verdict's note: optional on APPROVED, the reason on REJECTED.
   verdictNote        String?
   decidedByPersonId  String?
-  decidedBy          Person?       @relation("decisionDecidedBy", fields: [decidedByPersonId], references: [id])
+  decidedBy          Person?        @relation("decisionDecidedBy", fields: [decidedByPersonId], references: [id])
   decidedAt          DateTime?
   /// The latest send back; each one is also a ledger row.
   sentBackReason     String?
   sentBackByPersonId String?
-  sentBackBy         Person?       @relation("decisionSentBackBy", fields: [sentBackByPersonId], references: [id])
+  sentBackBy         Person?        @relation("decisionSentBackBy", fields: [sentBackByPersonId], references: [id])
   sentBackAt         DateTime?
-  createdAt          DateTime      @default(now())
+  createdAt          DateTime       @default(now())
   /// The money chains this decision holds in dispute (Flow B).
   disputedChains     MoneyChain[]
   /// The agent tasks this decision asks the yes for.
@@ -11285,16 +11296,16 @@ model DecisionItem {
 /// and is never worked out by Etyme. Each move is a RecordAction row.
 /// The placement is the SellContract: consultant, client, agreed rate, start.
 model MoneyChain {
-  id                   String          @id @default(cuid())
+  id                   String           @id @default(cuid())
   companyId            String
-  company              Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company              Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sellContractId       String
-  sellContract         SellContract    @relation(fields: [sellContractId], references: [id])
+  sellContract         SellContract     @relation(fields: [sellContractId], references: [id])
   personId             String
-  person               Person          @relation(fields: [personId], references: [id])
-  periodStart          DateTime        @db.Date
-  periodEnd            DateTime        @db.Date
-  state                MoneyChainState @default(TIMESHEET_OWED)
+  person               Person           @relation(fields: [personId], references: [id])
+  periodStart          DateTime         @db.Date
+  periodEnd            DateTime         @db.Date
+  state                MoneyChainState  @default(TIMESHEET_OWED)
   /// The state it was in when it went DISPUTED; null otherwise.
   stateBeforeDispute   MoneyChainState?
   /// Stated amounts, integer cents, each in its own currency.
@@ -11306,13 +11317,13 @@ model MoneyChain {
   paidCurrency         String?
   /// Where a chain loaded as history came from, and the day it was true.
   source               String?
-  asOf                 DateTime?       @db.Date
+  asOf                 DateTime?        @db.Date
   actingEntityId       String?
-  actingEntity         LegalEntity?    @relation(fields: [actingEntityId], references: [id], onDelete: NoAction)
+  actingEntity         LegalEntity?     @relation(fields: [actingEntityId], references: [id], onDelete: NoAction)
   disputeDecisionId    String?
-  disputeDecision      DecisionItem?   @relation(fields: [disputeDecisionId], references: [id])
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  disputeDecision      DecisionItem?    @relation(fields: [disputeDecisionId], references: [id])
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   @@unique([sellContractId, periodStart])
   @@index([companyId, periodStart])
@@ -11345,44 +11356,44 @@ enum MoneyChainState {
 /// already read. The letter's body is never kept: it may carry a one-time
 /// link, which lives in the mailbox and nowhere else.
 model MailSend {
-  id              String   @id @default(cuid())
+  id                String   @id @default(cuid())
   /// The tenant the mail was sent for. Null for Etyme's own mail: a
   /// sign-in or password link, a letter to Etyme's staff.
-  companyId       String?
+  companyId         String?
   /// The legal entity acted for, where the caller chose one.
-  actingEntityId  String?
+  actingEntityId    String?
   /// The person whose act sent it. Null where no person's act did.
-  actorPersonId   String?
+  actorPersonId     String?
   /// The role or queue she held, copied as text at the time.
-  heldAs          String?
+  heldAs            String?
   /// Set where an agent drafted the letter.
-  agentKey        String?
+  agentKey          String?
   /// The approved task an agent's send belongs to (record 112).
-  agentTaskId     String?
+  agentTaskId       String?
   /// The record the mail is about, named by type and id.
-  recordType      String?
-  recordId        String?
+  recordType        String?
+  recordId          String?
   /// The From address used: the configured verified sender.
-  fromAddress     String
+  fromAddress       String
   /// The recipients as sent. The first addressed party is in To; every
   /// other is in BCC. CC is never used.
-  toAddresses     String[]
-  bccAddresses    String[]
-  subject         String
+  toAddresses       String[]
+  bccAddresses      String[]
+  subject           String
   /// The letter's template or rule, and its version.
-  template        String
-  templateVersion String
+  template          String
+  templateVersion   String
   /// True for a reminder about a record; the door limits these.
-  chase           Boolean  @default(false)
+  chase             Boolean  @default(false)
   /// SENT · FAILED_DELIVERY · REFUSED · NOT_CONFIGURED · DEMO_SKIPPED
-  outcome         String
+  outcome           String
   /// Why it did not leave: the door's sentence, or the provider's
   /// status and cleaned words. Null where it left.
-  note            String?
-  provider        String?
+  note              String?
+  provider          String?
   /// The provider's id for the message, for a delivery report to match.
   providerMessageId String?
-  createdAt       DateTime @default(now())
+  createdAt         DateTime @default(now())
 
   @@index([companyId, createdAt])
   @@index([recordType, recordId, createdAt])
@@ -11433,33 +11444,33 @@ enum AgentTaskState {
 /// an escalation is its own task with its parent's id. The yes is the
 /// DecisionItem; the task reads it, never copies it.
 model AgentTask {
-  id           String         @id @default(cuid())
-  companyId    String
-  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  agentKey     String
+  id              String           @id @default(cuid())
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agentKey        String
   /// TIMESHEET_CHASE, ESCALATION, ...
-  kind         String
+  kind            String
   /// The record the task is about, by type and id.
-  recordType   String
-  recordId     String
+  recordType      String
+  recordId        String
   /// { messages: [{ template, ... }], retries, daysApart, closesWhen } as approved.
-  plan         Json
-  state        AgentTaskState @default(PROPOSED)
-  decisionId   String
-  decision     DecisionItem   @relation(fields: [decisionId], references: [id])
-  approvedById String?
-  approvedBy   Person?        @relation(fields: [approvedById], references: [id])
-  approvedAt   DateTime?
-  parentTaskId String?
-  parentTask   AgentTask?     @relation("escalation", fields: [parentTaskId], references: [id])
-  escalations  AgentTask[]    @relation("escalation")
+  plan            Json
+  state           AgentTaskState   @default(PROPOSED)
+  decisionId      String
+  decision        DecisionItem     @relation(fields: [decisionId], references: [id])
+  approvedById    String?
+  approvedBy      Person?          @relation(fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  parentTaskId    String?
+  parentTask      AgentTask?       @relation("escalation", fields: [parentTaskId], references: [id])
+  escalations     AgentTask[]      @relation("escalation")
   /// The messages sent so far, counted from the mail ledger as they go.
-  sentCount    Int            @default(0)
-  closedReason String?
+  sentCount       Int              @default(0)
+  closedReason    String?
   /// What a person chose for the task, where the task carries it (an
   /// outreach batch: audience, offer, subject, body). Record 117.
-  payload      Json?
-  createdAt    DateTime       @default(now())
+  payload         Json?
+  createdAt       DateTime         @default(now())
   outreachLetters OutreachLetter[]
 
   @@index([companyId, agentKey, state])
@@ -11507,13 +11518,13 @@ model OutreachLetter {
 /// latest draft of a period is current; an older one is SUPERSEDED.
 /// No relation is drawn on purpose: nothing in the core reads this.
 model PayrollDraft {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   companyId   String
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  periodStart DateTime @db.Date
-  periodEnd   DateTime @db.Date
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  periodStart DateTime      @db.Date
+  periodEnd   DateTime      @db.Date
   /// DRAFT or SUPERSEDED.
-  state       String   @default("DRAFT")
+  state       String        @default("DRAFT")
   /// A hash of the rows, so an unchanged period is never drafted twice.
   contentHash String
   /// [{ buyContractId, buyContractCandidateId, person, hours, grossPay, currency, held, refused }]
@@ -11521,8 +11532,8 @@ model PayrollDraft {
   /// The card on the decision queue that asks a person to review and run it.
   decisionId  String?
   decision    DecisionItem? @relation(fields: [decisionId], references: [id])
-  agentKey    String   @default("payroll-draft")
-  createdAt   DateTime @default(now())
+  agentKey    String        @default("payroll-draft")
+  createdAt   DateTime      @default(now())
 
   @@index([companyId, periodStart, periodEnd, createdAt])
   @@index([decisionId])
@@ -11533,20 +11544,20 @@ model PayrollDraft {
 /// tracker on a reply it can read; a draft is not a confirmation. The mail
 /// ledger row, where the confirmation came by email, is `mailSendId`.
 model SubmissionConfirmation {
-  id                 String     @id @default(cuid())
-  companyId          String
-  company            Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  submissionId       String
-  submission         Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  id                  String     @id @default(cuid())
+  companyId           String
+  company             Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  submissionId        String
+  submission          Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   /// The person who confirmed, by id. A person at the other firm is named in the note.
   confirmedByPersonId String?
-  confirmedAt        DateTime   @default(now())
+  confirmedAt         DateTime   @default(now())
   /// EMAIL, PHONE, PORTAL or MANUAL.
-  channel            String
+  channel             String
   /// The MailSend row the confirmation answers, where there is one.
-  mailSendId         String?
-  note               String?
-  createdAt          DateTime   @default(now())
+  mailSendId          String?
+  note                String?
+  createdAt           DateTime   @default(now())
 
   @@index([companyId, submissionId])
   @@index([submissionId])
@@ -11568,22 +11579,22 @@ enum OfferState {
 /// unique index is what refuses a second live offer. Whoever changes the
 /// state sets or clears it in the same write.
 model Offer {
-  id           String      @id @default(cuid())
+  id           String     @id @default(cuid())
   companyId    String
-  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   submissionId String
-  submission   Submission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  rate         Decimal     @db.Decimal(12, 2)
-  currency     String      @default("USD")
-  startDate    DateTime?   @db.Date
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  rate         Decimal    @db.Decimal(12, 2)
+  currency     String     @default("USD")
+  startDate    DateTime?  @db.Date
   terms        String?
-  state        OfferState  @default(DRAFT)
-  liveFor      String?     @unique
+  state        OfferState @default(DRAFT)
+  liveFor      String?    @unique
   decidedById  String?
   decidedAt    DateTime?
   createdById  String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   @@index([companyId, state])
   @@index([submissionId, state])
@@ -11635,18 +11646,18 @@ model ChecklistItem {
 /// Chain 3: a petition for a person, tracked by stage. Records what the
 /// employer's counsel reports; Etyme decides nothing about the filing.
 model Petition {
-  id                String   @id @default(cuid())
+  id                String             @id @default(cuid())
   companyId         String
-  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   personId          String
   /// e.g. SPECIALTY_OCCUPATION.
   kind              String
   stage             String
-  filedOn           DateTime? @db.Date
+  filedOn           DateTime?          @db.Date
   /// The firm that files as the employer.
   employerCompanyId String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   accessFiles       PublicAccessFile[]
 
   @@index([companyId, stage])
@@ -11656,21 +11667,21 @@ model Petition {
 
 /// Chain 6: a required notice, when it went up at a work site and when it came down.
 model NoticePosting {
-  id          String    @id @default(cuid())
-  companyId   String
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  kind        String
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind           String
   /// The work site (a CompanyLocation), by id.
-  locationId  String
-  postedOn    DateTime  @db.Date
-  takenDownOn DateTime? @db.Date
-  postedById  String?
-  removedById String?
-  fileRef     String?
+  locationId     String
+  postedOn       DateTime  @db.Date
+  takenDownOn    DateTime? @db.Date
+  postedById     String?
+  removedById    String?
+  fileRef        String?
   /// The filing day this notice is measured against, entered by a person
   /// (record 115). Which filing it is stays regulatory's to confirm.
   measuredFromOn DateTime? @db.Date
-  createdAt   DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   @@index([companyId, kind])
   @@index([locationId])
@@ -11704,7 +11715,7 @@ model PluginSwitch {
   id         String   @id @default(cuid())
   companyId  String
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  plugin     String // TRAIN_TO_BENCH · PODS
+  plugin     String // TRAIN_TO_BENCH · PODS · WEBSITE · OUTREACH
   on         Boolean
   byPersonId String
   byStaff    Boolean  @default(false)
@@ -11714,21 +11725,40 @@ model PluginSwitch {
   @@index([companyId, plugin, at])
 }
 
+/// A compliance pass recorded for a firm's public site (record 123, answer 3): who recorded it, the day it passed, and the paper attached.
+model SiteCompliancePass {
+  id           String      @id @default(cuid())
+  companyId    String
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  passedAt     DateTime
+  recordedById String
+  recordedBy   Person      @relation("siteCompliancePassRecorder", fields: [recordedById], references: [id])
+  /// The attached paper: a DocInstance with its DocFile.
+  documentId   String
+  document     DocInstance @relation(fields: [documentId], references: [id])
+  note         String?
+  createdAt    DateTime    @default(now())
+
+  @@index([companyId, passedAt])
+  @@index([recordedById])
+  @@index([documentId])
+}
+
 /// Project teams (record 120): a named team a firm sells as a project. A plugin, off by default; the tables exist for every tenant and stay empty until one switches it on.
 model Pod {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   companyId        String
-  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name             String
   description      String?
   /// SPRINT_PRICE | RATE_CARD
   pricing          String
   sprintPriceCents Int?
   sprintWeeks      Int?
-  currency         String   @default("USD")
+  currency         String    @default("USD")
   archivedAt       DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   roles    PodRole[]
   projects PodProject[]
@@ -11765,15 +11795,15 @@ model PodMember {
 
 /// A sold team: the project on ProjectOrder, and the one person at the client who accepts or rejects its deliverables.
 model PodProject {
-  id              String       @id @default(cuid())
-  podId           String
-  pod             Pod          @relation(fields: [podId], references: [id])
-  projectOrderId  String       @unique
-  projectOrder    ProjectOrder @relation(fields: [projectOrderId], references: [id])
+  id               String       @id @default(cuid())
+  podId            String
+  pod              Pod          @relation(fields: [podId], references: [id])
+  projectOrderId   String       @unique
+  projectOrder     ProjectOrder @relation(fields: [projectOrderId], references: [id])
   acceptorPersonId String
-  acceptor        Person       @relation(fields: [acceptorPersonId], references: [id])
-  fulfilledAt     DateTime?
-  createdAt       DateTime     @default(now())
+  acceptor         Person       @relation(fields: [acceptorPersonId], references: [id])
+  fulfilledAt      DateTime?
+  createdAt        DateTime     @default(now())
 
   deliverables PodDeliverable[]
 

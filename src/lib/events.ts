@@ -99,6 +99,12 @@ export const EVENT_TYPES = [
   'governance.rule_changed',
   'governance.rule_deactivated',
 
+  // Website and content: the Owner's three checks (records 121, 123)
+  'site.branding_approved',
+  'site.branding_withdrawn',
+  'site.compliance_pass_required_set',
+  'site.compliance_pass_recorded',
+
   // Compliance
   'verification.recorded',
   'verification.expired',

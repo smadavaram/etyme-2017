@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId, type CallerContext } from '@/lib/api-context'
 import { accessActor, recordRefusal, type AccessAction, type AccessSubject } from '@/lib/access-log'
 import { prisma } from '@/lib/db'
-import { isPluginKey, switchOnRefusal, type PluginKey } from '@/lib/plugins'
+import { isPluginKey, switchOnRefusal, websiteOnRefusal, type PluginKey } from '@/lib/plugins'
 
 /**
  * PATCH /api/superadmin/plugins { companyId, plugin, on, reason }
@@ -54,6 +54,10 @@ export async function PATCH(request: NextRequest) {
   const plugin: PluginKey = body.plugin
   const closed = on ? switchOnRefusal(plugin) : null
   if (closed) return NextResponse.json({ error: { code: 'NOT_OPEN_YET', message: closed } }, { status: 409 })
+  if (on && plugin === 'WEBSITE') {
+    const missing = await websiteOnRefusal(companyId)
+    if (missing) return NextResponse.json({ error: missing }, { status: 422 })
+  }
   // Only the switch is touched: the company row is read for its flag list alone.
   const found = await prisma.$transaction(async (tx) => {
     const c = await tx.company.findUnique({ where: { id: companyId }, select: { pluginsOn: true } })

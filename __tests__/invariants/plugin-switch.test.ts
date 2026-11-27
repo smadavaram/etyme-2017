@@ -30,8 +30,8 @@ describe('every plugin starts off', () => {
     expect(read('prisma/schema.prisma')).toMatch(/pluginsOn\s+String\[\]\s+@default\(\[\]\)/)
     for (const p of PLUGINS) expect(isOn([], p.key)).toBe(false)
   })
-  it('there are two plugins, read as Train to bench and Project teams', () => {
-    expect(PLUGINS.map((p) => p.label)).toEqual(['Train to bench', 'Project teams'])
+  it('there are four plugins, read as Train to bench, Project teams, Website and content, and Outreach', () => {
+    expect(PLUGINS.map((p) => p.label)).toEqual(['Train to bench', 'Project teams', 'Website and content', 'Outreach'])
   })
 })
 

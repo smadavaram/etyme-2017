@@ -16,11 +16,11 @@ const WORDS = /train|cohort|course|trainee/i
 const caller = (kind: string) => ({ company: { id: 'c1', name: 'Corvane Packaging', kind }, context: { roleId: 'r1' } }) as any
 
 describe('a client is never offered a supplier-only module', () => {
-  it('a client company is offered neither Train to bench nor Project teams', () => {
+  it('a client company is offered neither Train to bench, Project teams, Website and content, nor Outreach', () => {
     expect(pluginsOfferedTo('CLIENT').map((p) => p.key)).toEqual([])
   })
-  it('a supplier company is offered both plugins', () => {
-    expect(pluginsOfferedTo('VENDOR').map((p) => p.key)).toEqual(['TRAIN_TO_BENCH', 'PODS'])
+  it('a supplier company is offered all four plugins', () => {
+    expect(pluginsOfferedTo('VENDOR').map((p) => p.key)).toEqual(['TRAIN_TO_BENCH', 'PODS', 'WEBSITE', 'OUTREACH'])
   })
   it('the sentence a client reads for a module that is not offered says nothing about training', () => {
     expect(notOfferedSays()).toBe('That is not offered for your company.')
