@@ -159,9 +159,9 @@ describe('a bench firm’s page, read by a client', () => {
     // A person's own address never reaches the page, even where it is known.
     expect(JSON.stringify(site)).not.toContain('sharath@etyme.com')
 
-    const page = readFileSync(join(process.cwd(), 'src/app/site/[slug]/page.tsx'), 'utf8')
+    const page = readFileSync(join(process.cwd(), 'src/app/site/[slug]/site-view.tsx'), 'utf8')
     expect(page).toContain('<Ask source="GENERATED_SITE" firm={{ slug: site.slug, name: site.name }} />')
-    expect(page).toMatch(/site\.contact && <Contact/)
+    expect(page).toMatch(/if \(site\.contact\) out\.contact = <Contact/)
     // The date reads as a date, never the ISO string.
     expect(page).toContain('{formatDayLong(site.liveSince)}')
   })
@@ -195,7 +195,7 @@ describe('a bench firm’s page, read by a client', () => {
     const site = (await publicSite('tapin'))!
     expect(site.contact).toEqual({ phone: '(415) 555-0142', accountsEmail: 'accounts@tapin.test', people: [] })
     for (const never of ['Sharath', 'Madavaram', 'Ravi', 'Kalra']) expect(JSON.stringify(site), never).not.toContain(never)
-    const page = readFileSync(join(process.cwd(), 'src/app/site/[slug]/page.tsx'), 'utf8')
+    const page = readFileSync(join(process.cwd(), 'src/app/site/[slug]/site-view.tsx'), 'utf8')
     // The block still draws its heading, phone and accounts rows with no person row.
     expect(page).toContain('Contact {site.name}')
     expect(page).toContain('contact.phone &&')
@@ -356,7 +356,7 @@ describe('Join the bench, said only as far as it is true', () => {
   it('whether email can leave is read on the server, by the route and by the page that hands it to the form, never in the browser', () => {
     const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
     expect(read('src/app/api/site/[slug]/join/route.ts')).toContain('joinProblems({ name: body.name as string, email: body.email as string }, mailLeaves())')
-    expect(read('src/app/site/[slug]/page.tsx')).toContain('<JoinBench slug={site.slug} letterCanLeave={mailLeaves()} />')
+    expect(read('src/app/site/[slug]/site-view.tsx')).toContain('<JoinBench slug={site.slug} letterCanLeave={mailLeaves()} />')
     const form = read('src/app/site/[slug]/join-bench.tsx')
     expect(form).toContain('joinProblems({ name, email }, letterCanLeave)')
     // The browser cannot see the server's email keys, so the form never asks itself.
@@ -366,7 +366,7 @@ describe('Join the bench, said only as far as it is true', () => {
 
 describe('the words on a firm’s public page (the second Tapin walk, 2026-10-31)', () => {
   const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
-  const PAGE = read('src/app/site/[slug]/page.tsx')
+  const PAGE = read('src/app/site/[slug]/site-view.tsx')
 
   /** The rules-written voice for the kinds of firm whose pages a stranger opens. */
   function ruleVoices(): string[] {

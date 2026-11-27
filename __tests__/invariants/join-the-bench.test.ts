@@ -91,10 +91,10 @@ describe('Join the bench on a firm’s public page', () => {
     expect(offersJoinBench('VENDOR')).toBe(true)
     for (const kind of ['CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP']) expect(offersJoinBench(kind), kind).toBe(false)
 
-    const page = readFileSync(join(process.cwd(), 'src/app/site/[slug]/page.tsx'), 'utf8')
+    const page = readFileSync(join(process.cwd(), 'src/app/site/[slug]/site-view.tsx'), 'utf8')
     // Drawn only where the record says so, and only on the staffing firm's page.
-    expect(page).toMatch(/site\.joinBench && \(/)
-    const suppliersPage = page.slice(page.indexOf('function ForSuppliers'), page.indexOf('function ForTalentAndBuyers'))
+    expect(page).toMatch(/if \(site\.joinBench\) \{/)
+    const suppliersPage = page.slice(page.indexOf("if (site.audience === 'SUPPLIERS')"), page.indexOf('} else {'))
     expect(suppliersPage).not.toContain('JoinBench')
 
     // And the route refuses a client's page too, not only the screen.

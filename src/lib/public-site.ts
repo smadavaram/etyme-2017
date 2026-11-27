@@ -41,6 +41,8 @@ import {
  * identities without their agreement.
  */
 
+import { lookFor, type SiteLook } from './public-site/site-look'
+
 export type Audience = 'SUPPLIERS' | 'TALENT_AND_BUYERS'
 
 export interface OpenPosition {
@@ -103,6 +105,8 @@ export interface PublicSite {
    * on and the firm has not hidden them (record 120). Empty otherwise.
    */
   courses: { title: string; hours: number | null }[]
+  /** The tenant's stored template, branding and pages (record 111). The layout always applies; the look only while the Owner's yes covers it. */
+  look: SiteLook
 }
 
 const READABLE: Record<string, string> = {
@@ -278,6 +282,8 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       phone: true, accountsEmail: true,
       // The Owner's choice, same column `showsPeople` reads (decisions/92).
       showPeopleOnPage: true,
+      siteTemplate: true, siteLogoRef: true, sitePrimaryColor: true, siteSecondaryColor: true,
+      siteFontPairing: true, sitePages: true, siteBrandingApprovedAt: true, siteBrandingApprovedHash: true,
       peopleInCharge: { select: { duty: true, name: true, personId: true } },
       locations: {
         where: { isRemote: false },
@@ -379,6 +385,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     askBox: offersAsk(company.kind),
     contact,
     courses: courseRows.map((c) => ({ title: c.title, hours: c.duration ?? null })),
+    look: lookFor(company),
   }
 
   // ── Talking to suppliers ────────────────────────────────────────────
