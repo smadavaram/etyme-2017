@@ -1,12 +1,12 @@
-import Anthropic from '@anthropic-ai/sdk'
-import { modelFor } from '@/lib/model-ids'
 import { prisma } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { sift, DEFAULT_SHORTLIST, type Candidate as Siftable } from '@/lib/bench-filter'
 import { range, rate } from '@/lib/money-display'
 import { record } from '@/lib/agent-run'
 import { poolFor } from '@/lib/match-pool'
-import { modelOnFor, modelSetUpHere, recordModelPrompt, type PromptToRecord } from '@/lib/model-boundary'
+import { modelOnFor } from '@/lib/model-boundary'
+import { callModel, type ModelDeps } from '@/lib/model-gateway/call'
+import { candidatesFor } from '@/lib/model-gateway/register'
 
 /**
  * Match Engine — the core differentiator.
@@ -36,7 +36,6 @@ import { modelOnFor, modelSetUpHere, recordModelPrompt, type PromptToRecord } fr
  * records the model on every run, so switching it is a decision somebody
  * can make from real numbers rather than a hunch.
  */
-const MODEL = modelFor('MATCH')
 
 interface MatchFactor {
   label: string
@@ -339,60 +338,63 @@ export const MATCH_PURPOSE = 'MATCH'
 /** What one model call returns, as far as matching reads it. */
 export interface ModelAnswer {
   text: string
-  usage?: { input_tokens?: number | null; output_tokens?: number | null; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | null
+  /** The model that answered, as the gateway names it. */
+  model: string
 }
 
 /** The doors scoring reaches through, handed in so a test holds each one. */
 export interface MatchModelDeps {
   /** The company's own switch and the allowance behind it (`modelOnFor`). */
   modelOn(companyId: string): Promise<boolean>
+  /** Whether a model is registered, admitted for tenant data and keyed (the gateway's register). */
   keySet(): boolean
-  call(args: { model: string; rules: string; candidates: string }): Promise<ModelAnswer>
-  logPrompt(p: PromptToRecord): Promise<unknown>
+  /**
+   * One batch through the gateway as the match.rank skill. The gateway masks,
+   * logs the prompt and writes its own ledger row with the model, usage and
+   * cost. It throws, with the gateway's sentence, where nothing answered.
+   */
+  call(args: { rules: string; candidates: string; companyId: string; personId: string; requirementId: string; names: string[] }): Promise<ModelAnswer>
   /** Whose name the prompt log carries: the asker, else a seat at the company. Null where there is none. */
   actorFor(companyId: string, personId?: string | null): Promise<string | null>
   record: typeof record
 }
 
-export const liveMatchDeps: MatchModelDeps = {
-  modelOn: modelOnFor,
-  keySet: modelSetUpHere,
-  async call({ model, rules, candidates }) {
-    const anthropic = new Anthropic()
-    const response = await anthropic.messages.create({
-      model,
-      max_tokens: 8000,
-      // Adaptive thinking at low effort. This is a bounded judgment on
-      // fifteen rows, not an open problem, and effort is the dial that
-      // decides what it costs.
-      thinking: { type: 'adaptive' },
-      output_config: { effort: 'low' },
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: rules, cache_control: { type: 'ephemeral' } },
-            { type: 'text', text: candidates },
-          ],
-        },
-      ],
-    })
-    return { text: response.content[0].type === 'text' ? response.content[0].text : '', usage: response.usage }
-  },
-  logPrompt: recordModelPrompt,
-  async actorFor(companyId, personId) {
-    if (personId) return personId
-    // A nightly job has no asker. The log needs a person, so the company's
-    // longest-standing open seat carries it; with none, nothing is sent.
-    const seat = await prisma.context.findFirst({
-      where: { companyId, revokedAt: null, suspendedAt: null },
-      orderBy: { id: 'asc' },
-      select: { personId: true },
-    })
-    return seat?.personId ?? null
-  },
-  record,
+/** Matching's doors, with the gateway's own dependencies where a test holds them. */
+export function matchDepsWith(gateway?: ModelDeps): MatchModelDeps {
+  return {
+    modelOn: modelOnFor,
+    keySet: () => candidatesFor('LOW', 'TENANT_BUSINESS', gateway?.env ?? process.env, { models: gateway?.models }).length > 0,
+    async call({ rules, candidates, companyId, personId, requirementId, names }) {
+      const got = await callModel({
+        companyId,
+        personId,
+        skillKey: 'match.rank',
+        purpose: MATCH_PURPOSE,
+        system: rules,
+        prompt: candidates,
+        vocab: { people: names },
+        record: { recordType: 'REQUIREMENT', recordId: requirementId },
+        maxTokens: 8000,
+      }, { timeoutMs: 90_000, ...gateway })
+      if (!got.ok) throw new Error(got.says)
+      return { text: got.text, model: got.model }
+    },
+    async actorFor(companyId, personId) {
+      if (personId) return personId
+      // A nightly job has no asker. The log needs a person, so the company's
+      // longest-standing open seat carries it; with none, nothing is sent.
+      const seat = await prisma.context.findFirst({
+        where: { companyId, revokedAt: null, suspendedAt: null },
+        orderBy: { id: 'asc' },
+        select: { personId: true },
+      })
+      return seat?.personId ?? null
+    },
+    record,
+  }
 }
+
+export const liveMatchDeps: MatchModelDeps = matchDepsWith()
 
 export interface MatchGate { may: boolean; says: string }
 
@@ -536,7 +538,13 @@ Return ONLY a JSON array, no other text.`
     let answer: ModelAnswer | null = null
 
     try {
-      answer = await deps.call({ model: MODEL, rules, candidates: candidatesText })
+      // The gateway masks, logs the prompt for the company that ran it and
+      // writes its own ledger row (skill, model, usage, cost). This row
+      // keeps the counts and carries no usage, so a call is never costed twice.
+      answer = await deps.call({
+        rules, candidates: candidatesText, companyId: viewer, personId: actor, requirementId: req.id,
+        names: batch.map((c) => c.personName),
+      })
 
       // Written whether it passed or failed. The runs that error are the
       // ones worth counting.
@@ -546,26 +554,10 @@ Return ONLY a JSON array, no other text.`
         recordType: 'REQUIREMENT',
         recordId: req.id,
         verdict: 'PASS',
-        model: MODEL,
-        usage: answer.usage,
+        model: answer.model,
         ms: Date.now() - started,
         consideredCount: considered,
         scoredCount: batch.length,
-      })
-
-      // The prompt log, masked as it left: no name was in it, and each rate
-      // is a token. Asked by the viewer's company.
-      await deps.logPrompt({
-        companyId: viewer,
-        personId: actor,
-        provider: 'anthropic',
-        model: MODEL,
-        maskedPrompt: `${rules}\n\n${candidatesText}`,
-        maskedAnswer: answer.text,
-        tokensIn: answer.usage?.input_tokens ?? null,
-        tokensOut: answer.usage?.output_tokens ?? null,
-        purpose: MATCH_PURPOSE,
-        realValues: [...floors.values(), ...batch.map((c) => c.personName)],
       })
 
       const text = answer.text
@@ -618,12 +610,11 @@ Return ONLY a JSON array, no other text.`
         recordId: req.id,
         verdict: 'ERROR',
         failReason: String(err?.message ?? err).slice(0, 300),
-        model: MODEL,
         ms: Date.now() - started,
         consideredCount: considered,
         scoredCount: batch.length,
       })
-      console.error('Match engine: Claude API call failed, falling back to deterministic', err)
+      console.error('Match engine: the model call failed, falling back to deterministic', err)
       allResults.push(...scoreDeterministic(req, batch, batch.length, 'the model call failed'))
     }
   }
