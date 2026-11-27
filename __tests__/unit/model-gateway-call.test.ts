@@ -11,9 +11,9 @@ const mk = (o: Partial<RegisteredModel> = {}): RegisteredModel => ({
   region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'K', ...o,
 })
 const env = { K: 'secret-value' }
-// skills.evidence: a tenant-business model skill on the low tier that may escalate.
+// ask.answer: a tenant-business model skill on the low tier with no key and no escalation.
 const base: ModelRequest = {
-  companyId: 'co1', personId: 'p1', skillKey: 'skills.evidence', purpose: 'SKILL_EVIDENCE',
+  companyId: 'co1', personId: 'p1', skillKey: 'ask.answer', purpose: 'ASK_ETYME',
   prompt: 'Quote support for Java from the CV of Ada Reyes.', vocab: { people: ['Ada Reyes'] },
   record: { recordType: 'SUBMISSION', recordId: 's1' },
 }
@@ -42,7 +42,7 @@ describe('the gateway is the one door for a model call', () => {
     const w = world(answer('PERSON_1 knows Java'), [mk()])
     await callModel(base, w.deps)
     expect(w.prompts).toHaveLength(1)
-    expect(w.prompts[0]).toMatchObject({ model: 'low-a', provider: 'Low A', purpose: 'SKILL_EVIDENCE', companyId: 'co1', personId: 'p1' })
+    expect(w.prompts[0]).toMatchObject({ model: 'low-a', provider: 'Low A', purpose: 'ASK_ETYME', companyId: 'co1', personId: 'p1' })
     expect(w.prompts[0].maskedPrompt).not.toContain('Ada Reyes')
     expect(w.prompts[0].realValues).toContain('Ada Reyes')
   })
@@ -106,7 +106,7 @@ describe('the gateway is the one door for a model call', () => {
     const r = await callModel({ ...base, prompt: 'Her SSN is 123-45-6789' }, w.deps)
     expect(r).toMatchObject({ ok: false, status: 'LANE_C' })
     expect(adapter.call).not.toHaveBeenCalled()
-    expect(w.runs[0]).toMatchObject({ verdict: 'ERROR', skillKey: 'skills.evidence' })
+    expect(w.runs[0]).toMatchObject({ verdict: 'ERROR', skillKey: 'ask.answer' })
     expect(w.runs[0].failReason).toMatch(/^Lane C · not sent/)
   })
   it('a W-4 is never sent to any model, by its type, whatever its text holds', async () => {
@@ -145,5 +145,71 @@ describe('the SDK adapter', () => {
   })
   it('a model whose key is not set is refused in a sentence rather than called', async () => {
     await expect(sdkAdapter(async () => { throw new Error('should not be made') }).call(mk(), { prompt: 'x', maxTokens: 1 }, {})).rejects.toThrow(/no key/)
+  })
+})
+
+describe('a step that fails its answer key on the low tier is asked once more on the high tier', () => {
+  const GOOD = JSON.stringify([{ skill: 'Java', quote: 'built Java services' }])
+  const BAD = JSON.stringify([{ skill: 'Kafka', quote: 'ran Kafka clusters' }])
+  const withSource: ModelRequest = { ...base, skillKey: 'skills.evidence', source: 'I built Java services for nine years' }
+  const tiered = (lowText: string, highText: string | Error, models: RegisteredModel[] = [mk(), mk({ id: 'high-a', label: 'High A', tier: 'HIGH' })]) => {
+    const calls: string[] = []
+    const cards: any[] = []
+    const w = world({ call: async (m) => {
+      calls.push(m.id)
+      const t = m.tier === 'LOW' ? lowText : highText
+      if (t instanceof Error) throw t
+      return { text: t, usage: null }
+    } }, models)
+    return { calls, cards, w, deps: { ...w.deps, openCard: async (c: any) => { cards.push(c) } } }
+  }
+  it('a low-tier answer that passes its key is never sent to the high tier', async () => {
+    const t = tiered(GOOD, GOOD)
+    const r = await callModel(withSource, t.deps)
+    expect(t.calls).toEqual(['low-a'])
+    expect(r.ok && r.escalatedFrom).toBeNull()
+  })
+  it('a step that fails its key on the low tier is retried once on the high tier and the escalation is recorded', async () => {
+    const t = tiered(BAD, GOOD)
+    const r = await callModel(withSource, t.deps)
+    expect(t.calls).toEqual(['low-a', 'high-a'])
+    expect(r.ok && [r.model, r.tier, r.escalatedFrom]).toEqual(['high-a', 'HIGH', 'LOW'])
+    expect(t.w.runs.map((x) => [x.model, x.verdict, x.escalatedFrom ?? null])).toEqual([['low-a', 'FAIL', null], ['high-a', 'PASS', 'LOW']])
+    expect(t.w.runs[0].failReason).toMatch(/^Failed its check/)
+  })
+  it('a second failure opens a card for a person and never passes silently', async () => {
+    const t = tiered(BAD, BAD)
+    const r = await callModel(withSource, t.deps)
+    expect(r).toMatchObject({ ok: false, status: 'KEY_FAILED' })
+    expect(t.calls).toEqual(['low-a', 'high-a'])
+    expect(t.cards).toHaveLength(1)
+    expect(t.cards[0]).toMatchObject({ skillKey: 'skills.evidence', companyId: 'co1' })
+    expect(t.w.runs.every((x) => x.verdict === 'FAIL')).toBe(true)
+  })
+  it('with no high-tier model set up a failed answer goes to a person rather than passing', async () => {
+    const t = tiered(BAD, GOOD, [mk()])
+    const r = await callModel(withSource, t.deps)
+    expect(r).toMatchObject({ ok: false, status: 'KEY_FAILED' })
+    expect(r.ok === false && r.says).toMatch(/no high-tier model/)
+    expect(t.cards).toHaveLength(1)
+  })
+  it('escalation only reaches a model admitted for the same data class, never one outside the US', async () => {
+    const t = tiered(BAD, GOOD, [mk(), mk({ id: 'high-eu', tier: 'HIGH', region: 'DE' })])
+    const r = await callModel(withSource, t.deps)
+    expect(t.calls).toEqual(['low-a'])
+    expect(r).toMatchObject({ ok: false, status: 'KEY_FAILED' })
+  })
+  it('a high tier that does not answer sends the step to a person too', async () => {
+    const t = tiered(BAD, new Error('down'))
+    const r = await callModel(withSource, t.deps)
+    expect(r).toMatchObject({ ok: false, status: 'KEY_FAILED' })
+    expect(t.cards).toHaveLength(1)
+  })
+  it('a skill that may not escalate is never retried on the high tier', async () => {
+    // site.voice is a model skill with mayEscalate false and has no key; its answer is returned as given.
+    const t = tiered('anything', 'other')
+    const r = await callModel({ ...withSource, skillKey: 'site.voice' }, t.deps)
+    expect(t.calls).toEqual(['low-a'])
+    expect(r.ok && r.escalatedFrom).toBeNull()
   })
 })

@@ -10,6 +10,11 @@
  * model admitted and keyed the answer is "Not configured": nothing is sent,
  * nothing falls through to a cheaper model, and nothing is blocked.
  *
+ * A skill that may escalate has an inline key (lib/skills/inline-keys). An
+ * answer that fails it is asked once more on the high tier, among models
+ * admitted for the same data class, and recorded with where it came from; a
+ * second failure is never passed on: it is a FAIL row and a card for a person.
+ *
  * The cost on a row is Etyme's own, from the register's price, and null
  * where none is set. No charge appears here.
  */
@@ -20,6 +25,7 @@ import { skillOf, type DataClass } from '@/lib/skills/registry'
 import { candidatesFor, costMicrosFromPrice, registerFrom, type ModelTier, type RegisteredModel } from './register'
 import { laneCRefusal } from './lane-c'
 import { sdkAdapter } from './adapters/sdk'
+import { inlineKeyFor } from '@/lib/skills/inline-keys'
 
 type Env = Record<string, string | undefined>
 
@@ -44,6 +50,8 @@ export interface ModelRequest {
   record: { recordType: RecordType; recordId: string }
   agentKey?: string | null
   maxTokens?: number
+  /** The text the answer's quotes must come from, for a skill whose key checks quotes. */
+  source?: string
   /** The tenant's own recorded opt-in (record 96); counts for a tenant's own model only. */
   tenantOptIn?: boolean
 }
@@ -56,9 +64,11 @@ export interface ModelDeps {
   recordRun?: typeof record
   logPrompt?: typeof recordModelPrompt
   timeoutMs?: number
+  /** Opens a card for a person when an answer fails its key twice. The caller's agent supplies it. */
+  openCard?: (c: { companyId: string; skillKey: string; question: string; proof: string; record: { recordType: RecordType; recordId: string } }) => Promise<void>
 }
 
-export type ModelStatus = 'NOT_CONFIGURED' | 'OFF' | 'LANE_C' | 'REFUSED' | 'FAILED'
+export type ModelStatus = 'NOT_CONFIGURED' | 'OFF' | 'LANE_C' | 'REFUSED' | 'FAILED' | 'KEY_FAILED'
 
 export type ModelResult =
   | {
@@ -127,38 +137,74 @@ export async function callModel(req: ModelRequest, deps: ModelDeps = {}): Promis
   }
 
   const timeoutMs = deps.timeoutMs ?? DEFAULT_TIMEOUT_MS
-  let firstFailed: string | null = null
-  let lastWhy = ''
-  for (const m of candidates) {
-    const adapter = adapters[m.adapter]
-    const t0 = Date.now()
-    try {
-      if (!adapter) throw new Error(`No adapter named ${m.adapter}.`)
-      const out = await withTimeout(adapter.call(m, { system, prompt: maskedPrompt, maxTokens: req.maxTokens ?? DEFAULT_MAX_TOKENS }, env), timeoutMs)
-      const text = mask.unmask(out.text)
-      const logged = await (deps.logPrompt ?? recordModelPrompt)({
-        companyId: req.companyId, personId: req.personId, provider: m.label, model: m.id,
-        maskedPrompt, maskedAnswer: out.text, tokensIn: out.usage?.input_tokens ?? null, tokensOut: out.usage?.output_tokens ?? null,
-        purpose: req.purpose, realValues: mask.realValues(),
-      })
-      const costMicros = costMicrosFromPrice(m.price, out.usage ?? {})
-      const runId = await recordRun(row({
-        verdict: 'PASS', tier: m.tier, model: m.id, usage: out.usage ?? null, ms: Date.now() - t0,
-        byTenantModel: m.byTenant === true, fallbackFrom: firstFailed,
-        failReason: costMicros === null ? 'Price not set.' : null,
-      }))
-      return {
-        ok: true, text, model: m.id, tier: m.tier, usage: out.usage ?? null, costMicros,
-        fallbackFrom: firstFailed, escalatedFrom: null, runId, promptLogged: logged.ok,
+  const key = skill.mayEscalate ? inlineKeyFor(skill.key) : null
+
+  type Got = { m: RegisteredModel; text: string; usage: Usage | null; ms: number; fallbackFrom: string | null; logged: boolean }
+  /** Ask each admitted model of one tier in order; the first answer wins. Every failure is a ledger row. */
+  async function askTier(models: RegisteredModel[], escalatedFrom: ModelTier | null): Promise<{ got: Got } | { why: string }> {
+    let firstFailed: string | null = null
+    let why = ''
+    for (const m of models) {
+      const adapter = adapters[m.adapter]
+      const t0 = Date.now()
+      try {
+        if (!adapter) throw new Error(`No adapter named ${m.adapter}.`)
+        const out = await withTimeout(adapter.call(m, { system, prompt: maskedPrompt, maxTokens: req.maxTokens ?? DEFAULT_MAX_TOKENS }, env), timeoutMs)
+        const logged = await (deps.logPrompt ?? recordModelPrompt)({
+          companyId: req.companyId, personId: req.personId, provider: m.label, model: m.id,
+          maskedPrompt, maskedAnswer: out.text, tokensIn: out.usage?.input_tokens ?? null, tokensOut: out.usage?.output_tokens ?? null,
+          purpose: req.purpose, realValues: mask.realValues(),
+        })
+        return { got: { m, text: mask.unmask(out.text), usage: out.usage ?? null, ms: Date.now() - t0, fallbackFrom: firstFailed, logged: logged.ok } }
+      } catch (e) {
+        why = String((e as Error)?.message ?? e).slice(0, 200)
+        await recordRun(row({
+          model: m.id, tier: m.tier, ms: Date.now() - t0, byTenantModel: m.byTenant === true,
+          fallbackFrom: firstFailed, escalatedFrom, failReason: `${m.label} failed: ${why}`,
+        }))
+        firstFailed ??= m.id
       }
-    } catch (e) {
-      lastWhy = String((e as Error)?.message ?? e).slice(0, 200)
-      await recordRun(row({
-        model: m.id, tier: m.tier, ms: Date.now() - t0, byTenantModel: m.byTenant === true,
-        fallbackFrom: firstFailed, failReason: `${m.label} failed: ${lastWhy}`,
-      }))
-      firstFailed ??= m.id
+    }
+    return { why }
+  }
+
+  /** The row for an answer that came back, graded by the inline key where there is one. */
+  async function settle(g: Got, escalatedFrom: ModelTier | null): Promise<{ result: ModelResult & { ok: true }; keyFailed: string | null }> {
+    const verdict = key ? key(g.text, { source: req.source }) : null
+    const costMicros = costMicrosFromPrice(g.m.price, g.usage ?? {})
+    const runId = await recordRun(row({
+      verdict: verdict && !verdict.ok ? 'FAIL' : 'PASS', tier: g.m.tier, model: g.m.id, usage: g.usage, ms: g.ms,
+      byTenantModel: g.m.byTenant === true, fallbackFrom: g.fallbackFrom, escalatedFrom,
+      failReason: verdict && !verdict.ok ? `Failed its check: ${verdict.reason}` : costMicros === null ? 'Price not set.' : null,
+    }))
+    return {
+      keyFailed: verdict && !verdict.ok ? verdict.reason : null,
+      result: {
+        ok: true, text: g.text, model: g.m.id, tier: g.m.tier, usage: g.usage, costMicros,
+        fallbackFrom: g.fallbackFrom, escalatedFrom, runId, promptLogged: g.logged,
+      },
     }
   }
-  return { ok: false, status: 'FAILED', says: `Every model for this step failed (${lastWhy}). Nothing was sent on.` }
+
+  const first = await askTier(candidates, null)
+  if (!('got' in first)) {
+    return { ok: false, status: 'FAILED', says: `Every model for this step failed (${first.why}). Nothing was sent on.` }
+  }
+  const a = await settle(first.got, null)
+  if (a.keyFailed === null) return a.result
+
+  // The answer failed its key. Once, on the high tier, only where the skill allows it and only to a
+  // model admitted for the same data class; a second failure goes to a person and never passes.
+  const needsPerson = async (why: string): Promise<ModelResult> => {
+    const says = `${why} A person needs to look at this.`
+    await deps.openCard?.({ companyId: req.companyId, skillKey: skill.key, question: `${skill.name}: a person needs to look at this answer.`, proof: says, record: req.record })
+    return { ok: false, status: 'KEY_FAILED', says }
+  }
+  if (!(skill.mayEscalate && startTier === 'LOW')) return needsPerson(`The answer failed its check (${a.keyFailed}).`)
+  const high = candidatesFor('HIGH', dataClass, env, { models: register.models, tenantOptIn: req.tenantOptIn })
+  if (high.length === 0) return needsPerson(`The answer failed its check (${a.keyFailed}) and no high-tier model is set up for this kind of data.`)
+  const second = await askTier(high, 'LOW')
+  if (!('got' in second)) return needsPerson(`The answer failed its check (${a.keyFailed}) and the high tier did not answer (${second.why}).`)
+  const b = await settle(second.got, 'LOW')
+  return b.keyFailed === null ? b.result : needsPerson(`The answer failed its check on both tiers (${b.keyFailed}).`)
 }
