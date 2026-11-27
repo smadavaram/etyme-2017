@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, vi } from 'vitest'
 
 vi.mock('next-auth/next', () => ({ getServerSession: async () => null }))
 import { as, req, json, prisma, freshWorld } from './harness'
-import { GET as progressGet } from '@/app/api/learn/[tenant]/progress/route'
+import { GET as progressGet, POST as progressPost } from '@/app/api/learn/[tenant]/progress/route'
 import { POST as pathPost } from '@/app/api/learn/paths/route'
 import { POST as adoptPost } from '@/app/api/learn/adopt/route'
 import { GET as adoptionsGet } from '@/app/api/learn/adoptions/route'
@@ -35,6 +35,15 @@ describe('a seat that holds only the reads of its own work and the learning site
     const r = await res
     expect(JSON.stringify(r.body)).not.toContain('NO_DESK')
     expect(r.status).toBe(200)
+  })
+
+  it('a seat holding only own-work reads saves her own finished lesson at the learning site', async () => {
+    as(WORKER)
+    const r = await json(await progressPost(req('POST', `/api/learn/${slug}/progress`, { track: 'it-upgrade', lessonKey: 'it-1-1-1' }), { params: Promise.resolve({ tenant: slug }) }))
+    expect(JSON.stringify(r.body)).not.toContain('NO_DESK')
+    expect(r.status).toBe(200)
+    const person = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: WORKER }, select: { id: true } })
+    expect(await prisma.enrollment.count({ where: { personId: person.id } })).toBeGreaterThan(0)
   })
 
   it('a seat holding only own-work reads still cannot propose a path, adopt a course or read adoptions', async () => {
