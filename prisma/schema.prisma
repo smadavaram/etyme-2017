@@ -1146,6 +1146,7 @@ model Company {
   customDomains              CustomDomain[]
   claimedDomains             CompanyDomain[]
   agentRuns                  AgentRun[]
+  tenantModelRoutes          TenantModelRoute[]
   checks                     Check[]
   TextMessage                TextMessage[]
 
@@ -8977,6 +8978,41 @@ model AgentRun {
   @@index([companyId, agent, at])
   @@index([companyId, skillKey, at])
   @@index([companyId, agentKey, at])
+}
+
+/// A tenant's own model route (record 125, bring your own model). Enterprise
+/// edition only, set by the Owner after a fresh second check.
+///
+/// Holds a REFERENCE to a key, never a key: keyRef is the NAME of a secret in
+/// the platform's secret store (shape ETYME_TM_...), and nothing here, in a
+/// log or in a reply ever carries the value. Admitted by the same data-class
+/// rules as a platform route; Lane C data reaches it never. allowPlatformFallback
+/// is the tenant's own yes to fall back, within the tier, to a platform route.
+model TenantModelRoute {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// LOW · HIGH. A capability tier, never a model name.
+  tier        String
+  label       String
+  adapter     String
+  modelId     String
+  /// Where the provider hosts it, and the day a data processing agreement was signed.
+  region      String
+  dpaSignedOn DateTime?
+
+  /// The name of a secret in the platform's secret store. Never a value.
+  keyRef                String
+  allowPlatformFallback Boolean @default(false)
+  enabled               Boolean @default(true)
+
+  setByPersonId String
+  setAt         DateTime @default(now())
+
+  @@unique([companyId, tier, modelId])
+  @@index([companyId])
+  @@index([setByPersonId])
 }
 
 /// One check on one thing, and who did the checking.

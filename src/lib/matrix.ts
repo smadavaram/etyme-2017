@@ -3678,10 +3678,22 @@ export const MATRIX: L1[] = [
             'Lane C data (tax ID, bank details, social security number, W-4, W-9, voided check, identity papers) reaches no model, refused by document type first and by pattern second, and the refusal is recorded',
             'The first model failing falls to the next admitted one in the same tier; a failed key on the Low tier is retried once on the High tier; a second failure opens a card for a person',
             'A model with no price set records its cost as not set, never a guess; with no model available the gateway says Not configured and blocks no release',
-            'PARTIAL 2026-11-27 (record 125, steps 9a to 10 and 12): the register and admission rules, the Lane C refusal, callModel with its SDK adapter, escalation with inline answer keys, /ready and /api/health reading the gateway, and the model ids and prices moved into the environment register (model-ids keeps only the role names and tiers) are built; the CV skill check (11e, skills.evidence) now asks the gateway and keeps skills out of the mask; the direct callers still go round the gateway (a list that may only shrink, each owner retires its own); a deployment must set ETYME_MODEL_REGISTER before any model step answers; the tenant\u2019s own model (S2) waits on a sealed secret store'
+            'PARTIAL 2026-11-27 (record 125, steps 9a to 10 and 12): the register and admission rules, the Lane C refusal, callModel with its SDK adapter, escalation with inline answer keys, /ready and /api/health reading the gateway, and the model ids and prices moved into the environment register (model-ids keeps only the role names and tiers) are built; the CV skill check (11e, skills.evidence) now asks the gateway and keeps skills out of the mask; the direct callers still go round the gateway (a list that may only shrink, each owner retires its own); a deployment must set ETYME_MODEL_REGISTER before any model step answers; the tenant\u2019s own model is the next row (L3.6.3.49)'
           ],
           implementedBy: ['src/lib/model-gateway/register.ts', 'src/lib/model-gateway/lane-c.ts', 'src/lib/model-gateway/call.ts', 'src/lib/model-gateway/adapters/sdk.ts', 'src/lib/model-gateway/health.ts', 'src/lib/checks/skill-evidence.ts', 'src/lib/model-boundary.ts', 'src/app/api/conversations/twin/model-reply.ts', 'src/app/api/conversations/twin/read.ts', 'src/app/api/conversations/twin/ask.ts', 'src/lib/skills/inline-keys.ts', 'src/lib/model-ids.ts', 'src/lib/model-health.ts', 'src/lib/readiness.ts', 'src/lib/readiness-facts.ts', 'src/lib/agent-run.ts'],
           testedBy: ['__tests__/unit/model-gateway-register.test.ts', '__tests__/unit/model-gateway-lane-c.test.ts', '__tests__/unit/model-gateway-call.test.ts', '__tests__/unit/model-gateway-health.test.ts', '__tests__/unit/ask-etyme-model-gateway.test.ts', '__tests__/invariants/twin-conversation.test.ts', '__tests__/unit/skills-inline-keys.test.ts', '__tests__/invariants/model-callers.test.ts', '__tests__/invariants/skill-evidence.test.ts', '__integration__/skill-rows-do-not-change-the-match-counts.test.ts', '__tests__/invariants/ask-etyme-allowance.test.ts', '__tests__/invariants/model-key-fixes.test.ts', '__integration__/skills-run.test.ts'] },
+        { code: 'L3.6.3.49', name: 'Skills: a tenant\u2019s own model and keys (bring your own), Enterprise edition only', owner: 'Owner', status: P,
+          tasks: [
+            'Only a company on the Enterprise edition may add its own model route; any other edition is refused in one sentence naming the edition',
+            'Only the Owner sets a route, after a fresh second check, and a key is held as a reference to the platform\u2019s secret store, never as a value in the database, a log or a reply',
+            'Until the secret store can take a key the Owner reads \u201cYour keys can be added once the secret store is set up\u201d; nothing is stored and nothing is faked',
+            'A tenant route is admitted by the same data-class rules as a platform route, and Lane C data reaches it never',
+            'A failed tenant model falls back within its tier to the platform route only where the tenant allowed it, and every attempt is a ledger row with its route, tier, outcome and reason',
+            'Usage on a tenant model is metered at the platform-only rate',
+            'PARTIAL 2026-11-27 (record 125): the table that holds a route and a key reference is added (TenantModelRoute); the reader, the Owner route, the metering and the refusal are not built yet'
+          ],
+          implementedBy: ['prisma/schema.prisma'],
+          testedBy: [] },
       ]},
     ],
   },
