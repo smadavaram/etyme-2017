@@ -94,10 +94,10 @@ const model = (s: Omit<Skill, 'dataClass' | 'tier' | 'mayEscalate' | 'maySend' |
 })
 
 export const SKILLS: readonly Skill[] = [
-  rule({ key: 'census.classify', name: 'Active and dormant count', unit: 'company', inputs: ['companyId', 'week'], output: 'active and dormant counts', usedBy: ['census-keeper', 'weekly-summary'],
+  rule({ key: 'census.classify', name: 'Active and dormant count', unit: 'company', inputs: ['companyId', 'week'], output: 'active and dormant counts', usedBy: ['census-keeper'],
     answerKey: { checker: 'census.classify', says: 'one CENSUS_WEEKLY row for the week; its active and dormant counts equal censusFacts re-read by the checker' } }),
-  rule({ key: 'weekly.summary', name: 'Weekly summary line', unit: 'summary', inputs: ['companyId', 'week'], output: 'five figures in one line', usedBy: ['weekly-summary'],
-    answerKey: { checker: 'weekly.summary', says: 'active customers and active suppliers (censusFacts), bills drafted not sent (signed-unbilled), accepted hours this week, filed hours not accepted, each re-read and equal' } }),
+  rule({ key: 'weekly.summary', name: 'Weekly summary line', unit: 'summary', inputs: ['companyId', 'week'], output: 'the week’s figures in one line', usedBy: ['weekly-summary'],
+    answerKey: { checker: 'weekly.summary', says: 'the Monday’s week re-read from the readers: customers and suppliers active and dormant (censusFacts), consultants billing, hours accepted and hours filed and waiting; each figure on the ledger line equals the re-read' } }),
   rule({ key: 'tenure.watch', name: 'Tenure limit watch', unit: 'person', inputs: ['companyId', 'today'], output: 'open cards at 90, 60 and 30 days', acts: ['READ', 'OPEN_CARD'], usedBy: ['compliance-watch'],
     answerKey: { checker: 'tenure.watch', says: 'an OPEN card exactly for people standingAgainstLimit puts at 90, 60 or 30 days or past; none where the client has no limit' } }),
   rule({ key: 'notice.clock', name: 'Notice period', unit: 'notice', inputs: ['companyId', 'today'], output: 'notice ended rows', usedBy: ['compliance-watch'],

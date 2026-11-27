@@ -21,7 +21,7 @@ const FORBIDDEN_IMPORTS: [RegExp, string][] = [
 ]
 const FORBIDDEN_TEXT: [RegExp, string][] = [
   [/\bctx\.act\b/, 'ctx.act'],
-  [/\brecordAction\b|\bwriteRecordAction\b/i, 'the record ledger'],
+  [/\brecordAction\s*\(|\bwriteRecordAction\b/i, 'the record ledger'],
   [/\.(create|createMany|update|updateMany|delete|deleteMany|upsert)\s*\(/, 'a write call'],
   [/\$(transaction|executeRaw|queryRaw)/, 'a raw or transactional call'],
 ]
@@ -54,6 +54,10 @@ describe('a checker file only reads', () => {
     expect(checkerSourceGaps('await recordAction(x)')).toContain('uses the record ledger')
     expect(checkerSourceGaps('await read.check.create({})')).toContain('uses a write call')
     expect(checkerSourceGaps("import { record } from '@/lib/agent-run'")).toContain('imports the run ledger writer')
+  })
+
+  it('a checker may read the record ledger table, which is how it finds what the agent wrote', () => {
+    expect(checkerSourceGaps('await read.recordAction.findMany({})')).toEqual([])
   })
 
   it('a comment that names a writer does not fail a checker', () => {

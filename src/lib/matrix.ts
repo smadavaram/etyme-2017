@@ -3607,9 +3607,10 @@ export const MATRIX: L1[] = [
             'A figure the firm\u2019s record cannot support reads as not applicable, never a zero; a second run the same Monday adds nothing; it sends nothing',
             'Agent control shows the newest summary, the proposed numbers of each chasing agent, and why a running task is stopped',
             'PARTIAL 2026-11-23 (record 112, chain 7): built and tested on the database, not walked in a browser; the Owner cannot yet change the proposed numbers',
+            'It runs as one skill, weekly.summary (record 123): the same ledger line and card as before, proved equal on the seeded world by a golden snapshot; its checker re-reads the Monday\u2019s week from the census, the people on site and the employer\u2019s accepted hours and compares each of the line\u2019s figures; bills drafted and not sent are not on the line and are not graded',
           ],
-          implementedBy: ['src/lib/agents/weekly-summary.ts', 'src/lib/agents/control-view.ts', 'src/lib/decision-queue.ts', 'src/app/api/decision-items/agents/route.ts', 'src/app/dashboard/decisions/agents/page.tsx', 'src/app/api/cron/agents/route.ts'],
-          testedBy: ['__tests__/invariants/weekly-summary.test.ts', '__integration__/weekly-summary.test.ts'] },
+          implementedBy: ['src/lib/agents/weekly-summary.ts', 'src/lib/skills/checkers/weekly-summary.ts', 'src/lib/agents/control-view.ts', 'src/lib/decision-queue.ts', 'src/app/api/decision-items/agents/route.ts', 'src/app/dashboard/decisions/agents/page.tsx', 'src/app/api/cron/agents/route.ts'],
+          testedBy: ['__tests__/invariants/weekly-summary.test.ts', '__integration__/weekly-summary.test.ts', '__integration__/golden-weekly-summary.test.ts', '__integration__/weekly-summary-skills.test.ts', '__tests__/unit/skills-checker-weekly-summary.test.ts'] },
         { code: 'L3.6.3.44', name: 'Get paid: the money-owed chase asks the customer for a bill past its due day', owner: 'Accounts Receivable', status: P,
           tasks: [
             'A sent bill past due with money owed becomes one task and one card asking for a yes; a short pay or rate drift already put to a person is not chased',
@@ -3640,10 +3641,10 @@ export const MATRIX: L1[] = [
             'A checker only reads: it re-derives what should exist from the rules\u2019 own readers and compares it with the record, never with what the agent passed it; one it cannot read returns unknown and is never counted as passed',
             'Actual is written only by the grader, from what the checker found; Planned is the agent\u2019s own count and is labeled Planned',
             'Each agent moves onto skills with the same ledger rows, tasks, cards, letters and automation rows on the seeded world before and after; the owner of each agent\u2019s file migrates it',
-            'PARTIAL 2026-11-26 (record 123, skill layer): schema, the registry, the plans file, runSkill, the checker contract, the grader and the meter reader are built; the checkers come with each agent; no agent is migrated yet; no price anywhere'
+            'PARTIAL 2026-11-26 (record 123, skill layer): schema, the registry, the plans file, runSkill, the checker contract, the grader and the meter reader are built; the checkers come with each agent; the weekly summary is the first agent moved onto skills, with its golden snapshot and its checker; the rest are not migrated yet; no price anywhere'
           ],
-          implementedBy: ['src/lib/skills/registry.ts', 'src/lib/skills/runner.ts', 'src/lib/skills/checker.ts', 'src/lib/skills/checkers/index.ts', 'src/lib/skills/grade.ts', 'src/lib/skills/meter.ts', 'src/lib/agents/plans.ts', 'src/lib/agent-run.ts'],
-          testedBy: ['__tests__/unit/skills-registry.test.ts', '__tests__/unit/skills-plans.test.ts', '__integration__/skills-run.test.ts', '__tests__/unit/skills-grade.test.ts', '__integration__/skills-grade.test.ts', '__tests__/invariants/skill-checkers-read-only.test.ts', '__tests__/unit/skills-meter.test.ts', '__integration__/skills-meter.test.ts', '__tests__/invariants/agent-run.test.ts'] },
+          implementedBy: ['src/lib/skills/registry.ts', 'src/lib/skills/runner.ts', 'src/lib/skills/checker.ts', 'src/lib/skills/checkers/index.ts', 'src/lib/skills/grade.ts', 'src/lib/skills/meter.ts', 'src/lib/agents/plans.ts', 'src/lib/agent-run.ts', 'src/lib/skills/golden.ts', 'src/lib/skills/checkers/weekly-summary.ts'],
+          testedBy: ['__integration__/skills-golden-snapshot.test.ts', '__tests__/unit/skills-golden.test.ts', '__tests__/unit/skills-registry.test.ts', '__tests__/unit/skills-plans.test.ts', '__integration__/skills-run.test.ts', '__tests__/unit/skills-grade.test.ts', '__integration__/skills-grade.test.ts', '__tests__/invariants/skill-checkers-read-only.test.ts', '__tests__/unit/skills-meter.test.ts', '__integration__/skills-meter.test.ts', '__tests__/invariants/agent-run.test.ts'] },
         { code: 'L3.6.3.47', name: 'Skills: planned, actual, target and variance for each skill and each agent, on Agent control', owner: 'Owner', status: P,
           tasks: [
             'Agent control shows, per skill and per agent, for a day, a week (the company\u2019s Sunday to Saturday) or a month: Planned, Actual, Target, Variance, Var %, Completion %',

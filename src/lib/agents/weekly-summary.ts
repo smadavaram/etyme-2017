@@ -23,6 +23,8 @@ import { openDecision, firmToday, firmZone, todayIn } from '@/lib/decision-items
 import { firmTuesday } from '@/lib/money/firm-today'
 import { ownerForRoles } from '@/lib/money/agent-owners'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
+import { registerPlan } from './plans'
+import { runSkill } from '@/lib/skills/runner'
 import { censusFacts } from './census-keeper'
 import { censusOn } from './census-rules'
 
@@ -31,6 +33,11 @@ export const WEEKLY_SUMMARY_RULE = 'weekly-summary-v1'
 export const WEEKLY_SUMMARY_ACTION = 'WEEKLY_SUMMARY'
 export const WEEKLY_SUMMARY_RECORD = 'Company'
 export const WEEKLY_SUMMARY_QUESTION_PREFIX = 'This week: '
+/** What a run of the summary is about: one firm and the Monday it wrote for (`<companyId>:<yyyy-mm-dd>`). The checker re-reads that week. */
+export const WEEKLY_SUMMARY_WEEK_RECORD = 'COMPANY_WEEK'
+
+// One skill, run once on the firm's Monday (record 123). Registered where the agent is defined, so every door that runs it holds the plan.
+registerPlan({ agentKey: WEEKLY_SUMMARY_AGENT, skills: ['weekly.summary'], outputSkill: 'weekly.summary' })
 
 const DAY = 86_400_000
 
@@ -107,8 +114,13 @@ export async function weeklySummaryStep(ctx: AgentContext): Promise<void> {
   const done = await prisma.recordAction.count({ where: { companyId, agentKey: ctx.agentKey, action: WEEKLY_SUMMARY_ACTION, createdAt: { gte: new Date(today.getTime() - DAY) } } })
   if (done > 0) return
   if (!(await ctx.mayAct())) return
-  const s = await readWeeklySummary(companyId, now)
-  await ctx.act({ recordType: WEEKLY_SUMMARY_RECORD, recordId: companyId, action: WEEKLY_SUMMARY_ACTION, summary: summaryLine(s) })
+  const { result: s } = await runSkill(ctx, 'weekly.summary',
+    { recordType: WEEKLY_SUMMARY_WEEK_RECORD, recordId: `${companyId}:${today.toISOString().slice(0, 10)}`, unitsPlanned: 1 },
+    async () => {
+      const read = await readWeeklySummary(companyId, now)
+      await ctx.act({ recordType: WEEKLY_SUMMARY_RECORD, recordId: companyId, action: WEEKLY_SUMMARY_ACTION, summary: summaryLine(read) })
+      return { result: read }
+    })
 
   const owner = await ownerForRoles(companyId, [], now)
   const sw = await prisma.agentSwitch.findUnique({ where: { companyId_agentKey: { companyId, agentKey: ctx.agentKey } } })
