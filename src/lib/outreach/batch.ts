@@ -22,6 +22,8 @@ import { outreachHeld } from '@/lib/plugins'
 import { stoppedSays } from '@/lib/agents/control-view'
 import { agentNameOf } from '@/lib/decision-queue'
 import { standingWith, lacksPosition } from '@/app/api/companies/positions'
+import { CANDIDATE_AUDIENCE_LABEL, CANDIDATE_SIDE } from './candidate-rules'
+import { saidYesToUpdates } from '@/lib/updates-consent'
 import { AUDIENCE_LABELS, buildAudience, sideOfAudience, type Audience, type PoolCompany, type PoolContact } from './audience-rules'
 import {
   OUTREACH_BATCH_AGENT, OUTREACH_BATCH_KIND, OUTREACH_BATCH_TEMPLATE, batchBlock, batchCard, batchPlan, buildLetter, countsOf, letterWords, readBatchAsk,
@@ -212,16 +214,21 @@ export async function batchView(companyId: string, id: string, now: Date = new D
   const found = await prisma.agentTask.findFirst({ where: { id, companyId, kind: OUTREACH_BATCH_KIND }, select: { id: true } })
   if (!found) return null
   const { task } = await approvalOf(id)
-  const payload = (task.payload ?? {}) as { audience?: Audience; offerKind?: keyof typeof OFFER_LABELS; subject?: string; held?: { companyName: string; reason: string; says: string }[] }
+  const payload = (task.payload ?? {}) as { audience?: Audience; side?: string; offerKind?: keyof typeof OFFER_LABELS; subject?: string; held?: { companyName: string; reason: string; says: string }[] }
+  const candidates = payload.side === CANDIDATE_SIDE
   const [firm, letters, sw, card] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId }, select: { name: true, pluginsOn: true } }),
     prisma.outreachLetter.findMany({ where: { agentTaskId: id }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }),
     prisma.agentSwitch.findUnique({ where: { companyId_agentKey: { companyId, agentKey: task.agentKey } } }),
     prisma.decisionItem.findUnique({ where: { id: task.decisionId }, select: { id: true, state: true, question: true } }),
   ])
+  // A candidate's letter names her by her own record, and her address is never put on this page.
   const [contacts, companies, sends] = await Promise.all([
-    prisma.companyContact.findMany({ where: { id: { in: letters.map((l) => l.contactId) }, companyId }, select: { id: true, name: true, outreachOptOutAt: true } }),
-    prisma.company.findMany({ where: { id: { in: letters.map((l) => l.atCompanyId) } }, select: { id: true, name: true } }),
+    candidates
+      ? prisma.person.findMany({ where: { id: { in: letters.map((l) => l.contactId) } }, select: { id: true, name: true, updatesYesAt: true, updatesRevokedAt: true } })
+          .then((ps) => ps.map((p) => ({ id: p.id, name: p.name, outreachOptOutAt: saidYesToUpdates(p) ? null : (p.updatesRevokedAt ?? new Date(0)) })))
+      : prisma.companyContact.findMany({ where: { id: { in: letters.map((l) => l.contactId) }, companyId }, select: { id: true, name: true, outreachOptOutAt: true } }),
+    candidates ? [] : prisma.company.findMany({ where: { id: { in: letters.map((l) => l.atCompanyId) } }, select: { id: true, name: true } }),
     letters.length ? mailSendsAboutMany(companyId, 'OutreachLetter', letters.map((l) => l.id)) : [],
   ])
   const byContact = new Map(contacts.map((c) => [c.id, c]))
@@ -232,7 +239,7 @@ export async function batchView(companyId: string, id: string, now: Date = new D
     const optedOut = c?.outreachOptOutAt != null
     const bounced = mine.some((s) => s.outcome === 'FAILED_DELIVERY')
     return {
-      id: l.id, name: c?.name ?? 'A contact', email: l.email, companyName: byCompany.get(l.atCompanyId) ?? 'A company', state: l.state,
+      id: l.id, name: c?.name ?? (candidates ? 'A candidate' : 'A contact'), email: candidates ? '' : l.email, companyName: candidates ? '' : byCompany.get(l.atCompanyId) ?? 'A company', state: l.state,
       times: mine.filter((s) => s.outcome === 'SENT').length, interested: l.interestedAt !== null, unsubscribed: optedOut, bounced,
       says: letterWords({ state: l.state, attempt: l.attempt, nextDueAt: l.nextDueAt, stoppedReason: l.stoppedReason, interestedAt: l.interestedAt, optedOut, bounced }),
     }
@@ -246,7 +253,7 @@ export async function batchView(companyId: string, id: string, now: Date = new D
   const paused = (task.state === 'APPROVED' || task.state === 'RUNNING') && planSellsLetters(task.plan) && outreachHeld(firm?.pluginsOn, OUTREACH_BATCH_TEMPLATE)
     ? outreachPausedSays(firm?.name ?? 'your firm') : null
   return {
-    id, state: task.state, subject: payload.subject ?? null, audience: payload.audience ? AUDIENCE_LABELS[payload.audience] : null,
+    id, state: task.state, subject: payload.subject ?? null, audience: candidates ? CANDIDATE_AUDIENCE_LABEL : payload.audience ? AUDIENCE_LABELS[payload.audience] : null,
     offer: payload.offerKind ? OFFER_LABELS[payload.offerKind] : null, createdAt: task.createdAt, closedReason: task.closedReason,
     card: card ? { id: card.id, state: card.state } : null,
     stopped: stoppedSays(task.state, switchState, agentNameOf(task.agentKey)) ?? paused, paused,
