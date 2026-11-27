@@ -43,10 +43,12 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
   // The allowance in force: the Superadmin screen first, the environment second.
   const m = modelHealth(process.env, await currentAllowanceLimits())
   const modelIds = { supported: m.idsSupported, says: m.says }
+  const gateway = { configured: m.gateway.configured, says: m.gateway.says }
 
   const empty: ReadinessFacts = {
     env,
     modelIds,
+    gateway,
     db: { reachable: false, schemaCurrent: false, ms: null },
     realCompanies: 0,
     realSignIns: 0,
@@ -117,6 +119,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
   return {
     env,
     modelIds,
+    gateway,
     db: { reachable: true, schemaCurrent, ms },
     realCompanies,
     realSignIns,

@@ -61,6 +61,12 @@ export interface ReadinessFacts {
    * where nothing measured it.
    */
   modelIds?: { supported: boolean; says: string }
+  /**
+   * The model gateway (record 125): whether any registered model has its
+   * key, and the sentence. Absent where nothing measured it. "Not configured"
+   * is a state, never a failure, and never counts against ready.
+   */
+  gateway?: { configured: boolean; says: string }
   db: {
     reachable: boolean
     /** The newest column the code reads is there. */
@@ -468,7 +474,14 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
 
   // ── Optional: the one model call ─────────────────────────────────────
   edges.push(
-    f.env.anthropic && f.modelIds && !f.modelIds.supported
+    f.gateway
+      ? f.gateway.configured
+        ? { key: 'model', name: 'Models', state: 'SET', required: false, says: `On. ${f.gateway.says}` }
+        : {
+            key: 'model', name: 'Models', state: 'OFF', required: false, says: f.gateway.says,
+            fix: 'Optional. Register a model and set its key to turn the model steps on; every other check is arithmetic and runs anyway.',
+          }
+      : f.env.anthropic && f.modelIds && !f.modelIds.supported
       ? {
           key: 'model', name: 'CV evidence check', state: 'MISSING', required: false,
           says: `The key is set, but a model id is not one this build supports, so the first call would fail. ${f.modelIds.says}`,

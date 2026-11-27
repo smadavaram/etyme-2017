@@ -27,6 +27,7 @@
  */
 
 import { MODEL_PRICES } from '@/lib/model-ids'
+import { priceFromRegister } from '@/lib/model-gateway/register'
 import { prisma } from '@/lib/db'
 
 export type Verdict = 'PASS' | 'FAIL' | 'ERROR'
@@ -78,7 +79,9 @@ export interface Usage {
  * nobody can stand behind.
  */
 export function costMicrosOf(model: string, usage: Usage): number | null {
-  const price = Object.prototype.hasOwnProperty.call(PRICES, model) ? PRICES[model] : null
+  // The register's price first (record 125); the older table only for ids
+  // that rows were already costed against.
+  const price = priceFromRegister(model) ?? (Object.prototype.hasOwnProperty.call(PRICES, model) ? PRICES[model] : null)
   if (!price) return null
 
   const input = usage.input_tokens ?? 0

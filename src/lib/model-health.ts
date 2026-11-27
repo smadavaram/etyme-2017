@@ -5,6 +5,7 @@
  * Ask Etyme allowance is set or not (lib/model-allowance).
  */
 import { checkModelIds, type ModelIdCheck } from '@/lib/model-ids'
+import { gatewayHealth, type GatewayHealth } from '@/lib/model-gateway/health'
 import { allowanceLimits, limitsSet, OPEN_BEFORE_LIMITS_NAME, type AllowanceLimits } from '@/lib/model-allowance'
 
 type Env = Record<string, string | undefined>
@@ -14,6 +15,8 @@ export interface ModelHealth {
   idsSupported: boolean
   ids: ModelIdCheck['roles']
   allowanceSet: boolean
+  /** The gateway's own state (record 125): the register, the keys, and whether tenant data has a model. */
+  gateway: GatewayHealth
   /** Ready to answer: the key is there and every id is supported. */
   ready: boolean
   says: string
@@ -37,5 +40,5 @@ export function modelHealth(env: Env = process.env, limits: AllowanceLimits = al
     : !ids.ok
       ? `The key is set, but ${ids.says}`
       : `The key is set and every model id is supported. ${allowance}`
-  return { keyPresent, idsSupported: ids.ok, ids: ids.roles, allowanceSet, ready: keyPresent && ids.ok, says }
+  return { keyPresent, idsSupported: ids.ok, ids: ids.roles, allowanceSet, gateway: gatewayHealth(env), ready: keyPresent && ids.ok, says }
 }

@@ -3675,10 +3675,10 @@ export const MATRIX: L1[] = [
             'Lane C data (tax ID, bank details, social security number, W-4, W-9, voided check, identity papers) reaches no model, refused by document type first and by pattern second, and the refusal is recorded',
             'The first model failing falls to the next admitted one in the same tier; a failed key on the Low tier is retried once on the High tier; a second failure opens a card for a person',
             'A model with no price set records its cost as not set, never a guess; with no model available the gateway says Not configured and blocks no release',
-            'PARTIAL 2026-11-27 (record 125, steps 9a to 9c): the register and admission rules, the Lane C refusal, and callModel with its SDK adapter (mask, prompt log, fallback within the tier, cost not set, Not configured) are built; the six direct callers still go round it (a list that may only shrink); readiness reads and escalation are not yet'
+            'PARTIAL 2026-11-27 (record 125, steps 9a to 9d): the register and admission rules, the Lane C refusal, callModel with its SDK adapter, and /ready and /api/health reading the gateway (Not configured is a state, never a gate; cost is the register\u2019s price or null) are built; the six direct callers still go round it (a list that may only shrink); escalation is not yet'
           ],
-          implementedBy: ['src/lib/model-gateway/register.ts', 'src/lib/model-gateway/lane-c.ts', 'src/lib/model-gateway/call.ts', 'src/lib/model-gateway/adapters/sdk.ts'],
-          testedBy: ['__tests__/unit/model-gateway-register.test.ts', '__tests__/unit/model-gateway-lane-c.test.ts', '__tests__/unit/model-gateway-call.test.ts', '__tests__/invariants/model-callers.test.ts'] },
+          implementedBy: ['src/lib/model-gateway/register.ts', 'src/lib/model-gateway/lane-c.ts', 'src/lib/model-gateway/call.ts', 'src/lib/model-gateway/adapters/sdk.ts', 'src/lib/model-gateway/health.ts', 'src/lib/model-health.ts', 'src/lib/readiness.ts', 'src/lib/readiness-facts.ts', 'src/lib/agent-run.ts'],
+          testedBy: ['__tests__/unit/model-gateway-register.test.ts', '__tests__/unit/model-gateway-lane-c.test.ts', '__tests__/unit/model-gateway-call.test.ts', '__tests__/unit/model-gateway-health.test.ts', '__tests__/invariants/model-callers.test.ts'] },
       ]},
     ],
   },
