@@ -13,7 +13,7 @@ import { OUTREACH_BATCH_KIND, OUTREACH_BATCH_TEMPLATE, OUTREACH_LETTER_TYPE, FOL
 import { isOn } from '@/lib/plugins'
 import { CANDIDATE_SIDE } from '@/lib/outreach/candidate-rules'
 import { postalLine } from '@/lib/agents/dormant-outreach-rules'
-import { stopUpdatesUrlFor } from '@/lib/notify/updates-links'
+import { baseUrl } from '@/lib/signed-link'
 import type { CheckerResult, CheckWindow, ReadDb, RecordRef } from '../checker'
 
 /**
@@ -108,7 +108,7 @@ export async function chaseSendLetter(companyId: string, window: CheckWindow, re
         const timesSent = await read.mailSend.count({ where: { companyId, recordType: ref.recordType, recordId: ref.recordId, outcome: 'SENT' } })
         mine.push(...candidateLetterProblems({
           sentAt: m.createdAt, yesAt: person.updatesYesAt, revokedAt: person.updatesRevokedAt, kept, personEmail: person.primaryEmail,
-          letterEmail: letter.email, to: m.toAddresses, postal, stopLink: stopUpdatesUrlFor(letter.contactId) !== null, timesSent,
+          letterEmail: letter.email, to: m.toAddresses, postal, stopLink: baseUrl() !== null, timesSent,
         }))
       }
     } else if (letter && (!contact || contact.companyId !== companyId)) mine.push('the contact is not one of this firm’s')

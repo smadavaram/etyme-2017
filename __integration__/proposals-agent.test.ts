@@ -52,7 +52,7 @@ const start = async (title: string, requirements = BID) => {
   expect(r.status).toBe(201)
   return r.body.data.id as string
 }
-const piece = (p: { pieces: { id: string; kind: string }[] }, kind: string) => p.pieces.find((x) => x.kind === kind)!
+const piece = <T extends { id: string; kind: string }>(p: { pieces: T[] }, kind: string): T => p.pieces.find((x) => x.kind === kind)!
 const mark = async (email: string, proposalId: string, pieceId: string, body: unknown) => { as(email); return json(await markPiece(req('PATCH', '/x', body), { params: Promise.resolve({ id: proposalId, pieceId }) })) }
 const approveCard = async (email: string, decisionId: string) => { as(email); return json(await decide(req('POST', '/x', { verdict: 'APPROVE' }), { params: Promise.resolve({ id: decisionId }) })) }
 /** Grade a run afresh: the grader keeps the first answer, so an earlier check is cleared first. */
