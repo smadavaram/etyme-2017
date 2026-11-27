@@ -515,6 +515,9 @@ Full text → 40, 11, 56, 68, 72.
   and chases from the tenant's record, a person approves and submits.
   Free to switch on, agent acts metered, heavy work is consulting. After
   plugins 1 to 4.
+  Widened (→ 132): supplier diversity too (MBE, WBE, 8(a), HUBZone,
+  diversity portals, set-aside bids); a certification is claimed only once
+  held; the agent never finds bids and never submits.
 - **Etyme may run a client's program as a vendor-neutral MSP**, in a seat
   the client grants, under the client's rules, every read logged.
 - **When the training door is built**: a client's view never says
