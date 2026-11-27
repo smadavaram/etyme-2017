@@ -88,3 +88,38 @@ export async function addComplianceWorld(w: GoldenWorld) {
   const petition = await prisma.petition.create({ data: { id: 'petition-golden-compliance', companyId: w.firm.id, personId: filedFor.id, kind: 'SPECIALTY_OCCUPATION', stage: 'FILED', filedOn: d('2026-11-20'), employerCompanyId: w.firm.id } })
   return { hr, pm, partner, worker, placement, site, old, late, petition }
 }
+
+/**
+ * Submissions out to one more customer, for the confirmation tracker: a
+ * plan the customer already answered on the submission's own thread, the
+ * same person put forward twice for one job, one whose letter bounced, and
+ * one that has waited five days after a letter that left. Each has its own
+ * person or job so no card is about two things.
+ */
+export async function addConfirmationWorld(w: GoldenWorld) {
+  const co = await prisma.company.create({ data: { name: 'Golden Reply Customer', slug: 'golden-reply-customer', kind: 'CLIENT' } as any })
+  const cara = await prisma.person.create({ data: { name: 'Cara Client', primaryEmail: mail('cara.client') } })
+  await prisma.context.create({ data: { personId: cara.id, companyId: co.id, type: 'EMPLOYEE' } as any })
+  const ines = await prisma.person.create({ data: { name: 'Ines Ortiz', primaryEmail: mail('ines.ortiz') } })
+  const priya = await prisma.person.findFirstOrThrow({ where: { name: 'Priya Nair' } })
+  const tom = await prisma.person.findFirstOrThrow({ where: { name: 'Tom Ruiz' } })
+  const job = (title: string) => prisma.requirement.create({
+    data: { companyId: co.id, title, skills: ['sql'], status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', months: 6, headcount: 1, startDate: d('2026-12-07') },
+  })
+  const submit = async (title: string, personId: string, on: string) => prisma.submission.create({
+    data: { requirementId: (await job(title)).id, personId, fromCompanyId: w.firm.id, toCompanyId: co.id, kind: 'NETWORK', rate: 9000, status: 'SUBMITTED', checkState: 'SENT', submittedAt: d(on) },
+  })
+  const replied = await submit('Planner', priya.id, '2026-11-20')
+  const dualA = await submit('Data Engineer', tom.id, '2026-11-17')
+  const dualB = await submit('Data Engineer', tom.id, '2026-11-18')
+  const bounced = await submit('Platform Engineer', priya.id, '2026-11-19')
+  const waiting = await submit('Support Analyst', ines.id, '2026-11-18')
+  const letter = (recordId: string, outcome: string, to: string) => prisma.mailSend.create({
+    data: { companyId: w.firm.id, recordType: 'Submission', recordId, fromAddress: 'hello@etyme.example', toAddresses: [to], bccAddresses: [], subject: 'Submission', template: 'submission', templateVersion: '1', outcome } as any,
+  })
+  await letter(bounced.id, 'FAILED_DELIVERY', mail('desk.full'))
+  await letter(waiting.id, 'SENT', mail('hiring.desk'))
+  const thread = await prisma.conversation.create({ data: { companyId: co.id, withCompanyId: w.firm.id, topic: 'SUBMISSION', topicId: replied.id, participants: [] } as any })
+  await prisma.message.create({ data: { conversationId: thread.id, authorId: cara.id, body: 'Can Priya do Tuesday at 10?', type: 'INTERVIEW', createdAt: d('2026-11-21') } })
+  return { co, cara, ines, replied, dualA, dualB, bounced, waiting }
+}

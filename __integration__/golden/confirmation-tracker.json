@@ -1,0 +1,100 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "Person",
+      "owedSeat": "Account Manager"
+    },
+    {
+      "kind": "Person",
+      "owedSeat": "Owner"
+    },
+    {
+      "kind": "Person",
+      "owedSeat": "Account Manager"
+    },
+    {
+      "kind": "SUBMISSION_CHASE",
+      "owedSeat": "Account Manager"
+    }
+  ],
+  "mail": [
+    {
+      "template": "submission-chase",
+      "to": "hiring.desk@example.invalid"
+    }
+  ],
+  "recordActions": [
+    {
+      "action": "DUAL_AUTHORIZATION_BLOCKED",
+      "order": 1,
+      "recordType": "Person",
+      "summary": "Tom Ruiz for Data Engineer (put forward 2026-11-17) is put forward 2 times for the same job. No confirmation is recorded on either until two different people say yes."
+    },
+    {
+      "action": "CONFIRMATION_MATCHED",
+      "order": 2,
+      "recordType": "SubmissionConfirmation",
+      "summary": "Priya Nair for Planner (put forward 2026-11-20): confirmed by portal. Cara Client replied on Etyme on 2026-11-21 (interview)."
+    },
+    {
+      "action": "FAILED_DELIVERY_REOPENED",
+      "order": 3,
+      "recordType": "Person",
+      "summary": "Priya Nair for Platform Engineer (put forward 2026-11-19): the letter did not reach the other side, so it is open again."
+    },
+    {
+      "action": "TASK_PROPOSED",
+      "order": 4,
+      "recordType": "AgentTask",
+      "summary": "Confirmation tracker proposed a task and asked for a yes: Ines Ortiz for Support Analyst, put forward Nov 18, 2026, has no confirmation. Send a letter asking them to confirm you have it, or tell us it is not wanted? Proposed: one letter, then 1 reminder, 3 working days apart, closing when a confirmation is recorded. These numbers are proposed; the Owner may change them."
+    },
+    {
+      "action": "SUBMISSION_CHASE_PROPOSED",
+      "order": 5,
+      "recordType": "AgentTask",
+      "summary": "Proposed a follow-up of Ines Ortiz for Support Analyst. Nothing is sent until a person says yes."
+    },
+    {
+      "action": "WEEKLY_TALLY",
+      "order": 6,
+      "recordType": "Company",
+      "summary": "Submissions out 7: confirmed 1, awaiting 3 (3 waiting more than 3 days, a proposal), failed delivery 1, on hold 2."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 7,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "SUBMISSION_CHASE_NOT_SENT",
+      "order": 8,
+      "recordType": "AgentTask",
+      "summary": "Letter 1 about Ines Ortiz for Support Analyst was not sent: No email sender is set up on this deployment, so nothing was sent."
+    },
+    {
+      "action": "TASK_CLOSED_BY_ARRIVAL",
+      "order": 9,
+      "recordType": "AgentTask",
+      "summary": "A confirmation is recorded, so the follow-up is closed."
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "SUBMISSION_CHASE",
+      "plan": {
+        "closesWhen": "a confirmation is recorded",
+        "daysApart": 3,
+        "messages": [
+          {
+            "label": "Submission follow-up",
+            "template": "submission-chase"
+          }
+        ],
+        "retries": 1
+      },
+      "status": "CLOSED_BY_ARRIVAL"
+    }
+  ]
+}
