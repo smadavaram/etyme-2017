@@ -1,0 +1,84 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "OUTREACH_BATCH",
+      "owedSeat": "Account Manager"
+    }
+  ],
+  "mail": [
+    {
+      "template": "outreach-batch",
+      "to": "bea.busy@example.invalid"
+    },
+    {
+      "template": "outreach-batch",
+      "to": "quinn.quiet@example.invalid"
+    },
+    {
+      "template": "outreach-batch",
+      "to": "gus.second@example.invalid"
+    },
+    {
+      "template": "outreach-batch",
+      "to": "quinn.quiet@example.invalid"
+    }
+  ],
+  "recordActions": [
+    {
+      "action": "TASK_PROPOSED",
+      "order": 1,
+      "recordType": "AgentTask",
+      "summary": "Outreach batch proposed a task and asked for a yes: Outreach: send \"Golden Firm: people available for work\" to 3 companies? Etyme drafted the letter and sends it only if you say yes."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 2,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "OUTREACH_LETTER_SENT",
+      "order": 3,
+      "recordType": "AgentTask",
+      "summary": "Sent the outreach letter to Bea Busy at Golden Busy Customer."
+    },
+    {
+      "action": "OUTREACH_LETTER_SENT",
+      "order": 4,
+      "recordType": "AgentTask",
+      "summary": "Sent the outreach letter to Quinn Quiet at Golden Quiet Customer."
+    },
+    {
+      "action": "OUTREACH_LETTER_SENT",
+      "order": 5,
+      "recordType": "AgentTask",
+      "summary": "Sent the outreach letter to Gus Second at Golden Second Customer."
+    },
+    {
+      "action": "OUTREACH_FOLLOW_UP_SENT",
+      "order": 6,
+      "recordType": "AgentTask",
+      "summary": "Sent follow-up 1 to Quinn Quiet at Golden Quiet Customer."
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "OUTREACH_BATCH",
+      "plan": {
+        "closesWhen": "every letter has gone, been answered or been stopped",
+        "daysApart": 5,
+        "letterRecordType": "OutreachLetter",
+        "messages": [
+          {
+            "label": "Offer letter",
+            "template": "outreach-batch"
+          }
+        ],
+        "recipients": 3,
+        "retries": 2
+      },
+      "status": "RUNNING"
+    }
+  ]
+}

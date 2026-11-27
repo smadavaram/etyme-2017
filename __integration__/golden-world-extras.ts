@@ -333,3 +333,17 @@ export async function addMoneyChaseWorld(w: GoldenWorld) {
   const payB = () => prisma.payment.create({ data: { invoiceId: payInFull.id, amount: '500.00', receivedByCompanyId: w.firm.id, receivedAt: new Date(), appliedAt: new Date() } as any })
   return { ar, dunning, noContact, held, last, partPaid, payInFull, nobodyBill, heldBill, lastBill, ended, payB }
 }
+
+/**
+ * The outreach batch: two more customers on the firm's register, each with
+ * the one contact a hiring manager would be, beside the golden quiet
+ * customer's own. Three people get the letter; the customer with nobody
+ * recorded is held.
+ */
+export async function addOutreachBatchWorld(w: GoldenWorld) {
+  const customers = await prisma.counterparty.findMany({ where: { companyId: w.firm.id, relationship: 'CLIENT' }, include: { otherCompany: true } })
+  const at = (name: string) => customers.find((c) => c.otherCompany.name === name)!.otherCompanyId
+  const bea = await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: at('Golden Busy Customer'), name: 'Bea Busy', email: mail('bea.busy'), kind: 'HIRING_MANAGER' } })
+  const gus = await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: at('Golden Second Customer'), name: 'Gus Second', email: mail('gus.second'), kind: 'HIRING_MANAGER' } })
+  return { bea, gus }
+}
