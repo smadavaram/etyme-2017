@@ -82,6 +82,13 @@ export const ANSWERS_BY_ID: Readonly<Record<string, string>> = {
   'settings/owners': 'A seat reads only the Owner asks addressed to it, and nothing else about who owns the company.',
   'settings/owners/*': 'A seat answers only an Owner ask addressed to it.',
   'documents/*/file': 'A seat that sees only its own work opens a document that is about its holder, and no other.',
+  // A learner's own page at a firm's learning site: her progress, the path
+  // she follows and her credential. Each route reads the caller's own
+  // enrollment and nothing else. Mentor routes (learn/paths, learn/adopt,
+  // learn/adoptions, learn/videos, learn/courses) stay a desk's.
+  'learn/*/progress': 'A seat that sees only its own work reads and saves its own progress and path at a learning site, and no other.',
+  'learn/*/credential': 'A seat that sees only its own work asks for the credential it earned, and no other.',
+  'learn/*/join': 'A seat that sees only its own work says it would like to be asked onto the firm’s bench, and nothing more.',
 }
 
 /**

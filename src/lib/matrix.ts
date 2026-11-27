@@ -521,7 +521,7 @@ export const MATRIX: L1[] = [
           testedBy: ['__tests__/invariants/train-to-bench-screen-faults.test.ts', '__tests__/invariants/train-to-bench-rules.test.ts', '__tests__/invariants/train-to-bench-proof.test.ts', '__integration__/train-to-bench-happy-path.test.ts',
             '__integration__/train-to-bench-email-link-and-seats.test.ts', '__integration__/train-to-bench-review-fixes.test.ts', '__tests__/invariants/courses-on-storefront.test.ts', '__tests__/invariants/courses-hidden-switch.test.ts',
             '__tests__/invariants/plugin-switch.test.ts', '__integration__/the-owners-plugin-switch-writes-the-flag-and-the-row-together.test.ts'] },
-        // The training micro-site (record 133): its own route tree under the plugin switch. Built 2026-11-27: routes, screens and the IT track. Open: the learner home's Due line is a stub ("Nothing is due"); Kids, Entry Level and Non-IT read "Not live yet"; no browser case yet.
+        // The training micro-site (record 133): its own route tree under the plugin switch. Built 2026-11-27: routes, screens and the IT track. Open: the learner home's Due line is a stub ("Nothing is due"); Kids, Entry Level and Non-IT read "Not live yet"; no browser case yet. A seat holding only own-work reads (assignments.read, timesheets.read) opens the learner’s own progress, path, credential and join routes through the deskless door, never the mentor or adoption routes.
         { code: 'L3.1.2.13', name: 'Training micro-site: a learner opens one question, takes her track one lesson per screen, free and without signing in, and a signed-in worker’s progress writes to her record', owner: 'Recruiter', status: P,
           tasks: [
             'A separate route tree under /learn in the tenant’s own branding; the core dashboard keeps one door link where Training sat; while the plugin is off the tree reads as no firm',
@@ -537,7 +537,7 @@ export const MATRIX: L1[] = [
           ],
           implementedBy: ['src/app/learn/[tenant]/page.tsx', 'src/app/learn/[tenant]/home/page.tsx', 'src/app/learn/[tenant]/layout.tsx', 'src/app/learn/_components/micro-home.tsx', 'src/app/api/learn/[tenant]/progress/route.ts', 'src/app/api/learn/[tenant]/join/route.ts', 'src/lib/training/learn-gate.ts', 'src/lib/training/learn-db.ts',
             'src/lib/training/due.ts', 'src/lib/training/video.ts', 'src/lib/training/credential.ts', 'src/lib/training/learn-read.ts', 'src/app/learn/_components/video-slot.tsx', 'src/app/learn/_components/credential-panel.tsx', 'src/app/learn/[tenant]/credential/[id]/page.tsx', 'src/app/api/learn/[tenant]/credential/route.ts', 'src/app/api/learn/videos/route.ts'],
-          testedBy: ['__tests__/invariants/learn-micro-site.test.ts', '__integration__/learn-micro-site.test.ts', '__tests__/invariants/learn-phase1.test.ts', '__integration__/learn-phase1.test.ts'] },
+          testedBy: ['__tests__/invariants/learn-micro-site.test.ts', '__integration__/learn-micro-site.test.ts', '__tests__/invariants/learn-phase1.test.ts', '__integration__/learn-phase1.test.ts', '__integration__/learn-phase1-dummy-run.test.ts', '__integration__/learn-own-work-seat.test.ts'] },
         { code: 'L3.1.2.14', name: 'Training paths: a path is made from the record or from a prompt, and a named mentor’s yes makes it live', owner: 'Recruiter', status: B,
           tasks: [
             'A path records how it was made: generation type, source prompt or record signals, mentor, video source',
