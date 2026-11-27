@@ -684,6 +684,13 @@ model AccessLog {
 // ORGANISATION
 // ─────────────────────────────────────────────
 
+/// Which edition a tenant is on (records 126, 127).
+enum Edition {
+  USER
+  STARTER
+  ENTERPRISE
+}
+
 model Company {
   submissionConfirmations SubmissionConfirmation[]
   offers                  Offer[]
@@ -1000,7 +1007,19 @@ model Company {
   /// Where a signed-in seat at this firm lands. Null is the standing rule
   /// (lib/console-home); DECISIONS opens the decision queue (→ 107).
   homePage                   HomePage?
+  /// Edition (records 126, 127). USER is a free user inside another firm's record; STARTER and ENTERPRISE pay after the 60-day trial.
+  /// Which one a tenant is follows the own-business count, read by lib/tenant-state; nothing here is a charge.
+  edition                    Edition                 @default(USER)
+  /// The day the tenant was activated. The 60 days start here; day 61 is activatedAt + 60 days. Null: not activated, no clock.
+  activatedAt                DateTime?
+  /// Paid through this instant. Past it, on day 61 or later, the tenant is read-only. Recorded by the Owner or Superadmin; Etyme never moves money.
+  paidThrough                DateTime?
+  /// A year paid ahead: about 15% off usage only (record 127).
+  annualPrepaid              Boolean                 @default(false)
+  /// The internal proving tenants (record 126) are never locked by the day-61 rule. Set by a Superadmin only, ledgered by the writer.
+  billingExempt              Boolean                 @default(false)
   /// Plugins switched on for this firm (record 120): TRAIN_TO_BENCH, PODS, WEBSITE, OUTREACH.
+  /// The fifth key, PUBLIC_SECTOR (record 124), is the switch only.
   /// Empty is off. The ledger is PluginSwitch.
   pluginsOn                  String[]                @default([])
   pluginSwitches             PluginSwitch[]
@@ -11715,6 +11734,7 @@ model PluginSwitch {
   id         String   @id @default(cuid())
   companyId  String
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// The fifth key is PUBLIC_SECTOR (record 124).
   plugin     String // TRAIN_TO_BENCH · PODS · WEBSITE · OUTREACH
   on         Boolean
   byPersonId String

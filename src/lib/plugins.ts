@@ -8,13 +8,14 @@ import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
  * `Company.pluginsOn`; the ledger is `PluginSwitch`.
  */
 
-export type PluginKey = 'TRAIN_TO_BENCH' | 'PODS' | 'WEBSITE' | 'OUTREACH'
+export type PluginKey = 'TRAIN_TO_BENCH' | 'PODS' | 'WEBSITE' | 'OUTREACH' | 'PUBLIC_SECTOR'
 
 export const PLUGINS: readonly { key: PluginKey; label: string; says: string }[] = [
   { key: 'TRAIN_TO_BENCH', label: 'Train to bench', says: 'Courses and cohorts for your people, and a trainee who finishes joins your bench with her own yes.' },
   { key: 'PODS', label: 'Project teams', says: 'Named teams sold as a project, with deliverables the client accepts and milestones billed from them.' },
   { key: 'WEBSITE', label: 'Website and content', says: 'Your public site and the editor for its words. The site goes public after three checks: your branding, your domain, and any compliance pass.' },
   { key: 'OUTREACH', label: 'Outreach', says: 'Letters that sell your firm: outreach batches, their follow-ups and check-ins with companies gone quiet. Drafting stays open while it is off.' },
+  { key: 'PUBLIC_SECTOR', label: 'Public-sector proposals', says: 'Find public bids that fit your firm, draft the response from your own record, and track deadlines. A person approves and submits.' },
 ]
 
 /**

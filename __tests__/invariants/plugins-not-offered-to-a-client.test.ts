@@ -19,8 +19,8 @@ describe('a client is never offered a supplier-only module', () => {
   it('a client company is offered neither Train to bench, Project teams, Website and content, nor Outreach', () => {
     expect(pluginsOfferedTo('CLIENT').map((p) => p.key)).toEqual([])
   })
-  it('a supplier company is offered all four plugins', () => {
-    expect(pluginsOfferedTo('VENDOR').map((p) => p.key)).toEqual(['TRAIN_TO_BENCH', 'PODS', 'WEBSITE', 'OUTREACH'])
+  it('a supplier company is offered all five plugins', () => {
+    expect(pluginsOfferedTo('VENDOR').map((p) => p.key)).toEqual(['TRAIN_TO_BENCH', 'PODS', 'WEBSITE', 'OUTREACH', 'PUBLIC_SECTOR'])
   })
   it('the sentence a client reads for a module that is not offered says nothing about training', () => {
     expect(notOfferedSays()).toBe('That is not offered for your company.')

@@ -208,7 +208,7 @@ function PluginSwitchPanel() {
     const body = await res.json().catch(() => ({}))
     setBusy(false)
     if (!res.ok) { setSaid({ tone: 'error', text: body.error?.message ?? 'Not switched. Try again.' }); return }
-    setSaid({ tone: 'ok', text: `${body.data.plugin === 'PODS' ? 'Project teams' : 'Train to bench'} is now ${body.data.on ? 'on' : 'off'}. The firm’s Owner sees this as Etyme staff.` })
+    setSaid({ tone: 'ok', text: `${({ TRAIN_TO_BENCH: 'Train to bench', PODS: 'Project teams', WEBSITE: 'Website and content', OUTREACH: 'Outreach', PUBLIC_SECTOR: 'Public-sector proposals' } as Record<string, string>)[body.data.plugin] ?? 'The plugin'} is now ${body.data.on ? 'on' : 'off'}. The firm’s Owner sees this as Etyme staff.` })
   }
   const pick = 'w-full rounded-[8px] border border-etyme-rule bg-etyme-raised px-3 py-2 text-[14px] text-etyme-ink'
   return (
@@ -219,6 +219,9 @@ function PluginSwitchPanel() {
           <select value={f.plugin} onChange={set('plugin')} className={pick}>
             <option value="TRAIN_TO_BENCH">Train to bench</option>
             <option value="PODS">Project teams</option>
+            <option value="WEBSITE">Website and content</option>
+            <option value="OUTREACH">Outreach</option>
+            <option value="PUBLIC_SECTOR">Public-sector proposals</option>
           </select>
         </Field>
         <Field label="Switch it">

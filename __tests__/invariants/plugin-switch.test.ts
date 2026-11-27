@@ -30,8 +30,27 @@ describe('every plugin starts off', () => {
     expect(read('prisma/schema.prisma')).toMatch(/pluginsOn\s+String\[\]\s+@default\(\[\]\)/)
     for (const p of PLUGINS) expect(isOn([], p.key)).toBe(false)
   })
-  it('there are four plugins, read as Train to bench, Project teams, Website and content, and Outreach', () => {
-    expect(PLUGINS.map((p) => p.label)).toEqual(['Train to bench', 'Project teams', 'Website and content', 'Outreach'])
+  it('there are five plugins, read as Train to bench, Project teams, Website and content, Outreach, and Public-sector proposals', () => {
+    expect(PLUGINS.map((p) => p.label)).toEqual(['Train to bench', 'Project teams', 'Website and content', 'Outreach', 'Public-sector proposals'])
+  })
+})
+
+describe('the fifth plugin and the edition columns', () => {
+  it('public-sector proposals is the fifth plugin, last in the order, off until switched on', () => {
+    expect(PLUGINS.map((p) => p.key)).toEqual(['TRAIN_TO_BENCH', 'PODS', 'WEBSITE', 'OUTREACH', 'PUBLIC_SECTOR'])
+    expect(isOn([], 'PUBLIC_SECTOR')).toBe(false)
+  })
+  it('a company starts as a free user with no trial clock and no payment recorded', () => {
+    const schema = read('prisma/schema.prisma')
+    expect(schema).toMatch(/enum Edition \{\s+USER\s+STARTER\s+ENTERPRISE\s+\}/)
+    expect(schema).toMatch(/edition\s+Edition\s+@default\(USER\)/)
+    expect(schema).toMatch(/activatedAt\s+DateTime\?/)
+    expect(schema).toMatch(/paidThrough\s+DateTime\?/)
+    expect(schema).toMatch(/billingExempt\s+Boolean\s+@default\(false\)/)
+  })
+  it('the Superadmin screen offers every plugin there is', () => {
+    const page = read('src/app/dashboard/superadmin/page.tsx')
+    for (const p of PLUGINS) expect(page).toContain(`value="${p.key}"`)
   })
 })
 
