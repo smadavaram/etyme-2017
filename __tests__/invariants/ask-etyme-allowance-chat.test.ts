@@ -39,7 +39,11 @@ import {
 } from '@/lib/model-allowance'
 import { modelOnFor } from '@/lib/model-boundary'
 
-const KEY = { ANTHROPIC_API_KEY: 'sk-test' }
+// "Set up" is the gateway's register holding a keyed model (record 125), never one provider's key variable.
+const KEY = {
+  ETYME_MODEL_REGISTER: JSON.stringify([{ id: 'model-a', label: 'Provider A', adapter: 'sdk', tier: 'LOW', classes: ['TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'KEY_A' }]),
+  KEY_A: 'x',
+}
 const LIMITS = { [PERSON_DAILY_ENV]: '20000', [COMPANY_MONTHLY_ENV]: '500000' }
 const NOW = new Date('2026-11-11T15:00:00Z')
 const FREE_TEXT = 'Which supplier is slowest to send its invoice?'

@@ -271,7 +271,15 @@ describe('every send attempt is one row on the mail ledger', () => {
     // The second reader names the same two things and the records it may return.
     expect(src).toContain('where: { companyId, recordType, recordId: { in: recordIds } }')
     const elsewhere = sources('src').filter((f) => f !== 'src/lib/notify/mail-door.ts' && /\.mailSend\b/.test(read(f)))
-    expect(elsewhere).toEqual([])
+    // The skills' checkers (and the golden snapshot) read the ledger to judge a run. Each read is
+    // scoped to one company, or to one agent task (a task belongs to one company). None reads by
+    // person, address or company-less filter, and nothing outside lib/skills reads it at all.
+    expect(elsewhere.filter((f) => !f.startsWith('src/lib/skills/'))).toEqual([])
+    for (const f of elsewhere) {
+      const calls = read(f).match(/\.mailSend\.(?:findMany|findFirst|count)\(\{[^\n]*(?:\n[^\n]*){0,2}/g) ?? []
+      expect(calls.length, f).toBeGreaterThan(0)
+      for (const c of calls) expect(c, f).toMatch(/where: \{ (?:companyId|agentTaskId)/)
+    }
   })
 })
 
