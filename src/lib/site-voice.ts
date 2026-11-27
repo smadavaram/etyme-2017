@@ -1,5 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk'
-import { modelFor } from '@/lib/model-ids'
+import { callModel, type ModelDeps } from '@/lib/model-gateway/call'
+import { candidatesFor } from '@/lib/model-gateway/register'
 import { britishSpellings, wordsNobodyUses } from '@/lib/positioning'
 
 /**
@@ -71,8 +71,24 @@ export const DEFAULT_HEADINGS: Record<string, string> = {
   credentials: 'What they hold',
 }
 
-export function modelAvailable(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY)
+/** Whether a model is registered for a firm's data and keyed here. The register decides, never a provider's key. */
+export function modelAvailable(env: Record<string, string | undefined> = process.env): boolean {
+  return candidatesFor('LOW', 'TENANT_BUSINESS', env).length > 0
+}
+
+/** The prompt log's purpose for a firm's public page. */
+export const SITE_VOICE_PURPOSE = 'SITE_PAGE'
+
+/**
+ * Who a page's model call is made for. The caller has already asked the
+ * company's switch; the gateway asks it again, masks, logs the prompt and
+ * writes the ledger. No door is the rules: nothing can be sent for nobody.
+ */
+export interface SiteDoor {
+  companyId: string
+  personId: string
+  /** For tests: the gateway's own dependencies (adapters, register, switch, ledger). */
+  gateway?: ModelDeps
 }
 
 // ── Written from the facts, with no model ─────────────────────────────
@@ -178,11 +194,10 @@ Rules that matter more than style:
 
 Return only JSON: {"tagline":"...","intro":"...","headings":{"key":"..."}}`
 
-export async function writeWithModel(f: SiteFacts): Promise<SiteVoice | null> {
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!key) return null
+const PROMPT_LABELS = ['Company', 'What', 'Where', 'Placements', 'Working', 'Organizations', 'Positions', 'Consultants', 'Section', 'Current']
 
-  const client = new Anthropic({ apiKey: key })
+export async function writeWithModel(f: SiteFacts, door?: SiteDoor): Promise<SiteVoice | null> {
+  if (!door) return null
 
   const prompt = `Company: ${f.name}
 What they are: ${f.kind}${f.posture ? ` (${f.posture})` : ''}
@@ -199,17 +214,24 @@ Section keys you may rename: ${Object.keys(DEFAULT_HEADINGS).join(', ')}
 Current names: ${JSON.stringify(DEFAULT_HEADINGS)}`
 
   try {
-    const res = await client.messages.create({
-      model: modelFor('READ'),
-      max_tokens: 1200,
+    // Not configured, off, refused or failed all come back as a status, never a throw.
+    const got = await callModel({
+      companyId: door.companyId,
+      personId: door.personId,
+      skillKey: 'site.voice',
+      purpose: SITE_VOICE_PURPOSE,
+      prompt,
       system: SYSTEM,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const text = res.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
+      // Everything in the facts is on the firm's own public page, so none of it is a person to hide: the
+      // masker would otherwise turn the firm's name and the line labels into people, and the draft with them.
+      vocab: { keep: [f.name, ...f.skills, ...f.locations.flatMap((l) => l.split(/[,\s]+/)), ...PROMPT_LABELS] },
+      // A firm's page hangs on the firm. RecordType has no company kind yet (agent-run.ts is PLATFORM's to
+      // add 'COMPANY'); until then the row hangs on the firm under the one kind that takes a company id.
+      record: { recordType: 'TWIN_LEDGER', recordId: door.companyId },
+      maxTokens: 1200,
+    }, door.gateway)
+    if (!got.ok) return null
+    const text = got.text
 
     const parsed = parseVoice(text)
     if (!parsed) return null

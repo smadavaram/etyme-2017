@@ -11,8 +11,6 @@ import { join, relative } from 'node:path'
 
 /** Files outside the gateway that import a provider's SDK or call a provider host. Each owner retires its own (plan step 11). */
 const DIRECT_CALLERS: Record<string, string> = {
-  'src/lib/checks/skill-evidence.ts': 'DEMAND',
-  'src/lib/site-voice.ts': 'MARKET',
 }
 
 /** Files outside the gateway that read a model id by role (`modelFor(`). Same rule. */
@@ -20,9 +18,7 @@ const READS_A_MODEL_ID: Record<string, string> = {
   'src/app/api/conversations/twin/ask.ts': 'CONVERSATION',
   'src/app/api/imports/sheets/read.ts': 'SUPPLY',
   'src/app/api/settings/site/write.ts': 'MARKET',
-  'src/lib/checks/skill-evidence.ts': 'DEMAND',
   'src/lib/setup-fill-model.ts': 'CONVERSATION',
-  'src/lib/site-voice.ts': 'MARKET',
 }
 
 const PROVIDER_CALL = /@anthropic-ai\/sdk|api\.anthropic\.com|api\.openai\.com|generativelanguage\.googleapis|openrouter\.ai|api\.mistral\.ai|api\.cohere\.(?:ai|com)|api\.groq\.com|api\.together\.xyz/
