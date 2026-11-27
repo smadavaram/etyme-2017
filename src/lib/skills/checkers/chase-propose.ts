@@ -13,11 +13,13 @@ import type { PrismaClient } from '@prisma/client'
 import { censusFacts } from '@/lib/agents/census-keeper'
 import { censusOn } from '@/lib/agents/census-rules'
 import { OUTREACH_KINDS, OUTREACH_PLAN, OUTREACH_RECORD } from '@/lib/agents/dormant-outreach-rules'
+import { CHASE_ROLES, INTERVIEW_CHASE_KIND, PROPOSED_INTERVIEW_PLAN, quietLongEnough, SUBMISSION_RECORD } from '@/lib/agents/interview-chase'
+import { daysOffFor } from '@/lib/days-off'
 import { ownerForRoles } from '@/lib/money/agent-owners'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 
 /** The plan each kind of chase task must carry. A kind not listed has no rule written yet. */
-const PLAN_OF_KIND: Record<string, unknown> = Object.fromEntries(OUTREACH_KINDS.map((k) => [k, OUTREACH_PLAN]))
+const PLAN_OF_KIND: Record<string, unknown> = { ...Object.fromEntries(OUTREACH_KINDS.map((k) => [k, OUTREACH_PLAN])), [INTERVIEW_CHASE_KIND]: PROPOSED_INTERVIEW_PLAN }
 
 const sortedJson = (v: unknown): string => JSON.stringify(v, (_k, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]])) : x)
 
@@ -34,7 +36,11 @@ export const chasePropose: SkillChecker<PrismaClient> = async (companyId, _key, 
 
   const contact = ref.recordType === OUTREACH_RECORD ? await read.companyContact.findUnique({ where: { id: ref.recordId }, select: { atCompanyId: true } }) : null
   const census = contact ? censusOn(await censusFacts(companyId), window.to) : []
-  const owner = await ownerForRoles(companyId, ['Account Manager'], window.to)
+  const forSubmission = ref.recordType === SUBMISSION_RECORD
+  const owner = await ownerForRoles(companyId, forSubmission ? CHASE_ROLES : ['Account Manager'], window.to)
+  // An interview chase is about a submission the firm put forward: re-read it, and how long the client had been quiet when the task was written.
+  const sub = forSubmission ? await read.submission.findUnique({ where: { id: ref.recordId }, select: { fromCompanyId: true, submittedAt: true, _count: { select: { interviews: true } } } }) : null
+  const daysOff = forSubmission ? await daysOffFor(companyId) : []
   const problems: string[] = []
   let good = 0
   for (const t of tasks) {
@@ -43,6 +49,11 @@ export const chasePropose: SkillChecker<PrismaClient> = async (companyId, _key, 
     if (sortedJson(t.plan) !== sortedJson(PLAN_OF_KIND[t.kind])) mine.push('its plan is not the plan the rules give this kind')
     if (!t.decision) mine.push('it has no card')
     else if (owner && t.decision.ownerPersonId !== owner) mine.push('its card is owed by a seat the owner reader does not name')
+    if (forSubmission) {
+      if (!sub || sub.fromCompanyId !== companyId) mine.push('the submission it is about is not this firm’s')
+      else if (!quietLongEnough(sub.submittedAt, t.createdAt, daysOff)) mine.push('the client had not been quiet the proposed working days when it was written')
+      if (await read.mailSend.count({ where: { agentTaskId: t.id } }) > 0) mine.push('it wrote to the client, and this chase writes to nobody')
+    }
     if (t.state === 'PROPOSED' && t.sentCount > 0) mine.push('it sent a letter before anyone said yes')
     if (contact && census.find((r) => r.key === `${side}:${contact.atCompanyId}`)?.standing !== 'DORMANT') mine.push('the company it is about does not read dormant')
     if (mine.length === 0) good++

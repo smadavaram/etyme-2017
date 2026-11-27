@@ -21,12 +21,17 @@ import { workingDaysBetween } from '@/lib/notify/timesheet-chase-agent'
 import { ownerForRoles } from '@/lib/money/agent-owners'
 import { registerAgent, type AgentContext, type AgentDef } from '@/lib/agents/runner'
 import { TASK_RECORD, approvalOf, closeTask, proposeTask, type TaskPlan } from '@/lib/agents/tasks'
+import { registerPlan } from '@/lib/agents/plans'
+import { runSkill } from '@/lib/skills/runner'
 
 export const INTERVIEW_CHASE = 'interview-chase'
 export const INTERVIEW_CHASE_RULE = 'interview-chase-1'
 export const INTERVIEW_CHASE_KIND = 'INTERVIEW_CHASE'
 export const SUBMISSION_RECORD = 'Submission'
 export const CHASE_ROLES = ['Recruiter', 'Account Manager'] as const
+
+// The skills this agent runs (record 123), registered where the agent is defined so every door that runs it holds the plan.
+registerPlan({ agentKey: INTERVIEW_CHASE, skills: ['chase.propose', 'chase.close'], outputSkill: 'chase.propose' })
 
 /**
  * PROPOSED DEFAULTS, AWAITING THE OWNER. Nobody has decided these numbers.
@@ -83,11 +88,14 @@ export async function interviewChaseStep(ctx: AgentContext): Promise<void> {
     const ownerPersonId = await ownerForRoles(companyId, CHASE_ROLES, now)
     if (!ownerPersonId) continue
     if (!(await ctx.mayAct(2))) break // proposing writes two counted rows
-    const task = await proposeTask({
-      companyId, agentKey: ctx.agentKey, kind: INTERVIEW_CHASE_KIND, recordType: SUBMISSION_RECORD, recordId: s.id,
-      plan: PROPOSED_INTERVIEW_PLAN, ownerPersonId, question: chaseQuestion(s.person.name, s.requirement.title, s.toCompany.name, s.requirement.raisedBy.name), openedOn: now,
+    await runSkill(ctx, 'chase.propose', { recordType: SUBMISSION_RECORD, recordId: s.id, unitsPlanned: 1 }, async () => {
+      const task = await proposeTask({
+        companyId, agentKey: ctx.agentKey, kind: INTERVIEW_CHASE_KIND, recordType: SUBMISSION_RECORD, recordId: s.id,
+        plan: PROPOSED_INTERVIEW_PLAN, ownerPersonId, question: chaseQuestion(s.person.name, s.requirement.title, s.toCompany.name, s.requirement.raisedBy!.name), openedOn: now,
+      })
+      await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'CHASE_PROPOSED', summary: `Proposed a follow-up with ${s.toCompany.name} for ${s.person.name}, ${s.requirement.title}. The agent writes to nobody.` })
+      return { result: task }
     })
-    await ctx.act({ recordType: TASK_RECORD, recordId: task.id, action: 'CHASE_PROPOSED', summary: `Proposed a follow-up with ${s.toCompany.name} for ${s.person.name}, ${s.requirement.title}. The agent writes to nobody.` })
   }
 
   // 2. Walk every released task.
@@ -101,7 +109,11 @@ export async function interviewChaseStep(ctx: AgentContext): Promise<void> {
     const s = await prisma.submission.findUnique({ where: { id: task.recordId }, select: SUB_SELECT })
     if (!s) { await closeTask(task.id, 'The submission this chase was about is no longer on the record.', 'STOPPED'); continue }
     if (movedByClient({ status: s.status, rejectedAt: s.rejectedAt, interviews: s._count.interviews })) {
-      await closeTask(task.id, 'The client moved the submission, so the chase is closed.', 'CLOSED_BY_ARRIVAL'); continue
+      await runSkill(ctx, 'chase.close', { recordType: SUBMISSION_RECORD, recordId: s.id, unitsPlanned: 1 }, async () => {
+        await closeTask(task.id, 'The client moved the submission, so the chase is closed.', 'CLOSED_BY_ARRIVAL')
+        return { result: true }
+      })
+      continue
     }
     // No send step: after a yes the task waits for the client to move, and a person follows up.
   }
