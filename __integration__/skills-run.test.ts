@@ -103,15 +103,20 @@ describe('an agent runs skills through its plan', () => {
 
   it('a model skill writes its tier, tokens and cost, and a model with no price records cost as not set', async () => {
     await clear()
+    // The price is the register's (record 125), set as a deployment sets it.
+    const was = process.env.ETYME_MODEL_REGISTER
+    process.env.ETYME_MODEL_REGISTER = JSON.stringify([{ id: 'a-model-somebody-priced', adapter: 'sdk', tier: 'LOW', classes: ['TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'K', price: { in: 1, out: 5 } }])
     registerPlan({ agentKey: KEY, skills: ['bio.write'], outputSkill: 'bio.write' })
     registerAgent(KEY, { ruleVersion: 'v1', step: async (ctx) => {
-      await runSkill(ctx, 'bio.write', { recordType: 'CONSULTANT', recordId: 'p1', unitsPlanned: 1 }, async () => ({ result: 'bio', model: 'claude-haiku-5-5', usage: { input_tokens: 1000, output_tokens: 100 }, fallbackFrom: 'other-model' }))
+      await runSkill(ctx, 'bio.write', { recordType: 'CONSULTANT', recordId: 'p1', unitsPlanned: 1 }, async () => ({ result: 'bio', model: 'a-model-somebody-priced', usage: { input_tokens: 1000, output_tokens: 100 }, fallbackFrom: 'other-model' }))
       await runSkill(ctx, 'bio.write', { recordType: 'CONSULTANT', recordId: 'p2' }, async () => ({ result: 'bio', model: 'a-model-nobody-priced', usage: { input_tokens: 1000 }, byTenantModel: true }))
     } })
-    await runAgent(KEY, w.firm.id)
+    try { await runAgent(KEY, w.firm.id) } finally {
+      if (was === undefined) delete process.env.ETYME_MODEL_REGISTER; else process.env.ETYME_MODEL_REGISTER = was
+    }
     const rows = await runs()
     expect(rows.map((r) => [r.tier, r.model, r.inputTokens, r.costMicros !== null && r.costMicros > 0, r.fallbackFrom, r.byTenantModel])).toEqual([
-      ['LOW', 'claude-haiku-5-5', 1000, true, 'other-model', false],
+      ['LOW', 'a-model-somebody-priced', 1000, true, 'other-model', false],
       ['LOW', 'a-model-nobody-priced', 1000, false, null, true],
     ])
     expect(rows[1].costMicros).toBeNull()

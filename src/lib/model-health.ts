@@ -1,7 +1,7 @@
 /**
  * Whether the model can be asked on this deployment, read for /api/health
  * and /ready without calling the provider: the key is there (named, never
- * valued), every role resolves to a supported id (lib/model-ids), and the
+ * valued), the model register reads cleanly (lib/model-ids), and the
  * Ask Etyme allowance is set or not (lib/model-allowance).
  */
 import { checkModelIds, type ModelIdCheck } from '@/lib/model-ids'
@@ -17,7 +17,7 @@ export interface ModelHealth {
   allowanceSet: boolean
   /** The gateway's own state (record 125): the register, the keys, and whether tenant data has a model. */
   gateway: GatewayHealth
-  /** Ready to answer: the key is there and every id is supported. */
+  /** Ready to answer: a registered model has its key and the register read cleanly. */
   ready: boolean
   says: string
 }
@@ -29,16 +29,17 @@ export interface ModelHealth {
  * caller with no database gets.
  */
 export function modelHealth(env: Env = process.env, limits: AllowanceLimits = allowanceLimits(env)): ModelHealth {
-  const keyPresent = Boolean(env.ANTHROPIC_API_KEY?.trim())
+  const gateway = gatewayHealth(env)
+  const keyPresent = gateway.configured
   const ids = checkModelIds(env)
   const allowanceSet = limitsSet(limits)
   const allowance = allowanceSet
     ? 'The Ask Etyme allowance is set.'
     : `No Ask Etyme allowance is set (both numbers, on the Superadmin screen or in the deployment's settings), so free text is open only for ${OPEN_BEFORE_LIMITS_NAME}.`
   const says = !keyPresent
-    ? 'No ANTHROPIC_API_KEY, so nothing is sent to a model; the rules answer and the CV evidence check is recorded as unverified, with the reason, never as a pass.'
+    ? `${gateway.says} The CV evidence check is recorded as unverified, with the reason, never as a pass.`
     : !ids.ok
-      ? `The key is set, but ${ids.says}`
-      : `The key is set and every model id is supported. ${allowance}`
-  return { keyPresent, idsSupported: ids.ok, ids: ids.roles, allowanceSet, gateway: gatewayHealth(env), ready: keyPresent && ids.ok, says }
+      ? `A model has its key, but ${ids.says}`
+      : `${gateway.says} ${allowance}`
+  return { keyPresent, idsSupported: ids.ok, ids: ids.roles, allowanceSet, gateway, ready: keyPresent && ids.ok, says }
 }

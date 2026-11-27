@@ -7,6 +7,13 @@ import {
   type CandidateData,
 } from '@/lib/match-engine'
 
+// The model ids come from the environment register (record 125); a deployment sets it, so this test does.
+vi.hoisted(() => {
+  process.env.ETYME_MODEL_REGISTER = JSON.stringify([{ id: 'test-model-match', adapter: 'sdk', tier: 'LOW', classes: ['TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'TEST_MODEL_KEY' }])
+  process.env.TEST_MODEL_KEY = 'x'
+})
+
+
 /**
  * Matching goes through the company's model switch: off by default, masked
  * before it leaves, logged, allowance respected (record 96). A nightly job

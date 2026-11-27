@@ -40,7 +40,7 @@ import {
   PERSON_DAILY_ENV, COMPANY_MONTHLY_ENV, usageLines,
 } from '@/lib/model-allowance'
 import { modelOnFor } from '@/lib/model-boundary'
-import { checkModelIds, modelFor, SUPPORTED_MODELS } from '@/lib/model-ids'
+import { checkModelIds, modelFor } from '@/lib/model-ids'
 import { modelHealth } from '@/lib/model-health'
 
 const LIMITS = { [PERSON_DAILY_ENV]: '20000', [COMPANY_MONTHLY_ENV]: '500000' }
@@ -119,24 +119,30 @@ describe('Ask Etyme counts only what the model answered', () => {
   })
 })
 
-describe('the model ids are ready before the first real call', () => {
-  it('every role defaults to an id this build supports, and an override is used as given and reported when it is not supported', () => {
-    expect(checkModelIds({})).toMatchObject({ ok: true })
-    expect(modelFor('SMALL', {})).toBe('claude-haiku-5-5')
-    expect(modelFor('CHECK', { CHECK_MODEL: 'claude-opus-5' })).toBe('claude-opus-5')
-    const bad = checkModelIds({ CHECK_MODEL: 'claude-opus-5' })
+describe('the model ids come from the register and are ready before the first real call', () => {
+  const entry = (o: Record<string, unknown> = {}) => ({ id: 'm-one', adapter: 'sdk', tier: 'LOW', classes: ['TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'KEY_ONE', ...o })
+  const reg = (...e: unknown[]) => ({ ETYME_MODEL_REGISTER: JSON.stringify(e), KEY_ONE: 'sk-x' })
+
+  it('with nothing registered every role reads Not configured and sends no id', () => {
+    expect(modelFor('SMALL', {})).toBe('')
+    expect(checkModelIds({}).roles.every((r) => r.id === null && !r.configured)).toBe(true)
+  })
+  it('a role sends the first registered model of its tier that may be sent tenant data and has its key', () => {
+    expect(modelFor('CHECK', reg(entry({ id: 'eu', region: 'DE' }), entry()))).toBe('m-one')
+    expect(modelFor('CHECK', { ...reg(entry()), KEY_ONE: '' })).toBe('')
+  })
+  it('an entry the register leaves out is reported in a sentence that names it', () => {
+    const bad = checkModelIds(reg(entry(), entry({ id: 'eu', region: 'DE' })))
     expect(bad.ok).toBe(false)
-    expect(bad.says).toContain('CHECK_MODEL names claude-opus-5')
-    expect(SUPPORTED_MODELS).toEqual(['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'])
+    expect(bad.says).toContain('(eu)')
   })
 
-  it('health and /ready say whether the key is present and every id is supported, without calling the provider', () => {
+  it('health and /ready say whether a model has its key and the register reads cleanly, without calling the provider', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
     expect(modelHealth({})).toMatchObject({ keyPresent: false, ready: false })
-    expect(modelHealth({ ANTHROPIC_API_KEY: 'sk-x' })).toMatchObject({ keyPresent: true, idsSupported: true, ready: true })
-    const wrong = modelHealth({ ANTHROPIC_API_KEY: 'sk-x', MATCH_MODEL: 'claude-opus-5' })
+    expect(modelHealth(reg(entry()))).toMatchObject({ keyPresent: true, idsSupported: true, ready: true })
+    const wrong = modelHealth(reg(entry(), entry({ id: 'eu', region: 'DE' })))
     expect(wrong).toMatchObject({ keyPresent: true, idsSupported: false, ready: false })
-    expect(wrong.says).toContain('MATCH_MODEL names claude-opus-5')
     expect(JSON.stringify(wrong)).not.toContain('sk-x')
     expect(fetchSpy).not.toHaveBeenCalled()
     fetchSpy.mockRestore()

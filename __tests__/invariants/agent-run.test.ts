@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import {
   costMicrosOf, showMicros, costPerSubmission, trend,
   filterRate, worstOffender, firstTimeRate, type Row,
@@ -29,10 +29,17 @@ function row(over: Partial<Row> = {}): Row {
 }
 
 describe('what a call costs', () => {
+  // The price is the register's (record 125), set here as a deployment would set it.
+  const was = process.env.ETYME_MODEL_REGISTER
+  beforeAll(() => {
+    process.env.ETYME_MODEL_REGISTER = JSON.stringify([{ id: 'priced-model', adapter: 'sdk', tier: 'LOW', classes: ['TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'K', price: { in: 5, out: 25 } }])
+  })
+  afterAll(() => { if (was === undefined) delete process.env.ETYME_MODEL_REGISTER; else process.env.ETYME_MODEL_REGISTER = was })
+
   it('charges input and output at their own prices', () => {
     // Opus 5 is $5 per million in, $25 per million out. Three thousand in
     // and one thousand out is a cent and a half plus two and a half.
-    const micros = costMicrosOf('claude-opus-5', {
+    const micros = costMicrosOf('priced-model', {
       input_tokens: 3000,
       output_tokens: 1000,
     })
@@ -41,8 +48,8 @@ describe('what a call costs', () => {
   })
 
   it('charges a cached read at a tenth, which is why the prompt is built stable-first', () => {
-    const cold = costMicrosOf('claude-opus-5', { input_tokens: 10_000, output_tokens: 100 })
-    const warm = costMicrosOf('claude-opus-5', {
+    const cold = costMicrosOf('priced-model', { input_tokens: 10_000, output_tokens: 100 })
+    const warm = costMicrosOf('priced-model', {
       input_tokens: 0,
       cache_read_input_tokens: 10_000,
       output_tokens: 100,
@@ -52,7 +59,7 @@ describe('what a call costs', () => {
   })
 
   it('charges writing to the cache a quarter more than reading it cold', () => {
-    const write = costMicrosOf('claude-opus-5', { cache_creation_input_tokens: 1000 })
+    const write = costMicrosOf('priced-model', { cache_creation_input_tokens: 1000 })
     expect(write).toBe(Math.ceil(1000 * 5 * 1.25))
   })
 
@@ -62,7 +69,7 @@ describe('what a call costs', () => {
   })
 
   it('costs nothing when nothing was sent', () => {
-    expect(costMicrosOf('claude-opus-5', {})).toBe(0)
+    expect(costMicrosOf('priced-model', {})).toBe(0)
   })
 
   it('says "free" rather than "$0.00", because a rule check really is free', () => {

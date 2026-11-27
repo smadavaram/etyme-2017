@@ -14,6 +14,13 @@ import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+// The model ids come from the environment register (record 125); a deployment sets it, so this test does.
+vi.hoisted(() => {
+  process.env.ETYME_MODEL_REGISTER = JSON.stringify([{ id: 'test-model-small', adapter: 'sdk', tier: 'LOW', classes: ['TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'TEST_MODEL_KEY' }])
+  process.env.TEST_MODEL_KEY = 'x'
+})
+
+
 // The prompt log is the architect's (lib/model-boundary); its store is
 // faked here so the sentence about withholding a leak runs without a
 // database. Nothing in Ask Etyme's own answering touches either.
@@ -596,10 +603,10 @@ describe('the twin’s conversation answers from the ledger by rules before any 
     }
     expect(sentLines).toMatch(/FIRM_\d+/)
     expect(a).toMatchObject({ kind: 'MODEL', says: 'Pinnacle Resourcing billed over the hours accepted [entry-442].' })
-    expect(SMALL_MODEL).toBe('claude-haiku-5-5')
+    expect(SMALL_MODEL).toBe('test-model-small')
     expect(on.logPrompt).toHaveBeenCalledTimes(1)
     const logged = (on.logPrompt as ReturnType<typeof vi.fn>).mock.calls[0][0]
-    expect(logged).toMatchObject({ model: 'claude-haiku-5-5', maskedAnswer: expect.stringMatching(/^FIRM_\d+ billed over/), tokensIn: 120, tokensOut: 14 })
+    expect(logged).toMatchObject({ model: 'test-model-small', maskedAnswer: expect.stringMatching(/^FIRM_\d+ billed over/), tokensIn: 120, tokensOut: 14 })
     expect(logged.maskedPrompt).toContain('Question: Which supplier is slowest to send its invoice?')
     expect(logged.maskedPrompt).not.toContain('Pinnacle')
     expect(logged.realValues).toEqual(expect.arrayContaining(['Pinnacle Resourcing']))
@@ -623,7 +630,7 @@ describe('the twin’s conversation answers from the ledger by rules before any 
       purpose: 'ASK_ETYME', realValues: ['Pinnacle Resourcing', '$3,920.00'],
     })
     expect(clean).toMatchObject({ ok: true, withheld: false })
-    expect(stored[0]).toMatchObject({ maskedAnswer: 'FIRM_1 billed AMOUNT_2.', model: 'claude-haiku-5-5', purpose: 'ASK_ETYME' })
+    expect(stored[0]).toMatchObject({ maskedAnswer: 'FIRM_1 billed AMOUNT_2.', model: 'test-model-small', purpose: 'ASK_ETYME' })
 
     const leaked = await recordModelPrompt({
       companyId: 'co-nb', personId: 'p-lorena', provider: 'anthropic', model: SMALL_MODEL,
