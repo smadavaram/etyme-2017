@@ -153,3 +153,20 @@ export function candidatesFor(
 export function priceFromRegister(id: string, env: Env = process.env): ModelPrice | null {
   return registerFrom(env).models.find((m) => m.id === id)?.price ?? null
 }
+
+/**
+ * What one call cost in millionths of a dollar at a registered price, or
+ * null where no price is set. Rounded up. Etyme's own cost, never a charge.
+ */
+export function costMicrosFromPrice(
+  price: ModelPrice | null | undefined,
+  usage: { input_tokens?: number | null; output_tokens?: number | null; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null },
+): number | null {
+  if (!price) return null
+  return Math.ceil(
+    (usage.input_tokens ?? 0) * price.in +
+    (usage.output_tokens ?? 0) * price.out +
+    (usage.cache_read_input_tokens ?? 0) * (price.cacheRead ?? price.in * 0.1) +
+    (usage.cache_creation_input_tokens ?? 0) * price.in * 1.25,
+  )
+}
