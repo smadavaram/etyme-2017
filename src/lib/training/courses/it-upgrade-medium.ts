@@ -14,12 +14,12 @@ import type { Level } from './types'
  */
 
 /** Terms the Simple level builds and this level uses. The assembled track's term check holds the two together. */
-export const MEDIUM_BUILDS_ON: readonly string[] = ['chatbot', 'model', 'prompt', 'reply']
+export const MEDIUM_BUILDS_ON: readonly string[] = ['record', 'chatbot', 'prompt', 'model', 'reply']
 
 /** The order this level builds its own terms in: one new idea a lesson. */
 export const MEDIUM_GLOSSARY: readonly string[] = [
   'document lookup', 'chunk', 'source', 'citation', 'missing document',
-  'record', 'rule', 'ledger line', 'cited-line check', 'off the record',
+  'boundary line', 'rule', 'ledger line', 'cited-line check', 'off the record',
   'company switch', 'placeholder', 'permission', 'prompt log', 'describe, never act',
 ]
 
@@ -209,11 +209,11 @@ export const IT_UPGRADE_MEDIUM: Level = {
           title: 'The Ask Etyme screen',
           intro:
             'On the screen, Ask Etyme is a chat, and it is the first screen after sign-in. ' +
-            'One line on that screen reads: “Your data stays in your company. Every read is logged.” ' +
+            'One line there is the boundary line: “Your data stays in your company. Every read is logged.” ' +
             'Behind the screen, the documents are not files. They are the firm’s own record: jobs, timesheets, bills, papers and people. ' +
             'Technical note: the chat keeps each conversation for the person who had it.',
-          introduces: ['record'],
-          uses: ['document lookup', 'chatbot'],
+          introduces: ['boundary line'],
+          uses: ['document lookup', 'chatbot', 'record'],
           example: {
             mono: true,
             text:
