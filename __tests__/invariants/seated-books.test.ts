@@ -3,6 +3,7 @@ import {
   whoseBooks, seatMayPay, seatedRefusal, moneyTrailFor,
   type SeatFacts,
 } from '@/lib/money/seated-books'
+import { clientLineWhere, HIDDEN_TEAM_LINE } from '@/lib/money/team-lines'
 import { invoiceBetween } from '@/lib/money/invoice-parties'
 
 /**
@@ -68,7 +69,12 @@ describe('whose books a money page is reading', () => {
     // The same scope a client's own desk gets: the line it pays. A
     // sub-vendor's line below names the prime as its customer and is
     // therefore not in it.
-    expect(d.sellContractWhere).toEqual({ clientCompanyId: 'client' })
+    // The client's book and nothing wider, less only the member lines of
+    // outcome work the client never reads (team-lines).
+    expect(d.sellContractWhere).toEqual(clientLineWhere({ clientCompanyId: 'client' }))
+    expect(d.sellContractWhere).toEqual({
+      AND: [{ clientCompanyId: 'client' }, { NOT: HIDDEN_TEAM_LINE }],
+    })
   })
 
   it('a seat scoped to one business unit reads that unit and no other', () => {
@@ -79,8 +85,13 @@ describe('whose books a money page is reading', () => {
       unitsInSeat: ['unit-plant', 'unit-line-a'],
     })
     expect(d.sellContractWhere).toEqual({
-      clientCompanyId: 'client',
-      OR: [{ orgUnitId: { in: ['unit-plant', 'unit-line-a'] } }, { orgUnitId: null }],
+      AND: [
+        {
+          clientCompanyId: 'client',
+          OR: [{ orgUnitId: { in: ['unit-plant', 'unit-line-a'] } }, { orgUnitId: null }],
+        },
+        { NOT: HIDDEN_TEAM_LINE },
+      ],
     })
   })
 

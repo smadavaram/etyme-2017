@@ -161,7 +161,10 @@ describe('what a line bills at is read by the desks that price and bill it, and 
 
   it('the sell contracts list asks the rule for every line before it prints a bill rate', () => {
     const src = readFileSync('src/app/api/contracts/route.ts', 'utf8')
-    expect(src).toMatch(/billRate: seesBill\(c\) \? c\.billRate : null/)
+    // The rule is asked first, per line; the team-line rule (printsRate) can
+    // only withhold a rate further, never print one the rule refused.
+    expect(src).toMatch(/billRate: seesBill\(c\) && printsRate\(c, billViewer\.companyId\) \? c\.billRate : null/)
+    expect(src).toMatch(/billWithheld: !isConsultant && !seesBill\(c\)/)
     expect(src).toMatch(/writeBillTrail\(/)
   })
 })
