@@ -20,6 +20,7 @@ import { accessFileTrack } from './access-file-track'
 import { confirmationMatch } from './confirmation-match'
 import { dualAuthBlock } from './dual-auth-block'
 import { paymentMatch } from './payment-match'
+import { payrollDraft } from './payroll-draft'
 
 export const CHECKERS: Record<string, SkillChecker<any>> = {
   'weekly.summary': weeklySummaryChecker,
@@ -36,4 +37,5 @@ export const CHECKERS: Record<string, SkillChecker<any>> = {
   'confirmation.match': confirmationMatch,
   'dual-auth.block': dualAuthBlock,
   'payment.match': paymentMatch,
+  'payroll.draft': payrollDraft,
 }

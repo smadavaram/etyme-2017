@@ -33,10 +33,17 @@ import { draftRows, draftHash, cardQuestion, cardProof, type DraftRow, type RunD
 import { daySpan } from '@/lib/plain-date'
 import { formatMonthLong } from '@/lib/format-date'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
+import { registerPlan } from './plans'
+import { runSkill } from '@/lib/skills/runner'
 
 export const PAYROLL_DRAFT = 'payroll-draft'
 export const PAYROLL_DRAFT_RULE = 'payroll-draft-v1'
 export const PAYROLL_DRAFT_RECORD = 'PayrollDraft'
+/** What a draft run is about: the pay period, as `start:end`, since the draft's own id is not known until it is written. */
+export const PAY_PERIOD_RECORD = 'PayPeriod'
+
+// The skills this agent runs (record 123), registered where the agent is defined so every door that runs it holds the plan.
+registerPlan({ agentKey: PAYROLL_DRAFT, skills: ['payroll.draft'], outputSkill: 'payroll.draft' })
 /** How many ended periods back it looks. */
 const LOOK_BACK = 6
 
@@ -102,30 +109,34 @@ export async function payrollDraftStep(ctx: AgentContext): Promise<void> {
     if (!owner) continue
     if (!(await ctx.mayAct())) return
 
-    let draftId: string | null = null
-    try {
-      draftId = await prisma.$transaction(async (tx) => {
-        await tx.payrollDraft.updateMany({
-          where: { companyId, periodStart: atDay(p.start), periodEnd: atDay(p.end), state: 'DRAFT' }, data: { state: 'SUPERSEDED' },
+    // One run for each period drafted, a person for each row on it.
+    await runSkill(ctx, 'payroll.draft', { recordType: PAY_PERIOD_RECORD, recordId: `${p.start}:${p.end}`, unitsPlanned: rows.length }, async () => {
+      let draftId: string | null = null
+      try {
+        draftId = await prisma.$transaction(async (tx) => {
+          await tx.payrollDraft.updateMany({
+            where: { companyId, periodStart: atDay(p.start), periodEnd: atDay(p.end), state: 'DRAFT' }, data: { state: 'SUPERSEDED' },
+          })
+          const draft = await tx.payrollDraft.create({
+            data: { companyId, periodStart: atDay(p.start), periodEnd: atDay(p.end), contentHash: hash, rows: rows as unknown as DraftRow[] as never, agentKey: ctx.agentKey },
+          })
+          const card = await openDecision({
+            companyId, personId: person.id, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
+            question: cardQuestion(p.label, rows), ownerPersonId: owner, openedOn: today,
+            proof: cardProof(p.label, rows, !!latest), proofLinks: [{ recordType: PAYROLL_DRAFT_RECORD, recordId: draft.id }],
+          }, now, tx)
+          await tx.payrollDraft.update({ where: { id: draft.id }, data: { decisionId: card.id } })
+          return draft.id
         })
-        const draft = await tx.payrollDraft.create({
-          data: { companyId, periodStart: atDay(p.start), periodEnd: atDay(p.end), contentHash: hash, rows: rows as unknown as DraftRow[] as never, agentKey: ctx.agentKey },
-        })
-        const card = await openDecision({
-          companyId, personId: person.id, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
-          question: cardQuestion(p.label, rows), ownerPersonId: owner, openedOn: today,
-          proof: cardProof(p.label, rows, !!latest), proofLinks: [{ recordType: PAYROLL_DRAFT_RECORD, recordId: draft.id }],
-        }, now, tx)
-        await tx.payrollDraft.update({ where: { id: draft.id }, data: { decisionId: card.id } })
-        return draft.id
+      } catch (e) {
+        if (e instanceof LedgerRefusal) return { result: false, verdict: 'FAIL' as const, failReason: e.message.slice(0, 300) }
+        throw e
+      }
+      await ctx.act({
+        recordType: PAYROLL_DRAFT_RECORD, recordId: draftId, action: 'PAYROLL_DRAFTED',
+        summary: `Drafted payroll for ${p.label}: ${rows.length} ${rows.length === 1 ? 'line' : 'lines'}. Not run: running it is a person’s.`,
       })
-    } catch (e) {
-      if (e instanceof LedgerRefusal) continue
-      throw e
-    }
-    await ctx.act({
-      recordType: PAYROLL_DRAFT_RECORD, recordId: draftId, action: 'PAYROLL_DRAFTED',
-      summary: `Drafted payroll for ${p.label}: ${rows.length} ${rows.length === 1 ? 'line' : 'lines'}. Not run: running it is a person’s.`,
+      return { result: true }
     })
   }
 }
