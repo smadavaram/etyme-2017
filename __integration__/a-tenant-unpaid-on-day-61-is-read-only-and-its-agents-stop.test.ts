@@ -30,6 +30,8 @@ describe('a paying tenant unpaid on day 61', () => {
     expect(res!.status).toBe(403)
     expect((await res!.json()).error.message).toBe(READ_ONLY_SAYS)
     expect(await prisma.accessLog.count({ where: { actorCompanyId: companyId, allowed: false } })).toBe(before + 1)
+    const row = await prisma.accessLog.findFirst({ where: { actorCompanyId: companyId, allowed: false, action: 'TENANT_READ_ONLY_REFUSED' }, select: { reason: true } })
+    expect(row?.reason).toContain('read-only')
   })
 
   it('a timesheet on an existing placement is allowed on day 61', async () => {

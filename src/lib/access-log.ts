@@ -191,6 +191,7 @@ export type AccessAction =
   | 'LOGIN_REFUSED_SSO_ONLY'    // a door was refused because the company signs in through its directory only
   | 'JOIN_REFUSED_BY_POLICY'    // a join was refused because the company admits people by invitation only
   | 'PLUGIN_OFF_REFUSED'         // a request for a plugin's route was refused because the plugin is off for the firm (record 120)
+  | 'TENANT_READ_ONLY_REFUSED'   // a request to start new work was refused because the 60 days ended and nothing is paid
   | 'SUPERADMIN_PLUGIN_REFUSED'  // a staff plugin switch was refused (record 120)
   | 'INVITE_SENT'               // an Owner or Admin invited a person to a seat
   | 'INVITE_ACCEPTED'           // an invited person opened the seat for the first time

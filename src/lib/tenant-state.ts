@@ -90,8 +90,7 @@ export async function readOnlyRefusalFor(
   const { recordRefusal, accessActor } = await import('@/lib/access-log')
   await recordRefusal([{ companyId: caller.company.id }], {
     ...accessActor(caller),
-    // The log has no name of its own for this yet (a request to regulatory); the reason says what happened.
-    action: 'PLUGIN_OFF_REFUSED',
+    action: 'TENANT_READ_ONLY_REFUSED',
     reason: `Refused ${request.method} ${request.nextUrl.pathname}: the 60 days ended and nothing is paid, so the tenant is read-only.`,
   })
   return NextResponse.json({ error: { code: 'READ_ONLY', message: READ_ONLY_SAYS, href: '/dashboard/settings' } }, { status: 403 })
