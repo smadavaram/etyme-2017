@@ -104,15 +104,14 @@ describe('8 · a refusal names the desk, in the reader’s own words', () => {
 
 describe('16 · Training says job requests, and three eyebrows follow the menu', () => {
   it('Training’s first counter reads "Open job requests", and its link "View job requests"', () => {
-    const page = code(read('src/app/dashboard/training/page.tsx'))
+    const page = code(read('src/app/learn/_components/manage/manage-page.tsx'))
     expect(page).toContain('Open job requests')
     expect(page).toContain('View job requests')
     expect(page).not.toMatch(/Open requirements|View requirements/)
   })
 
-  it('Training, Past contractors and Supplier scorecards take their eyebrow from the reader’s own menu and draw none while the session loads', () => {
+  it('Past contractors and Supplier scorecards take their eyebrow from the reader’s own menu and draw none while the session loads', () => {
     for (const [file, href, typed] of [
-      ['src/app/dashboard/training/page.tsx', '/dashboard/training', null],
       ['src/app/dashboard/alumni/page.tsx', '/dashboard/alumni', 'Program'],
       ['src/app/dashboard/scorecards/page.tsx', '/dashboard/scorecards', 'Governance'],
     ] as const) {
@@ -145,7 +144,7 @@ describe('21 · no count before an answer, and nothing above a refusal', () => {
   })
 
   it('Training counts no open job requests it could not read, and shows a dash with the reason', () => {
-    const page = code(read('src/app/dashboard/training/page.tsx'))
+    const page = code(read('src/app/learn/_components/manage/manage-page.tsx'))
     expect(page).not.toContain("{ data: { requirements: [] } }")
     expect(page).toContain('useState<number | null>(null)')
     expect(page).toContain('{figure(totalReqs)}')
@@ -163,7 +162,7 @@ describe('21 · no count before an answer, and nothing above a refusal', () => {
   })
 
   it('Training’s course count waits for the course list, and a refused list shows only its sentence', () => {
-    const page = code(read('src/app/dashboard/training/page.tsx'))
+    const page = code(read('src/app/learn/_components/manage/manage-page.tsx'))
     expect(page).toContain('setCoursesRead(true)')
     expect(page).toMatch(/if \(!coursesRead\) \{[\s\S]*?\{err\s*\?/)
   })

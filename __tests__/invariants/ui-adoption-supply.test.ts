@@ -27,7 +27,7 @@ const fromUi = (src: string, name: string) =>
 
 describe('supply’s pages draw the shared layer', () => {
   it('Training, Ending soon, Consultants, Supplier scorecards and Our scorecard say a refusal through the one shared refusal, the sentence alone', () => {
-    for (const f of ['training/page.tsx', 'rolloff/page.tsx', 'consultants/page.tsx', 'scorecards/page.tsx']) {
+    for (const f of ['../learn/_components/manage/manage-page.tsx', 'rolloff/page.tsx', 'consultants/page.tsx', 'scorecards/page.tsx']) {
       const page = code(read(f))
       expect(fromUi(page, 'RefusedState'), f).toBe(true)
       expect(page, f).toContain('return <RefusedState says={refused} />')

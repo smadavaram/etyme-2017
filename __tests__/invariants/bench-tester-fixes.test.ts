@@ -135,7 +135,7 @@ describe('6 · the words', () => {
 
   it('the consultants, training and bench eyebrows are the section the reader’s own menu puts them under', () => {
     expect(src('src/app/dashboard/consultants/page.tsx')).not.toContain('<p className="eyebrow">Sell</p>')
-    expect(src('src/app/dashboard/training/page.tsx')).not.toContain('<p className="eyebrow">Talent</p>')
+    expect(src('src/app/learn/_components/manage/manage-page.tsx')).not.toContain('<p className="eyebrow">Talent</p>')
     expect(src('src/app/dashboard/bench/page.tsx')).not.toContain('>Procure</div>')
     expect(sectionOfHref('VENDOR', '/dashboard/consultants')).toBe(sectionOfHref('VENDOR', '/dashboard/bench'))
     expect(sectionOfHref('VENDOR', '/dashboard/training', null, { plugins: ['TRAIN_TO_BENCH'] })).not.toBeNull()

@@ -95,7 +95,7 @@ describe('what a firm reads while a plugin is off', () => {
     expect(read('src/lib/plugin-gate.ts')).toMatch(/await recordRefusal\(/)
   })
   it('the Training page shows the route\'s sentence alone, and the route sends only an Owner to Settings', () => {
-    const page = read('src/app/dashboard/training/page.tsx')
+    const page = read('src/app/learn/_components/manage/manage-page.tsx')
     expect(page).toContain('body.error?.message')
     expect(page).not.toContain('Open Settings')
     expect(read('src/lib/plugin-gate.ts')).toContain('The Owner turns it on in Settings.')

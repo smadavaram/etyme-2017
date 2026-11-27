@@ -237,7 +237,7 @@ describe('11 · one door decides who is free, on every page', () => {
     expect(src('src/app/api/bench/route.ts')).toContain('whenFree({')
     expect(src('src/lib/match-pool.ts')).toContain('whenFree({')
     expect(src('src/app/dashboard/bench/page.tsx')).toContain('availabilityStatus(row.free)')
-    expect(src('src/app/dashboard/training/page.tsx')).toContain('fieldable(listings.rows')
+    expect(src('src/app/learn/_components/manage/manage-page.tsx')).toContain('fieldable(listings.rows')
   })
 })
 
@@ -353,13 +353,14 @@ describe('18 · the bench row shows the stay the person chose', () => {
 })
 
 describe('20 · the Training page', () => {
-  it('a course row shows its price a seat', () => {
-    expect(src('src/app/dashboard/training/page.tsx')).toContain("`${amount(c.price, c.currency)} a seat (catalog price)`")
+  it('no course row on the learning site shows a price (record 133)', () => {
+    const page = src('src/app/learn/_components/manage/manage-page.tsx')
+    expect(page).not.toMatch(/c\.price|catalog price|a seat \(/)
   })
 
   it('every box on the add-a-course form has a label', () => {
-    const page = src('src/app/dashboard/training/page.tsx')
-    for (const l of ['Course name', 'Kind', 'Hours', 'Price a seat ($)', 'Who', 'Which course']) expect(page).toContain(`>${l}</span>`)
+    const page = src('src/app/learn/_components/manage/manage-page.tsx')
+    for (const l of ['Course name', 'Kind', 'Hours', 'Who', 'Which course']) expect(page).toContain(`>${l}</span>`)
   })
 
   it('the firm’s own staff are not offered for a course, and the people offered are grouped by how they are here', () => {
@@ -375,7 +376,7 @@ describe('20 · the Training page', () => {
       ['Hector Valdivia', 'BENCH', 'NOW'],
       ['Tobias Wren', 'EMPLOYEE', 'PLACED'],
     ])
-    expect(src('src/app/dashboard/training/page.tsx')).toContain('<optgroup label="On your bench">')
+    expect(src('src/app/learn/_components/manage/manage-page.tsx')).toContain('<optgroup label="On your bench">')
   })
 
   it('the buttons on an enrollment say what they do: Start, Finish, Drop', () => {

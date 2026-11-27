@@ -26,7 +26,6 @@ import { ListSurface, type Column } from '@/components/list-surface'
 import { FilterChips, Stat, FormMessage } from '@/components/ui'
 import { addToBenchBody, nudgeBody } from '@/lib/consultant-portfolio/forms'
 import { useFirmCurrency } from '@/app/dashboard/consultants/firm-currency'
-import { TrainingBlock } from '@/app/dashboard/bench/training-block'
 import type { Proof } from '@/lib/training/proof'
 
 /**
@@ -862,7 +861,7 @@ export default function BenchPage() {
                 : <p className="font-medium text-etyme-ink truncate">{row.name}</p>}
               {/* Never another firm's person's contact (`benchSubtitle`). */}
               <p className="text-[11px] text-etyme-faint truncate">{benchSubtitle(row, scope === 'company')}</p>
-              {scope === 'company' && <TrainingBlock proof={row.proof} />}
+              {scope === 'company' && row.proof && <a href="/dashboard/training" className="text-[11px] text-etyme-action-text underline">Training record</a>}
             </div>
           </div>
         </div>

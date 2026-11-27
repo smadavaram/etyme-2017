@@ -319,7 +319,7 @@ export function BenchProfit() {
           rowKey={(r) => r.courseId ?? r.title}
           loading={loading}
           emptyMessage="No courses yet."
-          emptyDetail="Add a course under Training, with its price per seat, and enroll people in it."
+          emptyDetail="Open Training, create a course and enroll people in it."
           exportName="etyme-bench-profit-courses"
         />
         )}

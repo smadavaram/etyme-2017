@@ -294,10 +294,10 @@ describe('per course', () => {
     expect(g.costSays).toContain('not known yet')
   })
 
-  it('the add-a-course form asks what a seat costs, so bench profit can say what a course cost', () => {
-    const page = readFileSync(join(process.cwd(), 'src/app/dashboard/training/page.tsx'), 'utf8')
-    expect(page).toContain('newCourse.price')
-    expect(page).toContain('Price a seat ($)')
+  it('the add-a-course form no longer asks what a seat costs, because no course screen shows a price (record 133)', () => {
+    const page = readFileSync(join(process.cwd(), 'src/app/learn/_components/manage/manage-page.tsx'), 'utf8')
+    expect(page).not.toContain('newCourse.price')
+    expect(page).not.toContain('Price a seat ($)')
   })
 
   it('the median of an even count is the mean of the two middle numbers, and of none is blank', () => {

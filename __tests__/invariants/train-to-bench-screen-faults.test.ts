@@ -87,7 +87,7 @@ describe('the Training block on a bench row and a consultant page says it in pla
 })
 
 describe('the screens draw only what their routes will take', () => {
-  const cohorts = read('src/app/dashboard/training/cohorts.tsx')
+  const cohorts = read('src/app/learn/_components/manage/cohorts.tsx')
   it('Record score, Certify and Ask her onto the bench are drawn from the per-row flags the cohort read sends', () => {
     expect(cohorts).toMatch(/t\.can\.assess/)
     expect(cohorts).toMatch(/t\.can\.certify/)
@@ -101,14 +101,14 @@ describe('the screens draw only what their routes will take', () => {
     expect(cohorts).toMatch(/!c\.fullSays/)
   })
   it('adding a course refreshes the cohort form’s course list', () => {
-    const page = read('src/app/dashboard/training/page.tsx')
+    const page = read('src/app/learn/_components/manage/manage-page.tsx')
     expect(page).toMatch(/training:courses-changed/)
     expect(cohorts).toMatch(/training:courses-changed/)
   })
 })
 
 describe('a client seat reads no training word before the refusal', () => {
-  const page = require('fs').readFileSync(require('path').join(process.cwd(), 'src/app/dashboard/training/page.tsx'), 'utf8')
+  const page = require('fs').readFileSync(require('path').join(process.cwd(), 'src/app/learn/_components/manage/manage-page.tsx'), 'utf8')
   it('the loading text, the fallback refusal and the error heading name no training', () => {
     expect(page).not.toContain('Opening training')
     expect(page).not.toContain('Training is not part of your seat')

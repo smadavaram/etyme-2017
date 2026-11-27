@@ -1,7 +1,6 @@
 'use client'
 
 import { formatDay, formatMonth } from '@/lib/format-date'
-import { TrainingBlock } from '@/app/dashboard/bench/training-block'
 import { readBench } from '@/lib/bench-filter'
 import type { Proof } from '@/lib/training/proof'
 import { educationEmptySays, type EducationShown } from '@/lib/consultant-portfolio/education'
@@ -805,7 +804,7 @@ function ConsultantDrawer({ consultant, onClose, mayEdit, mayRate, onSaved }: {
             )}
           </div>
 
-          <TrainingBlock proof={trainingProof} />
+          {trainingProof && <p className="text-sm"><a href="/dashboard/training" className="text-etyme-action-text underline">Training record</a></p>}
 
           {/* Education, from the résumé: what the person's own résumé says,
               each line with the line it came from. Read only here; the

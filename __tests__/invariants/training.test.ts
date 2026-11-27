@@ -48,7 +48,7 @@ describe('the gap points at a course', () => {
 
 describe('the screens and the routes', () => {
   it('the training page adds courses, enrolls from the bench, and records each move', () => {
-    const page = read('src/app/dashboard/training/page.tsx')
+    const page = read('src/app/learn/_components/manage/manage-page.tsx')
     expect(page).toContain("post('/api/training', newCourse)")
     expect(page).toContain("post('/api/training/enrollments', enroll)")
     expect(page).toContain('post(`/api/training/enrollments/${ask.id}`')
@@ -63,7 +63,7 @@ describe('the screens and the routes', () => {
 
 describe('a certified trainee shows her certification and no Certify control', () => {
   it('the cohort screen draws Certify only while the trainee holds no certification', () => {
-    const src = read('src/app/dashboard/training/cohorts.tsx')
+    const src = read('src/app/learn/_components/manage/cohorts.tsx')
     expect(src).toContain('t.can.certify && t.certifications.length === 0')
     expect(src).toContain('Certified: {k.title}, issued {k.issued}')
   })
@@ -71,7 +71,7 @@ describe('a certified trainee shows her certification and no Certify control', (
     expect(read('src/lib/training/cohort-read.ts')).toContain('e.certifications.length === 0 && mayCertify(')
   })
   it('a recruiter with consultants.write is still offered the ask onto the bench, not the certification', () => {
-    const src = read('src/app/dashboard/training/cohorts.tsx')
+    const src = read('src/app/learn/_components/manage/cohorts.tsx')
     expect(src).toContain('Ask her onto the bench')
     expect(src).toContain('t.can.ask && !t.ask')
   })
@@ -95,10 +95,10 @@ describe('the trainee pickers name a person by her name', () => {
     expect(m.get('b')).toBe('Sam Lee (b@x.example)')
   })
   it('the enroll picker is labelled through that one rule', () => {
-    expect(read('src/app/dashboard/training/cohorts.tsx')).toContain('pickerLabels(')
+    expect(read('src/app/learn/_components/manage/cohorts.tsx')).toContain('pickerLabels(')
   })
 
   it('the course picker is labelled through that one rule too, so nobody is offered by a bare email', () => {
-    expect(read('src/app/dashboard/training/page.tsx')).toContain('pickerLabels(')
+    expect(read('src/app/learn/_components/manage/manage-page.tsx')).toContain('pickerLabels(')
   })
 })

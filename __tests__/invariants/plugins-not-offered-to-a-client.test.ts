@@ -53,6 +53,6 @@ describe('a client Owner’s Settings shows no plugin switch', () => {
     expect(read('src/components/settings/plugins-panel.tsx')).toContain('data.plugins.length === 0) return null')
   })
   it('the Training page shows the route’s sentence alone when the door refuses', () => {
-    expect(read('src/app/dashboard/training/page.tsx')).toContain('<RefusedState says={refused} />')
+    expect(read('src/app/learn/_components/manage/manage-page.tsx')).toContain('<RefusedState says={refused} />')
   })
 })

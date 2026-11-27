@@ -183,7 +183,7 @@ describe('the bench answer is read through one door', () => {
   })
 
   it('the training page counts the firm’s own payroll as well as its listings', () => {
-    const page = code(readFileSync(join(SRC, 'app/dashboard/training/page.tsx'), 'utf8'))
+    const page = code(readFileSync(join(SRC, 'app/learn/_components/manage/manage-page.tsx'), 'utf8'))
     expect(page).toMatch(/scope=payroll/)
     expect(page).toMatch(/readBench/)
     // The old key, which must never come back. Named in the prose above

@@ -136,7 +136,7 @@ describe('every new route asks the caller, then the plugin, then reads', () => {
     expect(src).toMatch(/benchAsk\.updateMany\(\{\s*where: \{ id: openAsk\.id, answer: null \}/)
   })
   it('the training specialist may write every file of this module', () => {
-    for (const f of [...ROUTES, 'src/lib/training.ts', 'src/lib/training/proof.ts', 'src/lib/training/proof-read.ts', 'src/lib/training/cohort-read.ts', 'src/app/dashboard/training/cohorts.tsx', 'src/app/api/me/benches/[id]/respond/route.ts', 'src/app/api/bench/profit/route.ts']) {
+    for (const f of [...ROUTES, 'src/lib/training.ts', 'src/lib/training/proof.ts', 'src/lib/training/proof-read.ts', 'src/lib/training/cohort-read.ts', 'src/app/learn/_components/manage/cohorts.tsx', 'src/app/api/me/benches/[id]/respond/route.ts', 'src/app/api/bench/profit/route.ts']) {
       expect(mayWrite('etyme-supply', f).mayWrite, f).toBe(true)
     }
   })
@@ -178,7 +178,7 @@ describe('the review’s fixes are in the routes themselves', () => {
 })
 
 describe('the Training page', () => {
-  const page = read('src/app/dashboard/training/cohorts.tsx')
+  const page = read('src/app/learn/_components/manage/cohorts.tsx')
   it('offers "Ask her onto the bench" only where her own enrollment is complete, and shows the ask’s state', () => {
     expect(page).toMatch(/t\.status === 'COMPLETED' && \(/)
     expect(page.indexOf("t.status === 'COMPLETED' && (")).toBeLessThan(page.indexOf('Ask her onto the bench'))
@@ -187,10 +187,10 @@ describe('the Training page', () => {
   it('keeps every earlier attempt in view beside the latest', () => {
     expect(page).toContain("join(', then ')")
   })
-  it('a course’s price reads as catalog only and never as something Etyme bills or collects', () => {
-    const courses = read('src/app/dashboard/training/page.tsx')
-    expect(courses).toContain('catalog price')
-    expect(courses).toContain('Etyme does not bill or collect it')
+  it('no course screen shows a price, and none says Etyme bills or collects one', () => {
+    const courses = read('src/app/learn/_components/manage/manage-page.tsx')
+    // Record 133: no price on any course screen. The column stays, unread.
+    expect(courses).not.toMatch(/catalog price|Price a seat|c\.price/)
     expect(courses + page).not.toMatch(/Etyme (bills|charges|collects) /i)
   })
 })

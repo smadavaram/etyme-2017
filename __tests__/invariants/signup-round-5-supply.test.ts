@@ -43,7 +43,7 @@ describe('11 · on a refusal, the sentence alone', () => {
   })
 
   it('Training asks its own door first, and a seat it refuses reads that sentence with no tiles of dashes and no prose beside it', () => {
-    const page = code(read('src/app/dashboard/training/page.tsx'))
+    const page = code(read('src/app/learn/_components/manage/manage-page.tsx'))
     const gate = page.indexOf("await fetch('/api/training')")
     expect(gate, 'the courses door is asked before anything else is read').toBeGreaterThan(-1)
     expect(gate).toBeLessThan(page.indexOf("fetch('/api/requirements?status=OPEN&limit=100')"))
