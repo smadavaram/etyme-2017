@@ -1,4 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
+
+vi.hoisted(() => {
+  process.env.ETYME_MODEL_REGISTER = JSON.stringify([{ id: 'test-model-read', adapter: 'sdk', tier: 'LOW', classes: ['TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'TEST_MODEL_KEY' }])
+  process.env.TEST_MODEL_KEY = 'x'
+})
+vi.mock('@/lib/db', () => ({ prisma: {} }))
 import {
   pageIsLive,
   availabilityOf,
@@ -8,9 +14,11 @@ import {
   checkBioEdit,
   parseBio,
   writeBioBest,
+  bioModelAvailable,
   type PortfolioInput,
   type Engagement,
 } from '@/lib/consultant-portfolio'
+import type { ModelDeps } from '@/lib/model-gateway/call'
 import { suggestAddress, sectorOf } from '@/lib/portfolio-data'
 
 /**
@@ -317,14 +325,21 @@ describe('the sector a past client is said as', () => {
   })
 })
 
-describe('the worker\'s bio goes through the company\'s model switch', () => {
-  const door = (on: boolean) => {
-    const create = vi.fn(async () => ({
-      content: [{ type: 'text', text: '{"headline":"SAP FICO consultant","intro":"Six years on SAP FICO."}' }],
+describe('the worker\'s bio goes through the gateway', () => {
+  const door = (on: boolean, over: Partial<ModelDeps> = {}) => {
+    const create = vi.fn(async (_m: any, _r: any) => ({
+      text: '{"headline":"SAP FICO consultant","intro":"Six years on SAP FICO."}',
       usage: { input_tokens: 300, output_tokens: 40 },
     }))
-    const logPrompt = vi.fn(async () => ({ ok: true }))
-    return { create, logPrompt, door: { modelOn: async () => on, logPrompt, client: { messages: { create } } } }
+    const logged: any[] = [], runs: any[] = []
+    const gateway: ModelDeps = {
+      adapters: { sdk: { call: create as any } },
+      modelOn: async () => on,
+      recordRun: (async (r: any) => { runs.push(r); return 'run1' }) as any,
+      logPrompt: (async (p: any) => { logged.push(p); return { ok: true, id: 'mp', withheld: false } }) as any,
+      ...over,
+    }
+    return { create, logged, runs, door: { companyId: 'co1', personId: 'p1', gateway } }
   }
 
   it('a bio for a worker whose firm has the switch off never calls the model and is labeled RULES', async () => {
@@ -338,17 +353,40 @@ describe('the worker\'s bio goes through the company\'s model switch', () => {
     expect((await writeBioBest(input(), NOW)).writtenBy).toBe('RULES')
   })
 
+  it('a bio with no model registered is written by rule and nothing is sent', async () => {
+    const d = door(true, { env: {} })
+    const w = await writeBioBest(input(), NOW, d.door)
+    expect(d.create).not.toHaveBeenCalled()
+    expect(w.writtenBy).toBe('RULES')
+    expect(bioModelAvailable({})).toBe(false)
+  })
+
+  it('a model registered for tenant data and keyed makes the bio writer available', () => {
+    expect(bioModelAvailable()).toBe(true)
+  })
+
   it('with the switch on, the person\'s name is not in what is sent', async () => {
     const d = door(true)
     await writeBioBest(input({ name: 'Priya Nagarkar' }), NOW, d.door)
-    expect(JSON.stringify(d.create.mock.calls[0])).not.toContain('Priya')
+    expect(JSON.stringify(d.create.mock.calls[0][1])).not.toContain('Priya')
   })
 
   it('with the switch on, what left and what came back is logged and the bio says MODEL', async () => {
     const d = door(true)
     const w = await writeBioBest(input(), NOW, d.door)
     expect(w.writtenBy).toBe('MODEL')
-    expect(d.logPrompt).toHaveBeenCalledTimes(1)
-    expect((d.logPrompt.mock.calls[0] as any)[0].tokensIn).toBe(300)
+    expect(d.logged).toHaveLength(1)
+    expect(d.logged[0].tokensIn).toBe(300)
+  })
+
+  it('the ledger row names the bio skill and the model that answered', async () => {
+    const d = door(true)
+    await writeBioBest(input(), NOW, d.door)
+    expect(d.runs[0]).toMatchObject({ companyId: 'co1', skillKey: 'bio.write', model: 'test-model-read', verdict: 'PASS' })
+  })
+
+  it('a model that does not answer leaves the bio written by rule', async () => {
+    const d = door(true, { adapters: { sdk: { call: async () => { throw new Error('down') } } } })
+    expect((await writeBioBest(input(), NOW, d.door)).writtenBy).toBe('RULES')
   })
 })

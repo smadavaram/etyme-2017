@@ -22,7 +22,8 @@
  */
 
 import { paidOnDay, periodPaidBy } from '@/lib/money/pay-day-period'
-import { modelFor } from '@/lib/model-ids'
+import { callModel, type ModelDeps } from '@/lib/model-gateway/call'
+import { candidatesFor } from '@/lib/model-gateway/register'
 import { sheetPay, type WageLine, type DayPremium } from '@/lib/money/sheet-overtime'
 import type { OvertimeMethod } from '@/lib/money/overtime-method'
 import { nextOpen } from '@/lib/money/next-cycle'
@@ -566,26 +567,24 @@ export function parseBio(text: string): { headline: string; intro: string } | nu
   }
 }
 
-export function bioModelAvailable(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY)
+export function bioModelAvailable(env: Record<string, string | undefined> = process.env): boolean {
+  return candidatesFor('LOW', 'TENANT_BUSINESS', env).length > 0
 }
 
 /** The prompt log's purpose for a worker's bio. */
 export const BIO_PURPOSE = 'BIO'
 
 /**
- * What the bio's model call goes through. The caller builds it from the
- * company's switch (`modelOnFor`) and the prompt log (`recordModelPrompt`),
- * so this file reaches no database. No door, or a door whose switch is off,
- * is the rules.
+ * Who a bio's model call is made for. The caller picks the company whose
+ * switch is on (`bioDoorFor`); the gateway then checks the switch and the
+ * allowance itself, masks, logs the prompt and writes the ledger, so this
+ * file reaches no database. No door is the rules.
  */
 export interface BioDoor {
-  /** The company's own switch and allowance, asked now. */
-  modelOn(): Promise<boolean>
-  /** Log what left and what came back, masked. */
-  logPrompt(p: { model: string; maskedPrompt: string; maskedAnswer: string; tokensIn: number | null; tokensOut: number | null; realValues: string[] }): Promise<unknown>
-  /** For tests: the client that answers. */
-  client?: { messages: { create(args: any): Promise<any> } }
+  companyId: string
+  personId: string
+  /** For tests: the gateway's own dependencies (adapters, register, switch, ledger). */
+  gateway?: ModelDeps
 }
 
 async function writeBioWithModel(
@@ -593,15 +592,7 @@ async function writeBioWithModel(
   now: Date,
   door?: BioDoor,
 ): Promise<{ headline: string; intro: string } | null> {
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!door || (!key && !door.client)) return null
-  if (!(await door.modelOn())) return null
-
-  let client = door.client
-  if (!client) {
-    const { default: Anthropic } = await import('@anthropic-ai/sdk')
-    client = new Anthropic({ apiKey: key })
-  }
+  if (!door) return null
 
   const built = buildPortfolio(input, now)
   // The name never leaves: the headline sits under it on the page, so the
@@ -623,35 +614,21 @@ Courses finished: ${input.completedTraining.map((t) => t.title).join(', ') || 'n
 Checks that are current: ${input.verified.join(', ') || 'none'}
 Availability: ${built.availability}`
 
-  const model = modelFor('READ')
-  try {
-    const res = await client.messages.create({
-      model,
-      max_tokens: 800,
-      system: BIO_SYSTEM,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const text = (res.content as { type: string; text?: string }[])
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text ?? '')
-      .join('')
-
-    await door.logPrompt({
-      model,
-      maskedPrompt: prompt,
-      maskedAnswer: text,
-      tokensIn: res.usage?.input_tokens ?? null,
-      tokensOut: res.usage?.output_tokens ?? null,
-      realValues: [input.name],
-    })
-
-    return parseBio(text)
-  } catch {
-    // Falls back rather than failing. Nobody should be left without a page
-    // because a third party was slow.
-    return null
-  }
+  // Falls back rather than failing, and never throws: the gateway says Not
+  // configured, off or failed as a status, and nobody is left without a
+  // page because a third party was slow.
+  const got = await callModel({
+    companyId: door.companyId,
+    personId: door.personId,
+    skillKey: 'bio.write',
+    purpose: BIO_PURPOSE,
+    prompt,
+    system: BIO_SYSTEM,
+    vocab: { people: [input.name] },
+    record: { recordType: 'CONSULTANT', recordId: door.personId },
+    maxTokens: 800,
+  }, door.gateway)
+  return got.ok ? parseBio(got.text) : null
 }
 
 /**

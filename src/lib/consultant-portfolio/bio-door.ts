@@ -6,8 +6,8 @@
  * by rule. What leaves carries no name; what is logged is what left.
  */
 import { prisma } from '@/lib/db'
-import { modelOnFor, recordModelPrompt } from '@/lib/model-boundary'
-import { BIO_PURPOSE, type BioDoor } from '@/lib/consultant-portfolio'
+import { modelOnFor } from '@/lib/model-boundary'
+import type { BioDoor } from '@/lib/consultant-portfolio'
 
 export async function bioDoorFor(personId: string): Promise<BioDoor | undefined> {
   const seats = await prisma.context.findMany({
@@ -21,21 +21,5 @@ export async function bioDoorFor(personId: string): Promise<BioDoor | undefined>
     if (await modelOnFor(c)) { companyId = c; break }
   }
   if (!companyId) return undefined
-  const asks = companyId
-  return {
-    modelOn: () => modelOnFor(asks),
-    logPrompt: (p) =>
-      recordModelPrompt({
-        companyId: asks,
-        personId,
-        provider: 'anthropic',
-        model: p.model,
-        maskedPrompt: p.maskedPrompt,
-        maskedAnswer: p.maskedAnswer,
-        tokensIn: p.tokensIn,
-        tokensOut: p.tokensOut,
-        purpose: BIO_PURPOSE,
-        realValues: p.realValues,
-      }),
-  }
+  return { companyId, personId }
 }
