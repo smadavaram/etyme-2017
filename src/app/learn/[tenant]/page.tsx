@@ -1,4 +1,4 @@
-import { OPENING_CARDS, OPENING_QUESTION, routeFor } from '@/lib/training/courses/opening'
+import { OPENING_CARDS, NOT_LIVE_YET, OPENING_QUESTION, routeFor } from '@/lib/training/courses/opening'
 import { VERSION } from '@/lib/training/courses/index'
 
 /** The opening screen: one question, four large cards. The answer routes; there is no catalog. */
@@ -13,6 +13,7 @@ export default async function LearnOpening({ params }: { params: Promise<{ tenan
           <a key={c.track} className="learn-card" href={routeFor(tenant, c.track)!}>
             <span className="block text-xl font-semibold">{c.label}</span>
             <span className="block mt-1.5" style={{ color: '#6B6862' }}>{c.line}</span>
+            {!c.live && <span className="block mt-1.5 text-sm font-semibold" style={{ color: '#C0622E' }}>{NOT_LIVE_YET}</span>}
           </a>
         ))}
       </div>

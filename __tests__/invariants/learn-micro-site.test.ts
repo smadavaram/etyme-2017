@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
-import { OPENING_CARDS, OPENING_QUESTION, routeFor } from '@/lib/training/courses/opening'
+import { OPENING_CARDS, OPENING_QUESTION, NOT_LIVE_YET, routeFor } from '@/lib/training/courses/opening'
 import { COURSES, VERSION, trackOf, lessonsOf } from '@/lib/training/courses/index'
 import { shapeGaps, termGaps, lessonGaps, wordsOf, mentionsPrice, videoSlotWords } from '@/lib/training/courses/shape'
 import { evaluateTryIt, checkExercise } from '@/lib/training/courses/try-it'
@@ -47,6 +47,14 @@ describe('the opening screen', () => {
     expect(OPENING_QUESTION).toBe('What are you?')
     expect(OPENING_CARDS.map((c) => c.label)).toEqual(['Kids / student', 'Entry Level', 'Non-IT', 'IT — Upgrade'])
   })
+  it('the Kids, Entry Level and Non-IT cards read Not live yet, still route, and the track page says it too', () => {
+    expect(NOT_LIVE_YET).toBe('Not live yet')
+    expect(OPENING_CARDS.filter((c) => !c.live).map((c) => c.label)).toEqual(['Kids / student', 'Entry Level', 'Non-IT'])
+    for (const c of OPENING_CARDS) expect(routeFor('tapin', c.track)).toBe(`/learn/tapin/${c.track}`)
+    expect(OPENING_CARDS.find((c) => c.track === 'it-upgrade')!.live).toBe(true)
+    expect(src(join(root, 'src/app/learn/[tenant]/page.tsx'))).toContain('NOT_LIVE_YET')
+    expect(src(join(root, 'src/app/learn/[tenant]/[track]/page.tsx'))).toContain('NOT_LIVE_YET')
+  })
   it('an answer routes to its track and an unknown answer goes nowhere', () => {
     expect(routeFor('tapin', 'it-upgrade')).toBe('/learn/tapin/it-upgrade')
     expect(routeFor('tapin', 'everything')).toBeNull()
@@ -79,10 +87,16 @@ describe('the course content format', () => {
   it('every lesson written so far has an intro, an example, a try-it and an exercise with a one-line reason', () => {
     for (const t of COURSES[0].tracks) expect(lessonGaps(t), t.key).toEqual([])
   })
-  it('the track still being written says so, and no track that claims to be finished has a gap', () => {
-    for (const t of COURSES[0].tracks) if (!t.placeholder) expect(shapeGaps(t), t.key).toEqual([])
-    expect(trackOf('it-upgrade')!.placeholder).toBe(true)
-    expect(shapeGaps(trackOf('it-upgrade')!).length).toBeGreaterThan(0)
+  it('the IT — Upgrade track shows all nine chapters in order, in three levels, with no gap in its shape', () => {
+    const t = trackOf('it-upgrade')!
+    expect(t.placeholder).toBeUndefined()
+    expect(shapeGaps(t)).toEqual([])
+    expect(t.levels.map((l) => l.key)).toEqual(['simple', 'medium', 'complex'])
+    expect(t.levels.flatMap((l) => l.chapters).length).toBe(9)
+  })
+  it('the end of the IT — Upgrade track has its recap, one line for each thing the learner is good at', () => {
+    const t = trackOf('it-upgrade')!
+    expect(t.recap!.map((r) => r.goodAt)).toEqual(t.goodAt)
   })
   it('no lesson says a price, a fee or a charge', () => {
     for (const t of COURSES[0].tracks) expect(mentionsPrice(wordsOf(t)), t.key).toBe(false)

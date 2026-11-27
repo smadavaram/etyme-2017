@@ -85,6 +85,7 @@ export function LessonShell({ tenant, firm, version, track, lessonKey }: Props) 
         {complete && (
           <>
             <div className="mt-6"><h2 className="text-lg font-semibold">What you are now good at</h2><ul className="list-disc pl-5">{track.goodAt.map((g) => <li key={g}>{g}</li>)}</ul></div>
+            {track.recap && <div className="mt-4"><h2 className="text-lg font-semibold">What you did</h2><ul className="list-disc pl-5">{track.recap.map((r) => <li key={r.goodAt}><strong>{r.goodAt}.</strong> {r.youDid}</li>)}</ul></div>}
             <JoinPanel tenant={tenant} firm={firm} signedIn={signedIn} />
           </>
         )}

@@ -53,6 +53,8 @@ export interface Track {
   /** Plain verbs. Opens the track and is recapped at its end. */
   goodAt: string[]
   levels: Level[]
+  /** What the learner did, line by line, shown at the end of the track. */
+  recap?: { goodAt: string; youDid: string }[]
   /** True while the content writers have not filled the track. Shape tests skip a placeholder's counts, never its term order. */
   placeholder?: boolean
 }

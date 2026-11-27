@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { trackOf, lessonsOf, VERSION } from '@/lib/training/courses/index'
-import { OPENING_CARDS } from '@/lib/training/courses/opening'
+import { OPENING_CARDS, NOT_LIVE_YET } from '@/lib/training/courses/opening'
 
 /** A track's own page: what you will be good at, and the first lesson. */
 export default async function TrackPage({ params }: { params: Promise<{ tenant: string; track: string }> }) {
@@ -12,7 +12,7 @@ export default async function TrackPage({ params }: { params: Promise<{ tenant: 
     return (
       <section>
         <h1 className="text-2xl mb-2">{card.label}</h1>
-        <p style={{ color: '#6B6862' }}>This track is being written. Come back soon.</p>
+        <p style={{ color: '#6B6862' }}>{NOT_LIVE_YET}. This track is not open yet.</p>
         <p className="mt-4"><a className="underline" href={`/learn/${tenant}`}>Back to the question</a></p>
       </section>
     )
