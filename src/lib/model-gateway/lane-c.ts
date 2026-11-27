@@ -22,7 +22,7 @@ const WORDS: Record<LaneCFound, string> = {
 const SHAPES: { kind: LaneCFound; re: RegExp }[] = [
   { kind: 'SOCIAL_SECURITY', re: /(?<![\d-])\d{3}[-\s]\d{2}[-\s]\d{4}(?![\d-])/ },
   { kind: 'SOCIAL_SECURITY', re: /\b(?:ssn|social security(?:\s+(?:number|no\.?|#))?)\s*[:#=-]?\s*\d{9}\b/i },
-  // An employer number is two digits, a dash, seven digits; any labelled tax number too.
+  // An employer number is two digits, a dash, seven digits; any labeled tax number too.
   { kind: 'TAX_ID', re: /(?<![\d-])\d{2}-\d{7}(?![\d-])/ },
   { kind: 'TAX_ID', re: /\b(?:ein|tin|itin|tax id|taxpayer id|tax identification(?: number)?)\s*[:#=-]?\s*[A-Z0-9][A-Z0-9 -]{6,20}[A-Z0-9]\b/i },
   { kind: 'BANK_DETAILS', re: /\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,3})?\b/ },

@@ -69,7 +69,7 @@ import {
   FILE_IT_YOURSELF, NOT_THEIR_RATE, ONLY_YOUR_WORK, WORKER_FOOTER, latestWeekLine, type WorkerFacts, type WorkerAnswer, type SentWeek,
 } from '@/app/api/conversations/twin/worker'
 import {
-  respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, neverSays, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, payingDesks,
+  respond, today, othersSay, VOICE_RULES, NO_SWITCH, SMALL_MODEL, MODEL_SYSTEM as SYSTEM, neverAct, neverSays, matchPerson, boundarySays, readAsk, decisionRequest, varianceBySupplier, spendBySupplier, MODEL_SYSTEM, ASK_THE_DESK, NO_MODEL, WHAT_I_ANSWER, payingDesks,
   SUGGESTED_QUESTIONS, FOOTER_LINE, GREETING_CLOSE, seatSays, SINCE_HEADING, DECISIONS_HREF, sinceSays, voiceBreaks,
   FIRM_QUESTIONS, SOLO_QUESTIONS, questionsFor, closeFor, placeholderFor, partyOf, queueFrom, queueCards, queueName, namedNeedsSays,
   threadsSay, whenSays, weekDueOn, billedSays, billingSays, rolloffSays, benchSays, unbilledSays, unpaidSays, OPEN_THE_LIST,
@@ -1814,7 +1814,23 @@ describe('a model answer cut at its length limit never shows half a sentence (fi
   })
 
   it('the model reader marks a reply that stopped at its length limit, so the answer can be shortened', () => {
-    const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/read.ts'), 'utf8')
-    expect(src).toMatch(/cut: res\.stop_reason === 'max_tokens'/)
+    // Through the gateway the adapter does not say why it stopped: an answer that used its whole allowance is cut.
+    const src = readFileSync(join(process.cwd(), 'src/app/api/conversations/twin/model-reply.ts'), 'utf8')
+    expect(src).toMatch(/cut: out !== null && out >= MAX_TOKENS/)
+  })
+})
+
+describe('Ask Etyme says so when the model was asked and did not answer', () => {
+  it('a model that failed with its key present is said, with the rules beside it, and never replaced by silence', async () => {
+    const read = readers({ model: vi.fn(async () => ({ missed: 'The model did not answer; this reply is from the rules.' })) })
+    const a = await respond('Which supplier is slowest to send its invoice?', read, { env: KEY })
+    expect(a.kind).toBe('TEXT')
+    expect(a.says).toContain('The model did not answer; this reply is from the rules.')
+    expect(a.says).toContain(WHAT_I_ANSWER)
+  })
+  it('a model that is not configured says Not configured and offers the rules', async () => {
+    const read = readers({ model: vi.fn(async () => ({ missed: 'Not configured: no model is set up for this kind of data, so nothing was sent. The rules answer.' })) })
+    const a = await respond('Which supplier is slowest to send its invoice?', read, { env: KEY })
+    expect(a.says).toMatch(/Not configured/)
   })
 })

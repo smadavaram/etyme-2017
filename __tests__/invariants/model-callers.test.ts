@@ -11,7 +11,6 @@ import { join, relative } from 'node:path'
 
 /** Files outside the gateway that import a provider's SDK or call a provider host. Each owner retires its own (plan step 11). */
 const DIRECT_CALLERS: Record<string, string> = {
-  'src/app/api/conversations/twin/read.ts': 'CONVERSATION',
   'src/lib/checks/skill-evidence.ts': 'DEMAND',
   'src/lib/consultant-portfolio.ts': 'SUPPLY',
   'src/lib/match-engine.ts': 'SUPPLY',

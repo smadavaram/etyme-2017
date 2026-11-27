@@ -1,13 +1,12 @@
 /**
  * What Ask Etyme reads, for one signed-in seat. Reads only:
  * nothing here creates, updates or deletes a row (the one exception is the
- * agent-run ledger's cost row, which `runAgent` writes about the model
+ * agent-run ledger's cost row, which the model gateway writes about the model
  * call itself, not about the record). Scope is the architect's
  * `feedWhere`, the same query the ledger route uses, so a supplier asking
  * reads only entries about records it is a party to.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { isSent } from '@/lib/money/bill-state'
@@ -21,9 +20,9 @@ import { ruleSetFor } from '@/lib/twin/rule-set'
 import { invoiceVerdict, invoiceRulesFor } from '@/lib/twin/rules/invoice'
 import { OWNER_DESKS } from '@/lib/twin/readers'
 import { logBulkAccess } from '@/lib/access-log'
-import { runAgent } from '@/lib/agent-run'
 import { modelOnFor, recordModelPrompt } from '@/lib/model-boundary'
 import { askEtymeAllowanceFor } from '@/lib/model-allowance'
+import { askModel } from './model-reply'
 import type { MaskVocabulary } from './mask'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { accountFilterFor } from '@/lib/account-walls'
@@ -81,7 +80,7 @@ function suppliersOnly(action: string): boolean {
 /** How far back a refused start-papers ask is still said: the nightly run writes one a week (lib/twin/supplier-run). */
 const PAPERS_GATE_DAYS = 7
 import {
-  hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS, SMALL_MODEL,
+  hrefFor, WEEKS_SHOWN, deskRefusal, LIMIT_IS_THE_CLIENTS,
   type Readers, type SubmissionJob, type VarianceReceipt, type WaitingItem, type LedgerLine,
   matchPerson, billFromPayload, billItemTitle, BILL_SEND, RECEIPT_APPROVE, RECEIPT_PAY,
   putForwardFromPayload, putForwardItemTitle, questionTitleFrom, PUT_FORWARD, START_PAPERS, PAPERS_STEP_TEXT,
@@ -995,47 +994,10 @@ export function readersFor(
       return { people: [...people], firms: [...firms].filter((f) => !withheld.some((w) => w.name === f)), withheld }
     },
 
+    // Through the one model gateway (lib/model-gateway): masked text only, as ask.ts hands it over.
+    // A model that was asked and failed, or is not set up, comes back as a sentence, never as silence.
     async model(system, question, context) {
-      const key = process.env.ANTHROPIC_API_KEY
-      if (!key) return null
-      const client = new Anthropic({ apiKey: key })
-      try {
-        const { result } = await runAgent(
-          {
-            companyId: caller.company?.id ?? companyId,
-            agent: 'twin.conversation',
-            recordType: 'TWIN_LEDGER',
-            recordId: companyId,
-          },
-          async () => {
-            // Masked text only: the question and the lines arrive here
-            // already tokenized by ask.ts. No per-request no-retention option
-            // exists in this client; see KNOWN-LIMITS.md, "Ask Etyme".
-            const res = await client.messages.create({
-              model: SMALL_MODEL,
-              max_tokens: 700,
-              system,
-              messages: [{ role: 'user', content: `Ledger lines:\n${context}\n\nQuestion: ${question}` }],
-            })
-            const text = res.content
-              .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-              .map((b) => b.text)
-              .join('')
-              .trim()
-            return {
-              // A reply that stopped at its length limit says so, so ask.ts
-              // shows it only to its last whole sentence (fix list G6).
-              result: text ? { text, model: SMALL_MODEL, tokensIn: res.usage?.input_tokens ?? null, tokensOut: res.usage?.output_tokens ?? null, cut: res.stop_reason === 'max_tokens' } : null,
-              model: SMALL_MODEL,
-              usage: res.usage,
-            }
-          }
-        )
-        return result
-      } catch {
-        // Falls back to the rule questions; a slow third party is not a broken panel.
-        return null
-      }
+      return askModel({ companyId: caller.company?.id ?? companyId, personId: caller.person.id, system, question, context })
     },
 
     async billing(): Promise<Billing | null> {
@@ -1546,7 +1508,7 @@ export function readersFor(
       await recordModelPrompt({
         companyId: caller.company.id,
         personId: caller.person.id,
-        provider: 'anthropic',
+        provider: entry.provider ?? 'model',
         model: entry.model,
         maskedPrompt: entry.maskedPrompt,
         maskedAnswer: entry.maskedAnswer,
