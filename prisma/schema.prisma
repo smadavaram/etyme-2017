@@ -11804,6 +11804,8 @@ model PodProject {
   acceptor         Person       @relation(fields: [acceptorPersonId], references: [id])
   fulfilledAt      DateTime?
   createdAt        DateTime     @default(now())
+  /// Record 120, 2026-11-26. True only when the supplier marked "the team works on your site" and the client's yes on the offer accepted it. False is outcome work: member lines are never the client's. Fixed at the sale.
+  onSite           Boolean      @default(false)
 
   deliverables PodDeliverable[]
 
@@ -11813,12 +11815,15 @@ model PodProject {
 
 /// A deliverable is an OrderMilestone; this row says it belongs to a pod project.
 model PodDeliverable {
-  id           String         @id @default(cuid())
-  podProjectId String
-  podProject   PodProject     @relation(fields: [podProjectId], references: [id], onDelete: Cascade)
-  milestoneId  String         @unique
-  milestone    OrderMilestone @relation(fields: [milestoneId], references: [id])
-  startedAt    DateTime?
+  id                  String         @id @default(cuid())
+  podProjectId        String
+  podProject          PodProject     @relation(fields: [podProjectId], references: [id], onDelete: Cascade)
+  milestoneId         String         @unique
+  milestone           OrderMilestone @relation(fields: [milestoneId], references: [id])
+  startedAt           DateTime?
+  /// Record 123, 2026-11-26. The plan frozen at the sale, for planned versus actual. Null on a deliverable sold before these existed: the variance view shows a dash, never a guess. Written once, never edited.
+  baselineDueOn       DateTime?
+  baselineAmountCents Int?
 
   @@index([podProjectId])
 }
