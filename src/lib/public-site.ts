@@ -1,5 +1,6 @@
 import { coursesShown } from '@/lib/training/courses-shown'
 import { prisma } from '@/lib/db'
+import { isOn, isGrandfatheredSlug, siteRenders } from '@/lib/plugins'
 import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
 import { releasing, summarize, type RollingOff } from '@/lib/releasing-soon'
 import { writeFromRules, DEFAULT_HEADINGS, saysItTrains, type SiteVoice } from '@/lib/site-voice'
@@ -250,6 +251,22 @@ function howLong(since: Date, now: Date): string {
   return `${Math.round(days / 30)} months`
 }
 
+/**
+ * Whether a firm's storefront renders, and so whether its content editor is
+ * open (records 121, 123). On where Website and content is on; also on for
+ * one of the two sites that were live before the switch, until an Owner has
+ * ever written a Website switch for it. The history is read only for a
+ * grandfathered firm that is off, so no other firm costs the extra read.
+ * Grandfathering is the firm's own slug: an old address or its own domain
+ * follows the company.
+ */
+export async function siteRendersFor(company: { id: string; slug: string | null; pluginsOn: readonly string[] | null | undefined }): Promise<boolean> {
+  const everSwitched = !isOn(company.pluginsOn, 'WEBSITE') && isGrandfatheredSlug(company.slug)
+    ? (await prisma.pluginSwitch.count({ where: { companyId: company.id, plugin: 'WEBSITE' } })) > 0
+    : false
+  return siteRenders({ slug: company.slug, pluginsOn: company.pluginsOn, everSwitched })
+}
+
 export async function publicSite(slug: string): Promise<PublicSite | null> {
   const now = new Date()
 
@@ -284,6 +301,9 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   })
 
   if (!company?.siteLiveAt) return null
+  // A dark site is the same nothing as a firm that does not exist
+  // (`DARK_SITE_SAYS`, record 123). Its words stay stored; only the read stops.
+  if (!(await siteRendersFor(company))) return null
   // A firm somebody else wrote down has no page: nobody there agreed to one.
   if (!speaksForItself({ siteLiveAt: company.siteLiveAt, claimedAt: company.claimedAt, seats: company._count.contexts })) {
     return null

@@ -38,7 +38,7 @@ beforeAll(async () => {
   await resetDatabase()
   process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || 'integration-test-secret'
   const firm = await prisma.company.create({
-    data: { name: 'Consent Walk Staffing', slug: SLUG, kind: 'VENDOR', currency: 'USD', claimedAt: new Date(), siteLiveAt: new Date() },
+    data: { name: 'Consent Walk Staffing', slug: SLUG, kind: 'VENDOR', currency: 'USD', claimedAt: new Date(), siteLiveAt: new Date(), pluginsOn: ['WEBSITE'] },
   })
   const person = await prisma.person.create({ data: { name: 'Asked Only', primaryEmail: 'asked-only@consent.example' } })
   const profile = await prisma.consultantProfile.create({ data: { personId: person.id, skills: SKILLS } })

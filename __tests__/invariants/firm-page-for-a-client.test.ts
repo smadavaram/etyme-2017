@@ -37,6 +37,8 @@ vi.mock('@/lib/db', () => {
     company: {
       findFirst: async ({ select }: Row) => (select?.peopleInCharge ? h.company : h.company && { id: h.company.id, name: h.company.name }),
     },
+    // Tapin is grandfathered: no Website switch was ever written for it (record 123).
+    pluginSwitch: { count: async () => 0 },
     person: { findMany: async ({ where }: Row) => h.people.filter((p) => where.id.in.includes(p.id)) },
     sellContract: {
       count: async () => 0,

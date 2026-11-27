@@ -31,7 +31,7 @@ beforeAll(async () => {
   // The seed gives no world firm a live page; this one opens its own.
   const firm = await prisma.company.update({
     where: { slug: SLUG },
-    data: { siteLiveAt: new Date(), claimedAt: new Date() },
+    data: { siteLiveAt: new Date(), claimedAt: new Date(), pluginsOn: ['WEBSITE'] },
     select: { id: true },
   })
   firmId = firm.id

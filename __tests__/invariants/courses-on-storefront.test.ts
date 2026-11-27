@@ -15,6 +15,7 @@ vi.mock('@/lib/db', () => ({
     sellContract: { count: async () => 0, findMany: async () => [] },
     consultantProfile: { findMany: async () => [] },
     verification: { findMany: async () => [] },
+    pluginSwitch: { count: async () => 0 },
     course: { findMany: async () => { h.courseReads++; return h.courses } },
     requirement: { findMany: async () => [] },
     submission: { findMany: async () => [] },
@@ -36,7 +37,7 @@ function firm(over: Row = {}): Row {
     claimedAt: new Date('2026-10-17T00:00:00Z'), _count: { contexts: 3 },
     siteTagline: null, siteIntro: null, siteHeadings: null, siteWrittenBy: null,
     phone: null, accountsEmail: null, showPeopleOnPage: false, peopleInCharge: [],
-    locations: [], pluginsOn: [], coursesHiddenOnStorefront: false,
+    locations: [], pluginsOn: ['WEBSITE'], coursesHiddenOnStorefront: false,
     ...over,
   }
 }
@@ -63,21 +64,21 @@ describe('the one reader of whether a firm’s courses are shown', () => {
 
 describe('a storefront and the courses a firm runs', () => {
   it('a storefront lists no course while the plugin is off, and does not even read them', async () => {
-    h.company = firm({ pluginsOn: [] })
+    h.company = firm({ pluginsOn: ['WEBSITE'] })
     const site = (await publicSite('northwind'))!
     expect(site.courses).toEqual([])
     expect(h.courseReads).toBe(0)
   })
 
   it('a firm that hides courses lists none even while the plugin is on', async () => {
-    h.company = firm({ pluginsOn: ['TRAIN_TO_BENCH'], coursesHiddenOnStorefront: true })
+    h.company = firm({ pluginsOn: ['WEBSITE', 'TRAIN_TO_BENCH'], coursesHiddenOnStorefront: true })
     const site = (await publicSite('northwind'))!
     expect(site.courses).toEqual([])
     expect(JSON.stringify(site)).not.toContain('Spark for data engineers')
   })
 
   it('a firm with the plugin on and courses not hidden lists its public courses', async () => {
-    h.company = firm({ pluginsOn: ['TRAIN_TO_BENCH'] })
+    h.company = firm({ pluginsOn: ['WEBSITE', 'TRAIN_TO_BENCH'] })
     const site = (await publicSite('northwind'))!
     expect(site.courses).toEqual([{ title: 'Spark for data engineers', hours: 12 }])
   })
