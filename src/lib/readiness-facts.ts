@@ -30,7 +30,6 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     emailLink: emailLinkDoorOn(),
     emailSender: Boolean(process.env.RESEND_API_KEY && process.env.NOTIFY_FROM_EMAIL),
-    anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
     // The same address mail uses, so the page and the mail agree.
     lastingAddress: fixedAppUrl() !== null,
   }

@@ -51,7 +51,7 @@ describe('the gateway reports its own state without calling a provider', () => {
 
 describe('/ready reads the gateway and never counts it against ready', () => {
   const facts = (gateway?: { configured: boolean; says: string }) => ({
-    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: false, google: false, emailLink: false, emailSender: false, anthropic: false },
+    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: false, google: false, emailLink: false, emailSender: false },
     gateway,
     db: { reachable: true, schemaCurrent: true, ms: 10 },
     realCompanies: 0, realSignIns: 0, imports: { total: 0, committed: 0 }, email: { sent: 0, unsent: 0 },
@@ -64,6 +64,16 @@ describe('/ready reads the gateway and never counts it against ready', () => {
     const e = edge(facts({ configured: false, says: 'Not configured. No model is registered.' }))
     expect(e).toMatchObject({ state: 'OFF', required: false })
     expect(e.says).toMatch(/^Not configured/)
+  })
+  it('the fix for a model not set up names the register setting and no provider key', () => {
+    const e = edge(facts({ configured: false, says: 'Not configured. No model is registered.' }))
+    expect(e.fix).toContain('ETYME_MODEL_REGISTER')
+    expect(e.fix).not.toMatch(/ANTHROPIC|API_KEY/)
+  })
+  it('with no gateway reading at all, the model edge still reads Not configured and never names a provider key', () => {
+    const e = edge(facts(undefined))
+    expect(e).toMatchObject({ state: 'OFF', required: false })
+    expect(e.fix).toContain('ETYME_MODEL_REGISTER')
   })
   it('a gateway with a keyed model reads On with the gateway’s own sentence', () => {
     expect(edge(facts({ configured: true, says: '1 model ready.' }))).toMatchObject({ state: 'SET', required: false, says: 'On. 1 model ready.' })

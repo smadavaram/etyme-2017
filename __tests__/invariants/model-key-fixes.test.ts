@@ -27,7 +27,7 @@ vi.mock('@/lib/db', () => ({
 }))
 vi.mock('@/lib/agent-run', () => ({ record: async (r: any) => { recorded.push(r); return 'run1' } }))
 vi.mock('@/lib/model-boundary', () => ({
-  modelSetUpHere: (env: any = process.env) => Boolean(env.ANTHROPIC_API_KEY?.trim()),
+  modelSetUpHere: (env: any = process.env) => gatewayHealth(env).configured,
   modelOnFor: async (id: string) => switchOn[id] === true,
 }))
 vi.mock('@/lib/match-engine', () => ({
@@ -36,6 +36,7 @@ vi.mock('@/lib/match-engine', () => ({
 vi.mock('@/lib/cron-auth', () => ({ cronAuthorized: () => true }))
 vi.mock('@/lib/alerts', () => ({ reportError: () => {} }))
 
+import { gatewayHealth } from '@/lib/model-gateway/health'
 import { runLoop, modelHeldSays } from '@/lib/loop'
 import { costMicrosFromPrice, priceFromRegister } from '@/lib/model-gateway/register'
 import { modelHealth } from '@/lib/model-health'
@@ -46,7 +47,8 @@ beforeEach(() => {
   recorded.length = 0; checks.length = 0; logs.length = 0; engineCalls.length = 0
   switchOn = {}
   agentRows = []
-  process.env.ANTHROPIC_API_KEY = 'sk-test'
+  process.env.ETYME_MODEL_REGISTER = JSON.stringify([{ id: 'test-model', label: 'Test model', adapter: 'sdk', tier: 'LOW', classes: ['NON_SENSITIVE', 'TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'TEST_MODEL_KEY' }])
+  process.env.TEST_MODEL_KEY = 'x'
 })
 
 const modelStep = (ran: { n: number }) => ({
@@ -56,7 +58,7 @@ const modelStep = (ran: { n: number }) => ({
 
 describe('a model check that did not run is recorded as unverified, never as a pass', () => {
   it('with no key the check is unverified, says why, and the model step is never called', async () => {
-    delete process.env.ANTHROPIC_API_KEY
+    delete process.env.TEST_MODEL_KEY
     const ran = { n: 0 }
     const out = await runLoop({ name: 'submission.check', recordType: 'SUBMISSION', steps: [modelStep(ran)] }, {}, { companyId: 'coA', recordId: 's1', attempt: 1 })
     expect(ran.n).toBe(0)
@@ -109,7 +111,7 @@ describe('the nightly proactive match asks each company before any model call', 
     expect(engineCalls.find((c) => c.id === 'r2').opts.rulesOnly).toBe(true)
   })
   it('matches by rules alone everywhere when no model key is set', async () => {
-    delete process.env.ANTHROPIC_API_KEY
+    delete process.env.TEST_MODEL_KEY
     switchOn = { coA: true, coB: true }
     await run()
     expect(engineCalls.every((c) => c.opts.rulesOnly === true)).toBe(true)

@@ -233,7 +233,7 @@ describe('a reset link works once and dies after an hour', () => {
 
 describe('the readiness page counts a password sign-in as a real sign-in and says password among the providers', () => {
   const base: ReadinessFacts = {
-    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: false, google: false, emailLink: false, emailSender: true, anthropic: false },
+    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: false, google: false, emailLink: false, emailSender: true },
     db: { reachable: true, schemaCurrent: true, ms: 10 },
     realCompanies: 0, realSignIns: 0,
     imports: { total: 0, committed: 0 }, email: { sent: 0, unsent: 0 },

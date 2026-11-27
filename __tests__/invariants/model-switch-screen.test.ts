@@ -19,6 +19,8 @@ const page = readFileSync(join(root, 'src/app/dashboard/settings/page.tsx'), 'ut
 const panel = readFileSync(join(root, 'src/components/settings/ask-etyme-panel.tsx'), 'utf8')
 const route = readFileSync(join(root, 'src/app/api/settings/ask-etyme/route.ts'), 'utf8')
 
+const REGISTER = JSON.stringify([{ id: 'test-model', label: 'Test model', adapter: 'sdk', tier: 'LOW', classes: ['NON_SENSITIVE', 'TENANT_BUSINESS'], region: 'US', dpaSignedOn: '2026-11-01', keyEnv: 'TEST_MODEL_KEY' }])
+
 describe('the Owner reaches the model switch from the sentence that names it', () => {
   it('the Owner or an Admin turns the model on or off for their company under Settings, recorded with who and when', () => {
     // The settings page draws the panel on its Ask Etyme tab, and a line
@@ -54,8 +56,8 @@ describe('the Owner reaches the model switch from the sentence that names it', (
 
   it('the panel says the model is not set up on this deployment where no key exists, and the choice is still recorded', () => {
     expect(modelSetUpHere({})).toBe(false)
-    expect(modelSetUpHere({ ANTHROPIC_API_KEY: '  ' })).toBe(false)
-    expect(modelSetUpHere({ ANTHROPIC_API_KEY: 'sk-x' })).toBe(true)
+    expect(modelSetUpHere({ ETYME_MODEL_REGISTER: REGISTER, TEST_MODEL_KEY: '  ' })).toBe(false)
+    expect(modelSetUpHere({ ETYME_MODEL_REGISTER: REGISTER, TEST_MODEL_KEY: 'x' })).toBe(true)
     // One sentence for the switch and the key together (fix list G1).
     expect(modelStateSays({ on: true, modelSetUp: false })).toBe('On, but nothing is sent: no model is connected to this deployment yet. Ask Etyme answers from your records only.')
     expect(panel).toContain('{modelStateSays(data)}')

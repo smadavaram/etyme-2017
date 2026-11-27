@@ -13,7 +13,7 @@ import { GET as readSwitch, PATCH as turnSwitch } from '@/app/api/settings/ask-e
 type Seat = { id: string; personId: string; email: string }
 let owner: Seat
 let companyId = ''
-const savedKey = process.env.ANTHROPIC_API_KEY
+const savedKey = process.env.TEST_MODEL_KEY
 
 async function call(fn: any, method: string, body?: unknown, seat: Seat = owner) {
   as(seat.email)
@@ -31,8 +31,8 @@ describe('the Owner turns the model on or off for their company', () => {
     companyId = ctx.companyId!
   })
   afterEach(() => {
-    if (savedKey === undefined) delete process.env.ANTHROPIC_API_KEY
-    else process.env.ANTHROPIC_API_KEY = savedKey
+    if (savedKey === undefined) delete process.env.TEST_MODEL_KEY
+    else process.env.TEST_MODEL_KEY = savedKey
   })
 
   it('the Owner or an Admin turns the model on or off for their company under Settings, recorded with who and when', async () => {
@@ -56,7 +56,7 @@ describe('the Owner turns the model on or off for their company', () => {
   })
 
   it('the panel says the model is not set up on this deployment where no key exists, and the choice is still recorded', async () => {
-    delete process.env.ANTHROPIC_API_KEY
+    delete process.env.TEST_MODEL_KEY
     const r = await call(turnSwitch, 'PATCH', { on: true, reason: 'Ready for when it is set up.' })
     expect(r.status).toBe(200)
     expect(r.body.data).toMatchObject({ on: true, modelSetUp: false })

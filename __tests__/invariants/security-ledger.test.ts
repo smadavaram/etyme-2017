@@ -142,7 +142,7 @@ describe('the guard is the database’s, and the deploy puts it there', () => {
 
 describe('/ready says whether the security log is guarded', () => {
   const BASE: ReadinessFacts = {
-    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: true, google: true, emailLink: false, emailSender: true, anthropic: true },
+    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: true, google: true, emailLink: false, emailSender: true },
     db: { reachable: true, schemaCurrent: true, ms: 10 },
     realCompanies: 1, realSignIns: 1, imports: { total: 1, committed: 1 }, email: { sent: 1, unsent: 0 },
     teams: { workflowsChannels: 1, retiredChannels: 0, postedByWorkflows: 1 },

@@ -172,7 +172,7 @@ describe('the shared dialog and its routes', () => {
 
 describe('/ready', () => {
   const base: ReadinessFacts = {
-    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: false, google: false, emailLink: false, emailSender: false, anthropic: false },
+    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: false, google: false, emailLink: false, emailSender: false },
     db: { reachable: true, schemaCurrent: true, ms: 1 },
     realCompanies: 0, realSignIns: 0, imports: { total: 0, committed: 0 }, email: { sent: 0, unsent: 0 },
     teams: { channels: 0, retired: 0, posted: 0 } as unknown as ReadinessFacts['teams'],

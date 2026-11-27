@@ -50,8 +50,8 @@ describe('no model surface ships without evals', () => {
     // like this survives contact with a deadline.
     const root = join(process.cwd(), 'src')
     const talkers = walk(root)
-      // A file talks to the model by importing the SDK or by asking the gateway (callModel).
-      .filter((f) => /from ['"]@anthropic-ai\/sdk['"]|import\(['"]@anthropic-ai\/sdk['"]\)|\bcallModel\(/.test(readFileSync(f, 'utf8')))
+      // A file talks to the model by importing the SDK or by importing the gateway's callModel (a file that only names it as a dependency still talks to the model).
+      .filter((f) => /from ['"]@anthropic-ai\/sdk['"]|import\(['"]@anthropic-ai\/sdk['"]\)|import\s*\{[^}]*\bcallModel\b[^}]*\}\s*from\s*['\"]@\/lib\/model-gateway\/call['\"]/.test(readFileSync(f, 'utf8')))
       .filter((f) => !f.includes('/lib/model-gateway/'))
       .map((f) => f.slice(process.cwd().length + 1))
       // A route that only names the environment variable in a message is

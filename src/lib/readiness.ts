@@ -51,7 +51,6 @@ export interface ReadinessFacts {
     emailLink: boolean
     /** RESEND_API_KEY and NOTIFY_FROM_EMAIL both present. */
     emailSender: boolean
-    anthropic: boolean
     /** NEXTAUTH_URL (or NEXT_PUBLIC_APP_URL) is set. Absent where nothing measured it. */
     lastingAddress?: boolean
   }
@@ -479,20 +478,12 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
         ? { key: 'model', name: 'Models', state: 'SET', required: false, says: `On. ${f.gateway.says}` }
         : {
             key: 'model', name: 'Models', state: 'OFF', required: false, says: f.gateway.says,
-            fix: 'Optional. Register a model and set its key to turn the model steps on; every other check is arithmetic and runs anyway.',
+            fix: 'Optional. Register a model in the ETYME_MODEL_REGISTER setting and set its key to turn the model steps on; every other check is arithmetic and runs anyway.',
           }
-      : f.env.anthropic && f.modelIds && !f.modelIds.supported
-      ? {
-          key: 'model', name: 'CV evidence check', state: 'MISSING', required: false,
-          says: `The key is set, but a model id is not one this build supports, so the first call would fail. ${f.modelIds.says}`,
-          fix: 'Remove the model override, or set it to a supported id.',
-        }
-      : f.env.anthropic
-      ? { key: 'model', name: 'CV evidence check', state: 'SET', required: false, says: f.modelIds ? `On. ${f.modelIds.says}` : 'On.' }
       : {
-          key: 'model', name: 'CV evidence check', state: 'OFF', required: false,
-          says: 'Off. The CV evidence check reports itself as unverified; every other check is arithmetic and runs anyway.',
-          fix: 'Optional. Set ANTHROPIC_API_KEY to turn it on.',
+          key: 'model', name: 'Models', state: 'OFF', required: false,
+          says: 'Not configured. No model is registered, so nothing is sent to a model; the rules answer.',
+          fix: 'Optional. Register a model in the ETYME_MODEL_REGISTER setting and set its key to turn the model steps on.',
         }
   )
 

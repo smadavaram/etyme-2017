@@ -20,6 +20,7 @@
  * and the shared mask, and refuses to keep an unmasked text even when it
  * is handed one.
  */
+import { gatewayHealth } from '@/lib/model-gateway/health'
 import { prisma } from '@/lib/db'
 import { reportError } from '@/lib/alerts'
 import { companyAllowanceFor } from '@/lib/model-allowance'
@@ -50,9 +51,9 @@ export const MODEL_SWITCH_TAB = 'ask-etyme'
 export const MODEL_SWITCH_ANCHOR = 'ask-etyme-model'
 export const MODEL_SWITCH_HREF = `/dashboard/settings?tab=${MODEL_SWITCH_TAB}#${MODEL_SWITCH_ANCHOR}`
 
-/** Whether this deployment has a model at all. With the switch on and no key, nothing leaves. */
+/** Whether this deployment has a model at all, read from the gateway's register (record 125). With the switch on and none set up, nothing leaves. */
 export function modelSetUpHere(env: Record<string, string | undefined> = process.env): boolean {
-  return Boolean(env.ANTHROPIC_API_KEY?.trim())
+  return gatewayHealth(env).configured
 }
 
 /**

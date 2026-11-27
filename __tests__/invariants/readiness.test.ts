@@ -23,7 +23,7 @@ const TODAY: ReadinessFacts = {
   env: {
     database: true, nextauthSecret: true, cronSecret: true,
     microsoft: false, google: false, emailLink: false,
-    emailSender: true, anthropic: false,
+    emailSender: true,
   },
   db: { reachable: true, schemaCurrent: true, ms: 152 },
   realCompanies: 0,
@@ -42,7 +42,7 @@ const NOW = new Date('2026-09-13T22:00:00Z')
 /** The day a client and a supplier have used every edge once. */
 const READY: ReadinessFacts = {
   ...TODAY,
-  env: { ...TODAY.env, microsoft: true, google: true, anthropic: true },
+  env: { ...TODAY.env, microsoft: true, google: true },
   realCompanies: 2,
   realSignIns: 5,
   imports: { total: 2, committed: 2 },

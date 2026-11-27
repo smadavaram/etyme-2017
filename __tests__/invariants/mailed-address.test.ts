@@ -59,7 +59,7 @@ describe('a mailed link never carries the one-off deployment address', () => {
 
 describe('the readiness page says when no lasting address is set', () => {
   const facts = (lastingAddress: boolean): ReadinessFacts => ({
-    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: true, google: true, emailLink: false, emailSender: true, anthropic: false, lastingAddress },
+    env: { database: true, nextauthSecret: true, cronSecret: true, microsoft: true, google: true, emailLink: false, emailSender: true, lastingAddress },
     db: { reachable: true, schemaCurrent: true, ms: 10 },
     realCompanies: 0, realSignIns: 0,
     imports: { total: 0, committed: 0 }, email: { sent: 0, unsent: 0 },

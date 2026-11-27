@@ -1,3 +1,4 @@
+import { gatewayHealth } from '@/lib/model-gateway/health'
 import { modelHealth } from '@/lib/model-health'
 import { currentAllowanceLimits } from '@/lib/model-allowance'
 import { NextResponse } from 'next/server'
@@ -33,7 +34,7 @@ export async function GET() {
     DATABASE_URL: Boolean(process.env.DATABASE_URL),
     NEXTAUTH_SECRET: Boolean(process.env.NEXTAUTH_SECRET),
     CRON_SECRET: Boolean(process.env.CRON_SECRET),
-    ANTHROPIC_API_KEY: Boolean(process.env.ANTHROPIC_API_KEY),
+    ETYME_MODEL_REGISTER: gatewayHealth(process.env).configured,
   }
 
   let database: {

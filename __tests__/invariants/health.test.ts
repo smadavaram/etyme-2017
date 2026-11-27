@@ -76,6 +76,11 @@ describe('The health endpoint surfaces delivery status, not just the model key',
     expect(ROUTE).toContain('senderStatus()')
   })
 
+  it('says a model is set up from the gateway register and never from one provider key variable', () => {
+    expect(ROUTE).toContain('gatewayHealth(process.env).configured')
+    expect(ROUTE).not.toMatch(/ANTHROPIC/)
+  })
+
   it('reports both channels under a name a person would look for', () => {
     expect(ROUTE).toContain('notifications:')
     expect(ROUTE).toContain('email:')
