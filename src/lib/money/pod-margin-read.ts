@@ -7,11 +7,12 @@
  * after the caller's own gates; a client or a member is never served.
  */
 import { prisma } from '@/lib/db'
+import { BILLED_BY_DELIVERABLE_SAYS } from '@/lib/money/team-lines'
 import { podMargin, type PodMargin } from '@/lib/money/pod-margin'
 import { sellLinesInReach, type MarginReach } from '@/lib/money/margin-reach'
 
 export type PodMarginRead =
-  | { ok: true; podProjectId: string; margin: PodMargin }
+  | { ok: true; podProjectId: string; billedByDeliverableSays: string; margin: PodMargin }
   | { ok: false; status: 403 | 404; says: string }
 
 export async function readPodMargin(
@@ -45,6 +46,8 @@ export async function readPodMargin(
   return {
     ok: true,
     podProjectId: project.id,
+    // The project is billed by its deliverables, never by the hour: said where its margin is.
+    billedByDeliverableSays: BILLED_BY_DELIVERABLE_SAYS,
     margin: podMargin({
       currency: project.projectOrder.currency,
       milestones: project.deliverables.map((d) => d.milestone),

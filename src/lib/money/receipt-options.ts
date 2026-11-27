@@ -19,6 +19,7 @@
  * accept it.
  */
 
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { prisma } from '@/lib/db'
 import { payersBook } from '@/lib/money/payers-acceptance-read'
 import { paidBuyLine, paidSellLine, lineWord, type PaidLine } from '@/lib/money/paid-line'
@@ -157,7 +158,7 @@ export async function suppliersFor(companyId: string): Promise<SupplierOption[]>
     })).map((b) => b.supplierSellContractId!)
   )
   const sells = await prisma.sellContract.findMany({
-    where: { clientCompanyId: companyId, companyId: { not: companyId }, state: { not: 'DRAFT' } },
+    where: clientLineWhere({ clientCompanyId: companyId, companyId: { not: companyId }, state: { not: 'DRAFT' } }),
     select: {
       id: true, state: true, billRate: true, billCurrency: true,
       billFrequency: true, billAnchor: true, billStraddle: true, paymentTerms: true, paymentTermsFrom: true,

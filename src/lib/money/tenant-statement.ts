@@ -3,6 +3,7 @@
  * and what is due. A statement, never a payment (Etyme never moves money).
  * The pure part is `statementOf`; `readOwnStatement` reads the record.
  */
+import { clientLineWhere } from '@/lib/money/team-lines'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { invoicesRaisedBy } from '@/lib/money/invoice-parties'
@@ -76,7 +77,7 @@ export async function readOwnStatement(companyId: string, now: Date = new Date()
   if (!company) return null
   const side = company.edition === 'ENTERPRISE' ? { clientCompanyId: companyId } : { companyId }
   const [lines, placements, invoices] = await Promise.all([
-    prisma.sellContract.findMany({ where: side, select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, billRate: true, billCurrency: true } }),
+    prisma.sellContract.findMany({ where: company.edition === 'ENTERPRISE' ? clientLineWhere(side) : side, select: { id: true, personId: true, companyId: true, clientCompanyId: true, state: true, billRate: true, billCurrency: true } }),
     prisma.sellContract.count({ where: { companyId, state: { not: 'DRAFT' } } }),
     prisma.invoice.count({
       where: { issuedAt: { not: null }, ...(invoicesRaisedBy(companyId) as Prisma.InvoiceWhereInput) },

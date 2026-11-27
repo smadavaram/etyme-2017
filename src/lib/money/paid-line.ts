@@ -19,6 +19,7 @@
  * is the payer's customer on that line, and to nobody else.
  */
 
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { prisma } from '@/lib/db'
 import { ratePeriods, type RatePeriod } from '@/lib/contract-rate'
 import { ladderFor } from '@/lib/work-chain-read'
@@ -120,12 +121,13 @@ export async function clientLinesFrom(payerCompanyId: string, vendorCompanyId: s
   })
   const viaBuy = new Set(ownBuys.map((b) => b.supplierSellContractId!))
   const rows = await prisma.sellContract.findMany({
-    where: {
+    // The payer never reads a member line of outcome work (record 120, pods).
+    where: clientLineWhere({
       clientCompanyId: payerCompanyId,
       companyId: vendorCompanyId,
       state: { not: 'DRAFT' },
       ...(workOrderId !== undefined ? { workOrderId } : {}),
-    },
+    }),
     select: { id: true, personId: true, workOrderId: true },
   })
   return rows.filter((r) => !viaBuy.has(r.id))

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { accessActor, recordAccess, recordRefusal } from '@/lib/access-log'
 import { mayPayKeyedReceipt } from '@/lib/money/keyed-receipt'
 import { splitIsPayers } from '@/lib/money/coding-reader'
@@ -197,7 +198,7 @@ export async function loadRunReceipts(
     const byPerson = new Map<string, ContractRead[]>()
     if (needsOrderLine) {
       const found = await prisma.sellContract.findMany({
-        where: { workOrderId: b.workOrderId!, clientCompanyId: companyId },
+        where: clientLineWhere({ workOrderId: b.workOrderId!, clientCompanyId: companyId }),
         select: { ...CONTRACT_SELECT, personId: true },
       })
       for (const c of found) byPerson.set(c.personId, [...(byPerson.get(c.personId) ?? []), c])

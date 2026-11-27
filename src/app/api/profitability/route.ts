@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isTeamLine, BILLED_BY_DELIVERABLE_SAYS } from '@/lib/money/team-lines'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, refusalFor } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
@@ -505,7 +506,7 @@ export async function GET(request: NextRequest) {
   // $145 against its own $118.
   const contracts = await prisma.sellContract.findMany({
     where: { id: { in: books.map((b) => b.sellContractId) } },
-    select: { id: true, startDate: true, endDate: true, engagementId: true, msa: { select: { minMarginPct: true } } },
+    select: { id: true, startDate: true, endDate: true, engagementId: true, msa: { select: { minMarginPct: true } }, projectOrder: { select: { podProject: { select: { onSite: true } } } } },
   })
   const meta = new Map(contracts.map((c) => [c.id, c]))
 
@@ -528,6 +529,10 @@ export async function GET(request: NextRequest) {
       profit: b.profit,
       health: health(b.profit, floor),
       floorBreach: belowFloor(b.profit, floor),
+      // A member line of a sold team has no per-hour figure to compare: the
+      // client pays deliverables, so the row says so (record 120, pods).
+      billedByDeliverable: isTeamLine(meta.get(b.sellContractId) ?? {}),
+      billedByDeliverableSays: isTeamLine(meta.get(b.sellContractId) ?? {}) ? BILLED_BY_DELIVERABLE_SAYS : null,
       agreed: b.agreed,
       earned: b.earned,
       billing: b.billing,

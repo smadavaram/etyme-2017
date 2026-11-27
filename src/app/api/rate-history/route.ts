@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { visibleToReader } from '@/lib/money/team-lines'
 import { notAtACompany } from '@/app/api/people/not-at-a-company'
 import { DEFAULT_CURRENCY } from '@/lib/money-display'
 import { getCallerContext, refusalFor } from '@/lib/api-context'
@@ -593,7 +594,9 @@ async function changeableLines(caller: Awaited<ReturnType<typeof getCallerContex
   const seesCost = hasPermission(caller.permissions, 'consultants.cost')
   const [sells, buys] = await Promise.all([
     prisma.sellContract.findMany({
-      where: { OR: [{ companyId: mine }, { clientCompanyId: mine }], state: { in: [...LIVE_STATES] } },
+      // A client never changes the rate of a member line of outcome work: it
+      // reads no such line (record 120, pods). The seller's own stay.
+      where: visibleToReader({ OR: [{ companyId: mine }, { clientCompanyId: mine }], state: { in: [...LIVE_STATES] } }, mine),
       select: {
         id: true, billRate: true, billCurrency: true, companyId: true,
         person: { select: { name: true } },

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { owedOnRow } from '@/lib/money/period-pay-left'
 import { iso, type Period } from '@/lib/periods'
 import { settingsFrom } from '@/lib/days-off'
@@ -77,10 +78,17 @@ export async function forecastInputs(a: ForecastReadIn): Promise<ForecastInputs>
 
   // ── Sell lines: billed by this firm, or, for a client, billed to it ───
   const sellLines = await prisma.sellContract.findMany({
+    // A client never reads a member line of outcome work: it pays the
+    // deliverables, which the milestone bills carry (record 120, pods).
     where: {
-      ...(a.client ? { clientCompanyId: companyId } : { companyId }),
-      state: 'IN_PROGRESS',
-      OR: [{ endDate: null }, { endDate: { gte: todayDay } }],
+      AND: [
+        {
+          ...(a.client ? { clientCompanyId: companyId } : { companyId }),
+          state: 'IN_PROGRESS',
+          OR: [{ endDate: null }, { endDate: { gte: todayDay } }],
+        },
+        ...(a.client ? [clientLineWhere()] : []),
+      ],
     },
     select: {
       id: true, engagementId: true, billRate: true, billCurrency: true, startDate: true, endDate: true,
