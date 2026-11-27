@@ -177,3 +177,16 @@ plan gate first.
     days of variance per deliverable. It never sees cost or margin.
   - **A tenant chooses whether to show it**, as a setting inside the
     plugin. It is on by default once Project teams is on.
+
+## Grandfathering is read from the record (the lead, 2026-11-27)
+
+A site is grandfathered when both of these hold:
+- its storefront went live before 2026-11-27 (`siteLiveAt`);
+- its Owner has never switched Website and content off.
+
+There is no list of slugs in the code. A list could miss the second live
+door, whose production slug may differ from the demo's renamed slug, and
+the rule keeps real names out of the code.
+
+A Superadmin's switch never ends grandfathering. The content editor stays
+open wherever the site still renders.
