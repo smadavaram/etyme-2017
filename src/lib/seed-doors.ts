@@ -877,6 +877,34 @@ export async function seedDoors(w: World): Promise<{ people: number; placements:
     })
   }
 
+  // What her own company is owed. Byrne Critical Care has one person, so
+  // its queue held nothing ("Nothing needs you today", the photo walk of
+  // 2026-11-26). Halcyon, which already buys her through it, sends the
+  // company a request for a second thirteen-week ICU assignment to answer.
+  // Nobody can answer it but her: she is the company.
+  {
+    const title = 'ICU travel nurse — second thirteen-week assignment'
+    const ask =
+      (await db.requirement.findFirst({ where: { companyId: co('halcyon').id, title } })) ??
+      (await db.requirement.create({
+        data: {
+          companyId: co('halcyon').id, title, skills: ['ICU nursing', 'ACLS', 'Epic'], location: 'Madison, WI',
+          billMin: 8_800, billMax: 9_600, months: 3, headcount: 1, hoursPerWeek: 36,
+          description: 'Thirteen weeks of ICU nights at the same hospital system, starting the week the current assignment ends.',
+          status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL',
+          startDate: day(49), neededBy: day(35), raisedById: seat('halcyon'),
+        },
+      }))
+    if (!(await db.requirementInvitation.findFirst({ where: { requirementId: ask.id, toCompanyId: nurseCorp.id } }))) {
+      await db.requirementInvitation.create({
+        data: {
+          requirementId: ask.id, fromCompanyId: co('halcyon').id, toCompanyId: nurseCorp.id,
+          payMin: 8_800, payMax: 9_400, expiresAt: day(10), status: 'SENT', createdAt: day(-2),
+        },
+      })
+    }
+  }
+
   // Her license, and the renewal. The license is the whole assignment:
   // it runs out in twenty-four days, which is inside the thirteen weeks,
   // and the compliance page reads the date the same way it reads a

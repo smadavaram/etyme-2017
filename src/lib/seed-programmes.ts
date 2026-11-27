@@ -1828,6 +1828,62 @@ export async function seedProgrammes(
       }
     }
 
+    // ── What Cavanaugh's Approver and Compliance Officer are each owed ──
+    //
+    // The photo walk of 2026-11-26 read "Nothing needs you today" on both.
+    // The Approver's only job request waits on HR first (rank 1), so it is
+    // not the Approver's turn yet. This one has cleared HR and sourcing and
+    // waits on the final word, which is the Approver's alone. The
+    // Compliance Officer is told of a paper that arrived at the plant and
+    // nobody has checked.
+    if (p.client === 'corning' && vp) {
+      const title = 'Furnace line rebuild — three controls engineers'
+      const why = 'Planned shutdown — the furnace line is rebuilt once the winter order book is shipped.'
+      const billMax = 12500
+      const heads = 3
+      const rebuild =
+        (await db.requirement.findFirst({ where: { companyId: client.id, title } })) ??
+        (await db.requirement.create({
+          data: {
+            companyId: client.id, title, skills: ['Furnace controls', 'PLC', 'Safety systems'], location: p.loc,
+            billMin: billMax - 2000, billMax, months: 12, headcount: heads, hoursPerWeek: 40,
+            description:
+              'Rebuild the controls on the number two furnace line during the winter shutdown: replace the PLC racks, ' +
+              're-test the safety interlocks, and hand the line back to operations with the test record.',
+            justification: why, startDate: day(60), ...openShape(why, desk.hiring.personId),
+            status: 'DRAFT', approvalState: 'PENDING_APPROVAL', source: 'MANUAL', neededBy: day(60),
+            raisedById: desk.hiring.personId, costCenterId: costCentre?.id ?? null, orgUnitId: unitByName.get('Apps')?.id ?? null,
+          },
+        }))
+      if (!(await db.requirementApproval.findFirst({ where: { requirementId: rebuild.id } }))) {
+        const annual = Math.round((billMax * 160 * 12 * heads) / 100)
+        await db.requirementApproval.createMany({
+          data: [
+            { requirementId: rebuild.id, approverId: desk.hr.personId, rank: 1, stage: 'ROLE', outcome: 'APPROVED', decidedAt: day(-3),
+              reason: `${heads} heads against the plant's plan. HR read the job and it is one the plan meant.` },
+            { requirementId: rebuild.id, approverId: null, rank: 1, stage: 'SOURCING', outcome: 'AUTO_CLEARED', decidedAt: day(-3),
+              reason: 'Within the going rate. Procurement not needed.' },
+            { requirementId: rebuild.id, approverId: vp.id, rank: 2, stage: 'FINAL', outcome: 'PENDING',
+              reason: `Over $500k: about $${annual.toLocaleString('en-US')} a year across ${heads} heads.` },
+          ],
+        })
+      }
+
+      const felix = await person('Felix Brandt')
+      const paperName = 'Plant safety orientation acknowledgement'
+      const template =
+        (await db.docTemplate.findFirst({ where: { companyId: client.id, name: paperName } })) ??
+        (await db.docTemplate.create({ data: { companyId: client.id, name: paperName, audience: 'CONSULTANT', needsSignature: true } }))
+      if (!(await db.docInstance.findFirst({ where: { templateId: template.id, subjectType: 'PERSON', subjectId: felix.id } }))) {
+        await db.docInstance.create({
+          data: {
+            templateId: template.id, subjectType: 'PERSON', subjectId: felix.id,
+            status: 'UPLOADED', sentAt: day(-4), fileName: 'felix-brandt-safety-orientation.pdf',
+          },
+        })
+      }
+    }
+
     void office
   }
 
