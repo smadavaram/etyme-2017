@@ -12,6 +12,8 @@
  */
 import type { PrismaClient } from '@prisma/client'
 import { dayStart, noticeTiming } from '@/lib/agents/checklist-rules'
+import { lastLetterBounced, failedQuestion } from '@/lib/agents/confirmation-rules'
+import { FAILED_DELIVERY_CARD_KIND } from '@/lib/agents/confirmation-tracker'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 import { cardsAt, judgeCards, ownerFor, signatoryOrOwner } from './cards'
 
@@ -30,6 +32,7 @@ export const CARD_KINDS: Record<string, Kind> = {
   SignatureCard: { link: 'ChecklistItem', roles: 'SIGNATORY', what: 'the signature a petition paper needs' },
   NoticeTiming: { link: 'NoticePosting', roles: ['HR', 'Compliance Officer'], what: 'the notice dated off its filing day' },
   AccessFile: { link: 'PublicAccessFile', roles: ['HR'], what: 'the public access file to approve' },
+  [FAILED_DELIVERY_CARD_KIND]: { link: 'Person', roles: ['Account Manager'], what: 'the letter that did not reach the other side' },
 }
 
 export const cardOpen: SkillChecker<PrismaClient> = async (companyId, _key, window, refs, read): Promise<CheckerResult> => {
@@ -52,6 +55,16 @@ export const cardOpen: SkillChecker<PrismaClient> = async (companyId, _key, wind
     if (ref.recordId.endsWith(':overdue') && dayStart(window.to).getTime() <= file.readyBy.getTime()) {
       return { verdict: 'FAIL', reason: `The file is due ${file.readyBy.toISOString().slice(0, 10)}, so it was not overdue when its second card opened.`, evidence, unitsFound: 0 }
     }
+  }
+
+  if (ref.recordType === FAILED_DELIVERY_CARD_KIND) {
+    // The run is about one submission whose letter bounced: re-read the letters, then find the one card with the bounce's own words.
+    const sub = await read.submission.findFirst({ where: { id: ref.recordId, fromCompanyId: companyId }, select: { personId: true, person: { select: { name: true } }, requirement: { select: { title: true } } } })
+    if (!sub) return { verdict: 'FAIL', reason: 'The submission the card is about is not on this firm’s record.', evidence, unitsFound: 0 }
+    const letters = await read.mailSend.findMany({ where: { companyId, recordType: 'Submission', recordId: ref.recordId }, select: { id: true, outcome: true, createdAt: true } })
+    if (!lastLetterBounced(letters)) return unknownBecause('The newest letter about the submission no longer reads as not delivered, so the card cannot be re-read against it.')
+    const found = await cardsAt(read, companyId, { recordType: kind.link, recordId: sub.personId }, failedQuestion(sub.person.name, sub.requirement.title))
+    return judgeCards(found, await ownerFor(read, companyId, kind.roles as readonly string[], window.to), kind.what, evidence)
   }
 
   let expected: string | null

@@ -12,10 +12,10 @@ import type { ReadDb } from '../checker'
 export type Link = { recordType: string; recordId: string }
 export interface FoundCard { state: string; ownerPersonId: string; createdAt: Date }
 
-/** Cards whose own first link is this link (a card that only shows the record beside its own link is a different card). */
-export async function cardsAt(read: ReadDb<PrismaClient>, companyId: string, link: Link): Promise<FoundCard[]> {
+/** Cards whose own first link is this link, and whose words are `question` where one is given (a card that only shows the record beside its own link is a different card). */
+export async function cardsAt(read: ReadDb<PrismaClient>, companyId: string, link: Link, question?: string): Promise<FoundCard[]> {
   const rows = await read.decisionItem.findMany({
-    where: { companyId, proofLinks: { array_contains: [link] }, agentTasks: { none: {} } },
+    where: { companyId, proofLinks: { array_contains: [link] }, agentTasks: { none: {} }, ...(question ? { question } : {}) },
     select: { state: true, ownerPersonId: true, createdAt: true, proofLinks: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   })
   return rows.filter((d) => {

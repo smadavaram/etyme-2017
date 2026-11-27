@@ -17,6 +17,8 @@ import { cardOpen } from './card-open'
 import { tenureWatch } from './tenure-watch'
 import { noticeClock } from './notice-clock'
 import { accessFileTrack } from './access-file-track'
+import { confirmationMatch } from './confirmation-match'
+import { dualAuthBlock } from './dual-auth-block'
 
 export const CHECKERS: Record<string, SkillChecker<any>> = {
   'weekly.summary': weeklySummaryChecker,
@@ -30,4 +32,6 @@ export const CHECKERS: Record<string, SkillChecker<any>> = {
   'tenure.watch': tenureWatch,
   'notice.clock': noticeClock,
   'access-file.track': accessFileTrack,
+  'confirmation.match': confirmationMatch,
+  'dual-auth.block': dualAuthBlock,
 }

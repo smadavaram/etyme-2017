@@ -33,6 +33,8 @@ import { openDecision, firmSeats, seatAtFirm, firmToday } from '@/lib/decision-i
 import { mailSendsAbout, mailSendsAboutMany, type sendMail } from '@/lib/notify/mail-door'
 import { ownerForRoles } from '@/lib/money/agent-owners'
 import { submissionChaseStep } from './submission-chase'
+import { registerPlan } from './plans'
+import { runSkill } from '@/lib/skills/runner'
 import { AGENT_HELD_AS, registerAgent, type AgentContext, type AgentDef } from './runner'
 import {
   CONFIRMATION_AGENT, CONFIRMATION_RULE, CONFIRMING_MESSAGE_TYPES, PROPOSED_LATE_AFTER_DAYS,
@@ -47,9 +49,31 @@ import {
 export const PERSON_RECORD = 'Person'
 /** The mail ledger's own name for a letter about a submission; the letters, not the ledger lines, are read by it. */
 export const MAIL_ABOUT = 'Submission'
-const ENDED = ['REJECTED', 'WITHDRAWN']
+export const ENDED = ['REJECTED', 'WITHDRAWN']
+/** The kind of card a bounced letter sends, for the card skill; its own link is the person put forward. */
+export const FAILED_DELIVERY_CARD_KIND = 'FailedDelivery'
+
+// The skills this agent runs (record 123), registered where the agent is defined so every door that runs it holds the plan.
+// The submission chase is a step of this agent and runs its three chase skills under this plan.
+registerPlan({
+  agentKey: CONFIRMATION_AGENT,
+  skills: ['confirmation.match', 'dual-auth.block', 'card.open', 'chase.propose', 'chase.send', 'chase.close'],
+  outputSkill: 'confirmation.match',
+})
 
 export interface Item { fact: SubmissionFact; state: ItemState; confirmations: { id: string; mailSendId: string | null; confirmedAt: Date }[]; toCompanyId: string }
+
+/** One submission as the rules read it: the person, the job (client and title) and the window it stands in. */
+export function factFromRow(r: {
+  id: string; personId: string; submittedAt: Date; rejectedAt: Date | null; checkState: string
+  person: { name: string }; requirement: { title: string; companyId: string; endClientCompanyId: string | null }
+}): SubmissionFact {
+  return {
+    id: r.id, personId: r.personId, personName: r.person.name,
+    jobKey: `${r.requirement.endClientCompanyId ?? r.requirement.companyId}|${r.requirement.title.trim().toLowerCase()}`,
+    jobTitle: r.requirement.title, submittedAt: r.submittedAt, endedAt: r.rejectedAt, checkState: r.checkState,
+  }
+}
 
 /** Every live submission the firm sent, with its confirmations and the letters about it, and where each stands. */
 export async function trackerItems(companyId: string, now: Date = new Date(), onlyId?: string): Promise<Item[]> {
@@ -68,11 +92,7 @@ export async function trackerItems(companyId: string, now: Date = new Date(), on
     prisma.submissionConfirmation.findMany({ where: { companyId, submissionId: { in: ids } }, select: { id: true, submissionId: true, mailSendId: true, confirmedAt: true } }),
     mailSendsAboutMany(companyId, MAIL_ABOUT, ids),
   ])
-  const facts: SubmissionFact[] = rows.map((r) => ({
-    id: r.id, personId: r.personId, personName: r.person.name,
-    jobKey: `${r.requirement.endClientCompanyId ?? r.requirement.companyId}|${r.requirement.title.trim().toLowerCase()}`,
-    jobTitle: r.requirement.title, submittedAt: r.submittedAt, endedAt: r.rejectedAt, checkState: r.checkState,
-  }))
+  const facts: SubmissionFact[] = rows.map(factFromRow)
   const blocked = await blockedIds(companyId, facts)
   const items = rows.map((r, i) => {
     const confirmations = confs.filter((c) => c.submissionId === r.id)
@@ -158,8 +178,8 @@ export async function recordConfirmation(input: RecordConfirmationInput) {
 const weekStart = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - d.getUTCDay()))
 
 /** A reply the other firm already put on the submission's own thread that says, on its face, it has the package. */
-async function replyOn(companyId: string, item: Item): Promise<{ at: Date; type: string; who: string; messageId: string } | null> {
-  const threads = await prisma.conversation.findMany({
+export async function replyOn(companyId: string, item: Pick<Item, 'toCompanyId'> & { fact: Pick<SubmissionFact, 'id' | 'submittedAt'> }, db: typeof prisma = prisma): Promise<{ at: Date; type: string; who: string; messageId: string } | null> {
+  const threads = await db.conversation.findMany({
     where: {
       topic: 'SUBMISSION', topicId: item.fact.id,
       OR: [{ companyId, withCompanyId: item.toCompanyId }, { companyId: item.toCompanyId, withCompanyId: companyId }],
@@ -167,14 +187,14 @@ async function replyOn(companyId: string, item: Item): Promise<{ at: Date; type:
     select: { id: true },
   })
   if (threads.length === 0) return null
-  const messages = await prisma.message.findMany({
+  const messages = await db.message.findMany({
     where: { conversationId: { in: threads.map((t) => t.id) }, deletedAt: null, type: { in: [...CONFIRMING_MESSAGE_TYPES] }, createdAt: { gte: item.fact.submittedAt } },
     orderBy: { createdAt: 'asc' }, select: { id: true, authorId: true, type: true, createdAt: true },
   })
   for (const m of messages) {
-    const seat = await prisma.context.findFirst({ where: { personId: m.authorId, companyId: item.toCompanyId }, select: { id: true } })
+    const seat = await db.context.findFirst({ where: { personId: m.authorId, companyId: item.toCompanyId }, select: { id: true } })
     if (!seat) continue
-    const who = await prisma.person.findUnique({ where: { id: m.authorId }, select: { name: true } })
+    const who = await db.person.findUnique({ where: { id: m.authorId }, select: { name: true } })
     return { at: m.createdAt, type: m.type, who: who?.name ?? 'Someone at the other firm', messageId: m.id }
   }
   return null
@@ -205,25 +225,28 @@ export async function confirmationTrackerStep(ctx: AgentContext, deps: { send?: 
     const had = await prisma.decisionItem.count({ where: { companyId, question: dualQuestion(first.personName, first.jobTitle), proofLinks: { array_contains: [link] } } })
     if (had > 0) continue
     if (!(await ctx.mayAct())) return
-    const seats = await firmSeats(companyId)
-    const working = seats.filter((s) => seatAtFirm(s, seats, now) !== null)
-    const owner = await ownerForRoles(companyId, [], now)
-    const manager = await ownerForRoles(companyId, ['Account Manager'], now)
-    const other = working.map((s) => s.personId).sort().find((p) => p !== (manager ?? owner)) ?? null
-    const pair = twoSeats(manager, owner, other)
-    if (!pair) {
-      if (!(await said(companyId, 'DUAL_AUTHORIZATION_BLOCKED', first))) {
-        await ctx.act({ recordType: PERSON_RECORD, recordId: first.personId, action: 'DUAL_AUTHORIZATION_BLOCKED', summary: `${tag(first)} is put forward twice. Both are on hold, and the firm has one working seat, so nobody can release it. Add a second seat.` })
+    await runSkill(ctx, 'dual-auth.block', { recordType: MAIL_ABOUT, recordId: first.id, unitsPlanned: 1 }, async () => {
+      const seats = await firmSeats(companyId)
+      const working = seats.filter((s) => seatAtFirm(s, seats, now) !== null)
+      const owner = await ownerForRoles(companyId, [], now)
+      const manager = await ownerForRoles(companyId, ['Account Manager'], now)
+      const other = working.map((s) => s.personId).sort().find((p) => p !== (manager ?? owner)) ?? null
+      const pair = twoSeats(manager, owner, other)
+      if (!pair) {
+        if (!(await said(companyId, 'DUAL_AUTHORIZATION_BLOCKED', first))) {
+          await ctx.act({ recordType: PERSON_RECORD, recordId: first.personId, action: 'DUAL_AUTHORIZATION_BLOCKED', summary: `${tag(first)} is put forward twice. Both are on hold, and the firm has one working seat, so nobody can release it. Add a second seat.` })
+        }
+        return { result: false }
       }
-      continue
-    }
-    for (const ownerPersonId of pair) {
-      await openDecision({
-        companyId, personId: sw.changedById, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
-        question: dualQuestion(first.personName, first.jobTitle), ownerPersonId, openedOn: today, proof: dualProof(group), proofLinks: [link],
-      }, undefined)
-    }
-    await ctx.act({ recordType: PERSON_RECORD, recordId: first.personId, action: 'DUAL_AUTHORIZATION_BLOCKED', summary: `${tag(first)} is put forward ${group.length} times for the same job. No confirmation is recorded on either until two different people say yes.` })
+      for (const ownerPersonId of pair) {
+        await openDecision({
+          companyId, personId: sw.changedById, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
+          question: dualQuestion(first.personName, first.jobTitle), ownerPersonId, openedOn: today, proof: dualProof(group), proofLinks: [link],
+        }, undefined)
+      }
+      await ctx.act({ recordType: PERSON_RECORD, recordId: first.personId, action: 'DUAL_AUTHORIZATION_BLOCKED', summary: `${tag(first)} is put forward ${group.length} times for the same job. No confirmation is recorded on either until two different people say yes.` })
+      return { result: true }
+    })
   }
 
   // 2. Replies Etyme already holds.
@@ -235,21 +258,28 @@ export async function confirmationTrackerStep(ctx: AgentContext, deps: { send?: 
     if (ctx.mode !== 'ON') {
       if (!(await said(companyId, 'CONFIRMATION_FOUND_NOT_RECORDED', item.fact))) {
         if (!(await ctx.mayAct())) return
-        await ctx.act({ recordType: PERSON_RECORD, recordId: item.fact.personId, action: 'CONFIRMATION_FOUND_NOT_RECORDED', summary: `${says} Not recorded: this agent is on drafts only.` })
+        await runSkill(ctx, 'confirmation.match', { recordType: MAIL_ABOUT, recordId: item.fact.id, unitsPlanned: 1 }, async () => {
+          await ctx.act({ recordType: PERSON_RECORD, recordId: item.fact.personId, action: 'CONFIRMATION_FOUND_NOT_RECORDED', summary: `${says} Not recorded: this agent is on drafts only.` })
+          return { result: true }
+        })
       }
       continue
     }
     if (!(await ctx.mayAct())) return
-    try {
-      await recordConfirmation({
-        companyId, submissionId: item.fact.id, personId: sw.changedById, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
-        channel: 'PORTAL', note: `${reply.who} replied on Etyme on ${reply.at.toISOString().slice(0, 10)} (${reply.type.toLowerCase().replace('_', ' ')}).`,
-        agentKey: ctx.agentKey, ruleVersion: ctx.ruleVersion, now,
-      })
-    } catch (e) {
-      if (e instanceof LedgerRefusal) continue
-      throw e
-    }
+    const { result: recorded } = await runSkill(ctx, 'confirmation.match', { recordType: MAIL_ABOUT, recordId: item.fact.id, unitsPlanned: 1 }, async () => {
+      try {
+        await recordConfirmation({
+          companyId, submissionId: item.fact.id, personId: sw.changedById, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
+          channel: 'PORTAL', note: `${reply.who} replied on Etyme on ${reply.at.toISOString().slice(0, 10)} (${reply.type.toLowerCase().replace('_', ' ')}).`,
+          agentKey: ctx.agentKey, ruleVersion: ctx.ruleVersion, now,
+        })
+        return { result: true }
+      } catch (e) {
+        if (e instanceof LedgerRefusal) return { result: false, verdict: 'FAIL' as const, failReason: e.message.slice(0, 300) }
+        throw e
+      }
+    })
+    if (!recorded) continue
     item.state = 'CONFIRMED'
   }
 
@@ -262,13 +292,16 @@ export async function confirmationTrackerStep(ctx: AgentContext, deps: { send?: 
     const open = await prisma.decisionItem.count({ where: { companyId, state: 'OPEN', question, proofLinks: { array_contains: [link] } } })
     if (open > 0) continue
     if (!(await ctx.mayAct())) return
-    await openDecision({
-      companyId, personId: sw.changedById, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
-      question, ownerPersonId: owner, openedOn: today,
-      proof: `The mail ledger shows the letter about submission ${item.fact.id} did not reach the other side. It is open again until a person confirms it another way or sends it again. This agent sends nothing.`,
-      proofLinks: [link],
+    await runSkill(ctx, 'card.open', { recordType: FAILED_DELIVERY_CARD_KIND, recordId: item.fact.id, unitsPlanned: 1 }, async () => {
+      await openDecision({
+        companyId, personId: sw.changedById, heldAs: AGENT_HELD_AS, actingEntityId: entityId,
+        question, ownerPersonId: owner, openedOn: today,
+        proof: `The mail ledger shows the letter about submission ${item.fact.id} did not reach the other side. It is open again until a person confirms it another way or sends it again. This agent sends nothing.`,
+        proofLinks: [link],
+      })
+      await ctx.act({ recordType: PERSON_RECORD, recordId: item.fact.personId, action: 'FAILED_DELIVERY_REOPENED', summary: `${tag(item.fact)}: the letter did not reach the other side, so it is open again.` })
+      return { result: true }
     })
-    await ctx.act({ recordType: PERSON_RECORD, recordId: item.fact.personId, action: 'FAILED_DELIVERY_REOPENED', summary: `${tag(item.fact)}: the letter did not reach the other side, so it is open again.` })
   }
 
   // 4. A submission still waiting after three days is proposed for a chase; a released chase is walked.

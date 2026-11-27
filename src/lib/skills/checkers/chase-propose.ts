@@ -15,11 +15,13 @@ import { censusOn } from '@/lib/agents/census-rules'
 import { OUTREACH_KINDS, OUTREACH_PLAN, OUTREACH_RECORD } from '@/lib/agents/dormant-outreach-rules'
 import { CHASE_ROLES, INTERVIEW_CHASE_KIND, PROPOSED_INTERVIEW_PLAN, quietLongEnough, SUBMISSION_RECORD } from '@/lib/agents/interview-chase'
 import { ownerForRoles } from '@/lib/money/agent-owners'
+import { SUBMISSION_CHASE_KIND, SUBMISSION_CHASE_TEMPLATE, PROPOSED_SUBMISSION_CHASE_PLAN, chaseProposal } from '@/lib/agents/submission-chase-rules'
+import { daysWaiting, wentOut } from '@/lib/agents/confirmation-rules'
 import { daysOffRead } from './calendar'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 
 /** The plan each kind of chase task must carry. A kind not listed has no rule written yet. */
-const PLAN_OF_KIND: Record<string, unknown> = { ...Object.fromEntries(OUTREACH_KINDS.map((k) => [k, OUTREACH_PLAN])), [INTERVIEW_CHASE_KIND]: PROPOSED_INTERVIEW_PLAN }
+const PLAN_OF_KIND: Record<string, unknown> = { ...Object.fromEntries(OUTREACH_KINDS.map((k) => [k, OUTREACH_PLAN])), [INTERVIEW_CHASE_KIND]: PROPOSED_INTERVIEW_PLAN, [SUBMISSION_CHASE_KIND]: PROPOSED_SUBMISSION_CHASE_PLAN }
 
 const sortedJson = (v: unknown): string => JSON.stringify(v, (_k, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]])) : x)
 
@@ -38,18 +40,38 @@ export const chasePropose: SkillChecker<PrismaClient> = async (companyId, _key, 
   const census = contact ? censusOn(await censusFacts(companyId), window.to) : []
   const forSubmission = ref.recordType === SUBMISSION_RECORD
   const owner = await ownerForRoles(companyId, forSubmission ? CHASE_ROLES : ['Account Manager'], window.to)
+  const submissionChaseOwner = forSubmission ? await ownerForRoles(companyId, ['Account Manager'], window.to) : null
   // An interview chase is about a submission the firm put forward: re-read it, and how long the client had been quiet when the task was written.
-  const sub = forSubmission ? await read.submission.findUnique({ where: { id: ref.recordId }, select: { fromCompanyId: true, submittedAt: true, _count: { select: { interviews: true } } } }) : null
-  const daysOff = forSubmission ? await daysOffRead(read, companyId) : []
+  const sub = forSubmission ? await read.submission.findUnique({ where: { id: ref.recordId }, select: { fromCompanyId: true, submittedAt: true, checkState: true, _count: { select: { interviews: true } } } }) : null
+  const daysOff = forSubmission && tasks.some((t) => t.kind === INTERVIEW_CHASE_KIND) ? await daysOffRead(read, companyId) : []
   const problems: string[] = []
   let good = 0
   for (const t of tasks) {
     const side = t.kind.endsWith('SUPPLIER') ? 'SUPPLIER' : 'CUSTOMER'
     const mine: string[] = []
     if (sortedJson(t.plan) !== sortedJson(PLAN_OF_KIND[t.kind])) mine.push('its plan is not the plan the rules give this kind')
+    const expectedOwner = t.kind === SUBMISSION_CHASE_KIND ? submissionChaseOwner : owner
     if (!t.decision) mine.push('it has no card')
-    else if (owner && t.decision.ownerPersonId !== owner) mine.push('its card is owed by a seat the owner reader does not name')
-    if (forSubmission) {
+    else if (expectedOwner && t.decision.ownerPersonId !== expectedOwner) mine.push('its card is owed by a seat the owner reader does not name')
+    if (t.kind === SUBMISSION_CHASE_KIND) {
+      // A submission chase: re-read the submission, its letters and its confirmations as they stood when the task was written.
+      if (!sub || sub.fromCompanyId !== companyId) mine.push('the submission it is about is not this firm’s')
+      else if (!wentOut(sub)) mine.push('the submission it is about had not gone out')
+      else {
+        const [letters, confirmed, earlier] = await Promise.all([
+          read.mailSend.findMany({ where: { companyId, recordType: SUBMISSION_RECORD, recordId: ref.recordId, outcome: 'SENT', createdAt: { lte: t.createdAt } }, select: { template: true, toAddresses: true } }),
+          read.submissionConfirmation.count({ where: { companyId, submissionId: ref.recordId, createdAt: { lte: t.createdAt } } }),
+          read.agentTask.count({ where: { companyId, kind: SUBMISSION_CHASE_KIND, recordType: SUBMISSION_RECORD, recordId: ref.recordId, createdAt: { lt: t.createdAt } } }),
+        ])
+        if (confirmed > 0) mine.push('a confirmation was already recorded when it was written')
+        const proposal = chaseProposal({
+          state: 'AWAITING', waitedDays: daysWaiting(sub.submittedAt, t.createdAt),
+          hasSentLetter: letters.some((m) => m.template !== SUBMISSION_CHASE_TEMPLATE && m.toAddresses.length > 0), everHadTask: earlier > 0,
+        })
+        if (!proposal.propose) mine.push(`the rules would not have proposed it: ${proposal.why}`)
+      }
+    }
+    if (t.kind === INTERVIEW_CHASE_KIND) {
       if (!sub || sub.fromCompanyId !== companyId) mine.push('the submission it is about is not this firm’s')
       else if (!quietLongEnough(sub.submittedAt, t.createdAt, daysOff)) mine.push('the client had not been quiet the proposed working days when it was written')
       if (await read.mailSend.count({ where: { agentTaskId: t.id } }) > 0) mine.push('it wrote to the client, and this chase writes to nobody')
