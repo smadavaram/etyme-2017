@@ -9,10 +9,9 @@
  * person is the only kind the agent starts.
  */
 import type { PrismaClient } from '@prisma/client'
-import { daysOffFor } from '@/lib/days-off'
-import { loadCompanyHolidays } from '@/lib/holidays'
 import { accessFileReadyBy, dayStart } from '@/lib/agents/checklist-rules'
 import { ACCESS_FILE_RECORD } from '@/lib/agents/compliance-watch'
+import { daysOffRead, holidaysRead } from './calendar'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 
 export const accessFileTrack: SkillChecker<PrismaClient> = async (companyId, _key, window, refs, read): Promise<CheckerResult> => {
@@ -25,7 +24,7 @@ export const accessFileTrack: SkillChecker<PrismaClient> = async (companyId, _ke
   if (p.accessFiles.length !== 1) return { verdict: 'FAIL', reason: `${p.accessFiles.length} public access files track the petition, and there should be one.`, evidence, unitsFound: 0 }
   const file = p.accessFiles[0]
   const year = dayStart(window.to).getUTCFullYear()
-  const due = accessFileReadyBy(p.filedOn, await daysOffFor(companyId), await loadCompanyHolidays(companyId, year - 1, year + 1))
+  const due = accessFileReadyBy(p.filedOn, await daysOffRead(read, companyId), await holidaysRead(read, companyId, year))
   if (file.readyBy.getTime() !== due.getTime()) {
     return { verdict: 'FAIL', reason: `The file is due ${file.readyBy.toISOString().slice(0, 10)} and the rules give ${due.toISOString().slice(0, 10)} from the filing day.`, evidence, unitsFound: 0 }
   }

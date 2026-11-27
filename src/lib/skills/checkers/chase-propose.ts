@@ -14,8 +14,8 @@ import { censusFacts } from '@/lib/agents/census-keeper'
 import { censusOn } from '@/lib/agents/census-rules'
 import { OUTREACH_KINDS, OUTREACH_PLAN, OUTREACH_RECORD } from '@/lib/agents/dormant-outreach-rules'
 import { CHASE_ROLES, INTERVIEW_CHASE_KIND, PROPOSED_INTERVIEW_PLAN, quietLongEnough, SUBMISSION_RECORD } from '@/lib/agents/interview-chase'
-import { daysOffFor } from '@/lib/days-off'
 import { ownerForRoles } from '@/lib/money/agent-owners'
+import { daysOffRead } from './calendar'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 
 /** The plan each kind of chase task must carry. A kind not listed has no rule written yet. */
@@ -40,7 +40,7 @@ export const chasePropose: SkillChecker<PrismaClient> = async (companyId, _key, 
   const owner = await ownerForRoles(companyId, forSubmission ? CHASE_ROLES : ['Account Manager'], window.to)
   // An interview chase is about a submission the firm put forward: re-read it, and how long the client had been quiet when the task was written.
   const sub = forSubmission ? await read.submission.findUnique({ where: { id: ref.recordId }, select: { fromCompanyId: true, submittedAt: true, _count: { select: { interviews: true } } } }) : null
-  const daysOff = forSubmission ? await daysOffFor(companyId) : []
+  const daysOff = forSubmission ? await daysOffRead(read, companyId) : []
   const problems: string[] = []
   let good = 0
   for (const t of tasks) {

@@ -10,10 +10,9 @@
  */
 import type { PrismaClient } from '@prisma/client'
 import { dayAround } from '@/lib/decision-queue'
-import { daysOffFor } from '@/lib/days-off'
-import { loadCompanyHolidays } from '@/lib/holidays'
 import { dayStart, noticeEndsOn, noticePeriodOver } from '@/lib/agents/checklist-rules'
 import { NOTICE_RECORD } from '@/lib/agents/compliance-watch'
+import { daysOffRead, holidaysRead } from './calendar'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 import { cardsAt, judgeCards, ownerFor } from './cards'
 
@@ -24,7 +23,7 @@ export const noticeClock: SkillChecker<PrismaClient> = async (companyId, _key, w
   const n = await read.noticePosting.findFirst({ where: { id: ref.recordId, companyId } })
   if (!n) return { verdict: 'FAIL', reason: 'The notice the run is about is not on this firm’s record.', evidence, unitsFound: 0 }
   const year = dayStart(window.to).getUTCFullYear()
-  const endsOn = noticeEndsOn(n.postedOn, await daysOffFor(companyId), await loadCompanyHolidays(companyId, year - 1, year + 1))
+  const endsOn = noticeEndsOn(n.postedOn, await daysOffRead(read, companyId), await holidaysRead(read, companyId, year))
   if (!noticePeriodOver(endsOn, dayAround(window.to).from)) {
     return { verdict: 'FAIL', reason: `The posting period runs to ${endsOn.toISOString().slice(0, 10)} on the firm’s calendar, so it had not ended.`, evidence, unitsFound: 0 }
   }
