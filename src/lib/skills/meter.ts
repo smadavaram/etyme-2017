@@ -79,3 +79,12 @@ export async function readMeter(companyId: string, from: Date, to: Date): Promis
   })
   return meterOf(rows)
 }
+
+/**
+ * What a line is metered on. A call on the company's own model is metered
+ * at the platform-only rate: Etyme's work, never a model's. A call on a
+ * platform model is metered with the model. Counts only; no price here.
+ */
+export function meterBasis(line: Pick<MeterLine, 'calls' | 'ownModel'>): { platformOnly: number; withModel: number } {
+  return { platformOnly: line.ownModel, withModel: line.calls - line.ownModel }
+}

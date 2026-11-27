@@ -26,6 +26,8 @@ import { candidatesFor, costMicrosFromPrice, registerFrom, type ModelTier, type 
 import { laneCRefusal } from './lane-c'
 import { sdkAdapter } from './adapters/sdk'
 import { inlineKeyFor } from '@/lib/skills/inline-keys'
+import { orderWithTenant, type RouteRow } from './tenant-routes'
+import { readTenantRoutes } from './tenant-routes-db'
 
 type Env = Record<string, string | undefined>
 
@@ -60,6 +62,8 @@ export interface ModelDeps {
   env?: Env
   adapters?: Record<string, ModelAdapter>
   models?: readonly RegisteredModel[]
+  /** The company's own routes (Enterprise only). Read from the database where not given; none where `models` is given. */
+  tenantRoutes?: (companyId: string) => Promise<{ rows: RouteRow[]; models: RegisteredModel[] }>
   modelOn?: (companyId: string) => Promise<boolean>
   recordRun?: typeof record
   logPrompt?: typeof recordModelPrompt
@@ -130,7 +134,16 @@ export async function callModel(req: ModelRequest, deps: ModelDeps = {}): Promis
   const system = sysMask?.masked
 
   const register = deps.models ? { models: [...deps.models] } : registerFrom(env)
-  const candidates = candidatesFor(startTier, dataClass, env, { models: register.models, tenantOptIn: req.tenantOptIn })
+  const own = deps.tenantRoutes
+    ? await deps.tenantRoutes(req.companyId).catch(() => ({ rows: [], models: [] }))
+    : deps.models ? { rows: [], models: [] } : await readTenantRoutes(req.companyId).catch(() => ({ rows: [] as RouteRow[], models: [] as RegisteredModel[] }))
+  /** A company's own routes first, the platform's only where the company allowed it; each admitted by the same data-class rules. */
+  const pick = (tier: ModelTier): RegisteredModel[] => orderWithTenant(
+    candidatesFor(tier, dataClass, env, { models: own.models, tenantOptIn: req.tenantOptIn }),
+    candidatesFor(tier, dataClass, env, { models: register.models, tenantOptIn: req.tenantOptIn }),
+    own.rows, tier,
+  )
+  const candidates = pick(startTier)
   if (candidates.length === 0) {
     await recordRun(row({ failReason: 'Not configured: no admitted model with a key for this tier and kind of data.' }))
     return { ok: false, status: 'NOT_CONFIGURED', says: NOT_CONFIGURED_SAYS }
@@ -175,7 +188,7 @@ export async function callModel(req: ModelRequest, deps: ModelDeps = {}): Promis
     const runId = await recordRun(row({
       verdict: verdict && !verdict.ok ? 'FAIL' : 'PASS', tier: g.m.tier, model: g.m.id, usage: g.usage, ms: g.ms,
       byTenantModel: g.m.byTenant === true, fallbackFrom: g.fallbackFrom, escalatedFrom,
-      failReason: verdict && !verdict.ok ? `Failed its check: ${verdict.reason}` : costMicros === null ? 'Price not set.' : null,
+      failReason: verdict && !verdict.ok ? `Failed its check: ${verdict.reason}` : g.fallbackFrom ? `Answered by ${g.m.label} after ${g.fallbackFrom} failed.` : costMicros === null ? 'Price not set.' : null,
     }))
     return {
       keyFailed: verdict && !verdict.ok ? verdict.reason : null,
@@ -201,7 +214,7 @@ export async function callModel(req: ModelRequest, deps: ModelDeps = {}): Promis
     return { ok: false, status: 'KEY_FAILED', says }
   }
   if (!(skill.mayEscalate && startTier === 'LOW')) return needsPerson(`The answer failed its check (${a.keyFailed}).`)
-  const high = candidatesFor('HIGH', dataClass, env, { models: register.models, tenantOptIn: req.tenantOptIn })
+  const high = pick('HIGH')
   if (high.length === 0) return needsPerson(`The answer failed its check (${a.keyFailed}) and no high-tier model is set up for this kind of data.`)
   const second = await askTier(high, 'LOW')
   if (!('got' in second)) return needsPerson(`The answer failed its check (${a.keyFailed}) and the high tier did not answer (${second.why}).`)

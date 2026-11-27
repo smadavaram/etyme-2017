@@ -50,6 +50,10 @@ export const SECURITY_EVENTS = [
   'SENSITIVE_REVEALED',
   /** A reveal asked for and refused, written before the refusal is sent. */
   'SENSITIVE_REVEAL_REFUSED',
+  /** The company's own model route set by an Owner after a fresh second check (record 125). Never a key. */
+  'MODEL_ROUTE_SET',
+  /** A route asked for and refused, written before the refusal is sent. */
+  'MODEL_ROUTE_REFUSED',
 ] as const
 export type SecurityEventName = (typeof SECURITY_EVENTS)[number]
 
@@ -79,6 +83,8 @@ export const WRITTEN_BY: Record<SecurityEventName, string | null> = {
   BANK_DETAILS_SHOWN: null,
   SENSITIVE_REVEALED: 'src/app/api/settings/sensitive/reveal/route.ts',
   SENSITIVE_REVEAL_REFUSED: 'src/app/api/settings/sensitive/reveal/route.ts',
+  MODEL_ROUTE_SET: 'src/app/api/settings/model-routes/route.ts',
+  MODEL_ROUTE_REFUSED: 'src/app/api/settings/model-routes/route.ts',
 }
 
 export const SECURITY_SURFACES = ['WEB', 'TEAMS', 'STAFF', 'CRON', 'EMAIL_LINK'] as const

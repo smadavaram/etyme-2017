@@ -3690,10 +3690,10 @@ export const MATRIX: L1[] = [
             'A tenant route is admitted by the same data-class rules as a platform route, and Lane C data reaches it never',
             'A failed tenant model falls back within its tier to the platform route only where the tenant allowed it, and every attempt is a ledger row with its route, tier, outcome and reason',
             'Usage on a tenant model is metered at the platform-only rate',
-            'PARTIAL 2026-11-27 (record 125): the table that holds a route and a key reference is added (TenantModelRoute); the reader, the Owner route, the metering and the refusal are not built yet'
+            'BUILT IN PART 2026-11-27 (record 125): the route, its edition and Owner checks, the second check (act model.route), the key held only as a reference, the refusal, the merge into the gateway (own routes first, the platform only where allowed, same data-class rules, every attempt a ledger row) and the platform-only count are built; the secret store cannot take a tenant\u2019s key yet, so the route answers \u201cYour keys can be added once the secret store is set up\u201d until the operator sets ETYME_TENANT_KEYS_READY; no screen yet; the platform-only rate is a count until rates are published'
           ],
-          implementedBy: ['prisma/schema.prisma'],
-          testedBy: [] },
+          implementedBy: ['prisma/schema.prisma', 'src/lib/model-gateway/tenant-routes.ts', 'src/lib/model-gateway/tenant-routes-db.ts', 'src/lib/model-gateway/call.ts', 'src/app/api/settings/model-routes/route.ts', 'src/lib/skills/meter.ts', 'src/lib/identity/second-check-words.ts', 'src/lib/identity/security-ledger.ts'],
+          testedBy: ['__tests__/unit/model-gateway-tenant-routes.test.ts', '__tests__/invariants/model-gateway-no-model-names.test.ts'] },
       ]},
     ],
   },
