@@ -179,7 +179,6 @@ const NOT_A_CLIENT_READER: [string, string][] = [
  * may only shrink: fixing one means deleting its line here.
  */
 const KNOWN_OPEN: [string, string][] = [
-  ['src/lib/supplier-desks.ts', 'finds one line to read a supplier’s terms; no figure or name of a member is printed; owner of lib/supplier-desks'],
 ]
 
 function walk(dir: string, out: string[] = []): string[] {

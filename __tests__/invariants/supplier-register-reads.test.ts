@@ -27,7 +27,7 @@ describe('the supplier register reads what every firm owes at once, never one fi
     expect(each.match(/prisma\.documentRequirement\.findMany\(/g)?.length).toBe(1)
     expect(each.match(/dictionaryOf\(companyId\)/g)?.length).toBe(1)
     // Every firm's line in one read, not a read per firm.
-    expect(each).toContain("where: { clientCompanyId: companyId, companyId: { in: [...supplierIds] } },")
+    expect(each).toContain("where: clientLineWhere({ clientCompanyId: companyId, companyId: { in: [...supplierIds] } }),")
     expect(each).not.toContain('sellContract.findFirst(')
   })
 

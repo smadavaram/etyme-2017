@@ -186,6 +186,7 @@ export function inviteRolesFrom(roles: readonly { name: string; permissions: rea
  * still walking the four desks — it has no contract yet, by construction.
  */
 
+import { clientLineWhere } from '@/lib/money/team-lines'
 import { requirementsFor, type EffectiveRequirement } from '@/lib/document-requirements'
 import { typesFor, type DefinedType } from '@/lib/document-type'
 import type { OrderedItem } from '@/lib/supplier-onboarding'
@@ -268,7 +269,7 @@ export async function orderedOfSupplier(companyId: string, supplierCompanyId: st
   const base = await orderedOfSuppliers(companyId)
 
   const line = await prisma.sellContract.findFirst({
-    where: { clientCompanyId: companyId, companyId: supplierCompanyId },
+    where: clientLineWhere({ clientCompanyId: companyId, companyId: supplierCompanyId }),
     orderBy: LINE_FIRST,
     select: { id: true },
   })
@@ -344,7 +345,7 @@ export async function orderedOfEachSupplier(
     }),
     dictionaryOf(companyId),
     prisma.sellContract.findMany({
-      where: { clientCompanyId: companyId, companyId: { in: [...supplierIds] } },
+      where: clientLineWhere({ clientCompanyId: companyId, companyId: { in: [...supplierIds] } }),
       orderBy: LINE_FIRST,
       select: { id: true, companyId: true },
     }),
