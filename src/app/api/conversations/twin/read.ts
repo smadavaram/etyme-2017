@@ -28,6 +28,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { accountFilterFor } from '@/lib/account-walls'
 import { actingInSeat, seatTrail, type LiveSeat } from '@/lib/program-seat'
 import { andAll } from '@/lib/walls'
+import { clientLineWhere, visibleToReader } from '@/lib/money/team-lines'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { daysWaiting } from '@/lib/auto-approval'
 import { partiesOf, directionFrom, invoiceBetween } from '@/lib/money/invoice-parties'
@@ -651,7 +652,8 @@ export function readersFor(
       // chain the week sits on a rung the client may not know by name.
       const wall = await accountFilterFor(acting)
       const where = {
-        sellContract: andAll(endClientFilter(client.id), wall.where),
+        // A member of a team sold as outcome work is never the client's to sign (record 120).
+        sellContract: clientLineWhere(andAll(endClientFilter(client.id), wall.where)),
         status: 'SUBMITTED',
         clientApprovedAt: null,
       }
@@ -885,11 +887,12 @@ export function readersFor(
       // supplied by it, inside the reader's account walls.
       const wall = await accountFilterFor(caller)
       const lines = await prisma.sellContract.findMany({
-        where: andAll(
+        // A firm reads the member lines it sells; the client never reads those of outcome work.
+        where: visibleToReader(andAll(
           { OR: [endClientFilter(company.id), { companyId: company.id }] },
           wall.where,
           { state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] } },
-        ),
+        ), company.id),
         orderBy: { startDate: 'desc' },
         take: 500,
         select: { id: true, person: { select: { id: true, name: true } } },
@@ -950,7 +953,7 @@ export function readersFor(
         // The lines this company is a party to: it sells them or buys them,
         // so every firm on them is one it trades with by name.
         prisma.sellContract.findMany({
-          where: andAll({ OR: [{ companyId: company.id }, { clientCompanyId: company.id }] }, wall.where),
+          where: visibleToReader(andAll({ OR: [{ companyId: company.id }, { clientCompanyId: company.id }] }, wall.where), company.id),
           take: 1000,
           select: { ...named, endClientCompany: { select: { name: true } } },
         }),
@@ -958,7 +961,7 @@ export function readersFor(
         // and the firms named as the client may read them (lib/chain-names).
         company.kind === 'CLIENT'
           ? prisma.sellContract.findMany({
-            where: andAll(endClientFilter(company.id), wall.where),
+            where: visibleToReader(andAll(endClientFilter(company.id), wall.where), company.id),
             take: 1000,
             select: { id: true, personId: true, companyId: true, clientCompanyId: true, ...named },
           })
