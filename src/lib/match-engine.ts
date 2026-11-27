@@ -625,7 +625,7 @@ Return ONLY a JSON array, no other text.`
 }
 
 /**
- * Deterministic scoring fallback — used when ANTHROPIC_API_KEY is not set
+ * Deterministic scoring fallback — used when the gateway register holds no keyed model
  * or when the API call fails. Still produces structured Match records
  * with factors, basis, confidence, and unknowns.
  */
