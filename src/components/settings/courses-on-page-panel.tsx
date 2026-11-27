@@ -38,6 +38,8 @@ export function CoursesOnPagePanel() {
 
   // A company that only buys is offered no courses: no panel.
   if (data && data.coursesOffered === false) return null
+  // The editor is closed while Website and content is off: no panel to press (record 123).
+  if (err && /is off for|not offered/.test(err) && !data) return null
 
   return (
     <Panel title="Courses on our public page" subtitle="Courses are listed on your public page only while Train to bench is on and this is not set.">

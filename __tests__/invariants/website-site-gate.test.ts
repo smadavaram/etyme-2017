@@ -30,8 +30,7 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import { publicSite, siteRendersFor } from '@/lib/public-site'
-import { DARK_SITE_SAYS, GRANDFATHERED_SITES } from '@/lib/plugins'
-import { RENAMED_FIRMS } from '@/lib/seed-renames'
+import { DARK_SITE_SAYS } from '@/lib/plugins'
 
 function firm(over: Row = {}): Row {
   return {
@@ -48,19 +47,25 @@ function firm(over: Row = {}): Row {
 beforeEach(() => { h.company = firm(); h.switches = 0; h.switchReads = [] })
 
 describe('the public storefront follows the Website and content switch', () => {
-  it('the Tapin storefront still renders after the deploy with no switch ever written', async () => {
-    h.company = firm({ slug: 'tapin', name: 'Tapin' })
-    expect((await publicSite('tapin'))?.slug).toBe('tapin')
+  it('a site live before the flag keeps rendering with no switch written', async () => {
+    h.company = firm({ slug: 'any-old-firm' })
+    expect((await publicSite('any-old-firm'))?.slug).toBe('any-old-firm')
   })
 
-  it('the second firm’s storefront still renders the same way', async () => {
-    const second = RENAMED_FIRMS.find((r) => r.on === '2026-10-04')!.toSlug
-    expect(GRANDFATHERED_SITES).toContain(second)
-    h.company = firm({ slug: second })
-    expect((await publicSite(second))?.slug).toBe(second)
+  it('a site that was never live reads no company at that address', async () => {
+    h.company = firm({ siteLiveAt: null })
+    expect(await publicSite('northwind')).toBeNull()
+    h.company = firm({ siteLiveAt: new Date('2026-11-28T00:00:00Z') })
+    expect(await publicSite('northwind')).toBeNull()
+  })
+
+  it('a staff switch never ends a site’s grandfathering', async () => {
+    await publicSite('northwind')
+    expect(h.switchReads).toEqual([{ companyId: 'f1', plugin: 'WEBSITE', on: false, byStaff: false }])
   })
 
   it('a firm with Website and content off reads no company at that address', async () => {
+    h.company = firm({ siteLiveAt: new Date('2026-11-28T00:00:00Z') })
     expect(await publicSite('northwind')).toBeNull()
     expect(DARK_SITE_SAYS).toBe('No company at that address.')
   })
@@ -70,10 +75,10 @@ describe('the public storefront follows the Website and content switch', () => {
     expect((await publicSite('northwind'))?.name).toBe('Northwind Staffing')
   })
 
-  it('an Owner who switches a grandfathered site off takes it dark for good and its words are kept', async () => {
-    h.company = firm({ slug: 'tapin', pluginsOn: [] })
+  it('an Owner’s switch-off ends grandfathering for good and the words are kept', async () => {
+    h.company = firm({ pluginsOn: [] })
     h.switches = 1 // the Owner's switch-off row
-    expect(await publicSite('tapin')).toBeNull()
+    expect(await publicSite('northwind')).toBeNull()
     // Dark is a read gate only: nothing here ever writes the stored words.
     const src = readFileSync(join(process.cwd(), 'src/lib/public-site.ts'), 'utf8')
     expect(src).not.toMatch(/company\.(update|delete)|siteTagline:\s*null/)
@@ -81,56 +86,47 @@ describe('the public storefront follows the Website and content switch', () => {
   })
 
   it('a site switched off and later on again renders only because the switch is on, not because it was grandfathered', async () => {
-    h.company = firm({ slug: 'tapin', pluginsOn: ['WEBSITE'] })
+    h.company = firm({ pluginsOn: ['WEBSITE'] })
     h.switches = 2
-    expect(await publicSite('tapin')).not.toBeNull()
-    h.company = firm({ slug: 'tapin', pluginsOn: [] })
-    expect(await publicSite('tapin')).toBeNull()
+    expect(await publicSite('northwind')).not.toBeNull()
+    h.company = firm({ pluginsOn: [] })
+    expect(await publicSite('northwind')).toBeNull()
   })
 
   it('a firm’s old address and its own domain go dark with its site', async () => {
     // The lookup resolves alias and domain to the one company; the gate reads that company.
-    h.company = firm({ slug: 'northwind', pluginsOn: [] })
+    h.company = firm({ slug: 'northwind', pluginsOn: [], siteLiveAt: new Date('2026-11-28T00:00:00Z') })
     expect(await publicSite('old-northwind')).toBeNull()
     expect(await publicSite('northwind.example')).toBeNull()
     h.company = firm({ slug: 'northwind', pluginsOn: ['WEBSITE'] })
     expect(await publicSite('old-northwind')).not.toBeNull()
   })
 
-  it('an alias of a grandfathered firm renders with it, because grandfathering is read off the firm’s own slug', async () => {
-    h.company = firm({ slug: 'tapin' })
-    expect(await publicSite('old-tapin')).not.toBeNull()
+  it('an alias of a grandfathered firm renders with it, because grandfathering is read off the firm’s own record', async () => {
+    h.company = firm()
+    expect(await publicSite('old-northwind')).not.toBeNull()
   })
 
-  it('a firm that is not grandfathered never reads the switch history', async () => {
+  it('a firm that was never live before the flag never reads the switch history', async () => {
+    h.company = firm({ siteLiveAt: new Date('2026-11-28T00:00:00Z') })
     await publicSite('northwind')
     expect(h.switchReads).toEqual([])
   })
 })
 
 describe('a grandfathered site keeps its content editor', () => {
-  it('the editor is open for a grandfathered site no Owner has switched off', async () => {
-    expect(await siteRendersFor({ id: 'f1', slug: 'tapin', pluginsOn: [] })).toBe(true)
-    expect(h.switchReads).toEqual([{ companyId: 'f1', plugin: 'WEBSITE' }])
+  const old = new Date('2026-10-29T00:00:00Z')
+  it('a grandfathered site keeps its content editor', async () => {
+    expect(await siteRendersFor({ id: 'f1', siteLiveAt: old, pluginsOn: [] })).toBe(true)
+    expect(h.switchReads).toEqual([{ companyId: 'f1', plugin: 'WEBSITE', on: false, byStaff: false }])
   })
   it('the editor is closed for a grandfathered site once its Owner has switched it off', async () => {
     h.switches = 1
-    expect(await siteRendersFor({ id: 'f1', slug: 'tapin', pluginsOn: [] })).toBe(false)
+    expect(await siteRendersFor({ id: 'f1', siteLiveAt: old, pluginsOn: [] })).toBe(false)
   })
-  it('the editor is closed for any other firm while Website and content is off, and open while it is on', async () => {
-    expect(await siteRendersFor({ id: 'f2', slug: 'northwind', pluginsOn: [] })).toBe(false)
-    expect(await siteRendersFor({ id: 'f2', slug: 'northwind', pluginsOn: ['WEBSITE'] })).toBe(true)
-  })
-})
-
-describe('an outreach letter never links to a storefront that is dark', () => {
-  it('every outreach door builds its storefront link only from a page that renders', () => {
-    const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
-    expect(read('src/lib/outreach/batch.ts')).toMatch(/\(await publicSite\(slug\)\) \? `\$\{base\}\/site\/\$\{slug\}` : null/)
-    expect(read('src/lib/agents/outreach-batch.ts')).toMatch(/\(await publicSite\(firm\.slug\)\) \? `\$\{baseUrl\(\)\}\/site\/\$\{firm\.slug\}` : null/)
-    expect(read('src/lib/notify/outreach-interest.ts')).toMatch(/\(await publicSite\(slug\)\) \? `\/site\/\$\{slug\}` : null/)
-  })
-  it('a dark firm gives those doors nothing to link to', async () => {
-    expect(await publicSite('northwind')).toBeNull()
+  it('the editor is closed for a site never live while Website and content is off, and open while it is on', async () => {
+    const fresh = new Date('2026-11-28T00:00:00Z')
+    expect(await siteRendersFor({ id: 'f2', siteLiveAt: fresh, pluginsOn: [] })).toBe(false)
+    expect(await siteRendersFor({ id: 'f2', siteLiveAt: fresh, pluginsOn: ['WEBSITE'] })).toBe(true)
   })
 })

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { accessActor, recordRefusal } from '@/lib/access-log'
-import { isOn, notOfferedSays, pluginLabel, type PluginKey } from '@/lib/plugins'
+import { isOn, notOfferedSays, siteRendersFor, pluginLabel, type PluginKey } from '@/lib/plugins'
 import { prisma } from '@/lib/db'
 
 /** Pure: the one sentence every route and page of a plugin says while it is off. */
@@ -28,8 +28,10 @@ export async function pluginGate(caller: GateCaller, key: PluginKey): Promise<Ne
     })
     return NextResponse.json({ error: { code: 'NOT_OFFERED', message: notOfferedSays() } }, { status: 403 })
   }
-  const c = await prisma.company.findUnique({ where: { id: caller.company.id }, select: { pluginsOn: true } })
+  const c = await prisma.company.findUnique({ where: { id: caller.company.id }, select: { pluginsOn: true, siteLiveAt: true } })
   if (isOn(c?.pluginsOn, key)) return null
+  // A site live before the flag keeps its editor until an Owner switches it off (record 123).
+  if (key === 'WEBSITE' && c && (await siteRendersFor({ id: caller.company.id, siteLiveAt: c.siteLiveAt, pluginsOn: c.pluginsOn }))) return null
   const says = pluginOffSays(key, caller.company.name)
   await recordRefusal([{ companyId: caller.company.id }], {
     ...accessActor(caller),

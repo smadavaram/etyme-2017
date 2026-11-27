@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
-  GRANDFATHERED_SITES, DARK_SITE_SAYS, WEBSITE_LEAD_SAYS, OUTREACH_TEMPLATES,
+  DARK_SITE_SAYS, WEBSITE_LEAD_SAYS, OUTREACH_TEMPLATES,
   siteRenders, websiteChecklist, outreachHeld, pluginsOfferedTo, isOn, PLUGINS,
 } from '@/lib/plugins'
 import { SUBMISSION_CHASE_TEMPLATE } from '@/lib/agents/submission-chase-rules'
@@ -10,7 +10,6 @@ import { OUTREACH_TEMPLATE } from '@/lib/agents/dormant-outreach-rules'
 import { OUTREACH_BATCH_TEMPLATE } from '@/lib/outreach/batch-rules'
 import { MONEY_OWED_CHASE_TEMPLATE, FINAL_NOTICE_TEMPLATE } from '@/lib/money/money-owed-chase'
 import { TIMESHEET_CHASE_TEMPLATE } from '@/lib/notify/timesheet-chase-letter'
-import { RENAMED_FIRMS } from '@/lib/seed-renames'
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 const all = { brandingApprovedAt: new Date('2026-11-20'), domainVerified: true, compliancePassRequired: true, compliancePassRecorded: true }
@@ -27,29 +26,26 @@ describe('Website and content and Outreach are plugins, off for every firm', () 
   })
 })
 
-describe('the two sites that were live keep rendering', () => {
-  it('the Tapin storefront renders with no switch ever written', () => {
-    expect(siteRenders({ slug: 'tapin', pluginsOn: [], everSwitched: false })).toBe(true)
+describe('a site that was live before the flag keeps rendering', () => {
+  const before = new Date('2026-10-29T00:00:00Z')
+  const after = new Date('2026-11-27T00:00:00Z')
+  it('a site live before the flag keeps rendering with no switch written', () => {
+    expect(siteRenders({ siteLiveAt: before, pluginsOn: [], ownerSwitchedOff: false })).toBe(true)
   })
-  it('the second firm’s storefront renders under its renamed slug with no switch ever written', () => {
-    const second = RENAMED_FIRMS.find((r) => r.on === '2026-10-04')!.toSlug
-    expect(GRANDFATHERED_SITES).toContain(second)
-    expect(siteRenders({ slug: second, pluginsOn: [], everSwitched: false })).toBe(true)
-    expect(siteRenders({ slug: `world-${second}`, pluginsOn: [], everSwitched: false })).toBe(true)
+  it('a site that was never live reads no company at that address', () => {
+    expect(siteRenders({ siteLiveAt: null, pluginsOn: [], ownerSwitchedOff: false })).toBe(false)
+    expect(siteRenders({ siteLiveAt: after, pluginsOn: [], ownerSwitchedOff: false })).toBe(false)
   })
-  it('every other firm’s site is dark until its Website switch is on', () => {
-    expect(siteRenders({ slug: 'quillbrook', pluginsOn: [], everSwitched: false })).toBe(false)
-    expect(siteRenders({ slug: 'quillbrook', pluginsOn: ['WEBSITE'], everSwitched: true })).toBe(true)
-  })
-  it('an Owner’s first switch-off of a grandfathered site takes it dark for good', () => {
-    expect(siteRenders({ slug: 'tapin', pluginsOn: [], everSwitched: true })).toBe(false)
-    expect(siteRenders({ slug: 'tapin', pluginsOn: ['WEBSITE'], everSwitched: true })).toBe(true)
+  it('an Owner’s switch-off ends grandfathering for good, and a later switch-on is the plugin being on', () => {
+    expect(siteRenders({ siteLiveAt: before, pluginsOn: [], ownerSwitchedOff: true })).toBe(false)
+    expect(siteRenders({ siteLiveAt: before, pluginsOn: ['WEBSITE'], ownerSwitchedOff: true })).toBe(true)
   })
   it('a dark site reads the same as a firm that does not exist', () => {
     expect(DARK_SITE_SAYS).toBe('No company at that address.')
   })
-  it('no real company’s name is spelled in the grandfather list', () => {
-    expect(GRANDFATHERED_SITES.join(' ')).not.toMatch(/cloudepa/i)
+  it('no slug list is kept anywhere in the plugin file', () => {
+    const src = readFileSync(join(process.cwd(), 'src/lib/plugins.ts'), 'utf8')
+    expect(src).not.toMatch(/GRANDFATHERED_SITES|isGrandfatheredSlug/)
   })
 })
 

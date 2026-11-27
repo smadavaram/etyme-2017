@@ -34,30 +34,40 @@ export function switchOnRefusal(plugin: PluginKey): string | null {
 }
 
 /**
- * Website and content (records 121, 123). The two sites that were live
- * before the switch existed keep rendering until their Owner first switches
- * one off. Slugs, never names: Tapin's own, and the second firm's slug as
- * the demo's rename map holds it (`RENAMED_FIRMS`, the cloud-named entry
- * of 2026-10-04). The demo world prefixes every slug with `world-`.
+ * Website and content (records 121, 123; lead's ruling 2026-11-27). A site
+ * is grandfathered when it was live before the switch existed, read off the
+ * record: `Company.siteLiveAt` set before the cutoff. It keeps rendering
+ * until an Owner switches Website off (a PluginSwitch row with on=false and
+ * byStaff=false). A Superadmin's row never ends it; an Owner's switch-on
+ * does not either (the site is then on anyway).
  */
-export const GRANDFATHERED_SITES: readonly string[] = ['tapin', 'tecwyn']
+export const GRANDFATHER_CUTOFF = new Date('2026-11-27T00:00:00Z')
 
-const WORLD_PREFIX = 'world-'
-
-export function isGrandfatheredSlug(slug: string | null | undefined): boolean {
-  if (!slug) return false
-  const bare = slug.startsWith(WORLD_PREFIX) ? slug.slice(WORLD_PREFIX.length) : slug
-  return GRANDFATHERED_SITES.includes(bare)
+export function liveBeforeTheFlag(siteLiveAt: Date | null | undefined): boolean {
+  return Boolean(siteLiveAt) && siteLiveAt!.getTime() < GRANDFATHER_CUTOFF.getTime()
 }
 
 /**
  * Pure: does a firm's public site render. It does where the plugin is on,
- * or where the firm is one of the two grandfathered sites and nobody has
- * ever written a Website switch for it. Dark reads the same as no firm.
+ * or where it was live before the flag and no Owner has switched it off.
+ * Dark reads the same as no firm.
  */
-export function siteRenders(f: { slug: string | null | undefined; pluginsOn: readonly string[] | null | undefined; everSwitched: boolean }): boolean {
+export function siteRenders(f: { siteLiveAt: Date | null | undefined; pluginsOn: readonly string[] | null | undefined; ownerSwitchedOff: boolean }): boolean {
   if (isOn(f.pluginsOn, 'WEBSITE')) return true
-  return isGrandfatheredSlug(f.slug) && !f.everSwitched
+  return liveBeforeTheFlag(f.siteLiveAt) && !f.ownerSwitchedOff
+}
+
+/**
+ * Whether a firm's storefront renders, and so whether its content editor is
+ * open. The switch history is read only for a firm that is off and was live
+ * before the flag, so no other firm costs the extra read.
+ */
+export async function siteRendersFor(company: { id: string; siteLiveAt: Date | null | undefined; pluginsOn: readonly string[] | null | undefined }): Promise<boolean> {
+  const needsHistory = !isOn(company.pluginsOn, 'WEBSITE') && liveBeforeTheFlag(company.siteLiveAt)
+  const ownerSwitchedOff = needsHistory
+    ? (await prisma.pluginSwitch.count({ where: { companyId: company.id, plugin: 'WEBSITE', on: false, byStaff: false } })) > 0
+    : false
+  return siteRenders({ siteLiveAt: company.siteLiveAt, pluginsOn: company.pluginsOn, ownerSwitchedOff })
 }
 
 /** What a dark site reads, the same as for a firm that does not exist (record 123, answer 6). */

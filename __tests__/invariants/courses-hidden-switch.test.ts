@@ -21,6 +21,7 @@ vi.mock('@/lib/api-context', () => ({
   }),
   realPersonId: () => 'p1',
 }))
+vi.mock('@/lib/plugin-gate', () => ({ pluginGate: async () => null }))
 vi.mock('@/lib/seat', () => ({ staffOnly: () => null }))
 vi.mock('@/lib/permissions', () => ({ hasPermission: () => true, askTheDesk: () => 'ask' }))
 vi.mock('@/app/api/settings/site/write', () => ({

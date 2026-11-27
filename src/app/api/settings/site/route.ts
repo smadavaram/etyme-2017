@@ -10,6 +10,7 @@ import {
 import { callerRoleName } from '@/lib/training/caller'
 import { coursesShown } from '@/lib/training/courses-shown'
 import { pluginsOfferedTo, notOfferedSays } from '@/lib/plugins'
+import { pluginGate } from '@/lib/plugin-gate'
 import { modelWritesFor, writePage } from './write'
 
 /**
@@ -99,6 +100,9 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
+  // The editor is open only where the site renders (record 123, ruling b).
+  const off = await pluginGate(caller, 'WEBSITE')
+  if (off) return off
 
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: caller.company.id },
@@ -164,6 +168,8 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     )
   }
+  const off = await pluginGate(caller, 'WEBSITE')
+  if (off) return off
 
   const body = await request.json().catch(() => ({}))
   const existing = await prisma.company.findUniqueOrThrow({
@@ -236,6 +242,8 @@ export async function PATCH(request: NextRequest) {
       { status: 403 }
     )
   }
+  const off = await pluginGate(caller, 'WEBSITE')
+  if (off) return off
 
   const body = await request.json().catch(() => ({}))
   const data: Record<string, unknown> = {}
