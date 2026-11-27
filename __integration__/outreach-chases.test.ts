@@ -77,6 +77,7 @@ beforeAll(async () => {
   await resetDatabase()
   const co = (name: string, kind: string) => prisma.company.create({ data: { name: `${name} ${tag}`, slug: `${name.toLowerCase().replace(/\s/g, '-')}-${tag}`, kind } as any })
   w.firm = await co('Chase Firm', 'VENDOR'); w.client = await co('Chase Client', 'CLIENT'); w.supplier = await co('Chase Supplier', 'VENDOR'); w.quiet = await co('Quiet Co', 'CLIENT'); w.both = await co('Both Ways', 'CLIENT')
+  await prisma.company.update({ where: { id: w.firm.id }, data: { pluginsOn: ['OUTREACH'] } }) // Outreach is on for the letters that sell (record 123)
   w.entity = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Chase Firm LLC', country: 'US', currency: 'USD' } })
   const role = (name: string, permissions: string[]) => prisma.role.create({ data: { companyId: w.firm.id, name, permissions } })
   const ownerRole = await role('Owner', ['*'])

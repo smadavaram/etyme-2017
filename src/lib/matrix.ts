@@ -233,7 +233,7 @@ export const MATRIX: L1[] = [
             '__tests__/invariants/bench-tester-round-two.test.ts', '__integration__/bench-tester-round-two.test.ts',
             '__tests__/invariants/bench-tester-round-three.test.ts', '__integration__/bench-tester-round-three.test.ts',
             '__tests__/invariants/plugin-switch.test.ts', '__integration__/the-owners-plugin-switch-writes-the-flag-and-the-row-together.test.ts', '__integration__/training.test.ts',
-            '__tests__/invariants/website-and-outreach-flags.test.ts', '__integration__/the-website-switch-refuses-until-three-checks-hold.test.ts'] },
+            '__tests__/invariants/website-and-outreach-flags.test.ts', '__integration__/the-website-switch-refuses-until-three-checks-hold.test.ts', '__integration__/outreach-gate.test.ts'] },
         // A match from a firm that is not a supplier yet is a door, not a
         // dead end (founder, 2026-09-30).
         { code: 'L3.1.2.5', name: 'A suggestion from matching opens supplier onboarding', owner: 'Hiring manager', status: B,

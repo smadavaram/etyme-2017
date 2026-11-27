@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 import { agentByWords, BASELINE_LINES, LEDGER_IS_FOR, agentRows, dayAround, recordViewHref, mayOpenRecordKind } from '@/lib/decision-queue'
 import { NOTE_ACTIONS, mayChangeSwitch, readSwitchAsk, setSwitch } from '@/lib/agents/switch'
 import { CHASE_AGENT_KEYS, chaseNumbersFrom, readChaseNumbers, setChaseNumbers } from '@/lib/agents/chase-numbers'
-import { openTasks } from '@/lib/agents/tasks'
+import { openTasks, OUTREACH_SETTINGS_HREF } from '@/lib/agents/tasks'
 import { latestThisWeek, proposedDefaults, stoppedSays } from '@/lib/agents/control-view'
 import { queueSeat, refused, refusalOf } from '../door'
 
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       agents: rows.map((r) => ({ ...r, chaseNumbers: CHASE_AGENT_KEYS.includes(r.key) ? chaseNumbersFrom(switches.find((s) => s.agentKey === r.key)?.chasePlan) : null })),
       tasks: tasks.map((t) => {
         const a = rows.find((r) => r.key === t.agentKey)
-        return { ...t, stopped: stoppedSays(t.state, a?.switchState ?? 'OFF', a?.name ?? t.agentKey) }
+        return { ...t, stopped: stoppedSays(t.state, a?.switchState ?? 'OFF', a?.name ?? t.agentKey) ?? t.paused, pausedHref: t.paused ? OUTREACH_SETTINGS_HREF : null }
       }),
       ledgerHidden: ledger ? null : LEDGER_IS_FOR,
       ledger: !ledger ? null : {

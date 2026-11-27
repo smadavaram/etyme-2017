@@ -30,7 +30,7 @@ import { baseUrl } from '@/lib/signed-link'
 import { AGENT_HELD_AS, type AgentContext } from './runner'
 import { runSkill } from '@/lib/skills/runner'
 import type { CensusRow, Side } from './census-rules'
-import { TASK_RECORD, approvalOf, closeTask, proposeTask } from './tasks'
+import { TASK_RECORD, approvalOf, closeTask, outreachPause, proposeTask } from './tasks'
 import {
   OUTREACH_KINDS, OUTREACH_PLAN, OUTREACH_RECORD, OUTREACH_TEMPLATE, becameDormant, blockedCard, chooseRecipient,
   coolingOffHolds, outreachCard, outreachKind, outreachLetter, outreachPrefix, postalLine, type Block,
@@ -158,6 +158,7 @@ export async function walkOutreach(ctx: AgentContext, rows: () => Promise<readon
     const { task } = await approvalOf(t0.id)
     if (task.state !== 'APPROVED' && task.state !== 'RUNNING') continue // nothing is sent before a person's yes
     if (ctx.mode !== 'ON') continue // Drafts only: nothing is sent, even after a yes.
+    if (await outreachPause(task)) continue // Outreach is off: the task waits under its yes (record 123, answer 5)
     const side: Side = task.kind === outreachKind('CUSTOMER') ? 'CUSTOMER' : 'SUPPLIER'
     const stop = (why: string) => closeTask(task.id, why, 'STOPPED')
 

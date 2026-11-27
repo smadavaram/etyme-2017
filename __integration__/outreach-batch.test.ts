@@ -79,7 +79,7 @@ async function customer(name: string, quietFor: number) {
 
 beforeAll(async () => {
   await resetDatabase()
-  w.firm = await newCo('Win Firm', { kind: 'VENDOR', siteLiveAt: null })
+  w.firm = await newCo('Win Firm', { kind: 'VENDOR', siteLiveAt: null, pluginsOn: ['OUTREACH'] })
   w.entity = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Win Firm LLC', country: 'US', currency: 'USD' } })
   const ownerRole = await prisma.role.create({ data: { companyId: w.firm.id, name: 'Owner', permissions: ['*'] } })
   w.owner = await prisma.person.create({ data: { name: 'Dana Owner', primaryEmail: `dana.${tag}@example.invalid` } })
@@ -315,12 +315,12 @@ describe('the links in a letter', () => {
 
   it('a firm with a public page lands the interested contact on it, where its Ask box is, and opens no second lead', async () => {
     delete process.env.DEV_BYPASS_AUTH
-    await prisma.company.update({ where: { id: w.firm.id }, data: { siteLiveAt: new Date() } })
+    await prisma.company.update({ where: { id: w.firm.id }, data: { siteLiveAt: new Date(), pluginsOn: ['OUTREACH', 'WEBSITE'] } }) // a public page renders only where Website and content is on (record 123)
     const t = w.interested(w.bea)
     const out = await json(await interest.POST(req('POST', `/api/answer/outreach-interest/${t}`), pt(t)))
     expect(out.body.data.landing).toBe(`/site/ob-win-firm-${tag}`)
     expect(await prisma.lead.count({ where: { companyId: w.firm.id, source: 'OUTREACH' } })).toBe(1)
-    await prisma.company.update({ where: { id: w.firm.id }, data: { siteLiveAt: null } })
+    await prisma.company.update({ where: { id: w.firm.id }, data: { siteLiveAt: null, pluginsOn: ['OUTREACH'] } })
   })
 
   it('no unsubscribe or interested token is in the mail ledger, the record ledger, a card, a lead or a reply', async () => {

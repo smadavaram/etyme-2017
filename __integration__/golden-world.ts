@@ -19,6 +19,7 @@ export interface GoldenWorld { firm: any; owner: any; am: any; entity: any; quie
 export async function buildGoldenWorld(): Promise<GoldenWorld> {
   const co = (name: string, kind: string) => prisma.company.create({ data: { name, slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), kind } as any })
   const firm = await co('Golden Firm', 'VENDOR')
+  await prisma.company.update({ where: { id: firm.id }, data: { pluginsOn: ['OUTREACH'] } }) // Outreach is on, so the letters that sell are sent (record 123)
   const entity = await prisma.legalEntity.create({ data: { companyId: firm.id, name: 'Golden Firm LLC', country: 'US', currency: 'USD' } })
   await prisma.companyAddress.create({ data: { companyId: firm.id, kind: 'LEGAL', street: '1 Main Street', city: 'Austin', state: 'TX', postalCode: '78701', country: 'US' } as any })
   const role = (name: string, permissions: string[]) => prisma.role.create({ data: { companyId: firm.id, name, permissions } })

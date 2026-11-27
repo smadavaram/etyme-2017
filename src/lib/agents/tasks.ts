@@ -20,6 +20,7 @@ import { writeRecordAction, LedgerRefusal } from '@/lib/record-ledger'
 import { openDecision } from '@/lib/decision-items'
 import { AGENT_HELD_AS } from './runner'
 import { agentKeys, agentName, offSays, type SwitchState } from './switch'
+import { outreachHeld } from '@/lib/plugins'
 
 export const TASK_RECORD = 'AgentTask'
 
@@ -203,7 +204,52 @@ export async function mayAgentSend(taskId: string, step: SendCheck['step']): Pro
     task: { ...task, plan: task.plan as unknown as TaskPlan },
     switchState: (sw?.state ?? 'OFF') as SwitchState, step,
   })
-  return says ? { ok: false, says } : { ok: true }
+  if (says) return { ok: false, says }
+  // Outreach (records 122, 123): a letter that sells waits while the firm's switch is off, under the same yes.
+  const held = await outreachPause(task)
+  return held ? { ok: false, says: held } : { ok: true }
+}
+
+export const OUTREACH_PAUSED = 'OUTREACH_PAUSED'
+export const OUTREACH_RESUMED = 'OUTREACH_RESUMED'
+
+/** The sentence on a paused task's card. Pure. The Owner's link is the Settings plugins page. */
+export function outreachPausedSays(firmName: string): string {
+  return `Paused: Outreach is off for ${firmName}. Nothing more is sent until the Owner turns it on. Letters already sent stand.`
+}
+export const OUTREACH_SETTINGS_HREF = '/dashboard/settings'
+
+/** Does the task's plan hold any letter that sells. Pure. */
+export function planSellsLetters(plan: unknown): boolean {
+  return ((plan as TaskPlan | null)?.messages ?? []).some((m) => outreachHeld([], m.template))
+}
+
+/**
+ * The pause sentence for a released task whose firm has Outreach off, else
+ * null. Reads fresh. Writes one OUTREACH_PAUSED row when the pause begins and
+ * one OUTREACH_RESUMED when it ends, never one per run. The task itself is
+ * never moved: it stays APPROVED or RUNNING under its own yes and its own text.
+ */
+export async function outreachPause(task: { id: string; companyId: string; agentKey: string; state: string; plan: unknown }): Promise<string | null> {
+  if (!planSellsLetters(task.plan) || (task.state !== 'APPROVED' && task.state !== 'RUNNING')) return null
+  const firm = await prisma.company.findUnique({ where: { id: task.companyId }, select: { name: true, pluginsOn: true } })
+  const held = outreachHeld(firm?.pluginsOn, 'outreach-batch')
+  const last = await prisma.recordAction.findFirst({
+    where: { companyId: task.companyId, recordType: TASK_RECORD, recordId: task.id, action: { in: [OUTREACH_PAUSED, OUTREACH_RESUMED] } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { action: true },
+  })
+  const says = held ? outreachPausedSays(firm?.name ?? 'your firm') : null
+  const pausedNow = last?.action === OUTREACH_PAUSED
+  if (held === pausedNow || (!held && !last)) return says
+  const s = await stampFor(task.companyId, task.agentKey).catch(() => null)
+  if (s) {
+    await writeRecordAction(prisma, {
+      companyId: task.companyId, recordType: TASK_RECORD, recordId: task.id, action: held ? OUTREACH_PAUSED : OUTREACH_RESUMED,
+      summary: held ? says! : 'Outreach is on again. The task goes on under its own yes and sends the approved text.',
+      personId: s.personId, heldAs: AGENT_HELD_AS, actingEntityId: s.actingEntityId, agentKey: task.agentKey,
+    })
+  }
+  return says
 }
 
 /** A batch's letter must belong to the task that approved it; null where it does, or where the task is no batch. */
@@ -246,8 +292,11 @@ export async function openTasks(companyId: string) {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     include: { decision: { select: { id: true, question: true, ownerPerson: { select: { name: true } } } } },
   })
+  const firm = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true, pluginsOn: true } })
+  const off = outreachHeld(firm?.pluginsOn, 'outreach-batch')
   return rows.filter((r) => agentKeys().includes(r.agentKey)).map((r) => ({
     id: r.id, agentKey: r.agentKey, kind: r.kind, state: r.state, question: r.decision.question, ownerName: r.decision.ownerPerson.name,
     decisionId: r.decision.id, sent: r.sentCount, escalationOf: r.parentTaskId,
+    paused: off && planSellsLetters(r.plan) && (r.state === 'APPROVED' || r.state === 'RUNNING') ? outreachPausedSays(firm?.name ?? 'your firm') : null,
   }))
 }
