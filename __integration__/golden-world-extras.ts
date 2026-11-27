@@ -123,3 +123,59 @@ export async function addConfirmationWorld(w: GoldenWorld) {
   await prisma.message.create({ data: { conversationId: thread.id, authorId: cara.id, body: 'Can Priya do Tuesday at 10?', type: 'INTERVIEW', createdAt: d('2026-11-21') } })
   return { co, cara, ines, replied, dualA, dualB, bounced, waiting }
 }
+
+/**
+ * Reconciliation: a receivables seat and a payroll clerk, one customer, and
+ * six bills the firm raised in October for six people. A payment placed
+ * against each of four (to the cent, short, over, and in another currency),
+ * a loose payment that is owed by exactly one bill, a loose payment that
+ * fits no bill, and one bill whose line rate is above its contract's. The
+ * two bills the agent may move a month for sit at "payment pending".
+ */
+export async function addReconciliationWorld(w: GoldenWorld) {
+  const { openChain, advanceChain } = await import('@/lib/money/money-chain')
+  const role = (name: string, permissions: string[]) => prisma.role.create({ data: { companyId: w.firm.id, name, permissions } })
+  const person = (name: string, email: string) => prisma.person.create({ data: { name, primaryEmail: mail(email) } })
+  const ar = await person('Rita Receivable', 'rita.receivable'); const clerk = await person('Ravi Payroll', 'ravi.payroll')
+  await prisma.context.create({ data: { personId: ar.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: (await role('Accounts Receivable', [])).id } as any })
+  await prisma.context.create({ data: { personId: clerk.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: (await role('AP & Payroll', [])).id } as any })
+  const client = await prisma.company.create({ data: { name: 'Golden Paying Customer', slug: 'golden-paying-customer', kind: 'CLIENT' } as any })
+  const engagement = await prisma.engagement.create({ data: { title: 'Golden reconciliation' } })
+  const start = d('2026-10-01'); const end = d('2026-10-31')
+  const line = async (who: any) => prisma.sellContract.create({ data: { companyId: w.firm.id, clientCompanyId: client.id, personId: who.id, billRate: 10000, startDate: d('2026-09-01'), engagementId: engagement.id } as any })
+  const bill = async (number: string, ln: any, total: string, lineRate = 10000) => {
+    const ts = await prisma.timesheet.create({ data: { sellContractId: ln.id, personId: ln.personId, periodStart: start, periodEnd: end, days: {}, totalHours: '10.00' } as any })
+    return prisma.invoice.create({
+      data: {
+        engagementId: engagement.id, number, currency: 'USD', total, periodStart: start, periodEnd: end, dueAt: d('2026-11-30'), status: 'ISSUED',
+        invoiceLines: { create: [{ sellContractId: ln.id, personId: ln.personId, timesheetId: ts.id, hours: '10.00', rateCents: lineRate, amountCents: Math.round(Number(total) * 100) }] },
+      } as any,
+    })
+  }
+  const month = async (ln: any, cents: number) => {
+    const s = { companyId: w.firm.id, actingEntityId: w.entity.id, personId: clerk.id, heldAs: 'AP & Payroll' }
+    const c = await openChain({ ...s, sellContractId: ln.id, periodStart: start, periodEnd: end }, d('2026-11-01'))
+    for (const [to, stated] of [['TIMESHEET_RECEIVED', { cents, currency: 'USD' }], ['RECONCILED'], ['INVOICED', { cents, currency: 'USD' }], ['PAYMENT_PENDING']] as const) {
+      await advanceChain({ ...s, chainId: c.id, to, stated: stated as any, disputeOwnerPersonId: w.owner.id })
+    }
+    return c
+  }
+  const people = await Promise.all([['Ana Rao', 'ana.rao'], ['Ben Ito', 'ben.ito'], ['Cy Lund', 'cy.lund'], ['Di Roy', 'di.roy'], ['Eli Fox', 'eli.fox'], ['Fay Gray', 'fay.gray']].map(([n, e]) => person(n, e)))
+  const lines = []
+  for (const p of people) lines.push(await line(p))
+  const [exactBill, shortBill, overBill, fxBill, looseBill, driftBill] = [
+    await bill('GOLD-EXACT', lines[0], '1000.00'), await bill('GOLD-SHORT', lines[1], '1000.00'), await bill('GOLD-OVER', lines[2], '1000.00'),
+    await bill('GOLD-FX', lines[3], '1000.00'), await bill('GOLD-LOOSE', lines[4], '777.77'), await bill('GOLD-DRIFT', lines[5], '1050.00', 10500),
+  ]
+  const exactChain = await month(lines[0], 100000)
+  const looseChain = await month(lines[4], 77777)
+  const pay = (invoiceId: string | null, amount: string, extra: Record<string, unknown> = {}) =>
+    prisma.payment.create({ data: { invoiceId, amount, receivedByCompanyId: w.firm.id, receivedAt: d('2026-11-10'), appliedAt: invoiceId ? d('2026-11-11') : null, ...extra } as any })
+  const exactPay = await pay(exactBill.id, '1000.00', { reference: 'WIRE-1' })
+  const shortPay = await pay(shortBill.id, '900.00', { reference: 'WIRE-2' })
+  const overPay = await pay(overBill.id, '1100.00', { reference: 'WIRE-3' })
+  const fxPay = await pay(fxBill.id, '1000.00', { currency: 'EUR', reference: 'WIRE-4' })
+  const loosePay = await pay(null, '777.77', { reference: 'WIRE-5' })
+  const strayPay = await pay(null, '123.45', { reference: 'WIRE-6' })
+  return { ar, clerk, client, exactBill, shortBill, overBill, fxBill, looseBill, driftBill, exactChain, looseChain, exactPay, shortPay, overPay, fxPay, loosePay, strayPay }
+}

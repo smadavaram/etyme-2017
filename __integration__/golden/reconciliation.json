@@ -1,0 +1,71 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "Invoice",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "Invoice",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "Payment",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "Payment",
+      "owedSeat": "Accounts Receivable"
+    },
+    {
+      "kind": "InvoiceLine",
+      "owedSeat": "Accounts Receivable"
+    }
+  ],
+  "mail": [],
+  "recordActions": [
+    {
+      "action": "PAYMENT_MATCHED",
+      "order": 1,
+      "recordType": "Payment",
+      "summary": "Matched to bill GOLD-EXACT to the cent. The month moved to paid, not confirmed. Confirming and closing it is a person’s."
+    },
+    {
+      "action": "PAYMENT_FLAGGED",
+      "order": 2,
+      "recordType": "Payment",
+      "summary": "Short pay on bill GOLD-SHORT: a decision is open. Nothing was moved."
+    },
+    {
+      "action": "PAYMENT_FLAGGED",
+      "order": 3,
+      "recordType": "Payment",
+      "summary": "Overpay on bill GOLD-OVER: a decision is open. Nothing was moved."
+    },
+    {
+      "action": "PAYMENT_FLAGGED",
+      "order": 4,
+      "recordType": "Payment",
+      "summary": "Payment of a different currency than bill GOLD-FX: a decision is open. Nothing was moved."
+    },
+    {
+      "action": "PAYMENT_MATCHED",
+      "order": 5,
+      "recordType": "Payment",
+      "summary": "Matched to bill GOLD-LOOSE, which is owed exactly this amount. The payment is not yet placed against it: placing it is a person’s. The month moved to paid, not confirmed. Confirming and closing it is a person’s."
+    },
+    {
+      "action": "PAYMENT_FLAGGED",
+      "order": 6,
+      "recordType": "Payment",
+      "summary": "A payment of $123.45 matches no bill. Place it by hand? A decision is open. Nothing was moved."
+    },
+    {
+      "action": "RATE_DRIFT_FLAGGED",
+      "order": 7,
+      "recordType": "InvoiceLine",
+      "summary": "Bill GOLD-DRIFT charges Fay Gray $105.00 an hour and the contract says $100.00. Is the bill wrong? A decision is open. Nothing was changed."
+    }
+  ],
+  "tasks": []
+}
