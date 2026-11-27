@@ -14,7 +14,7 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 describe('a typed-in invoice receipt comes from a firm the payer pays', () => {
   it('a client’s supplier list holds the firms whose lines bill it, beside its own buy lines', () => {
     const opts = read('src/lib/money/receipt-options.ts')
-    expect(opts).toMatch(/where: \{ clientCompanyId: companyId, companyId: \{ not: companyId \}, state: \{ not: 'DRAFT' \} \}/)
+    expect(opts).toMatch(/where: clientLineWhere\(\{ clientCompanyId: companyId, companyId: \{ not: companyId \}, state: \{ not: 'DRAFT' \} \}\)/)
     expect(opts).toMatch(/where: \{ companyId, vendorCompanyId: \{ not: null \}, state: \{ not: 'DRAFT' \} \}/)
   })
 
