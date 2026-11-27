@@ -13,10 +13,31 @@
  */
 import type { PrismaClient } from '@prisma/client'
 import { LINE_SELECT, LINE_RECORD, wantedOf } from '@/lib/agents/contracts-checklist'
-import { judgeContractItem } from '@/lib/agents/checklist-rules'
+import { PETITION_RECORD } from '@/lib/agents/immigration-checklist'
+import { judgeContractItem, petitionListFor } from '@/lib/agents/checklist-rules'
 import { unknownBecause, type CheckerResult, type SkillChecker } from '../checker'
 
-export const checklistList: SkillChecker<PrismaClient> = async (companyId, _key, _window, refs, read): Promise<CheckerResult> => {
+/**
+ * A petition's papers: the list its kind has (`petitionListFor`) must be on
+ * the petition, each paper its own line, and nothing is marked on hand by the
+ * agent: a line that reads MET carries the person who recorded it.
+ */
+const petitionList: SkillChecker<PrismaClient> = async (companyId, _key, _window, refs, read): Promise<CheckerResult> => {
+  const id = refs[0].recordId
+  const evidence = `${PETITION_RECORD} ${id}`
+  const petition = await read.petition.findFirst({ where: { id, companyId }, select: { kind: true } })
+  if (!petition) return { verdict: 'FAIL', reason: 'The petition the run listed is not on this firm’s record.', evidence, unitsFound: 0 }
+  const list = petitionListFor(petition.kind)
+  const items = await read.checklistItem.findMany({ where: { companyId, ownerType: PETITION_RECORD, ownerId: id, kind: 'PETITION_PAPER' } })
+  const missing = list.lines.filter((l) => !items.some((i) => i.label === l.label)).map((l) => l.label)
+  if (missing.length) return { verdict: 'FAIL', reason: `The petition’s list is missing ${missing.join(', ')}.`, evidence, unitsFound: list.lines.length - missing.length }
+  const byAgent = items.filter((i) => i.state === 'MET' && !i.decidedById).map((i) => i.label)
+  if (byAgent.length) return { verdict: 'FAIL', reason: `${byAgent.join(', ')} reads on hand and no person recorded it; only a person marks a paper.`, evidence, unitsFound: list.lines.length - byAgent.length }
+  return { verdict: 'PASS', reason: `Every paper on the ${list.key === 'H1B' ? 'H-1B' : 'general'} list is its own line, and none was marked by the agent.`, evidence, unitsFound: list.lines.length }
+}
+
+export const checklistList: SkillChecker<PrismaClient> = async (companyId, key, window, refs, read): Promise<CheckerResult> => {
+  if (refs[0]?.recordType === PETITION_RECORD) return petitionList(companyId, key, window, refs, read)
   const id = refs[0]?.recordId ?? ''
   const at = id.indexOf(':')
   if (at < 1) return unknownBecause('The run does not say which placement and term it listed, so there is nothing to re-read.')

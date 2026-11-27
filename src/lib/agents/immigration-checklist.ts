@@ -15,7 +15,9 @@
 
 import { prisma } from '@/lib/db'
 import { registerAgent, type AgentContext } from './runner'
-import { openOnce, ownerOf } from './open-once'
+import { registerPlan } from './plans'
+import { openOnce, ownerOf, cardOutcome } from './open-once'
+import { runSkill } from '@/lib/skills/runner'
 import { ENDED_PETITION_STAGES, petitionComplete, petitionListFor, petitionWords, signatureWords } from './checklist-rules'
 import { ITEM_RECORD } from './contracts-checklist'
 import { seatAtFirm, firmSeats } from '@/lib/decision-items'
@@ -23,6 +25,11 @@ import { seatAtFirm, firmSeats } from '@/lib/decision-items'
 export const IMMIGRATION_CHECKLIST_AGENT = 'immigration-checklist'
 export const IMMIGRATION_CHECKLIST_RULES = 'immigration-checklist-1'
 export const PETITION_RECORD = 'Petition'
+/** The kind of card a signature line sends, for the card skill; its own link is the line. */
+export const SIGNATURE_CARD_KIND = 'SignatureCard'
+
+// The skills this agent runs (record 123), registered where the agent is defined so every door that runs it holds the plan.
+registerPlan({ agentKey: IMMIGRATION_CHECKLIST_AGENT, skills: ['checklist.list', 'card.open'], outputSkill: 'checklist.list' })
 
 export async function immigrationChecklistStep(ctx: AgentContext): Promise<void> {
   const { companyId, now } = ctx
@@ -43,12 +50,15 @@ export async function immigrationChecklistStep(ctx: AgentContext): Promise<void>
     const unconfirmed = list.confirmed ? '' : ' The list is a proposal; regulatory has not confirmed it.'
     const missingLines = list.lines.filter((l) => !items.some((i) => i.label === l.label))
     if (missingLines.length > 0 && !(await ctx.mayAct())) return
-    for (const l of missingLines) {
-      await prisma.checklistItem.create({ data: { companyId, ownerType: PETITION_RECORD, ownerId: pet.id, kind: 'PETITION_PAPER', label: l.label } })
-    }
     if (missingLines.length > 0) {
-      items = await prisma.checklistItem.findMany({ where: { companyId, ownerType: PETITION_RECORD, ownerId: pet.id, kind: 'PETITION_PAPER' }, orderBy: { createdAt: 'asc' } })
-      await ctx.act({ recordType: 'Petition', recordId: pet.id, action: 'PETITION_CHECKLIST_LISTED', summary: `Listed ${missingLines.length} ${missingLines.length === 1 ? 'paper' : 'papers'} from the ${list.key === 'H1B' ? 'H-1B' : 'general'} list for ${nameOf(pet.personId)}’s ${petitionWords(pet.kind)}, each its own line. A person records each as on hand.${unconfirmed}` })
+      await runSkill(ctx, 'checklist.list', { recordType: PETITION_RECORD, recordId: pet.id, unitsPlanned: missingLines.length }, async () => {
+        for (const l of missingLines) {
+          await prisma.checklistItem.create({ data: { companyId, ownerType: PETITION_RECORD, ownerId: pet.id, kind: 'PETITION_PAPER', label: l.label } })
+        }
+        items = await prisma.checklistItem.findMany({ where: { companyId, ownerType: PETITION_RECORD, ownerId: pet.id, kind: 'PETITION_PAPER' }, orderBy: { createdAt: 'asc' } })
+        await ctx.act({ recordType: 'Petition', recordId: pet.id, action: 'PETITION_CHECKLIST_LISTED', summary: `Listed ${missingLines.length} ${missingLines.length === 1 ? 'paper' : 'papers'} from the ${list.key === 'H1B' ? 'H-1B' : 'general'} list for ${nameOf(pet.personId)}’s ${petitionWords(pet.kind)}, each its own line. A person records each as on hand.${unconfirmed}` })
+        return { result: items }
+      })
     }
 
     // A signature line routes one card to the signatory seat.
@@ -57,8 +67,11 @@ export async function immigrationChecklistStep(ctx: AgentContext): Promise<void>
       if (!item || item.state === 'MET') continue
       const to = working(item.signatoryPersonId) ? item.signatoryPersonId : owner
       if (!(await ctx.mayAct())) return
-      const r = await openOnce(ctx, to, { recordType: ITEM_RECORD, recordId: item.id }, signatureWords({ person: nameOf(pet.personId), label: l.label }), [{ recordType: 'Petition', recordId: pet.id }])
-      if (r === 'OPENED') await ctx.act({ recordType: ITEM_RECORD, recordId: item.id, action: 'SIGNATURE_CARD_OPENED', summary: `Asked the signatory whether the ${l.label.toLowerCase()} for ${nameOf(pet.personId)}’s petition is signed. The agent signs nothing.` })
+      await runSkill(ctx, 'card.open', { recordType: SIGNATURE_CARD_KIND, recordId: item.id, unitsPlanned: 1 }, async () => {
+        const r = await openOnce(ctx, to, { recordType: ITEM_RECORD, recordId: item.id }, signatureWords({ person: nameOf(pet.personId), label: l.label }), [{ recordType: 'Petition', recordId: pet.id }])
+        if (r === 'OPENED') await ctx.act({ recordType: ITEM_RECORD, recordId: item.id, action: 'SIGNATURE_CARD_OPENED', summary: `Asked the signatory whether the ${l.label.toLowerCase()} for ${nameOf(pet.personId)}’s petition is signed. The agent signs nothing.` })
+        return cardOutcome(r)
+      })
     }
 
     if (petitionComplete(items.map((i) => i.state))) {
