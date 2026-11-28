@@ -122,8 +122,8 @@ pause lifts.
   "Docker · Kubernetes"), the "What are you?" entry and live lead capture.
   Light, warm house style, never a dark look. The Tapin home page is the
   other team's; its Learn section links to /start.
-- Every tile maps to lessons in the architect's source map
-  (content-map-full.md, 33 lessons); no invented topics.
+- Every tile maps to real lessons in the course map (33 lessons); no
+  invented topics.
 - Door labels are Worker, Recruiter, Fresher and Kid; the four tracks keep
   their names. Kid → Kids/student; Fresher → Entry Level; Worker → Non-IT,
   with a visible "I work in IT" switch to IT — Upgrade; Recruiter → Entry
@@ -134,8 +134,8 @@ pause lifts.
 
 ## The /start Learn section's visual standard (owner-approved, relayed by Pax, 2026-11-28)
 
-The animation file start-learn-section-animation-2026-11-28.html in the
-architect's source pack is the visual standard for the /start Learn
+The owner-approved animation file start-learn-section-animation-2026-11-28.html
+is the visual standard for the /start Learn
 section. It is drawn in Etyme's own brand kit: cream canvas, serif
 headings, Inter, violet, orange and green washes, 12px corners. This
 replaces the earlier navy, teal, Sora and Manrope direction for /start.
@@ -158,3 +158,15 @@ src/lib/public-site/home-page-words.ts) are being changed on the other
 team's branch. The section is built once as a shared component on /start;
 the home page places that same component, so the two never drift and the
 two branches do not edit the same lines.
+
+## Everything the learner sees is ours (owner's words, relayed by Pax, 2026-11-28)
+
+"The content should look like proprietary." Every surface a visitor or
+learner sees is Etyme's own: our voice, our examples only (Milo at Maple
+Mart), Etyme or Tapin branding, the "Version: Dec 2026" stamp, and
+credential and completion pages issued in the tenant's name. /start, the
+home page Learn section and every course surface present as an original
+Etyme product. No reference to any outside video, creator or course
+appears anywhere: copy, code, metadata, file names or comments. Knowledge
+is fair to teach; the expression is ours. A draft that reads as adapted is
+rewritten in our voice before it ships.
