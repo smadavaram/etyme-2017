@@ -4,7 +4,7 @@
  * transcript, source map or outside course on the door, the Learn section
  * or the course content: copy, code, comments, file names or test names.
  */
-import { readdirSync, describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'fs'
 import { join, relative } from 'path'
 
