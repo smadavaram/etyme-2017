@@ -512,9 +512,8 @@ Full text → 40, 11, 56, 68, 72.
   the core gets a door only; each user has a micro dashboard there; the
   one record underneath, never forked. Courses are adopted across tenants,
   owned by their creator, free through the learning window, never priced.
-- **Plugin sites live on subdomains** (owner, 2026-11-28 → 137): training
-  on its own etyme.com subdomain; a tenant's under its own domain, in its
-  branding. The door stays etyme.com/learnai, carrying the session across.
+- **Plugin sites live on subdomains** (→ 137); the door stays
+  etyme.com/learnai and carries the session.
 - **Basic outreach is core, advanced outreach is a plugin** (→ 135):
   direct letters and candidate updates are core ledger activity; campaigns,
   the outcome series, the affiliate engine and publishing are the plugin.
@@ -1043,6 +1042,8 @@ Full text → 13, 22, 23, 53, 54, 58, 18, 21, 38, 46, 66, 73, 76.
   ownership is one act with the new Owner's yes. Recovery is by proof of
   the domain. The first person to sign a company up is an Admin, and
   Owner is earned by proof.
+- **Staff screens are metadata only** (→ 138): firm name, address and
+  plugins; Lane C never crosses tenants.
 - **A staff address that holds a seat reads her seat's book**
   (2026-11-15). Staff reach is for the staff tools and for a staff
   caller with no seat. A flag that widens a read is asked after the
