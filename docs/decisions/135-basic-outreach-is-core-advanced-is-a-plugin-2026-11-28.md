@@ -34,3 +34,30 @@ advanced plugin waits until it is added.
   sent or held to a party is an activity line on its ledger.
 - Open: the advanced plugin site, and a screen that raises the candidate
   update batch.
+
+## Advanced outreach is the selling layer across the plugins (Pax, 2026-11-28)
+
+- It works closely with Websites (the doors it sends people to and lands
+  them on), Training (courses, completions and badges as content and
+  proof) and Pods (team capacity and offers as what is sold), all read
+  from the one ledger.
+- It detects automatically, from audience parameters: role (candidate,
+  client, partner), industry, skills, location, relationship stage, past
+  ledger activity and consent status. Only consented audiences are used.
+- Tripwires watched on the ledger: pod capacity opening or an engagement
+  ending; a cohort completing a course; a job unfilled past its threshold;
+  a new bench skill matching client demand; repeat visits to a course or
+  pod page; a completion shared to LinkedIn; a client contract ending.
+- A tripwire plus a matched segment is a detected push. The engine matches
+  content (a course, a pod offer, outcome proof), assembles the push, and
+  sends it inside a campaign approved as one pack. Detection and assembly
+  are automatic; an unapproved one-off send never happens.
+- Replies land in the decision queue. Results are measured as cost per
+  activated tenant and cost per qualified, consented resume.
+
+Lead's notes on what the record can honestly see:
+- "Repeat visits" can only count a signed-in person or a known contact
+  who arrived through a tracked link from a letter; an anonymous visitor is
+  never identified, and page analytics stays on marketing pages only.
+- "Shared to LinkedIn" is the learner's own ledgered share click; nothing
+  is read from LinkedIn.
