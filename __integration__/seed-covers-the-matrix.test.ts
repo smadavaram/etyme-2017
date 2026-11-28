@@ -79,6 +79,7 @@ const RUNTIME: Record<string, string> = {
   cohort: 'Train to bench is a plugin, off by default; a firm writes a cohort only after its Owner switches it on.',
   assessment: 'Written by a cohort’s trainer after the Train to bench plugin is on; off by default.',
   certification: 'Issued by a cohort’s trainer or assessor after the Train to bench plugin is on; off by default.',
+  learnBadge: 'Earned by a learner on her own record when she finishes a level or a course on the training micro-site; the plugin is off by default and nothing writes one until she learns.',
   benchAsk: 'Written when a firm asks a trainee onto its bench, inside the Train to bench plugin; off by default.',
   pod: 'Project teams is a plugin, off by default; a firm writes a team only after its Owner switches it on.',
   podRole: 'Written with a team, inside the Project teams plugin; off by default.',

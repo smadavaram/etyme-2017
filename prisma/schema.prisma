@@ -94,6 +94,7 @@ model Person {
   verifications            Verification[]
   enrollments              Enrollment[]
   learningPaths            LearningPath[]
+  learnBadges              LearnBadge[]
   expenses                 Expense[]
   /// Expense acceptances this person decided for their firm (2026-10-19).
   expensesAccepted         ExpenseAcceptance[]       @relation("expenseAcceptedBy")
@@ -1068,6 +1069,11 @@ model Company {
   learningPaths              LearningPath[]
   lessonVideos               LessonVideo[]
   learnCredentials           LearnCredential[]
+  learnBadges                LearnBadge[]
+  /// Door and progress (record 133, 2026-11-28). The course ids the Owner features on the tenant's door, in order. Empty draws none.
+  featuredCourseIds          String[]                @default([])
+  /// Whether a learner reads her own place in her cohort. The Owner's setting, off by default; cohort only, never public.
+  learnRankingOn             Boolean                 @default(false)
   pods                       Pod[]
   docTemplates               DocTemplate[]
   msasAsVendor               MasterAgreement[]       @relation("vendor")
@@ -7808,6 +7814,7 @@ model Course {
   adoptions    CourseAdoption[]
   paths        LearningPath[]
   lessonVideos LessonVideo[]
+  learnBadges  LearnBadge[]
 
   @@index([companyId, isPublic])
   @@index([companyId, slug])
@@ -7841,6 +7848,9 @@ model Enrollment {
   benchAsks      BenchAsk[]
   paths          LearningPath[]
   credential     LearnCredential?
+  badges         LearnBadge[]
+  /// ISO week keys ("2026-W48") in which she did any lesson work, appended on a progress write. The streak counts runs of them; nothing is ever taken away.
+  activityWeeks  String[]         @default([])
 
   @@unique([courseId, personId])
   @@index([personId, status])
@@ -7899,6 +7909,14 @@ model LearningPath {
   dueOn              DateTime?
   /// Due date per lesson key, ISO date strings: { "lesson-key": "2026-12-04" }.
   stepDues           Json?
+  /// Where a system path came from (record 133, door): JOB, POD or DOOR. Null for a path made from role, skills and gaps alone.
+  sourceKind         String?
+  /// The job request or team the path was made from, by id. No foreign key: the job may be closed and the path stays as history.
+  sourceRefId        String?
+  /// The plain words the mentor reads: "Made from the job: Data engineer".
+  sourceLabel        String?
+  /// Her own yes to being offered this path, written only where sourceKind is DOOR. A path from the door does not exist before it.
+  consentedAt        DateTime?
   createdAt          DateTime    @default(now())
 
   @@index([companyId, state])
@@ -11946,13 +11964,15 @@ model Pod {
 }
 
 model PodRole {
-  id        String @id @default(cuid())
+  id        String   @id @default(cuid())
   podId     String
-  pod       Pod    @relation(fields: [podId], references: [id], onDelete: Cascade)
+  pod       Pod      @relation(fields: [podId], references: [id], onDelete: Cascade)
   title     String
-  headcount Int    @default(1)
+  headcount Int      @default(1)
   rateCents Int?
-  sortOrder Int    @default(0)
+  sortOrder Int      @default(0)
+  /// The skills this role needs; a team path is made from what its members lack against them. Empty makes no team path.
+  skills    String[] @default([])
 
   members PodMember[]
 
@@ -12258,4 +12278,32 @@ model LearnCredential {
   createdAt        DateTime   @default(now())
 
   @@index([companyId])
+}
+
+/// A badge on a learner's own record (record 133, progress mechanics).
+/// COURSE is the whole course finished; LEVEL is one level of it (levelKey).
+/// Her row, never a balance: nothing is spent, moved or sold. `shownAt` is her
+/// yes to showing or sharing it, `revokedAt` takes it down. A COURSE badge's
+/// levelKey is the empty string, so (enrollment, kind, levelKey) is unique.
+model LearnBadge {
+  id           String     @id @default(cuid())
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  personId     String
+  person       Person     @relation(fields: [personId], references: [id])
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  courseId     String
+  course       Course     @relation(fields: [courseId], references: [id])
+  /// LEVEL or COURSE.
+  kind         String
+  levelKey     String     @default("")
+  earnedAt     DateTime   @default(now())
+  shownAt      DateTime?
+  revokedAt    DateTime?
+
+  @@unique([enrollmentId, kind, levelKey])
+  @@index([companyId])
+  @@index([personId])
+  @@index([courseId])
 }

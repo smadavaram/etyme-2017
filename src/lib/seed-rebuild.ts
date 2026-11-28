@@ -169,7 +169,7 @@ export const DELETE_ORDER = [
   'VerificationDoc', 'DocumentEdition', 'DocumentBacking', 'GovernanceEvaluation',
   // Training micro-site (record 133): a path names its enrollment and an adoption names its course, so they go before both.
   // Train-to-bench (record 120): a score, a certification and the ask name an enrollment, so they go before it; a cohort after its enrollments and before its course.
-  'Assessment', 'Certification', 'BenchAsk', 'LearningPath', 'LearnCredential', 'LessonVideo', 'Enrollment', 'CourseAdoption',
+  'Assessment', 'Certification', 'BenchAsk', 'LearningPath', 'LearnCredential', 'LearnBadge', 'LessonVideo', 'Enrollment', 'CourseAdoption',
   // Project teams (record 120): a deliverable names its project and milestone, a project its team and order, a member its role; all before the milestone, the order, the person and the firm.
   'PodDeliverable', 'PodProject', 'PodMember', 'PodRole', 'Pod',
   // Public-sector proposals (record 124): a piece names its proposal, so it goes first.
@@ -265,6 +265,9 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'CourseAdoption.adoptedByPersonId': { as: 'RECORD' },
   'LearningPath.mentorPersonId': { as: 'RECORD' },
   'LearningPath.approvedByPersonId': { as: 'RECORD' },
+  // Door and progress (record 133): the job or team a path was made from stays as history; the Owner's featured picks are ids read against the live courses, and a stale one draws nothing.
+  'LearningPath.sourceRefId': { as: 'RECORD' },
+  'Company.featuredCourseIds': { as: 'RECORD' },
   // Phase 1 training infrastructure: the author and a stored file are named by id, kept as history.
   'LessonVideo.createdByPersonId': { as: 'RECORD' },
   'LessonVideo.storedFileId': { as: 'RECORD' },
