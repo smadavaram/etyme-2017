@@ -175,3 +175,29 @@ describe('Project teams does not open yet (record 120, ruling 3)', () => {
     }
   })
 })
+
+describe('the Superadmin list of firms and their plugins', () => {
+  const src = () => read('src/app/api/superadmin/plugins/route.ts')
+  const get = () => src().split('export async function GET')[1].split('export async function PATCH')[0]
+  it('the list is for Etyme staff only, and a refusal is logged before it is sent', () => {
+    expect(get()).toContain("if (!caller.staff || caller.isService) return refuse(caller, 'listing')")
+    expect(src()).toMatch(/async function refuse[\s\S]*await recordRefusal[\s\S]*status: 403/)
+  })
+  it('the list returns each firm’s name, address, plugins and last switch, and its read is logged before it is sent', () => {
+    const g = get()
+    expect(g).toContain("select: {\n      name: true, slug: true, pluginsOn: true,")
+    expect(g).toContain('select: { plugin: true, on: true, at: true, byStaff: true }')
+    expect(g).toMatch(/await recordAccess\([\s\S]*NextResponse\.json/)
+  })
+  it('the list reads no person, seat, money or paper of any firm', () => {
+    expect(get()).not.toMatch(/prisma\.(person|context|course|enrollment|benchListing|invoice|timesheet|document|assignment|contract)/i)
+    expect(get()).not.toMatch(/_count|email|bank|reason: true/)
+  })
+  it('the Superadmin screen draws a row per firm and switches through the one PATCH, asking why', () => {
+    const page = read('src/app/dashboard/superadmin/page.tsx')
+    expect(page).toContain('{firms.map((f) => (')
+    expect(page).toMatch(/function PluginListPanel[\s\S]*window\.prompt[\s\S]*method: 'PATCH'[\s\S]*body: JSON\.stringify\(\{ slug: firm\.slug, plugin, on, reason \}\)/)
+    expect(page).toMatch(/<PluginListPanel \/>\s*<PluginSwitchPanel \/>/)
+    expect(page).not.toContain('No company name, no')
+  })
+})

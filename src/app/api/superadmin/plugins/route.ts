@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId, type CallerContext } from '@/lib/api-context'
-import { accessActor, recordRefusal, type AccessAction, type AccessSubject } from '@/lib/access-log'
+import { accessActor, recordAccess, recordRefusal, type AccessAction, type AccessSubject } from '@/lib/access-log'
 import { prisma } from '@/lib/db'
 import { isPluginKey, switchOnBlock, type PluginKey } from '@/lib/plugins'
 
 /**
+ * GET   /api/superadmin/plugins — every firm's name, Etyme address, the
+ *       plugins it has on, and its newest switch line (plugin, on, when,
+ *       whether staff made it). Nothing else: no person, money, paper, seat
+ *       or count. The read is logged, and waited for, before it is sent.
  * PATCH /api/superadmin/plugins { companyId, plugin, on, reason }
  *
  * Etyme's Superadmin switches a firm's plugin (record 120, the owner's
@@ -16,9 +20,15 @@ import { isPluginKey, switchOnBlock, type PluginKey } from '@/lib/plugins'
  */
 const SWITCH_REFUSED: AccessAction = 'SUPERADMIN_PLUGIN_REFUSED'
 
+/** Reading the firms' switches. Not yet a line in AccessAction (lib/access-log is regulatory's); the column is text. */
+const LIST_READ = 'SUPERADMIN_PLUGIN_LIST_READ' as string as AccessAction
+
+/** How many firms the list draws, by name. */
+const FIRMS_LISTED = 500
+
 const REFUSED = "This is for Etyme's Superadmin only. A company's Owner switches its own plugins under Settings."
 
-async function refuse(caller: CallerContext): Promise<NextResponse> {
+async function refuse(caller: CallerContext, doing = 'switching'): Promise<NextResponse> {
   const subject: AccessSubject | null = caller.isService
     ? (caller.company ? { companyId: caller.company.id } : null)
     : caller.person.id
@@ -26,10 +36,35 @@ async function refuse(caller: CallerContext): Promise<NextResponse> {
     await recordRefusal([subject], {
       ...accessActor(caller),
       action: SWITCH_REFUSED,
-      reason: 'Refused switching a firm’s plugin on the Superadmin screen: not on Etyme’s staff list.',
+      reason: `Refused ${doing} a firm’s plugin on the Superadmin screen: not on Etyme’s staff list.`,
     })
   }
   return NextResponse.json({ error: { code: 'FORBIDDEN', message: REFUSED } }, { status: 403 })
+}
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.staff || caller.isService) return refuse(caller, 'listing')
+  const firms = await prisma.company.findMany({
+    orderBy: { name: 'asc' },
+    take: FIRMS_LISTED,
+    select: {
+      name: true, slug: true, pluginsOn: true,
+      pluginSwitches: { orderBy: { at: 'desc' }, take: 1, select: { plugin: true, on: true, at: true, byStaff: true } },
+    },
+  })
+  await recordAccess([caller.person.id], {
+    ...accessActor(caller),
+    action: LIST_READ,
+    reason: `Read ${firms.length} firms’ plugin switches on the Superadmin screen: name, Etyme address, plugins on and the newest switch.`,
+  })
+  return NextResponse.json({
+    data: firms.map((c) => {
+      const last = c.pluginSwitches[0]
+      return { name: c.name, slug: c.slug, pluginsOn: c.pluginsOn, lastSwitch: last ? { plugin: last.plugin, on: last.on, at: last.at.toISOString(), byStaff: last.byStaff } : null }
+    }),
+  })
 }
 
 export async function PATCH(request: NextRequest) {

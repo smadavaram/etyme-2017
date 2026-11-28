@@ -18,9 +18,11 @@ import { PLUGIN_REGISTRY } from '@/lib/plugin-registry'
  *
  * Platform tools only. Today one: Ask Etyme's two limits, in tokens, with
  * an estimate in short questions said as an estimate, and each person's
- * free trial in days. No company name, no
- * usage by company and no spending figure is on this screen; a company's
- * own usage stays on its Settings, under Ask Etyme.
+ * free trial in days. Company names appear in two lists only: the email
+ * that did not go, and the firms' plugin switches (name, Etyme address,
+ * plugins on, newest switch). No usage by company, no person and no
+ * spending figure is on this screen; a company's own usage stays on its
+ * Settings, under Ask Etyme.
  */
 
 interface LimitView {
@@ -182,10 +184,90 @@ export default function SuperadminPage() {
 
       {mail && <MailFailuresPanel mail={mail} />}
 
+      <PluginListPanel />
+
       <PluginSwitchPanel />
 
       <IdentityCheckPanel />
     </div>
+  )
+}
+
+type FirmPlugins = { name: string; slug: string; pluginsOn: string[]; lastSwitch: { plugin: string; on: boolean; at: string; byStaff: boolean } | null }
+
+/**
+ * Every firm's plugins (record 120), from GET /api/superadmin/plugins: the
+ * name, the Etyme address, each plugin's state and the newest switch. Each
+ * cell switches through the one PATCH, asking for the reason it requires.
+ */
+function PluginListPanel() {
+  const [firms, setFirms] = useState<FirmPlugins[] | null>(null)
+  const [said, setSaid] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
+  const plugins = [...PLUGIN_REGISTRY].sort((a, b) => a.order - b.order)
+  const load = useCallback(async () => {
+    const res = await fetch('/api/superadmin/plugins')
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) { setSaid({ tone: 'error', text: body.error?.message ?? 'The list did not load. Try again.' }); return }
+    setFirms(body.data)
+  }, [])
+  useEffect(() => { void load() }, [load])
+  async function flip(firm: FirmPlugins, plugin: string, on: boolean) {
+    const label = plugins.find((p) => p.key === plugin)?.label ?? plugin
+    const reason = window.prompt(`Why switch ${label} ${on ? 'on' : 'off'} for ${firm.name}? The firm’s Owner reads this.`)
+    if (reason === null) return
+    setSaid(null)
+    const res = await fetch('/api/superadmin/plugins', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: firm.slug, plugin, on, reason }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) { setSaid({ tone: 'error', text: body.error?.message ?? 'Not switched. Try again.' }); return }
+    setSaid({ tone: 'ok', text: `${label} is now ${body.data.on ? 'on' : 'off'} for ${firm.name}. The firm’s Owner sees this as Etyme staff.` })
+    await load()
+  }
+  const cell = 'border-b border-etyme-rule px-3 py-2 text-left align-top'
+  return (
+    <Panel title="Plugins by firm" subtitle="Each firm’s name, address and plugins. Nothing else of the firm’s is read.">
+      {said && <FormMessage tone={said.tone}>{said.text}</FormMessage>}
+      {!firms ? <LoadingState /> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-[14px] text-etyme-ink tabular-nums">
+            <thead className="text-etyme-muted">
+              <tr>
+                <th className={cell}>Firm</th>
+                <th className={cell}>Address</th>
+                {plugins.map((p) => <th key={p.key} className={cell}>{p.label}</th>)}
+                <th className={cell}>Last switch</th>
+              </tr>
+            </thead>
+            <tbody>
+              {firms.map((f) => (
+                <tr key={f.slug}>
+                  <td className={cell}>{f.name}</td>
+                  <td className={cell}>{f.slug}.etyme.com</td>
+                  {plugins.map((p) => {
+                    const on = f.pluginsOn.includes(p.key)
+                    return (
+                      <td key={p.key} className={cell}>
+                        <button type="button" onClick={() => void flip(f, p.key, !on)}
+                          className={`rounded-[8px] border px-2 py-1 text-[13px] ${on ? 'border-etyme-verified text-etyme-verified' : 'border-etyme-rule text-etyme-muted'}`}>
+                          {on ? 'On · switch off' : 'Off · switch on'}
+                        </button>
+                      </td>
+                    )
+                  })}
+                  <td className={cell}>
+                    {f.lastSwitch
+                      ? `${plugins.find((p) => p.key === f.lastSwitch!.plugin)?.label ?? f.lastSwitch.plugin} ${f.lastSwitch.on ? 'on' : 'off'}, ${new Date(f.lastSwitch.at).toLocaleDateString('en-US')}, by ${f.lastSwitch.byStaff ? 'Etyme staff' : 'the Owner'}`
+                      : 'Never switched'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
   )
 }
 
