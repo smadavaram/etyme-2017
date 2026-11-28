@@ -35,7 +35,7 @@ async function go(jar, url, init = {}) {
 
 export async function directorySignIn(email, subject, extra = {}) {
   const jar = new Jar()
-  let r = await go(jar, `/api/sso/start?email=${encodeURIComponent(email)}&next=/start`)
+  let r = await go(jar, `/api/sso/start?email=${encodeURIComponent(email)}&next=/setup`)
   const to = r.headers.get('location')
   if (r.status >= 400 || !to || to.includes('/login')) return { jar, refused: to ?? r.status }
   const u = new URL(to)
