@@ -163,6 +163,8 @@ export const NOT_MARKETING: { prefix: string; why: string }[] = [
   })),
   { prefix: 'src/app/(site)/docs/process', why: 'Old documentation addresses only: each answers with a permanent redirect to the page that replaced it (lib/public-site/docs/redirects), and draws nothing.' },
   { prefix: 'src/app/learn/', why: 'A firm’s own learning site, reached from that firm’s public page where its Train to bench plugin is on; it is the firm’s course in the firm’s name, held to the learning site’s own tests rather than to Etyme’s positioning.' },
+  { prefix: 'src/app/pods/', why: 'A firm’s own Project teams site, signed-in seats only, reached by the door on its menu where the plugin is on; not a marketing page.' },
+  { prefix: 'src/app/proposals/', why: 'A firm’s own Proposals site, signed-in seats only, reached by the door on its menu where the plugin is on; not a marketing page.' },
   { prefix: 'src/app/legal/', why: 'Regulatory’s agreements; read for price and AI with the other legal pages.' },
 ]
 
