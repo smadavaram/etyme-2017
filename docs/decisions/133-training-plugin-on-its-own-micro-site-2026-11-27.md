@@ -173,9 +173,9 @@ rewritten in our voice before it ships.
 
 ## The door's address is /learnai (owner's ruling, relayed by Pax, 2026-11-28)
 
-The free training door lives at etyme.com/learnai, replacing /start. The
-home page Learn section's call to action points to /learnai. /start is a
-permanent redirect to /learnai so nothing already shared breaks; a
-signed-in person following an old /start link still lands on the setup page
-at /setup. /ai-from-zero also redirects to /learnai. Same page, same capture,
-same animation.
+The free training door lives at etyme.com/learnai. The home page Learn
+section's call to action points to /learnai. Correction the same night
+(owner: "No need for start at all."): /start does not exist in any form, no
+door and no redirect. The door is /learnai only and the signed-in setup is
+/setup only; every internal link that pointed at /start goes to /learnai or
+/setup as fits. Same page, same capture, same animation.
