@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { readJson } from '@/lib/read-response'
 import { Panel, ErrorState, LoadingState } from '@/components/ui'
 import { formatDay } from '@/lib/format-date'
+import { PartyLetters } from '@/components/party-letters'
+import type { LetterPanel } from '@/lib/party-ledger/lines'
 
 /**
  * The Ledger tab (record 134): one party's activity, money and documents as
@@ -14,7 +16,7 @@ import { formatDay } from '@/lib/format-date'
  */
 
 interface Line { kind: string; says: string; when: string | null; href: string; plugin: string | null; source: { type: string; id: string } }
-interface Ledger { subject: { name: string }; activity: Line[]; money: Line[]; documents: Line[]; notes: string[] }
+interface Ledger { subject: { name: string }; activity: Line[]; money: Line[]; documents: Line[]; notes: string[]; letters: LetterPanel | null }
 
 const SECTIONS: { key: 'activity' | 'money' | 'documents'; title: string; empty: string }[] = [
   { key: 'activity', title: 'Activity', empty: 'Nothing on your book yet: no jobs, applications, placements or timesheets.' },
@@ -25,14 +27,16 @@ const SECTIONS: { key: 'activity' | 'money' | 'documents'; title: string; empty:
 export function PartyLedgerTab({ kind, id }: { kind: 'person' | 'company'; id: string }) {
   const [data, setData] = useState<Ledger | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [again, setAgain] = useState(0)
   useEffect(() => {
     fetch(`/api/party-ledger/${kind}/${encodeURIComponent(id)}`).then((r) => readJson(r)).then((b) => setData(b.data)).catch((e) => setErr(e.message))
-  }, [kind, id])
+  }, [kind, id, again])
   if (err) return <ErrorState says={err} />
   if (!data) return <LoadingState says="Reading the ledger…" />
   return (
     <div className="space-y-6">
       {data.notes.map((n) => <p key={n} className="text-[13px] text-etyme-muted">{n}</p>)}
+      {data.letters && <PartyLetters name={data.subject.name} letters={data.letters} onAsked={() => setAgain((n) => n + 1)} />}
       {SECTIONS.map((s) => (
         <Panel key={s.key} title={s.title}>
           {data[s.key].length === 0 ? <p className="text-[13px] text-etyme-muted py-2">{s.empty}</p> : (

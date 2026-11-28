@@ -30,6 +30,7 @@ import { placementBooks } from '@/lib/money/margin'
 import { papersOnRecord } from '@/lib/document-stages/paper-record'
 import { amount, units } from '@/lib/money-display'
 import { formatDay } from '@/lib/format-date'
+import { partyLetters } from '@/lib/outreach/party-letters'
 import {
   BEFORE_HER_YES_SAYS, NOT_ON_YOUR_BOOK_SAYS, mayShowMargin, newestFirst, pluginLine, recordHref,
   type LedgerAnswer, type LedgerLine, type PartyLedger,
@@ -124,7 +125,7 @@ async function personLedger(reader: Reader, personId: string): Promise<LedgerAns
     if (profile) {
       const read = (await firmReadsAt({ companyId: reader.companyId!, callerPersonId: reader.personId, consultantIds: [profile.id] })).get(profile.id)
       if (read?.onlyTyped) {
-        return { ok: true, ledger: { subject: { kind: 'person', id: personId, name: read.typed?.name ?? person.name }, activity: [], money: [], documents: [], notes: [BEFORE_HER_YES_SAYS] } }
+        return { ok: true, ledger: { subject: { kind: 'person', id: personId, name: read.typed?.name ?? person.name }, activity: [], money: [], documents: [], notes: [BEFORE_HER_YES_SAYS], letters: null } }
       }
     }
   }
@@ -198,7 +199,10 @@ async function personLedger(reader: Reader, personId: string): Promise<LedgerAns
   for (const v of verifs) documents.push({ section: 'documents', kind: 'compliance check', says: `${v.type.toLowerCase().replace(/_/g, ' ')}: ${v.status.toLowerCase()}${v.expiresAt ? `, to ${formatDay(v.expiresAt)}` : ''}`, when: v.createdAt, source: { type: 'Verification', id: v.id }, href: '/dashboard/compliance', plugin: null })
   for (const c of certs) documents.push(pluginLine('TRAIN_TO_BENCH', { section: 'documents', kind: 'certificate', says: `Certificate: ${c.enrollment.course.title}`, when: c.createdAt, source: { type: 'LearnCredential', id: c.id } }, c.company?.slug ? `/${c.company.slug}/credential` : ''))
 
-  const ledger: PartyLedger = { subject: { kind: 'person', id: personId, name: person.name }, activity: activity.sort(newestFirst), money: money.sort(newestFirst), documents: documents.sort(newestFirst), notes }
+  // Basic outreach is core (record 135): the letters the firm sent or holds for her, and her standing yes. Her own page reads none of the firm's.
+  const letters = self ? null : await partyLetters(reader, { kind: 'person', id: personId })
+  if (letters) activity.push(...letters.lines)
+  const ledger: PartyLedger = { subject: { kind: 'person', id: personId, name: person.name }, activity: activity.sort(newestFirst), money: money.sort(newestFirst), documents: documents.sort(newestFirst), notes, letters: letters?.panel ?? null }
   return { ok: true, ledger }
 }
 
@@ -271,5 +275,9 @@ async function companyLedger(reader: Reader, companyId: string): Promise<LedgerA
   for (const v of verifs) documents.push({ section: 'documents', kind: 'compliance check', says: `${v.type.toLowerCase().replace(/_/g, ' ')}: ${v.status.toLowerCase()}`, when: v.createdAt, source: { type: 'Verification', id: v.id }, href: '/dashboard/compliance', plugin: null })
   for (const c of certs) documents.push(pluginLine('TRAIN_TO_BENCH', { section: 'documents', kind: 'certificate', says: `Certificate: ${c.enrollment.course.title}`, when: c.createdAt, source: { type: 'LearnCredential', id: c.id } }))
 
-  return { ok: true, ledger: { subject: { kind: 'company', id: companyId, name: company.name }, activity: activity.sort(newestFirst), money: money.sort(newestFirst), documents: documents.sort(newestFirst), notes } }
+  // Basic outreach is core (record 135): every letter sent or held to this company, and who may be written to.
+  const letters = await partyLetters(reader, { kind: 'company', id: companyId })
+  activity.push(...letters.lines)
+
+  return { ok: true, ledger: { subject: { kind: 'company', id: companyId, name: company.name }, activity: activity.sort(newestFirst), money: money.sort(newestFirst), documents: documents.sort(newestFirst), notes, letters: letters.panel } }
 }

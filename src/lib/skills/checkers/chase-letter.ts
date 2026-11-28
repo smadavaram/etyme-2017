@@ -9,7 +9,8 @@
  * Reads only.
  */
 import type { PrismaClient } from '@prisma/client'
-import { OUTREACH_BATCH_KIND, OUTREACH_BATCH_TEMPLATE, OUTREACH_LETTER_TYPE, FOLLOW_UPS } from '@/lib/outreach/batch-rules'
+import { OUTREACH_BATCH_KIND, OUTREACH_BATCH_TEMPLATE, CANDIDATE_UPDATE_TEMPLATE, DIRECT_LETTER_TEMPLATE, OUTREACH_LETTER_TYPE, FOLLOW_UPS } from '@/lib/outreach/batch-rules'
+import { DIRECT_SIDE } from '@/lib/outreach/direct-rules'
 import { isOn } from '@/lib/plugins'
 import { CANDIDATE_SIDE } from '@/lib/outreach/candidate-rules'
 import { postalLine } from '@/lib/agents/dormant-outreach-rules'
@@ -73,7 +74,10 @@ export async function chaseSendLetter(companyId: string, window: CheckWindow, re
   if (rows.length === 0) return { verdict: 'FAIL', reason: 'The run sent a letter but no row for it is on the mail ledger in its window.', evidence, unitsFound: 0 }
   const letter = await read.outreachLetter.findUnique({ where: { id: ref.recordId } })
   const letterTask = letter ? await read.agentTask.findUnique({ where: { id: letter.agentTaskId }, select: { payload: true } }) : null
-  const candidate = (letterTask?.payload as { side?: string } | null)?.side === CANDIDATE_SIDE
+  const side = (letterTask?.payload as { side?: string } | null)?.side
+  const candidate = side === CANDIDATE_SIDE
+  // Basic outreach (record 135) is core: its templates are its own, and only the selling batch needs Outreach on.
+  const expected = candidate ? CANDIDATE_UPDATE_TEMPLATE : side === DIRECT_SIDE ? DIRECT_LETTER_TEMPLATE : OUTREACH_BATCH_TEMPLATE
   const person = letter && candidate ? await read.person.findUnique({ where: { id: letter.contactId }, select: { primaryEmail: true, updatesYesAt: true, updatesRevokedAt: true } }) : null
   const kept = letter && candidate ? (await read.consultantProfile.count({
     where: { personId: letter.contactId, OR: [{ listings: { some: { companyId, revokedAt: null, state: 'GRANTED' } } }, { person: { contexts: { some: { companyId, revokedAt: null } } } }] },
@@ -100,8 +104,8 @@ export async function chaseSendLetter(companyId: string, window: CheckWindow, re
       const sw = await read.agentSwitch.findUnique({ where: { companyId_agentKey: { companyId, agentKey: task.agentKey } }, select: { state: true } })
       if (sw?.state !== 'ON') mine.push(`the agent’s switch reads ${sw?.state ?? 'missing'}, and only On sends`)
     }
-    if (m.template !== OUTREACH_BATCH_TEMPLATE) mine.push(`its template ${m.template} is not the batch letter`)
-    if (!(await outreachOnAt(read, companyId, m.createdAt))) mine.push('Outreach is off for the firm, and a letter that sells waits')
+    if (m.template !== expected) mine.push(`its template ${m.template} is not the ${candidate ? 'update letter' : side === DIRECT_SIDE ? 'direct letter' : 'batch letter'}`)
+    if (expected === OUTREACH_BATCH_TEMPLATE && !(await outreachOnAt(read, companyId, m.createdAt))) mine.push('Outreach is off for the firm, and a letter that sells waits')
     if (letter && candidate) {
       if (!person) mine.push('the candidate is not on the record')
       else {
@@ -124,7 +128,7 @@ export async function chaseSendLetter(companyId: string, window: CheckWindow, re
     else problems.push(`mail ${m.id}: ${mine.join(', ')}`)
   }
   const found = `${rows.length} row${rows.length === 1 ? '' : 's'} on the mail ledger`
-  if (problems.length === 0 && candidate) return { verdict: 'PASS', reason: 'Every update letter ties to a batch of this firm that a person said yes to, went once to the address on her own record, while her own yes to updates stood, with the firm’s postal address and a link that ends updates, and with Outreach and the agent On.', evidence: found, unitsFound: good }
-  if (problems.length === 0) return { verdict: 'PASS', reason: 'Every letter ties to a batch of this firm that a person said yes to, went to the address it was drafted for, to a contact who had not stopped it, with Outreach and the agent On.', evidence: found, unitsFound: good }
+  if (problems.length === 0 && candidate) return { verdict: 'PASS', reason: 'Every update letter ties to a batch of this firm that a person said yes to, went once to the address on her own record, while her own yes to updates stood, with the firm’s postal address and a link that ends updates, and with the agent On.', evidence: found, unitsFound: good }
+  if (problems.length === 0) return { verdict: 'PASS', reason: 'Every letter ties to a batch of this firm that a person said yes to, went to the address it was drafted for, to a contact who had not stopped it, with the agent On' + (expected === OUTREACH_BATCH_TEMPLATE ? ' and Outreach on.' : '.'), evidence: found, unitsFound: good }
   return { verdict: 'FAIL', reason: `${problems.join('; ')}.`, evidence: found, unitsFound: good }
 }

@@ -14,7 +14,7 @@ import { formatDayLong } from '@/lib/format-date'
 import { hello, paragraphs } from '@/lib/notify/letters'
 import { coolingOffHolds } from '@/lib/agents/dormant-outreach-rules'
 import { saidYesToUpdates } from '@/lib/updates-consent'
-import { OUTREACH_BATCH_TEMPLATE, OUTREACH_LETTER_TYPE } from './batch-rules'
+import { CANDIDATE_UPDATE_TEMPLATE, OUTREACH_LETTER_TYPE } from './batch-rules'
 import type { TaskPlan } from '@/lib/agents/tasks'
 
 /** What a candidate batch writes in its task, so the walker and the page know whose letters these are. */
@@ -25,7 +25,7 @@ export const STOP_UPDATES_PLACEHOLDER = '(the link that stops updates goes here 
 /** One letter and no follow-up: a candidate who did not answer is left alone. */
 export function candidatePlan(recipients: number): TaskPlan {
   return {
-    messages: [{ template: OUTREACH_BATCH_TEMPLATE, label: 'Update letter' }],
+    messages: [{ template: CANDIDATE_UPDATE_TEMPLATE, label: 'Update letter' }],
     retries: 0, daysApart: 1, recipients, letterRecordType: OUTREACH_LETTER_TYPE,
     closesWhen: 'every letter has gone or been stopped',
   }

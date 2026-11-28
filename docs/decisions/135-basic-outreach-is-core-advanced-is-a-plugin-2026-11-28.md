@@ -22,3 +22,15 @@ unless email can leave.
 
 Open: the outreach design document is not in either repository, so the
 advanced plugin waits until it is added.
+
+## What was built, 2026-11-28
+
+- The candidate update letter and a new letter to one contact go under their
+  own mail templates (`candidate-update`, `direct-letter`). The Outreach
+  switch holds only `outreach-batch` and `dormant-outreach`, so both go with
+  the plugin off, after the firm's one yes.
+- A letter to one contact is raised from the party's Ledger tab ("Write to
+  <name>", `POST /api/letters/direct`) and follows record 116. Every letter
+  sent or held to a party is an activity line on its ledger.
+- Open: the advanced plugin site, and a screen that raises the candidate
+  update batch.

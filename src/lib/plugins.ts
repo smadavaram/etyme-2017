@@ -137,13 +137,15 @@ export async function websiteOnRefusal(companyId: string): Promise<{ code: 'WEBS
 }
 
 /**
- * Outreach (records 122, 123 answer 4): only the letters that sell are held
- * while it is off. Every chase, the availability ping and every inbound
- * door stay open. The names are the templates the mail door carries.
+ * Outreach (records 122, 123 answer 4, 135): only the letters that sell are
+ * held while it is off. Basic outreach is core and never waits for the
+ * switch: an update letter to a candidate and a letter to one contact. Every
+ * chase, the availability ping and every inbound door stay open. The names
+ * are the templates the mail door carries.
  */
 export const OUTREACH_TEMPLATES = {
   held: ['outreach-batch', 'dormant-outreach'],
-  open: ['submission-chase', 'money-owed-chase', 'money-owed-final-notice', 'timesheet-chase', 'freshness-ping'],
+  open: ['submission-chase', 'money-owed-chase', 'money-owed-final-notice', 'timesheet-chase', 'freshness-ping', 'candidate-update', 'direct-letter'],
 } as const
 
 /** Pure: is this letter held because Outreach is off. A follow-up carries its batch's template. */

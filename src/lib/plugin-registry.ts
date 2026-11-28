@@ -118,14 +118,14 @@ export const PLUGIN_REGISTRY: readonly PluginDecl[] = [
   },
   {
     key: 'OUTREACH', label: 'Outreach', order: 4,
-    says: 'Letters that sell your firm: outreach batches, their follow-ups and check-ins with companies gone quiet. Drafting stays open while it is off.',
+    says: 'Letters that sell your firm: outreach batches, their follow-ups and check-ins with companies gone quiet. Drafting stays open while it is off. Letters to one person and update letters to your candidates are part of the core and never wait for this switch.',
     offeredTo: SUPPLIER_KINDS,
     microSite: null,
     doors: [],
     pages: [],
-    openPages: [{ path: '/dashboard/companies/outreach', why: 'Drafting stays open while Outreach is off; only the letters that sell are held (record 122).' }],
+    openPages: [{ path: '/dashboard/companies/outreach', why: 'Drafting stays open while Outreach is off; only the letters that sell are held (record 122). Update letters to candidates are core (record 135) and are raised from the Candidates side.' }],
     routes: [
-      { prefix: '/api/outreach', by: 'OPEN', why: 'Drafting and previewing stay open while Outreach is off; only the letters that sell are held, at the send, under the task’s own yes (records 122, 123).' },
+      { prefix: '/api/outreach', by: 'OPEN', why: 'Drafting and previewing stay open while Outreach is off; only the letters that sell are held, at the send, under the task’s own yes (records 122, 123). The candidate update-letter routes under it are core (record 135) and send with Outreach off.' },
     ],
     agents: ['outreach-batch'],
     actions: [

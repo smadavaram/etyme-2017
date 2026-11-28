@@ -26,6 +26,19 @@ export interface LedgerLine {
   plugin: PluginKey | null
 }
 
+/**
+ * Basic outreach on the ledger (record 135): who the firm may write to from
+ * this party's page, and a candidate's standing yes with the firm's last letters.
+ */
+export interface LetterPanel {
+  /** Contacts the firm may write to at this company; null where this is not a company the firm may write to. */
+  writeTo: { id: string; name: string; canWrite: boolean; says: string | null }[] | null
+  /** Why there is nobody to write to, in a sentence, where writeTo is null or empty. */
+  writeToSays: string | null
+  /** A candidate's standing yes with the firm's last letters; null where the party is not a candidate this firm keeps. */
+  candidate: { standing: 'YES' | 'NOT_YET' | 'TOOK_BACK'; says: string; last: { subject: string; says: string; when: string }[] } | null
+}
+
 export interface PartyLedger {
   subject: { kind: 'person' | 'company'; id: string; name: string }
   activity: LedgerLine[]
@@ -33,6 +46,8 @@ export interface PartyLedger {
   documents: LedgerLine[]
   /** Plain sentences about what this reader does not see, and why. */
   notes: string[]
+  /** The letters panel; null where the reader has none (a client, a seat that does not write letters, her own page). */
+  letters: LetterPanel | null
 }
 
 export type LedgerAnswer =

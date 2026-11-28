@@ -19,6 +19,13 @@ import { OFFER_KINDS, draftOffer, hotListWordsRefusal, type OfferKind } from './
 export const OUTREACH_BATCH_AGENT = 'outreach-batch'
 export const OUTREACH_BATCH_KIND = 'OUTREACH_BATCH'
 export const OUTREACH_BATCH_TEMPLATE = 'outreach-batch'
+/**
+ * Basic outreach is core (record 135): an update letter to a candidate and a
+ * letter to one contact have their own templates, so the Outreach switch,
+ * which holds only the letters that sell, never reads them as selling.
+ */
+export const CANDIDATE_UPDATE_TEMPLATE = 'candidate-update'
+export const DIRECT_LETTER_TEMPLATE = 'direct-letter'
 export const OUTREACH_LETTER_TYPE = 'OutreachLetter'
 export const OUTREACH_BATCH_RULE = 'outreach-batch-v1'
 
@@ -58,6 +65,8 @@ export interface LetterInput {
   storefrontUrl: string | null
   /** 1 for the letter; 2 and 3 for the follow-ups, which say they are one. */
   attempt?: number
+  /** A letter to one contact the firm chose to write to: it sells nothing, so it carries no "I'm interested" link. */
+  direct?: boolean
 }
 
 /** The letter: plain text, the person's words in the middle, the honest parts around them. Pure. */
@@ -67,9 +76,11 @@ export function buildLetter(i: LetterInput): { subject: string; text: string } {
     text: paragraphs(
       hello(i.recipientName),
       (i.attempt ?? 1) > 1 ? `A short follow-up to the letter ${i.firm} sent you earlier, in case it was missed.` : null,
-      `You are getting this because ${i.firm} has your name in its own records as a contact at ${i.companyName}.`,
+      i.direct
+        ? `${i.firm} is writing to you directly. It has your name in its own records as a contact at ${i.companyName}.`
+        : `You are getting this because ${i.firm} has your name in its own records as a contact at ${i.companyName}.`,
       i.body.trim(),
-      `If this is of interest, tell us here: ${i.interestedUrl ?? INTERESTED_PLACEHOLDER}`,
+      i.direct ? null : `If this is of interest, tell us here: ${i.interestedUrl ?? INTERESTED_PLACEHOLDER}`,
       i.storefrontUrl ? `More about ${i.firm}: ${i.storefrontUrl}` : null,
       `${i.firm}\n${i.postal}`,
       `Do not want letters like this from ${i.firm}? Unsubscribe here, no sign-in needed: ${i.unsubscribeUrl ?? UNSUBSCRIBE_PLACEHOLDER}\nThis stops letters like this only. Messages about work already agreed, such as timesheets and bills, still reach you.`,

@@ -72,7 +72,7 @@ async function candidate(name: string, o: { yes?: boolean; revoked?: boolean; li
 
 beforeAll(async () => {
   await resetDatabase()
-  w.firm = await prisma.company.create({ data: { name: `Win Firm ${tag}`, slug: `co-win-${tag}`, kind: 'VENDOR', siteLiveAt: null, pluginsOn: ['OUTREACH'] } as any })
+  w.firm = await prisma.company.create({ data: { name: `Win Firm ${tag}`, slug: `co-win-${tag}`, kind: 'VENDOR', siteLiveAt: null, pluginsOn: [] } as any })
   w.entity = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Win Firm LLC', country: 'US', currency: 'USD' } })
   await prisma.companyAddress.create({ data: { companyId: w.firm.id, kind: 'LEGAL', street: '12 Mill Road', city: 'Leeds', state: null, postalCode: 'LS1 4AB', country: 'GB' } })
   const ownerRole = await prisma.role.create({ data: { companyId: w.firm.id, name: 'Owner', permissions: ['*'] } })
@@ -134,6 +134,12 @@ describe('the preview', () => {
   })
 })
 
+describe('basic outreach is core: the Outreach plugin is off for this firm throughout', () => {
+  it('this firm has Outreach switched off for every test in this file, so each update letter that goes here went with it off', async () => {
+    expect((await prisma.company.findUniqueOrThrow({ where: { id: w.firm.id } })).pluginsOn).not.toContain('OUTREACH')
+  })
+})
+
 describe('the batch and its one yes', () => {
   it('raising a batch writes one task, one card and a letter for each candidate with a yes, and nobody else', async () => {
     await setSwitch('ON')
@@ -168,7 +174,7 @@ describe('the batch and its one yes', () => {
     expect([ben.state, ben.stoppedReason]).toEqual(['STOPPED', 'UNSUBSCRIBED'])
   })
   it('a candidate whose yes stands gets one email with one address, naming the firm, its postal address and a link that stops updates, and no interested link', async () => {
-    const rows = await prisma.mailSend.findMany({ where: { companyId: w.firm.id, template: 'outreach-batch', agentTaskId: w.task.id } })
+    const rows = await prisma.mailSend.findMany({ where: { companyId: w.firm.id, template: 'candidate-update', agentTaskId: w.task.id } })
     expect(rows).toHaveLength(1)
     expect(rows[0].toAddresses).toEqual([w.asha.primaryEmail]); expect(rows[0].bccAddresses).toHaveLength(0)
     const text = texts.find((t) => t.to === w.asha.primaryEmail)!.text
@@ -203,7 +209,7 @@ describe('the batch and its one yes', () => {
   })
   it('a second send of the same letter is refused by the task ledger, so one yes releases one letter each and no more', async () => {
     const l = (await lettersOf(w.task.id))[0]
-    const may = await mayAgentSend(w.task.id, { companyId: w.firm.id, agentKey: KEY, recordType: 'OutreachLetter', recordId: l.id, template: 'outreach-batch', attempt: 2 })
+    const may = await mayAgentSend(w.task.id, { companyId: w.firm.id, agentKey: KEY, recordType: 'OutreachLetter', recordId: l.id, template: 'candidate-update', attempt: 2 })
     expect(may.ok).toBe(false)
   })
   it('the batch page counts the letter as sent and the candidate who took her yes back as unsubscribed', async () => {

@@ -217,6 +217,8 @@ export const DOMAINS: Domain[] = [
       'scripts/simulate/stages/conversation',
       // Outreach to companies (record 117): the letters, the audience, the batch, its agent and its screens.
       'lib/outreach', 'lib/agents/outreach-batch', 'app/api/outreach', 'app/dashboard/companies/outreach',
+      // Basic outreach is core (record 135): a letter to one contact, written from the party's ledger.
+      'app/api/letters', 'components/party-letters',
       'app/dashboard/conversations', 'app/dashboard/texts',
       'app/api/conversations', 'app/api/texts', 'app/api/events',
       'app/answer', 'app/claim',
