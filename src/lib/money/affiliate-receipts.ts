@@ -12,7 +12,8 @@
  */
 import type { PrismaClient } from '@prisma/client'
 import { prisma as defaultDb } from '@/lib/db'
-import { accrualOf, clawbackOf, statementMonthOf } from './affiliate-commission'
+import { accrualOf, clawbackOf, selfReferral, statementMonthOf } from './affiliate-commission'
+import { meterActs } from './affiliate-metering'
 import { effectiveAffiliate, reasonOk, type Actor, type AffiliateAct, type Refused } from './affiliate-registry'
 
 export interface ReceiptActor extends Actor {
@@ -51,16 +52,30 @@ export async function markSubscriptionPaid(
     if (!company.paidThrough || company.paidThrough.getTime() < i.periodEnd.getTime()) {
       await tx.company.update({ where: { id: company.id }, data: { paidThrough: i.periodEnd } })
     }
-    const acts: AffiliateAct[] = [{ action: 'SUBSCRIPTION_PAID', recordType: 'SubscriptionReceipt', recordId: receipt.id, summary: `${company.name}’s subscription was recorded as paid: ${i.reason.trim()}`, personId: actor.personId }]
+    const held = actor.staff ? 'Etyme staff' : 'Owner'
+    const meter = (a: Omit<AffiliateAct, 'tenantCompanyId' | 'heldAs'>[]) => meterActs(tx, a.map((x) => ({ ...x, tenantCompanyId: company.id, heldAs: held })))
+    const acts: AffiliateAct[] = []
+    const done = async (...more: Omit<AffiliateAct, 'tenantCompanyId' | 'heldAs'>[]) => { acts.push(...(await meter(more))); return acts }
+    await done({ action: 'SUBSCRIPTION_PAID', recordType: 'SubscriptionReceipt', recordId: receipt.id, summary: `${company.name}’s subscription was recorded as paid: ${i.reason.trim()}`, personId: actor.personId })
 
     const eff = await effectiveAffiliate(company.id, tx)
     if (!eff || !eff.affiliateId) return { ok: true as const, receiptId: receipt.id, commissionCents: null, commissionNote: 'The tenant belongs to the house; no commission.', acts }
+    // Checked again at every receipt: a person who takes a seat after activation stops the earning from that receipt on.
+    const aff = await tx.affiliate.findUnique({ where: { id: eff.affiliateId }, select: { name: true, ownCompanyId: true, accountPersonId: true } })
+    if (aff) {
+      const seats = aff.accountPersonId ? (await tx.context.findMany({ where: { personId: aff.accountPersonId, companyId: { not: null } }, select: { companyId: true } })).map((r) => r.companyId as string) : []
+      if (selfReferral({ affiliateOwnCompanyId: aff.ownCompanyId, affiliateSeatCompanyIds: seats, tenantCompanyId: company.id })) {
+        const why = `${aff.name} owns or now holds a seat at ${company.name}, and an affiliate never earns on its own tenant, so this receipt earns nothing.`
+        await done({ action: 'COMMISSION_NOT_EARNED', recordType: 'SubscriptionReceipt', recordId: receipt.id, summary: why, personId: actor.personId })
+        return { ok: true as const, receiptId: receipt.id, commissionCents: null, commissionNote: why, acts }
+      }
+    }
     const a = accrualOf({ activatedAt: eff.activatedAt, periodStart: i.periodStart, contractorCents: i.contractorCents, platformFeeCents: i.platformFeeCents })
     if (!a.ok) return { ok: true as const, receiptId: receipt.id, commissionCents: null, commissionNote: a.says, acts }
     await tx.affiliateCommissionEntry.create({
       data: { affiliateId: eff.affiliateId, attributionId: eff.attributionId, tenantCompanyId: company.id, kind: 'EARNED', sourceKey: `receipt:${receipt.id}`, receiptId: receipt.id, basisCents: a.basisCents, rateBp: a.rateBp, commissionCents: a.commissionCents, monthFromActivation: a.monthFromActivation, statementMonth: statementMonthOf(now) },
     })
-    acts.push({ action: 'COMMISSION_ACCRUED', recordType: 'AffiliateCommissionEntry', recordId: `receipt:${receipt.id}`, summary: `Commission of ${a.commissionCents} cents accrued at ${a.rateBp / 100}% of ${a.basisCents} cents (month ${a.monthFromActivation}).`, personId: actor.personId })
+    await done({ action: 'COMMISSION_ACCRUED', recordType: 'AffiliateCommissionEntry', recordId: `receipt:${receipt.id}`, summary: `Commission of ${a.commissionCents} cents accrued at ${a.rateBp / 100}% of ${a.basisCents} cents (month ${a.monthFromActivation}).`, personId: actor.personId })
     return { ok: true as const, receiptId: receipt.id, commissionCents: a.commissionCents, commissionNote: null, acts }
   })
 }
@@ -89,7 +104,7 @@ export async function markReversal(
     const reversal = await tx.subscriptionReceiptReversal.create({
       data: { receiptId: receipt.id, tenantCompanyId: receipt.tenantCompanyId, kind: i.kind, contractorCents: i.contractorCents, platformFeeCents: i.platformFeeCents, reason: i.reason.trim(), reversedAt: i.reversedAt, markedByPersonId: actor.personId },
     })
-    const acts: AffiliateAct[] = [{ action: 'SUBSCRIPTION_REVERSED', recordType: 'SubscriptionReceiptReversal', recordId: reversal.id, summary: `A ${i.kind.toLowerCase()} was recorded against a subscription receipt: ${i.reason.trim()}`, personId: actor.personId }]
+    const acts: AffiliateAct[] = await meterActs(tx, [{ action: 'SUBSCRIPTION_REVERSED', recordType: 'SubscriptionReceiptReversal', recordId: reversal.id, summary: `A ${i.kind.toLowerCase()} was recorded against a subscription receipt: ${i.reason.trim()}`, personId: actor.personId, heldAs: 'Etyme staff', tenantCompanyId: receipt.tenantCompanyId }])
 
     const earned = await tx.affiliateCommissionEntry.findUnique({ where: { sourceKey: `receipt:${receipt.id}` } })
     if (!earned) return { ok: true as const, reversalId: reversal.id, clawbackCents: 0, acts }
@@ -103,7 +118,7 @@ export async function markReversal(
     await tx.affiliateCommissionEntry.create({
       data: { affiliateId: earned.affiliateId, attributionId: earned.attributionId, tenantCompanyId: earned.tenantCompanyId, kind: 'CLAWBACK', sourceKey: `reversal:${reversal.id}`, receiptId: receipt.id, reversalId: reversal.id, basisCents: -(i.contractorCents + i.platformFeeCents), rateBp: earned.rateBp, commissionCents: -c.clawbackCents, monthFromActivation: earned.monthFromActivation, statementMonth: statementMonthOf(now) },
     })
-    acts.push({ action: 'COMMISSION_CLAWED_BACK', recordType: 'AffiliateCommissionEntry', recordId: `reversal:${reversal.id}`, summary: `Commission of ${c.clawbackCents} cents was clawed back.`, personId: actor.personId })
+    acts.push(...(await meterActs(tx, [{ action: 'COMMISSION_CLAWED_BACK', recordType: 'AffiliateCommissionEntry', recordId: `reversal:${reversal.id}`, summary: `Commission of ${c.clawbackCents} cents was clawed back.`, personId: actor.personId, heldAs: 'Etyme staff', tenantCompanyId: receipt.tenantCompanyId }])))
     return { ok: true as const, reversalId: reversal.id, clawbackCents: c.clawbackCents, acts }
   })
 }

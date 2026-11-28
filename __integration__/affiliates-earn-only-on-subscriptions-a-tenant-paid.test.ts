@@ -2,7 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { prisma, resetDatabase } from './harness'
 import { activateTenant, correctAttribution, createAffiliate, setPayoutDetails, readOwnAffiliate } from '@/lib/money/affiliate-registry'
 import { markSubscriptionPaid, markReversal } from '@/lib/money/affiliate-receipts'
-import { closeStatement, draftPayout, approvePayout, issuePayoutFile, confirmPayout } from '@/lib/money/affiliate-payout'
+import type { SpentCheck } from '@/lib/identity/second-check'
+import { closeStatement, draftPayout, approvePayout, issuePayoutFile, confirmPayout, AFFILIATE_PAYOUT_ACT } from '@/lib/money/affiliate-payout'
 
 /**
  * Record 129 on a real Postgres: attribution once at activation, commission
@@ -15,6 +16,16 @@ const nobody = { personId: 'someone', staff: false }
 const D = (iso: string) => new Date(`${iso}T00:00:00Z`)
 const NOW = D('2027-03-10')
 const ENV = { ETYME_DATA_SEAL_KEY: 'a'.repeat(64) }
+
+/** A second check as the security log would hold it once spent: passed, then used, for one act and one subject. */
+async function spentCheck(personId: string, subjectId: string, o: { act?: string; at?: Date } = {}): Promise<SpentCheck> {
+  const act = o.act ?? AFFILIATE_PAYOUT_ACT
+  const id = `chk_${Math.random().toString(36).slice(2)}`
+  const at = o.at ?? NOW
+  await prisma.securityEvent.create({ data: { id, at, event: 'SECOND_CHECK_PASSED', surface: 'WEB', actorPersonId: personId, targetKind: act, targetId: subjectId, says: 'passed' } })
+  await prisma.securityEvent.create({ data: { id: `used_${id}`, at, event: 'SECOND_CHECK_USED', surface: 'WEB', actorPersonId: personId, targetKind: act, targetId: subjectId, says: 'used' } })
+  return { passedId: id, act, subjectId, method: 'AUTHENTICATOR_APP' } as unknown as SpentCheck
+}
 
 async function tenant(slug: string) {
   return prisma.company.create({ data: { name: `Tenant ${slug}`, slug, kind: 'CLIENT' } })
@@ -169,16 +180,14 @@ describe('affiliates on a real database', () => {
       const d = await draftPayout({ month: '2027-03' }, staff)
       if (!d.ok) throw new Error(d.says)
       expect(d).toMatchObject({ totalCents: 4000, items: 1 })
-      const waits = await approvePayout({ batchId: d.batchId, gate: { ok: false, says: 'Paying a firm waits until Etyme has a verified Owner.', href: '/x', step: 'OWNERSHIP' }, check: { passedId: 'x' } }, { personId: 'owner-1', staff: false })
+      const waits = await approvePayout({ batchId: d.batchId, gate: { ok: false, says: 'Paying a firm waits until Etyme has a verified Owner.', href: '/x', step: 'OWNERSHIP' }, check: await spentCheck('owner-1', d.batchId) }, { personId: 'owner-1', staff: false }, NOW)
       expect(waits.ok).toBe(false)
-      const noCheck = await approvePayout({ batchId: d.batchId, gate: { ok: true }, check: null }, { personId: 'owner-1', staff: false })
+      const noCheck = await approvePayout({ batchId: d.batchId, gate: { ok: true }, check: null }, { personId: 'owner-1', staff: false }, NOW)
       expect((noCheck as { says: string }).says).toMatch(/fresh second check/)
-      const someoneElses = await prisma.securityEvent.create({ data: { event: 'SECOND_CHECK_PASSED', surface: 'WEB', actorPersonId: 'other', says: 'passed' } })
-      expect((await approvePayout({ batchId: d.batchId, gate: { ok: true }, check: { passedId: someoneElses.id } }, { personId: 'owner-1', staff: false })).ok).toBe(false)
+      expect((await approvePayout({ batchId: d.batchId, gate: { ok: true }, check: await spentCheck('other', d.batchId) }, { personId: 'owner-1', staff: false }, NOW)).ok).toBe(false)
       expect((await issuePayoutFile(d.batchId, staff)).ok).toBe(false)
 
-      const mine = await prisma.securityEvent.create({ data: { event: 'SECOND_CHECK_PASSED', surface: 'WEB', actorPersonId: 'owner-1', says: 'passed' } })
-      expect((await approvePayout({ batchId: d.batchId, gate: { ok: true }, check: { passedId: mine.id } }, { personId: 'owner-1', staff: false })).ok).toBe(true)
+      expect((await approvePayout({ batchId: d.batchId, gate: { ok: true }, check: await spentCheck('owner-1', d.batchId) }, { personId: 'owner-1', staff: false }, NOW)).ok).toBe(true)
       const f = await issuePayoutFile(d.batchId, staff, D('2027-04-03'))
       if (!f.ok) throw new Error(f.says)
       expect(f.csv).toContain('40.00')

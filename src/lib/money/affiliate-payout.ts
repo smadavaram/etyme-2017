@@ -15,8 +15,10 @@ import { createHash, randomBytes } from 'crypto'
 import type { PrismaClient } from '@prisma/client'
 import { prisma as defaultDb } from '@/lib/db'
 import { buildStatement, statementMonthOf } from './affiliate-commission'
+import { meterActs } from './affiliate-metering'
 import { csvCell, decimalAmount } from './run-file'
 import type { OwnerGate } from '@/lib/owner-gate'
+import type { SpentCheck } from '@/lib/identity/second-check'
 import type { Actor, AffiliateAct, Refused } from './affiliate-registry'
 
 const NEEDS_STAFF = 'Only Etyme staff close statements and prepare payouts.'
@@ -43,7 +45,7 @@ export async function closeStatement(
     const entries = await tx.affiliateCommissionEntry.findMany({ where: { affiliateId: i.affiliateId, statementMonth: i.month }, select: { commissionCents: true } })
     const f = buildStatement({ carriedInCents, entries })
     const row = await tx.affiliateStatement.create({ data: { affiliateId: i.affiliateId, month: i.month, ...f } })
-    return { ok: true as const, statementId: row.id, netCents: f.netCents, alreadyClosed: false, acts: [{ action: 'STATEMENT_CLOSED', recordType: 'AffiliateStatement', recordId: row.id, summary: `The ${i.month} statement was closed at ${f.netCents} cents.`, personId: actor.personId }] }
+    return { ok: true as const, statementId: row.id, netCents: f.netCents, alreadyClosed: false, acts: await meterActs(tx, [{ action: 'STATEMENT_CLOSED', recordType: 'AffiliateStatement', recordId: row.id, summary: `The ${i.month} statement was closed at ${f.netCents} cents.`, personId: actor.personId, heldAs: 'Etyme staff' }]) }
   })
 }
 
@@ -100,30 +102,51 @@ export async function draftPayout(
       const id = randomBytes(12).toString('hex')
       await tx.affiliatePayoutItem.create({ data: { id, batchId: batch.id, affiliateId: p.affiliateId, statementId: p.statementId, amountCents: p.amountCents, bankName: p.bank, accountName: p.account, last4: p.last4, reference: payoutReference(id) } })
     }
-    return { ok: true as const, batchId: batch.id, totalCents, items: picked.length, leftOut, acts: [{ action: 'PAYOUT_DRAFTED', recordType: 'AffiliatePayoutBatch', recordId: batch.id, summary: `A payout for ${i.month} was drafted: ${picked.length} affiliates, ${totalCents} cents. Nothing is paid.`, personId: actor.personId }] }
+    return { ok: true as const, batchId: batch.id, totalCents, items: picked.length, leftOut, acts: await meterActs(tx, [{ action: 'PAYOUT_DRAFTED', recordType: 'AffiliatePayoutBatch', recordId: batch.id, summary: `A payout for ${i.month} was drafted: ${picked.length} affiliates, ${totalCents} cents. Nothing is paid.`, personId: actor.personId, heldAs: 'Etyme staff' }]) }
   })
 }
 
+/** The one act a second check may be made for to approve a payout. The subject is the batch's id. */
+export const AFFILIATE_PAYOUT_ACT = 'affiliate.payout'
+/** A check older than this when the approval is pressed is not fresh, though it was spent in time. */
+export const PAYOUT_CHECK_FRESH_MINUTES = 5
+
 /**
  * The approval: a verified Owner (the gate's verdict, passed in) and a
- * fresh second check by this person (the spent check's event id). Without
- * both, nothing is approved. Approving moves no money.
+ * fresh second check made by this person for this act and this batch,
+ * spent once (`spendCheck` in lib/identity/second-check). The check is
+ * read again from the security log, never believed from the caller: it
+ * must be a passed check by the approver, for this act and this batch,
+ * recorded as spent, made in the last few minutes, and not already the
+ * check of another batch. Approving moves no money.
  */
 export async function approvePayout(
-  i: { batchId: string; gate: OwnerGate; check: { passedId: string } | null },
+  i: { batchId: string; gate: OwnerGate; check: SpentCheck | null },
   approver: Actor,
+  now: Date = new Date(),
   db: PrismaClient = defaultDb,
 ): Promise<{ ok: true; acts: AffiliateAct[] } | Refused> {
   if (!i.gate.ok) return { ok: false, says: i.gate.says }
-  if (!i.check?.passedId) return { ok: false, says: 'Approving a payout needs a fresh second check. Do the check, then approve.' }
-  const event = await db.securityEvent.findUnique({ where: { id: i.check.passedId }, select: { actorPersonId: true } })
-  if (!event || event.actorPersonId !== approver.personId) return { ok: false, says: 'That second check was not made by you. Do the check, then approve.' }
+  const check = i.check
+  if (!check?.passedId) return { ok: false, says: 'Approving a payout needs a fresh second check. Do the check, then approve.' }
+  if ((check.act as string) !== AFFILIATE_PAYOUT_ACT) return { ok: false, says: 'That second check was made for something else. Do the check for this payout, then approve.' }
+  if (check.subjectId !== i.batchId) return { ok: false, says: 'That second check was made for another payout. Do the check for this payout, then approve.' }
+  const passed = await db.securityEvent.findUnique({ where: { id: check.passedId }, select: { event: true, actorPersonId: true, targetKind: true, targetId: true, at: true } })
+  if (!passed || passed.event !== 'SECOND_CHECK_PASSED') return { ok: false, says: 'There is no passed second check behind that. Do the check, then approve.' }
+  if (passed.actorPersonId !== approver.personId) return { ok: false, says: 'That second check was not made by you. Do the check, then approve.' }
+  if (passed.targetKind !== AFFILIATE_PAYOUT_ACT || passed.targetId !== i.batchId) return { ok: false, says: 'That second check was made for something else. Do the check for this payout, then approve.' }
+  if (now.getTime() - passed.at.getTime() > PAYOUT_CHECK_FRESH_MINUTES * 60_000) return { ok: false, says: `That second check is more than ${PAYOUT_CHECK_FRESH_MINUTES} minutes old. Do the check again, then approve.` }
+  const spent = await db.securityEvent.findUnique({ where: { id: `used_${check.passedId}` }, select: { event: true, targetKind: true, targetId: true } })
+  if (!spent || spent.event !== 'SECOND_CHECK_USED' || spent.targetKind !== AFFILIATE_PAYOUT_ACT || spent.targetId !== i.batchId) return { ok: false, says: 'That second check was never spent on this payout. Do the check, then approve.' }
   return db.$transaction(async (tx) => {
     const b = await tx.affiliatePayoutBatch.findUnique({ where: { id: i.batchId } })
     if (!b) return { ok: false as const, says: 'There is no such payout.' }
     if (b.status !== 'DRAFT') return { ok: false as const, says: 'This payout was already approved or issued.' }
-    await tx.affiliatePayoutBatch.update({ where: { id: b.id }, data: { status: 'APPROVED', approvedByPersonId: approver.personId, secondCheckEventId: i.check!.passedId } })
-    return { ok: true as const, acts: [{ action: 'PAYOUT_APPROVED', recordType: 'AffiliatePayoutBatch', recordId: b.id, summary: `The ${b.month} payout was approved after a fresh second check. Etyme pays nothing; it leaves as a file.`, personId: approver.personId }] }
+    if (await tx.affiliatePayoutBatch.findFirst({ where: { secondCheckEventId: check.passedId }, select: { id: true } })) {
+      return { ok: false as const, says: 'That second check already approved a payout. One check approves one payout; do the check again.' }
+    }
+    await tx.affiliatePayoutBatch.update({ where: { id: b.id }, data: { status: 'APPROVED', approvedByPersonId: approver.personId, secondCheckEventId: check.passedId } })
+    return { ok: true as const, acts: await meterActs(tx, [{ action: 'PAYOUT_APPROVED', recordType: 'AffiliatePayoutBatch', recordId: b.id, summary: `The ${b.month} payout was approved after a fresh second check. Etyme pays nothing; it leaves as a file.`, personId: approver.personId, heldAs: 'Owner' }]) }
   })
 }
 
@@ -144,7 +167,7 @@ export async function issuePayoutFile(
     const csv = payoutFileOf(items.map((x) => ({ reference: x.reference, affiliate: names.get(x.affiliateId) ?? '', month: b.month, amountCents: x.amountCents, bankName: x.bankName, accountName: x.accountName, last4: x.last4 })))
     const fileHash = createHash('sha256').update(csv).digest('hex')
     await tx.affiliatePayoutBatch.update({ where: { id: b.id }, data: { status: 'FILE_ISSUED', fileHash, fileIssuedAt: now } })
-    return { ok: true as const, csv, filename: `affiliate-payout-${b.month}-USD-${b.id.slice(-6)}.csv`, fileHash, acts: [{ action: 'PAYOUT_FILE_ISSUED', recordType: 'AffiliatePayoutBatch', recordId: b.id, summary: `The ${b.month} payout file was issued. Nothing was paid by Etyme.`, personId: actor.personId }] }
+    return { ok: true as const, csv, filename: `affiliate-payout-${b.month}-USD-${b.id.slice(-6)}.csv`, fileHash, acts: await meterActs(tx, [{ action: 'PAYOUT_FILE_ISSUED', recordType: 'AffiliatePayoutBatch', recordId: b.id, summary: `The ${b.month} payout file was issued. Nothing was paid by Etyme.`, personId: actor.personId, heldAs: 'Etyme staff' }]) }
   })
 }
 
@@ -163,6 +186,6 @@ export async function confirmPayout(
     if (!b || b.status !== 'FILE_ISSUED') return { ok: false as const, says: 'Only a payout whose file was issued can be confirmed.' }
     await tx.affiliatePayoutItem.updateMany({ where: { batchId: b.id }, data: { paidOn: i.paidOn, payerReference: i.payerReference.trim() } })
     await tx.affiliatePayoutBatch.update({ where: { id: b.id }, data: { status: 'CONFIRMED' } })
-    return { ok: true as const, acts: [{ action: 'PAYOUT_CONFIRMED', recordType: 'AffiliatePayoutBatch', recordId: b.id, summary: `The ${b.month} payout was confirmed paid by the bank’s own record.`, personId: actor.personId }] }
+    return { ok: true as const, acts: await meterActs(tx, [{ action: 'PAYOUT_CONFIRMED', recordType: 'AffiliatePayoutBatch', recordId: b.id, summary: `The ${b.month} payout was confirmed paid by the bank’s own record.`, personId: actor.personId, heldAs: 'Etyme staff' }]) }
   })
 }

@@ -10,7 +10,7 @@
  */
 
 
-export type GatedAct = 'PAY' | 'PAY_PEOPLE' | 'BANK' | 'SIGN' | 'COMPANY_TYPE' | 'SIGN_IN_MODE' | 'GIVE_ACCESS' | 'PASS_OWNERSHIP' | 'PLUGIN_SWITCH'
+export type GatedAct = 'PAY' | 'PAY_PEOPLE' | 'BANK' | 'SIGN' | 'COMPANY_TYPE' | 'SIGN_IN_MODE' | 'GIVE_ACCESS' | 'PASS_OWNERSHIP' | 'PLUGIN_SWITCH' | 'PAY_AFFILIATES'
 
 /** Each act, said as the start of its refusal. */
 export const GATED_ACT_WORDS: Record<GatedAct, string> = {
@@ -24,6 +24,7 @@ export const GATED_ACT_WORDS: Record<GatedAct, string> = {
   GIVE_ACCESS: 'Giving access by team or for the whole company',
   PASS_OWNERSHIP: 'Passing ownership',
   PLUGIN_SWITCH: 'Switching a plugin',
+  PAY_AFFILIATES: 'Approving an affiliate payout',
 }
 
 /** Where the step is: the checklist item's own address. */
@@ -72,6 +73,7 @@ export const OWNER_ONLY_WORDS: Record<GatedAct, string> = {
   GIVE_ACCESS: 'Only the Owner gives access by team or for the whole company.',
   PASS_OWNERSHIP: 'Only an Owner passes ownership.',
   PLUGIN_SWITCH: 'Only an Owner switches a plugin on or off.',
+  PAY_AFFILIATES: 'Only an Owner approves an affiliate payout.',
 }
 
 /** A sentence and, where there is a step to take, its link. */

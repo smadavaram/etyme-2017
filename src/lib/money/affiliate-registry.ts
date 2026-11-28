@@ -13,18 +13,21 @@
  */
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { prisma as defaultDb } from '@/lib/db'
-import { taxIdToWrite } from '@/lib/sensitive'
+import { bankAccountToWrite } from '@/lib/sensitive'
 import { selfReferral, monthFromActivation } from './affiliate-commission'
+import { meterActs } from './affiliate-metering'
 
 type Db = PrismaClient | Prisma.TransactionClient
 
-/** The agent key the metering ledger counts these acts under. */
-export const AFFILIATE_AGENT_KEY = 'affiliate'
+export { AFFILIATE_AGENT_KEY } from './affiliate-metering'
 
 /**
- * One thing the affiliate engine did, as the sentence the ledger will hold.
- * The writers return them; they are not yet written to RecordAction because
- * that table needs a company and Etyme has no company row of its own.
+ * One thing the affiliate engine did, as the sentence the ledger holds.
+ * The metering ledger (RecordAction) needs a company and Etyme has no
+ * company row of its own, so an act that belongs to a referred tenant is
+ * written on that tenant's ledger (`tenantCompanyId`); an act with no
+ * tenant (registry, statement, payout) is returned unwritten, with the
+ * reason, until the platform record is ruled on. `metered` says which.
  */
 export interface AffiliateAct {
   action: string
@@ -32,6 +35,14 @@ export interface AffiliateAct {
   recordId: string
   summary: string
   personId: string
+  /** The referred tenant the act is about, where there is one. */
+  tenantCompanyId?: string | null
+  /** The role she held, as text: Etyme staff, or Owner. */
+  heldAs?: string
+  /** Set by the writer once the metering ledger was tried. */
+  metered?: boolean
+  /** Why the row was not written, in a sentence. */
+  unmeteredWhy?: string
 }
 
 /** Who is acting. The route proves `staff` (callerIsStaff); this file never guesses it. */
@@ -67,7 +78,7 @@ export async function createAffiliate(
     const row = await db.affiliate.create({
       data: { kind: i.kind, name, contactEmail: email, code, ownCompanyId: i.ownCompanyId ?? null, accountPersonId: i.accountPersonId ?? null, createdByPersonId: actor.personId },
     })
-    return { ok: true, affiliateId: row.id, code, acts: [{ action: 'REGISTERED', recordType: 'Affiliate', recordId: row.id, summary: `${name} was registered as an affiliate.`, personId: actor.personId }] }
+    return { ok: true, affiliateId: row.id, code, acts: await meterActs(db, [{ action: 'REGISTERED', recordType: 'Affiliate', recordId: row.id, summary: `${name} was registered as an affiliate.`, personId: actor.personId, heldAs: 'Etyme staff' }]) }
   }
   return { ok: false, says: 'A referral code could not be made just now. Try again.' }
 }
@@ -87,15 +98,15 @@ export async function setPayoutDetails(
   const bank = i.bankName.trim()
   const account = i.accountName.trim()
   if (!bank || !account || !i.accountNumber.trim()) return { ok: false, says: 'Payout details need the bank, the account name and the account number.' }
-  const sealed = taxIdToWrite(i.accountNumber, env)
+  const sealed = bankAccountToWrite(i.accountNumber, env)
   if (!sealed.ok) return { ok: false, says: sealed.says }
   const row = await db.affiliate.findUnique({ where: { id: affiliateId }, select: { id: true } })
   if (!row) return { ok: false, says: 'There is no such affiliate.' }
   await db.affiliate.update({
     where: { id: affiliateId },
-    data: { payoutBankName: bank, payoutAccountName: account, payoutLast4: sealed.data.taxIdLast4, payoutSealed: sealed.data.taxIdSealed },
+    data: { payoutBankName: bank, payoutAccountName: account, payoutLast4: sealed.data.last4, payoutSealed: sealed.data.sealed },
   })
-  return { ok: true, last4: sealed.data.taxIdLast4, acts: [{ action: 'PAYOUT_DETAILS_SET', recordType: 'Affiliate', recordId: affiliateId, summary: `Payout details were set (${bank}, ending ${sealed.data.taxIdLast4}).`, personId: actor.personId }] }
+  return { ok: true, last4: sealed.data.last4, acts: await meterActs(db, [{ action: 'PAYOUT_DETAILS_SET', recordType: 'Affiliate', recordId: affiliateId, summary: `Payout details were set (${bank}, ending ${sealed.data.last4}).`, personId: actor.personId, heldAs: 'Etyme staff' }]) }
 }
 
 /** Who a tenant belongs to now: the latest correction, else the attribution. Null is the house. */
@@ -157,7 +168,7 @@ export async function activateTenant(
     })
     return {
       ok: true as const, attributionId: row.id, affiliateId, alreadyWritten: false, note,
-      acts: [{ action: 'ATTRIBUTED', recordType: 'AffiliateAttribution', recordId: row.id, summary: affiliateId ? `${company.name} was attributed to an affiliate at activation.` : `${company.name} was activated and belongs to the house.`, personId: actor.personId }],
+      acts: await meterActs(tx, [{ action: 'ATTRIBUTED', recordType: 'AffiliateAttribution', recordId: row.id, summary: affiliateId ? `${company.name} was attributed to an affiliate at activation.` : `${company.name} was activated and belongs to the house.`, personId: actor.personId, heldAs: 'Etyme staff', tenantCompanyId: company.id }]),
     }
   })
 }
@@ -181,7 +192,7 @@ export async function correctAttribution(
     const row = await tx.affiliateAttributionCorrection.create({
       data: { attributionId: now.attributionId, tenantCompanyId: i.tenantCompanyId, fromAffiliateId: now.affiliateId, toAffiliateId: i.toAffiliateId, reason: i.reason.trim(), correctedByPersonId: actor.personId },
     })
-    return { ok: true as const, correctionId: row.id, acts: [{ action: 'ATTRIBUTION_CORRECTED', recordType: 'AffiliateAttribution', recordId: now.attributionId, summary: `Attribution was corrected: ${i.reason.trim()}`, personId: actor.personId }] }
+    return { ok: true as const, correctionId: row.id, acts: await meterActs(tx, [{ action: 'ATTRIBUTION_CORRECTED', recordType: 'AffiliateAttribution', recordId: now.attributionId, summary: `Attribution was corrected: ${i.reason.trim()}`, personId: actor.personId, heldAs: 'Etyme staff', tenantCompanyId: i.tenantCompanyId }]) }
   })
 }
 

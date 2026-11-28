@@ -58,6 +58,18 @@ export function taxIdToWrite(plain: string | null, env: Env = process.env): { ok
 }
 
 /**
+ * A bank account number typed for payout details: sealed under the same
+ * data key, with its last four kept in the clear. Nothing else of it is
+ * stored. Refused in a sentence where the deployment has no data key.
+ */
+export function bankAccountToWrite(plain: string, env: Env = process.env): { ok: true; data: { sealed: string; last4: string } } | { ok: false; says: string } {
+  const v = String(plain ?? '').trim()
+  if (!v) return { ok: false, says: 'Payout details need the account number.' }
+  if (!dataSealKeySet(env)) return { ok: false, says: 'This Etyme deployment cannot lock a bank account number yet, so it is not saved. The owner of the deployment sets the data key, then type it again.' }
+  return { ok: true, data: { sealed: seal(v, asSealEnv(env)), last4: lastFourOf(v) ?? '' } }
+}
+
+/**
  * The full tax ID, server side only: the reveal route and the backfill.
  * The sealed value first; the plain column only for a row not yet moved.
  * Null where there is none or the key cannot open it.
@@ -94,6 +106,7 @@ export function openFromForm(companyId: string, token: unknown, env: Env = proce
 export const SENSITIVE_FIELDS = {
   COMPANY_TAX_ID: 'the company’s tax ID',
   REMIT_TAX_ID: 'the tax ID on these payment details',
+  AFFILIATE_PAYOUT_ACCOUNT: 'an affiliate’s payout account number',
 } as const
 export type SensitiveField = keyof typeof SENSITIVE_FIELDS
 
