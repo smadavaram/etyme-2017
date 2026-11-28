@@ -16,7 +16,8 @@
  */
 import { prisma } from '@/lib/db'
 import type { CallerContext } from '@/lib/api-context'
-import { seatedDesk } from '@/lib/resolve-client-company'
+import { seatedDesk, unitsReachedBy } from '@/lib/resolve-client-company'
+import { reachFor, jobsWhere, submissionsWhere } from '@/app/api/requisitions/grant-reach'
 import { recordAccess, recordRefusal } from '@/lib/access-log'
 import { hasPermission } from '@/lib/permissions'
 import { findOnBook } from '@/app/api/records/lookup'
@@ -42,6 +43,9 @@ interface Reader {
   companyKind: string | null
   permissions: readonly string[]
   acting: CallerContext
+  /** Extra narrowing of jobs and submissions for a seat confined to a team, region or unit; empty for the firm's book. */
+  jobNarrow: Record<string, unknown>[]
+  submissionNarrow: Record<string, unknown>[]
 }
 
 const on = (pluginsOn: readonly string[] | null | undefined, key: string) => !!pluginsOn?.includes(key)
@@ -51,7 +55,21 @@ export async function readPartyLedger(caller: CallerContext, subject: LedgerSubj
   const companyId = desk?.companyId ?? caller.company?.id ?? null
   const acting = desk?.acting ?? caller
   const kind = companyId ? (await prisma.company.findUnique({ where: { id: companyId }, select: { kind: true } }))?.kind ?? null : null
-  const reader: Reader = { personId: caller.person.id, companyId, companyKind: kind, permissions: acting.permissions, acting }
+  // The same scope the jobs and submissions routes apply: a program seat over one unit (and the units under it),
+  // or an Owner's grant to one team or to the reader's own work. Never the whole company's book.
+  const jobNarrow: Record<string, unknown>[] = []
+  const submissionNarrow: Record<string, unknown>[] = []
+  const seatUnits = await unitsReachedBy(desk?.seat ?? null)
+  if (seatUnits) {
+    jobNarrow.push({ orgUnitId: { in: seatUnits } })
+    submissionNarrow.push({ requirement: { orgUnitId: { in: seatUnits } } })
+  } else if (!desk?.seat) {
+    const jobs = await reachFor(caller, 'requirements.read')
+    const subs = await reachFor(caller, 'submissions.read')
+    if (jobs.scope === 'UNIT' || jobs.scope === 'PERSON') jobNarrow.push(jobsWhere(jobs, caller.person.id) ?? { id: '__none__' })
+    if (subs.scope === 'UNIT' || subs.scope === 'PERSON') submissionNarrow.push(submissionsWhere(subs, caller.person.id) ?? { id: '__none__' })
+  }
+  const reader: Reader = { personId: caller.person.id, companyId, companyKind: kind, permissions: acting.permissions, acting, jobNarrow, submissionNarrow }
   return subject.kind === 'person' ? personLedger(reader, subject.id) : companyLedger(reader, subject.id)
 }
 
@@ -207,8 +225,8 @@ async function companyLedger(reader: Reader, companyId: string): Promise<LedgerA
   const pair = own ? [{ fromCompanyId: firm }, { toCompanyId: firm }] : [{ fromCompanyId: firm, toCompanyId: companyId }, { fromCompanyId: companyId, toCompanyId: firm }]
 
   const [jobs, subs, pods, enrolls, proposals] = await Promise.all([
-    prisma.requirement.findMany({ where: own ? { companyId } : { OR: [{ companyId: firm, invitations: { some: { toCompanyId: companyId } } }, { companyId, invitations: { some: { toCompanyId: firm } } }] }, select: { id: true, title: true, status: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 100 }),
-    prisma.submission.findMany({ where: { OR: pair }, select: { id: true, status: true, submittedAt: true, person: { select: { name: true } }, requirement: { select: { id: true, title: true } } }, orderBy: { submittedAt: 'desc' }, take: 100 }),
+    prisma.requirement.findMany({ where: { AND: [own ? { companyId } : { OR: [{ companyId: firm, invitations: { some: { toCompanyId: companyId } } }, { companyId, invitations: { some: { toCompanyId: firm } } }] }, ...reader.jobNarrow] } as never, select: { id: true, title: true, status: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.submission.findMany({ where: { AND: [{ OR: pair }, ...reader.submissionNarrow] } as never, select: { id: true, status: true, submittedAt: true, person: { select: { name: true } }, requirement: { select: { id: true, title: true } } }, orderBy: { submittedAt: 'desc' }, take: 100 }),
     own && on(company.pluginsOn, 'PODS') ? prisma.pod.findMany({ where: { companyId }, select: { id: true, name: true, createdAt: true }, take: 100 }) : [],
     own && on(company.pluginsOn, 'TRAIN_TO_BENCH') ? prisma.enrollment.findMany({ where: { companyId }, select: { id: true, enrolledAt: true, completedAt: true, status: true, person: { select: { name: true } }, course: { select: { title: true } } }, orderBy: { enrolledAt: 'desc' }, take: 100 }) : [],
     own && on(company.pluginsOn, 'PUBLIC_SECTOR') ? prisma.proposal.findMany({ where: { companyId }, select: { id: true, title: true, state: true, createdAt: true }, take: 100 }) : [],
@@ -248,7 +266,7 @@ async function companyLedger(reader: Reader, companyId: string): Promise<LedgerA
     own ? prisma.verification.findMany({ where: { companyId }, select: { id: true, type: true, status: true, expiresAt: true, createdAt: true }, take: 100 }) : [],
     own && on(company.pluginsOn, 'TRAIN_TO_BENCH') ? prisma.learnCredential.findMany({ where: { companyId, revokedAt: null }, select: { id: true, createdAt: true, enrollment: { select: { course: { select: { title: true } } } } }, take: 100 }) : [],
   ])
-  for (const a of agreements) documents.push({ section: 'documents', kind: 'agreement', says: `Master agreement, ${a.vendor.name} and ${a.client.name}`, when: a.createdAt, source: { type: 'MasterAgreement', id: a.id }, href: '/dashboard/contracts', plugin: null })
+  for (const a of agreements) documents.push({ section: 'documents', kind: 'agreement', says: `Agreement, ${a.vendor.name} and ${a.client.name}`, when: a.createdAt, source: { type: 'MasterAgreement', id: a.id }, href: '/dashboard/contracts', plugin: null })
   for (const p of record.papers) documents.push({ section: 'documents', kind: 'paper', says: `${p.template.name}, ${p.status.toLowerCase()}${p.expiresAt ? `, to ${formatDay(p.expiresAt)}` : ''}`, when: p.signedAt ?? p.validFrom, source: { type: 'DocInstance', id: p.id }, href: '/dashboard/documents', plugin: null })
   for (const v of verifs) documents.push({ section: 'documents', kind: 'compliance check', says: `${v.type.toLowerCase().replace(/_/g, ' ')}: ${v.status.toLowerCase()}`, when: v.createdAt, source: { type: 'Verification', id: v.id }, href: '/dashboard/compliance', plugin: null })
   for (const c of certs) documents.push(pluginLine('TRAIN_TO_BENCH', { section: 'documents', kind: 'certificate', says: `Certificate: ${c.enrollment.course.title}`, when: c.createdAt, source: { type: 'LearnCredential', id: c.id } }))

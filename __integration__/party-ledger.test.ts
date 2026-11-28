@@ -140,3 +140,40 @@ describe('one session reaches the core and the learning site', () => {
     expect(learn.status).not.toBe(401)
   })
 })
+
+describe('a seat confined to one team reads only that team’s jobs and submissions in its company ledger', () => {
+  it('a client seat the Owner gave the Dayton team reads Dayton’s jobs and submissions and none of Belfast’s', async () => {
+    const client = await prisma.company.create({ data: { name: 'Cavanaugh Ledger Glass', slug: 'cavanaugh-ledger', kind: 'CLIENT', currency: 'USD' } })
+    const ownerRole = await prisma.role.create({ data: { companyId: client.id, name: 'Owner', permissions: ['*'], isDefault: true } })
+    const owner = await prisma.person.create({ data: { name: 'Gwen Ledger', primaryEmail: 'owner@cavanaugh-ledger.test' } })
+    await prisma.context.create({ data: { personId: owner.id, companyId: client.id, roleId: ownerRole.id, type: 'EMPLOYEE', grantReason: 'owner' } })
+    const dayton = await prisma.orgUnit.create({ data: { companyId: client.id, name: 'Dayton', kind: 'BU' } })
+    const belfast = await prisma.orgUnit.create({ data: { companyId: client.id, name: 'Belfast', kind: 'BU' } })
+    const coordinator = await prisma.role.create({ data: { companyId: client.id, name: 'Coordinator', permissions: ['consultants.read'] } })
+    const rory = await prisma.person.create({ data: { name: 'Rory Ledger', primaryEmail: 'rory@cavanaugh-ledger.test' } })
+    const seat = await prisma.context.create({ data: { personId: rory.id, companyId: client.id, roleId: coordinator.id, type: 'EMPLOYEE', grantReason: 'coordinator' } })
+    for (const permission of ['requirements.read', 'submissions.read']) {
+      await prisma.permissionGrant.create({ data: { companyId: client.id, permission, contextId: seat.id, scope: 'UNIT', orgUnitId: dayton.id, grantedById: owner.id, reason: 'Rory runs Dayton' } })
+    }
+    const vendor = await prisma.company.create({ data: { name: 'Veritan Ledger', slug: 'veritan-ledger', kind: 'VENDOR', currency: 'USD' } })
+    const lead = await prisma.person.create({ data: { name: 'Vera Ledger', primaryEmail: 'vera@veritan-ledger.test' } })
+    let n = 0
+    for (const [title, orgUnitId] of [['Dayton line lead', dayton.id], ['Belfast furnace engineer', belfast.id]] as const) {
+      const r = await prisma.requirement.create({ data: { companyId: client.id, title, skills: ['PLC'], status: 'OPEN', approvalState: 'APPROVED', headcount: 1, orgUnitId, raisedById: owner.id, ownerId: owner.id } })
+      const person = await prisma.person.create({ data: { name: `Ledger Candidate ${++n}`, primaryEmail: `ledger-candidate${n}@person.test` } })
+      await prisma.submission.create({ data: { requirementId: r.id, personId: person.id, fromCompanyId: vendor.id, toCompanyId: client.id, kind: 'NETWORK', rate: 9_000, status: 'SUBMITTED', submittedById: lead.id } })
+    }
+
+    as('owner@cavanaugh-ledger.test')
+    const whole = await ledger('company', client.id)
+    expect(JSON.stringify(whole.body)).toContain('Belfast furnace engineer')
+
+    as('rory@cavanaugh-ledger.test')
+    const r = await ledger('company', client.id)
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const text = JSON.stringify(r.body)
+    expect(text).toContain('Dayton line lead')
+    expect(text).not.toContain('Belfast furnace engineer')
+    expect(text).not.toContain('Ledger Candidate 2')
+  })
+})
