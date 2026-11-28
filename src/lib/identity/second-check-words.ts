@@ -35,6 +35,8 @@ export const CHECK_ACTS = {
   'second_check.reset': 'reset a colleague’s second check',
   /** Record 99: an Owner shows a full tax ID, for that view only. */
   'sensitive.reveal': 'show a full tax ID',
+  /** Record 129: an Owner approves an affiliate payout batch. */
+  'affiliate.payout': 'approve an affiliate payout',
   /** Record 125: an Owner sets the company’s own model route. */
   'model.route': 'set the company’s own model',
 } as const
