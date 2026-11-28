@@ -144,3 +144,17 @@ topic tiles lighting one by one as the line reaches them; ending on
 "Course complete — on your record" and "Join the bench". It plays once
 when the section scrolls into view, never loops, is fully off under
 reduced motion, and never shifts the layout.
+
+## The Etyme home page gets the Learn section too (Pax, 2026-11-28)
+
+The Etyme home page carries the same Learn section as /start: "AI from Zero
+in 3 Hours", FREE stated plainly, the ten topic tiles and the approved
+animation pattern. It is the front porch: its call to action leads to
+/start, where the "What are you?" entry and the one lead capture live. The
+capture form is never duplicated on the home page.
+
+Lead's note on building it: the home page files (src/app/page.tsx and
+src/lib/public-site/home-page-words.ts) are being changed on the other
+team's branch. The section is built once as a shared component on /start;
+the home page places that same component, so the two never drift and the
+two branches do not edit the same lines.
