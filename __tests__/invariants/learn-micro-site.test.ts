@@ -98,6 +98,25 @@ describe('the course content format', () => {
       'a says "agentic" before the lesson that builds it.',
     ])
   })
+  it('a track whose exercise feedback says a term before the lesson that builds it is told which lesson', () => {
+    const t = fullTrack()
+    t.levels[0].chapters[0].lessons[0] = lesson('a', { introduces: ['agent'], intro: 'An agent is a helper.' })
+    t.levels[0].chapters[1].lessons[0] = lesson('b', { exercise: { question: 'Q?', choices: ['x', 'y'], correctIndex: 0, reason: 'That was a skill.' } })
+    t.levels[0].chapters[1].lessons[1] = lesson('b2', { introduces: ['skill'], intro: 'A skill is one job.' })
+    expect(foundationGaps(t)).toContain('b, the exercise feedback, says "skill" before the lesson that builds it.')
+  })
+  it('a track whose end-of-track recap says a term the track never builds is told so', () => {
+    const t = fullTrack()
+    t.recap = [{ goodAt: 'Read', youDid: 'You ran an agentic loop.' }]
+    expect(foundationGaps(t)).toContain('Full, the end-of-track recap, says "agentic" before the lesson that builds it.')
+  })
+  it('an opening question that says a term before any lesson builds it is told', () => {
+    const card = OPENING_CARDS[0]; const was = card.line
+    try {
+      card.line = 'Build an agent.'
+      expect(foundationGaps(fullTrack())).toContain('The opening question says "agent" before the lesson that builds it.')
+    } finally { card.line = was }
+  })
   it('a track that builds the three terms out of order, or after chapter 3, is told which lesson', () => {
     const t = fullTrack()
     t.levels[0].chapters[0].lessons[0] = lesson('a', { introduces: ['skill'], intro: 'A skill is one job.' })

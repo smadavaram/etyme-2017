@@ -1,5 +1,6 @@
 import type { Track } from './types'
 import { lessonsOf } from './index'
+import { OPENING_QUESTION, OPENING_CARDS } from './opening'
 
 const PRICE = /(\$\s?\d|\busd\b|\bprice\b|\bcost\b|per seat|a seat|\bfee\b|\bcharge)/i
 
@@ -73,11 +74,12 @@ export const FOUNDATION_TERMS: readonly { term: string; said: RegExp }[] = [
 
 const lessonWords = (l: Track['levels'][number]['chapters'][number]['lessons'][number]): string =>
   [l.title, l.intro, l.example.text, l.tryIt.prompt, l.tryIt.starter, l.tryIt.expected, ...l.tryIt.rules.map((r) => r.says),
-    l.exercise.question, ...l.exercise.choices, l.exercise.reason].join('\n')
+    l.exercise.question, ...l.exercise.choices].join('\n')
 
 /**
  * Pure. Reads a track in the order a learner does (its title, what you will
- * be good at, then each level, chapter, lesson and project) and names every
+ * be good at, then each level, chapter, lesson with its exercise feedback
+ * and project, then the end-of-track recap, after the opening question) and names every
  * place one of the three terms is said before the lesson that builds it,
  * a term built out of order or outside the Simple level’s chapters 1 to 3,
  * and a term no lesson builds. A track with no lessons yet has nothing to say.
@@ -89,6 +91,8 @@ export function foundationGaps(t: Track): string[] {
   const read = (where: string, text: string) => {
     for (const f of FOUNDATION_TERMS) if (!built.has(f.term) && f.said.test(text)) gaps.push(`${where} says "${f.term}" before the lesson that builds it.`)
   }
+  // The learner meets the opening question first, before any track.
+  read('The opening question', [OPENING_QUESTION, ...OPENING_CARDS.flatMap((c) => [c.label, c.line])].join('\n'))
   read(`${t.title}, the track title,`, t.title)
   read(`${t.title}, "What you will be good at",`, t.goodAt.join('\n'))
   t.levels.forEach((lv, li) => {
@@ -107,10 +111,12 @@ export function foundationGaps(t: Track): string[] {
         const own = FOUNDATION_TERMS.filter((f) => builds.includes(f.term)).map((f) => f.term)
         own.forEach((o) => built.add(o))
         read(l.key, lessonWords(l))
+        read(`${l.key}, the exercise feedback,`, l.exercise.reason)
       }
     })
     read(`${lv.project.key}, the project,`, [lv.project.title, ...lv.project.checklist].join('\n'))
   })
+  read(`${t.title}, the end-of-track recap,`, (t.recap ?? []).flatMap((r) => [r.goodAt, r.youDid]).join('\n'))
   for (const f of FOUNDATION_TERMS) if (!built.has(f.term)) gaps.push(`${t.title}: no lesson builds "${f.term}".`)
   return gaps
 }
