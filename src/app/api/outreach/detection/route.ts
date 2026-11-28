@@ -15,7 +15,7 @@ import { CONTENT_LABELS, type ContentKind } from '@/lib/outreach/match-rules'
  * Advanced outreach, detection (record 135). Each firing is a row with its
  * reason. A push is a firing plus a matched segment and content; it sits in an
  * approved pack or waits as a card. Nothing here sends mail. The nightly job
- * (`/api/cron/outreach-detect`) is the architect's to add; this is its door by hand.
+ * (`/api/cron/outreach-detect`) runs it each night, before the outreach walker; this is its door by hand.
  */
 export async function GET(request: NextRequest) {
   const { seat, error } = await queueSeat(request)
