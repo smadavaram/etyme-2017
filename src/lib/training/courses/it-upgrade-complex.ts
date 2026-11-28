@@ -92,7 +92,7 @@ export const IT_UPGRADE_COMPLEX: Level = {
             text:
               'Tasks\n' +
               'Each asks for one yes. One yes releases the whole task; a new task asks again.\n\n' +
-              '  Priya Shah has not filed last week      Waiting for a yes from Mara Lindqvist\n' +
+              '  Milo Hart has not filed last week      Waiting for a yes from Maple Mart\n' +
               '  Daniel Okoro has not filed last week    Running, 1 sent',
           },
           tryIt: {
@@ -158,15 +158,15 @@ export const IT_UPGRADE_COMPLEX: Level = {
             text:
               'plan   send “Timesheet reminder”, then up to 2 retries\n' +
               'yes    one person approved the task\n' +
-              'act    the reminder is sent to Priya Shah\n' +
+              'act    the reminder is sent to Milo Hart\n' +
               'act    the task is closed when her week is filed',
           },
           tryIt: {
-            prompt: 'The agent sent a reminder to Priya. Write the act as one short line: what was done, and to whom.',
+            prompt: 'The agent sent a reminder to Milo. Write the act as one short line: what was done, and to whom.',
             starter: 'The agent ',
             rules: [
               { kind: 'containsAny', values: ['sent', 'reminded'], says: 'It says what was done.' },
-              { kind: 'contains', value: 'priya', says: 'It names who it was done to.' },
+              { kind: 'contains', value: 'milo', says: 'It names who it was done to.' },
               { kind: 'maxWords', value: 10, says: 'It is one short line.' },
             ],
             expected: 'One act, in words a person can read later.',
@@ -644,7 +644,7 @@ export const COMPLEX_TRY_SAMPLES: Record<string, { right: string; wrong: string 
   'it-3-7-1': { right: 'Drafts only', wrong: 'On' },
   'it-3-7-2': { right: '3', wrong: '1' },
   'it-3-7-3': { right: '3', wrong: '2' },
-  'it-3-7-4': { right: 'The agent sent a timesheet reminder to Priya.', wrong: 'The agent will think about it.' },
+  'it-3-7-4': { right: 'The agent sent a timesheet reminder to Milo.', wrong: 'The agent will think about it.' },
   'it-3-7-5': { right: 'FAIL', wrong: 'PASS' },
   'it-3-8-1': { right: 'Sends', wrong: 'Pays' },
   'it-3-8-2': { right: 'Needs approval', wrong: 'Acts alone' },

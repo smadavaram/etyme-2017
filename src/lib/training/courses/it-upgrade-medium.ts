@@ -429,14 +429,14 @@ export const IT_UPGRADE_MEDIUM: Level = {
           example: {
             mono: true,
             text:
-              'Typed     Why is Priya Shah’s invoice from Pinnacle Resourcing held?\n' +
+              'Typed     Why is Milo Hart’s invoice from Maple Mart held?\n' +
               'Sent      Why is PERSON_1’s invoice from FIRM_2 held?\n' +
               'Returned  FIRM_2’s invoice for PERSON_1 is held [ck4821ab].\n' +
-              'Shown     Pinnacle Resourcing’s invoice for Priya Shah is held [ck4821ab].',
+              'Shown     Maple Mart’s invoice for Milo Hart is held [ck4821ab].',
           },
           tryIt: {
-            prompt: 'Mask this line before it leaves: “Priya Shah bills through Pinnacle Resourcing.” Use PERSON_1 and FIRM_2.',
-            starter: 'Priya Shah bills through Pinnacle Resourcing.',
+            prompt: 'Mask this line before it leaves: “Milo Hart bills through Maple Mart.” Use PERSON_1 and FIRM_2.',
+            starter: 'Milo Hart bills through Maple Mart.',
             rules: [
               { kind: 'contains', value: 'PERSON_1', says: 'The person is a placeholder.' },
               { kind: 'contains', value: 'FIRM_2', says: 'The firm is a placeholder.' },
@@ -587,7 +587,7 @@ export const MEDIUM_TRY_SAMPLES: Record<string, { right: string; wrong: string }
   'it-2-5-4': { right: 'The invoice receipt is held; the hours differ [ck4821ab].', wrong: 'The invoice receipt is held [zz999999] for now.' },
   'it-2-5-5': { right: 'What is the weather tomorrow?', wrong: 'Which weeks are unsigned?' },
   'it-2-6-1': { right: 'NO_KEY', wrong: 'ON' },
-  'it-2-6-2': { right: 'PERSON_1 bills through FIRM_2.', wrong: 'PERSON_1 Shah bills through FIRM_2.' },
+  'it-2-6-2': { right: 'PERSON_1 bills through FIRM_2.', wrong: 'PERSON_1 Hart bills through FIRM_2.' },
   'it-2-6-3': { right: 'Etyme never shows a firm’s margin to anybody else; your dashboard shows what you pay.', wrong: 'The margin is eighteen percent.' },
   'it-2-6-4': { right: 'withheld', wrong: 'everything' },
   'it-2-6-5': { right: 'I cannot do that; ask the person whose job it is.', wrong: 'Done, the bill is sent.' },
@@ -617,8 +617,8 @@ export const MEDIUM_PICTURES: Record<string, { alt: string; svg: string }> = {
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 150" role="img">` +
       `<rect x="8" y="8" width="300" height="134" rx="12" fill="#FBFAF7" stroke="#E3DFD5"/>` +
       `<text x="24" y="32" ${BOX} font-weight="600">Inside your company</text>` +
-      `<text x="24" y="66" ${BOX}>Priya Shah · Pinnacle Resourcing</text>` +
-      `<text x="24" y="120" ${BOX}>Priya Shah · Pinnacle Resourcing</text>` +
+      `<text x="24" y="66" ${BOX}>Milo Hart · Maple Mart</text>` +
+      `<text x="24" y="120" ${BOX}>Milo Hart · Maple Mart</text>` +
       `<line x1="324" y1="8" x2="324" y2="142" stroke="#C0622E" stroke-dasharray="4 4"/>` +
       `<rect x="340" y="8" width="292" height="134" rx="12" fill="#E7E4DA" stroke="#E3DFD5"/>` +
       `<text x="356" y="32" ${BOX} font-weight="600">What the model reads</text>` +

@@ -4,7 +4,7 @@
  * transcript, source map or outside course on the door, the Learn section
  * or the course content: copy, code, comments, file names or test names.
  */
-import { describe, it, expect } from 'vitest'
+import { readdirSync, describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'fs'
 import { join, relative } from 'path'
 
@@ -64,6 +64,13 @@ describe('the door, the Learn section and the course content are Etyme’s own',
   it('the door and the Learn section name no example person, so the course’s own examples are the only ones a learner meets', () => {
     for (const f of DOOR_AND_LEARN) {
       expect(readFileSync(join(ROOT, f), 'utf8'), f).not.toMatch(/\b(Priya|Mara|Lindqvist|Pinnacle)\b/)
+    }
+  })
+
+  it('the course examples are Milo at Maple Mart, and no older example name is left in any course file', () => {
+    const dir = join(ROOT, 'src/lib/training/courses')
+    for (const f of readdirSync(dir)) {
+      expect(readFileSync(join(dir, f), 'utf8'), f).not.toMatch(/\b(Priya|Mara|Lindqvist|Pinnacle)\b/i)
     }
   })
 })
