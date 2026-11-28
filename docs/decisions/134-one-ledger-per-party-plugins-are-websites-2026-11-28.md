@@ -23,3 +23,15 @@ Relayed by Pax (architect).
   rates closed at every rung, a sub-vendor's name the prime's to keep, a
   client never sees a supplier's margin, before her yes a firm reads only
   what it typed, sensitive numbers masked.
+
+## Pax's answers, 2026-11-28
+
+- A supplier's seat confined to one team still reads all of that
+  supplier's own contract lines, because nothing links a supplier's
+  contract lines to its teams. Accepted for now; no narrowing rule is
+  guessed. Open item.
+- The Ledger tab lives on the person and company record pages. It is not
+  added to the people list page or the worker's own page without a
+  separate decision.
+- Project teams and proposals move to their own plugin sites, as training
+  did; the core keeps doors only.
