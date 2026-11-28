@@ -113,3 +113,21 @@ Tapin training is paused. The home page's Learn block and its lead capture
 (the question, the track, an email) still go ahead: the door runs ahead of
 the course. The course overview page on the training site is held until the
 pause lifts.
+
+## The free training door is etyme.com/start (owner's ruling, relayed by Pax, 2026-11-28)
+
+- The free course's door is Etyme's own /start: "AI from Zero in 3 Hours",
+  FREE stated plainly, a grid of topic tiles (LLMs, Agents, MCP, RAG + Data,
+  Training, Compute, Cloud, Cost, Performance, Deploy with the sub-line
+  "Docker · Kubernetes"), the "What are you?" entry and live lead capture.
+  Light, warm house style, never a dark look. The Tapin home page is the
+  other team's; its Learn section links to /start.
+- Every tile maps to lessons in the architect's source map
+  (content-map-full.md, 33 lessons); no invented topics.
+- Door labels are Worker, Recruiter, Fresher and Kid; the four tracks keep
+  their names. Kid → Kids/student; Fresher → Entry Level; Worker → Non-IT,
+  with a visible "I work in IT" switch to IT — Upgrade; Recruiter → Entry
+  Level.
+- A door carries an entry or a link, never a claim that Tapin sells
+  training. The "project or team, never pod" wording rule governs client
+  documents, not a home page offer line.

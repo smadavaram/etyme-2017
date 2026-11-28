@@ -53,3 +53,12 @@ statements, and nothing else.
 
 It is built after the pricing build, on the Saturday cadence. It passes
 its own plan gate first.
+
+## Pax's rulings, 2026-11-28
+
+- Etyme's own affiliate records live on Etyme's own tenant record, tenant
+  #0: Etyme is its own first tenant.
+- A firm counts as active when its trial clock starts, that is when it
+  begins running its own business on the record (the batch A rule).
+  Commission still pays only on paid receipts.
+- Payouts stay gated until the owner rules the money questions.
