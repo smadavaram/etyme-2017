@@ -1,0 +1,46 @@
+/* The free training door's own look: light and warm, white cards, soft tinted
+   panels, ink-navy and teal. Sora for headings, Manrope for text. */
+.page { --ink: #14213d; --teal: #0e8a8a; --teal-soft: #e4f3f1; --warm: #fbf7ef; --line: #e8e1d3;
+  min-height: 100vh; background: var(--warm); color: var(--ink);
+  font-family: Manrope, system-ui, sans-serif; line-height: 1.55; }
+.top { max-width: 68rem; margin: 0 auto; padding: 1.25rem 1.25rem 0; }
+.brand { font-family: Sora, system-ui, sans-serif; font-weight: 700; color: var(--ink); text-decoration: none; }
+.hero, .section { max-width: 68rem; margin: 0 auto; padding: 2.5rem 1.25rem; }
+.eyebrow { color: var(--teal); font-weight: 700; font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; margin: 0 0 .5rem; }
+.h1 { font-family: Sora, system-ui, sans-serif; font-weight: 700; font-size: clamp(2rem, 7vw, 3.5rem); line-height: 1.1; margin: 0 0 .75rem; }
+.free { display: inline-block; background: var(--teal); color: #fff; font-weight: 700; padding: .15rem .8rem; border-radius: 999px; margin: 0 0 .75rem; }
+.promise { font-size: 1.25rem; font-weight: 600; margin: 0 0 .5rem; max-width: 36rem; }
+.paused { background: var(--teal-soft); border-radius: 12px; padding: .75rem 1rem; max-width: 36rem; margin: 0 0 1.5rem; }
+.h2 { font-family: Sora, system-ui, sans-serif; font-size: 1.5rem; margin: 0 0 1.25rem; }
+.grid { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
+.tile { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem;
+  box-shadow: 0 1px 2px rgba(20, 33, 61, .05), 0 8px 24px rgba(20, 33, 61, .06); }
+.icon { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 12px; background: var(--teal-soft); color: var(--teal); margin-bottom: .6rem; }
+.tileName { font-family: Sora, system-ui, sans-serif; font-size: 1.05rem; margin: 0; }
+.tileSub { color: var(--teal); font-weight: 600; font-size: .85rem; margin: .15rem 0 0; }
+.tileGloss { color: #4a5568; font-size: .92rem; margin: .35rem 0 0; }
+.panel { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 1.5rem; max-width: 34rem;
+  box-shadow: 0 1px 2px rgba(20, 33, 61, .05), 0 12px 32px rgba(20, 33, 61, .08); display: flex; flex-direction: column; gap: .75rem; }
+.h3 { font-family: Sora, system-ui, sans-serif; font-size: 1.3rem; margin: 0; padding: 0; }
+.p { margin: 0; }
+.small { margin: 0; font-size: .88rem; color: #4a5568; }
+.answers { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.answer { text-align: left; background: var(--warm); border: 1.5px solid var(--line); border-radius: 14px; padding: .9rem 1rem; cursor: pointer; font: inherit; color: inherit; min-height: 3rem; transition: border-color .15s, transform .15s; }
+.answer:hover, .answer:focus-visible { border-color: var(--teal); transform: translateY(-1px); }
+.answerName { display: block; font-family: Sora, system-ui, sans-serif; font-weight: 600; }
+.answerLine { display: block; font-size: .9rem; color: #4a5568; }
+.label { font-weight: 600; }
+.input { font: inherit; padding: .75rem .9rem; border: 1.5px solid var(--line); border-radius: 12px; min-height: 3rem; }
+.input:focus-visible, .primary:focus-visible, .link:focus-visible, .answer:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.check { display: flex; gap: .6rem; align-items: flex-start; }
+.check input { margin-top: .3rem; width: 1.1rem; height: 1.1rem; accent-color: var(--teal); }
+.primary { display: inline-block; text-align: center; background: var(--ink); color: #fff; border: 0; border-radius: 999px; padding: .85rem 1.5rem; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; min-height: 3rem; }
+.primary:disabled { opacity: .6; cursor: default; }
+.link { background: none; border: 0; color: var(--teal); font: inherit; text-decoration: underline; cursor: pointer; padding: .25rem; }
+.said { margin: 0; color: #9b2c2c; }
+.trap { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.foot { max-width: 68rem; margin: 0 auto; padding: 2rem 1.25rem; display: flex; gap: 1.25rem; font-size: .9rem; }
+.foot a { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .answer { transition: none; } .answer:hover { transform: none; } }
+.panel legend { float: left; width: 100%; }
+.tileSub { white-space: nowrap; }
