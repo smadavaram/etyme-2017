@@ -9,6 +9,7 @@ import { PageHead, Panel, ErrorState, LoadingState } from '@/components/ui'
 import { LedgerRows } from '@/components/ui/ledger-rows'
 import { QUEUE_EYEBROW_HREFS } from '@/lib/decision-queue'
 import { formatDay } from '@/lib/format-date'
+import { PartyLedgerTab } from '@/components/party-ledger-tab'
 
 /**
  * The record view (record 107, A6): one record on the firm's book, a link
@@ -35,6 +36,9 @@ export default function RecordViewPage() {
   const { type, id } = useParams<{ type: string; id: string }>()
   const [data, setData] = useState<Data | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [tab, setTab] = useState<'history' | 'ledger'>('history')
+  // A person or a company has a party ledger (record 134); every other record is its own history only.
+  const hasLedger = type === 'Person' || type === 'Company'
 
   useEffect(() => {
     fetch(`/api/records/${encodeURIComponent(type)}/${encodeURIComponent(id)}`).then((r) => readJson(r))
@@ -62,6 +66,13 @@ export default function RecordViewPage() {
           </Panel>
         </div>
       )}
+      {hasLedger && (
+        <div className="mb-4 flex gap-2" role="tablist">
+          <button type="button" role="tab" aria-selected={tab === 'history'} onClick={() => setTab('history')} className={tab === 'history' ? 'btn-secondary text-[13px]' : 'text-[13px] text-etyme-muted'}>History</button>
+          <button type="button" role="tab" aria-selected={tab === 'ledger'} onClick={() => setTab('ledger')} className={tab === 'ledger' ? 'btn-secondary text-[13px]' : 'text-[13px] text-etyme-muted'}>Ledger</button>
+        </div>
+      )}
+      {hasLedger && tab === 'ledger' ? <PartyLedgerTab kind={type === 'Person' ? 'person' : 'company'} id={id} /> : (
       <Panel title="History" subtitle="Every act on this record through the ledger, oldest first.">
         {data.timeline.length === 0 ? (
           <p className="text-[13px] text-etyme-muted py-2">{data.emptySays}</p>
@@ -69,6 +80,7 @@ export default function RecordViewPage() {
           <LedgerRows rows={data.timeline.map((r) => ({ id: r.id, at: r.at, summary: r.summary, entityName: r.entityName, by: r.by, heldAs: r.heldAs }))} />
         )}
       </Panel>
+      )}
     </>
   )
 }

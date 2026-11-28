@@ -654,6 +654,8 @@ export const DOMAINS: Domain[] = [
       // the open list, an item and its three acts, agent control and the
       // firm's ledger, and one record with its whole history.
       'lib/decision-queue', 'app/api/decision-items', 'app/api/records', 'app/dashboard/records',
+      // The party's one ledger (record 134): a reader over the record, its door, and the tab that draws it.
+      'lib/party-ledger', 'app/api/party-ledger',
       // The money loop's routes and screens (Flow B, B2 to B6): the
       // consultants page, a placement's month, a month for everybody with
       // its payroll summary, and the words all three share. The chain's

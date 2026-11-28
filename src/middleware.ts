@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { appUrl } from '@/lib/app-url'
+import { sessionMicroSites } from '@/lib/plugin-registry'
 import { MAP_COOKIE, keyOpens } from '@/lib/map-gate'
 import {
   EMBED_FRAME_HEADERS, SAMPLE_COOKIE, SAMPLE_COOKIE_VALUE, SAMPLE_COOKIE_PATHS, SAMPLE_COOKIE_SECONDS,
@@ -119,7 +120,17 @@ function embedResponse(request: NextRequest, res: NextResponse): NextResponse {
 const APP_PATHS = ['/dashboard', '/login', '/signup', '/start', '/verify', '/reset', '/welcome']
 
 function isAppPath(path: string): boolean {
-  return APP_PATHS.some((p) => path === p || path.startsWith(`${p}/`))
+  return APP_PATHS.some((p) => path === p || path.startsWith(`${p}/`)) || isMicroSitePath(path)
+}
+
+/**
+ * A plugin's signed-in micro-site (record 134). The session cookie is
+ * host-only and is never widened to a parent domain, so a firm's own
+ * address, or a custom domain, sends the micro-site to the platform's host
+ * rather than asking for a second sign-in.
+ */
+function isMicroSitePath(path: string): boolean {
+  return sessionMicroSites().some((p) => path === p || path.startsWith(`${p}/`))
 }
 
 /** How long the edge waits for the page's verdict before it serves the home page. */
@@ -193,7 +204,7 @@ export async function middleware(request: NextRequest) {
   // (lib/app-url, NEXTAUTH_URL), never the request's own host, so a
   // person lands on the host their session cookie lives on, in one hop
   // (fault 4, 2026-11-12).
-  if (kind === 'SUBDOMAIN' && isAppPath(path)) {
+  if ((kind === 'SUBDOMAIN' && isAppPath(path)) || (kind === 'CUSTOM' && isMicroSitePath(path))) {
     return NextResponse.redirect(new URL(`${path}${request.nextUrl.search}`, appUrl()))
   }
 

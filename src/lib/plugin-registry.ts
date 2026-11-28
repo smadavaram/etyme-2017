@@ -168,6 +168,30 @@ export function declOf(key: string): PluginDecl | null {
 }
 
 /** The plugin an agent belongs to, or null where it belongs to none. */
+/**
+ * Where a plugin line in the core ledger points (record 134). The core
+ * reaches a plugin only by a link declared here: the micro-site root where
+ * the plugin has one, else its declared door. `tail` is a path under the
+ * micro-site, never a query that carries a person.
+ */
+export function pluginHref(key: PluginKey, tail = ''): string {
+  const d = declOf(key)
+  if (!d) throw new Error(`${key} is not a declared plugin.`)
+  return d.microSite ? `${d.microSite}${tail}` : d.doors[0]
+}
+
+/** Micro-sites that are a firm's public storefront and so are served on its own address with no session. */
+export const PUBLIC_MICRO_SITES: readonly PluginKey[] = ['WEBSITE']
+
+/**
+ * The micro-site roots a signed-in person uses. On a firm's own address
+ * these are sent to the platform's host, where the one session cookie
+ * lives, so a plugin never asks for a second sign-in (record 134).
+ */
+export function sessionMicroSites(): string[] {
+  return PLUGIN_REGISTRY.filter((p) => p.microSite && !PUBLIC_MICRO_SITES.includes(p.key)).map((p) => p.microSite as string)
+}
+
 export function pluginOfAgent(agentKey: string): PluginDecl | null {
   return PLUGIN_REGISTRY.find((p) => p.agents.includes(agentKey)) ?? null
 }
