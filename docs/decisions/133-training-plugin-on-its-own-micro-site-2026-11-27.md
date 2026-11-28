@@ -131,3 +131,16 @@ pause lifts.
 - A door carries an entry or a link, never a claim that Tapin sells
   training. The "project or team, never pod" wording rule governs client
   documents, not a home page offer line.
+
+## The /start Learn section's visual standard (owner-approved, relayed by Pax, 2026-11-28)
+
+The animation file start-learn-section-animation-2026-11-28.html in the
+architect's source pack is the visual standard for the /start Learn
+section. It is drawn in Etyme's own brand kit: cream canvas, serif
+headings, Inter, violet, orange and green washes, 12px corners. This
+replaces the earlier navy, teal, Sora and Manrope direction for /start.
+The pattern: the headline; a progress line that draws across; the ten
+topic tiles lighting one by one as the line reaches them; ending on
+"Course complete — on your record" and "Join the bench". It plays once
+when the section scrolls into view, never loops, is fully off under
+reduced motion, and never shifts the layout.
