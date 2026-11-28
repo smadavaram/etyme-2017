@@ -53,3 +53,44 @@ $$;
 -- triggers above are the guard and this is the second line.
 REVOKE UPDATE, DELETE, TRUNCATE ON "SecurityEvent" FROM PUBLIC;
 REVOKE UPDATE, DELETE, TRUNCATE ON "SecurityEvent" FROM CURRENT_USER;
+
+-- The affiliate ledger is append-only too (record 129, 2026-11-28): who
+-- referred a tenant, the receipts a tenant paid, the commission earned and
+-- clawed back, and each month's statement. A correction is a new row with
+-- a reason, never an edit. Same pattern as the security log: one function,
+-- and for each table a row trigger and a truncate trigger, each created
+-- only where missing.
+
+CREATE OR REPLACE FUNCTION etyme_affiliate_ledger_refuses_change() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'The affiliate ledger is append-only: a correction is a new row with a reason, never a change, a delete or an empty.'
+    USING ERRCODE = 'insufficient_privilege';
+END;
+$$;
+
+DO $$
+DECLARE
+  t text;
+  s text;
+BEGIN
+  FOR t, s IN VALUES
+    ('AffiliateAttribution', 'affiliate_attribution'),
+    ('AffiliateAttributionCorrection', 'affiliate_attribution_correction'),
+    ('SubscriptionReceipt', 'subscription_receipt'),
+    ('SubscriptionReceiptReversal', 'subscription_receipt_reversal'),
+    ('AffiliateCommissionEntry', 'affiliate_commission_entry'),
+    ('AffiliateStatement', 'affiliate_statement')
+  LOOP
+    IF (SELECT count(*) FROM pg_trigger WHERE tgrelid = format('%I', t)::regclass AND tgname = s || '_never_changed') = 0 THEN
+      EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION etyme_affiliate_ledger_refuses_change()', s || '_never_changed', t);
+    END IF;
+    IF (SELECT count(*) FROM pg_trigger WHERE tgrelid = format('%I', t)::regclass AND tgname = s || '_never_emptied') = 0 THEN
+      EXECUTE format('CREATE TRIGGER %I BEFORE TRUNCATE ON %I FOR EACH STATEMENT EXECUTE FUNCTION etyme_affiliate_ledger_refuses_change()', s || '_never_emptied', t);
+    END IF;
+  END LOOP;
+END
+$$;
+
+REVOKE UPDATE, DELETE, TRUNCATE ON "AffiliateAttribution", "AffiliateAttributionCorrection", "SubscriptionReceipt", "SubscriptionReceiptReversal", "AffiliateCommissionEntry", "AffiliateStatement" FROM PUBLIC;
+REVOKE UPDATE, DELETE, TRUNCATE ON "AffiliateAttribution", "AffiliateAttributionCorrection", "SubscriptionReceipt", "SubscriptionReceiptReversal", "AffiliateCommissionEntry", "AffiliateStatement" FROM CURRENT_USER;

@@ -259,6 +259,16 @@ const RUNTIME: Record<string, string> = {
  * test fails if you do not.
  */
 const GAP: Record<string, string> = {
+  // Affiliates (record 129, row L3.2.2.37): the tables landed 2026-11-28 and no writer or screen exists yet. The seed owes a demo affiliate and a paid receipt once a screen shows them; the rebuild keeps these tables, so a seeded row needs a world-scoped way out first
+  affiliate: 'affiliate ledger table, no writer or screen yet (L3.2.2.37)',
+  affiliateAttribution: 'affiliate ledger table, no writer or screen yet (L3.2.2.37)',
+  affiliateAttributionCorrection: 'affiliate ledger table, no writer or screen yet (L3.2.2.37)',
+  subscriptionReceipt: 'affiliate ledger table, no writer or screen yet (L3.2.2.37)',
+  subscriptionReceiptReversal: 'affiliate ledger table, no writer or screen yet (L3.2.2.37)',
+  affiliateCommissionEntry: 'affiliate ledger table, no writer or screen yet (L3.2.2.37)',
+  affiliateStatement: 'affiliate ledger table, no writer or screen yet (L3.2.2.37)',
+  affiliatePayoutBatch: 'affiliate ledger table, no writer or screen yet (L3.2.2.37)',
+  affiliatePayoutItem: 'affiliate ledger table, no writer or screen yet (L3.2.2.37)',
   // L1.1 Source to contract
   marketingLead: 'nobody has enquired from the public site — and this table is not tenanted, so a seeded enquiry would be a fictional name in the founder\u2019s own sales funnel',
   sourcedContact: 'sourcing at volume has no history; it arrives by import, and an import is a real file somebody loaded',

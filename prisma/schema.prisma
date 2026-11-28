@@ -12440,3 +12440,221 @@ model OutreachVisit {
   @@index([personId])
   @@index([contactId])
 }
+
+// ── Affiliates (record 129, locked terms 127) ─────────────────────────
+// Etyme's own channel program, on Etyme's own record, never a tenant
+// plugin. An affiliate only refers, and earns on subscription receipts a
+// tenant actually paid. Nothing here names a sell line, a buy line, a
+// margin or a placement: placement is a separate engine.
+//
+// None of these tables has a foreign key, and all are KEPT by the demo
+// rebuild, the way SecurityEvent is: a row that outlives what it mentions
+// is the point of a ledger. The tables marked append-only are guarded by
+// triggers in prisma/sql/append-only.sql, so a correction is a new row.
+
+enum AffiliateKind {
+  PERSON
+  COMPANY
+}
+
+enum AffiliateStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum ReceiptReversalKind {
+  REFUND
+  CHARGEBACK
+}
+
+enum AffiliateCommissionKind {
+  EARNED
+  CLAWBACK
+}
+
+enum AffiliatePayoutStatus {
+  DRAFT
+  APPROVED
+  FILE_ISSUED
+  CONFIRMED
+}
+
+/// The registry: a person or a company that refers. Payout details are sensitive: the account number is sealed, only the bank, the account name and four digits are kept in the clear, and every reveal is a SecurityEvent.
+model Affiliate {
+  id                String          @id @default(cuid())
+  kind              AffiliateKind
+  name              String
+  contactEmail      String
+  /// Its own code; the referral link carries it.
+  code              String          @unique
+  status            AffiliateStatus @default(ACTIVE)
+  /// The affiliate's own sign-in (a person-level account, no company seat). Null until it signs in.
+  accountPersonId   String?
+  /// Where an affiliate is a company already on Etyme: the self-referral rule reads it.
+  ownCompanyId      String?
+  payoutBankName    String?
+  payoutAccountName String?
+  payoutLast4       String?
+  /// The sealed account number (lib/sensitive); never in a reply, a log or a file.
+  payoutSealed      String?
+  createdByPersonId String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([accountPersonId])
+  @@index([ownCompanyId])
+  @@index([status])
+}
+
+/// Who referred a tenant, written once at activation (append-only). A null affiliate is the house's. A correction is a row in AffiliateAttributionCorrection, never an edit.
+model AffiliateAttribution {
+  id                 String   @id @default(cuid())
+  tenantCompanyId    String   @unique
+  /// Null: the tenant belongs to the house.
+  affiliateId        String?
+  /// CODE, LINK, STAFF or HOUSE.
+  source             String
+  activatedAt        DateTime
+  recordedByPersonId String
+  createdAt          DateTime @default(now())
+
+  @@index([affiliateId])
+}
+
+/// A reversal of an attribution by the Owner of Etyme's record, with a reason. The latest row for a tenant says who it belongs to. Append-only.
+model AffiliateAttributionCorrection {
+  id                  String   @id @default(cuid())
+  attributionId       String
+  tenantCompanyId     String
+  fromAffiliateId     String?
+  /// Null: back to the house.
+  toAffiliateId       String?
+  reason              String
+  correctedByPersonId String
+  createdAt           DateTime @default(now())
+
+  @@index([attributionId])
+  @@index([tenantCompanyId, createdAt])
+  @@index([toAffiliateId])
+}
+
+/// A subscription invoice a tenant actually paid: the charges per contractor plus the platform fee, in integer cents. Usage and consulting are never on it. Marked paid by the Owner or Etyme staff with a reason; the same writer sets Company.paidThrough. Append-only; a refund is a SubscriptionReceiptReversal.
+model SubscriptionReceipt {
+  id               String   @id @default(cuid())
+  tenantCompanyId  String
+  periodStart      DateTime
+  periodEnd        DateTime
+  contractorCents  Int
+  platformFeeCents Int
+  currency         String   @default("USD")
+  paidAt           DateTime
+  /// The bank's or the card's reference, as typed.
+  reference        String?
+  reason           String
+  markedByPersonId String
+  createdAt        DateTime @default(now())
+
+  @@unique([tenantCompanyId, periodStart])
+  @@index([tenantCompanyId, paidAt])
+}
+
+/// A refund or chargeback against a receipt, amounts positive. Append-only.
+model SubscriptionReceiptReversal {
+  id               String              @id @default(cuid())
+  receiptId        String
+  tenantCompanyId  String
+  kind             ReceiptReversalKind
+  contractorCents  Int
+  platformFeeCents Int
+  reason           String
+  reversedAt       DateTime
+  markedByPersonId String
+  createdAt        DateTime            @default(now())
+
+  @@index([receiptId])
+  @@index([tenantCompanyId, reversedAt])
+}
+
+/// Commission accrual: one signed row per receipt (EARNED) or reversal (CLAWBACK, negative). sourceKey makes a duplicate impossible. Append-only.
+model AffiliateCommissionEntry {
+  id                  String                  @id @default(cuid())
+  affiliateId         String
+  attributionId       String
+  tenantCompanyId     String
+  kind                AffiliateCommissionKind
+  /// receipt:<id> or reversal:<id>.
+  sourceKey           String                  @unique
+  receiptId           String
+  reversalId          String?
+  /// Signed: the subscription cents the rate applied to.
+  basisCents          Int
+  /// 4000 for months 1 to 12 from activation, 2000 after.
+  rateBp              Int
+  /// Signed: negative for a clawback.
+  commissionCents     Int
+  monthFromActivation Int
+  /// YYYY-MM, the statement it falls in.
+  statementMonth      String
+  createdAt           DateTime                @default(now())
+
+  @@index([affiliateId, statementMonth])
+  @@index([attributionId])
+  @@index([tenantCompanyId])
+  @@index([receiptId])
+}
+
+/// One affiliate's month, made from the ledger entries. A negative balance is carried to the next month. Append-only.
+model AffiliateStatement {
+  id              String   @id @default(cuid())
+  affiliateId     String
+  /// YYYY-MM.
+  month           String
+  earnedCents     Int
+  clawedBackCents Int
+  carriedInCents  Int
+  netCents        Int
+  entryCount      Int
+  createdAt       DateTime @default(now())
+
+  @@unique([affiliateId, month])
+}
+
+/// A payout is a file for the client's own bank, never a payment. It waits for a verified Owner and a fresh second check.
+model AffiliatePayoutBatch {
+  id                 String                @id @default(cuid())
+  month              String
+  status             AffiliatePayoutStatus @default(DRAFT)
+  totalCents         Int
+  fileHash           String?
+  approvedByPersonId String?
+  /// The SecurityEvent that recorded the fresh second check.
+  secondCheckEventId String?
+  fileIssuedAt       DateTime?
+  createdByPersonId  String
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@index([month])
+  @@index([status])
+}
+
+model AffiliatePayoutItem {
+  id             String    @id @default(cuid())
+  batchId        String
+  affiliateId    String
+  /// One statement is paid once.
+  statementId    String    @unique
+  amountCents    Int
+  bankName       String?
+  accountName    String?
+  last4          String?
+  reference      String
+  /// Filled by the confirmation, blank in the file.
+  paidOn         DateTime?
+  payerReference String?
+  createdAt      DateTime  @default(now())
+
+  @@unique([batchId, affiliateId])
+  @@index([affiliateId])
+}
