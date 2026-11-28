@@ -67,6 +67,8 @@ export interface LetterInput {
   attempt?: number
   /** A letter to one contact the firm chose to write to: it sells nothing, so it carries no "I'm interested" link. */
   direct?: boolean
+  /** A pack's tracked link to the page the letter is about (record 135); null where the letter has none. */
+  pageUrl?: string | null
 }
 
 /** The letter: plain text, the person's words in the middle, the honest parts around them. Pure. */
@@ -81,6 +83,7 @@ export function buildLetter(i: LetterInput): { subject: string; text: string } {
         : `You are getting this because ${i.firm} has your name in its own records as a contact at ${i.companyName}.`,
       i.body.trim(),
       i.direct ? null : `If this is of interest, tell us here: ${i.interestedUrl ?? INTERESTED_PLACEHOLDER}`,
+      i.pageUrl ? `The page this is about: ${i.pageUrl}` : null,
       i.storefrontUrl ? `More about ${i.firm}: ${i.storefrontUrl}` : null,
       `${i.firm}\n${i.postal}`,
       `Do not want letters like this from ${i.firm}? Unsubscribe here, no sign-in needed: ${i.unsubscribeUrl ?? UNSUBSCRIBE_PLACEHOLDER}\nThis stops letters like this only. Messages about work already agreed, such as timesheets and bills, still reach you.`,

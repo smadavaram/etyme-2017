@@ -26,6 +26,9 @@ import { sendMail, mailSendsAboutMany } from '@/lib/notify/mail-door'
 import { unsubscribeUrlFor } from '@/lib/notify/outreach-optout'
 import { stopUpdatesUrlFor } from '@/lib/notify/updates-links'
 import { saidYesToUpdates } from '@/lib/updates-consent'
+import { isOn } from '@/lib/plugins'
+import { OUTREACH_PACK_KIND } from '@/lib/outreach/pack-rules'
+import { trackedUrlFor } from '@/lib/outreach/visit'
 import { CANDIDATE_SIDE, buildCandidateLetter } from '@/lib/outreach/candidate-rules'
 import { DIRECT_SIDE } from '@/lib/outreach/direct-rules'
 import { interestedUrlFor } from '@/lib/notify/outreach-interest'
@@ -53,10 +56,10 @@ export async function walkOutreachBatches(ctx: AgentContext, deps: { send?: type
   const send = deps.send ?? sendMail
   const { companyId, now } = ctx
   const tasks = await prisma.agentTask.findMany({
-    where: { companyId, agentKey: ctx.agentKey, kind: OUTREACH_BATCH_KIND, state: { in: [...OPEN] } }, orderBy: { createdAt: 'asc' },
+    where: { companyId, agentKey: ctx.agentKey, kind: { in: [OUTREACH_BATCH_KIND, OUTREACH_PACK_KIND] }, state: { in: [...OPEN] } }, orderBy: { createdAt: 'asc' },
   })
   if (tasks.length === 0) return
-  const firm = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true, slug: true } })
+  const firm = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true, slug: true, pluginsOn: true } })
   const postal = await postalOf(companyId)
   for (const t0 of tasks) {
     const { task } = await approvalOf(t0.id)
@@ -65,12 +68,14 @@ export async function walkOutreachBatches(ctx: AgentContext, deps: { send?: type
     if (await outreachPause(task)) continue // Outreach is off: the batch waits under its yes (record 123, answer 5)
     const block = batchBlock({ postal, base: baseUrl() })
     if (block || !postal || !firm) { await closeTask(task.id, `${block?.says ?? 'The firm has no postal address on record.'} Nothing more is sent.`, 'STOPPED'); continue }
-    const payload = (task.payload ?? {}) as { subject?: string; body?: string; side?: string }
+    const payload = (task.payload ?? {}) as { subject?: string; body?: string; side?: string; pack?: boolean; letterContent?: Record<string, { subject: string; body: string; page: { pageKind: 'COURSE' | 'POD'; pageRef: string; path: string } | null }> }
+    // A pack's letters are advanced outreach (record 135): every one of them waits while the firm's Outreach is off, a candidate's too.
+    if (payload.pack && !isOn(firm.pluginsOn, 'OUTREACH')) continue
     const candidates = payload.side === CANDIDATE_SIDE
     const direct = payload.side === DIRECT_SIDE
     // Basic outreach (record 135) goes under its own template; only a selling batch carries the batch's.
     const template = candidates ? CANDIDATE_UPDATE_TEMPLATE : direct ? DIRECT_LETTER_TEMPLATE : OUTREACH_BATCH_TEMPLATE
-    if (!payload.subject || !payload.body) { await closeTask(task.id, 'The batch has no letter written down, so nothing is sent.', 'STOPPED'); continue }
+    if (!payload.pack && (!payload.subject || !payload.body)) { await closeTask(task.id, 'The batch has no letter written down, so nothing is sent.', 'STOPPED'); continue }
     let storefront: string | null = null
     try { storefront = (await publicSite(firm.slug)) ? `${baseUrl()}/site/${firm.slug}` : null } catch { storefront = null }
 
@@ -109,11 +114,15 @@ export async function walkOutreachBatches(ctx: AgentContext, deps: { send?: type
       const may = await mayAgentSend(task.id, { companyId, agentKey: ctx.agentKey, recordType: OUTREACH_LETTER_TYPE, recordId: l.id, template, attempt: l.attempt + 1 })
       if (!may.ok) break
       if (!(await ctx.mayAct(1))) return // the letter and its row are one unit; the rest wait for the next run
+      // A pack's letter says what its own push drafted; a letter with no words on record is not sent.
+      const words = payload.pack ? payload.letterContent?.[l.id] : { subject: payload.subject!, body: payload.body!, page: null }
+      if (!words) { await stop('NOT_SENT'); continue }
+      const pageUrl = words.page ? trackedUrlFor(l.id, words.page) : null
       const letter = candidates
-        ? buildCandidateLetter({ firm: firm.name, postal, recipientName: c!.name, subject: payload.subject, body: payload.body, stopUrl: stopUpdatesUrlFor(l.contactId), storefrontUrl: storefront })
+        ? buildCandidateLetter({ firm: firm.name, postal, recipientName: c!.name, subject: words.subject, body: words.body, stopUrl: stopUpdatesUrlFor(l.contactId), storefrontUrl: storefront, pageUrl })
         : buildLetter({
-          firm: firm.name, postal, recipientName: c!.name, companyName: names.get(l.atCompanyId) ?? 'your company', subject: payload.subject, body: payload.body,
-          unsubscribeUrl: unsubscribeUrlFor(l.contactId), interestedUrl: direct ? null : interestedUrlFor(l.id), storefrontUrl: storefront, attempt: l.attempt + 1, direct,
+          firm: firm.name, postal, recipientName: c!.name, companyName: names.get(l.atCompanyId) ?? 'your company', subject: words.subject, body: words.body,
+          unsubscribeUrl: unsubscribeUrlFor(l.contactId), interestedUrl: direct ? null : interestedUrlFor(l.id), storefrontUrl: storefront, attempt: l.attempt + 1, direct, pageUrl,
         })
       // Claim the letter first, so two runs at once can never both send it: only the run whose claim moves it sends.
       const claimed = await prisma.outreachLetter.updateMany({ where: { id: l.id, state: l.state, attempt: l.attempt }, data: { attempt: l.attempt + 1, nextDueAt: null } })
@@ -142,6 +151,8 @@ export async function walkOutreachBatches(ctx: AgentContext, deps: { send?: type
       l.state = next.state; l.attempt = next.attempt; l.nextDueAt = next.nextDueAt
     }
 
+    // A pack stays open for the letters its pushes add; a person closes it, or the task ends with its last yes.
+    if (payload.pack) continue
     const fresh = await prisma.outreachLetter.findMany({ where: { agentTaskId: task.id }, select: { state: true, attempt: true, nextDueAt: true } })
     // A candidate's or a direct letter is never sent again, so it is open only until it has gone.
     if (!fresh.some((l) => (candidates || direct ? l.state === 'READY' : letterOpen(l)))) await closeTask(task.id, 'Every letter has gone, been answered or been stopped. Anything more is a new batch and asks again.', 'DONE')

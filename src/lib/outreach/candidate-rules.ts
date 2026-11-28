@@ -88,6 +88,8 @@ export interface CandidateLetterInput {
   /** Null on the card, where a placeholder stands for the link. */
   stopUrl: string | null
   storefrontUrl: string | null
+  /** A pack's tracked link to the page the letter is about (record 135); null where the letter has none. */
+  pageUrl?: string | null
 }
 
 /** The letter: plain text, no tracking, no interested link. It says who sends it, why she got it and how to stop all of it. */
@@ -98,6 +100,7 @@ export function buildCandidateLetter(i: CandidateLetterInput): { subject: string
       hello(i.recipientName),
       `You are getting this because you said yes to updates, and ${i.firm} keeps you on its list of candidates.`,
       i.body.trim(),
+      i.pageUrl ? `The page this is about: ${i.pageUrl}` : null,
       i.storefrontUrl ? `More about ${i.firm}: ${i.storefrontUrl}` : null,
       `${i.firm}\n${i.postal}`,
       `Do not want updates? Stop them here, no sign-in needed: ${i.stopUrl ?? STOP_UPDATES_PLACEHOLDER}\nThis ends updates from every firm until you say yes again. Messages about work already agreed, such as timesheets, still reach you.`,
