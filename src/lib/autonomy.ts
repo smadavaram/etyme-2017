@@ -194,6 +194,16 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'A visitor\u2019s demo sandbox has not been used for twenty-three days, so whoever left an address in it was told the day it goes and that opening it keeps it. It deletes nothing.',
   },
+  COURSE_DOOR_CONFIRMATION: {
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Somebody ticked the yes at the free course door, so the one confirmation email was sent to that address, with the link that ends it. One per address, ever, and a sent email cannot be put back.',
+  },
+  COURSE_DOOR_CONFIRMATION_FAILED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'The one confirmation email for the free course door did not leave, so Etyme\u2019s staff were told. It is not tried again, so a failing sender cannot send twice.',
+  },
   DEMO_SANDBOX_REMOVED: {
     rung: 'L5',
     basis: 'RULE',
@@ -654,6 +664,12 @@ ATTRIBUTED.POD_SOLD = { basis: 'RULE' }
 // The training door (record 133). An Owner turned the learner's place in
 // the cohort on or off, and a learner pressed share on her own badge.
 // Both are a person's own click, recorded; nothing here is the system's.
+// The free course door (docs/course-door-lead-contract.md). A visitor ticked
+// the yes and sent the form, and later opened the link that ends it: each a
+// visitor's own act, recorded. The confirmation email between them is the
+// system's own and is above.
+ATTRIBUTED.COURSE_DOOR_LEAD = { basis: 'RECORDED' }
+ATTRIBUTED.COURSE_DOOR_UNSUBSCRIBED = { basis: 'RECORDED' }
 ATTRIBUTED.LEARN_RANKING_SWITCHED = { basis: 'RECORDED' }
 ATTRIBUTED.BADGE_SHARED = { basis: 'RECORDED' }
 ATTRIBUTED.TWIN_RULE_SET_SET = { basis: 'RULE' }

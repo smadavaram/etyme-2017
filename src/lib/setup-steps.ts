@@ -251,12 +251,12 @@ export function reminderFor(input: {
   if (owed.length === 0) return null
   return {
     says: `Finish setting up: ${owed.map((s) => REMINDER_WORDS[s]).join(', ')}.`,
-    href: '/start?finish=1',
+    href: '/setup?finish=1',
   }
 }
 
 /**
- * Whether /start shows the steps to this person.
+ * Whether /setup shows the steps to this person.
  *
  * Only to somebody who may change the company's setup. Never to a company
  * that finished, unless they followed the dashboard's link back and there

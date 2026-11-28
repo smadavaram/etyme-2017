@@ -206,7 +206,7 @@ export async function companyPolicy(companyId: string): Promise<{
  * mention for candidate only"). Read in the sign-in callback, after
  * LinkedIn proved the address: a person who holds any seat at a company,
  * a one-person firm included, is refused there, the row written before the
- * refusal goes back. A person with no seat anywhere signs in, and /start
+ * refusal goes back. A person with no seat anywhere signs in, and /setup
  * seats them as a candidate. Returns whether the sign-in was refused.
  */
 export async function linkedInSeatAtSignIn(email: string, surface: Surface = 'WEB'): Promise<boolean> {

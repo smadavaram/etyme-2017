@@ -30,7 +30,7 @@ import {
  * `ACCOUNT_CHOOSER` on the providers in lib/auth), so a browser signed in
  * to a personal Gmail still offers the work account (founder, 2026-10-20).
  *
- * Both land on /start, which seats a person who already has an account on
+ * Both land on /setup, which seats a person who already has an account on
  * this email in it, joins a colleague to a company that owns the email's
  * domain, or sets a new company up (/api/onboarding).
  */
@@ -64,7 +64,7 @@ const retryButton =
  * Try again in this tab, and start a fresh sign-in with the account
  * chooser and the address as a hint.
  */
-export function startAccountDoor(door: RetryDoor, callbackUrl = '/start', email?: string | null): void {
+export function startAccountDoor(door: RetryDoor, callbackUrl = '/setup', email?: string | null): void {
   rememberDoor(door)
   keepRetry(door, email)
   void signIn(providerOf(door), { callbackUrl }, chooserFor(email))
@@ -121,7 +121,7 @@ const MARKS: Record<RetryDoor, () => JSX.Element> = { google: GoogleMark, micros
  * provider's sign-in did not finish, the one filled button on that screen.
  * LinkedIn carries "Candidates only" at its right edge and in its name.
  */
-export function AccountDoorButton({ door, callbackUrl = '/start', email, autoFocus = false, retry = false }: {
+export function AccountDoorButton({ door, callbackUrl = '/setup', email, autoFocus = false, retry = false }: {
   door: RetryDoor
   callbackUrl?: string
   email?: string | null
@@ -150,7 +150,7 @@ export function AccountDoorButton({ door, callbackUrl = '/start', email, autoFoc
  * (lib/login-doors `accountButtons`). Shared by sign-in and sign-up, so the
  * two cannot drift. Nothing is drawn while the list is not known.
  */
-export function AccountButtons({ available, callbackUrl = '/start', email, retry = null }: {
+export function AccountButtons({ available, callbackUrl = '/setup', email, retry = null }: {
   available: KnownDoors
   callbackUrl?: string
   email?: string | null

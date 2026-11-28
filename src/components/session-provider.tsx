@@ -434,7 +434,7 @@ export function SessionProvider({
       rememberHat(hatCookieValue(line.hat, pin))
       // A whole page, so the shell, the mark and Ask Etyme's greeting are
       // all read again for the hat now worn. A firm seat goes through
-      // /start, which reads that firm's own home setting (→ 107).
+      // /setup, which reads that firm's own home setting (→ 107).
       window.location.assign(line.hat === 'firm' ? START_HREF : ASK_ETYME_HREF)
     })()
   }, [state.seats, state.activeContextId])

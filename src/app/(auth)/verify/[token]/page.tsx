@@ -37,13 +37,13 @@ export default function VerifyPage({ params, searchParams }: { params: { token: 
           fetch(`/api/claim/${claim}`, { method: 'POST' })
             .then((r) => r.json())
             // A fresh claim opens setup at "How you work", with its
-            // client named (round two, item 29); /start decides.
-            .then((b) => router.replace((b?.data && b.data.already === false ? '/start' : b?.data?.landing ?? `/claim/${claim}`) as any))
+            // client named (round two, item 29); /setup decides.
+            .then((b) => router.replace((b?.data && b.data.already === false ? '/setup' : b?.data?.landing ?? `/claim/${claim}`) as any))
             .catch(() => router.replace(`/claim/${claim}` as any))
           return
         }
-        // /start sends a new company to its setup and anybody else to their own desk.
-        router.replace('/start?welcome=1' as any)
+        // /setup sends a new company to its setup and anybody else to their own desk.
+        router.replace('/setup?welcome=1' as any)
       } else {
         const said = res?.error && res.error !== 'CredentialsSignin' ? res.error : 'This link does not work. Sign up again with the same email and we send a new one.'
         if (said.startsWith(`${CONFIRMED_CODE}:`)) {

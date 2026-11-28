@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest'
 import { req, json, prisma, freshWorld } from './harness'
 
-const sent: { to: string; subject: string; body: string }[] = []
+const sent: { to: string; subject: string; body: string; about?: any }[] = []
 vi.mock('@/lib/senders', () => ({
   emailSender: () =>
     process.env.NOTIFY_FROM_EMAIL
-      ? { channel: 'EMAIL', async send(to: string, subject: string, body: string) { sent.push({ to, subject, body }) } }
+      ? { channel: 'EMAIL', async send(to: string, subject: string, body: string, _from?: unknown, _html?: unknown, about?: unknown) { sent.push({ to, subject, body, about }) } }
       : null,
 }))
 
@@ -42,19 +42,19 @@ afterAll(() => {
 describe('the course door lead route', () => {
   it('without the yes nothing is stored, nothing is logged and nothing is emailed', async () => {
     const before = await prisma.automationLog.count()
-    const r = await json(await ask({ leadType: 'Worker', email: 'noyes@work.example' }))
+    const r = await json(await ask({ leadType: 'Worker', email: 'noyes@visitors-mail.org' }))
     expect(r.status).toBe(400)
     expect(r.body.error.code).toBe('CONSENT_NEEDED')
-    expect(await leadFor('noyes@work.example')).toBeNull()
+    expect(await leadFor('noyes@visitors-mail.org')).toBeNull()
     expect(await prisma.automationLog.count()).toBe(before)
     expect(sent).toHaveLength(0)
   })
 
   it('a yes stores a lead from COURSE_DOOR with its type, track and the time of the yes', async () => {
     const t0 = Date.now()
-    const r = await json(await ask({ leadType: 'Fresher', email: 'Fresh@Work.Example', consent: true }))
+    const r = await json(await ask({ leadType: 'Fresher', email: 'Fresh@Visitors-Mail.Org', consent: true }))
     expect(r.status).toBe(200)
-    const row = await leadFor('fresh@work.example')
+    const row = await leadFor('fresh@visitors-mail.org')
     expect(row?.source).toBe('COURSE_DOOR')
     expect(row?.asked).toContain('Fresher')
     expect(row?.asked).toContain('Entry Level')
@@ -62,8 +62,8 @@ describe('the course door lead route', () => {
   })
 
   it('a Worker with the "I work in IT" switch on is routed to IT — Upgrade and the switch is on the lead', async () => {
-    await ask({ leadType: 'Worker', email: 'it@work.example', consent: true, worksInIT: true })
-    const row = await leadFor('it@work.example')
+    await ask({ leadType: 'Worker', email: 'it@visitors-mail.org', consent: true, worksInIT: true })
+    const row = await leadFor('it@visitors-mail.org')
     expect(row?.asked).toContain('IT — Upgrade')
     expect(row?.asked).toMatch(/works in IT: yes/)
     const [l] = await ledger('COURSE_DOOR_LEAD', row!.id)
@@ -71,20 +71,20 @@ describe('the course door lead route', () => {
   })
 
   it('a Worker with the switch off is routed to Non-IT', async () => {
-    await ask({ leadType: 'Worker', email: 'nonit@work.example', consent: true })
-    const row = await leadFor('nonit@work.example')
+    await ask({ leadType: 'Worker', email: 'nonit@visitors-mail.org', consent: true })
+    const row = await leadFor('nonit@visitors-mail.org')
     expect(row?.asked).toContain('Non-IT')
     expect(row?.asked).toMatch(/works in IT: no/)
   })
 
   it('a lead writes one ledger row with the reason, the yes words and no address in it', async () => {
-    await ask({ leadType: 'Recruiter', email: 'rec@work.example', consent: true })
-    const row = await leadFor('rec@work.example')
+    await ask({ leadType: 'Recruiter', email: 'rec@visitors-mail.org', consent: true })
+    const row = await leadFor('rec@visitors-mail.org')
     const [l] = await ledger('COURSE_DOOR_LEAD', row!.id)
     expect(l.reason).toMatch(/ticked/i)
     expect((l.payload as any).consentWords).toBe(YES)
     expect((l.payload as any).track).toBe('Entry Level')
-    expect(JSON.stringify(l)).not.toContain('rec@work.example')
+    expect(JSON.stringify(l)).not.toContain('rec@visitors-mail.org')
   })
 
   it('a Kid entry stores a guardian\'s address and no name or age', async () => {
@@ -110,47 +110,63 @@ describe('the course door lead route', () => {
   })
 
   it('junk is refused: a filled hidden field, a too-fast form and a throwaway address', async () => {
-    expect((await json(await ask({ leadType: 'Worker', email: 'bot@work.example', consent: true, company_website: 'x' }))).status).toBe(400)
-    expect((await json(await ask({ leadType: 'Worker', email: 'bot@work.example', consent: true, filledInMs: 100 }))).status).toBe(400)
+    expect((await json(await ask({ leadType: 'Worker', email: 'bot@visitors-mail.org', consent: true, company_website: 'x' }))).status).toBe(400)
+    expect((await json(await ask({ leadType: 'Worker', email: 'bot@visitors-mail.org', consent: true, filledInMs: 100 }))).status).toBe(400)
     expect((await json(await ask({ leadType: 'Worker', email: 'a@a.aa', consent: true }))).status).toBe(400)
-    expect(await leadFor('bot@work.example')).toBeNull()
+    expect(await leadFor('bot@visitors-mail.org')).toBeNull()
   })
 
   it('one confirmation goes where mail can leave, and asking again sends no second', async () => {
-    await ask({ leadType: 'Worker', email: 'once@work.example', consent: true })
-    await ask({ leadType: 'Worker', email: 'once@work.example', consent: true })
-    await ask({ leadType: 'Recruiter', email: 'once@work.example', consent: true })
-    expect(sent.filter((m) => m.to === 'once@work.example')).toHaveLength(1)
-    const row = await leadFor('once@work.example')
+    await ask({ leadType: 'Worker', email: 'once@visitors-mail.org', consent: true })
+    await ask({ leadType: 'Worker', email: 'once@visitors-mail.org', consent: true })
+    await ask({ leadType: 'Recruiter', email: 'once@visitors-mail.org', consent: true })
+    expect(sent.filter((m) => m.to === 'once@visitors-mail.org')).toHaveLength(1)
+    const row = await leadFor('once@visitors-mail.org')
     expect(await ledger('COURSE_DOOR_CONFIRMATION', row!.id)).toHaveLength(1)
-    expect(await prisma.marketingLead.count({ where: { email: 'once@work.example' } })).toBe(1)
+    expect(await prisma.marketingLead.count({ where: { email: 'once@visitors-mail.org' } })).toBe(1)
+  })
+
+  it('the confirmation goes through the mail door under its own template and says who sent it and where', async () => {
+    await ask({ leadType: 'Worker', email: 'door@visitors-mail.org', consent: true })
+    const row = await leadFor('door@visitors-mail.org')
+    expect(sent).toHaveLength(1)
+    expect(sent[0].about).toMatchObject({ template: 'course-door-confirmation', recordType: 'MarketingLead', recordId: row!.id })
+    expect(sent[0].body).toContain('Etyme Inc., 3201 Yorktown Ave')
+  })
+
+  it('an address that is made up is kept as a lead and gets no email, and staff are not alerted for it', async () => {
+    await ask({ leadType: 'Worker', email: 'pretend@work.example', consent: true })
+    expect(sent).toHaveLength(0)
+    const row = await leadFor('pretend@work.example')
+    expect(row).not.toBeNull()
+    expect(await ledger('COURSE_DOOR_CONFIRMATION_FAILED', row!.id)).toHaveLength(1)
   })
 
   it('where no email can leave the lead is kept, nothing is sent, and the reply says so', async () => {
     delete process.env.NOTIFY_FROM_EMAIL
-    const r = await json(await ask({ leadType: 'Worker', email: 'nomail@work.example', consent: true }))
+    const r = await json(await ask({ leadType: 'Worker', email: 'nomail@visitors-mail.org', consent: true }))
     expect(r.status).toBe(200)
     expect(r.body.data.says).toMatch(/No email can be sent from here yet/)
     expect(sent).toHaveLength(0)
-    const row = await leadFor('nomail@work.example')
+    const row = await leadFor('nomail@visitors-mail.org')
     expect(row).not.toBeNull()
     expect(await ledger('COURSE_DOOR_CONFIRMATION', row!.id)).toHaveLength(0)
   })
 
   it('the reply is the same sentence for a new address and one already on file', async () => {
-    const a = await json(await ask({ leadType: 'Worker', email: 'same@work.example', consent: true }))
-    const b = await json(await ask({ leadType: 'Worker', email: 'same@work.example', consent: true }))
+    const a = await json(await ask({ leadType: 'Worker', email: 'same@visitors-mail.org', consent: true }))
+    const b = await json(await ask({ leadType: 'Worker', email: 'same@visitors-mail.org', consent: true }))
     expect(b.body).toEqual(a.body)
   })
 
   it('the confirmation carries a link that unsubscribes that address and no other', async () => {
-    await ask({ leadType: 'Worker', email: 'stop@work.example', consent: true })
+    await ask({ leadType: 'Worker', email: 'stop@visitors-mail.org', consent: true })
     const link = sent[0].body.match(/https?:\/\/\S+/)![0]
     const u = new URL(link)
     expect(u.pathname).toBe('/api/market/course-door/unsubscribe')
-    const row = await leadFor('stop@work.example')
+    const row = await leadFor('stop@visitors-mail.org')
 
-    const forged = await json(await unsubPost(req('POST', '/api/market/course-door/unsubscribe', { email: 'stop@work.example', token: 'nope' })))
+    const forged = await json(await unsubPost(req('POST', '/api/market/course-door/unsubscribe', { email: 'stop@visitors-mail.org', token: 'nope' })))
     expect(forged.status).toBe(400)
     expect(await ledger('COURSE_DOOR_UNSUBSCRIBED', row!.id)).toHaveLength(0)
 
@@ -161,39 +177,39 @@ describe('the course door lead route', () => {
   })
 
   it('unsubscribing twice writes one row, and a valid link for an address nobody knows changes nothing', async () => {
-    await ask({ leadType: 'Worker', email: 'twice@work.example', consent: true })
-    const row = await leadFor('twice@work.example')
-    const token = unsubscribeToken('twice@work.example', 'door-test-secret')
-    const body = { email: 'twice@work.example', token }
+    await ask({ leadType: 'Worker', email: 'twice@visitors-mail.org', consent: true })
+    const row = await leadFor('twice@visitors-mail.org')
+    const token = unsubscribeToken('twice@visitors-mail.org', 'door-test-secret')
+    const body = { email: 'twice@visitors-mail.org', token }
     await unsubPost(req('POST', '/api/market/course-door/unsubscribe', body))
     await unsubPost(req('POST', '/api/market/course-door/unsubscribe', body))
     expect(await ledger('COURSE_DOOR_UNSUBSCRIBED', row!.id)).toHaveLength(1)
-    const ghost = await json(await unsubPost(req('POST', '/api/market/course-door/unsubscribe', { email: 'ghost@work.example', token: unsubscribeToken('ghost@work.example', 'door-test-secret') })))
+    const ghost = await json(await unsubPost(req('POST', '/api/market/course-door/unsubscribe', { email: 'ghost@visitors-mail.org', token: unsubscribeToken('ghost@visitors-mail.org', 'door-test-secret') })))
     expect(ghost.status).toBe(200)
   })
 
   it('after unsubscribing, a fresh yes is a new yes but earns no second confirmation', async () => {
-    await ask({ leadType: 'Worker', email: 'back@work.example', consent: true })
-    await unsubPost(req('POST', '/api/market/course-door/unsubscribe', { email: 'back@work.example', token: unsubscribeToken('back@work.example', 'door-test-secret') }))
-    await ask({ leadType: 'Worker', email: 'back@work.example', consent: true })
-    expect(sent.filter((m) => m.to === 'back@work.example')).toHaveLength(1)
-    const row = await leadFor('back@work.example')
+    await ask({ leadType: 'Worker', email: 'back@visitors-mail.org', consent: true })
+    await unsubPost(req('POST', '/api/market/course-door/unsubscribe', { email: 'back@visitors-mail.org', token: unsubscribeToken('back@visitors-mail.org', 'door-test-secret') }))
+    await ask({ leadType: 'Worker', email: 'back@visitors-mail.org', consent: true })
+    expect(sent.filter((m) => m.to === 'back@visitors-mail.org')).toHaveLength(1)
+    const row = await leadFor('back@visitors-mail.org')
     expect(await ledger('COURSE_DOOR_LEAD', row!.id)).toHaveLength(2)
   })
 
   it('an unsubscribed address never gets a confirmation that had not yet gone', async () => {
     delete process.env.NOTIFY_FROM_EMAIL
-    await ask({ leadType: 'Worker', email: 'early@work.example', consent: true })
-    await unsubPost(req('POST', '/api/market/course-door/unsubscribe', { email: 'early@work.example', token: unsubscribeToken('early@work.example', 'door-test-secret') }))
+    await ask({ leadType: 'Worker', email: 'early@visitors-mail.org', consent: true })
+    await unsubPost(req('POST', '/api/market/course-door/unsubscribe', { email: 'early@visitors-mail.org', token: unsubscribeToken('early@visitors-mail.org', 'door-test-secret') }))
     process.env.NOTIFY_FROM_EMAIL = 'hello@etyme.example'
-    await ask({ leadType: 'Worker', email: 'early@work.example', consent: true })
-    expect(sent.filter((m) => m.to === 'early@work.example')).toHaveLength(0)
+    await ask({ leadType: 'Worker', email: 'early@visitors-mail.org', consent: true })
+    expect(sent.filter((m) => m.to === 'early@visitors-mail.org')).toHaveLength(0)
   })
 
   it('an existing lead from another door keeps its own source', async () => {
-    await prisma.marketingLead.create({ data: { email: 'old@work.example', source: 'HOME_PAGE', asked: 'a demo' } })
-    await ask({ leadType: 'Worker', email: 'old@work.example', consent: true })
-    const row = await leadFor('old@work.example')
+    await prisma.marketingLead.create({ data: { email: 'old@visitors-mail.org', source: 'HOME_PAGE', asked: 'a demo' } })
+    await ask({ leadType: 'Worker', email: 'old@visitors-mail.org', consent: true })
+    const row = await leadFor('old@visitors-mail.org')
     expect(row?.source).toBe('HOME_PAGE')
     expect(row?.asked).toBe('a demo')
     expect(await ledger('COURSE_DOOR_LEAD', row!.id)).toHaveLength(1)

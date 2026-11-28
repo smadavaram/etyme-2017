@@ -5,7 +5,7 @@ import { findDirectory, startDirectorySignIn, safeNext, STATE_COOKIE, STATE_LIFE
 export const maxDuration = 30
 
 /**
- * GET /api/sso/start?email=<work email>&next=/start
+ * GET /api/sso/start?email=<work email>&next=/setup
  * GET /api/sso/start?company=<the company's Etyme address>
  *
  * The door into a company's own directory (founder, 2026-11-11). The work

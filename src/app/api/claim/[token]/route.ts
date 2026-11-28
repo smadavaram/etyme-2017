@@ -290,7 +290,7 @@ export async function POST(
       // A new owner opens setup at "How you work", whichever door they
       // signed in by — the password claim already did (sign-up walk,
       // round two).
-      landing: '/start',
+      landing: '/setup',
     },
   })
 }

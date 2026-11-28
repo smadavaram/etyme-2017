@@ -12,7 +12,7 @@ export function FinishDirectorySignIn({ next }: { next: string }) {
   useEffect(() => {
     if (ran.current) return
     ran.current = true
-    const to = next.startsWith('/') && !next.startsWith('//') ? next : '/start'
+    const to = next.startsWith('/') && !next.startsWith('//') ? next : '/setup'
     signIn('directory-oidc', { redirect: false }).then((res) => {
       if (res?.ok && !res.error) router.replace(to as any)
       else setRefusal(res?.error && res.error !== 'CredentialsSignin' ? res.error : 'This sign-in was already used, or ran out. Start again from the sign-in page.')

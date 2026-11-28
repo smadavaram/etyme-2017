@@ -521,7 +521,7 @@ export const authOptions: NextAuthOptions = {
      * /ready can count it. Nothing wrote a Credential row before
      * 2026-10-08, so the Sign-in edge could never reach proven however
      * many people came in. Recorded only where the person already exists:
-     * somebody's very first sign-in is made a person by /start, and is
+     * somebody's very first sign-in is made a person by /setup, and is
      * counted from their second. The password door records its own.
      */
     async signIn({ user, account }) {

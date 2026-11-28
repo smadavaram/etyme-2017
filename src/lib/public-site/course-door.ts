@@ -18,6 +18,7 @@
  */
 import { createHmac, timingSafeEqual } from 'crypto'
 import { looksScripted, normalEmail } from '@/lib/public-site/leads'
+import { ADDRESS } from '@/lib/public-site/nav'
 
 // ── What are you ─────────────────────────────────────────────────────
 
@@ -228,7 +229,7 @@ export function confirmationLetter(a: { leadType: CourseLeadType; unsubscribeUrl
       '',
       `To stop, open this link and it ends at once: ${a.unsubscribeUrl}`,
       '',
-      'Etyme',
+      `${ADDRESS.company}, ${ADDRESS.street}, ${ADDRESS.city}`,
     ].join('\n'),
   }
 }

@@ -18,7 +18,7 @@ function walk(dir: string): string[] {
 }
 
 const DOOR_AND_LEARN = [
-  ...walk('src/app/(site)/ai-from-zero'),
+  ...walk('src/app/(site)/learnai'),
   'src/lib/public-site/learn-section.tsx',
   'src/lib/public-site/learn-section.module.css',
   'src/lib/public-site/learn-tiles.ts',

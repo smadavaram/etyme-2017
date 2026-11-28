@@ -102,7 +102,7 @@ export function deniedFor(args: { code: string; message: string }): Denied {
       says:
         'You are signed in, but there is no profile here yet, so nothing knows what to ' +
         'show you. Finishing setup takes a minute and puts your work in front of you.',
-      doors: [{ label: 'Finish setting up', href: '/start', primary: true }],
+      doors: [{ label: 'Finish setting up', href: '/setup', primary: true }],
     }
   }
 

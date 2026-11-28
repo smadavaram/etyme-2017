@@ -721,7 +721,7 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
   const already = await prisma.context.findFirst({ where: { personId: person.id, revokedAt: null }, select: { id: true } })
   const founds = pending.kind === 'COMPANY' && !(await ownsAFirm(person.id))
   if (already && !founds) {
-    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/start', says: 'Your email is confirmed.' }
+    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/setup', says: 'Your email is confirmed.' }
   }
 
   if (pending.kind === 'CANDIDATE') {
@@ -748,7 +748,7 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
   if (pending.joinCompanyId) {
     const c = await colleagueCompany(person.primaryEmail)
     if (c && c.id === pending.joinCompanyId) return joinAsMember(named, c, `Verified email on a domain ${c.name} owns`)
-    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/start', says: ASK_FOR_AN_INVITATION }
+    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/setup', says: ASK_FOR_AN_INVITATION }
   }
 
   // The email domain is already a verified tenant: one tenant is one domain.
@@ -760,7 +760,7 @@ export async function verifyEmail(token: string, now: Date = new Date()): Promis
     return joinAsMember(named, { id: entry.companyId, name: entry.companyName }, `Verified email on ${entry.domain}, which this company owns`)
   }
   if (entry.action === 'REFUSE') {
-    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/start', says: entry.message }
+    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/setup', says: entry.message }
   }
 
   return makeCompany(named, pending)
@@ -774,7 +774,7 @@ async function joinAsMember(
   // An invite-only company admits nobody by domain (lib/identity).
   const shut = await policyRefusal(person.primaryEmail, 'DOMAIN_JOIN', company.id)
   if (shut && !shut.ok) {
-    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/start', says: `Your email is confirmed. ${shut.says}` }
+    return { ok: true, personId: person.id, email: person.primaryEmail, landing: '/setup', says: `Your email is confirmed. ${shut.says}` }
   }
   await seatAsMember(person.id, company.id)
   await prisma.automationLog.create({
@@ -786,7 +786,7 @@ async function joinAsMember(
     },
   })
   return {
-    ok: true, personId: person.id, email: person.primaryEmail, landing: '/start?welcome=1',
+    ok: true, personId: person.id, email: person.primaryEmail, landing: '/setup?welcome=1',
     says: memberWelcome(company.name),
   }
 }
@@ -838,7 +838,7 @@ async function makeCompany(person: { id: string; name: string; primaryEmail: str
   })
 
   return {
-    ok: true, personId: person.id, email: person.primaryEmail, landing: '/start?welcome=1',
+    ok: true, personId: person.id, email: person.primaryEmail, landing: '/setup?welcome=1',
     says: slug === wanted
       ? `Your email is confirmed. ${made.company.name} is live at ${slug}.etyme.com.`
       : `Your email is confirmed. ${wanted}.etyme.com was taken a moment ago, so ${made.company.name} is at ${slug}.etyme.com. You can change it in Settings.`,

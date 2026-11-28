@@ -54,10 +54,10 @@ export function callbackUrl(): string {
   return `${appUrl()}/api/sso/callback`
 }
 
-/** Only a path inside this app: anything else lands on /start. */
+/** Only a path inside this app: anything else lands on /setup. */
 export function safeNext(next: string | null | undefined): string {
   const n = String(next ?? '')
-  return n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/\\') ? n : '/start'
+  return n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/\\') ? n : '/setup'
 }
 
 type ProviderRow = {

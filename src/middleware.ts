@@ -117,7 +117,7 @@ function embedResponse(request: NextRequest, res: NextResponse): NextResponse {
  * firm's address they are sent to the platform's host rather than served,
  * so a person never signs in on a firm's page.
  */
-const APP_PATHS = ['/dashboard', '/login', '/signup', '/start', '/verify', '/reset', '/welcome']
+const APP_PATHS = ['/dashboard', '/login', '/signup', '/setup', '/verify', '/reset', '/welcome']
 
 function isAppPath(path: string): boolean {
   return APP_PATHS.some((p) => path === p || path.startsWith(`${p}/`)) || isMicroSitePath(path)

@@ -39,7 +39,7 @@ export const LEARN_TILES: LearnTile[] = [
   { n: 5, key: 'training', name: 'Training', line: 'How models learn, and how they go wrong.', lessons: [16, 17, 18, 19, 20, 21] },
   { n: 6, key: 'compute', name: 'Compute', line: 'The machines underneath, and why they matter.', lessons: [22, 23, 24] },
   { n: 7, key: 'cloud', name: 'Cloud', line: 'Where AI runs when it leaves your laptop.', lessons: [25] },
-  { n: 8, key: 'cost', name: 'Cost', line: 'What every call costs, and how to spend less.', lessons: [10, 26] },
+  { n: 8, key: 'cost', name: 'Cost', line: 'What every call costs, and how to keep it down.', lessons: [10, 26] },
   { n: 9, key: 'performance', name: 'Performance', line: 'Faster, sharper answers, measured and not guessed.', lessons: [24, 28, 29] },
   { n: 10, key: 'deploy', name: 'Deploy', line: 'Build it, test it, ship it and keep it running.', lessons: [27, 28, 30, 31, 32, 33] },
 ]

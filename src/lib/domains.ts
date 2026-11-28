@@ -754,7 +754,7 @@ export const DOMAINS: Domain[] = [
       // Whether the company somebody is signed in at is a made-up one, so
       // the shell can say Demo in front of its name. Company identity.
       'lib/demo-company',
-      'app/layout', 'app/login', 'app/start',
+      'app/layout', 'app/login', 'app/setup',
       // Which ways in the login page draws, and the line above them.
       'lib/login-doors',
       // The tab icon: the kit's mark, square. Next links both from app/.

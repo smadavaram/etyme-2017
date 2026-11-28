@@ -101,7 +101,7 @@ describe('how people join this company is said from what the code does', () => {
 })
 
 describe('the sign-up start page says how people join from the same sentence (2026-11-12)', () => {
-  const page = readFileSync(join(process.cwd(), 'src/app/(auth)/start/page.tsx'), 'utf8')
+  const page = readFileSync(join(process.cwd(), 'src/app/(auth)/setup/page.tsx'), 'utf8')
   const state = readFileSync(join(process.cwd(), 'src/lib/setup-state.ts'), 'utf8')
 
   it('once the company exists, the start page prints the join sentence the doors are read for, never a line of its own', () => {
@@ -125,7 +125,7 @@ describe('a colleague who joins with only the Member role is told she has no rol
     'src/lib/password-words.ts',
     'src/lib/join-words.ts',
     'src/lib/company-domains.ts',
-    'src/app/(auth)/start/page.tsx',
+    'src/app/(auth)/setup/page.tsx',
     'src/app/api/onboarding/route.ts',
     'src/lib/password-door.ts',
     'src/lib/identity/provision.ts',
@@ -149,6 +149,6 @@ describe('a colleague who joins with only the Member role is told she has no rol
   })
 
   it('the start page tells a colleague joining a company already here that she joins with no role yet and who gives her one', () => {
-    expect(read('src/app/(auth)/start/page.tsx')).toContain('You join with no role yet. You can see your own work at once. An Owner or Admin there gives you a role.')
+    expect(read('src/app/(auth)/setup/page.tsx')).toContain('You join with no role yet. You can see your own work at once. An Owner or Admin there gives you a role.')
   })
 })

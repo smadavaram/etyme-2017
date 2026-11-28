@@ -20,7 +20,7 @@ describe('setup asks each kind of company only what it will use (items 1 and 2)'
   it('a client is not asked its pay period or pay days, and is told in one line why there is nothing more to answer', () => {
     expect(asksPayroll('CLIENT')).toBe(false)
     expect(CLIENT_NO_PAYROLL).toBe('There is no payroll to set up. Your suppliers pay their own people, and you pay their bills.')
-    const page = src('src/app/(auth)/start/page.tsx')
+    const page = src('src/app/(auth)/setup/page.tsx')
     expect(page).toContain('{asksPayroll(kind)')
     expect(page).toContain('<WeekPanel canEdit />')
     expect(page).toContain('{noPayrollLine(kind)}')
@@ -40,7 +40,7 @@ describe('setup asks each kind of company only what it will use (items 1 and 2)'
     expect(panel).toContain('shiftSection = true')
     expect(panel).toContain('SHIFT_WORDS[DEFAULT_CYCLE_SHIFT.pay].label.toLowerCase()')
     expect(`moves to ${SHIFT_WORDS[DEFAULT_CYCLE_SHIFT.pay].label.toLowerCase()}`).toBe('moves to the working day before')
-    expect(src('src/app/(auth)/start/page.tsx')).toContain('<PayrollPanel canEdit shiftSection={false} />')
+    expect(src('src/app/(auth)/setup/page.tsx')).toContain('<PayrollPanel canEdit shiftSection={false} />')
   })
 })
 

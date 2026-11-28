@@ -116,9 +116,9 @@ describe('the state, the nonce and the ticket are sealed and single-purpose', ()
 
   it('after sign-in the browser is only ever sent to a path inside this app', () => {
     expect(safeNext('/dashboard')).toBe('/dashboard')
-    expect(safeNext('https://evil.example/')).toBe('/start')
-    expect(safeNext('//evil.example')).toBe('/start')
-    expect(safeNext('/\\evil.example')).toBe('/start')
+    expect(safeNext('https://evil.example/')).toBe('/setup')
+    expect(safeNext('//evil.example')).toBe('/setup')
+    expect(safeNext('/\\evil.example')).toBe('/setup')
   })
 
   it('Etyme fetches a directory only over https, never a private address, never with a password in the address', () => {

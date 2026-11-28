@@ -16,7 +16,7 @@ import { recordIdentityEvent } from '@/lib/identity/ledger'
  * only that seat.
  *
  * Only where the person is on the record: somebody's very first sign-in
- * on a public address is made a person by /start, after this, and their
+ * on a public address is made a person by /setup, after this, and their
  * first success is not in the ledger (KNOWN-LIMITS, "Identity, pass 1").
  */
 export async function recordSignInLedger(args: { email: string | null; door: Door | null }): Promise<void> {

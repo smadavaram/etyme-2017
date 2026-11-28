@@ -28,7 +28,7 @@ async function end(emailIn: string, token: string): Promise<boolean> {
 
   await prisma.automationLog.create({
     data: {
-      action: LEDGER.unsubscribed,
+      action: 'COURSE_DOOR_UNSUBSCRIBED',
       summary: 'A course door address unsubscribed',
       reason: 'The person opened the signed link in the confirmation email; nothing more is sent about the course',
       payload: { leadId: lead.id },

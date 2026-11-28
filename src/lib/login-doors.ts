@@ -246,7 +246,7 @@ export const PICK_ANOTHER_ACCOUNT =
 export const DIRECTORY_DOOR_SAYS = 'Your team signs in through your company\u2019s directory. No separate Etyme password.'
 
 /** Where the directory door starts, from the work email typed. */
-export function directoryStart(email: string, next = '/start'): string {
+export function directoryStart(email: string, next = '/setup'): string {
   return `/api/sso/start?email=${encodeURIComponent(email.trim())}&next=${encodeURIComponent(next)}`
 }
 

@@ -18,7 +18,7 @@ import { signUpHeading, DETAILS_HEADING } from './heading'
  *
  * Step 1: "Create your Etyme account", "Already have an account? Sign
  * in", the same account buttons as sign-in (a new person who presses one
- * is signed in by that provider and lands on /start, which asks what it
+ * is signed in by that provider and lands on /setup, which asks what it
  * needs), "or use your email", Email, Continue.
  *
  * Step 2, "A few details", asks only: your name; "This account is for" my
@@ -218,7 +218,7 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
         )}
 
         {/* Not on an invitation: taking a company's record goes through the email. */}
-        {!claimToken && <AccountButtons available={available} callbackUrl="/start" />}
+        {!claimToken && <AccountButtons available={available} callbackUrl="/setup" />}
         {!claimToken && accountButtons(available, null).length > 0 && <DoorDivider words={OR_USE_YOUR_EMAIL} />}
 
         <form onSubmit={next} className="space-y-3" noValidate>

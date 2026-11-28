@@ -1122,7 +1122,7 @@ export type Hat = 'firm' | 'you'
  * The door every sign-in passes, which reads the seat's own firm's home
  * setting (`deskHome`); a seat switch and a password set land through it.
  */
-export const START_HREF = '/start'
+export const START_HREF = '/setup'
 
 /**
  * The cookie that remembers the hat on this device: `firm` or `you`,

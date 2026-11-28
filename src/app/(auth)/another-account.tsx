@@ -9,7 +9,7 @@ import { ANOTHER_ACCOUNT, AFTER_ANOTHER_ACCOUNT, signedInAsSays } from '@/lib/lo
  *
  * The founder, 2026-10-20: a browser already signed in to a personal Gmail
  * sent him into Etyme as that account, with no way to switch. This line
- * sits on the sign-in page and on the first screen after it (/start). It
+ * sits on the sign-in page and on the first screen after it (/setup). It
  * signs the person out and reopens the sign-in page, where Microsoft and
  * Google show their account chooser (lib/auth `ACCOUNT_CHOOSER`).
  *

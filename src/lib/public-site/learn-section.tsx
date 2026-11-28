@@ -9,7 +9,7 @@ import s from './learn-section.module.css'
 
 /**
  * The Learn section, built once and placed wherever the free course is
- * offered: the door at /start and the home page.
+ * offered: the door at /learnai and the home page.
  *
  * It plays once, when it scrolls into view: a line draws across, the ten
  * tiles light in order, and it lands on "Course complete" and "Join the
@@ -18,8 +18,8 @@ import s from './learn-section.module.css'
  * closing cards are on the page from the first paint, only faint, so
  * nothing below the section moves when it plays.
  *
- * The call to action is the caller's: on /start it continues into "What
- * are you?" below, on the home page it links to /start and nothing is
+ * The call to action is the caller's: on /learnai it continues into "What
+ * are you?" below, on the home page it links to /learnai and nothing is
  * collected there.
  */
 export interface LearnSectionProps {

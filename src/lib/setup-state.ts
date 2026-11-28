@@ -31,7 +31,7 @@ export interface SetupState {
   facts: SetupFacts
   owed: SetupStep[]
   next: SetupStep | null
-  /** Whether /start shows the steps to this reader. */
+  /** Whether /setup shows the steps to this reader. */
   shows: boolean
   /**
    * The dashboard's one line, for a reader who may finish it: the setup

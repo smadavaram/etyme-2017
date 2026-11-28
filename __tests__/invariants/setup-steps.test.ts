@@ -101,7 +101,7 @@ describe('setup asks five things, then stops', () => {
     const none = { peopleImported: false, teammates: 0 }
     expect(reminderFor({ startedAt: NOW, record: r, facts: none })).toEqual({
       says: 'Finish setting up: your people, your team.',
-      href: '/start?finish=1',
+      href: '/setup?finish=1',
     })
     // Done another way — an import committed, a teammate invited — counts.
     expect(reminderFor({ startedAt: NOW, record: r, facts: { peopleImported: true, teammates: 0 } })!.says)
@@ -176,7 +176,7 @@ describe('setup asks five things, then stops', () => {
 
   it('the settings page and setup draw the week and payroll from one component', () => {
     const settings = src('src/app/dashboard/settings/page.tsx')
-    const setup = src('src/app/(auth)/start/page.tsx')
+    const setup = src('src/app/(auth)/setup/page.tsx')
     for (const page of [settings, setup]) {
       expect(page).toContain("import { WeekPanel } from '@/components/settings/week-panel'")
       // The settings page also takes the helper that opens the first-pay-day
@@ -190,7 +190,7 @@ describe('setup asks five things, then stops', () => {
   })
 
   it('the setup page shows the prototype’s five steps in order and words', () => {
-    const setup = src('src/app/(auth)/start/page.tsx')
+    const setup = src('src/app/(auth)/setup/page.tsx')
     expect(setup).toContain('railFor(kind)')
     expect(railFor('VENDOR')).toEqual(SETUP_RAIL)
     for (const words of ['Your company', 'How you work', 'Your people', 'Your team', 'Skip for now',
@@ -228,7 +228,7 @@ describe('setup after round two of the sign-up walk', () => {
       .toEqual({ ok: false, message: 'A one-person firm has no contractor list or team to set up.' })
 
     // The page says nothing about colleagues to her, and draws no list or team step.
-    const page = src('src/app/(auth)/start/page.tsx')
+    const page = src('src/app/(auth)/setup/page.tsx')
     // How people join is the join sentence, which is null for a one-person firm (lib/join-words).
     expect(page).toContain('{setup.company.joinSays && ` ${setup.company.joinSays}`}')
     expect(page).toContain("{step === 'PEOPLE' && !solo && (")
@@ -248,8 +248,8 @@ describe('setup after round two of the sign-up walk', () => {
     expect(state).toContain("recordStep(readRecord(c.setupSteps), 'COMPANY', 'DONE', personId, now)")
     expect(state).toContain('c.isDemo')
     expect(src('src/app/api/onboarding/route.ts')).toContain('await beginClaimedSetup(')
-    expect(src('src/app/(auth)/start/page.tsx')).toContain('{setup.claimedSays &&')
-    expect(src('src/app/(auth)/verify/[token]/page.tsx')).toContain("b.data.already === false ? '/start'")
+    expect(src('src/app/(auth)/setup/page.tsx')).toContain('{setup.claimedSays &&')
+    expect(src('src/app/(auth)/verify/[token]/page.tsx')).toContain("b.data.already === false ? '/setup'")
   })
 })
 
@@ -328,7 +328,7 @@ describe('staff bootstrap, on a deployment with no email', () => {
 // sign-in is greyed out for an empty field; it is pressable and says what
 // is missing, like every other form.
 describe('the first sign-in never greys a button out for an empty field', () => {
-  const start = readFileSync(join(process.cwd(), 'src/app/(auth)/start/page.tsx'), 'utf8')
+  const start = readFileSync(join(process.cwd(), 'src/app/(auth)/setup/page.tsx'), 'utf8')
 
   it('no button on the first sign-in is disabled for an empty field, only while a press is being answered', () => {
     expect(start).not.toMatch(/disabled=\{busy \|\| !/)
@@ -336,14 +336,14 @@ describe('the first sign-in never greys a button out for an empty field', () => 
   })
 
   it('Set up my company pressed with no name says to type the company’s name first', async () => {
-    const { NAME_MISSING } = await import('@/app/(auth)/start/missing')
+    const { NAME_MISSING } = await import('@/app/(auth)/setup/missing')
     expect(NAME_MISSING).toBe('Type your company’s name first, then press Set up my company.')
     expect(start).toMatch(/if \(!name\.trim\(\)\) \{ setMissingFor\(t\.key\); return \}/)
     expect(start).toMatch(/\{NAME_MISSING\}/)
   })
 
   it('Continue pressed before a kind is chosen says to choose which one you are first', async () => {
-    const { KIND_MISSING } = await import('@/app/(auth)/start/missing')
+    const { KIND_MISSING } = await import('@/app/(auth)/setup/missing')
     expect(KIND_MISSING).toBe('Choose which one you are first, then press Continue.')
     expect(start).toMatch(/if \(!type\) \{ setError\(KIND_MISSING\); return \}/)
   })

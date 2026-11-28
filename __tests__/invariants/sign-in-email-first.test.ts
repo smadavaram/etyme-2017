@@ -396,7 +396,7 @@ describe('a browser already signed in is shown one card (fault 2)', () => {
     expect(card).toBeGreaterThan(0)
     expect(form).toBeGreaterThan(card)
     const cardBody = page.slice(card, page.indexOf('} else if (directory) {'))
-    expect(cardBody).toContain('href="/start"')
+    expect(cardBody).toContain('href="/setup"')
     expect(cardBody).toContain('className={`${doorButton} block text-center`}')
     expect(cardBody).toContain('[overflow-wrap:anywhere]">{signedIn}</span>')
     expect(cardBody).toContain('aria-label={`${CONTINUE} as ${signedIn}`}')

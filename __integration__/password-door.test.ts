@@ -89,7 +89,7 @@ describe('a password door, until the single sign-on keys exist', () => {
 
     const token = lastLink(OWNER, 'verify')
     const v = await verifyEmail(token)
-    expect(v).toMatchObject({ ok: true, landing: '/start?welcome=1', says: 'Your email is confirmed. Kestrel Works is live at kestrel.etyme.com.' })
+    expect(v).toMatchObject({ ok: true, landing: '/setup?welcome=1', says: 'Your email is confirmed. Kestrel Works is live at kestrel.etyme.com.' })
 
     const made = await prisma.company.findUniqueOrThrow({
       where: { slug: 'kestrel' },

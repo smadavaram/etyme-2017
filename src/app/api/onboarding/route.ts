@@ -15,7 +15,7 @@ import { seatAsMember } from '@/lib/seat-member'
 import { createCompany } from '@/lib/company-create'
 import { rememberReferral } from '@/lib/money/affiliate-activation'
 import { signUpPersonName } from './person-name'
-import { blankNameSays } from '@/app/(auth)/start/missing'
+import { blankNameSays } from '@/app/(auth)/setup/missing'
 import { recordAnswers } from '@/lib/setup-checklist-state'
 import { signUpAnswers } from '@/lib/setup-fill'
 import { packSentence, countryGuessSentence, currencyFor, COUNTRIES, CURRENCIES, joinedSentence } from '@/lib/setup-steps'
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     const { caller } = await getCallerContext(request, { narrowsToRegion: true })
     const c = (caller ? person.contexts.find(x => x.id === caller.context.id && x.companyId) : undefined)
       ?? person.contexts.find(x => x.companyId && x.type !== 'CONSULTANT') ?? person.contexts.find(x => x.companyId)!
-    // The seat they hold, so /start can open their own desk rather than an
+    // The seat they hold, so /setup can open their own desk rather than an
     // empty dashboard, and whether the company's setup is theirs to finish.
     const role = c.roleId
       ? await prisma.role.findUnique({ where: { id: c.roleId }, select: { name: true, permissions: true } })

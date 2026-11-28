@@ -1,6 +1,6 @@
-# Course door lead capture: the contract for the /start page
+# Course door lead capture: the contract for the /learnai page
 
-The course is paused; the door runs ahead of it. Etyme's own `/start` page
+The course is paused; the door runs ahead of it. Etyme's own `/learnai` page
 is the caller of this route. The page is another builder's; this file is
 everything it needs to know.
 

@@ -207,6 +207,10 @@ describe('the course door: the one confirmation letter', () => {
     expect(letter.body).toMatch(/stop/i)
   })
 
+  it('names Etyme and its postal address, like every other letter', () => {
+    expect(letter.body).toContain('Etyme Inc., 3201 Yorktown Ave, Ste. 110B, Durham, NC 27713')
+  })
+
   it('a guardian\'s letter says it went to a parent or guardian', () => {
     const k = confirmationLetter({ leadType: 'Kid', unsubscribeUrl: 'https://etyme.example/u' })
     expect(k.body).toMatch(/parent or guardian/i)

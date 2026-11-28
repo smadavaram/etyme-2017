@@ -46,7 +46,7 @@ describe('the denied state', () => {
         // Every door is a way out of the app's refusal — never back into
         // the dashboard that has just refused them, and never an action.
         expect(door.href.startsWith('/dashboard')).toBe(false)
-        expect(door.href).toMatch(/^\/(login|demo|start)$/)
+        expect(door.href).toMatch(/^\/(login|demo|setup)$/)
       }
       // At most one primary, so there is one obvious thing to do.
       expect(d.doors.filter((x) => x.primary).length).toBeLessThanOrEqual(1)

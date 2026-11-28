@@ -690,11 +690,11 @@ describe('Pause and End on Users & permissions ask the reason the access route a
 })
 
 describe('the first sign-in "Your company" form asks for the name the onboarding route refuses without', () => {
-  const page = readFileSync(join(process.cwd(), 'src/app/(auth)/start/page.tsx'), 'utf8')
+  const page = readFileSync(join(process.cwd(), 'src/app/(auth)/setup/page.tsx'), 'utf8')
   const route = readFileSync(join(process.cwd(), 'src/app/api/onboarding/route.ts'), 'utf8')
 
   it('a company name sent blank is refused in the screen’s own sentence, and a name not sent at all may still be guessed', async () => {
-    const { blankNameSays, COMPANY_NAME_MISSING, NAME_MISSING } = await import('@/app/(auth)/start/missing')
+    const { blankNameSays, COMPANY_NAME_MISSING, NAME_MISSING } = await import('@/app/(auth)/setup/missing')
     expect(blankNameSays({ type: 'CLIENT', name: '   ' }, false)).toBe(COMPANY_NAME_MISSING)
     expect(blankNameSays({ type: 'CLIENT', name: '' }, true)).toBe(NAME_MISSING)
     expect(blankNameSays({ type: 'CLIENT' }, false)).toBeNull()

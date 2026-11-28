@@ -29,7 +29,7 @@ export default function DirectoryReturn({ searchParams }: { searchParams?: { nex
   }
   return (
     <DoorFrame>
-      <FinishDirectorySignIn next={searchParams?.next ?? '/start'} />
+      <FinishDirectorySignIn next={searchParams?.next ?? '/setup'} />
     </DoorFrame>
   )
 }

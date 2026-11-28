@@ -10,10 +10,11 @@ import {
   WHAT_ARE_YOU_HREF, DOOR_HREF, courseDoorBody,
 } from '@/lib/public-site/course-door-page'
 import { TRACK_FOR, IT_TRACK, CONSENT_WORDS, GUARDIAN_WORDS, LEAD_TYPES } from '@/lib/public-site/course-door'
+import { START_HREF } from '@/lib/nav-table'
 import { PUBLIC_PAGES, NOT_MARKETING } from '@/lib/public-site/pages'
 
 const ROOT = process.cwd()
-const DIR = 'src/app/(site)/ai-from-zero'
+const DIR = 'src/app/(site)/learnai'
 const read = (f: string) => readFileSync(join(ROOT, f), 'utf8')
 const doorFiles = ['page.tsx', 'door-form.tsx', 'door.module.css'].map((f) => `${DIR}/${f}`)
 
@@ -96,15 +97,31 @@ describe('the free training door: the page itself', () => {
 
   it('the Learn section on the door continues into What are you, and the home page’s button goes to the door with no form', () => {
     expect(WHAT_ARE_YOU_HREF).toBe('#what-are-you')
-    expect(DOOR_HREF).toBe('/start')
+    expect(DOOR_HREF).toBe('/learnai')
     expect(read(`${DIR}/page.tsx`)).toContain('WHAT_ARE_YOU_HREF')
     expect(read(`${DIR}/page.tsx`)).toContain('id="what-are-you"')
   })
 
-  it('until the setup page moves off /start the door is served at its own address, and /start stays the setup page', () => {
-    expect(COURSE_DOOR_PATH).toBe('/ai-from-zero')
-    expect(existsSync(join(ROOT, 'src/app/(auth)/start/page.tsx'))).toBe(true)
-    expect(PUBLIC_PAGES.some((x) => x.route === '/start')).toBe(false)
+  it('the door is served at /learnai, the signed-in setup page is at /setup, and /start is nowhere', () => {
+    expect(COURSE_DOOR_PATH).toBe('/learnai')
+    expect(START_HREF).toBe('/setup')
+    expect(existsSync(join(ROOT, 'src/app/(auth)/setup/page.tsx'))).toBe(true)
+    expect(existsSync(join(ROOT, 'src/app/(auth)/start'))).toBe(false)
+    expect(existsSync(join(ROOT, 'src/app/(site)/start'))).toBe(false)
+    expect(PUBLIC_PAGES.some((x) => x.route === '/start' || x.route === '/learnai')).toBe(false)
+  })
+
+  it('/ai-from-zero sends everybody on to /learnai', () => {
+    const old = read('src/app/(site)/ai-from-zero/page.tsx')
+    expect(old).toContain('redirect(COURSE_DOOR_PATH)')
+  })
+
+  it('the edge treats /setup as an app page on a firm’s address and does not name /start or /learnai', () => {
+    const mw = read('src/middleware.ts')
+    const paths = /const APP_PATHS = \[([^\]]*)\]/.exec(mw)![1]
+    expect(paths).toContain("'/setup'")
+    expect(paths).not.toContain("'/start'")
+    expect(paths).not.toContain("'/learnai'")
   })
 
   it('the page says nothing about Tapin selling training, and names no price', () => {

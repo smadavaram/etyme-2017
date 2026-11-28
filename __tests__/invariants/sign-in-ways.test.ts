@@ -168,7 +168,7 @@ describe('Microsoft and Google, the alternative on both doors (founder, 2026-10-
     expect(doors).toContain('if (drawn.length === 0) return null')
     const form = read('src/app/(auth)/signup/form.tsx')
     expect(form).toContain('const available = useKnownDoors()')
-    expect(form).toContain('{!claimToken && <AccountButtons available={available} callbackUrl="/start" />}')
+    expect(form).toContain('{!claimToken && <AccountButtons available={available} callbackUrl="/setup" />}')
     // No sentence about missing keys on sign-up.
     expect(form).not.toContain('not set up on this deployment')
   })
@@ -267,7 +267,7 @@ describe('every sign-in door shows the account chooser (founder, 2026-10-20)', (
     // It signs the person out and reopens the sign-in page, where the chooser shows.
     expect(line).toContain('signOut({ callbackUrl: AFTER_ANOTHER_ACCOUNT })')
     expect(AFTER_ANOTHER_ACCOUNT).toBe('/login?another=1')
-    expect(read('src/app/(auth)/start/page.tsx')).toMatch(/<AnotherAccount[ \/]/)
+    expect(read('src/app/(auth)/setup/page.tsx')).toMatch(/<AnotherAccount[ \/]/)
   })
 
   it('the sign-in page offers a signed-in browser Continue as and Use another account, and says so after signing out for one', async () => {

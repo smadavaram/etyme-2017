@@ -386,7 +386,7 @@ describe('round one of the sign-up walk, said as the walk found it', () => {
     expect(colleagueSentence('walkco', possessive('Walk Co'))).toBe('walkco is Walk Co\'s address. You join it with no role yet once you confirm your email. An Owner or Admin there gives you one.')
     expect(colleagueSentence('kestrel', possessive('Kestrel Works'))).toBe('kestrel is Kestrel Works\' address. You join it with no role yet once you confirm your email. An Owner or Admin there gives you one.')
     expect(memberWelcome('Walk Co')).toBe('You are in Walk Co with no role yet. You can see your own work now. An Owner or Admin there gives you a role.')
-    expect(read('src/app/(auth)/start/page.tsx')).toContain('memberWelcome(')
+    expect(read('src/app/(auth)/setup/page.tsx')).toContain('memberWelcome(')
   })
 
   it('a person a company added is told which company, and to confirm their email to sign in', () => {

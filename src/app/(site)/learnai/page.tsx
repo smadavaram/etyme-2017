@@ -6,7 +6,7 @@ import { DoorForm } from './door-form'
 import s from './door.module.css'
 
 export const metadata: Metadata = {
-  title: 'AI from Zero in 3 Hours. Free. | Etyme',
+  title: 'AI from Zero in 3 Hours. Free.',
   description: 'A free course that starts from zero. Tell us who you are and we write when it opens.',
 }
 

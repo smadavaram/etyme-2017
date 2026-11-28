@@ -156,7 +156,7 @@ export default function LoginPage() {
     setBusy(false)
     if (res?.ok && !res.error) {
       rememberDoor('password')
-      router.push('/start')
+      router.push('/setup')
       return
     }
     const said = res?.error ?? 'That email and password do not match.'
@@ -195,10 +195,10 @@ export default function LoginPage() {
 
   let screen: React.ReactNode
   if (signedIn) {
-    /* Already signed in: one filled button, and /start decides the seat. */
+    /* Already signed in: one filled button, and /setup decides the seat. */
     screen = (
       <div data-signed-in className="space-y-3">
-        <a href="/start" aria-label={`${CONTINUE} as ${signedIn}`} className={`${doorButton} block text-center`}>
+        <a href="/setup" aria-label={`${CONTINUE} as ${signedIn}`} className={`${doorButton} block text-center`}>
           <span className="block">{CONTINUE}</span>
           <span className="block text-xs font-normal text-white/80 [overflow-wrap:anywhere]">{signedIn}</span>
         </a>
@@ -251,7 +251,7 @@ export default function LoginPage() {
         ) : (
           <div className="space-y-3">
             {buttonsOnly.map((d, i) => (
-              <AccountDoorButton key={d} door={d} callbackUrl="/start" email={email.trim()} autoFocus={i === 0} />
+              <AccountDoorButton key={d} door={d} callbackUrl="/setup" email={email.trim()} autoFocus={i === 0} />
             ))}
           </div>
         )}
@@ -272,7 +272,7 @@ export default function LoginPage() {
             </Link>
           </div>
         )}
-        <AccountButtons available={available} callbackUrl="/start" email={email.trim()} retry={retried} />
+        <AccountButtons available={available} callbackUrl="/setup" email={email.trim()} retry={retried} />
         {/* While the list of providers is not known, nothing above the email is drawn, and no divider either. */}
         <AccountDividerWhen available={available} />
         <form className="space-y-3" onSubmit={askDoors} noValidate>

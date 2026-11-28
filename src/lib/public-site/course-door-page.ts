@@ -15,12 +15,12 @@
  */
 
 /**
- * Where the door is served today. The owner's address for it is /start
- * (signed-out visitors); /start is still the signed-in setup page, which
- * belongs to the architect and has to move to /setup first. Until then the
- * door answers here, and the swap is one folder move (see the report).
+ * Where the door is served: /learnai (owner, 2026-11-28, record 133). There
+ * is no /start in any form; the signed-in setup page is /setup
+ * (`START_HREF` in lib/nav-table). The door's earlier address
+ * /ai-from-zero sends everybody here.
  */
-export const COURSE_DOOR_PATH = '/ai-from-zero'
+export const COURSE_DOOR_PATH = '/learnai'
 
 /** The door's own lead route, called as docs/course-door-lead-contract.md says. */
 export const COURSE_DOOR_ENDPOINT = '/api/market/course-door'
@@ -29,7 +29,7 @@ export const COURSE_DOOR_ENDPOINT = '/api/market/course-door'
 export const WHAT_ARE_YOU_HREF = '#what-are-you'
 
 /** Where the same section's button goes on the home page: the door, with no form. */
-export const DOOR_HREF = '/start'
+export const DOOR_HREF = COURSE_DOOR_PATH
 
 export const DOOR_WORDS = {
   paused: 'The course is not open yet. We have not set a date for it.',

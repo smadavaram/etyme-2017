@@ -637,7 +637,7 @@ export async function POST(request: NextRequest) {
               seatedAtClient: seatedAt ?? null,
               // A region seat's menu is its region's (lib/region-scope); it lands in Ask Etyme too.
               region: regionOf(company.contexts[0]),
-              // The firm's own home setting (→ 107), as /start reads it.
+              // The firm's own home setting (→ 107), as /setup reads it.
               homePage: homeSetting(company),
             })
             return l === ASK_ETYME_HREF || l === DECISIONS_HOME ? l : null
