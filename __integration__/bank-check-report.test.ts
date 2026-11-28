@@ -49,12 +49,26 @@ describe('the old bank check report', () => {
     expect(await prisma.accessLog.count({ where: { allowed: false } })).toBe(before + 1)
   })
 
-  it('the report names the suppliers that would be held, with four digits only', async () => {
+  it('the staff bank checks report shows no bank digits', async () => {
+    h.caller = { person: person(s.p, 'ops@etyme.com'), company: null, permissions: [], staff: true }
+    const text = JSON.stringify((await (await call()).json()).data)
+    expect(text).not.toContain('4821')
+    expect(text).not.toContain('9999')
+    expect(text).not.toMatch(/last4|account/i)
+  })
+
+  it('the staff bank checks report names no firm', async () => {
     h.caller = { person: person(s.p, 'ops@etyme.com'), company: null, permissions: [], staff: true }
     const body = await (await call()).json()
-    expect(body.data.suppliers).toEqual([{ supplier: 'northwind-staffing', last4: '4821', customers: ['harborline-tech'] }])
-    expect(JSON.stringify(body)).not.toMatch(/\d{5,}/)
+    expect(body.data.suppliers).toBeUndefined()
+    expect(JSON.stringify(body)).not.toMatch(/northwind|harborline/i)
+  })
+
+  it('the staff bank checks report still gives the count of suppliers that would be held', async () => {
+    h.caller = { person: person(s.p, 'ops@etyme.com'), company: null, permissions: [], staff: true }
+    const body = await (await call()).json()
     expect(body.data.held).toBe(1)
+    expect(Object.keys(body.data).sort()).toEqual(['held', 'named', 'says', 'unplaced'])
   })
 
   it('the report changes nothing', async () => {

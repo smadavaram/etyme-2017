@@ -154,33 +154,20 @@ export async function oldChecksReport(db: Db = prisma): Promise<OldCheckPayer[]>
 
 /**
  * What the staff page and the script's summary read: the carry-over's own
- * counts, and K, the suppliers whose old check names no payer and who hold
- * no payer's own `BankCheck`. Each is listed by company name, the bank's
- * last four digits only, and the customers that pay it. Writes nothing.
+ * counts, and K, how many suppliers' old checks name no payer while they
+ * hold no payer's own `BankCheck`. Counts only (Pax's ruling, 2026-11-28):
+ * a staff surface is metadata, so no firm is named and no digit of a bank
+ * account leaves here. Each firm reads its own suppliers' bank checks
+ * inside its own tenant. Writes nothing.
  */
-export async function bankCheckReport(db: Db = prisma): Promise<{
-  named: number
-  unplaced: number
-  held: number
-  suppliers: { supplier: string; last4: string | null; customers: string[] }[]
-}> {
+export async function bankCheckReport(db: Db = prisma): Promise<{ named: number; unplaced: number; held: number }> {
   const counts = await carryOverOldChecks(db, { write: false })
   const report = await oldChecksReport(db)
   const unplacedIds = report.filter((r) => r.payerId == null).map((r) => r.remitToId)
-  const rows = unplacedIds.length
-    ? await db.remitTo.findMany({
-        where: { id: { in: unplacedIds }, bankChecks: { none: {} } },
-        orderBy: [{ companyId: 'asc' }, { id: 'asc' }],
-        select: { accountLast4: true, company: { select: { id: true, name: true } } },
-      })
-    : []
-  const suppliers: { supplier: string; last4: string | null; customers: string[] }[] = []
-  for (const r of rows) {
-    const ids = await customersToConfirm(r.company.id, db)
-    const names = ids.length ? await db.company.findMany({ where: { id: { in: ids } }, orderBy: { name: 'asc' }, select: { name: true } }) : []
-    suppliers.push({ supplier: r.company.name, last4: r.accountLast4, customers: names.map((c) => c.name) })
-  }
-  return { named: counts.named, unplaced: counts.unplaced, held: suppliers.length, suppliers }
+  const held = unplacedIds.length
+    ? await db.remitTo.count({ where: { id: { in: unplacedIds }, bankChecks: { none: {} } } })
+    : 0
+  return { named: counts.named, unplaced: counts.unplaced, held }
 }
 
 /**

@@ -8,7 +8,6 @@ import { PageHead, Panel, LoadingState, RefusedState, ErrorState } from '@/compo
 interface Report {
   says: string
   held: number
-  suppliers: { supplier: string; last4: string | null; customers: string[] }[]
 }
 
 export default function BankCheckReportPage() {
@@ -48,22 +47,10 @@ export default function BankCheckReportPage() {
           {data.held} suppliers would be held for every customer once the per-customer bank rule goes on, until each customer&apos;s Finance or AP clerk checks their bank again.
         </p>
       </Panel>
-      <Panel title="Suppliers that would be held">
-        {data.suppliers.length === 0 ? (
-          <p className="text-[14px] text-etyme-muted">None. Every old check names its payer or has a payer&apos;s own check.</p>
-        ) : (
-          <ul className="space-y-3">
-            {data.suppliers.map((s, i) => (
-              <li key={i} className="text-[14px] text-etyme-ink">
-                <span className="font-medium">{s.supplier}</span>
-                <span className="tabular-nums text-etyme-muted"> · account ending {s.last4 ?? 'not on file'}</span>
-                <span className="block text-[12px] text-etyme-muted">
-                  {s.customers.length ? `Paid by ${s.customers.join(', ')}.` : 'No customer pays it yet.'}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+      <Panel title="Which suppliers">
+        <p className="text-[14px] text-etyme-muted">
+          This page gives counts only. Each firm reads its own held suppliers inside its own account, on the invoice receipt in Payables, where its Finance or AP clerk checks the bank.
+        </p>
       </Panel>
     </div>
   )

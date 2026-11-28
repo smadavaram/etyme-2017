@@ -9,8 +9,8 @@ import { reportError } from '@/lib/alerts'
  * GET /api/superadmin/bank-checks — the old bank checks report, for Etyme's
  * staff only (an address on ETYME_STAFF_EMAILS, read as `caller.staff`).
  * Read only: it writes the staff read's own access row and nothing else,
- * never the carry-over. Names each supplier that would be held, the bank's
- * last four digits and the customers that pay it; never a full number.
+ * never the carry-over. Counts only: no firm is named and no bank digit is
+ * returned, since a staff surface reads metadata, never a company's data.
  * A refusal is logged and waited for before it is sent; the read is logged
  * before the list is handed over.
  */
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     await recordAccess([caller.person.id], {
       ...accessActor(caller),
       action: OPEN,
-      reason: `Read the old bank checks report: ${report.held} suppliers named by company, bank last four digits and paying customers.`,
+      reason: `Read the old bank checks report: counts only (${report.held} suppliers would be held); no firm named, no bank digits.`,
     })
     return NextResponse.json({ data: { ...report, says: oldChecksSummary(report) } })
   } catch (err) {
