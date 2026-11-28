@@ -87,9 +87,9 @@ export const PLUGIN_REGISTRY: readonly PluginDecl[] = [
     key: 'PODS', label: 'Project teams', order: 2,
     says: 'Named teams sold as a project, with deliverables the client accepts and milestones billed from them.',
     offeredTo: SUPPLIER_KINDS,
-    microSite: null,
+    microSite: '/pods',
     doors: ['/dashboard/pods'],
-    pages: ['/dashboard/pods'],
+    pages: ['/dashboard/pods', '/pods'],
     openPages: [],
     routes: [
       { prefix: '/api/pods', by: 'GATE' },
@@ -140,9 +140,9 @@ export const PLUGIN_REGISTRY: readonly PluginDecl[] = [
     key: 'PUBLIC_SECTOR', label: 'Public-sector proposals', order: 5,
     says: 'Record a public bid, draft the response from your own record, and track its deadlines. A person approves and submits.',
     offeredTo: SUPPLIER_KINDS,
-    microSite: null,
+    microSite: '/proposals',
     doors: ['/dashboard/proposals'],
-    pages: ['/dashboard/proposals'],
+    pages: ['/dashboard/proposals', '/proposals'],
     openPages: [],
     routes: [
       { prefix: '/api/proposals', by: 'GATE' },

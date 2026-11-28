@@ -44,8 +44,8 @@ describe('the core reaches a plugin only by a link the registry declares', () =>
     const learn = pluginLine('TRAIN_TO_BENCH', base, '/tenant/home')
     expect(learn.href).toBe('/learn/tenant/home')
     expect(learn.plugin).toBe('TRAIN_TO_BENCH')
-    expect(pluginLine('PODS', base).href).toBe('/dashboard/pods')
-    expect(pluginLine('PUBLIC_SECTOR', base).href).toBe('/dashboard/proposals')
+    expect(pluginLine('PODS', base, '/tenant').href).toBe('/pods/tenant')
+    expect(pluginLine('PUBLIC_SECTOR', base, '/tenant').href).toBe('/proposals/tenant')
     expect(Object.keys(learn).sort()).toEqual(['href', 'kind', 'plugin', 'says', 'section', 'source', 'when'])
   })
 
@@ -55,9 +55,31 @@ describe('the core reaches a plugin only by a link the registry declares', () =>
     expect(src).not.toMatch(/'\/learn|'\/dashboard\/(pods|proposals|training)/)
   })
 
-  it('the plugins whose screens still live inside the dashboard are listed, and the list may only shrink', () => {
+  it('the plugins whose screens still live inside the dashboard are listed, and the list may only shrink: it is now empty', () => {
     const stillInCore = PLUGIN_REGISTRY.filter((p) => p.microSite === null && p.doors.some((d) => existsSync(join(ROOT, 'src/app', d)))).map((p) => p.key).sort()
-    expect(stillInCore).toEqual(['PODS', 'PUBLIC_SECTOR'])
+    expect(stillInCore).toEqual([])
+  })
+
+  it('project teams and proposals each have their own site, and the dashboard keeps only a short door to each', () => {
+    expect(pluginHref('PODS')).toBe('/pods')
+    expect(pluginHref('PUBLIC_SECTOR')).toBe('/proposals')
+    for (const [door, site, route] of [['pods', 'src/app/pods/[tenant]/page.tsx', '/api/pods'], ['proposals', 'src/app/proposals/[tenant]/page.tsx', '/api/proposals']]) {
+      const d = read(join(ROOT, `src/app/dashboard/${door}/page.tsx`))
+      expect(d).toContain('sitePath')
+      expect(d).toContain('RefusedState')
+      expect(d.split('\n').length).toBeLessThan(40)
+      expect(readdirSync(join(ROOT, `src/app/dashboard/${door}`))).toEqual(['page.tsx'])
+      expect(read(join(ROOT, site))).toContain(route)
+    }
+    expect(existsSync(join(ROOT, 'src/app/proposals/_components/diversity-panels.tsx'))).toBe(true)
+  })
+
+  it('a project teams or proposals site reads as no firm while its plugin is off', () => {
+    for (const root of ['src/app/pods/[tenant]/layout.tsx', 'src/app/proposals/[tenant]/layout.tsx']) {
+      const l = read(join(ROOT, root))
+      expect(l).toContain('pluginSiteTenant(')
+      expect(l).toMatch(/if \(!t\) notFound\(\)/)
+    }
   })
 })
 
@@ -76,7 +98,7 @@ describe('what a reader may see on a ledger line', () => {
 
 describe('one sign-on covers the core and every plugin site', () => {
   it('a plugin site has no sign-up, sign-in or password of its own', () => {
-    const files = [...walk(join(ROOT, 'src/app/learn'))]
+    const files = [...walk(join(ROOT, 'src/app/learn')), ...walk(join(ROOT, 'src/app/pods')), ...walk(join(ROOT, 'src/app/proposals'))]
     expect(files.length).toBeGreaterThan(0)
     const offenders = files.filter((f) => /\b(signIn|signUp|bcrypt|argon2|passwordHash|type=["']password["']|\/signup|\/login)\b/.test(read(f)))
     expect(offenders.map((f) => relative(ROOT, f))).toEqual([])
@@ -90,7 +112,7 @@ describe('one sign-on covers the core and every plugin site', () => {
   })
 
   it('the registry names the signed-in micro-sites, and a firm’s public storefront is not one of them', () => {
-    expect(sessionMicroSites()).toContain('/learn')
+    expect(sessionMicroSites()).toEqual(expect.arrayContaining(['/learn', '/pods', '/proposals']))
     expect(sessionMicroSites()).not.toContain('/site')
     expect(pluginHref('TRAIN_TO_BENCH')).toBe('/learn')
   })
@@ -110,6 +132,16 @@ describe('one sign-on covers the core and every plugin site', () => {
     expect(res.status).toBeGreaterThanOrEqual(300)
     expect(res.status).toBeLessThan(400)
     expect(new URL(res.headers.get('location')!).host).not.toBe('careers.some-firm.example')
+  })
+
+  it('the project teams and proposals sites opened on a firm’s own address are sent to the platform host too', async () => {
+    for (const path of ['/pods/tapin', '/proposals/tapin']) {
+      const res = await at('tapin.etyme.com', path)
+      expect(res.status).toBeGreaterThanOrEqual(300)
+      expect(res.status).toBeLessThan(400)
+      expect(new URL(res.headers.get('location')!).pathname).toBe(path)
+      expect(new URL(res.headers.get('location')!).host).not.toBe('tapin.etyme.com')
+    }
   })
 
   it('a firm’s public page on its own address is still served there', async () => {

@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     // The page draws a button only where its route will take it.
     mayWrite: hasPermission(caller.permissions, 'submissions.create'),
+    // The door into this firm's own proposals site (record 133, as learnPath is for training).
+    sitePath: `/proposals/${caller.company.slug}`,
     data: await Promise.all(rows.map(async (p) => {
       // A bid set aside for a certification is eligible only where the firm holds it today (record 132).
       const eligibility = await bidEligibility(prisma as never, caller.company!.id, p)

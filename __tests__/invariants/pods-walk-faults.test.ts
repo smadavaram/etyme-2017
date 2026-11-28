@@ -26,7 +26,7 @@ describe('marking a deliverable started', () => {
     expect(src).toMatch(/updateMany\(\{[^}]*startedAt: null/)
   })
   it('the supplier view draws Mark started only on a planned deliverable and only for a seat that may write', () => {
-    const page = read('src/app/dashboard/pods/page.tsx')
+    const page = read('src/app/pods/[tenant]/page.tsx')
     expect(page).toContain('Mark started')
     expect(page).toMatch(/mayWrite && d\.state === 'planned'/)
     expect(read('src/lib/pods/read.ts')).toContain('deliverables:')
@@ -62,14 +62,14 @@ describe('creating a team says what comes next', () => {
 
 describe('the team on the page', () => {
   it('Sold to the client is said once: the offer line yields to the project row once the sale is made', () => {
-    expect(read('src/app/dashboard/pods/page.tsx')).toMatch(/decision !== 'APPROVED'/)
+    expect(read('src/app/pods/[tenant]/page.tsx')).toMatch(/decision !== 'APPROVED'/)
   })
   it('the member picker leaves out everybody already on the team, in any role', () => {
     const people = [{ personId: 'a', name: 'A' }, { personId: 'b', name: 'B' }, { personId: 'c', name: 'C' }]
     expect(peopleToAdd(people, [{ members: [{ personId: 'a' }] }, { members: [{ personId: 'c' }] }]).map((p) => p.personId)).toEqual(['b'])
   })
   it('the page uses that rule rather than filtering one role', () => {
-    expect(read('src/app/dashboard/pods/page.tsx')).toContain('peopleToAdd(')
+    expect(read('src/app/pods/[tenant]/page.tsx')).toContain('peopleToAdd(')
   })
 })
 

@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     const reach = await marginReachFor(caller)
     const lines = await sellLinesInReach(companyId, reach, caller.person.id)
     const projects = (await readProjects(companyId, lines)).map(({ clientName: _client, ...p }) => p)
-    return NextResponse.json({ data: { view: 'PROJECTS', projects, mayWrite: false } })
+    return NextResponse.json({ data: { view: 'PROJECTS', projects, mayWrite: false, sitePath: `/pods/${caller.company!.slug}` } })
   }
 
   const [teams, people, projects, offers, dealings] = await Promise.all([readPods(companyId), eligiblePeople(companyId), readProjects(companyId), readOffers(companyId), dealingsWithSides(caller, false)])
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   const open = [...dealings.ids].filter((id) => !dealings.ownSideOnly.has(id) && id !== companyId)
   const clients = open.length ? await prisma.company.findMany({ where: { id: { in: open } }, select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 200 }) : []
   logPodReads(caller, teams.flatMap((t) => t.roles.flatMap((r) => r.members.map((m) => m.personId))), 'the people on its teams')
-  return NextResponse.json({ data: { view: 'TEAMS', teams, people, projects, offers, clients, mayWrite: hasPermission(caller.permissions, 'requirements.write') } })
+  return NextResponse.json({ data: { view: 'TEAMS', teams, people, projects, offers, clients, mayWrite: hasPermission(caller.permissions, 'requirements.write'), sitePath: `/pods/${caller.company!.slug}` } })
 }
 
 export async function POST(request: NextRequest) {

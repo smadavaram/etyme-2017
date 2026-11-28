@@ -146,7 +146,7 @@ async function personLedger(reader: Reader, personId: string): Promise<LedgerAns
     prisma.submission.findMany({ where: { AND: [{ personId, ...scope({ fromCompanyId: firm }, { toCompanyId: firm }) }, ...(self ? [] : reader.submissionNarrow)] } as never, select: { id: true, status: true, submittedAt: true, requirement: { select: { id: true, title: true } } }, orderBy: { submittedAt: 'desc' }, take: 100 }),
     prisma.timesheet.findMany({ where: { personId, sellContractId: { in: lineIds } }, select: { id: true, periodStart: true, periodEnd: true, totalHours: true, status: true }, orderBy: { periodStart: 'desc' }, take: 100 }),
     prisma.enrollment.findMany({ where: { personId, ...(self ? {} : { companyId: firm }), company: { pluginsOn: { has: 'TRAIN_TO_BENCH' } } }, select: { id: true, status: true, enrolledAt: true, completedAt: true, course: { select: { title: true } }, company: { select: { slug: true } } }, orderBy: { enrolledAt: 'desc' }, take: 100 }),
-    prisma.podMember.findMany({ where: { personId, podRole: { pod: { ...(self ? {} : { companyId: firm ?? '__none__' }), company: { pluginsOn: { has: 'PODS' } } } } }, select: { id: true, addedAt: true, podRole: { select: { title: true, pod: { select: { name: true } } } } }, take: 100 }),
+    prisma.podMember.findMany({ where: { personId, podRole: { pod: { ...(self ? {} : { companyId: firm ?? '__none__' }), company: { pluginsOn: { has: 'PODS' } } } } }, select: { id: true, addedAt: true, podRole: { select: { title: true, pod: { select: { name: true, company: { select: { slug: true } } } } } } }, take: 100 }),
     prisma.learnCredential.findMany({ where: { enrollment: { personId }, revokedAt: null, ...(self ? {} : { companyId: firm ?? '__none__', shownAt: { not: null } }) }, select: { id: true, createdAt: true, enrollment: { select: { course: { select: { title: true } } } }, company: { select: { slug: true } } }, take: 100 }),
     prisma.verification.findMany({ where: { personId, ...(self ? {} : { OR: [{ companyId: firm }, { orderedByCompanyId: firm }] }) }, select: { id: true, type: true, status: true, expiresAt: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 100 }),
   ])
@@ -157,7 +157,7 @@ async function personLedger(reader: Reader, personId: string): Promise<LedgerAns
   for (const s of subs) activity.push({ section: 'activity', kind: 'application', says: `Put forward for ${s.requirement.title}: ${s.status.toLowerCase()}`, when: s.submittedAt, source: { type: 'Submission', id: s.id }, href: recordHref('Requirement', s.requirement.id, '/dashboard/submissions'), plugin: null })
   for (const t of sheets) activity.push({ section: 'activity', kind: 'timesheet', says: `Week of ${formatDay(t.periodStart)}: ${Number(t.totalHours)} hours, ${t.status.toLowerCase()}`, when: t.periodStart, source: { type: 'Timesheet', id: t.id }, href: '/dashboard/timesheets', plugin: null })
   for (const e of enrolls) activity.push(pluginLine('TRAIN_TO_BENCH', { section: 'activity', kind: e.completedAt ? 'training completed' : 'training', says: `${e.course.title}: ${e.completedAt ? `completed ${formatDay(e.completedAt)}` : e.status.toLowerCase()}`, when: e.completedAt ?? e.enrolledAt, source: { type: 'Enrollment', id: e.id } }, e.company?.slug ? `/${e.company.slug}/home` : ''))
-  for (const p of pods) activity.push(pluginLine('PODS', { section: 'activity', kind: 'pod work', says: `${p.podRole.title} on ${p.podRole.pod.name}`, when: p.addedAt, source: { type: 'PodMember', id: p.id } }))
+  for (const p of pods) activity.push(pluginLine('PODS', { section: 'activity', kind: 'pod work', says: `${p.podRole.title} on ${p.podRole.pod.name}`, when: p.addedAt, source: { type: 'PodMember', id: p.id } }, `/${p.podRole.pod.company.slug}`))
 
   // Money: rates only where the reader pays or bills them; margin only where the reader is the seller and holds it.
   const m = await marginLines(reader)
@@ -205,7 +205,7 @@ async function personLedger(reader: Reader, personId: string): Promise<LedgerAns
 async function companyLedger(reader: Reader, companyId: string): Promise<LedgerAnswer> {
   const firm = reader.companyId
   const own = firm === companyId
-  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true, name: true, pluginsOn: true } })
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true, name: true, slug: true, pluginsOn: true } })
   if (!company || !firm || (!own && !(await findOnBook(firm, 'Company', companyId)))) {
     return refuse(reader, { kind: 'company', id: companyId }, NOT_ON_YOUR_BOOK_SAYS)
   }
@@ -236,9 +236,9 @@ async function companyLedger(reader: Reader, companyId: string): Promise<LedgerA
   for (const l of lines) activity.push({ section: 'activity', kind: 'placement', says: `${l.person.name} at ${l.clientCompany.name}, ${l.state.toLowerCase()}, from ${formatDay(l.startDate)}`, when: l.startDate, source: { type: 'SellContract', id: l.id }, href: recordHref('SellContract', l.id, '/dashboard/contracts'), plugin: null })
   const sheets = await prisma.timesheet.findMany({ where: { sellContractId: { in: lineIds } }, select: { id: true, periodStart: true, totalHours: true, status: true, person: { select: { name: true } } }, orderBy: { periodStart: 'desc' }, take: 100 })
   for (const t of sheets) activity.push({ section: 'activity', kind: 'timesheet', says: `${t.person.name}, week of ${formatDay(t.periodStart)}: ${Number(t.totalHours)} hours, ${t.status.toLowerCase()}`, when: t.periodStart, source: { type: 'Timesheet', id: t.id }, href: '/dashboard/timesheets', plugin: null })
-  for (const p of pods) activity.push(pluginLine('PODS', { section: 'activity', kind: 'pod work', says: `Project team ${p.name}`, when: p.createdAt, source: { type: 'Pod', id: p.id } }))
+  for (const p of pods) activity.push(pluginLine('PODS', { section: 'activity', kind: 'pod work', says: `Project team ${p.name}`, when: p.createdAt, source: { type: 'Pod', id: p.id } }, `/${company.slug}`))
   for (const e of enrolls) activity.push(pluginLine('TRAIN_TO_BENCH', { section: 'activity', kind: e.completedAt ? 'training completed' : 'training', says: `${e.person.name}: ${e.course.title}, ${e.completedAt ? 'completed' : e.status.toLowerCase()}`, when: e.completedAt ?? e.enrolledAt, source: { type: 'Enrollment', id: e.id } }))
-  for (const p of proposals) activity.push(pluginLine('PUBLIC_SECTOR', { section: 'activity', kind: 'proposal', says: `${p.title}, ${p.state.toLowerCase()}`, when: p.createdAt, source: { type: 'Proposal', id: p.id } }))
+  for (const p of proposals) activity.push(pluginLine('PUBLIC_SECTOR', { section: 'activity', kind: 'proposal', says: `${p.title}, ${p.state.toLowerCase()}`, when: p.createdAt, source: { type: 'Proposal', id: p.id } }, `/${company.slug}`))
 
   const m = await marginLines(reader)
   for (const l of lines) {

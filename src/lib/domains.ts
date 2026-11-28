@@ -316,7 +316,7 @@ export const DOMAINS: Domain[] = [
       // The training micro-site (record 133): its own route tree and its own routes, under the plugin switch.
       'app/learn', 'app/api/learn',
       // Project teams (record 120, pods): a plugin, off by default.
-      'lib/pods', 'app/api/pods', 'app/dashboard/pods',
+      'lib/pods', 'app/api/pods', 'app/dashboard/pods', 'app/pods',
       'app/api/alumni', 'app/api/releasing-soon', 'app/api/benchmark',
       'lib/match-engine', 'lib/candidate-fit', 'lib/bench-filter', 'lib/why',
       // Who a job request is matched against and what each viewer sees
@@ -667,14 +667,14 @@ export const DOMAINS: Domain[] = [
       'lib/nav-table',
       // The per-tenant plugin switch (record 120): the state, who may switch,
       // and the one refusal every plugin's routes say. Every plugin reads it.
-      'lib/plugins', 'lib/plugin-gate', 'lib/plugin-registry', 'lib/plugin-usage',
+      'lib/plugins', 'lib/plugin-gate', 'lib/plugin-registry', 'lib/plugin-usage', 'lib/plugin-site', 'lib/plugin-site-says',
       // A tenant's template, branding and pages, and the Owner's yes tied to them (records 111, 79).
       'lib/site-settings', 'app/api/settings/site-branding',
       // A candidate's own yes to updates (record 117): the reader and the door she answers at.
       'lib/updates-consent', 'app/api/updates-consent',
       // Public-sector proposals (record 124, plugin 5): the states a proposal may
       // move through and who may move it, and the routes behind the switch.
-      'lib/proposals', 'app/api/proposals', 'app/dashboard/proposals',
+      'lib/proposals', 'app/api/proposals', 'app/dashboard/proposals', 'app/proposals',
       // Supplier diversity (record 132, plugin 5): certifications, the Owner's ownership attestation and portal registrations.
       'lib/diversity', 'app/api/diversity',
       // Day 61 unpaid: the one read-only rule, its switch and the writes that stay open.

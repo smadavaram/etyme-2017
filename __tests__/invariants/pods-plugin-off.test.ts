@@ -72,7 +72,7 @@ describe('project teams while the plugin is off', () => {
 })
 
 describe('the Project teams page while the plugin is off', () => {
-  const page = read('src/app/dashboard/pods/page.tsx')
+  const page = read('src/app/pods/[tenant]/page.tsx')
   it('draws only the route’s sentence, before anything else is drawn', () => {
     const refusedAt = page.indexOf('if (refused) return <RefusedState says={refused} />')
     expect(refusedAt).toBeGreaterThan(-1)
@@ -80,7 +80,7 @@ describe('the Project teams page while the plugin is off', () => {
   })
   it('never says pod on the screen', () => {
     // The addresses are machine names and stay; everything else a person could read must not say it.
-    const shown = page.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n').replace(/\/(api|dashboard)\/pods/g, '').replace(/@\/lib\/pods/g, '')
+    const shown = page.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n').replace(/\/(api|dashboard)\/pods/g, '').replace(/@\/lib\/pods/g, '').replace(/`\/pods\/\$\{tenant\}`/g, '').replace(/'PODS'/g, '')
     expect(shown.match(/\bpods?\b/gi) ?? []).toEqual([])
   })
 })

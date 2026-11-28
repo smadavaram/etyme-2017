@@ -50,7 +50,7 @@ describe('the margin route', () => {
 })
 
 describe('the supplier’s team page', () => {
-  const page = read('src/app/dashboard/pods/page.tsx')
+  const page = read('src/app/pods/[tenant]/page.tsx')
   it('draws a margin only from a project whose margin route answered yes', () => {
     expect(page).toContain('if (r.ok)')
     expect(page).toContain('{m && (')
