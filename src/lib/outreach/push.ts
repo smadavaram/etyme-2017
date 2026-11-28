@@ -76,7 +76,7 @@ export async function assemblePushes(
       let words = draftByRules(firm.name, d, content, proofCount)
       if (deps.draft) {
         const m = await deps.draft({ firm: firm.name, reason: firing.reason, content, facts: content.facts })
-        if (m && modelDraftOk(m, content.facts)) { words = m; drafter = 'MODEL' }
+        if (m && modelDraftOk(m, content.facts, [firm.name, ...d.skills])) { words = m; drafter = 'MODEL' }
       }
       const refusal = draftRefusal(words)
       if (refusal) { notes.push(`The drafted letter was not fit to send: ${refusal}`); continue }

@@ -65,7 +65,7 @@ export function packCard(i: { name: string; segmentWords: string; contentKinds: 
   const again = packSideOf(i.role) === 'CANDIDATE' ? 'Each person gets one letter and is not written to again.' : `A letter may be sent again up to ${FOLLOW_UPS} times, ${DAYS_APART} working days apart.`
   return {
     question: `Outreach: approve the pack "${i.name}"? Letters go only inside it, and only if you say yes.`,
-    detail: `Who: ${i.segmentWords}\nWhat it may carry: ${kinds}.\nThe most it sends: ${i.cap} letters. More is a new pack and asks you again.\n${again}\nEvery letter says who sends it and where, and carries a link that stops letters like it. Anyone who has stopped, or whose address bounced, is left alone.\nEtyme drafts each letter from your own record as something happens. You see each one in the pack before it goes. Anything that does not fit this pack waits for you and sends nothing.`,
+    detail: `Who: ${i.segmentWords}\nWhat it may carry: ${kinds}.\nThe most it sends: ${i.cap} letters. More is a new pack and asks you again.\n${again}\nEvery letter says who sends it and where, and carries a link that stops letters like it. Anyone who has stopped, or whose address bounced, is left alone.\nYour yes releases this pack only, for the people and kinds of letter above and no more than the most above. Etyme drafts each letter from your own record as something happens, and each goes without a further look from you. Each letter still checks consent and the stop list before it leaves. Anything that does not fit this pack waits for you and sends nothing.`,
   }
 }
 

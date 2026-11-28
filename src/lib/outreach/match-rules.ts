@@ -111,14 +111,29 @@ export function draftRefusal(dr: Draft): string | null {
   return subjectRefusal(dr.subject) ?? bodyRefusal(dr.body) ?? hotListWordsRefusal(`${dr.subject}\n${dr.body}`)
 }
 
+/** Capitalised words in the middle of a sentence that are not words the firm or the content gave: a name nobody supplied. Pure. */
+function unknownNames(words: string, known: readonly string[]): string[] {
+  const ok = new Set(known.join(' ').toLowerCase().match(/[a-z][a-z'’-]*/g) ?? [])
+  const out: string[] = []
+  const re = /(^|[.!?]\s+|\n\s*)?\b([A-Z][a-z][a-z'’-]*)/g
+  for (let m = re.exec(words); m; m = re.exec(words)) {
+    if (m[1] !== undefined || m.index === 0) continue // the first word of a sentence is capitalised anyway
+    if (!ok.has(m[2].toLowerCase())) out.push(m[2])
+  }
+  return out
+}
+
 /**
- * Whether a model's draft may be used: it passes the letter's own rules, and every
- * number in it is one of the facts it was given. Anything else, the rules write the push.
+ * Whether a model's draft may be used: it passes the letter's own rules, every
+ * number in it is one of the facts it was given, and it names nobody the firm
+ * and the content did not give (`known`: the firm's name and the content's own
+ * words). Anything else, the rules write the push.
  */
-export function modelDraftOk(dr: Draft, facts: readonly string[]): boolean {
+export function modelDraftOk(dr: Draft, facts: readonly string[], known: readonly string[] = []): boolean {
   if (draftRefusal(dr)) return false
-  const known = new Set(facts.join(' ').match(/\d+/g) ?? [])
-  return (`${dr.subject} ${dr.body}`.match(/\d+/g) ?? []).every((n) => known.has(n))
+  const nums = new Set(facts.join(' ').match(/\d+/g) ?? [])
+  if (!(`${dr.subject} ${dr.body}`.match(/\d+/g) ?? []).every((n) => nums.has(n))) return false
+  return unknownNames(`${dr.subject}\n${dr.body}`, [...facts, ...known]).length === 0
 }
 
 /** The page a letter's tracked link leads to, by content kind. Pure. */

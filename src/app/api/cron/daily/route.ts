@@ -54,6 +54,8 @@ const JOBS = [
   // After end-contracts and the cycle jobs, so the time limit and the
   // invoice receipts it reads are tonight's.
   { path: 'twin', does: 'has the program manager\u2019s twin read each client program and record, tell or ask about what it finds' },
+  // Before the agents, so a push that joined an approved pack tonight is there when the outreach agent walks its packs.
+  { path: 'outreach-detect', does: 'looks at each firm with Outreach on for what is worth a letter, drafts it, and files it in an approved pack or as a card; sends nothing' },
   // After the jobs that write the records agents read.
   { path: 'agents', does: 'runs each agent a firm has switched on, within its daily cap' },
   { path: 'deliver-webhooks', does: 'retries webhooks that did not land' },

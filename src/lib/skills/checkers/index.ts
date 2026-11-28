@@ -22,6 +22,7 @@ import { dualAuthBlock } from './dual-auth-block'
 import { paymentMatch } from './payment-match'
 import { payrollDraft } from './payroll-draft'
 import { proposalDraft, proposalCheck, proposalAsk, proposalChase, registrationDraft } from './proposals'
+import { outreachPush } from './outreach-push'
 
 export const CHECKERS: Record<string, SkillChecker<any>> = {
   'weekly.summary': weeklySummaryChecker,
@@ -39,6 +40,7 @@ export const CHECKERS: Record<string, SkillChecker<any>> = {
   'dual-auth.block': dualAuthBlock,
   'payment.match': paymentMatch,
   'payroll.draft': payrollDraft,
+  'outreach.push': outreachPush,
   'proposal.draft': proposalDraft,
   'proposal.check': proposalCheck,
   'proposal.ask': proposalAsk,

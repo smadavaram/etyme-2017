@@ -10,6 +10,9 @@ import {
   PIECE_LABEL, acceptAnswer, certificationClaimProblems, checkProposal, composeDraft, draftPrompt, paragraphsOf, piecesToAdd, requirementLines, stateAfterCheck, DRAFT_SYSTEM,
   type PieceFact, type ProposalFacts,
 } from '@/lib/proposals/draft-rules'
+import { draftByRules, draftRefusal, modelDraftOk, type Draft } from '@/lib/outreach/match-rules'
+import type { Content } from '@/lib/outreach/match-rules'
+import type { Detection } from '@/lib/outreach/tripwire-rules'
 import {
   noInventedNumbers, avoids, mentions, neverMentions, atMost, saysSomething,
   FILLER, type Surface, type AnySurface, type Mode, type Grader,
@@ -566,6 +569,102 @@ const proposalDraft: Surface<ProposalEvalInput, ProposalEvalOutput> = {
   ],
 }
 
+// ── A detected outreach push (record 135) ─────────────────────────────
+
+interface PushEvalInput { firm: string; detection: Detection; content: Content; proofCount?: number; modelSays?: string }
+interface PushEvalOutput { subject: string; body: string; by: 'MODEL' | 'RULES' }
+
+const PUSH_DETECTION: Detection = {
+  kind: 'JOB_UNFILLED', sourceType: 'Requirement', sourceId: 'eval', reason: 'A job has been open 20 days.', skills: ['data engineering', 'sql'],
+}
+const pushText = (o: PushEvalOutput) => `${o.subject}\n${o.body}`
+const pushNoMoney: Grader<PushEvalOutput> = (o) => (/[$€£₹]\s?\d|\b\d[\d,.]*\s?(?:USD|EUR|GBP|INR|dollars?|per hour|an hour|\/hr)\b|\brate\b/i.test(pushText(o)) ? 'states a rate or an amount of money' : null)
+const pushNoAddress: Grader<PushEvalOutput> = (o) => (/https?:\/\/|www\./i.test(pushText(o)) ? 'carries a web address of its own' : null)
+const pushNoName: Grader<PushEvalOutput> = (o) => (/\b(Dear|Hi|Hello)\s+[A-Z][a-z]+/.test(pushText(o)) ? 'greets somebody by name' : null)
+
+const outreachPush: Surface<PushEvalInput, PushEvalOutput> = {
+  key: 'outreach-push',
+  what: 'A detected outreach push drafted from a matched course, team offer or outcome proof',
+  fallback: 'RULES',
+  async run(input, mode: Mode) {
+    const rules = draftByRules(input.firm, input.detection, input.content, input.proofCount)
+    let model: Draft | null = null
+    if (input.modelSays !== undefined) {
+      try { const p = JSON.parse(input.modelSays) as Partial<Draft>; if (typeof p.subject === 'string' && typeof p.body === 'string') model = { subject: p.subject, body: p.body } } catch { model = null }
+    } else if (mode === 'MODEL') {
+      const { gatewayDrafter } = await import('@/lib/outreach/push')
+      model = await gatewayDrafter('eval', 'eval')({ firm: input.firm, reason: input.detection.reason, content: input.content, facts: input.content.facts })
+      if (!model) throw new Error('the model returned nothing usable')
+    }
+    if (model && modelDraftOk(model, input.content.facts, [input.firm, ...input.detection.skills])) return { ...model, by: 'MODEL' }
+    if (mode === 'MODEL' && input.modelSays === undefined) throw new Error('the model’s words were refused by the letter rules')
+    return { ...rules, by: 'RULES' }
+  },
+  cases: [
+    {
+      name: 'a course matched to a job unfilled for weeks is drafted from the course and the firm, with no rate and no name',
+      input: { firm: 'Tecwyn Inc.', detection: PUSH_DETECTION, content: { kind: 'COURSE', ref: 'c1', title: 'Data Engineering Foundations', facts: ['Data Engineering Foundations'] } },
+      checks: [
+        { said: 'names the course and the firm', grade: (o) => mentions('Data Engineering Foundations')(pushText(o)) ?? mentions('Tecwyn Inc.')(pushText(o)) },
+        { said: 'invents no number', grade: (o) => noInventedNumbers([])(pushText(o)) },
+        { said: 'states no rate or amount of money', grade: pushNoMoney },
+        { said: 'greets nobody by name', grade: pushNoName },
+        { said: 'carries no web address of its own', grade: pushNoAddress },
+        { said: 'passes the letter’s own rules', grade: (o) => draftRefusal(o) },
+      ],
+    },
+    {
+      name: 'a team offer says how many it is only from the record, and promises no price',
+      input: { firm: 'Tecwyn Inc.', detection: PUSH_DETECTION, content: { kind: 'POD_OFFER', ref: 'p1', title: 'Data pipeline team', facts: ['Data pipeline team', '3'] } },
+      checks: [
+        { said: 'names the team', grade: (o) => mentions('Data pipeline team')(pushText(o)) },
+        { said: 'invents no number beyond the facts', grade: (o) => noInventedNumbers([3])(pushText(o)) },
+        { said: 'states no rate or amount of money', grade: pushNoMoney },
+        { said: 'uses no filler adjective', grade: (o) => avoids(FILLER, 'filler')(pushText(o)) },
+      ],
+    },
+    {
+      name: 'outcome proof states the completion count the record holds and no other figure',
+      input: { firm: 'Tecwyn Inc.', detection: PUSH_DETECTION, content: { kind: 'OUTCOME_PROOF', ref: 'c1', title: 'Data Engineering Foundations', facts: ['Data Engineering Foundations', '12'] }, proofCount: 12 },
+      checks: [
+        { said: 'says 12 people finished', grade: (o) => mentions('12 people finished')(pushText(o)) },
+        { said: 'invents no other number', grade: (o) => noInventedNumbers([12])(pushText(o)) },
+        { said: 'claims no placement or hiring result the record does not hold', grade: (o) => avoids(/\b(placed|hired|employed|job offers?|guarantee[ds]?|percent|%)\b/i, 'a claim the record does not hold')(pushText(o)) },
+      ],
+    },
+    {
+      name: 'a model draft that invents a number is thrown away and the rules write the letter',
+      input: {
+        firm: 'Tecwyn Inc.', detection: PUSH_DETECTION, content: { kind: 'COURSE', ref: 'c1', title: 'Data Engineering Foundations', facts: ['Data Engineering Foundations'] },
+        modelSays: JSON.stringify({ subject: 'Join 500 engineers', body: 'Tecwyn Inc. has trained 500 engineers on Data Engineering Foundations.' }),
+      },
+      checks: [
+        { said: 'the rules’ words stand', grade: (o) => (o.by === 'RULES' ? null : 'used the model’s words') },
+        { said: 'the invented figure is not in the letter', grade: (o) => avoids(/500/, 'invented figure')(pushText(o)) },
+      ],
+    },
+    {
+      name: 'a model draft that names a price or a person is thrown away and the rules write the letter',
+      input: {
+        firm: 'Tecwyn Inc.', detection: PUSH_DETECTION, content: { kind: 'POD_OFFER', ref: 'p1', title: 'Data pipeline team', facts: ['Data pipeline team'] },
+        modelSays: JSON.stringify({ subject: 'Hot list: Data pipeline team', body: 'Our best people are available now. Bench: Priya, Ravi. Send your openings today.' }),
+      },
+      checks: [
+        { said: 'the rules’ words stand', grade: (o) => (o.by === 'RULES' ? null : 'used the model’s words') },
+        { said: 'nobody is named from the bench', grade: (o) => avoids(/Priya|Ravi/, 'a name')(pushText(o)) },
+      ],
+    },
+    {
+      name: 'a model answer that is not JSON falls back to the rules and still gives a sendable letter',
+      input: { firm: 'Tecwyn Inc.', detection: PUSH_DETECTION, content: { kind: 'COURSE', ref: 'c1', title: 'Data Engineering Foundations', facts: ['Data Engineering Foundations'] }, modelSays: 'Sure! Here is a letter' },
+      checks: [
+        { said: 'the rules’ words stand', grade: (o) => (o.by === 'RULES' ? null : 'used the model’s words') },
+        { said: 'the letter passes its own rules', grade: (o) => draftRefusal(o) },
+      ],
+    },
+  ],
+}
+
 export const SURFACES: readonly AnySurface[] = [
   siteVoice,
   consultantBio,
@@ -573,6 +672,7 @@ export const SURFACES: readonly AnySurface[] = [
   matchScoring,
   skillEvidence,
   proposalDraft,
+  outreachPush,
 ]
 
 /**
@@ -590,4 +690,5 @@ export const COVERAGE: Record<string, string> = {
   'src/lib/match-engine.ts': 'match-scoring',
   'src/lib/checks/skill-evidence.ts': 'skill-evidence',
   'src/lib/agents/proposals-agent.ts': 'proposal-draft',
+  'src/lib/outreach/push.ts': 'outreach-push',
 }

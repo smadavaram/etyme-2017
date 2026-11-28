@@ -258,6 +258,11 @@ const SELF_SCOPED = [
   // seats: whether they hold Owner or Admin at a company that is not seed
   // (lib/map-gate). It reads nobody else's record and returns no data.
   'map/gate/route.ts',
+  // The tracked link in a pack's letter (record 135). It counts a visit only
+  // for the signed-in person the letter was written to, never for another
+  // signed-in person or an anonymous one, and it always sends the reader on to
+  // the page the letter is about. It reads no company's data and returns none.
+  'outreach/visit/[token]/route.ts',
 ]
 
 /**

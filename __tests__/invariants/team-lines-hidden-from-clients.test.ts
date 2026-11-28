@@ -35,6 +35,8 @@ const NOT_A_CLIENT_READER: [string, string][] = [
   ['src/app/api/bench/ours/holds/route.ts', SELLER],
   ['src/app/api/bench/ours/route.ts', SELLER],
   ['src/app/api/bench/profit/route.ts', SELLER],
+  ['src/lib/outreach/pack.ts', 'reads one sell line by id to find the selling firm\u2019s own client for its own detection; the reader is the selling firm, never the client'],
+  ['src/lib/outreach/tripwires.ts', 'the selling firm\u2019s own contracts ending, read by its own company id for its own detection; the reader is the selling firm, never the client'],
   ['src/app/api/bench/route.ts', SELLER],
   ['src/app/api/blacklist/known.ts', DEAL],
   ['src/app/api/census/import/route.ts', SEED],

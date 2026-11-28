@@ -92,7 +92,7 @@ export interface CandidateLetterInput {
   pageUrl?: string | null
 }
 
-/** The letter: plain text, no tracking, no interested link. It says who sends it, why she got it and how to stop all of it. */
+/** The letter: plain text, no interested link. Where a pack sends it, it carries one tracked page link, counted only when the signed-in recipient opens it (never an anonymous visitor). It says who sends it, why she got it and how to stop all of it. */
 export function buildCandidateLetter(i: CandidateLetterInput): { subject: string; text: string } {
   return {
     subject: i.subject,

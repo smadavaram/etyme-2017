@@ -1316,6 +1316,13 @@ export const JOBS: Record<string, Job> = {
     says: 'Opens a rolloff for every contract ending inside eight weeks, ready for somebody to work.',
     writes: ['ROLLOFF_SCAN'],
   },
+  'outreach-detect': {
+    job: 'outreach-detect',
+    rung: 'L1',
+    basis: 'RULE',
+    says: 'For a firm with Outreach on, notes what the record says is worth a letter and drafts it. The draft joins a pack a person already approved, or waits as one card. It sends nothing.',
+    writes: [],
+  },
   'cold-openings': {
     job: 'cold-openings',
     rung: 'L3',
