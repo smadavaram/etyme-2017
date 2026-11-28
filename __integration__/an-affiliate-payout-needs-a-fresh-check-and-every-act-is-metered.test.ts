@@ -180,19 +180,18 @@ describe('an affiliate payout and the metering of every affiliate act', () => {
       expect(await prisma.recordAction.count({ where: { companyId: t, action: 'ATTRIBUTION_CORRECTED' } })).toBe(1)
     })
 
-    it('returns a registry act unwritten and says it waits for a ruling on the platform record', async () => {
-      const before = await prisma.recordAction.count()
-      const r = await createAffiliate({ kind: 'PERSON', name: 'Unmetered One', contactEmail: 'u@referrer.example' }, staff)
+    it('writes a registry act on Etyme’s own tenant record, because it belongs to no referred tenant', async () => {
+      const r = await createAffiliate({ kind: 'PERSON', name: 'Metered One', contactEmail: 'u@referrer.example' }, staff)
       if (!r.ok) throw new Error(r.says)
-      expect(r.acts[0]).toMatchObject({ action: 'REGISTERED', metered: false })
-      expect(r.acts[0].unmeteredWhy).toMatch(/platform record/)
-      expect(await prisma.recordAction.count()).toBe(before)
+      expect(r.acts[0]).toMatchObject({ action: 'REGISTERED', metered: true })
+      const hq = await prisma.company.findUniqueOrThrow({ where: { slug: 'etyme-platform' } })
+      expect(await prisma.recordAction.count({ where: { companyId: hq.id, action: 'REGISTERED', recordId: r.affiliateId } })).toBe(1)
     })
 
-    it('returns a statement act unwritten as well, because a statement belongs to no tenant', async () => {
+    it('writes a statement act on Etyme’s own tenant record as well, because a statement belongs to no tenant', async () => {
       const s = await closeStatement({ affiliateId: affiliate, month: '2027-03' }, staff, D('2027-04-02'))
       if (!s.ok) throw new Error(s.says)
-      expect(s.acts[0]).toMatchObject({ action: 'STATEMENT_CLOSED', metered: false })
+      expect(s.acts[0]).toMatchObject({ action: 'STATEMENT_CLOSED', metered: true })
     })
 
     it('still records a receipt when the person who marked it is not on record, and says it was not metered', async () => {

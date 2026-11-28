@@ -23,11 +23,11 @@ export { AFFILIATE_AGENT_KEY } from './affiliate-metering'
 
 /**
  * One thing the affiliate engine did, as the sentence the ledger holds.
- * The metering ledger (RecordAction) needs a company and Etyme has no
- * company row of its own, so an act that belongs to a referred tenant is
- * written on that tenant's ledger (`tenantCompanyId`); an act with no
- * tenant (registry, statement, payout) is returned unwritten, with the
- * reason, until the platform record is ruled on. `metered` says which.
+ * The metering ledger (RecordAction) needs a company: an act that belongs
+ * to a referred tenant is written on that tenant's ledger
+ * (`tenantCompanyId`); an act with no tenant (registry, statement, payout)
+ * is written on Etyme's own tenant record, tenant #0
+ * (lib/money/etyme-tenant). `metered` says whether the row was written.
  */
 export interface AffiliateAct {
   action: string
@@ -134,43 +134,59 @@ async function whyNotThisAffiliate(affiliateId: string, tenantCompanyId: string,
   return null
 }
 
+type Activation = { ok: true; attributionId: string; affiliateId: string | null; alreadyWritten: boolean; note: string | null; acts: AffiliateAct[] } | Refused
+
 /**
- * Activate a tenant and write who referred it, once, in one transaction.
- * Nothing wrote `Company.activatedAt` before this. A tenant already
- * attributed is left exactly as it was.
+ * The one writer of attribution, inside the caller's transaction. Sets
+ * `Company.activatedAt` where nothing has, then writes who referred the
+ * tenant, once. A tenant already attributed is left exactly as it was.
+ * Etyme's own record and any billing-exempt tenant are refused: they run
+ * no clock and earn nobody a commission.
+ */
+export async function writeActivation(
+  tx: Db,
+  i: { tenantCompanyId: string; code?: string | null; source: 'CODE' | 'LINK' | 'STAFF'; activatedAt: Date; byPersonId: string; heldAs: string },
+): Promise<Activation> {
+  const company = await tx.company.findUnique({ where: { id: i.tenantCompanyId }, select: { id: true, name: true, activatedAt: true, billingExempt: true } })
+  if (!company) return { ok: false as const, says: 'There is no such tenant.' }
+  if (company.billingExempt) return { ok: false as const, says: `${company.name} is not billed, so it runs no trial clock and is never attributed.` }
+  const existing = await tx.affiliateAttribution.findUnique({ where: { tenantCompanyId: i.tenantCompanyId } })
+  if (existing) return { ok: true as const, attributionId: existing.id, affiliateId: (await effectiveAffiliate(i.tenantCompanyId, tx))?.affiliateId ?? null, alreadyWritten: true, note: 'Attribution was written at activation and stays as it was.', acts: [] }
+
+  const activatedAt = company.activatedAt ?? i.activatedAt
+  if (!company.activatedAt) await tx.company.update({ where: { id: company.id }, data: { activatedAt } })
+
+  let affiliateId: string | null = null
+  let note: string | null = null
+  const code = i.code?.trim().toLowerCase()
+  if (code) {
+    const a = await tx.affiliate.findUnique({ where: { code }, select: { id: true } })
+    const why = a ? await whyNotThisAffiliate(a.id, company.id, tx) : 'That referral code is not on the registry, so the tenant is the house’s.'
+    if (why) note = why
+    else affiliateId = a!.id
+  }
+  const row = await tx.affiliateAttribution.create({
+    data: { tenantCompanyId: company.id, affiliateId, source: affiliateId ? i.source : 'HOUSE', activatedAt, recordedByPersonId: i.byPersonId },
+  })
+  return {
+    ok: true as const, attributionId: row.id, affiliateId, alreadyWritten: false, note,
+    acts: await meterActs(tx, [{ action: 'ATTRIBUTED', recordType: 'AffiliateAttribution', recordId: row.id, summary: affiliateId ? `${company.name} was attributed to an affiliate at activation.` : `${company.name} was activated and belongs to the house.`, personId: i.byPersonId, heldAs: i.heldAs, tenantCompanyId: company.id }]),
+  }
+}
+
+/**
+ * Staff marking a tenant active by hand. The normal door is the trial
+ * clock (lib/money/affiliate-activation): a firm is active when it starts
+ * running its own business. This stays for the case the event missed, and
+ * is ledgered like the event, as Etyme staff.
  */
 export async function activateTenant(
   i: { tenantCompanyId: string; code?: string | null; source?: 'CODE' | 'LINK' | 'STAFF'; activatedAt?: Date },
   actor: Actor,
   db: PrismaClient = defaultDb,
-): Promise<{ ok: true; attributionId: string; affiliateId: string | null; alreadyWritten: boolean; note: string | null; acts: AffiliateAct[] } | Refused> {
+): Promise<Activation> {
   if (!actor.staff) return { ok: false, says: NEEDS_STAFF }
-  return db.$transaction(async (tx) => {
-    const company = await tx.company.findUnique({ where: { id: i.tenantCompanyId }, select: { id: true, name: true, activatedAt: true } })
-    if (!company) return { ok: false as const, says: 'There is no such tenant.' }
-    const existing = await tx.affiliateAttribution.findUnique({ where: { tenantCompanyId: i.tenantCompanyId } })
-    if (existing) return { ok: true as const, attributionId: existing.id, affiliateId: (await effectiveAffiliate(i.tenantCompanyId, tx))?.affiliateId ?? null, alreadyWritten: true, note: 'Attribution was written at activation and stays as it was.', acts: [] }
-
-    const activatedAt = company.activatedAt ?? i.activatedAt ?? new Date()
-    if (!company.activatedAt) await tx.company.update({ where: { id: company.id }, data: { activatedAt } })
-
-    let affiliateId: string | null = null
-    let note: string | null = null
-    const code = i.code?.trim().toLowerCase()
-    if (code) {
-      const a = await tx.affiliate.findUnique({ where: { code }, select: { id: true } })
-      const why = a ? await whyNotThisAffiliate(a.id, company.id, tx) : 'That referral code is not on the registry, so the tenant is the house’s.'
-      if (why) note = why
-      else affiliateId = a!.id
-    }
-    const row = await tx.affiliateAttribution.create({
-      data: { tenantCompanyId: company.id, affiliateId, source: affiliateId ? (i.source ?? 'CODE') : 'HOUSE', activatedAt, recordedByPersonId: actor.personId },
-    })
-    return {
-      ok: true as const, attributionId: row.id, affiliateId, alreadyWritten: false, note,
-      acts: await meterActs(tx, [{ action: 'ATTRIBUTED', recordType: 'AffiliateAttribution', recordId: row.id, summary: affiliateId ? `${company.name} was attributed to an affiliate at activation.` : `${company.name} was activated and belongs to the house.`, personId: actor.personId, heldAs: 'Etyme staff', tenantCompanyId: company.id }]),
-    }
-  })
+  return db.$transaction((tx) => writeActivation(tx, { tenantCompanyId: i.tenantCompanyId, code: i.code, source: i.source ?? 'CODE', activatedAt: i.activatedAt ?? new Date(), byPersonId: actor.personId, heldAs: 'Etyme staff' }))
 }
 
 /** A correction is a new row with a reason and never an edit. It moves commission from the day it is written; entries already made stay. */

@@ -1030,6 +1030,8 @@ model Company {
   annualPrepaid              Boolean                  @default(false)
   /// The internal proving tenants (record 126) are never locked by the day-61 rule. Set by a Superadmin only, ledgered by the writer.
   billingExempt              Boolean                  @default(false)
+  /// The referral code this firm arrived with, kept until its trial clock starts (Pax, 2026-11-28). Attribution is written from it at that moment and never before; nothing reads it after. Written at sign-up by lib/money/affiliate-activation.
+  referredByCode             String?
   /// Plugins switched on for this firm (record 120): TRAIN_TO_BENCH, PODS, WEBSITE, OUTREACH.
   /// The fifth key, PUBLIC_SECTOR (record 124), is the switch only.
   /// Empty is off. The ledger is PluginSwitch.

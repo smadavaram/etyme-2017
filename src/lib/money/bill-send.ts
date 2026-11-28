@@ -43,6 +43,7 @@
  * time. Nothing heavy is read inside the transaction now.
  */
 
+import { startTrialClockIfRunning } from '@/lib/money/affiliate-activation'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { matchAndRecord } from '@/lib/invoice-loop'
@@ -449,6 +450,11 @@ export async function markSent(
       },
     })
   }
+
+  // Sending a bill is a firm running its own business: its trial clock
+  // starts and who referred it is written, once (Pax, 2026-11-28). A firm
+  // already started is left exactly as it was.
+  await startTrialClockIfRunning({ companyId: a.companyId, byPersonId: a.by.personId, now }, tx)
 
   // Every reminder this bill answers, in this transaction and in id order,
   // so two bills sent at once cannot each hold a row the other wants.
