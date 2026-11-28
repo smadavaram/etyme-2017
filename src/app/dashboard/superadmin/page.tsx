@@ -7,6 +7,7 @@ import { readJson } from '@/lib/read-response'
 import { PageHead, Panel, LoadingState, RefusedState, ErrorState } from '@/components/ui'
 import { Field, Input, SubmitButton, FormMessage } from '@/components/ui/form'
 import { PLUGIN_REGISTRY } from '@/lib/plugin-registry'
+import { formatDay } from '@/lib/format-date'
 
 /**
  * The Superadmin screen (founder, 2026-11-11: "I should be able to
@@ -258,7 +259,7 @@ function PluginListPanel() {
                   })}
                   <td className={cell}>
                     {f.lastSwitch
-                      ? `${plugins.find((p) => p.key === f.lastSwitch!.plugin)?.label ?? f.lastSwitch.plugin} ${f.lastSwitch.on ? 'on' : 'off'}, ${new Date(f.lastSwitch.at).toLocaleDateString('en-US')}, by ${f.lastSwitch.byStaff ? 'Etyme staff' : 'the Owner'}`
+                      ? `${plugins.find((p) => p.key === f.lastSwitch!.plugin)?.label ?? f.lastSwitch.plugin} ${f.lastSwitch.on ? 'on' : 'off'}, ${formatDay(new Date(f.lastSwitch.at))}, by ${f.lastSwitch.byStaff ? 'Etyme staff' : 'the Owner'}`
                       : 'Never switched'}
                   </td>
                 </tr>
