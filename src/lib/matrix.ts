@@ -570,8 +570,8 @@ export const MATRIX: L1[] = [
           ],
           implementedBy: ['src/lib/training/courses/it-upgrade.ts', 'src/lib/training/courses/it-upgrade-simple.ts', 'src/lib/training/courses/it-upgrade-medium.ts', 'src/lib/training/courses/it-upgrade-complex.ts', 'src/lib/training/courses/shape.ts', 'src/lib/training/courses/try-it.ts', 'src/lib/training/courses/opening.ts'],
           testedBy: ['__tests__/invariants/learn-micro-site.test.ts', '__tests__/invariants/learn-it-upgrade-simple.test.ts', '__tests__/invariants/learn-it-upgrade-medium.test.ts', '__tests__/invariants/learn-it-upgrade-complex.test.ts'] },
-        // Door and progress (record 133, Pax 2026-11-28). Schema and rows only: nothing here is built yet.
-        { code: 'L3.1.2.17', name: 'Training door: the tenant\u2019s public site is entry and proof for the plugin, and learning stays on /learn', owner: 'Recruiter', status: S,
+        // Door and progress (record 133, Pax 2026-11-28). The learning side is built; the door\u2019s proof, featured courses and look are market\u2019s.
+        { code: 'L3.1.2.17', name: 'Training door: the tenant\u2019s public site is entry and proof for the plugin, and learning stays on /learn', owner: 'Recruiter', status: P,
           tasks: [
             'A job\u2019s requirement skills, read against a course\u2019s lessons and the worker\u2019s completions, make a \u201cget job-ready\u201d system path proposed for a mentor\u2019s yes; the path names the job it was made from (LearningPath.sourceKind JOB, sourceRefId, sourceLabel)',
             'A pod\u2019s role skills (PodRole.skills) against what each member has finished make a team path per member, each proposed for the mentor\u2019s yes; the pods plugin stays off unless the Owner turns it on',
@@ -579,8 +579,10 @@ export const MATRIX: L1[] = [
             'The door shows completions and badges as counts and skills from the record only; a count under 5 reads \u201cfewer than 5\u201d; no names, and an individual only where she showed her own badge',
             'Featured courses are the Owner\u2019s pick, kept on the tenant\u2019s record (Company.featuredCourseIds), and dress the door with the tenant\u2019s own branding; animation shows cause and effect only and stands still under reduced motion; nothing draws while the plugin is off',
           ],
-          implementedBy: [], testedBy: [] },
-        { code: 'L3.1.2.18', name: 'Training progress: points, badges, a weekly streak and a cohort board, that nothing can be spent, won by luck or bought, and no public ranking', owner: 'Recruiter', status: S,
+          implementedBy: ['src/lib/training/paths/for-skills.ts', 'src/lib/training/paths/door.ts', 'src/lib/training/paths/team-db.ts', 'src/app/api/learn/paths/route.ts', 'src/app/api/learn/paths/team/route.ts', 'src/app/api/learn/[tenant]/ready/route.ts', 'src/app/learn/_components/mentor-queue.tsx'],
+          testedBy: ['__tests__/unit/learn-progress-mechanics.test.ts', '__integration__/learn-door-and-progress.test.ts'] },
+        // Built on the learning side: the job path, team paths and the applicant’s yes. Owed by market, on /site: proof counts with the floor, featured courses, the branding and animation package.
+        { code: 'L3.1.2.18', name: 'Training progress: points, badges, a weekly streak and a cohort board, that nothing can be spent, won by luck or bought, and no public ranking', owner: 'Recruiter', status: B,
           tasks: [
             'Points are computed from the record each time they are read (lesson, then exercise, then project, projects worth most); no balance is stored, and a point is never spent, moved or sold',
             'A badge is earned per level and per finished course and kept on the worker\u2019s own record (LearnBadge); she shares it to LinkedIn by the existing learner-initiated share, and the share is ledgered',
@@ -588,7 +590,8 @@ export const MATRIX: L1[] = [
             'The mentor reads a board of her cohort; a learner reads her place only where the Owner turned it on (Company.learnRankingOn, off by default), within her cohort, never public or global',
             'A sweep test fails on any money-like token, random reward, public or global leaderboard or bought item in the training and door code',
           ],
-          implementedBy: [], testedBy: [] },
+          implementedBy: ['src/lib/training/progress/points.ts', 'src/lib/training/progress/streak.ts', 'src/lib/training/progress/badges.ts', 'src/lib/training/progress/board.ts', 'src/lib/training/progress/read.ts', 'src/lib/training/learn-db.ts', 'src/app/api/learn/[tenant]/mine/route.ts', 'src/app/api/learn/[tenant]/badges/route.ts', 'src/app/api/learn/cohort-board/route.ts', 'src/app/api/learn/ranking/route.ts', 'src/app/learn/_components/my-progress.tsx', 'src/app/learn/_components/cohort-board.tsx', 'src/app/learn/_components/micro-home.tsx'],
+          testedBy: ['__tests__/unit/learn-progress-mechanics.test.ts', '__tests__/invariants/learn-no-currency-or-chance.test.ts', '__integration__/learn-door-and-progress.test.ts'] },
         // Project teams (record 120, pods): a plugin, off by default. Schema and menu only so far.
         { code: 'L3.1.2.11', name: 'Project teams: a named team is sold as a project, the client\u2019s named acceptor decides each deliverable, and the milestone bill comes from the existing chain', owner: 'Account manager', status: P,
           tasks: [

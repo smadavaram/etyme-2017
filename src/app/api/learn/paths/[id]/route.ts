@@ -95,7 +95,7 @@ async function reassign(caller: NonNullable<Caller>, path: PathRow, to: unknown)
   const may = path.mentorPersonId === caller.person.id || (caller.person.id !== path.personId && hasPermission(caller.permissions, 'consultants.write'))
   if (!may) return NextResponse.json({ error: { code: 'NOT_MENTOR', message: 'Only the path’s mentor, or whoever develops the bench here, hands it to another mentor.' } }, { status: 403 })
   if (path.state === 'COMPLETE') return NextResponse.json({ error: { code: 'NOT_NEXT', message: 'This path is finished; it has no mentor to change.' } }, { status: 409 })
-  const id = typeof to === 'string' ? to : ''
+  const id = to === 'me' ? caller.person.id : typeof to === 'string' ? to : ''
   if (!id || id === path.personId) return NextResponse.json({ error: { code: 'NO_MENTOR', message: 'Name a mentor who holds a seat here and is not the learner.', field: 'mentorPersonId' } }, { status: 422 })
   const seat = await prisma.context.findFirst({ where: { personId: id, companyId, revokedAt: null, type: { not: 'CONSULTANT' } }, select: { id: true } })
   if (!seat) return NextResponse.json({ error: { code: 'NO_MENTOR', message: 'A mentor holds a seat at your firm. Name one.', field: 'mentorPersonId' } }, { status: 422 })

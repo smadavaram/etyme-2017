@@ -10,6 +10,7 @@ import { readProgress } from '@/lib/training/learn-progress'
 import { ensureCourse } from '@/lib/training/learn-db'
 import { systemPath, trackFromSignals, type PathSignals } from '@/lib/training/paths/system'
 import { promptPath, type DraftFn } from '@/lib/training/paths/prompt'
+import { jobReadyPath, type MadePath } from '@/lib/training/paths/for-skills'
 
 /**
  * POST /api/learn/paths
@@ -19,7 +20,10 @@ import { promptPath, type DraftFn } from '@/lib/training/paths/prompt'
  * path as the answer whenever the model is off, refused or unusable. Either
  * way it is PROPOSED: nothing is live until the named mentor says yes
  * (PATCH /api/learn/paths/:id). Body: { personId, mode: SYSTEM | PROMPT,
- * prompt?, trackKey?, mentorPersonId? }.
+ * prompt?, trackKey?, mentorPersonId?, requirementId? }. With a requirementId
+ * the path is "get job-ready": made by rules from that job's listed skills
+ * against the lessons that teach them, naming the job, and it waits for the
+ * mentor's yes like any other.
  */
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -33,7 +37,8 @@ export async function POST(request: NextRequest) {
   }
   const companyId = caller.company!.id
   const body = await request.json().catch(() => ({}))
-  const mode = body.mode === 'PROMPT' ? 'PROMPT' : 'SYSTEM'
+  const requirementId = typeof body.requirementId === 'string' ? body.requirementId : null
+  const mode = body.mode === 'PROMPT' && !requirementId ? 'PROMPT' : 'SYSTEM'
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
   if (mode === 'PROMPT' && !prompt) return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say the goal in a sentence, or choose the path made from her record.', field: 'prompt' } }, { status: 422 })
 
@@ -57,13 +62,24 @@ export async function POST(request: NextRequest) {
     role: profile?.headline ?? null, skills: profile?.skills ?? [], onBench: !!listing,
     priorCompletions: [...new Set(enrolls.flatMap((e) => readProgress(e.progress).done))],
   }
+  // A job the firm may read: its own, or one it was invited to fill. Nothing else is reachable by id.
+  const job = requirementId
+    ? await prisma.requirement.findFirst({ where: { id: requirementId, OR: [{ companyId }, { invitations: { some: { toCompanyId: companyId } } }] }, select: { id: true, title: true, skills: true } })
+    : null
+  if (requirementId && !job) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That job is not one your firm can read.' } }, { status: 404 })
+  if (job) signals.skills = [...new Set([...(signals.skills ?? []), ...job.skills])]
   const trackKey = typeof body.trackKey === 'string' && trackOf(body.trackKey) ? body.trackKey : trackFromSignals(signals)
   const track = trackOf(trackKey)
   if (!track) return NextResponse.json({ error: { code: 'NO_TRACK', message: 'That track is not written yet.' } }, { status: 404 })
   const known = lessonsOf(track).map((l) => l.lesson.key)
   const rules = systemPath(track, signals)
+  let made: MadePath | null = null
+  if (job) {
+    made = jobReadyPath(track, { jobId: job.id, jobTitle: job.title, skills: job.skills, priorCompletions: signals.priorCompletions ?? [] })
+    if (!made) return NextResponse.json({ error: { code: 'NO_PATH', message: 'Nothing in the course teaches the skills listed on this job, or she has finished it all. No path was made.' } }, { status: 422 })
+  }
 
-  let steps = rules.steps
+  let steps = made ? made.steps : rules.steps
   let by: 'MODEL' | 'RULES' = 'RULES'
   if (mode === 'PROMPT') {
     const draft: DraftFn = async (p) => {
@@ -82,6 +98,7 @@ export async function POST(request: NextRequest) {
       companyId, personId: person.id, courseId: c?.id ?? null, generationType: mode,
       sourcePrompt: mode === 'PROMPT' ? prompt : null, sourceSignals: mode === 'SYSTEM' ? (signals as object) : undefined,
       mentorPersonId: mentorId, videoSource: null, steps, state: 'PROPOSED',
+      ...(made ? { sourceKind: made.sourceKind, sourceRefId: made.sourceRefId, sourceLabel: made.sourceLabel } : {}),
     },
     select: { id: true },
   })
@@ -89,7 +106,7 @@ export async function POST(request: NextRequest) {
     data: {
       companyId, action: 'LEARNING_PATH_PROPOSED',
       summary: `A ${mode === 'PROMPT' ? (by === 'MODEL' ? 'model-drafted' : 'rules-made (the model gave nothing usable)') : 'rules-made'} path was proposed for ${person.name}. It waits for its mentor’s yes.`,
-      reason: mode === 'SYSTEM' ? rules.why : 'The goal was stated in words; the path follows it, or the rules where no draft was usable.',
+      reason: made ? made.why : mode === 'SYSTEM' ? rules.why : 'The goal was stated in words; the path follows it, or the rules where no draft was usable.',
       payload: { pathId: row.id, personId: person.id, trackKey, by }, reversible: false,
     },
   })
@@ -108,10 +125,12 @@ export async function GET(request: NextRequest) {
   if (notStaff) return notStaff
   const off = await pluginGate(caller, 'TRAIN_TO_BENCH')
   if (off) return off
+  // A path asked for from the door has no mentor until one takes it; whoever develops the bench reads those too.
+  const takes = hasPermission(caller.permissions, 'consultants.write')
   const rows = await prisma.learningPath.findMany({
-    where: { companyId: caller.company!.id, mentorPersonId: caller.person.id, state: 'PROPOSED' },
+    where: { companyId: caller.company!.id, state: 'PROPOSED', OR: [{ mentorPersonId: caller.person.id }, ...(takes ? [{ mentorPersonId: null }] : [])] },
     orderBy: { createdAt: 'asc' }, take: 100,
-    select: { id: true, steps: true, dueOn: true, stepDues: true, generationType: true, person: { select: { name: true } } },
+    select: { id: true, steps: true, dueOn: true, stepDues: true, generationType: true, sourceLabel: true, mentorPersonId: true, person: { select: { name: true } } },
   })
-  return NextResponse.json({ data: rows.map((r) => ({ id: r.id, learner: r.person.name, lessons: Array.isArray(r.steps) ? (r.steps as string[]).length : 0, dueOn: r.dueOn ? r.dueOn.toISOString().slice(0, 10) : null, madeBy: r.generationType })) })
+  return NextResponse.json({ data: rows.map((r) => ({ id: r.id, learner: r.person.name, lessons: Array.isArray(r.steps) ? (r.steps as string[]).length : 0, dueOn: r.dueOn ? r.dueOn.toISOString().slice(0, 10) : null, madeBy: r.generationType, source: r.sourceLabel, needsMentor: !r.mentorPersonId })) })
 }

@@ -1,7 +1,7 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
 
-type Row = { id: string; learner: string; lessons: number; dueOn: string | null }
+type Row = { id: string; learner: string; lessons: number; dueOn: string | null; source: string | null; needsMentor: boolean }
 
 /** A mentor's queue: set the day a path is due, then say yes. Her yes is what makes the path the learner's. */
 export function MentorQueue({ tenant }: { tenant: string }) {
@@ -34,9 +34,10 @@ export function MentorQueue({ tenant }: { tenant: string }) {
       {rows.map((r) => (
         <div key={r.id} className="learn-card" style={{ minHeight: 0 }}>
           <p className="font-semibold">{r.learner}</p>
-          <p className="text-sm" style={{ color: '#6B6862' }}>{r.lessons} lessons</p>
+          <p className="text-sm" style={{ color: '#6B6862' }}>{r.lessons} lessons{r.source ? ` · ${r.source}` : ''}</p>
+          {r.needsMentor ? <button className="learn-run mt-3" onClick={async () => { if (await patch(r.id, { move: 'reassign', mentorPersonId: 'me' })) await load() }}>I will mentor this path</button> : <>
           <label className="block mt-2">Due by <input type="date" value={days[r.id] ?? ''} onChange={(e) => setDays({ ...days, [r.id]: e.target.value })} /></label>
-          <button className="learn-run mt-3" onClick={() => yes(r.id)}>Yes, make it theirs</button>
+          <button className="learn-run mt-3" onClick={() => yes(r.id)}>Yes, make it theirs</button></>}
         </div>
       ))}
       {rows.length > 0 && says && <p className="learn-no">{says}</p>}

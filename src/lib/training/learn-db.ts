@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { trackOf, lessonsOf, course, COURSE_SLUG } from './courses/index'
 import { readProgress, markDone, setTick, isComplete, type LearnProgress } from './learn-progress'
 import { pathNext } from './paths/state'
+import { recordWeek } from './progress/streak'
+import { badgesEarned } from './progress/badges'
 
 export const courseSlugFor = (track: string): string => `${COURSE_SLUG}:${track}`
 
@@ -41,10 +43,18 @@ export async function saveProgress(o: { tenantId: string; tenantName: string; tr
   const now = new Date()
   const row = await prisma.enrollment.upsert({
     where: { courseId_personId: { courseId: c.id, personId: o.personId } },
-    create: { courseId: c.id, personId: o.personId, companyId: o.tenantId, trackKey: o.trackKey, status, progress: progress as object, completedAt: complete ? now : null },
-    update: { status, progress: progress as object, ...(complete && !wasComplete ? { completedAt: now } : {}), companyId: existing?.companyId ?? o.tenantId, trackKey: o.trackKey },
+    create: { courseId: c.id, personId: o.personId, companyId: o.tenantId, trackKey: o.trackKey, status, progress: progress as object, activityWeeks: recordWeek([], now), completedAt: complete ? now : null },
+    update: { status, progress: progress as object, activityWeeks: recordWeek(existing?.activityWeeks ?? [], now), ...(complete && !wasComplete ? { completedAt: now } : {}), companyId: existing?.companyId ?? o.tenantId, trackKey: o.trackKey },
     select: { id: true, status: true },
   })
+  // Badges: one per level and one for the course, written once to her own record; a second write finds the row and changes nothing.
+  for (const b of badgesEarned(track, progress)) {
+    await prisma.learnBadge.upsert({
+      where: { enrollmentId_kind_levelKey: { enrollmentId: row.id, kind: b.kind, levelKey: b.levelKey } },
+      create: { companyId: o.tenantId, personId: o.personId, enrollmentId: row.id, courseId: c.id, kind: b.kind, levelKey: b.levelKey },
+      update: {},
+    })
+  }
   // Her path: the mentor's yes already made it hers. Starting and finishing follow the lessons.
   const path = await prisma.learningPath.findFirst({ where: { personId: o.personId, companyId: o.tenantId, OR: [{ courseId: c.id }, { course: { trackKey: o.trackKey } }], state: { in: ['APPROVED', 'ACTIVE'] } }, orderBy: { createdAt: 'desc' } })
   if (path) {

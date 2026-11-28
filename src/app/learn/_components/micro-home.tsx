@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { readProgress, storageKey, nextLessonKey, percentDone, type LearnProgress } from '@/lib/training/learn-progress'
 import { dueLine } from '@/lib/training/due'
 import { CredentialPanel } from './credential-panel'
+import { MyProgress } from './my-progress'
 
 type T = { key: string; title: string; lessons: { key: string; title: string }[] }
 type Live = { live: boolean; state: string; mentorName: string | null; steps: string[] | null; dueOn: string | null; stepDues: Record<string, string> | null } | null
@@ -43,6 +44,7 @@ export function MicroHome({ tenant, tracks }: { tenant: string; tracks: T[] }) {
           ? <a className="learn-run inline-block mt-2" href={`/learn/${tenant}/${focus.t.key}/${next.key}`}>Continue your path: {next.title}</a>
           : <p className="mt-1 font-semibold">{started.length ? 'You finished every lesson.' : 'Pick where to start.'} <a className="underline" href={`/learn/${tenant}`}>{started.length ? 'See the tracks' : 'Start'}</a></p>}
       </div>
+      <MyProgress tenant={tenant} />
       <div>
         <h2 className="text-lg font-semibold mb-2">Your path</h2>
         {rows.map(({ t, p }) => (
