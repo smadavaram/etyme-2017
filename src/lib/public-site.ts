@@ -1,5 +1,7 @@
 import { coursesShown } from '@/lib/training/courses-shown'
 import { learnOpen } from '@/lib/training/learn-gate'
+import { readDoorLearn } from '@/lib/public-site/door-proof-read'
+import type { DoorLearn } from '@/lib/public-site/door-proof'
 import { prisma } from '@/lib/db'
 import { clientLineWhere, isHiddenTeamLine } from '@/lib/money/team-lines'
 import { siteRendersFor } from '@/lib/plugins'
@@ -108,6 +110,8 @@ export interface PublicSite {
   courses: { title: string; hours: number | null }[]
   /** True where the firm's Train to bench plugin is on, read by `learnOpen`: the page then draws its door into /learn/<slug>. */
   learnOpen: boolean
+  /** Featured courses, proof counts and the applicant's offer (record 133). Present only where `learnOpen` is true. */
+  doorLearn?: DoorLearn
   /** The tenant's stored template, branding and pages (record 111). The layout always applies; the look only while the Owner's yes covers it. */
   look: SiteLook
 }
@@ -276,7 +280,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     },
     select: {
       id: true, name: true, slug: true, kind: true, supplierPosture: true,
-      pluginsOn: true, coursesHiddenOnStorefront: true,
+      pluginsOn: true, coursesHiddenOnStorefront: true, featuredCourseIds: true,
       siteLiveAt: true, networkVerifiedAt: true, domain: true, domainVerified: true,
       claimedAt: true, _count: { select: { contexts: { where: { roleId: { not: null } } } } },
       siteTagline: true, siteIntro: true, siteHeadings: true, siteWrittenBy: true,
@@ -361,6 +365,9 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       : Promise.resolve([] as { title: string; duration: number | null }[]),
   ])
 
+  // Proof and featured courses are read only where the plugin is on; a dark plugin reads nothing.
+  const doorLearn = learnOpen(company) ? await readDoorLearn(company) : undefined
+
   const base = {
     name: company.name,
     slug: company.slug,
@@ -389,6 +396,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     contact,
     courses: courseRows.map((c) => ({ title: c.title, hours: c.duration ?? null })),
     learnOpen: learnOpen(company),
+    doorLearn,
     look: lookFor(company),
   }
 

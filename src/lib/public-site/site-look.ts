@@ -24,10 +24,10 @@ export const SITE_SURFACE = '#FBFAF7'
 /** Every section a page can carry. Which of them appear is the record's decision, never the template's. */
 export type SectionKey =
   | 'ask' | 'contact' | 'comingFree' | 'openPositions' | 'reputation'
-  | 'track' | 'skills' | 'courses' | 'learn' | 'joinBench' | 'credentials'
+  | 'track' | 'skills' | 'courses' | 'learn' | 'featured' | 'proof' | 'joinBench' | 'credentials'
 
-const ASK_FIRST_ORDER: SectionKey[] = ['ask', 'contact', 'comingFree', 'openPositions', 'reputation', 'track', 'skills', 'courses', 'learn', 'joinBench', 'credentials']
-const FEED_ORDER: SectionKey[] = ['comingFree', 'openPositions', 'reputation', 'track', 'skills', 'courses', 'learn', 'joinBench', 'ask', 'contact', 'credentials']
+const ASK_FIRST_ORDER: SectionKey[] = ['ask', 'contact', 'comingFree', 'openPositions', 'reputation', 'track', 'skills', 'courses', 'learn', 'featured', 'proof', 'joinBench', 'credentials']
+const FEED_ORDER: SectionKey[] = ['comingFree', 'openPositions', 'reputation', 'track', 'skills', 'courses', 'learn', 'featured', 'proof', 'joinBench', 'ask', 'contact', 'credentials']
 
 /** The order a template reads the sections in. A template never removes one that is present. */
 export function orderFor(template: SiteTemplateKey, present: SectionKey[]): SectionKey[] {

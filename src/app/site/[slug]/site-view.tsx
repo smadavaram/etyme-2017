@@ -8,6 +8,7 @@ import { orderFor, layoutOf, styleOf, type SectionKey, type SiteLook } from '@/l
 import { JoinBench } from './join-bench'
 import { mailLeaves } from '@/lib/notify/mail-leaves'
 import { Ask } from '../ask'
+import type { FeaturedCourse } from '@/lib/public-site/door-proof'
 import { LearnDoor } from '@/app/learn/_components/learn-door'
 
 /**
@@ -284,7 +285,14 @@ function sectionsOf(site: PublicSite): Partial<Record<SectionKey, ReactNode>> {
     // bench plugin is on (`learnOpen`, record 133). Independent of whether
     // the course list is shown: hiding courses does not close the door.
     if (site.learnOpen) {
-      out.learn = <LearnDoor slug={site.slug} company={{ pluginsOn: ['TRAIN_TO_BENCH'] }} />
+      out.learn = (
+        <>
+          <LearnDoor slug={site.slug} company={{ pluginsOn: ['TRAIN_TO_BENCH'] }} />
+          {site.doorLearn && <p className="text-[14px] text-etyme-muted mt-1.5 max-w-xl leading-relaxed">{site.doorLearn.offer}</p>}
+        </>
+      )
+      if (site.doorLearn && site.doorLearn.featured.length > 0) out.featured = <Featured site={site} courses={site.doorLearn.featured} />
+      if (site.doorLearn && site.doorLearn.proof.length > 0) out.proof = <Proof site={site} lines={site.doorLearn.proof} />
     }
 
     // One door for a candidate, a staffing or bench firm's page only: the
@@ -423,6 +431,52 @@ export function PageView({ site, page }: { site: PublicSite; page: { title: stri
         <Footer site={site} />
       </div>
     </div>
+  )
+}
+
+/**
+ * The Owner's featured courses, in the tenant's own look. The one animation is
+ * cause and effect: pointing at or focusing a card fills its bar, and nothing
+ * moves on its own. Under reduced motion the bar simply shows full.
+ */
+function Featured({ site, courses }: { site: PublicSite; courses: FeaturedCourse[] }) {
+  const accent = styleOf(site.look).accent
+  return (
+    <>
+      <H2 look={site.look}>{site.headings.featured ?? 'Featured courses'}</H2>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2 max-w-2xl">
+        {courses.map((c) => (
+          <li key={c.id}>
+            <a
+              href={`/learn/${site.slug}`}
+              className="group block rounded-lg bg-etyme-surface border border-etyme-rule p-4 focus-visible:outline-2"
+            >
+              <span className="block font-serif text-[17px] text-etyme-ink" style={styleOf(site.look).heading}>{c.title}</span>
+              {c.hours != null && <span className="block text-[13px] text-etyme-muted tabular-nums mt-0.5">{c.hours} hours</span>}
+              <span aria-hidden="true" className="block mt-3 h-0.5 bg-etyme-rule">
+                <span
+                  className="block h-full w-0 transition-[width] duration-500 ease-out group-hover:w-full group-focus-visible:w-full motion-reduce:w-full motion-reduce:transition-none"
+                  style={{ backgroundColor: accent ?? '#4F6F52' }}
+                />
+              </span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+}
+
+/** Proof from the record: counts under the floor already worded, never a name. */
+function Proof({ site, lines }: { site: PublicSite; lines: string[] }) {
+  return (
+    <>
+      <H2 look={site.look}>{site.headings.proof ?? 'What people finished here'}</H2>
+      <ul className="mt-3 space-y-1.5 text-[15px] text-etyme-ink max-w-xl">
+        {lines.map((l) => <li key={l}>{l}</li>)}
+      </ul>
+      <p className="text-[13px] text-etyme-muted mt-2">Counted from the learning record. No names.</p>
+    </>
   )
 }
 
