@@ -502,7 +502,6 @@ Full text → 40, 11, 56, 68, 72.
   2026-11-25 → 120): a per-tenant switch, set by the Owner or by a
   Superadmin as a staff tool on the switch alone, ledgered; off means no
   menu and refused routes, never deleted data. No agent switches one.
-- **A plugin runs on its own micro-site** (owner, 2026-11-27 → 133): the training plugin's learner tree is `/learn`, free and public, in the tenant's branding; the core dashboard keeps one door link. No price on any course screen through about Feb 2027.
 - **One ledger per party; plugins are websites** (→ 134): every party's
   activity, money and documents read as one ledger in the core; plugins
   are reached by a link and write back to it; one sign-on everywhere.
