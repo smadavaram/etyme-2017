@@ -61,3 +61,12 @@ Lead's notes on what the record can honestly see:
   never identified, and page analytics stays on marketing pages only.
 - "Shared to LinkedIn" is the learner's own ledgered share click; nothing
   is read from LinkedIn.
+
+## Pax, 2026-11-28: build detection now
+
+Build the detection part now from the spec above: the audience builder,
+the tripwires on the ledger, content matched to a segment, and packs sent
+only inside a campaign approved as one pack. Campaigns, the outcome email
+series, the affiliate engine and the publish layer wait for the design
+document, which is in the architect's workspace and not yet in a
+repository. Detection does not wait for it.

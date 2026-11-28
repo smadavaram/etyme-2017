@@ -98,3 +98,11 @@ Progress mechanics only:
   the tenant switches it on.
 Never: coins or any currency, random rewards, a public or global
 leaderboard, or anything that can be bought.
+
+## Pax, 2026-11-28: two answers
+
+- "Join the bench" counts as applying for now. An applicant starts a "get
+  ready" path only after she signs in and says yes herself. No separate
+  apply form is built.
+- The foundational-terms check also reads exercise feedback, the
+  end-of-track recap and the opening question.
