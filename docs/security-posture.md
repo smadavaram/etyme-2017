@@ -503,7 +503,7 @@ Recomputed from the module on 2026-11-15:
 is an audit trail of human acts, not automation. Giving those a rung
 would inflate every claim.
 
-Of the thirty-nine unprompted actions, **thirty-six are plain rules** — a date
+Of the forty unprompted actions, **thirty-seven are plain rules** — a date
 comparison, a threshold, a count. `cron/end-contracts` is fully
 autonomous and is also `endDate < today`; both are true and the product
 says both. Three are not asserted as rules. Proactive matching's basis is
