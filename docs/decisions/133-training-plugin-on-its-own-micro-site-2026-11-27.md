@@ -106,3 +106,10 @@ leaderboard, or anything that can be bought.
   apply form is built.
 - The foundational-terms check also reads exercise feedback, the
   end-of-track recap and the opening question.
+
+## Hold, 2026-11-28 (owner's word, relayed by Pax)
+
+Tapin training is paused. The home page's Learn block and its lead capture
+(the question, the track, an email) still go ahead: the door runs ahead of
+the course. The course overview page on the training site is held until the
+pause lifts.
