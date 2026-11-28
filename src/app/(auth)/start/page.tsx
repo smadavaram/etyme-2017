@@ -12,6 +12,7 @@ import { railFor, stepLabel, packSentence, currencyFor, asksPayroll, noPayrollLi
 import { packFor, MEMBER_ROLE, type CompanyKind } from '@/lib/company-defaults'
 import { memberWelcome } from '@/lib/password-words'
 import { AnotherAccount } from '../another-account'
+import { arrivalCode, keepArrivalCode } from '../arrival-code'
 import { COMPANY_NAME_MISSING, KIND_MISSING, NAME_MISSING } from './missing'
 
 /**
@@ -109,6 +110,7 @@ export default function StartPage() {
     }
   }, [])
   useEffect(() => { load() }, [load])
+  useEffect(() => { keepArrivalCode() }, [])
 
   // Where this seat's own desk is.
   const desk = useMemo(() => {
@@ -144,7 +146,7 @@ export default function StartPage() {
       const j = await readJson(await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ ...body, referralCode: arrivalCode() }),
       }))
       // A consultant has no firm and no setup: she lands where every door
       // lands her seat (components/desk-home), Ask Etyme on her own work.

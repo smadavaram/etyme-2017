@@ -64,6 +64,7 @@ const NO_SEAT_NEEDED: Readonly<Record<string, string>> = {
   'onboarding': 'The session’s own first company: creating it or joining it on its domain, before any seat exists.',
   'me/**': 'The session’s own person and nothing else: their page, their benches, their seats.',
   'market/leads': 'POST is the public contact form; GET and PATCH are staff only (mayReadTheList over ETYME_STAFF_EMAILS).',
+  'market/course-door/**': 'POST is the free course door’s lead form, open to the public behind a ticked yes; the unsubscribe link carries a token signed for one address, and a second open changes nothing.',
   'market/events': 'POST counts a public-site click under a random visit id, nothing personal; GET is staff only (mayReadTheList over ETYME_STAFF_EMAILS).',
   'requirements/parse': 'Turns the text it is sent into fields; reads and writes nothing on the record.',
   'texts/inbound': 'The email provider posting a reply; nothing is read until its signature over the raw body checks (verifyInbound in lib/texts).',

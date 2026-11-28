@@ -7,6 +7,7 @@ import { DoorFrame, DoorLabel, DoorError, DoorDivider, DoorWho, doorField, doorB
 import { AccountButtons, useKnownDoors } from '../account-doors'
 import { PASSWORD_HINT_COMPANY, PASSWORD_HINT_PERSON, underHeading, signUpGuesses } from '@/lib/password-words'
 import { looksLikeEmail, accountButtons, CONTINUE, OR_USE_YOUR_EMAIL, TYPE_YOUR_EMAIL } from '@/lib/login-doors'
+import { keepArrivalCode } from '../arrival-code'
 import { signUpHeading, DETAILS_HEADING } from './heading'
 
 /**
@@ -55,6 +56,8 @@ export function SignUpForm({ claimToken, initialType = null, initialTab = 'compa
   /** `?as=candidate` opens on a candidate: the contractors' door lands here. */
   initialTab?: Tab
 }) {
+  // The code on the link she came by is kept until the company is made.
+  useEffect(() => { keepArrivalCode() }, [])
   const [step, setStep] = useState<1 | 2>(1)
   const [tab, setTab] = useState<Tab>(initialTab)
   const [email, setEmail] = useState(initialEmail)

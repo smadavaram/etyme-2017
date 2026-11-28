@@ -13,6 +13,7 @@ import {
 import { MEMBER_ROLE } from '@/lib/company-defaults'
 import { seatAsMember } from '@/lib/seat-member'
 import { createCompany } from '@/lib/company-create'
+import { rememberReferral } from '@/lib/money/affiliate-activation'
 import { signUpPersonName } from './person-name'
 import { blankNameSays } from '@/app/(auth)/start/missing'
 import { recordAnswers } from '@/lib/setup-checklist-state'
@@ -423,6 +424,10 @@ export async function POST(request: NextRequest) {
     startsSetup: true,
   })
   const company = made.company
+  // The code on the link she arrived by is kept now, because her 60 days
+  // may start weeks later (lib/money/affiliate-activation). An unknown or
+  // late code writes nothing and never blocks the sign-up.
+  if (typeof body.referralCode === 'string') await rememberReferral(company.id, body.referralCode).catch(() => null)
   const from = 'domain' in decision ? decision.domain : null
   // Where each answer came from: a guess from the work email's domain says
   // so on the setup checklist, and only what was typed reads "Typed by".

@@ -30,6 +30,7 @@ const NOT_A_CLIENT_READER: [string, string][] = [
   ['src/app/api/ar/collections/route.ts', SELLER],
   ['src/app/api/ar/route.ts', SELLER],
   ['src/app/api/bench/burn/route.ts', SELLER],
+  ['src/lib/money/own-business.ts', SELLER],
   ['src/app/api/bench/ours/flag/route.ts', SELLER],
   ['src/app/api/bench/ours/holds/[id]/place/route.ts', SELLER],
   ['src/app/api/bench/ours/holds/route.ts', SELLER],
