@@ -506,6 +506,9 @@ Full text → 40, 11, 56, 68, 72.
 - **One ledger per party; plugins are websites** (→ 134): every party's
   activity, money and documents read as one ledger in the core; plugins
   are reached by a link and write back to it; one sign-on everywhere.
+- **Free training is a five-stage funnel** (→ 136): door, learning,
+  completion, join, match; progressive capture, consent on the record at
+  every stage, never Lane C data, every stage on the one ledger.
 - **Every plugin lives on its own micro-site** (owner, 2026-11-27 → 133):
   the core gets a door only; each user has a micro dashboard there; the
   one record underneath, never forked. Courses are adopted across tenants,
