@@ -152,3 +152,4 @@ built, every release check, every walk and every deploy.
 | 134 | One ledger per party; every plugin is its own website — 2026-11-28 | 228 | [134-one-ledger-per-party-plugins-are-websites-2026-11-28.md](134-one-ledger-per-party-plugins-are-websites-2026-11-28.md) |
 | 135 | Basic outreach is core; advanced outreach is a plugin website — 2026-11-28 | 197 | [135-basic-outreach-is-core-advanced-is-a-plugin-2026-11-28.md](135-basic-outreach-is-core-advanced-is-a-plugin-2026-11-28.md) |
 | 136 | Free training is a five-stage funnel — 2026-11-28 | 233 | [136-free-training-is-a-five-stage-funnel-2026-11-28.md](136-free-training-is-a-five-stage-funnel-2026-11-28.md) |
+| 137 | Plugin sites and training live on subdomains — 2026-11-28 | 151 | [137-plugin-sites-live-on-subdomains-2026-11-28.md](137-plugin-sites-live-on-subdomains-2026-11-28.md) |

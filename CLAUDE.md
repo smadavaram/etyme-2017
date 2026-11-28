@@ -512,6 +512,10 @@ Full text → 40, 11, 56, 68, 72.
   the core gets a door only; each user has a micro dashboard there; the
   one record underneath, never forked. Courses are adopted across tenants,
   owned by their creator, free through the learning window, never priced.
+- **Plugin sites live on subdomains** (owner, 2026-11-28 → 137): training
+  on its own etyme.com subdomain; a tenant's plugin sites under the
+  tenant's own domain, in its branding. The door stays etyme.com/learnai
+  and carries the one session across.
 - **Basic outreach is core, advanced outreach is a plugin** (→ 135):
   direct letters and candidate updates are core ledger activity; campaigns,
   the outcome series, the affiliate engine and publishing are the plugin.
