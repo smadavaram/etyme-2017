@@ -150,3 +150,4 @@ built, every release check, every walk and every deploy.
 | 132 | Plugin 5 is public-sector proposals and supplier diversity — 2026-11-27 | 271 | [132-plugin-5-widened-to-supplier-diversity-2026-11-27.md](132-plugin-5-widened-to-supplier-diversity-2026-11-27.md) |
 | 133 | The training plugin runs on its own micro-site — 2026-11-27 | 476 | [133-training-plugin-on-its-own-micro-site-2026-11-27.md](133-training-plugin-on-its-own-micro-site-2026-11-27.md) |
 | 134 | One ledger per party; every plugin is its own website — 2026-11-28 | 228 | [134-one-ledger-per-party-plugins-are-websites-2026-11-28.md](134-one-ledger-per-party-plugins-are-websites-2026-11-28.md) |
+| 135 | Basic outreach is core; advanced outreach is a plugin website — 2026-11-28 | 197 | [135-basic-outreach-is-core-advanced-is-a-plugin-2026-11-28.md](135-basic-outreach-is-core-advanced-is-a-plugin-2026-11-28.md) |

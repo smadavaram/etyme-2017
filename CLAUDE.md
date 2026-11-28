@@ -510,6 +510,9 @@ Full text → 40, 11, 56, 68, 72.
   the core gets a door only; each user has a micro dashboard there; the
   one record underneath, never forked. Courses are adopted across tenants,
   owned by their creator, free through the learning window, never priced.
+- **Basic outreach is core, advanced outreach is a plugin** (→ 135):
+  direct letters and candidate updates are core ledger activity; campaigns,
+  the outcome series, the affiliate engine and publishing are the plugin.
 - **Website and content, and outreach, are plugins too** (owner,
   2026-11-25 → 121, 122), off by default. A site goes public only after
   the Owner's branding yes, the firm's own domain and any compliance pass;
