@@ -143,7 +143,7 @@ async function personLedger(reader: Reader, personId: string): Promise<LedgerAns
   const lineIds = lines.map((l) => l.id)
 
   const [subs, sheets, enrolls, pods, certs, verifs] = await Promise.all([
-    prisma.submission.findMany({ where: { personId, ...scope({ fromCompanyId: firm }, { toCompanyId: firm }) }, select: { id: true, status: true, submittedAt: true, requirement: { select: { id: true, title: true } } }, orderBy: { submittedAt: 'desc' }, take: 100 }),
+    prisma.submission.findMany({ where: { AND: [{ personId, ...scope({ fromCompanyId: firm }, { toCompanyId: firm }) }, ...(self ? [] : reader.submissionNarrow)] } as never, select: { id: true, status: true, submittedAt: true, requirement: { select: { id: true, title: true } } }, orderBy: { submittedAt: 'desc' }, take: 100 }),
     prisma.timesheet.findMany({ where: { personId, sellContractId: { in: lineIds } }, select: { id: true, periodStart: true, periodEnd: true, totalHours: true, status: true }, orderBy: { periodStart: 'desc' }, take: 100 }),
     prisma.enrollment.findMany({ where: { personId, ...(self ? {} : { companyId: firm }), company: { pluginsOn: { has: 'TRAIN_TO_BENCH' } } }, select: { id: true, status: true, enrolledAt: true, completedAt: true, course: { select: { title: true } }, company: { select: { slug: true } } }, orderBy: { enrolledAt: 'desc' }, take: 100 }),
     prisma.podMember.findMany({ where: { personId, podRole: { pod: { ...(self ? {} : { companyId: firm ?? '__none__' }), company: { pluginsOn: { has: 'PODS' } } } } }, select: { id: true, addedAt: true, podRole: { select: { title: true, pod: { select: { name: true } } } } }, take: 100 }),
