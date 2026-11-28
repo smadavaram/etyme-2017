@@ -61,3 +61,17 @@ subject to the home-page rules (prototype first; the home page speaks to
 the client and never leads with AI), from Etyme's main page. At completion
 a join path is offered; a signed-in worker's completion is ledgered on her
 record.
+
+## Three foundational terms, Simple level first (Pax, 2026-11-28)
+
+Every track teaches three terms in its Simple level, chapters 1 to 3, in
+this order and in plain words, at the track's reading level (story words
+for Kids/student):
+1. Agent: a helper that does not just answer; it does steps for you. It
+   looks things up, uses tools, and finishes a small job.
+2. Skill: one job the agent knows how to do well, written down as steps,
+   like a recipe card. More skills mean more jobs it can do.
+3. Agentic: working step by step toward a goal and checking as you go. It
+   is how an agent works when it does a whole task, not just one answer.
+None of the three words appears anywhere in a course before the Simple
+chapter that builds it.
