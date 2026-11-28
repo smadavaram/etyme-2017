@@ -1,8 +1,10 @@
 import type { Level } from './types'
 
 /**
- * IT — Upgrade, level 3: Complex (chapters 7 to 9). An agent: its task,
- * its plan, its act and its check; then tools, approvals and what stays
+ * IT — Upgrade, level 3: Complex (chapters 7 to 9). The Simple level built
+ * agent, skill and agentic in plain words; this level goes deeper. An
+ * agent up close: its switch, its task, its plan, its act and its check;
+ * then tools, approvals and what stays
  * with a person; then the ledger, the meter and what happens when a step
  * fails. It also holds the recap that closes the track.
  *
@@ -10,8 +12,8 @@ import type { Level } from './types'
  * `app/dashboard/decisions/agents` (Agent control: the switch, Actions
  * today, Meter, Cap, Tasks, and the performance panel's Planned and
  * Actual), `lib/agents/switch`, `lib/agents/tasks` (one yes a task, the
- * plan in words), `lib/skills/registry` and `lib/skills/runner` (what the
- * lessons call a tool), `lib/skills/checker` and `lib/skills/grade` (the
+ * plan in words), `lib/skills/registry` and `lib/skills/runner` (the skills,
+ * and the acts the lessons call tools), `lib/skills/checker` and `lib/skills/grade` (the
  * check), `app/dashboard/twin` and `lib/twin/role-contract` (the three
  * columns and the floor), `lib/twin/ledger` (no act without an entry, the
  * one approval route, nobody approves their own), `lib/skills/meter` and
@@ -22,12 +24,12 @@ import type { Level } from './types'
 
 /** Terms the Simple and Medium levels build and this level uses. */
 export const COMPLEX_BUILDS_ON: readonly string[] = [
-  'Etyme', 'routine step', 'record', 'timesheet', 'approval', 'model', 'rule', 'permission', 'describe, never act',
+  'Etyme', 'routine step', 'agent', 'record', 'timesheet', 'approval', 'skill', 'model', 'rule', 'permission', 'describe, never act',
 ]
 
 /** The order this level builds its own terms in: one new idea a lesson. */
 export const COMPLEX_GLOSSARY: readonly string[] = [
-  'agent', 'task', 'plan', 'act', 'check',
+  'agent switch', 'task', 'plan', 'act', 'check',
   'tool', 'role contract', 'approval route', 'segregation of duties', 'floor',
   'ledger entry', 'model tier', 'meter', 'fallback', 'escalation',
 ]
@@ -38,18 +40,19 @@ export const IT_UPGRADE_COMPLEX: Level = {
   chapters: [
     {
       key: 'it-ch7-an-agent-plan-act-check',
-      title: 'An agent: plan, act, check',
+      title: 'An agent up close: plan, act, check',
       lessons: [
         {
           key: 'it-3-7-1',
-          title: 'An agent does a step for you',
+          title: 'Every agent has a switch',
           intro:
             'On the screen, the page named Agent control lists the firm’s agents by name, each with a switch: Off, Drafts only or On. ' +
-            'Behind the screen, an agent is software that does a routine step by itself, inside rules a person set. ' +
+            'Behind the screen, each one is the helper you met in the Simple level, doing a routine step inside rules a person set. ' +
+            'The agent switch says how far it may go. ' +
             'Each one starts at Off, and only the firm’s Owner changes that. ' +
             'Technical note: at Drafts only, it prepares its work and sends nothing.',
-          introduces: ['agent'],
-          uses: ['routine step', 'timesheet', 'rule'],
+          introduces: ['agent switch'],
+          uses: ['routine step', 'agent', 'timesheet', 'rule'],
           example: {
             mono: true,
             text:
@@ -223,32 +226,32 @@ export const IT_UPGRADE_COMPLEX: Level = {
             'On the screen, you see only what an agent did: a draft, a letter, a question for a person. ' +
             'Behind the screen, each of those is done with a tool. ' +
             'A tool is one named ability, such as read, draft, raise a question, write a row or send. ' +
-            'An agent may use only the tools on its own list, and anything else is refused. ' +
-            'Technical note: in the code, Etyme calls a tool a skill.',
+            'Each skill lists the tools it may use, and anything else is refused. ' +
+            'Technical note: in Etyme’s code, a skill is a row of data that names its tools.',
           introduces: ['tool'],
-          uses: ['Etyme', 'timesheet', 'model', 'agent', 'task'],
+          uses: ['Etyme', 'timesheet', 'skill', 'model', 'agent', 'task'],
           example: {
             mono: true,
             text:
-              'Timesheet chase may use\n' +
+              'Timesheet chase has three skills, and each lists its tools\n' +
               '  propose a chase task      reads, writes a row, raises a question\n' +
               '  send an approved letter   reads, sends\n' +
               '  close on arrival          reads, writes a row\n\n' +
-              'No agent has a tool that\n' +
+              'No skill has a tool that\n' +
               '  moves money, signs, awards, extends or ends a placement,\n' +
               '  decides about a person, or publishes compliance wording',
           },
           tryIt: {
-            prompt: 'Which of these is a tool Timesheet chase has: “send an approved letter” or “pay an invoice”? Type it.',
+            prompt: 'The skill “send an approved letter” lists two tools. One is “reads”. Type the other.',
             starter: '',
             rules: [
-              { kind: 'contains', value: 'letter', says: 'It names a tool on the agent’s own list.' },
-              { kind: 'maxWords', value: 5, says: 'It names one tool, not both.' },
+              { kind: 'contains', value: 'send', says: 'It names the second tool on that skill’s list.' },
+              { kind: 'maxWords', value: 2, says: 'It names one tool.' },
             ],
-            expected: 'Send an approved letter is on its list. Paying is on no agent’s list.',
+            expected: 'Sends. That skill reads and sends, and paying is on no skill’s list.',
           },
           exercise: {
-            question: 'An agent tries to use a tool that is not on its list. What happens?',
+            question: 'A skill tries to use a tool that is not on its list. What happens?',
             choices: ['It runs, with a warning', 'It is refused before anything runs', 'It asks the model to decide'],
             correctIndex: 1,
             reason: 'Code reads the list before the step starts, so nothing outside it runs.',
@@ -643,7 +646,7 @@ export const COMPLEX_TRY_SAMPLES: Record<string, { right: string; wrong: string 
   'it-3-7-3': { right: '3', wrong: '2' },
   'it-3-7-4': { right: 'The agent sent a timesheet reminder to Priya.', wrong: 'The agent will think about it.' },
   'it-3-7-5': { right: 'FAIL', wrong: 'PASS' },
-  'it-3-8-1': { right: 'Send an approved letter', wrong: 'Pay an invoice' },
+  'it-3-8-1': { right: 'Sends', wrong: 'Pays' },
   'it-3-8-2': { right: 'Needs approval', wrong: 'Acts alone' },
   'it-3-8-3': { right: 'First, the route reads the record again.', wrong: 'First, the route sends the bill at once.' },
   'it-3-8-4': { right: 'person', wrong: 'agent' },

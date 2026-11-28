@@ -6,6 +6,11 @@ import type { Level } from './types'
  * as a worker sees them on Etyme; then a first chatbot: the prompt, the
  * model, the reply and its limits.
  *
+ * Each chapter closes with one of the three foundational terms, in order
+ * (record 133): agent in chapter 1, skill in chapter 2, agentic in chapter
+ * 3. None of the three words is said before the lesson that builds it;
+ * `foundationGaps` in `./shape` holds every track to that.
+ *
  * Every screen described here is read from the code as it stands:
  * `app/site/[slug]` (a firm's public page), `app/dashboard/my-work/page.tsx`
  * (Your work, "File your hours", the stages of a week), `app/api/me/work`
@@ -18,9 +23,9 @@ import type { Level } from './types'
 
 /** The order this level builds its terms in: one new idea a lesson. */
 export const SIMPLE_GLOSSARY: readonly string[] = [
-  'staffing firm', 'Etyme', 'routine step',
-  'record', 'timesheet', 'approval', 'bench',
-  'chatbot', 'prompt', 'model', 'reply', 'limit',
+  'staffing firm', 'Etyme', 'routine step', 'agent',
+  'record', 'timesheet', 'approval', 'bench', 'skill',
+  'chatbot', 'prompt', 'model', 'reply', 'limit', 'agentic',
 ]
 
 /** "What you will be good at": plain verbs. Opens the track and is recapped at its end. */
@@ -44,9 +49,9 @@ export const IT_UPGRADE_SIMPLE: Level = {
           key: 'it-1-1-1',
           title: 'Three parties, one job',
           intro:
-            'Tapin is a staffing firm: it connects consultants with clients who need their skills. ' +
+            'Tapin is a staffing firm: it connects consultants with clients who need their work. ' +
             'A consultant is a person who works on contract. A client is the company that needs the work. ' +
-            'On the screen, Tapin’s public page shows the firm’s name, a short line about it, and the skills it offers. ' +
+            'On the screen, Tapin’s public page shows the firm’s name, a short line about it, and what its people can do. ' +
             'Behind the screen, the opening words are saved once, and the facts below them are read fresh on every visit. ' +
             'No person’s name and no pay rate is printed there. ' +
             'Technical note: your browser sends one HTTPS GET, and a firm with no page answers “not found”.',
@@ -56,7 +61,7 @@ export const IT_UPGRADE_SIMPLE: Level = {
             mono: true,
             text:
               'A client needs a data engineer for six months.\n' +
-              'A consultant has that skill and is free next month.\n' +
+              'A consultant knows that work and is free next month.\n' +
               'A staffing firm knows both, and introduces them.',
           },
           tryIt: {
@@ -67,7 +72,7 @@ export const IT_UPGRADE_SIMPLE: Level = {
               { kind: 'contains', value: 'client', says: 'It names the client.' },
               { kind: 'minWords', value: 7, says: 'It is a whole sentence.' },
             ],
-            expected: 'Yes. The firm stands between the person with the skill and the company with the job.',
+            expected: 'Yes. The firm stands between the person who can do the work and the company with the job.',
           },
           exercise: {
             question: 'A hospital needs a database expert for three months. Which party is the hospital?',
@@ -151,6 +156,48 @@ export const IT_UPGRADE_SIMPLE: Level = {
             choices: ['Choosing between two job offers', 'Adding up the hours in a week', 'Explaining a design to a client'],
             correctIndex: 1,
             reason: 'It is done the same way every time, so software can do it.',
+          },
+          video: null,
+        },
+        {
+          key: 'it-1-1-4',
+          title: 'An agent: a helper that does the steps',
+          intro:
+            'Some software only answers a question. An agent is a helper that does not just answer: it does steps for you. ' +
+            'It looks things up, uses tools, and finishes a small job. ' +
+            'A reminder about late hours is a routine step, so an agent can do it. ' +
+            'On the screen, you may meet one as a short letter: your hours for last week are missing. ' +
+            'Behind the screen, an agent at your firm looked up who had not filed hours and wrote that letter. ' +
+            'A person at the firm said yes before it was sent. ' +
+            'Technical note: every agent starts switched off, and only the firm’s Owner switches one on.',
+          introduces: ['agent'],
+          uses: ['routine step', 'staffing firm'],
+          example: {
+            mono: true,
+            text:
+              'Software that only answers\n' +
+              '  You ask who has not filed hours.\n' +
+              '  It tells you three names. You do the rest.\n\n' +
+              'An agent\n' +
+              '  looks up who has not filed hours\n' +
+              '  uses a tool to write each reminder\n' +
+              '  waits for a person’s yes, then sends\n' +
+              '  the small job is finished',
+          },
+          tryIt: {
+            prompt: 'In one sentence, say what an agent does that a plain answer does not. Use the word steps or the word job.',
+            starter: 'An agent ',
+            rules: [
+              { kind: 'containsAny', values: ['steps', 'job'], says: 'It says the agent does steps or a job, not only an answer.' },
+              { kind: 'minWords', value: 6, says: 'It is a whole sentence.' },
+            ],
+            expected: 'Yes. An agent does the steps and finishes a small job for you.',
+          },
+          exercise: {
+            question: 'Which of these is an agent?',
+            choices: ['A page that shows your hours', 'A helper that looks up who is late and writes each reminder', 'A search box that answers one question'],
+            correctIndex: 1,
+            reason: 'An agent does the steps of a small job, and does not only answer.',
           },
           video: null,
         },
@@ -314,6 +361,52 @@ export const IT_UPGRADE_SIMPLE: Level = {
           },
           video: null,
         },
+        {
+          key: 'it-1-2-5',
+          title: 'A skill: one job, written down as steps',
+          intro:
+            'An agent cannot do a job nobody wrote down for it. ' +
+            'A skill is one job the agent knows how to do well, written down as steps. ' +
+            'Think of a recipe card: one card, one dish, the same steps each time. ' +
+            'More skills mean more jobs the agent can do. ' +
+            'On the screen, the reminder about a late timesheet is the result of one skill. ' +
+            'Behind the screen, the firm’s agent for late weeks has three skills: propose a reminder, send the letter, and close the job. ' +
+            'Technical note: a skill is saved as data, with a name and a list of what it may do. ' +
+            'An agent with no skill for a job cannot do that job.',
+          introduces: ['skill'],
+          uses: ['agent', 'timesheet', 'staffing firm'],
+          example: {
+            mono: true,
+            text:
+              'A recipe card\n' +
+              '  Dish: tomato soup\n' +
+              '  1 chop   2 cook   3 taste   4 serve\n\n' +
+              'A skill\n' +
+              '  Job: remind a person about a late week\n' +
+              '  1 find the week that is missing\n' +
+              '  2 write the reminder\n' +
+              '  3 wait for a yes, then send\n' +
+              '  4 stop when the week is filed',
+          },
+          tryIt: {
+            prompt: 'Write a skill as a recipe card: name one job, then give three numbered steps. Use 1, 2 and 3.',
+            starter: 'Job: ',
+            rules: [
+              { kind: 'contains', value: '1', says: 'It has a step 1.' },
+              { kind: 'contains', value: '2', says: 'It has a step 2.' },
+              { kind: 'contains', value: '3', says: 'It has a step 3.' },
+              { kind: 'minWords', value: 10, says: 'It names the job and says each step in words.' },
+            ],
+            expected: 'One job, written down as steps: that is a skill.',
+          },
+          exercise: {
+            question: 'An agent has two skills. Its firm writes a third one for it. What changes?',
+            choices: ['It does the first two jobs faster', 'It can do one more job', 'Nothing changes'],
+            correctIndex: 1,
+            reason: 'Each skill is one job, so more skills mean more jobs it can do.',
+          },
+          video: null,
+        },
       ],
     },
     {
@@ -470,8 +563,7 @@ export const IT_UPGRADE_SIMPLE: Level = {
             'A model can sound sure and be wrong, because it writes likely words, not checked facts. ' +
             'On the screen, Ask Etyme states a limit under the box: “It never files, signs or sends anything for you.” ' +
             'Behind the screen, a question outside your own work gets a refusal in one sentence, not a guess. ' +
-            'Technical note: that refusal is decided before your record is read, so nothing is fetched for it. ' +
-            'The next level removes one limit: a chatbot reads documents before it replies.',
+            'Technical note: that refusal is decided before your record is read, so nothing is fetched for it.',
           introduces: ['limit'],
           uses: ['chatbot', 'model', 'prompt', 'reply', 'record'],
           example: {
@@ -497,6 +589,47 @@ export const IT_UPGRADE_SIMPLE: Level = {
           },
           video: null,
         },
+        {
+          key: 'it-1-3-6',
+          title: 'Agentic: step by step toward a goal',
+          intro:
+            'A chatbot gives one reply to one prompt, and then it stops. ' +
+            'Agentic means working step by step toward a goal, and checking as you go. ' +
+            'It is how an agent works when it does a whole task, not just one answer. ' +
+            'On the screen, you see only the result: a reminder arrives, and no more come once your week is filed. ' +
+            'Behind the screen, the agent takes a step, looks at the record, and then chooses the next step. ' +
+            'Technical note: each step is one skill, and the record is read again before the next step. ' +
+            'The next level starts smaller: one limit is removed, and a chatbot reads documents before it replies.',
+          introduces: ['agentic'],
+          uses: ['chatbot', 'prompt', 'reply', 'limit', 'agent', 'skill', 'record'],
+          example: {
+            mono: true,
+            text:
+              'One answer\n' +
+              '  prompt → reply → stop\n\n' +
+              'Agentic work\n' +
+              '  goal     every hour of last week is filed\n' +
+              '  step 1   find the weeks that are missing      check: three are missing\n' +
+              '  step 2   send a reminder for each             check: two are filed now\n' +
+              '  step 3   remind the last person once more     check: all are filed\n' +
+              '  goal met, so stop',
+          },
+          tryIt: {
+            prompt: 'An agent sent three reminders. It checks the record, and two of those weeks are now filed. How many people does it remind again? Type the number.',
+            starter: '',
+            rules: [
+              { kind: 'equals', value: '1', says: 'Three reminders, less two filed weeks, leaves one.' },
+            ],
+            expected: 'One. It checked after the step, so it reminds only the person whose week is still missing.',
+          },
+          exercise: {
+            question: 'Which of these is agentic work?',
+            choices: ['Giving one reply to one prompt', 'Taking a step, checking the result, then choosing the next step until the goal is met', 'Showing a page of settings'],
+            correctIndex: 1,
+            reason: 'Agentic work moves step by step toward a goal and checks as it goes.',
+          },
+          video: null,
+        },
       ],
     },
   ],
@@ -512,24 +645,28 @@ export const IT_UPGRADE_SIMPLE: Level = {
       'Wrote the reply you expect for each prompt, using only facts from your sample week',
       'Wrote one prompt a chatbot must refuse, and the one sentence it should say',
       'Named one limit of a chatbot that uses a model',
+      'Wrote one small job an agent could finish for that week, as a skill in three steps',
     ],
   },
 }
 
 /** For each try-it: one input its rules accept and one they refuse. Read by the content test, and by a hint later. */
 export const SIMPLE_TRY_SAMPLES: Record<string, { right: string; wrong: string }> = {
-  'it-1-1-1': { right: 'A staffing firm connects a consultant with a client who needs her skill.', wrong: 'A staffing firm sells software to banks and shops.' },
+  'it-1-1-1': { right: 'A staffing firm connects a consultant with a client who needs her work.', wrong: 'A staffing firm sells software to banks and shops.' },
   'it-1-1-2': { right: 'My page is empty because no firm has put me on a job yet.', wrong: 'My page is empty because the system is broken today.' },
   'it-1-1-3': { right: 'Every week I copy my hours into a spreadsheet.', wrong: 'I design things.' },
+  'it-1-1-4': { right: 'An agent does the steps of a small job for you.', wrong: 'An agent is nice.' },
   'it-1-2-1': { right: 'The read is refused, and the refusal is written to the log.', wrong: 'The firm reads my pay.' },
   'it-1-2-2': { right: '40 hours', wrong: '45' },
   'it-1-2-3': { right: 'owed', wrong: 'paid' },
   'it-1-2-4': { right: 'Yes, for 60 days.', wrong: 'Maybe later.' },
+  'it-1-2-5': { right: 'Job: file my week. 1 open Your work. 2 type the hours for each day. 3 send it.', wrong: 'Job: do my work well.' },
   'it-1-3-1': { right: 'When is my week due?', wrong: 'Tell the weather today' },
   'it-1-3-2': { right: 'Is my week signed?', wrong: 'Tell me about stuff.' },
   'it-1-3-3': { right: 'A model learned from a great deal of text.', wrong: 'A model learned from my timesheet.' },
   'it-1-3-4': { right: 'No', wrong: 'Yes' },
   'it-1-3-5': { right: 'What am I owed?', wrong: 'Tell me another consultant’s pay.' },
+  'it-1-3-6': { right: '1', wrong: '3' },
 }
 
 const TEXT = 'font-family="Inter, sans-serif" font-size="13" fill="#1F1E1D"'

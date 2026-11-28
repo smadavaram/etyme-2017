@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { IT_UPGRADE_SIMPLE as LEVEL, IT_UPGRADE_GOOD_AT, SIMPLE_GLOSSARY, SIMPLE_TRY_SAMPLES, SIMPLE_PICTURES } from '@/lib/training/courses/it-upgrade-simple'
 import { trackOf, lessonsOf } from '@/lib/training/courses/index'
-import { lessonGaps, termGaps, mentionsPrice, videoSlotWords } from '@/lib/training/courses/shape'
+import { lessonGaps, termGaps, foundationGaps, mentionsPrice, videoSlotWords } from '@/lib/training/courses/shape'
 import { evaluateTryIt, checkExercise } from '@/lib/training/courses/try-it'
 import type { Lesson, Track } from '@/lib/training/courses/types'
 import { WORKER_QUESTIONS, WORKER_FOOTER, FILE_IT_YOURSELF, NOT_ANOTHER_PERSON, readWorkerAsk } from '@/app/api/conversations/twin/worker'
@@ -27,8 +27,12 @@ const SAID: Record<string, RegExp> = {
   reply: /\brepl(y|ies|ied)\b/i,
   'routine step': /\broutine\b/i,
 }
-/** Terms the Medium and Complex levels build. The Simple level never says them. */
-const BUILT_LATER = ['rule', 'lookup', 'chunk', 'citation', 'ledger', 'placeholder', 'permission', 'agent', 'tool']
+/**
+ * Terms the Medium and Complex levels build. The Simple level never says them.
+ * "Tool" is not here: the agent lesson says an agent uses tools, in the plain
+ * sense, and the Complex level says what a tool is in Etyme.
+ */
+const BUILT_LATER = ['rule', 'lookup', 'chunk', 'citation', 'ledger', 'placeholder', 'permission']
 
 describe('IT — Upgrade, the Simple level: its shape', () => {
   it('has three chapters, numbered one to three, each with lessons', () => {
@@ -96,8 +100,24 @@ describe('IT — Upgrade, the Simple level: one new idea a step, in glossary ord
     const found = BUILT_LATER.filter((t) => says(t).test(everyWord))
     expect(found).toEqual([])
   })
-  it('the system steps come in order: the chatbot, the prompt, the model, the reply, then its limits', () => {
-    expect(LEVEL.chapters[2].lessons.map((l) => l.introduces[0])).toEqual(['chatbot', 'prompt', 'model', 'reply', 'limit'])
+  it('the system steps come in order: the chatbot, the prompt, the model, the reply, its limits, then agentic work', () => {
+    expect(LEVEL.chapters[2].lessons.map((l) => l.introduces[0])).toEqual(['chatbot', 'prompt', 'model', 'reply', 'limit', 'agentic'])
+  })
+  it('each chapter closes with one foundational term: agent in chapter 1, skill in chapter 2, agentic in chapter 3', () => {
+    expect(LEVEL.chapters.map((c) => c.lessons[c.lessons.length - 1].introduces[0])).toEqual(['agent', 'skill', 'agentic'])
+    expect(foundationGaps({ ...asTrack, levels: [LEVEL] })).toEqual([])
+  })
+  it('agent is taught as a helper that does not just answer: it does steps, looks things up, uses tools and finishes a small job', () => {
+    const l = lessons.find((x) => x.introduces[0] === 'agent')!
+    for (const w of ['helper', 'does not just answer', 'does steps for you', 'looks things up', 'uses tools', 'finishes a small job']) expect(l.intro, w).toContain(w)
+  })
+  it('skill is taught as one job the agent knows how to do well, written down as steps, like a recipe card, and more skills mean more jobs', () => {
+    const l = lessons.find((x) => x.introduces[0] === 'skill')!
+    for (const w of ['one job the agent knows how to do well', 'written down as steps', 'recipe card', 'More skills mean more jobs']) expect(l.intro, w).toContain(w)
+  })
+  it('agentic is taught as working step by step toward a goal and checking as you go: a whole task, not just one answer', () => {
+    const l = lessons.find((x) => x.introduces[0] === 'agentic')!
+    for (const w of ['step by step toward a goal', 'checking as you go', 'how an agent works', 'a whole task, not just one answer']) expect(l.intro, w).toContain(w)
   })
   it('the level builds every term the Medium level says it builds on', () => {
     for (const t of ['chatbot', 'model', 'prompt', 'reply']) expect(SIMPLE_GLOSSARY).toContain(t)

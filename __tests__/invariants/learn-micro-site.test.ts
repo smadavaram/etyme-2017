@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { OPENING_CARDS, OPENING_QUESTION, NOT_LIVE_YET, routeFor } from '@/lib/training/courses/opening'
 import { COURSES, VERSION, trackOf, lessonsOf } from '@/lib/training/courses/index'
-import { shapeGaps, termGaps, lessonGaps, wordsOf, mentionsPrice, videoSlotWords } from '@/lib/training/courses/shape'
+import { shapeGaps, termGaps, lessonGaps, foundationGaps, wordsOf, mentionsPrice, videoSlotWords } from '@/lib/training/courses/shape'
 import { evaluateTryIt, checkExercise } from '@/lib/training/courses/try-it'
 import type { Lesson, Track } from '@/lib/training/courses/types'
 import { EMPTY_PROGRESS, markDone, setTick, percentDone, nextLessonKey, isComplete, readProgress } from '@/lib/training/learn-progress'
@@ -83,6 +83,35 @@ describe('the course content format', () => {
   })
   it('no lesson of the track written so far uses a term before the step that builds it', () => {
     for (const t of COURSES[0].tracks) expect(termGaps(t), t.key).toEqual([])
+  })
+  it('every track with lessons builds agent, then skill, then agentic in chapters 1 to 3 of its Simple level, and says none of them earlier', () => {
+    for (const t of COURSES[0].tracks) expect(foundationGaps(t), t.key).toEqual([])
+  })
+  it('a track that says agent, skill or agentic before the lesson that builds it is told where', () => {
+    const t = fullTrack()
+    t.goodAt = ['Write a skill', 'Read', 'Check']
+    t.levels[0].chapters[0].lessons[0] = lesson('a', { introduces: ['agent'], intro: 'An agent is a helper. It works in an agentic way.' })
+    t.levels[0].chapters[1].lessons[0] = lesson('b', { introduces: ['skill'], intro: 'A skill is one job.' })
+    t.levels[0].chapters[2].lessons[0] = lesson('c', { introduces: ['agentic'], intro: 'Agentic means step by step.' })
+    expect(foundationGaps(t)).toEqual([
+      'Full, "What you will be good at", says "skill" before the lesson that builds it.',
+      'a says "agentic" before the lesson that builds it.',
+    ])
+  })
+  it('a track that builds the three terms out of order, or after chapter 3, is told which lesson', () => {
+    const t = fullTrack()
+    t.levels[0].chapters[0].lessons[0] = lesson('a', { introduces: ['skill'], intro: 'A skill is one job.' })
+    t.levels[0].chapters[1].lessons[0] = lesson('b', { introduces: ['agent'], intro: 'An agent is a helper.' })
+    t.levels[1].chapters[0].lessons[0] = lesson('d', { introduces: ['agentic'], intro: 'Agentic means step by step.' })
+    expect(foundationGaps(t)).toEqual([
+      'a builds "skill" before a lesson builds "agent".',
+      'd builds "agentic" outside the Simple level’s chapters 1 to 3.',
+    ])
+  })
+  it('a track with lessons that never builds one of the three terms is told which, and a track not written yet is left alone', () => {
+    expect(foundationGaps(fullTrack())).toEqual(['Full: no lesson builds "agent".', 'Full: no lesson builds "skill".', 'Full: no lesson builds "agentic".'])
+    const empty = fullTrack(); for (const lv of empty.levels) for (const ch of lv.chapters) ch.lessons = []
+    expect(foundationGaps(empty)).toEqual([])
   })
   it('every lesson written so far has an intro, an example, a try-it and an exercise with a one-line reason', () => {
     for (const t of COURSES[0].tracks) expect(lessonGaps(t), t.key).toEqual([])
