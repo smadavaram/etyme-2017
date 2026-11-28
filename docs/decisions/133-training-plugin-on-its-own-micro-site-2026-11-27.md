@@ -75,3 +75,26 @@ for Kids/student):
    is how an agent works when it does a whole task, not just one answer.
 None of the three words appears anywhere in a course before the Simple
 chapter that builds it.
+
+## The door and progress mechanics (Pax, 2026-11-28)
+
+The training plugin works with the tenant's own website (its door) through
+the record, the way jobs and applications do:
+- a job's requirements generate a system path ("get job-ready");
+- an applicant from the door can be routed into a path;
+- a pod's skill gaps generate team paths;
+- completions and badges show on the door as proof: counts and skills from
+  the record only, real numbers, honestly labeled;
+- featured courses and the tenant-branded graphics and animation package
+  dress the door.
+Learning stays on the micro-site; the door is entry and proof.
+
+Progress mechanics only:
+- points for lessons, exercises and projects, projects worth most;
+- badges per level and per course completion, stored on the worker's
+  record and shareable to LinkedIn;
+- a weekly streak on the micro dashboard, with no punishment;
+- a cohort board the mentor sees; a ranking the learner sees only where
+  the tenant switches it on.
+Never: coins or any currency, random rewards, a public or global
+leaderboard, or anything that can be bought.
