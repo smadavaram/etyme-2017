@@ -1,0 +1,838 @@
+import { SAMPLE_PERSON_EMAIL, NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+import { deskAsked, deskRefusal, whoAsked, whoRefusal, DESK_ROLES, type Desk } from '@/lib/demo-desks'
+import { REGION_UNIT_KIND } from '@/lib/region-scope'
+import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
+import { randomBytes } from 'node:crypto'
+import { prisma } from '@/lib/db'
+import { seedChain, type Seat } from '@/lib/demo-chain'
+import { seedDemoCompany, DEMO_DAYS } from '@/lib/demo-seed'
+import { seedDemoClientCompany } from '@/lib/demo-seed-client'
+import { seedDemoConsultant } from '@/lib/demo-seed-consultant'
+import { addVolume } from '@/lib/demo-volume'
+import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor, demoVisit } from '@/lib/demo-session'
+import { countDemoStarted } from '@/lib/events'
+import { CANDIDATE_SEATS } from '@/app/demo/seats'
+import { workerRows, doorsFrom } from '@/app/demo/worker-doors'
+import { consoleHome, DECISIONS_HOME } from '@/lib/console-home'
+import { landingFor, ASK_ETYME_HREF, BY_REGION_HREF } from '@/lib/nav-table'
+
+/** A firm's home setting as landingFor reads it (→ 107). */
+function homeSetting(c: { homePage?: string | null } | null | undefined): 'DECISIONS' | null {
+  return c?.homePage === 'DECISIONS' ? 'DECISIONS' : null
+}
+import { seatsHeldBy } from '@/lib/program-seat'
+import { companyPolicy } from '@/lib/identity/read'
+import { directoryOnlySays } from '@/lib/identity/policy'
+import { recordIdentityEvent } from '@/lib/identity/ledger'
+
+/**
+ * POST /api/demo — give this visitor their own seeded workspace
+ * GET  /api/demo — is this visitor already in one?
+ *
+ * Every visitor gets their own company, seeded and isolated. Two people
+ * looking around at once never see each other's data, and either can
+ * break their own copy freely — which is the only way a demo is worth
+ * anything, because the first thing anybody does is click the red button.
+ *
+ * No sign-up. A prospect who has to create an account before seeing
+ * anything looks at the form and leaves, and we never learn whether the
+ * product was any good.
+ */
+
+/**
+ * Which chair the visitor sits in.
+ *
+ * Not a toggle inside one workspace. A client and a vendor see different
+ * companies, different navigation and different data, and a demo that
+ * pretended one account could be both would be demonstrating a product
+ * we do not sell.
+ */
+/**
+ * Which door somebody came through.
+ *
+ * HIRING and BENCH are kept because the home page has linked to them
+ * since it existed, and a demo link that stops working is worse than a
+ * coarse one. They now mean "the client's chair" and "the bench
+ * vendor's chair" — the two ends of the chain.
+ *
+ * The five seats are the real answer. The schema knows five kinds of
+ * company and the demo offered three doors, so an MSP and a GSI had no
+ * way in at all and a prime and a bench vendor got the same world
+ * despite sitting on opposite sides of the same trade.
+ */
+export type Side = 'HIRING' | 'BENCH' | 'CANDIDATE' | Seat
+
+/** Names that read like a staffing firm without naming a real one. */
+const NAMES = [
+  'Halloway Talent', 'Brightmoor Staffing', 'Kestrel Consulting',
+  'Alderway Partners', 'Marchfield Group', 'Two Rivers Talent',
+  'Pinehurst Staffing', 'Norwood Consulting',
+]
+
+/** And names that read like a company that buys contract staff. */
+const BUYERS = [
+  'Northfield Instruments', 'Calder Manufacturing', 'Harlow Health',
+  'Ravensmere Energy', 'Stanmore Logistics', 'Ashcombe Financial',
+]
+
+/** The five company seats, plus the one that is not a company. */
+type Held = Seat | 'CANDIDATE'
+
+/**
+ * The desks a seeded firm seats, by the role each holds.
+ *
+ * The roster is in lib/seed-programmes for a client and lib/seed-world
+ * for a supplier; the words here are what a visitor reads. The address
+ * still carries the desk in it — `world-northbend-ap@` is the AP clerk — but
+ * nothing looks a seat up that way any more: a role is the fact and an
+ * address is a handle.
+ */
+// The desks, their roles and the refusal live in lib/demo-desks.
+
+/** Where a desk's own work is, at a client. */
+const CLIENT_LANDING: Partial<Record<Desk, string>> = {
+  programme: '/dashboard/program',
+  hiring: '/dashboard/requisitions',
+  hr: '/dashboard/requisitions',
+  procurement: '/dashboard/requisitions',
+  vp: '/dashboard/requisitions',
+  ap: '/dashboard/invoices',
+  compliance: '/dashboard/compliance',
+  // The program by region (lib/nav-table, BY_REGION_HREF): where a seat
+  // that answers for regions has no Ask Etyme to land in.
+  region: BY_REGION_HREF,
+  operations: BY_REGION_HREF,
+  cfo: BY_REGION_HREF,
+}
+
+/** And at a firm that sells: the same question, a different morning. */
+const SUPPLIER_LANDING: Partial<Record<Desk, string>> = {
+  account: '/dashboard/requirements',
+  recruiter: '/dashboard/submissions',
+  resourcing: '/dashboard/bench',
+  hr: '/dashboard/documents',
+  contracts: '/dashboard/contracts',
+  ar: '/dashboard/ar',
+  payroll: '/dashboard/payroll',
+  // "AP" at a firm that sells is the AP & Payroll desk (lib/demo-desks).
+  ap: '/dashboard/payroll',
+  finance: '/dashboard/invoices',
+  compliance: '/dashboard/compliance',
+  // Our bench, the firm's own people: where a delivery manager flags,
+  // reserves and places.
+  delivery: '/dashboard/bench?scope=payroll',
+}
+
+/** The region a seat reads, where it sits on a REGION unit; else null. */
+function regionOf(seat: { orgUnit?: { name: string; kind: string } | null } | undefined): string | null {
+  return seat?.orgUnit?.kind === REGION_UNIT_KIND ? seat.orgUnit.name : null
+}
+
+function deskLanding(desk: Desk, kind: string): string {
+  const map = kind === 'CLIENT' ? CLIENT_LANDING : SUPPLIER_LANDING
+  return map[desk] ?? CLIENT_LANDING[desk] ?? SUPPLIER_LANDING[desk] ?? '/dashboard'
+}
+
+/**
+ * Which seat a request is asking for, normalized.
+ *
+ * Shared by the resume check and the seeding below so the two cannot
+ * disagree about what "the same seat" means. HIRING is the old buyer's
+ * door and maps to CLIENT; BENCH is both the old supplier's door and the
+ * bench vendor's seat, and they mean the same thing.
+ */
+function seatAsked(body: any): Held {
+  const asked = String(body?.side ?? '').toUpperCase()
+  if (asked === 'CANDIDATE') return 'CANDIDATE'
+  if (asked === 'MSP' || asked === 'GSI' || asked === 'PRIME' || asked === 'BENCH') return asked
+  return 'CLIENT'
+}
+
+/**
+ * Which seat a demo cookie already holds.
+ *
+ * The seat is recoverable without a column: seedChain writes the
+ * visitor's own firm with a slug ending in the seat name, and a
+ * candidate's only context is a CONSULTANT one on somebody else's
+ * agency — which is exactly why they must not be resumed into a company
+ * seat: contexts[0].company is the agency, and handing them that would
+ * put a candidate in charge of the firm that lists them.
+ */
+function seatHeld(contextType: string, slug: string): Held | null {
+  if (contextType === 'CONSULTANT') return 'CANDIDATE'
+  const m = /-(client|msp|gsi|prime|bench)$/.exec(slug)
+  return m ? (m[1].toUpperCase() as Seat) : null
+}
+
+/**
+ * Count one demo start for the visit the page sent, and only for it.
+ *
+ * Awaited, because a serverless host may stop the function the moment the
+ * response goes out; never throws, because a count is never worth a seat
+ * that failed to open. Called only once a seat is actually taken — a
+ * refused door counts nothing. No visit id, no count (`demoVisit`).
+ */
+async function countTheSeat(body: unknown): Promise<void> {
+  const at = demoVisit(body)
+  if (at) await countDemoStarted(at)
+}
+
+/**
+ * A directory-only company is never entered through the demo door
+ * (founder, 2026-11-11: no break-glass, every other door refuses). Until
+ * the walk on 62a498151 the door answered 200, set the cookie, and every
+ * request after it was refused, ledgered as "a door from before
+ * 2026-11-11". Refused here instead, in the directory-only sentence, the
+ * refusal ledgered before it is sent. Null where the company is not
+ * directory-only, or where its policy cannot be read (the seat check on
+ * every request still holds).
+ */
+async function directoryOnlyDoor(company: { id: string; name: string } | null | undefined): Promise<NextResponse | null> {
+  if (!company) return null
+  let effective: string
+  try {
+    effective = (await companyPolicy(company.id)).effective
+  } catch {
+    return null
+  }
+  if (effective !== 'SSO_ONLY') return null
+  const says = directoryOnlySays(company.name)
+  await recordIdentityEvent({
+    event: 'LOGIN_REFUSED_SSO_ONLY', companyId: company.id, actorPersonId: null, subject: { companyId: company.id },
+    policy: 'SSO_ONLY', surface: 'WEB', says: `Refused the demo door at ${company.name}: ${says}`,
+  }).catch(() => 0)
+  return NextResponse.json({ error: { code: 'DIRECTORY_ONLY', message: says } }, { status: 403 })
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => ({}))
+
+  // Already in one? Send them back to it rather than making another — a
+  // visitor who refreshes should not accumulate workspaces.
+  //
+  // But only back to the SAME seat. This resumed whatever the cookie
+  // held regardless of what was just picked, so the first click seated
+  // somebody as Orlestone Corp and every later click — MSP, integrator,
+  // prime, bench — silently landed them back in Orlestone Corp's book. The
+  // seat picker was a form whose answer was thrown away. A different
+  // seat is an explicit intent and gets a workspace of its own; the old
+  // one is reaped with the rest.
+  //
+  // And never for a world seat. `{ as: "world-northbend" }` carries no `side`,
+  // so it read as the default CLIENT seat here — and a visitor who had
+  // ever held a private client sandbox was handed that sandbox back
+  // instead of Northbend Athletic. The world branch below is the only answer to `as`.
+  const asWorld = typeof (body as any)?.as === 'string' ? String((body as any).as) : null
+  const asPerson = typeof (body as any)?.person === 'string' ? String((body as any).person) : null
+  const asWorker = typeof (body as any)?.worker === 'string' ? String((body as any).worker) : null
+  const wanted = seatAsked(body)
+  const existing = read(request.cookies.get(DEMO_COOKIE)?.value)
+  if (existing && !asWorld && !asPerson && !asWorker) {
+    const person = await prisma.person.findUnique({
+      where: { primaryEmail: existing },
+      select: {
+        contexts: {
+          where: { revokedAt: null },
+          select: {
+            type: true,
+            company: { select: { id: true, name: true, slug: true, isDemo: true } },
+          },
+        },
+      },
+    })
+    const ctx = person?.contexts[0]
+    const company = ctx?.company
+    if (ctx && company?.isDemo) {
+      const held = seatHeld(ctx.type, company.slug)
+      const resumedSso = held === wanted ? await directoryOnlyDoor(company) : null
+      if (resumedSso) return resumedSso
+      if (held === wanted) {
+        await countTheSeat(body)
+        return NextResponse.json({
+          data: { companyId: company.id, companyName: company.name, seat: held, resumed: true },
+        })
+      }
+    }
+  }
+
+  // ── A person, rather than a company ─────────────────────────────
+  //
+  // `{ person: "colleen-byrne" }` sits at one of the four consultants
+  // the seeded world holds. They are the one party to a placement who is
+  // not a firm, and until now the only way to look around as one was a
+  // private throwaway workspace with a random developer in it —
+  // invisible to everybody else and unconnected to the placement the
+  // client and the supplier doors were looking at.
+  //
+  // The handle is looked up in the seat list rather than trusted off the
+  // wire: `app/demo/seats` is what the page draws, so a door cannot name
+  // somebody the page does not, and an address in the body is not a way
+  // to be seated as anybody in the database.
+  //
+  // Lands where the sign-in does, through the one function the three
+  // doors share (`landingFor` in lib/nav-table): Ask Etyme where the
+  // person's own menu has Conversations — Karthik Menon, an integrator's
+  // own W2, whose Today has it — and their own work where it does not, as
+  // for a consultant on a bench. Never a company overview: that is how the
+  // integrator seat was lost for a week.
+  if (asPerson) {
+    const door = CANDIDATE_SEATS.find((c) => c.slug === asPerson)
+    if (!door) {
+      return NextResponse.json(
+        { error: { code: 'NOT_A_PERSON_SEAT', message: 'No such person on the demo page.' } },
+        { status: 400 }
+      )
+    }
+    let seated
+    try {
+      seated = await prisma.person.findUnique({
+        where: { primaryEmail: door.email },
+        select: {
+          id: true, name: true,
+          contexts: {
+            where: { revokedAt: null, suspendedAt: null },
+            select: { type: true, company: { select: { id: true, name: true, kind: true, homePage: true } }, role: { select: { permissions: true } } },
+            orderBy: { grantedAt: 'desc' },
+            take: 1,
+          },
+        },
+      })
+    } catch (err: any) {
+      const why = String(err?.message ?? err)
+      reportError('demo: could not look up a person seat', why)
+      return NextResponse.json(
+        {
+          error: {
+            code: 'DEMO_FAILED',
+            message: 'Could not take that seat just now. Nothing was changed.',
+          },
+        },
+        { status: 503 }
+      )
+    }
+    // A person with no seat anywhere cannot be signed in as: every route
+    // resolves a context, so they would land on a page that refuses them.
+    if (!seated || seated.contexts.length === 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_SEEDED',
+            message: `${door.name} is not in this deployment's world yet. POST /api/seed-world to build it first.`,
+          },
+        },
+        { status: 404 }
+      )
+    }
+    const personSso = await directoryOnlyDoor(seated.contexts[0].company)
+    if (personSso) return personSso
+    await countTheSeat(body)
+    const res = NextResponse.json({
+      data: {
+        person: door.slug,
+        personName: seated.name,
+        // Whose books they appear in, which is not theirs. A consultant
+        // belongs to a company without being of it, and the difference is
+        // the whole point of the seat.
+        listedBy: seated.contexts[0].company?.name ?? null,
+        contextType: seated.contexts[0].type,
+        landing: landingFor({
+          kind: (seated.contexts[0].company?.kind ?? null) as any,
+          isConsultant: seated.contexts[0].type === 'CONSULTANT',
+          // A person seat is always somebody the work is about.
+          worker: true,
+          permissions: seated.contexts[0].role?.permissions ?? [],
+          homePage: homeSetting(seated.contexts[0].company),
+        }),
+      },
+    })
+    res.cookies.set(DEMO_COOKIE, sign(door.email), {
+      httpOnly: true, sameSite: 'lax', path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: COOKIE_DAYS * 24 * 60 * 60,
+    })
+    return res
+  }
+
+  // ── A worker door, for every seeded person on the work ──────────
+  //
+  // `{ worker: "<person id>" }` opens the person's own seat: the founder's
+  // tester placed the seeded Rajesh Iyer and could not file a week as him,
+  // because only six people had a door (2026-11-03). The id is looked up
+  // in the same list the page draws (`app/demo/worker-doors`), so a door
+  // cannot name somebody the page does not: only a person on a seeded
+  // firm's placement or submission, at an address nobody can buy, with no
+  // door of their own, and with no seat that holds a desk — their address
+  // opens exactly what `lib/api-context` resolves for it, which is then
+  // their own work and nothing of the firm's.
+  if (asWorker) {
+    let door
+    try {
+      door = doorsFrom(await workerRows(asWorker)).firms.flatMap((f) => f.workers.map((w) => ({ ...w, firm: f.name })))[0]
+    } catch (err: any) {
+      reportError('demo: could not look up a worker door', String(err?.message ?? err))
+      return NextResponse.json(
+        { error: { code: 'DEMO_FAILED', message: 'Could not take that seat just now. Nothing was changed.' } },
+        { status: 503 }
+      )
+    }
+    if (!door || door.personId !== asWorker) {
+      return NextResponse.json(
+        { error: { code: 'NOT_A_WORKER_SEAT', message: 'That person has no worker door on the demo page.' } },
+        { status: 400 }
+      )
+    }
+    const seated = await prisma.person.findUnique({
+      where: { id: door.personId },
+      select: {
+        primaryEmail: true,
+        contexts: {
+          where: { revokedAt: null, suspendedAt: null },
+          select: { type: true, company: { select: { id: true, name: true, kind: true, homePage: true } }, role: { select: { permissions: true } } },
+          orderBy: { grantedAt: 'desc' },
+          take: 1,
+        },
+      },
+    })
+    if (!seated) {
+      return NextResponse.json(
+        { error: { code: 'NOT_A_WORKER_SEAT', message: 'That person has no worker door on the demo page.' } },
+        { status: 400 }
+      )
+    }
+    const seat = seated.contexts[0]
+    const workerSso = await directoryOnlyDoor(seat?.company)
+    if (workerSso) return workerSso
+    await countTheSeat(body)
+    const res = NextResponse.json({
+      data: {
+        worker: door.personId,
+        personName: door.name,
+        listedBy: door.firm,
+        contextType: seat?.type ?? 'CONSULTANT',
+        // A person with no seat yet is given their own on the first read
+        // (lib/own-seat): a consultant seat with no company.
+        landing: landingFor({
+          kind: (seat?.company?.kind ?? null) as any,
+          isConsultant: !seat || seat.type === 'CONSULTANT',
+          worker: true,
+          permissions: seat?.role?.permissions ?? [],
+          homePage: homeSetting(seat?.company),
+        }),
+      },
+    })
+    res.cookies.set(DEMO_COOKIE, sign(seated.primaryEmail), {
+      httpOnly: true, sameSite: 'lax', path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: COOKIE_DAYS * 24 * 60 * 60,
+    })
+    return res
+  }
+
+  // ── The seeded world ────────────────────────────────────────────
+  //
+  // `{ as: "world-tecwyn" }` takes a seat in the twenty-firm market
+  // scripts/seed-world.mjs builds, rather than minting another private
+  // five-company copy. That is what makes signing in as Tecwyn and
+  // signing in as Harlow Health two views of the same placement instead
+  // of two unrelated worlds with the same placeholder names.
+  //
+  // Three things it will not do. It creates nothing — the seat must
+  // already exist. It only ever names a `world-` company, so a signed
+  // cookie cannot be talked into a real one. And those companies are
+  // `isDemo: false`, so the reset button below leaves them alone: this
+  // world is reference data many people look at, not one visitor's
+  // sandbox to break.
+  if (asWorld) {
+    if (!asWorld.startsWith('world-')) {
+      return NextResponse.json(
+        { error: { code: 'NOT_A_WORLD_SEAT', message: 'Only a seeded world company can be taken this way.' } },
+        { status: 400 }
+      )
+    }
+    // Which desk at that company. A client is four or five jobs, not
+    // one seat, and the demo has to be seen from the desk that actually
+    // does the thing — the clerk who pays cannot raise a requisition,
+    // and a visitor who sits as the owner never finds that out.
+    //
+    // A word that is not a desk is refused below, never read as "no
+    // desk": that fell through to the first seat granted, the Owner.
+    const { desk, unknown: unknownDesk } = deskAsked((body as any)?.desk)
+    // Which person at that desk, where more than one holds it — the two
+    // delivery managers at Tellisford. Read only with a desk.
+    const who = desk ? whoAsked((body as any)?.who) : null
+    // The same two sentences the private path gives below. This lookup
+    // used to throw straight out of the handler, so a database that was
+    // down answered the front door with an empty 500 — the one error
+    // that tells the visitor nothing and the fixer nothing either.
+    let company
+    try {
+      company = await prisma.company.findUnique({
+      where: { slug: asWorld },
+      select: {
+        id: true, name: true, kind: true, homePage: true,
+        contexts: {
+          where: {
+            revokedAt: null, NOT: { roleId: null },
+            // The desk's own role, or the company's first seat. Read
+            // off the role rather than off the address, so a firm whose
+            // desks were seeded under any other handle still opens.
+            ...(desk ? { role: { name: { in: DESK_ROLES[desk] } } } : {}),
+            // Never the shared sample's seat: it holds the program
+            // manager's role for the home page's frame, and is opened
+            // read-only by the sample door alone (`lib/sample-seat`).
+            person: { primaryEmail: { not: SAMPLE_PERSON_EMAIL }, ...(who ? { name: who } : {}) },
+          },
+          select: {
+            person: { select: { primaryEmail: true } }, role: { select: { name: true, permissions: true } },
+            // A seat on a REGION unit lands on its region (lib/region-scope).
+            orgUnit: { select: { name: true, kind: true } },
+          },
+          orderBy: { grantedAt: 'asc' },
+          take: 1,
+        },
+      },
+    })
+    } catch (err: any) {
+      const why = String(err?.message ?? err)
+      reportError('demo: could not look up a world seat', why)
+      const unreachable = /P1001|Can't reach database|ECONNREFUSED|ETIMEDOUT/i.test(why)
+      return NextResponse.json(
+        {
+          error: {
+            code: unreachable ? 'DATABASE_UNREACHABLE' : 'DEMO_FAILED',
+            message: unreachable
+              ? 'The database is not answering. Nothing was changed — try again in a minute.'
+              : 'Could not take that seat just now. Nothing was changed.',
+          },
+        },
+        { status: 503 }
+      )
+    }
+    // Does this firm hold a desk in somebody's program office? Only a
+    // program office ever does, and it decides which console it opens
+    // on: with a seat, the client's program; without one, its own book.
+    // Guessing from a trading relationship instead is what sent two
+    // integrators into a buyer's program overview.
+    const seatedAt =
+      company && company.kind === 'MSP'
+        ? ((await seatsHeldBy(company.id))[0]?.clientCompany.name ?? null)
+        : null
+
+    const email = unknownDesk ? undefined : company?.contexts[0]?.person.primaryEmail
+    // The desk is held, but not by the person asked for: say who does.
+    if (company && desk && who && !email) {
+      const holders = await prisma.context.findMany({
+        where: { companyId: company.id, revokedAt: null, role: { name: { in: DESK_ROLES[desk] } }, ...NOT_THE_SAMPLE_SEAT },
+        select: { person: { select: { name: true } } },
+        orderBy: { grantedAt: 'asc' },
+      })
+      if (holders.length > 0) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'NOT_AT_DESK',
+              message: whoRefusal({
+                company: { name: company.name, kind: company.kind }, desk, who,
+                holders: holders.map((h) => h.person.name ?? ''),
+              }),
+            },
+          },
+          { status: 404 }
+        )
+      }
+    }
+    if (!company || !email) {
+      // Which desks this firm DOES have.
+      //
+      // A door that 404s says the seat is not here; it used to stop
+      // there, and a visitor asking for a desk one letter wrong, or a
+      // desk this firm has no reason to hold, was told only that
+      // something was missing and left on a dashboard URL with no
+      // session behind it. The desks a firm has are a cheap read and
+      // they are the whole answer, so the refusal names them — the same
+      // rule as every other refusal here: say what is missing and what
+      // to do, never just that it is missing.
+      //
+      // Only asked on this path, which is the failing one. A door that
+      // opens never reaches it.
+      const held = company
+        ? await prisma.context.findMany({
+            where: { companyId: company.id, revokedAt: null, NOT: { roleId: null }, ...NOT_THE_SAMPLE_SEAT },
+            select: { role: { select: { name: true } } },
+            orderBy: { grantedAt: 'asc' },
+          })
+        : []
+      // Every seat's own role name, not only the fourteen keyed desks:
+      // a firm whose people hold Owner or Delivery manager is seated,
+      // and saying otherwise was the sentence the browser walk caught.
+      const { message, desks: open } = deskRefusal({
+        asWorld,
+        company: company ? { name: company.name, kind: company.kind } : null,
+        desk,
+        heldRoles: held.map((c) => c.role?.name ?? '').filter(Boolean),
+        unknown: unknownDesk,
+      })
+
+      // An unknown desk at a seeded firm is the visitor's word, not a
+      // missing seed: same shape, its own code.
+      const unknownAtSeeded = !!unknownDesk && !!company && held.length > 0
+      return NextResponse.json(
+        {
+          error: {
+            code: unknownAtSeeded ? 'UNKNOWN_DESK' : 'NOT_SEEDED',
+            message,
+            // The machine's list, so a caller can retry without parsing
+            // the sentence it was handed.
+            desks: open,
+          },
+        },
+        { status: unknownAtSeeded ? 400 : 404 }
+      )
+    }
+    const worldSso = await directoryOnlyDoor(company)
+    if (worldSso) return worldSso
+    await countTheSeat(body)
+    const res = NextResponse.json({
+      data: {
+        companyId: company.id, companyName: company.name, kind: company.kind,
+        world: asWorld,
+        desk, role: company.contexts[0]?.role?.name ?? null,
+        // The client whose desk this firm sits at, if a client granted
+        // it one. It decides which console this seat opens on, and a
+        // caller that has to guess would guess wrong for exactly the
+        // firm this is about.
+        seatedAt,
+        // Where this seat belongs. /dashboard is the vendor's Today view
+        // and /dashboard/program is the client's program overview —
+        // two pages for two company types, not two versions of one. A
+        // flat '/dashboard' here dropped a client onto the vendor's.
+        //
+        // A desk lands on its own work: the clerk on the invoices, the
+        // officer on compliance, the manager on the roles they raised.
+        //
+        // An integrator is not a program office. /dashboard/program is
+        // the client's own overview and appears nowhere in the GSI nav
+        // (Deliver → Supply → Operate), so a delivery manager landed on
+        // a page with no way back into their own work — and the one
+        // thing that seat exists to demonstrate, putting somebody off
+        // its own payroll in front of a client, was three guesses away.
+        // Submissions is where that starts and it is in their nav.
+        // An MSP is not a client either. /dashboard/program is the
+        // client's own overview and an MSP now has a menu of its own —
+        // Today → Demand → Supply → Operate → Grow → Governance — which
+        // does not contain it, so landing one there was the same dead
+        // end the integrator had: a page with no way back into its own
+        // work.
+        // Founder, 2026-10-12 ("Ask Etyme is the app"): a seat whose menu
+        // has Conversations lands in Ask Etyme, whose greeting is its desk.
+        // Decided once, in lib/nav-table (landingFor), with the sign-in
+        // landing. The desk pages below stay the answer for a seat with no
+        // Conversations, and are one click away from the greeting.
+        landing:
+          (() => {
+            const l = landingFor({
+              kind: company.kind as any,
+              permissions: company.contexts[0]?.role?.permissions ?? null,
+              seatedAtClient: seatedAt ?? null,
+              // A region seat's menu is its region's (lib/region-scope); it lands in Ask Etyme too.
+              region: regionOf(company.contexts[0]),
+              // The firm's own home setting (→ 107), as /setup reads it.
+              homePage: homeSetting(company),
+            })
+            return l === ASK_ETYME_HREF || l === DECISIONS_HOME ? l : null
+          })()
+          ?? (desk ? deskLanding(desk, company.kind)
+          // An integrator lands on Submissions rather than on its own
+          // Today: putting somebody off its own payroll in front of a
+          // client is the one thing that seat exists to demonstrate,
+          // and it starts there.
+          : company.kind === 'GSI' ? '/dashboard/submissions'
+          // Everybody else lands on their own front door, decided once
+          // in lib/console-home and read by /dashboard's own redirect
+          // and the sidebar's Dashboard link as well.
+          : consoleHome({ kind: company.kind as any, seated: seatedAt !== null }).href),
+      },
+    })
+    res.cookies.set(DEMO_COOKIE, sign(email), {
+      httpOnly: true, sameSite: 'lax', path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: COOKIE_DAYS * 24 * 60 * 60,
+    })
+    return res
+  }
+
+  // Which door they came through. Defaults to the buyer's chair: the
+  // demand side is the one being sold first, and a visitor who arrives
+  // with no preference should land where the product is sharpest.
+  const asked = String(body?.side ?? '').toUpperCase()
+  // 'BENCH' is both the old door and the bench vendor's seat. They mean
+  // the same thing, so the collision is harmless and the old links keep
+  // working.
+  const SEATS: Seat[] = ['CLIENT', 'MSP', 'GSI', 'PRIME', 'BENCH']
+  const side: Side =
+    SEATS.includes(asked as Seat) ? (asked as Seat)
+    : asked === 'BENCH' ? 'BENCH'
+    : asked === 'CANDIDATE' ? 'CANDIDATE'
+    : 'HIRING'
+
+  // The old two doors, mapped onto their seats in the chain.
+  const seat: Seat | null =
+    SEATS.includes(side as Seat) ? (side as Seat)
+    : side === 'HIRING' ? 'CLIENT'
+    : null
+
+  const handle = randomBytes(6).toString('hex')
+  const email = addressFor(handle)
+  // CANDIDATE names its own agency inside seedDemoConsultant — the visitor
+  // is not in charge of a company on that side, so this pick is unused.
+  const pool = side === 'BENCH' ? NAMES : side === 'CANDIDATE' ? NAMES : BUYERS
+  const companyName = pool[Math.floor(Math.random() * pool.length)]
+  const slug = `demo-${handle}`
+
+  // Inside the try, along with everything else that touches the database.
+  //
+  // This one sat outside it, so a database that was reachable but had no
+  // tables threw before the handler below could say anything — and the
+  // first deploy answered a visitor with a blank 500. An empty 500 is
+  // the worst error a product can give: it tells the person nothing and
+  // it tells whoever has to fix it nothing either.
+  let person: { id: string; name: string } | null = null
+  let seeded
+
+  try {
+    person = await prisma.person.create({
+      data: { name: 'You', primaryEmail: email },
+    })
+
+    if (seat) {
+      // One chain, entered from the seat they picked. Every firm is
+      // created either way — a chain with four of its five links missing
+      // is the two-party demo again.
+      seeded = await seedChain({ personId: person.id, personName: person.name, seat, slug })
+      // The chain is one placement, honest at every station. On its own
+      // it is one row per screen, and one row cannot show whether a
+      // working surface works. Width on top of depth.
+      const volume = await addVolume({ companyId: seeded.companyId, seatPersonId: person.id })
+      const { skipped: _skipped, ...added } = volume
+      seeded.counts = { ...seeded.counts, ...added }
+    } else {
+      seeded = await seedDemoConsultant({
+        personId: person.id,
+        personName: person.name,
+        companyName,
+        slug,
+      })
+    }
+  } catch (err: any) {
+    // A half-built workspace is worse than none: the visitor lands on
+    // screens that are empty for the wrong reason. Clear it and say so.
+    if (person) await prisma.person.delete({ where: { id: person.id } }).catch(() => {})
+
+    const why = String(err?.message ?? err)
+    reportError('demo: could not seed', why)
+
+    // Two failures that look identical to a visitor and are completely
+    // different to whoever has to fix them: a database nobody can reach,
+    // and a database with no tables in it. Said apart, because "try
+    // again later" is wrong advice for the second one.
+    const unreachable = /P1001|Can't reach database|ECONNREFUSED|ETIMEDOUT/i.test(why)
+    const noTables = /P2021|P2022|does not exist in the current database|relation .* does not exist/i.test(why)
+
+    return NextResponse.json(
+      {
+        error: {
+          code: unreachable ? 'DATABASE_UNREACHABLE' : noTables ? 'DATABASE_NOT_SET_UP' : 'DEMO_FAILED',
+          message: unreachable
+            ? 'The database is not answering. Nothing was left behind — try again in a minute.'
+            : noTables
+              ? 'The database is reachable but has no tables yet. Somebody needs to push the schema.'
+              : 'Could not build a demo workspace just now. Nothing was left behind.',
+        },
+      },
+      { status: 500 }
+    )
+  }
+
+  await countTheSeat(body)
+  const res = NextResponse.json({
+    data: {
+      companyId: seeded.companyId,
+      companyName: seeded.companyName,
+      counts: seeded.counts,
+      side,
+      // Every sandbox lands in Ask Etyme (lib/nav-table, landingFor): a
+      // firm's owner, whose menu has Conversations, and since 2026-10-19 a
+      // candidate too, whose greeting is her own week; her own work is one
+      // click behind it.
+      landing: ASK_ETYME_HREF,
+      expiresInDays: DEMO_DAYS,
+      resumed: false,
+    },
+  })
+
+  res.cookies.set(DEMO_COOKIE, sign(email), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: COOKIE_DAYS * 24 * 60 * 60,
+  })
+
+  return res
+}
+
+export async function GET(request: NextRequest) {
+  const email = read(request.cookies.get(DEMO_COOKIE)?.value)
+  if (!email) return NextResponse.json({ data: { inDemo: false } })
+
+  const person = await prisma.person.findUnique({
+    where: { primaryEmail: email },
+    select: {
+      contexts: {
+        where: { revokedAt: null },
+        select: { company: { select: { id: true, name: true, isDemo: true, demoExpiresAt: true } } },
+      },
+    },
+  })
+
+  const company = person?.contexts[0]?.company
+  if (!company?.isDemo) return NextResponse.json({ data: { inDemo: false } })
+
+  const daysLeft = company.demoExpiresAt
+    ? Math.max(0, Math.ceil((company.demoExpiresAt.getTime() - Date.now()) / 86_400_000))
+    : null
+
+  return NextResponse.json({
+    data: { inDemo: true, companyId: company.id, companyName: company.name, daysLeft },
+  })
+}
+
+/**
+ * DELETE /api/demo — throw this workspace away and start again.
+ *
+ * The demo is meant to be broken. Somebody who has broken it should be
+ * able to get a clean one without waiting thirty days or emailing us.
+ */
+export async function DELETE(request: NextRequest) {
+  const email = read(request.cookies.get(DEMO_COOKIE)?.value)
+  if (!email) return NextResponse.json({ data: { cleared: false } })
+
+  const person = await prisma.person.findUnique({
+    where: { primaryEmail: email },
+    select: { id: true, contexts: { select: { companyId: true, company: { select: { isDemo: true } } } } },
+  })
+
+  for (const c of person?.contexts ?? []) {
+    // Only ever a demo company. A signed cookie is not authority to
+    // delete a real one.
+    if (c.company?.isDemo && c.companyId) {
+      await prisma.company.delete({ where: { id: c.companyId } }).catch(() => {})
+    }
+  }
+  if (person) await prisma.person.delete({ where: { id: person.id } }).catch(() => {})
+
+  const res = NextResponse.json({ data: { cleared: true } })
+  res.cookies.delete(DEMO_COOKIE)
+  return res
+}

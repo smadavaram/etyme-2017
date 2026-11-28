@@ -1,0 +1,432 @@
+/**
+ * A conversation between two companies about a role or a candidate.
+ *
+ * ── The rule ─────────────────────────────────────────────────────────
+ *
+ * Demand opens. Supply answers.
+ *
+ * The 2017 build learned this the hard way: the moment a vendor could
+ * message a hiring manager, every vendor did, and the manager stopped
+ * reading. So the demand side — whoever the candidates go to — is the
+ * only side that can start a thread with a firm on the other side of the
+ * deal, and it can only start one with a firm that is actually on the
+ * deal: invited to the role, cleared for it by Procurement, or already
+ * submitting to it. A supplier answers on the thread the client opened,
+ * and hears about it when the client writes. It cannot start one, and
+ * the refusal says what to do instead: submit, or answer the invitation.
+ *
+ * "Demand" is a position on a deal, not a kind of company. A prime that
+ * posted a role is demand toward its subs, and a client is demand toward
+ * the prime. The same function decides both.
+ *
+ * ── What is here ─────────────────────────────────────────────────────
+ *
+ * The decisions, and only the decisions. Who may open a thread, who may
+ * read one, who hears when somebody writes, and what the notice says.
+ * Loading the facts and writing the rows is the route's job
+ * (app/api/conversations); notifying is lib/thread-notices. Everything
+ * here runs on plain objects so the sentences in
+ * __tests__/invariants/threads.test.ts can be read by the founder.
+ */
+
+import { isDeskless } from '@/lib/nav-table'
+import { hasAnyPermission, type Permission } from '@/lib/permissions'
+
+export type ThreadTopic = 'REQUIREMENT' | 'SUBMISSION'
+
+/** A role, as much of it as the rule needs. */
+export interface RoleFacts {
+  kind: 'REQUIREMENT'
+  id: string
+  title: string
+  /** Who the candidates go to — the payer where one is named, else the company that wrote it. */
+  demandCompanyId: string
+  /** Every firm on the deal: invited, cleared, or already submitting. */
+  supplierIds: string[]
+}
+
+/** A candidate put forward, as much as the rule needs. */
+export interface CandidateFacts {
+  kind: 'SUBMISSION'
+  id: string
+  roleTitle: string
+  candidateName: string
+  toCompanyId: string
+  fromCompanyId: string
+  fromCompanyName: string
+}
+
+export type TopicFacts = RoleFacts | CandidateFacts
+
+export interface Firm {
+  id: string
+  name: string
+}
+
+export type OpenVerdict =
+  | { ok: true; title: string }
+  | {
+      ok: false
+      code: 'SAME_SIDE' | 'SUPPLY_ANSWERS' | 'NOT_ON_THE_ROLE' | 'NOT_YOURS'
+      message: string
+    }
+
+/**
+ * The permission a firm seated in a client's program writes to the
+ * client's suppliers under: the one the client's own program manager and
+ * hiring managers hold to run its jobs. A seat holding it writes as the
+ * client's program does; a seat without it (the client's AP clerk's role,
+ * say) does not.
+ */
+export const PROGRAM_WRITES: Permission = 'requirements.write'
+
+/** A seat the caller's firm holds in a client's program: whose, and the client role's permissions. */
+export interface ProgramSide {
+  clientCompanyId: string
+  permissions: readonly string[]
+}
+
+/**
+ * Whether a seat writes for this client's program: it is a seat at that
+ * client, and its role holds what the client's own program manager holds
+ * to write to a supplier (`PROGRAM_WRITES`).
+ */
+export function seatWritesFor(seat: ProgramSide | null | undefined, clientCompanyId: string): boolean {
+  return !!seat && seat.clientCompanyId === clientCompanyId && hasAnyPermission(seat.permissions, [PROGRAM_WRITES])
+}
+
+/**
+ * Whether this firm may write to the firm that put a candidate forward:
+ * the firm the candidate was submitted to, or a firm seated in that
+ * firm's program whose seat writes for it (`seatWritesFor`); never the
+ * firm that sent them and never a third. The Candidates page draws
+ * "Message <supplier>" only where this is true (demand), and `whoMayOpen`
+ * decides the same way, so the button and the route cannot disagree.
+ *
+ * The screen walk, 2026-11-02: Aptiva in Cavanaugh Glassworks' program
+ * was offered "Message <supplier>" on every row and refused nine times in
+ * nine. A seated firm is in that program for the whole session and acts
+ * under the client's rules (2026-10-26), so it writes as the program does
+ * (the coordinator's call, the same day): the thread is the client's.
+ */
+export function mayMessageSupplier(
+  sub: { toCompanyId: string; fromCompanyId: string },
+  callerCompanyId: string | null | undefined,
+  seat: ProgramSide | null = null,
+): boolean {
+  if (!callerCompanyId || sub.fromCompanyId === callerCompanyId) return false
+  return sub.toCompanyId === callerCompanyId || seatWritesFor(seat, sub.toCompanyId)
+}
+
+/** The client a thread on this topic is the demand side of: who the candidate went to, or whose job it is. */
+export function demandSideOf(facts: TopicFacts): string {
+  return facts.kind === 'SUBMISSION' ? facts.toCompanyId : facts.demandCompanyId
+}
+
+/**
+ * May `caller` open a thread with `other` about this?
+ *
+ * Every refusal is a sentence somebody can act on. The codes are for the
+ * machine and the tests. `seatedAt` is the client whose program the
+ * caller holds a seat in, where it holds one: a job or a candidate that is
+ * that client's is refused with the client named as who writes.
+ */
+export function whoMayOpen(
+  facts: TopicFacts,
+  caller: Firm,
+  other: Firm,
+  opts: { seatedAt?: Firm | null; seatWrites?: boolean } = {},
+): OpenVerdict {
+  const seatedAt = opts.seatedAt ?? null
+  // A seat that writes for the client's program opens the thread as the
+  // client does, by the client's own rule (the thread is the client's).
+  if (seatedAt && opts.seatWrites && seatedAt.id === demandSideOf(facts) && seatedAt.id !== caller.id) {
+    return whoMayOpen(facts, seatedAt, other)
+  }
+  if (other.id === caller.id) {
+    return {
+      ok: false,
+      code: 'SAME_SIDE',
+      message: 'A conversation with your own people is a note. Post it in Discussion, where no supplier reads it.',
+    }
+  }
+
+  if (facts.kind === 'REQUIREMENT') {
+    const isDemand = caller.id === facts.demandCompanyId
+    if (!isDemand) {
+      if (facts.supplierIds.includes(caller.id)) {
+        return {
+          ok: false,
+          code: 'SUPPLY_ANSWERS',
+          message:
+            `${other.name} opens the conversation on ${facts.title}; ${caller.name} answers it. ` +
+            'Submit a candidate, or answer the invitation, and they hear from you that way.',
+        }
+      }
+      if (seatedAt && seatedAt.id === facts.demandCompanyId) {
+        return { ok: false, code: 'NOT_YOURS', message: `${facts.title} is ${seatedAt.name}’s job, so only ${seatedAt.name} writes to ${other.name} about it.` }
+      }
+      return { ok: false, code: 'NOT_YOURS', message: `${facts.title} is not yours to speak for.` }
+    }
+    if (!facts.supplierIds.includes(other.id)) {
+      return {
+        ok: false,
+        code: 'NOT_ON_THE_ROLE',
+        message:
+          `${other.name} has not been asked to work ${facts.title}. ` +
+          'Invite them and the conversation opens with the invitation.',
+      }
+    }
+    return { ok: true, title: facts.title }
+  }
+
+  // A candidate. The firm that received them speaks first.
+  if (caller.id === facts.toCompanyId) {
+    if (other.id !== facts.fromCompanyId) {
+      return {
+        ok: false,
+        code: 'NOT_ON_THE_ROLE',
+        message: `${facts.candidateName} came from ${facts.fromCompanyName}, not ${other.name}.`,
+      }
+    }
+    return { ok: true, title: `${facts.candidateName} · ${facts.roleTitle}` }
+  }
+  if (caller.id === facts.fromCompanyId) {
+    return {
+      ok: false,
+      code: 'SUPPLY_ANSWERS',
+      message:
+        `${other.name} opens the conversation about ${facts.candidateName}; ${caller.name} answers it. ` +
+        'Their status and any interview rounds are already yours to read.',
+    }
+  }
+  if (seatedAt && seatedAt.id === facts.toCompanyId) {
+    return {
+      ok: false,
+      code: 'NOT_YOURS',
+      message: `${facts.candidateName} was put forward to ${seatedAt.name}, so only ${seatedAt.name} writes to ${other.name} about them.`,
+    }
+  }
+  return { ok: false, code: 'NOT_YOURS', message: `${facts.candidateName} was not submitted to or by you.` }
+}
+
+export interface ThreadSides {
+  companyId: string
+  withCompanyId: string | null
+}
+
+/** Both companies on the thread, and nobody else. */
+export function canRead(thread: ThreadSides, companyId: string | null | undefined): boolean {
+  if (!companyId) return false
+  return thread.companyId === companyId || thread.withCompanyId === companyId
+}
+
+/** Which side of the thread this company is, or null when it is not on it. */
+export function sideOf(thread: ThreadSides, companyId: string | null | undefined): 'OPENED' | 'ANSWERS' | null {
+  if (!companyId) return null
+  if (thread.companyId === companyId) return 'OPENED'
+  if (thread.withCompanyId === companyId) return 'ANSWERS'
+  return null
+}
+
+/**
+ * A seat with no desk, for conversations: it holds no permission at
+ * all, or only the reads that show a worker their own work — their
+ * lines and their weeks (Karthik Menon at Tellisford). Such a seat is
+ * not a desk that works the firm's deals, so the firm's commercial
+ * threads are not its reading. Null is "not known yet" and is never
+ * read as a seat with no desk.
+ *
+ * This is `isDeskless` in lib/nav-table, the rule the menu and every
+ * route read, under the name the thread routes ask by. It kept a list
+ * of its own until nav-table was widened to own-work seats (b6b5775f2);
+ * one rule in one place now.
+ */
+export function holdsNoThreadDesk(permissions: readonly string[] | null | undefined): boolean {
+  return isDeskless(permissions)
+}
+
+/**
+ * Who reads only the threads they are on.
+ *
+ * A consultant is in some of the agency's threads and none of the rest.
+ * So is a colleague seated with no desk yet — a Member who holds no
+ * permission, or a worker seated with only the reads of their own work
+ * (`holdsNoThreadDesk`). Their menu shows Conversations because what is
+ * addressed to them lands there, and a company's whole inbox, with its last
+ * messages and who is on each thread, is a desk's reading, not theirs.
+ *
+ * A firm acting in a client's program-office seat reads under the
+ * client's role (lib/program-seat), so a seat with no desk of its own at
+ * home that holds one there is not narrowed. Every seat with a desk is
+ * unchanged.
+ */
+export function readsOnlyOwnThreads(seat: {
+  /** The seat is a consultant's own record rather than a seat at a firm. */
+  consultant: boolean
+  permissions: readonly string[] | null | undefined
+  /** The caller's firm holds a live program-office seat at a client. */
+  holdsProgramSeat: boolean
+}): boolean {
+  if (seat.consultant) return true
+  return holdsNoThreadDesk(seat.permissions) && !seat.holdsProgramSeat
+}
+
+/** Whether this person is named on the thread — a participant, or whoever it was addressed to. */
+export function isOnThread(participants: unknown, personId: string): boolean {
+  if (!Array.isArray(participants)) return false
+  return participants.some((p) => p && typeof p === 'object' && (p as Participant).personId === personId)
+}
+
+/**
+ * Whether a seat should hear about a first note across, for a firm with
+ * nobody on the thread yet. A seat with no desk would be told about a
+ * thread it cannot open, so it is not told — and neither is a worker's
+ * seat holding only the reads of its own work.
+ */
+export function hearsForTheFirm(permissions: readonly string[] | null | undefined): boolean {
+  return !holdsNoThreadDesk(permissions)
+}
+
+/**
+ * The permissions that work a job or a candidate across a deal: reading
+ * who was put forward, putting somebody forward, or owning the job
+ * itself. These are the desks that can answer a question about a job
+ * request or a candidate.
+ */
+const WORKS_A_JOB: readonly Permission[] = ['submissions.read', 'submissions.create', 'requirements.write']
+
+/**
+ * Whether a seat hears about a first note on a thread of this topic, for
+ * a firm with nobody on the thread yet.
+ *
+ * The desk that acts is the desk that hears. A client's question about a
+ * job or a candidate is for the supplier's recruiters, resource managers
+ * and account managers, every one of them, and not for its AP & Payroll
+ * clerk, HR, Accounts Receivable or the contract manager, who cannot
+ * answer it. Any other topic falls back to `hearsForTheFirm`.
+ */
+export function hearsForTopic(
+  permissions: readonly string[] | null | undefined,
+  topic: string | null | undefined,
+): boolean {
+  if (!hearsForTheFirm(permissions)) return false
+  if (topic !== 'REQUIREMENT' && topic !== 'SUBMISSION') return true
+  // `hasAnyPermission` reads the owner's wildcard as every permission.
+  return hasAnyPermission(permissions ?? [], WORKS_A_JOB)
+}
+
+/**
+ * The seats at the other company told of a first note, in the order
+ * given (most senior first), at most `limit` of them.
+ *
+ * `answers` is true when that company is the side written to: the
+ * supplier on a client's thread. There only the desks that work the
+ * thread's topic hear (`hearsForTopic`). The side that opened the thread
+ * hears by the older rule, any seat with a desk (`hearsForTheFirm`). The
+ * limit is applied after the rule, so seats that cannot act never push a
+ * desk that can out of the count.
+ */
+export function whoAtTheFirmHears(
+  seats: readonly { personId: string; permissions: readonly string[] | null | undefined }[],
+  rule: { topic: string | null | undefined; answers: boolean },
+  limit = 10,
+): string[] {
+  return seats
+    .filter((s) => (rule.answers ? hearsForTopic(s.permissions, rule.topic) : hearsForTheFirm(s.permissions)))
+    .slice(0, limit)
+    .map((s) => s.personId)
+}
+
+export interface Participant {
+  personId: string
+  name: string
+  /** The side of the thread the person writes for: under a seat, the client's. */
+  companyId?: string | null
+  /** For a person writing under a seat in the client's program: their own firm, said beside the client's name. */
+  asOffice?: string | null
+  joinedAt?: string
+}
+
+/**
+ * Who is told when somebody writes.
+ *
+ * Everybody already on the thread, except whoever wrote. And when the
+ * other company has nobody on it yet — the client's first note to a
+ * supplier — the supplier's staff, so the note reaches a desk rather
+ * than sitting in a thread nobody has opened. Once somebody there
+ * answers they are on the thread, and it is theirs from then on.
+ */
+export function whoHears(input: {
+  authorId: string
+  authorCompanyId: string
+  participants: Participant[]
+  /** Staff at the other company, for the first note across. */
+  otherSideStaffIds: string[]
+}): string[] {
+  const { authorId, authorCompanyId, participants, otherSideStaffIds } = input
+  const heard = new Set<string>()
+  for (const p of participants) if (p.personId !== authorId) heard.add(p.personId)
+  const otherSidePresent = participants.some(
+    (p) => p.companyId && p.companyId !== authorCompanyId
+  )
+  if (!otherSidePresent) for (const id of otherSideStaffIds) if (id !== authorId) heard.add(id)
+  return [...heard]
+}
+
+/**
+ * Which firm a person on a thread writes for, as the thread says it: the
+ * firm's name, or, for somebody writing under a seat in the client's
+ * program, "Aptiva Workforce, for Cavanaugh Glassworks", so the supplier
+ * always knows who wrote. Null for somebody on neither side.
+ */
+export function writesFor(
+  p: Pick<Participant, 'companyId' | 'asOffice'> | null | undefined,
+  sides: { company: Firm; withCompany: Firm | null },
+): string | null {
+  if (!p?.companyId) return null
+  const firm = p.companyId === sides.company.id ? sides.company.name : p.companyId === sides.withCompany?.id ? sides.withCompany.name : null
+  if (!firm) return null
+  return p.asOffice ? `${p.asOffice}, for ${firm}` : firm
+}
+
+/** Add the author to the thread if they are not on it; unchanged otherwise. */
+export function withAuthor(
+  participants: Participant[],
+  author: { personId: string; name: string; companyId: string | null; asOffice?: string | null },
+  now: Date = new Date()
+): Participant[] {
+  if (participants.some((p) => p.personId === author.personId)) return participants
+  return [...participants, { ...author, joinedAt: now.toISOString() }]
+}
+
+/**
+ * The notice the other side gets. Who wrote, at which firm, about what,
+ * and the opening of what they said — the reader is a party to the
+ * thread, so the words are theirs to see.
+ */
+export function messageNotice(input: {
+  author: { name: string; companyName: string }
+  threadTitle: string | null
+  body: string
+}): { title: string; body: string } {
+  const about = input.threadTitle ? ` on ${input.threadTitle}` : ''
+  const said = input.body.trim().replace(/\s+/g, ' ')
+  return {
+    title: `${input.author.name} at ${input.author.companyName}${about}`,
+    body: said.length > 140 ? `${said.slice(0, 139)}…` : said,
+  }
+}
+
+/** The firms a demand-side reader may open a thread with, on a role. */
+export function suppliersOnRole(input: {
+  invited: Firm[]
+  submittedFrom: Firm[]
+  cleared: Firm[]
+}): Firm[] {
+  const seen = new Map<string, Firm>()
+  for (const f of [...input.invited, ...input.submittedFrom, ...input.cleared]) {
+    if (!seen.has(f.id)) seen.set(f.id, f)
+  }
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+}

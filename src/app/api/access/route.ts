@@ -1,0 +1,865 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { staffOnly } from '@/lib/seat'
+import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
+import { notify } from '@/lib/notify'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { hasPermission, askTheDesk, type Permission } from '@/lib/permissions'
+import { recordRefusal, signedInHere } from '@/lib/access-log'
+import {
+  assessGrant, reviewAccess, sensitivityOf, levelOf, deskLine, waitingLine,
+  assessDeskChange, canGiveDesks, OWNER_DESK,
+  seatHasSignedIn, seatPlace, deskChangedNotice, roleChangeSummary, roleChangeSays, needsDecisionCount, inviteFormWords,
+  decisionSeats, decisionParts, figuresFor, FINDING_WORDS, RENEW_DOING, type FigureKey, type InvitedMail,
+} from '@/lib/access-grant'
+import { seatByDate, seatDateLine, pastEndDate, type ByDate, type DatedSeat } from '@/lib/account-lifecycle'
+import { companyPolicy } from '@/lib/identity/read'
+import { isSamplePerson } from '@/lib/sample-seat'
+import { consoleHome, type CompanyKind } from '@/lib/console-home'
+import { movesAloneAfterPass, ownerMovesOnOwnersPage, type Seat } from '@/lib/owner-rules'
+import { passedToSeatBy, landMoveAfterPass } from '@/app/api/settings/owners/act'
+import { mayChangeRole, offersFor, peopleHeadline, renameVerdict, readOnTheirDates, PAUSE_OR_END_DOING } from './row-acts'
+import { seatedSays } from '@/lib/money/who-raises-bills'
+import { knownBeyond } from './[contextId]/rename'
+import { copyTextFor, latestInviteMails } from './invite/one'
+import type { EffectiveMode } from '@/lib/identity/policy'
+import { readCompanySeats, peopleOf, countSeats, peopleWords, personNameFor, seatStateOf, type CompanySeat, type SeatState } from '@/lib/company-seats'
+import { joinSentenceFor } from '@/lib/join-words'
+
+/** An invitation's newest email that did not leave: refused, not set up, or a demo address. Never one on its way, and never a seat with no email. */
+const didNotGo = (m: { state: string } | undefined): boolean => Boolean(m) && m!.state !== 'SENT' && m!.state !== 'PENDING'
+
+/**
+ * Who may read the access register.
+ *
+ * ── Why this gate exists ─────────────────────────────────────────────
+ *
+ * It did not, until a release walk signed the demo cookie for a
+ * Validation Engineer at a systems integrator — a seat holding exactly
+ * `assignments.read` and `timesheets.read`, somebody who files a
+ * timesheet and reads the contract they are on — and asked for this
+ * route. It answered 200 with the firm's whole staff list: every
+ * colleague by name and work email, the role each holds, and the
+ * sensitivity of that role. The same seat was correctly refused by
+ * `/api/consultants`, `/api/invoices`, `/api/purchase-orders` and
+ * `/api/profitability`. POST here has asked for `settings.manage` since
+ * the day it was written. Only the read was open, which is the shape
+ * `etyme-money` found across nine AR and AP routes and `desks.ts` found
+ * on the do-not-return list: a gate written on the write and never on
+ * the read beside it.
+ *
+ * ── Why `governance.read` and not `settings.manage` ──────────────────
+ *
+ * Because a list exists to be read by more people than may change it,
+ * and because who holds what IS the governance picture — it is the only
+ * screen in the product that shows a segregation-of-duties problem
+ * before it becomes one. Gating the read on `settings.manage` would
+ * leave the Compliance Officer, whose whole job is to be able to answer
+ * "who could have done this", locked out of the one page that says so;
+ * at a client it would leave the Program Manager, who runs the program,
+ * unable to see who is waiting for a seat in it.
+ *
+ * `governance.read` is held by the desks that audit rather than
+ * administer: HR and the Compliance Officer at a supplier; the Program
+ * Manager, the Approver, HR and Procurement at a client. Granting stays
+ * where it was, on `settings.manage`, which only the Owner and the
+ * Admin hold. Read the register, ask somebody else to change it.
+ *
+ * Named as a constant rather than spelled inline so that the nav item
+ * pointing here can be checked against it — `__tests__/invariants/
+ * sidebar-nav.test.ts` reads the gate back out of this handler.
+ */
+const TO_READ: Permission = 'governance.read'
+
+/**
+ * GET  /api/access — who has what here, and what is worth attention
+ * POST /api/access — grant somebody a role
+ *
+ * The path a joiner is waiting on. Someone signed in on a verified company
+ * domain, got a seat and no permissions, and this is where a colleague
+ * decides what they may do.
+ *
+ * Every grant ends on a date. Renewing is a click, forgetting is safe.
+ */
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const notStaff = staffOnly(caller, 'The access register')
+  if (notStaff) return notStaff
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'Who may read what is set by a company, and you are not signed in at one. What is held about you is under Your data.' } },
+      { status: 403 }
+    )
+  }
+
+  if (!hasPermission(caller.permissions, TO_READ)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Reading who holds which seat here',
+            needs: TO_READ,
+            kind: caller.company.kind,
+            companyName: caller.company.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  const contexts = await prisma.context.findMany({
+    where: { companyId: caller.company.id, revokedAt: null },
+    include: {
+      person: {
+        // Never her sign-ins anywhere on Etyme (2026-11-16): whether she
+        // came in here is read from this firm's own record, below.
+        select: { id: true, name: true, primaryEmail: true },
+      },
+      role: { select: { id: true, name: true, permissions: true } },
+    },
+    orderBy: { grantedAt: 'desc' },
+  })
+
+  const now = new Date()
+
+  // ── The figures, from the one reader of seats (founder, 2026-11-12) ──
+  // Users & permissions, Settings and Team structure counted a company's
+  // people from three queries and disagreed by one. Every figure here is
+  // now read through lib/company-seats, so the same company reads the same
+  // numbers on every screen: its people (not a consultant on its books,
+  // not the shared sample seat), each once, as with access, invited (never
+  // signed in) or paused. The sample seat is nobody, so it is not listed
+  // either; a consultant's seat is still listed, marked, and not counted.
+  const [readSeats, joins, here] = await Promise.all([
+    readCompanySeats(caller.company.id),
+    joinSentenceFor(caller.company.id),
+    // Whether each invited person came in here: this firm's own record,
+    // never her account anywhere else (2026-11-16). A seat nobody invited
+    // was made by a sign-in, so only invited seats are asked about.
+    signedInHere(caller.company.id, contexts.filter(c => c.invitedAt !== null && c.lastUsedAt === null).map(c => c.personId)),
+  ])
+  const byCtx = new Map(contexts.map(c => [c.id, c]))
+  // An invitation is not access, whatever desk it carries. A seat with no
+  // desk, or whose person has never signed in here, waits; the rest have
+  // access. Signed in is this firm's own fact (`seatHasSignedIn`): a seat
+  // invited at an address that signs in at another firm reads "Invited"
+  // until she signs in here, so nothing on this page differs by whether
+  // the address has an account elsewhere.
+  const signedInOf = (c: (typeof contexts)[number]) => seatHasSignedIn({
+    invitedAt: c.invitedAt,
+    lastUsedAt: c.lastUsedAt,
+    signedInHere: here.has(c.personId),
+  })
+  // The seat reader still reads a sign-in anywhere as signed in (handed to
+  // its owner, 2026-11-16). Until it reads this firm's own record, each
+  // seat's state is read again here by its own rule (`seatStateOf`), so
+  // every figure, the figure each row is counted under, and the row's
+  // place agree. Once the reader reads this firm's record, this changes
+  // nothing.
+  const seats: CompanySeat[] = readSeats.map(s => {
+    const c = byCtx.get(s.contextId)
+    if (!c) return s
+    const state = seatStateOf({ revokedAt: c.revokedAt, suspendedAt: c.suspendedAt, signedIn: signedInOf(c), hasRole: Boolean(c.role?.name) })
+    return state ? { ...s, state } : s
+  })
+  const seatOf = new Map(seats.map(s => [s.contextId, s]))
+  // A seat past its end date is not in the seat reader's answer, so these
+  // two fall back to the row itself, by the reader's own rules.
+  const isSample = (id: string) => seatOf.get(id)?.isSample ?? isSamplePerson(byCtx.get(id)?.person.primaryEmail ?? null)
+  const isConsultant = (id: string) => seatOf.has(id) ? seatOf.get(id)!.isPerson === false : byCtx.get(id)?.type === 'CONSULTANT'
+  const counts = countSeats(peopleOf(seats))
+  const consultantsListed = seats.filter(s => !s.isPerson && !s.isSample).length
+
+  // ── A seat's end date (2026-11-15) ──
+  // Read through the one rule (`seatByDate`), as the caller check and the
+  // seat reader read it: a seat whose date has come stops working, unless
+  // it is an Owner's or the last one that may manage access. An ended
+  // seat leaves "with access" and "waiting" for "Access ended", and is in
+  // no figure, so the list and the figures agree. No row is rewritten.
+  const datedOf = (c: (typeof contexts)[number]): DatedSeat => ({
+    contextId: c.id,
+    companyId: c.companyId,
+    expiresAt: c.expiresAt,
+    isOwner: c.role?.name === OWNER_DESK,
+    rolePermissions: c.role?.permissions ?? [],
+    revokedAt: c.revokedAt,
+    suspendedAt: c.suspendedAt,
+    hasSignedIn: signedInOf(c),
+  })
+  const allDated = contexts.map(datedOf)
+  const byDate = new Map<string, ByDate>(contexts.map(c => [c.id, seatByDate(datedOf(c), allDated, now)]))
+  const isOpen = (id: string) => byDate.get(id)?.open !== false
+  const keptOf = (id: string) => { const v = byDate.get(id); return v && v.open ? v.kept : null }
+  const dateLineOf = (c: (typeof contexts)[number]) => seatDateLine(byDate.get(c.id)!, c.expiresAt)
+
+  const listed = contexts.filter(c => !isSample(c.id))
+  const withAccess = listed.filter(c => isOpen(c.id) && seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WITH_ACCESS')
+  const waiting = listed.filter(c => isOpen(c.id) && seatPlace({ roleName: c.role?.name ?? null, signedIn: signedInOf(c) }) === 'WAITING')
+  const endedSeats = listed.filter(c => !isOpen(c.id))
+  const peopleSays = peopleHeadline(peopleWords(counts), consultantsListed, endedSeats.length)
+  // The seats that still work: a person at the firm, not the sample seat,
+  // not paused, signed in, and open on their end date. Only these are
+  // named as somebody to ask.
+  const liveSeats = contexts.filter(c => !c.suspendedAt && !c.revokedAt && !isSample(c.id) && !isConsultant(c.id) && signedInOf(c) && isOpen(c.id))
+  // The address each person signs in with, under their name on every row
+  // (founder, 2026-11-12: people with access hid it while people waiting
+  // showed it). This register is read only on governance.read, the desks
+  // that audit who holds what. The shared sample seat's reserved address
+  // is never shown: it is nobody's address.
+  const emailOf = (email: string | null | undefined): string | null =>
+    email && email.trim() && !isSamplePerson(email) ? email : null
+  // The person's name as the one reader says it: never the company's own
+  // name (a seat named "Tapin" at Tapin reads as the name in its address).
+  // A shared sign-in such as timesheets@ reads as its address (the one
+  // rule, personNameFor in lib/company-seats); never the raw Person.name.
+  const nameOf = (c: (typeof contexts)[number]) => seatOf.get(c.id)?.name ?? personNameFor(c.person.name, c.person.primaryEmail, caller.company!.name)
+  const personOf = (c: (typeof contexts)[number]) => ({ id: c.person.id, name: nameOf(c), primaryEmail: emailOf(c.person.primaryEmail) })
+  // Whether several people may use the address, from the one seat reader.
+  const sharedOf = (id: string) => seatOf.get(id)?.shared ?? false
+  const emailByContext = new Map(contexts.map(c => [c.id, emailOf(c.person.primaryEmail)]))
+
+  const review = reviewAccess(
+    withAccess
+      .map(c => ({
+        contextId: c.id,
+        personName: nameOf(c),
+        roleName: c.role!.name,
+        permissions: c.role!.permissions,
+        grantedAt: c.grantedAt,
+        expiresAt: c.expiresAt,
+        lastUsedAt: c.lastUsedAt,
+        // Kept open past its date: the finding says why, never "ended".
+        keptSays: keptOf(c.id) ? dateLineOf(c) : null,
+      })),
+    now
+  )
+
+  // ── The figures, and the rows each one counts (founder, 2026-11-12) ──
+  // A figure is a door to exactly the rows it counted, so each row carries
+  // the figure its seat is counted under, read from the same seat states
+  // the figures are, and whether it is one of the decisions. A consultant
+  // is never counted, so the decisions are read over the company's own
+  // people only, and the figure and its filter are the same set.
+  const FIGURE_OF: Record<SeatState, FigureKey> = {
+    WITH_ACCESS: 'with-access', INVITED: 'invited', WAITING_FOR_ROLE: 'waiting-for-role', PAUSED: 'paused',
+  }
+  const figureOf = (id: string): FigureKey | null => {
+    const seat = seatOf.get(id)
+    return seat ? FIGURE_OF[seat.state] : null
+  }
+  const ownReview = review.filter(r => !isConsultant(r.contextId))
+  const ownWithAccess = withAccess.filter(c => !isConsultant(c.id)).map(c => ({ contextId: c.id, roleName: c.role!.name }))
+  const decisions = decisionSeats(ownReview, ownWithAccess)
+  const parts = decisionParts(ownReview, ownWithAccess)
+  const findingsOf = (id: string) => review.filter(r => r.contextId === id).map(r => ({ words: FINDING_WORDS[r.finding], detail: r.detail }))
+
+  // Whether the reader holds Owner, so the desk picker offers Owner only
+  // to an Owner. The route refuses the same thing on POST.
+  const mine = contexts.find(c => c.id === caller.context.id)
+  const actorIsOwner = mine?.role?.name === OWNER_DESK
+
+  // Pause, Reinstate and End, per row, for this reader: the same verdicts
+  // POST /api/access/:contextId gives (lib/account-lifecycle `rowActs`),
+  // so the page draws a press only where the route would take it. An
+  // Admin is never offered Pause or End on an Owner; the last Owner is
+  // never offered either.
+  const offers = offersFor(
+    // Read on their end dates, so a seat whose date has come never counts
+    // as somebody else who could still let people in.
+    readOnTheirDates(contexts.map(c => ({
+      contextId: c.id,
+      personId: c.personId,
+      hasSignedIn: signedInOf(c),
+      roleId: c.roleId,
+      rolePermissions: c.role?.permissions ?? [],
+      suspendedAt: c.suspendedAt,
+      revokedAt: c.revokedAt,
+      isOwner: c.role?.name === OWNER_DESK,
+      invited: c.invitedAt !== null,
+      expiresAt: c.expiresAt,
+    })), now),
+    { isOwner: actorIsOwner && !mine?.suspendedAt, personId: caller.person.id },
+    hasPermission(caller.permissions, 'team.manage'),
+    // For a reader who may not pause or end anybody, each row says who
+    // here may, named from the live seats the firm has filled (fix list D5).
+    seatedSays(PAUSE_OR_END_DOING, contexts
+      .filter(c => liveSeats.includes(c) && hasPermission(c.role?.permissions ?? [], 'team.manage'))
+      .map(c => c.role?.name ?? '')) ?? askTheDesk({
+      doing: PAUSE_OR_END_DOING,
+      needs: 'team.manage',
+      kind: caller.company.kind,
+      companyName: caller.company.name,
+    }),
+  )
+  // Rename, on the same verdict the route gives (row-acts `renameVerdict`),
+  // so the button is drawn only where the route will take it.
+  const elsewhere = await knownBeyond(contexts.map(c => c.personId), caller.company.id)
+  const oneFirm = caller.company.kind === 'CONSULTANT_CORP' && contexts.length <= 1
+  const mayRename = (c: (typeof contexts)[number]) => renameVerdict({
+    mayManage: hasPermission(caller.permissions, 'team.manage'),
+    actorIsOwner: actorIsOwner && !mine?.suspendedAt,
+    targetIsOwner: c.role?.name === OWNER_DESK,
+    seatElsewhere: elsewhere.get(c.personId) === 'SEAT',
+    ownRecord: elsewhere.get(c.personId) === 'WORK',
+    onlyPersonOfOneFirm: oneFirm,
+  }).allowed
+  const byId = new Map(contexts.map(c => [c.id, c]))
+  const actsOf = (id: string) => ({
+    ...offers.get(id)!,
+    rename: byId.has(id) && !isSample(id) && mayRename(byId.get(id)!),
+    changeRole: mayChangeRole({
+      mayGrant: hasPermission(caller.permissions, 'settings.manage'),
+      targetIsOwner: byId.get(id)?.role?.name === OWNER_DESK,
+      actorIsOwner: actorIsOwner && !mine?.suspendedAt,
+    }),
+  })
+
+  // Renew on a seat whose date has come: the Change role act, on the same
+  // verdict (`mayChangeRole`). A reader who may not is told who here may,
+  // named from the live seats the firm has filled, else the role's name.
+  const mayRenew = (c: (typeof contexts)[number]) => mayChangeRole({
+    mayGrant: hasPermission(caller.permissions, 'settings.manage'),
+    targetIsOwner: c.role?.name === OWNER_DESK,
+    actorIsOwner: actorIsOwner && !mine?.suspendedAt,
+  })
+  const renewers = seatedSays(RENEW_DOING, liveSeats
+    .filter(c => hasPermission(c.role?.permissions ?? [], 'settings.manage'))
+    .map(c => c.role?.name ?? '')) ?? askTheDesk({
+    doing: RENEW_DOING,
+    needs: 'settings.manage',
+    kind: caller.company.kind,
+    companyName: caller.company.name,
+  })
+  const ownerRenews = seatedSays(RENEW_DOING, liveSeats.filter(c => c.role?.name === OWNER_DESK).map(() => OWNER_DESK)) ?? renewers
+  const whoRenews = (c: (typeof contexts)[number]) => c.role?.name === OWNER_DESK ? ownerRenews : renewers
+
+  // The invitation form's words, from the company's own sign-in policy,
+  // read by the one policy function. Sent only to a reader who may invite:
+  // how a company signs its people in is not a thing to hand an auditor
+  // who cannot act on it.
+  const mayInvite = hasPermission(caller.permissions, 'team.manage')
+  let inviteForm: ReturnType<typeof inviteFormWords> | null = null
+  let mode: EffectiveMode = 'OPEN'
+  if (mayInvite) {
+    const [read, co] = await Promise.all([
+      companyPolicy(caller.company.id),
+      prisma.company.findUnique({ where: { id: caller.company.id }, select: { domain: true, domainVerified: true } }),
+    ])
+    mode = read.effective
+    inviteForm = inviteFormWords({
+      policy: read.policy,
+      domain: co?.domainVerified ? co.domain : null,
+      oneFirm: caller.company.kind === 'CONSULTANT_CORP',
+    })
+  }
+
+  // Each waiting invitation's newest email, read once for every row
+  // (founder, 2026-11-12): whether it left and when, or why not, in
+  // Etyme's words. And the ready message Copy invitation puts on the
+  // clipboard, which holds no link that takes the seat. Both only for a
+  // reader who may act on the row.
+  const invitedWaiting = waiting.filter(c => c.invitedAt !== null && actsOf(c.id).copy)
+  // Read for every invited seat, so the Invited figure can say how many
+  // emails did not go (fix list D1); a row still carries its own only for
+  // a reader who may act on it (`inviteOf`).
+  const mails = await latestInviteMails(waiting.filter(c => c.invitedAt !== null).map(c => c.id))
+  const invitedMail: InvitedMail | undefined = mayInvite ? {
+    notGone: waiting.filter(c => c.invitedAt !== null && !isConsultant(c.id) && figureOf(c.id) === 'invited'
+      && didNotGo(mails.get(c.id))).length,
+    leaves: mailLeaves(),
+  } : undefined
+  const inviterIds = [...new Set(invitedWaiting.map(c => c.invitedById).filter((id): id is string => Boolean(id)))]
+  const inviters = inviterIds.length
+    ? new Map((await prisma.person.findMany({ where: { id: { in: inviterIds } }, select: { id: true, name: true } })).map(p => [p.id, p.name]))
+    : new Map<string, string>()
+  const inviteOf = (c: (typeof contexts)[number]) => {
+    if (c.invitedAt === null || !actsOf(c.id).copy) return {}
+    const email = emailOf(c.person.primaryEmail)
+    return {
+      mail: mails.get(c.id) ?? null,
+      copyText: email ? copyTextFor({
+        inviterName: (c.invitedById && inviters.get(c.invitedById)) || caller.person.name,
+        companyName: caller.company!.name,
+        roleName: c.role?.name ?? null,
+        email,
+        mode,
+      }) : null,
+    }
+  }
+
+  return NextResponse.json({
+    data: {
+      // People who joined on the domain and have no desk yet. This is
+      // the queue that matters — somebody is sitting there unable to work.
+      //
+      // An invitation is not a sign-in: somebody invited who never came
+      // in reads "Invited today, not yet signed in", and "joined" is said
+      // only of a seat that has been used. Signed in is the rule the
+      // withdraw route already uses: never invited, or used since.
+      waitingForAccess: waiting.map(c => {
+        // Counted from the invitation where there was one: a desk given
+        // before they came in moves grantedAt, not the day they were asked.
+        const since = c.invitedAt ?? c.grantedAt
+        const waitingDays = Math.floor((now.getTime() - since.getTime()) / 86_400_000)
+        const invited = c.invitedAt !== null
+        const signedIn = signedInOf(c)
+        return {
+          contextId: c.id,
+          person: personOf(c),
+          joinedAt: c.grantedAt.toISOString(),
+          waitingDays,
+          invited,
+          signedIn,
+          // The desk they will have when they come in, or null.
+          role: c.role?.name ?? null,
+          roleId: c.role?.id ?? null,
+          // A consultant on the firm's books: listed so a seat can be acted
+          // on, and never counted among the company's people.
+          consultant: isConsultant(c.id),
+          shared: sharedOf(c.id),
+          figure: figureOf(c.id),
+          decision: decisions.has(c.id),
+          said: waitingLine({ invited, signedIn, days: waitingDays, desk: c.role?.name ?? null }),
+          // A seat may be given an end day before they come in.
+          expiresAt: c.expiresAt?.toISOString() ?? null,
+          // "Ends on <date>", or null for none (`seatDateLine`).
+          dateLine: dateLineOf(c),
+          acts: actsOf(c.id),
+          ...inviteOf(c),
+        }
+      }),
+      people: withAccess.map(c => ({
+        contextId: c.id,
+        person: personOf(c),
+        role: c.role!.name,
+        roleId: c.role!.id,
+        // "No role yet · give them a role" for the seat everybody arrives on.
+        line: deskLine(c.role!.name),
+        consultant: isConsultant(c.id),
+        shared: sharedOf(c.id),
+        figure: figureOf(c.id),
+        decision: decisions.has(c.id),
+        // What the review found on this seat, in words, said on the row
+        // while "Needs a decision" filters the list.
+        findings: findingsOf(c.id),
+        sensitivity: sensitivityOf(c.role!.permissions),
+        // The level in words and why, read off the role's own permissions
+        // (founder, 2026-11-12: the role and the level are one system).
+        level: levelOf(c.role!.name, c.role!.permissions),
+        grantedAt: c.grantedAt.toISOString(),
+        expiresAt: c.expiresAt?.toISOString() ?? null,
+        // "Ends on <date>", null for none, or, for a seat kept open past
+        // its date, why it stays open (`seatDateLine`), never "ended".
+        dateLine: dateLineOf(c),
+        keptPastEndDate: keptOf(c.id),
+        lastUsedAt: c.lastUsedAt?.toISOString() ?? null,
+        reason: c.grantReason,
+        // A paused seat says so on its row, with why.
+        pausedReason: c.suspendedAt ? c.suspendReason ?? null : null,
+        acts: actsOf(c.id),
+      })),
+      // Seats whose end date has come (2026-11-15): one line each, "Ended
+      // on <date>", in no figure. Renew is Change role with the same role,
+      // through POST /api/access, for a reader who may change roles; any
+      // other reader is told who here may, from the seats the firm has
+      // filled. An Owner's seat is never ended by a date, so is never here.
+      ended: endedSeats.map(c => ({
+        contextId: c.id,
+        person: personOf(c),
+        role: c.role?.name ?? null,
+        roleId: c.role?.id ?? null,
+        consultant: isConsultant(c.id),
+        shared: sharedOf(c.id),
+        dateLine: dateLineOf(c),
+        // Kept, so Renew can offer the same reason again.
+        reason: c.grantReason,
+        paused: c.suspendedAt !== null,
+        renew: mayRenew(c),
+        whyNoRenew: mayRenew(c) ? null : whoRenews(c),
+      })),
+      // Only what needs a decision. A review that lists everybody is a
+      // review nobody reads.
+      review: review.map(r => ({ ...r, findingWords: FINDING_WORDS[r.finding], personEmail: emailByContext.get(r.contextId) ?? null })),
+      // What this reader may actually do here, so the screen does not
+      // offer a form the route will refuse. Reading opened up on
+      // governance.read; granting and inviting did not move.
+      canGrant: hasPermission(caller.permissions, 'settings.manage'),
+      actorIsOwner,
+      // Whether a paused person can be emailed: the pause form says so before the press.
+      mailLeaves: mailLeaves(),
+      canInvite: mayInvite,
+      // Absent for a reader who cannot invite (see above).
+      ...(inviteForm ? { invite: inviteForm } : {}),
+      whyNotGrant: hasPermission(caller.permissions, 'settings.manage') ? null : askTheDesk({
+        doing: 'Giving somebody a seat here',
+        needs: 'settings.manage',
+        kind: caller.company.kind,
+        companyName: caller.company.name,
+      }),
+      whyNotInvite: hasPermission(caller.permissions, 'team.manage') ? null : askTheDesk({
+        doing: 'Inviting a colleague',
+        needs: 'team.manage',
+        kind: caller.company.kind,
+        companyName: caller.company.name,
+      }),
+      // `/api/why` asks for the same permission, and says why somebody
+      // else cannot see something — their role, their account, their
+      // company's settings. Its own sentence, because "inviting a
+      // colleague" is not what the reader was trying to do.
+      whyNotExplain: hasPermission(caller.permissions, 'team.manage') ? null : askTheDesk({
+        doing: 'Working out why a colleague cannot see something',
+        needs: 'team.manage',
+        kind: caller.company.kind,
+        companyName: caller.company.name,
+      }),
+      // How people join this company, in one sentence read off what the
+      // doors do (lib/join-words), or null for a one-person firm. It
+      // replaces the fixed line that said everybody on the email domain
+      // joins at once as Member, which was true only of a verified domain
+      // set to join at once.
+      joins,
+      summary: {
+        // The headline, from the one reader: "6 people: 3 with access ·
+        // 3 invited". The same words Settings and Team structure say.
+        peopleSays,
+        // The company's people in each state (lib/company-seats). A Member
+        // with no role who has signed in has access and is counted here;
+        // the list still shows them under "Waiting for access" with "no
+        // role yet", and "Needs a decision" counts them.
+        withAccess: counts.withAccess,
+        invited: counts.invited,
+        waitingForRole: counts.waitingForRole,
+        paused: counts.paused,
+        // The rows under "Waiting for access": invited, or in with no role.
+        waiting: waiting.length,
+        // Every review finding plus every Member waiting for a desk: a
+        // Member reads "give them a role" on the list, so it is counted.
+        // The company's own people only: a consultant is never counted.
+        needsAttention: needsDecisionCount(ownReview, ownWithAccess),
+        // Each figure with the line under it, zeros left out except With
+        // access (lib/access-grant `figureWords`). A figure's number is
+        // the number of rows whose `figure` (or `decision`) it names.
+        figures: figuresFor(counts, decisions.size, parts, invitedMail),
+        expired: review.filter(r => r.finding === 'EXPIRED').length,
+        dormant: review.filter(r => r.finding === 'DORMANT').length,
+      },
+    },
+  })
+}
+
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'Who may read what is set by a company, and you are not signed in at one. What is held about you is under Your data.' } },
+      { status: 403 }
+    )
+  }
+
+  const body = await request.json().catch(() => ({}))
+  const { contextId, roleId, days, reason } = body
+
+  // A refusal about a seat is written, and waited for, before it is sent
+  // (security review, 2026-11-12), naming the person whose seat was asked
+  // about wherever it is; nothing about them goes into the reply.
+  const refuseAbout = async (message: string) => {
+    const asked = typeof contextId === 'string'
+      ? await prisma.context.findUnique({ where: { id: contextId }, select: { personId: true } })
+      : null
+    if (asked) await recordRefusal([asked.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company!.id, action: 'DESK_CHANGE', reason: message })
+  }
+
+  if (!hasPermission(caller.permissions, 'settings.manage')) {
+    const message = askTheDesk({
+      doing: 'Giving somebody a seat here',
+      needs: 'settings.manage',
+      kind: caller.company.kind,
+      companyName: caller.company.name,
+    })
+    await refuseAbout(message)
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message } }, { status: 403 })
+  }
+
+  const target = await prisma.context.findFirst({
+    where: { id: contextId, companyId: caller.company.id, revokedAt: null },
+    include: {
+      person: { select: { id: true, name: true } },
+      role: { select: { name: true, permissions: true } },
+    },
+  })
+  if (!target) {
+    await refuseAbout('That person is not at this company')
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'That person is not at this company' } },
+      { status: 404 }
+    )
+  }
+
+  // An end day is a day after today. The page's "Ends on" field turns a
+  // calendar day into days and refuses a past one before it is sent; this
+  // is the same rule for any other caller.
+  if (days !== null && days !== undefined && days !== '' && !(Number.isInteger(Number(days)) && Number(days) >= 1)) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Pick a day after today. Access cannot end on a day that has already begun.', field: 'days' } },
+      { status: 422 }
+    )
+  }
+
+  const role = await prisma.role.findFirst({
+    where: { id: roleId, companyId: caller.company.id },
+    select: { id: true, name: true, permissions: true },
+  })
+  if (!role) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No such role at this company' } },
+      { status: 404 }
+    )
+  }
+
+  // ── Changing a desk, not only giving a first one ──
+  // The same POST gives a waiting person their first desk and moves a
+  // seated person to another, so the rules for moving sit here too: Owner
+  // only by an Owner, an Owner's desk changed only by an Owner, and never
+  // the last person who can give desks moved off it.
+  const actor = await prisma.context.findUnique({
+    where: { id: caller.context.id },
+    select: { role: { select: { name: true } } },
+  })
+
+  // ── An Owner is moved off Owner only under Settings → Owners ──
+  // (founder, 2026-11-11 and 2026-11-12): moving an Owner needs another
+  // Owner's yes, which this route has no card for. The one exception is
+  // the Owner who took over by a pass moving the previous Owner to Admin
+  // (lib/owner-rules `movesAloneAfterPass`), written by the same function
+  // Settings → Owners uses, so it is recorded and the previous Owner told.
+  if (target.role?.name === OWNER_DESK && role.name !== OWNER_DESK) {
+    const seatOf = (id: string, personId: string, name: string, roleName: string | null, live: boolean): Seat => ({ contextId: id, personId, name, roleName, live })
+    const me = seatOf(caller.context.id, caller.person.id, caller.person.name, actor?.role?.name ?? null, true)
+    const them = seatOf(target.id, target.personId, target.person.name, OWNER_DESK, !target.suspendedAt)
+    const alone = me.roleName === OWNER_DESK && movesAloneAfterPass({
+      actor: me, subject: them, toRoleName: role.name, passedToActorBy: await passedToSeatBy(caller.company.id, caller.context.id),
+    })
+    const why = String(reason ?? '').trim().slice(0, 500)
+    if (alone && why) {
+      const says = await landMoveAfterPass({
+        company: { id: caller.company.id, name: caller.company.name },
+        actor: { personId: caller.person.id, name: caller.person.name },
+        subject: { personId: target.personId, name: target.person.name, contextId: target.id },
+        reason: why,
+      })
+      return NextResponse.json({ data: { message: says } })
+    }
+    const message = alone ? 'Say why, in a sentence. It is kept beside the change with your name.' : ownerMovesOnOwnersPage(target.person.name)
+    // Written, and waited for, before the refusal is sent (security review, 2026-11-12).
+    await recordRefusal([target.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company.id, action: 'DESK_CHANGE', reason: message })
+    return NextResponse.json(
+      { error: { code: 'DESK_REFUSED', message, href: '/dashboard/settings/owners' } },
+      { status: 422 }
+    )
+  }
+  // The company's live seats, read on their end dates (2026-11-15): a seat
+  // whose date has come is not somebody else who can give roles, so it is
+  // never counted as the one who keeps the company able to.
+  const onDates = await openSeatsHere(caller.company.id)
+  const givesDesks = (permissions: readonly string[]) => hasPermission([...permissions], 'settings.manage')
+  const othersWhoCanGiveDesks = onDates.filter(c => c.id !== target.id && !c.suspendedAt && givesDesks(c.permissions)).length
+  // A seat past its end date given a role again is a renewal: the same
+  // role is the point, and it writes a new end date (`renewing`).
+  const renewing = pastEndDate(target.expiresAt)
+  const move = assessDeskChange({
+    fromRole: target.role?.name ?? null,
+    toRole: role.name,
+    actorIsOwner: actor?.role?.name === OWNER_DESK,
+    fromCanGiveDesks: canGiveDesks(target.role?.permissions ?? []),
+    toCanGiveDesks: canGiveDesks(role.permissions),
+    othersWhoCanGiveDesks,
+    personName: target.person.name,
+    renewing,
+  })
+  if (!move.allowed) {
+    await recordRefusal([target.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company.id, action: 'DESK_CHANGE', reason: move.says })
+    return NextResponse.json(
+      { error: { code: 'DESK_REFUSED', message: move.says } },
+      { status: 422 }
+    )
+  }
+
+  // How many other live accounts here could grant access, if this one went,
+  // each open on its end date.
+  const otherCritical = onDates.filter(c => c.id !== target.id && givesDesks(c.permissions)).length
+
+  const decision = assessGrant({
+    roleName: role.name,
+    permissions: role.permissions,
+    requestedDays: days === null || days === undefined || days === '' ? null : Number(days),
+    reason: String(reason ?? ''),
+    selfGranted: target.personId === caller.person.id,
+    otherHoldersOfCritical: otherCritical,
+  })
+
+  if (!decision.allowed) {
+    await recordRefusal([target.personId], { actorPersonId: caller.person.id, actorCompanyId: caller.company.id, action: 'DESK_CHANGE', reason: decision.summary })
+    return NextResponse.json(
+      {
+        error: {
+          code: 'GRANT_REFUSED',
+          message: decision.summary,
+          checks: decision.checks.filter(c => c.outcome === 'BLOCK'),
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  const expiresAt = decision.expiresInDays === null
+    ? null
+    : new Date(Date.now() + decision.expiresInDays * 86_400_000)
+
+  await prisma.context.update({
+    where: { id: target.id },
+    data: {
+      roleId: role.id,
+      grantedById: caller.person.id,
+      grantedAt: new Date(),
+      expiresAt,
+      grantReason: String(reason).trim(),
+      // Reset on every grant. A renewal that inherits the old usage date
+      // would report the access as active when nobody has touched it.
+      lastUsedAt: null,
+    },
+  })
+
+  await prisma.automationLog.create({
+    data: {
+      companyId: caller.company.id,
+      action: 'ACCESS_GRANTED',
+      // The Member role reads as no role here too (fix list layer 4): never "gave Tobias Member".
+      summary: roleChangeSummary({
+        actorName: caller.person.name,
+        personName: target.person.name,
+        roleName: role.name,
+        fromRoleName: target.role?.name ?? null,
+        expiresAt,
+        renewing: renewing && target.role?.name === role.name,
+        endedOn: target.expiresAt,
+      }),
+      reason: String(reason).trim(),
+      payload: {
+        contextId: target.id,
+        roleId: role.id,
+        sensitivity: decision.sensitivity,
+        expiresAt: expiresAt?.toISOString() ?? null,
+        fromRole: target.role?.name ?? null,
+        notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
+      },
+      reversible: true,
+    },
+  })
+
+  void emit({
+    type: 'access.granted',
+    companyId: caller.company.id,
+    subjectType: 'Context',
+    subjectId: target.id,
+    actorPersonId: caller.person.id,
+    payload: {
+      personId: target.person.id,
+      roleId: role.id,
+      roleName: role.name,
+      sensitivity: decision.sensitivity,
+      expiresAt: expiresAt?.toISOString() ?? null,
+    },
+  })
+
+  // The other half of the join notification. Somebody has been waiting,
+  // and an access grant they are never told about is one they find by
+  // trying the page again on a hunch.
+  //
+  // Email as well as in the app (round two of the sign-up walk, 14): a
+  // Member waiting on a desk is not sitting in the app refreshing it. One
+  // notice on the normal path, so the in-app row and the email are the
+  // same words, and the link opens the page the new desk lands on.
+  const notice = deskChangedNotice({
+    roleName: role.name,
+    fromRoleName: target.role?.name ?? null,
+    companyName: caller.company.name,
+    expiresAt,
+    landing: consoleHome({
+      kind: (caller.company.kind ?? null) as CompanyKind | null,
+      permissions: role.permissions,
+      // The firm's own home setting (→ 107), so the link opens where she lands.
+      homePage: (await prisma.company.findUnique({ where: { id: caller.company.id }, select: { homePage: true } }))?.homePage === 'DECISIONS' ? 'DECISIONS' : null,
+    }).href,
+  })
+  void notify({
+    personId: target.person.id,
+    companyId: caller.company.id,
+    type: 'SYSTEM',
+    channel: 'EMAIL',
+    title: notice.title,
+    body: notice.body,
+    entityId: target.id,
+    data: { href: notice.href },
+  })
+
+  return NextResponse.json(
+    {
+      data: {
+        contextId: target.id,
+        person: target.person.name,
+        role: role.name,
+        sensitivity: decision.sensitivity,
+        expiresAt: expiresAt?.toISOString().slice(0, 10) ?? null,
+        notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
+        // The Member role, or none, says the page's own sentence (`NO_ROLE_SEES`), never "read-only access".
+        message: roleChangeSays({
+          personName: target.person.name,
+          roleName: role.name,
+          expiresAt,
+          renewing: renewing && target.role?.name === role.name,
+        }),
+      },
+    },
+    { status: 201 }
+  )
+}
+
+/**
+ * The company's seats not revoked, each with its role's permissions, left
+ * out where its end date has come and `seatByDate` does not keep it open
+ * (2026-11-15). The counters on POST read this, never a count of their own.
+ */
+async function openSeatsHere(companyId: string): Promise<{ id: string; suspendedAt: Date | null; permissions: string[] }[]> {
+  const rows = await prisma.context.findMany({
+    where: { companyId, revokedAt: null },
+    select: {
+      id: true, companyId: true, expiresAt: true, suspendedAt: true, revokedAt: true, invitedAt: true, lastUsedAt: true,
+      personId: true,
+      role: { select: { name: true, permissions: true } },
+    },
+  })
+  // Signed in is this firm's own fact, never her account elsewhere (2026-11-16).
+  const here = await signedInHere(companyId, rows.filter(r => r.invitedAt !== null && r.lastUsedAt === null).map(r => r.personId))
+  const now = new Date()
+  const dated = (r: (typeof rows)[number]): DatedSeat => ({
+    contextId: r.id,
+    companyId: r.companyId,
+    expiresAt: r.expiresAt,
+    isOwner: r.role?.name === OWNER_DESK,
+    rolePermissions: r.role?.permissions ?? [],
+    revokedAt: r.revokedAt,
+    suspendedAt: r.suspendedAt,
+    hasSignedIn: seatHasSignedIn({ invitedAt: r.invitedAt, lastUsedAt: r.lastUsedAt, signedInHere: here.has(r.personId) }),
+  })
+  const all = rows.map(dated)
+  return rows
+    .filter(r => seatByDate(dated(r), all, now).open)
+    .map(r => ({ id: r.id, suspendedAt: r.suspendedAt, permissions: r.role?.permissions ?? [] }))
+}

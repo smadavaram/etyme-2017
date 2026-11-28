@@ -1,0 +1,74 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "TIMESHEET_CHASE",
+      "owedSeat": "Owner"
+    },
+    {
+      "kind": "Cycle",
+      "owedSeat": "Owner"
+    }
+  ],
+  "mail": [
+    {
+      "template": "timesheet-chase",
+      "to": "ana.ruiz@example.invalid"
+    }
+  ],
+  "recordActions": [
+    {
+      "action": "TASK_PROPOSED",
+      "order": 1,
+      "recordType": "AgentTask",
+      "summary": "Timesheet chase proposed a task and asked for a yes: Ana Ruiz has not filed the week of Nov 15 to Nov 21. Send a letter asking for it? Proposed: one letter, then up to 2 reminders, 2 working days apart, closing when the week is filed. These numbers are proposals; the Owner can change them in Agent control."
+    },
+    {
+      "action": "CHASE_PROPOSED",
+      "order": 2,
+      "recordType": "AgentTask",
+      "summary": "Proposed a chase for Ana Ruiz, week of Nov 15 to Nov 21. Nothing is sent until a person says yes."
+    },
+    {
+      "action": "CHASE_BACKLOG_LISTED",
+      "order": 3,
+      "recordType": "Cycle",
+      "summary": "Listed 1 older unfiled week on one card for a person."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 4,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "CHASE_NOT_SENT",
+      "order": 5,
+      "recordType": "AgentTask",
+      "summary": "Letter 1 could not be sent: No email sender is set up on this deployment, so nothing was sent."
+    },
+    {
+      "action": "TASK_CLOSED_BY_ARRIVAL",
+      "order": 6,
+      "recordType": "AgentTask",
+      "summary": "The week was filed, so the chase is closed."
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "TIMESHEET_CHASE",
+      "plan": {
+        "closesWhen": "the week is filed",
+        "daysApart": 2,
+        "messages": [
+          {
+            "label": "Timesheet reminder",
+            "template": "timesheet-chase"
+          }
+        ],
+        "retries": 2
+      },
+      "status": "CLOSED_BY_ARRIVAL"
+    }
+  ]
+}

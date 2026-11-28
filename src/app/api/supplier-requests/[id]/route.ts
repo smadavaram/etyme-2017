@@ -1,0 +1,632 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'node:crypto'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { findFirm } from '@/lib/company-create'
+import { domainOfEmail } from '@/lib/company-domains'
+import { staffOnly } from '@/lib/seat'
+import { notify } from '@/lib/notify'
+import { defaultPostureFor } from '@/lib/walls'
+import { desksFor, deskPeople, inviteRolesFor, orderedOfSuppliers, walkOf } from '@/lib/supplier-desks'
+import { verificationFromChecklistItem, verificationsFromChecklist } from '@/lib/onboarding-evidence'
+import { sendClaim, sendLink, claimUrl } from '@/lib/supplier-link'
+import {
+  mayActAt, markItem, bankCheckOnMark, readiness, nextStage, withOrderedItems, evidenceNoteFor, whoRendersItem, signedOnFile, STAGE_WORD,
+  type ChecklistItem, type ItemState, type Decision, type Stage,
+} from '@/lib/supplier-onboarding'
+import { actingDesk } from '@/lib/program-seat'
+import { recordRefusal } from '@/lib/access-log'
+import { hasPermission } from '@/lib/permissions'
+import { mayInviteRecorded, namesakeSays } from '@/lib/counterparty'
+import { supplierDomain } from '@/lib/supplier-list'
+import { twinFor, keepNote } from '@/app/api/companies/twins'
+import { askFirmToLink, askStanding, approvedAskSays } from './link-ask'
+import { firmTookPart } from './took-part'
+import { recordEvidence } from '../evidence'
+import { checkPayeeBank } from '@/lib/money/bank-check-read'
+
+/**
+ * PATCH /api/supplier-requests/[id]
+ *   { action: 'approve', note? }     — the desk it is on says yes; it moves to the next desk, or becomes a supplier
+ *   { action: 'decline', note }      — with a reason the recommender reads
+ *   { action: 'mark', key, state, note?, edition?, evidence? } — the desk verifies (HELD), waives with a reason, or unmarks;
+ *                                    a screening, a D&B report or a reference check needs its evidence (lib/attestation)
+ *                                    an agreement needs its signed copy attached first (POST ./file),
+ *                                    and a reissued form (the W-9) the edition printed on it
+ *   { action: 'resend' }             — send the firm its link again
+ *
+ * The department lead, then Procurement, then HR, then Finance, in that
+ * order. Never the recommender, never somebody who decided an earlier
+ * desk. Each desk verifies its own items and no other's. Finance's yes
+ * writes what the paste flow used to write in one keystroke: a
+ * company row (or the real firm, if it is already here under its own
+ * domain), an agreement stub, a register row at approved standing, a
+ * contact, and an invitation to sign in.
+ */
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
+  const notStaff = staffOnly(caller, 'Supplier requests')
+  if (notStaff) return notStaff
+  const companyId = desk!.companyId
+  const row = await prisma.supplierRequest.findFirst({ where: { id, companyId } })
+  if (!row) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That recommendation is not here.' } }, { status: 404 })
+  const body = await request.json().catch(() => ({}))
+  const action = String(body?.action ?? '')
+
+  // ── The press: ask an approved firm on Etyme to link ──────────────────
+  //
+  // The one act that contacts the firm (founder, 2026-11-12). Taken by
+  // whoever gave the last yes, or by whoever keeps the client's list of
+  // companies, on a request approved for a firm that has not linked yet.
+  // The firm is never named by id to the client: the request carries it.
+  if (action === 'ask_to_link') {
+    const refuse = async (code: string, says: string, status: number) => {
+      await recordRefusal([{ companyId }], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: companyId,
+        action: 'CONTRACT_VIEW',
+        reason: `Refused to ask ${row.name} to link: ${says}`,
+      })
+      return NextResponse.json({ error: { code, message: says } }, { status })
+    }
+    if (row.state !== 'APPROVED' || !row.supplierCompanyId) {
+      return refuse('NOT_APPROVED', `${row.name} is not approved yet. It can be asked to link once Finance gives the last yes.`, 409)
+    }
+    if (row.decidedById !== caller.person.id && !hasPermission(deskPermissions, 'vendors.manage')) {
+      return refuse('FORBIDDEN', `Asking ${row.name} to link is for whoever gave the last yes, or whoever keeps your list of companies. Ask one of them.`, 403)
+    }
+    if (await firmTookPart(companyId, row.supplierCompanyId, row.application)) {
+      return NextResponse.json({ data: { linkAsk: 'LINKED', says: `${row.name} is already linked with you. Send them a job.` } })
+    }
+    const firm = await prisma.company.findUnique({ where: { id: row.supplierCompanyId }, select: { id: true, name: true, kind: true } })
+    if (!firm) return refuse('NOT_FOUND', `${row.name} is not on Etyme any more, so it cannot be asked.`, 404)
+    const client = await prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { id: true, name: true, kind: true } })
+    const ask = await askFirmToLink({
+      client, firm: { id: firm.id, name: firm.name, kind: firm.kind as string },
+      askedBy: { id: caller.person.id, name: caller.person.name }, firmName: row.name,
+    })
+    const says =
+      ask.state === 'ASKED'
+        ? `${row.name} is asked to link. It becomes your supplier on its yes.`
+        : approvedAskSays(row.name, ask)
+    return NextResponse.json({ data: { linkAsk: ask.state, says } })
+  }
+
+  if (row.state === 'APPROVED' || row.state === 'DECLINED') {
+    return NextResponse.json({ error: { code: 'DECIDED', message: `${row.name} was already ${row.state.toLowerCase()}.` } }, { status: 409 })
+  }
+
+  const note = typeof body?.note === 'string' ? body.note.trim() : ''
+  const now = new Date()
+  const stage = row.stage as Stage
+  // Merged before anything reads it, so a desk can verify an item this
+  // client's orders require that was written after the firm came in. The
+  // merge keeps every state already recorded and is saved with the next
+  // mark, so it happens once and then stays on the row.
+  const checklist = withOrderedItems(
+    row.checklist as unknown as ChecklistItem[],
+    await orderedOfSuppliers(companyId),
+    desk!.companyName
+  )
+  const decisions = ((row.decisions as unknown as Decision[]) ?? [])
+  const desks = await desksFor(companyId, row.recommendedById)
+  // A client walks its four roles; a vendor checks its own sub-vendor's papers.
+  const walk = await walkOf(companyId)
+
+  // Who cannot take this desk, whoever they are: the recommender, and
+  // anybody who decided an earlier one.
+  const barred = [row.recommendedById, ...decisions.map((d) => d.byId)]
+
+  // Every action here, resending the firm's link included, belongs to
+  // the desk the request is on. Resending used to return before this
+  // gate, so anybody seated could make the app send a credential.
+  const verdict = mayActAt({
+    stage, permissions: deskPermissions, callerId: caller.person.id,
+    recommendedById: row.recommendedById, decisions, desks, firmName: row.name,
+    deskHolders: stage === 'DONE' || walk === 'PAPERS' ? undefined : await deskPeople(companyId, stage, desks),
+    inviteRoles: stage === 'DONE' || walk === 'PAPERS' ? undefined : await inviteRolesFor(companyId, stage),
+    companyName: desk!.companyName,
+    walk,
+  })
+  if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
+
+  if (action === 'resend') {
+    if (!row.contactEmail) return NextResponse.json({ error: { code: 'NO_CONTACT', message: `${row.name} has no contact email on the recommendation.` } }, { status: 422 })
+    const delivery = await sendLink({ to: row.contactEmail, contactName: row.contactName, firmName: row.name, clientName: desk!.companyName, token: row.token, papersOnly: walk === 'PAPERS' })
+    // Sent means an email left; where none did, the link is still kept for staff to send.
+    if (delivery.state === 'SENT') await prisma.supplierRequest.update({ where: { id }, data: { linkSentAt: now } })
+    return NextResponse.json({ data: { delivery, says: delivery.state === 'SENT' ? `The link for ${row.name} was handed to the email service again. Delivery is not confirmed yet.` : `No email left. Copy the link and send it to ${row.name} yourself.` } })
+  }
+
+  if (action === 'mark') {
+    const key = String(body?.key ?? '')
+    const item = checklist.find((i) => i.key === key)
+    if (!item) return NextResponse.json({ error: { code: 'VALIDATION', message: 'That is not on the checklist.' } }, { status: 422 })
+    if (item.desk !== stage) {
+      return NextResponse.json({ error: { code: 'NOT_YOUR_ITEM', message: `${item.label} is ${STAGE_WORD[item.desk]}’s to verify, not yours at this step.` } }, { status: 409 })
+    }
+    const state = body?.state as ItemState
+    if (!['HELD', 'WAIVED', 'MISSING'].includes(state)) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Verified, waived or missing.' } }, { status: 422 })
+    }
+    const dates = {
+      validFrom: typeof body?.validFrom === 'string' && body.validFrom.trim() ? body.validFrom.trim() : null,
+      validUntil: typeof body?.validUntil === 'string' && body.validUntil.trim() ? body.validUntil.trim() : null,
+    }
+    const edition = typeof body?.edition === 'string' && body.edition.trim() ? body.edition.trim().slice(0, 80) : null
+    // What stands behind "on file" for somebody else's result (lib/attestation).
+    const ev = body?.evidence && typeof body.evidence === 'object' ? body.evidence : {}
+    const text = (k: string, max = 120) => (typeof ev[k] === 'string' && ev[k].trim() ? ev[k].trim().slice(0, max) : undefined)
+    const evidence = {
+      provider: text('provider'), reference: text('reference'), on: text('on', 10),
+      outcome: text('outcome', 20)?.toUpperCase(), reportNumber: text('reportNumber'), contactName: text('contactName', 160),
+    }
+    const given = Object.fromEntries(Object.entries(evidence).filter(([, v]) => v !== undefined))
+    const marked = markItem(checklist, key, state, note || null, now, dates, edition, given)
+    if (!marked.ok) {
+      return NextResponse.json(
+        { error: { code: marked.code ?? 'VALIDATION', message: marked.message, ...(marked.code === 'NEEDS_EDITION' ? { field: 'edition' } : marked.code === 'NEEDS_SIGNED_COPY' ? { field: 'file' } : marked.field ? { field: marked.field } : {}) } },
+        { status: 422 }
+      )
+    }
+
+    // ── What a desk verified becomes cover the product can read ───────
+    //
+    // HR clears a certificate of insurance here and `/api/compliance`
+    // goes on saying the firm has no cover: two records, and only one of
+    // them is what every gate actually reads. The translation needs the
+    // two dates printed on the certificate, and this is the one moment
+    // somebody has it open in front of them — so the desk is asked here
+    // rather than the row going green with no expiry, which passes every
+    // check until the day somebody audits it.
+    //
+    // The firm may not be a company on the register yet: the four desks
+    // run before Finance writes the supplier row. So the dates are kept
+    // on the item whatever happens, and the approval replays them into
+    // the record at the first moment an id exists.
+    const markedItem = marked.checklist.find((i) => i.key === key)!
+    let recorded: { written: number; onRecord: boolean; says: string } | null = null
+    if (state === 'HELD') {
+      const verdict = verificationFromChecklistItem(
+        markedItem,
+        // Where the supplier is not on the register yet, the request's
+        // own id stands in so the dates are still checked. Nothing is
+        // ever written against it — the write below is guarded on the
+        // real company id.
+        row.supplierCompanyId ?? row.id,
+        { personId: caller.person.id, at: now }
+      )
+      if (!verdict.ok && verdict.needsDates) {
+        return NextResponse.json(
+          { error: { code: 'NEEDS_DATES', message: verdict.says, field: dates.validFrom ? 'validUntil' : 'validFrom' } },
+          { status: 422 }
+        )
+      }
+      if (verdict.ok && row.supplierCompanyId) {
+        const written = await recordEvidence(verdict.rows, companyId)
+        recorded = { written, onRecord: true, says: verdict.says }
+      } else if (verdict.ok) {
+        recorded = {
+          written: 0,
+          onRecord: true,
+          says:
+            `${markedItem.label} is verified, and its dates are held with the recommendation. ` +
+            (row.firmCompanyId && !(await firmTookPart(companyId, row.firmCompanyId, row.application))
+              ? `They go on ${row.name}'s compliance record once ${row.name} says yes to linking with you.`
+              : `They go on ${row.name}'s compliance record the moment Finance approves the firm.`),
+        }
+      } else {
+        // ── The refusal that used to be silent ────────────────────────
+        //
+        // Neither `ok` nor `needsDates`: a verdict no desk in Etyme
+        // renders. A background check is a screening company's opinion
+        // and an I-9 is the employer of record's own, so
+        // `lib/onboarding-evidence` writes nothing — correctly — and
+        // until now said nothing either. The desk watched the tick go
+        // green and walked away believing a compliance record existed.
+        //
+        // It is not an error and the mark is not refused: the item stays
+        // verified as this desk's own note, the file the firm sent stays
+        // attached, and that is the honest record of what the firm sent.
+        // What is said out loud is that nothing went on the compliance
+        // record, and whose opinion would have to.
+        const note = evidenceNoteFor(markedItem, row.supplierCompanyId ?? row.id, now)
+        if (note) recorded = { written: 0, onRecord: note.onRecord, says: note.says }
+      }
+    }
+
+    // ── Finance's check of the bank is the supplier's to be paid on ────
+    //
+    // The walk's bank item held is a check of the supplier's own payment
+    // details, so it goes on them, with who checked and for which client,
+    // in the same write as the mark (`mayPayFirm` in lib/setup-gates reads
+    // it). A waiver checks nothing; an unmark takes this client's check back.
+    let bank: ReturnType<typeof bankCheckOnMark> | null = null
+    const firmId = row.supplierCompanyId ?? row.firmCompanyId ?? null
+    if (key === 'BANK') {
+      // A firm on Etyme that has not taken part (review, 2026-11-13): a
+      // match or a typed domain names it, and naming it is not its yes.
+      // Its bank record is neither read nor stamped until it took part.
+      const notLinked = firmId ? !(await firmTookPart(companyId, firmId, row.application)) : false
+      const remits = firmId && state !== 'WAIVED' && !notLinked
+        ? await prisma.remitTo.findMany({
+            where: { companyId: firmId },
+            orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+            select: { id: true, bankName: true, accountLast4: true },
+          })
+        : []
+      bank = bankCheckOnMark({ state, firm: row.name, client: desk!.companyName, remits, sent: markedItem.fileName ?? null, notLinked })
+      if (bank.says) recorded = recorded ? { ...recorded, says: `${recorded.says} ${bank.says}` } : { written: 0, onRecord: !!bank.remitToId, says: bank.says }
+    }
+    const [updated] = await prisma.$transaction([
+      prisma.supplierRequest.update({ where: { id }, data: { checklist: marked.checklist as unknown as object, state: 'IN_REVIEW' } }),
+      // Reopened: only this customer's own checks go, the old columns and
+      // the BankCheck row, never another payer's.
+      ...(bank?.clear && firmId
+        ? [
+            prisma.bankCheck.deleteMany({ where: { payerCompanyId: companyId, remitTo: { companyId: firmId } } }),
+            prisma.remitTo.updateMany({ where: { companyId: firmId, verifiedByCompanyId: companyId }, data: { verifiedAt: null, verifiedById: null, verifiedByCompanyId: null } }),
+          ]
+        : []),
+    ])
+
+    // Marked held: this customer's own BankCheck, written by the one writer
+    // money uses (it keeps the old columns for where they are empty). A
+    // waiver never reaches here with a remitToId.
+    if (bank?.remitToId && firmId) {
+      const checked = await checkPayeeBank({ payer: { id: companyId, name: desk!.companyName }, payee: { id: firmId, name: row.name }, by: { personId: caller.person.id, name: caller.person.name } })
+      if (!checked.ok && checked.code !== 'ALREADY_CHECKED') {
+        recorded = recorded ? { ...recorded, says: `${recorded.says} ${checked.says}` } : { written: 0, onRecord: false, says: checked.says }
+      }
+    }
+
+    // Who verified it, and who waived it. The checklist carries the state,
+    // the reason and the hour, but not the name — so a waived certificate
+    // of insurance read as waived by nobody. A waiver is a desk taking a
+    // compliance item on itself, and it is answerable to a person.
+    const WORD: Record<ItemState, string> = { HELD: 'verified', WAIVED: 'waived', MISSING: 'unmarked', PROVIDED: 'recorded' } as Record<ItemState, string>
+    await prisma.automationLog.create({
+      data: {
+        companyId,
+        action: 'SUPPLIER_ITEM_MARKED',
+        summary: `${caller.person.name} (${STAGE_WORD[stage]}) ${WORD[state] ?? String(state).toLowerCase()} ${item.label} for ${row.name}`,
+        reason: note || (state === 'HELD' ? 'Verified against what the firm supplied.' : 'No reason given.'),
+        payload: { supplierRequestId: id, firm: row.name, key, state, desk: stage, byId: caller.person.id, ...(markedItem.edition ? { edition: markedItem.edition } : {}), ...(markedItem.fileUrl ? { fileUrl: markedItem.fileUrl } : {}), ...(bank?.remitToId ? { bankCheckedRemitToId: bank.remitToId } : {}) },
+        // An item can be marked again; a waiver can be taken back.
+        reversible: true,
+      },
+    })
+
+    const ready = readiness(row.name, marked.checklist, stage)
+    return NextResponse.json({
+      data: {
+        request: { ...updated, checklist: marked.checklist },
+        readiness: ready,
+        recorded,
+        says: recorded ? `${recorded.says} ${ready.says}` : ready.says,
+      },
+    })
+  }
+
+  if (action === 'decline') {
+    if (!note) return NextResponse.json({ error: { code: 'NEEDS_REASON', message: 'Declining needs a reason the recommender can read.', field: 'note' } }, { status: 422 })
+    const decision: Decision = { stage, outcome: 'DECLINED', byId: caller.person.id, byName: caller.person.name, at: now.toISOString(), note }
+    const updated = await prisma.supplierRequest.update({
+      where: { id },
+      data: { state: 'DECLINED', decidedById: caller.person.id, decidedAt: now, decisionNote: note, decisions: [...decisions, decision] as unknown as object },
+    })
+    // A firm refused is the end of the walk, and the only record of it
+    // was the decision array on the row itself. It belongs in the
+    // company's own log beside the approval it did not become.
+    await prisma.automationLog.create({
+      data: {
+        companyId,
+        action: 'SUPPLIER_DECLINED',
+        summary: `${row.name} was not approved — declined by ${caller.person.name} at ${STAGE_WORD[stage]}`,
+        reason: note,
+        payload: { supplierRequestId: id, firm: row.name, desk: stage, byId: caller.person.id },
+        // The walk is over. Recommending the firm again starts a new one.
+        reversible: false,
+      },
+    })
+
+    void notify({
+      personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
+      title: `${row.name} was not approved`, body: `${caller.person.name} (${STAGE_WORD[stage]}): ${note}`, data: { href: '/dashboard/suppliers' },
+    })
+    return NextResponse.json({ data: { request: updated, says: `${row.name} declined at ${STAGE_WORD[stage]}. The recommender has been told why.` } })
+  }
+
+  if (action === 'approve') {
+    // A desk with paperwork of its own says yes only when its own items
+    // are verified or waived — the lead has none; the rest each have theirs.
+    const ready = readiness(row.name, checklist, stage)
+    if (!ready.ok) return NextResponse.json({ error: { code: 'PAPERWORK_MISSING', message: ready.says, missing: ready.missing, toVerify: ready.toVerify } }, { status: 409 })
+    const decision: Decision = { stage, outcome: 'APPROVED', byId: caller.person.id, byName: caller.person.name, at: now.toISOString(), note: note || null }
+    const next = nextStage(stage, walk)
+
+    if (next !== 'DONE') {
+      const updated = await prisma.supplierRequest.update({
+        where: { id },
+        data: { stage: next, state: 'IN_REVIEW', decisions: [...decisions, decision] as unknown as object },
+      })
+      for (const personId of (await deskPeople(companyId, next, desks, [...barred, caller.person.id])).filter((p) => p !== caller.person.id)) {
+        void notify({
+          personId, companyId, type: 'SYSTEM', entityId: id, channel: 'EMAIL',
+          title: `Supplier to review — ${row.name}`,
+          body: `${caller.person.name} (${STAGE_WORD[stage]}) cleared ${row.name}${note ? `: ${note}` : ''}. It is with you now.`,
+          data: { href: '/dashboard/suppliers' },
+        })
+      }
+      void notify({
+        personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
+        title: `${row.name} cleared ${STAGE_WORD[stage]}`, body: `${caller.person.name} said yes${note ? `: ${note}` : ''}. Now with ${STAGE_WORD[next]}.`, data: { href: '/dashboard/suppliers' },
+      })
+      return NextResponse.json({ data: { request: updated, says: `${row.name} cleared ${STAGE_WORD[stage]} and is with ${STAGE_WORD[next]} now.` } })
+    }
+
+    // Finance's yes: the last desk, and the one that writes the supplier.
+    // A request opened from a match names the firm already on Etyme; that
+    // company is joined, never a second one made from its name.
+    //
+    // A firm that signed up on its own is found the one way every door
+    // finds it (`findFirm`: its verified domain, its Etyme address, or its
+    // exact name run by people on the contact's domain), so a supplier
+    // that signed up and is then approved is one company, not two.
+    const found = row.firmCompanyId
+      ? null
+      : await findFirm({
+          emailDomain: (row.contactEmail ? domainOfEmail(row.contactEmail) : null) ?? row.domain,
+          name: row.name,
+          isDemo: caller.company!.isDemo,
+        })
+    const firmId = row.firmCompanyId ?? (found && found.id !== companyId ? found.id : null)
+    const claimed = firmId
+      ? await prisma.company.findUnique({ where: { id: firmId }, select: { id: true, name: true, claimedAt: true, kind: true } })
+      : null
+    // ── A firm on Etyme is never tied to the client from its side alone ─
+    //
+    // Review, 2026-11-13. Finding the firm is not the firm agreeing: a
+    // typed domain or a match names it, and nobody there said yes. So the
+    // approval attaches straight to a firm already on Etyme only where
+    // the two already work together, or where the firm itself took part:
+    // somebody signed in and seated at it answered this request's link
+    // (`answeredBy`, written by the link). Otherwise the approval still
+    // stands on the client's side, nothing is founded a second time, and
+    // nothing is written on the firm: no agreement, no register row, no
+    // contact, no invitation and nothing on its compliance record. It is
+    // asked to link, the ask Companies makes, and is a supplier on its yes.
+    if (
+      claimed && claimed.claimedAt != null && claimed.id !== companyId &&
+      !(await firmTookPart(companyId, claimed.id, row.application))
+    ) {
+      // Nothing is sent from here: the approval offers the press, and only
+      // the press asks (`ask_to_link` below; founder, 2026-11-12).
+      const ask = await askStanding(companyId, claimed.id)
+      const says = approvedAskSays(row.name, ask)
+      const updated = await prisma.supplierRequest.update({
+        where: { id },
+        data: { state: 'APPROVED', stage: 'DONE', decidedById: caller.person.id, decidedAt: now, decisionNote: note || null, supplierCompanyId: claimed.id, decisions: [...decisions, decision] as unknown as object },
+      })
+      void notify({
+        personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
+        title: `${row.name} is approved`, body: says, data: { href: '/dashboard/suppliers' },
+      })
+      await prisma.automationLog.create({
+        data: {
+          companyId, action: 'SUPPLIER_APPROVED',
+          summary: `${row.name} approved by ${caller.person.name}; it is on Etyme already, so it becomes a supplier once it says yes to linking. Nothing was sent to it.`,
+          reason: `Recommended by ${await nameOf(row.recommendedById)}: ${row.reason}. ${ready.says}`,
+          payload: { requestId: id, linkAsk: ask.state, decisions: [...decisions, decision] as unknown as object },
+          reversible: true,
+        },
+      })
+      // The request as approved, without the firm's id: the client knows
+      // the firm by the name it typed until the firm says yes.
+      const { supplierCompanyId: _s, firmCompanyId: _f, ...request } = updated
+      return NextResponse.json({
+        data: {
+          request, supplier: null, linkAsk: ask.state, claim: null, inviteHeld: null, says,
+          ...(ask.state === 'OFFERED' ? { askToLink: { requestId: id, name: row.name } } : {}),
+        },
+      })
+    }
+    // A company this client already recorded on its Companies list, nobody
+    // having claimed it, read by the rule every door onto that list reads
+    // (`twinFor`, 2026-11-15): the same domain is the same company whatever
+    // the name, two domains are two companies even under one name, and with
+    // no domain on either side the name decides. The approval gives that
+    // record its Supplier position, never a second Vendor copy beside it.
+    // Only the client's own records are read, never a firm on Etyme.
+    const knownBy = supplierDomain(row.domain, row.contactEmail)
+    const onOwnList = claimed ? null : await twinFor(companyId, { name: row.name, domain: knownBy })
+    const onOurList = onOwnList?.twin ?? null
+    // Another record of the same name on another domain, or with none: a
+    // new record is made, and the answer says the two share a name.
+    const namesake = onOwnList && !onOwnList.twin && onOwnList.namesake ? namesakeSays(onOwnList.namesake) : null
+    const made = claimed || onOurList ? null : await prisma.company.create({
+      data: {
+        name: row.name, slug: await freeSlug(row.name), domain: null, domainVerified: false, kind: 'VENDOR', currency: 'USD',
+        outsideAccess: defaultPostureFor('VENDOR'), listedById: companyId, isDemo: caller.company!.isDemo,
+      },
+      select: { id: true, name: true, claimedAt: true, kind: true },
+    })
+    // The domain it was approved with is kept as the client's own note on
+    // the record just made (`keepNote`: never the claim column), so its row
+    // on Companies shows it.
+    if (made && knownBy) await keepNote(prisma, { me: companyId, companyId: made.id, domain: knownBy })
+    const supplier = claimed ?? onOurList ?? made!
+    // Signed only where the copy both firms signed is on file. A row
+    // marked on file before the copy was required reads as unsigned, so
+    // the agreement stub is written without a signature rather than with
+    // one nobody can show (screen walk, 2026-10-22).
+    const agreementHeld = signedOnFile(checklist.find((i) => i.key === 'AGREEMENT'))
+    // A sub-vendor under a prime holds its paper with the prime, not with
+    // the client: no agreement is written between them here. The client's
+    // register still carries the firm, approved, so its people match as a
+    // supplier's — and the ask for one goes to the prime it works under.
+    const underPrime = row.comesInAs === 'SUB_UNDER_PRIME'
+    if (!underPrime && !(await prisma.masterAgreement.findFirst({ where: { vendorId: supplier.id, clientId: companyId }, select: { id: true } }))) {
+      await prisma.masterAgreement.create({ data: { vendorId: supplier.id, clientId: companyId, paymentTerms: 30, ...(agreementHeld ? { signedAt: now } : {}) } })
+    }
+    await prisma.counterparty.upsert({
+      where: { companyId_otherCompanyId_relationship: { companyId, otherCompanyId: supplier.id, relationship: 'SUPPLIER' } },
+      update: { tier: 'APPROVED', status: 'ACTIVE' },
+      create: { companyId, otherCompanyId: supplier.id, relationship: 'SUPPLIER', status: 'ACTIVE', tier: 'APPROVED', createdById: caller.person.id },
+    })
+    // Whether the firm's contact was told it can take its account. Null
+    // where there was nobody to tell: no contact address, or a firm that
+    // already holds its account on Etyme.
+    let claim: { to: string; url: string; state: string; note: string } | null = null
+    let inviteHeld: string | null = null
+    if (row.contactEmail) {
+      const exists = await prisma.companyContact.findFirst({ where: { companyId, atCompanyId: supplier.id, email: row.contactEmail }, select: { id: true } })
+      if (!exists) {
+        await prisma.companyContact.create({
+          data: { companyId, atCompanyId: supplier.id, name: row.contactName ?? row.contactEmail.split('@')[0], email: row.contactEmail, kind: 'RECRUITING', createdById: caller.person.id },
+        })
+      }
+      // A company nobody has said the kind of is never invited to take its
+      // page: the claim link would seat somebody at a company with no
+      // roles. The approval stands; the invitation waits on the Kind, and
+      // the refusal is logged before it is said.
+      const mayInvite = mayInviteRecorded(supplier)
+      if (!mayInvite.ok) {
+        await recordRefusal([{ companyId: supplier.id }], {
+          actorPersonId: caller.person.id,
+          actorCompanyId: companyId,
+          action: 'CONTRACT_VIEW',
+          reason: `Approved ${supplier.name} as a supplier and held its invitation back: ${mayInvite.says}`,
+        })
+        inviteHeld = mayInvite.says
+      }
+      const invite = mayInvite.ok
+        ? await prisma.supplierInvite.upsert({
+            where: { byId_email: { byId: companyId, email: row.contactEmail } },
+            create: { companyId: supplier.id, byId: companyId, email: row.contactEmail, contactName: row.contactName, domain: row.domain, line: null, token: randomBytes(24).toString('base64url') },
+            update: {},
+          })
+        : null
+      // The claim link used to be written here and sent nowhere, so an
+      // approved firm opened its apply link and read only that the link
+      // had done its job. The firm hears that it is approved, with the
+      // link to take its account, the moment Finance says the last yes.
+      if (invite && !supplier.claimedAt && invite.state === 'PENDING') {
+        const out = await sendClaim({ to: row.contactEmail, contactName: row.contactName, firmName: supplier.name, clientName: desk!.companyName, token: invite.token })
+        claim = { to: row.contactEmail, url: claimUrl(invite.token), ...out }
+      }
+    }
+    // ── The firm is on the register, so what four desks verified goes
+    //    on its compliance record ───────────────────────────────────
+    //
+    // The first moment a company id exists. Until now everything the
+    // desks verified lived in a JSON blob nobody downstream reads, so a
+    // firm HR personally cleared on Tuesday was refused a start on
+    // Wednesday for having no cover on file, and the refusal named a
+    // certificate sitting in the onboarding record. Only the items with
+    // the two dates on them become rows; anything a desk verified
+    // without them is reported rather than written, because a
+    // certificate with no expiry passes every check until somebody
+    // audits it.
+    const evidence = verificationsFromChecklist(checklist, supplier.id, { personId: caller.person.id, at: now })
+    const recorded = await recordEvidence(evidence.rows, companyId)
+    const undated = evidence.skipped.filter((sk) => sk.needsDates)
+    // And the ones nothing was written for because no desk here renders
+    // them. The approval is the last moment anybody reads this walk, so
+    // it says what it did not record and whose opinion each one is —
+    // otherwise a firm arrives on the register with a background check
+    // ticked by HR and nothing behind it anywhere.
+    const labelOf = new Map(checklist.map((i) => [i.key, i.label]))
+    const notOurs = evidence.skipped
+      .filter((sk) => !sk.needsDates)
+      .filter((sk) => whoRendersItem(checklist.find((i) => i.key === sk.key) ?? {}) != null)
+      .map((sk) => ({ key: sk.key, label: labelOf.get(sk.key) ?? sk.key, says: sk.says }))
+
+    const updated = await prisma.supplierRequest.update({
+      where: { id },
+      data: { state: 'APPROVED', stage: 'DONE', decidedById: caller.person.id, decidedAt: now, decisionNote: note || null, supplierCompanyId: supplier.id, decisions: [...decisions, decision] as unknown as object },
+    })
+    void notify({
+      personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
+      title: `${row.name} is approved`, body: walk === 'PAPERS'
+        ? `${caller.person.name} checked ${row.name}’s papers. It is your supplier now.`
+        : `${caller.person.name} (Finance) approved ${row.name}, after your lead, Procurement and HR. You can send them a job now.`, data: { href: '/dashboard/suppliers' },
+    })
+    await prisma.automationLog.create({
+      data: {
+        companyId, action: 'SUPPLIER_APPROVED',
+        summary: walk === 'PAPERS'
+          ? `${row.name} became a supplier when ${caller.person.name} checked its papers: the W-9, the insurance, the good standing and the agreement.`
+          : `${row.name} approved as a supplier by ${caller.person.name} (Finance), after the department lead, Procurement and HR.`,
+        reason: `Recommended by ${await nameOf(row.recommendedById)}: ${row.reason}. ${ready.says}`,
+        payload: { requestId: id, supplierCompanyId: supplier.id, checklist: checklist as unknown as object, decisions: [...decisions, decision] as unknown as object },
+        reversible: true,
+      },
+    })
+    return NextResponse.json({
+      data: {
+        request: updated,
+        supplier: { id: supplier.id, name: supplier.name },
+        // Who was written to and whether it left: never the link itself.
+        // The link seats somebody at the supplier, and this reply goes to
+        // the client that approved them (found 2026-11-15).
+        claim: claim ? { to: claim.to, state: claim.state, note: claim.note } : null,
+        inviteHeld,
+        evidence: {
+          recorded,
+          undated: undated.map((sk) => sk.says),
+          notRecorded: notOurs,
+        },
+        says:
+          `${row.name} is a supplier now, at approved standing. Send them a job.` +
+          (namesake ? ` ${namesake}` : '') +
+          (claim
+            ? claim.state === 'SENT'
+              ? ` The link for ${claim.to} to take ${row.name}’s account was handed to the email service. Delivery is not confirmed yet.`
+              : ` The link for ${claim.to} to take ${row.name}’s account did not go out: ${claim.note}`
+            : inviteHeld ? ` ${inviteHeld}` : '') +
+          (recorded > 0
+            ? ` ${recorded === 1 ? 'The certificate' : `All ${recorded} certificates`} your team verified ` +
+              `${recorded === 1 ? 'is' : 'are'} on their compliance record, and the nightly watch will chase ` +
+              `${recorded === 1 ? 'its renewal' : 'the renewals'} before ${recorded === 1 ? 'it runs' : 'they run'} out.`
+            : '') +
+          (undated.length > 0
+            ? ` ${undated.length} verified ${undated.length === 1 ? 'item has' : 'items have'} no dates on ` +
+              `${undated.length === 1 ? 'it' : 'them'}, so ${undated.length === 1 ? 'it is' : 'they are'} not on the ` +
+              `compliance record yet — open the firm's compliance page and add them.`
+            : '') +
+          // Said in full, not counted: the sentence names the party
+          // whose verdict it is, and a desk that reads "1 item was not
+          // recorded" and nothing else is no better off than a desk
+          // that read nothing.
+          (notOurs.length > 0
+            ? ` ${notOurs.map((n) => n.label).join(', ')} ${notOurs.length === 1 ? 'is' : 'are'} not on the ` +
+              `compliance record, because ${notOurs.length === 1 ? 'it is' : 'they are'} not this client's to ` +
+              `render. ${notOurs.map((n) => n.says).join(' ')}`
+            : ''),
+      },
+    })
+  }
+
+  return NextResponse.json({ error: { code: 'VALIDATION', message: 'Approve, decline, mark or resend.' } }, { status: 422 })
+}
+
+async function nameOf(id: string): Promise<string> {
+  return (await prisma.person.findUnique({ where: { id }, select: { name: true } }))?.name ?? 'somebody'
+}
+
+async function freeSlug(name: string): Promise<string> {
+  const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'supplier'
+  for (let i = 0; i < 50; i++) {
+    const slug = i === 0 ? base : `${base}-${i + 1}`
+    if (!(await prisma.company.findUnique({ where: { slug }, select: { id: true } }))) return slug
+  }
+  return `${base}-${randomBytes(3).toString('hex')}`
+}

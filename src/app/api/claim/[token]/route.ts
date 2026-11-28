@@ -1,0 +1,296 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSessionEmail } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { rolesFor } from '@/lib/company-defaults'
+import { companyDomain, mayClaim } from '@/lib/supplier-list'
+import { claimOrJoin } from '@/lib/company-create'
+import { mayClaimRecorded } from '@/lib/counterparty'
+import { recordRefusal } from '@/lib/access-log'
+import { invitedAsOf, claimedAsSays } from './invited-as'
+
+/** What the inviting firm's own register says this company is to it. */
+async function invitedAsFor(invite: { byId: string; companyId: string; company: { kind: string } }) {
+  const rows = await prisma.counterparty.findMany({
+    where: { companyId: invite.byId, otherCompanyId: invite.companyId },
+    select: { relationship: true },
+  })
+  return invitedAsOf({ kind: invite.company.kind, relationships: rows.map((r) => r.relationship) })
+}
+
+/**
+ * GET  /api/claim/:token — who is this invitation for
+ * POST /api/claim/:token — take possession of the supplier record
+ *
+ * A client listed twelve suppliers. Each is a real company record that
+ * nobody has taken possession of yet: it can be sent a role and scored,
+ * but it cannot sign in and the network cannot see it. This is where
+ * somebody at that firm takes it.
+ *
+ * ── Who may claim ────────────────────────────────────────────────────
+ *
+ * The token alone is not enough. Invitations get forwarded, pasted into
+ * group chats and left in shared inboxes, and a token that hands a
+ * stranger a company — with its client relationships and its rates — is
+ * a door with the key taped to it.
+ *
+ * So: the signed-in address must be the one that was invited, or share
+ * its domain. A colleague at the same firm is the ordinary case and is
+ * allowed; anybody else is refused and told to ask for their own.
+ */
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params
+
+  const invite = await prisma.supplierInvite.findUnique({
+    where: { token },
+    include: {
+      company: { select: { id: true, name: true, claimedAt: true, kind: true } },
+      by: { select: { name: true } },
+    },
+  })
+
+  if (!invite || invite.state === 'REVOKED') {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'That link is not valid any more.' } },
+      { status: 404 }
+    )
+  }
+
+  const email = await getSessionEmail()
+
+  // How many roles are already waiting for them. It is the whole reason
+  // to bother signing in, so it is the first thing the page can say.
+  const [waiting, invitedAs] = await Promise.all([
+    prisma.requirementInvitation.count({
+      where: { toCompanyId: invite.companyId, status: { in: ['SENT', 'ACCEPTED'] } },
+    }),
+    invitedAsFor(invite),
+  ])
+  // A company nobody has said the kind of cannot be taken: it has no
+  // roles to seat anybody in. The page says so and offers no door.
+  const ready = mayClaimRecorded({ name: invite.company.name, kind: invite.company.kind })
+
+  return NextResponse.json({
+    data: {
+      company: invite.company.name,
+      invitedBy: invite.by.name,
+      invitedEmail: invite.email,
+      contactName: invite.contactName,
+      alreadyClaimed: invite.company.claimedAt != null || invite.state === 'ACCEPTED',
+      rolesWaiting: waiting,
+      signedInAs: email,
+      mayClaim: ready.ok ? (email ? mayClaim(email, invite.email) : null) : false,
+      // Why this link cannot be taken yet, in a sentence, or null.
+      notReady: ready.ok ? null : ready.says,
+      // A client a supplier invited reads its own line; a supplier does not
+      // approve its client. Read from the inviting firm's register first.
+      invitedAs,
+    },
+  })
+}
+
+export async function POST(
+  _request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params
+  const email = await getSessionEmail()
+
+  if (!email) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Sign in with your work address first, then open this link again.',
+        },
+      },
+      { status: 401 }
+    )
+  }
+
+  const invite = await prisma.supplierInvite.findUnique({
+    where: { token },
+    include: { company: { select: { id: true, name: true, domain: true, claimedAt: true, kind: true } } },
+  })
+
+  if (!invite || invite.state === 'REVOKED') {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'That link is not valid any more.' } },
+      { status: 404 }
+    )
+  }
+
+  // Never seat anybody at a company with no roles, and never read it as
+  // a supplier: the firm that sent the link sets its kind first.
+  const ready = mayClaimRecorded({ name: invite.company.name, kind: invite.company.kind })
+  if (!ready.ok) {
+    const who = await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true } })
+    await recordRefusal([{ companyId: invite.companyId }], {
+      ...(who ? { actorPersonId: who.id } : {}),
+      action: 'CONTRACT_VIEW',
+      reason: `Refused a claim link for ${invite.company.name}: ${ready.says}`,
+    })
+    return NextResponse.json({ error: { code: 'NOT_CLASSIFIED', message: ready.says } }, { status: 409 })
+  }
+
+  if (!mayClaim(email, invite.email)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOURS',
+          message:
+            `This invitation was sent to ${invite.email}. Sign in with that address, ` +
+            `or ask them to invite you from inside ${invite.company.name}.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  const person =
+    (await prisma.person.findUnique({ where: { primaryEmail: email }, select: { id: true, name: true } })) ??
+    (await prisma.person.create({
+      data: { name: invite.contactName ?? email.split('@')[0], primaryEmail: email },
+    }))
+
+  // Already in? Say so and send them on. Somebody clicking the link twice
+  // should land in the same place, not be told off.
+  const seat = await prisma.context.findFirst({
+    where: { personId: person.id, companyId: invite.companyId, revokedAt: null },
+    select: { id: true },
+  })
+
+  if (seat) {
+    return NextResponse.json({
+      data: { companyId: invite.companyId, company: invite.company.name, already: true, landing: '/dashboard' },
+    })
+  }
+
+  // A firm already on Etyme is found, never founded again (onboarding
+  // walk, 2026-10-27): where the person taking the link already runs a
+  // firm on the same domain, the client's record of it is folded into
+  // that firm and nobody is seated on the record. A join that could not
+  // be made safely changes nothing and says who settles it.
+  const join = await claimOrJoin(token, { personId: person.id, email })
+  if (join.kind === 'JOINED') {
+    return NextResponse.json({
+      data: { companyId: join.companyId, company: join.company, joined: true, says: join.says, landing: '/dashboard' },
+    })
+  }
+  if (join.kind === 'REFUSED') {
+    return NextResponse.json({ error: { code: 'NOT_JOINED', message: join.says } }, { status: 409 })
+  }
+
+  // A shell has no roles, because nobody has ever signed in to it. The
+  // first person through the door gets the owner's seat and the rest of
+  // the roles are created alongside it — a company whose only role is
+  // Owner can offer a colleague total control or nothing.
+  const existingRoles = await prisma.role.findMany({
+    where: { companyId: invite.companyId },
+    select: { id: true, name: true },
+  })
+
+  // The roles of the kind of firm being claimed. A client a supplier
+  // invited is seated in the client's own roles: a supplier's Recruiter
+  // and AP & Payroll mean nothing at a firm that only buys.
+  const kindRoles = rolesFor(invite.company.kind)
+
+  const roles = existingRoles.length
+    ? existingRoles
+    : await Promise.all(
+        kindRoles.map((r) =>
+          prisma.role.create({
+            data: {
+              companyId: invite.companyId,
+              name: r.name,
+              permissions: r.permissions as string[],
+              isDefault: r.isOwner ?? false,
+            },
+            select: { id: true, name: true },
+          })
+        )
+      )
+
+  const ownerName = kindRoles.find((r) => r.isOwner)?.name
+  const owner = roles.find((r) => r.name === ownerName) ?? roles[0]
+  // A company with no roles seats nobody. Said, never a crash.
+  if (!owner) {
+    const says = `${invite.company.name} has no roles yet, so this link cannot seat you there. Ask the firm that sent it to set what kind of company it is, then open the link again.`
+    await recordRefusal([{ companyId: invite.companyId }], { actorPersonId: person.id, action: 'CONTRACT_VIEW', reason: `Refused a claim link: ${says}` })
+    return NextResponse.json({ error: { code: 'NOT_CLASSIFIED', message: says } }, { status: 409 })
+  }
+  const invitedAs = await invitedAsFor(invite)
+
+  const domain = companyDomain(email)
+
+  // ── The domain, only if nobody else holds it ────────────────────────
+  //
+  // Company.domain is globally unique, and the same firm can be listed
+  // by two different clients — two shells, one Apex Softech. The first
+  // person to claim takes the domain; the second would collide and get
+  // a 500 for doing nothing wrong.
+  //
+  // So the second claim goes through without the domain, and says so.
+  // Joining them into one company is a merge, and a merge that happens
+  // silently at sign-in is how a firm loses its history.
+  const domainHeldBy =
+    domain && invite.company.domain == null
+      ? await prisma.company.findFirst({
+          where: { domain, id: { not: invite.companyId } },
+          select: { id: true, name: true },
+        })
+      : null
+
+  const takeDomain = domain != null && invite.company.domain == null && domainHeldBy == null
+
+  await prisma.$transaction([
+    prisma.context.create({
+      data: {
+        personId: person.id,
+        companyId: invite.companyId,
+        roleId: owner.id,
+        type: 'EMPLOYEE',
+        grantReason: claimedAsSays(invitedAs, invite.byId),
+      },
+    }),
+    prisma.company.update({
+      where: { id: invite.companyId },
+      data: {
+        claimedAt: new Date(),
+        // What the firm that recorded this company typed about it is its note, never this company's answer (review, 2026-11-13).
+        website: null, entityType: null,
+        // Only where the record had none and nobody else holds it. A
+        // domain that came from a paste is a guess; one that came from
+        // the person who signed in is at least their own address.
+        // Verification stays where it is — the OAuth tenant is the
+        // authority and this is not it.
+        ...(takeDomain ? { domain } : {}),
+      },
+    }),
+    prisma.supplierInvite.update({
+      where: { id: invite.id },
+      data: { state: 'ACCEPTED', acceptedAt: new Date(), acceptedById: person.id },
+    }),
+  ])
+
+  return NextResponse.json({
+    data: {
+      companyId: invite.companyId,
+      company: invite.company.name,
+      already: false,
+      // Said out loud rather than swallowed. Somebody has to decide
+      // whether these are one firm, and it is not us at sign-in.
+      alsoHere: domainHeldBy
+        ? `Another record for ${domainHeldBy.name} is already here on the same ` +
+          `domain. This one stays separate until somebody joins them.`
+        : null,
+      // A new owner opens setup at "How you work", whichever door they
+      // signed in by — the password claim already did (sign-up walk,
+      // round two).
+      landing: '/setup',
+    },
+  })
+}

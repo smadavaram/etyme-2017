@@ -1,0 +1,392 @@
+import { isMasked, lastFourOf, masked, openFromForm, taxIdToWrite } from '@/lib/sensitive'
+import { joinSentenceFor } from '@/lib/join-words'
+import { recordIdentityEvent } from '@/lib/identity/ledger'
+import { needsVerifiedOwnerAt } from '@/lib/owner-proof'
+import { companyPolicy } from '@/lib/identity/read'
+import { NextRequest, NextResponse } from 'next/server'
+import { bankChange } from '@/lib/money/remit-change'
+import { recordBankWrite } from '@/app/api/settings/remit-to/bank-log'
+import { randomBytes } from 'crypto'
+import { prisma } from '@/lib/db'
+import { setupDoor, refused } from '../door'
+import { readSetup } from '../read'
+import { txt } from './dns'
+import { recordItem, recordAnswers, type AnswerToRecord } from '@/lib/setup-checklist-state'
+import {
+  ENTITY_TYPES, DUTIES, plainYear, plainWebsite, plainEin, plainEmail, lastFour, checkItemAnswer,
+  type ItemKey, type AnswerSource, type Duty,
+} from '@/lib/setup-checklist'
+import { knownCurrency, countryFromTyped } from '@/lib/setup-steps'
+import { timeZoneFromTyped, postalFromTyped } from '@/lib/site-rules'
+import { defaultRequiredSets, PARTIES_OF } from '@/lib/document-stages/required-sets'
+import { CANNOT_BE_WAIVED, mayWaive, owedByFor, PARTY_OF_SHAPE, type LineShape } from '@/lib/document-requirements'
+import { builtInType } from '@/lib/document-type'
+import { canClaim } from '@/lib/company-domains'
+import { verificationRecord } from '@/lib/domains-owned'
+import { checkTeamsLink } from '@/lib/notify/teams-link'
+
+/**
+ * PUT /api/settings/setup/<item> — "Save and continue" on one checklist
+ * item: its answers written where they live, where each came from
+ * recorded with who and when, and the item recorded done.
+ *
+ * Every answer is the company's own: nothing here reads another company,
+ * and nothing is fetched from outside but the one DNS record a company
+ * publishes to prove its domain. A value read from a paper arrives here
+ * only on a person's press of Save, with the words it was read from; the
+ * reader (`/api/settings/setup/read-paper`) never writes.
+ */
+
+const ITEM_OF_PATH: Record<string, ItemKey> = {
+  company: 'COMPANY',
+  addresses: 'ADDRESSES',
+  'people-in-charge': 'PEOPLE_IN_CHARGE',
+  papers: 'PAPERS',
+  bank: 'BANK',
+  domain: 'DOMAIN',
+  integrations: 'INTEGRATIONS',
+}
+
+const SOURCES: readonly AnswerSource[] = ['DOMAIN', 'PAPER', 'IMPORT', 'PERSON']
+const str = (v: unknown, max = 200) => String(v ?? '').trim().slice(0, max)
+
+/** Where the screen says an answer came from; anything else is a person's. */
+function sourceOf(body: any, field: string): AnswerToRecord {
+  const s = body?.sources?.[field]
+  const source: AnswerSource = SOURCES.includes(s?.source) ? s.source : 'PERSON'
+  const quote = source === 'PERSON' ? null : str(s?.quote, 300) || null
+  // A tax ID's quote is kept masked: the words it was read from are the number.
+  return { field, source, quote: field === 'taxId' ? masked(lastFourOf(quote)) : quote }
+}
+
+export async function PUT(request: NextRequest, { params }: { params: { item: string } }) {
+  const door = await setupDoor(request, 'Answering the setup checklist')
+  if (door.error) return door.error
+  const item = ITEM_OF_PATH[params.item]
+  const company = door.caller.company
+  if (!item) return refused('That is not one of the setup items.', 404)
+  const allowed = checkItemAnswer(company.kind, item, 'DONE')
+  if (!allowed.ok) return refused(allowed.says)
+  const body = await request.json().catch(() => ({}))
+  const said = await SAVE[item]!(company, door.personId, body)
+  if (!said.ok) return refused(said.says, 422, said.href)
+  if (said.done !== false) await recordItem(company.id, door.personId, item, 'DONE')
+  if (said.answers?.length) await recordAnswers(company.id, door.personId, said.answers)
+  const data = await readSetup(company.id, { personId: door.personId, email: door.caller.person.primaryEmail })
+  return NextResponse.json({ data: { ...data, says: said.says ?? null } })
+}
+
+type Saved = { ok: true; answers?: AnswerToRecord[]; says?: string; done?: boolean } | { ok: false; says: string; href?: string }
+type Co = { id: string; name: string; kind: string }
+
+const SAVE: Partial<Record<ItemKey, (c: Co, by: string, body: any) => Promise<Saved>>> = {
+  // ── Your company ───────────────────────────────────────────────────
+  async COMPANY(c, by, body) {
+    const legalName = str(body.legalName)
+    if (!legalName) return { ok: false, says: 'Type the legal name, the one on your tax registration, or press Skip for now.' }
+    const entityType = str(body.entityType)
+    if (entityType && !ENTITY_TYPES.includes(entityType)) return { ok: false, says: `Choose the kind of company from the list: ${ENTITY_TYPES.join(', ')}.` }
+    const year = str(body.establishedYear) ? plainYear(body.establishedYear) : null
+    if (str(body.establishedYear) && !year) return { ok: false, says: 'Type the year the company was established, as four digits.' }
+    const website = str(body.website) ? plainWebsite(body.website) : null
+    if (str(body.website) && !website) return { ok: false, says: 'Type the website as an address, like company.example.' }
+    // A tax ID is written sealed and never whole (record 99, lib/sensitive).
+    // The box comes back masked, or empty, when nobody changed it: that
+    // keeps the number on file. A number read off her W-9 comes back
+    // sealed for this company (`taxIdFromPaper`), never as digits.
+    const fromPaper = openFromForm(c.id, body.taxIdFromPaper)
+    const typed = fromPaper ?? (str(body.taxId) && !isMasked(body.taxId) ? (plainEin(body.taxId) ?? str(body.taxId, 40)) : null)
+    const taxIdWrite = typed ? taxIdToWrite(typed) : null
+    if (taxIdWrite && !taxIdWrite.ok) return { ok: false, says: taxIdWrite.says }
+    const currency = str(body.currency) ? knownCurrency(body.currency) : null
+    if (str(body.currency) && !currency) return { ok: false, says: 'Type the currency as three letters, like USD.' }
+    const before = await prisma.company.findUniqueOrThrow({
+      where: { id: c.id },
+      select: { legalName: true, dba: true, entityType: true, establishedYear: true, website: true, phone: true, taxId: true, taxIdLast4: true, currency: true },
+    })
+    // The Time zone box is the primary site's: read and written on the
+    // same site the screen read it from (fix list G5). A zone nothing
+    // knows is refused in a sentence; an empty box clears it; a company
+    // with no site at all is told where to add one, never dropped silently.
+    const tzSite = await prisma.companyLocation.findFirst({ where: { companyId: c.id }, orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }], select: { id: true, timeZone: true } })
+    const typedZone = 'timeZone' in body ? timeZoneFromTyped(body.timeZone) : null
+    if (typedZone && !typedZone.ok) return { ok: false, says: typedZone.says }
+    const tz = typedZone?.ok ? typedZone.zone : null
+    if (tz && !tzSite) return { ok: false, says: 'A time zone belongs to a site, and this company has none yet. Add one under Settings → Sites first.', href: '/dashboard/settings/sites' }
+    await prisma.company.update({
+      where: { id: c.id },
+      data: {
+        legalName, dba: str(body.dba) || null, entityType: entityType || null, establishedYear: year,
+        website, phone: str(body.phone, 40) || null, ...(taxIdWrite?.ok ? taxIdWrite.data : {}), ...(currency ? { currency } : {}),
+      },
+    })
+    if (typedZone && tzSite && (tzSite.timeZone ?? null) !== tz) {
+      await prisma.companyLocation.update({ where: { id: tzSite.id }, data: { timeZone: tz } })
+    }
+    const after: Record<string, unknown> = { legalName, dba: str(body.dba) || null, entityType: entityType || null, establishedYear: year, website, phone: str(body.phone, 40) || null, taxId: taxIdWrite?.ok ? taxIdWrite.data.taxIdLast4 : lastFourOf(before.taxIdLast4 ?? before.taxId), currency: currency ?? before.currency, timeZone: tz || null }
+    const was: Record<string, unknown> = { ...before, taxId: lastFourOf(before.taxIdLast4 ?? before.taxId), timeZone: tzSite?.timeZone ?? null }
+    const fields = ['legalName', 'dba', 'entityType', 'establishedYear', 'website', 'phone', 'taxId', 'currency', 'timeZone']
+      .filter((f) => (f === 'taxId' ? Boolean(typed) : str(body[f])))
+    return { ok: true, answers: await keepWhereUnchanged(c.id, fields.map((f) => sourceOf(body, f)), (f) => String(was[f] ?? '') === String(after[f] ?? '')) }
+  },
+
+  // ── Addresses ──────────────────────────────────────────────────────
+  async ADDRESSES(c, by, body) {
+    const legalRead = address(body.legal)
+    if (!legalRead.ok) return { ok: false, says: `Legal address: ${legalRead.says}` }
+    const legal = legalRead.address
+    if (!legal.street || !legal.city) return { ok: false, says: 'Type the street and the city of your legal address, or press Skip for now.' }
+    const same = body.billingSameAsLegal !== false
+    const billingRead = same ? null : address(body.billing)
+    if (billingRead && !billingRead.ok) return { ok: false, says: `Billing address: ${billingRead.says}` }
+    const billing = billingRead?.ok ? billingRead.address : null
+    if (!same && (!billing?.street || !billing?.city)) return { ok: false, says: 'Type the street and the city of your billing address, or tick “Same as the legal address”.' }
+    const at = new Date()
+    await prisma.companyAddress.upsert({
+      where: { companyId_kind: { companyId: c.id, kind: 'LEGAL' } },
+      create: { companyId: c.id, kind: 'LEGAL', ...legal, recordedById: by, recordedAt: at },
+      update: { ...legal, recordedById: by, recordedAt: at },
+    })
+    if (!same) {
+      await prisma.companyAddress.upsert({
+        where: { companyId_kind: { companyId: c.id, kind: 'BILLING' } },
+        create: { companyId: c.id, kind: 'BILLING', ...billing!, recordedById: by, recordedAt: at },
+        update: { ...billing!, recordedById: by, recordedAt: at },
+      })
+    }
+    await prisma.company.update({ where: { id: c.id }, data: { billingSameAsLegal: same } })
+    const fields = ['legal.street', 'legal.city', 'legal.state', 'legal.postalCode']
+    return { ok: true, answers: fields.filter((f) => str(body.legal?.[f.split('.')[1]])).map((f) => sourceOf(body, f)) }
+  },
+
+  // ── The people in charge ───────────────────────────────────────────
+  async PEOPLE_IN_CHARGE(c, by, body) {
+    const seats = await prisma.context.findMany({
+      where: { companyId: c.id, type: 'EMPLOYEE', revokedAt: null },
+      select: { personId: true, person: { select: { name: true, primaryEmail: true } } },
+    })
+    const rows: { duty: Duty; personId: string | null; name: string | null; email: string | null; invitedAt: Date | null }[] = []
+    for (const d of Array.isArray(body.duties) ? body.duties : []) {
+      if (!DUTIES.includes(d?.duty)) continue
+      const personId = str(d.personId)
+      if (personId) {
+        const seat = seats.find((s) => s.personId === personId)
+        if (!seat) return { ok: false, says: 'Pick somebody seated at this company, or type a name and an email to invite them.' }
+        rows.push({ duty: d.duty, personId, name: seat.person.name, email: seat.person.primaryEmail, invitedAt: null })
+        continue
+      }
+      const name = str(d.name)
+      const email = str(d.email) ? plainEmail(d.email) : null
+      if (!name && !str(d.email)) continue
+      if (!name || !email) return { ok: false, says: `Type both a name and a work email for the ${d.duty === 'HR' ? 'HR' : d.duty === 'OWNER' ? 'owner' : 'billing contact'}.` }
+      // Invited from this screen through Users & permissions' own door: the
+      // seat it made is the proof, never the screen's word for it.
+      const invited = seats.find((s) => s.person.primaryEmail.toLowerCase() === email)
+      rows.push({ duty: d.duty, personId: invited?.personId ?? null, name, email, invitedAt: invited ? new Date() : null })
+    }
+    const accounts = str(body.accountsEmail) ? plainEmail(body.accountsEmail) : null
+    if (str(body.accountsEmail) && !accounts) return { ok: false, says: 'Type the accounts email as an address, like accounts@company.example.' }
+    const at = new Date()
+    for (const r of rows) {
+      await prisma.companyInCharge.upsert({
+        where: { companyId_duty: { companyId: c.id, duty: r.duty } },
+        create: { companyId: c.id, ...r, recordedById: by, recordedAt: at },
+        update: { ...r, recordedById: by, recordedAt: at },
+      })
+    }
+    await prisma.company.update({ where: { id: c.id }, data: { accountsEmail: accounts } })
+    return { ok: true, answers: accounts ? [sourceOf(body, 'accountsEmail')] : [] }
+  },
+
+  // ── Papers you require ─────────────────────────────────────────────
+  async PAPERS(c, by, body) {
+    const parties = PARTIES_OF[c.kind] ?? PARTIES_OF.VENDOR
+    const defaults = defaultRequiredSets(c.kind)
+    const sets = Array.isArray(body.sets) ? body.sets : []
+    if (sets.length === 0) return { ok: false, says: 'Confirm at least one party’s papers, or press Skip for now.' }
+    const writes: { party: string; rows: any[] }[] = []
+    for (const s of sets) {
+      if (!parties.includes(s?.party)) return { ok: false, says: 'That party is not one this company asks papers of.' }
+      const shipped = defaults.find((d) => d.party === s.party)!
+      const shape = (Object.entries(PARTY_OF_SHAPE).find(([, p]) => p === s.party)![0]) as LineShape
+      const rows: any[] = []
+      for (const i of Array.isArray(s.items) ? s.items : []) {
+        const key = str(i?.key, 60)
+        const known = shipped.items.find((x) => x.key === key)
+        const type = builtInType(key)
+        if (!known && !type) return { ok: false, says: `${key || 'That paper'} is not a paper Etyme knows. Add it under Settings, Documents, first.` }
+        const reason = str(i?.waivedReason, 300)
+        if (reason || i?.waived === true) {
+          const v = mayWaive(key, reason, (k) => builtInType(k)?.label ?? k)
+          if (!v.ok) return { ok: false, says: v.says }
+        }
+        const floor = CANNOT_BE_WAIVED.includes(key)
+        rows.push({
+          companyId: c.id,
+          party: s.party,
+          documentTypeKey: key,
+          required: floor ? true : i?.required !== false,
+          owedBy: known?.owedBy ?? owedByFor(type!, shape),
+          ...(reason ? { waivedReason: reason, waivedById: by, waivedAt: new Date() } : {}),
+        })
+      }
+      // A confirmed set always holds the floor nobody may drop.
+      for (const key of CANNOT_BE_WAIVED) {
+        const k = shipped.items.find((x) => x.key === key)
+        if (k && !rows.some((r) => r.documentTypeKey === key)) {
+          rows.push({ companyId: c.id, party: s.party, documentTypeKey: key, required: true, owedBy: k.owedBy })
+        }
+      }
+      writes.push({ party: s.party, rows })
+    }
+    await prisma.$transaction(async (tx) => {
+      for (const w of writes) {
+        await tx.documentRequirement.deleteMany({ where: { companyId: c.id, party: w.party as any } })
+        if (w.rows.length) await tx.documentRequirement.createMany({ data: w.rows })
+      }
+    })
+    const confirmed = await prisma.documentRequirement.findMany({ where: { companyId: c.id, party: { not: null } }, select: { party: true }, distinct: ['party'] })
+    const all = parties.every((p) => confirmed.some((x) => x.party === p))
+    return { ok: true, done: all, says: all ? undefined : 'Saved. Confirm the other parties’ papers to finish this item.' }
+  },
+
+  // ── Bank details ───────────────────────────────────────────────────
+  async BANK(c, by, body) {
+    // Bank details wait for a verified Owner at a company formed under the
+    // proof rule (2026-11-12), in the gate's own sentence.
+    const gate = await needsVerifiedOwnerAt(c.id, 'BANK')
+    if (!gate.ok) return { ok: false, says: gate.says, href: gate.href }
+    const bankName = str(body.bankName, 120)
+    const accountName = str(body.accountName, 200)
+    const last4 = lastFour(body.accountNumber ?? body.last4)
+    const routing4 = str(body.routingNumber ?? body.routingLast4) ? lastFour(body.routingNumber ?? body.routingLast4) : null
+    if (!bankName || !accountName || !last4) {
+      return { ok: false, says: 'Type the bank, the name on the account and at least the last four digits of the account, or press Skip for now.' }
+    }
+    const [co, legal, existing] = await Promise.all([
+      prisma.company.findUniqueOrThrow({ where: { id: c.id }, select: { name: true, legalName: true, country: true, taxIdSealed: true, taxIdLast4: true } }),
+      prisma.companyAddress.findUnique({ where: { companyId_kind: { companyId: c.id, kind: 'LEGAL' } } }),
+      prisma.remitTo.findFirst({ where: { companyId: c.id }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
+    ])
+    // A change to the bank, the account name, the last four or the routing
+    // is checked again before anybody pays (`bankChange`, money's one rule).
+    const change = bankChange(existing ? { ...existing, accountName: existing.accountName ?? existing.legalName } : null, {
+      bankName, accountName, accountLast4: last4, ...(routing4 ? { routingLast4: routing4 } : {}),
+    })
+    const data = {
+      bankName, accountName, accountLast4: last4, ...(routing4 ? { routingLast4: routing4 } : {}),
+      enteredById: by, enteredAt: new Date(),
+      ...(change.cleared ? change.data : {}),
+    }
+    const saved = existing
+      ? await prisma.remitTo.update({ where: { id: existing.id }, data })
+      : await prisma.remitTo.create({
+        data: {
+          companyId: c.id, legalName: co.legalName ?? co.name, isDefault: true, country: legal?.country ?? co.country ?? 'US',
+          addressLines: legal ? [legal.street, [legal.city, legal.state, legal.postalCode].filter(Boolean).join(', ')].filter((x): x is string => !!x) : [],
+          taxIdSealed: co.taxIdSealed, taxIdLast4: co.taxIdLast4, ...data,
+        },
+      })
+    // The same row Settings → Payment details writes: the bank, the
+    // account name and four digits, never undone from the log. A save
+    // that changed nothing a payer checked leaves no row.
+    if (!existing || change.cleared) {
+      const who = await prisma.person.findUniqueOrThrow({ where: { id: by }, select: { name: true } })
+      await recordBankWrite({
+        companyId: c.id, remitToId: saved.id, legalName: saved.legalName, byName: who.name, added: !existing, madeDefault: !existing, door: 'SETUP',
+        after: saved, change,
+      })
+    }
+    return { ok: true, answers: [{ field: 'bank', source: 'PERSON' }], says: existing && change.cleared ? change.says : undefined }
+  },
+
+  // ── Your domain ────────────────────────────────────────────────────
+  async DOMAIN(c, by, body) {
+    if (body.action === 'CHECK') {
+      const claim = await prisma.companyDomain.findFirst({ where: { id: str(body.id, 60), companyId: c.id } })
+      if (!claim || !claim.proofToken) return { ok: false, says: 'There is no domain waiting for a check here.' }
+      if (claim.verifiedAt) return { ok: true, says: `${claim.domain} is verified.` }
+      const record = verificationRecord(claim.domain, claim.proofToken)
+      let found = false
+      try {
+        found = (await txt.resolve(record.name)).map((ch) => ch.join('')).includes(record.value)
+      } catch {
+        found = false
+      }
+      if (!found) return { ok: true, done: false, says: `Not yet. Nothing matching is published at ${record.name}. DNS usually takes a few minutes, sometimes an hour.` }
+      await prisma.companyDomain.update({ where: { id: claim.id }, data: { verifiedAt: new Date(), verifiedVia: 'DNS_TXT' } })
+      // In the identity ledger: a verified domain is what a sign-in policy
+      // applies on (founder, 2026-11-11).
+      await recordIdentityEvent({
+        event: 'DOMAIN_VERIFIED', companyId: c.id, actorPersonId: by, subject: { companyId: c.id },
+        policy: (await companyPolicy(c.id)).effective, surface: 'WEB',
+        says: `${claim.domain} was verified for ${c.name} by its DNS record.`,
+      })
+      const co = await prisma.company.findUniqueOrThrow({ where: { id: c.id }, select: { domain: true } })
+      if (!co.domain) await prisma.company.update({ where: { id: c.id }, data: { domain: claim.domain, domainVerified: true } })
+      // How people join now is the join sentence's, never a promise of its
+      // own: an invitation-only company, or a domain that asks first, does
+      // not let colleagues in by signing in.
+      const joins = await joinSentenceFor(c.id).catch(() => null)
+      return { ok: true, says: `${claim.domain} is verified.${joins ? ` ${joins}` : ''}` }
+    }
+    const domain = str(body.domain, 120).toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
+    const elsewhere = await prisma.companyDomain.findUnique({ where: { domain }, select: { companyId: true, company: { select: { name: true } }, verifiedAt: true, joinPolicy: true } })
+    if (elsewhere?.companyId === c.id) return { ok: true, done: false, says: `${domain} is already claimed here. Publish the record, then check.` }
+    const verdict = canClaim(domain, elsewhere ? { domain, companyId: elsewhere.companyId, companyName: elsewhere.company.name, verified: !!elsewhere.verifiedAt, joinPolicy: elsewhere.joinPolicy as any } : undefined, false)
+    if (!verdict.ok) return { ok: false, says: verdict.reason }
+    await prisma.companyDomain.create({
+      data: { companyId: c.id, domain, proofToken: randomBytes(18).toString('base64url'), joinPolicy: 'REQUEST', addedById: by },
+    })
+    return { ok: true, done: false, says: verdict.reason }
+  },
+
+  // ── Integrations ───────────────────────────────────────────────────
+  async INTEGRATIONS(c, by, body) {
+    const check = checkTeamsLink(body.teamsWebhookUrl ?? null)
+    if (!check.ok) return { ok: false, says: check.message }
+    await prisma.company.update({ where: { id: c.id }, data: { teamsWebhookUrl: check.url } })
+    return { ok: true }
+  },
+}
+
+/**
+ * Where a value was left as it stood, its answer keeps where it came from
+ * and who gave it: a currency guessed from the work email's domain at
+ * sign-up does not turn into "Typed by" because somebody pressed Save on
+ * the screen beside it. A value that changed, or one with no answer yet,
+ * is recorded as the screen says.
+ */
+async function keepWhereUnchanged(companyId: string, answers: AnswerToRecord[], unchanged: (field: string) => boolean): Promise<AnswerToRecord[]> {
+  const held = await prisma.setupAnswer.findMany({ where: { companyId, field: { in: answers.map((a) => a.field) } }, select: { field: true, source: true } })
+  return answers.filter((a) => {
+    const prior = held.find((h) => h.field === a.field)
+    // A paper or a file read again on purpose is always recorded anew.
+    if (!prior || a.source !== 'PERSON') return true
+    return !unchanged(a.field)
+  })
+}
+
+/**
+ * A legal or billing address as typed. The country is a code or a name and
+ * the ZIP is kept as typed, each refused in a sentence rather than cut
+ * (fix list A5, 2026-11-15); an empty country is the United States, as before.
+ */
+function address(a: any):
+  | { ok: true; address: { street: string | null; city: string | null; state: string | null; postalCode: string | null; country: string } }
+  | { ok: false; says: string } {
+  const country = countryFromTyped(a?.country)
+  if (!country.ok) return { ok: false, says: country.says }
+  const postal = postalFromTyped(a?.postalCode)
+  if (!postal.ok) return { ok: false, says: postal.says }
+  return {
+    ok: true,
+    address: {
+      street: str(a?.street) || null,
+      city: str(a?.city, 120) || null,
+      state: str(a?.state, 60) || null,
+      postalCode: postal.code,
+      country: country.code ?? 'US',
+    },
+  }
+}

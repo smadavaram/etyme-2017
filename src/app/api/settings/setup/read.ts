@@ -1,0 +1,272 @@
+import { taxIdShown, masked, lastFourOf } from '@/lib/sensitive'
+import { OWNER_ROLE } from '@/lib/owner-rules'
+/**
+ * Everything the setup checklist draws, in one read: the list, and each
+ * item's body with its defaults filled and where every answer came from.
+ *
+ * Split from the route so the integration test reads the same answer the
+ * screen does.
+ */
+import { prisma } from '@/lib/db'
+import { ownerOnlyLine } from '@/lib/owner-gate'
+import {
+  ITEM_WORDS, itemsFor, sourceWords, itemStamp, ITEM_SLUG, bankWords, bankStanding, inviteRoleFor, DUTIES, DUTY_WORDS,
+  type ItemKey, type AnswerSource, type Duty,
+} from '@/lib/setup-checklist'
+import { checklistOf, setupReminderFor } from '@/lib/setup-checklist-state'
+import { fromWorkEmail } from '@/lib/setup-fill'
+import { defaultRequiredSets, type Party } from '@/lib/document-stages/required-sets'
+import { asksPayroll, noPayrollLine, countryName } from '@/lib/setup-steps'
+import { skipStops as siteSkipStops, confirmAllWords, sitePlace } from '@/lib/site-rules'
+import { verificationRecord } from '@/lib/domains-owned'
+import { teamsLinkStanding } from '@/lib/notify/teams-link'
+import { intakeLive } from '@/lib/email-intake/live'
+import { intakeStateFor } from '@/lib/email-intake/settings'
+import { readCompanySeats, peopleOf, countSeats, peopleWords, seatTotal } from '@/lib/company-seats'
+import { joinSentenceFor } from '@/lib/join-words'
+import { forwardingView, WHY, keptLine, RECIPES, CONSOLE_NOTE, NARROW, REPLACE_LINE, checkLine } from '@/lib/setup-forwarding'
+
+async function isOwnerHere(companyId: string, personId: string): Promise<boolean> {
+  const seat = await prisma.context.findFirst({ where: { companyId, personId, revokedAt: null, suspendedAt: null, role: { name: OWNER_ROLE } }, select: { id: true } })
+  return seat !== null
+}
+
+export async function readSetup(companyId: string, reader: { personId: string; email: string }) {
+  const c = await prisma.company.findUniqueOrThrow({
+    where: { id: companyId },
+    select: {
+      id: true, name: true, slug: true, kind: true, domain: true, domainVerified: true, country: true, currency: true, entityType: true, taxId: true, taxIdLast4: true,
+      legalName: true, dba: true, establishedYear: true, website: true, logoUrl: true, phone: true,
+      billingSameAsLegal: true, accountsEmail: true, teamsWebhookUrl: true, isDemo: true,
+    },
+  })
+  // The intake's own state: the switch and the address's last four
+  // characters, never the address. Read only where the deployment is open.
+  const open = intakeLive()
+  const intake = open ? await intakeStateFor(companyId) : null
+  const [{ checklist, record, facts }, reminder, answers, addresses, sites, inCharge, seats, papers, remit, domains, headcount, joins] = await Promise.all([
+    checklistOf(companyId),
+    setupReminderFor(companyId, { mayRun: true }),
+    prisma.setupAnswer.findMany({ where: { companyId } }),
+    prisma.companyAddress.findMany({ where: { companyId } }),
+    prisma.companyLocation.findMany({
+      where: { companyId }, orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+      select: { id: true, name: true, address: true, city: true, state: true, postalCode: true, country: true, timeZone: true, isPrimary: true },
+    }),
+    prisma.companyInCharge.findMany({ where: { companyId } }),
+    prisma.context.findMany({
+      where: { companyId, type: 'EMPLOYEE', revokedAt: null },
+      select: { personId: true, person: { select: { name: true, primaryEmail: true } }, role: { select: { name: true } } },
+      orderBy: { grantedAt: 'asc' },
+      take: 200,
+    }),
+    prisma.documentRequirement.findMany({
+      where: { companyId, party: { not: null } },
+      select: { party: true, documentTypeKey: true, required: true, waivedReason: true },
+    }),
+    prisma.remitTo.findFirst({ where: { companyId }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
+    prisma.companyDomain.findMany({ where: { companyId }, orderBy: { createdAt: 'asc' } }),
+    // The company's people, counted by the one reader every screen uses.
+    readCompanySeats(companyId).then((all) => countSeats(peopleOf(all))),
+    joinSentenceFor(companyId),
+  ])
+
+  // Names for every "who": answers, items, the bank, the people in charge.
+  const ids = new Set<string>()
+  for (const a of answers) if (a.answeredById) ids.add(a.answeredById)
+  for (const r of Object.values(record)) if (r?.byId) ids.add(r.byId)
+  if (remit?.enteredById) ids.add(remit.enteredById)
+  if (remit?.verifiedById) ids.add(remit.verifiedById)
+  const people = ids.size ? await prisma.person.findMany({ where: { id: { in: [...ids] } }, select: { id: true, name: true } }) : []
+  const nameOf = (id: string | null | undefined) => (id ? people.find((p) => p.id === id)?.name ?? null : null)
+  const checkedAt = remit?.verifiedByCompanyId
+    ? await prisma.company.findUnique({ where: { id: remit.verifiedByCompanyId }, select: { name: true } })
+    : null
+
+  // A record another firm made of this company, before somebody here
+  // claimed it, may carry what that firm typed about it: the domain it
+  // noted (kept in `website`) and the kind of company it guessed. That is
+  // the other firm's note, never this company's answer, so here it is
+  // offered only where this company saved it itself, which the setup
+  // records as an answer row (review, 2026-11-13).
+  const recordedByAnother = (await prisma.automationLog.count({
+    where: { action: 'COMPANY_CREATED', companyId: { not: companyId }, payload: { path: ['otherCompanyId'], equals: companyId } },
+  })) > 0
+  const ownAnswer = (field: string) => !recordedByAnother || answers.some((a) => a.field === field)
+
+  const domainFill = fromWorkEmail(reader.email)
+  const sources: Record<string, string> = {}
+  for (const a of answers) {
+    sources[a.field] = sourceWords({ source: a.source as AnswerSource, quote: a.field === 'taxId' ? masked(lastFourOf(a.quote)) : a.quote, by: nameOf(a.answeredById), at: a.answeredAt, paper: 'W-9', field: a.field })
+  }
+  // The site Setup → Your company's Time zone box reads and writes: the
+  // primary, or the first in this order where none is primary. The save
+  // route picks the same one (timeZoneSiteOf), so the box never reads one
+  // site and writes another (fix list G5).
+  const primary = sites.find((s) => s.isPrimary) ?? sites[0] ?? null
+  const legal = addresses.find((a) => a.kind === 'LEGAL') ?? null
+  const billing = addresses.find((a) => a.kind === 'BILLING') ?? null
+  const plain = (a: typeof legal) => a && { street: a.street ?? '', city: a.city ?? '', state: a.state ?? '', postalCode: a.postalCode ?? '', country: a.country }
+
+  const confirmedParties = new Set(papers.map((p) => p.party as string))
+  const sets = defaultRequiredSets(c.kind).map((set) => {
+    const mine = papers.filter((p) => p.party === set.party)
+    return {
+      party: set.party as Party,
+      says: set.says,
+      confirmed: confirmedParties.has(set.party),
+      items: set.items.map((i) => {
+        const row = mine.find((m) => m.documentTypeKey === i.key)
+        return {
+          key: i.key, label: i.label, owedBy: i.owedBy, waivable: i.waivable, stage: i.stage,
+          required: row ? row.required : i.required,
+          waivedReason: row?.waivedReason ?? null,
+        }
+      }),
+      // A type a company added beyond the shipped set, kept on the list.
+      added: mine.filter((m) => !set.items.some((i) => i.key === m.documentTypeKey)).map((m) => m.documentTypeKey),
+    }
+  })
+
+  const keys = itemsFor(c.kind, { ownerProofRequired: facts.ownerProofRequired })
+  // Bank details wait for a verified Owner under the proof rule; the item
+  // says so before Save, in the gate's own sentence with its link.
+  const bankGate = ownerOnlyLine({ name: c.name, ownerProofRequiredAt: facts.ownerProofRequired ? new Date(0) : null, ownerVerifiedAt: facts.ownerVerified ? new Date(0) : null }, 'BANK')
+  const bankWaits = bankGate.href ? bankGate : null
+  const stamps: Partial<Record<ItemKey, string>> = {}
+  for (const k of keys) {
+    const r = record[k]
+    stamps[k] = r
+      ? itemStamp(r.outcome, nameOf(r.byId), r.at, checklist.rows.find((x) => x.key === k)?.state)
+      : itemStamp(null, null, null)
+  }
+
+  return {
+    company: { id: c.id, name: c.name, kind: c.kind },
+    checklist,
+    reminder,
+    words: Object.fromEntries(keys.map((k) => [k, joinWordsFor(k, joins)])),
+    stamps,
+    slugs: Object.fromEntries(keys.map((k) => [k, ITEM_SLUG[k]])),
+    detail: {
+      COMPANY: {
+        legalName: c.legalName ?? '',
+        signedUpAs: c.name,
+        dba: c.dba ?? '',
+        entityType: ownAnswer('entityType') ? c.entityType ?? '' : '',
+        establishedYear: c.establishedYear ? String(c.establishedYear) : '',
+        website: ownAnswer('website') ? c.website ?? '' : '',
+        phone: c.phone ?? '',
+        // Masked for everyone, the Owner included (record 99). The full
+        // number leaves only through /api/settings/sensitive/reveal.
+        taxId: taxIdShown(c) ?? '',
+        taxIdRevealFor: taxIdShown(c) && (await isOwnerHere(companyId, reader.personId)) ? c.id : null,
+        currency: c.currency,
+        country: c.country ?? 'US',
+        countryName: countryName(c.country ?? 'US'),
+        etymeAddress: `${c.slug}.etyme.com`,
+        timeZone: primary?.timeZone ?? '',
+        domainFill,
+        sources,
+      },
+      ADDRESSES: {
+        legal: plain(legal) ?? { street: '', city: '', state: primary?.state ?? '', postalCode: '', country: c.country ?? 'US' },
+        billing: plain(billing) ?? { street: '', city: '', state: '', postalCode: '', country: c.country ?? 'US' },
+        billingSameAsLegal: c.billingSameAsLegal,
+        sites: sites.map((s) => ({ id: s.id, name: s.name, place: sitePlace(s), street: s.address ?? null, isPrimary: s.isPrimary })),
+        sources,
+      },
+      SITES: {
+        count: sites.length,
+        primary: primary?.name ?? null,
+        names: sites.slice(0, 12).map((s) => s.name),
+        confirmSays: confirmAllWords(sites.length),
+        skipSays: siteSkipStops(primary?.name ?? null),
+      },
+      PEOPLE_IN_CHARGE: {
+        duties: (DUTIES as readonly Duty[]).map((duty) => {
+          const row = inCharge.find((r) => r.duty === duty)
+          const owner = duty === 'OWNER' && !row ? seats[0] : null
+          return {
+            duty,
+            label: DUTY_WORDS[duty],
+            personId: row?.personId ?? owner?.personId ?? '',
+            name: row?.name ?? '',
+            email: row?.email ?? '',
+            invitedAt: row?.invitedAt?.toISOString() ?? null,
+            inviteRole: inviteRoleFor(duty, c.kind),
+          }
+        }),
+        seats: seats.map((s) => ({ personId: s.personId, name: s.person.name, role: s.role?.name ?? null })),
+        accountsEmail: c.accountsEmail ?? (domainFill ? `accounts@${domainFill.domain}` : ''),
+        accountsEmailGuessed: !c.accountsEmail && !!domainFill,
+        accountsSays: c.accountsEmail ? sources.accountsEmail ?? null : null,
+      },
+      HOW_YOU_WORK: { asksPayroll: asksPayroll(c.kind), noPayrollLine: noPayrollLine(c.kind) },
+      PAPERS: { sets },
+      BANK: remit
+        ? {
+            bankName: remit.bankName ?? '',
+            accountName: remit.accountName ?? remit.legalName,
+            last4: remit.accountLast4 ?? '',
+            routingLast4: remit.routingLast4 ?? '',
+            shows: bankWords({ bankName: remit.bankName, accountName: remit.accountName ?? remit.legalName, last4: remit.accountLast4 }),
+            standing: bankStanding({ verifiedAt: remit.verifiedAt, verifiedBy: nameOf(remit.verifiedById), verifiedAtFirm: checkedAt?.name ?? null }),
+            enteredBy: nameOf(remit.enteredById),
+            waits: bankWaits,
+          }
+        : { bankName: '', accountName: c.legalName ?? c.name, last4: '', routingLast4: '', shows: null, standing: bankStanding({ verifiedAt: null }), enteredBy: null, waits: bankWaits },
+      COMPANIES: { count: facts.counterparties, href: c.kind === 'CLIENT' ? '/dashboard/suppliers' : '/dashboard/companies' },
+      TEAM: {
+        seats: seatTotal(headcount),
+        // "3 people: 1 with access · 2 invited": what the count counts.
+        says: peopleWords(headcount),
+        joins,
+      },
+      DOMAIN: {
+        suggested: domainFill?.domain ?? (c.domain && !/\.(example|invalid|local|test)$/.test(c.domain) ? c.domain : ''),
+        claims: [
+          ...(c.domain && !domains.some((d) => d.domain === c.domain) ? [{ id: null as string | null, domain: c.domain, verified: c.domainVerified, record: null }] : []),
+          ...domains.map((d) => ({
+            id: d.id as string | null,
+            domain: d.domain,
+            verified: !!d.verifiedAt,
+            record: !d.verifiedAt && d.proofToken ? verificationRecord(d.domain, d.proofToken) : null,
+          })),
+        ],
+      },
+      // The proofs themselves are read by the item from /api/settings/owner-proof.
+      OWNERSHIP: { verified: facts.ownerVerified },
+      INTEGRATIONS: { teams: teamsLinkStanding(c.teamsWebhookUrl) },
+      FORWARDING: {
+        ...forwardingView({ open, demo: c.isDemo, enabled: intake?.enabled === true, addressHint: intake?.addressHint ?? null }),
+        why: WHY,
+        kept: keptLine(c.name),
+        recipes: RECIPES,
+        consoleNote: CONSOLE_NOTE,
+        narrow: NARROW,
+        replaceLine: REPLACE_LINE,
+        check: checkLine(open),
+      },
+    },
+  }
+}
+
+/**
+ * An item's words, with how people join said from what the code does
+ * (lib/join-words) on the two items that are about it, never the shipped
+ * copy, which assumed a domain the company may never be able to verify.
+ */
+function joinWordsFor(k: ItemKey, joins: string | null) {
+  const w = ITEM_WORDS[k]
+  if (!joins) return w
+  if (k === 'TEAM') return { ...w, sub: `Each person gets the role for what they do here. ${joins}` }
+  if (k === 'DOMAIN') {
+    return {
+      ...w,
+      sub: `Prove you own your domain with one DNS record. Today: ${joins}`,
+      skipStops: `If you skip: people join as they do today. ${joins}`,
+    }
+  }
+  return w
+}

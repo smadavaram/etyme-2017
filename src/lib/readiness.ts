@@ -1,0 +1,582 @@
+/**
+ * Is this deployment ready for a real company?
+ *
+ * The founder, twice in one evening: "it is still not production ready."
+ * He was right, and nothing in the building could say so. /api/health
+ * answered "This deployment is working" on a site nobody outside could
+ * sign in to; the delivery matrix said BUILT on all seventy-five rows.
+ * Both measured the inside — tests green, database up — and the inside
+ * has been fine for months.
+ *
+ * Ready is the edges. A real tenant signing in. A real file imported. An
+ * email that left the building. A Teams channel that heard. A person
+ * who was not us. None of these is proven by a test; each is proven only
+ * by the outside world doing it once. So every edge here has three
+ * states, and the middle one is the honest one:
+ *
+ *   MISSING  nothing is configured; it cannot happen
+ *   SET      configured, and it has never happened
+ *   PROVEN   it happened, on this deployment, at least once
+ *
+ * Ready means every edge PROVEN. Until then this says what is missing
+ * and what to do about it, in a sentence, on a page anybody can open.
+ *
+ * Pure: facts in, verdict out. Gathering the facts is lib/readiness-facts.
+ */
+
+import { teamsEdge, type TeamsFacts } from '@/lib/notify/teams-link'
+
+export type EdgeState = 'MISSING' | 'SET' | 'PROVEN' | 'OFF'
+
+export interface Edge {
+  key: string
+  /** What a person would call it. */
+  name: string
+  state: EdgeState
+  /** What is true, in a sentence. */
+  says: string
+  /** What to do about it, when there is something to do. */
+  fix?: string
+  /** Counts toward ready. Optional edges do not. */
+  required: boolean
+}
+
+export interface ReadinessFacts {
+  env: {
+    database: boolean
+    nextauthSecret: boolean
+    cronSecret: boolean
+    microsoft: boolean
+    google: boolean
+    emailLink: boolean
+    /** RESEND_API_KEY and NOTIFY_FROM_EMAIL both present. */
+    emailSender: boolean
+    /** NEXTAUTH_URL (or NEXT_PUBLIC_APP_URL) is set. Absent where nothing measured it. */
+    lastingAddress?: boolean
+  }
+  /**
+   * Whether every model id this build sends is one it supports, and the
+   * sentence (lib/model-health, read without calling the provider). Absent
+   * where nothing measured it.
+   */
+  modelIds?: { supported: boolean; says: string }
+  /**
+   * The model gateway (record 125): whether any registered model has its
+   * key, and the sentence. Absent where nothing measured it. "Not configured"
+   * is a state, never a failure, and never counts against ready.
+   */
+  gateway?: { configured: boolean; says: string }
+  db: {
+    reachable: boolean
+    /** The newest column the code reads is there. */
+    schemaCurrent: boolean
+    ms: number | null
+  }
+  /** Companies that are not seed and not a demo workspace. */
+  realCompanies: number
+  /** People who have signed in through Microsoft, Google, an email link or a password. */
+  realSignIns: number
+  imports: { total: number; committed: number }
+  /**
+   * `didNotGoToday`: email the provider refused, or never answered, in the
+   * last 24 hours (Notification FAILED). Founder, 2026-11-12: every
+   * invitation to Tapin failed on a sending domain nobody had verified,
+   * and /ready said "proven" because some email had once left.
+   */
+  email: { sent: number; unsent: number; didNotGoToday?: number }
+  /** Workflows links saved, retired links still saved, and posts a Workflows link accepted. */
+  teams: TeamsFacts
+  /**
+   * The Teams bot, the twin's second door: its edge already worded by
+   * conversation (`teamsBotEdge` in lib/teams/readiness), read in
+   * lib/readiness-facts so this file stays free of the database. Absent
+   * where nothing measured it.
+   */
+  teamsBot?: { state: 'MISSING' | 'SET' | 'PROVEN'; says: string; fix?: string }
+  cron: {
+    tracked: boolean
+    lastRunAt: Date | null
+    /** How many jobs broke on the last run. */
+    lastBroke: number
+  }
+  watch: {
+    /** ETYME_STAFF_EMAILS names at least one address. */
+    staffConfigured: boolean
+    /** Heartbeats and failure alerts that actually reached staff. */
+    alertsSent: number
+    /** Failures recorded in the last day. */
+    incidentsToday: number
+  }
+  demo: { seeded: boolean; current: boolean }
+  /**
+   * A privacy contact somebody owns: `contactEmail()` in lib/data-request,
+   * ETYME_PRIVACY_EMAIL or else the first staff alert address.
+   */
+  privacyContact: boolean
+  /**
+   * Replies by email (`/api/texts/inbound`, conversation's). `secretSet`
+   * is RESEND_INBOUND_SECRET present, named and never valued.
+   * `signedDeliveries` counts replies that arrived with the provider's
+   * signature; null where nothing on the record tells a signed email
+   * reply apart from a click on an answer button, which is the case
+   * today — both write the same inbound message row. Absent reads as no
+   * secret: a fact nobody gathered is not a configured edge.
+   */
+  inbound?: { secretSet: boolean; signedDeliveries: number | null }
+  /**
+   * The security log's guard (Layer 7, record 86): whether the database's
+   * own triggers refuse to change, delete or empty a row
+   * (`securityLogGuarded` in lib/identity/security-ledger). Absent where
+   * nothing measured it, as when there is no database to ask.
+   */
+  securityLog?: { guarded: boolean }
+  /**
+   * The second check (Layer 7, slice S1): whether its sealing key
+   * (ETYME_SECOND_CHECK_KEY) is set, and how many checks have passed on
+   * this deployment. Absent where nothing measured it.
+   */
+  secondCheck?: { keySet: boolean; passed: number }
+}
+
+export interface Readiness {
+  ready: boolean
+  proven: number
+  required: number
+  says: string
+  edges: Edge[]
+  at: string
+}
+
+const HOURS = 60 * 60 * 1000
+
+export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
+  const edges: Edge[] = []
+
+  // ── The database, and the schema the code was built against ─────────
+  if (!f.env.database) {
+    edges.push({
+      key: 'database', name: 'Database', state: 'MISSING', required: true,
+      says: 'No database is configured. Nothing works until there is one.',
+      fix: 'Set DATABASE_URL on the deployment.',
+    })
+  } else if (!f.db.reachable) {
+    edges.push({
+      key: 'database', name: 'Database', state: 'SET', required: true,
+      says: 'The database is configured and not answering.',
+      fix: 'Check that the database is awake and DATABASE_URL still points at it.',
+    })
+  } else if (!f.db.schemaCurrent) {
+    edges.push({
+      key: 'database', name: 'Database', state: 'SET', required: true,
+      says: 'The database answers, but its tables are older than the code. Screens that read the new columns will fail.',
+      fix: 'Set DB_PUSH_ON_BUILD=1, redeploy, then unset it.',
+    })
+  } else {
+    edges.push({
+      key: 'database', name: 'Database', state: 'PROVEN', required: true,
+      says: `Reachable, and the tables match the code${f.db.ms != null ? ` (${f.db.ms} ms)` : ''}.`,
+    })
+  }
+
+  // ── The security log cannot be changed ──────────────────────────────
+  //
+  // Record 86, answer 1: "a separate security log that nothing can
+  // change". Nothing in the code can promise that; only the database can,
+  // so the edge reads the database's own triggers. Two states: the guard
+  // is there, or it is missing.
+  if (f.securityLog) {
+    edges.push(
+      f.securityLog.guarded
+        ? {
+            key: 'security-log', name: 'The security log cannot be changed', state: 'PROVEN', required: true,
+            says: 'The database refuses to change, delete or empty a row of the security log.',
+          }
+        : {
+            key: 'security-log', name: 'The security log cannot be changed', state: 'MISSING', required: true,
+            says: 'The database does not guard the security log, so a row could be changed or deleted.',
+            fix: 'Set DB_PUSH_ON_BUILD=1 and redeploy: the build applies prisma/sql/append-only.sql after the schema. Then unset it.',
+          }
+    )
+  }
+
+  // ── The second check ─────────────────────────────────────────────────
+  //
+  // Record 86, answers 2 to 5: a passkey or an authenticator app, checked
+  // before an act. Without its key nothing can be added. Not required yet:
+  // no act that moves money asks for it until slice S2, which makes it so.
+  if (f.secondCheck) {
+    edges.push(
+      !f.secondCheck.keySet
+        ? {
+            key: 'second-check', name: 'Second check', state: 'MISSING', required: false,
+            says: 'Nobody can add a passkey or authenticator app: the second check has no sealing key.',
+            fix: 'Set ETYME_SECOND_CHECK_KEY to 32 random bytes, as base64 (openssl rand -base64 32), and redeploy. Changing it later stops every authenticator app.',
+          }
+        : f.secondCheck.passed === 0
+          ? {
+              key: 'second-check', name: 'Second check', state: 'SET', required: false,
+              says: 'The second check is set up. Nobody has passed one here yet.',
+              fix: 'Add a passkey under Second check in your account menu, then add a second one: that asks for the first.',
+            }
+          : {
+              key: 'second-check', name: 'Second check', state: 'PROVEN', required: false,
+              says: `${count(f.secondCheck.passed, 'second check has', 'second checks have')} passed on this deployment.`,
+            }
+    )
+  }
+
+  // ── A lasting address for mailed links ───────────────────────────────
+  // Not required: nothing is blocked, but a link mailed without it can
+  // point at a one-off deployment address that stops working.
+  if (f.env.lastingAddress === false) {
+    edges.push({
+      key: 'address', name: 'Web address in emails', state: 'MISSING', required: false,
+      says: 'No lasting web address is set, so emailed links may point at an address that stops working at the next deploy.',
+      fix: 'Set NEXTAUTH_URL to the address people use, such as https://www.etyme.com, and redeploy.',
+    })
+  }
+
+  // ── Somebody outside can sign in ─────────────────────────────────────
+  //
+  // The password door (2026-10-08) has no key of its own; it needs only a
+  // way to send the email that confirms an address. Without a sender it is
+  // off, and the row says so rather than listing a door nobody can use.
+  const passwordOn = f.env.emailSender
+  const passwordOff = passwordOn
+    ? ''
+    : ' The password door cannot confirm emails without an email sender, so it is off.'
+  const passwordFix = passwordOn ? '' : ' Set RESEND_API_KEY and NOTIFY_FROM_EMAIL to turn on sign-up with a password.'
+  const providers = signInDoors({ ...f.env, password: passwordOn })
+  if (!f.env.nextauthSecret) {
+    edges.push({
+      key: 'signin', name: 'Sign-in', state: 'MISSING', required: true,
+      says: 'Sessions cannot be issued: there is no signing secret.',
+      fix: 'Set NEXTAUTH_SECRET on the deployment.',
+    })
+  } else if (providers.length === 0) {
+    edges.push({
+      key: 'signin', name: 'Sign-in', state: 'MISSING', required: true,
+      says: 'Nobody outside can sign in. The only way in is the demo button.' + passwordOff,
+      fix:
+        'Register Etyme as an app in Microsoft Entra (any tenant) and set AZURE_AD_CLIENT_ID and AZURE_AD_CLIENT_SECRET; ' +
+        'do the same in Google Cloud for GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Candidates sign up with a password, which needs RESEND_API_KEY and NOTIFY_FROM_EMAIL to send the confirmation link.' +
+        passwordFix,
+    })
+  } else if (f.realSignIns === 0) {
+    edges.push({
+      key: 'signin', name: 'Sign-in', state: 'SET', required: true,
+      says: `Sign-in with ${list(providers)} is configured. Nobody has used it yet.` + passwordOff,
+      fix: 'Sign in yourself with a company account. If the provider refuses, the redirect URL on the app registration does not match this deployment.' + passwordFix,
+    })
+  } else {
+    edges.push({
+      key: 'signin', name: 'Sign-in', state: 'PROVEN', required: true,
+      says: `${count(f.realSignIns, 'person has', 'people have')} signed in through ${list(providers)}.` + passwordOff,
+      ...(passwordFix ? { fix: passwordFix.trim() } : {}),
+    })
+  }
+
+  // ── A company that is not us ─────────────────────────────────────────
+  edges.push(
+    f.realCompanies === 0
+      ? {
+          key: 'company', name: 'A real company', state: 'MISSING', required: true,
+          says: 'Every company here is seed. Nobody is using this for real work.',
+          fix: 'Have one client and one of its suppliers sign in with their own accounts. Their company is created from their email domain.',
+        }
+      : {
+          key: 'company', name: 'A real company', state: 'PROVEN', required: true,
+          says: `${count(f.realCompanies, 'company', 'companies')} here ${f.realCompanies === 1 ? 'is' : 'are'} real, not seed.`,
+        }
+  )
+
+  // ── Their data ───────────────────────────────────────────────────────
+  edges.push(
+    f.imports.total === 0
+      ? {
+          key: 'import', name: 'Their data', state: 'MISSING', required: true,
+          says: 'No file has ever been imported. A system of record with none of the client’s records is a demo.',
+          fix: 'Bring one client’s supplier list and contractor list through Data → Import. The first real spreadsheet will find what the seed did not.',
+        }
+      : f.imports.committed === 0
+        ? {
+            key: 'import', name: 'Their data', state: 'SET', required: true,
+            says: `${count(f.imports.total, 'file was', 'files were')} uploaded and none committed.`,
+            fix: 'Open Data → Import, read the issues on the rows, and commit.',
+          }
+        : {
+            key: 'import', name: 'Their data', state: 'PROVEN', required: true,
+            says: `${count(f.imports.committed, 'import has', 'imports have')} been committed.`,
+          }
+  )
+
+  // ── Email leaves the building ────────────────────────────────────────
+  edges.push(
+    !f.env.emailSender
+      ? {
+          key: 'email', name: 'Email', state: 'MISSING', required: true,
+          says: `Nothing is sent. ${f.email.unsent > 0 ? `${f.email.unsent} messages are waiting with nowhere to go.` : 'Candidates and invitees hear nothing.'}`,
+          fix: 'Set RESEND_API_KEY and NOTIFY_FROM_EMAIL on the deployment, from a domain you own.',
+        }
+      : f.email.sent === 0
+        ? {
+            key: 'email', name: 'Email', state: 'SET', required: true,
+            says: 'A sender is configured. No email has left this deployment yet.',
+            fix: 'Invite yourself to a company from Access → Invite and read the email that arrives.',
+          }
+        : {
+            key: 'email', name: 'Email', state: 'PROVEN', required: true,
+            says: `${count(f.email.sent, 'email has', 'emails have')} been sent.`,
+          }
+  )
+  // Proven once is not working today: a count of what did not go in the
+  // last day is said beside the edge, with where to read why.
+  const didNotGo = f.email.didNotGoToday ?? 0
+  if (f.env.emailSender && didNotGo > 0) {
+    const e = edges[edges.length - 1]
+    e.says = `${e.says} ${didNotGoSays(didNotGo)}`
+    e.fix = 'Read why under Superadmin, Email that did not go. A sending domain nobody verified fails every email at once.'
+  }
+
+  // ── Teams hears ──────────────────────────────────────────────────────
+  //
+  // Set up only once a company has a Workflows link, proven only once one
+  // has posted; a retired connector link counts for neither and is named.
+  // The sentence is conversation's (`teamsEdge` in lib/notify/teams-link).
+  {
+    const t = teamsEdge(f.teams)
+    edges.push({ key: 'teams', name: 'Teams', state: t.state, required: true, says: t.says, ...(t.fix ? { fix: t.fix } : {}) })
+  }
+
+  // ── The Teams bot answers ────────────────────────────────────────────
+  //
+  // Not required: the twin's questions are answered on the web until the
+  // founder's bot keys exist. Proven once somebody answered the twin from
+  // Teams or a digest went out through the bot.
+  if (f.teamsBot) {
+    const b = f.teamsBot
+    edges.push({ key: 'teams-bot', name: 'Teams bot', state: b.state, required: false, says: b.says, ...(b.fix ? { fix: b.fix } : {}) })
+  }
+
+  // ── The daily job runs, and leaves a trace ───────────────────────────
+  if (!f.env.cronSecret) {
+    edges.push({
+      key: 'cron', name: 'The daily job', state: 'MISSING', required: true,
+      says: 'The daily job cannot run: it has no secret to answer to.',
+      fix: 'Set CRON_SECRET on the deployment.',
+    })
+  } else if (!f.cron.tracked) {
+    edges.push({
+      key: 'cron', name: 'The daily job', state: 'SET', required: true,
+      says: 'The daily job is scheduled and leaves no record of running, so nobody can tell whether it did.',
+      fix: 'Record each run in the automation log. Until then, check the Vercel cron log by hand.',
+    })
+  } else if (!f.cron.lastRunAt || now.getTime() - f.cron.lastRunAt.getTime() > 36 * HOURS) {
+    edges.push({
+      key: 'cron', name: 'The daily job', state: 'SET', required: true,
+      says: f.cron.lastRunAt
+        ? `The daily job last ran ${daysAgo(f.cron.lastRunAt, now)}. It should run every morning.`
+        : 'The daily job has never run here. It is scheduled for 06:00 UTC.',
+      fix: 'Wait for the morning, or run it now: GET /api/cron/daily with the CRON_SECRET.',
+    })
+  } else if (f.cron.lastBroke > 0) {
+    edges.push({
+      key: 'cron', name: 'The daily job', state: 'SET', required: true,
+      says: `The daily job ran ${daysAgo(f.cron.lastRunAt, now)} and ${count(f.cron.lastBroke, 'job', 'jobs')} failed.`,
+      fix: 'The run’s record names the job and why. Staff were emailed the same.',
+    })
+  } else {
+    edges.push({
+      key: 'cron', name: 'The daily job', state: 'PROVEN', required: true,
+      says: `The daily job last ran ${daysAgo(f.cron.lastRunAt, now)}, every job clean.`,
+    })
+  }
+
+  // ── Somebody is told when it breaks ──────────────────────────────────
+  // Failures are written down (lib/alerts) and staff are emailed, once
+  // an hour per place; the daily job sends a heartbeat so the channel is
+  // proven on a day nothing broke. Proven means a mail actually reached
+  // somebody.
+  const today = f.watch.incidentsToday
+  const recorded = today === 0 ? 'No failure recorded in the last day.' : `${count(today, 'failure', 'failures')} recorded in the last day.`
+  if (!f.watch.staffConfigured) {
+    edges.push({
+      key: 'watch', name: 'Somebody is told when it breaks', state: 'MISSING', required: true,
+      says: `Failures are written down and nobody is told. ${recorded}`,
+      fix: 'Set ETYME_STAFF_EMAILS to the addresses that should hear, comma-separated.',
+    })
+  } else if (!f.env.emailSender) {
+    edges.push({
+      key: 'watch', name: 'Somebody is told when it breaks', state: 'MISSING', required: true,
+      says: `Staff are named and there is no way to reach them: no email sender. ${recorded}`,
+      fix: 'Set RESEND_API_KEY and NOTIFY_FROM_EMAIL.',
+    })
+  } else if (f.watch.alertsSent === 0) {
+    edges.push({
+      key: 'watch', name: 'Somebody is told when it breaks', state: 'SET', required: true,
+      says: `Staff are named and reachable. No heartbeat or alert has gone out yet. ${recorded}`,
+      fix: 'The daily job sends a heartbeat when it runs; run it once, or wait for the morning.',
+    })
+  } else {
+    edges.push({
+      key: 'watch', name: 'Somebody is told when it breaks', state: 'PROVEN', required: true,
+      says: `${count(f.watch.alertsSent, 'message has', 'messages have')} reached staff. ${recorded}`,
+    })
+  }
+
+  // ── Who a person asks about their data ───────────────────────────────
+  // Your data, and every data-rights letter, name a privacy contact. With
+  // none they say that nobody is named yet, which is honest and is not a
+  // contact. Not required for the edges to be proven, because nobody
+  // outside proves an address by writing to it on cue; it is still a gap,
+  // and it reads as missing until somebody owns the address.
+  edges.push(f.privacyContact
+    ? { key: 'privacy', name: 'Privacy contact', state: 'SET', required: false, says: 'An address is named for questions about personal data.' }
+    : {
+        key: 'privacy', name: 'Privacy contact', state: 'MISSING', required: false,
+        says: 'Nobody is named for questions about personal data. Your data and the data-rights letters say so.',
+        fix: 'Set ETYME_PRIVACY_EMAIL to an address somebody reads, or set ETYME_STAFF_EMAILS.',
+      })
+
+  // ── Replies by email reach us ────────────────────────────────────────
+  // A consultant who hits reply instead of clicking a button. The route
+  // refuses every delivery until the provider's signing secret is set
+  // (f0f21d414), so the secret is the configuration and a signed delivery
+  // is the proof. Optional: the answer buttons carry the loop without it.
+  {
+    const ib = f.inbound ?? { secretSet: false, signedDeliveries: 0 }
+    edges.push(
+      !ib.secretSet
+        ? {
+            key: 'inbound', name: 'Replies by email', state: 'MISSING', required: false,
+            says: 'Replies by email are refused: no signing secret is set, so nobody can prove a reply came from the email provider. The answer buttons still work.',
+            fix: 'Point the email provider’s inbound route at /api/texts/inbound and set RESEND_INBOUND_SECRET to its signing secret.',
+          }
+        : ib.signedDeliveries == null
+          ? {
+              key: 'inbound', name: 'Replies by email', state: 'SET', required: false,
+              says: 'The signing secret is set. A signed reply is not yet recorded apart from a button answer, so this cannot read as proven.',
+              fix: 'Reply to one Etyme email yourself and check the answer on the person’s record.',
+            }
+          : ib.signedDeliveries === 0
+            ? {
+                key: 'inbound', name: 'Replies by email', state: 'SET', required: false,
+                says: 'The signing secret is set. No signed reply has arrived yet.',
+                fix: 'Reply to one Etyme email yourself and check the answer on the person’s record.',
+              }
+            : {
+                key: 'inbound', name: 'Replies by email', state: 'PROVEN', required: false,
+                says: `${count(ib.signedDeliveries, 'signed reply has', 'signed replies have')} arrived from the email provider.`,
+              }
+    )
+  }
+
+  // ── Optional: the one model call ─────────────────────────────────────
+  edges.push(
+    f.gateway
+      ? f.gateway.configured
+        ? { key: 'model', name: 'Models', state: 'SET', required: false, says: `On. ${f.gateway.says}` }
+        : {
+            key: 'model', name: 'Models', state: 'OFF', required: false, says: f.gateway.says,
+            fix: 'Optional. Register a model in the ETYME_MODEL_REGISTER setting and set its key to turn the model steps on; every other check is arithmetic and runs anyway.',
+          }
+      : {
+          key: 'model', name: 'Models', state: 'OFF', required: false,
+          says: 'Not configured. No model is registered, so nothing is sent to a model; the rules answer.',
+          fix: 'Optional. Register a model in the ETYME_MODEL_REGISTER setting and set its key to turn the model steps on.',
+        }
+  )
+
+  // ── Optional: the demo world ─────────────────────────────────────────
+  edges.push(
+    !f.demo.seeded
+      ? {
+          key: 'demo', name: 'Demo world', state: 'OFF', required: false,
+          says: 'Not seeded. The demo button has nowhere to go.',
+          fix: 'POST /api/seed-world with the CRON_SECRET.',
+        }
+      : !f.demo.current
+        ? {
+            key: 'demo', name: 'Demo world', state: 'SET', required: false,
+            says: 'Seeded by an older build. Northbend Athletic has no HR or Procurement approver, so the approval chain has nobody to route to.',
+            fix: 'POST /api/seed-world again with the CRON_SECRET. It renames and adds; it never duplicates.',
+          }
+        : { key: 'demo', name: 'Demo world', state: 'PROVEN', required: false, says: 'Seeded and current.' }
+  )
+
+  const required = edges.filter((e) => e.required)
+  const proven = required.filter((e) => e.state === 'PROVEN').length
+  const missing = required.filter((e) => e.state === 'MISSING').length
+  const set = required.filter((e) => e.state === 'SET').length
+  const ready = proven === required.length
+
+  return {
+    ready,
+    proven,
+    required: required.length,
+    says: ready
+      ? 'Ready. Every edge has been used by the outside world at least once.'
+      : `Not production ready. ${proven} of ${required.length} edges proven` +
+        `${set ? `, ${set} configured but never used` : ''}` +
+        `${missing ? `, ${missing} missing` : ''}.`,
+    edges,
+    at: now.toISOString(),
+  }
+}
+
+function list(items: string[]): string {
+  if (items.length <= 1) return items.join('')
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+}
+
+/** The line /ready says beside Email when sends failed in the last day. Pure. */
+export function didNotGoSays(n: number): string {
+  return `${count(n, 'email', 'emails')} did not go in the last 24 hours. Superadmin lists each one under Email that did not go, with the provider’s answer.`
+}
+
+function count(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`
+}
+
+function daysAgo(then: Date, now: Date): string {
+  const h = Math.round((now.getTime() - then.getTime()) / HOURS)
+  if (h < 1) return 'within the hour'
+  if (h < 36) return `${h} hour${h === 1 ? '' : 's'} ago`
+  const d = Math.round(h / 24)
+  return `${d} day${d === 1 ? '' : 's'} ago`
+}
+
+/**
+ * The ways in that work on this deployment, in the order a person meets
+ * them. One answer for `/ready` and `/api/health`: until 2026-10-27 health
+ * kept its own list without the password door, and said "the only way in
+ * is the demo button" on a deployment where anybody could sign up.
+ */
+/**
+ * NextAuth's own emailed-link door needs a database adapter to keep its
+ * verification tokens, and this app runs JWT sessions with none. With
+ * the door registered and no adapter, NextAuth refuses every sign-in
+ * through every door (EMAIL_REQUIRES_ADAPTER_ERROR, then
+ * /login?error=Configuration), so setting EMAIL_SERVER used to lock
+ * everybody out. It stays off until an adapter exists; the password
+ * door's own emailed links go through lib/senders (RESEND_API_KEY and
+ * NOTIFY_FROM_EMAIL) and never through this door.
+ */
+export const EMAIL_LINK_HAS_ADAPTER = false
+
+export function emailLinkDoorOn(env: Record<string, string | undefined> = process.env): boolean {
+  return EMAIL_LINK_HAS_ADAPTER && Boolean(env.EMAIL_SERVER)
+}
+
+export function signInDoors(env: { microsoft: boolean; google: boolean; emailLink: boolean; password: boolean }): string[] {
+  return [
+    env.microsoft && 'Microsoft', env.google && 'Google', env.emailLink && 'an email link', env.password && 'password',
+  ].filter(Boolean) as string[]
+}
+
+/** Health's one line on signing in, from the same doors. */
+export function signInLine(doors: string[]): string {
+  return doors.length > 0
+    ? `Sign-in with ${list(doors)}.`
+    : 'No way to sign in is set up \u2014 the only way in is the demo button.'
+}

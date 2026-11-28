@@ -1,0 +1,698 @@
+import type { Prisma } from '@prisma/client'
+import { prisma } from '@/lib/db'
+import { partiesOf } from '@/lib/money/invoice-parties'
+import { payToOnBill } from '@/lib/money/pay-to'
+import { offPlatformRecord, weekSignersFor } from '@/lib/week-approval'
+import { emit } from '@/lib/events'
+import { deliverWritten, notificationRowFor, notify } from '@/lib/notify'
+import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
+import { configuredSenders } from '@/lib/senders'
+import { recordAccess, recordRefusal } from '@/lib/access-log'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+import { refusalFor, type CallerContext } from '@/lib/api-context'
+import { reportError } from '@/lib/alerts'
+import { failureFromNote, mailFailureSays, HANDED_TO_EMAIL_SERVICE, TEAMS_POSTED_SAYS } from '@/lib/notify/mail-failure'
+import {
+  billLetter, billNotice, billLinkToken, billLinkUrl, billLinkExpiresAt, billLinkOpen,
+  readBillLinkToken, billPageView, billPageInEtyme, billSentSays, deliverySays,
+  billLinkClosedSays, billCancelledSays, BILL_LINK_NOT_OURS,
+  type BillFacts, type BillDelivery, type BillRecipient, type BillPageView,
+} from '@/lib/notify/bill-letter'
+
+/**
+ * Sending a bill to the firm that pays it, and the page it opens on.
+ *
+ * `markSent` in lib/money/bill-send moves a bill to SUBMITTED. This is
+ * what makes that true for the payer: one call after the transaction
+ * commits, from every door that sends a bill — the Send button, the
+ * bulk Send and the supplier's twin's yes.
+ *
+ * The words are in `lib/notify/bill-letter`; this file reads the record
+ * and writes the trail. Every sending is one event on the bill
+ * (`invoice.submitted` the first time, `invoice.resent` after), carrying
+ * who it went to and what each delivery did — so "was it sent" is read
+ * from what happened, never from the status.
+ */
+
+type Refused = { ok: false; status: 400 | 403 | 404 | 409 | 410 | 503; code: string; says: string }
+
+export interface BillSent {
+  /** Whether it reached at least one person now. */
+  sent: boolean
+  /** The addresses it went to, or was tried at. */
+  to: string[]
+  /** The sentence, the same one the Bills page reads. */
+  says: string
+}
+
+/** A resend within this long of the last sending is refused: a double press is not a second letter. */
+export const RESEND_NOT_WITHIN_MS = 5 * 60_000
+
+const SENT_TYPE = 'invoice.submitted' as const
+const RESENT_TYPE = 'invoice.resent' as const
+
+// ── Reading the bill ──────────────────────────────────────────────────
+
+/** The global client, or a transaction's: every read here takes either. */
+type Db = Prisma.TransactionClient | typeof prisma
+
+async function readBill(invoiceId: string, db: Db = prisma) {
+  return db.invoice.findUnique({
+    where: { id: invoiceId },
+    select: {
+      id: true, number: true, status: true, total: true, paid: true, currency: true,
+      dueAt: true, periodStart: true, periodEnd: true, billToId: true,
+      remitTo: { select: { legalName: true, paymentMethod: true, bankName: true, accountLast4: true } },
+      engagement: {
+        select: {
+          msa: { select: { vendorId: true, clientId: true, vendor: { select: { id: true, name: true } }, client: { select: { id: true, name: true } } } },
+        },
+      },
+      workOrder: {
+        select: { issuedById: true, issuedToId: true, issuedBy: { select: { id: true, name: true } }, issuedTo: { select: { id: true, name: true } } },
+      },
+      invoiceLines: {
+        orderBy: { createdAt: 'asc' },
+        select: {
+          hours: true, rateCents: true, amountCents: true, description: true,
+          personId: true, expenseId: true, milestoneId: true,
+          person: { select: { name: true, primaryEmail: true } },
+          timesheet: {
+            select: {
+              id: true, periodStart: true, periodEnd: true, clientApprovedAt: true, clientApprovedById: true, sellContractId: true,
+              weekApprovals: {
+                where: { OR: [{ outcome: 'APPROVED' }, { how: 'EVIDENCE' }] },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: { approverName: true },
+              },
+            },
+          },
+          sellContract: {
+            select: { companyId: true, clientCompanyId: true, company: { select: { id: true, name: true } }, clientCompany: { select: { id: true, name: true } } },
+          },
+        },
+      },
+    },
+  })
+}
+
+type Bill = NonNullable<Awaited<ReturnType<typeof readBill>>>
+
+/**
+ * The bill as one sending read it, handed on so a sending reads it once:
+ * the payer's notices are written from it (`writePayerNoticesIn`) and the
+ * letter or Teams message goes from it (`sendBillToCustomer`). Money hands
+ * it from one to the other; nothing outside this file looks inside it.
+ */
+export type BillRead = Read
+
+interface Read {
+  bill: Bill
+  supplier: { id: string; name: string }
+  payer: { id: string; name: string; onEtyme: boolean; kind: string }
+  facts: BillFacts
+  weeks: BillWeek[]
+}
+
+interface BillWeek { id: string; person: string; start: Date; end: Date; hours: number; signedAt: Date | null; signer: string | null; byEmail: boolean }
+
+/** The bill, who it is between, and what it rests on. Null where nothing can say who pays it. */
+async function readWhole(invoiceId: string, db: Db = prisma): Promise<Read | null> {
+  const bill = await readBill(invoiceId, db)
+  if (!bill) return null
+  const parties = partiesOf({
+    agreement: bill.engagement.msa,
+    order: bill.workOrder,
+    lines: bill.invoiceLines.map((l) => l.sellContract).filter((c): c is NonNullable<typeof c> => c != null),
+  })
+  if (!parties.vendor || !parties.client) return null
+  // Where the bill names a bill-to, that is where it is sent (schema:
+  // "Where the invoice is sent"); otherwise the client it is between.
+  const payerId = bill.billToId ?? parties.client.id
+  const [payer, supplier] = await Promise.all([
+    db.company.findUnique({ where: { id: payerId }, select: { id: true, name: true, claimedAt: true, kind: true } }),
+    db.company.findUnique({ where: { id: parties.vendor.id }, select: { id: true, name: true } }),
+  ])
+  if (!payer || !supplier) return null
+
+  // The weeks the hours rest on, once each, with the hours this bill took from each.
+  const byWeek = new Map<string, BillWeek>()
+  const approverIds = new Set<string>()
+  // One week per sell line: a week's chain is its line's (`readWeekChain`
+  // reads the ladder above the line), so every week on one line has the
+  // same client at its top.
+  const weekOfLine = new Map<string, string>()
+  for (const l of bill.invoiceLines) {
+    const t = l.timesheet
+    if (!t) continue
+    if (!weekOfLine.has(t.sellContractId)) weekOfLine.set(t.sellContractId, t.id)
+    const was = byWeek.get(t.id)
+    const viaEmail = t.weekApprovals[0]?.approverName ?? null
+    if (!viaEmail && t.clientApprovedById) approverIds.add(t.clientApprovedById)
+    byWeek.set(t.id, {
+      id: t.id,
+      person: l.person?.name ?? 'Somebody',
+      start: t.periodStart,
+      end: t.periodEnd,
+      hours: (was?.hours ?? 0) + Number(l.hours),
+      signedAt: t.clientApprovedAt,
+      signer: viaEmail ?? (t.clientApprovedById ? `@${t.clientApprovedById}` : null),
+      byEmail: viaEmail != null,
+    })
+  }
+  const approvers = approverIds.size
+    ? new Map((await db.person.findMany({ where: { id: { in: [...approverIds] } }, select: { id: true, name: true } })).map((p) => [p.id, p.name]))
+    : new Map<string, string>()
+  const weeks = [...byWeek.values()]
+    .map((w) => (w.signer?.startsWith('@') ? { ...w, signer: approvers.get(w.signer.slice(1)) ?? null } : w))
+    .sort((a, b) => a.start.getTime() - b.start.getTime() || a.person.localeCompare(b.person))
+
+  // Who signed them: the client at the top of each week's chain. Named
+  // only where it is one firm; two firms, or none readable, and the
+  // sentence leaves the name out rather than pick one. One read for the
+  // whole bill, one week per sell line (2026-11-02, money's forty sends: a
+  // chain read per week, one after another, was most of a sending at
+  // scale; `weekSignersFor` is the architect's, three queries for any
+  // number of weeks).
+  const signers = new Set<string>()
+  try {
+    const names = await weekSignersFor([...weekOfLine.values()])
+    for (const id of weekOfLine.values()) {
+      const name = names.get(id)
+      if (name) signers.add(name)
+    }
+  } catch {
+    signers.add('')
+  }
+  const only = signers.size === 1 ? [...signers][0] : ''
+  const signedBy = only || null
+
+  const hourLines = bill.invoiceLines.filter((l) => !l.expenseId && !l.milestoneId)
+  const facts: BillFacts = {
+    supplierName: supplier.name,
+    clientName: payer.name,
+    number: bill.number,
+    people: hourLines.map((l) => l.person?.name ?? '').filter(Boolean),
+    periodStart: bill.periodStart,
+    periodEnd: bill.periodEnd,
+    hours: hourLines.reduce((s, l) => s + Number(l.hours), 0),
+    total: Number(bill.total),
+    currency: bill.currency,
+    dueAt: bill.dueAt,
+    weeks: weeks.length,
+    signedBy,
+    allSigned: weeks.every((w) => w.signedAt != null),
+    expenses: bill.invoiceLines.filter((l) => l.expenseId).length,
+    milestones: bill.invoiceLines.filter((l) => l.milestoneId).length,
+  }
+  return {
+    bill,
+    supplier,
+    payer: { id: payer.id, name: payer.name, onEtyme: payer.claimedAt != null, kind: payer.kind },
+    facts,
+    weeks,
+  }
+}
+
+// ── Who receives it ───────────────────────────────────────────────────
+
+interface Contact { email: string; name: string | null; personId: string | null }
+
+/**
+ * The people a supplier recorded at a client that is not on Etyme.
+ *
+ * The same rule the week-approval door reads (`offPlatformRecord`): the
+ * supplier's own invitation to the client and its own address book at
+ * the client, never an address of the supplier itself and never a
+ * worker's. Read from the firm sending the bill, because it is that
+ * firm's record. Where it recorded somebody in accounts payable, only
+ * they receive bills; otherwise everybody it recorded there.
+ */
+async function recordedAt(supplierId: string, payerId: string, workerEmails: string[]): Promise<Contact[]> {
+  const [invites, contacts, sender] = await Promise.all([
+    prisma.supplierInvite.findMany({ where: { companyId: payerId, byId: supplierId }, select: { byId: true, email: true, state: true, contactName: true } }),
+    prisma.companyContact.findMany({ where: { companyId: supplierId, atCompanyId: payerId }, select: { companyId: true, email: true, name: true, kind: true, personId: true } }),
+    prisma.company.findUnique({
+      where: { id: supplierId },
+      select: {
+        domain: true, domainVerified: true,
+        claimedDomains: { where: { verifiedAt: { not: null } }, select: { domain: true } },
+        contexts: { where: { revokedAt: null }, select: { person: { select: { primaryEmail: true } } } },
+      },
+    }),
+  ])
+  const rec = offPlatformRecord({
+    claimedAt: null,
+    listedById: supplierId,
+    invites,
+    contacts,
+    listerSeatedEmails: sender?.contexts.map((x) => x.person.primaryEmail) ?? [],
+    listerDomains: [
+      ...(sender?.domainVerified && sender.domain ? [sender.domain] : []),
+      ...(sender?.claimedDomains.map((d) => d.domain) ?? []),
+    ],
+    workerEmail: null,
+  })
+  const workers = new Set(workerEmails.map((e) => e.trim().toLowerCase()))
+  const lower = (e: string | null | undefined) => (e ?? '').trim().toLowerCase()
+  const allowed = rec.recordedContacts.filter((e) => !workers.has(e))
+  const ap = new Set(contacts.filter((c) => c.kind === 'AP').map((c) => lower(c.email)))
+  const chosen = allowed.some((e) => ap.has(e)) ? allowed.filter((e) => ap.has(e)) : allowed
+  return chosen.map((email) => {
+    const c = contacts.find((x) => lower(x.email) === email)
+    const i = invites.find((x) => lower(x.email) === email)
+    return { email, name: c?.name ?? i?.contactName ?? null, personId: c?.personId ?? null }
+  })
+}
+
+/** The seats that record payments at a client on Etyme; its owner where nobody was named. */
+async function payerSeats(payerId: string, db: Db = prisma) {
+  const seats = (needs: string) =>
+    db.context.findMany({
+      where: {
+        companyId: payerId, revokedAt: null, suspendedAt: null, type: { not: 'CONSULTANT' },
+        role: { permissions: { hasSome: [needs] } },
+        ...NOT_THE_SAMPLE_SEAT,
+      },
+      select: { personId: true, person: { select: { name: true, primaryEmail: true } }, role: { select: { name: true } } },
+      orderBy: { grantedAt: 'asc' },
+    })
+  // A role nobody named falls back to the owner; it never refuses (CLAUDE.md).
+  const named = await seats('payments.record')
+  const found = named.length ? named : await seats('*')
+  const seen = new Set<string>()
+  return found.filter((s) => (seen.has(s.personId) ? false : (seen.add(s.personId), true)))
+}
+
+// ── Sending ───────────────────────────────────────────────────────────
+
+async function history(invoiceId: string): Promise<{ delivery: BillDelivery; type: string }[]> {
+  const rows = await prisma.event.findMany({
+    where: { subjectType: 'Invoice', subjectId: invoiceId, type: { in: [SENT_TYPE, RESENT_TYPE] } },
+    orderBy: { seq: 'asc' },
+    select: { type: true, payload: true },
+  })
+  return rows
+    .map((r) => ({ type: r.type, delivery: r.payload as unknown as BillDelivery }))
+    .filter((r) => r.delivery && Array.isArray(r.delivery.to) && typeof r.delivery.at === 'string')
+}
+
+async function deliver(w: Read, a: { byPersonId: string | null; resend: boolean; now: Date }): Promise<BillSent> {
+  const { bill, supplier, payer, facts } = w
+  const sender = a.byPersonId
+    ? await prisma.person.findUnique({ where: { id: a.byPersonId }, select: { name: true, primaryEmail: true } })
+    : null
+  const to: BillRecipient[] = []
+  let why: string | null = null
+
+  if (payer.onEtyme) {
+    // Written already, inside the sending's own transaction
+    // (`writePayerNoticesIn`): the in-app notice stands, and only its
+    // email or Teams message goes now. A resend writes new ones.
+    const written = a.resend ? [] : await writtenInTheSending(bill.id)
+    if (written.length) {
+      for (const n of written) {
+        await deliverWritten(n.id)
+        to.push({ address: n.person.primaryEmail, via: 'ETYME', state: 'SENT', note: await channelSaid(n.id), name: n.person.name, role: n.role })
+      }
+    } else {
+      const seats = await payerSeats(payer.id)
+      const said = billNotice(facts)
+      for (const s of seats) {
+        // In the app and on the seat's own channel: Teams where the firm
+        // set it up, email behind it (lib/notify routes it).
+        // Written, then its email or Teams message sent and waited on, so
+        // what is recorded is what happened on the channel, never a claim
+        // made before it was tried.
+        const notice = {
+          personId: s.personId, companyId: payer.id, type: 'INVOICE' as const, channel: 'EMAIL' as const,
+          title: said.title, body: said.body, entityId: bill.id,
+          data: { href: billPageInEtyme(bill.id), invoiceNumber: bill.number },
+        }
+        const row = await prisma.notification.create({ data: notificationRowFor(notice), select: { id: true } }).catch(() => null)
+        if (row) await deliverWritten(row.id)
+        else await notify(notice)
+        to.push({ address: s.person.primaryEmail, via: 'ETYME', state: 'SENT', note: row ? await channelSaid(row.id) : SHOWN_CHANNEL_UNREAD, name: s.person.name, role: s.role?.name ?? null })
+      }
+      if (seats.length === 0) why = `nobody at ${payer.name} can record a payment yet.`
+    }
+  } else {
+    const workerEmails = bill.invoiceLines.map((l) => l.person?.primaryEmail ?? '').filter(Boolean)
+    const contacts = await recordedAt(supplier.id, payer.id, workerEmails)
+    if (contacts.length === 0) {
+      why = `${payer.name} is not on Etyme and no address is recorded for it. Record the person there who receives bills, then send it again.`
+    }
+    const expiresAt = billLinkExpiresAt(bill.dueAt)
+    for (const c of contacts) {
+      const url = billLinkUrl(billLinkToken(bill.id, c.email))
+      if (!url) {
+        to.push({ address: c.email, via: 'EMAIL', state: 'NOT_CONFIGURED', note: 'This deployment does not know its own web address, so a link would not open' })
+        continue
+      }
+      const letter = billLetter({
+        facts, contactName: c.name, url, expiresAt,
+        sender: sender ? { name: sender.name, email: sender.primaryEmail } : null,
+      })
+      const outcome = await attemptDelivery(
+        routeFor({ isConsultant: false, email: c.email, teamsWebhookUrl: null }),
+        c.email, letter.subject, letter.body, configuredSenders(), a.now, null,
+        // A send again is a chase about this bill: the door lets one go to an address in its window.
+        { companyId: supplier.id, mail: { template: 'bill', recordType: 'Invoice', recordId: bill.id, actorPersonId: a.byPersonId, chase: a.resend } },
+      )
+      to.push({ address: c.email, via: 'EMAIL', state: outcome.state, note: outcome.note, name: c.name })
+    }
+  }
+
+  const delivery: BillDelivery = {
+    invoiceId: bill.id, number: bill.number, clientName: payer.name, onEtyme: payer.onEtyme,
+    resend: a.resend, at: a.now.toISOString(), byPersonId: a.byPersonId, to, why,
+  }
+  const recorded = await emit({
+    type: a.resend ? RESENT_TYPE : SENT_TYPE,
+    companyId: supplier.id,
+    subjectType: 'Invoice',
+    subjectId: bill.id,
+    actorPersonId: a.byPersonId,
+    payload: delivery as unknown as Record<string, unknown>,
+  })
+  if (!recorded) {
+    void reportError('bill-delivery', new Error(`Bill ${bill.number} was sent and the record of whom it went to could not be written.`), { companyId: supplier.id }).catch(() => {})
+  }
+  return {
+    sent: to.some((t) => t.state === 'SENT'),
+    to: to.map((t) => t.address),
+    says: deliverySays(delivery, a.now),
+  }
+}
+
+/** The mark on a payer's notice written inside the sending, read back after the commit. */
+const WRITTEN_IN_THE_SENDING = 'writtenInTheSending'
+
+/**
+ * Write the payer's in-app notices for a bill being sent, through the
+ * sending's own transaction.
+ *
+ * `markSent` moves the bill to SUBMITTED; this writes, in the same
+ * transaction, the notice each seat at the payer that records payments
+ * reads ("Brightmoor Staffing sent you bill INV-1042"). So a bill that is
+ * sent always has somebody told, and a bill that rolled back told nobody.
+ * Until 2026-10-22 the notice was written only after the commit, and a
+ * failure there left a SUBMITTED bill with nobody told (money's simulation
+ * report: Anstey Consulting's IN_XW3U5S_003 to Sedgemoor Health).
+ *
+ * The rows are written PENDING for their channel: the email or Teams
+ * message goes after the commit, when `sendBillToCustomer` delivers them
+ * and records the sending. A payer not on Etyme has no seats to write to;
+ * its people receive the emailed link after the commit, as before.
+ * Writing twice in one bill's life writes nothing the second time.
+ */
+export async function writePayerNoticesIn(
+  tx: Prisma.TransactionClient,
+  a: { invoiceId: string }
+): Promise<{ written: number; payerId: string | null; why: string | null; read: BillRead | null }> {
+  const w = await readWhole(a.invoiceId, tx)
+  if (!w) return { written: 0, payerId: null, why: 'Nothing behind this bill says who pays it.', read: null }
+  // The bill as read here is handed back, so the delivery after it does
+  // not read it again (`sendBillToCustomer`'s `read`).
+  if (!w.payer.onEtyme) return { written: 0, payerId: w.payer.id, why: null, read: w }
+  const already = await tx.notification.count({
+    where: { entityId: w.bill.id, type: 'INVOICE', data: { path: [WRITTEN_IN_THE_SENDING], equals: true } },
+  })
+  if (already > 0) return { written: 0, payerId: w.payer.id, why: null, read: w }
+  const seats = await payerSeats(w.payer.id, tx)
+  if (seats.length === 0) return { written: 0, payerId: w.payer.id, why: `nobody at ${w.payer.name} can record a payment yet.`, read: w }
+  const said = billNotice(w.facts)
+  for (const s of seats) {
+    await tx.notification.create({
+      data: notificationRowFor({
+        personId: s.personId, companyId: w.payer.id, type: 'INVOICE', channel: 'EMAIL',
+        title: said.title, body: said.body, entityId: w.bill.id,
+        data: { href: billPageInEtyme(w.bill.id), invoiceNumber: w.bill.number, [WRITTEN_IN_THE_SENDING]: true, role: s.role?.name ?? null },
+      }),
+    })
+  }
+  return { written: seats.length, payerId: w.payer.id, why: null, read: w }
+}
+
+/** The payer's notices written inside the sending and not yet sent by email or Teams. */
+async function writtenInTheSending(invoiceId: string) {
+  const rows = await prisma.notification.findMany({
+    where: { entityId: invoiceId, type: 'INVOICE', deliveryState: 'PENDING', data: { path: [WRITTEN_IN_THE_SENDING], equals: true } },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, data: true, personId: true },
+  })
+  const people = rows.length
+    ? new Map((await prisma.person.findMany({ where: { id: { in: rows.map((r) => r.personId) } }, select: { id: true, name: true, primaryEmail: true } })).map((p) => [p.id, p]))
+    : new Map<string, { id: string; name: string; primaryEmail: string }>()
+  return rows
+    .filter((r) => people.has(r.personId))
+    .map((r) => ({ id: r.id, person: people.get(r.personId)!, role: ((r.data as { role?: string | null } | null)?.role ?? null) }))
+}
+
+/**
+ * Send a bill to the firm that pays it, once.
+ *
+ * Called by money after `markSent` commits, never inside its
+ * transaction: a letter cannot be called back, and a bill that rolled
+ * back must not have reached anybody. A second call for the same bill
+ * sends nothing and says what the first did; sending again is
+ * `resendBillToCustomer`, a person's own act.
+ */
+export async function sendBillToCustomer(a: {
+  invoiceId: string
+  byPersonId: string | null
+  now?: Date
+  /**
+   * The bill as the payer's notices read it after the sending committed
+   * (`writePayerNoticesIn`'s `read`), so it is not read twice. Used only
+   * where it is this bill and reads as sent; anything else is read again.
+   */
+  read?: BillRead | null
+}): Promise<BillSent> {
+  const now = a.now ?? new Date()
+  const past = await history(a.invoiceId)
+  if (past.length) {
+    const said = billSentSays(past.map((p) => p.delivery), now)
+    return { sent: false, to: past[0].delivery.to.map((t) => t.address), says: said ?? 'Already sent.' }
+  }
+  const w = handedOn(a.read, a.invoiceId) ?? (await readWhole(a.invoiceId))
+  if (!w) return { sent: false, to: [], says: 'Not sent: nothing behind this bill says who pays it.' }
+  if (w.bill.status !== 'SUBMITTED') {
+    return { sent: false, to: [], says: `Not sent: bill ${w.bill.number} is ${w.bill.status.toLowerCase().replace('_', ' ')}, not sent.` }
+  }
+  return deliver(w, { byPersonId: a.byPersonId, resend: false, now })
+}
+
+/**
+ * A read handed on from the sending, where it may stand for a fresh one:
+ * the same bill, read once it was sent. A read from before the sending
+ * committed still says ISSUED or DRAFT, and the delivery reads again.
+ */
+export function handedOn(read: BillRead | null | undefined, invoiceId: string): BillRead | null {
+  return read && read.bill.id === invoiceId && read.bill.status === 'SUBMITTED' ? read : null
+}
+
+const SHOWN_CHANNEL_UNREAD = 'Shown in the app; what happened on their channel could not be read'
+
+/**
+ * What a payer's seat was told, read off the notice after its channel
+ * answered (fault 6 of the founder's Tapin walk, 2026-11-12): "Shown in
+ * the app, and sent on their channel" only where the channel took it;
+ * otherwise what stopped it, in Etyme's words, never the provider's.
+ */
+export function channelSays(state: string | null | undefined, note: string | null | undefined): string {
+  switch (state) {
+    case 'SENT':
+      // A Teams post's note starts "Posted to the"; any other SENT is an email.
+      return `Shown in the app. ${note?.startsWith('Posted to the') ? TEAMS_POSTED_SAYS : HANDED_TO_EMAIL_SERVICE}`
+    case 'FAILED':
+      return `Shown in the app; on their channel it did not go. ${mailFailureSays(failureFromNote(note))}`
+    case 'DEMO_SKIPPED':
+      return 'Shown in the app; a demo address, so nothing went on their channel'
+    case 'NOT_CONFIGURED':
+      return 'Shown in the app; nothing is set up to send on their channel'
+    default:
+      return 'Shown in the app; their channel has not answered yet'
+  }
+}
+
+async function channelSaid(notificationId: string): Promise<string> {
+  const row = await prisma.notification.findUnique({ where: { id: notificationId }, select: { deliveryState: true, deliveryNote: true } }).catch(() => null)
+  return row ? channelSays(row.deliveryState, row.deliveryNote) : SHOWN_CHANNEL_UNREAD
+}
+
+/**
+ * Send a bill again: a separate act, by somebody at the firm that raised
+ * it who sends bills, logged as `invoice.resent` with their name. Reads
+ * the recorded people again, so a contact recorded after the first
+ * sending receives it now.
+ */
+export async function resendBillToCustomer(a: {
+  invoiceId: string
+  byPersonId: string
+  companyId: string
+  /**
+   * Whether the person pressing is on a limited public-address seat
+   * (founder, 2026-11-11), from the route's caller. A refusal then says
+   * the address is why, through the one refusal (`refusalFor`).
+   */
+  publicSeat?: boolean
+  now?: Date
+}): Promise<({ ok: true } & BillSent) | Refused> {
+  const now = a.now ?? new Date()
+  const w = await readWhole(a.invoiceId)
+  if (!w || w.supplier.id !== a.companyId) {
+    return { ok: false, status: 404, code: 'NOT_FOUND', says: 'No such bill of yours. A bill is sent again by the firm that raised it.' }
+  }
+  const seat = await prisma.context.findFirst({
+    where: {
+      personId: a.byPersonId, companyId: a.companyId, revokedAt: null, suspendedAt: null,
+      role: { permissions: { hasSome: ['invoices.issue', '*'] } },
+      ...NOT_THE_SAMPLE_SEAT,
+    },
+    select: { id: true },
+  })
+  if (!seat) {
+    const firm: CallerContext['company'] = await prisma.company.findUnique({
+      where: { id: a.companyId },
+      select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true },
+    })
+    return { ok: false, status: 403, code: 'FORBIDDEN', says: refusalFor({ publicSeat: a.publicSeat ?? false, company: firm }, { doing: 'Sending a bill again', needs: 'invoices.issue' }) }
+  }
+  const n = w.bill.number
+  if (w.bill.status === 'DRAFT' || w.bill.status === 'ISSUED') {
+    return { ok: false, status: 409, code: 'NOT_SENT', says: `Bill ${n} has not been sent yet. Send it; it reaches ${w.payer.name} then.` }
+  }
+  if (w.bill.status === 'PAID') return { ok: false, status: 409, code: 'PAID', says: `Bill ${n} is paid, so there is nothing to send again.` }
+  if (w.bill.status === 'CANCELLED') return { ok: false, status: 409, code: 'CANCELLED', says: `Bill ${n} is cancelled, so there is nothing to send again.` }
+
+  const past = await history(a.invoiceId)
+  const last = past[past.length - 1]?.delivery
+  if (last && now.getTime() - new Date(last.at).getTime() < RESEND_NOT_WITHIN_MS) {
+    return { ok: false, status: 409, code: 'JUST_SENT', says: `Bill ${n} was sent a few minutes ago. Give it a little while before sending it again.` }
+  }
+  const sent = await deliver(w, { byPersonId: a.byPersonId, resend: true, now })
+  return { ok: true, ...sent }
+}
+
+/**
+ * The sentence for the Bills page and the bill's own page, read from what
+ * actually happened: "Sent to dana@acme.com on Oct 19", "Sent on Etyme to
+ * Northbend Athletic's AP Clerk on Oct 19". Null for a bill Etyme never
+ * sent anywhere — the page then says nothing rather than guess.
+ */
+export async function billDeliverySays(invoiceId: string, now = new Date()): Promise<string | null> {
+  return billSentSays((await history(invoiceId)).map((p) => p.delivery), now)
+}
+
+/** The same sentence for a list of bills at once, keyed by bill. One query, for the Bills list. */
+export async function billDeliverySaysFor(invoiceIds: string[], now = new Date()): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  if (invoiceIds.length === 0) return out
+  const rows = await prisma.event.findMany({
+    where: { subjectType: 'Invoice', subjectId: { in: invoiceIds }, type: { in: [SENT_TYPE, RESENT_TYPE] } },
+    orderBy: { seq: 'asc' },
+    select: { subjectId: true, payload: true },
+  })
+  const by = new Map<string, BillDelivery[]>()
+  for (const r of rows) {
+    const d = r.payload as unknown as BillDelivery
+    if (!d || !Array.isArray(d.to) || typeof d.at !== 'string') continue
+    by.set(r.subjectId, [...(by.get(r.subjectId) ?? []), d])
+  }
+  for (const [id, list] of by) {
+    const said = billSentSays(list, now)
+    if (said) out.set(id, said)
+  }
+  return out
+}
+
+// ── The page, by its link ─────────────────────────────────────────────
+
+/**
+ * What the person a bill was emailed to sees, or why the link is closed.
+ *
+ * No sign-in: the signed token is the credential and names one bill and
+ * one address. Every open is an access-log row about each person on the
+ * bill, written before the page is handed over, naming the payer's firm,
+ * the address the link was sent to and the bill. A refusal is written
+ * too, before the refusal goes out.
+ */
+export async function openBillLink(token: string, now = new Date()): Promise<{ ok: true; view: BillPageView } | Refused> {
+  const named = readBillLinkToken(token)
+  if (!named) return { ok: false, status: 404, code: 'NOT_FOUND', says: BILL_LINK_NOT_OURS }
+  const w = await readWhole(named.invoiceId)
+  // A bill not yet sent was never linked: a token for one is not ours.
+  if (!w || w.bill.status === 'DRAFT' || w.bill.status === 'ISSUED') {
+    return { ok: false, status: 404, code: 'NOT_FOUND', says: BILL_LINK_NOT_OURS }
+  }
+  const subjects = [...new Set(w.bill.invoiceLines.map((l) => l.personId).filter((p): p is string => Boolean(p)))]
+  const contact = await prisma.companyContact.findFirst({
+    where: { atCompanyId: w.payer.id, email: named.to },
+    select: { personId: true },
+  })
+  const actor = { actorCompanyId: w.payer.id, ...(contact?.personId ? { actorPersonId: contact.personId } : {}) }
+  const whose = `the link to bill ${w.bill.number} emailed to ${named.to}`
+
+  if (!billLinkOpen(w.bill.dueAt, now)) {
+    const says = billLinkClosedSays({ number: w.bill.number, supplierName: w.supplier.name, expiresAt: billLinkExpiresAt(w.bill.dueAt) })
+    await recordRefusal(subjects, { action: 'BILL_LINK_VIEW', ...actor, reason: `Refused ${whose}: it ran out.` })
+    return { ok: false, status: 410, code: 'LINK_EXPIRED', says }
+  }
+  if (w.bill.status === 'CANCELLED') {
+    await recordRefusal(subjects, { action: 'BILL_LINK_VIEW', ...actor, reason: `Refused ${whose}: the bill is cancelled.` })
+    return { ok: false, status: 410, code: 'CANCELLED', says: billCancelledSays({ number: w.bill.number, supplierName: w.supplier.name }) }
+  }
+
+  try {
+    await recordAccess(subjects, {
+      action: 'BILL_LINK_VIEW', ...actor,
+      reason: `Opened ${whose}${w.payer.onEtyme ? '' : ` (${w.payer.name} was not on Etyme)`}: the hours, the weeks and the rate on this bill.`,
+    })
+  } catch (err) {
+    void reportError('bill-link', err, { companyId: w.payer.id }).catch(() => {})
+    return { ok: false, status: 503, code: 'NOT_RECORDED', says: 'The bill could not be opened just now, because the record of who opened it could not be written. Try again in a minute.' }
+  }
+
+  // Where to pay is the row a payment would go to, and only once it is
+  // checked (payToOnBill, lib/money/pay-to): never a row the bill kept from
+  // before a bank change, and never the newest row while it is unchecked.
+  // This is the page a payer off Etyme pays from (2026-11-16).
+  const payTo = await payToOnBill(w.supplier.id)
+  const remit = payTo.row
+    ? { legalName: payTo.row.legalName, paymentMethod: payTo.row.paymentMethod, bankName: payTo.row.bankName, accountLast4: payTo.row.accountLast4 }
+    : null
+
+  return {
+    ok: true,
+    view: billPageView({
+      supplierName: w.supplier.name,
+      clientName: w.payer.name,
+      clientOnEtyme: w.payer.onEtyme,
+      invoiceId: w.bill.id,
+      number: w.bill.number,
+      status: w.bill.status,
+      total: Number(w.bill.total),
+      paid: Number(w.bill.paid),
+      currency: w.bill.currency,
+      periodStart: w.bill.periodStart,
+      periodEnd: w.bill.periodEnd,
+      dueAt: w.bill.dueAt,
+      lines: w.bill.invoiceLines.map((l) => ({
+        hours: Number(l.hours),
+        rateCents: l.rateCents,
+        amountCents: l.amountCents,
+        description: l.description,
+        personName: l.person?.name ?? null,
+        week: l.timesheet ? { start: l.timesheet.periodStart, end: l.timesheet.periodEnd } : null,
+        expense: Boolean(l.expenseId),
+        milestone: Boolean(l.milestoneId),
+      })),
+      weeks: w.weeks,
+      signedBy: w.facts.signedBy,
+      remit,
+      remitConfirming: !payTo.row && payTo.entered,
+    }, now),
+  }
+}

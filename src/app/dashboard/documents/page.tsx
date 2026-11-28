@@ -1,0 +1,382 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import type { ExamineNeeds } from '@/lib/document-stages/examine-form'
+import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
+import { Chip, EmptyState, FormMessage, LoadingState, PageHead, RefusedState, type ChipTone } from '@/components/ui'
+import { paperWord, waitsToBeExamined, audienceWord, askTheBooks, booksSays, type BooksReading } from '@/lib/document-request'
+import { ExaminePaper, type ExamineRow } from './examine'
+import { plainDate } from '@/lib/plain-date'
+import { OwnPapers, readOwnPapers } from './own-papers'
+
+/**
+ * Paperwork — what the company asks people and firms for, and where
+ * each request stands.
+ *
+ * A working surface: the library of things this company asks for (a
+ * W-9, an NDA, a certificate of insurance) and every request made from
+ * it, with the one thing to do next on each row. Asking sends the
+ * person a note and a place to answer; a signed NDA or an uploaded W-9
+ * comes back here as "on file" the moment they do it.
+ *
+ * Nothing on this page is a signing product. A signature is the person
+ * attesting from their own page, or the company recording the signed
+ * copy it received. That is what the trade actually does.
+ *
+ * ── The picker offered nobody, at every firm ──────────────────────────
+ *
+ * "From whom" read the bench answer's `data.listings` — a key
+ * `/api/bench` has never sent — coalesced `undefined` to `[]`, and drew
+ * an empty dropdown. So nobody could be asked for a document from this
+ * screen, ever, and nothing failed: an empty list is a valid-looking
+ * answer.
+ *
+ * Both halves of the fix are outside this component. The bench answer is
+ * read through `readBench`, one door, so this page and `/dashboard/bench`
+ * cannot disagree about the same firm's people; and the population is
+ * `peopleOnBooks` in `lib/document-request` — the payroll as well as the
+ * listings, because asking somebody for a W-9 needs no consent to be
+ * marketed, and a reading that failed says so rather than offering
+ * nobody.
+ */
+
+interface Template { id: string; name: string; audience: string; needsSignature: boolean; instanceCount: number }
+interface Request_ {
+  id: string
+  template: { id: string; name: string; needsSignature: boolean }
+  subjectType: string
+  subject: string
+  /** About a firm, whichever way it arrived: the look asks who issued it. */
+  aboutAFirm?: boolean
+  status: string
+  sentAt: string | null
+  signedAt: string | null
+  hasSignedFile: boolean
+  fileName: string | null
+  note: string | null
+  /** How the rule read a sponsorship answer, or that it could not. */
+  sponsorshipRead?: string | null
+  examinedAt?: string | null
+  /** A degree read against the record: the sentence to HR and the doors, or null. */
+  degree?: { says: string | null; verified: string | null; doors: { kind: 'TRANSCRIPT' | 'PROVIDER' | 'SEND_BACK'; says: string }[] } | null
+  expiresAt?: string | null
+  examineNeeds?: Partial<ExamineNeeds>
+  licenseFacts?: { licenseNumber: string; issuer: string; expiresAt: string } | null
+}
+const AUDIENCES = ['CANDIDATE', 'VENDOR', 'CLIENT', 'EMPLOYEE', 'GENERAL']
+
+export default function DocumentsPage() {
+  // The heading the reader's own trimmed menu gives this page, read off
+  // the identity the sidebar is drawn from, and nothing where that menu
+  // does not list it or is not known yet (sign-up walk, round seven,
+  // problem 3: a desk-less seat read "Compliance" from the company's
+  // whole menu).
+  const eyebrow = usePageSection('/dashboard/documents')
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [requests, setRequests] = useState<Request_[]>([])
+  // What waits on this seat: papers that arrived and nobody examined.
+  const [waiting, setWaiting] = useState<{ count: number; says: string | null } | null>(null)
+  const [books, setBooks] = useState<BooksReading>({ people: [], why: null, whole: true })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [said, setSaid] = useState<string | null>(null)
+  // The library itself could not be read — refused, most often. Apart
+  // from `error`, which is an act on a page that did load.
+  const [unread, setUnread] = useState<string | null>(null)
+
+  const [newTemplate, setNewTemplate] = useState({ name: '', audience: 'CANDIDATE', needsSignature: false })
+  const [ask, setAsk] = useState({ templateId: '', personId: '' })
+  const [examining, setExamining] = useState<ExamineRow | null>(null)
+  // A one-person firm: her firm's papers and her license go on file here,
+  // and she is never offered herself to ask (release walk, 2026-10-27).
+  const [onePersonFirm, setOnePersonFirm] = useState(false)
+  // A firm with a team, at a seat that files the firm's own W-9, insurance
+  // and good standing (the Tapin walk, 2026-10-29).
+  const [teamFirm, setTeamFirm] = useState(false)
+  const [record, setRecord] = useState<{ id: string; kind: 'upload' | 'sign'; fileUrl: string; note: string } | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    setUnread(null)
+    try {
+      const [t, r, whoWeMayAsk, own] = await Promise.all([
+        fetch('/api/documents').then(readJson),
+        fetch('/api/documents?view=instances').then(readJson),
+        askTheBooks(),
+        readOwnPapers(),
+      ])
+      setOnePersonFirm(!!own?.firm)
+      setTeamFirm(!!own?.teamFirm)
+      setTemplates(t?.data?.templates ?? [])
+      setRequests(r?.data?.instances ?? [])
+      setWaiting(r?.data?.waitingOnYou ?? null)
+      setBooks(whoWeMayAsk)
+    } catch (e: any) {
+      setUnread(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  async function post(url: string, body: unknown): Promise<any> {
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    return readJson(res)
+  }
+
+  async function addTemplate(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      await post('/api/documents', { type: 'template', ...newTemplate })
+      setNewTemplate({ name: '', audience: 'CANDIDATE', needsSignature: false })
+      setSaid(`${newTemplate.name} added to the library.`)
+      await load()
+    } catch (e: any) { setError(e.message) }
+  }
+
+  async function askFor(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      const made = await post('/api/documents', { type: 'instance', templateId: ask.templateId, subjectType: 'PERSON', subjectId: ask.personId })
+      const id = made?.data?.instance?.id
+      const sent = await post(`/api/documents/${id}/send`, {})
+      setSaid(sent?.data?.says ?? 'Asked for.')
+      setAsk({ templateId: '', personId: '' })
+      await load()
+    } catch (e: any) { setError(e.message) }
+  }
+
+  async function send(id: string) {
+    try {
+      const r = await post(`/api/documents/${id}/send`, {})
+      setSaid(r?.data?.says ?? 'Asked for.')
+      await load()
+    } catch (e: any) { setError(e.message) }
+  }
+
+  async function saveRecord(e: React.FormEvent) {
+    e.preventDefault()
+    if (!record) return
+    try {
+      const r = await post(`/api/documents/${record.id}/${record.kind}`, { fileUrl: record.fileUrl, note: record.note })
+      setSaid(r?.data?.says ?? 'Recorded.')
+      setRecord(null)
+      await load()
+    } catch (e: any) { setError(e.message) }
+  }
+
+  // Green only once somebody examined it: a paper that arrived is waiting
+  // on this firm, which is attention, not done (the second screen walk).
+  const tone = (r: Request_): ChipTone =>
+    waitsToBeExamined(r) ? 'attention'
+      : (r.status === 'SIGNED' || r.status === 'UPLOADED' || r.status === 'KEPT') ? 'verified'
+        : r.status === 'SENT' ? 'attention'
+          : 'passive'
+
+  // A library that could not be read is the sentence alone. Not
+  // "Requests 0" and a form to ask with, which say there is nothing here
+  // and offer what the same route would refuse; and not the heading over
+  // it either, because a refused page is its refusal (sign-up walk,
+  // round seven, problem 6).
+  if (unread) return (
+    <RefusedState says={unread} />
+  )
+
+  return (
+    <div className="max-w-5xl">
+      <PageHead
+        eyebrow={eyebrow}
+        title="Paperwork"
+        subtitle={onePersonFirm
+          ? 'Your firm’s own papers, and your license. Put each on file once; a client that asks looks at it.'
+          : 'What you ask people and firms for, and where each request stands. Asking sends them a note and a place to answer.'}
+      />
+
+      {said && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-etyme-verified/10 text-sm text-etyme-verified flex justify-between">
+          <span>{said}</span>
+          <button onClick={() => setSaid(null)} className="text-etyme-verified/70">Close</button>
+        </div>
+      )}
+      {error && <div className="mb-4"><FormMessage tone="error">{error}</FormMessage></div>}
+
+      {waiting?.says && (
+        <p className="mb-4 text-sm text-etyme-attention">
+          <span className="text-[10px] uppercase tracking-[0.12em] font-medium mr-2">Waiting on you <span className="tabular-nums">{waiting.count}</span></span>
+          {waiting.says}
+        </p>
+      )}
+
+      {onePersonFirm && <OwnPapers heading="Your firm’s papers" />}
+
+      {teamFirm && <OwnPapers about="MY_FIRM" heading="Company paperwork" />}
+
+      {/* Where "Ask for the transcript" on a degree lands. */}
+      <div id="ask" />
+      {!onePersonFirm && <section className="mb-8">
+        <h2 className="font-serif text-lg text-etyme-ink mb-3">Ask somebody for a document</h2>
+        <form onSubmit={askFor} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 flex flex-wrap gap-3 items-end">
+          <label className="flex-1 min-w-[200px]">
+            <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Which document</span>
+            <select value={ask.templateId} onChange={(e) => setAsk({ ...ask, templateId: e.target.value })} required
+              className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
+              <option value="">Choose from the library</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}{t.needsSignature ? ' (signed)' : ''}</option>)}
+            </select>
+          </label>
+          <label className="flex-1 min-w-[200px]">
+            <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">From whom</span>
+            <select value={ask.personId} onChange={(e) => setAsk({ ...ask, personId: e.target.value })} required
+              disabled={books.people.length === 0}
+              className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised disabled:opacity-50">
+              <option value="">{books.people.length === 0 ? 'Nobody to ask' : 'Somebody on your books'}</option>
+              {books.people.map((p) => (
+                <option key={p.personId} value={p.personId}>{p.name} · {p.because}</option>
+              ))}
+            </select>
+            {/* Three states, never collapsed into an empty dropdown: a
+                reading that failed, a firm with nobody yet, and a list
+                that is short because half of it would not read. */}
+            {booksSays(books) && (
+              <span className="block mt-1 text-xs text-etyme-attention">{booksSays(books)}</span>
+            )}
+          </label>
+          <button type="submit" disabled={!ask.templateId || !ask.personId}
+            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            Ask for it
+          </button>
+        </form>
+      </section>}
+
+      {/* A firm of one asks nobody: her own filings are under "Your firm’s papers". */}
+      {!onePersonFirm && <section className="mb-8">
+        <h2 className="font-serif text-lg text-etyme-ink mb-3">Requests <span className="text-xs text-etyme-faint tabular-nums font-sans">{requests.length}</span></h2>
+        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+          {loading && <LoadingState compact says="Reading what was asked for…" />}
+          {!loading && requests.length === 0 && (
+            <EmptyState compact says="Nothing asked for yet." detail="Add a document to the library below, then ask somebody for it above." />
+          )}
+          {/* What arrived and waits on somebody's look first. */}
+          {[...requests].sort((a, b) => Number(waitsToBeExamined(b)) - Number(waitsToBeExamined(a))).map((r) => (
+            <div key={r.id} className="p-4 flex flex-wrap items-center gap-3">
+              <div className="flex-1 min-w-[220px]">
+                <div className="text-sm text-etyme-ink">{r.template.name} <span className="text-etyme-muted">· {r.subject}</span></div>
+                <div className="text-xs text-etyme-faint tabular-nums mt-0.5">
+                  {r.signedAt ? `${r.status === 'SIGNED' ? 'Signed' : 'Arrived'} ${plainDate(r.signedAt)}` : r.sentAt ? `Asked ${new Date(r.sentAt).toLocaleDateString()}` : 'Not asked yet'}
+                  {r.fileName ? ` · ${r.fileName}` : ''}
+                  {r.note ? ` · ${r.note}` : ''}
+                </div>
+                {r.sponsorshipRead && <div className="text-xs text-etyme-muted mt-0.5">{r.sponsorshipRead}</div>}
+                {/* A degree read against the record: said beside the paper, and HR decides (2026-11-03). */}
+                {r.degree?.says && (
+                  <div className={`text-xs mt-1 ${r.degree.verified ? 'text-etyme-verified' : 'text-etyme-attention'}`}>
+                    {r.degree.says}
+                    {r.degree.doors.length > 0 && (
+                      <span className="flex flex-wrap gap-3 mt-1">
+                        {r.degree.doors.map((d) => d.kind === 'TRANSCRIPT'
+                          ? <a key={d.kind} href="#ask" className="text-etyme-action hover:underline">{d.says}</a>
+                          : d.kind === 'PROVIDER'
+                            ? <a key={d.kind} href="/dashboard/compliance" className="text-etyme-action hover:underline">{d.says}</a>
+                            : <button key={d.kind} type="button" onClick={() => setExamining(r)} className="text-etyme-action hover:underline">{d.says}</button>)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <Chip tone={tone(r)}>{paperWord(r)}</Chip>
+              {(r.status === 'PENDING' || r.status === 'SENT') && (
+                <button onClick={() => send(r.id)} className="text-xs text-etyme-action hover:underline">
+                  {r.status === 'PENDING' ? 'Ask for it' : 'Ask again'}
+                </button>
+              )}
+              {(r.status === 'UPLOADED' || r.status === 'SIGNED' || r.status === 'KEPT') && !r.examinedAt && (
+                <button onClick={() => setExamining(r)} className="text-xs text-etyme-action hover:underline">
+                  Look at it
+                </button>
+              )}
+              {r.examinedAt && (
+                <span className="text-xs text-etyme-verified">
+                  Accepted {plainDate(r.examinedAt)}{r.expiresAt ? ` · runs out ${plainDate(r.expiresAt)}` : ''}
+                </span>
+              )}
+              {r.status === 'SENT' && (
+                <button
+                  onClick={() => setRecord({ id: r.id, kind: r.template.needsSignature ? 'sign' : 'upload', fileUrl: '', note: '' })}
+                  className="text-xs text-etyme-action hover:underline"
+                >
+                  {r.template.needsSignature ? 'Record the signed copy' : 'Record the file'}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>}
+
+      {examining && (
+        <ExaminePaper
+          row={examining}
+          onClose={() => setExamining(null)}
+          onDone={async (says) => { setExamining(null); setSaid(says); await load() }}
+        />
+      )}
+
+      {record && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-etyme-ink/30 p-4 md:p-8" onClick={() => setRecord(null)} role="dialog" aria-modal="true" aria-label="Record a document">
+          <form onSubmit={saveRecord} onClick={(e) => e.stopPropagation()} className="w-full max-w-lg bg-etyme-surface border border-etyme-rule rounded-lg p-5 space-y-4">
+            <h2 className="font-serif text-lg text-etyme-ink">{record.kind === 'sign' ? 'The signed copy you received' : 'The file you received'}</h2>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Where the file is</span>
+              <input value={record.fileUrl} onChange={(e) => setRecord({ ...record, fileUrl: e.target.value })} required placeholder="https://…"
+                className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+            </label>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">A note, if any</span>
+              <input value={record.note} onChange={(e) => setRecord({ ...record, note: e.target.value })} placeholder="Came by email on the 12th"
+                className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+            </label>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setRecord(null)} className="text-sm text-etyme-muted">Cancel</button>
+              <button type="submit" className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">Record</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {!onePersonFirm && <section>
+        <h2 className="font-serif text-lg text-etyme-ink mb-3">The library <span className="text-xs text-etyme-faint tabular-nums font-sans">{templates.length}</span></h2>
+        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule mb-3">
+          {templates.length === 0 && <EmptyState compact says="Nothing in the library yet." detail="A W-9, an NDA, a certificate of insurance — add what you ask for." />}
+          {templates.map((t) => (
+            <div key={t.id} className="p-4 flex items-center gap-3">
+              <div className="flex-1 text-sm text-etyme-ink">{t.name}</div>
+              <span className="text-xs text-etyme-muted">Asked of: {audienceWord(t.audience).toLowerCase()}{t.needsSignature ? ' · needs a signature' : ''}</span>
+              <span className="text-xs text-etyme-faint tabular-nums">{t.instanceCount} asked</span>
+            </div>
+          ))}
+        </div>
+        <form onSubmit={addTemplate} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 flex flex-wrap gap-3 items-end">
+          <label className="flex-1 min-w-[200px]">
+            <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Add to the library</span>
+            <input value={newTemplate.name} onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })} required placeholder="W-9"
+              className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+          </label>
+          <label>
+            <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Asked of</span>
+            <select value={newTemplate.audience} onChange={(e) => setNewTemplate({ ...newTemplate, audience: e.target.value })}
+              className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
+              {AUDIENCES.map((a) => <option key={a} value={a}>{audienceWord(a)}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-etyme-ink pb-2">
+            <input type="checkbox" checked={newTemplate.needsSignature} onChange={(e) => setNewTemplate({ ...newTemplate, needsSignature: e.target.checked })} />
+            Needs a signature
+          </label>
+          <button type="submit" className="px-4 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Add</button>
+        </form>
+      </section>}
+    </div>
+  )
+}

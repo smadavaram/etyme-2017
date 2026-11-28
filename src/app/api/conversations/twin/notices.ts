@@ -1,0 +1,519 @@
+/**
+ * "Since you last looked": the notices the Notifications page used to
+ * list, read for Ask Etyme's greeting and marked read once it is served
+ * (CLAUDE.md, "Notifications are deleted; Ask Etyme carries the
+ * number", 2026-10-13). The rows are the page's own rows — this person's
+ * notices, unread, the account's own sign-up and reset mail left out
+ * (`bellShows`) — so nothing the page said is dropped and nothing new is
+ * counted. Email and Teams still carry each notice as before; only the
+ * in-app list moved.
+ *
+ * The one write in Ask Etyme's greeting is here, and it is the reader's
+ * own: a notice shown is marked read, and only a notice shown, so a
+ * notice the greeting had no room for is never lost.
+ */
+
+import type { Prisma } from '@prisma/client'
+import { prisma } from '@/lib/db'
+import type { CallerContext } from '@/lib/api-context'
+import { bellShows } from '@/lib/notify/account-mail'
+import { pageOf } from '@/lib/notify'
+import {
+  NOTICES_SHOWN, THREADS_SHOWN, COMING_FREE, START_PAPERS, OUR_BENCH_HREF, START_ASKS_HREF, startAskedSays, chosenSays, placedSays,
+  type NoticeLine, type ThreadNote,
+} from './ask'
+import { comingFreeTitle, type ComingFreeRow } from '@/lib/twin/supplier-performers'
+import { labelFor } from '@/lib/document-type'
+import { holdsPaperworkDesk } from '@/lib/document-request'
+import { paperAsksToday } from './paper-asks'
+import { closedFlagNotices } from '@/lib/twin/held-notices'
+import { receiptNoticesToday } from './receipt-notices'
+
+function asRecord(v: unknown): Record<string, unknown> | undefined {
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined
+}
+
+/**
+ * Where a notice applies. A notice written at another company where this
+ * person holds a desk waits for that seat, because its link opens that
+ * company's book. Every other notice shows here: one tied to no company,
+ * one written at this seat's company, and one written at a firm where she
+ * holds no desk at all.
+ *
+ * That last kind is most of a worker's mail. A supplier puts her forward
+ * and the client books her rounds, so the notice is written at the
+ * supplier or the client, firms where she holds no seat. The rule used to
+ * say where a notice may show rather than where it may not, so those sat
+ * unread at no seat she could ever open: Wendell Chowdhury, on
+ * Glenhaven's bench, held eleven (his papers asked for by Dalebrook
+ * Partners, his rounds with Quillon Software), found by the simulation's
+ * handoffs station on the generated world (2026-10-22). Her own bench's
+ * chase for her license follows her for the same reason (Colleen Byrne,
+ * 2026-10-20): a bench seat is no firm's book.
+ */
+/**
+ * The seats this person holds at other firms, read once per request: the
+ * greeting's notices and its conversations both ask (2026-11-02).
+ */
+const elsewhereOf = new WeakMap<object, Promise<{ companyId: string | null }[]>>()
+function seatsElsewhere(caller: CallerContext): Promise<{ companyId: string | null }[]> {
+  let got = elsewhereOf.get(caller)
+  if (!got) {
+    got = caller.company
+      ? prisma.context.findMany({
+          where: { personId: caller.person.id, type: { not: 'CONSULTANT' }, revokedAt: null, companyId: { not: caller.company.id } },
+          select: { companyId: true },
+        }).catch(() => [] as { companyId: string | null }[])
+      : Promise.resolve([])
+    elsewhereOf.set(caller, got)
+  }
+  return got
+}
+
+async function unreadWhere(caller: CallerContext, opts: { program?: string | null } = {}, now = new Date()): Promise<Prisma.NotificationWhereInput> {
+  // A firm seated in a client's program reads that program, the same as
+  // its greeting: a notice written at its own firm's book waits for the
+  // seat that reads that book (walk three, 2026-10-26: Aptiva, seated at
+  // Cavanaugh Glassworks, read "Bill to raise" for its own Ruben Ortega).
+  if (opts.program) {
+    return {
+      personId: caller.person.id,
+      ...stillNew(now),
+      AND: [
+        { OR: [{ companyId: null }, { companyId: opts.program }] },
+        { OR: [{ entityId: null }, { NOT: { entityId: { startsWith: DIGEST_PREFIX } } }] },
+      ],
+      ...bellShows(),
+    }
+  }
+  const desks = await seatsElsewhere(caller)
+  const elsewhere = [...new Set((desks ?? []).map((c) => c.companyId).filter((id): id is string => !!id))]
+  // `notIn` passes no null, so a notice tied to no company is named on its own.
+  const at: Prisma.NotificationWhereInput[] = elsewhere.length ? [{ companyId: null }, { companyId: { notIn: elsewhere } }] : []
+  return {
+    personId: caller.person.id,
+    ...stillNew(now),
+    AND: [
+      ...(at.length ? [{ OR: at }] : []),
+      // The twin's Teams digest is the greeting's own list sent to Teams;
+      // said again here it would be "1 bill to send" under the card for
+      // that bill (found by the handoffs station, 2026-10-20).
+      { OR: [{ entityId: null }, { NOT: { entityId: { startsWith: DIGEST_PREFIX } } }] },
+    ],
+    ...bellShows(),
+  }
+}
+
+/**
+ * How long a notice the greeting already said is said again on the next
+ * greeting. Marking a notice read the moment a greeting is served lost it
+ * to any second load: the Tapin walk (2026-10-29) read Brightmoor's job,
+ * the link answered and two bench yeses off one load, and the screen drew
+ * the next, a fraction of a second later, which said only the oldest. A
+ * reload, a phone and a desktop opened together, or the screen fetching
+ * twice did the same. So a notice stays in "Since you last looked" for a
+ * few minutes after it was first said, then is gone; it is still told
+ * once, and never on a later day.
+ */
+export const SAID_AGAIN_MS = 5 * 60 * 1000
+
+/** Unread, or read by a greeting in the last few minutes (SAID_AGAIN_MS). */
+export function stillNew(now: Date): Pick<Prisma.NotificationWhereInput, 'OR'> {
+  return { OR: [{ status: 'UNREAD' }, { status: 'READ', readAt: { gte: new Date(now.getTime() - SAID_AGAIN_MS) } }] }
+}
+
+/** The marker the twin's Teams digest writes as its notice's entityId (`lib/teams/digest`). */
+export const DIGEST_PREFIX = 'twin-digest:'
+
+/**
+ * The newest unread notices for this seat, at most NOTICES_SHOWN, and how
+ * many older ones wait. A note on a conversation is not among them: the
+ * greeting says those as the conversation they are on (`unreadThreads`).
+ * Each comes with its body and, for a date coming due, the cycle and the
+ * day, so the greeting can say who and what rather than the title.
+ */
+export async function unreadNotices(caller: CallerContext, opts: { program?: string | null } = {}): Promise<{ shown: NoticeLine[]; older: number; withheld: string[] }> {
+  const where = { ...(await unreadWhere(caller, opts)), type: { not: 'CONVERSATION' } }
+  const [read, total] = await Promise.all([
+    prisma.notification.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: NOTICES_SHOWN,
+      select: { id: true, type: true, title: true, body: true, entityId: true, data: true, createdAt: true },
+    }),
+    prisma.notification.count({ where }),
+  ])
+  // A colleague's paper is never said to a seat whose work is not papers.
+  const withheld = await papersNotTheirs(caller, read).catch(() => new Set<string>())
+  // A paper request is said for what is still owed today, never as it was
+  // written: a paper on file since is not asked for again (walk 5, C8).
+  const asks = await paperAsksToday(read).catch(() => new Map<string, never>())
+  for (const [id, a] of asks) if (a.kind === 'ANSWERED') withheld.add(id)
+  // A receipt held or flagged last night and paid since is not said again (walk 7).
+  for (const id of await closedFlagNotices(read)) withheld.add(id)
+  const rows = read
+    .filter((n) => !withheld.has(n.id))
+    .map((n) => { const a = asks.get(n.id); return a?.kind === 'LEFT' ? { ...n, title: a.title, body: null } : n })
+  const [twin, chain] = await Promise.all([
+    twinActNotices(rows).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>()),
+    chainNotices(rows, caller.company?.id ?? null).catch(() => new Map<string, Pick<NoticeLine, 'title' | 'href' | 'linkText'>>()),
+  ])
+  // Etyme's own question, answered since it was asked: the notice is
+  // marked read with the rest and never said, because "Ask Etyme is asking
+  // you to decide" about a bill already sent is a question nobody can
+  // answer (handoffs station, 2026-10-20).
+  const asked = [...new Set(rows.map((n) => asRecord(n.data)?.twinApprovalId).filter((x): x is string => typeof x === 'string'))]
+  const settled = asked.length
+    ? new Set((await prisma.twinApproval.findMany({ where: { id: { in: asked }, decision: { not: 'PENDING' } }, select: { id: true } })).map((a) => a.id))
+    : new Set<string>()
+  // A receipt the twin told about is said as it stands today: held on its
+  // bank is a hold, never a mismatch, and a line nothing holds is closed.
+  const receipts = await receiptNoticesToday(rows, caller.company?.id ?? null)
+  for (const id of receipts.closed) withheld.add(id)
+  return {
+    shown: rows.filter((n) => !receipts.closed.has(n.id)).map((n) => {
+      const today = receipts.titles.get(n.id)
+      const data = asRecord(n.data)
+      const approval = typeof data?.twinApprovalId === 'string' ? data.twinApprovalId : null
+      const acted: Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'> | undefined = twin.get(n.id) ?? chain.get(n.id)
+      return {
+        id: n.id, title: today?.title ?? asReceived(n.type, n.title), href: pageOf(n.type, n.entityId, data),
+        // What Ask Etyme did alone, in its own words, over the notice's own.
+        ...(acted ? { title: acted.title, href: acted.href } : {}),
+        ...(acted?.act ? { act: acted.act } : {}),
+        ...(acted?.linkText ? { linkText: acted.linkText } : {}),
+        type: n.type, body: today?.body ?? (typeof n.body === 'string' ? asReceived(n.type, n.body) : null),
+        cycleKind: typeof data?.kind === 'string' ? data.kind : null,
+        dueOn: typeof data?.dueOn === 'string' ? data.dueOn : null,
+        entityId: n.entityId,
+        ...(approval && settled.has(approval) ? { settled: true } : {}),
+      }
+    }),
+    older: Math.max(0, total - read.length),
+    withheld: [...withheld],
+  }
+}
+
+/** What a notice about a person's paper says it is about. */
+export interface PaperAbout {
+  /** The person the paper is about, or null where the record no longer says. */
+  subjectPersonId: string | null
+}
+
+/**
+ * Whether a seat hears a notice about a paper (the fourth screen walk,
+ * 2026-11-03: Karthik Menon, an integrator's engineer with no role on the
+ * firm's book, read "Deepa Varma uploaded Form I-94" and "Amara Nwosu
+ * uploaded I-9" in his greeting). A paper is said to the person it is
+ * about, and otherwise only to a seat that may examine papers
+ * (`holdsPaperworkDesk`, the permission the examine route checks and
+ * `paperExaminersAt` tells): never to a colleague who only reads their
+ * own work, in either hat. Pure.
+ */
+export function hearsPaperNotice(reader: { personId: string; permissions: readonly string[] | null | undefined }, paper: PaperAbout): boolean {
+  if (paper.subjectPersonId && paper.subjectPersonId === reader.personId) return true
+  return holdsPaperworkDesk(reader.permissions)
+}
+
+/**
+ * The notices among these that are about somebody else's paper, and
+ * that this seat may not examine: withheld from the greeting
+ * and marked read with the rest, so they never fill the list's room. Read
+ * in two queries at most, never per notice.
+ */
+async function papersNotTheirs(caller: CallerContext, rows: readonly { id: string; entityId: string | null }[]): Promise<Set<string>> {
+  if (holdsPaperworkDesk(caller.permissions)) return new Set()
+  const ids = [...new Set(rows.map((r) => r.entityId).filter((x): x is string => !!x))]
+  if (ids.length === 0) return new Set()
+  // A person's paper only: a firm's own paper or a contract's is told by its own rule.
+  const docs = await prisma.docInstance.findMany({ where: { id: { in: ids }, subjectType: { in: ['PERSON', 'PACKET_ITEM'] } }, select: { id: true, subjectType: true, subjectId: true } })
+  if (docs.length === 0) return new Set()
+  const itemIds = docs.filter((d) => d.subjectType === 'PACKET_ITEM').map((d) => d.subjectId)
+  const items = itemIds.length
+    ? await prisma.packetItem.findMany({ where: { id: { in: itemIds } }, select: { id: true, packet: { select: { subjectPersonId: true } } } })
+    : []
+  const itemPerson = new Map(items.map((i) => [i.id, i.packet.subjectPersonId ?? null]))
+  const about = new Map(docs.map((d) => [d.id, {
+    subjectPersonId: d.subjectType === 'PERSON' ? d.subjectId : itemPerson.get(d.subjectId) ?? null,
+  }]))
+  const out = new Set<string>()
+  for (const r of rows) {
+    const paper = r.entityId ? about.get(r.entityId) : undefined
+    if (paper && !hearsPaperNotice({ personId: caller.person.id, permissions: caller.permissions }, paper)) out.add(r.id)
+  }
+  return out
+}
+
+/** How near the ledger's entry a notice must be written to be the notice of that act. */
+const SAME_ACT_MS = 60 * 60 * 1000
+
+function comingRows(v: unknown): ComingFreeRow[] {
+  return Array.isArray(v)
+    ? v.filter((r): r is ComingFreeRow => !!r && typeof r === 'object' && typeof (r as ComingFreeRow).name === 'string' && typeof (r as ComingFreeRow).days === 'number')
+    : []
+}
+
+/**
+ * What Ask Etyme did alone at a firm that sells people, said in its own
+ * words (2026-10-29, "Tapin gets agents"):
+ *
+ *   who is coming free   the performer's notice, re-titled from the ledger
+ *                        entry it follows with `comingFreeTitle` (the
+ *                        stored title is cut at 120 characters), opening
+ *                        Our bench
+ *   start papers asked   HR's notice from the clearance ask, where Ask
+ *                        Etyme made that ask: who was asked for what, for
+ *                        which start, the person's name opening the asks
+ *
+ * A notice is read once, so each is said once: when it appears. Nothing
+ * here is a decision, so none of it is in the count on the mark. A
+ * notice whose entry cannot be found keeps its own title.
+ */
+async function twinActNotices(
+  rows: ReadonlyArray<{ id: string; type: string; title: string; entityId: string | null; data: unknown; createdAt: Date }>,
+): Promise<Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>> {
+  const out = new Map<string, Pick<NoticeLine, 'title' | 'href' | 'act' | 'linkText'>>()
+  const near = (a: Date, b: Date) => Math.abs(a.getTime() - b.getTime()) <= SAME_ACT_MS
+
+  const free = rows.filter((n) => asRecord(n.data)?.twinAction === COMING_FREE && n.entityId)
+  if (free.length) {
+    const entries = await prisma.twinAction.findMany({
+      where: { action: COMING_FREE, outcome: 'PERFORMED', companyId: { in: [...new Set(free.map((n) => n.entityId!))] } },
+      orderBy: { ts: 'desc' },
+      take: 20,
+      select: { companyId: true, ts: true, payload: true },
+    })
+    for (const n of free) {
+      const e = entries.find((x) => x.companyId === n.entityId && near(x.ts, n.createdAt))
+      const p = asRecord(e?.payload)
+      out.set(n.id, {
+        title: p ? comingFreeTitle(comingRows(p.comingFree), comingRows(p.idle)) : n.title,
+        href: OUR_BENCH_HREF,
+        act: COMING_FREE,
+      })
+    }
+  }
+
+  const contracts = rows.filter((n) => n.type === 'CONTRACT' && n.entityId)
+  if (contracts.length) {
+    const ids = [...new Set(contracts.map((n) => n.entityId!))]
+    const [asks, lines] = await Promise.all([
+      prisma.twinAction.findMany({
+        where: { action: START_PAPERS, outcome: 'PERFORMED', entityType: 'SellContract', entityId: { in: ids } },
+        orderBy: { ts: 'desc' },
+        take: 50,
+        select: { entityId: true, ts: true, payload: true },
+      }),
+      prisma.sellContract.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, person: { select: { name: true } }, requirement: { select: { title: true } }, clientCompany: { select: { name: true } } },
+      }),
+    ])
+    for (const n of contracts) {
+      const e = asks.find((a) => a.entityId === n.entityId && near(a.ts, n.createdAt))
+      const line = lines.find((l) => l.id === n.entityId)
+      if (!e || !line) continue
+      const p = asRecord(e.payload) ?? {}
+      const keys = Array.isArray(p.asks) ? p.asks.filter((k): k is string => typeof k === 'string') : []
+      const personName = typeof p.personName === 'string' && p.personName ? p.personName : line.person.name
+      out.set(n.id, {
+        title: startAskedSays({ personName, papers: keys.map((k) => labelFor(k)), jobTitle: line.requirement?.title ?? null, clientName: line.clientCompany?.name ?? null }).replace(/\.$/, ''),
+        href: START_ASKS_HREF,
+        act: START_PAPERS,
+        linkText: personName,
+      })
+    }
+  }
+  return out
+}
+
+/** The title the award writes for a firm below when the client chooses its candidate (`tellSelected` in lib/papering). */
+const CHOSEN_PREFIX = 'Selected — '
+
+/**
+ * What a firm further down a chain is told of its person, said with the
+ * names (the Tapin walk, 2026-10-29: Tapin's greeting never said the
+ * award or the placement):
+ *
+ *   chosen   the client chose the firm's candidate, told down the chain
+ *            at the award: "Northbend Athletic chose Ravi Kumar for the
+ *            HCM integration lead job, through Brightmoor Staffing"
+ *   placed   the award wrote the firm's own line: "Ravi Kumar starts at
+ *            Northbend Athletic on Nov 9, through Brightmoor Staffing",
+ *            opening where the notice opened (its terms, or Contracts)
+ *
+ * Only the reader's own firm's submission or line is re-said; anything
+ * else keeps the title it was written with. The person's name opens it.
+ */
+async function chainNotices(
+  rows: ReadonlyArray<{ id: string; type: string; title: string; entityId: string | null; data: unknown }>,
+  companyId: string | null,
+): Promise<Map<string, Pick<NoticeLine, 'title' | 'href' | 'linkText'>>> {
+  const out = new Map<string, Pick<NoticeLine, 'title' | 'href' | 'linkText'>>()
+  if (!companyId) return out
+  const chosen = rows.filter((n) => n.type === 'SUBMISSION' && n.entityId && n.title.startsWith(CHOSEN_PREFIX))
+  const placed = rows.filter((n) => {
+    const d = asRecord(n.data)
+    return n.type === 'CONTRACT' && !!n.entityId && d?.contractId === n.entityId && typeof d?.requirementId === 'string'
+  })
+  const [subs, lines] = await Promise.all([
+    chosen.length
+      ? prisma.submission.findMany({
+          where: { id: { in: [...new Set(chosen.map((n) => n.entityId!))] }, fromCompanyId: companyId },
+          select: {
+            id: true, person: { select: { name: true } }, toCompany: { select: { name: true } },
+            requirement: { select: { title: true, mirroredFrom: { select: { company: { select: { name: true } } } } } },
+          },
+        })
+      : Promise.resolve([]),
+    placed.length
+      ? prisma.sellContract.findMany({
+          where: { id: { in: [...new Set(placed.map((n) => n.entityId!))] }, companyId },
+          select: { id: true, startDate: true, person: { select: { name: true } }, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+        })
+      : Promise.resolve([]),
+  ])
+  for (const n of chosen) {
+    const s = subs.find((x) => x.id === n.entityId)
+    if (!s) continue
+    out.set(n.id, {
+      title: chosenSays({
+        personName: s.person.name, jobTitle: s.requirement.title,
+        siteName: s.requirement.mirroredFrom?.company?.name ?? null, throughName: s.toCompany.name,
+      }),
+      href: pageOf(n.type, n.entityId, asRecord(n.data)),
+      linkText: s.person.name,
+    })
+  }
+  const now = new Date()
+  for (const n of placed) {
+    const l = lines.find((x) => x.id === n.entityId)
+    if (!l) continue
+    out.set(n.id, {
+      title: placedSays({
+        personName: l.person.name, siteName: l.endClientCompany?.name ?? l.clientCompany.name,
+        throughName: l.clientCompany.name, startOn: l.startDate.toISOString().slice(0, 10),
+      }, now),
+      href: pageOf(n.type, n.entityId, asRecord(n.data)),
+      linkText: l.person.name,
+    })
+  }
+  return out
+}
+
+/** The twin's notice about a receipt is read against the receipt today (./receipt-notices). */
+export { MISMATCH_TITLE, mismatchSays } from './receipt-notices'
+
+/**
+ * What a supplier sent, named in the payer's word, on a notice written
+ * before the source said so (db5318734): "Pinnacle Resourcing’s bill
+ * IN_E5XIVH_004" to a client's AP clerk reads "Pinnacle Resourcing’s
+ * invoice IN_E5XIVH_004". The party who issues a document names it; what
+ * a firm receives from below is its supplier's invoice, never a bill.
+ * Only the payer's own bill notice (type INVOICE) ever said "<firm>’s
+ * bill <number>", so nothing the issuer reads is touched.
+ */
+export function asReceived(type: string | null | undefined, text: string): string {
+  if (type !== 'INVOICE') return text
+  return text
+    .replace(/[’']s bill (?=\S)/g, '’s invoice ')
+    .replace(/\bwho receives its bills\b/g, 'who receives its invoices')
+}
+
+/** What a thread is about, in the trade's words: "the HCM integration lead job". */
+async function aboutOf(t: { topic: string; topicId: string | null; title: string | null }): Promise<string | null> {
+  if (t.topic === 'REQUIREMENT' && t.topicId) {
+    const r = await prisma.requirement.findUnique({ where: { id: t.topicId }, select: { title: true } })
+    if (r?.title) return `the ${r.title} job`
+  }
+  if (t.topic === 'SUBMISSION' && t.topicId) {
+    const s = await prisma.submission.findUnique({ where: { id: t.topicId }, select: { person: { select: { name: true } }, requirement: { select: { title: true } } } })
+    if (s) return `${s.person.name} for the ${s.requirement.title} job`
+  }
+  return t.title?.trim() ? t.title.trim() : null
+}
+
+/**
+ * The conversations somebody wrote on since this seat last looked: the
+ * threads its unread notes are on, read from the same rows the
+ * Conversations page lists (its company's own, and the ones another
+ * company opened with it). One per thread, newest first, at most
+ * THREADS_SHOWN named; `more` is how many others have a new message, and
+ * `noticeIds` are the notes for the threads named, which the greeting
+ * marks read once it has said them. Who wrote is the firm on the far end,
+ * a candidate by name, or a colleague by name.
+ */
+export async function unreadThreads(caller: CallerContext): Promise<{ shown: ThreadNote[]; more: number; noticeIds: string[] }> {
+  const notes = await prisma.notification.findMany({
+    where: { ...(await unreadWhere(caller)), type: 'CONVERSATION' },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+    select: { id: true, entityId: true, data: true },
+  })
+  if (notes.length === 0) return { shown: [], more: 0, noticeIds: [] }
+  const threadOf = (n: { entityId: string | null; data: unknown }) => {
+    const d = asRecord(n.data)
+    return typeof d?.conversationId === 'string' ? d.conversationId : n.entityId
+  }
+  const order = [...new Set(notes.map(threadOf).filter((x): x is string => !!x))]
+  const me = caller.company?.id ?? null
+  const threads = await prisma.conversation.findMany({
+    where: { id: { in: order }, archivedAt: null, ...(me ? { OR: [{ companyId: me }, { withCompanyId: me }] } : {}) },
+    select: {
+      id: true, topic: true, topicId: true, title: true, companyId: true, withCompanyId: true, participants: true,
+      company: { select: { name: true } }, withCompany: { select: { name: true } },
+      messages: { where: { deletedAt: null, authorId: { not: caller.person.id } }, orderBy: { createdAt: 'desc' }, take: 1, select: { authorId: true } },
+    },
+  })
+  const byId = new Map(threads.map((t) => [t.id, t]))
+  const live = order.filter((id) => byId.has(id) && byId.get(id)!.messages.length > 0)
+  const named = live.slice(0, THREADS_SHOWN)
+  // Who wrote last, read off the seats: staff at the far firm, staff here, or neither (a candidate).
+  const authors = [...new Set(named.map((id) => byId.get(id)!.messages[0].authorId))]
+  const seats = authors.length
+    ? await prisma.context.findMany({
+        where: { personId: { in: authors }, revokedAt: null },
+        select: { personId: true, companyId: true, type: true, person: { select: { name: true } } },
+      })
+    : []
+  const shown: ThreadNote[] = []
+  for (const id of named) {
+    const t = byId.get(id)!
+    const author = t.messages[0].authorId
+    const theirs = seats.filter((s) => s.personId === author && s.type !== 'CONSULTANT')
+    const participants = Array.isArray(t.participants) ? (t.participants as Array<{ personId?: string; name?: string }>) : []
+    const name = seats.find((s) => s.personId === author)?.person.name ?? participants.find((p) => p.personId === author)?.name ?? 'Somebody'
+    const far = me && t.companyId === me ? t.withCompanyId : t.companyId
+    const farName = far === t.companyId ? t.company.name : t.withCompany?.name ?? null
+    const who: Pick<ThreadNote, 'who' | 'whoKind'> = far && farName && theirs.some((s) => s.companyId === far)
+      ? { who: farName, whoKind: 'FIRM' }
+      : me && theirs.some((s) => s.companyId === me)
+        ? { who: name, whoKind: 'COLLEAGUE' }
+        : { who: name, whoKind: 'CANDIDATE' }
+    shown.push({ conversationId: id, ...who, about: await aboutOf(t), href: `/dashboard/conversations?open=${id}` })
+  }
+  const said = new Set(named)
+  return {
+    shown,
+    more: Math.max(0, live.length - named.length),
+    noticeIds: notes.filter((n) => said.has(threadOf(n) ?? '')).map((n) => n.id),
+  }
+}
+
+/**
+ * Marks read exactly the notices the greeting said, and only this
+ * person's, still unread. Never throws: a greeting already served is not
+ * taken back because the mark failed; the notice shows once more.
+ */
+export async function markNoticesSeen(caller: CallerContext, ids: readonly string[]): Promise<number> {
+  if (ids.length === 0) return 0
+  try {
+    const res = await prisma.notification.updateMany({
+      where: { id: { in: [...ids] }, personId: caller.person.id, status: 'UNREAD' },
+      data: { status: 'READ', readAt: new Date() },
+    })
+    return res.count
+  } catch {
+    return 0
+  }
+}

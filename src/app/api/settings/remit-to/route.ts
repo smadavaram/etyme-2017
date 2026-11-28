@@ -1,0 +1,292 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { isMasked, taxIdShown, taxIdToWrite } from '@/lib/sensitive'
+import { bankChange, type BankFacts } from '@/lib/money/remit-change'
+import { recordBankWrite } from './bank-log'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
+
+/**
+ * GET    /api/settings/remit-to      — where customers send money
+ * POST   /api/settings/remit-to      — add a set of details
+ * PATCH  /api/settings/remit-to      — edit, or make default
+ * DELETE /api/settings/remit-to?id=  — remove one
+ *
+ * Read on every coded invoice and creatable nowhere, so a real company
+ * could raise an invoice that did not say where to pay it.
+ *
+ * Only the last four digits of an account are stored. That is what an
+ * invoice prints and what a person uses to recognize their own account;
+ * holding the full number would make this table worth stealing, and it
+ * buys nothing — the payment itself happens in a bank, not here.
+ */
+
+/** A row as a reply carries it: the tax ID masked, the sealed value never. */
+function shownRow<R extends { taxId: string | null; taxIdLast4: string | null; taxIdSealed: string | null }>(r: R) {
+  const { taxIdSealed: _s, taxIdLast4: _l, ...rest } = r
+  return { ...rest, taxId: taxIdShown(r) }
+}
+
+async function guard(request: NextRequest, write: boolean) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return { caller: null, error }
+  if (!caller.company) {
+    return {
+      caller: null,
+      error: NextResponse.json(
+        { error: { code: 'NO_COMPANY', message: 'Payment details are a company’s, and you are not signed in at one.' } },
+        { status: 403 }
+      ),
+    }
+  }
+  // Reading needs invoices.read because it appears on invoices. Writing is
+  // held tighter: changing where money arrives is the single most valuable
+  // edit in the system to an attacker.
+  const needed = write ? 'settings.manage' : 'invoices.read'
+  if (!hasPermission(caller.permissions, needed)) {
+    return {
+      caller: null,
+      error: NextResponse.json(
+        {
+          error: {
+            code: 'FORBIDDEN',
+            message: write
+              ? askTheDesk({ doing: 'Changing where money arrives', needs: needed, kind: caller.company?.kind, companyName: caller.company?.name })
+              : askTheDesk({ doing: 'Seeing payment details', needs: needed, kind: caller.company?.kind, companyName: caller.company?.name }),
+          },
+        },
+        { status: 403 }
+      ),
+    }
+  }
+  // The proof rule (2026-11-12): where the money arrives waits for a
+  // verified Owner at a company formed under it, in a sentence naming the step.
+  if (write) {
+    const gate = await needsVerifiedOwnerAt(caller.company.id, 'BANK')
+    if (!gate.ok) return { caller: null, error: NextResponse.json(gateRefusal(gate), { status: 403 }) }
+  }
+  return { caller, error: null }
+}
+
+/**
+ * Refuse anything longer than four digits rather than silently truncating
+ * it. Somebody pasting a full account number needs to know this is not
+ * where it goes, not have it quietly stored and trimmed. Adding and
+ * editing ask the same.
+ */
+function notFourDigits(body: any): NextResponse | null {
+  for (const field of ['accountLast4', 'routingLast4'] as const) {
+    const v = body[field]
+    if (v !== undefined && v !== null && v !== '' && !/^\d{1,4}$/.test(String(v))) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION',
+            message: 'Only the last four digits are stored here. Etyme never holds a full account number — the payment happens in your bank, not in this system.',
+            field,
+          },
+        },
+        { status: 422 }
+      )
+    }
+  }
+  return null
+}
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await guard(request, false)
+  if (error) return error
+
+  const rows = await prisma.remitTo.findMany({
+    where: { companyId: caller!.company!.id },
+    orderBy: [{ isDefault: 'desc' }, { legalName: 'asc' }],
+    select: {
+      id: true, legalName: true, addressLines: true, country: true, taxId: true, taxIdLast4: true,
+      paymentMethod: true, bankName: true, accountLast4: true, routingLast4: true,
+      isDefault: true,
+      _count: { select: { invoices: true } },
+    },
+  })
+
+  return NextResponse.json({
+    data: {
+      remitTos: rows.map(({ taxIdLast4: _l, ...r }) => ({ ...r, taxId: taxIdShown({ taxId: r.taxId, taxIdLast4: _l }), invoiceCount: r._count.invoices, _count: undefined })),
+      canEdit: hasPermission(caller!.permissions, 'settings.manage'),
+      // An invoice with no remit-to says nothing about where to pay it, and
+      // the customer finds out by asking.
+      warning: rows.length === 0
+        ? 'No payment details. Bills will not say where to send money.'
+        : rows.some((r) => r.isDefault)
+          ? null
+          : 'None of these is the default, so new bills will not pick one automatically.',
+    },
+  })
+}
+
+export async function POST(request: NextRequest) {
+  const { caller, error } = await guard(request, true)
+  if (error) return error
+  const companyId = caller!.company!.id
+
+  const body = await request.json().catch(() => ({}))
+  const legalName = String(body.legalName ?? '').trim()
+  if (!legalName) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'The legal entity name that goes on the bill. It is often not your trading name.',
+          field: 'legalName',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  const method = String(body.paymentMethod ?? 'ACH').toUpperCase()
+  if (!['ACH', 'WIRE', 'CHECK'].includes(method)) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Payment method is ACH, WIRE or CHECK', field: 'paymentMethod' } },
+      { status: 422 }
+    )
+  }
+
+  const long = notFourDigits(body)
+  if (long) return long
+  // A tax ID is written sealed, never whole (record 99, lib/sensitive).
+  const taxIdWrite = taxIdToWrite(body.taxId && !isMasked(body.taxId) ? String(body.taxId) : null)
+  if (!taxIdWrite.ok) return NextResponse.json({ error: { code: 'NOT_READY', message: taxIdWrite.says, field: 'taxId' } }, { status: 503 })
+
+  const makeDefault = Boolean(body.isDefault) || (await prisma.remitTo.count({ where: { companyId } })) === 0
+
+  if (makeDefault) {
+    await prisma.remitTo.updateMany({ where: { companyId, isDefault: true }, data: { isDefault: false } })
+  }
+
+  const remitTo = await prisma.remitTo.create({
+    data: {
+      companyId,
+      legalName,
+      addressLines: Array.isArray(body.addressLines) ? body.addressLines.map(String) : [],
+      country: String(body.country ?? 'US').toUpperCase().slice(0, 2),
+      ...taxIdWrite.data,
+      paymentMethod: method,
+      bankName: body.bankName ? String(body.bankName).trim() : null,
+      accountLast4: body.accountLast4 ? String(body.accountLast4) : null,
+      routingLast4: body.routingLast4 ? String(body.routingLast4) : null,
+      isDefault: makeDefault,
+      enteredById: caller!.person.id,
+      enteredAt: new Date(),
+    },
+  })
+
+  // Changing where money arrives is worth a trail even when it is the
+  // first one: the bank, the account name and four digits, never undone
+  // from the log (`recordBankWrite`, one row for every door).
+  await recordBankWrite({
+    companyId, remitToId: remitTo.id, legalName, byName: caller!.person.name, added: true, door: 'SETTINGS', madeDefault: makeDefault,
+    after: remitTo, change: bankChange(null, remitTo),
+  })
+
+  return NextResponse.json({ data: { remitTo: shownRow(remitTo), message: `${legalName} saved.` } }, { status: 201 })
+}
+
+export async function PATCH(request: NextRequest) {
+  const { caller, error } = await guard(request, true)
+  if (error) return error
+  const companyId = caller!.company!.id
+
+  const body = await request.json().catch(() => ({}))
+  const id = String(body.id ?? '')
+  const existing = await prisma.remitTo.findFirst({ where: { id, companyId } })
+  if (!existing) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No such payment details here' } },
+      { status: 404 }
+    )
+  }
+
+  const long = notFourDigits(body)
+  if (long) return long
+  // A masked value sent back is no change; a new one is sealed (record 99).
+  const taxIdChanged = 'taxId' in body && !isMasked(body.taxId)
+  const taxIdWrite = taxIdToWrite(taxIdChanged && body.taxId ? String(body.taxId) : null)
+  if (taxIdChanged && !taxIdWrite.ok) return NextResponse.json({ error: { code: 'NOT_READY', message: taxIdWrite.says, field: 'taxId' } }, { status: 503 })
+
+  if (body.isDefault === true) {
+    await prisma.remitTo.updateMany({ where: { companyId, isDefault: true }, data: { isDefault: false } })
+  }
+
+  const after: BankFacts = {}
+  for (const k of ['bankName', 'accountName', 'accountLast4', 'routingLast4'] as const) {
+    if (k in body) after[k] = body[k] ? String(body[k]).trim() : null
+  }
+  const change = bankChange(existing, after)
+
+  const remitTo = await prisma.remitTo.update({
+    where: { id },
+    data: {
+      ...(typeof body.legalName === 'string' && body.legalName.trim() ? { legalName: body.legalName.trim() } : {}),
+      ...(Array.isArray(body.addressLines) ? { addressLines: body.addressLines.map(String) } : {}),
+      ...(typeof body.country === 'string' ? { country: body.country.toUpperCase().slice(0, 2) } : {}),
+      ...(taxIdChanged && taxIdWrite.ok ? taxIdWrite.data : {}),
+      // The bank, the account name, the last four and the routing digits
+      // the edit carried, as typed (money's review, 2026-11-16: the new
+      // digits cleared the check and were never saved).
+      ...after,
+      ...('isDefault' in body ? { isDefault: Boolean(body.isDefault) } : {}),
+      // A different bank is a different place for the money to go, so a
+      // check a paying firm's Finance made no longer stands; a label
+      // change leaves it (`bankChange` in lib/money/remit-change).
+      ...(change.cleared ? { ...change.data, enteredById: caller!.person.id, enteredAt: new Date() } : {}),
+    },
+  })
+
+  await recordBankWrite({
+    companyId, remitToId: id, legalName: remitTo.legalName, byName: caller!.person.name, added: false, door: 'SETTINGS', madeDefault: body.isDefault === true,
+    after: remitTo, change,
+  })
+
+  return NextResponse.json({ data: { remitTo: shownRow(remitTo), message: change.cleared ? change.says : 'Saved.' } })
+}
+
+export async function DELETE(request: NextRequest) {
+  const { caller, error } = await guard(request, true)
+  if (error) return error
+
+  const id = request.nextUrl.searchParams.get('id') ?? ''
+  const existing = await prisma.remitTo.findFirst({
+    where: { id, companyId: caller!.company!.id },
+    select: { id: true, legalName: true, isDefault: true, _count: { select: { invoices: true } } },
+  })
+  if (!existing) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No such payment details here' } },
+      { status: 404 }
+    )
+  }
+
+  // An invoice that already went out told somebody to pay these details.
+  // Deleting them makes the sent invoice unexplainable.
+  if (existing._count.invoices > 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'IN_USE',
+          message: `${existing.legalName} is on ${existing._count.invoices} bill(s) already sent. Removing it would leave those bills pointing at nothing.`,
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  await prisma.remitTo.delete({ where: { id } })
+
+  return NextResponse.json({
+    data: {
+      removed: existing.legalName,
+      warning: existing.isDefault ? 'That was your default. New bills will not pick one until you set another.' : null,
+    },
+  })
+}

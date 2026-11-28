@@ -1,0 +1,1492 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { logAccess, recordRefusal } from '@/lib/access-log'
+import { canReadPayRate, canReadBillRate, canReadMargin, hasPermission } from '@/lib/permissions'
+import { contractSide } from '@/lib/resolve-client-company'
+import { isDeskless } from '@/lib/nav-table'
+import { noDeskYet } from '@/lib/no-desk'
+import { descend } from '@/lib/work-chain'
+import { ladderFor } from '@/lib/work-chain-read'
+import { categoryOf, labelOf } from '@/lib/cycle-kinds'
+import { ADVERSE_STEPS, canonicalEdition, contractClearance, lineExtras, startWords } from '@/lib/contract-clearance'
+import { standingOf, coverLabel, supplierCoverGate } from '@/lib/document-stages'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { HIDDEN_TEAM_LINE } from '@/lib/money/team-lines'
+import { endsPastLimit } from '@/lib/governance'
+import { runsPastSentence } from '@/lib/tenure-days'
+import { mayNameSubVendors, namesForClient, type SeenName } from '@/lib/chain-names'
+import { describeLine, masterContractLine, pairLine } from '@/lib/order-naming'
+import { poBalance } from '@/lib/purchase-order'
+import { CHOOSES_OVERTIME_METHOD, overtimeMethodSays } from '@/lib/overtime-method-choice'
+import { CHOOSES_CUT_OVERTIME, cutOvertimeSays } from '@/lib/cut-overtime-choice'
+import { rateToday } from '@/lib/placement-rate'
+import { ratePeriods } from '@/lib/contract-rate'
+import { placementEarned, hoursSigned } from '@/lib/money/placement-earned'
+import { placementMoneySheets } from '@/lib/money/placement-pay-terms'
+import { placementBooks, AGREED_SPREAD, EARNED_MARGIN } from '@/lib/money/margin'
+import { wholeFromMinor, minorFromWhole } from '@/lib/money'
+import { orderLedgers, linesBilled, billCountsAsBilled, type OrderLedger, type LineBilled } from '@/lib/money/order-ledger'
+import { signedAndBilled, type LineBilling } from '@/lib/money/signed-unbilled'
+import { amount as amountIn } from '@/lib/money-display'
+import { chainBelow } from './chain'
+import { mayOpenLine } from './party'
+import { weeksWhere } from '@/lib/money/weeks-read'
+import { paperDoorsForLine } from '@/lib/document-stages/arrived-papers'
+import { doorsForReader } from './paper-doors-for-reader'
+import { factsForReader } from './paper-facts-for-reader'
+import { checklistForReader, providerForReader, sayWithoutHidden } from './checklist-for-reader'
+import { paperFactsForLine, attachPaperFacts, type PaperFacts } from '@/lib/document-stages/line-paper-facts'
+
+/**
+ * GET /api/placements/:id
+ *
+ * One person, one client, top to bottom — the whole life of a placement
+ * in a single answer.
+ *
+ * ── Why this exists ──────────────────────────────────────────────────
+ *
+ * The build had sixty list screens and four things you could open. A
+ * vendor could see sets of records and could not follow one placement
+ * through its life, which is the only thing anybody actually wants to
+ * do: where did this person come from, who sent them, what did we
+ * agree, are they cleared to work, did they file their hours, have we
+ * been paid, and what did we make.
+ *
+ * Every one of those facts already existed. None of them was reachable
+ * from the others.
+ *
+ * ── What a placement is here ─────────────────────────────────────────
+ *
+ * A `SellContract`. It is the row that says this person, at this client,
+ * from this date, at this rate — so it is the spine everything else
+ * hangs off, and the id in the URL is its id.
+ *
+ * ── What each viewer is allowed to see ───────────────────────────────
+ *
+ * Three rules, applied here rather than in the screen, because a screen
+ * that filters is a screen somebody can read around.
+ *
+ *   Only a party may open it at all — the supplier, the payer or the end
+ *   client. Anybody else gets 404 rather than 403: confirming that a
+ *   placement exists is itself a leak.
+ *
+ *   Rates follow the field permissions that already exist. A recruiter
+ *   deliberately cannot see what a placement earns.
+ *
+ *   The chain descends and never ascends. A firm sees its own leg and
+ *   what it pays the hop below, because that is its own cost. It never
+ *   sees what the firm above charges, because that is their margin and
+ *   the whole network stops working the day it leaks.
+ *
+ * ── The buy leg is the supplier's, and is not fetched for anybody else ─
+ *
+ * A permission is not a position. A client owner holds `*`, so every
+ * `canRead…` check in this file passed for them, and the payload carried
+ * the supplier's buy contract, the sub-vendor's name, that firm's
+ * insurance, what the firm below charged, and the supplier's own cost and
+ * margin. The screen hid all of it, which is exactly the fault: a screen
+ * that filters is a screen somebody reads around with the network tab.
+ *
+ * So the side is resolved from three ids before the record is read, and
+ * the buy-side queries are only asked on the supplier's own side. For a
+ * client seat those rows are not hidden — they are never fetched.
+ */
+
+const money = (cents: number | null | undefined) =>
+  cents == null ? null : Math.round(cents) / 100
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const { id } = await params
+  const mine = caller.company?.id
+
+  if (!mine) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'A placement opens to the firms on it, and you are not signed in at a company. Your own work is under Your work.' } },
+      { status: 403 }
+    )
+  }
+
+  // ── Which side of this placement the caller sits on ─────────────────
+  //
+  // Three ids, read first. The answer decides what is asked for below,
+  // so a client seat's query never names the buy contract at all — and a
+  // stranger is refused from this row rather than after the whole
+  // placement has been loaded and thrown away.
+  const parties = await prisma.sellContract.findUnique({
+    where: { id },
+    select: {
+      personId: true,
+      companyId: true,
+      clientCompanyId: true,
+      endClientCompanyId: true,
+    },
+  })
+
+  // A placement that is not ours is a placement that does not exist.
+  //
+  // Record 119: the site the work is done at is not a party to the deal
+  // between its supplier and a firm below that supplier. A reader whose
+  // firm is on the line only as the end client, while another firm is
+  // the buyer, is refused here, so the sub-vendor's line cannot be
+  // opened by id (nor reached by a link) from the client's side. Before
+  // this, `endClientCompanyId === mine` let the client in as END_CLIENT
+  // and the page then withheld what it could.
+  // A member line of a team sold as outcome work is never the client's to
+  // read (record 120): the selling firm opens it, a client reads it only
+  // where the team works on its site. Refused as not found, logged below.
+  const hiddenFromReader = parties != null && parties.companyId !== mine
+    && (await prisma.sellContract.count({ where: { AND: [{ id }, HIDDEN_TEAM_LINE] } })) > 0
+  const isParty = parties != null && mayOpenLine(mine, parties) && !hiddenFromReader
+
+  // A seat with no desk — a Member, or a worker seated with only the
+  // reads of their own work — reads the placement that names it and no
+  // other (sign-up walk, round five, problem 7: Karthik Menon read a
+  // colleague's placement, its order and its other line by id). The
+  // firm being a party is not the seat being one.
+  //
+  // Withheld is not missing (round six, problem 15). A colleague's
+  // placement at the reader's own firm exists and the reader's firm is
+  // on it, so "No placement by that id" read as a broken link. The seat
+  // is told in the door's own words that it is not part of the seat; a
+  // stranger to the firm is still answered 404, because confirming a
+  // placement exists to a firm that is not on it is itself a leak.
+  const deskless = isDeskless(caller.permissions)
+  const notTheirs = deskless && parties != null && parties.personId !== caller.person.id
+
+  if (!parties || !isParty || notTheirs) {
+    // The refusal is logged too. CLAUDE.md: every read of another
+    // person's data writes an AccessLog row, including refusals.
+    if (parties) {
+      await recordRefusal([parties.personId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: mine,
+        action: 'CONTRACT_VIEW',
+        allowed: false,
+        reason: notTheirs && isParty
+          ? 'A seat that sees only its own work reads only a placement that names it'
+          : 'Not a party to this placement',
+      })
+    }
+    if (notTheirs && isParty) {
+      return NextResponse.json(
+        { error: { code: 'NO_DESK', message: noDeskYet('That placement', caller.company?.name ?? null) } },
+        { status: 403 }
+      )
+    }
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'You can open only contracts your company is on. Yours are listed under Contracts.' } },
+      { status: 404 }
+    )
+  }
+
+  // SUPPLIER, PAYER or END_CLIENT — a position, not a permission. A
+  // consultant seat is a party to nobody's commercial record, so it
+  // resolves to none of the three and reads the narrowest view.
+  const side = contractSide(caller, parties)
+  const isSupplier = side === 'SUPPLIER'
+
+  const placement = await prisma.sellContract.findUnique({
+    where: { id },
+    include: {
+      person: {
+        select: {
+          id: true, name: true, primaryEmail: true,
+          consultant: { select: { id: true, skills: true, location: true, workAuth: true } },
+        },
+      },
+      company: { select: { id: true, name: true } },
+      clientCompany: { select: { id: true, name: true } },
+      endClientCompany: { select: { id: true, name: true } },
+      hiringManager: { select: { id: true, name: true } },
+      engagement: { select: { id: true, title: true } },
+      // The document this line is on. A purchase order is a header and
+      // its lines (CLAUDE.md, 2026-09-18): this row is the header, and
+      // the placement is one line of it. Both ends of it are selected
+      // because which end the reader stands at decides what the paper is
+      // called — `lib/order-naming`, not this route.
+      workOrder: {
+        select: {
+          id: true, number: true, sellerNumber: true, title: true, status: true,
+          amount: true, currency: true, startDate: true, endDate: true,
+          issuedById: true, issuedToId: true, billToId: true, payerId: true,
+        },
+      },
+      // The master contract this line is tagged to, where the company
+      // tags. Optional by decision — a line with no tag is a complete
+      // line, not a broken one.
+      projectOrder: { select: { id: true, companyId: true, code: true, name: true } },
+      /// The site, for naming the line. A line is a person at a place.
+      workLocation: { select: { city: true, state: true } },
+      // What is due on this contract. The sell side: hours and invoices.
+      sellCycles: {
+        select: { kind: true, dueOn: true, completedAt: true },
+        orderBy: { dueOn: 'asc' },
+      },
+      requirement: {
+        select: {
+          id: true, title: true, skills: true, location: true,
+          billMin: true, billMax: true, neededBy: true, approvalState: true,
+          company: { select: { id: true, name: true } },
+        },
+      },
+    },
+  })
+
+  // Deleted between the two reads. Vanishingly rare and the same answer
+  // either way, rather than a 500 and an incident email about a row that
+  // is genuinely gone.
+  if (!placement) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'You can open only contracts your company is on. Yours are listed under Contracts.' } },
+      { status: 404 }
+    )
+  }
+
+  // ── Station 7's weeks, where they were filed ──
+  //
+  // In a chain the worker files once, on her own rung, and every rung
+  // above bills that same signed week (CLAUDE.md, 2026-09-28). So this
+  // line's weeks are read where its bill was priced, the bottom of its
+  // ladder, through money's one reader (lib/money/weeks-read), never the
+  // weeks hanging on this line itself, which in a chain are none: Helena
+  // Marsh's placement at Computer Systems read "No weeks filed yet" beside
+  // 200 hours billed (the founder's tester, 2026-11-08).
+  const weeks = await prisma.timesheet.findMany({
+    where: await weeksWhere([placement.id]),
+    // Every week, never the newest dozen: the page said nothing about the
+    // rest (Rosa Delgado, 12 of 30). The screen pages them and says how
+    // many there are.
+    orderBy: { periodStart: 'desc' },
+    select: {
+      id: true, periodStart: true, periodEnd: true, totalHours: true, status: true,
+      assertions: {
+        where: { state: 'LIVE' },
+        select: { role: true, hours: true, rateCents: true, companyId: true, at: true, auto: true },
+      },
+      invoiceLines: { select: { id: true, sellContractId: true, amountCents: true } },
+    },
+  })
+
+  logAccess({
+    subjectId: placement.personId,
+    actorPersonId: caller.person.id,
+    actorCompanyId: mine,
+    action: 'CONTRACT_VIEW',
+    allowed: true,
+    reason: 'Party to this placement',
+  })
+
+  const perms = {
+    permissions: caller.permissions,
+    isClientOnMsa: placement.clientCompanyId === mine,
+  }
+  // ── Whose money is on this rung ─────────────────────────────────────
+  //
+  // A client is a party to every rung of a chain at its own site and to
+  // the money of exactly one of them. On any other rung the price is
+  // what one of its suppliers charges another, which is the prime's
+  // margin one subtraction away — the same thing `lib/chain-top` keeps
+  // off every client list, arriving here by id instead of by list.
+  //
+  // Not blanked: not read. A permission is not a position, and a client
+  // owner holds `*`.
+  const readsOurMoney = side !== 'END_CLIENT'
+  // The seat that bills this line reads what it bills. Accounts
+  // Receivable issues the bills from a sell line and holds no
+  // `margin.read` by design, so the bill-rate gate alone refused the page's
+  // money to the very role the Bills page is for ("a menu entry the route
+  // will refuse is a menu entry that lies", CLAUDE.md). Only on the rung
+  // this firm sells; pay and margin stay behind their own gates.
+  const billsThisLine = side === 'SUPPLIER' && hasPermission(caller.permissions, 'invoices.issue')
+  const seeBill = (canReadBillRate(perms) || billsThisLine) && readsOurMoney
+  const seePay = canReadPayRate(perms) && readsOurMoney
+  const seeMargin = canReadMargin(perms) && readsOurMoney
+
+  // ── Whose name this reader may read ─────────────────────────────────
+  //
+  // A client is a party to every rung of a chain at its own site, because
+  // every rung names it as the place the work is done. So a client seat
+  // handed the sub-vendor's leg by id was a party to it and read that
+  // firm by name — the same leak the compliance, tenure and alumni lists
+  // had, arriving by a different door: a check on the record rather than
+  // a filter on a list. END_CLIENT is exactly that position, since a
+  // client that is the buyer of this rung reads PAYER instead.
+  //
+  // Found by hand while building the sweep in
+  // `__tests__/invariants/client-facing-names.test.ts`, which does not
+  // catch this shape and says so.
+  const readsFromBelow = side === 'END_CLIENT'
+
+  const chainRungs = readsFromBelow
+    ? await prisma.sellContract.findMany({
+        where: { ...endClientFilter(mine), personId: placement.personId },
+        select: {
+          id: true, personId: true, companyId: true, clientCompanyId: true,
+          company: { select: { name: true } },
+        },
+      })
+    : []
+
+  const disclosureTerms = readsFromBelow
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: mine },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
+  const seenNames = readsFromBelow
+    ? namesForClient(
+        chainRungs.map((c) => ({
+          id: c.id,
+          personId: c.personId,
+          companyId: c.companyId,
+          companyName: c.company.name,
+          clientCompanyId: c.clientCompanyId,
+        })),
+        mine,
+        (primeCompanyId: string) => mayNameSubVendors(disclosureTerms, mine, primeCompanyId)
+      )
+    : new Map<string, SeenName>()
+
+  /** What this reader may call a firm. Its own name for everybody else. */
+  const shown = (companyId: string, trueName: string): SeenName =>
+    seenNames.get(companyId) ?? {
+      companyId, name: trueName, masked: false, through: null,
+      phrase: trueName, says: trueName,
+    }
+
+  /**
+   * A firm on the payload, named or withheld.
+   *
+   * Withheld is withheld whole: where the name is withheld from this
+   * reader the id goes with it (record 119). An id is an opaque handle
+   * to a firm, and a client holding one could ask other doors about it.
+   */
+  const firm = <T extends { id: string; name: string }>(c: T | null) => {
+    if (!c) return null
+    const seen = shown(c.id, c.name)
+    return {
+      ...c,
+      id: seen.masked ? null : c.id,
+      name: seen.name,
+      // What to call this firm inside a sentence somebody else writes.
+      // "Supplied through Pinnacle" is a cell; "submitted by the firm
+      // supplied through Pinnacle" is the sentence, and one string
+      // cannot be both.
+      phrase: seen.phrase,
+      nameWithheld: seen.masked,
+      suppliedThrough: seen.through,
+    }
+  }
+
+  // ── How this person reached us ──────────────────────────────────────
+  //
+  // The submission, and the one below it where somebody sent them on to
+  // us. A sub-vendor learns nothing new from this; a prime learns who
+  // put the person forward, which they already knew.
+  // Matched on the requirement where the contract carries one, and on
+  // the parties where it does not.
+  //
+  // A contract raised outside the award path — imported, back-filled,
+  // seeded — has no requirementId, and requiring one meant a placement
+  // whose submission plainly exists reported "no submission behind it".
+  // The pair (this person, this supplier, this buyer) identifies it
+  // without inventing a link that is not there.
+  const submission = await prisma.submission.findFirst({
+        where: placement.requirementId
+          ? { requirementId: placement.requirementId, personId: placement.personId }
+          : {
+              personId: placement.personId,
+              fromCompanyId: placement.companyId,
+              toCompanyId: placement.clientCompanyId,
+            },
+        select: {
+          id: true, rate: true, status: true, submittedAt: true, forwardedAt: true,
+          checkState: true, screenState: true, requirementId: true,
+          parentSubmissionId: true,
+          fromCompany: { select: { id: true, name: true } },
+          toCompany: { select: { id: true, name: true } },
+          interviews: {
+            orderBy: { round: 'asc' },
+            select: {
+              id: true, round: true, stage: true, mode: true, state: true,
+              scheduledAt: true, feedback: true, decidedAt: true,
+            },
+          },
+        },
+        orderBy: { submittedAt: 'desc' },
+      })
+
+  // The band we were given, which is ours alone to read.
+  const invitationOn = placement.requirementId ?? submission?.requirementId ?? null
+  const invitation = invitationOn
+    ? await prisma.requirementInvitation.findFirst({
+        where: { requirementId: invitationOn, toCompanyId: mine },
+        select: { payMin: true, payMax: true, message: true, expiresAt: true, status: true },
+      })
+    : null
+
+  // Who put this person in front of us, and at what price.
+  //
+  // The firm below the supplier, and their asking price, which is the
+  // supplier's own cost. A client reading this thread was shown both —
+  // "Tecwyn put them forward to you" over a rate that is the prime's
+  // margin minus one subtraction. Not fetched at all unless the reader
+  // is the firm that bought.
+  const sentOnBy =
+    isSupplier && submission?.parentSubmissionId
+      ? await prisma.submission.findUnique({
+          where: { id: submission.parentSubmissionId },
+          select: {
+            id: true, rate: true, submittedAt: true,
+            fromCompany: { select: { id: true, name: true } },
+          },
+        })
+      : null
+
+  // ── The chain, downwards only ───────────────────────────────────────
+  const rungs = await ladderFor([placement.id])
+  const below = descend(placement.id, rungs).slice(1)
+  // The firm one rung down, by name, for the supplier's own chain line.
+  const belowFirmId = isSupplier && below.length ? rungs.find((r) => r.sellContractId === below[0])?.companyId ?? null : null
+  const firmBelowName = belowFirmId
+    ? (await prisma.company.findUnique({ where: { id: belowFirmId }, select: { name: true } }))?.name ?? null
+    : null
+
+  // The buy leg. What the supplier pays, to whom, and when — their own
+  // paper on their own side of the trade. A client is a party to the
+  // sell contract and to nothing underneath it, so this query is not
+  // asked on their behalf and every field derived from it below falls to
+  // null on its own: the sub-vendor's name, that firm's insurance, the
+  // pay days, the cost and the margin.
+  const ourBuy = isSupplier
+    ? (
+        await prisma.contractLink.findFirst({
+          where: { sellContractId: placement.id },
+          select: {
+            buyContract: {
+              select: {
+                id: true, contractType: true, state: true, payCurrency: true,
+                supplierSellContractId: true, companyId: true,
+                vendorCompany: { select: { id: true, name: true } },
+                // Which rate an overtime hour is "at" in a week paid at
+                // two, and who chose it (lib/overtime-method-choice).
+                overtimeMethod: true, overtimeMethodById: true,
+                overtimeMethodAt: true, overtimeMethodReason: true,
+                overtimeMethodBy: { select: { name: true } },
+                // How overtime is paid when fewer hours are accepted than
+                // were worked, and who chose it (lib/cut-overtime-choice).
+                cutOvertime: true, cutOvertimeById: true,
+                cutOvertimeAt: true, cutOvertimeReason: true,
+                cutOvertimeBy: { select: { name: true } },
+                // Our own order to the firm below us, where we raised
+                // one. A W2 buy line has none and never will.
+                workOrder: {
+                  select: {
+                    id: true, number: true, sellerNumber: true, status: true,
+                    amount: true, currency: true, startDate: true, endDate: true,
+                    issuedById: true, issuedToId: true, billToId: true, payerId: true,
+                  },
+                },
+                buyCycles: {
+                  select: { kind: true, dueOn: true, completedAt: true },
+                  orderBy: { dueOn: 'asc' },
+                },
+              },
+            },
+          },
+        })
+      )?.buyContract ?? null
+    : null
+  const seat = ourBuy
+    ? await prisma.buyContractCandidate.findFirst({
+        where: { buyContractId: ourBuy.id, personId: placement.personId },
+        select: { payRate: true, payCurrency: true, startDate: true, endDate: true },
+      })
+    : null
+
+  // One clock for the whole answer. Two `new Date()`s in one request is
+  // how a ceiling reads expired on the same screen that reads open.
+  const now = new Date()
+
+  // ── The rate in force today, on each line this reader may price ─────
+  //
+  // A rate change is an approved RateHistory row, never an edit to the
+  // line, so the line's own column is the rate it started on. Rosa
+  // Delgado's card read $66 two months after her $70 was approved and
+  // paid. Only the rows for a line this reader may read are fetched —
+  // and the margin reads both, because it is priced day by day from them.
+  const linesToPrice = [
+    ...(seeBill || seeMargin ? [{ contractType: 'SELL', contractId: placement.id }] : []),
+    ...((seePay || seeMargin) && ourBuy ? [{ contractType: 'BUY', contractId: ourBuy.id }] : []),
+  ]
+  const rateRows = linesToPrice.length
+    ? await prisma.rateHistory.findMany({
+        where: { OR: linesToPrice },
+        select: { id: true, contractType: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+      })
+    : []
+  const billToday = seeBill
+    ? rateToday(placement.billRate, rateRows.filter((r) => r.contractType === 'SELL'), now, placement.billCurrency)
+    : null
+  const payToday =
+    seePay && seat && ourBuy
+      ? rateToday(seat.payRate, rateRows.filter((r) => r.contractType === 'BUY'), now, seat.payCurrency ?? ourBuy.payCurrency)
+      : null
+
+  // ── The document this line is on ────────────────────────────────────
+  //
+  // A purchase order is a header and its lines. The placement is one
+  // line; this is the paper it hangs on, what the ceiling is, how much
+  // of it has been drawn, and who else is on it.
+  //
+  // Not fetched for an end client reading a rung below the one it pays:
+  // the ceiling on a prime's order to its sub is two other firms' money,
+  // and the names on it are the same withheld names `lib/chain-names`
+  // keeps off every other list. `readsOurMoney` is already that rule.
+  //
+  // Nor for a seat with no desk reading its own line: the ceiling and the
+  // other people on the order are the firm's book, not the worker's.
+  const header = readsOurMoney && !deskless ? placement.workOrder : null
+
+  const siblings = header
+    ? await prisma.sellContract.findMany({
+        where: { workOrderId: header.id },
+        orderBy: [{ startDate: 'asc' }, { createdAt: 'asc' }],
+        select: {
+          id: true, state: true, startDate: true, endDate: true,
+          person: { select: { id: true, name: true } },
+          workLocation: { select: { city: true, state: true } },
+          endClientCompany: { select: { name: true } },
+          clientCompany: { select: { name: true } },
+        },
+      })
+    : []
+
+  // What has been billed against it, read through money's one definition
+  // (lib/money/order-ledger, a9594c4cd): Billed is bills sent plus
+  // typed-in invoice receipts, Left is Authorized minus Billed, and a bill
+  // drafted and not sent is said apart, never inside Billed. Until
+  // 2026-11-09 this page summed every invoice on the order whatever its
+  // status, so a draft read as billed and the page disagreed with the
+  // order's own page (the scale audit's $466,700 against $481,600). Each
+  // line's billed figure is the same sent-only reader (`linesBilled`).
+  const [orderLedgerMap, lineBillings] = header
+    ? await Promise.all([orderLedgers([header.id]), linesBilled(siblings.map((c) => c.id))])
+    : [new Map<string, OrderLedger>(), new Map<string, LineBilled>()]
+  const sellLedger = header ? orderLedgerMap.get(header.id) ?? null : null
+  // The order this firm pays the firm below it from, read through the same
+  // ledger: its PO page and this page say one Billed and one Left (walk 9:
+  // Computer Systems read "Billed —, Left —" here and $451,400 left there).
+  const buyOrderId = ourBuy?.workOrder?.id ?? null
+  const buyLedger = buyOrderId ? (await orderLedgers([buyOrderId])).get(buyOrderId) ?? null : null
+
+  const site = (l: { city: string | null; state: string | null } | null) =>
+    l ? [l.city, l.state].filter(Boolean).join(', ') || null : null
+
+  const thisSite =
+    site(placement.workLocation ?? null) ??
+    placement.endClientCompany?.name ??
+    placement.clientCompany.name
+
+  /** One header, read as this viewer would read it, with its lines under it. */
+  const documentFor = (
+    order: {
+      id: string; number: string; sellerNumber: string | null; status: string
+      amount: unknown; currency: string; startDate: Date; endDate: Date | null
+      issuedById: string; issuedToId: string; billToId: string | null; payerId: string | null
+    } | null,
+    line: { side: 'SELL' | 'BUY'; personName: string; siteName: string | null; paidToName?: string | null; contractType?: string | null },
+    place: { position: number | null; of: number | null },
+    ceiling: { ledger: OrderLedger | null; mayRead: boolean }
+  ) => {
+    const described = describeLine({ order, companyId: mine, line, place })
+    if (!order) return { ...described, order: null }
+
+    // Minor units of the order's own currency, never Number(amount) * 100,
+    // which reads a dong order a hundred times too large.
+    const ccy = order.currency.toUpperCase()
+    const amountMinor = ceiling.ledger?.authorizedMinor ?? minorFromWhole(order.amount as { toString(): string }, ccy)
+    const led = ceiling.ledger
+    const balance =
+      ceiling.mayRead && led
+        ? poBalance(
+            {
+              amountCents: led.authorizedMinor,
+              invoicedCents: led.billedMinor,
+              status: (order.status === 'CLOSED' || order.status === 'CANCELLED'
+                ? order.status
+                : 'OPEN') as 'OPEN' | 'CLOSED' | 'CANCELLED',
+              endDate: order.endDate,
+            },
+            now
+          )
+        : null
+
+    return {
+      ...described,
+      order: {
+        id: order.id,
+        number: order.number,
+        reference: described.reference,
+        status: order.status,
+        startDate: order.startDate.toISOString().slice(0, 10),
+        endDate: order.endDate?.toISOString().slice(0, 10) ?? null,
+        // The ceiling is money. A recruiter who deliberately cannot see
+        // what a placement earns cannot see what the client authorized
+        // for it either; the reference stays, because quoting a number
+        // on an email is not reading a rate.
+        ceiling: ceiling.mayRead ? wholeFromMinor(amountMinor, ccy) : null,
+        currency: order.currency,
+        // The order ledger's own figures, in minor units of the currency.
+        authorizedMinor: ceiling.mayRead ? amountMinor : null,
+        billedMinor: balance && led ? led.billedMinor : null,
+        leftMinor: balance && led ? led.leftMinor : null,
+        draftedNotSentMinor: balance && led ? led.draftedNotSentMinor : null,
+        draftedNotSent: balance && led ? led.draftedNotSent : 0,
+        leftOut: balance && led ? led.foreign : [],
+        drawn: balance && led ? wholeFromMinor(led.billedMinor, ccy) : null,
+        remaining: balance && led ? wholeFromMinor(led.leftMinor, ccy) : null,
+        consumedPercent: balance?.consumedPercent ?? null,
+        overdrawn: balance?.overdrawn ?? false,
+        says: balance && led
+          ? (led.overdrawn
+              ? `Overdrawn by ${amountIn(-led.leftMinor, ccy)}. Raise a change order.`
+              : balance.reason === 'Available' ? null : balance.reason)
+          : null,
+      },
+    }
+  }
+
+  const position = header ? siblings.findIndex((c) => c.id === placement.id) : -1
+  const sellDocument = readsOurMoney
+    ? documentFor(
+        header,
+        { side: 'SELL', personName: placement.person.name, siteName: thisSite },
+        { position: position >= 0 ? position + 1 : null, of: header ? siblings.length : null },
+        { ledger: sellLedger, mayRead: seeBill }
+      )
+    : // A client reading a rung below the one it pays. The paper behind
+      // this leg may well exist — it is simply not theirs, and saying
+      // "not yet on an order" to them would be a false sentence rather
+      // than a withheld one. Same rule as the money on the same payload.
+      {
+        onOrder: false,
+        Noun: null,
+        reference: null,
+        heading: 'Arranged by your supplier',
+        name: `${placement.person.name}${thisSite ? ` — ${thisSite}` : ''}`,
+        does: 'You are billed on the rung you pay; what your supplier agreed with the firm below it is between those two.',
+        says:
+          'The paper behind this leg is between two of your suppliers. Your own document is on the ' +
+          'placement you pay for.',
+        order: null,
+      }
+
+  // Our order to the firm below us. The buy leg is the supplier's own
+  // paper and is not fetched for anybody else, so this is null off that
+  // side without a permission being asked.
+  const buyDocument = ourBuy
+    ? documentFor(
+        ourBuy.workOrder ?? null,
+        {
+          side: 'BUY',
+          personName: placement.person.name,
+          siteName: thisSite,
+          paidToName: ourBuy.vendorCompany?.name ?? null,
+          // How the buy line engages her, so a 1099 or her own company's
+          // line never reads "payroll pays this line" (as Contracts reads).
+          contractType: ourBuy.contractType,
+        },
+        { position: null, of: null },
+        { ledger: buyLedger, mayRead: seePay }
+      )
+    : null
+
+  // The master contract, where this company tags its lines to one. Only
+  // its own: a roll-up is a firm's own view of its margin, and another
+  // firm's grouping of its deals is not on this screen at any
+  // permission.
+  const ourMaster =
+    placement.projectOrder && placement.projectOrder.companyId === mine
+      ? { code: placement.projectOrder.code, name: placement.projectOrder.name }
+      : null
+
+  // ── Cleared to work ─────────────────────────────────────────────────
+  // Two different firms' certificates, and the names have caused trouble
+  // before: `subVendorCertificates` is the cover of the firm BELOW the
+  // supplier, fetched only when there is a buy leg to read it from — so
+  // empty for every reader but the supplier. `ourCover` is the supplier
+  // on this contract, the firm the client actually pays, and the client
+  // is entitled to know whether it is insured.
+  const [personChecks, subVendorCertificates, ourCover] = await Promise.all([
+    prisma.verification.findMany({
+      where: { personId: placement.personId },
+      orderBy: { createdAt: 'desc' },
+      // `validFrom` and `formEdition` were added on 2026-09-16 and have to
+      // be selected explicitly or the floor and the edition check read
+      // undefined and quietly pass.
+      // `result` joins them on 2026-09-17, on the same precedent: it
+      // carries a license's number and the state that issued it, which
+      // is what a refusal has to name to be checkable against a register.
+      select: {
+        id: true, type: true, status: true, provider: true, result: true, orderedByCompanyId: true,
+        issuedAt: true, validFrom: true, expiresAt: true, formEdition: true,
+        backedBy: {
+          select: {
+            evidence: { select: { type: true, validFrom: true, issuedAt: true, expiresAt: true, status: true } },
+          },
+        },
+        // The firm's steps after a flagged report, from their own table,
+        // so a decision not to act made through the route is read here.
+        ...ADVERSE_STEPS,
+      },
+    }),
+    ourBuy?.vendorCompany
+      ? prisma.verification.findMany({
+          where: {
+            companyId: ourBuy.vendorCompany.id,
+            type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
+          },
+          // The floor and the day somebody said they had seen it, because
+          // this row is not echoed to the screen as a stored status any
+          // more — its standing is computed the same way the compliance
+          // page computes it.
+          select: {
+            id: true, type: true, status: true,
+            issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true,
+          },
+        })
+      : Promise.resolve([]),
+    // The supplier on this contract — the firm that has to be insured
+    // for this person to start. Different from subVendorCertificates
+    // above, which is the vendor BELOW us where there is one.
+    prisma.verification.findMany({
+      where: {
+        companyId: placement.companyId,
+        type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
+      },
+      select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
+    }),
+  ])
+
+  // ── Money ───────────────────────────────────────────────────────────
+  //
+  // The invoices on this rung are between the firm that sold it and the
+  // firm that bought it. An end client is neither, so they are not
+  // fetched rather than fetched and nulled: `invoice.total` was sent
+  // whatever the permissions said.
+  // Every invoice line on this line, never the newest dozen. What counts as
+  // billed is money's one definition (lib/money/signed-unbilled,
+  // a9594c4cd): bills sent, a draft said apart, and what is signed and not
+  // yet on a sent bill aged by week. Until 2026-11-09 the card summed the
+  // last twelve invoice lines whatever their bill's status, so a draft read
+  // as billed and a long placement read short.
+  const [invoiceLines, lineBillingMap] = readsOurMoney
+    ? await Promise.all([
+        prisma.invoiceLine.findMany({
+          where: { sellContractId: placement.id },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true, hours: true, rateCents: true, amountCents: true, timesheetId: true,
+            invoice: { select: { id: true, number: true, status: true, total: true, paid: true, dueAt: true, issuedAt: true } },
+          },
+        }),
+        signedAndBilled([placement.id]),
+      ])
+    : [[], new Map<string, LineBilling>()]
+  const lineBilling = lineBillingMap.get(placement.id) ?? null
+
+  const billedCents = lineBilling?.billed.amountMinor ?? 0
+  // Collected: what the bill's payer has paid on bills that were sent, line
+  // by line, a line counted once its bill is settled in full.
+  const paidCents = invoiceLines
+    .filter((l) => billCountsAsBilled(l.invoice.status))
+    .reduce((n, l) => n + (minorFromWhole(l.invoice.paid as { toString(): string }, placement.billCurrency) >= minorFromWhole(l.invoice.total as { toString(): string }, placement.billCurrency) ? l.amountCents : 0), 0)
+  // What this placement earns, read through money's one margin service
+  // (lib/money/margin) and nowhere else, so the figure here and the
+  // Profitability row for the same line agree to the cent. The service
+  // prices this firm's own rung: revenue on the hours its payer accepted
+  // at its own sell rate, cost on the hours it accepted below at its own
+  // buy rate — or, where it employs the person, what payroll pays plus
+  // the employer's burden. Until 2026-10-06 this route priced the sheets
+  // itself, subtracted no burden and called the result bare "Margin", so a
+  // W2 placement read more on its own page than on its Profitability row.
+  //
+  // Only the firm that sells this rung has a margin on it. A payer reads
+  // what the hours are worth at the rate it pays, with no cost side, and
+  // an end client reads nothing.
+  // Every sheet, never the dozen on the card. Hours are already read week
+  // by week by every party here; the money on them stays gated below.
+  const allSheets = await placementMoneySheets(placement.id)
+  const signed = hoursSigned(allSheets)
+  const hoursAccepted = isSupplier ? signed.accepted : signed.approved
+  const books = isSupplier
+    ? (await placementBooks(mine, { sellContractIds: [placement.id] }))[0] ?? null
+    : null
+  const earned = isSupplier
+    ? (books?.earned ?? null)
+    : placementEarned({
+        sheets: readsOurMoney ? allSheets : [],
+        bill: {
+          openingRateCents: placement.billRate,
+          periods: ratePeriods(rateRows.filter((r) => r.contractType === 'SELL')),
+          currency: placement.billCurrency,
+        },
+        pay: null,
+      })
+  // Cost as the margin counts it: pay, overtime premium and burden. Null
+  // wherever the pay is, never a burden on nothing.
+  const fullCostCents =
+    books && books.earned.costCents != null ? books.profit.costCents : null
+  const burdenSays = books && (books.earned.burdenCents ?? 0) > 0
+    ? (books.profit.assumptions.at(-1) ?? null)
+    : null
+
+  // ── What is due, in three words ─────────────────────────────────────
+  //
+  // Cycles grouped as a person reads them — hours, pay, bill — never as
+  // the engine's kind names. Buy-side cycles are our cost and follow the
+  // same rule as the pay rate: a viewer who may not see what we pay may
+  // not see when we pay it either.
+  type Due = { kind: string; label: string; dueOn: string; done: boolean; overdue: boolean }
+  const toDue = (c: { kind: string; dueOn: Date; completedAt: Date | null }): Due => ({
+    kind: c.kind,
+    label: labelOf(c.kind, side),
+    dueOn: c.dueOn.toISOString(),
+    done: c.completedAt !== null,
+    overdue: c.completedAt === null && c.dueOn < now,
+  })
+  const sellDue = placement.sellCycles.map(toDue)
+  // Both rules, not one. seePay is a permission — a client owner holds
+  // `*` and passes it — and isSupplier is a position. Buy cycles are the
+  // supplier's own cost; a client with every permission in the world is
+  // still not the supplier, and saw fifty-three pay days it had no
+  // business seeing. `ourBuy` is now null off the sell side as well, so
+  // this reads belt and braces; both are kept because the position is
+  // the rule and the query is the enforcement.
+  const buyDue = isSupplier && seePay && ourBuy ? (ourBuy.buyCycles ?? []).map(toDue) : []
+  const allDue = [...sellDue, ...buyDue].sort((a, b) => a.dueOn.localeCompare(b.dueOn))
+  const timeline = {
+    hours: allDue.filter((d) => categoryOf(d.kind) === 'HOURS'),
+    pay: allDue.filter((d) => categoryOf(d.kind) === 'PAY'),
+    bill: allDue.filter((d) => categoryOf(d.kind) === 'BILL'),
+    // The next thing anybody has to do on this placement.
+    next: allDue.find((d) => !d.done) ?? null,
+  }
+
+  // ── The checklist ───────────────────────────────────────────────────
+  //
+  // What starting this person requires, which of it is held, and what
+  // stops the contract going live. The same verdict the activate route
+  // gives, computed here so it is visible before anybody presses the
+  // button rather than as a refusal after.
+  const checklist = contractClearance({
+    personName: placement.person.name,
+    personVerifications: personChecks.map((v) => ({
+      ...v,
+      // What each form was completed from. An I-9 with nothing here is a
+      // record that somebody looked, with no record of what they saw.
+      backedBy: v.backedBy.map((b) => ({
+        key: b.evidence.type,
+        inForce:
+          (b.evidence.status === 'CLEAR' || b.evidence.status === 'CONDITIONAL') &&
+          !((b.evidence.validFrom ?? b.evidence.issuedAt) && (b.evidence.validFrom ?? b.evidence.issuedAt)! > now) &&
+          !(b.evidence.expiresAt && b.evidence.expiresAt < now),
+      })),
+    })),
+    // The sentence names the firm the client can actually call about
+    // this person, which below its own supplier is the prime.
+    supplierName: shown(placement.companyId, placement.company.name).phrase,
+    supplierCertificates: ourCover,
+    clientName: placement.clientCompany.name,
+    on: now,
+    // 2026-09-17. The role picks the start packet, so a licensed role
+    // with no license on file is a gap the thread shows before anybody
+    // presses activate — until now the checklist could only judge a
+    // license somebody had already produced. The last day is what says
+    // a license in date today runs out inside the assignment.
+    role: placement.requirement?.title ?? null,
+    through: placement.endDate,
+    // The line's own required set, spread last: it supersedes the cover
+    // list with one that includes good standing and the dictionary with
+    // both firms', so the thread reads what this client's order asked for.
+    ...(await lineExtras({ sellContractId: placement.id })),
+  })
+
+  // The firms this reader may not name, once, for the doors, the facts and
+  // the checklist. A reader above the supplier never reads a firm below it
+  // (release pass 41: "Tecwyn orders Drug screening" reached Northbend).
+  // Every firm on the person's lines other than the supplier it pays and
+  // itself is below, unless its agreement with the prime names the sub
+  // (`shown`, the payload's one rule). An end client opening a leg below
+  // the one it pays reads even this line's seller withheld, so there it is
+  // every masked firm.
+  const sellerSeen = shown(placement.companyId, placement.company.name)
+  const mayNameFirm = (firmId: string) => {
+    if (firmId === mine) return true
+    if (isSupplier) return true
+    if (firmId === placement.companyId) return !sellerSeen.masked
+    return readsFromBelow && seenNames.has(firmId) && !seenNames.get(firmId)!.masked
+  }
+  const hiddenFirms: { id: string; name: string }[] = isSupplier
+    ? []
+    : await prisma.sellContract.findMany({
+        where: {
+          personId: placement.personId,
+          companyId: { notIn: [...(readsFromBelow ? [] : [placement.companyId]), ...(mine ? [mine] : [])] },
+        },
+        select: { companyId: true, company: { select: { name: true } } },
+        distinct: ['companyId'],
+      }).then((others) => others
+        .filter((o) => readsFromBelow ? shown(o.companyId, o.company.name).masked : true)
+        .map((o) => ({ id: o.companyId, name: o.company.name })))
+  const readerFirms = { hidden: hiddenFirms, mayName: mayNameFirm }
+  // What the checklist says of a screening verdict is free text a firm typed.
+  const readerChecklist = isSupplier ? checklist.items : checklistForReader(checklist.items, personChecks, readerFirms)
+
+  // The door each required paper carries for this seat: check what
+  // arrived, record a provider's verdict, or ask the worker (regulatory's
+  // paperDoorsForLine). Never throws a page away: a failed read draws the
+  // chips without doors, as before.
+  const paperDoors = await paperDoorsForLine({
+    contractId: placement.id,
+    caller: { companyId: mine, permissions: caller.permissions },
+    items: checklist.items.map((it) => ({ key: it.key, label: it.label, state: it.state, owedBy: it.owedByRole ?? null })),
+  })
+    .then((doors) => {
+      if (isSupplier) return doors
+      return doorsForReader(doors, hiddenFirms, 'your supplier')
+    })
+    .catch(() => ({}))
+
+  // What was asked, what arrived and who examined it, beside each paper
+  // (record 117, step 2). Facts, never a state: `checklist` decides what
+  // stands. A firm is named only where this reader may call it by name,
+  // the same rule the doors above hold; a failed read draws none.
+  const paperFacts = await paperFactsForLine({
+    contractId: placement.id,
+    items: checklist.items.map((it) => ({ key: it.key, label: it.label })),
+  })
+    .then((facts) => {
+      if (!facts) return null
+      return factsForReader(facts, mayNameFirm, hiddenFirms)
+    })
+    .catch(() => null)
+  // The form's edition warning, where the issuer retired the edition it was
+  // completed on. `contractClearance` returns the findings without a key, so
+  // each is matched to the check that produced it: the same type, the same
+  // recorded edition.
+  const editionOf = (key: string): { says: string } | null => {
+    const finding = checklist.editions.find((e) => personChecks.some((v) =>
+      v.type === key && (v.status === 'CLEAR' || v.status === 'CONDITIONAL') &&
+      (v.formEdition ? e.recorded === v.formEdition || (e.recorded !== null && canonicalEdition(e.recorded) === canonicalEdition(v.formEdition)) : e.recorded === null)))
+    return finding ? { says: finding.says } : null
+  }
+  const checklistItems = attachPaperFacts(readerChecklist, (paperFacts ?? {}) as unknown as Record<string, PaperFacts>)
+    .map((it) => { const edition = editionOf(it.key); return edition ? { ...it, edition } : it })
+
+  // The firm below us, read the same way we read the firm above. Null
+  // where we employ the person ourselves, which is a fact rather than a
+  // gap and is said as `weEmployThem` in the chain.
+  const subVendorCover = ourBuy?.vendorCompany
+    ? supplierCoverGate({
+        supplierName: ourBuy.vendorCompany.name,
+        clientName: placement.clientCompany.name,
+        certificates: subVendorCertificates.map((v) => ({
+          type: v.type,
+          status: v.status,
+          issuedAt: v.issuedAt,
+          validFrom: v.validFrom,
+          expiresAt: v.expiresAt,
+          verifiedAt: v.verifiedAt,
+        })),
+        on: now,
+      })
+    : null
+
+  // ── A line booked past the person's time limit ──────────────────────
+  //
+  // Lucía Fernández's Pinnacle Resourcing line ran seven months past the
+  // day she reaches Northbend Athletic's limit, and the placement said
+  // nothing (tester, 2026-10-03). The day is the one the doors refuse
+  // past (`endsPastLimit` in lib/governance): every supplier's lines at
+  // this site, this one standing as itself. The firm is named only where
+  // this reader may name it; a withheld sub-vendor reads "The contract".
+  const pastLimit = placement.state === 'ENDED' || !placement.startDate
+    ? null
+    : await endsPastLimit({
+        personId: placement.personId,
+        clientId: placement.endClientCompanyId ?? placement.clientCompanyId,
+        contractId: placement.id,
+        endDate: placement.endDate,
+        now,
+      })
+  const runsPast = pastLimit
+    ? runsPastSentence({
+        firm: shown(placement.companyId, placement.company.name).masked ? null : placement.company.name,
+        personName: placement.person.name,
+        endDate: placement.endDate,
+        reachedOn: pastLimit.reachedOn,
+        now,
+      })
+    : null
+
+  return NextResponse.json({
+    data: {
+      id: placement.id,
+      // ── Who and where ──
+      person: {
+        id: placement.person.id,
+        name: placement.person.name,
+        skills: placement.person.consultant?.skills ?? [],
+        location: placement.person.consultant?.location ?? null,
+        workAuth: placement.person.consultant?.workAuth ?? null,
+      },
+      supplier: firm(placement.company),
+      client: placement.clientCompany,
+      endClient: placement.endClientCompany,
+      hiringManager: placement.hiringManager,
+      engagement: placement.engagement,
+      state: placement.state,
+      startDate: placement.startDate?.toISOString() ?? null,
+      endDate: placement.endDate?.toISOString() ?? null,
+      paymentTerms: placement.paymentTerms,
+      currency: placement.billCurrency,
+      // Which side, said out loud, so the screen frames the same facts
+      // the way this reader would say them rather than guessing from a
+      // permission.
+      viewer: { side, isSupplier, seeBill, seePay, seeMargin },
+
+      // ── Station 1 · where the work came from ──
+      origin: placement.requirement
+        ? {
+            id: placement.requirement.id,
+            title: placement.requirement.title,
+            skills: placement.requirement.skills,
+            location: placement.requirement.location,
+            raisedBy: firm(placement.requirement.company),
+            neededBy: placement.requirement.neededBy?.toISOString() ?? null,
+            approvalState: placement.requirement.approvalState,
+          }
+        : null,
+      invitation: invitation
+        ? {
+            status: invitation.status,
+            // Our own band. Never anybody else's — it lives on the
+            // invitation for exactly this reason.
+            payMin: money(invitation.payMin),
+            payMax: money(invitation.payMax),
+            message: invitation.message,
+          }
+        : null,
+
+      // ── Station 2 · how they reached us ──
+      submission: submission
+        ? {
+            id: submission.id,
+            status: submission.status,
+            rate: seeBill ? money(submission.rate) : null,
+            // The same figure in minor units of its currency, for a screen that
+            // says it through money's one formatter (2026-11-09). A submission
+            // stores no currency: it is priced in the line's bill currency.
+            rateCents: seeBill ? submission.rate : null,
+            currency: placement.billCurrency,
+            submittedAt: submission.submittedAt?.toISOString() ?? null,
+            forwardedAt: submission.forwardedAt?.toISOString() ?? null,
+            from: firm(submission.fromCompany),
+            to: submission.toCompany,
+            checkState: submission.checkState,
+            // Null for a client seat whatever their permissions, because
+            // the firm below the supplier is not their counterparty and
+            // its price is not their business.
+            sentOnBy: sentOnBy
+              ? {
+                  company: sentOnBy.fromCompany,
+                  at: sentOnBy.submittedAt?.toISOString() ?? null,
+                  // Their asking price is our cost, so we may see it.
+                  rate: seePay ? money(sentOnBy.rate) : null,
+                  // Their price is what our buy line pays, in its currency.
+                  rateCents: seePay ? sentOnBy.rate : null,
+                  currency: ourBuy?.payCurrency ?? placement.billCurrency,
+                }
+              : null,
+          }
+        : null,
+
+      // ── Station 3 · who met them ──
+      interviews: (submission?.interviews ?? []).map((i) => ({
+        id: i.id,
+        round: i.round,
+        stage: i.stage,
+        mode: i.mode,
+        state: i.state,
+        scheduledAt: i.scheduledAt?.toISOString() ?? null,
+        decidedAt: i.decidedAt?.toISOString() ?? null,
+        feedback: i.feedback,
+      })),
+
+      // ── Station 4 · what was agreed, on both sides ──
+      contracts: {
+        sell: {
+          id: placement.id,
+          // Today's, not the one the line started on.
+          billRate: billToday ? money(billToday.cents) : null,
+          billRateCents: billToday ? billToday.cents : null,
+          currency: placement.billCurrency,
+          // "$120/hr since July 29, 2026 — was $112", where a change is recorded.
+          billRateSays: billToday?.says ?? null,
+          state: placement.state,
+          workOrder: header
+            ? {
+                number: header.number,
+                // The ceiling follows the bill rate: both are what this
+                // deal is worth, and a recruiter who may not read one
+                // may not read the other.
+                amount: seeBill ? Number(header.amount) : null,
+                currency: header.currency,
+              }
+            : null,
+          // The document this line is on, named as this reader would
+          // name it — purchase order to the client who raised it, sales
+          // order to the supplier billing against it.
+          document: sellDocument,
+        },
+        buy: ourBuy
+          ? {
+              id: ourBuy.id,
+              contractType: ourBuy.contractType,
+              state: ourBuy.state,
+              // Null means we employ them. That is the fact, not a gap.
+              vendor: ourBuy.vendorCompany,
+              payRate: payToday ? money(payToday.cents) : null,
+              payRateCents: payToday ? payToday.cents : null,
+              currency: seat?.payCurrency ?? ourBuy.payCurrency,
+              payRateSays: payToday?.says ?? null,
+              // How overtime is priced on this pay line, read the way
+              // payroll reads it. A pay term, so it follows the pay rate's
+              // gate; changing it needs the same permission and to be the
+              // firm that pays (PATCH ./overtime-method).
+              overtime: seePay
+                ? {
+                    ...overtimeMethodSays(ourBuy),
+                    mayChange:
+                      ourBuy.companyId === mine &&
+                      hasPermission(caller.permissions, CHOOSES_OVERTIME_METHOD),
+                  }
+                : null,
+              // How overtime is paid on a cut week, under the same gate
+              // and the same permission (PATCH ./cut-overtime).
+              cutOvertime: seePay
+                ? {
+                    ...cutOvertimeSays(ourBuy),
+                    mayChange:
+                      ourBuy.companyId === mine &&
+                      hasPermission(caller.permissions, CHOOSES_CUT_OVERTIME),
+                  }
+                : null,
+              // Our own order to the firm below us, where there is one.
+              // A W2 line has none and says so in a sentence.
+              document: buyDocument,
+            }
+          : null,
+        // ── The document, and everybody on it ──
+        //
+        // Five people on one order is one document and five lines. A
+        // line that reads as a document of its own is the thing the
+        // header-and-lines correction exists to stop, so the siblings
+        // travel with it.
+        lines: header
+          ? siblings.map((c, i) => ({
+              id: c.id,
+              position: i + 1,
+              person: c.person.name,
+              isThisOne: c.id === placement.id,
+              site:
+                site(c.workLocation) ??
+                c.endClientCompany?.name ??
+                c.clientCompany.name,
+              state: c.state,
+              startDate: c.startDate.toISOString().slice(0, 10),
+              endDate: c.endDate?.toISOString().slice(0, 10) ?? null,
+              // What this line has put against the ceiling. Null rather
+              // than zero where the reader may not read money at all.
+              // Bills sent only, through the order ledger's line reader;
+              // a draft is its own figure beside it.
+              billedMinor: seeBill ? lineBillings.get(c.id)?.billedMinor ?? 0 : null,
+              draftedMinor: seeBill ? lineBillings.get(c.id)?.draftedMinor ?? 0 : null,
+              currency: lineBillings.get(c.id)?.currencies[0] ?? header.currency,
+            }))
+          : [],
+        // The pair — this line and the one on the other side of the
+        // trade that funds it. Read off the buy leg, so null for
+        // anybody but the supplier, who is the only party to both.
+        pair: isSupplier
+          ? pairLine({ side: 'SELL', counterpartName: ourBuy?.vendorCompany?.name ?? null, contractType: ourBuy?.contractType ?? null })
+          : null,
+        // The master contract, where this company tags its lines to one.
+        // The sentence says what to do where it does not; nothing here
+        // tags anything by itself.
+        //
+        // Offered to the firm that has a margin to read — the supplier
+        // on this rung. A client has no cost side on this deal, so
+        // "tag it to see this deal's margin" would be an invitation to
+        // something that does not exist for them; where a client has
+        // tagged a line to its own, it reads what it tagged.
+        masterContract: isSupplier || ourMaster
+          ? { tag: ourMaster, says: masterContractLine(ourMaster) }
+          : null,
+      },
+
+      // ── Station 5 · the chain below us ──
+      //
+      // How many firms stand between us and the person. Ids only, and
+      // only downwards — what sits above is somebody else's margin.
+      // How many firms stand below this contract is the client's own
+      // co-employment question and carries no name. Whether the supplier
+      // employs the person or buys them in is read off the buy leg, so
+      // off the sell side it is null — unknown, rather than a confident
+      // "employs them directly" computed from a row we did not fetch.
+      // "Employs them directly" only where the buy line says so (./chain).
+      chain: chainBelow({
+        isSupplier,
+        firmName: placement.company.name,
+        personName: placement.person.name,
+        buyLine: ourBuy ? { vendorName: ourBuy.vendorCompany?.name ?? null } : null,
+        below: below.length,
+        firmBelow: firmBelowName,
+      }),
+
+      // ── Station 6 · cleared to work ──
+      compliance: {
+        person: personChecks.map((v) => ({
+          type: v.type,
+          status: v.status,
+          provider: isSupplier ? v.provider : providerForReader(v, readerFirms),
+          expiresAt: v.expiresAt?.toISOString() ?? null,
+        })),
+        // The sub-vendor's cover, as standing rather than as the status
+        // somebody typed when they filed it. Empty for a client seat:
+        // the firm below the supplier has no relationship with them and
+        // its paperwork is not theirs to read. The key keeps its name
+        // because the supplier's own screen reads it.
+        //
+        // A stored status is a claim about a past moment. This row said
+        // "Clear" over a certificate whose cover begins in October, while
+        // the same certificate blocked at activation — the screen and the
+        // refusal giving two answers about the same policy. The stored
+        // value stays, because it is a fact about the record; what the
+        // screen should read is `standing`.
+        supplierCover: subVendorCertificates.map((v) => {
+          const standing = standingOf(
+            {
+              key: v.type,
+              label: coverLabel(v.type),
+              issuedAt: v.issuedAt,
+              validFrom: v.validFrom,
+              expiresAt: v.expiresAt,
+              verifiedAt: v.verifiedAt,
+            },
+            // Brokers issue cover annually, which is the same window the
+            // compliance page and the submission door use.
+            { key: v.type, label: coverLabel(v.type), validMonths: 12 },
+            now
+          )
+          return {
+            type: v.type,
+            status: v.status,
+            validFrom: (v.validFrom ?? v.issuedAt)?.toISOString() ?? null,
+            expiresAt: v.expiresAt?.toISOString() ?? null,
+            standing: standing.standing,
+            says: standing.says,
+          }
+        }),
+        // Whether the firm below us could put anybody forward today. The
+        // same function the submission door and the compliance page call,
+        // so a placement cannot read green on cover that refuses a
+        // submission an hour later.
+        subVendorCover: subVendorCover
+          ? {
+              vendor: ourBuy!.vendorCompany!.name,
+              outcome: subVendorCover.outcome,
+              says: subVendorCover.says,
+              fix: subVendorCover.fix,
+            }
+          : null,
+      },
+
+      // ── Station 7 · the hours ──
+      weeksFiled: weeks.length,
+      timesheets: weeks.map((t) => {
+        const client = t.assertions.find((a) => a.role === 'CLIENT_APPROVAL')
+        const employer = t.assertions.find((a) => a.role === 'EMPLOYER_ACCEPTANCE')
+        return {
+          id: t.id,
+          periodStart: t.periodStart.toISOString().slice(0, 10),
+          periodEnd: t.periodEnd.toISOString().slice(0, 10),
+          hours: Number(t.totalHours),
+          status: t.status,
+          // Two signatures, shown as two, because in a chain they are
+          // almost never the same company.
+          clientApproved: client ? { hours: Number(client.hours), at: client.at.toISOString() } : null,
+          employerAccepted: employer ? { hours: Number(employer.hours), at: employer.at.toISOString() } : null,
+          billedByUs: t.invoiceLines.some((l) => l.sellContractId === placement.id),
+        }
+      }),
+
+      // ── What is due next, and what stops a start ──
+      timeline,
+      // "started Sep 1" only of a contract that is running, paused or
+      // ended; otherwise "due to start", and what holds it up in the
+      // checklist's own words. A date set is a plan, not a fact.
+      // Where this line runs past the person's time limit, in one
+      // sentence that says what to do; null where it does not.
+      runsPast,
+      startSays: startWords({
+        startDate: placement.startDate?.toISOString() ?? null,
+        state: placement.state,
+        outcome: checklist.outcome,
+        blocking: readerChecklist.filter((i) => i.blocks),
+        today: new Date(),
+      }),
+      checklist: {
+        outcome: checklist.outcome,
+        says: isSupplier ? checklist.says : sayWithoutHidden(checklist.says, hiddenFirms),
+        fix: isSupplier || !checklist.fix ? checklist.fix : sayWithoutHidden(checklist.fix, hiddenFirms),
+        items: checklistItems,
+        cover: checklist.cover.outcome,
+        paperDoors,
+      },
+
+      // ── Station 8 · the money ──
+      money: {
+        hoursAccepted,
+        // Grouped by invoice, not by line.
+        //
+        // One invoice covering four weeks has four lines, and rendering
+        // a row per line showed the same invoice number four times —
+        // which reads as four invoices for the same work, the exact
+        // thing anybody looking at a billing screen is watching for.
+        invoices: [...invoiceLines
+          .reduce((acc, l) => {
+            const at = acc.get(l.invoice.id) ?? {
+              id: l.invoice.id,
+              number: l.invoice.number,
+              status: l.invoice.status,
+              hours: 0,
+              amountCents: 0,
+              total: Number(l.invoice.total),
+              paid: Number(l.invoice.paid),
+              dueAt: l.invoice.dueAt.toISOString().slice(0, 10),
+              weeks: 0,
+            }
+            // Hours and weeks come only from lines that carry a week; an
+            // expense or milestone line adds its money and nothing else
+            // (walk 9: "192 hrs · 6 weeks" for five weeks and an expense).
+            if (l.timesheetId) {
+              at.hours += Number(l.hours)
+              at.weeks += 1
+            }
+            at.amountCents += l.amountCents
+            acc.set(l.invoice.id, at)
+            return acc
+          }, new Map<string, any>())
+          .values()]
+          .map((i) => ({ ...i, amount: seeBill ? money(i.amountCents) : null, amountMinor: seeBill ? i.amountCents : null })),
+        billed: seeBill ? money(billedCents) : null,
+        collected: seeBill ? money(paidCents) : null,
+        // The same figures in minor units of the line's currency, and the
+        // rest of money's one definition beside them: drafted and not sent,
+        // signed and not yet billed, and that aged by week. Each its own
+        // labeled figure; none is ever added into another.
+        currency: lineBilling?.currency ?? placement.billCurrency,
+        billedMinor: seeBill ? billedCents : null,
+        collectedMinor: seeBill ? paidCents : null,
+        revenueMinor: seeBill && earned ? earned.revenueCents : null,
+        hoursAcceptedTotal: hoursAccepted,
+        hoursBilledSent: lineBilling?.billed.hours ?? 0,
+        // Hours a sent bill carries past what was signed for the week, said
+        // apart, so Signed = Billed − billed past signed + signed not billed
+        // on this page as on the budget and the program (money, 170393453).
+        billedOverSigned: seeBill && lineBilling
+          ? { hours: lineBilling.billedOverSigned.hours, amountMinor: lineBilling.billedOverSigned.amountMinor }
+          : null,
+        signedMinor: seeBill && lineBilling ? lineBilling.signed.amountMinor : null,
+        signedHours: lineBilling?.signed.hours ?? 0,
+        drafted: seeBill && lineBilling
+          ? { hours: lineBilling.drafted.hours, amountMinor: lineBilling.drafted.amountMinor, bills: lineBilling.drafted.bills.map((b) => ({ number: b.number, hours: b.hours, amountMinor: b.amountMinor })) }
+          : null,
+        signedNotBilled: seeBill && lineBilling
+          ? {
+              hours: lineBilling.notBilled.hours,
+              amountMinor: lineBilling.notBilled.amountMinor,
+              onDraftHours: lineBilling.notBilled.onDraftHours,
+              aging: lineBilling.notBilled.aging.filter((a) => a.weeks > 0),
+              says: lineBilling.says,
+            }
+          : null,
+        // Blank rather than a guess. A margin shown as the whole invoice
+        // because nobody set a cost is the kind of wrong that looks like
+        // good news.
+        revenue: seeBill && earned ? money(earned.revenueCents) : null,
+        // Both are null off the sell side without asking a permission:
+        // the seat that carries the pay rate hangs off the buy leg, and
+        // the buy leg is not read for anybody but the supplier. A client
+        // owner holds `*`, so the permission alone let the supplier's
+        // cost and margin through.
+        //
+        // `cost` is what payroll or the firm below is paid, overtime
+        // premium included — the Profitability row's earned cost.
+        // `burden` is the employer's burden on it, at hop 0 only, and
+        // `fullCost` the two together, which is what the earned margin
+        // subtracts. Revenue less fullCost is the earned margin, to the cent.
+        cost: seePay && earned ? money(earned.costCents) : null,
+        burden: seePay && earned ? money(earned.burdenCents) : null,
+        fullCost: seePay ? money(fullCostCents) : null,
+        burdenSays: seePay ? burdenSays : null,
+        // Never the bare word "margin" beside a figure (lib/money/margin).
+        marginLabel: seeMargin ? EARNED_MARGIN : null,
+        margin: seeMargin && earned?.marginCents != null ? money(earned.marginCents) : null,
+        // Why the margin reads as it does — blank, or over which weeks.
+        marginSays: seeMargin
+          ? (earned
+              ? (earned.marginRefusedBecause ?? books?.profit.says ?? earned.says)
+              : 'This placement is not on your own books, so it has no earned margin here.')
+          : null,
+        // The rates two firms agreed, per hour, beside the two rates on
+        // the header. Knows nothing about hours; never called margin.
+        agreed: seeMargin && books?.agreed
+          ? {
+              label: AGREED_SPREAD,
+              // In the agreement's own currency: a dong spread has no cents
+              // to divide off (the \u20ab170.00 class, 2026-11-08).
+              currency: books.agreed.currency ?? placement.billCurrency,
+              perHourCents: books.agreed.spreadRateCents,
+              perHour: books.agreed.spreadRateCents == null
+                ? null
+                : wholeFromMinor(books.agreed.spreadRateCents, books.agreed.currency ?? placement.billCurrency),
+              pct: books.agreed.pct,
+              says: books.agreed.refusedBecause ?? books.agreed.says,
+            }
+          : null,
+        payRateChangeSays: seePay && earned ? earned.payRateChangeSays : null,
+        overtimeSays: seePay && earned ? earned.overtimeSays : null,
+        costSays: seePay && earned ? earned.costRefusedBecause : null,
+        hoursBilled: earned?.hoursBilled ?? 0,
+        hoursPaid: earned?.hoursPaid ?? 0,
+        // Why it is blank, rather than a screen of dashes somebody
+        // raises a ticket about.
+        says: readsOurMoney
+          ? null
+          : 'This leg was arranged by one of your suppliers. What it is billed at is between those two firms — your own rate is on the placement you pay for.',
+      },
+    },
+  })
+}

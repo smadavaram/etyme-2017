@@ -1,0 +1,227 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { recordAccess, recordRefusal } from '@/lib/access-log'
+import { reportError } from '@/lib/alerts'
+import { paperSubject, trailSubject } from '@/lib/document-stages/firm-papers'
+import { standingOn } from '@/lib/document-request'
+import { hasPermission } from '@/lib/permissions'
+import { buyerMayExamineKept } from '@/app/api/packets/examination'
+import { textOfUpload } from '@/lib/setup-fill'
+import { editionReadFrom } from '@/lib/document-stages/editions'
+
+/**
+ * GET /api/documents/:id/file — the document itself.
+ *
+ * The other half of the door that takes it. A worker photographs her
+ * I-9 and sends it; somebody at the firm that asked for it opens it and
+ * decides whether it answers what was asked. Until 2026-09-21 the bytes
+ * had nowhere to live, so neither half existed and a chase ended at a
+ * sentence saying "upload it" with nothing behind it.
+ *
+ * ── Who may open it ──────────────────────────────────────────────────
+ *
+ * Two, and no third: **the person the document is about**, because it is
+ * theirs, and **the paperwork desk of the firm that asked for it**,
+ * because it cannot decide whether a document answers a requirement
+ * without reading it. A company document is readable by that company.
+ * Until 2026-10-08 any seat at the asking firm could open the file, so an
+ * Accounts Receivable clerk could read a contractor's passport; a seat
+ * there without the paperwork desk is now refused in a sentence. Everybody else is told it is not
+ * here rather than that they may not have it — a refusal that confirms
+ * a document exists is a refusal that leaked something.
+ *
+ * A supplier further up a chain is deliberately not on that list. The
+ * client sees the STANDING of whoever employs somebody on its site and
+ * never the person's papers, which is CLAUDE.md's rule for the chain
+ * said about bytes instead of about names.
+ *
+ * ── Every read is logged, including a refusal ────────────────────────
+ *
+ * This is a read of another person's data in the plainest sense there
+ * is: their passport, their license, the form they signed. The
+ * `AccessLog` row goes in before the verdict is acted on, so a refusal
+ * leaves a trail too — somebody trying to open a stranger's I-9 is
+ * exactly what an audit is looking for, and it is the attempt rather
+ * than the success that says so.
+ */
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const { id } = await params
+
+  const doc = await prisma.docInstance.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      subjectType: true,
+      subjectId: true,
+      signedFileUrl: true,
+      status: true,
+      note: true,
+      template: { select: { name: true, company: { select: { id: true, name: true } } } },
+      sellContract: { select: { personId: true } },
+      buyContract: { select: { candidates: { where: { state: 'ACTIVE' }, select: { personId: true }, take: 1 } } },
+      file: { select: { fileName: true, contentType: true, bytes: true, sizeBytes: true } },
+    },
+  })
+
+  const missing = NextResponse.json(
+    { error: { code: 'NOT_FOUND', message: 'That document is not here.' } },
+    { status: 404 }
+  )
+  if (!doc) return missing
+
+  const subjectPersonId =
+    doc.subjectType === 'PERSON'
+      ? doc.subjectId
+      : doc.subjectType === 'SELL_CONTRACT'
+        ? doc.sellContract?.personId ?? null
+        : doc.subjectType === 'BUY_CONTRACT'
+          ? doc.buyContract?.candidates[0]?.personId ?? null
+          : null
+
+  const issuer = doc.template.company
+
+  // Whose hands this is in — the same rule as sending, signing and
+  // uploading (`standingOn` in lib/document-request). The firm that asked
+  // reads the file through its paperwork desk only; a seat there with no
+  // such desk — an Accounts Receivable clerk, a Member — is refused in a
+  // sentence, because billing a client is not reading a contractor's
+  // passport. The person it is about reads their own. A company's own
+  // paper reaches it. Everybody else is told nothing is here.
+  // A paper a supplier filed on its own record, opened by a client that
+  // buys from it to examine it (Company paperwork, 2026-10-29).
+  const keptForBuyer = await buyerMayExamineKept(
+    {
+      companyId: caller.company?.id ?? null,
+      isConsultantSeat: caller.context.type === 'CONSULTANT',
+      holds: (p) => hasPermission(caller.permissions ?? [], p as never),
+    },
+    { status: doc.status, subjectType: doc.subjectType, subjectId: doc.subjectId }
+  )
+  const standing = keptForBuyer ? { ok: true as const, staffOfIssuer: true } : standingOn('open', { templateName: doc.template.name, subjectPersonId }, {
+    personId: caller.person.id,
+    atIssuer: caller.company?.id === issuer.id && caller.context.type !== 'CONSULTANT',
+    atSubjectCompany: doc.subjectType === 'COMPANY' && caller.company?.id === doc.subjectId,
+    permissions: caller.permissions ?? [],
+    companyName: caller.company?.name ?? null,
+  })
+  const mine = subjectPersonId !== null && caller.person.id === subjectPersonId
+
+  const why = standing.ok
+    ? keptForBuyer
+      ? `${caller.company?.name ?? 'A client'} buys from the firm that filed this paper and is examining it.`
+      : standing.staffOfIssuer
+      ? `${issuer.name} asked for this document and its paperwork team is reading the answer.`
+      : mine
+        ? 'Their own document.'
+        : 'The company the document is about.'
+    : standing.code === 'NO_DESK'
+      ? `A seat at ${issuer.name} that does not work its paperwork, opening somebody else's document.`
+      : `Neither the person this document is about nor ${issuer.name}, who asked for it.`
+
+  // Before the verdict is acted on, so a refused attempt leaves a trail.
+  // A log where every row is a success is a log that answers the wrong
+  // question. Both go through lib/access-log: a read the file was handed
+  // over for is written without holding the bytes back, and a refusal is
+  // awaited, so a serverless host cannot freeze the function after the
+  // 403 and drop the one row an audit asks for first. Until 2026-10-08
+  // this was a hand-written row ending in `.catch(() => {})`, so a failed
+  // write vanished and the refusal rule could not see it.
+  const trail = {
+    actorPersonId: caller.person.id,
+    actorCompanyId: caller.company?.id,
+    action: 'DOCUMENT_FILE_READ' as const,
+    reason: why,
+  }
+  // Whose data this is: the person, or the firm. Until 2026-11-02 a
+  // company's paper was filed under its firm's id as though it were a
+  // person's, the foreign key refused it, and the read was never in the
+  // trail (98 reads in the calibration run). A request item's paper is
+  // about the request's own subject.
+  const item = doc.subjectType === 'PACKET_ITEM'
+    ? await prisma.packetItem.findUnique({
+        where: { id: doc.subjectId },
+        select: { packet: { select: { subjectCompanyId: true, subjectPersonId: true } } },
+      })
+    : null
+  const subject = trailSubject(
+    paperSubject({ subjectType: doc.subjectType, subjectId: doc.subjectId, packet: item?.packet ?? null, contractPersonId: subjectPersonId }),
+    issuer.id
+  )
+  if (standing.ok) {
+    // Written before the file is sent, and nothing is handed over that
+    // could not be recorded: a document's bytes are the read the trail
+    // exists for.
+    try {
+      await recordAccess([subject], { ...trail, allowed: true })
+    } catch (err) {
+      await reportError('access-log', err, { personId: caller.person.id, companyId: caller.company?.id })
+      return NextResponse.json(
+        { error: { code: 'NOT_RECORDED', message: 'This read could not be put on the record, so the file is not sent. Try again in a moment.' } },
+        { status: 503 }
+      )
+    }
+  } else await recordRefusal([subject], { ...trail, allowed: false })
+
+  if (!standing.ok) {
+    // A colleague without the desk is told what its seat lacks, never a
+    // permission key. A stranger is told nothing is here rather than that
+    // they may not have it: saying "you may not read Helena Marsh's I-9"
+    // confirms there is one.
+    if (standing.code === 'NO_DESK') {
+      return NextResponse.json({ error: { code: standing.code, message: standing.message } }, { status: 403 })
+    }
+    return missing
+  }
+
+  // `?read=edition`: the edition the paper's own words print, with the
+  // line it was read from, for the examine dialog to show beside the field
+  // (the founder's tester, 2026-11-03). The same door, the same trail: it
+  // is a read of the file. A paper with no words to read answers nothing,
+  // and HR types what is printed.
+  if (new URL(request.url).searchParams.get('read') === 'edition') {
+    const text = doc.file ? textOfUpload(Buffer.from(doc.file.bytes), doc.file.contentType, doc.file.fileName) : ''
+    return NextResponse.json({ data: { read: editionReadFrom(text) } }, { headers: { 'Cache-Control': 'private, no-store' } })
+  }
+
+  // A firm that sent a link rather than a file is a real case and is not
+  // deprecated. The address is where the document is.
+  if (!doc.file && doc.signedFileUrl && !doc.signedFileUrl.startsWith('file://')) {
+    return NextResponse.redirect(doc.signedFileUrl)
+  }
+
+  if (!doc.file) {
+    // Signed as an attestation, with no file: answered, and there is
+    // nothing to open. Until 2026-10-21 this said "whoever owes it has not
+    // answered" about a question the person had answered and signed (found
+    // by the simulation's documents station).
+    const answered = doc.status === 'SIGNED' || doc.status === 'UPLOADED'
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NO_FILE',
+          message: answered
+            ? `${doc.template.name} was answered and signed without a file, so there is nothing to open.` +
+              (doc.note ? ` What was said is on the paper: ${doc.note}` : '')
+            : `Nothing has been sent for ${doc.template.name} yet. It has been asked for, and whoever ` +
+              `owes it has not answered.`,
+        },
+      },
+      { status: 410 }
+    )
+  }
+
+  return new NextResponse(new Uint8Array(doc.file.bytes), {
+    headers: {
+      'Content-Type': doc.file.contentType,
+      // Inline: somebody checking a certificate wants to look at it, not
+      // to collect a copy on their own laptop.
+      'Content-Disposition': `inline; filename="${doc.file.fileName.replace(/"/g, '')}"`,
+      'Content-Length': String(doc.file.sizeBytes),
+      'Cache-Control': 'private, no-store',
+    },
+  })
+}

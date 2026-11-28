@@ -1,3 +1,0 @@
-$('#dynamic-content').empty();
-- @data.each do |d|
-  $('#dynamic-content').append("#{ j render(partial: "company/users/partials/#{d.class.name.downcase}_show" , locals: {data: d})}");

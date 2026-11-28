@@ -1,0 +1,2108 @@
+/**
+ * A client approves a week without signing in — the door.
+ *
+ * The founder, 2026-09-30 (CLAUDE.md, "A client may approve by email, and
+ * the proof travels down the chain"). The rules are demand's, pure, in
+ * `app/api/timesheets/approval-by-email.ts`; this file reads and writes the
+ * rows they decide about (`WeekApproval`, `WeekApprovalContract`,
+ * `WeekApprovalFile`) and nothing else decides anything here.
+ *
+ * Four things happen through it:
+ *
+ *   send     the worker on their own week, or a supplier's timesheet desk
+ *            on the chain, sends a one-time link to the client's approver
+ *   attach   the same people attach evidence of an approval the client
+ *            gave by email, naming the approver
+ *   answer   the approver opens the link with no account and presses
+ *            Approve or Send back
+ *   read     every rung the approval applies to reads it and its evidence,
+ *            only its own contracts in it, and every read is logged
+ *
+ * What an approval writes is the client's signature and nothing else: a
+ * CLIENT_APPROVAL assertion with no `byId`, because the approver holds no
+ * seat here, and the `WeekApproval` row is what says who it was. Every rung
+ * below then accepts the week in its own turn through the approve route,
+ * exactly as before. Nothing here accepts for a lower rung.
+ */
+import { createHash, randomBytes } from 'node:crypto'
+import { prisma } from '@/lib/db'
+import { rateInForce, ratePeriods } from '@/lib/contract-rate'
+import { notify } from '@/lib/notify'
+import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
+import { postAssertion } from '@/lib/order-postings'
+import { reportError } from '@/lib/alerts'
+import { logAccess, recordRefusal, type AccessAction } from '@/lib/access-log'
+import { seatFor, actingInSeat, seatTrail } from '@/lib/program-seat'
+import type { CallerContext } from '@/lib/api-context'
+import { configuredSenders } from '@/lib/senders'
+import { baseUrl } from '@/lib/signed-link'
+import { weekFlag } from '@/lib/timesheet-flag'
+import { lineFor, splitWeeks, weeksAwaitingDecision, priceChoice, treatmentSays, type Decision, type Treatment } from '@/lib/overtime'
+import { laddersAbove } from '@/app/api/timesheets/ladder'
+import {
+  topDown, signersOf, tellNext, weekSays, acceptsOnlyForItself, standsAsAcceptanceSays, workerToldSays,
+  type LadderRung, type Signer,
+} from '@/app/api/timesheets/chain-turn'
+import { signatureRateCents } from '@/app/api/timesheets/signature-rate'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+import {
+  linkExpiresAt, linkVerdict, checkSendBack, checkEvidence, mayActForTheClient, scopeFor,
+  mayReadEvidence, evidenceReadLog, approvedByWords, letterToApprover, signaturesWritten, dayOf,
+  whoAskedSentence, approverIsKnownAtClient, offPlatformApprovalWords, restsOnSupplierRecord, type ClientOfRecord,
+  SEND_BACK_REASONS, EVIDENCE_KINDS, type EvidenceKind, type LinkOutcome, type ReadVerdict, type SentFrom,
+} from '@/app/api/timesheets/approval-by-email'
+import { formatDay } from '@/lib/format-date'
+import { isShell } from '@/lib/off-system'
+import { isDeskless } from '@/lib/nav-table'
+import { noDeskYet } from '@/lib/no-desk'
+
+// ── Results ───────────────────────────────────────────────────────────
+
+/** A refusal in a sentence, with the status a route answers it with. */
+export interface Refused {
+  ok: false
+  status: number
+  code: string
+  says: string
+  field?: string
+}
+
+const refuse = (status: number, code: string, says: string, field?: string): Refused => ({ ok: false, status, code, says, ...(field ? { field } : {}) })
+
+/** Who is asking: a person, at a company or at none (a worker with no seat). */
+export interface Reader {
+  personId: string
+  personName: string
+  companyId: string | null
+  companyName?: string | null
+  companyKind?: string | null
+  permissions: readonly string[]
+  /**
+   * Set where a program office reads at a client's desk through a seat
+   * the client granted. The reader then *is* the client for every rule
+   * here, and the trail names the office, never the client, as the firm
+   * that read: a log saying the client read its own records would hide
+   * the one thing the client would ask about.
+   */
+  seat?: { officeCompanyId: string | null; trail: string }
+}
+
+// ── The token ─────────────────────────────────────────────────────────
+
+/** Twenty-four random bytes, as every bearer token in this codebase. */
+export function newLinkToken(): string {
+  return randomBytes(24).toString('base64url')
+}
+
+/** Only the hash is stored. Whoever holds the token may sign for a client. */
+export function hashLinkToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex')
+}
+
+export function approveWeekUrl(token: string): string | null {
+  const base = baseUrl()
+  return base ? `${base}/answer/week/${token}` : null
+}
+
+// ── The week, the chain above it, and the names on it ─────────────────
+
+interface Rung {
+  id: string
+  companyId: string
+  clientCompanyId: string
+  endClientCompanyId: string | null
+  sellerName: string
+  buyerName: string
+  billRate: number
+  overtimeAfterHours: number | null
+  overtimeMultiplierBps: number | null
+}
+
+export interface WeekChain {
+  week: {
+    id: string
+    personId: string
+    personName: string
+    personEmail: string
+    periodStart: Date
+    periodEnd: Date
+    totalHours: number
+    days: Record<string, number>
+    leaveDays: Record<string, number>
+    status: string
+    submittedAt: Date | null
+    clientApprovedAt: Date | null
+    employerAcceptedAt: Date | null
+    sellContractId: string
+    anomalyScore: number | null
+    anomalyReason: string | null
+    hoursPerWeek: number | null
+    contractEnd: Date | null
+    decisions: { sellContractId: string; weekOf: Date; treatment: string; appliedBps: number; overtimeHours: unknown; accrualBps: number }[]
+  }
+  /** Top first; the rung the hours are filed on last. */
+  ladder: LadderRung[]
+  rungs: Map<string, Rung>
+  signers: Signer[]
+  clientId: string
+  clientName: string
+  /** The client is a record its supplier listed and nobody claimed (`isShell` in lib/off-system). */
+  clientOffPlatform: boolean
+  employerId: string
+  names: Map<string, string>
+}
+
+/** Read one week and the chain above it. Null where there is no such week. */
+export async function readWeekChain(timesheetId: string): Promise<WeekChain | null> {
+  return (await readWeekChains([timesheetId])).get(timesheetId) ?? null
+}
+
+/**
+ * The same read for many weeks at once (2026-11-02): the weeks in one
+ * query, every chain above them through `laddersAbove`, every firm's name
+ * in one more, each week's answer built exactly as `readWeekChain` built
+ * it alone. A worker's own first screen read it once per week waiting on
+ * the client, about eight queries a week. A week not found is absent.
+ */
+export async function readWeekChains(timesheetIds: readonly string[]): Promise<Map<string, WeekChain>> {
+  const out = new Map<string, WeekChain>()
+  const ids = [...new Set(timesheetIds)]
+  if (ids.length === 0) return out
+  const weeks = await prisma.timesheet.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true, personId: true, periodStart: true, periodEnd: true, totalHours: true, days: true, leaveDays: true,
+      status: true, submittedAt: true, clientApprovedAt: true, employerAcceptedAt: true, sellContractId: true,
+      anomalyScore: true, anomalyReason: true,
+      person: { select: { name: true, primaryEmail: true } },
+      overtimeDecisions: {
+        select: { sellContractId: true, weekOf: true, treatment: true, appliedBps: true, overtimeHours: true, accrualBps: true },
+      },
+      sellContract: {
+        select: {
+          id: true, companyId: true, clientCompanyId: true, endClientCompanyId: true, billRate: true,
+          overtimeAfterHours: true, overtimeMultiplierBps: true, endDate: true,
+          requirement: { select: { hoursPerWeek: true } },
+          company: { select: { name: true } },
+          clientCompany: { select: { name: true } },
+        },
+      },
+    },
+  })
+  const bottomOf = (sc: (typeof weeks)[number]['sellContract']) => ({
+    sellContractId: sc.id,
+    companyId: sc.companyId,
+    clientCompanyId: sc.clientCompanyId,
+    endClientCompanyId: sc.endClientCompanyId,
+    supplierSellContractId: null,
+  })
+  const ladders = await laddersAbove(weeks.map((t) => ({ hoursOn: t.sellContractId, bottom: bottomOf(t.sellContract) })))
+  const built = weeks.map((t) => {
+    const sc = t.sellContract
+    const above = ladders.get(t.sellContractId) ?? [{ rung: bottomOf(sc), contract: null }]
+    const ladder = topDown(above.map((r) => r.rung))
+    const firmIds = new Set<string>()
+    for (const r of ladder) {
+      firmIds.add(r.companyId)
+      firmIds.add(r.clientCompanyId)
+      if (r.endClientCompanyId) firmIds.add(r.endClientCompanyId)
+    }
+    return { t, sc, above, ladder, firmIds }
+  })
+  const firms = await prisma.company.findMany({ where: { id: { in: [...new Set(built.flatMap((b) => [...b.firmIds]))] } }, select: { id: true, name: true, claimedAt: true } })
+  const allNames = new Map(firms.map((c) => [c.id, c.name]))
+  const shells = new Set(firms.filter((c) => isShell(c)).map((c) => c.id))
+
+  for (const { t, sc, above, ladder, firmIds } of built) {
+    const signers = signersOf(ladder)
+    // Each chain keeps the names of its own firms only, as it did read alone.
+    const names = new Map([...firmIds].filter((id) => allNames.has(id)).map((id) => [id, allNames.get(id)!]))
+
+    const rungs = new Map<string, Rung>()
+    for (const r of ladder) {
+      const c = above.find((a) => a.rung.sellContractId === r.sellContractId)?.contract
+      rungs.set(r.sellContractId, {
+        id: r.sellContractId,
+        companyId: r.companyId,
+        clientCompanyId: r.clientCompanyId,
+        endClientCompanyId: r.endClientCompanyId ?? null,
+        sellerName: names.get(r.companyId) ?? 'A supplier',
+        buyerName: names.get(r.clientCompanyId) ?? 'A client',
+        billRate: c ? c.billRate : sc.billRate,
+        overtimeAfterHours: c ? c.overtimeAfterHours : sc.overtimeAfterHours,
+        overtimeMultiplierBps: c ? c.overtimeMultiplierBps : sc.overtimeMultiplierBps,
+      })
+    }
+
+    const top = ladder[0]
+    const clientId = top.endClientCompanyId ?? top.clientCompanyId
+    out.set(t.id, {
+      week: {
+        id: t.id,
+        personId: t.personId,
+        personName: t.person.name,
+        personEmail: t.person.primaryEmail,
+        periodStart: t.periodStart,
+        periodEnd: t.periodEnd,
+        totalHours: Number(t.totalHours),
+        days: (t.days as Record<string, number>) ?? {},
+        leaveDays: (t.leaveDays as Record<string, number>) ?? {},
+        status: t.status,
+        submittedAt: t.submittedAt,
+        clientApprovedAt: t.clientApprovedAt,
+        employerAcceptedAt: t.employerAcceptedAt,
+        sellContractId: t.sellContractId,
+        anomalyScore: t.anomalyScore,
+        anomalyReason: t.anomalyReason,
+        hoursPerWeek: sc.requirement?.hoursPerWeek ?? null,
+        contractEnd: sc.endDate,
+        decisions: t.overtimeDecisions,
+      },
+      ladder,
+      rungs,
+      signers,
+      clientId,
+      clientName: names.get(clientId) ?? 'The client',
+      clientOffPlatform: shells.has(clientId),
+      employerId: sc.companyId,
+      names,
+    })
+  }
+  return out
+}
+
+/**
+ * Who signs each week at the top of its chain, by name, for many weeks in
+ * one read (2026-11-02): the same answer `readWeekChain(id).clientName`
+ * gives for one week, in three queries whatever the number of weeks (the
+ * weeks, their ladders through `laddersAbove`, the names).
+ *
+ * Money measured a bill sent at forty at once: about 300 statements of
+ * each send were conversation's `readWhole` (lib/notify/bill-delivery)
+ * calling `readWeekChain` once per week on the bill only to read this
+ * name. A week that does not exist is absent from the map, as
+ * `readWeekChain` returns null for it.
+ */
+export async function weekSignersFor(timesheetIds: readonly string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const ids = [...new Set(timesheetIds)]
+  if (ids.length === 0) return out
+  const weeks = await prisma.timesheet.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true, sellContractId: true,
+      sellContract: { select: { id: true, companyId: true, clientCompanyId: true, endClientCompanyId: true } },
+    },
+  })
+  const bottomOf = (w: (typeof weeks)[number]) => ({
+    sellContractId: w.sellContract.id,
+    companyId: w.sellContract.companyId,
+    clientCompanyId: w.sellContract.clientCompanyId,
+    endClientCompanyId: w.sellContract.endClientCompanyId,
+    supplierSellContractId: null,
+  })
+  const ladders = await laddersAbove(weeks.map((w) => ({ hoursOn: w.sellContractId, bottom: bottomOf(w) })))
+  const clientOf = new Map<string, string>()
+  for (const w of weeks) {
+    const above = ladders.get(w.sellContractId) ?? [{ rung: bottomOf(w), contract: null }]
+    const top = topDown(above.map((r) => r.rung))[0]
+    clientOf.set(w.id, top.endClientCompanyId ?? top.clientCompanyId)
+  }
+  const names = new Map(
+    (await prisma.company.findMany({ where: { id: { in: [...new Set(clientOf.values())] } }, select: { id: true, name: true } }))
+      .map((c) => [c.id, c.name])
+  )
+  for (const [weekId, clientId] of clientOf) out.set(weekId, names.get(clientId) ?? 'The client')
+  return out
+}
+
+/** "Sep 20 – Sep 26", the way the letter and the page say a week. */
+export function periodWords(start: Date, end: Date, now: Date): string {
+  return `${dayOf(start, now)} – ${dayOf(end, now)}`
+}
+
+/**
+ * Why this week cannot be approved by email, or null where it can.
+ *
+ * Two things only a person signing in Etyme can answer, because each asks
+ * a question the email does not carry:
+ *
+ *   - a flagged week — over the job's hours, past the last day, or marked
+ *     when filed — is signed with a reason (Addendum E: warn, capture a
+ *     reason, proceed; never silently);
+ *   - hours over the overtime line on the client's own contract wait for
+ *     somebody to say what they are worth, priced on that contract.
+ *
+ * And a week whose employer is its own client has nobody outside to ask.
+ */
+export function needsSigningInEtyme(c: WeekChain): string | null {
+  return notByEmail(c)?.says ?? null
+}
+
+/** Why a week cannot be approved by email, with what stands behind the sentence. */
+interface NotByEmail {
+  kind: 'OWN_CLIENT' | 'FLAGGED' | 'OVERTIME'
+  says: string
+  /** The flag's own sentence, where the week is flagged. */
+  flag: string | null
+  /** Hours over the line nobody has decided yet, week by week, on the client's own rung. */
+  pending: { weekOf: string; hours: number }[]
+  /** The line and the multiplier the client's own rung offers. */
+  afterHours: number | null
+  multiplierBps: number
+  topId: string
+}
+
+function notByEmail(c: WeekChain): NotByEmail | null {
+  const w = c.week
+  const top = c.rungs.get(c.ladder[0].sellContractId)!
+  const policy = lineFor(top, { hoursPerWeek: w.hoursPerWeek }, { stillToSign: true, decided: false })
+  const base = { afterHours: policy.afterHours, multiplierBps: policy.multiplierBps, topId: top.id }
+  if (c.employerId === c.clientId) {
+    return {
+      ...base, kind: 'OWN_CLIENT', flag: null, pending: [],
+      says: `${c.clientName} employs ${w.personName} and is also the client on this week, so it approves the week in Etyme.`,
+    }
+  }
+  const flag = weekFlag({
+    hours: w.totalHours,
+    hoursPerWeek: w.hoursPerWeek,
+    periodEnd: w.periodEnd,
+    contractEnd: w.contractEnd,
+    anomalyScore: w.anomalyScore,
+    anomalyReason: w.anomalyReason,
+  })
+  const decisions: Decision[] = w.decisions
+    .filter((d) => d.sellContractId === top.id)
+    .map((d) => ({
+      weekOf: d.weekOf.toISOString().slice(0, 10),
+      treatment: d.treatment as Treatment,
+      appliedBps: d.appliedBps,
+      overtimeHours: Number(d.overtimeHours),
+      accrualBps: d.accrualBps,
+    }))
+  const pending = weeksAwaitingDecision(splitWeeks(w.days, policy, { leaveDays: w.leaveDays, decisions }))
+    .map((x) => ({ weekOf: x.weekOf, hours: x.pendingHours }))
+  if (flag) {
+    return {
+      ...base, kind: 'FLAGGED', flag, pending,
+      says: `${flag} A week like this is signed in Etyme by somebody at ${c.clientName}, with the reason it is right, so it cannot be approved by email.`,
+    }
+  }
+  if (pending.length > 0) {
+    return {
+      ...base, kind: 'OVERTIME', flag: null, pending,
+      says:
+        `${w.personName} worked past the ${policy.afterHours}-hour line this week, and what the extra hours are worth ` +
+        `is decided when the week is signed. Somebody at ${c.clientName} signs it in Etyme, so it cannot be approved by email.`,
+    }
+  }
+  return null
+}
+
+// ── A long week at a client that is not on Etyme (2026-11-14) ─────────
+//
+// Tapin's walk: every client of the founder's firm is a client not on
+// Etyme, and a week over the job's hours could never be approved, because
+// nobody at the client can sign in. The standing rule is warn, capture a
+// reason, proceed (Addendum E). So where the client is not on Etyme, and
+// only there, the client's approval may be attached for such a week when
+// the person attaching it gives two more things, both written on the
+// approval: the client's reason the week is right, and how the client
+// approved the hours over the line (the usual rate, or a premium: the two
+// answers whoever signs a week in Etyme is offered). Nothing is defaulted.
+// A client on Etyme, or an employer that is its own client, still signs
+// in Etyme, exactly as before.
+
+/** The two answers on hours over the line an attached approval may carry. */
+export const OFF_ETYME_OVERTIME = ['SAME_RATE', 'PREMIUM'] as const
+export type OffEtymeOvertime = (typeof OFF_ETYME_OVERTIME)[number]
+
+/** What the attach form asks for, besides the approval itself. */
+export interface OffEtymeAsks {
+  /** The sentence over the questions. */
+  says: string
+  /** The label of the box for the client's reason. */
+  reasonLabel: string
+  /** The question on the hours over the line, and its two answers. Null where no hour is over it. */
+  overtime: { hours: number; afterHours: number; asks: string; choices: { value: OffEtymeOvertime; label: string }[] } | null
+}
+
+const hoursWords = (n: number) => `${Math.round(n * 100) / 100} ${Math.round(n * 100) / 100 === 1 ? 'hour' : 'hours'}`
+const premiumWords = (bps: number) => treatmentSays('PREMIUM', bps).replace(/^Paid at /, '')
+
+/**
+ * What a person attaching the client's approval is asked for on a week
+ * only a person in Etyme could otherwise sign. Null where nothing more is
+ * asked: the week can go by email as it is, or the client is on Etyme, or
+ * the employer is the client. Pure.
+ */
+export function offEtymeAsks(c: WeekChain): OffEtymeAsks | null {
+  const why = notByEmail(c)
+  if (!why || why.kind === 'OWN_CLIENT' || !c.clientOffPlatform) return null
+  const hours = why.pending.reduce((n, x) => n + x.hours, 0)
+  const after = why.afterHours ?? 40
+  const client = c.clientName
+  return {
+    says:
+      `${why.flag ? `${why.flag} ` : ''}${client} is not on Etyme, so attach its approval with its reason` +
+      `${hours > 0 ? ' and its answer on the extra hours' : ''}.`,
+    reasonLabel: `Why the week is right, in the words of ${client}`,
+    overtime: hours > 0
+      ? {
+          hours,
+          afterHours: after,
+          asks: `How ${client} approved the ${hoursWords(hours)} over ${after}`,
+          choices: [
+            { value: 'SAME_RATE', label: 'At the usual rate' },
+            { value: 'PREMIUM', label: `At a premium, ${premiumWords(why.multiplierBps)}` },
+          ],
+        }
+      : null,
+  }
+}
+
+/** What an attached approval adds for a long week at a client not on Etyme, checked. */
+export interface OffEtymeSignOff {
+  reason: string
+  /** The sentence written on the approval after its usual words. */
+  says: string
+  /** One decision per week with hours over the line, priced as the client approved them. */
+  decisions: { weekOf: string; overtimeHours: number; treatment: Treatment; appliedBps: number }[]
+  afterHours: number
+  multiplierBps: number
+  topId: string
+}
+
+/**
+ * The client's reason and its answer on the extra hours, or the refusal in
+ * a sentence. Null where the week asks for neither (`offEtymeAsks`). Pure.
+ */
+export function checkOffEtymeSignOff(
+  c: WeekChain,
+  input: { clientReason?: unknown; overtime?: unknown; approverName: string }
+): { ok: true; signOff: OffEtymeSignOff } | Refused | null {
+  const why = notByEmail(c)
+  const asks = offEtymeAsks(c)
+  if (!why || !asks) return null
+  const client = c.clientName
+  const reason = typeof input.clientReason === 'string' ? input.clientReason.trim().slice(0, 1000) : ''
+  if (!reason) {
+    return refuse(422, 'VALIDATION', `Give the reason ${client} gave for this week, in its own words. It goes on the approval.`, 'clientReason')
+  }
+  const choice = OFF_ETYME_OVERTIME.find((x) => x === input.overtime) ?? null
+  if (asks.overtime && !choice) {
+    return refuse(
+      422, 'VALIDATION',
+      `Say how ${client} approved the ${hoursWords(asks.overtime.hours)} over ${asks.overtime.afterHours}: at the usual rate, or at a premium.`,
+      'overtime'
+    )
+  }
+  const policy = { afterHours: why.afterHours, multiplierBps: why.multiplierBps }
+  const priced = choice ? priceChoice({ treatment: choice }, policy) : null
+  const decisions = priced && priced.ok && choice
+    ? why.pending.map((p) => ({ weekOf: p.weekOf, overtimeHours: p.hours, treatment: choice as Treatment, appliedBps: priced.appliedBps }))
+    : []
+  const overtimeSays = asks.overtime && choice
+    ? ` ${input.approverName} approved the ${hoursWords(asks.overtime.hours)} over ${asks.overtime.afterHours} ` +
+      `${choice === 'SAME_RATE' ? 'at the usual rate' : `at ${premiumWords(why.multiplierBps)}`}.`
+    : ''
+  return {
+    ok: true,
+    signOff: {
+      reason,
+      says: `Reason given by ${client}: “${reason.replace(/[.\s]+$/, '')}”.${overtimeSays}`,
+      decisions,
+      afterHours: asks.overtime?.afterHours ?? why.afterHours ?? 40,
+      multiplierBps: why.multiplierBps,
+      topId: why.topId,
+    },
+  }
+}
+
+/**
+ * What the client said on an attached approval, read back off its
+ * signature: the note is the approval's words, then this. Null where the
+ * signature carries nothing more.
+ */
+export function clientSaysOn(note: string | null | undefined, words: string | null): string | null {
+  if (!note || !words) return null
+  const lead = `${words}. `
+  if (note.startsWith(lead)) return note.length > lead.length ? note.slice(lead.length) : null
+  // A signature written before an attached file said "evidence attached"
+  // (2026-11-15) leads with the older words; what the client said follows
+  // the same clause.
+  const clause = ' was not on Etyme. '
+  const at = note.indexOf(clause)
+  return at >= 0 && note.length > at + clause.length ? note.slice(at + clause.length) : null
+}
+
+/** Whether the week is still waiting for the client, in a sentence where it is not. */
+function notWaiting(c: WeekChain): string | null {
+  if (c.week.clientApprovedAt) return `${c.clientName} has already approved this week.`
+  if (c.week.status !== 'SUBMITTED') return `This week is not waiting for approval. ${c.week.personName} has not sent it in yet.`
+  return null
+}
+
+/**
+ * Who sent the link, as the client may be told it.
+ *
+ * The client sees the rung it pays and nothing below it (CLAUDE.md, "A
+ * sub-vendor's name is the prime's to keep"). So the firm named to the
+ * client's approver is always the client's own supplier on the top rung,
+ * and a sender from a firm below it is not named — not the person, not
+ * the firm, not that there is one. `askFirm` is who to ask for a new link:
+ * the firm the client already deals with.
+ */
+export function senderAsTheClientSees(
+  c: WeekChain,
+  sender: { personId: string; name: string; companyId: string | null }
+): { sentFrom: SentFrom; askFirm: string } {
+  const top = c.rungs.get(c.ladder[0].sellContractId)!
+  const askFirm = top.sellerName
+  if (sender.personId === c.week.personId || sender.companyId === top.companyId) {
+    return { sentFrom: { kind: 'NAMED', name: sender.name, firm: askFirm }, askFirm }
+  }
+  return { sentFrom: { kind: 'BELOW', askFirm }, askFirm }
+}
+
+/** Whether this reader may be told a firm's name on this week: its own, or a party to a rung it is on. */
+function mayName(r: Reader, c: WeekChain, companyId: string | null): boolean {
+  if (!companyId) return false
+  if (r.personId === c.week.personId || r.companyId === companyId) return true
+  return c.ladder.some((x) =>
+    (x.companyId === r.companyId || x.clientCompanyId === r.companyId || (x === c.ladder[0] && c.clientId === r.companyId)) &&
+    (x.companyId === companyId || x.clientCompanyId === companyId || (x === c.ladder[0] && c.clientId === companyId)))
+}
+
+/** The approver's name and address, checked in the evidence rule's own words. */
+export function checkApprover(name: unknown, email: unknown, clientName: string): { ok: true; name: string; email: string } | { ok: false; field: string; says: string } {
+  const n = typeof name === 'string' ? name.trim() : ''
+  const e = typeof email === 'string' ? email.trim().toLowerCase() : ''
+  if (!n && !e) {
+    return { ok: false, field: 'approverName', says: `Name the person at ${clientName} who approves this week, and give their email address.` }
+  }
+  if (!n) return { ok: false, field: 'approverName', says: `Name the person at ${clientName} who approves this week.` }
+  if (!e) return { ok: false, field: 'approverEmail', says: `Give ${n}’s email address, so the link reaches them.` }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+    return { ok: false, field: 'approverEmail', says: `${e} is not an email address. Give the address ${n} reads.` }
+  }
+  return { ok: true, name: n, email: e }
+}
+
+/** Who may send or attach, by the rules, with the reader's seat. */
+function actorVerdict(r: Reader, c: WeekChain) {
+  return mayActForTheClient(
+    { personId: r.personId, companyId: r.companyId, permissions: r.permissions, companyKind: r.companyKind ?? null, companyName: r.companyName ?? null },
+    { personId: c.week.personId, personName: c.week.personName },
+    c.ladder,
+    c.clientName
+  )
+}
+
+/** A refused attempt to act for the client, logged like any read of the worker's week. */
+async function logRefusal(r: Reader, c: WeekChain, action: WeekTrailAction, says: string) {
+  await trail({ subjectId: c.week.personId, actorPersonId: r.personId, actorCompanyId: actorCompanyOf(r), action, allowed: false, reason: withSeat(r, says) })
+}
+
+/**
+ * The names this file files its access-log rows under, a slice of
+ * `AccessAction` in `lib/access-log`. Integration tests and the client's
+ * own trail read them, so they do not move.
+ */
+type WeekTrailAction = Extract<
+  AccessAction,
+  | 'APPROVAL_LINK_SEND'        // refused: sending the client's approver a link
+  | 'APPROVAL_EVIDENCE_ATTACH'  // refused: attaching the client's approval as evidence
+  | 'WEEK_APPROVAL_VIEW'        // refused: reading who approved a week
+  | 'APPROVAL_LINK_VIEW'        // the client's approver opened the link, or found it closed
+  | 'WEEK_SIGNATURE_VIEW'       // read, or was refused, a signature on the week
+  | 'APPROVAL_EVIDENCE_VIEW'    // read, or was refused, the evidence behind an approval
+>
+
+/**
+ * Every access-log row this file writes goes through here, and through
+ * `lib/access-log` from here.
+ *
+ * A refusal is `recordRefusal`, awaited: the row is written before the
+ * refusal goes out, and a failed write is reported to staff rather than
+ * turned into a 500, because a refusal that could not be recorded is
+ * still a refusal.
+ *
+ * A read is `logAccess`, not awaited, with a failed write reported to
+ * staff. Not `recordAccess`, which throws on a failed write so that its
+ * caller can withhold the read: here a read is not withheld from the
+ * approver because the trail failed. Until 2026-10-08 the four writes in
+ * this file each ended in `.catch(() => {})`, so a failure vanished; now
+ * none can.
+ */
+async function trail(row: {
+  subjectId: string
+  actorPersonId: string | null
+  actorCompanyId: string | null
+  action: WeekTrailAction
+  allowed: boolean
+  reason: string | null
+}): Promise<void> {
+  const params = {
+    actorPersonId: row.actorPersonId ?? undefined,
+    actorCompanyId: row.actorCompanyId ?? undefined,
+    action: row.action,
+    reason: row.reason ?? undefined,
+  }
+  if (!row.allowed) {
+    await recordRefusal([row.subjectId], params)
+    return
+  }
+  logAccess({ subjectId: row.subjectId, ...params })
+}
+
+// ── Whether the named approver is somebody at the client ─────────────
+
+/**
+ * What the client is on the record, for `approverIsKnownAtClient`.
+ *
+ * Its own domain only where an identity provider or a DNS record proved
+ * it (a domain merely typed in proves nothing about who holds an address
+ * there), the extra domains it proved the same way, and the address of
+ * every person holding a live seat at it. The worker naming her own
+ * address as the client's approver was the gap: the evidence would have
+ * read as the client's yes.
+ *
+ * A client that is not on Etyme — a record its supplier listed
+ * (`POST /api/clients`) and nobody has claimed — has none of those, so
+ * every approver was refused and a supplier whose client is not here could
+ * neither send the link nor attach the client's approval: Tapin's first
+ * day. For such a client the addresses its supplier recorded for it stand
+ * in (`offPlatformRecord`), and the row says the client was not on Etyme.
+ * The day it claims the record, `claimedAt` is set and its own domain and
+ * seats decide again, as for every client.
+ */
+async function clientOfRecord(c: WeekChain): Promise<ClientOfRecord> {
+  const clientId = c.clientId
+  const [company, domains, seats] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: clientId },
+      select: { domain: true, domainVerified: true, claimedAt: true, listedById: true },
+    }),
+    prisma.companyDomain.findMany({ where: { companyId: clientId, verifiedAt: { not: null } }, select: { domain: true } }),
+    prisma.context.findMany({
+      where: { companyId: clientId, revokedAt: null, suspendedAt: null },
+      select: { person: { select: { primaryEmail: true } } },
+    }),
+  ])
+  const own: ClientOfRecord = {
+    name: c.clientName,
+    domain: company?.domainVerified ? company.domain : null,
+    aliases: domains.map((d) => d.domain),
+    seatedEmails: seats.map((x) => x.person.primaryEmail),
+  }
+  if (!company || company.claimedAt != null) return { ...own, offPlatform: false }
+
+  // Off the platform: the addresses the firm that listed the client
+  // recorded for it, through the one reader the bill letter also uses.
+  const recordedContacts = company.listedById
+    ? await recordedContactsFor(clientId, company.listedById, { excludeEmails: [c.week.personEmail] })
+    : []
+  return { ...own, offPlatform: true, recordedContacts }
+}
+
+/**
+ * The addresses a supplier recorded for a client, lowercased: its own
+ * invitation to the client (not one it revoked) and the contacts in its
+ * own address book at the client. Never an address of the supplier
+ * itself — a seat there, or an address at a domain it proved — and never
+ * one of `excludeEmails` (the worker's, so a firm cannot record its own
+ * worker as the client). The exclusions are `offPlatformRecord`'s, read
+ * once here for every door that writes to a client off Etyme: the week's
+ * approval by email (`clientOfRecord`) and the bill letter
+ * (lib/notify/bill-delivery).
+ *
+ * It reads the supplier's record whether or not the client has since
+ * claimed its company; whether the record still decides is the caller's
+ * question, and `clientOfRecord` asks it before calling.
+ */
+export async function recordedContactsFor(
+  clientCompanyId: string,
+  supplierCompanyId: string,
+  opts: { excludeEmails?: readonly (string | null | undefined)[] } = {}
+): Promise<string[]> {
+  const [invites, contacts, supplier] = await Promise.all([
+    prisma.supplierInvite.findMany({ where: { companyId: clientCompanyId, byId: supplierCompanyId }, select: { byId: true, email: true, state: true } }),
+    prisma.companyContact.findMany({ where: { companyId: supplierCompanyId, atCompanyId: clientCompanyId }, select: { companyId: true, email: true } }),
+    prisma.company.findUnique({
+      where: { id: supplierCompanyId },
+      select: {
+        domain: true, domainVerified: true,
+        claimedDomains: { where: { verifiedAt: { not: null } }, select: { domain: true } },
+        contexts: { where: { revokedAt: null }, select: { person: { select: { primaryEmail: true } } } },
+      },
+    }),
+  ])
+  const { recordedContacts } = offPlatformRecord({
+    claimedAt: null,
+    listedById: supplierCompanyId,
+    invites,
+    contacts,
+    listerSeatedEmails: supplier?.contexts.map((x) => x.person.primaryEmail) ?? [],
+    listerDomains: [
+      ...(supplier?.domainVerified && supplier.domain ? [supplier.domain] : []),
+      ...(supplier?.claimedDomains.map((d) => d.domain) ?? []),
+    ],
+    workerEmail: null,
+  })
+  const excluded = new Set((opts.excludeEmails ?? []).map((e) => (typeof e === 'string' ? e.trim().toLowerCase() : '')).filter(Boolean))
+  return recordedContacts.filter((e) => !excluded.has(e))
+}
+
+/**
+ * Whether the client is off the platform, and which addresses its
+ * supplier recorded for it. Pure, so the choice is tested on its own.
+ *
+ * Read only from the firm that listed the client, because it is that
+ * firm's record: the address on its invitation to the client (not one it
+ * revoked) and the contacts in its own address book at the client. Never
+ * an address of the listing firm itself — a seat there or an address at a
+ * domain it proved — and never the worker's: a supplier recording its own
+ * staffer as the client's approver is the same hole as the worker naming
+ * herself, one rung up.
+ */
+export function offPlatformRecord(i: {
+  claimedAt: Date | null
+  listedById: string | null
+  invites: readonly { byId: string; email: string; state: string }[]
+  contacts: readonly { companyId: string; email: string | null }[]
+  listerSeatedEmails: readonly (string | null | undefined)[]
+  listerDomains: readonly (string | null | undefined)[]
+  workerEmail: string | null
+}): { offPlatform: boolean; recordedContacts: string[] } {
+  if (i.claimedAt != null) return { offPlatform: false, recordedContacts: [] }
+  const lower = (e: string | null | undefined) => (typeof e === 'string' ? e.trim().toLowerCase() : '')
+  const listerSeats = new Set(i.listerSeatedEmails.map(lower).filter(Boolean))
+  const listerDomains = i.listerDomains.map((d) => lower(d).replace(/^@/, '')).filter(Boolean)
+  const worker = lower(i.workerEmail)
+  const theirOwn = (e: string) => {
+    const at = e.split('@')[1] ?? ''
+    return listerSeats.has(e) || e === worker || listerDomains.some((d) => at === d || at.endsWith('.' + d))
+  }
+  const recorded = i.listedById
+    ? [
+        ...i.invites.filter((x) => x.byId === i.listedById && x.state !== 'REVOKED').map((x) => lower(x.email)),
+        ...i.contacts.filter((x) => x.companyId === i.listedById).map((x) => lower(x.email)),
+      ]
+    : []
+  return {
+    offPlatform: true,
+    recordedContacts: [...new Set(recorded.filter((e) => e.includes('@') && !theirOwn(e)))],
+  }
+}
+
+/**
+ * Whether the approver is somebody at the client: where so, whether the
+ * client was off the platform when it was asked; where not, the refusal,
+ * logged like any other.
+ */
+async function approverAtClient(
+  r: Reader,
+  c: WeekChain,
+  approverEmail: string,
+  action: 'APPROVAL_LINK_SEND' | 'APPROVAL_EVIDENCE_ATTACH'
+): Promise<{ ok: true; offPlatform: boolean } | Refused> {
+  const client = await clientOfRecord(c)
+  // Who is asking, so a refusal says what this reader does next: the
+  // week's own person asks the firm that recorded the client; a supplier's
+  // seat adds the approver under Contacts itself (walk, 2026-11-14). The
+  // firm is the one that recorded the client, never the reader's company.
+  const asks = client.offPlatform
+    ? {
+        as: (r.personId === c.week.personId ? 'WORKER' : 'SUPPLIER_DESK') as 'WORKER' | 'SUPPLIER_DESK',
+        firmName: (await prisma.company.findUnique({ where: { id: c.clientId }, select: { listedBy: { select: { name: true } } } }))?.listedBy?.name ?? null,
+      }
+    : undefined
+  const v = approverIsKnownAtClient({ approverEmail, client, asks })
+  // The flag is whether the yes rests on the supplier's record of the
+  // client rather than the client's own: demand's reasons say which.
+  if (v.ok) return { ok: true, offPlatform: restsOnSupplierRecord(v.how) }
+  await logRefusal(r, c, action, v.says)
+  return refuse(422, v.code, v.says, 'approverEmail')
+}
+
+/**
+ * The sentence an approval by email reads as, on every screen.
+ *
+ * Where the client was not on Etyme when it approved, demand's sentence
+ * says so, with the address it came from — "Approved by email: Dana
+ * Whitfield, dana@acme.com — Acme was not on Etyme" — because the
+ * approver stood on the supplier's record of the client, not the
+ * client's own. Read from the row, so it still reads that way after the
+ * client claims its record. The row says what the client was when the
+ * approver answered, not when the link was sent (`standingAtAnswer`).
+ * Otherwise the usual words.
+ */
+export function approvalWords(i: {
+  approverName: string
+  approverEmail: string
+  clientName: string
+  clientOffPlatform: boolean | null
+  on: Date
+  how: 'LINK' | 'EVIDENCE'
+  now: Date
+}): string {
+  // An attached file says the record's words, "Approved by email: <name>,
+  // <day> — evidence attached" (docs/decisions/46), wherever the client
+  // was; off Etyme, the clause that says so follows (the press walk l2a,
+  // 2026-11-15: it read as a bare approval by email).
+  if (i.how === 'EVIDENCE') {
+    const words = approvedByWords({ approverName: i.approverName, on: i.on, how: 'EVIDENCE', now: i.now })
+    return i.clientOffPlatform ? `${words} — ${i.clientName.trim() || 'The client'} was not on Etyme` : words
+  }
+  if (i.clientOffPlatform) {
+    return offPlatformApprovalWords({ approverName: i.approverName, approverEmail: i.approverEmail, clientName: i.clientName })
+  }
+  return approvedByWords({ approverName: i.approverName, on: i.on, how: i.how, now: i.now })
+}
+
+/** The clause an automation log adds where the client was not on Etyme. */
+function offPlatformBecause(c: WeekChain, offPlatform: boolean, approverEmail: string): string {
+  return offPlatform
+    ? ` ${c.clientName} is not on Etyme, so ${approverEmail} was accepted as an address its supplier recorded for it.`
+    : ''
+}
+
+// ── Send a link ───────────────────────────────────────────────────────
+
+export interface SendInput {
+  approverName?: unknown
+  approverEmail?: unknown
+  /** Sell contract ids; null or absent means all of them. */
+  contracts?: string[] | null
+}
+
+export async function sendApprovalLink(
+  r: Reader,
+  timesheetId: string,
+  input: SendInput,
+  now = new Date()
+): Promise<{ ok: true; id: string; says: string; delivery: { state: string; note: string }; url: string } | Refused> {
+  const c = await readWeekChain(timesheetId)
+  if (!c) return refuse(404, 'NOT_FOUND', 'That week is not here.')
+
+  const who = actorVerdict(r, c)
+  if (!who.ok) {
+    await logRefusal(r, c, 'APPROVAL_LINK_SEND', who.says)
+    return refuse(403, 'FORBIDDEN', who.says)
+  }
+  const waiting = notWaiting(c)
+  if (waiting) return refuse(409, 'NOT_WAITING', waiting)
+  const inEtyme = needsSigningInEtyme(c)
+  if (inEtyme) return refuse(409, 'SIGN_IN_ETYME', inEtyme)
+
+  const approver = checkApprover(input.approverName, input.approverEmail, c.clientName)
+  if (!approver.ok) return refuse(422, 'VALIDATION', approver.says, approver.field)
+  const atClient = await approverAtClient(r, c, approver.email, 'APPROVAL_LINK_SEND')
+  if (!atClient.ok) return atClient
+  const scope = scopeFor(input.contracts ?? null, c.ladder, c.clientName)
+  if (!scope.ok) return refuse(422, 'VALIDATION', scope.says, 'contracts')
+
+  const token = newLinkToken()
+  const url = approveWeekUrl(token)
+  if (!url) {
+    return refuse(
+      409, 'NO_ADDRESS',
+      'This deployment does not know its own web address, so a link would not open. Attach the client’s approval as evidence instead.'
+    )
+  }
+
+  const expiresAt = linkExpiresAt(now)
+  // Asking again for the same week and approver closes the earlier unused
+  // link, so one is live (walk fdg, item 5b). Its token no longer opens
+  // anything: the approver reads "it has been replaced".
+  await prisma.weekApproval.updateMany({
+    where: { timesheetId, how: 'LINK', approverEmail: approver.email, usedAt: null, assertionId: null, tokenHash: { not: null } },
+    data: { tokenHash: null, expiresAt: now },
+  })
+  const row = await prisma.weekApproval.create({
+    data: {
+      timesheetId, how: 'LINK', clientCompanyId: c.clientId,
+      approverName: approver.name, approverEmail: approver.email,
+      sentById: r.personId, sentByCompanyId: r.companyId, sentAs: who.as, sentAt: now,
+      tokenHash: hashLinkToken(token), expiresAt, clientOffPlatform: atClient.offPlatform,
+      contracts: { create: scope.contracts.map((id, position) => ({ sellContractId: id, position })) },
+    },
+    select: { id: true },
+  })
+
+  const told = senderAsTheClientSees(c, { personId: r.personId, name: r.personName, companyId: r.companyId })
+  const letter = letterToApprover({
+    approverName: approver.name,
+    personName: c.week.personName,
+    clientName: c.clientName,
+    // The two cases themselves, so the letter never reads them back out
+    // of a display string. senderName and senderFirm stay only because
+    // the letter's signature still asks for them; sentFrom decides.
+    sentFrom: told.sentFrom,
+    senderName: told.sentFrom.kind === 'NAMED' ? told.sentFrom.name : '',
+    senderFirm: told.sentFrom.kind === 'NAMED' ? told.sentFrom.firm : told.askFirm,
+    period: periodWords(c.week.periodStart, c.week.periodEnd, now),
+    hours: c.week.totalHours,
+    url,
+    expiresAt,
+    now,
+  })
+  const delivery = await attemptDelivery(
+    routeFor({ isConsultant: false, email: approver.email, teamsWebhookUrl: null }),
+    approver.email, letter.subject, letter.body, configuredSenders(), now, null,
+    { companyId: r.companyId ?? c.employerId, mail: { template: 'week-approval-link', recordType: 'Timesheet', recordId: timesheetId, actorPersonId: r.personId } },
+  )
+
+  // Somebody asked for it, so it is not unprompted — but an email to a
+  // stranger outside every company here is the kind of act a reader asks
+  // about afterwards, and whether it actually left is the useful half.
+  await prisma.automationLog.create({
+    data: {
+      companyId: r.companyId ?? c.employerId,
+      action: 'WEEK_APPROVAL_LINK_SENT',
+      summary: `Approval link for ${c.week.personName}’s week sent to ${approver.name} at ${c.clientName}`,
+      reason:
+        `${r.personName} asked for it.${offPlatformBecause(c, atClient.offPlatform, approver.email)} ` +
+        `Delivery: ${delivery.state.toLowerCase()} — ${delivery.note}`,
+      payload: { weekApprovalId: row.id, timesheetId, to: approver.email, delivery: delivery.state, contracts: scope.contracts, expiresAt: expiresAt.toISOString(), clientOffPlatform: atClient.offPlatform },
+      // An email cannot be called back. The link can be overtaken, and runs out on its own.
+      reversible: false,
+    },
+  })
+
+  const sent = delivery.state === 'SENT'
+  return {
+    ok: true,
+    id: row.id,
+    url,
+    delivery: { state: delivery.state, note: delivery.note },
+    says: sent
+      ? `Handed to the email service for ${approver.name} at ${approver.email}. Delivery is not confirmed yet. The link works once and runs out on ${dayOf(expiresAt, now)}.`
+      : `The link is ready, but the email did not leave: ${delivery.note} The link works once and runs out on ${dayOf(expiresAt, now)}.`,
+  }
+}
+
+// ── Attach evidence ───────────────────────────────────────────────────
+
+export interface EvidenceUpload {
+  approverName?: unknown
+  approverEmail?: unknown
+  kind?: unknown
+  approvedOn?: Date | null
+  file?: { name: string; size: number; type: string; bytes: Buffer } | null
+  pastedText?: unknown
+  contracts?: string[] | null
+  /** On a long week at a client not on Etyme: the client's reason, in its words (`offEtymeAsks`). */
+  clientReason?: unknown
+  /** And how the client approved the hours over the line: SAME_RATE or PREMIUM. */
+  overtime?: unknown
+}
+
+export async function attachEvidence(
+  r: Reader,
+  timesheetId: string,
+  input: EvidenceUpload,
+  now = new Date()
+): Promise<{ ok: true; id: string; says: string; words: string } | Refused> {
+  const c = await readWeekChain(timesheetId)
+  if (!c) return refuse(404, 'NOT_FOUND', 'That week is not here.')
+
+  const who = actorVerdict(r, c)
+  if (!who.ok) {
+    await logRefusal(r, c, 'APPROVAL_EVIDENCE_ATTACH', who.says)
+    return refuse(403, 'FORBIDDEN', who.says)
+  }
+  const waiting = notWaiting(c)
+  if (waiting) return refuse(409, 'NOT_WAITING', waiting)
+  const inEtyme = needsSigningInEtyme(c)
+  // Where the client is not on Etyme, a week only a person in Etyme could
+  // sign may be attached with the client's reason and its overtime answer.
+  if (inEtyme && !offEtymeAsks(c)) return refuse(409, 'SIGN_IN_ETYME', inEtyme)
+
+  const ev = checkEvidence(
+    {
+      approverName: input.approverName, approverEmail: input.approverEmail, kind: input.kind,
+      approvedOn: input.approvedOn ?? null,
+      file: input.file ? { name: input.file.name, size: input.file.size } : null,
+      pastedText: input.pastedText,
+    },
+    { periodEnd: c.week.periodEnd },
+    now,
+    c.clientName
+  )
+  if (!ev.ok) return refuse(422, 'VALIDATION', ev.says, ev.field)
+  const offEtyme = checkOffEtymeSignOff(c, { clientReason: input.clientReason, overtime: input.overtime, approverName: ev.approverName })
+  if (offEtyme && !offEtyme.ok) return offEtyme
+  const signOff = offEtyme?.ok ? offEtyme.signOff : null
+  const atClient = await approverAtClient(r, c, ev.approverEmail, 'APPROVAL_EVIDENCE_ATTACH')
+  if (!atClient.ok) return atClient
+  const scope = scopeFor(input.contracts ?? null, c.ladder, c.clientName)
+  if (!scope.ok) return refuse(422, 'VALIDATION', scope.says, 'contracts')
+
+  const pasted = typeof input.pastedText === 'string' ? input.pastedText.trim() : ''
+  const file = input.file
+    ? { fileName: input.file.name, contentType: input.file.type || 'application/octet-stream', sizeBytes: input.file.size, bytes: input.file.bytes }
+    : { fileName: 'approval-email.txt', contentType: 'text/plain; charset=utf-8', sizeBytes: Buffer.byteLength(pasted), bytes: Buffer.from(pasted, 'utf8') }
+
+  // The day the approver said yes, at the time it was recorded where that
+  // is today, so a signature never predates the moment anybody knew of it.
+  const sameDay = ev.approvedOn.toISOString().slice(0, 10) === now.toISOString().slice(0, 10)
+  const signedAt = sameDay ? now : new Date(`${ev.approvedOn.toISOString().slice(0, 10)}T12:00:00.000Z`)
+
+  const row = await prisma.weekApproval.create({
+    data: {
+      timesheetId, how: 'EVIDENCE', clientCompanyId: c.clientId,
+      approverName: ev.approverName, approverEmail: ev.approverEmail,
+      sentById: r.personId, sentByCompanyId: r.companyId, sentAs: who.as, sentAt: now,
+      evidenceKind: ev.kind, approvedOn: signedAt, clientOffPlatform: atClient.offPlatform,
+      contracts: { create: scope.contracts.map((id, position) => ({ sellContractId: id, position })) },
+      file: { create: file },
+    },
+    select: { id: true },
+  })
+
+  const words = approvalWords({
+    approverName: ev.approverName, approverEmail: ev.approverEmail, clientName: c.clientName,
+    clientOffPlatform: atClient.offPlatform, on: signedAt, how: 'EVIDENCE', now,
+  })
+  const signed = await signForClient(c, row.id, signedAt, words, {
+    by: `${r.personName} attached ${EVIDENCE_KINDS[ev.kind as EvidenceKind].toLowerCase()} (${ev.says.replace(/\.$/, '')})` +
+      `${offPlatformBecause(c, atClient.offPlatform, ev.approverEmail).replace(/\.$/, '')}` +
+      `${signOff ? `. ${signOff.says.replace(/\.$/, '')}` : ''}`,
+    signOff: signOff ? { ...signOff, decidedById: r.personId, approverName: ev.approverName } : undefined,
+  })
+  if (!signed.ok) {
+    // Nothing was signed, so the evidence stands for nothing: take it back.
+    await prisma.weekApproval.delete({ where: { id: row.id } }).catch(() => {})
+    return signed
+  }
+  await tellAfterApproval(c, { words, senderId: r.personId === c.week.personId ? null : r.personId, how: 'EVIDENCE', standsFor: signed.standsFor })
+  return {
+    ok: true, id: row.id, words,
+    says: `${words}. ${signOff ? `${signOff.says} ` : ''}${signed.standsFor ? signed.standsFor.says : nextSays(c)}`,
+  }
+}
+
+// ── Writing the client's signature ────────────────────────────────────
+
+class Refusal extends Error {
+  constructor(public status: number, public code: string, public says: string) { super(says) }
+}
+
+/**
+ * The client's signature, and nothing else.
+ *
+ * A CLIENT_APPROVAL assertion at the client's own rate on the rung it
+ * pays, naming nobody (`byId` null) because nobody here signed — the
+ * `WeekApproval` row names who did. The week stays SUBMITTED: every rung
+ * below still accepts it in its turn.
+ */
+async function signForClient(
+  c: WeekChain,
+  weekApprovalId: string,
+  at: Date,
+  words: string,
+  how: {
+    by: string
+    outcome?: LinkOutcome
+    /** Whether the client was off the platform at the moment it approved, where that differs from the row. */
+    clientOffPlatform?: boolean
+    /** A long week at a client not on Etyme: the client's reason and its overtime answer (`checkOffEtymeSignOff`). */
+    signOff?: OffEtymeSignOff & { decidedById: string; approverName: string }
+  }
+): Promise<{ ok: true; standsFor: SoleFirm | null } | Refused> {
+  const client = signaturesWritten(c.signers)[0]
+  if (!client) return refuse(409, 'NO_CLIENT', 'This week has no client signature to give.')
+  const standsFor = await soleFirmBelow(c)
+  // The client's own rung. `signersOf` (api/timesheets/chain-turn) gives
+  // the CLIENT_APPROVAL signer the top rung's id, and the top rung is the
+  // one sell line the client pays on — so its bill rate IS the rate on the
+  // rung the signing firm pays on, which is what `WorkAssertion.rateCents`
+  // records (decided 2026-10-06, lib/money/hop-ledger). Read in force on
+  // the week's first day, so a raise the client approved is what it saw.
+  // A record only: no posting reads it.
+  const top = c.rungs.get(client.rungId)!
+  const topRates = await prisma.rateHistory.findMany({
+    where: { contractType: 'SELL', contractId: top.id, approvalState: 'APPROVED' },
+    select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+  })
+  const clientRateCents = rateInForce(top.billRate, ratePeriods(topRates), c.week.periodStart).rateCents
+  let signed: string | null = null
+  let soleAccepted: string | null = null
+  try {
+    await prisma.$transaction(async (tx) => {
+      const moved = await tx.timesheet.updateMany({
+        where: { id: c.week.id, status: 'SUBMITTED', clientApprovedAt: null },
+        data: {
+          clientApprovedAt: at, clientApprovedById: null, autoApproved: false,
+          approvedAt: at, approvedById: null,
+          ...(c.week.employerAcceptedAt ? { status: 'APPROVED' } : {}),
+        },
+      })
+      if (moved.count === 0) throw new Refusal(409, 'NOT_WAITING', `${c.clientName} has already approved this week, or it is no longer waiting.`)
+
+      if (await tx.workAssertion.findFirst({ where: { timesheetId: c.week.id, companyId: client.companyId, role: 'CLIENT_APPROVAL', state: 'LIVE' }, select: { id: true } })) {
+        throw new Refusal(409, 'ALREADY_SIGNED', `${c.clientName} has already approved this week.`)
+      }
+      const assertion = await tx.workAssertion.create({
+        data: {
+          timesheetId: c.week.id, companyId: client.companyId, role: 'CLIENT_APPROVAL',
+          hours: c.week.totalHours, rateCents: clientRateCents, state: 'LIVE', at,
+          byId: null, auto: false, note: how.signOff ? `${words}. ${how.signOff.says}` : words,
+        },
+        select: { id: true },
+      })
+
+      // The client's answer on the hours over the line, on its own rung,
+      // as its attached approval gives it: the same row signing in Etyme
+      // writes, so every firm below prices from the client's decision. Who
+      // recorded it is the person who attached the approval; the reason
+      // names the person at the client who gave it.
+      for (const d of how.signOff?.decisions ?? []) {
+        const weekOf = new Date(`${d.weekOf}T00:00:00.000Z`)
+        const data = {
+          treatment: d.treatment, overtimeHours: d.overtimeHours,
+          afterHours: how.signOff!.afterHours, multiplierBps: how.signOff!.multiplierBps,
+          appliedBps: d.appliedBps, accrualBps: 10_000,
+          decidedById: how.signOff!.decidedById, decidedByCompanyId: client.companyId, decidedAt: at,
+          reason: `${how.signOff!.approverName} at ${c.clientName} approved it by email: ${how.signOff!.reason}`,
+        }
+        await tx.overtimeDecision.upsert({
+          where: { timesheetId_sellContractId_weekOf: { timesheetId: c.week.id, sellContractId: how.signOff!.topId, weekOf } },
+          create: {
+            timesheetId: c.week.id, sellContractId: how.signOff!.topId, weekOf,
+            workAssertionId: how.signOff!.decisions.length === 1 ? assertion.id : null,
+            ...data,
+          },
+          update: data,
+        })
+      }
+      const linked = await tx.weekApproval.updateMany({
+        where: { id: weekApprovalId, assertionId: null, ...(how.outcome ? { usedAt: null } : {}) },
+        data: {
+          assertionId: assertion.id,
+          ...(how.outcome ? { usedAt: at, outcome: how.outcome } : {}),
+          ...(how.clientOffPlatform !== undefined ? { clientOffPlatform: how.clientOffPlatform } : {}),
+        },
+      })
+      if (linked.count === 0) throw new Refusal(409, 'USED', 'This approval has already been used.')
+      signed = assertion.id
+
+      // A one-person firm below the client: the client's signature stands
+      // as her firm's acceptance, in the same transaction, the way the
+      // approve button writes it (api/timesheets/[id]/approve), so a week
+      // approved by email never asks her to accept her own week.
+      if (standsFor) {
+        await tx.timesheet.update({
+          where: { id: c.week.id },
+          data: {
+            employerAcceptedById: null, employerAcceptedAt: at, acceptedHours: c.week.totalHours,
+            acceptedNote: standsFor.says, status: 'APPROVED',
+          },
+        })
+        const accepted = await tx.workAssertion.create({
+          data: {
+            timesheetId: c.week.id, companyId: standsFor.companyId, role: 'EMPLOYER_ACCEPTANCE',
+            hours: c.week.totalHours, rateCents: standsFor.payRateCents, state: 'LIVE', at,
+            byId: null, auto: true, note: standsFor.says,
+          },
+          select: { id: true },
+        })
+        soleAccepted = accepted.id
+        await tx.automationLog.create({
+          data: {
+            companyId: standsFor.companyId,
+            action: 'TIMESHEET_ACCEPTED_ON_SIGNATURE_ABOVE',
+            summary: `${c.week.personName}’s week of ${weekSays(c.week.periodStart, c.week.periodEnd)} accepted for ${standsFor.name}`,
+            reason: standsFor.says,
+            payload: { timesheetId: c.week.id, weekApprovalId, signedByCompanyId: client.companyId, hours: c.week.totalHours, assertionId: accepted.id },
+            // Withdrawn on the ledger with the client's signature it rests on.
+            reversible: true,
+          },
+        })
+      }
+
+      await tx.automationLog.create({
+        data: {
+          companyId: top.companyId,
+          action: 'TIMESHEET_APPROVED_BY_EMAIL',
+          summary: `${c.week.personName}: ${c.week.totalHours} hours approved for ${c.clientName}. ${words}`,
+          reason: `${how.by}. This is ${c.clientName}’s signature only; every firm below still accepts the week in its turn.`,
+          payload: { timesheetId: c.week.id, weekApprovalId, assertionId: assertion.id, sellContractId: top.id },
+          // A signature can be withdrawn on the ledger until the week is billed.
+          reversible: true,
+        },
+      })
+    })
+  } catch (err) {
+    if (err instanceof Refusal) return refuse(err.status, err.code, err.says)
+    throw err
+  }
+  // To the books, the way the approve button posts (`postAssertion`,
+  // lib/order-postings): the client's signature is revenue, in the month
+  // the work was done. A posting is keyed on its signature, so a week is
+  // on the books once whichever door it was approved through. Without
+  // this a week approved by email was signed and never earned anything.
+  // Nobody at the client signed in, so the posting names nobody. A
+  // posting that cannot be made (no exchange rate, a settled order) is
+  // reported rather than thrown: the signature already stands, and the
+  // approver, who has no account, should not read an error about books.
+  if (signed) {
+    await postAssertion(signed, null).catch((err) =>
+      reportError('week-approval: posting a week approved by email', err),
+    )
+  }
+  // The one-person firm's acceptance posts its pay only where it has a pay
+  // line: a pay posting at a rate nobody set is a number nobody can stand
+  // behind (the approve route's rule).
+  if (soleAccepted && standsFor && standsFor.payRateCents > 0) {
+    await postAssertion(soleAccepted, null).catch((err) =>
+      reportError('week-approval: posting a one-person firm’s acceptance on a week approved by email', err),
+    )
+  }
+  return { ok: true, standsFor }
+}
+
+/** The firm below the client that accepts on the client's signature, because nobody there but the worker may. */
+interface SoleFirm {
+  companyId: string
+  name: string
+  /** The sentence on the acceptance and the automation log. */
+  says: string
+  /** What the firm pays the worker per hour, on its own pay line; zero where it has none. */
+  payRateCents: number
+}
+
+/**
+ * Where the week goes next to the worker's own employer, and every seat
+ * there that may accept hours is the worker's (`acceptsOnlyForItself` in
+ * api/timesheets/chain-turn): the client's signature stands as that
+ * firm's acceptance. Null anywhere a second person may accept, and
+ * wherever a firm sits between the client and the employer.
+ */
+async function soleFirmBelow(c: WeekChain): Promise<SoleFirm | null> {
+  const next = c.signers[1]
+  if (!next || next.role !== 'EMPLOYER_ACCEPTANCE' || c.week.employerAcceptedAt) return null
+  const acceptors = await prisma.context.findMany({
+    where: {
+      companyId: next.companyId, revokedAt: null,
+      role: { permissions: { hasSome: ['timesheets.approve', '*'] } },
+      ...NOT_THE_SAMPLE_SEAT,
+    },
+    select: { personId: true },
+  })
+  if (!acceptsOnlyForItself(acceptors, c.week.personId)) return null
+  const name = c.names.get(next.companyId) ?? 'Her firm'
+  return {
+    companyId: next.companyId,
+    name,
+    says: standsAsAcceptanceSays({ signedBy: c.clientName, firmName: name, personName: c.week.personName }),
+    payRateCents: signatureRateCents({
+      role: 'EMPLOYER_ACCEPTANCE', companyId: next.companyId, ladder: [],
+      ownBuyLineCents: await payLineCents(next.companyId, c),
+    }),
+  }
+}
+
+/**
+ * The employer's pay line for this person, at the rate in force on the
+ * first day worked: the buy line linked to the contract the hours are on,
+ * else any of the employer's naming the person. Null where it has none.
+ * The approve route reads the same line (`payRateOn` there); the figure is
+ * a record of what the signer's firm pays, and no posting reads it.
+ */
+async function payLineCents(employerId: string, c: WeekChain): Promise<number | null> {
+  const lines = await prisma.buyContract.findMany({
+    where: { companyId: employerId, candidates: { some: { personId: c.week.personId } } },
+    select: {
+      id: true,
+      sellLinks: { select: { sellContractId: true } },
+      candidates: { where: { personId: c.week.personId }, select: { payRate: true } },
+    },
+  })
+  const line = lines.find((l) => l.sellLinks.some((x) => x.sellContractId === c.week.sellContractId)) ?? lines[0]
+  const opening = line?.candidates[0]?.payRate ?? 0
+  if (!line || opening <= 0) return null
+  const rows = await prisma.rateHistory.findMany({
+    where: { contractType: 'BUY', contractId: line.id },
+    select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+  })
+  const firstWorked = Object.entries(c.week.days).filter(([, h]) => Number(h) > 0).map(([d]) => d.slice(0, 10)).sort()[0]
+  return rateInForce(opening, ratePeriods(rows), firstWorked ? new Date(`${firstWorked}T00:00:00Z`) : c.week.periodStart).rateCents
+}
+
+/** Who has the week now, in a sentence. */
+function nextSays(c: WeekChain): string {
+  const next = c.signers[1]
+  if (!next) return ''
+  return `${c.names.get(next.companyId) ?? 'The next firm'} accepts it next.`
+}
+
+/**
+ * The next rung, the worker and the sender are told — the same notice the
+ * approve route sends a rung when the week reaches it, so the desk that
+ * acts is the desk that hears, on its desk and by email.
+ */
+async function tellAfterApproval(c: WeekChain, i: { words: string; senderId: string | null; how: 'LINK' | 'EVIDENCE'; standsFor?: SoleFirm | null }) {
+  const week = weekSays(c.week.periodStart, c.week.periodEnd)
+  // A one-person firm's acceptance was written on the client's signature:
+  // nobody is left to ask, and nobody is told it was taken.
+  const next = i.standsFor ? null : c.signers[1]
+  if (next) {
+    const pays = next.role === 'EMPLOYER_ACCEPTANCE'
+      ? c.week.personName
+      : c.rungs.get(next.rungId)?.sellerName ?? 'the firm below you'
+    const said = tellNext({
+      personName: c.week.personName,
+      period: week,
+      hours: c.week.totalHours,
+      signedBy: c.clientName,
+      signedRole: 'CLIENT_APPROVAL',
+      paysName: pays,
+    })
+    const desk = await prisma.context.findMany({
+      where: { companyId: next.companyId, revokedAt: null, role: { permissions: { hasSome: ['timesheets.approve', '*'] } } },
+      select: { personId: true },
+      take: 5,
+    })
+    for (const d of desk) {
+      void notify({
+        personId: d.personId, companyId: next.companyId, type: 'TIMESHEET', channel: 'EMAIL',
+        title: said.title, body: `${said.body} ${i.words}.`,
+        entityId: c.week.id, data: { timesheetId: c.week.id, href: `/dashboard/weeks/${c.week.id}` },
+      })
+    }
+  }
+  // The worker hears once, when the top signs — the same words the
+  // approve button sends (`workerToldSays`), with how it was approved.
+  const told = workerToldSays({ week, hours: c.week.totalHours, signedBy: c.clientName })
+  void notify({
+    personId: c.week.personId, companyId: c.employerId, type: 'TIMESHEET', channel: 'EMAIL',
+    title: told.title,
+    body: `${told.body} ${i.words}.`,
+    entityId: c.week.id, data: { href: `/dashboard/weeks/${c.week.id}` },
+  })
+  if (i.senderId && i.senderId !== c.week.personId) {
+    void notify({
+      personId: i.senderId, type: 'TIMESHEET',
+      title: `${c.week.personName}’s week of ${week} is approved`,
+      body: `${i.words}. ${i.standsFor ? '' : nextSays(c)}`.trim(),
+      entityId: c.week.id, data: { href: `/dashboard/weeks/${c.week.id}` },
+    })
+  }
+}
+
+// ── The link, opened by the approver ──────────────────────────────────
+
+async function rowByToken(token: string) {
+  if (!token || token.length < 16) return null
+  return prisma.weekApproval.findUnique({
+    where: { tokenHash: hashLinkToken(token) },
+    select: {
+      id: true, how: true, timesheetId: true, approverName: true, approverEmail: true, sentAt: true, expiresAt: true, usedAt: true,
+      outcome: true, sentById: true, sentByCompanyId: true, clientOffPlatform: true,
+      sentBy: { select: { name: true } }, sentByCompany: { select: { name: true } },
+    },
+  })
+}
+
+export interface LinkView {
+  approverName: string
+  personName: string
+  clientName: string
+  /** Who asked for the link, in the letter's own sentence (`whoAskedSentence`). */
+  askedBy: string
+  period: string
+  totalHours: number
+  days: { day: string; hours: number }[]
+  expiresOn: string
+  reasons: { code: string; says: string }[]
+  /** Where the week can only be signed in Etyme: Send back still works. */
+  approveRefused: string | null
+}
+
+const NOT_OURS = 'This link is not one of ours, or it has been replaced. Ask whoever sent it for a new one.'
+
+/** What the approver sees, or why the link is closed. Every open is an access log row. */
+export async function openLink(token: string, now = new Date()): Promise<{ ok: true; view: LinkView } | Refused> {
+  const row = await rowByToken(token)
+  if (!row || row.how !== 'LINK' || !row.expiresAt) return refuse(404, 'NOT_FOUND', NOT_OURS)
+  const c = await readWeekChain(row.timesheetId)
+  if (!c) return refuse(404, 'NOT_FOUND', NOT_OURS)
+
+  const told = senderAsTheClientSees(c, { personId: row.sentById, name: row.sentBy.name, companyId: row.sentByCompanyId })
+  const v = linkVerdict(
+    { sentAt: row.sentAt, expiresAt: row.expiresAt, usedAt: row.usedAt, outcome: row.outcome as LinkOutcome | null, approverName: row.approverName },
+    { status: c.week.status, submittedAt: c.week.submittedAt, clientApprovedAt: c.week.clientApprovedAt, personName: c.week.personName },
+    now,
+    { clientName: c.clientName, senderFirm: told.askFirm }
+  )
+  // The approver reads a person's hours. They hold no seat, so the row
+  // names their company and the link, and says what they were shown.
+  await trail({
+    subjectId: c.week.personId, actorPersonId: null, actorCompanyId: c.clientId,
+    action: 'APPROVAL_LINK_VIEW', allowed: v.open, reason: v.open ? null : v.says,
+  })
+  if (!v.open) return refuse(409, v.code, v.says)
+
+  return {
+    ok: true,
+    view: {
+      approverName: row.approverName,
+      personName: c.week.personName,
+      clientName: c.clientName,
+      askedBy: whoAskedSentence(told.sentFrom, c.week.personName),
+      period: periodWords(c.week.periodStart, c.week.periodEnd, now),
+      totalHours: c.week.totalHours,
+      days: Object.entries(c.week.days)
+        .filter(([, h]) => Number(h) > 0)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([d, h]) => ({ day: dayName(d), hours: Number(h) })),
+      expiresOn: dayOf(row.expiresAt, now),
+      reasons: Object.entries(SEND_BACK_REASONS).map(([code, says]) => ({ code, says })),
+      approveRefused: needsSigningInEtyme(c) ?? (await standingAtAnswer(row, c, told.askFirm)).refused,
+    },
+  }
+}
+
+/**
+ * What the client is at the moment its approver answers, not when the
+ * link was sent.
+ *
+ * A link sent while the client was not on Etyme rests on the supplier's
+ * record of it. If the client claims its record before the approver
+ * answers, the signature describes the moment of approval: the client is
+ * on Etyme, so the row stops saying it was not, and its own domain and
+ * seats decide whether the approver is somebody there — as for a link
+ * sent today. An approver only the supplier's record vouched for is not
+ * signed in as the client's own yes: Approve is closed, in a sentence,
+ * and Send back still works. A client still not on Etyme reads as before.
+ */
+async function standingAtAnswer(
+  row: { approverEmail: string; clientOffPlatform: boolean | null },
+  c: WeekChain,
+  askFirm: string
+): Promise<{ changed: false; refused: null } | { changed: true; clientOffPlatform: false; refused: string | null }> {
+  if (!row.clientOffPlatform) return { changed: false, refused: null }
+  const client = await clientOfRecord(c)
+  if (client.offPlatform) return { changed: false, refused: null }
+  const v = approverIsKnownAtClient({ approverEmail: row.approverEmail, client })
+  if (v.ok) return { changed: true, clientOffPlatform: false, refused: null }
+  return {
+    changed: true, clientOffPlatform: false,
+    refused:
+      `${c.clientName} joined Etyme after this link was sent, and ${row.approverEmail} is not an address there. ` +
+      `Ask ${askFirm} to send the link to the person at ${c.clientName} who approves the hours.`,
+  }
+}
+
+function dayName(iso: string): string {
+  return formatDay(iso.slice(0, 10), { weekday: true, year: false })
+}
+
+/** Approve or Send back, from the link. */
+export async function answerLink(
+  token: string,
+  answer: { answer?: unknown; code?: unknown; note?: unknown },
+  now = new Date()
+): Promise<{ ok: true; says: string } | Refused> {
+  const opened = await openLink(token, now)
+  if (!opened.ok) return opened
+  const row = (await rowByToken(token))!
+  const c = (await readWeekChain(row.timesheetId))!
+
+  if (answer.answer === 'APPROVE') {
+    if (opened.view.approveRefused) return refuse(409, 'SIGN_IN_ETYME', opened.view.approveRefused)
+    // Read when the answer lands, not when the link was sent: a client
+    // that claimed its record in between approved as a client on Etyme.
+    const told = senderAsTheClientSees(c, { personId: row.sentById, name: row.sentBy.name, companyId: row.sentByCompanyId })
+    const standing = await standingAtAnswer(row, c, told.askFirm)
+    if (standing.refused) return refuse(409, 'SIGN_IN_ETYME', standing.refused)
+    const clientOffPlatform = standing.changed ? standing.clientOffPlatform : row.clientOffPlatform
+    const words = approvalWords({
+      approverName: row.approverName, approverEmail: row.approverEmail, clientName: c.clientName,
+      clientOffPlatform, on: now, how: 'LINK', now,
+    })
+    const signed = await signForClient(c, row.id, now, words, {
+      by: `${row.approverName} pressed Approve on the link ${row.sentBy.name} sent`, outcome: 'APPROVED',
+      ...(standing.changed ? { clientOffPlatform: standing.clientOffPlatform } : {}),
+    })
+    if (!signed.ok) return signed
+    await tellAfterApproval(c, { words, senderId: row.sentById, how: 'LINK', standsFor: signed.standsFor })
+    return { ok: true, says: `Thank you. ${c.week.personName}’s week is approved, with your name, this address and the time. Nothing else is needed from you.` }
+  }
+
+  if (answer.answer === 'SEND_BACK') {
+    const back = checkSendBack({ code: answer.code, note: answer.note })
+    if (!back.ok) return refuse(422, 'VALIDATION', back.says, 'code')
+    try {
+      await prisma.$transaction(async (tx) => {
+        const used = await tx.weekApproval.updateMany({
+          where: { id: row.id, usedAt: null },
+          data: { usedAt: now, outcome: 'SENT_BACK', sendBackCode: back.code, sendBackNote: back.note },
+        })
+        if (used.count === 0) throw new Refusal(409, 'USED', 'This link has already been used.')
+        const moved = await tx.timesheet.updateMany({
+          where: { id: c.week.id, status: 'SUBMITTED', clientApprovedAt: null },
+          data: { status: 'OPEN', approvedById: null, approvedAt: null },
+        })
+        if (moved.count === 0) throw new Refusal(409, 'NOT_WAITING', 'This week is no longer waiting for approval.')
+        await tx.automationLog.create({
+          data: {
+            companyId: c.employerId,
+            action: 'TIMESHEET_SENT_BACK_BY_EMAIL',
+            summary: `${c.week.personName}’s week sent back by ${row.approverName} at ${c.clientName}: ${back.says}`,
+            reason: `${row.approverName} pressed Send back on the link ${row.sentBy.name} sent.`,
+            payload: { timesheetId: c.week.id, weekApprovalId: row.id, code: back.code, note: back.note },
+            reversible: true,
+          },
+        })
+      })
+    } catch (err) {
+      if (err instanceof Refusal) return refuse(err.status, err.code, err.says)
+      throw err
+    }
+    const body = `${row.approverName} at ${c.clientName} sent back the week ${c.week.periodStart.toISOString().slice(0, 10)} – ${c.week.periodEnd.toISOString().slice(0, 10)}: ${back.says}. Correct it and send it again; a new link comes with it.`
+    void notify({ personId: c.week.personId, companyId: c.employerId, type: 'TIMESHEET', channel: 'EMAIL', title: 'Timesheet returned for correction', body, entityId: c.week.id, data: { href: `/dashboard/weeks/${c.week.id}` } })
+    if (row.sentById !== c.week.personId) {
+      void notify({ personId: row.sentById, type: 'TIMESHEET', title: `${c.week.personName}’s week was sent back`, body, entityId: c.week.id, data: { href: `/dashboard/weeks/${c.week.id}` } })
+    }
+    return { ok: true, says: `Thank you. ${c.week.personName} has the week back with your reason, and nobody is paid on it until it is right.` }
+  }
+
+  return refuse(422, 'VALIDATION', 'Press Approve or Send back.', 'answer')
+}
+
+// ── Reading it, on every rung it applies to ───────────────────────────
+
+export interface ApprovalSeen {
+  id: string
+  how: 'LINK' | 'EVIDENCE'
+  /** WAITING · APPROVED · SENT_BACK · CLOSED */
+  state: string
+  /** "Approved by email: Dana Whitfield, Oct 2 — evidence attached", where it approved. */
+  words: string | null
+  approverName: string
+  approverEmail: string
+  sentBy: string
+  sentAt: string
+  sendBack: string | null
+  evidence: { kind: string; fileName: string; sizeBytes: number; href: string } | null
+  /**
+   * What the client said on an approval attached for a long week while it
+   * was not on Etyme: its reason, and how it approved the extra hours.
+   * Read by every firm the approval applies to. Null on any other approval.
+   */
+  clientSays: string | null
+  /** Only the reader's own contracts in its scope — never another rung's. */
+  contracts: { id: string; label: string }[]
+}
+
+/** One live signature on the week, as this reader may read it. Never a rate. */
+export interface SignatureSeen {
+  /** CLIENT_APPROVAL · PASS_THROUGH · EMPLOYER_ACCEPTANCE */
+  role: string
+  firm: string
+  /** The person who signed; null where nobody looked or the client signed outside Etyme. */
+  signedBy: string | null
+  on: string
+  auto: boolean
+  /** Why a flagged week was signed anyway — only to the signing firm and the firm directly below it. */
+  reason: string | null
+  /** The line the page prints. */
+  says: string
+}
+
+export interface SignatureRow {
+  role: string
+  companyId: string
+  at: Date
+  byName: string | null
+  auto: boolean
+  note: string | null
+  /** The approver named on an approval given by email, where this signature came from one. */
+  emailApprover: string | null
+  /** How that approval came: a link answered, or a file attached. An attached file never reads "by email" alone. */
+  emailHow?: 'LINK' | 'EVIDENCE' | string | null
+}
+
+/**
+ * Which live signatures a reader may see, and whose reason.
+ *
+ * A signature names a firm, so it is shown only where `mayName` lets this
+ * reader know that firm (CLAUDE.md, "A sub-vendor's name is the prime's to
+ * keep"). The reason given for signing a flagged week is the signer's own
+ * judgment about another firm's hours: the signing firm reads it, and so
+ * does the firm directly below it, whose week it was. Nobody else.
+ *
+ * Pure. `logged` is one row per signature, shown or not, for the access log.
+ */
+export function signaturesSeen(
+  r: Reader,
+  c: WeekChain,
+  rows: SignatureRow[],
+  now: Date
+): { shown: SignatureSeen[]; logged: { allowed: boolean; reason: string | null }[] } {
+  const shown: SignatureSeen[] = []
+  const logged: { allowed: boolean; reason: string | null }[] = []
+  for (const row of rows) {
+    if (!mayName(r, c, row.companyId)) {
+      logged.push({ allowed: false, reason: 'A signature by a firm this reader may not be told of was withheld.' })
+      continue
+    }
+    logged.push({ allowed: true, reason: null })
+    const firm = c.names.get(row.companyId) ?? 'A firm on this week'
+    const on = dayOf(row.at, now)
+    const below = firmBelow(c, row.companyId)
+    const readsReason = r.companyId != null && (r.companyId === row.companyId || r.companyId === below)
+    // The email approval's own sentence is the panel below; it is not a reason.
+    const reason = readsReason && row.note && !row.emailApprover ? row.note : null
+    const signedBy = row.emailApprover ?? row.byName
+    const verb = row.role === 'CLIENT_APPROVAL' ? 'Approved' : 'Accepted'
+    const says = row.auto
+      ? `${verb} automatically — nobody looked · ${firm}, ${on}`
+      : `${verb} by ${signedBy ? `${signedBy}, ` : ''}${firm}, ${on}${row.emailApprover ? (row.emailHow === 'EVIDENCE' ? ' — evidence attached' : ' — by email') : ''}${reason ? ` — reason: ${reason}` : ''}`
+    shown.push({ role: row.role, firm, signedBy, on, auto: row.auto, reason, says })
+  }
+  return { shown, logged }
+}
+
+/** The firm that sells to this one on the week's chain, if any — the rung directly below it. */
+function firmBelow(c: WeekChain, companyId: string): string | null {
+  for (let i = 0; i < c.ladder.length; i++) {
+    const x = c.ladder[i]
+    const buyer = i === 0 ? c.clientId : x.clientCompanyId
+    if (buyer === companyId || x.clientCompanyId === companyId) return x.companyId
+  }
+  return null
+}
+
+export interface WeekSeen {
+  week: {
+    id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean
+    /** The client is a record its supplier listed and nobody claimed (`isShell` in lib/off-system). */
+    clientOffPlatform: boolean
+    /** Who accepts the week after the client approves it, in words (`afterClientSays`). */
+    afterClient: string
+  }
+  /** Who signed the week, top first, as this reader may read it. */
+  signatures: SignatureSeen[]
+  approvals: ApprovalSeen[]
+  /**
+   * Whether this reader may send a link or attach evidence, and on which
+   * contracts. `asks` is what attaching asks for besides the approval on a
+   * long week at a client not on Etyme (`offEtymeAsks`); there `linkRefused`
+   * says why the link cannot be sent, and attaching is still open.
+   */
+  act:
+    | {
+        ok: true; as: string; contracts: { id: string; label: string; mine: boolean }[]; refused: string | null; linkRefused: string | null; asks: OffEtymeAsks | null
+        /** The people this reader's firm recorded under Contacts at the client, offered as a pick for the approver. */
+        contacts?: { name: string; email: string }[]
+      }
+    | { ok: false; says: string }
+}
+
+/**
+ * Who accepts a week once the client has approved it (the press walk l2a,
+ * 2026-11-15: a direct W-2 placement read "the firms below accept it in
+ * turn" where there are none). One rung: the firm the client pays, by
+ * name. More: the firms below, in turn. Pure.
+ */
+export function afterClientSays(c: Pick<WeekChain, 'ladder' | 'employerId' | 'names' | 'clientName'>): string {
+  if (c.ladder.length <= 1) {
+    const firm = c.names.get(c.ladder[0]?.companyId ?? c.employerId) ?? 'the firm the client pays'
+    return `approved by ${c.clientName}; ${firm} accepts it next`
+  }
+  return `approved by ${c.clientName}; the firms below accept it in turn`
+}
+
+/** Whether a reader is on this week at all: the worker, or a firm on the chain. */
+/**
+ * A seat with no desk opens its own week and nobody else's (sign-up walk,
+ * round six, problem 3). The door lets such a seat through to this route
+ * because the worker's own page links every week to it; the firm being
+ * on the chain is not the seat being on it, so a colleague's week is
+ * refused here in the door's own words. Null where the reader may go on.
+ */
+function desklessStranger(r: Reader, c: WeekChain): string | null {
+  if (r.seat || r.personId === c.week.personId || !isDeskless(r.permissions)) return null
+  // A week at another company is not the seat's to be refused in the
+  // door's words: the owner cannot grant it (round seven, problem 8). It
+  // is answered as not here, below, the way a stranger's placement is.
+  if (!onTheWeek(r, c)) return null
+  return noDeskYet('That week', r.companyName ?? null)
+}
+
+/** A seat with no desk asking about a week at a company it has no part in. */
+function desklessOutsider(r: Reader, c: WeekChain): boolean {
+  return !r.seat && r.personId !== c.week.personId && isDeskless(r.permissions) && !onTheWeek(r, c)
+}
+
+function onTheWeek(r: Reader, c: WeekChain): boolean {
+  if (r.personId === c.week.personId) return true
+  if (!r.companyId) return false
+  return c.ladder.some((x) => x.companyId === r.companyId || x.clientCompanyId === r.companyId) || c.clientId === r.companyId
+}
+
+/** A contract as a reader may see it named. A rung the reader is not on is not named. */
+function labelFor(r: Reader, c: WeekChain, id: string): string {
+  const rung = c.rungs.get(id)!
+  const own = r.personId === c.week.personId ||
+    rung.companyId === r.companyId || rung.clientCompanyId === r.companyId ||
+    (id === c.ladder[0].sellContractId && c.clientId === r.companyId)
+  if (!own) return 'Another contract on this placement'
+  return `${rung.sellerName} bills ${id === c.ladder[0].sellContractId ? c.clientName : rung.buyerName}`
+}
+
+export async function readWeekApprovals(r: Reader, timesheetId: string, now = new Date()): Promise<{ ok: true; seen: WeekSeen } | Refused> {
+  return (await readWeekApprovalsFor(r, [timesheetId], now)).get(timesheetId) ?? refuse(404, 'NOT_FOUND', 'That week is not here.')
+}
+
+/** Who may not read this week's approvals, and the refusal: logged before it is returned. Null where the reader may. */
+async function weekRefusal(r: Reader, c: WeekChain): Promise<Refused | null> {
+  const stranger = desklessStranger(r, c)
+  if (stranger) {
+    await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', stranger)
+    return refuse(403, 'NO_DESK', stranger)
+  }
+  if (!onTheWeek(r, c)) {
+    if (desklessOutsider(r, c)) {
+      await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', 'A week at another company, asked for from a seat that sees only its own work')
+      return refuse(404, 'NOT_FOUND', 'That week is not here.')
+    }
+    const says = 'This week is not on a contract your company is on.'
+    await logRefusal(r, c, 'WEEK_APPROVAL_VIEW', says)
+    return refuse(403, 'FORBIDDEN', says)
+  }
+  return null
+}
+
+/**
+ * What `readWeekApprovals` answers, for many weeks at once (2026-11-02):
+ * the chains in one read (`readWeekChains`), every week's approvals and
+ * signatures in one query each, and the signers' names in one more, only
+ * where somebody signed. Each week's answer, and every read and refusal it
+ * logs, is the one the week read alone gives. A worker's own first screen
+ * asked once per week still waiting on the client, about eight queries a
+ * week and one lookup of no names at all. A week not found reads as not
+ * here.
+ */
+export async function readWeekApprovalsFor(
+  r: Reader,
+  timesheetIds: readonly string[],
+  now = new Date(),
+): Promise<Map<string, { ok: true; seen: WeekSeen } | Refused>> {
+  const out = new Map<string, { ok: true; seen: WeekSeen } | Refused>()
+  const ids = [...new Set(timesheetIds)]
+  if (ids.length === 0) return out
+  const chains = await readWeekChains(ids)
+  const open: WeekChain[] = []
+  for (const id of ids) {
+    const c = chains.get(id)
+    if (!c) { out.set(id, refuse(404, 'NOT_FOUND', 'That week is not here.')); continue }
+    const refused = await weekRefusal(r, c)
+    if (refused) out.set(id, refused)
+    else open.push(c)
+  }
+  if (open.length === 0) return out
+
+  const [allRows, allLive] = await approvalRowsFor(open.map((c) => c.week.id))
+  const byIds = [...new Set(allLive.map((a) => a.byId).filter((x): x is string => !!x))]
+  const people = byIds.length
+    ? new Map((await prisma.person.findMany({ where: { id: { in: byIds } }, select: { id: true, name: true } })).map((x) => [x.id, x.name]))
+    : new Map<string, string>()
+
+  for (const c of open) {
+    const rows = allRows.filter((a) => a.timesheetId === c.week.id)
+    const live = allLive.filter((a) => a.timesheetId === c.week.id)
+    out.set(c.week.id, await weekSeen(r, c, rows, live, people, now))
+  }
+  return out
+}
+
+/** Every week's approvals, newest first, and its live signatures, oldest first, for these weeks in two queries. */
+function approvalRowsFor(ids: readonly string[]) {
+  const wanted = [...ids]
+  return Promise.all([
+    prisma.weekApproval.findMany({
+      where: { timesheetId: { in: wanted } },
+      orderBy: { sentAt: 'desc' },
+      select: {
+        id: true, timesheetId: true, how: true, approverName: true, approverEmail: true, sentAt: true, expiresAt: true, usedAt: true, sentById: true, sentByCompanyId: true,
+        outcome: true, sendBackCode: true, sendBackNote: true, evidenceKind: true, approvedOn: true, assertionId: true,
+        clientOffPlatform: true,
+        sentBy: { select: { name: true } }, sentByCompany: { select: { name: true } },
+        contracts: { select: { sellContractId: true }, orderBy: { position: 'asc' } },
+        file: { select: { fileName: true, sizeBytes: true } },
+      },
+    }),
+    prisma.workAssertion.findMany({
+      where: { timesheetId: { in: wanted }, state: 'LIVE' },
+      orderBy: { at: 'asc' },
+      select: { id: true, timesheetId: true, role: true, companyId: true, at: true, byId: true, auto: true, note: true, weekApproval: { select: { approverName: true, how: true } } },
+    }),
+  ])
+}
+type ApprovalRows = Awaited<ReturnType<typeof approvalRowsFor>>
+
+/** One week's approvals, signatures and what the reader may do, from rows already read; every read logged as it is shown. */
+async function weekSeen(
+  r: Reader,
+  c: WeekChain,
+  rows: ApprovalRows[0],
+  live: ApprovalRows[1],
+  people: Map<string, string>,
+  now: Date,
+): Promise<{ ok: true; seen: WeekSeen }> {
+  const approvals: ApprovalSeen[] = []
+  for (const a of rows) {
+    const scope = a.contracts.map((x) => x.sellContractId)
+    const v = mayReadEvidence({ personId: r.personId, companyId: r.companyId }, { personId: c.week.personId }, scope, c.ladder)
+    await writeReadLog(r, c, v)
+    if (!v.ok) continue
+    const approvedAt = a.how === 'EVIDENCE' ? a.approvedOn : a.usedAt
+    const signature = a.assertionId ? live.find((x) => x.id === a.assertionId) : undefined
+    const state = a.assertionId
+      ? 'APPROVED'
+      : a.outcome === 'SENT_BACK'
+        ? 'SENT_BACK'
+        : a.how === 'LINK' && !a.usedAt && a.expiresAt && a.expiresAt > now && !c.week.clientApprovedAt && c.week.status === 'SUBMITTED'
+          ? 'WAITING'
+          : 'CLOSED'
+    approvals.push({
+      id: a.id,
+      how: a.how as 'LINK' | 'EVIDENCE',
+      state,
+      words: state === 'APPROVED' && approvedAt
+        ? approvalWords({
+            approverName: a.approverName, approverEmail: a.approverEmail, clientName: c.clientName,
+            clientOffPlatform: a.clientOffPlatform, on: approvedAt, how: a.how as 'LINK' | 'EVIDENCE', now,
+          })
+        : null,
+      // Only an approval attached while the client was not on Etyme carries
+      // more than its words; those words do not move with the day read.
+      clientSays: state === 'APPROVED' && approvedAt && a.how === 'EVIDENCE' && a.clientOffPlatform
+        ? clientSaysOn(signature?.note, approvalWords({
+            approverName: a.approverName, approverEmail: a.approverEmail, clientName: c.clientName,
+            clientOffPlatform: true, on: approvedAt, how: 'EVIDENCE', now,
+          }))
+        : null,
+      approverName: a.approverName,
+      approverEmail: a.approverEmail,
+      // A sender from a firm this reader may not know is not named at all.
+      sentBy: mayName(r, c, a.sentByCompanyId)
+        ? a.sentByCompany ? `${a.sentBy.name}, ${a.sentByCompany.name}` : a.sentBy.name
+        : a.sentById === c.week.personId
+          ? a.sentBy.name
+          : 'A supplier on this placement',
+      sentAt: dayOf(a.sentAt, now),
+      sendBack: a.sendBackCode
+        ? `${SEND_BACK_REASONS[a.sendBackCode as keyof typeof SEND_BACK_REASONS] ?? a.sendBackCode}${a.sendBackNote ? `: ${a.sendBackNote}` : ''}`
+        : null,
+      evidence: a.file && a.evidenceKind
+        ? { kind: EVIDENCE_KINDS[a.evidenceKind as EvidenceKind] ?? a.evidenceKind, fileName: a.file.fileName, sizeBytes: a.file.sizeBytes, href: `/api/week-approvals/${a.id}/file` }
+        : null,
+      contracts: v.contracts.map((id) => ({ id, label: labelFor(r, c, id) })),
+    })
+  }
+
+  // ── The signatures, each read logged like the evidence ──
+  const order = (companyId: string) => {
+    if (companyId === c.clientId) return -1
+    const i = c.ladder.findIndex((x) => x.clientCompanyId === companyId)
+    return i < 0 ? c.ladder.length : i
+  }
+  const sigRows: SignatureRow[] = live
+    .map((a) => ({
+      role: a.role, companyId: a.companyId, at: a.at, auto: a.auto, note: a.note,
+      byName: a.byId ? people.get(a.byId) ?? null : null,
+      emailApprover: a.weekApproval?.approverName ?? null,
+      emailHow: a.weekApproval?.how ?? null,
+    }))
+    .sort((a, b) => order(a.companyId) - order(b.companyId) || a.at.getTime() - b.at.getTime())
+  const sigs = signaturesSeen(r, c, sigRows, now)
+  for (const l of sigs.logged) {
+    await trail({
+      subjectId: c.week.personId, actorPersonId: r.personId, actorCompanyId: actorCompanyOf(r),
+      action: 'WEEK_SIGNATURE_VIEW', allowed: l.allowed, reason: r.seat ? withSeat(r, l.reason) : l.reason,
+    })
+  }
+
+  const who = actorVerdict(r, c)
+  const asks = offEtymeAsks(c)
+  const act: WeekSeen['act'] = who.ok
+    ? {
+        ok: true,
+        as: who.as,
+        contracts: c.ladder.map((x) => ({ id: x.sellContractId, label: labelFor(r, c, x.sellContractId), mine: labelFor(r, c, x.sellContractId) !== 'Another contract on this placement' })),
+        refused: notWaiting(c) ?? (asks ? null : needsSigningInEtyme(c)),
+        linkRefused: asks ? needsSigningInEtyme(c) : null,
+        asks: notWaiting(c) ? null : asks,
+        // A firm's own record of who it knows at the client, so the approver
+        // is picked rather than typed twice. Never offered to the worker.
+        contacts: who.as !== 'WORKER' && r.companyId
+          ? (await prisma.companyContact.findMany({
+              where: { companyId: r.companyId, atCompanyId: c.clientId, email: { not: null } },
+              select: { name: true, email: true },
+              orderBy: { name: 'asc' },
+              take: 25,
+            })).map((x) => ({ name: x.name, email: x.email! }))
+          : [],
+      }
+    : { ok: false, says: who.says }
+
+  return {
+    ok: true,
+    seen: {
+      week: {
+        id: c.week.id,
+        personName: c.week.personName,
+        period: periodWords(c.week.periodStart, c.week.periodEnd, now),
+        totalHours: c.week.totalHours,
+        status: c.week.status,
+        clientName: c.clientName,
+        clientApproved: !!c.week.clientApprovedAt,
+        clientOffPlatform: c.clientOffPlatform,
+        afterClient: afterClientSays(c),
+      },
+      signatures: sigs.shown,
+      approvals,
+      act,
+    },
+  }
+}
+
+async function writeReadLog(r: Reader, c: WeekChain, v: ReadVerdict) {
+  const row = evidenceReadLog({ personId: r.personId, companyId: actorCompanyOf(r) }, { personId: c.week.personId }, v)
+  await trail({ ...row, action: 'APPROVAL_EVIDENCE_VIEW', reason: r.seat ? withSeat(r, row.reason) : row.reason })
+}
+
+/** The firm that actually read: the office where it reads through a seat. */
+function actorCompanyOf(r: Reader): string | null {
+  return r.seat ? r.seat.officeCompanyId : r.companyId
+}
+
+/** A log reason, with the seat it was read under where there was one. */
+function withSeat(r: Reader, reason: string | null): string | null {
+  if (!r.seat) return reason
+  return reason ? `${reason} ${r.seat.trail}.` : `${r.seat.trail}.`
+}
+
+/** The evidence file itself, for a reader on a rung it applies to. Logged either way. */
+export async function readEvidenceFile(
+  r: Reader,
+  weekApprovalId: string
+): Promise<{ ok: true; fileName: string; contentType: string; bytes: Buffer } | Refused> {
+  const a = await prisma.weekApproval.findUnique({
+    where: { id: weekApprovalId },
+    select: { timesheetId: true, contracts: { select: { sellContractId: true } }, file: { select: { fileName: true, contentType: true, bytes: true } } },
+  })
+  if (!a || !a.file) return refuse(404, 'NOT_FOUND', 'There is no evidence file here.')
+  const c = await readWeekChain(a.timesheetId)
+  if (!c) return refuse(404, 'NOT_FOUND', 'There is no evidence file here.')
+  const stranger = desklessStranger(r, c)
+  if (stranger) {
+    await writeReadLog(r, c, { ok: false, says: stranger })
+    return refuse(403, 'NO_DESK', stranger)
+  }
+  if (desklessOutsider(r, c)) {
+    await writeReadLog(r, c, { ok: false, says: 'An approval on a week at another company, asked for from a seat that sees only its own work' })
+    return refuse(404, 'NOT_FOUND', 'There is no evidence file here.')
+  }
+  const v = mayReadEvidence({ personId: r.personId, companyId: r.companyId }, { personId: c.week.personId }, a.contracts.map((x) => x.sellContractId), c.ladder)
+  await writeReadLog(r, c, v)
+  if (!v.ok) return refuse(403, 'FORBIDDEN', v.says)
+  return { ok: true, fileName: a.file.fileName, contentType: a.file.contentType, bytes: Buffer.from(a.file.bytes) }
+}
+
+/**
+ * The words for many weeks at once, for a list that shows approvals.
+ *
+ * Only for a reader the approval applies to; a week approved some other way
+ * has no entry. One query for the lot. The list that calls this has already
+ * decided the reader may see these weeks; the evidence itself is opened
+ * through `readEvidenceFile`, which logs.
+ */
+export async function approvalWordsFor(
+  r: { personId: string; companyId: string | null },
+  weeks: { id: string; personId: string; ladder: LadderRung[] }[],
+  now = new Date()
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  if (weeks.length === 0) return out
+  const rows = await prisma.weekApproval.findMany({
+    where: { timesheetId: { in: weeks.map((w) => w.id) }, assertionId: { not: null } },
+    select: {
+      timesheetId: true, how: true, approverName: true, approverEmail: true, usedAt: true, approvedOn: true, clientOffPlatform: true,
+      clientCompany: { select: { name: true } }, contracts: { select: { sellContractId: true } },
+    },
+  })
+  for (const a of rows) {
+    const w = weeks.find((x) => x.id === a.timesheetId)!
+    const v = mayReadEvidence(r, { personId: w.personId }, a.contracts.map((x) => x.sellContractId), w.ladder)
+    const on = a.how === 'EVIDENCE' ? a.approvedOn : a.usedAt
+    if (v.ok && on) {
+      out.set(a.timesheetId, approvalWords({
+        approverName: a.approverName, approverEmail: a.approverEmail, clientName: a.clientCompany.name,
+        clientOffPlatform: a.clientOffPlatform, on, how: a.how as 'LINK' | 'EVIDENCE', now,
+      }))
+    }
+  }
+  return out
+}
+
+/**
+ * The reader a signed-in caller is on one week: through a seat, where the
+ * caller's firm runs the program of the client this week is worked at.
+ *
+ * The same rule the approve button follows: a program office acts at the
+ * client's desk, holding the client's permissions, as the client's side
+ * of the paper. Read as its own company it was a stranger to every week of
+ * the program it runs. The person stays the real person at the office.
+ */
+export async function readerAtWeek(
+  caller: CallerContext,
+  week: { timesheetId: string } | { weekApprovalId: string }
+): Promise<Reader> {
+  const own = readerOf(caller)
+  if (!caller.company) return own
+  const timesheetId = 'timesheetId' in week
+    ? week.timesheetId
+    : (await prisma.weekApproval.findUnique({ where: { id: week.weekApprovalId }, select: { timesheetId: true } }))?.timesheetId
+  if (!timesheetId) return own
+  const t = await prisma.timesheet.findUnique({
+    where: { id: timesheetId },
+    select: { sellContract: { select: { clientCompanyId: true, endClientCompanyId: true } } },
+  })
+  const clientId = t ? (t.sellContract.endClientCompanyId ?? t.sellContract.clientCompanyId) : null
+  if (!clientId || clientId === caller.company.id) return own
+  const seat = await seatFor(caller, clientId)
+  if (!seat) return own
+  return {
+    ...own,
+    companyId: seat.clientCompany.id,
+    companyName: seat.clientCompany.name,
+    companyKind: 'CLIENT',
+    permissions: actingInSeat(caller, seat).permissions,
+    seat: { officeCompanyId: caller.company.id, trail: seatTrail(seat, 'Read') },
+  }
+}
+
+/** The reader a signed-in caller is, for the functions above. */
+export function readerOf(caller: {
+  person: { id: string; name: string }
+  company: { id: string; name: string; kind: string } | null
+  permissions: readonly string[]
+}): Reader {
+  return {
+    personId: caller.person.id,
+    personName: caller.person.name,
+    companyId: caller.company?.id ?? null,
+    companyName: caller.company?.name ?? null,
+    companyKind: caller.company?.kind ?? null,
+    permissions: caller.permissions,
+  }
+}

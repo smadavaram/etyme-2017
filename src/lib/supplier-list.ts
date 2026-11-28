@@ -1,0 +1,656 @@
+/**
+ * Reading a client's own vendor list.
+ *
+ * The demand side does not arrive alone. A client running contract staff
+ * already has six or twelve suppliers, an MSA with each, and a habit of
+ * emailing all of them at once. Etyme is worth nothing to that client
+ * until those suppliers are reachable inside it — and asking each vendor
+ * to sign up first is asking the client to do our selling for us, one
+ * phone call at a time.
+ *
+ * So: one box. Paste the distribution list out of Outlook, paste the
+ * supplier tab of a spreadsheet, paste six signature blocks. Every firm
+ * in it becomes a supplier the client can send a role to today, whether
+ * or not that firm has ever heard of us.
+ *
+ * ── Why the parsing is deliberately dumb ─────────────────────────────
+ *
+ * Same reason as `lead-reader`. A procurement manager pasting a vendor
+ * list wants the list back in the same second, and a row that is 80%
+ * right and editable beats one that is 95% right and arrives after a
+ * round trip. Nothing is destructive: the raw line is kept on every row,
+ * so a better reader can be run over the same paste later.
+ *
+ * ── The one thing it will not guess ──────────────────────────────────
+ *
+ * A supplier's identity. Where the only thing on a line is a gmail
+ * address, we do not invent a company name from the local part —
+ * "ravi.menon@gmail.com" is a person, and a supplier record called
+ * "Ravi Menon" that later turns out to be Tecwyn is a mess
+ * somebody has to unpick by hand. It comes back needing a name.
+ */
+
+import { hasAnyPermission, type Permission } from '@/lib/permissions'
+import { firmNameKey, identityDomain, notedDomain, type HeldWith } from '@/lib/counterparty'
+import { domainOfEmail } from '@/lib/company-domains'
+
+// ── Who may open the supplier register ───────────────────────────────
+//
+// `GET /api/suppliers` asked for nothing past being staff, so every seat
+// at a firm was shown Suppliers — a Tellisford delivery engineer who
+// staffs nobody, sells nobody and sees no money among them. The register
+// names every firm this company buys from, who at each was invited, what
+// each still owes on paper and where each stands; it is the working list
+// of three kinds of desk, and each is here by what it does on the page.
+//
+//   vendors.read       the desks that own or work the supplier panel —
+//                      Procurement, a Supplier Manager, the program
+//                      office, a recruiter or account manager at a
+//                      supplier, the compliance officer who audits it.
+//   requirements.read  whoever raises or routes a job. A hiring manager
+//                      recommends a new supplier from this page, and the
+//                      requisition screens read it to name the suppliers
+//                      Procurement cleared for a role.
+//   payments.record    the Finance desk of supplier onboarding — at a
+//                      client, the AP clerk — verifies the tax form and
+//                      the bank details on this page, and the page loads
+//                      its pending firms only after the register opens.
+//
+// Refused: a delivery engineer or team lead (assignments and hours
+// only), HR at a supplier (its own people's paperwork, no firms), and
+// nobody else in the default roles of any kind of company.
+//
+// Holding any ONE opens it. The sidebar link names the same list, and
+// `__tests__/invariants/sidebar-nav.test.ts` reads it back out of the
+// route, so the menu and the gate cannot drift.
+
+export const SUPPLIERS_OPEN_TO: readonly Permission[] = [
+  'vendors.read',
+  'requirements.read',
+  'payments.record',
+]
+
+export function maySeeSuppliers(permissions: readonly string[]): boolean {
+  return hasAnyPermission(permissions, SUPPLIERS_OPEN_TO)
+}
+
+/** What is missing and who to ask. Never a permission code. */
+export const CANNOT_SEE_SUPPLIERS =
+  'The supplier list belongs to the people who choose and pay suppliers here — Procurement, ' +
+  'the program manager, whoever raises a job, and the finance team that checks a new ' +
+  "supplier's bank details. Ask whoever manages roles at your company to give you one of those roles."
+
+// ── Who may add a supplier by pasting a list ─────────────────────────
+//
+// `POST /api/suppliers` makes things: a supplier record where the firm is
+// new, an unsigned agreement stub, a register row, a contact, and an
+// email to the firm. It asked for nothing past being staff, so any seat —
+// a delivery engineer, an AP clerk — could put a firm on the panel in one
+// keystroke, which is the very step the four-desk supplier workflow
+// exists to walk (lib/supplier-onboarding). The import is for firms
+// Procurement approved before, and the page already offers it only to
+// the desk that owns the panel: `vendors.manage` — Procurement, a
+// Supplier Manager, the program office, and an owner or admin.
+//
+// Everybody else recommends a firm instead, through the workflow.
+
+/** The one permission the import asks for. The route spells it; this names it. */
+export const ADDS_SUPPLIERS = 'vendors.manage' as const
+
+/** What is missing and who to ask. Never a permission code. */
+/**
+ * A firm already on Etyme that does not work with the caller, found from
+ * what the caller typed. Said with no id, name or address of it, in the
+ * words Add a company uses, so the two doors say one thing: a firm on
+ * Etyme is never tied to you from your side alone (review, 2026-11-13).
+ * The only way on is the ask to link and their yes.
+ */
+export function onEtymeAskToLinkSays(as: string): string {
+  return (
+    `That company is on Etyme already, so no copy of it was made. Ask them to link, as your ${as}: ` +
+    `they are asked, and nothing is on either list until they say yes.`
+  )
+}
+
+export const CANNOT_ADD_SUPPLIER =
+  'Adding suppliers from a list belongs to whoever manages the approved suppliers — Procurement, ' +
+  'a supplier manager or the program manager. To bring in a new firm, recommend it from the ' +
+  'Suppliers page and the approvers will review it, or ask whoever manages roles at your company ' +
+  'to give you that role.'
+
+/**
+ * Joining two records of one firm is the same desk's act, and a heavier
+ * one: it repoints everything the folded record carried and cannot be
+ * pressed back apart.
+ */
+export const CANNOT_JOIN_SUPPLIERS =
+  'Joining two records of one supplier moves everything from one to the other and cannot be ' +
+  'undone, so it belongs to whoever manages the approved suppliers — Procurement, a supplier ' +
+  'manager or the program manager. Ask one of them to join these, or ask whoever manages roles ' +
+  'at your company to give you that role.'
+
+
+/**
+ * Providers that tell you nothing about which firm somebody works for.
+ *
+ * The OAuth tenant is the authority on a company's domain (CLAUDE.md);
+ * this list is only ever used to decide whether a domain is worth
+ * reading a company name out of.
+ */
+const CONSUMER = new Set([
+  'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.uk', 'ymail.com',
+  'outlook.com', 'hotmail.com', 'hotmail.co.uk', 'live.com', 'msn.com',
+  'aol.com', 'icloud.com', 'me.com', 'mac.com', 'proton.me', 'protonmail.com',
+  'gmx.com', 'mail.com', 'zoho.com', 'yandex.com', 'rediffmail.com',
+])
+
+/** Words that end a company name rather than belonging to a person's. */
+const SUFFIX = /\b(inc|llc|ltd|limited|corp|corporation|gmbh|pvt|private|plc|llp|co|company|group|solutions|systems|technologies|technology|consulting|consultancy|staffing|talent|partners|services|softech|infotech|labs|global)\b\.?$/i
+
+export interface SupplierRow {
+  /** The firm. Null where the paste never said and the domain cannot say. */
+  company: string | null
+  /** Who at the firm. Optional — plenty of lists are addresses only. */
+  contactName: string | null
+  email: string
+  /** The registrable part of the address, or null for a consumer provider. */
+  domain: string | null
+  /** The line it came from, kept whole. */
+  line: string
+  /** What it could not work out, said plainly rather than left blank. */
+  needs: string[]
+}
+
+export interface SupplierRead {
+  rows: SupplierRow[]
+  /** Addresses seen more than once, collapsed. */
+  duplicates: number
+  /** Lines that had no address in them at all. */
+  skipped: string[]
+}
+
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/
+
+/**
+ * Read a pasted list into suppliers.
+ *
+ * One row per address, one supplier per firm. Two contacts at the same
+ * company are two rows and one supplier, which is what a client means
+ * when they paste an account manager and a delivery lead from the same
+ * firm — not two vendors who happen to share a domain.
+ */
+export function readSupplierList(raw: string): SupplierRead {
+  const seen = new Set<string>()
+  const rows: SupplierRow[] = []
+  const skipped: string[] = []
+  let duplicates = 0
+
+  for (const line of splitLines(raw)) {
+    const found = line.match(EMAIL)
+    if (!found) {
+      // Header rows, section titles and the odd stray word. Reported
+      // rather than swallowed, because a client who pasted forty lines
+      // and got twelve suppliers back needs to know where the rest went.
+      if (line.trim().length > 0) skipped.push(line.trim())
+      continue
+    }
+
+    const email = found[0].toLowerCase()
+    if (seen.has(email)) {
+      duplicates++
+      continue
+    }
+    seen.add(email)
+
+    rows.push(readOne(line, email))
+  }
+
+  return { rows, duplicates, skipped }
+}
+
+/** One line, one supplier contact. */
+export function readOne(line: string, email: string): SupplierRow {
+  const domain = companyDomain(email)
+  const rest = withoutTheAddress(line, email)
+  const { company, contactName } = readNames(rest, domain)
+
+  const needs: string[] = []
+  if (!company) {
+    needs.push(
+      domain === null
+        ? 'Personal address — say which firm this is.'
+        : 'No company name on this line.'
+    )
+  }
+
+  return { company, contactName, email, domain, line: line.trim(), needs }
+}
+
+/**
+ * The part of an address that identifies a firm.
+ *
+ * Null for a consumer provider, which is the honest answer: gmail.com
+ * identifies nobody, and treating it as a company domain would merge
+ * every small supplier in the list into one.
+ */
+export function companyDomain(email: string): string | null {
+  const at = email.lastIndexOf('@')
+  if (at < 0) return null
+  const host = email.slice(at + 1).toLowerCase()
+  return CONSUMER.has(host) ? null : host
+}
+
+/**
+ * A company name from a domain, where there is nothing better.
+ *
+ * "tecwyn.example" → "Tecwyn". "vertex-talent.io" → "Vertex Talent". It
+ * is a guess and it is shown to somebody who can correct it in one
+ * keystroke, which is the only reason it is allowed to guess at all.
+ */
+export function nameFromDomain(domain: string): string {
+  const stem = domain.split('.')[0]
+  return stem
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+// ── Small readers ─────────────────────────────────────────────────────
+
+/**
+ * Split a paste into lines.
+ *
+ * Newlines mostly, but a distribution list copied out of an Outlook To:
+ * field arrives as one long semicolon-separated string, which would
+ * otherwise read as a single supplier with a very strange name.
+ */
+export function splitLines(raw: string): string[] {
+  return raw
+    .split(/[\r\n]+/)
+    .flatMap((l) => (l.split(';').length > 2 ? l.split(';') : [l]))
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+}
+
+/** The line with the address and its punctuation taken out. */
+function withoutTheAddress(line: string, email: string): string {
+  return line
+    .replace(new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '')
+    .replace(/[<>()\[\]"']/g, ' ')
+    .replace(/\s*[,;|\t]\s*/g, '\t')
+    .trim()
+}
+
+/**
+ * Which of the leftover words is the firm and which is the person.
+ *
+ * Two fields is the common shape and the order is not fixed — a
+ * spreadsheet gives company then contact, a signature block gives contact
+ * then company. A legal suffix settles it where there is one; otherwise
+ * the field that matches the domain is the company, and failing both, the
+ * first field is the company because that is how lists are usually
+ * written.
+ */
+export function readNames(
+  rest: string,
+  domain: string | null
+): { company: string | null; contactName: string | null } {
+  const fields = rest
+    .split('\t')
+    .map((f) => f.replace(/\s+/g, ' ').trim())
+    .filter((f) => f.length > 1 && /[A-Za-z]/.test(f))
+
+  const fallback = domain ? nameFromDomain(domain) : null
+
+  if (fields.length === 0) {
+    return { company: fallback, contactName: null }
+  }
+
+  if (fields.length === 1) {
+    // One name, and no way to tell a person from a firm except the
+    // suffix and the domain. Where the domain names the firm, a lone
+    // name is far more likely to be the person who was emailed.
+    const only = fields[0]
+    if (SUFFIX.test(only)) return { company: only, contactName: null }
+    if (fallback && !looksLikeTheDomain(only, domain)) {
+      return { company: fallback, contactName: only }
+    }
+    return { company: only, contactName: null }
+  }
+
+  const suffixed = fields.findIndex((f) => SUFFIX.test(f))
+  if (suffixed >= 0) {
+    return {
+      company: fields[suffixed],
+      contactName: fields.find((_, i) => i !== suffixed) ?? null,
+    }
+  }
+
+  const matching = fields.findIndex((f) => looksLikeTheDomain(f, domain))
+  if (matching >= 0) {
+    return {
+      company: fields[matching],
+      contactName: fields.find((_, i) => i !== matching) ?? null,
+    }
+  }
+
+  return { company: fields[0], contactName: fields[1] ?? null }
+}
+
+/** Whether a name is plausibly the firm the domain belongs to. */
+function looksLikeTheDomain(name: string, domain: string | null): boolean {
+  if (!domain) return false
+  const stem = domain.split('.')[0].replace(/[-_]/g, '')
+  const flat = name.toLowerCase().replace(/[^a-z]/g, '')
+  return flat.length > 2 && (stem.includes(flat) || flat.includes(stem))
+}
+
+/**
+ * What to say above the list once it has been read.
+ *
+ * The number that matters is how many firms, not how many addresses —
+ * a client who pasted twenty rows and has twelve suppliers should be
+ * told twelve, or they will think something was lost.
+ */
+export function listSentence(read: SupplierRead): string {
+  const firms = new Set(
+    read.rows.map((r) => r.domain ?? r.company?.toLowerCase() ?? r.email)
+  ).size
+
+  if (read.rows.length === 0) {
+    return 'No email addresses in that. Paste a list with one address per line.'
+  }
+
+  const bits = [
+    `${firms} ${firms === 1 ? 'supplier' : 'suppliers'}`,
+    read.rows.length !== firms ? `${read.rows.length} contacts` : null,
+    read.duplicates ? `${read.duplicates} repeated` : null,
+    read.skipped.length ? `${read.skipped.length} ${read.skipped.length === 1 ? 'line' : 'lines'} with no address` : null,
+  ].filter(Boolean)
+
+  const needs = read.rows.filter((r) => r.needs.length > 0).length
+  const tail = needs ? ` ${needs} ${needs === 1 ? 'needs' : 'need'} a company name before you can send.` : ''
+
+  return `${bits.join(', ')}.${tail}`
+}
+
+/**
+ * Whether a signed-in address may take possession of an invited company.
+ *
+ * The token alone is not enough. Invitations get forwarded, pasted into
+ * group chats and left in shared inboxes, and a token that hands a
+ * stranger a company — with its client relationships and its rates — is
+ * a door with the key taped to it.
+ *
+ * So: the invited address itself, or a colleague on the same corporate
+ * domain. Never two consumer addresses — a pair of strangers on gmail
+ * are not colleagues, and treating them as such would make every
+ * forwarded invitation claimable by anybody who saw it.
+ */
+export function mayClaim(signedInAs: string, invited: string): boolean {
+  const a = signedInAs.trim().toLowerCase()
+  const b = invited.trim().toLowerCase()
+  if (a === b) return true
+
+  const da = companyDomain(a)
+  const db = companyDomain(b)
+  return da != null && db != null && da === db
+}
+
+// ── A company on a Companies list that nobody has classified yet ─────
+//
+// Founder, 2026-11-12 (the neutral Company): a company recorded by name
+// alone is a record and nothing more. It is never sent a job, never
+// put forward to, never invited, until the firm gives it a position by
+// "Extend" (a register row) and, for an invitation, a Kind. These are
+// the demand side's three doors onto one: the send, the onward
+// submission, and the supplier list's paste. Pure; the routes read the
+// Kind and the register rows and pass them in.
+
+/** The register relationships that make a company somebody a job may go to. */
+export const SENDS_A_JOB_TO = ['SUPPLIER', 'PRIME'] as const
+
+/** The register relationships that make a company somebody a person may be put forward to. */
+export const PUTS_FORWARD_TO = ['CLIENT', 'PRIME', 'MSP'] as const
+
+/**
+ * Whether the sender's register must be asked before a job or a person
+ * goes to this company. Decided from the register, never from the Kind
+ * alone (review, 2026-11-13): a company of Kind not classified, one the
+ * sender recorded as not classified and gave a Kind since (`held.recorded`),
+ * and a record of the sender's own that holds no position at all
+ * (`held.notClassified`, the Companies badge) all read the same way.
+ * `held` is `standingWith` in app/api/companies/positions; where a caller
+ * passes none, only the Kind is read. Pure.
+ */
+export function readsNotClassified(
+  company: { kind?: string | null },
+  held?: HeldWith | null,
+): boolean {
+  return company.kind === 'UNCLASSIFIED' || held?.recorded === true || held?.notClassified === true
+}
+
+/**
+ * Whether a job may be sent to this company. A company holding a position
+ * with the sender, or not on its Companies list at all, is the existing
+ * rules' to decide; one not classified needs a Supplier position on the
+ * sender's register, whatever Kind it was given.
+ */
+export function mayBeSentJob(
+  company: { name: string; kind?: string | null },
+  relationships: readonly string[],
+  held?: HeldWith | null,
+): { ok: true } | { ok: false; says: string } {
+  if (!readsNotClassified(company, held)) return { ok: true }
+  if (relationships.some((r) => (SENDS_A_JOB_TO as readonly string[]).includes(r))) return { ok: true }
+  return { ok: false, says: `${company.name} is on your Companies list and is not classified yet. Extend it to Supplier first.` }
+}
+
+/**
+ * The one refusal for a job sent to a firm the sender may not send it to:
+ * a firm it does not deal with, a firm it reaches only through a prime,
+ * or an id that is not there. One sentence for all three, so the answer
+ * never tells the caller which it was. Names nobody. Pure.
+ */
+export function notYourSupplierSays(count: number, sender: string): string {
+  const one = count <= 1
+  return (
+    `${one ? 'One of the firms you picked is' : `${count} of the firms you picked are`} not a supplier of ${sender}, ` +
+    `so this job request cannot be sent to ${one ? 'it' : 'them'}. ` +
+    'Send it to the suppliers you buy from, or add the firm as a supplier of your own first.'
+  )
+}
+
+/**
+ * The one refusal for a person sent on to a company the sender has no
+ * dealing with: the same words as an id that is not there, with the next
+ * step. Names nobody. Pure.
+ */
+export const NO_COMPANY_BY_THAT_ID = 'No company by that id. Send this person on to a company you already work with.'
+
+/**
+ * Whether a person may be put forward to this company. One not classified
+ * yet needs a Customer position (or a prime or MSP row) on the sender's
+ * register, because a submission goes up to whoever buys.
+ */
+export function mayBePutForwardTo(
+  company: { name: string; kind?: string | null },
+  relationships: readonly string[],
+  held?: HeldWith | null,
+): { ok: true } | { ok: false; says: string } {
+  if (!readsNotClassified(company, held)) return { ok: true }
+  if (relationships.some((r) => (PUTS_FORWARD_TO as readonly string[]).includes(r))) return { ok: true }
+  return { ok: false, says: `${company.name} is on your Companies list and is not classified yet. Extend it to Customer first.` }
+}
+
+/**
+ * The domain a pasted or approved supplier is known by on the firm's own
+ * list (2026-11-15: "the email is the identifier"): the domain typed for
+ * it, else the domain of its contact's address. Never a personal mail
+ * domain, because a personal mailbox is nobody's company. Pure; the twin
+ * rule itself is `twinOnOwnList` in lib/counterparty, the one every door
+ * onto the Companies list reads.
+ */
+export function supplierDomain(typed: unknown, email: unknown): string | null {
+  const fromTyped = identityDomain(typed)
+  if (fromTyped) return fromTyped
+  if (typeof email !== 'string' || notedDomain(typed)) return null
+  const d = domainOfEmail(email.trim())
+  return d ? identityDomain(d) : null
+}
+
+/**
+ * The company name a pasted row is saved under: the one the person saw
+ * and could correct on the preview, and nothing else. A row that reaches
+ * the route with no name is never given one made from its domain, because
+ * that name was never shown to anybody. Pure.
+ */
+export function pastedName(row: { company?: unknown }): string | null {
+  const name = typeof row.company === 'string' ? row.company.replace(/\s+/g, ' ').trim() : ''
+  return firmNameKey(name) ? name.slice(0, 120) : null
+}
+
+/** The one sentence for a pasted row that reached the route with no company name. */
+export const NEEDS_A_NAME_SAYS = (email: string) =>
+  `${email} was not added because it has no company name. Paste it again, check the company name, then press Add.`
+
+/** The one sentence for a paste sent with no preview at all. */
+export const READ_IT_FIRST_SAYS =
+  'Nothing was added. Paste the list on Suppliers, check each company name, then press Add.'
+
+// ── What the paste and the list say (walk, 2026-11-15) ───────────────
+
+/**
+ * How many suppliers a read paste comes to: one per domain, else one per
+ * company name, the way the route joins them. Pure.
+ */
+export function firmsIn(rows: readonly { domain: string | null; company: string | null; email: string }[]): number {
+  return new Set(rows.map((r) => r.domain ?? r.company?.trim().toLowerCase() ?? r.email)).size
+}
+
+/** The paste's button, named for what it does: it adds suppliers. Pure. */
+export function addButtonSays(rows: readonly { domain: string | null; company: string | null; email: string }[]): string {
+  const n = firmsIn(rows)
+  return `Add ${n} ${n === 1 ? 'supplier' : 'suppliers'}`
+}
+
+/**
+ * The role a pasted contact is saved under. A paste says nobody's role,
+ * so the neutral one: never a guess like Recruiting.
+ */
+export const PASTED_CONTACT_KIND = 'OTHER' as const
+
+/**
+ * When this client last did work with a supplier: today where somebody is
+ * on site, else the latest submission, order or placement date that has
+ * happened. An invitation or a paste is not work, so a firm with none of
+ * these reads null: none yet. Pure.
+ */
+export function lastEngagementOf(onSiteCount: number, workDates: readonly (Date | null | undefined)[], now: Date): string | null {
+  if (onSiteCount > 0) return now.toISOString()
+  let last: Date | null = null
+  for (const d of workDates) if (d && d <= now && (!last || d > last)) last = d
+  return last?.toISOString() ?? null
+}
+
+/** What the list says of a supplier it has done no work with yet. */
+export const NO_WORK_YET_SAYS = 'No submissions, orders or placements yet.'
+
+/**
+ * Each supplier's name as a list shows it: with its domain beside it where
+ * another supplier on the same list shares the name, read by the same
+ * name key Companies reads. Pure.
+ */
+export function namesTold(rows: readonly { companyId: string; name: string; domain?: string | null }[]): Map<string, string> {
+  const count = new Map<string, number>()
+  for (const r of rows) count.set(firmNameKey(r.name), (count.get(firmNameKey(r.name)) ?? 0) + 1)
+  const out = new Map<string, string>()
+  for (const r of rows) {
+    const shared = (count.get(firmNameKey(r.name)) ?? 0) > 1
+    out.set(r.companyId, shared ? `${r.name} (${r.domain ?? 'no domain yet'})` : r.name)
+  }
+  return out
+}
+
+/**
+ * The Activity log row for one paste: who pasted how many suppliers and
+ * contacts, and what became of the invitations. It says an invitation was
+ * emailed only where one left (`emailed` counts deliveries that went), and
+ * names why none could where no email can leave (`mailLeaves`). Pure.
+ */
+export function pasteLogSays(p: {
+  by: string; suppliers: number; contacts: number; invitations: number; emailed: number; mailCanLeave: boolean
+}): { summary: string; reason: string } {
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  const summary = `${p.by} pasted ${n(p.suppliers, 'supplier', 'suppliers')} and ${n(p.contacts, 'new contact', 'new contacts')} onto Suppliers`
+  const sent =
+    p.invitations === 0
+      ? 'No invitation was sent: each address had one already.'
+      : p.emailed === p.invitations
+        ? `${n(p.invitations, 'invitation was', 'invitations were')} emailed.`
+        : p.emailed === 0
+          ? `${n(p.invitations, 'invitation was', 'invitations were')} made and not emailed${p.mailCanLeave ? ': the email could not be sent.' : ': no email can be sent from here yet.'}`
+          : `${p.emailed} of ${p.invitations} invitations were emailed; the others could not be sent.`
+  return { summary, reason: `Pasted by hand on Suppliers. ${sent}` }
+}
+
+/** Whether a company held in a send-on picker is one a person may be sent on to. Pure. */
+export function offeredToSendOn(c: { notClassified?: boolean | null }): boolean {
+  return c.notClassified !== true
+}
+
+/**
+ * What the paste's answer says, beside the box (walk, 2026-11-15, item 8).
+ *
+ * It read "You can send them a job now — they will find out when one
+ * arrives." on a deployment where no email can leave, so nobody would
+ * find out of anything. No screen says an email went, or will go, unless
+ * email can leave (`mailLeaves`). It says what happened. Pure.
+ */
+export function pasteAnswerSays(p: { suppliers: number; invitations: number; emailed: number; mailCanLeave: boolean }): string {
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  const listed = `${n(p.suppliers, 'supplier', 'suppliers')} on your list.`
+  if (!p.mailCanLeave) {
+    return `${listed} No email can be sent from here yet, so nobody was emailed. You can still send them a job, but they will not hear of it by email.`
+  }
+  const sent =
+    p.invitations === 0
+      ? 'Nobody was emailed again: each address had an invitation already.'
+      : p.emailed === p.invitations
+        ? `${n(p.emailed, 'invitation was', 'invitations were')} emailed.`
+        : p.emailed === 0
+          ? 'The invitation email could not be sent.'
+          : `${p.emailed} of ${p.invitations} invitations were emailed; the others could not be sent.`
+  return `${listed} ${sent} You can send them a job now.`
+}
+
+/**
+ * Where a supplier on the list stands, on its card. "Invited." read as a
+ * letter that went, where none could (walk, 2026-11-15). An invitation is
+ * a row made when the supplier was listed; whether its email left is said
+ * only where email can leave. Pure.
+ */
+export function supplierStandingSays(s: { joined: boolean; invited: boolean; mailCanLeave: boolean }): string {
+  if (s.joined) return 'Signed in. Can be sent a job.'
+  if (!s.invited) return 'Listed by you. Not invited yet.'
+  return s.mailCanLeave
+    ? 'Invitation made, not answered yet. Can still be sent a job.'
+    : 'Listed by you, not signed in. No email can be sent from here yet, so they have not been told. Can still be sent a job.'
+}
+
+/**
+ * A contact on a supplier's card: her name first, with her address beside
+ * it, else whichever of the two is on file (walk, 2026-11-15). Pure.
+ */
+export function contactShown(c: { name: string | null; email: string | null }): string | null {
+  const name = c.name?.trim() || null
+  const email = c.email?.trim() || null
+  if (name && email && name.toLowerCase() !== email.toLowerCase()) return `${name} (${email})`
+  return name ?? email
+}
+
+/** The address that opens one company on Companies (etyme-architect's `?open=`). */
+export function companyOpenHref(companyId: string): string {
+  return `/dashboard/companies?open=${encodeURIComponent(companyId)}`
+}

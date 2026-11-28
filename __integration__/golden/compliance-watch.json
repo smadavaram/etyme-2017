@@ -1,0 +1,75 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "SellContract",
+      "owedSeat": "Program Manager"
+    },
+    {
+      "kind": "NoticePosting",
+      "owedSeat": "HR"
+    },
+    {
+      "kind": "NoticePosting",
+      "owedSeat": "HR"
+    },
+    {
+      "kind": "PublicAccessFile",
+      "owedSeat": "HR"
+    },
+    {
+      "kind": "NoticePosting",
+      "owedSeat": "HR"
+    },
+    {
+      "kind": "PublicAccessFile",
+      "owedSeat": "HR"
+    }
+  ],
+  "mail": [],
+  "recordActions": [
+    {
+      "action": "TENURE_WARNING_OPENED",
+      "order": 1,
+      "recordType": "Person",
+      "summary": "Priya Nair reaches the 12-month time limit at Golden Firm on Dec 23, 2026, in 30 days. Review the placement now? A decision is open. Nothing was changed."
+    },
+    {
+      "action": "NOTICE_PERIOD_ENDED",
+      "order": 2,
+      "recordType": "NoticePosting",
+      "summary": "The LABOR_CONDITION notice posted at Golden Plant Site on Oct 1, 2026 has been up its required time. Take it down and record the removal? A decision is open. Nothing was taken down."
+    },
+    {
+      "action": "NOTICE_TIMING_FLAGGED",
+      "order": 3,
+      "recordType": "NoticePosting",
+      "summary": "The LABOR_CONDITION notice posted at Golden Plant Site on Nov 10, 2026 is dated after the filing day it is measured against, Nov 2, 2026. Check the days on the record? A decision is open. Nothing was posted, removed or changed."
+    },
+    {
+      "action": "ACCESS_FILE_TRACKED",
+      "order": 4,
+      "recordType": "PublicAccessFile",
+      "summary": "Started tracking the public access file for Tom Ruiz’s petition. It is due 2026-11-23. A person approves it."
+    },
+    {
+      "action": "ACCESS_FILE_CARD_OPENED",
+      "order": 5,
+      "recordType": "PublicAccessFile",
+      "summary": "The public access file for Tom Ruiz’s petition is due Nov 23, 2026. Is it ready to approve? A decision is open. Nothing was approved or published."
+    },
+    {
+      "action": "NOTICE_PERIOD_ENDED",
+      "order": 6,
+      "recordType": "NoticePosting",
+      "summary": "The LABOR_CONDITION notice posted at Golden Plant Site on Nov 10, 2026 has been up its required time. Take it down and record the removal? A decision is open. Nothing was taken down."
+    },
+    {
+      "action": "ACCESS_FILE_CARD_OPENED",
+      "order": 7,
+      "recordType": "PublicAccessFile",
+      "summary": "The public access file for Tom Ruiz’s petition was due Nov 23, 2026 and is not approved. Is it ready to approve? A decision is open. Nothing was approved or published."
+    }
+  ],
+  "tasks": []
+}

@@ -1,0 +1,982 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { minorPerUnit } from '@/lib/money'
+import { orderLedgers, linesBilled } from '@/lib/money/order-ledger'
+import { fromUnits } from '@/lib/money-display'
+import type { Prisma } from '@prisma/client'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
+import { booksFor, noteMoneyRead, seatedRefusal, writingDesk, moneyTrailFor } from '@/lib/money/seated-books'
+import { prisma } from '@/lib/db'
+import { hasPermission } from '@/lib/permissions'
+import { mayReadPayOf, payTrail, mayReadBillRate, billTrail } from '@/lib/money/pay-visibility'
+import { writePayTrail, writeBillTrail } from '@/lib/money/pay-trail'
+import { linesForReader } from '@/lib/money/order-lines-read'
+import { emit } from '@/lib/events'
+import { poBalance } from '@/lib/purchase-order'
+import { mayWriteOrder, shellNotice } from '@/lib/off-system'
+import { recordRefusal } from '@/lib/access-log'
+import { standingWith } from '@/app/api/companies/positions'
+import { orderIsTheirsSays, RAISES_AN_ORDER } from '@/lib/money/order-raiser'
+import { suppliersOf } from '@/lib/suppliers-of'
+import { supplierStanding } from '@/lib/counterparty'
+import { nounFor, referenceFor, sideOf } from '@/lib/order-naming'
+import { termsFor, AGREEMENT_TERMS_SELECT, differencesFrom, differenceRefusal, reasonFrom, headerRhythmFrom } from '@/lib/money/order-terms'
+import { isAnchor, ANCHORS } from '@/lib/billing-cascade'
+
+/**
+ * GET  /api/purchase-orders — what is authorized, and how much is left
+ * POST /api/purchase-orders — raise one
+ *
+ * Purchase orders were read in five places and created in none. The three
+ * way match asks whether an invoice quotes a valid, open, unexhausted PO —
+ * so on a real company with no way to raise one, that check could only ever
+ * fail. The money chain worked on seeded data and stopped at the first
+ * real customer.
+ *
+ * A PO is not a contract. A contract carries a rate — what one person costs
+ * per hour. A PO carries a ceiling — how much the payer has authorized in
+ * total, across however many people. Raising one needs orders.raise
+ * (`RAISES_AN_ORDER` in lib/money/order-raiser), held apart from billing
+ * on an order and from awarding against it; until 2026-11-02 it needed
+ * invoices.issue, so the firm's Accounts Receivable raised its orders.
+ *
+ * ── One row, read from whichever end you stand at ────────────────────
+ *
+ * This route is `/api/purchase-orders` because that is the address the
+ * client's AP desk learned, and an address is not a word anybody reads.
+ * The row underneath is a `WorkOrder`: the client's purchase order and
+ * the supplier's sales order are the same paper, and `lib/order-naming`
+ * decides which of the two words each reader is shown. Before the merge
+ * the seller's half of it — the billing basis, the milestones, the
+ * four-party split and the term that says silence approves a timesheet —
+ * lived on a `SalesOrder` row nothing had ever created.
+ */
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'Purchase orders belong to a company' } },
+      { status: 403 }
+    )
+  }
+  // Whose orders these are. A program office in a client's seat reads
+  // the CLIENT's orders — the ones it raised to its suppliers — because
+  // that is what running a program means; its own are at `books=own`.
+  // One door: `lib/money/seated-books`.
+  const { books: reading, error: booksError } = await booksFor(caller, request)
+  if (booksError) return booksError
+
+  if (!hasPermission(reading.caller.permissions, 'invoices.read')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: reading.seat
+            ? seatedRefusal(reading.seat, 'Purchase orders')
+            : refusalFor(caller, { doing: 'Seeing purchase orders', needs: 'invoices.read' }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  const companyId = reading.companyId
+  noteMoneyRead(reading, 'Purchase orders read')
+  const side = request.nextUrl.searchParams.get('side') // issued | received
+
+  const pos = await prisma.workOrder.findMany({
+    where:
+      side === 'issued'
+        ? { issuedById: companyId }
+        : side === 'received'
+          ? { issuedToId: companyId }
+          // Both sides by default. A GSI raises POs to its bench suppliers
+          // and receives them from its clients, in the same week.
+          : { OR: [{ issuedById: companyId }, { issuedToId: companyId }] },
+    orderBy: [{ status: 'asc' }, { startDate: 'desc' }],
+    select: {
+      id: true, number: true, sellerNumber: true, title: true,
+      amount: true, currency: true,
+      startDate: true, endDate: true, status: true,
+      issuedById: true, issuedToId: true, billToId: true, payerId: true,
+      recordedById: true,
+      billingBasis: true, paymentTerms: true,
+      autoApproveTimesheets: true, approvalWindowDays: true,
+      issuedBy: { select: { id: true, name: true, claimedAt: true } },
+      issuedTo: { select: { id: true, name: true, claimedAt: true } },
+      // The lines on it. A document is a header and its lines, and an
+      // order screen that shows only headers is half the paper: five
+      // people on one order is one ceiling and five names, and which
+      // name is eating the ceiling is the question this page is open
+      // for.
+      sellContracts: {
+        select: {
+          id: true, billRate: true, billCurrency: true, state: true,
+          startDate: true, endDate: true,
+          person: { select: { id: true, name: true } },
+          workLocation: { select: { name: true, city: true, state: true, isRemote: true } },
+          clientCompany: { select: { name: true } },
+        },
+        orderBy: { startDate: 'asc' },
+      },
+      buyContracts: {
+        select: {
+          id: true, payCurrency: true, contractType: true, state: true,
+          startDate: true, endDate: true,
+          vendorCompany: { select: { name: true } },
+          candidates: {
+            select: { payRate: true, person: { select: { id: true, name: true } } },
+            orderBy: { startDate: 'asc' },
+          },
+        },
+        orderBy: { startDate: 'asc' },
+      },
+      _count: { select: { sellContracts: true, milestones: true } },
+    },
+  })
+
+  // What each sell line has actually billed against the ceiling above
+  // it. Read from the invoice lines rather than apportioned from the
+  // header: an order's total is the sum of what its lines billed, and
+  // dividing the header by the headcount would invent a figure.
+  // Whose pay this reader may see on a buy line. Written to the trail
+  // before the response goes out: every figure withheld is a refusal,
+  // every figure shown to somebody else a read.
+  const payViewer = { permissions: reading.caller.permissions, personId: caller.person.id }
+  await writePayTrail(
+    caller,
+    payTrail(payViewer, pos.flatMap((po) => po.buyContracts.flatMap((bc) =>
+      bc.candidates.map((cand) => ({ personId: cand.person.id, payRate: cand.payRate }))))),
+    'a purchase order line'
+  )
+
+  // Who may read a bill rate written at the other end of an order: the
+  // sub's sell line is the prime's cost, and the prime's buy line is the
+  // sub's bill rate. The rule is the sell line's (lib/money/pay-visibility),
+  // and every person whose rate is read or withheld that way is on the
+  // trail before the answer goes out.
+  const billViewer = {
+    permissions: reading.caller.permissions,
+    companyId,
+    companyKind: reading.seated ? 'CLIENT' : (caller.company?.kind ?? null),
+    personId: caller.person.id,
+  }
+  // Every sell line is gated, the firm's own included: an account
+  // manager reading this page for the ceiling is not shown what each
+  // person bills at unless the desk prices or bills it. A buy line from
+  // the other end carries the same figure and the same gate.
+  const billRead = pos.flatMap((po) => {
+    const end = sideOf(po, companyId)
+    const deal = { sellerId: po.issuedToId, clientId: po.issuedById }
+    return [
+      ...po.sellContracts.map((sc) => ({ ...deal, personId: sc.person.id })),
+      ...(end === 'BUYER' ? [] : po.buyContracts.flatMap((bc) => bc.candidates.map((c) => ({ ...deal, personId: c.person.id })))),
+    ]
+  })
+  if (billRead.length > 0) await writeBillTrail(caller, billTrail(billViewer, billRead))
+
+  // What each order and each of its lines has billed, by the one
+  // definition every money screen reads (lib/money/order-ledger): bills
+  // sent and typed-in invoice receipts count, a bill drafted or raised and
+  // not sent is said apart and never inside Billed, and a document in
+  // another currency is named and never added. The placement's page, the
+  // three-way check and Payables read the same figures.
+  const sellIds = pos.flatMap((po) => po.sellContracts.map((sc) => sc.id))
+  const [ledgers, billedOnLines] = await Promise.all([
+    orderLedgers(pos.map((po) => po.id)),
+    linesBilled(sellIds),
+  ])
+
+  const rows = pos.map((po) => {
+    const ledger = ledgers.get(po.id)!
+    // Minor units per whole unit of the order's currency: 100 for dollars, 1 for the dong.
+    const per = minorPerUnit(po.currency)
+
+    const balance = poBalance({
+      amountCents: ledger.authorizedMinor,
+      invoicedCents: ledger.billedMinor,
+      status: po.status as any,
+      endDate: po.endDate,
+    })
+
+    // What this reader calls it. A client reads "purchase order"; the
+    // supplier reads the same row as its sales order.
+    const side = sideOf(po, companyId)
+    const noun = nounFor(po, companyId)
+    const counterparty = side === 'SELLER' ? po.issuedBy : po.issuedTo
+
+    return {
+      id: po.id,
+      number: po.number,
+      sellerNumber: po.sellerNumber,
+      title: po.title,
+      /** BUYER · SELLER · BYSTANDER — which end of it you are at. */
+      side,
+      /** "purchase order" or "sales order", never both on one screen. */
+      noun: noun.noun,
+      nounCapitalized: noun.Noun,
+      short: noun.short,
+      reference: referenceFor(po, companyId).reference,
+      direction: po.issuedById === companyId ? 'issued' : 'received',
+      /** The firm whose rules the order's paper set holds — the buyer. */
+      issuedById: po.issuedById,
+      counterparty,
+      /** Said out loud where the other end of it has not joined. */
+      offSystem: shellNotice(counterparty),
+      /** Recorded by the other party, on paper they were handed. */
+      recordedByCounterparty: po.recordedById !== po.issuedById,
+      billingBasis: po.billingBasis,
+      paymentTerms: po.paymentTerms,
+      autoApproveTimesheets: po.autoApproveTimesheets,
+      approvalWindowDays: po.approvalWindowDays,
+      milestones: po._count.milestones,
+      currency: po.currency,
+      amount: Number(po.amount),
+      /** Authorized, in whole currency: the ceiling. */
+      authorized: ledger.authorizedMinor / per,
+      /** Billed: bills sent and invoice receipts typed in, in the order's own currency. */
+      invoiced: ledger.billedMinor / per,
+      /** Bills drafted or raised against it and not sent yet: drawing nothing, said apart. */
+      notSent: ledger.draftedNotSentMinor / per,
+      /** Documents in another currency, by number, left out of every figure here. */
+      foreign: ledger.foreign,
+      /** Left = Authorized − Billed. */
+      remaining: ledger.leftMinor / per,
+      consumedPercent: balance.consumedPercent,
+      overdrawn: balance.overdrawn,
+      expired: balance.expired,
+      canInvoice: balance.canInvoice,
+      reason: balance.reason,
+      status: po.status,
+      startDate: po.startDate.toISOString().slice(0, 10),
+      endDate: po.endDate?.toISOString().slice(0, 10) ?? null,
+      contractsAgainst: po._count.sellContracts,
+      // Each line on this document, with what it has billed. A line is
+      // a person at a site, never a row id. Read from this reader's own
+      // end, so a person the prime pays and the sub bills is one line to
+      // each of them, not two (lib/money/order-lines-read).
+      lines: linesForReader([
+        ...po.sellContracts.map((sc) => ({
+          id: sc.id,
+          side: 'SELL' as const,
+          personId: sc.person.id,
+          personName: sc.person.name,
+          siteName: siteOf(sc.workLocation) ?? sc.clientCompany.name,
+          /** Cents per hour, null where this desk may not read what the line bills at. */
+          rate: (mayReadBillRate(billViewer, { sellerId: po.issuedToId, clientId: po.issuedById }) ? sc.billRate : null) as number | null,
+          payWithheld: !mayReadBillRate(billViewer, { sellerId: po.issuedToId, clientId: po.issuedById }),
+          currency: sc.billCurrency,
+          state: sc.state,
+          startDate: sc.startDate.toISOString().slice(0, 10),
+          endDate: sc.endDate?.toISOString().slice(0, 10) ?? null,
+          /** Whole currency, to match the ceiling beside it. */
+          billed: (billedOnLines.get(sc.id)?.billedMinor ?? 0) / minorPerUnit(sc.billCurrency || po.currency),
+          /** Drafted or raised on this line and not sent: never inside billed. */
+          draftedNotSent: (billedOnLines.get(sc.id)?.draftedMinor ?? 0) / minorPerUnit(sc.billCurrency || po.currency) as number | null,
+          paidToName: null as string | null,
+        })),
+        ...po.buyContracts.flatMap((bc) =>
+          bc.candidates.map((cand) => ({
+            id: `${bc.id}:${cand.person.id}`,
+            side: 'BUY' as const,
+            personId: cand.person.id,
+            personName: cand.person.name,
+            siteName: null as string | null,
+            // What the firm pays below it is the payroll desks' figure,
+            // never the account manager's who reads this page for the
+            // ceiling (lib/money/pay-visibility). The line stays.
+            rate: mayReadPayOf(payViewer, cand.person.id) ? cand.payRate : null,
+            payWithheld: !mayReadPayOf(payViewer, cand.person.id),
+            currency: bc.payCurrency,
+            state: bc.state,
+            startDate: bc.startDate.toISOString().slice(0, 10),
+            endDate: bc.endDate?.toISOString().slice(0, 10) ?? null,
+            // A buy line is settled against a supplier's invoice
+            // received, which is not an invoice line of ours, so there
+            // is nothing honest to put here yet.
+            billed: null as number | null,
+            draftedNotSent: null as number | null,
+            paidToName: bc.vendorCompany?.name ?? null,
+          }))
+        ),
+      ], side, (line) => mayReadBillRate(billViewer, { sellerId: po.issuedToId, clientId: po.issuedById, ...line })),
+    }
+  })
+
+  return NextResponse.json({
+    data: {
+      // The address is the client's word and stays; each row carries
+      // its own `noun` for whoever is reading it.
+      orders: rows,
+      reading: { company: reading.companyName, inASeat: reading.seated, says: reading.says },
+      // In a seat, what may be raised is the client's desk's to say.
+      canRaise: hasPermission(reading.caller.permissions, RAISES_AN_ORDER),
+      // What actually needs somebody's attention. A PO quietly running out
+      // stops invoices from matching, and the first anybody hears is a
+      // supplier chasing payment.
+      needsAttention: rows.filter((r) => r.overdrawn || r.expired || r.consumedPercent >= 90).length,
+    },
+  })
+}
+
+/** A site, in the words a person would use. Null where nobody said. */
+function siteOf(
+  loc: { name: string; city: string | null; state: string | null; isRemote: boolean } | null
+): string | null {
+  if (!loc) return null
+  if (loc.isRemote) return 'Remote'
+  return [loc.name, loc.city, loc.state].filter(Boolean).join(', ') || null
+}
+
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'Purchase orders belong to a company' } },
+      { status: 403 }
+    )
+  }
+  // Whose order this is. The list reads the client's orders from a seat,
+  // and "Raise" put the new one on the office's own book under the
+  // office's own role. Now the order is the client's, on the client's
+  // book, where the client's role on the seat may raise one — and the
+  // office's own only where the screen asked for its own books.
+  const desk = (await writingDesk(caller, request))!
+  // Authorizing spend is the buyer's own act (orders.raise), never the
+  // seat that bills on the order.
+  if (!hasPermission(desk.permissions, RAISES_AN_ORDER)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: desk.seat
+            ? seatedRefusal(desk.seat, 'Raising a purchase order')
+            : refusalFor(caller, {
+                doing: 'Raising a purchase order',
+                needs: RAISES_AN_ORDER,
+              }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  const companyId = desk.companyId
+  const body = await request.json().catch(() => ({}))
+
+  const number = String(body.number ?? '').trim()
+  const amount = Number(body.amount)
+  const startDate = body.startDate ? new Date(String(body.startDate)) : new Date()
+  const endDate = body.endDate ? new Date(String(body.endDate)) : null
+
+  // ── Which end of it the caller is ──────────────────────────────────
+  //
+  // Ordinarily the buyer: `issuedToId` names the supplier and the caller
+  // is the payer, which is what a purchase order is. A supplier whose
+  // client is not on Etyme passes `issuedById` instead — the client that
+  // handed it the paper — and records the order it received. The rule
+  // that decides whether that is allowed is in `lib/off-system` and it
+  // turns on one thing: the other firm must be a shell.
+  const recordingForBuyer = Boolean(body.issuedById) && String(body.issuedById) !== companyId
+  const issuedById = recordingForBuyer ? String(body.issuedById) : companyId
+  const issuedToId = recordingForBuyer ? String(body.issuedToId ?? companyId) : String(body.issuedToId ?? '')
+
+  if (!number) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'A purchase order needs the number your finance team will recognize', field: 'number' } },
+      { status: 422 }
+    )
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'A purchase order needs an authorized amount above zero', field: 'amount' } },
+      { status: 422 }
+    )
+  }
+  if (endDate && endDate.getTime() <= startDate.getTime()) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'A purchase order cannot end before it starts', field: 'endDate' } },
+      { status: 422 }
+    )
+  }
+
+  const [buyer, seller] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: issuedById },
+      select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
+    }),
+    prisma.company.findUnique({
+      where: { id: issuedToId },
+      select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
+    }),
+  ])
+
+  if (!seller) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Say which supplier this authorizes', field: 'issuedToId' } },
+      { status: 422 }
+    )
+  }
+  if (!buyer) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message:
+            'We could not find that client. Add them from Companies first; they do not need to be on Etyme.',
+          field: 'issuedById',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  // ── May this firm write this order at all? ─────────────────────────
+  //
+  // Refuses two things in words: raising one to yourself, and recording
+  // one in the name of a firm that is here and could have raised it. The
+  // second is the trap — a firm naming a real tenant as its client with
+  // nobody at that tenant involved.
+  //
+  // And where the caller is the buyer, the seller must be one of the
+  // buyer's suppliers and not one it blocked — read from the same book
+  // the picker lists (`lib/suppliers-of`), so a firm offered on the
+  // screen is a firm the order may go to, and no other.
+  //
+  // A buyer recorded on the caller's Companies list is a client only by
+  // the caller's own Customer row, and a seller recorded there a supplier
+  // only by its Supplier row (founder, 2026-11-12). Both are read from the
+  // register, never from the Kind the record was given (review,
+  // 2026-11-13), and passed in.
+  const allowed = mayWriteOrder({
+    callerCompanyId: companyId,
+    buyer,
+    seller,
+    ...(recordingForBuyer
+      ? { buyerHeld: await standingWith(companyId, buyer) }
+      : { sellerStanding: supplierStanding(await suppliersOf(issuedById), issuedToId), sellerHeld: await standingWith(companyId, seller) }),
+  })
+  if (!allowed.ok) {
+    // Written before the refusal is sent (CLAUDE.md, 2026-10-08).
+    await recordRefusal([{ companyId: recordingForBuyer ? buyer.id : seller.id }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused an order between ${buyer.name} and ${seller.name}: ${allowed.says}`,
+    })
+    // A seller recording the order of a buyer that is on Etyme: the order
+    // is the buyer's to raise, and the refusal names who at the buyer may
+    // — read off the buyer's own roles, never "their MSP or AP clerk",
+    // which a prime supplier does not have (the Tapin walk, 2026-10-29).
+    const theirsToRaise = recordingForBuyer && seller.id === companyId && buyer.claimedAt != null && buyer.id !== seller.id
+    const says = theirsToRaise
+      ? orderIsTheirsSays({
+          buyerName: buyer.name,
+          roles: await prisma.role.findMany({ where: { companyId: buyer.id }, select: { name: true, permissions: true } }),
+        })
+      : allowed.says
+    return NextResponse.json(
+      { error: { code: 'NOT_YOURS', message: says, field: recordingForBuyer ? 'issuedById' : 'issuedToId' } },
+      { status: 403 }
+    )
+  }
+
+  // The number is unique per issuer in the database. Catching it here means
+  // the message names the existing PO rather than surfacing a constraint.
+  const clash = await prisma.workOrder.findFirst({
+    where: { issuedById, number },
+    select: { id: true, issuedTo: { select: { name: true } }, amount: true, currency: true },
+  })
+  if (clash) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'DUPLICATE',
+          message: `${number} already exists — it authorizes ${fromUnits(Number(clash.amount), clash.currency)} to ${clash.issuedTo.name}.`,
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  // The company's own currency unless this PO says otherwise. Not on the
+  // caller context, so read it rather than assume dollars.
+  const issuer = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { currency: true },
+  })
+  const currency = String(body.currency ?? issuer?.currency ?? 'USD').toUpperCase()
+
+  // ── The terms that had nowhere to live ─────────────────────────────
+  //
+  // Every one of these was on `SalesOrder`, and nothing had ever written
+  // a `SalesOrder`. `autoApproveTimesheets` is the one that was costing
+  // money: `cron/auto-approve` read it off a row that did not exist, so
+  // the flag was false on every timesheet in the world and the nightly
+  // job approved nothing from the day it was written.
+  //
+  // It is the buyer's term — the client agreeing that its own silence
+  // counts. A seller can only ever set it while transcribing a shell
+  // client's paper, which is the case `mayWriteOrder` has already
+  // allowed, and the row records who typed it in.
+  const billingBasis = ['TIME', 'MILESTONE', 'BOTH'].includes(String(body.billingBasis ?? '').toUpperCase())
+    ? String(body.billingBasis).toUpperCase()
+    : 'TIME'
+
+  // ── The rhythm this order is billed on ─────────────────────────────
+  //
+  // It used to take the schema default and nothing could say otherwise,
+  // which mattered the moment the header started deciding: a client
+  // whose paper says weekly would have had every placement on it read as
+  // monthly, and the default nobody chose would have beaten the answer
+  // somebody typed on the line. A raiser states it or the default stands
+  // and is the same default the lines already carry.
+  //
+  // The header keeps its own vocabulary — CONTRACT_START, TO_EARLIER,
+  // TO_LATER — and a line's words are accepted as synonyms, because
+  // whoever is typing has no idea there are two.
+  const RHYTHM: Record<string, Record<string, string>> = {
+    billFrequency: {
+      WEEKLY: 'WEEKLY', BIWEEKLY: 'BIWEEKLY', SEMIMONTHLY: 'SEMIMONTHLY',
+      MONTHLY: 'MONTHLY', CUSTOM: 'CUSTOM',
+    },
+    billAnchor: {
+      CALENDAR: 'CALENDAR', CONTRACT: 'CONTRACT_START', CONTRACT_START: 'CONTRACT_START',
+      CUSTOM: 'CUSTOM',
+    },
+    billStraddle: {
+      SPLIT: 'SPLIT', START: 'TO_EARLIER', TO_EARLIER: 'TO_EARLIER',
+      END: 'TO_LATER', TO_LATER: 'TO_LATER',
+    },
+  }
+  const rhythm: Record<string, string> = {}
+  for (const field of ['billFrequency', 'billAnchor', 'billStraddle']) {
+    const said = body[field]
+    if (said == null || said === '') continue
+    const known = RHYTHM[field][String(said).toUpperCase()]
+    if (!known) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION',
+            message: `${said} is not a rhythm anything here can bill on. Use one of ${Object.keys(RHYTHM[field]).join(', ')}.`,
+            field,
+          },
+        },
+        { status: 422 }
+      )
+    }
+    rhythm[field] = known
+  }
+
+  const approvalWindowDays =
+    body.approvalWindowDays == null || body.approvalWindowDays === ''
+      ? null
+      : Number(body.approvalWindowDays)
+  if (approvalWindowDays != null && (!Number.isInteger(approvalWindowDays) || approvalWindowDays < 1)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'The window a client has to answer a timesheet is a whole number of working days, at least one.',
+          field: 'approvalWindowDays',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  // ── The agreement sets the terms. Founder, 2026-10-18 ──────────────
+  //
+  // "AR and AP is always based on the agreed MSA." Where the two firms
+  // signed one, a term this order does not state is the agreement's, and
+  // a term it states differently needs the reason recorded with it — who
+  // gave it and when — or it is refused here in a sentence. Where they
+  // signed none, this order is their agreement and nothing is compared.
+  const agreement = await prisma.masterAgreement.findFirst({
+    where: body.msaId
+      ? { id: String(body.msaId), vendorId: seller.id, clientId: buyer.id }
+      : { vendorId: seller.id, clientId: buyer.id, endedAt: null },
+    select: AGREEMENT_TERMS_SELECT,
+    orderBy: { createdAt: 'desc' },
+  })
+  const saidFrom = body.paymentTermsFrom == null || body.paymentTermsFrom === '' ? null : String(body.paymentTermsFrom).toUpperCase()
+  if (saidFrom !== null && !isAnchor(saidFrom)) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: `${body.paymentTermsFrom} is not something payment days can be counted from. Use one of ${ANCHORS.join(', ')}.`, field: 'paymentTermsFrom' } },
+      { status: 422 }
+    )
+  }
+  const saidDays = body.paymentTerms != null && Number.isInteger(Number(body.paymentTerms)) ? Number(body.paymentTerms) : null
+  const differs = differencesFrom(agreement, {
+    ...rhythm,
+    paymentTerms: saidDays,
+    paymentTermsFrom: saidFrom,
+    currency: body.currency ? currency : null,
+  })
+  const differReason = reasonFrom(body.termsDifferReason)
+  if (differs.length > 0 && !differReason) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'TERMS_DIFFER',
+          // Named from the reader's end: a supplier reads its agreement
+          // with the client, a client its agreement with the supplier.
+          message: differenceRefusal('order', differs, companyId === seller.id ? (agreement?.client?.name ?? null) : (agreement?.vendor?.name ?? null)),
+          field: 'termsDifferReason',
+          differs,
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  const po = await prisma.workOrder.create({
+    data: {
+      number,
+      sellerNumber: body.sellerNumber ? String(body.sellerNumber).trim() : null,
+      title: body.title ? String(body.title).trim() : null,
+      issuedById: buyer.id,
+      issuedToId: seller.id,
+      recordedById: allowed.recordedById,
+      amount,
+      // The agreement's currency where this order did not say one.
+      currency: body.currency ? currency : (agreement?.currency ?? currency),
+      startDate,
+      endDate,
+      status: 'OPEN',
+      billingBasis,
+      // What the order did not state is the agreement's, so the paper and
+      // the answer read the same.
+      ...headerRhythmFrom(agreement),
+      ...rhythm,
+      billToId: body.billToId ? String(body.billToId) : null,
+      shipToId: body.shipToId ? String(body.shipToId) : null,
+      payerId: body.payerId ? String(body.payerId) : null,
+      ...(saidDays !== null
+        ? { paymentTerms: saidDays }
+        : typeof agreement?.paymentTerms === 'number' ? { paymentTerms: agreement.paymentTerms } : {}),
+      paymentTermsFrom: saidFrom,
+      // Why it differs, who said and when — all three or none.
+      ...(differs.length > 0 && differReason
+        ? { termsDifferReason: differReason, termsDifferById: caller.person.id, termsDifferAt: new Date() }
+        : {}),
+      autoApproveTimesheets: body.autoApproveTimesheets === true,
+      approvalWindowDays,
+      engagementId: body.engagementId ? String(body.engagementId) : null,
+      msaId: body.msaId ? String(body.msaId) : (agreement?.id ?? null),
+    },
+    select: {
+      id: true, number: true, sellerNumber: true, amount: true, currency: true,
+      startDate: true, endDate: true, billingBasis: true,
+      billFrequency: true, billAnchor: true, billStraddle: true, paymentTerms: true,
+      autoApproveTimesheets: true, approvalWindowDays: true,
+      issuedById: true, issuedToId: true, billToId: true, payerId: true,
+    },
+  })
+
+  // Attach it to contracts that were already running against this supplier
+  // with no PO. Without this the PO exists and every invoice still fails
+  // the check, which reads as the feature not working.
+  //
+  // ── And the terms come with it ──────────────────────────────────────
+  //
+  // A purchase order is a header and its lines, and the rhythm and the
+  // net days are the header's. So a running placement that joins this
+  // order is billed on this order's terms from now on, and its own copy
+  // of those four is corrected to match rather than left to disagree
+  // silently with the paper it now sits under.
+  //
+  // The header wins because it is the document the two firms actually
+  // signed: a client's purchase order saying net 45 is the term, and a
+  // supplier's line saying net 30 is either a stale copy or a default
+  // nobody chose — and the line cannot tell you which, because those
+  // columns are not nullable. What is NOT touched is either date. An
+  // order is not a person; the line's dates are when this person works.
+  //
+  // The correction is money, so it is counted and logged rather than
+  // done quietly. Past invoices keep the periods they were raised for.
+  let attached = 0
+  let corrected = 0
+  if (body.attachExistingContracts !== false) {
+    const where: Prisma.SellContractWhereInput = {
+      // The seller's own running contracts with this buyer, whichever
+      // of the two recorded the order. A supplier entering the paper
+      // its client handed it wants exactly this: the placements it is
+      // already running now bill against the ceiling that authorizes
+      // them.
+      companyId: seller.id,
+      clientCompanyId: buyer.id,
+      workOrderId: null,
+      state: { in: ['IN_PROGRESS', 'PAUSED'] },
+    }
+    const running = await prisma.sellContract.findMany({
+      where,
+      select: {
+        id: true, billFrequency: true, billAnchor: true, billStraddle: true, paymentTerms: true,
+      },
+    })
+    const onThisOrder = termsFor('SELL', { workOrder: po })
+    corrected = running.filter(
+      (c) =>
+        c.billFrequency !== onThisOrder.frequency ||
+        c.billAnchor !== onThisOrder.anchor ||
+        c.billStraddle !== onThisOrder.straddle ||
+        c.paymentTerms !== (onThisOrder.paymentTermsDays ?? c.paymentTerms)
+    ).length
+
+    const result = await prisma.sellContract.updateMany({
+      where,
+      data: {
+        workOrderId: po.id,
+        billFrequency: onThisOrder.frequency,
+        billAnchor: onThisOrder.anchor,
+        billStraddle: onThisOrder.straddle,
+        ...(onThisOrder.paymentTermsDays !== null
+          ? { paymentTerms: onThisOrder.paymentTermsDays }
+          : {}),
+      },
+    })
+    attached = result.count
+  }
+  const correctionSays =
+    corrected > 0
+      ? `${corrected} of them were on different terms and now read ${onOrderWords(po)}.`
+      : null
+
+  await prisma.automationLog.create({
+    data: {
+      companyId,
+      action: allowed.onBehalf ? 'WORK_ORDER_RECORDED' : 'PURCHASE_ORDER_RAISED',
+      summary: allowed.onBehalf
+        ? `${caller.person.name} recorded ${buyer.name}'s order ${number} — ${fromUnits(amount, currency)} authorized to ${seller.name}`
+        : `${caller.person.name} authorized ${fromUnits(amount, currency)} to ${seller.name} on ${number}`,
+      reason: [
+        moneyTrailFor(desk.seat, `Order ${number} raised`),
+        allowed.onBehalf
+          ? allowed.says
+          : attached > 0
+            ? `${attached} running contract(s) with no PO were attached to it`
+            : 'Raised from the purchase orders screen',
+        correctionSays,
+      ]
+        .filter(Boolean)
+        .join(' '),
+      payload: {
+        workOrderId: po.id, number, supplierId: seller.id, amount, attached,
+        termsCorrected: corrected, onBehalf: allowed.onBehalf,
+      },
+      reversible: true,
+    },
+  })
+
+  void emit({
+    type: 'purchase_order.raised',
+    companyId,
+    subjectType: 'WorkOrder',
+    subjectId: po.id,
+    actorPersonId: caller.person.id,
+    payload: {
+      number,
+      supplierCompanyId: seller.id,
+      supplierName: seller.name,
+      amount,
+      currency,
+      startDate: startDate.toISOString(),
+      endDate: endDate?.toISOString() ?? null,
+      contractsAttached: attached,
+    },
+  })
+
+  return NextResponse.json(
+    {
+      data: {
+        // Neutral in the payload; `noun` beside it says what this
+        // reader calls it. The screen never prints the schema's word.
+        order: {
+          ...po,
+          amount: Number(po.amount),
+          startDate: po.startDate.toISOString().slice(0, 10),
+          endDate: po.endDate?.toISOString().slice(0, 10) ?? null,
+        },
+        contractsAttached: attached,
+        /** Of those, how many were on terms this document has now corrected. */
+        termsCorrected: corrected,
+        ...(correctionSays ? { termsCorrectedSays: correctionSays } : {}),
+        /** What the caller's own side calls this row. */
+        noun: nounFor(po, companyId).noun,
+        recordedForThem: allowed.onBehalf,
+        message:
+          (allowed.onBehalf
+            ? `${allowed.says} `
+            : '') +
+          (attached > 0
+            ? `${number} authorizes ${fromUnits(amount, currency)} to ${seller.name}, and ${attached} running contract(s) now bill against it.`
+            : `${number} authorizes ${fromUnits(amount, currency)} to ${seller.name}.`) +
+          (po.autoApproveTimesheets
+            ? ` A timesheet nobody answers within ${po.approvalWindowDays ?? 'the default number of'} working days is approved.`
+            : ''),
+      },
+    },
+    { status: 201 }
+  )
+}
+
+/**
+ * PATCH /api/purchase-orders — change the ceiling, or close it
+ *
+ * Increasing an authorization is the ordinary remedy when a PO runs out
+ * mid-engagement, and it is the thing an AP clerk is sent to do when an
+ * invoice fails the balance check. Refusing the waiver and pointing at a
+ * door is only defensible if the door exists.
+ */
+export async function PATCH(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'Purchase orders belong to a company' } },
+      { status: 403 }
+    )
+  }
+  // The same desk the list was read from: the client's order, under the
+  // client's role, in a seat; the office's own with `?books=own`.
+  const desk = (await writingDesk(caller, request))!
+  if (!hasPermission(desk.permissions, RAISES_AN_ORDER)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: desk.seat
+            ? seatedRefusal(desk.seat, 'Changing a purchase order')
+            : refusalFor(caller, {
+                doing: 'Changing a purchase order',
+                needs: RAISES_AN_ORDER,
+              }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  const body = await request.json().catch(() => ({}))
+  const id = String(body.id ?? '')
+
+  const existing = await prisma.workOrder.findFirst({
+    // Only the issuer changes it. A supplier cannot raise the ceiling they
+    // are billing against, which is the whole point of a PO.
+    where: { id, issuedById: desk.companyId },
+    select: {
+      id: true, number: true, amount: true, currency: true, status: true, endDate: true,
+      issuedTo: { select: { name: true } },
+    },
+  })
+  if (!existing) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No purchase order of yours with that id. Only the company that raised one can change it.' } },
+      { status: 404 }
+    )
+  }
+
+  const data: Record<string, unknown> = {}
+  const changes: string[] = []
+
+  if (body.amount !== undefined) {
+    const amount = Number(body.amount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'An authorized amount is above zero', field: 'amount' } },
+        { status: 422 }
+      )
+    }
+    data.amount = amount
+    changes.push(
+      amount > Number(existing.amount)
+        ? `raised from ${fromUnits(Number(existing.amount), existing.currency)} to ${fromUnits(amount, existing.currency)}`
+        : `reduced from ${fromUnits(Number(existing.amount), existing.currency)} to ${fromUnits(amount, existing.currency)}`
+    )
+  }
+
+  if (body.endDate !== undefined) {
+    data.endDate = body.endDate ? new Date(String(body.endDate)) : null
+    changes.push(body.endDate ? `runs to ${String(body.endDate).slice(0, 10)}` : 'no end date')
+  }
+
+  if (body.status !== undefined) {
+    const status = String(body.status).toUpperCase()
+    if (!['OPEN', 'CLOSED', 'CANCELLED'].includes(status)) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'A purchase order is OPEN, CLOSED or CANCELLED', field: 'status' } },
+        { status: 422 }
+      )
+    }
+    data.status = status
+    changes.push(status.toLowerCase())
+  }
+
+  if (changes.length === 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Nothing to change' } },
+      { status: 422 }
+    )
+  }
+
+  const updated = await prisma.workOrder.update({
+    where: { id },
+    data,
+    select: { id: true, number: true, amount: true, status: true, endDate: true },
+  })
+
+  await prisma.automationLog.create({
+    data: {
+      companyId: desk.companyId,
+      action: 'PURCHASE_ORDER_CHANGED',
+      summary: `${caller.person.name} changed ${existing.number} — ${changes.join(', ')}`,
+      reason: [
+        moneyTrailFor(desk.seat, `Order ${existing.number} changed`),
+        body.reason ? String(body.reason).trim() : 'Changed on the purchase orders screen',
+      ].filter(Boolean).join(' '),
+      payload: { workOrderId: id, changes },
+      reversible: true,
+    },
+  })
+
+  if (data.status === 'CLOSED' || data.status === 'CANCELLED') {
+    void emit({
+      type: 'purchase_order.closed',
+      companyId: desk.companyId,
+      subjectType: 'WorkOrder',
+      subjectId: id,
+      actorPersonId: caller.person.id,
+      payload: { number: existing.number, status: data.status, supplier: existing.issuedTo.name },
+    })
+  }
+
+  return NextResponse.json({
+    data: {
+      order: { ...updated, amount: Number(updated.amount) },
+      changes,
+      message: `${existing.number} ${changes.join(', ')}.`,
+    },
+  })
+}
+
+/**
+ * The terms an order now imposes, as somebody would say them.
+ *
+ * Used in the automation log when running placements are corrected onto
+ * the document they have joined, so the line reads as a sentence rather
+ * than as four column names.
+ */
+function onOrderWords(po: {
+  billFrequency: string
+  billAnchor: string
+  billStraddle: string
+  paymentTerms: number
+}): string {
+  const t = termsFor('SELL', { workOrder: po })
+  const from = t.anchor === 'CONTRACT' ? 'from the day each one started' : 'from the 1st'
+  return `${t.frequency.toLowerCase()}, ${from}, net ${t.paymentTermsDays ?? po.paymentTerms}`
+}

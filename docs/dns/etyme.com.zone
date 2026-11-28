@@ -1,0 +1,63 @@
+; etyme.com — DNS zone, updated 2026-11-09 to put the app on etyme.com.
+; Host: Bluehost (ns1.bluehost.com, ns2.bluehost.com). Enter these in
+; Bluehost → Domains → etyme.com → DNS. TTLs in seconds.
+;
+; Read against the live zone on 2026-11-09. Lines marked CHANGED or NEW
+; differ from it; everything else is kept exactly as it is.
+
+$ORIGIN etyme.com.
+$TTL 14400
+
+; ── Nameservers (unchanged) ────────────────────────────────────────────
+@                       86400  IN  NS     ns1.bluehost.com.
+@                       86400  IN  NS     ns2.bluehost.com.
+
+; ── The app ────────────────────────────────────────────────────────────
+; CHANGED: was 216.24.57.1 (the old site, on another host). Now the
+; Vercel project etyme2040. If Vercel's Domains page shows a different
+; A value or CNAME for this project, use Vercel's.
+@                         900  IN  A      76.76.21.21
+; CHANGED: was a CNAME to etyme.com (which followed the old site).
+www                       900  IN  CNAME  cname.vercel-dns.com.
+; NEW: Tapin's company page (the app maps tapin.etyme.com to /site/tapin).
+tapin                     900  IN  CNAME  cname.vercel-dns.com.
+
+; REMOVED: the wildcard  *  900 IN A 216.24.57.1
+; It sent every unknown name (notify, _dmarc, in, tapin, ...) to the old
+; host, which is why notify.etyme.com never carried Resend's records.
+; Do not point a wildcard at Vercel from Bluehost: Vercel issues a
+; certificate for *.etyme.com only when its own nameservers hold the
+; zone. Each firm's <slug>.etyme.com is added by name until then.
+
+; ── Google Workspace mail for @etyme.com (unchanged) ───────────────────
+@                              IN  MX 1   aspmx.l.google.com.
+@                              IN  MX 5   alt1.aspmx.l.google.com.
+@                              IN  MX 5   alt2.aspmx.l.google.com.
+@                              IN  MX 10  alt3.aspmx.l.google.com.
+@                              IN  MX 10  alt4.aspmx.l.google.com.
+
+; CHANGED: the zone had two SPF records, which makes SPF fail for every
+; message (a domain may publish only one). Merged into one, keeping every
+; sender either listed.
+@                              IN  TXT    "v=spf1 ip4:162.144.178.127 include:_spf.google.com include:spf.smtp.adxemailhelp.com ~all"
+
+; Google site verification (unchanged)
+@                              IN  TXT    "google-site-verification=BBDibdPX9tTYPhaDsrVgPeKBEqMiCXs8rZjrf4WbfYk"
+@                              IN  TXT    "google-site-verification=cxCyQld11ghvCXM09SlUlmD1aVXzandjIVzX9EPXQlc"
+@                              IN  TXT    "google-site-verification=hxgsHBmOvl9N-eZ2B67Y-NIuWG2-L0t0SZeDnTrb4z8"
+
+; NEW: DMARC, report-only, so nothing is rejected while SPF settles.
+_dmarc                         IN  TXT    "v=DMARC1; p=none; rua=mailto:support@etyme.com"
+
+; ── Etyme's outgoing notices from notify.etyme.com, via Resend (NEW) ───
+; Without these Resend cannot verify notify.etyme.com, and sign-up
+; confirmations and notices do not leave. Copy the DKIM value, and the
+; MX host if its region differs, exactly from Resend → Domains →
+; notify.etyme.com; the placeholder below is not a real key.
+send.notify                    IN  MX 10  feedback-smtp.us-east-1.amazonses.com.
+send.notify                    IN  TXT    "v=spf1 include:amazonses.com ~all"
+resend._domainkey.notify       IN  TXT    "p=PASTE-THE-DKIM-KEY-FROM-RESEND"
+
+; ── Not added on purpose ───────────────────────────────────────────────
+; in.etyme.com (forwarded business email) stays without records: the
+; inbound door is closed until EMAIL_INTAKE_LIVE=1.

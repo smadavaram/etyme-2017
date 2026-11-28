@@ -1,0 +1,533 @@
+import { describe, it, expect, beforeAll } from 'vitest'
+import { prisma, freshWorld } from './harness'
+import { partiesOf } from '@/lib/money/invoice-parties'
+import { extensionPapers, mayExtendOnPapers } from '@/lib/contract-clearance'
+import { EAD_ENDS_AFTER_LINE_DAYS } from '@/lib/seed-programmes'
+import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
+
+/**
+ * Every level of the delivery matrix has something to look at.
+ *
+ * "All levels need to be in sync in the seed file so I can run
+ * simulations on each of the test scripts."
+ *
+ * CLAUDE.md's first lesson from the client's Network week: *"If a screen
+ * is empty on the seeded world, that is the bug, not the seed."* This is
+ * that lesson as a test. It seeds the world once and counts every table
+ * in the schema. A table with no rows is either
+ *
+ *   RUNTIME — nothing writes it until a person does something, and a
+ *             seeded row would be a lie about what happened; or
+ *   GAP     — a screen somewhere opens empty, and the seed owes it a row.
+ *
+ * Both lists are named below, so the file fails in two directions: a new
+ * empty table nobody classified, and a table still listed as a GAP after
+ * the seed learned to fill it. A stale entry is as much a failure as a
+ * new one — that is what stopped three earlier bug classes in this
+ * codebase from coming back.
+ *
+ * The GAP list is the work. It shrinks; it never grows without a reason
+ * written beside it.
+ */
+
+/**
+ * Written the moment somebody acts, and meaningless before that.
+ *
+ * Seeding these would be inventing history: an access log with no read
+ * behind it, an incident for a failure that never happened, a job run
+ * for a night the cron did not run. `/ready` is where these are proven,
+ * by the outside world doing it once, and that is the right place.
+ *
+ * ── Two left this list on 2026-09-17, and why ────────────────────────
+ *
+ * `message` — a thread with nothing in it is not a thread. The rule this
+ * list keeps is that the seed never claims an edge with the outside world
+ * was crossed; a Message row is content in a story, exactly like the 70
+ * timesheets seeded people filed and the 43 interviews they sat, and
+ * writing one sends no email. The edges stay where they belong: `import`,
+ * `contractorInvitation`, `textMessage` and `jobRun` are still here, and
+ * `/ready` still proves them.
+ *
+ * `agentRun` — the seed now runs the real match engine over a bench
+ * vendor's own bench, and the engine records its own run and its own
+ * cost. That is an agent loop that actually ran, which is precisely what
+ * the line said. Nothing was invented; the row is the matcher's receipt.
+ *
+ * `exemptAssertion` left on 2026-09-29, for the demo's pay rise
+ * (lib/seed-rate-change). Rosa Delgado is paid by the hour with time and
+ * a half after forty, and her employer saying she is non-exempt is part
+ * of that story in the same way her signed weeks are: a position taken
+ * on a seeded placement, screened by the same `screenExemption` the
+ * route runs. It crosses no edge with the outside world.
+ */
+const RUNTIME: Record<string, string> = {
+  courseAdoption: 'Written when another firm chooses to adopt a course its creator offers; a seeded row would claim a firm took a course it never chose.',
+  learningPath: 'Written when a mentor proposes a path (or a team path is proposed from a project team) and the mentor says yes; a seeded row would claim somebody agreed to teach.',
+  lessonVideo: 'Written when a creator attaches a video to a lesson; a seeded row would claim a video nobody uploaded.',
+  learnCredential: 'Written when a learner finishes a course and her firm records the credential; a seeded row would claim a certification nobody earned.',
+  skillTarget: 'Written when the Owner sets a target for a skill or an agent; a seeded row would claim a number the Owner never chose.',
+  submissionConfirmation: 'Written when a person or the confirmation tracker records that the other side confirmed a submission; a seeded row would claim a confirmation nobody gave.',
+  offer: 'Written when a person drafts, proposes or answers an offer on a submission; a seeded row would claim an offer nobody made.',
+  checklistItem: 'Written when a contract or a petition checklist is opened and a person records a value; a seeded row would claim a paper was checked.',
+  petition: 'Written when a person records a petition for somebody; a seeded row would claim a filing nobody made.',
+  noticePosting: 'Written when a person records a notice going up or coming down at a site; a seeded row would claim somebody posted it.',
+  publicAccessFile: 'Written when a person starts the public access file of a petition; a seeded row would claim one was approved.',
+  payrollDraft: 'Written by the payroll agent when the Owner switches it on; the seed switches no agent on.',
+  outreachSegment: 'Saved by a person who builds an audience; a seeded segment would claim a choice nobody made (record 135).',
+  outreachTripwireFiring: 'Written by the daily detection job when a tripwire trips on the ledger; the seed trips none (record 135).',
+  outreachPack: 'Created and approved by a person as one yes; a seeded approved pack would be a send nobody allowed (record 135).',
+  outreachPush: 'Assembled from a firing and a segment by the detection engine; a seeded push would sit in a pack nobody approved (record 135).',
+  outreachVisit: 'Written when a signed-in person or a known contact arrives through a letter\u2019s tracked link; the seed sends no letter (record 135).',
+  outreachLetter: 'Written when a person raises an outreach batch to companies; a seeded row would claim a letter somebody chose to send.',
+  mailSend: 'Written when an email is attempted; the seed sends none, and a seeded row would claim mail left for a demo address.',
+  recordAction: 'Written when a person acts on a record after the ledger began (2026-11-21); the seed acts through no screen.',
+  decisionItem: 'Opened by an Owner or an Admin on the decision queue, or by a disputed month; the real questions are a firm\'s own and are never seeded.',
+  agentSwitch: 'Written when the Owner switches an agent on, off or to drafts only; every agent is off until then, and a seeded switch would claim the Owner chose.',
+  tenantModelRoute: 'Written when an Owner brings their own model route for a step (record 125); a seeded row would claim a key and a provider the Owner chose.',
+  pluginSwitch: 'Written when an Owner or Etyme staff switches a plugin; every plugin starts off, so the seeded world has none.',
+  cohort: 'Train to bench is a plugin, off by default; a firm writes a cohort only after its Owner switches it on.',
+  assessment: 'Written by a cohort’s trainer after the Train to bench plugin is on; off by default.',
+  certification: 'Issued by a cohort’s trainer or assessor after the Train to bench plugin is on; off by default.',
+  learnBadge: 'Earned by a learner on her own record when she finishes a level or a course on the training micro-site; the plugin is off by default and nothing writes one until she learns.',
+  benchAsk: 'Written when a firm asks a trainee onto its bench, inside the Train to bench plugin; off by default.',
+  pod: 'Project teams is a plugin, off by default; a firm writes a team only after its Owner switches it on.',
+  podRole: 'Written with a team, inside the Project teams plugin; off by default.',
+  podMember: 'Written when a firm puts a person on a team, inside the Project teams plugin; off by default.',
+  podProject: 'Written when a client says yes to a sold team, inside the Project teams plugin; off by default.',
+  podDeliverable: 'Written with a sold team\u2019s milestones, inside the Project teams plugin; off by default.',
+  siteCompliancePass: 'Written when a person records a compliance pass on a tenant site, inside the Website plugin; off by default, so the seeded world has none.',
+  proposal: 'Written when a person starts a public-sector proposal, inside the Public-sector proposals plugin; off by default, so the seeded world has none.',
+  supplierCertification: 'Written when the Owner records a diversity certification, inside the Public-sector proposals plugin; off by default, and Tapin holds none yet, so the seeded world has none.',
+  ownershipAttestation: 'Written when the Owner attests an ownership fact, inside the Public-sector proposals plugin; off by default, and an agent never writes one.',
+  diversityRegistration: 'Written when a person records a buyer\u2019s diversity portal, inside the Public-sector proposals plugin; off by default, so the seeded world has none.',
+  proposalPiece: 'Written with a proposal, inside the Public-sector proposals plugin; off by default.',
+  agentTask: 'Proposed by an agent that is switched on, and released by a person’s yes on the decision queue; no agent runs in the seeded world.',
+  moneyChain: 'Opened when a seat that runs payroll opens a month; every amount on it is typed by a person.',
+  // Record 102, item 1 (2026-11-21). A stranger's question from a firm's public page.
+  pageAsk: 'written when somebody outside Etyme asks a firm a question on its public page; a seeded row would claim a stranger wrote to the demo firm and left an address',
+  // Layer 7, slice S0 (2026-11-16, records 86 and 87). Nothing writes these
+  // until a person acts, and a seeded row would claim an act nobody did.
+  bankCheck: 'written when a paying client confirms a supplier’s bank details with a recorded call back; a seeded row would claim a client called somebody',
+  bankChangeRequest: 'written when a supplier enters new bank details; the seed changes nobody’s bank',
+  // Record 87 (2026-11-17). Nothing writes these until a person acts.
+  remitToChoice: 'written when a supplier chooses which account one customer pays; the seed chooses for nobody, so every customer pays the default',
+  supplierChangeMessage: 'written when a customer’s confirmed change is sent to its own system; nothing sends one yet, and the seed changes nobody’s bank',
+  passkey: 'written when a person enrolls a passkey for the second check; the seed enrolls nobody',
+  authenticatorApp: 'written when a person enrolls an authenticator app; the seed enrolls nobody',
+  securityEvent: 'written by security events as they happen (a second check, a showing of bank details); the seed claims none happened',
+  // Layer 9, slice 2 (2026-11-16, record 87).
+  billFeedMessage: 'written when a client downloads or sends its coded line file, and when its own system answers; the seed sends no file',
+  companyCoding: 'written when a client saves its company code or its file columns; a seeded row would claim a client chose them',
+  // Owners (2026-11-11/12): an ask about who owns a company, and a proof
+  // of ownership. A seeded ask would claim an Owner asked; a seeded proof
+  // would claim a provider checked somebody, and Etyme renders no verdict.
+  ownershipRequest: 'written when an Owner passes ownership, or removes or demotes another Owner, and waits for a second person’s yes; the seed asks nothing on anybody’s behalf',
+  ownerProof: 'written when an Admin presses Become Owner on both proofs or a Superadmin records an identity provider’s result verbatim; the seeded companies were formed before the proof rule and need none',
+  // A change to the team structure (2026-11-09): kept when the Owner or an
+  // Admin draws the tree or imports a directory; the seed draws Corvane's
+  // tree as data and records no change on anybody's behalf.
+  orgChange: 'written when the Owner or an Admin changes the team structure on its screen or from a directory import; the seed changes nothing on anybody’s behalf',
+  // A hiring manager named at a site by a person (2026-10-28). Every
+  // seeded site reads its managers from the jobs they posted there, which
+  // is the rule; a typed name is only for somebody who has posted nothing.
+  siteHiringManager: 'written when a person names a hiring manager at a site who has posted nothing there yet',
+  setupAnswer: 'written when an Owner or Admin saves a setup checklist item, saying where each answer came from; the seed answers nothing on anybody’s behalf, so a seeded answer reads as typed by nobody',
+  // An MSP asking a client for a seat (2026-10-27). Nothing writes one
+  // until an MSP asks; a seeded ask would claim somebody asked.
+  programSeatRequest: 'written when an MSP asks a client for a seat in its program',
+  // Two firms on Etyme asking to link (2026-10-27): nothing writes one
+  // until a firm asks; a seeded ask would claim somebody asked.
+  tradeLinkRequest: 'written when a firm asks another firm already on Etyme to link',
+  // The Owner giving access (2026-11-08): nothing writes a grant until an
+  // Owner gives one; a seeded grant would claim an Owner decided it.
+  permissionGrant: 'written when an Owner, or somebody the Owner named, gives a role or a person access on Users & permissions',
+  // A commission on a line (2026-11-08): written by the award's defaults and
+  // the line's commission panel (money); the seed sets no firm's rates.
+  contractCommission: 'written when the award or a person sets a commission on a sell or buy line',
+  // The job twin (2026-10-12). Its ledger and its questions are what the
+  // nightly run or a person wrote, each with the moment it happened; a
+  // seeded entry would claim the twin acted on a night it did not run.
+  // The world holds what the twin reads — Northbend's contractor 60 days
+  // from the limit and its three receipts — and DEMO.md's first step runs
+  // GET /api/cron/twin once, which writes the warning, the two questions
+  // and the flagged mismatch from that seed.
+  twinAction: 'written by the twin’s nightly run, or by a person answering it',
+  twinApproval: 'written when the twin’s nightly run asks a person before approving an invoice receipt',
+  // A company with no row reads the shipped defaults (version 0); a row is
+  // a named person changing them, with the reason.
+  roleContract: 'written when the settings desk changes what the twin may do, with the reason',
+  ruleSet: 'written when the settings desk changes the twin’s warning days or hours tolerance, with the reason',
+  teamsConversation: 'written when a person first opens Etyme in Microsoft Teams and the bot binds them to their seat',
+  // The model boundary (2026-10-13): off for every company until its
+  // settings desk turns it on, so a seeded prompt would be one that never left.
+  modelPrompt: 'written when Ask Etyme sends a question the rules did not answer to the model, masked, for a company that turned it on',
+  // A seat's saved Ask Etyme conversation (2026-10-18). Every seeded seat is
+  // a demo seat every visitor shares, and lib/ask-etyme-thread keeps no
+  // thread for those, so the seed writing one would be the leak the door
+  // refuses. Written once etyme-conversation's route calls appendTurn.
+  adverseAction: 'written when a firm gives a pre-adverse or final notice on a flagged background report, by POST /api/compliance/adverse-action',
+  emailIntake: 'written when an Owner or Admin turns forwarded email on or replaces its address, by PATCH /api/settings/email-intake; off by default, so the seed writes none',
+  inboundEmail: 'written when the mail provider posts a message to a company forwarding address, by POST /api/email/inbound, kept or dropped',
+  inboundEmailAttachment: 'written when an accepted forwarded email carries a file that passes the checks, by POST /api/email/inbound',
+  askEtymeThread: 'written the first time a person at their own seat says something to Ask Etyme; a shared demo seat keeps none',
+  askEtymeTurn: 'written for each line a person and Ask Etyme say at the person’s own seat, through appendTurn',
+  accessLog: 'written by a real read of somebody else’s data, including refusals',
+  docFile: 'written when somebody actually sends a document — the bytes of a real file, so a seeded one would be a photograph of nothing',
+  approvalRuleVersion: 'written when a rule is changed, not when it is created',
+  // A manager holding one of the firm's own people for his position
+  // (lib/internal-moves). The seed flags who rolls off and stops there:
+  // reserving, confirming and placing are the acts the demo exists to show.
+  projectHold: 'written when a manager reserves somebody on Our bench for his own position',
+  // Holidays on the bench (founder, 2026-10-03). Every firm reads its
+  // default with no row — off, or on for an integrator — and a row is a
+  // named desk turning it, so a seeded one would put a real-looking name
+  // on a pay decision nobody made.
+  benchHolidaySwitch: 'written when the owner, admin or finance desk turns holiday pay on the bench, for the firm or for one person',
+  // A typed-in invoice receipt (2026-10-18, lib/money/keyed-lines). The
+  // seeded receipts are matched on their totals; a line is what an AP desk
+  // types off a supplier's paper, and a waiver is a named person passing a
+  // difference with a reason, so a seeded one would put a name on a
+  // payment decision nobody made.
+  vendorBillLine: 'written when the AP desk types the lines of a supplier’s invoice into an invoice receipt',
+  vendorBillMatchOverride: 'written when the AP desk waives a difference on an invoice receipt, with the reason and its name',
+  // ── Four that must never be seeded, added 2026-09-19 ───────────────
+  //
+  // These are the strongest case this list has. A seeded DataRequest
+  // claims a real person asked to be forgotten; a seeded Breach claims
+  // personal data escaped, on a demo a founder walks in front of buyers.
+  // Both would be a lie of a different order from an empty screen, and
+  // an empty privacy desk is the honest reading of a world where nobody
+  // has asked for anything yet.
+  breach: 'written when somebody decides personal data went where it should not have — a seeded one would claim a breach that never happened',
+  breachCompany: 'written when a breach names the customers it touched',
+  dataRequest: 'written when a person actually asks for their data or asks to be forgotten',
+  legalHold: 'written when a company places a hold, with a reason and a name on it',
+  classificationCall: 'written when a worker classification is actually decided',
+  // ── The census, added 2026-09-20, for the same reason as the four
+  // above ────────────────────────────────────────────────────────────
+  //
+  // A seeded CensusRequest claims a named person at a real-sounding
+  // client sent us their contractor data and was promised in writing
+  // that we would delete it on a day. A seeded CensusFile is worse: it
+  // is a fictional file sitting under that promise, on a demo the
+  // founder walks in front of buyers. An empty census desk is the honest
+  // reading of a world where nobody has asked for one yet.
+  censusRequest: 'written when a client actually asks for a contractor census — a seeded one would claim a client sent us their data and was given a deletion date',
+  censusFile: 'the files a client actually uploaded; a seeded one is a fictional file under a promise we made in writing',
+  contractorInvitation: 'an invitation somebody sent; /ready proves the email edge',
+  documentShare: 'written when a person shares a document',
+  documentShareAccess: 'written when a share link is opened',
+  documentShareItem: 'written when a person shares a document',
+  dunningSend: 'written when a chase actually goes out',
+  erpAccountMap: 'written when a customer wires up their own ERP',
+  fxRate: 'fetched from a rate source, not invented',
+  governanceEvaluation: 'written at the moment a decision is evaluated',
+  identityMatch: 'written when cross-vendor resolution actually runs',
+  import: 'a real file somebody imported; /ready proves this edge',
+  importRow: 'the rows of a real import',
+  incident: 'written when something actually breaks',
+  censusRead: 'written when somebody at Etyme opens a census file a client sent, and when one of them is refused',
+  intercompanyPosition: 'written when an intercompany entry posts',
+  jobRun: 'written by the nightly job when it runs',
+  masterAgreementVersion: 'written when an agreement is amended',
+  overtimeDecision: 'written when somebody decides an overtime case',
+  reconciliationRun: 'written when a reconciliation is run',
+  serviceAccount: 'created by a customer wiring up an integration',
+  subdomainAlias: 'created when a customer claims one',
+  customDomain: 'created when a customer claims one',
+  supplierInvite: 'an invitation somebody sent',
+  textMessage: 'a message somebody actually sent',
+  webhookSubscription: 'created when a customer wires one up',
+  webhookDelivery: 'written when a webhook actually fires',
+  // The password door (2026-10-08). Both hold secrets or attempts, never
+  // history: a seeded token is a live way into an account, and a seeded
+  // failure claims somebody tried a password that nobody tried.
+  emailToken: 'a one-time link mailed to confirm an email or reset a password; a seeded one would be a live way into an account',
+  signInFailure: 'written when somebody enters a wrong password, so the door can slow down; a seeded one claims an attempt nobody made',
+  // Identity and the Superadmin screen (2026-11-11).
+  directoryConnection: 'written when a company\u2019s admin connects Google Workspace by consent; a seeded one would hold a sealed token Google never issued',
+  scimToken: 'issued when an Owner or Admin makes one for their directory; a seeded token is a live way to provision seats',
+  platformSetting: 'written when Etyme\u2019s Superadmin sets a number on the Superadmin screen; with none set the environment variable is the value, and a seeded one would override every deployment\u2019s own',
+  platformSettingChange: 'written by each change on the Superadmin screen, with who and when; a seeded one claims a change nobody made',
+}
+
+/**
+ * A screen opens empty because of these. Each one is seed work owed.
+ *
+ * Grouped by the value stream it starves, so the list reads as a plan
+ * rather than as an alphabet. Delete a line when the seed fills it — the
+ * test fails if you do not.
+ */
+const GAP: Record<string, string> = {
+  // Affiliates (record 129, row L3.2.2.37): the tables landed 2026-11-28 and no writer or screen exists yet. The seed owes a demo affiliate and a paid receipt once a screen shows them; the rebuild keeps these tables, so a seeded row needs a world-scoped way out first
+  affiliate: 'affiliate ledger table, writers built in lib/money, no route or screen yet (L3.2.2.37)',
+  affiliateAttribution: 'affiliate ledger table, writers built in lib/money, no route or screen yet (L3.2.2.37)',
+  affiliateAttributionCorrection: 'affiliate ledger table, writers built in lib/money, no route or screen yet (L3.2.2.37)',
+  subscriptionReceipt: 'affiliate ledger table, writers built in lib/money, no route or screen yet (L3.2.2.37)',
+  subscriptionReceiptReversal: 'affiliate ledger table, writers built in lib/money, no route or screen yet (L3.2.2.37)',
+  affiliateCommissionEntry: 'affiliate ledger table, writers built in lib/money, no route or screen yet (L3.2.2.37)',
+  affiliateStatement: 'affiliate ledger table, writers built in lib/money, no route or screen yet (L3.2.2.37)',
+  affiliatePayoutBatch: 'affiliate ledger table, writers built in lib/money, no route or screen yet (L3.2.2.37)',
+  affiliatePayoutItem: 'affiliate ledger table, writers built in lib/money, no route or screen yet (L3.2.2.37)',
+  // L1.1 Source to contract
+  marketingLead: 'nobody has enquired from the public site — and this table is not tenanted, so a seeded enquiry would be a fictional name in the founder\u2019s own sales funnel',
+  sourcedContact: 'sourcing at volume has no history; it arrives by import, and an import is a real file somebody loaded',
+  benchWant: 'the \u201cWhat we need\u201d screen at the top of Partner bench is not built yet \u2014 the table landed 2026-10-03 and the door and screen are etyme-supply\u2019s. The seed owes a row once the screen exists to show it',
+
+  // L1.2 Contract to onboard
+  credential: 'nobody has signed in through an identity provider yet. NOT a license on a person — that is a Verification, and the line here said otherwise for as long as it existed',
+  timeOffEntry: 'nobody has taken a day off. The only thing that writes one is an overtime decision being banked, which is a person deciding',
+}
+
+const counts: Record<string, number> = {}
+
+describe('the seeded world has something at every level of the matrix', () => {
+  beforeAll(async () => {
+    await freshWorld()
+    for (const name of Object.keys(prisma)) {
+      if (name.startsWith('$') || name.startsWith('_')) continue
+      const delegate = (prisma as any)[name]
+      if (!delegate || typeof delegate.count !== 'function') continue
+      try {
+        counts[name] = await delegate.count()
+      } catch {
+        // Not a model delegate.
+      }
+    }
+  }, 600_000)
+
+  it('counts every table in the schema, so nothing is classified by being forgotten', () => {
+    expect(Object.keys(counts).length).toBeGreaterThan(110)
+  })
+
+  it('every empty table is either written at runtime or named as seed work owed', () => {
+    const empty = Object.entries(counts).filter(([, n]) => n === 0).map(([name]) => name)
+    const unclassified = empty.filter((name) => !(name in RUNTIME) && !(name in GAP))
+    expect(
+      unclassified,
+      `These tables are empty after a world seed and nobody has said why.\n` +
+        `Add each to RUNTIME (nothing writes it until a person acts) or to GAP\n` +
+        `(a screen opens empty and the seed owes it a row):\n  ${unclassified.join('\n  ')}`
+    ).toEqual([])
+  })
+
+  it('a table listed as seed work owed is still empty, so the list cannot go stale', () => {
+    const fixed = Object.keys(GAP).filter((name) => (counts[name] ?? 0) > 0)
+    expect(
+      fixed,
+      `The seed now fills these, so take them off the GAP list — a list that\n` +
+        `still names solved problems stops being read:\n  ${fixed.join('\n  ')}`
+    ).toEqual([])
+  })
+
+  it('a table listed as runtime-only is still empty, so the seed never invents history', () => {
+    const invented = Object.keys(RUNTIME).filter((name) => (counts[name] ?? 0) > 0)
+    expect(
+      invented,
+      `The seed has started writing these, and each is supposed to mean that a\n` +
+        `person did something. Either the seed is inventing history or the entry\n` +
+        `belongs somewhere else:\n  ${invented.join('\n  ')}`
+    ).toEqual([])
+  })
+
+  it('the spine is dense: a placement, both its contracts, its hours and its bills all exist', () => {
+    for (const [table, floor] of [
+      ['company', 10], ['person', 50], ['context', 50], ['role', 40],
+      ['requirement', 20], ['submission', 20], ['interview', 10],
+      ['sellContract', 20], ['buyContract', 20], ['contractLink', 20],
+      ['timesheet', 40], ['workAssertion', 40],
+      ['invoice', 10], ['invoiceLine', 20], ['payment', 10], ['vendorBill', 1],
+      ['cycle', 100], ['verification', 20], ['benchListing', 20],
+    ] as Array<[string, number]>) {
+      expect(counts[table] ?? 0, `${table} should carry at least ${floor} rows on a seeded world`).toBeGreaterThanOrEqual(floor)
+    }
+  })
+
+  it('the layers above and below a placement are seeded too, not just the placement', () => {
+    // Added 2026-09-17, when the seed learned to write them. Floors
+    // rather than exact counts, so the world can grow — but a layer that
+    // silently stops being written fails here rather than on the screen
+    // it empties.
+    for (const [table, floor] of [
+      // The order that authorized the spend, and the ceiling it carries.
+      ['workOrder', 10], ['orderMilestone', 3],
+      // What the work actually earned and cost, and the books under it.
+      ['projectOrder', 10], ['orderPosting', 40],
+      ['ledgerAccount', 30], ['journalEntry', 40], ['journalLine', 80],
+      // The rest of a finance desk's week.
+      ['expense', 3], ['creditNote', 1], ['rateHistory', 10],
+      // An expense accepted like a week (founder, 2026-10-19, decision 1).
+      // Left the runtime list the same day: like a signed week, a firm's
+      // acceptance is a position taken in a seeded story, screened by the
+      // route's own rule (seedRosaExpenses in lib/seed-world). Northbend
+      // accepted one of Rosa Delgado's two travel expenses; the other waits.
+      ['expenseAcceptance', 1],
+      ['paymentRun', 1], ['paymentRunItem', 1], ['invoiceMatchOverride', 1],
+      // Where a firm sits, and what it can prove.
+      ['companyLocation', 10], ['holiday', 100],
+      ['verificationDoc', 20], ['documentBacking', 10],
+      ['visaPetition', 3], ['visaEvent', 15], ['visaDocument', 9],
+      // Either side of the placement.
+      ['resume', 20], ['conversation', 1], ['message', 3],
+      ['opening', 3], ['lead', 3], ['match', 1],
+      ['course', 3], ['enrollment', 3],
+    ] as Array<[string, number]>) {
+      expect(counts[table] ?? 0, `${table} should carry at least ${floor} rows on a seeded world`).toBeGreaterThanOrEqual(floor)
+    }
+  })
+
+  /**
+   * The agreement-less placement, walked end to end.
+   *
+   * `Engagement.msaId` went optional on 2026-09-18 and an invoice
+   * learned to say who it was between through the order, else through
+   * the lines billed on it. Both new branches had nothing on the seeded
+   * world to read, because every other placement here is papered with
+   * an MSA. Cavanaugh Glassworks sent Wrenfield Technical a purchase
+   * order and one contractor started; that is the sentence below.
+   */
+  it('a supplier that sent one order and one contractor, and never signed an agreement, is billed and attributed like any other', async () => {
+    const engagement = await prisma.engagement.findFirst({
+      where: { msaId: null, title: 'Furnace controls technician' },
+      select: { id: true },
+    })
+    expect(engagement, 'the seeded world has an engagement with no agreement above it').not.toBeNull()
+
+    const invoice = await prisma.invoice.findFirst({
+      where: { engagementId: engagement!.id },
+      select: {
+        total: true,
+        engagement: { select: { msa: { select: { vendorId: true, clientId: true } } } },
+        workOrder: {
+          select: {
+            id: true, number: true, msaId: true,
+            issuedById: true, issuedToId: true,
+            issuedBy: { select: { id: true, name: true } },
+            issuedTo: { select: { id: true, name: true } },
+          },
+        },
+        invoiceLines: {
+          select: {
+            hours: true,
+            timesheet: { select: { status: true } },
+            sellContract: {
+              select: {
+                msaId: true, workOrderId: true, billRate: true,
+                companyId: true, clientCompanyId: true,
+                company: { select: { id: true, name: true } },
+                clientCompany: { select: { id: true, name: true } },
+                buyLinks: { select: { buyContract: { select: { contractType: true, workOrderId: true, vendorCompanyId: true } } } },
+              },
+            },
+          },
+        },
+      },
+    })
+    expect(invoice, 'a bill went out on it').not.toBeNull()
+
+    // Nothing above the order, and nothing above the line either.
+    expect(invoice!.engagement.msa).toBeNull()
+    expect(invoice!.workOrder!.msaId).toBeNull()
+    const line = invoice!.invoiceLines[0]
+    expect(line.sellContract!.msaId).toBeNull()
+
+    // The week was signed before it was billed.
+    expect(line.timesheet!.status).toBe('APPROVED')
+    expect(Number(line.hours)).toBe(40)
+    expect(Number(invoice!.total)).toBe((40 * line.sellContract!.billRate) / 100)
+
+    // The sell line is on the client's order; the buy line is payroll,
+    // and a firm raises no purchase order to its own employee.
+    expect(line.sellContract!.workOrderId).toBe(invoice!.workOrder!.id)
+    const buy = line.sellContract!.buyLinks[0].buyContract
+    expect(buy.contractType).toBe('W2')
+    expect(buy.workOrderId).toBeNull()
+    expect(buy.vendorCompanyId).toBeNull()
+
+    // And who the bill is between is answered by the order, in words.
+    const parties = partiesOf({
+      agreement: invoice!.engagement.msa,
+      order: invoice!.workOrder,
+      lines: invoice!.invoiceLines.map((l) => l.sellContract!),
+    })
+    expect(parties.basis).toBe('ORDER')
+    expect(parties.vendor!.name).toBe('Wrenfield Technical')
+    expect(parties.client!.name).toBe('Cavanaugh Glassworks')
+    expect(parties.says).toContain('there is no agreement behind this engagement')
+  })
+
+  it('both sides of every placement are seeded, never just the side that bills', async () => {
+    // A sell contract with no buy contract behind it is a placement with
+    // nobody being paid, and it is the shape the payroll screens read —
+    // except a one-person corporation's own line: Byrne Critical Care
+    // sells Colleen Byrne, its owner, and nobody on the record is paid
+    // through the company below her (2026-09-30).
+    const ownLines = await prisma.sellContract.count({ where: { company: { kind: 'CONSULTANT_CORP' } } })
+    expect(ownLines).toBeGreaterThan(0)
+    expect(counts.buyContract).toBe(counts.sellContract - ownLines)
+    expect(counts.contractLink).toBe(counts.sellContract - ownLines)
+  })
+  it('a Talvern Medical worker on a work permit has her I-9 completed from it, both ending six weeks after her line, so extending her three months is refused on papers', async () => {
+    const marta = await prisma.person.findFirst({ where: { name: 'Marta Kowalczyk' }, select: { id: true, name: true } })
+    const line = await prisma.sellContract.findFirst({
+      where: { personId: marta!.id, clientCompany: { name: 'Talvern Medical' }, endDate: { gt: new Date() } },
+      select: { endDate: true },
+    })
+    expect(line, 'her running line at Talvern Medical').toBeTruthy()
+    const papers = await prisma.verification.findMany({
+      where: { personId: marta!.id, type: { in: ['I9_EVERIFY', 'WORK_PERMIT'] } },
+      select: { id: true, type: true, status: true, expiresAt: true, validFrom: true, issuedAt: true },
+    })
+    const permit = papers.find((p) => p.type === 'WORK_PERMIT')!
+    const i9 = papers.find((p) => p.type === 'I9_EVERIFY')!
+    const sixWeeksAfter = line!.endDate!.getTime() + EAD_ENDS_AFTER_LINE_DAYS * 86_400_000
+    expect(Math.abs(permit.expiresAt!.getTime() - sixWeeksAfter)).toBeLessThanOrEqual(86_400_000)
+    expect(i9.expiresAt!.getTime()).toBe(permit.expiresAt!.getTime())
+    const backing = await prisma.documentBacking.findMany({ where: { formId: i9.id }, select: { evidenceId: true, satisfiedKey: true } })
+    expect(backing, 'the I-9 was completed from the permit, and from nothing else').toEqual([{ evidenceId: permit.id, satisfiedKey: 'WORK_PERMIT' }])
+    expect((await prisma.consultantProfile.findFirst({ where: { personId: marta!.id }, select: { workAuth: true } }))!.workAuth).toBe('EAD')
+
+    const threeMonths = new Date(line!.endDate!.getTime() + 91 * 86_400_000)
+    const verdict = mayExtendOnPapers(
+      extensionPapers({ personName: marta!.name, supplierName: 'Vertex Global', newEnd: threeMonths, from: line!.endDate!, person: papers, supplier: [] }),
+      'The client asked for three more months.'
+    )
+    expect(verdict.ok).toBe(false)
+    if (!verdict.ok) {
+      expect(verdict.code).toBe('PAPERS_BLOCK')
+      expect(verdict.message).toContain('Marta Kowalczyk')
+    }
+  })
+  it('a one-person firm’s seeded acceptance is the stand-in the routes write, never her own signature', async () => {
+    const byrne = await prisma.company.findFirstOrThrow({ where: { slug: { endsWith: 'byrne-critical-care' } }, select: { id: true, name: true } })
+    const halcyon = await prisma.company.findFirstOrThrow({ where: { slug: { endsWith: 'halcyon' }, kind: { not: 'CONSULTANT_CORP' } }, select: { id: true, name: true } })
+    const colleen = await prisma.person.findFirstOrThrow({ where: { name: 'Colleen Byrne' }, select: { id: true, name: true } })
+    const accepted = await prisma.workAssertion.findMany({
+      where: { companyId: byrne.id, role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE', timesheet: { personId: colleen.id } },
+      select: { timesheetId: true, byId: true, auto: true, note: true, at: true },
+    })
+    expect(accepted.length, 'Colleen Byrne has signed weeks her firm stands as accepting').toBeGreaterThan(0)
+    const says = standsAsAcceptanceSays({ signedBy: halcyon.name, firmName: byrne.name, personName: colleen.name })
+    for (const a of accepted) {
+      expect(a.byId).not.toBe(colleen.id)
+      expect(a).toMatchObject({ auto: true, note: says })
+      // A second after the signature it stands behind, Halcyon's, as the route writes them.
+      const above = await prisma.workAssertion.findFirstOrThrow({
+        where: { timesheetId: a.timesheetId, companyId: halcyon.id, role: 'PASS_THROUGH', state: 'LIVE' },
+        select: { byId: true, at: true },
+      })
+      expect(a.byId).toBe(above.byId)
+      expect(a.at.getTime()).toBe(above.at.getTime() + 1000)
+    }
+    // And the week's own column, which payroll reads, says the same.
+    const sheets = await prisma.timesheet.findMany({
+      where: { id: { in: accepted.map((a) => a.timesheetId) } },
+      select: { employerAcceptedAt: true, employerAcceptedById: true, acceptedNote: true },
+    })
+    for (const t of sheets) {
+      expect(t.employerAcceptedAt).not.toBeNull()
+      expect(t.employerAcceptedById).not.toBe(colleen.id)
+      expect(t.acceptedNote).toBe(says)
+    }
+  })
+})

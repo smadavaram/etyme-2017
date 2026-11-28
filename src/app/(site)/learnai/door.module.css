@@ -1,0 +1,37 @@
+/* The free course door, in Etyme's own brand kit: cream canvas, serif
+   headings, Inter, violet and green washes, 12px corners, ink on cream. */
+.page { --canvas: #F0EEE6; --surface: #FBFAF7; --raised: #FFFFFF; --sunk: #E7E4DA; --ink: #1F1E1D; --muted: #6B6862; --faint: #9C9891; --rule: #E3DFD5;
+  --violet: #5228FF; --violet-p: #4421D6; --violet-wash: #EDE9FF; --violet-line: #C7CDF5; --attention: #C0622E; --danger: #B83A3A;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, var(--font-gelasio), serif;
+  --sans: var(--font-inter), Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  min-height: 100vh; background: var(--canvas); color: var(--ink); font-family: var(--sans); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+.top { max-width: 68rem; margin: 0 auto; padding: 1.25rem 1.25rem 0; }
+.brand { font-family: var(--serif); font-weight: 500; font-size: 1.25rem; color: var(--ink); text-decoration: none; }
+.hero, .section { max-width: 68rem; margin: 0 auto; padding: 30px 20px 14px; }
+.section { padding-bottom: 44px; }
+.paused { background: var(--violet-wash); border: 1px solid var(--violet-line); border-radius: 12px; padding: .75rem 1rem; max-width: 36rem; margin: 1.25rem auto 0 0; color: var(--ink); }
+.panel { background: var(--raised); border: 1px solid var(--rule); border-radius: 12px; padding: 1.5rem; max-width: 34rem;
+  box-shadow: 0 1px 2px #1f1e1d0f; display: flex; flex-direction: column; gap: .75rem; }
+.h3 { font-family: var(--serif); font-weight: 500; font-size: 1.3rem; letter-spacing: -.01em; margin: 0; padding: 0; }
+.p { margin: 0; }
+.small { margin: 0; font-size: .88rem; color: var(--muted); }
+.answers { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.answer { text-align: left; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: .9rem 1rem; cursor: pointer; font: inherit; color: inherit; min-height: 3rem; transition: border-color .15s, background .15s; }
+.answer:hover, .answer:focus-visible { border-color: var(--violet-line); background: var(--violet-wash); }
+.answerName { display: block; font-family: var(--serif); font-weight: 500; font-size: 1.05rem; }
+.answerLine { display: block; font-size: .9rem; color: var(--muted); }
+.label { font-weight: 600; }
+.input { font: inherit; padding: .75rem .9rem; border: 1px solid var(--rule); border-radius: 8px; min-height: 3rem; background: var(--surface); }
+.input:focus-visible, .primary:focus-visible, .link:focus-visible, .answer:focus-visible { outline: 3px solid var(--violet-p); outline-offset: 2px; }
+.check { display: flex; gap: .6rem; align-items: flex-start; }
+.check input { margin-top: .3rem; width: 1.1rem; height: 1.1rem; accent-color: var(--violet); }
+.primary { display: inline-block; text-align: center; background: var(--violet); color: #fff; border: 0; border-radius: 8px; padding: .85rem 1.5rem; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; min-height: 3rem; }
+.primary:hover { background: #3F16E8; }
+.primary:disabled { opacity: .6; cursor: default; }
+.link { background: none; border: 0; color: var(--violet-p); font: inherit; text-decoration: underline; cursor: pointer; padding: .25rem; }
+.said { margin: 0; color: var(--danger); }
+.trap { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.foot { max-width: 68rem; margin: 0 auto; padding: 2rem 1.25rem; display: flex; gap: 1.25rem; font-size: .9rem; }
+.foot a { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .answer { transition: none; } }
+.panel legend { float: left; width: 100%; }

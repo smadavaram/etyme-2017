@@ -1,0 +1,180 @@
+/**
+ * Who may press a placement's lifecycle buttons, as one function the
+ * route answers with and the panel reads before it draws a button.
+ *
+ * The tester's retest on 2026-11-03 found Rajesh Iyer's placement page
+ * saying "Get an I-9 and E-Verify on file, then activate" with nothing to
+ * press, in either seat. A button drawn from a second copy of the rule
+ * is a button that one day lies, so the panel asks this route (GET) and
+ * the route asks this file, and the press (POST) asks it again.
+ *
+ * Kept beside the route because a route file may export only its handlers.
+ */
+
+import { contractSide, type ContractSide } from '@/lib/resolve-client-company'
+import { hasPermission, desksHolding, type Permission } from '@/lib/permissions'
+import { refusalFor, type CallerContext } from '@/lib/api-context'
+import { seatedWhoMay } from '@/lib/refusal-words'
+import { readCompanySeats, type CompanySeat } from '@/lib/company-seats'
+
+export const VALID_ACTIONS = ['verify', 'activate', 'pause', 'resume', 'complete', 'cancel'] as const
+export type Action = typeof VALID_ACTIONS[number]
+
+// Map action → { allowed source states, target state }
+export const TRANSITIONS: Record<Action, { from: string[]; to: string }> = {
+  verify:   { from: ['DRAFT'],                                      to: 'PENDING_VERIFICATION' },
+  activate: { from: ['PENDING_VERIFICATION', 'VERIFIED', 'DRAFT'],  to: 'IN_PROGRESS' },
+  pause:    { from: ['IN_PROGRESS'],                                 to: 'PAUSED' },
+  resume:   { from: ['PAUSED'],                                      to: 'IN_PROGRESS' },
+  complete: { from: ['IN_PROGRESS'],                                 to: 'ENDED' },
+  cancel:   { from: ['DRAFT', 'PENDING_VERIFICATION'],              to: 'CANCELLED' },
+}
+
+// What each action asks of the caller. Starting, pausing and resuming
+// somebody is running the placement; ending or cancelling it is a
+// termination, which is its own permission because it is its own job.
+export const NEEDS: Record<Action, Permission> = {
+  verify:   'assignments.write',
+  activate: 'assignments.write',
+  pause:    'assignments.write',
+  resume:   'assignments.write',
+  complete: 'assignments.terminate',
+  cancel:   'assignments.terminate',
+}
+
+// What each action is, said as the start of a refusal to somebody whose
+// role does not do it: "Starting a placement is done by …".
+export const DOING: Record<Action, string> = {
+  verify:   'Sending a placement for verification',
+  activate: 'Starting a placement',
+  pause:    'Pausing a placement',
+  resume:   'Resuming a placement',
+  complete: 'Ending a placement',
+  cancel:   'Canceling a placement before it starts',
+}
+
+/** The parties a contract names, by id and by name. */
+export interface GateContract {
+  state: string
+  /** Named in the refusal for a contract in the wrong state. */
+  person?: { name: string } | null
+  companyId: string
+  clientCompanyId: string
+  endClientCompanyId: string | null
+  company: { name: string }
+  clientCompany: { name: string }
+  endClientCompany: { name: string } | null
+}
+
+const STATE_IS: Record<string, string> = {
+  DRAFT: 'still a draft', PENDING_VERIFICATION: 'waiting for verification', VERIFIED: 'verified',
+  IN_PROGRESS: 'running', PAUSED: 'paused', ENDED: 'over', CANCELLED: 'canceled',
+}
+const STATE_ALREADY: Record<string, string> = {
+  PENDING_VERIFICATION: 'waiting for verification', IN_PROGRESS: 'running', PAUSED: 'paused', ENDED: 'over', CANCELLED: 'canceled',
+}
+const BE_DONE: Record<Action, string> = {
+  verify: 'sent for verification', activate: 'activated', pause: 'paused',
+  resume: 'resumed', complete: 'ended', cancel: 'canceled',
+}
+
+/** The refusal for an act the contract's state does not allow, in plain words. */
+export function wrongStateSays(name: string | null, action: Action, state: string): string {
+  const whose = name ? `${name}'s contract` : 'This contract'
+  if (TRANSITIONS[action].to === state && STATE_ALREADY[state]) {
+    return `${whose} is already ${STATE_ALREADY[state]}, so it cannot be ${BE_DONE[action]} again.`
+  }
+  return `${whose} is ${STATE_IS[state] ?? 'not in a state that allows this'}, so it cannot be ${BE_DONE[action]}.`
+}
+
+/** The choice of acts, said as a sentence. */
+export const CHOOSE_AN_ACT = `Choose ${VALID_ACTIONS.slice(0, -1).join(', ')} or ${VALID_ACTIONS[VALID_ACTIONS.length - 1]}.`
+
+/** A refusal, ready to send: the status and the route's own sentence. */
+export interface GateRefusal {
+  status: number
+  error: { code: string; message: string }
+}
+
+/**
+ * Null where this caller may press this act on this contract today, as
+ * far as who they are and where the contract stands go; the refusal in
+ * the route's words otherwise. The papers and the terms are asked after
+ * this, by the route, because they are about the person and not the seat.
+ */
+export function gateRefusal(
+  caller: Pick<CallerContext, 'company' | 'permissions' | 'context'>,
+  contract: GateContract,
+  action: Action,
+): GateRefusal | null {
+  const side: ContractSide | null = contractSide(caller as CallerContext, contract)
+  // Record 119: a client that is only the site on the line between its
+  // supplier and a firm below it never opens that line. It is told nothing
+  // is there, and the sentence names no firm.
+  // A client reading a line it does not pay, party or not, gets the same
+  // answer: a 403 would confirm the line exists.
+  if (side === 'END_CLIENT' || (!side && caller.company?.kind === 'CLIENT')) {
+    return { status: 404, error: { code: 'NOT_FOUND', message: 'Contract not found' } }
+  }
+  if (!side) {
+    return {
+      status: 403,
+      error: {
+        code: 'NOT_A_PARTY',
+        message: `${caller.company?.name ?? 'Your company'} is not a party to this contract, so it cannot change it.`,
+      },
+    }
+  }
+  const needs = NEEDS[action]
+  if (!hasPermission(caller.permissions, needs)) {
+    return {
+      status: 403,
+      error: {
+        code: 'FORBIDDEN',
+        message: refusalFor(caller, { doing: DOING[action], needs }),
+      },
+    }
+  }
+  const transition = TRANSITIONS[action]
+  if (!transition.from.includes(contract.state)) {
+    return {
+      status: 409,
+      error: { code: 'INVALID_TRANSITION', message: wrongStateSays(contract.person?.name ?? null, action, contract.state) },
+    }
+  }
+  return null
+}
+
+/**
+ * The roles that may press this act at this kind of firm, by their own
+ * names ("Resource Manager", "Contract Manager"), read off the shipped
+ * role set the refusal's own sentence reads. The placement page names
+ * them in "…then HR activates".
+ *
+ * Given the roles the company has seated, only those are named, else the
+ * Owner and an Admin (Tapin walk, 2026-11-14: HR read "the resource
+ * manager or contract manager activates" at a firm seating neither).
+ * Who may do the act is not changed: only whom the sentence names.
+ */
+export function whoMay(action: Action, kind: string | null | undefined, seated?: readonly string[] | null): string[] {
+  const desks = desksHolding(NEEDS[action], kind)
+  return seated ? seatedWhoMay(desks, seated) : desks
+}
+
+/**
+ * The role names of the company's live seats: not ended, not paused.
+ * Null where there is no company to ask, so `whoMay` reads as before.
+ * Read through the one seat reader (`readCompanySeats`), so a seat past its
+ * end date is ended here too and its role is never named as one to ask
+ * (2026-11-15); an Owner kept open past its date is still named.
+ */
+export async function seatedRoles(companyId: string | null | undefined): Promise<string[] | null> {
+  if (!companyId) return null
+  const seats = await readCompanySeats(companyId)
+  return liveRoleNames(seats)
+}
+
+/** The role names of seats that still work and are not paused, once each. Pure. */
+export function liveRoleNames(seats: readonly Pick<CompanySeat, 'roleName' | 'state'>[]): string[] {
+  return Array.from(new Set(seats.filter((s) => s.state !== 'PAUSED').map((s) => s.roleName).filter((n): n is string => !!n)))
+}

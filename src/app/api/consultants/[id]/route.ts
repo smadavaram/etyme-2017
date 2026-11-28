@@ -1,0 +1,539 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { benchClosedSays } from '@/lib/bench-filter'
+import { reportError } from '@/lib/alerts'
+import { prisma } from '@/lib/db'
+import { billRateReach, opensLine } from '@/lib/consultant-portfolio/margin-reach'
+import { educationShown } from '@/lib/consultant-portfolio/education'
+import { accessActor, logAccess, recordRefusal } from '@/lib/access-log'
+import { firmViewPatch, hasOwnAccount, profileEditPlan, readAsTheFirm } from '@/lib/consultant-portfolio/firm-view'
+import { readProfileEdit } from '@/lib/consultant-portfolio/forms'
+import { firmReadsAt } from '@/lib/consultant-portfolio/before-her-yes'
+import { proofsForListings } from '@/lib/training/proof-read'
+import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
+import { getCallerContext } from '@/lib/api-context'
+import {
+  askTheDesk,
+  hasPermission,
+  canReadPayRate,
+  canReadBillRate,
+  canReadCostAggregates,
+  type FieldContext,
+} from '@/lib/permissions'
+
+/**
+ * GET /api/consultants/:id
+ *
+ * Full consultant profile, field-filtered by the caller's permissions.
+ * BUILD.md §3 — Supply.
+ *
+ * CLAUDE.md invariant: every read of another person's data writes an
+ * AccessLog row, including refusals.
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const { id } = await params
+
+  if (!hasPermission(caller.permissions, 'consultants.read')) {
+    // Log the refusal — "including refusals" per CLAUDE.md
+    // We don't know the subject yet, but we can try to find them
+    const profile = await prisma.consultantProfile.findUnique({
+      where: { id },
+      select: { personId: true },
+    })
+    if (profile) {
+      await recordRefusal([profile.personId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: caller.company?.id,
+        action: 'PROFILE_VIEW',
+        allowed: false,
+        reason: 'Refused: the reader’s role does not read the people this firm has on its books.',
+      })
+    }
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: benchClosedSays(caller.company?.name) } },
+      { status: 403 }
+    )
+  }
+
+  const profile = await prisma.consultantProfile.findUnique({
+    where: { id },
+    include: {
+      person: {
+        select: {
+          id: true,
+          name: true,
+          primaryEmail: true,
+          createdAt: true,
+        },
+      },
+      listings: {
+        where: { revokedAt: null },
+        select: {
+          id: true,
+          companyId: true,
+          tier: true,
+          rateMin: true,
+          rateMax: true,
+          grantedAt: true,
+          sourceCohortId: true,
+        },
+      },
+      matches: {
+        // Matches against requirements this caller can actually see.
+        //
+        // A match names a role somebody is being considered for. Left
+        // unscoped it tells a rival agency which client is looking at
+        // their shared consultant and how well they scored — the same leak
+        // as the contract list, one relation over.
+        where: matchScopeFor({ isSubject: false, companyId: caller.company?.id }) ?? {},
+        select: {
+          id: true,
+          requirementId: true,
+          score: true,
+          confidence: true,
+          factors: true,
+          basis: true,
+          unknowns: true,
+          computedAt: true,
+        },
+        orderBy: { computedAt: 'desc' },
+        take: 10,
+      },
+    },
+  })
+
+  if (!profile) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Consultant not found' } },
+      { status: 404 }
+    )
+  }
+
+  const isSubject = profile.personId === caller.person.id
+  const companyId = caller.company?.id
+
+  // Whose list she is on (2026-11-15). The list (GET /api/consultants)
+  // shows a firm the people it lists and the people who hold a seat with
+  // it; this is the same door, one person wide. It had checked nothing:
+  // any seat that reads its own firm's people could read anybody's whole
+  // record by its id. Another firm's person is an id that does not exist
+  // here, and the refusal is logged before it is sent.
+  if (!isSubject) {
+    const onList = companyId
+      ? profile.listings.some((l) => l.companyId === companyId) ||
+        (await prisma.context.count({ where: { personId: profile.personId, companyId, revokedAt: null } })) > 0
+      : false
+    if (!onList) {
+      await recordRefusal([profile.personId], {
+        actorPersonId: caller.person.id,
+        actorCompanyId: companyId,
+        action: 'PROFILE_VIEW',
+        allowed: false,
+        reason: 'Refused: this person is not on the reader’s firm’s list.',
+      })
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Consultant not found' } },
+        { status: 404 }
+      )
+    }
+  }
+
+  // A caller with no company is a consultant. They may see their own
+  // matches and nobody else's; the query above could not know whose
+  // profile this was yet.
+  const matches = companyId || isSubject ? profile.matches : []
+
+  // Write AccessLog — every read of another person's data
+  if (!isSubject) {
+    logAccess({
+      subjectId: profile.personId,
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId,
+      action: 'PROFILE_VIEW',
+      allowed: true,
+    })
+  }
+
+  // Field-level filtering
+  const fieldCtx: FieldContext = {
+    permissions: caller.permissions,
+    isSubject,
+  }
+  const showPayRate = canReadPayRate(fieldCtx)
+  const showCost = canReadCostAggregates(fieldCtx)
+  // Before her yes, on a record whose words are not this firm's, only what
+  // it typed (`firmReadsAt`, lib/consultant-portfolio/before-her-yes).
+  const typed = companyId && !isSubject
+    ? (await firmReadsAt({ companyId, callerPersonId: caller.person.id, consultantIds: [profile.id] })).get(profile.id)?.typed ?? null
+    : null
+
+  // Filter listings to only those visible to the caller's company
+  // (their own company's listings, or listings from the consultant themselves)
+  const visibleListings = profile.listings.filter((l) =>
+    maySeeListing({ isSubject, companyId }, l.companyId)
+  )
+
+  // Where she came from one of this firm's cohorts, the proof (record 120):
+  // the firm's own listing only, and only while Train to bench is on.
+  const own = companyId && !isSubject ? visibleListings.find((l) => l.companyId === companyId) : undefined
+  const proof = own
+    ? (await proofsForListings(companyId!, [{ listingId: own.id, personId: profile.personId, sourceCohortId: own.sourceCohortId }], new Date())).get(own.id) ?? null
+    : null
+
+  // Active sell contracts for this consultant (if caller has assignments.read)
+  let contracts: any[] = []
+  if (hasPermission(caller.permissions, 'assignments.read')) {
+    const rawContracts = await prisma.sellContract.findMany({
+      where: {
+        personId: profile.personId,
+        state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
+        // Only contracts this caller is actually party to. A consultant is
+        // on several benches at once, and this read used to hand every
+        // placement they have ever had to any of them.
+        ...contractScopeFor({ isSubject, companyId }),
+      },
+      select: {
+        id: true,
+        billRate: true,
+        billCurrency: true,
+        state: true,
+        startDate: true,
+        endDate: true,
+        clientCompany: { select: { id: true, name: true } },
+        endClientCompany: { select: { id: true, name: true } },
+        workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
+      },
+      orderBy: { startDate: 'desc' },
+    })
+
+    const billCtx: FieldContext = {
+      permissions: caller.permissions,
+      isSubject,
+    }
+
+    // The bill rate is margin.read's field. A seat the Owner gave margin
+    // for one team or for its own work reads it on those lines and on no
+    // other (2026-11-08), so the field is narrowed by the line, not only by
+    // the yes-or-no answer.
+    const lineReach = canReadBillRate(billCtx) ? await billRateReach(caller) : null
+    contracts = rawContracts.map((c) => ({
+      id: c.id,
+      billRate: lineReach && opensLine(lineReach, c.id) ? c.billRate : undefined,
+      billCurrency: c.billCurrency,
+      state: c.state,
+      startDate: c.startDate.toISOString(),
+      endDate: c.endDate?.toISOString() ?? null,
+      clientCompany: c.clientCompany,
+      endClientCompany: c.endClientCompany,
+      workLocation: c.workLocation,
+    }))
+  }
+
+  return NextResponse.json({
+    data: {
+      consultant: {
+        id: profile.id,
+        personId: profile.personId,
+        person: {
+          id: profile.person.id,
+          name: typed ? typed.name : profile.person.name,
+          email: profile.person.primaryEmail,
+          // When her own record was made is hers too.
+          createdAt: typed ? null : profile.person.createdAt.toISOString(),
+        },
+        headline: typed ? typed.headline : profile.headline,
+        skills: typed ? typed.skills : profile.skills,
+        location: typed ? typed.location : profile.location,
+        workAuth: typed ? typed.workAuth : profile.workAuth,
+        // The résumé's education lines, read only: the person corrects them
+        // on their own page, and this firm has no door to change them.
+        education: typed ? typed.education : educationShown(profile.education, 'FIRM'),
+        rateFloor: showCost ? (typed ? typed.rateFloor : profile.rateFloor) : undefined,
+        availableFrom: typed ? typed.availableFrom : profile.availableFrom?.toISOString() ?? null,
+        visibility: typed ? typed.visibility : profile.visibility,
+        proof,
+        listings: visibleListings.map((l) => ({
+          id: l.id,
+          companyId: l.companyId,
+          tier: l.tier,
+          rateMin: showCost ? l.rateMin : undefined,
+          rateMax: showCost ? l.rateMax : undefined,
+          grantedAt: l.grantedAt.toISOString(),
+        })),
+        matches: matches.map((m) => ({
+          id: m.id,
+          requirementId: m.requirementId,
+          score: m.score,
+          confidence: m.confidence,
+          factors: m.factors,
+          basis: m.basis,
+          unknowns: m.unknowns,
+          computedAt: m.computedAt.toISOString(),
+        })),
+        contracts,
+      },
+    },
+  })
+}
+
+/**
+ * PATCH /api/consultants/:id
+ *
+ * Change a consultant record, or this firm's own view of the person.
+ * BUILD.md §3 — Supply. Requires consultants.write.
+ *
+ * A consultant is a person, not a record a firm owns (the second Tapin
+ * walk, 2026-10-30: Tapin could rewrite the profile of somebody with an
+ * account of their own, and every firm that lists her read Tapin's words
+ * as hers). So `profileEditPlan` (lib/consultant-portfolio/firm-view)
+ * decides where an edit goes before anything is written:
+ *
+ *  - the person changes their own record;
+ *  - a firm changes the record only while it is the firm's to keep — no
+ *    account of their own, and no other firm lists them — and what it
+ *    typed is kept on its listing too, so its own list shows it;
+ *  - otherwise the firm's title, skills, place and note go on its own
+ *    listing (`firmHeadline`, `firmSkills`, `firmLocation`, `firmNotes`),
+ *    and their name, work authorization, free date, lowest rate and
+ *    visibility are refused in a sentence, with nothing written.
+ *
+ * A refusal is logged before it is sent (`recordRefusal`); a change by a
+ * firm is logged too. Both are filed as PROFILE_VIEW, the read the change
+ * makes, with the reason saying it was a change: the log's actions are a
+ * fixed list in lib/access-log, which is not supply's to extend.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const { id } = await params
+
+  if (!hasPermission(caller.permissions, 'consultants.write')) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Changing a consultant’s record or putting them on the bench is for the recruiters, the resource manager, HR or the owner. Ask one of them.' } },
+      { status: 403 }
+    )
+  }
+
+  const companyId = caller.company?.id ?? null
+
+  const profile = await prisma.consultantProfile.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      personId: true,
+      headline: true,
+      skills: true,
+      location: true,
+      person: {
+        select: {
+          name: true,
+          passwordHash: true,
+          _count: {
+            select: {
+              credentials: true,
+              // The seat a person is given on signing in (lib/own-seat).
+              contexts: { where: { type: 'CONSULTANT', companyId: null } },
+            },
+          },
+        },
+      },
+      // This firm's listing, and how many other firms ever listed them:
+      // read as a count so nothing about another firm's listing leaves
+      // here. Every listing ever, taken back or not, as `firmReadsAt`
+      // counts them (fix list, layer five, j): a firm whose record another
+      // firm once listed her on is not the record's keeper.
+      listings: {
+        where: { companyId: companyId ?? '', revokedAt: null },
+        select: { id: true, firmHeadline: true, firmSkills: true, firmLocation: true, firmNotes: true },
+      },
+      _count: {
+        select: { listings: { where: { ...(companyId ? { companyId: { not: companyId } } : {}) } } },
+      },
+    },
+  })
+
+  if (!profile) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Consultant not found' } },
+      { status: 404 }
+    )
+  }
+
+  const isSubject = profile.personId === caller.person.id
+  const listing = profile.listings[0] ?? null
+  // Before her yes, on a record whose words are not this firm's, every
+  // sentence and the reply read only what it typed (`firmReadsAt`).
+  const typed = companyId && !isSubject
+    ? (await firmReadsAt({ companyId, callerPersonId: caller.person.id, consultantIds: [profile.id] })).get(profile.id)?.typed ?? null
+    : null
+  const shownName = typed ? typed.name : profile.person.name
+
+  // The firm must know them: a seat here, or a listing not taken back.
+  if (!isSubject) {
+    const hasContext = companyId
+      ? await prisma.context.findFirst({
+          where: { personId: profile.personId, companyId, revokedAt: null },
+          select: { id: true },
+        })
+      : null
+    if (!hasContext && !listing) {
+      await recordRefusal([profile.personId], {
+        ...accessActor(caller),
+        action: 'PROFILE_VIEW',
+        reason: 'Refused a change to their record: the firm neither employs this person nor lists them.',
+      })
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: `${shownName} is not one of ${caller.company?.name ?? 'your company'}’s people, so there is nothing here for you to change.` } },
+        { status: 403 }
+      )
+    }
+  }
+
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Send the changes as fields.' } },
+      { status: 422 }
+    )
+  }
+
+  // ── Read the fields, checking each as before ──────────────────────
+  // The same reader the drawer's forms are tested against (`readProfileEdit`,
+  // lib/consultant-portfolio/forms), so a field refused here is one they draw.
+  const edit = readProfileEdit(body)
+  if (!edit.ok) {
+    return NextResponse.json(
+      { error: { code: edit.code, message: edit.message, field: edit.field } },
+      { status: 422 }
+    )
+  }
+  const { updateData, personUpdate, fields } = edit
+
+  // ── Where the edit may go ─────────────────────────────────────────
+  const plan = profileEditPlan({
+    isSubject,
+    ownAccount: hasOwnAccount({
+      passwordSet: Boolean(profile.person.passwordHash),
+      signIns: profile.person._count.credentials,
+      ownSeats: profile.person._count.contexts,
+    }),
+    otherFirms: profile._count.listings,
+    hasListing: listing != null,
+    name: shownName,
+    firm: caller.company?.name ?? 'your company',
+    fields,
+  })
+
+  if (!plan.ok) {
+    await recordRefusal([profile.personId], {
+      ...accessActor(caller),
+      action: 'PROFILE_VIEW',
+      reason: `Refused a change to their record: ${plan.says}`,
+    })
+    return NextResponse.json(
+      { error: { code: plan.code, message: plan.says, field: plan.field } },
+      { status: 403 }
+    )
+  }
+
+  if (!plan.profile && !plan.listing) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'No valid fields to update' } },
+      { status: 422 }
+    )
+  }
+
+  // The lowest rate is pay: the person's own, or a role that reads pay.
+  if (plan.profile && 'rateFloor' in updateData && !isSubject && !hasPermission(caller.permissions, 'consultants.cost')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            'Only the consultant can set their own lowest rate, or a role that sees what each person costs. ' +
+            askTheDesk({
+              doing: 'Setting somebody else’s lowest rate',
+              needs: 'consultants.cost',
+              kind: caller.company?.kind ?? null,
+              companyName: caller.company?.name ?? null,
+            }),
+          field: 'rateFloor',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  try {
+    const written = await prisma.$transaction(async (tx) => {
+      const own = plan.profile && Object.keys(updateData).length > 0
+        ? await tx.consultantProfile.update({
+            where: { id },
+            data: updateData,
+            select: { headline: true, skills: true, location: true },
+          })
+        : { headline: profile.headline, skills: profile.skills, location: profile.location }
+      if (plan.profile && personUpdate) {
+        await tx.person.update({ where: { id: profile.personId }, data: personUpdate })
+        // The firm renamed a record it keeps: its listing keeps the name
+        // too, so it still reads it if she later takes an account.
+        if (listing && !isSubject && personUpdate.name) {
+          await tx.benchListing.update({ where: { id: listing.id }, data: { firmName: personUpdate.name } })
+        }
+      }
+      const view = plan.listing && listing
+        ? await tx.benchListing.update({
+            where: { id: listing.id },
+            data: firmViewPatch(body),
+            select: { firmHeadline: true, firmSkills: true, firmLocation: true, firmNotes: true },
+          })
+        : listing
+      return { own, view }
+    })
+
+    if (!isSubject) {
+      logAccess({
+        subjectId: profile.personId,
+        ...accessActor(caller),
+        action: 'PROFILE_VIEW',
+        allowed: true,
+        reason: plan.profile ? 'Changed the consultant record the firm keeps' : 'Changed the firm’s own view on its bench listing',
+      })
+    }
+
+    // What this firm now reads about them: its own view first, theirs beside.
+    const read = readAsTheFirm(typed ? typed.own : written.own, isSubject ? null : written.view)
+    return NextResponse.json({
+      data: {
+        consultant: {
+          id: profile.id,
+          personId: profile.personId,
+          name: personUpdate && plan.profile ? personUpdate.name : shownName,
+          headline: read.headline,
+          skills: read.skills,
+          location: read.location,
+          notes: read.notes,
+          // Her own words are not in the reply before her yes.
+          own: typed ? typed.own : read.own,
+        },
+        kept: plan.profile && plan.listing ? 'BOTH' : plan.profile ? 'PROFILE' : 'LISTING',
+        message: plan.says,
+      },
+    })
+  } catch (err: any) {
+    reportError('Consultant update failed:', err)
+    return NextResponse.json(
+      { error: { code: 'INTERNAL', message: 'Consultant update failed. Please try again.' } },
+      { status: 500 }
+    )
+  }
+}

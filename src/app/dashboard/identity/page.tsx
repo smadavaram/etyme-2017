@@ -1,0 +1,235 @@
+'use client'
+
+import { readJson } from '@/lib/read-response'
+import { usePageSection } from '@/components/page-section'
+import { refusedBy } from '@/app/dashboard/program/own-refusal'
+
+import { useEffect, useState, useCallback } from 'react'
+import { PageHead, Field, Input, FormMessage, RefusedState, LoadingState, ErrorState, EmptyState } from '@/components/ui'
+
+/**
+ * Two records that might be one human.
+ *
+ * When a client and a bench vendor are both here and the prime between
+ * them is not, the same person arrives twice and the tenure ledger
+ * counts fourteen months and twelve as two people. That number is the
+ * one this product sells on, and a confidently wrong one is worse than
+ * none.
+ *
+ * A decision surface, and a careful one. Nothing merges — confirming
+ * records that these are one person, and the records stay separate.
+ * Merging two different contractors blocks one on a cap they never
+ * earned and pays the other at somebody else's rate.
+ */
+
+interface Signal { says: string; weight: number; decisive?: boolean }
+
+interface Match {
+  aId: string
+  bId: string
+  name: string
+  confidence: 'CERTAIN' | 'LIKELY' | 'POSSIBLE'
+  score: number
+  signals: Signal[]
+  monthsIfSame: number
+  says: string
+  ifConfirmed: { months: number; overCap: boolean; says: string }
+}
+
+const TONE: Record<string, string> = {
+  CERTAIN: 'chip--verified',
+  LIKELY: 'chip--action',
+  POSSIBLE: 'chip--passive',
+}
+
+export default function IdentityPage() {
+  // The section this page sits under on the reader's own menu, and
+  // nothing while that is not known yet — never a word typed by hand.
+  const section = usePageSection('/dashboard/identity')
+  const [matches, setMatches] = useState<Match[]>([])
+  const [summary, setSummary] = useState('')
+  const [note, setNote] = useState('')
+  const [dismissing, setDismissing] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
+  // A refusal is drawn alone — no heading, no page prose above it — and
+  // so is the first load: whether this reader may see the page is the
+  // route's answer (sign-up walk, round seven, problem 6).
+  const [refused, setRefused] = useState<string | null>(null)
+  const [readOnce, setReadOnce] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/identity')
+      const no = await refusedBy(res, 'Duplicate check')
+      if (no) { setRefused(no); return }
+      const body = await readJson(res)
+      setMatches(body.data.matches)
+      setSummary(body.data.summary)
+      setError(null)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+      setReadOnce(true)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  async function decide(m: Match, same: boolean) {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/identity', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          aId: m.aId, bId: m.bId, same,
+          confidence: m.confidence, score: m.score,
+          signals: m.signals, monthsIfSame: m.monthsIfSame,
+          note: same ? undefined : note,
+        }),
+      })
+      const body = await readJson(res)
+      setDone(body.data.says)
+      setNote('')
+      setDismissing(null)
+      load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (refused) return <RefusedState says={refused} />
+  if (!readOnce) return <LoadingState says="Loading…" />
+
+  return (
+    <div className="mx-auto max-w-[760px] space-y-6 px-4 py-6">
+      <PageHead
+        eyebrow={section}
+        title="Duplicate check"
+        subtitle={<>
+          When a supplier in the middle of a chain is not on Etyme, one
+          contractor can arrive twice under two records — and their tenure here
+          reads as two shorter spells instead of one long one.
+        </>}
+      />
+
+      <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
+
+      {done && <FormMessage tone="ok">{done}</FormMessage>}
+
+      {loading && <LoadingState compact says="Checking again…" />}
+
+      {error && <ErrorState says={error} />}
+
+      {!loading && matches.length === 0 && !error && (
+        <EmptyState
+          says="Nobody looks like a duplicate."
+          detail={<>
+            This fills in as suppliers put people
+            forward through chains we can only see part of.
+          </>}
+        />
+      )}
+
+      {matches.map((m) => (
+        <article
+          key={`${m.aId}:${m.bId}`}
+          className="panel"
+          style={m.ifConfirmed.overCap ? { borderColor: 'var(--color-attention)' } : undefined}
+        >
+          <div className="flex items-baseline justify-between gap-4">
+            <p className="text-[15px] font-semibold text-etyme-ink">{m.name}</p>
+            <span className={`chip ${TONE[m.confidence]}`}>{m.confidence.toLowerCase()}</span>
+          </div>
+
+          <p className="mt-2 text-[13px] text-etyme-muted">{m.says}</p>
+
+          {/* The consequence, said before anybody decides. "These might be
+              the same person" is a curiosity; the tenure line is a decision. */}
+          <p
+            className={`mt-2 text-[13px] ${m.ifConfirmed.overCap ? 'text-etyme-attention' : 'text-etyme-ink'}`}
+          >
+            {m.ifConfirmed.says}
+          </p>
+
+          <ul className="mt-3 space-y-1.5 border-t border-etyme-rule pt-3">
+            {m.signals.map((s, i) => (
+              <li
+                key={i}
+                className="text-[12px]"
+                style={{ color: s.weight < 0 ? 'var(--color-attention)' : 'var(--color-muted)' }}
+              >
+                {s.weight < 0 ? '✕ ' : '✓ '}{s.says}
+              </li>
+            ))}
+          </ul>
+
+          {dismissing !== `${m.aId}:${m.bId}` ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={() => decide(m, true)}
+                disabled={busy}
+                className="btn-primary disabled:opacity-40"
+              >
+                Yes, one person
+              </button>
+              <button
+                onClick={() => setDismissing(`${m.aId}:${m.bId}`)}
+                disabled={busy}
+                className="btn-secondary"
+              >
+                No, two people
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-2">
+              <Field
+                label="Why are they not the same person?"
+                help="In six months nobody will remember why two obvious duplicates were left apart."
+              >
+                <Input
+                  autoFocus
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Why are they not the same person?"
+                />
+              </Field>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => decide(m, false)}
+                  disabled={busy || note.trim().length < 3}
+                  className="rounded border border-etyme-rule px-4 py-2 text-[12px] text-etyme-ink disabled:opacity-40"
+                >
+                  Record as two people
+                </button>
+                <button
+                  onClick={() => { setDismissing(null); setNote('') }}
+                  className="px-2 text-[12px] text-etyme-faint underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </article>
+      ))}
+
+      {matches.length > 0 && (
+        <p className="border-t border-etyme-rule pt-4 text-[12px] leading-relaxed text-etyme-faint">
+          Nothing is merged. Confirming records that these are one person; the two
+          records stay separate and tenure reads the link. Merging two different
+          contractors would block one on a cap they never earned and pay the other
+          at somebody else&rsquo;s rate.
+        </p>
+      )}
+    </div>
+  )
+}

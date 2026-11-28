@@ -1,0 +1,546 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { BILL_NOT_SENT } from '@/lib/money/bill-state'
+import { mayPayFirm } from '@/lib/setup-gates'
+import { getCallerContext } from '@/lib/api-context'
+import { invoiceScope } from '@/lib/resolve-client-company'
+import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
+import { prisma } from '@/lib/db'
+import { matchInvoice, recompute } from '@/lib/invoice-match'
+import { carriedForLines } from '@/lib/money/client-overtime-read'
+import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
+import { discountDeadline, discountOn, dueOn, ladderFor } from '@/lib/billing-cascade'
+import { ORDER_HEADER_SELECT, SELL_LINE_TERMS_SELECT, moneyTermsFor } from '@/lib/money/order-terms'
+import { directionFrom, partiesOf } from '@/lib/money/invoice-parties'
+import { fromPrismaDecimal, minorPerUnit } from '@/lib/money'
+import { daySpan } from '@/lib/plain-date'
+import { readReceipt } from '@/lib/money/receipt-read'
+import { payToSays } from '@/lib/money/pay-to-words'
+import { payToOnBill } from '@/lib/money/pay-to'
+import { receiptPayPanel } from '@/lib/money/receipt-pay-panel'
+import { payWaitsAt } from '@/lib/money/pay-waits'
+import { billDeliverySays } from '@/lib/notify/bill-delivery'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { beforeSendSays } from '@/lib/money/bill-before-send'
+import { bankHoldAt, checkPayeeBank } from '@/lib/money/bank-check-read'
+import { receiptParties } from '@/lib/money/payee-bank'
+
+/**
+ * GET /api/invoices/:id
+ *
+ * One invoice, with the three records the match compares: what was
+ * authorized (the purchase order), what was witnessed (the approved
+ * timesheets behind each line), and what is being asked for.
+ *
+ * An AP clerk opens this to find out what to fix, so the match travels with
+ * it rather than sitting behind a second request — and every check says
+ * whether a human is allowed to wave it through, because "why is there no
+ * button" is the question that sends people back to email.
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const { id } = await params
+
+  // Both parties to the bill, and nobody else. This route took the id and
+  // returned the invoice — number, total, purchase order and its ceiling —
+  // to any authenticated caller, which on a marketplace means competitors.
+  // Who may look at an invoice at all is `invoiceScope` — a consultant
+  // seat is not a party to a bill between two companies, however many of
+  // their hours are on it. WHICH invoices are ours is the cascade in
+  // `lib/money/invoice-parties`: the scope helper still asks the
+  // agreement alone, and an agreement is optional now, so an invoice with
+  // none behind it would 404 for the two firms whose bill it is. Their
+  // helper is demand's; the substitution is here, in money's own routes.
+  // And whose book it is. A program office sitting at the client's desk
+  // opens the client's supplier invoices, under the client's own role,
+  // with the read logged against the seat (`lib/money/seated-books`).
+  // Unseated, this is `invoiceBetween(caller.company.id)` exactly as
+  // before.
+  const whose = caller.company ? await booksFor(caller, request) : null
+  if (whose?.error) return whose.error
+  const reading = whose?.books ?? null
+  const mayLook = reading ? invoiceScope(caller) : null
+  const scope = mayLook && reading ? reading.invoiceWhere : null
+  if (!scope) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
+      { status: 404 }
+    )
+  }
+
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, ...scope },
+    include: {
+      workOrder: {
+        select: {
+          id: true, number: true, amount: true, status: true, endDate: true,
+          // The two firms, where no agreement names them: the buyer
+          // raised this, the seller bills against it.
+          issuedById: true, issuedToId: true,
+          issuedBy: { select: { id: true, name: true } },
+          issuedTo: { select: { id: true, name: true } },
+          // What we offer this client for settling early on this order.
+          // A PO belongs to whoever pays, so on our own sales invoice
+          // this is the client's order and its rungs narrow the standing
+          // ladder for its own spend.
+          earlyPaymentDiscounts: true,
+        },
+      },
+      engagement: {
+        select: {
+          id: true, title: true,
+          sellContracts: {
+            select: {
+              paymentTerms: true, paymentTermsFrom: true, billCurrency: true,
+              // The agreement first, then the order, then the line, each
+              // differing only with its reason (lib/money/order-terms).
+              ...SELL_LINE_TERMS_SELECT,
+              workOrder: { select: ORDER_HEADER_SELECT },
+            },
+            orderBy: { createdAt: 'asc' },
+            take: 1,
+          },
+          // The two parties hang off the master agreement, not the
+          // engagement — an engagement is work under an MSA, not a
+          // relationship in its own right.
+          msa: {
+            select: {
+              vendorId: true, clientId: true,
+              client: { select: { id: true, name: true } },
+              vendor: { select: { id: true, name: true } },
+              paymentTerms: true, paymentTermsFrom: true,
+              /** The standing ladder: what we offer this client on everything. */
+              earlyPaymentDiscounts: true,
+            },
+          },
+        },
+      },
+      invoiceLines: {
+        include: {
+          person: { select: { id: true, name: true } },
+          // The contract this line bills, whose terms priced it. In a
+          // chain it is not the timesheet's (lib/invoice-match).
+          sellContract: {
+            select: {
+              overtimeAfterHours: true, overtimeMultiplierBps: true, billStraddle: true,
+              workOrder: { select: ORDER_HEADER_SELECT },
+              requirement: { select: { hoursPerWeek: true } },
+            },
+          },
+          timesheet: {
+            select: {
+              id: true, status: true, totalHours: true, periodStart: true, periodEnd: true,
+              // What the line was priced from, so the screen can show
+              // the working rather than a multiplication that does not
+              // come out. Read through the same function the match uses.
+              sellContractId: true, days: true, leaveDays: true,
+              overtimeDecisions: true,
+              sellContract: {
+                select: {
+                  overtimeAfterHours: true, overtimeMultiplierBps: true, billStraddle: true,
+                  requirement: { select: { hoursPerWeek: true } },
+                  // The same document the three-way match reads the
+                  // straddle from. Without it the screen and the match
+                  // would hold two opinions about which period a week
+                  // crossing a month end belongs to.
+                  workOrder: { select: ORDER_HEADER_SELECT },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
+      matchOverrides: { include: { by: { select: { id: true, name: true } } } },
+      payments: { select: { amount: true, receivedAt: true } },
+
+    },
+  })
+
+  if (!invoice) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
+      { status: 404 }
+    )
+  }
+
+  // A draft is the issuing firm's working paper — the supplier's twin
+  // writes them (2026-10-18) and nobody has been asked for the money. The
+  // firm it would be sent to does not read it until it is sent.
+  const readParties = partiesOf({ agreement: invoice.engagement.msa, order: invoice.workOrder })
+  const readAs = directionFrom(readParties, reading?.companyId ?? caller.company?.id ?? null)
+  // Raised and never sent is the same (walk 9: a raised bill read as owed on Payables).
+  // The firm it would be sent to is told so in a sentence, never "not found"
+  // with Try again (walk 9b): the same words the send route uses.
+  if (BILL_NOT_SENT.includes(invoice.status) && readAs !== 'RECEIVABLE') {
+    const seller = readParties.vendor?.name?.trim() || 'The supplier'
+    return NextResponse.json(
+      { error: { code: 'NOT_SENT_YET', message: `${seller} has not sent this bill yet. Once ${seller} sends it, it is yours to check and pay.` } },
+      { status: 404 }
+    )
+  }
+
+  if (reading) noteMoneyRead(reading, `Invoice ${invoice.number} read`)
+
+  // The firm that sends the bill reads its order's window as a sentence
+  // beside it, the way Send does (`mayBeSent`); the firm paying reads it
+  // as a check on its own order, which it may waive or answer by moving
+  // the order's dates.
+  const match = await matchInvoice(id, { orderWindow: readAs === 'RECEIVABLE' ? 'SAY' : 'CHECK' })
+  // Every payment, with how it was paid and who paid whom, so the one
+  // page for an invoice can show what was recorded — the clerk who just
+  // paid it has to be able to read back the amount, the method and the
+  // reference she typed.
+  const payments = await prisma.payment.findMany({
+    where: { invoiceId: id },
+    select: {
+      id: true, amount: true, currency: true, method: true, reference: true, receivedAt: true,
+      payerCompany: { select: { name: true } },
+      receivedByCompany: { select: { name: true } },
+      appliedBy: { select: { name: true } },
+    },
+    orderBy: { receivedAt: 'asc' },
+  })
+  const paidCents = payments.reduce((sum, p) => sum + decimalToCents(p.amount, p.currency ?? invoice.currency), 0)
+  // Minor units per whole unit of this bill's currency: 100 for dollars, 1
+  // for the dong and the yen. Every figure below leaves in whole currency.
+  const per = minorPerUnit(invoice.currency)
+
+  // ── When it is due, and what settles it sooner ──────────────────────
+  //
+  // The due date was written when the invoice was raised and is not
+  // recomputed here — a contract amended in March must not restate a
+  // February promise. What IS computed is the day the clock counts from,
+  // because the discount window counts from the same day, and whether
+  // that day has happened at all.
+  const contractTerms = invoice.engagement.sellContracts[0] ?? null
+  // Who this invoice is between: the agreement, then the order. Both
+  // names below come from one answer, so the header and the terms
+  // sentence cannot name two different firms.
+  const msa = invoice.engagement.msa
+  const parties = partiesOf({ agreement: msa, order: invoice.workOrder })
+  // The agreement first (founder, 2026-10-18): the line's own, else its
+  // order's, else the engagement's.
+  const { billing: terms } = moneyTermsFor(
+    'SELL',
+    contractTerms ?? {},
+    { name: parties.vendor?.name ?? 'this company' },
+    contractTerms?.msa ?? contractTerms?.workOrder?.msa ?? msa ?? null
+  )
+
+  const clock = dueOn({
+    anchor: terms.paymentTermsFrom.value,
+    days: terms.paymentTermsDays.value,
+    periodEnd: invoice.periodEnd,
+    issuedAt: invoice.issuedAt ?? invoice.periodEnd,
+    receivedAt: invoice.receivedAt,
+    approvedAt: null,
+  })
+
+  // The standing ladder, narrowed by the order's own where there is one.
+  //
+  // "Exactly one of msaId and workOrderId" holds on every rung, and with
+  // no agreement behind the engagement there is no standing ladder at
+  // all — the order's rungs are then the whole ladder rather than an
+  // override of nothing.
+  const ladder = ladderFor({
+    agreement: msa?.earlyPaymentDiscounts ?? [],
+    order: invoice.workOrder?.earlyPaymentDiscounts ?? [],
+  })
+
+  const grossMinor = decimalToCents(invoice.total, invoice.currency)
+  const taxMinor = invoice.taxTotalCents ?? 0
+  const offer = discountOn({
+    ladder,
+    anchoredOn: clock.anchoredOn,
+    payingOn: new Date(),
+    // `Invoice.total` is the work. Tax is carried beside it, and the
+    // discount comes off the work only.
+    netMinor: grossMinor,
+    taxMinor,
+    taxRegime: invoice.taxRegime,
+    currency: invoice.currency,
+  })
+  const deadline = discountDeadline(ladder, clock.anchoredOn)
+
+  // Which side of the book this invoice is on for the reader: ours to
+  // pay, ours to collect, or neither. The pay form is only ever offered
+  // to the side that pays.
+  const direction = directionFrom(parties, reading?.companyId ?? caller.company?.id ?? null)
+  const totalMinor = fromPrismaDecimal(invoice.total, invoice.currency).minor
+  const paidMinor = payments.reduce((n, p) => n + fromPrismaDecimal(p.amount, p.currency ?? invoice.currency).minor, 0)
+
+  // Below the top of a chain, a line's overtime is the client's answer at
+  // the multiplier on the seller's own line (lib/money/client-overtime),
+  // read through the same call the match uses so the working and the check agree.
+  const carried = await carriedForLines(invoice.invoiceLines)
+
+  // Whom our own bill reached, and when, or why it did not
+  // (lib/notify/bill-delivery). Null on an invoice receipt, and on a bill
+  // Etyme never sent anywhere, where the page says nothing rather than guess.
+  const deliverySays = direction === 'RECEIVABLE' ? await billDeliverySays(invoice.id) : null
+
+  // Before Send, where it goes and whether an email can leave
+  // (lib/money/bill-before-send). The payer is the bill-to where the bill
+  // names one, as the sending reads it; otherwise the client.
+  let beforeSend: string | null = null
+  if (direction === 'RECEIVABLE' && BILL_NOT_SENT.includes(invoice.status)) {
+    const payerId = invoice.billToId ?? parties.client?.id ?? null
+    const payer = payerId
+      ? await prisma.company.findUnique({ where: { id: payerId }, select: { name: true, claimedAt: true } })
+      : null
+    if (payer) beforeSend = beforeSendSays({ payerName: payer.name, payerOnEtyme: payer.claimedAt != null, mailLeaves: mailLeaves() })
+  }
+
+  // Whether the payer may pay it now, by the gate the payment route asks
+  // (`payGate`, the core of `mayPayInvoiceReceipt`), over the match just
+  // run. The page draws Pay only on a yes; a held receipt reads what holds
+  // it, the hours and the way forward instead (lib/money/receipt-pay-panel).
+  let payPanel = receiptPayPanel({
+    direction,
+    invoice: { number: invoice.number, status: invoice.status },
+    match,
+    supplierName: parties.vendor?.name ?? 'the supplier',
+  })
+  // Through the check, and still not paid to a firm whose bank details
+  // nobody checked (`mayPayFirm`, the setup checklist's Bank details
+  // step), which the payment write refuses too: no Pay drawn, the
+  // refusal's sentence instead.
+  // And first, in the order the payment write asks: a paying company still
+  // waiting for a verified Owner pays nobody, so the page says the gate's
+  // own sentence with its link to Prove ownership before anybody presses
+  // Pay (lib/money/pay-waits).
+  if (payPanel.kind === 'PAY' && direction === 'PAYABLE' && parties.client) {
+    const waits = await payWaitsAt(parties.client.id)
+    if (waits?.href) payPanel = { kind: 'OWNER_WAITS', says: waits.says, href: waits.href, linkSays: waits.linkSays ?? 'Prove ownership' }
+  }
+  if (payPanel.kind === 'PAY' && parties.vendor && parties.client) {
+    const bank = await mayPayFirm(parties.client.id, parties.vendor.id)
+    if (!bank.ok) {
+      // Who checks them, and the check itself where this reader is that
+      // person (lib/money/bank-check): never a hold nobody can lift.
+      const held = await bankHoldAt({
+        payer: { id: parties.client.id, name: parties.client.name ?? 'Your company' },
+        payee: { id: parties.vendor.id, name: parties.vendor.name ?? 'The supplier' },
+        viewerId: caller.isService ? null : caller.person.id,
+      })
+      payPanel = {
+        kind: 'HELD', headline: held.headline, says: held.says, hours: [], wayForward: [held.says],
+        bank: { mayCheck: held.mayCheck, facts: held.facts },
+      }
+    }
+  }
+
+  const payTo = parties.vendor ? await payToOnBill(parties.vendor.id) : null
+
+  return NextResponse.json({
+    data: {
+      payPanel,
+      invoice: {
+        id: invoice.id,
+        number: invoice.number,
+        status: invoice.status,
+        direction,
+        deliverySays,
+        beforeSend,
+        // Where it is paid: the issuer's pay-to row as it stands now, and
+        // only where it is checked (lib/money/pay-to `payToOnBill`), never
+        // the row the bill was written with.
+        payToSays: payTo ? payToSays(payTo.row, payTo.entered) : payToSays(null),
+        // Minor units, beside the whole-currency figures older readers use.
+        totalMinor,
+        paidMinor,
+        outstandingMinor: totalMinor - paidMinor,
+        payments: payments.map((p) => ({
+          id: p.id,
+          amountMinor: fromPrismaDecimal(p.amount, p.currency ?? invoice.currency).minor,
+          currency: p.currency ?? invoice.currency,
+          method: p.method,
+          reference: p.reference,
+          receivedAt: p.receivedAt.toISOString(),
+          paidBy: p.payerCompany?.name ?? null,
+          paidTo: p.receivedByCompany?.name ?? null,
+          recordedBy: p.appliedBy?.name ?? null,
+        })),
+        periodStart: invoice.periodStart.toISOString().slice(0, 10),
+        periodEnd: invoice.periodEnd.toISOString().slice(0, 10),
+        dueAt: invoice.dueAt.toISOString().slice(0, 10),
+        currency: invoice.currency,
+        total: decimalToCents(invoice.total, invoice.currency) / per,
+        paid: paidCents / per,
+        // What the due date counts from, and whether that day has
+        // happened. An invoice whose clock has not started is not late
+        // however long it has been sitting there.
+        terms: {
+          days: terms.paymentTermsDays.value,
+          anchor: terms.paymentTermsFrom.value,
+          because: terms.paymentTermsFrom.because,
+          clockStarted: clock.clockStarted,
+          waitingFor: clock.waitingFor,
+          says: clock.says,
+        },
+        // "2% off for paying within 10 days — $125.40 off $6,270 of
+        // work, so $6,144.60 settles it."
+        earlyPayment: {
+          source: ladder.source,
+          rungs: ladder.rungs,
+          ladderSays: ladder.says,
+          discount: offer.discountMinor / per,
+          pay: offer.payMinor / per,
+          says: offer.says,
+          by: deadline?.by.toISOString().slice(0, 10) ?? null,
+          taxNeedsAThought: offer.taxNeedsAThought,
+        },
+        engagement: invoice.engagement.title,
+        // Null where nothing behind the invoice can say who it is
+        // between, with the sentence beside it rather than a blank.
+        vendor: parties.vendor,
+        client: parties.client,
+        between: parties.says,
+        betweenFrom: parties.basis,
+      },
+      workOrder: invoice.workOrder
+        ? {
+            id: invoice.workOrder.id,
+            number: invoice.workOrder.number,
+            status: invoice.workOrder.status,
+            amount: decimalToCents(invoice.workOrder.amount, invoice.currency) / per,
+            endDate: invoice.workOrder.endDate?.toISOString().slice(0, 10) ?? null,
+          }
+        : null,
+      // Each line with the receipt behind it. A line whose timesheet is not
+      // APPROVED is the commonest reason an invoice cannot be paid, so the
+      // receipt's own state is shown rather than merely counted.
+      lines: invoice.invoiceLines.map(l => ({
+        id: l.id,
+        person: l.person,
+        hours: Number(l.hours),
+        rate: l.rateCents / per,
+        amount: l.amountCents / per,
+        description: l.description,
+        // ── The working ───────────────────────────────────────────────
+        //
+        // A week signed at a premium does not multiply out: forty-five
+        // hours at $132 is $5,940 and the line says $6,270, because five
+        // of those hours were signed at time and a half. One row per
+        // timesheet per contract is a deliberate constraint, so the two
+        // lines a paper invoice would print are derived here instead —
+        // from the decisions, by the same function the match checks the
+        // line with, so the screen and the control cannot disagree.
+        //
+        // Empty where there is nothing to show: straight-time work, an
+        // expense, or an invoice raised before overtime was a decision.
+        // Then hours × rate is the whole story and the screen prints it.
+        bands: (recompute(l, { start: invoice.periodStart, end: invoice.periodEnd, label: '' }, null, carried.get(l.id) ?? null)?.bands ?? [])
+          .map(b => ({
+            kind: b.kind,
+            hours: b.hours,
+            rate: b.rateCents / per,
+            amount: b.amountCents / per,
+            says: b.says,
+          })),
+        receipt: l.timesheet
+          ? {
+              id: l.timesheet.id,
+              status: l.timesheet.status,
+              approvedHours: Number(l.timesheet.totalHours),
+              period: daySpan(l.timesheet.periodStart.toISOString(), l.timesheet.periodEnd.toISOString()),
+            }
+          : null,
+      })),
+      // What the payer reads before it decides, one sentence per
+      // person-week and one for the whole (lib/money/receipt-read).
+      receipt: match
+        ? {
+            ...readReceipt({ matched: match.matched, checks: match.checks, lines: match.lines, currency: invoice.currency }),
+            requirementId: match.lines.find((l) => l.requirementId)?.requirementId ?? null,
+            supplierId: parties.vendor?.id ?? null,
+          }
+        : null,
+      match: match
+        ? {
+            matched: match.matched,
+            cleanMatch: match.cleanMatch,
+            summary: match.summary,
+            // Said beside the bill and stopping nothing: its work runs
+            // outside the window of the order it is on (`orderWindowSays`).
+            notes: match.notes ?? [],
+            // An exception recorded for another total, which no longer
+            // covers this invoice — the sentence, or null.
+            voidedWaiver: match.voidedWaiver ?? null,
+            checks: match.checks.map(c => ({
+              ...c,
+              // Say plainly whether this is anybody's to wave through.
+              overridable: OVERRIDABLE[c.code],
+            })),
+            workOrder: match.poAfter
+              ? {
+                  remaining: match.poAfter.remainingCents / per,
+                  utilisationPercent: match.poAfter.utilisationPercent,
+                }
+              : null,
+          }
+        : null,
+      overrides: invoice.matchOverrides.map(o => ({
+        code: o.code,
+        reason: o.reason,
+        by: o.by,
+        at: o.createdAt.toISOString(),
+        totalAtOverride: o.invoiceTotalCentsAtOverride / per,
+        // Whether it still covers the invoice at its total now.
+        stillCovers: o.invoiceTotalCentsAtOverride === decimalToCents(invoice.total, invoice.currency),
+      })),
+    },
+  })
+}
+
+/**
+ * POST /api/invoices/:id   { act: "check-bank" }
+ *
+ * The paying firm checks the supplier's bank details from the invoice
+ * receipt they hold up (the founder's tester, 2026-11-08: every bill to
+ * the demo client was held "bank details not checked" and the client has
+ * no Finance seat). Finance checks where the payer has a Finance seat;
+ * where it has none, the seat that pays (the AP clerk), the fallback rule
+ * (lib/money/bank-check). Writes who, when and for which client on the
+ * supplier's payment details, the same record the supplier walk's Finance
+ * item writes, and shows only the bank, the account name and four digits.
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (caller.isService || !caller.company) {
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: 'A bank check is made by a person at the firm that pays.' } }, { status: 403 })
+  }
+  const { id } = await params
+  const body = await request.json().catch(() => ({}))
+  if (body?.act !== 'check-bank') {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say what to do with this invoice receipt: check-bank is the one act here.', field: 'act' } }, { status: 422 })
+  }
+
+  // The receipt must be one this reader's firm holds, and theirs to pay.
+  const whose = await booksFor(caller, request)
+  if (whose?.error) return whose.error
+  const scope = whose?.books && invoiceScope(caller) ? whose.books.invoiceWhere : null
+  const found = scope ? await prisma.invoice.findFirst({ where: { id, ...scope }, select: { id: true } }) : null
+  const parties = found ? await receiptParties(id) : null
+  if (!found || !parties) {
+    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Invoice not found' } }, { status: 404 })
+  }
+  if (parties.client.id !== caller.company.id) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: `${parties.client.name} checks ${parties.vendor.name}’s bank details, because ${parties.client.name} pays this invoice receipt.` } },
+      { status: 403 }
+    )
+  }
+  const out = await checkPayeeBank({ payer: parties.client, payee: parties.vendor, by: { personId: caller.person.id, name: caller.person.name } })
+  if (!out.ok) return NextResponse.json({ error: { code: out.code, message: out.says } }, { status: out.status })
+  return NextResponse.json({ data: { checked: true, message: out.says } })
+}

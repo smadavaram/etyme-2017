@@ -1,0 +1,52 @@
+/* The Learn section, in Etyme's own brand kit: cream canvas, serif headings,
+   Inter, violet, orange and green washes, 12px corners. Played once. */
+.section { --canvas: #F0EEE6; --raised: #FFFFFF; --sunk: #E7E4DA; --ink: #1F1E1D; --muted: #6B6862; --faint: #9C9891; --rule: #E3DFD5;
+  --violet: #5228FF; --violet-p: #4421D6; --violet-wash: #EDE9FF; --violet-line: #C7CDF5; --orange: #E16400;
+  --green-p: #2F7D3E; --green-wash: #EDF1ED; --green-line: #C9D6CA; --ease: cubic-bezier(.2, .7, .3, 1);
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, var(--font-gelasio), serif;
+  --sans: var(--font-inter), Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: var(--font-mono), 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+.stage { max-width: 880px; margin: 0 auto; }
+.eyebrow { font: 600 10px/1.4 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin: 0; }
+.eyebrow b { color: var(--violet-p); font-weight: 600; }
+.title { font-family: var(--serif); font-weight: 400; letter-spacing: -.022em; font-size: 42px; line-height: 1.08; margin: 10px 0 8px; text-wrap: balance; }
+.free { color: var(--green-p); }
+.lede { color: var(--muted); font-size: 16px; line-height: 1.6; max-width: 58ch; margin: 0; }
+.track { height: 6px; background: var(--sunk); border-radius: 99px; margin: 26px 0 14px; overflow: hidden; }
+.fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--violet), var(--orange)); border-radius: 99px; }
+.grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.tile { background: var(--raised); border: 1px solid var(--rule); border-radius: 12px; padding: 14px; opacity: .22; transform: translateY(8px); box-shadow: 0 1px 2px #1f1e1d0f; }
+.n { font: 500 12.5px var(--mono); color: var(--faint); }
+.ic { display: block; margin-top: 6px; color: var(--violet-p); line-height: 0; }
+.tileName { font-family: var(--serif); font-weight: 500; font-size: 19px; letter-spacing: -.01em; margin: 6px 0 3px; }
+.tileLine { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin: 0; }
+.on { border-color: var(--violet-line); background: var(--violet-wash); }
+.on .n { color: var(--violet-p); }
+.finale { margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; opacity: 0; transform: translateY(8px); }
+.badge { flex: 1; min-width: 240px; background: var(--green-wash); border: 1px solid var(--green-line); border-radius: 12px; padding: 14px 16px; }
+.badge h3 { font-family: var(--serif); font-weight: 500; font-size: 19px; color: var(--green-p); margin: 0 0 3px; }
+.badge p { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin: 0; }
+.join { flex: 1; min-width: 240px; background: var(--violet); border-radius: 12px; padding: 14px 16px; color: #fff; text-decoration: none; display: block; }
+.join:hover { background: #3F16E8; }
+.join h3 { font-family: var(--serif); font-weight: 500; font-size: 19px; margin: 0 0 3px; }
+.join p { font-size: 13.5px; color: #DCD4FF; line-height: 1.55; margin: 0; }
+.controls { margin-top: 22px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.cta, .replay { display: inline-flex; align-items: center; gap: 7px; font: 600 14px/1 var(--sans); padding: 12px 18px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; text-decoration: none; }
+.cta { background: var(--violet); color: #fff; }
+.cta:hover { background: #3F16E8; }
+.replay { background: transparent; color: var(--violet-p); border-color: var(--violet-line); }
+.cta:focus-visible, .replay:focus-visible, .join:focus-visible { outline: 3px solid var(--violet-p); outline-offset: 2px; }
+@media (max-width: 640px) { .grid { grid-template-columns: repeat(2, 1fr); } .title { font-size: 31px; } }
+@media (prefers-reduced-motion: no-preference) {
+  .play .fill { animation: fill 7s var(--ease) forwards; }
+  .play .tile { animation: rise .45s var(--ease) forwards; }
+  .play .finale { animation: rise .55s var(--ease) forwards; }
+  @keyframes fill { to { width: 100%; } }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile, .finale { opacity: 1; transform: none; }
+  .fill { width: 100%; }
+  .replay { display: none; }
+}

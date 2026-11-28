@@ -1,0 +1,1465 @@
+import { sellerIsTheTop } from '../../team-top'
+import { NextRequest, NextResponse } from 'next/server'
+import { notSignableSays } from '../../not-signable'
+import { getCallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
+import { mayReadBillRate } from '@/lib/money/pay-visibility'
+import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
+import { prisma } from '@/lib/db'
+import { seatFor, actingInSeat } from '@/lib/program-seat'
+import { completeCycle } from '@/lib/cycle-complete'
+import { postAssertions } from '@/lib/order-postings'
+import { reportError } from '@/lib/alerts'
+import { rateInForce, ratePeriods } from '@/lib/contract-rate'
+import { gates, maySign, type Sheet } from '@/lib/timesheet-signatures'
+import { checkAcceptedHours } from '../../accept-fewer'
+import { acceptedWorth } from '../../accepted-worth'
+import { emit } from '@/lib/events'
+import { notify } from '@/lib/notify'
+import {
+  lineFor, splitWeeks, weekStart, weeksAwaitingDecision, saysAwaiting,
+  mayDecide, mayChange, priceChoice, isTreatment, treatmentSays, decidingLeg,
+  clientDecidesOvertimeSays,
+  type Decision, type Treatment, type ChainRung, type OvertimePolicy,
+} from '@/lib/overtime'
+import type { Carried } from '@/lib/money/client-overtime'
+import { payersRole } from '@/lib/money/payers-acceptance'
+import { clientDecidedFor, clientDecidedSentence } from '../../client-decided'
+import { weekFlag, flaggedWeekSays, flagAsksReason } from '@/lib/timesheet-flag'
+import { timeOffOffered, TIME_OFF_NOT_OFFERED_SAYS } from '@/lib/overtime'
+import { compTimeLawful } from '@/lib/worker-classification'
+import { amount, rate } from '@/lib/money-display'
+import { clientSignedSays } from '../../client-signed-says'
+import { acceptedSays, paidBelowFrom, type PaidBelow } from '../../accepted-says'
+import { hoursAccepted, billAmountOf } from './reply-figures'
+import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
+import { ladderAbove, type LegContract } from '../../ladder'
+import {
+  topDown, signersOf, turnOf, tellNext, signedBy, weekSays, acceptsOnlyForItself, standsAsAcceptanceSays,
+  workerToldSays,
+  type Signer,
+} from '../../chain-turn'
+import { NOT_THE_SAMPLE_SEAT } from '@/lib/sample-seat'
+
+/**
+ * POST /api/timesheets/:id/approve
+ *
+ * BUILD.md: "writes the ledger, increments payable"
+ *
+ * Approver approves a submitted timesheet.
+ * Timesheets are on the sell side — billRate comes from the SellContract.
+ *
+ * ── Overtime is decided here, and nowhere else ───────────────────────
+ *
+ * A week over the contract's threshold used to bill at the contract's
+ * multiplier on its own: a 45-hour week at $100 with a 40-hour limit
+ * produced $4,750 and nobody had agreed to the $750. So hours over the
+ * line now stop this route until whoever signs the week says what
+ * happens to them — paid flat, paid at a premium, or banked as time off.
+ *
+ * The decision is written in the same transaction as the signature,
+ * because a signature on a week whose money is undecided is a signature
+ * on nothing, and a decision with no signature behind it is a number
+ * with no author.
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const { id } = await params
+  const person = { id: caller.person.id, name: caller.person.name }
+
+  const timesheet = await prisma.timesheet.findUnique({
+    where: { id },
+    include: {
+      person: { select: { id: true, name: true } },
+      sellContract: {
+        select: {
+          id: true, billRate: true, billCurrency: true, companyId: true,
+          clientCompanyId: true, endClientCompanyId: true,
+          overtimeAfterHours: true, overtimeMultiplierBps: true,
+          // The flag's two facts: the role's hours and the last day. A
+          // flagged week asks for a reason before it is signed, from
+          // every door, and a silent contract's overtime line is the
+          // role's hours (`lineFor`).
+          endDate: true,
+          requirement: { select: { hoursPerWeek: true } },
+          company: { select: { name: true } },
+          clientCompany: { select: { name: true } },
+          endClientCompany: { select: { name: true } },
+        },
+      },
+      // What has already been said about this sheet's overtime weeks,
+      // on this leg. A sub-vendor's sheet is a different row and never
+      // reads these.
+      overtimeDecisions: true,
+    },
+  })
+
+  if (!timesheet) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Timesheet not found' } },
+      { status: 404 }
+    )
+  }
+
+  // A member's week on outcome work has no client step: the selling firm
+  // signs it at the top, in one press (`../../team-top`, record 120).
+  const hiddenTeamWeek = await sellerIsTheTop(timesheet.sellContractId, timesheet.sellContract)
+
+  // An approved timesheet is the goods receipt: the invoice, the
+  // three-way match, the payment and the margin all rest on it. This
+  // required nothing but a session, so any account on the platform could
+  // approve any timesheet at any company.
+  const parties = {
+    personId: timesheet.personId,
+    vendorCompanyId: timesheet.sellContract.companyId,
+    clientCompanyId: timesheet.sellContract.clientCompanyId,
+    endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+  }
+
+  // ── The desk this signature is made from ────────────────────────────
+  //
+  // Resolve the seat before either gate. A client can hand the running
+  // of its program to an office, and signing for the week is most of
+  // what that office does all day — so the office signs at the client's
+  // desk, holding the client's permissions, as the client's side of the
+  // paper. Asked the other way round it was refused twice over: its own
+  // roles rarely carry `timesheets.approve`, and its own company is
+  // neither the payer nor the site, so `mayApprove` called it a
+  // stranger.
+  //
+  // The person on the signature stays the real person at the office.
+  // "Nobody approves their own hours" is answered against a person and
+  // must stay that way, and a client asking later who signed a week is
+  // entitled to a name rather than to its own.
+  const buyerSideId = parties.endClientCompanyId ?? parties.clientCompanyId
+  const seat = await seatFor(caller, buyerSideId)
+  const acting = seat ? actingInSeat(caller, seat) : caller
+  const signingAs = {
+    personId: caller.person.id,
+    companyId: seat ? seat.clientCompany.id : caller.company?.id,
+    permissions: acting.permissions,
+    // Only for the refusal, so it names a desk rather than a key.
+    companyKind: seat ? 'CLIENT' : caller.company?.kind ?? null,
+    companyName: seat ? seat.clientCompany.name : caller.company?.name ?? null,
+    publicSeat: caller.publicSeat ?? false,
+  }
+  /**
+   * The company this signature is made *on behalf of*, for everything
+   * written below it: which leg is being answered, who the overtime
+   * decision belongs to, whose row the work assertion lands on.
+   *
+   * Under a seat that is the client, and it has to be. Written as the
+   * office's, a seated approval would file the client's acceptance and
+   * the client's overtime decision under a firm that is not a party to
+   * the contract — which is the same class of error as putting a
+   * sub-vendor's rate on a client's screen, pointing sideways.
+   */
+  const onBehalfOf = (seat ? seat.clientCompany.id : caller.company?.id) as string
+
+  if (approvingOwnHours({ personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions }, parties)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Nobody approves their own hours.' } },
+      { status: 403 }
+    )
+  }
+
+  // ── Whose turn it is, down the chain ────────────────────────────────
+  //
+  // The client signs first; the week then goes down the chain, each firm
+  // accepting what it pays, the employer last (`../../chain-turn`). The
+  // ladder is walked here, before anything is signed, because the order
+  // is the first question: a firm whose turn has not come is told who it
+  // is waiting on, and the firm in the middle — which had no step at all
+  // — accepts as PASS_THROUGH on the ledger.
+  const rungs = await ladderAbove(timesheet.sellContractId, {
+    sellContractId: timesheet.sellContractId,
+    companyId: timesheet.sellContract.companyId,
+    clientCompanyId: timesheet.sellContract.clientCompanyId,
+    endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+    supplierSellContractId: null,
+  })
+  const ladder = topDown(rungs.map((r) => r.rung))
+  const signers = signersOf(ladder)
+  const names = new Map(
+    (
+      await prisma.company.findMany({
+        where: { id: { in: [...new Set([...signers.map((x) => x.companyId), ...ladder.map((r) => r.companyId)])] } },
+        select: { id: true, name: true },
+      })
+    ).map((c) => [c.id, c.name])
+  )
+  const nameOf = (companyId: string) => names.get(companyId) ?? 'The firm above you'
+
+  // Every firm on the chain signs its own turn. `mayApprove` knows the
+  // buyer and the seller on the contract the hours sit on; a firm two
+  // rungs up is on the chain too, and is asked its turn below rather
+  // than refused here as a stranger. The permission still has to be held.
+  const onTheChain =
+    signers.some((x) => x.companyId === onBehalfOf) &&
+    hasPermission(signingAs.permissions, 'timesheets.approve')
+  const verdict = mayApprove(signingAs, parties)
+  const allowed = verdict.ok || !onTheChain ? verdict : { ok: true, reason: 'Accepting what it pays, in its turn down the chain.' }
+  if (!allowed.ok) {
+    // The client never reads a member line of outcome work: not a refusal that
+    // says the week exists, but the same answer as a week that is not there.
+    if (hiddenTeamWeek) {
+      return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Timesheet not found' } }, { status: 404 })
+    }
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: allowed.reason } },
+      { status: 403 }
+    )
+  }
+
+  if (timesheet.status !== 'SUBMITTED') {
+    // Said the way a person would: who signed it and when, or what is
+    // still to happen (`notSignableSays`), never the status code.
+    // The client's signature first (the one this route writes), then the
+    // single approval that predates the split; an approval by email names
+    // the approver on the evidence, and one by silence says so.
+    const signerId = timesheet.clientApprovedById ?? timesheet.approvedById ?? null
+    const [signer, byEmail] = timesheet.status === 'APPROVED'
+      ? await Promise.all([
+          signerId ? prisma.person.findUnique({ where: { id: signerId }, select: { name: true } }) : null,
+          signerId ? null : prisma.weekApproval.findFirst({
+            where: { timesheetId: timesheet.id, outcome: 'APPROVED' },
+            orderBy: { usedAt: 'desc' },
+            select: { approverName: true, usedAt: true, sentAt: true },
+          }),
+        ])
+      : [null, null]
+    return NextResponse.json(
+      {
+        error: {
+          code: 'INVALID_STATE',
+          message: notSignableSays({
+            status: timesheet.status,
+            personName: timesheet.person.name,
+            periodEnd: timesheet.periodEnd,
+            signedAt: timesheet.clientApprovedAt ?? timesheet.approvedAt ?? byEmail?.usedAt ?? byEmail?.sentAt ?? null,
+            signerName: signer?.name ?? byEmail?.approverName ?? null,
+            bySilence: timesheet.autoApproved,
+          }),
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  const hours = Number(timesheet.totalHours)
+  const now = new Date()
+
+  // ── Which signature is this ─────────────────────────────────────────
+  //
+  // The client approves that the work happened; the employer accepts
+  // what it will pay for. Different assertions, and in a forwarding
+  // chain almost never the same company — so the caller's position on
+  // this contract decides which one they are making.
+  const body = await request.json().catch(() => ({}))
+  const employer = timesheet.sellContract.companyId
+  const client = timesheet.sellContract.endClientCompanyId ?? timesheet.sellContract.clientCompanyId
+  const isEmployer = signingAs.companyId === employer
+  const isClient = signingAs.companyId === client
+  const direct = employer === client
+
+  const sheet: Sheet = {
+    totalHours: hours,
+    clientApproved: timesheet.clientApprovedAt
+      ? { at: timesheet.clientApprovedAt, byId: timesheet.clientApprovedById! }
+      : null,
+    employerAccepted: timesheet.employerAcceptedAt
+      ? { at: timesheet.employerAcceptedAt, byId: timesheet.employerAcceptedById! }
+      : null,
+    acceptedHours: timesheet.acceptedHours ? Number(timesheet.acceptedHours) : null,
+    acceptedNote: timesheet.acceptedNote,
+    direct,
+  }
+
+  let asParty: 'CLIENT' | 'EMPLOYER' | 'PASS'
+  let nextSigner: Signer | null = null
+  if (direct) {
+    // One firm on both sides: one press signs both, as it always has.
+    asParty = body?.as === 'EMPLOYER' ? 'EMPLOYER' : isClient ? 'CLIENT' : 'EMPLOYER'
+    const may = maySign(asParty, sheet, isClient, isEmployer)
+    if (!may.ok) {
+      return NextResponse.json(
+        { error: { code: 'CANNOT_SIGN', message: may.reason } },
+        { status: 409 }
+      )
+    }
+  } else {
+    const live = await prisma.workAssertion.findMany({
+      where: { timesheetId: id, state: 'LIVE' },
+      select: { companyId: true, role: true },
+    })
+    const turn = turnOf(signers, onBehalfOf, (x) => signedBy(x, timesheet, live), nameOf)
+    if (!turn.ok) {
+      return NextResponse.json(
+        { error: { code: turn.code === 'NOT_YOUR_TURN' ? 'NOT_YOUR_TURN' : 'CANNOT_SIGN', message: turn.says } },
+        { status: 409 }
+      )
+    }
+    asParty = turn.signer.role === 'CLIENT_APPROVAL' ? 'CLIENT' : turn.signer.role === 'EMPLOYER_ACCEPTANCE' ? 'EMPLOYER' : 'PASS'
+    nextSigner = turn.next
+  }
+
+  // ── A one-person firm is never asked to accept its own worker's week ──
+  //
+  // Where the week goes next to the firm that employs the worker, and
+  // every seat there that may accept hours is the worker's own — Colleen
+  // Byrne at Byrne Critical Care LLC — she would be asked to accept her
+  // own week and then refused for it ("Nobody approves their own hours").
+  // So the signature this press makes stands as her firm's acceptance,
+  // written now, on the firm's behalf, marked automatic and said why
+  // (`acceptsOnlyForItself` in ../../chain-turn); and nobody is asked.
+  let standsFor: { companyId: string; name: string } | null = null
+  if (nextSigner?.role === 'EMPLOYER_ACCEPTANCE') {
+    const acceptors = await prisma.context.findMany({
+      where: {
+        companyId: nextSigner.companyId,
+        revokedAt: null,
+        role: { permissions: { hasSome: ['timesheets.approve', '*'] } },
+        ...NOT_THE_SAMPLE_SEAT,
+      },
+      select: { personId: true },
+    })
+    if (acceptsOnlyForItself(acceptors, timesheet.personId)) {
+      standsFor = { companyId: nextSigner.companyId, name: nameOf(nextSigner.companyId) }
+      // Nobody left to tell: the week is accepted all the way down.
+      nextSigner = null
+    }
+  }
+
+  // ── Below the top, the client has already decided the overtime ──────
+  //
+  // The founder, 2026-10-19 (CLAUDE.md, "Four decisions…", item 3): below
+  // the top of a chain, which hours are overtime is the client's decision
+  // when it signed the week, carried down the way the hours are, and a
+  // rung's own answer prices nothing (`lib/money/client-overtime`). So the
+  // firm in the middle and the employer are not asked; they read what the
+  // client decided, as a fact. An answer one of them sends anyway is
+  // refused in a sentence, before anything is written, rather than kept
+  // on a row nobody reads. The top — the client's signature, and both
+  // presses of a direct placement — is unchanged.
+  const belowTop = !direct && asParty !== 'CLIENT'
+  const topRung = ladder[0] ?? null
+  const clientName = topRung ? nameOf(topRung.endClientCompanyId ?? topRung.clientCompanyId) : 'The client'
+  if (belowTop && Array.isArray(body?.overtime) && body.overtime.length > 0) {
+    return NextResponse.json(
+      { error: { code: 'CLIENT_DECIDED_OVERTIME', message: clientDecidesOvertimeSays(clientName) } },
+      { status: 422 }
+    )
+  }
+
+  // Accepting a different number needs a reason. Somebody finding out
+  // from their payslip is the fastest way to lose a good contractor. And
+  // nobody accepts more than was filed: only the worker files the week.
+  // One check, read by the "Accept fewer hours" form too, so every
+  // refusal here names a field that form draws (walk 8).
+  const accepted = checkAcceptedHours(hours, body, timesheet.person.name)
+  if (!accepted.ok) {
+    return NextResponse.json(
+      { error: { code: accepted.code, message: accepted.message, field: accepted.field } },
+      { status: 422 }
+    )
+  }
+
+  // ── A flagged week is signed with a reason, or not at all ───────────
+  //
+  // The same flag the list marks with a warning and the dashboard offers
+  // only as "Approve anyway" (`weekFlag`). WARN, capture a reason,
+  // proceed — never silently: the Timesheets page signed Lucía
+  // Fernández's 44 hours on a 40-hour job with one tick and no reason,
+  // while the dashboard asked for one on the same week. One rule, here,
+  // so every door asks, and the reason rides on the signature below.
+  const flag = weekFlag({
+    hours,
+    hoursPerWeek: timesheet.sellContract.requirement?.hoursPerWeek ?? null,
+    periodEnd: timesheet.periodEnd,
+    contractEnd: timesheet.sellContract.endDate,
+    anomalyScore: timesheet.anomalyScore,
+    anomalyReason: timesheet.anomalyReason,
+  })
+  // Asked once, of the client: a firm below the top accepts a week the
+  // client already signed with its reason, and is not asked again
+  // (`flagAsksReason`).
+  const reasonGiven = typeof body?.note === 'string' ? body.note.trim() : ''
+  if (flag && !reasonGiven && flagAsksReason({ belowTop, clientSignedAt: timesheet.clientApprovedAt })) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FLAG_NEEDS_REASON',
+          message: flaggedWeekSays(flag),
+          flag,
+          field: 'note',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  // ── What happens to the hours over the line ─────────────────────────
+  //
+  // Everything from here to the transaction is refusal, not writing.
+  // Nothing about this sheet moves until the weeks that went over the
+  // threshold have an answer each, from somebody entitled to give one.
+
+  // ── Whose leg is this ───────────────────────────────────────────────
+  //
+  // A week is filed once, against the contract of the firm that employs
+  // the person. In a chain the firms above it all have something to say
+  // about the same week, and they are saying different things: a leg is
+  // an agreement between two firms at one rate, and what one pair agreed
+  // is not what another pair agreed.
+  //
+  // So the answer is written against the leg of the firm being asked to
+  // pay for it. This route used to write every answer against the leg
+  // the hours sit on, whoever gave it — which left a prime with no
+  // answer of its own to bill from, and put the client's agreement on
+  // its supplier's row where the supplier could read it.
+  const leg = decidingLeg(onBehalfOf, rungs.map((r) => r.rung), timesheet.sellContractId)
+
+  // The terms, the rate and the names of the leg being answered. On a
+  // direct placement — and for the employer in any chain — this is the
+  // contract the hours are filed against, which is the ordinary case and
+  // reads the row already loaded.
+  const above = rungs.find((r) => r.rung.sellContractId === leg.sellContractId)
+  const deciding: LegContract = above?.contract ?? {
+        id: timesheet.sellContract.id,
+        billRate: timesheet.sellContract.billRate,
+        billCurrency: timesheet.sellContract.billCurrency,
+        overtimeAfterHours: timesheet.sellContract.overtimeAfterHours,
+        overtimeMultiplierBps: timesheet.sellContract.overtimeMultiplierBps,
+        companyId: timesheet.sellContract.companyId,
+        clientCompanyId: timesheet.sellContract.clientCompanyId,
+        endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+        companyName: timesheet.sellContract.company?.name ?? null,
+        clientName:
+          timesheet.sellContract.endClientCompany?.name ??
+          timesheet.sellContract.clientCompany?.name ??
+          null,
+      }
+
+  // The contract's own line where it names one; where it is silent, the
+  // role's hours — the same line the flag reads — because this week is
+  // still to be signed (`lineFor`).
+  const policy = lineFor(deciding, timesheet.sellContract.requirement, { stillToSign: true, decided: false })
+  const leaveDays = (timesheet.leaveDays as Record<string, number>) ?? {}
+  // Only what has been said on this leg. A prime's agreement with its
+  // client is not the sub's agreement with the prime, and reading the
+  // wrong one is the same error as reading the wrong rate.
+  const ownLeg = timesheet.overtimeDecisions.filter((d) => d.sellContractId === leg.sellContractId)
+
+  // Below the top: the client's answers on its own leg, each priced at
+  // the multiplier on this firm's own line with the firm it pays — the
+  // one rule money bills and matches by, so what this firm is told at
+  // acceptance is what its invoice will say. Where the client's answer
+  // cannot be read, the week is still accepted and no figure is given.
+  const topLeg = topRung
+    ? { sellContractId: topRung.sellContractId, clientCompanyId: topRung.endClientCompanyId ?? topRung.clientCompanyId }
+    : null
+  const carried: Carried | null = belowTop
+    ? clientDecidedFor({
+        rows: timesheet.overtimeDecisions,
+        top: topLeg,
+        pairLineId: leg.sellContractId,
+        pairMultiplierBps: deciding.overtimeMultiplierBps,
+        personName: timesheet.person.name,
+      })
+    : null
+  const clientDecided = carried == null ? null : clientDecidedSentence(clientName, carried)
+  /** The line the week is split on: this leg's own at the top, the client's below it. */
+  const splitPolicy: OvertimePolicy = carried == null
+    ? policy
+    : carried.ok
+      ? carried.policy
+      : { afterHours: null, multiplierBps: deciding.overtimeMultiplierBps ?? 15_000 }
+
+  const priorDecisions: Decision[] = carried != null
+    ? carried.ok ? carried.decisions : []
+    : ownLeg.map((d) => ({
+        weekOf: d.weekOf.toISOString().slice(0, 10),
+        treatment: d.treatment as Treatment,
+        appliedBps: d.appliedBps,
+        overtimeHours: Number(d.overtimeHours),
+        accrualBps: d.accrualBps,
+      }))
+
+  /** What the caller answered this time, one per week. */
+  const answers = new Map<string, { treatment: Treatment; multiplierBps: number | null; reason: string | null }>()
+  // Only the top is asked; below it the refusal above has already
+  // turned away any answer sent.
+  const rawAnswers = !belowTop && Array.isArray(body?.overtime) ? body.overtime : []
+  for (const a of rawAnswers) {
+    if (!a || typeof a.weekOf !== 'string' || !isTreatment(a.treatment)) continue
+    answers.set(weekStart(a.weekOf), {
+      treatment: a.treatment,
+      multiplierBps: a.multiplierBps == null ? null : Number(a.multiplierBps),
+      reason: typeof a.reason === 'string' ? a.reason : null,
+    })
+  }
+
+  // Time off in place of overtime pay is refused unless the law allows
+  // comp time for this employer and the company chose it. The company's
+  // choice is a column not built yet (`Company.timeOffInLieu`), so today
+  // it is refused for everybody, in a sentence (`lib/overtime`).
+  const timeOffAllowed = timeOffOffered({ compTimeLawful: compTimeLawful('US_FLSA'), companyAllows: false })
+  if (!timeOffAllowed && [...answers.values()].some((a) => a.treatment === 'TIME_OFF')) {
+    return NextResponse.json(
+      { error: { code: 'TIME_OFF_NOT_OFFERED', message: TIME_OFF_NOT_OFFERED_SAYS } },
+      { status: 422 }
+    )
+  }
+
+  // The split as it stands: prior decisions applied, this call's answers
+  // not yet. A prior decision whose week has since been amended is stale
+  // and reads as undecided, which is what makes an amendment ask again.
+  const standing = splitWeeks((timesheet.days as Record<string, number>) ?? {}, splitPolicy, {
+    leaveDays,
+    decisions: priorDecisions,
+  })
+
+  // Below the top nothing waits on this firm: the client has answered,
+  // and a week the client left unanswered holds no overtime down here.
+  const awaiting = belowTop ? [] : weeksAwaitingDecision(standing)
+  const unanswered = awaiting.filter((w) => !answers.has(w.weekOf))
+  if (unanswered.length > 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'OVERTIME_UNDECIDED',
+          message: saysAwaiting(unanswered, timesheet.person.name, policy),
+          // Enough for the screen to ask the question without a second
+          // round trip: the week, the hours, and what it would cost.
+          weeks: unanswered.map((w) => ({
+            weekOf: w.weekOf,
+            workedHours: w.workedHours,
+            overtimeHours: w.pendingHours,
+            afterHours: policy.afterHours,
+            multiplierBps: policy.multiplierBps,
+            // Our own rate on our own leg. Quoting the one underneath it
+            // would show a client what its supplier's supplier charges.
+            rateCents: deciding.billRate,
+          })),
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  // ── Every answer given is checked before any of them is written ─────
+
+  interface Writing {
+    weekOf: string
+    treatment: Treatment
+    appliedBps: number
+    accrualBps: number
+    overtimeHours: number
+    reason: string | null
+    priorId: string | null
+    priorWas: { treatment: string; appliedBps: number; overtimeHours: number } | null
+  }
+  const writing: Writing[] = []
+
+  for (const [weekOf, answer] of answers) {
+    const week = standing.weeks.find((w) => w.weekOf === weekOf)
+    if (!week || week.overHours <= 0) {
+      // Answering a week that is not over the line is not an error worth
+      // refusing a signature for; there is simply nothing to decide.
+      continue
+    }
+
+    const may = mayDecide(
+      { personId: caller.person.id, companyId: onBehalfOf },
+      {
+        personId: timesheet.personId,
+        // The parties to the leg being answered, which in a chain is not
+        // the leg the hours sit on. A firm that is on neither is refused
+        // in a sentence rather than quietly writing on somebody's row.
+        employerCompanyId: deciding.companyId,
+        clientCompanyId: deciding.clientCompanyId,
+        endClientCompanyId: deciding.endClientCompanyId,
+        clientName: deciding.clientName ?? undefined,
+        employerName: deciding.companyName ?? undefined,
+      }
+    )
+    if (!may.ok) {
+      return NextResponse.json({ error: { code: 'FORBIDDEN', message: may.says } }, { status: 403 })
+    }
+
+    const prior = ownLeg.find((d) => d.weekOf.toISOString().slice(0, 10) === weekOf)
+    // Once a week has been billed, what was decided about it is history.
+    const changeable = mayChange(prior)
+    if (prior && !changeable.ok) {
+      const same =
+        prior.treatment === answer.treatment &&
+        Number(prior.overtimeHours) === week.overHours &&
+        (answer.multiplierBps == null || prior.appliedBps === answer.multiplierBps)
+      if (!same) {
+        return NextResponse.json(
+          { error: { code: 'ALREADY_BILLED', message: changeable.says } },
+          { status: 409 }
+        )
+      }
+      continue
+    }
+
+    const priced = priceChoice(
+      { treatment: answer.treatment, multiplierBps: answer.multiplierBps, reason: answer.reason },
+      policy
+    )
+    if (!priced.ok) {
+      return NextResponse.json(
+        { error: { code: 'NEEDS_REASON', message: priced.says, field: 'reason', weekOf } },
+        { status: 422 }
+      )
+    }
+
+    writing.push({
+      weekOf,
+      treatment: answer.treatment,
+      appliedBps: priced.appliedBps,
+      accrualBps: priced.accrualBps,
+      // The hours as they are now, not as they were when somebody last
+      // looked. This snapshot is what makes an amended sheet ask again.
+      overtimeHours: week.overHours,
+      reason: answer.reason,
+      priorId: prior?.id ?? null,
+      priorWas: prior
+        ? { treatment: prior.treatment, appliedBps: prior.appliedBps, overtimeHours: Number(prior.overtimeHours) }
+        : null,
+    })
+  }
+
+  // ── What the week is actually worth, once the answers are in ────────
+  //
+  // Priced from each decision's own `appliedBps`, never from the
+  // contract's multiplier, and with nothing undecided in it. A sheet
+  // that still holds pending hours never reaches here — the refusal
+  // above returned long ago — so this figure is always one somebody
+  // agreed to.
+  const settled: Decision[] = [
+    ...priorDecisions.filter((d) => !writing.some((w) => w.weekOf === d.weekOf)),
+    ...writing.map((w) => ({
+      weekOf: w.weekOf,
+      treatment: w.treatment,
+      appliedBps: w.appliedBps,
+      overtimeHours: w.overtimeHours,
+      accrualBps: w.accrualBps,
+    })),
+  ]
+  // ── On the hours the payer of that leg accepted ────────────────────
+  //
+  // Walk 8, 9 November 2026: Computer Systems accepted 38 of Helena
+  // Marsh's 40 hours and this reply said `billAmount` 4,720, the 40 filed.
+  // A firm bills only the hours the firm above it accepted, and the cut
+  // comes off overtime first (the founder, 2026-09-28 and 29). So the
+  // week is valued on the acceptance of whoever pays on the leg being
+  // answered — this press, where that is the presser, else the signature
+  // already standing above it — through money's own reading and pricing
+  // (`acceptedWorth`), never a second computation here.
+  const hoursLine = {
+    companyId: timesheet.sellContract.companyId,
+    clientCompanyId: timesheet.sellContract.clientCompanyId,
+    endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+  }
+  const legPayer = deciding.clientCompanyId
+  const payersSigned = legPayer === onBehalfOf
+    ? [{ companyId: onBehalfOf, role: payersRole(onBehalfOf, { sellContract: hoursLine }), hours: accepted.hours ?? hours }]
+    : await prisma.workAssertion.findMany({
+        where: { timesheetId: id, state: 'LIVE', companyId: legPayer },
+        select: { companyId: true, role: true, hours: true, coversFrom: true, coversTo: true },
+      })
+  const priced = acceptedWorth({
+    week: {
+      periodStart: timesheet.periodStart,
+      periodEnd: timesheet.periodEnd,
+      totalHours: hours,
+      days: (timesheet.days as Record<string, number>) ?? {},
+      leaveDays,
+      personName: timesheet.person.name,
+      hoursContract: hoursLine,
+      assertions: payersSigned,
+    },
+    payer: { id: legPayer, name: nameOf(legPayer) },
+    rateCents: deciding.billRate,
+    policy: splitPolicy,
+    decisions: settled,
+  })
+  /** The bands the figure came from: the days as filed, or with what the payer did not accept cut off them. */
+  const finalSplit = priced.split
+  const value = { totalCents: priced.cents ?? 0 }
+  /** The currency the deciding leg's rate, and so `value.totalCents`, is in. */
+  const worthCurrency = deciding.billCurrency ?? timesheet.sellContract.billCurrency
+  // In whole units of that currency: a week billed in dong has no cents to
+  // divide by a hundred (`billAmountOf`, money's `wholeFromMinor`). Null
+  // where money left the week unpriced rather than guess.
+  const billAmount = priced.cents == null ? null : billAmountOf(priced.cents, worthCurrency)
+  /**
+   * The figure this press may stand behind. Null below the top where the
+   * client's overtime answer could not be read: the acceptance stands —
+   * the hours happened — and the sentence says why there is no number,
+   * because a week priced on a guess is worse than a blank.
+   */
+  const worth: number | null = carried && !carried.ok ? null : billAmount
+
+  // Where a row that carries this figure is filed.
+  //
+  // The figure above is the leg that was answered, at that leg's rate.
+  // On a direct placement, and for the employer in any chain, that is
+  // the supplier's own contract and the row goes where it always did.
+  // Where a client answered on a leg further up, the number is the
+  // client's and filing it under the supplier would put the client's
+  // rate on the supplier's page — the same leak as showing a sub's rate
+  // to a client, pointing the other way.
+  const moneyCompanyId = leg.onHoursLeg ? timesheet.sellContract.companyId : onBehalfOf
+
+  // On a direct placement the two parties are one company, so one press
+  // signs both — and the record still carries two signatures, which is
+  // why the invoice engine cannot tell a direct sheet from one approved
+  // three companies away.
+  const signatures: Record<string, unknown> = direct
+    ? {
+        clientApprovedById: person.id, clientApprovedAt: now,
+        employerAcceptedById: person.id, employerAcceptedAt: now,
+      }
+    : asParty === 'PASS'
+      ? // The firm in the middle has no column; its acceptance is the
+        // PASS_THROUGH assertion below, which is the ledger's own shape.
+        {}
+      : asParty === 'CLIENT'
+      ? { clientApprovedById: person.id, clientApprovedAt: now }
+      : {
+          employerAcceptedById: person.id, employerAcceptedAt: now,
+          acceptedHours: accepted.hours, acceptedNote: body?.note ?? null,
+        }
+  // The one-person firm's acceptance, on the signature above it.
+  const standsAs = standsFor
+    ? standsAsAcceptanceSays({ signedBy: nameOf(onBehalfOf), firmName: standsFor.name, personName: timesheet.person.name })
+    : null
+  if (standsFor) {
+    Object.assign(signatures, {
+      employerAcceptedById: person.id, employerAcceptedAt: now,
+      acceptedHours: accepted.hours, acceptedNote: standsAs,
+    })
+  }
+
+  const after: Sheet = {
+    ...sheet,
+    clientApproved: signatures.clientApprovedAt
+      ? { at: now, byId: person.id }
+      : sheet.clientApproved,
+    employerAccepted: signatures.employerAcceptedAt
+      ? { at: now, byId: person.id }
+      : sheet.employerAccepted,
+    acceptedHours: (signatures.acceptedHours as number | null) ?? sheet.acceptedHours,
+  }
+
+  const g = gates(after, {
+    client: timesheet.sellContract.clientCompanyId,
+    employer: timesheet.sellContract.companyId,
+  })
+
+  // The ledger is the record now. The columns below stay in step so the
+  // two-party history still reads, but nothing derives from them.
+  //
+  // The rate on an assertion is the asserting company's own rate on its
+  // own leg — "their money, their number" (lib/work-ledger). This wrote
+  // the rate of the leg the hours were filed against, whoever pressed
+  // the button, so a client approving a chained week recorded its
+  // approval at its supplier's supplier's price: not a leak, because it
+  // goes nowhere near a caller, but a wrong number in a permanent ledger
+  // that billing reads back. `deciding` is the leg being answered and is
+  // already what the refusal, the valuation and the notice all quote.
+  // On a direct placement it is the same contract, so nothing moves.
+  //
+  // And an employer's acceptance is a promise to PAY, so its rate is the
+  // pay rate — never the bill rate, which is what this wrote on a direct
+  // placement until 2026-09-29, so every reader of the ledger priced the
+  // worker's pay at the client's price.
+  const role = direct
+    ? asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE'
+    : asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : asParty === 'PASS' ? 'PASS_THROUGH' : 'EMPLOYER_ACCEPTANCE'
+  const payRateCents = await payRateOn(
+    direct ? timesheet.sellContract.companyId : onBehalfOf,
+    timesheet.personId,
+    timesheet.sellContractId,
+    (timesheet.days as Record<string, number>) ?? {},
+    timesheet.periodStart
+  )
+  const assertion = await prisma.workAssertion.create({
+    data: {
+      timesheetId: id,
+      companyId: onBehalfOf,
+      role,
+      hours: accepted.hours ?? hours,
+      rateCents: role === 'EMPLOYER_ACCEPTANCE' ? payRateCents : deciding.billRate,
+      state: 'LIVE',
+      byId: person.id,
+      auto: false,
+      note: typeof body?.note === 'string' ? body.note : null,
+    },
+  }).then(
+    (row) => row,
+    () => {
+      // A second assertion from the same party is refused by the ledger
+      // rules, not by a crash here. The column update below still runs so
+      // the two records do not drift apart on a retry.
+      return null
+    }
+  )
+
+  // On a direct placement one press is both parties, so the ledger needs
+  // both rows — otherwise billing sees an approval and payroll sees
+  // nothing, on a placement where they are the same company.
+  let directAcceptance: { id: string } | null = null
+  if (direct) {
+    directAcceptance = await prisma.workAssertion.create({
+      data: {
+        timesheetId: id,
+        companyId: onBehalfOf,
+        role: 'EMPLOYER_ACCEPTANCE',
+        hours: accepted.hours ?? hours,
+        rateCents: payRateCents,
+        state: 'LIVE',
+        byId: person.id,
+        auto: false,
+        note: null,
+      },
+      select: { id: true },
+    }).catch(() => null)
+  }
+
+  // The one-person firm's own row on the ledger: its acceptance, made by
+  // the signature above it, marked automatic, with the reason on it. Its
+  // rate is what the firm pays the worker on its own pay line, where it
+  // has one; posted to the books only then, because a pay posting at a
+  // rate nobody set is a number nobody can stand behind.
+  let soleAcceptance: { id: string } | null = null
+  let solePayRateCents = 0
+  if (standsFor) {
+    solePayRateCents = await payRateOn(
+      standsFor.companyId,
+      timesheet.personId,
+      timesheet.sellContractId,
+      (timesheet.days as Record<string, number>) ?? {},
+      timesheet.periodStart
+    )
+    soleAcceptance = await prisma.workAssertion.create({
+      data: {
+        timesheetId: id,
+        companyId: standsFor.companyId,
+        role: 'EMPLOYER_ACCEPTANCE',
+        hours: accepted.hours ?? hours,
+        rateCents: solePayRateCents,
+        state: 'LIVE',
+        byId: person.id,
+        auto: true,
+        note: standsAs,
+      },
+      select: { id: true },
+    }).catch(() => null)
+  }
+
+  // ── The signature, the decision and the bank, together or not at all ──
+  //
+  // One transaction. A decision written without the signature it was
+  // made alongside is a number with no author; a signature written
+  // without the decision is a week whose money is still an open
+  // question. Either both land or neither does.
+  //
+  // The bank of banked hours is the employer's books on this leg — the
+  // company that employs and pays the consultant. A person's bank at one
+  // supplier is not their bank at another, so nothing here aggregates
+  // across firms the way tenure does.
+  //
+  // And only the leg the hours are filed on can put an hour into it. A
+  // client choosing time off on its own leg is saying it will not be
+  // billed for that hour; what the consultant is owed is a matter for
+  // whoever employs them, decided on their own contract. Without this,
+  // two firms in a chain both answering TIME_OFF would bank ten hours
+  // for five worked — a debt to the consultant that nobody agreed.
+  const bankCompanyId = timesheet.sellContract.companyId
+  const banking = leg.onHoursLeg ? writing : []
+  const leaveAsked = hoursIn(leaveDays)
+  const touchesBank = leaveAsked > 0 || banking.some((w) => w.treatment === 'TIME_OFF' || w.priorWas?.treatment === 'TIME_OFF')
+
+  // What the client reads of its own signature, on the response and on
+  // its own log: who bills it, and what. Null for every other press.
+  const clientSays = asParty === 'CLIENT' && !direct
+    ? clientSignedSays({
+        personName: timesheet.person.name,
+        // The hours this signature stands for: 38 of 40 approved reads 38.
+        hours: hoursAccepted(accepted, hours),
+        week: weekSays(timesheet.periodStart, timesheet.periodEnd),
+        billedBy: deciding.companyName ?? null,
+        // Minor units in the leg's own currency, never whole units times a
+        // hundred said as dollars (a week in dong read "$3,000,000.00").
+        worthCents: worth == null ? null : value.totalCents,
+        currency: worthCurrency,
+      })
+    : null
+
+  /** A refusal raised inside the transaction, so nothing half-lands. */
+  class Refusal extends Error {
+    constructor(public says: string) { super(says) }
+  }
+
+  let bankedNow = 0
+  let drewNow = 0
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.timesheet.update({
+        where: { id },
+        data: {
+          // APPROVED only once both are in. A sheet with one signature is
+          // half done, and calling it approved is what let a prime bill on
+          // a signature it never collected.
+          status: g.mayInvoice && g.mayPay ? 'APPROVED' : 'SUBMITTED',
+          ...signatures,
+          // The old single field, kept in step so anything still reading it
+          // sees the client's approval rather than nothing.
+          ...(signatures.clientApprovedAt ? { approvedById: person.id, approvedAt: now } : {}),
+        },
+      })
+
+      await tx.automationLog.create({
+        data: {
+          companyId: moneyCompanyId,
+          action: 'TIMESHEET_APPROVED',
+          // Says what is billable, which is no longer hours × rate: an
+          // hour over the line is worth what somebody decided it was
+          // worth, and an undecided hour is worth nothing yet.
+          // On the client's own log, its own words; a row filed under the
+          // supplier keeps the supplier's.
+          summary: clientSays && moneyCompanyId === onBehalfOf
+            ? `${clientSays} ${finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours}h ` +
+              `at ${rate(deciding.billRate, worthCurrency)}` +
+              (finalSplit.bankedHours > 0 ? `, ${finalSplit.bankedHours}h banked as time off` : '') +
+              (finalSplit.pendingHours > 0 ? `, ${finalSplit.pendingHours}h still undecided` : '') + '.'
+            :
+            `Timesheet approved: ${hours}h filed, ` +
+            `${finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours}h billable ` +
+            `at ${rate(deciding.billRate, worthCurrency)} = ` +
+            (worth == null ? 'not priced' : amount(value.totalCents, worthCurrency)) +
+            (finalSplit.bankedHours > 0 ? `, ${finalSplit.bankedHours}h banked as time off` : '') +
+            (finalSplit.pendingHours > 0 ? `, ${finalSplit.pendingHours}h still undecided` : '') +
+            (clientDecided ? `. ${clientDecided}` : ''),
+          reason: `Approved by ${person.name} — ${allowed.reason}`,
+          payload: {
+            timesheetId: id,
+            hours,
+            billRate: deciding.billRate,
+            billAmount: worth,
+            // Which contract was answered, and therefore whose money the
+            // figures above are.
+            sellContractId: leg.sellContractId,
+            billableHours: finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours,
+            bankedHours: finalSplit.bankedHours,
+          },
+          reversible: true,
+        },
+      })
+
+      // Done unprompted, so it says so: the one-person firm's acceptance
+      // was not asked for, and here is why.
+      if (standsFor && standsAs) {
+        await tx.automationLog.create({
+          data: {
+            companyId: standsFor.companyId,
+            action: 'TIMESHEET_ACCEPTED_ON_SIGNATURE_ABOVE',
+            summary: `${timesheet.person.name}’s week of ${weekSays(timesheet.periodStart, timesheet.periodEnd)} accepted for ${standsFor.name}`,
+            reason: standsAs,
+            payload: { timesheetId: id, signedById: person.id, signedByCompanyId: onBehalfOf, hours: accepted.hours ?? hours },
+            reversible: true,
+          },
+        })
+      }
+
+      if (writing.length === 0 && !touchesBank) return
+
+      // ── The lock ──────────────────────────────────────────────────────
+      //
+      // Two sheets approved in the same second read the same balance and
+      // both pass, and the bank goes negative. READ COMMITTED allows it,
+      // so the person's rows are locked for the rest of this transaction
+      // before anything is read off them.
+      if (touchesBank) {
+        await tx.$queryRaw`SELECT id FROM "TimeOffEntry" WHERE "personId" = ${timesheet.personId} AND "companyId" = ${bankCompanyId} FOR UPDATE`
+      }
+
+      const ledger = touchesBank
+        ? await tx.timeOffEntry.findMany({
+            where: { personId: timesheet.personId, companyId: bankCompanyId },
+            select: { id: true, kind: true, hours: true, effectiveOn: true, decisionId: true, drawnByTimesheetId: true },
+          })
+        : []
+
+      const balanceNow = balanceOf(
+        ledger.map((e) => ({ kind: e.kind as Entry['kind'], hours: Number(e.hours), effectiveOn: e.effectiveOn })),
+        now
+      )
+
+      // What this sheet's decisions would add to or take out of the bank,
+      // net of whatever they banked last time round.
+      let delta = 0
+      for (const w of banking) {
+        const fresh = accrualFor({ treatment: w.treatment, overtimeHours: w.overtimeHours, accrualBps: w.accrualBps })
+        const before = w.priorId ? ledger.find((e) => e.decisionId === w.priorId) : undefined
+        delta += fresh - (before ? Number(before.hours) : 0)
+      }
+
+      const alreadyDrawn = ledger
+        .filter((e) => e.kind === 'DRAW' && e.drawnByTimesheetId === id)
+        .reduce((n, e) => n + -Number(e.hours), 0)
+
+      const draw = drawFor({
+        personName: timesheet.person.name,
+        leaveDays,
+        balanceHours: balanceNow + delta,
+        alreadyDrawnHours: alreadyDrawn,
+      })
+      if (!draw.ok) throw new Refusal(draw.says)
+
+      if (balanceNow + delta - draw.hours < 0) {
+        throw new Refusal(
+          `${timesheet.person.name} has already taken time off that these hours paid for, so this ` +
+            'week cannot be changed now. Adjust the bank first, then decide the week again.'
+        )
+      }
+
+      // ── The decisions ─────────────────────────────────────────────────
+      for (const w of writing) {
+        const data = {
+          treatment: w.treatment,
+          overtimeHours: w.overtimeHours,
+          afterHours: policy.afterHours ?? 0,
+          multiplierBps: policy.multiplierBps,
+          appliedBps: w.appliedBps,
+          accrualBps: w.accrualBps,
+          decidedById: person.id,
+          decidedByCompanyId: onBehalfOf,
+          decidedAt: now,
+          reason: w.reason,
+        }
+
+        const row = await tx.overtimeDecision.upsert({
+          where: { timesheetId_sellContractId_weekOf: {
+            timesheetId: id,
+            sellContractId: leg.sellContractId,
+            weekOf: new Date(`${w.weekOf}T00:00:00.000Z`),
+          } },
+          create: {
+            timesheetId: id,
+            sellContractId: leg.sellContractId,
+            weekOf: new Date(`${w.weekOf}T00:00:00.000Z`),
+            // One signature cannot stand alongside two weeks — the column
+            // is unique — so it is linked only where this call decided a
+            // single week.
+            workAssertionId: writing.length === 1 ? assertion?.id ?? null : null,
+            ...data,
+          },
+          update: data,
+          select: { id: true },
+        })
+
+        // ── The bank, once per decision, ever ───────────────────────────
+        //
+        // Keyed on the decision, which is unique on the entry: approval
+        // running twice — a retry, a second signature, a re-approval
+        // after an amendment — cannot bank the same week twice.
+        const hoursBanked = leg.onHoursLeg
+          ? accrualFor({ treatment: w.treatment, overtimeHours: w.overtimeHours, accrualBps: w.accrualBps })
+          : 0
+        const existing = ledger.find((e) => e.decisionId === row.id)
+        if (hoursBanked > 0 || existing) {
+          await tx.timeOffEntry.upsert({
+            where: { decisionId: row.id },
+            create: {
+              personId: timesheet.personId,
+              companyId: bankCompanyId,
+              sellContractId: timesheet.sellContractId,
+              kind: 'ACCRUAL',
+              hours: hoursBanked,
+              decisionId: row.id,
+              effectiveOn: new Date(`${w.weekOf}T00:00:00.000Z`),
+              byId: person.id,
+              reason: w.reason ?? `Overtime in the week of ${w.weekOf} banked as time off`,
+            },
+            update: { hours: hoursBanked },
+          })
+          bankedNow += hoursBanked - (existing ? Number(existing.hours) : 0)
+        }
+      }
+
+      // ── The leave this sheet takes back out ───────────────────────────
+      if (draw.hours > 0) {
+        await tx.timeOffEntry.create({
+          data: {
+            personId: timesheet.personId,
+            companyId: bankCompanyId,
+            sellContractId: timesheet.sellContractId,
+            kind: 'DRAW',
+            hours: -draw.hours,
+            drawnByTimesheetId: id,
+            effectiveOn: timesheet.periodStart,
+            byId: person.id,
+            reason: `Paid time off taken in ${timesheet.periodStart.toISOString().slice(0, 10)} – ${timesheet.periodEnd.toISOString().slice(0, 10)}`,
+          },
+        })
+        drewNow = draw.hours
+      }
+    })
+  } catch (err) {
+    if (err instanceof Refusal) {
+      return NextResponse.json(
+        { error: { code: 'TIME_OFF_SHORT', message: err.says } },
+        { status: 409 }
+      )
+    }
+    throw err
+  }
+
+  // ── To the books, the same way /assert posts ──────────────────────
+  //
+  // Revenue when the client approves, pay and burden when the employer
+  // accepts, posted to the month the work was done (`postAssertions`,
+  // lib/order-postings). Before this, a week signed from the button wrote
+  // its assertions and posted nothing, so an accepted week had no pay
+  // posting and was missing from "W-2 wages accepted and not yet paid".
+  // Only the rows this press wrote are posted — a second press, refused
+  // by the ledger, wrote none — and a posting is keyed on its assertion,
+  // so the same signature is never on the books twice whichever door it
+  // came through.
+  //
+  // The signatures are already written by now, so a posting that fails —
+  // a settled project order, a missing exchange rate — must not turn an
+  // approval that happened into an error on the screen. It is reported to
+  // staff, the response says so in one sentence, and the approval stands.
+  //
+  // Every signature this press wrote is posted from one read of the week,
+  // in the order written (`postAssertions`); one that cannot post comes
+  // back in `failed` and is reported exactly as a thrown one was, and the
+  // rest still post.
+  let notPosted: string | null = null
+  const writtenIds = [assertion, directAcceptance, solePayRateCents > 0 ? soleAcceptance : null]
+    .flatMap((written) => (written ? [written.id] : []))
+  const postingFailed = (err: unknown) => {
+    void reportError('Posting an approved timesheet to the books', err, {
+      path: `/api/timesheets/${id}/approve`, personId: person.id, companyId: onBehalfOf,
+    })
+    notPosted = POSTING_FAILED_SAYS
+  }
+  try {
+    const posted = await postAssertions(writtenIds, person.id)
+    for (const f of posted.failed) postingFailed(f.error)
+  } catch (err) {
+    postingFailed(err)
+  }
+
+  // Both signatures in: the "hours to approve" cycle for this week is done.
+  if (g.mayInvoice && g.mayPay) {
+    await completeCycle(prisma, {
+      sellContractId: timesheet.sellContractId,
+      kind: 'TIMESHEET_APPROVE',
+      periodEnd: timesheet.periodEnd,
+    })
+  }
+
+  // The goods receipt. Everything downstream — the match, the invoice,
+  // the payment — dates from this moment, so it is the event an ERP
+  // integration cares about most.
+  void emit({
+    type: 'timesheet.approved',
+    companyId: moneyCompanyId,
+    subjectType: 'Timesheet',
+    subjectId: id,
+    actorPersonId: person?.id ?? null,
+    payload: {
+      personId: timesheet.personId,
+      sellContractId: timesheet.sellContractId,
+      hours,
+      // The leg that was answered, and its rate. Not the leg the hours
+      // sit on, where a chain keeps somebody else's number.
+      decidedOnSellContractId: leg.sellContractId,
+      billRateCents: deciding.billRate,
+      billAmount: worth,
+      // Below the top: what the client decided about the overtime, as
+      // this firm was told it. Null at the top, where the answer is the
+      // `overtime` list below.
+      clientDecided,
+      // ── The audit trail for the overtime answer ──────────────────────
+      //
+      // What was decided, and what it replaced. A decision that can be
+      // changed without trace is not a decision, and the prior answer is
+      // the thing a reader in four months will want and cannot get from
+      // the row, which now holds only the latest one.
+      overtime: writing.map((w) => ({
+        weekOf: w.weekOf,
+        treatment: w.treatment,
+        appliedBps: w.appliedBps,
+        overtimeHours: w.overtimeHours,
+        reason: w.reason,
+        replaced: w.priorWas,
+      })),
+      billableHours: finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours,
+      bankedHours: finalSplit.bankedHours,
+      leaveHours: finalSplit.leaveHours,
+    },
+  })
+
+  // ── The worker hears once, when the top signs ───────────────────────
+  //
+  // Not once per rung: the simulation of 2026-10-20 told Helena Marsh
+  // "Timesheet approved" three times for one week, once for each firm
+  // that accepted it on its way down. Each rung's own AP & Payroll is
+  // told when the week reaches it (below); the worker is told when the
+  // client signs, which is the signature their week waited on.
+  if (!belowTop) {
+    const told = workerToldSays({
+      week: weekSays(timesheet.periodStart, timesheet.periodEnd),
+      hours,
+      signedBy: direct ? nameOf(onBehalfOf) : clientName,
+    })
+    notify({
+      personId: timesheet.personId,
+      companyId: timesheet.sellContract.companyId,
+      type: 'TIMESHEET',
+      title: told.title,
+      // Hours, not the amount billed. What the client is charged is the
+      // vendor's number, and Addendum D makes disclosing it a per-requirement
+      // decision the vendor takes — not something a notification does for
+      // them.
+      body: told.body,
+      entityId: id,
+      data: { hours, approvedBy: person.name },
+    })
+  }
+
+  // Hours going into the bank instead of onto the invoice are the
+  // consultant's money changing shape, so they hear it in their own
+  // words rather than finding out from a balance.
+  // ── The week goes down to the next rung ─────────────────────────────
+  //
+  // Told on its desk and by email, because a rung that only hears when it
+  // opens the app is a rung that pays late — and nobody below it pays at
+  // all until it has accepted.
+  if (nextSigner) {
+    const pays =
+      nextSigner.role === 'EMPLOYER_ACCEPTANCE'
+        ? timesheet.person.name
+        : nameOf(ladder.find((r) => r.sellContractId === nextSigner!.rungId)?.companyId ?? '')
+    // The rung the week goes to is below the top, so it is told what the
+    // client decided about the overtime, at the multiplier on its own line
+    // with the firm it pays — read after this press, because the client's
+    // answer may have been written by it.
+    const nextLine =
+      nextSigner!.rungId === timesheet.sellContractId
+        ? timesheet.sellContract.overtimeMultiplierBps
+        : rungs.find((r) => r.rung.sellContractId === nextSigner!.rungId)?.contract?.overtimeMultiplierBps ?? null
+    const forNext = topLeg
+      ? clientDecidedFor({
+          rows: await prisma.overtimeDecision.findMany({ where: { timesheetId: id } }),
+          top: topLeg,
+          pairLineId: nextSigner.rungId,
+          pairMultiplierBps: nextLine,
+          personName: timesheet.person.name,
+        })
+      : null
+    const said = tellNext({
+      personName: timesheet.person.name,
+      period: weekSays(timesheet.periodStart, timesheet.periodEnd),
+      hours: accepted.hours ?? hours,
+      signedBy: nameOf(onBehalfOf),
+      signedRole: asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : asParty === 'PASS' ? 'PASS_THROUGH' : 'EMPLOYER_ACCEPTANCE',
+      paysName: pays,
+      clientDecided: forNext?.ok ? clientDecidedSentence(clientName, forNext) : null,
+    })
+    const desk = await prisma.context.findMany({
+      where: {
+        companyId: nextSigner.companyId,
+        revokedAt: null,
+        role: { permissions: { hasSome: ['timesheets.approve', '*'] } },
+        ...NOT_THE_SAMPLE_SEAT,
+      },
+      select: { personId: true },
+      take: 5,
+    })
+    for (const d of desk) {
+      void notify({
+        personId: d.personId,
+        companyId: nextSigner.companyId,
+        type: 'TIMESHEET',
+        channel: 'EMAIL',
+        title: said.title,
+        body: said.body,
+        entityId: id,
+        data: { timesheetId: id, href: '/dashboard/timesheets' },
+      })
+    }
+  }
+
+  if (bankedNow > 0 || drewNow > 0) {
+    const lines: string[] = []
+    if (bankedNow > 0) lines.push(`${bankedNow}h of overtime went into your time-off bank`)
+    if (drewNow > 0) lines.push(`${drewNow}h of paid time off was taken from it`)
+    notify({
+      personId: timesheet.personId,
+      companyId: timesheet.sellContract.companyId,
+      type: 'TIMESHEET',
+      title: 'Your time-off bank changed',
+      body: `${lines.join(', and ')} for ${timesheet.periodStart.toISOString().slice(0, 10)} – ${timesheet.periodEnd.toISOString().slice(0, 10)}.`,
+      entityId: id,
+      data: { bankedHours: bankedNow, drawnHours: drewNow },
+    })
+  }
+
+  // The figure is the week valued at the deciding leg's bill rate, in that
+  // line's currency (`value.totalCents` is in its minor units). At the top
+  // it is what the week bills. Below the top it is never "what this firm
+  // pays": for the employer it is the bill to the firm above it, and what
+  // the employer pays its own W2 is payroll's to work out at the pay rate
+  // (`acceptedSays`, the third screen walk's fault M4).
+  // What the leg bills at is read only by the seats that price and bill
+  // it (`mayReadBillRate`). AP & Payroll accepts the week and reads no
+  // amount: 40 hours and the figure give the rate away.
+  const readsBill = mayReadBillRate(
+    { permissions: acting.permissions, companyId: signingAs.companyId ?? null, companyKind: signingAs.companyKind },
+    { sellerId: deciding.companyId, clientId: deciding.clientCompanyId }
+  )
+  const worthSays = worth == null || !readsBill ? '' : ` — ${amount(value.totalCents, worthCurrency)} billable`
+
+  // Below the top: what this firm bills upward, and how the person below
+  // it is paid, each only where this press knows it.
+  let acceptedMessage: string | null = null
+  if (belowTop) {
+    let paidBelow: PaidBelow | null = null
+    let billMinor: number | null = null
+    let billsName: string | null = null
+    if (asParty === 'EMPLOYER') {
+      // The employer's figure is on the contract the hours are filed on,
+      // which is its bill to the firm directly above it.
+      if (worth != null && leg.onHoursLeg) {
+        billMinor = readsBill ? value.totalCents : null
+        billsName = timesheet.sellContract.clientCompany?.name ?? nameOf(timesheet.sellContract.clientCompanyId)
+      }
+      const lines = await prisma.buyContract.findMany({
+        where: { companyId: employer, candidates: { some: { personId: timesheet.personId } } },
+        select: {
+          contractType: true,
+          vendorCompanyId: true,
+          vendorCompany: { select: { name: true } },
+          sellLinks: { select: { sellContractId: true } },
+        },
+      })
+      const line = lines.find((l) => l.sellLinks.some((x) => x.sellContractId === timesheet.sellContractId)) ?? lines[0] ?? null
+      paidBelow = line && (!line.vendorCompanyId || line.vendorCompany?.name)
+        ? paidBelowFrom({ vendorName: line.vendorCompany?.name ?? null, contractType: line.contractType }, timesheet.person.name)
+        : null
+    } else if (asParty === 'PASS' && !leg.onHoursLeg && deciding.companyName) {
+      // The firm in the middle buys this week from the firm below it; the
+      // figure on that leg is the sub-vendor's to invoice, and it is
+      // checked against this acceptance. Its own bill upward is priced on
+      // a different line, which this press did not value.
+      paidBelow = { kind: 'SUPPLIER', supplierName: deciding.companyName }
+    }
+    acceptedMessage = acceptedSays({
+      // The hours accepted, not the hours filed: 38 of 40 reads 38.
+      hours: hoursAccepted(accepted, hours),
+      billMinor,
+      currency: worthCurrency,
+      billsName,
+      paidBelow,
+      clientDecided,
+    })
+  }
+  // The client pays for the week, so it is told what happened and who
+  // bills it, never that the week is "billable" (`clientSignedSays`).
+  const overSays = writing.length > 0
+    ? ' ' + writing.map((w) => `${w.overtimeHours}h over: ${treatmentSays(w.treatment, w.appliedBps).toLowerCase()}`).join('; ') + '.'
+    : ''
+  return NextResponse.json({
+    data: {
+      id,
+      status: g.mayInvoice && g.mayPay ? 'APPROVED' : 'SUBMITTED',
+      totalHours: hours,
+      billAmount: readsBill ? worth : null,
+      // Below the top, the client's overtime decision as a fact — "Northbend
+      // Athletic decided 5 hours at time and a half." — or, where it could
+      // not be read, why the week carries no figure. Null at the top.
+      clientDecided,
+      approvedBy: person.name,
+      overtime: writing.map((w) => ({
+        weekOf: w.weekOf,
+        hours: w.overtimeHours,
+        says: treatmentSays(w.treatment, w.appliedBps),
+      })),
+      bankedHours: bankedNow,
+      message:
+        belowTop
+          ? acceptedMessage
+          : clientSays
+            ? clientSays + overSays
+          : writing.length > 0
+            ? `Approved ${hoursAccepted(accepted, hours)}h${worthSays}. ` +
+              writing.map((w) => `${w.overtimeHours}h over: ${treatmentSays(w.treatment, w.appliedBps).toLowerCase()}`).join('; ') + '.'
+            : `Approved ${hoursAccepted(accepted, hours)}h${worthSays}`,
+      // Null where the books took it; one sentence where they did not.
+      postingSays: notPosted,
+    },
+  })
+}
+
+/** What the approver is told when the approval stands and the books did not take it. */
+const POSTING_FAILED_SAYS =
+  'Your approval is saved. It could not be added to the books yet, and our staff have been told.'
+
+/**
+ * What the employer pays the worker for this week, per hour.
+ *
+ * Read off the employer's own buy line for this person — the one linked
+ * to the contract the hours are filed on, else any of theirs naming the
+ * person — at the rate in force on the first day worked (lib/contract-rate).
+ * A week that crosses a pay change carries two rates and this row has
+ * room for one; every reader that prices pay reads the days and the
+ * rate history instead of this figure, so it stands as the week's
+ * opening rate and nothing more.
+ *
+ * Zero where the employer has no pay line for the person. Zero is
+ * visibly wrong; the bill rate would be invisibly wrong, which is worse.
+ */
+async function payRateOn(
+  employerId: string,
+  personId: string,
+  sellContractId: string,
+  days: Record<string, number>,
+  periodStart: Date
+): Promise<number> {
+  const lines = await prisma.buyContract.findMany({
+    where: { companyId: employerId, candidates: { some: { personId } } },
+    select: {
+      id: true,
+      sellLinks: { select: { sellContractId: true } },
+      candidates: { where: { personId }, select: { payRate: true } },
+    },
+  })
+  const line = lines.find((l) => l.sellLinks.some((x) => x.sellContractId === sellContractId)) ?? lines[0]
+  const opening = line?.candidates[0]?.payRate ?? 0
+  if (!line || opening <= 0) return 0
+  const rows = await prisma.rateHistory.findMany({
+    where: { contractType: 'BUY', contractId: line.id },
+    select: { id: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+  })
+  const firstWorked = Object.entries(days)
+    .filter(([, h]) => Number(h) > 0)
+    .map(([d]) => d.slice(0, 10))
+    .sort()[0]
+  const on = firstWorked ? new Date(`${firstWorked}T00:00:00Z`) : periodStart
+  return rateInForce(opening, ratePeriods(rows), on).rateCents
+}

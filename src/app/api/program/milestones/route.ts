@@ -1,0 +1,331 @@
+import { minorFromWhole } from '@/lib/money'
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { seatedDesk } from '@/lib/resolve-client-company'
+import { mayBill } from '@/lib/billing-plan'
+import {
+  acceptanceGap,
+  decodeRejection,
+  humanNote,
+  lateness,
+  mayDecideAs,
+  mayDeliverAs,
+  partiesRead,
+  standing,
+  type Milestone,
+} from './acceptance'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
+
+/**
+ * GET  /api/program/milestones   — what has been handed over, and what is waiting
+ * POST /api/program/milestones   — add a deliverable to an order
+ *
+ * ── The gap this exists to show ──────────────────────────────────────
+ *
+ * Delivered, accepted, invoiced, paid. Every aging report in this
+ * industry starts at "invoiced", and on a milestone-billed project the
+ * invoice cannot exist until the client accepts. So the weeks between
+ * handing something over and somebody agreeing it was handed over are
+ * invisible, and they are usually the largest single piece of working
+ * capital on the engagement.
+ *
+ * ── What is honestly missing ─────────────────────────────────────────
+ *
+ * `OrderMilestone` has no `deliveredAt`. The gap arithmetic is written and
+ * tested; there is nowhere to read the delivery date from, so it comes
+ * back null with the reason said rather than substituted from `createdAt`.
+ * Four columns would finish it and they are named at the bottom of
+ * `acceptance.ts`.
+ */
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  // A program office in a seat accepts deliverables on the client's
+  // behalf, so the party on the order is the client. Resolved before the
+  // scope is built rather than after, because the scope *is* the party.
+  const desk = await seatedDesk(caller)
+  if (!desk) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: notAtACompany('Milestones') } },
+      { status: 403 }
+    )
+  }
+  const companyId = desk.companyId
+
+  const orderId = request.nextUrl.searchParams.get('orderId')
+
+  const orders = await prisma.workOrder.findMany({
+    where: {
+      ...(orderId ? { id: orderId } : {}),
+      OR: [
+        { issuedToId: companyId },
+        { issuedById: companyId },
+        { billToId: companyId },
+        { payerId: companyId },
+      ],
+    },
+    select: {
+      id: true,
+      number: true,
+      title: true,
+      status: true,
+      billingBasis: true,
+      currency: true,
+      amount: true,
+      issuedToId: true,
+      issuedById: true,
+      billToId: true,
+      payerId: true,
+      issuedTo: { select: { id: true, name: true } },
+      issuedBy: { select: { id: true, name: true } },
+      milestones: {
+        select: {
+          id: true, name: true, amountCents: true, dueOn: true,
+          acceptedAt: true, acceptedById: true, note: true,
+          deliveredAt: true, rejectionReason: true,
+          status: true, sortOrder: true, createdAt: true,
+        },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  })
+
+  const now = new Date()
+
+  // A deliverable of a sold team names the one person who decides it.
+  const named = new Map(
+    (await prisma.podDeliverable.findMany({
+      where: { milestoneId: { in: orders.flatMap((o) => o.milestones.map((m) => m.id)) } },
+      select: { milestoneId: true, podProject: { select: { acceptorPersonId: true, acceptor: { select: { name: true } } } } },
+    })).map((d) => [d.milestoneId, { name: d.podProject.acceptor.name, isYou: d.podProject.acceptorPersonId === caller.person.id }])
+  )
+
+  const rows = orders.map((o) => {
+    const sides = {
+      sellerCompanyId: o.issuedToId,
+      clientCompanyIds: [o.issuedById, o.billToId, o.payerId].filter((x): x is string => !!x),
+    }
+
+    const milestones: Milestone[] = o.milestones.map((m) => ({
+      id: m.id,
+      name: m.name,
+      amountCents: m.amountCents,
+      dueOn: m.dueOn,
+      acceptedAt: m.acceptedAt,
+      // The column exists now. Rows from before it stay null and the gap
+      // arithmetic says so, rather than backdating them to createdAt.
+      deliveredAt: m.deliveredAt,
+      status: m.status,
+    }))
+
+    const canDeliver = mayDeliverAs(companyId, sides).ok
+    const canDecide = mayDecideAs(companyId, sides).ok
+
+    return {
+      id: o.id,
+      number: o.number,
+      title: o.title,
+      status: o.status,
+      billingBasis: o.billingBasis,
+      currency: o.currency,
+      // The ceiling, in the minor units every other figure on this
+      // screen is in. `amount` is a decimal on the row because that is
+      // what a purchase order is written in.
+      ceilingCents: minorFromWhole(o.amount, o.currency),
+      // A reader sees the firm it deals with and nobody beyond it (record
+      // 119): the seller sees who issued the order, the client who issued
+      // it sees its seller, and a payer or bill-to that is neither sees no
+      // firm's name at all.
+      ...partiesRead(companyId, o),
+      /** Which side of this order the reader is on. */
+      yourRole: companyId === o.issuedToId ? 'SELLER' : 'CLIENT',
+      may: { deliver: canDeliver, decide: canDecide },
+      standing: standing(milestones, now, o.currency),
+      milestones: o.milestones.map((m, i) => {
+        const pure = milestones[i]
+        const rejected = decodeRejection(m.note)
+        const gap = acceptanceGap(pure, now)
+        const late = lateness(pure, now)
+        return {
+          id: m.id,
+          name: m.name,
+          amountCents: m.amountCents,
+          dueOn: m.dueOn?.toISOString() ?? null,
+          status: m.status,
+          acceptedAt: m.acceptedAt?.toISOString() ?? null,
+          acceptedById: m.acceptedById,
+          deliveredAt: m.deliveredAt?.toISOString() ?? null,
+          note: humanNote(m.note),
+          /** Who alone decides it, where the deal names one; null where any client seat may. */
+          decider: named.get(m.id) ?? null,
+          // The real column first; the labeled shadow prefix only for
+          // rows written before the column existed.
+          rejectionReason: m.rejectionReason ?? rejected?.reason ?? null,
+          billable: mayBill(
+            { id: m.id, name: m.name, amountCents: m.amountCents, dueOn: m.dueOn, acceptedAt: m.acceptedAt, status: m.status },
+            now
+          ),
+          waited: { days: gap.days, unknowns: gap.unknowns, says: gap.says },
+          late: late.late ? { onUs: late.onUs, days: late.days, says: late.says } : null,
+        }
+      }),
+    }
+  })
+
+  const everyMilestone = rows.flatMap((r) =>
+    r.milestones.map((m) => ({
+      currency: r.currency,
+      id: m.id,
+      name: m.name,
+      amountCents: m.amountCents,
+      dueOn: m.dueOn ? new Date(m.dueOn) : null,
+      acceptedAt: m.acceptedAt ? new Date(m.acceptedAt) : null,
+      deliveredAt: m.deliveredAt ? new Date(m.deliveredAt) : null,
+      status: m.status,
+    }))
+  )
+
+  return NextResponse.json({
+    data: {
+      orders: rows,
+      // The same split across everything, because a delivery manager
+      // running six orders wants one answer to "what is stuck".
+      overall: overallStanding(everyMilestone, now),
+      // The same split per currency, never one figure over two currencies:
+      // rupees and dollars are said side by side, not added.
+      overallByCurrency: [...new Set(everyMilestone.map((m) => m.currency))].map((currency) => ({
+        currency,
+        standing: standing(everyMilestone.filter((m) => m.currency === currency), now, currency),
+      })),
+      // Said out loud rather than left as a suspiciously empty column.
+      unknowns:
+        everyMilestone.length > 0
+          ? ['No delivery date is stored, so how long the client has been sitting on anything cannot be measured.']
+          : [],
+    },
+  })
+}
+
+/**
+ * A deliverable on an order.
+ *
+ * Raised by the firm doing the work. A client adding a milestone to
+ * somebody else's order is a change to the commercial deal and belongs in
+ * a variation, not a POST.
+ */
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const companyId = caller.company?.id
+  if (!companyId) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: notAtACompany('Milestones') } },
+      { status: 403 }
+    )
+  }
+
+  const body = await request.json().catch(() => ({}))
+  const { orderId, name, amountCents, dueOn, sortOrder } = body
+
+  if (typeof orderId !== 'string' || !orderId) return bad('Which order is this on?', 'orderId')
+  if (typeof name !== 'string' || name.trim().length < 2) {
+    return bad('A milestone needs a name the client will recognize.', 'name')
+  }
+  if (typeof amountCents !== 'number' || !Number.isInteger(amountCents) || amountCents <= 0) {
+    return bad('A milestone is worth a whole number of cents, above zero.', 'amountCents')
+  }
+
+  const order = await prisma.workOrder.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true, issuedToId: true, issuedById: true, billToId: true, payerId: true,
+      billingBasis: true, status: true,
+    },
+  })
+
+  if (!order) {
+    return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No such order.' } }, { status: 404 })
+  }
+
+  const may = mayDeliverAs(companyId, {
+    sellerCompanyId: order.issuedToId,
+    clientCompanyIds: [order.issuedById, order.billToId, order.payerId].filter((x): x is string => !!x),
+  })
+  if (!may.ok) {
+    return NextResponse.json({ error: { code: 'NOT_YOURS', message: may.says } }, { status: 403 })
+  }
+
+  if (order.status === 'CLOSED' || order.status === 'CANCELLED') {
+    return bad(`That order is ${order.status.toLowerCase()}. Nothing more can be delivered under it.`, 'orderId')
+  }
+
+  // A milestone on a time-and-materials order will never bill: billing-plan
+  // only reads milestones where the basis is MILESTONE or BOTH. Refused
+  // rather than created, because a deliverable that silently cannot be
+  // invoiced is worse than one that could not be added.
+  if (order.billingBasis === 'TIME') {
+    return bad(
+      'This order bills on time, so a milestone on it would never reach a bill. Change the basis to MILESTONE or BOTH first.',
+      'orderId'
+    )
+  }
+
+  let due: Date | null = null
+  if (dueOn) {
+    due = new Date(dueOn)
+    if (isNaN(due.getTime())) return bad('That is not a date.', 'dueOn')
+  }
+
+  const created = await prisma.orderMilestone.create({
+    data: {
+      orderId: order.id,
+      name: name.trim(),
+      amountCents,
+      dueOn: due,
+      sortOrder: typeof sortOrder === 'number' ? sortOrder : 0,
+      status: 'PENDING',
+    },
+    select: { id: true, name: true, amountCents: true, dueOn: true, status: true, sortOrder: true },
+  })
+
+  return NextResponse.json(
+    {
+      data: {
+        ...created,
+        dueOn: created.dueOn?.toISOString() ?? null,
+        says: `${created.name} added. It bills when the client accepts it, not when its date passes.`,
+      },
+    },
+    { status: 201 }
+  )
+}
+
+function bad(message: string, field: string | null) {
+  return NextResponse.json({ error: { code: 'VALIDATION', message, field } }, { status: 400 })
+}
+
+/**
+ * Across every order: the counts and the sentence. Where the orders are
+ * in one currency it is that currency's standing; where they are in
+ * several, each figure is null and the sentence is each currency's own,
+ * because a total over two currencies is a number nobody can stand behind.
+ */
+function overallStanding(ms: (Milestone & { currency: string })[], now: Date) {
+  const currencies = [...new Set(ms.map((m) => m.currency))]
+  if (currencies.length <= 1) return { ...standing(ms, now, currencies[0] ?? 'USD'), currency: currencies[0] ?? null }
+  const each = currencies.map((c) => standing(ms.filter((m) => m.currency === c), now, c))
+  const sum = (k: 'awaitingCount' | 'notDeliveredCount' | 'billableCount' | 'rejectedCount') => each.reduce((n, s) => n + s[k], 0)
+  return {
+    awaitingAcceptanceCents: null, notDeliveredCents: null, billableCents: null, rejectedCents: null,
+    awaitingCount: sum('awaitingCount'), notDeliveredCount: sum('notDeliveredCount'),
+    billableCount: sum('billableCount'), rejectedCount: sum('rejectedCount'),
+    averageWaitDays: standing(ms, now).averageWaitDays,
+    says: each.map((s) => s.says).filter((x) => x !== 'Nothing outstanding on this order.').join(' ') || 'Nothing outstanding on this order.',
+    currency: null,
+  }
+}

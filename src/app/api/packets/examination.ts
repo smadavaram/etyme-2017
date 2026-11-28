@@ -1,0 +1,450 @@
+import { authorizationOnRecord } from '@/lib/document-stages/paper-record'
+import { prisma } from '@/lib/db'
+import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
+import {
+  RECORDABLE_ABOUT_A_FIRM,
+  checkInputFrom,
+  checkToRecord,
+  examinedFromAPacket,
+  mayRecordCheck,
+  orderedNotCollected,
+  recordLabel,
+  withArticle,
+} from '@/lib/attestation'
+import { buysFrom as buysOn } from '@/lib/document-stages/firm-papers'
+import { writeCheck, employerOfRecord } from '@/app/api/compliance/verifications/record'
+import { COMPLETED_FROM_SHOWN } from '@/lib/document-stages/examine-form'
+import { employedElsewhere } from '@/lib/document-stages/employer'
+
+/**
+ * What a firm's look at a paper that arrived puts on the record: one
+ * module for every door a paper is accepted through, Paperwork and
+ * Document requests (`POST /api/documents/:id/examine`) and the request's
+ * own review (`POST /api/packets/:id/review`).
+ *
+ * Found by the Tapin walk, 2026-10-29: insurance Brightmoor accepted on
+ * its Paperwork screen never reached Tapin's standing, because the paper
+ * was kept as the request's and read as about nobody, and the review
+ * recorded checks about people only. So the award refused Tapin every
+ * time. A supplier's certificate is now recorded by `recordSupplierPaper`
+ * and nothing else, whichever door accepted it, into the `Verification`
+ * row the award, the start check and the nightly watch all read.
+ */
+
+type Buyer = {
+  companyId: string
+  companyName: string
+  personId: string
+  personName: string
+  holds: (permission: string) => boolean
+}
+
+/** Whether the client buys from the supplier, read from every tie the two can have. */
+export async function clientBuysFrom(buyerId: string, supplierId: string): Promise<boolean> {
+  const [invited, submitted, line, register, asked] = await Promise.all([
+    prisma.requirementInvitation.findFirst({ where: { fromCompanyId: buyerId, toCompanyId: supplierId }, select: { id: true } }),
+    prisma.submission.findFirst({ where: { fromCompanyId: supplierId, toCompanyId: buyerId }, select: { id: true } }),
+    prisma.sellContract.findFirst({
+      where: { companyId: supplierId, OR: [{ clientCompanyId: buyerId }, { endClientCompanyId: buyerId }] },
+      select: { id: true },
+    }),
+    prisma.counterparty.findFirst({
+      where: { companyId: buyerId, otherCompanyId: supplierId, relationship: 'SUPPLIER', status: { not: 'BLOCKED' } },
+      select: { id: true },
+    }),
+    prisma.documentPacket.findFirst({
+      where: { companyId: buyerId, subjectCompanyId: supplierId, cancelledAt: null },
+      select: { id: true },
+    }),
+  ])
+  return buysOn({
+    invited: !!invited, submitted: !!submitted, onALine: !!line,
+    onRegisterAsSupplier: !!register, askedForItsPapers: !!asked,
+  })
+}
+
+/**
+ * A supplier's certificate of insurance or good standing, examined by a
+ * client, onto the supplier's standing. The one writer.
+ *
+ * Returns the row it became; or a sentence saying why it is not on the
+ * standing (the paper itself is still accepted); or a refusal where what
+ * was given is wrong and nothing should change.
+ */
+export async function recordSupplierPaper(input: {
+  buyer: Buyer
+  supplier: { id: string; name: string }
+  key: string
+  issuer: string | null
+  reference: string | null
+  validFrom: Date | null
+  expiresAt: Date | null
+  now: Date
+}): Promise<Examined> {
+  const { buyer, supplier, key, now } = input
+  const buys = await clientBuysFrom(buyer.companyId, supplier.id)
+  const may = mayRecordCheck({
+    about: 'FIRM', side: buys ? 'BUYER' : null, type: key,
+    holds: buyer.holds,
+    callerFirm: buyer.companyName, subjectName: supplier.name, employerName: supplier.name, buyerName: buyer.companyName,
+  })
+  if (!may.ok) return { says: `It is not recorded on ${supplier.name}’s standing: ${may.message}` }
+  const check = checkToRecord(
+    {
+      about: 'FIRM', type: key, subjectName: supplier.name, recordedBy: buyer.personName,
+      issuer: input.issuer, reference: input.reference,
+      validFrom: input.validFrom, expiresAt: input.expiresAt,
+    },
+    now
+  )
+  if (!check.ok) return { refused: { status: 422, code: check.code, message: check.message, field: check.field } }
+  const written = await writeCheck({
+    row: check.row, subject: { companyId: supplier.id }, personId: null,
+    recordedById: buyer.personId, recordingCompanyId: buyer.companyId, now,
+  })
+  await answerOpenAsks({
+    buyerId: buyer.companyId, supplierId: supplier.id, key,
+    verificationId: written.id, reviewerId: buyer.personId, validUntil: check.row.expiresAt ?? null, now,
+  })
+  return { verificationId: written.id, says: check.says }
+}
+
+/**
+ * A paper the buyer accepted answers the buyer's own open asks for it.
+ *
+ * The second Tapin walk, 2026-10-30: Brightmoor accepted Tapin's
+ * insurance from the copy Tapin keeps on file, and Brightmoor's request
+ * to Tapin for the same certificate went on asking. One acceptance, one
+ * answer: every open item from this buyer, about this supplier, for this
+ * paper, reads accepted and points at the check it became, and a request
+ * with nothing left outstanding closes. Only the buyer's own requests,
+ * never another firm's: what Brightmoor accepted is not what Northbend
+ * asked.
+ */
+export async function answerOpenAsks(input: {
+  buyerId: string
+  supplierId: string
+  key: string
+  verificationId: string | null
+  reviewerId: string
+  validUntil: Date | null
+  now: Date
+}): Promise<number> {
+  const open = await prisma.packetItem.findMany({
+    where: {
+      key: input.key,
+      state: { in: ['PENDING', 'RECEIVED'] },
+      packet: { companyId: input.buyerId, subjectCompanyId: input.supplierId, cancelledAt: null },
+    },
+    select: { id: true, packetId: true },
+  })
+  if (open.length === 0) return 0
+  await prisma.packetItem.updateMany({
+    where: { id: { in: open.map((i) => i.id) } },
+    data: {
+      state: 'ACCEPTED',
+      reviewedById: input.reviewerId,
+      reviewedAt: input.now,
+      reviewNote: 'Accepted from the copy the firm keeps on file.',
+      validUntil: input.validUntil,
+      ...(input.verificationId ? { verificationId: input.verificationId } : {}),
+    },
+  })
+  for (const packetId of new Set(open.map((i) => i.packetId))) {
+    const items = await prisma.packetItem.findMany({ where: { packetId }, select: { required: true, state: true } })
+    const done = items.every((i) => !i.required || i.state === 'RECEIVED' || i.state === 'ACCEPTED')
+    if (done) await prisma.documentPacket.updateMany({ where: { id: packetId, completedAt: null }, data: { completedAt: input.now } })
+  }
+  return open.length
+}
+
+// ── The examination, recorded through the one rule ───────────────────
+
+/**
+ * The examine route's body as the record reads it: the dialog posts the
+ * form's edition as `edition` (what the paper's own examination reads),
+ * and the record reads `formEdition`. Pure.
+ */
+export function examinationBody(body: Record<string, unknown>): Record<string, unknown> {
+  return { ...body, formEdition: body.formEdition ?? body.edition }
+}
+
+/** The fields a recorded check takes, beyond the date a packet already asks for. */
+export const EXAMINATION_FIELDS = [
+  'formEdition', 'evidence', 'issuer', 'licenseNumber', 'licenseState', 'issuedOn', 'validFrom', 'reference', 'expiresAt',
+  'provider', 'renderedOn', 'outcome', 'providerSays',
+] as const
+
+/** A screen that can take what this one could not, and where it is. */
+export interface Door {
+  says: string
+  href: string
+}
+
+/**
+ * Where an I-9 is recorded when the paper's own dialog could not record
+ * it: Record the I-9 on Compliance, opened for the person. Found by the
+ * screen walk of 2026-11-01: a refusal on Document requests named no
+ * screen that could answer it, so the person read a rule and no way to
+ * meet it. Only for a firm that may record it; anybody else is told whose
+ * it is instead. Null for any other paper.
+ */
+export function recordDoorFor(key: string, personId: string): Door | null {
+  if (!COMPLETED_FROM_SHOWN.includes(key)) return null
+  return { says: 'Record the I-9 on Compliance', href: `/dashboard/compliance?record=I9&person=${encodeURIComponent(personId)}` }
+}
+
+export interface Examined {
+  /** The recorded check the item became. */
+  verificationId?: string
+  /** What the answer adds, in a sentence. */
+  says?: string
+  /** Nothing changes, and why. */
+  refused?: { status: number; code: string; message: string; field?: string; door?: Door }
+  /** Where it can be recorded instead, where this look could not record it. */
+  door?: Door
+}
+
+export async function examinationOf(input: {
+  packet: { id: string; subjectPersonId: string | null; subjectCompanyId?: string | null }
+  item: { id: string; key: string; label: string }
+  body: Record<string, unknown>
+  validUntil: Date | null
+  now: Date
+  caller: {
+    companyId: string
+    companyName: string
+    personId: string
+    personName: string
+    holds: (permission: string) => boolean
+    actor: ReturnType<typeof accessActor>
+  }
+}): Promise<Examined | null> {
+  const { packet, item, body, caller, now } = input
+  // A supplier set is about the firm: its certificates go on its standing,
+  // through the same writer as every other door (the Tapin walk, 2026-10-29).
+  if (packet.subjectCompanyId) {
+    if (!(RECORDABLE_ABOUT_A_FIRM as readonly string[]).includes(item.key)) return null
+    const supplier = await prisma.company.findUnique({ where: { id: packet.subjectCompanyId }, select: { id: true, name: true } })
+    if (!supplier) return null
+    const str = (k: string): string | null => (typeof body[k] === 'string' && (body[k] as string).trim() ? (body[k] as string).trim() : null)
+    const day = (k: string): Date | null | 'BAD' => {
+      const v = body[k]
+      if (v == null || v === '') return null
+      const d = new Date(String(v))
+      return Number.isNaN(d.getTime()) ? 'BAD' : d
+    }
+    const validFrom = day('validFrom')
+    const expiresAt = day('expiresAt')
+    if (validFrom === 'BAD') return { refused: { status: 422, code: 'VALIDATION', message: 'Give the day it starts as a date, like 2026-11-01.', field: 'validFrom' } }
+    if (expiresAt === 'BAD') return { refused: { status: 422, code: 'VALIDATION', message: 'Give the day it runs out as a date, like 2027-10-31.', field: 'expiresAt' } }
+    return recordSupplierPaper({
+      buyer: caller,
+      supplier,
+      key: item.key,
+      issuer: str('issuer'),
+      reference: str('reference'),
+      validFrom,
+      expiresAt: expiresAt ?? input.validUntil,
+      now,
+    })
+  }
+  const personId = packet.subjectPersonId
+  if (!personId) return null
+
+  // A background check or a drug screen stands only on the screening
+  // company's report (the founder's tester, 2026-11-03: four papers read
+  // "on file" on Paperwork and "needed" on the placement). Accepting one
+  // records that report, with the provider's name, reference, date and
+  // words, through the same writer as Record a check, or refuses naming
+  // what is missing. Etyme renders no verdict; the record says whose it is.
+  const providerVerdict = orderedNotCollected(item.key)
+  if (!providerVerdict && !examinedFromAPacket(item.key)) return null
+  if (providerVerdict && String(body.outcome ?? '').trim().toUpperCase() === 'ORDERED') {
+    return {
+      refused: {
+        status: 422, code: 'NOT_BACK_YET', field: 'outcome',
+        message:
+          `Nothing has come back on the ${recordLabel(item.key)} yet, so there is no report to accept. ` +
+          `Accept it when the screening company’s report is in, with their word on it.`,
+      },
+    }
+  }
+
+  const given = providerVerdict || EXAMINATION_FIELDS.some((f) => {
+    const v = body[f]
+    return Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== ''
+  })
+  const refuse = (status: number, code: string, message: string, field?: string): Examined | { says: string } =>
+    given ? { refused: { status, code, message, field } } : { says: `It does not count toward the start yet. ${message}` }
+
+  const [person, line] = await Promise.all([
+    prisma.person.findUnique({ where: { id: personId }, select: { name: true } }),
+    // The placement this firm employs or places the person on, newest
+    // first. A firm with none is not the employer, and records nothing.
+    prisma.sellContract.findFirst({
+      where: {
+        companyId: caller.companyId,
+        personId,
+        state: { notIn: ['CANCELLED'] },
+        ...(typeof body.contractId === 'string' && body.contractId ? { id: body.contractId } : {}),
+      },
+      orderBy: { startDate: 'desc' },
+      select: { id: true, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+    }),
+  ])
+  const subjectName = person?.name ?? 'this person'
+  const buyerName = line ? (line.endClientCompany?.name ?? line.clientCompany.name) : 'the client'
+  // A seller above the employer does not complete the employer's I-9
+  // (the second Tapin walk, 2026-10-30): the same rule as Record a check.
+  const employer = line ? await employerOfRecord(personId, line.id) : null
+
+  const may = mayRecordCheck({
+    about: 'PERSON',
+    side: line ? 'EMPLOYER' : null,
+    holds: caller.holds,
+    callerFirm: caller.companyName,
+    subjectName,
+    employerName: line ? caller.companyName : 'the firm that employs or places them',
+    buyerName,
+    type: item.key,
+    employedBy: employedElsewhere(employer, caller.companyId) ? employer!.name : null,
+  })
+  if (!may.ok) {
+    if (given) {
+      await recordRefusal([personId], {
+        ...caller.actor,
+        action: 'COMPLIANCE_CHECK',
+        reason: `Refused recording ${withArticle(recordLabel(item.key))} from a document request: not this seat’s or this firm’s to record`,
+      })
+    }
+    return refuse(403, may.code, may.message)
+  }
+
+  // This firm may record it. Where the look did not post what the record
+  // needs (a screen that drew no field for it, or nothing posted at all),
+  // the sentence names the screen that has the field, with its link. A
+  // refusal of what was posted (a document that has run out) is answered
+  // with a different document, not a different screen, and names none.
+  const blank = (v: unknown) => v == null || (Array.isArray(v) ? v.length === 0 : String(v).trim() === '')
+  const doorFor = (field?: string) => (!given || (!!field && blank(body[field])) ? recordDoorFor(item.key, personId) : null)
+  const orThere = (message: string, door: Door | null) => (door ? `${message} Or ${door.says.charAt(0).toLowerCase()}${door.says.slice(1)}.` : message)
+  const cannot = (status: number, code: string, message: string, field?: string): Examined => {
+    const door = doorFor(field)
+    return given
+      ? { refused: { status, code, message: orThere(message, door), field, ...(door ? { door } : {}) } }
+      : { says: `It does not count toward the start yet. ${orThere(message, door)}`, ...(door ? { door } : {}) }
+  }
+
+  // ── What was examined, read the way Record a check reads it ──
+  // The person's signed authorization for a screening company's check,
+  // where the record holds one (the release walk, R2: accepted on
+  // Paperwork an hour before, and the verdict said none was named).
+  const consentOn = await authorizationOnRecord(personId, item.key)
+  const read = checkInputFrom(body, {
+    about: 'PERSON', type: item.key, subjectName, recordedBy: caller.personName,
+    // The request's own date is the paper's end where nothing else names one.
+    expiresAtFallback: input.validUntil,
+    consentOn,
+  })
+  if (!read.ok) {
+    const door = doorFor(read.field)
+    return { refused: { status: 422, code: 'VALIDATION', message: orThere(read.message, door), field: read.field, ...(door ? { door } : {}) } }
+  }
+  const verdict = checkToRecord(read.input, now)
+  if (!verdict.ok) return cannot(422, verdict.code, verdict.message, verdict.field)
+
+  const written = await writeCheck({
+    row: verdict.row,
+    subject: { personId },
+    personId,
+    recordedById: caller.personId,
+    recordingCompanyId: caller.companyId,
+    now,
+  })
+  logAccess({
+    subjectId: personId,
+    ...caller.actor,
+    action: 'COMPLIANCE_CHECK',
+    reason: `Recorded ${withArticle(recordLabel(item.key))} from a document request, for the placement at ${buyerName}`,
+  })
+  const counts = verdict.row.status === 'CLEAR' || verdict.row.status === 'CONDITIONAL'
+  return {
+    verificationId: written.id,
+    says: counts ? `${verdict.says} It counts toward the start.` : verdict.says,
+  }
+}
+
+/** The seats at a client that look at a supplier's papers: procurement and the compliance officer. */
+const LOOKS_AT_SUPPLIER_PAPERS = ['vendors.manage', 'privacy.manage', 'governance.write']
+
+/**
+ * Whether a client's seat may open and examine a paper a supplier filed
+ * on its own record (Company paperwork), before anybody asked for it.
+ *
+ * The paper is the supplier's; the look is the buyer's, the same as a
+ * paper that came back on a request. A firm that does not buy from the
+ * supplier reads nothing of it.
+ */
+export async function buyerMayExamineKept(
+  caller: { companyId: string | null; isConsultantSeat: boolean; holds: (permission: string) => boolean },
+  doc: { status: string; subjectType: string; subjectId: string }
+): Promise<boolean> {
+  if (doc.status !== 'KEPT' || doc.subjectType !== 'COMPANY') return false
+  if (!caller.companyId || caller.companyId === doc.subjectId || caller.isConsultantSeat) return false
+  if (!LOOKS_AT_SUPPLIER_PAPERS.some(caller.holds)) return false
+  return clientBuysFrom(caller.companyId, doc.subjectId)
+}
+
+/**
+ * Keep a request item and the paper kept from it saying the same thing,
+ * whichever of the two a firm accepted or sent back.
+ */
+export async function itemFollowsPaper(input: {
+  itemId: string
+  accepted: boolean
+  reviewerId: string
+  note: string | null
+  validUntil: Date | null
+  verificationId: string | null
+}): Promise<void> {
+  const item = await prisma.packetItem.update({
+    where: { id: input.itemId },
+    data: {
+      state: input.accepted ? 'ACCEPTED' : 'REJECTED',
+      reviewedById: input.reviewerId,
+      reviewedAt: new Date(),
+      reviewNote: input.note,
+      ...(input.accepted ? { validUntil: input.validUntil } : { fileUrl: null, receivedAt: null }),
+      ...(input.verificationId ? { verificationId: input.verificationId } : {}),
+    },
+    select: { packetId: true },
+  })
+  // Sending one back reopens a request that had closed.
+  if (!input.accepted) await prisma.documentPacket.update({ where: { id: item.packetId }, data: { completedAt: null } })
+}
+
+export async function paperFollowsItem(input: {
+  itemId: string
+  accepted: boolean
+  reviewerId: string
+  validUntil: Date | null
+}): Promise<void> {
+  const paper = await prisma.docInstance.findFirst({ where: { subjectType: 'PACKET_ITEM', subjectId: input.itemId }, select: { id: true } })
+  if (!paper) return
+  const now = new Date()
+  if (input.accepted) {
+    await prisma.docInstance.update({
+      where: { id: paper.id },
+      data: { examinedById: input.reviewerId, examinedAt: now, ...(input.validUntil ? { expiresAt: input.validUntil } : {}) },
+    })
+  } else {
+    await prisma.$transaction([
+      prisma.docInstance.update({
+        where: { id: paper.id },
+        data: { status: 'SENT', sentAt: now, signedAt: null, fileName: null, signedFileUrl: null, examinedById: null, examinedAt: null },
+      }),
+      prisma.docFile.deleteMany({ where: { docInstanceId: paper.id } }),
+    ])
+  }
+}

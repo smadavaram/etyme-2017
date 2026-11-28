@@ -1,0 +1,733 @@
+# STATE.md
+
+The state of every item in the handover of 2026-11-21
+(`docs/decisions/104-the-full-pending-work-list-handed-over-2026-11-21.md`).
+A fresh session reads CLAUDE.md, that handover and this file, and
+continues from here. Written 2026-11-21 after the START HERE tranche's
+deploy.
+
+**How to read it.**
+- DONE means built, release-checked, walked in a browser and deployed.
+  It is still a CLAIM until the tester's retest in Tapin production
+  passes. Nothing below has been retested yet.
+- BLOCKED names what it waits on.
+- NOT STARTED means no code was written for it in this tranche.
+- Production serves deploy commit `756963c8` (source `19c3c102a`) on
+  `www.etyme.com` and `etyme2040.vercel.app`, checked 2026-11-21 20:41
+  UTC. Deploys before it this week: `17f680c4` (2026-11-18),
+  `7aaf79cb` (2026-11-21).
+
+## How to work (for the next session)
+
+- Source branch: `claude/extract-rails-business-logic-s1pd8`. The deploy
+  is a gated replay to the product repository's `main`; the last
+  replayed source is `19c3c102a`. The replay and smoke scripts live in
+  the session scratchpad and are not in the repository: a fresh session
+  rebuilds them from "Release" in CLAUDE.md, or asks.
+- Release check, run in parts because the build machine restarts when
+  idle: `NODE_OPTIONS=--max-old-space-size=6144 npx tsc --noEmit`; the
+  whole unit suite; the integration suite split in three and run in the
+  foreground; `npx next build`. Then a walk in a browser by a reader who
+  did not build it. Then deploy, smoke, stop.
+- Workers: the strongest model at low effort. Schema and money work is
+  one builder at a time under the lead. Never `git stash` on the shared
+  tree.
+- A date-built test must make the world it needs (record 103).
+
+## START HERE
+
+**2026-11-26 (Thu): DEPLOYED on the owner's word, "Deploy now".**
+- Production serves deploy commit c2caa7704, from source 2268b9c2a.
+- **Release check on 060faee59:** type check ok · 18,705 unit · 4,507 database · build ok.
+- **Walk:** 31 seats on the one-card screen. No errors, no sideways scroll, no "Open" headings.
+- **Outage and fix:**
+  - The first push (a26085cec) went live without the new columns, because the build ran no schema push. Every storefront returned 500.
+  - The owner chose no rollback.
+  - Fixed forward: every build now applies changes that only add (2268b9c2a). A change that would lose data still needs DB_PUSH_ON_BUILD.
+  - `/site/tapin` and `/api/site/tapin` read the new plugin column and return 200, which proves the columns are there.
+- **Smoke:** home 200 · /site/tapin 200 · /demo 200 · /login 200 · inbound email door 404.
+- **What shipped:**
+  - the plugin switch;
+  - train-to-bench;
+  - the record-119 leak fixes;
+  - pods, with its switch held;
+  - skill layer steps 1–6 and the agent panel;
+  - the one-card Ask Etyme screen;
+  - Answer job request;
+  - one-press Yes for job requests and suppliers;
+  - the access-log fix.
+- **For the tester:** please retest in production. Three seats are still empty on the demo data: the client Approver, the client Compliance Officer and the one-person firm.
+
+
+**2026-11-26: brief for the tester (Pax). Latest changes. Nothing is deployed since Nov 25.**
+
+| Area | Change | State | Record |
+|---|---|---|---|
+| Plugin switch | Train to bench, Project teams, Website, Outreach: off by default; the Owner switches, logged | Switch and train-to-bench walked green | 120 |
+| Client leaks | No name or id of a firm below reaches the client, across 9 routes | Done; rides Sat 28 Nov | 119 |
+| Pods | Team, offer, the client's named yes, project, deliverables, bill | Built; switch held until member lines stay supplier-side | 120 |
+| Pods rulings | Seller signs outcome weeks; client never reads member lines; on-site option | Recorded; member lines to build | 120 |
+| Pods PATV | PV · EV · AC · SV · CV · SPI · CPI; the client sees dates only | Recorded; built with member lines | 123 |
+| Delivery tools | One sync engine, an adapter per tool (spreadsheet, tracker, work management, service desk) | Recorded | 130 |
+| Website / Outreach flags | 2 storefronts grandfathered; 3 switch-on checks; outreach gates selling letters only | Planned | 121, 122, 123 |
+| Skill layer | 40 skills; a read-only checker per skill; PATV panel on Agent control | Building, steps 1–6 | 123 |
+| Model gateway | Tiers by data class; per step, per tenant, fallback; Lane C never sent | Planned, after skills | 125 |
+| Ask Etyme | One job, one card; score = urgency × value × confidence; it is the end user's harness | Prototypes approved; building | 130 |
+| Ask Etyme targets | Coverage 100% · Autonomy 100% · Accuracy ≥ 95% · Speed ≥ 90% in ≤ 2 s | Recorded | 130 |
+| Card targets | 1 card · 1 click · ≤ 12 words · ≤ 10 s · ≥ 95% pass | Recorded | 130 |
+| Pricing | Starter $19.99 a contractor + $1,000 a year (floor $199 a month); Enterprise $20 + $12,000 a year; 60 days free | Locked; build waits on 6 owner questions | 126, 127 |
+| Affiliates | 40% for 12 months, then 20% while the tenant pays | Locked; queued after pricing | 127, 129 |
+| Competitor frame | Flat-tier platforms; an importer; the switch offer; the sales gate unchanged | Recorded; importer needs a sample export | 128 |
+| Public sector | Plugin 5, with its own agent; a person submits | Queued after plugins 1–4 | 124 |
+
+**Open for the tester:**
+1. Languages the labels must serve, beyond English.
+2. Where a tenant's own model key is stored (needs a sealed store).
+3. Models per environment, for the approved list.
+4. Delivery-tool sync: which tool comes first.
+
+**Open for the owner (via the tester):** pricing questions 1–6 (active contractor, clock start, who marks paid, Enterprise definition, the sales gate, chases after day 61); day 61 for work in flight.
+
+
+**2026-11-25: train-to-bench built, walked green; rides the Saturday deploy (record 120).**
+- Head 80b208e11. Last full release check was on e5da68d45: type check, build and 18,417 unit tests green. The 5 database failures there were out-of-date tests, fixed in b0ee1f2ab and re-run green. The final picker fix re-ran its own tests.
+- Walks: walk-120, walk-120b, walk-120c (scratchpad). The short re-walk passed every item except the course picker's labels, fixed in 80b208e11.
+- Record 119 leaks closed: contracts list, program view, tenure, timesheets, compliance, people/[id], plus activate/extend/verify answering a client "not found". The contracts leak was live since 2026-09-19.
+- **Open for the tester:**
+  1. Does record 119 also cover an MSP seat working in a client's program?
+  2. The person page says "(and one firm below them)": is that allowed?
+  3. Where should a client read "Certified: title, issued, expires"?
+  4. Record 69 against record 120 on courses on storefronts.
+- **Open for the owner:** the website and outreach switches (records 121 and 122): Tapin's storefront going dark, the website switch before its three checks, and gating outreach sends.
+- **Next:** pods (module 2) through its plan gate.
+
+
+| # | Item | State | Evidence, or what it waits on |
+|---|---|---|---|
+| 1 | Sensitive numbers masked | DONE in part (claim) | See below. |
+| 2 | Payroll shows the configured cycle | DONE (claim), one question open | See below. |
+| 3a | Home: decision queue | BLOCKED | The prototype file `etyme-vision-ui.html` did not arrive in the session. The owner said to build to those screens, not to the text alone. |
+| 3b | Home: agent control | BLOCKED | The same file, and the agent specifications of Phase 5. |
+| 4 | Two lists owed | DONE in part | The eight Layer 6 questions were given verbatim with a recommended answer each (from the prototype's notes; they are copied at the end of this file). The "four overclaiming screens" could not be given: no audit is filed under that name or number. Record 84 holds four labels reworded on 2026-11-16. Waiting on the tester's own list of screen names. |
+
+### Item 1, what is claimed
+
+Commits `ba427191e`, `cc5832baf`. Deployed in `756963c8`.
+- A tax ID is stored sealed (`taxIdSealed`, `taxIdLast4`; the plain
+  `taxId` column is left empty on every write) on `Company` and
+  `RemitTo`. Every reply shows dots and the last four, to everyone.
+- The one reader is `src/lib/sensitive.ts` (sealing, server only) and
+  `src/lib/sensitive-mask.ts` (masking, safe for a screen).
+- Screens and routes: Settings > Setup, the company step and its W-9
+  reader (`src/app/api/settings/setup/`,
+  `src/app/dashboard/settings/setup/items.tsx`); payment details
+  (`src/app/api/settings/remit-to/route.ts`); every bill view through
+  `src/lib/money/pay-to.ts`.
+- The Owner's reveal: a Show control
+  (`src/components/step-up/reveal-number.tsx`) and
+  `POST /api/settings/sensitive/reveal`, only after a fresh second
+  check. Every reveal and refusal is on the security log
+  (`SENSITIVE_REVEALED`, `SENSITIVE_REVEAL_REFUSED`), never the number.
+  An Admin is refused.
+- Bank details were already only bank, account name and last four. No
+  column holds a full account, a routing number or a social security
+  number; a test fails if one is added.
+- No model prompt reads a tax ID; a test guards it.
+- Walk: 593 page and data replies across six seats and three public
+  pages held no full number. The authenticator-app reveal was proven end
+  to end. With the data key unset, a new tax ID is refused in a
+  sentence.
+
+**Not built in item 1:**
+- Anyone but the Owner asking to see a number: the request, the
+  Owner's approval card, the granted window and its purposes (record 99,
+  rule 3). A non-Owner reads that it is not built yet.
+- Sharing outside the firm (record 99, rule 4).
+- Cover grants (record 99) and the three-step role option (record 100).
+
+**Not proven in item 1:** the passkey path of the reveal; the public
+company page and a client's view of a supplier's record (no such page
+was reachable on the seeded world); a model-written Ask Etyme answer;
+the reveal for a payment-details tax ID.
+
+**Waits on the owner (Phase 2 kind, a new key):**
+- `ETYME_DATA_SEAL_KEY` set on the host (32 bytes). Until then
+  production refuses to save a new tax ID, in a sentence. Existing ones
+  show masked.
+- Then `npx tsx scripts/seal-sensitive.ts` (counts only), then with
+  `--write`, against production with that key. Until it runs, tax IDs
+  typed before 2026-11-21 are still plain in the database, masked only
+  by the screens listed above.
+
+**Behavior change:** an empty tax ID box no longer clears the number.
+Nothing on that screen clears it.
+
+### Item 2, what is claimed
+
+Commit `10a489dfc`. Deployed in `756963c8`.
+- The cause was not an old cycle. Periods are counted forward and back
+  from the first Sunday, so today's work is in the period Nov 15 to
+  Nov 28. The picker did not reach Dec 27, and nothing on the page said
+  the periods were counted back from a Sunday still ahead.
+- Payroll (`src/app/dashboard/payroll/page.tsx`,
+  `src/app/api/payroll/route.ts`, `src/lib/money/pay-periods.ts`) now
+  opens on the period holding today, lists every period up to the first
+  one, and says: "<firm> counts its pay periods from the first period,
+  Dec 27, 2026 – Jan 9, 2027, worked out Wed, Jan 13, 2027 and paid Fri,
+  Jan 15, 2027. The periods before it are counted back from that
+  Sunday." with "Open the first period".
+- A pay day already written keeps its date when the first Sunday is set
+  or a holiday is added; tested and walked.
+
+**Open, the owner's to decide (a pay rule, not changed):** is work
+before Dec 27 paid in two-week periods counted back from Dec 27 (what
+ships), or on Tapin's old monthly cycle (record 95), with periods only
+from Dec 27?
+
+**Watch, from the walk:** a firm that changes its pay period after pay
+rows exist can show two different pay days for one person (stored rows
+against the page's periods). Seen on a firm switched by SQL; not
+confirmed on a firm that changed it through Settings.
+
+**Not confirmed:** Tapin's real company row was not read. If it lacks
+the Sunday or the every-other-week choice, the page lists by month.
+
+## Phase 1
+
+### Batch 1, money integrity
+
+| Item | State | Note |
+|---|---|---|
+| Sensitive numbers (START HERE 1) | DONE in part | Above. |
+| Payroll cycle display (START HERE 2) | DONE (claim) | Above. |
+| Whole cents everywhere | NOT STARTED | Not audited in this tranche. |
+| Invoice numbering, void, credit note releasing its lines | NOT STARTED | |
+| Pay periods written down | NOT STARTED | Periods are worked out, not stored. |
+| A ledger row for every money event | NOT STARTED | |
+| Over-bill exception with a second approver | NOT STARTED | |
+| One money rule on the Ask pay card, at draw and at press | NOT STARTED | |
+
+Batch 1 is NOT complete. Only the two START HERE items went out. The
+retest path named in the handover (the lifecycle money path, the named
+payment run, the pay-card cases) is not yet answerable.
+
+### Batch 2, the hiring chain
+
+| Item | State | Note |
+|---|---|---|
+| Availability, tier and consent on the candidate's record | NOT STARTED | |
+| The Offer record | NOT STARTED | None exists. |
+| Insurance-expiry gate with a renewal path | NOT STARTED | |
+| "Raise a bill" across several parties | NOT STARTED | |
+| Warning where an order's and a line's dates disagree | NOT STARTED | |
+| Own W-2 employee on Add consultant | DONE (claim) | Deployed `7aaf79cb`. Candidates > Add consultant > "Our own W-2 employee". Not in the handover's Batch 2 list; it was record 102, item 2. Adding many in a row is not counted against the hourly invitation limit. |
+| Add to Bench links to Add consultant | DONE (claim) | Deployed `7aaf79cb`. Record 102, item 6. |
+
+### Batch 3, identity, companies and mail
+
+| Item | State | Note |
+|---|---|---|
+| One person across several addresses (D3/D4) | NOT STARTED | Scouted: no merge code exists; nothing merges silently. The existing route is passing ownership. A staff merge tool would be new. |
+| Company profile fields (A6) | NOT STARTED | Scouted: website exists; description, industry, specialty, markets served do not. Needs the schema. |
+| Entity types (B3) | NOT STARTED | Scouted: asked only in a skippable setup step. |
+| Companies import (G7) | NOT STARTED | Scouted: reuse the import pipeline. |
+| Invitation resend, the provider's 403 (D1) | BLOCKED | On the owner or tester confirming the sending domain is verified at the mail provider. The code already says "Not sent" on a refusal. |
+| Mail outbox with visible retries | NOT STARTED | |
+| The second firm's 21 invitations | NOT TO BE TRIGGERED | Only after the tester verifies one test invitation end to end. |
+| Invitation email layout | DONE (claim) | Deployed `17f680c4`: one button, no printed address. |
+| Mailed links carry the lasting address | DONE (claim) | Deployed `17f680c4`. |
+
+### Batch 4, Ask Etyme
+
+| Item | State | Note |
+|---|---|---|
+| The model on the real tables, answers with links, Settings filled | BLOCKED | Phase 2: the owner's model key. Nothing that does not need the key was built in this tranche. |
+| Fixes before the key | DONE (claim) | Deployed `7aaf79cb`: the check, screening, matching, bio, nightly match and sheet import ask the company's switch, mask what leaves, and say "unverified". Tokens from matching, bio and skill-check calls are not counted toward the monthly allowance. |
+| Public Ask questions kept | DONE (claim) | Deployed `7aaf79cb`: a `PageAsk` record, the Questions tab under Jobs, a decision card. Questions stored before the deploy need `npx tsx scripts/backfill-page-asks.ts` (then `--write`) against production. |
+| The questionnaire at 90% | NOT STARTED | Baseline about 21 of 30 failing. |
+
+### Batch 5, surfaces
+
+| Item | State | Note |
+|---|---|---|
+| Approvals screen | NOT STARTED | |
+| Payment-run screen with a maker and a checker | NOT STARTED | |
+| Tenure display | NOT STARTED | |
+| Demo-seat gaps | NOT STARTED | |
+| The overclaiming screens reworded | BLOCKED | On the tester's list of screen names (START HERE 4). |
+
+### Homepage and legal
+
+| Item | State | Note |
+|---|---|---|
+| The public page | AS DEPLOYED, held | The 2026-11-18 design is live (`7aaf79cb`, record 103). The handover says that design was rejected. The owner ruled on 2026-11-21: "Leave the Nov 18 page live until the replacement." |
+| The replacement | BLOCKED | The tester says the replacement's target is the Decision Queue home of the Vision UI file, which did not arrive. Asked and unanswered: whether the queue replaces the signed-in home (the lead's reading) or the public address itself. No replacement was built, so no file was used as its base. No homepage change deploys until the Decision Queue home passes the retest in Tapin. |
+| Legal pages | DONE (claim) | Deployed `7aaf79cb`: the privacy policy and DPA name page analytics on public pages and the host as processor, and say what matching sends. Open: one awkward sentence about the analytics package's cookies. |
+| Page analytics | DONE (claim), waits on the owner | On public marketing pages only. Collects nothing until switched on in the host's project settings. |
+
+## Phase 2, the owner's own steps
+
+None is done as far as this session can see (names were checked by the
+tester on 2026-11-18, not by this session).
+
+| # | Step | Unblocks |
+|---|---|---|
+| 1 | Model key | Batch 4 |
+| 2 | Microsoft sign-in secret | The Microsoft button |
+| 3 | Professional-network sign-in secret | The candidates' button |
+| 4 | Mail delegation for the second firm | Agent email access (Phase 5) |
+| 5 | Backup of the second-check key | The owner's vault |
+| new | `ETYME_DATA_SEAL_KEY`, then the sealing script | Saving a tax ID in production; sealing the old ones |
+| new | Web analytics switched on at the host | Measuring the homepage |
+| new | The stored-questions script run against production | The questions asked before 2026-11-21 |
+
+## Phase 3, tenants
+
+NOT STARTED as build work. Tapin's real business is not on the record.
+Nothing was entered. The second firm's invitations were not resent.
+
+## Phase 4, the truth pass
+
+NOT STARTED. Layers 4 and 5 have not been retested in production. The
+gaps of Layers 7 to 10 are neither built nor relabeled beyond record 84.
+Layer 6 templates: a static prototype only (`prototypes/storefront/`,
+record 94). Demo data was not cleaned of real names. No pricing was
+built.
+
+## Phase 5, agents
+
+NOT STARTED. No specification has arrived. Nothing is to be built from
+an earlier one. The scout's inventory of the twin's fourteen acts is in
+record 98.
+
+## The second firm's execution pack (record 105)
+
+**In one sentence (record 106).** The second firm reaches one million
+dollars of profit in 2027 by converting its existing demand and bench
+at a tracked rate, holding agreed rates against drift, and collecting
+on one chain. The pack builds exactly that. Measure conversion, drift
+and the age of money owed from the ledger, and report them with each
+batch.
+
+NOT STARTED. It arrived on 2026-11-21 after the tranche was deployed.
+- The named pack and its day-one data are NOT in the repository, by the
+  standing rules. Record 105 holds the structure only. A fresh session
+  that needs a name or a figure asks the tester for the pack; it never
+  writes one into a file, a test or a commit.
+- Its batch 1 (primitives: record, ledger, acting-entity stamp, decision
+  queue home, agent control view) is BLOCKED on: the Vision UI file; the
+  ruling on entities (record 105, point 1); and the ruling on order
+  against the handover's Batch 1 (point 5).
+- Its batches 2 to 7 are NOT STARTED. Batch 7, the digest scanner, also
+  waits on the mailbox ruling (point 2). Any pay-hold wording waits on
+  regulatory (point 3).
+
+**Owner's planning assumption, 2026-11-21 (record 106).** Plan the
+second firm as a company with no loan. Collection is working capital,
+with bench carry as its first use. The model's arithmetic stands; the
+day-90 review reports operating profit directly. The money loop gains
+one field on a chain of money owed to the firm: where collected money
+was put (bench carry, operations or reserve), decided and recorded by a
+person. NOT STARTED, with the rest of the money loop (pack batch 3).
+
+**Owner's corrections, 2026-11-21 (record 106).**
+1. The loan is the sister firm's, not the second firm's. The second
+   firm is the creditor. The chain of money owed by the sister firm
+   carries a counterparty-risk flag; the pace of collection and any
+   further credit to it are decision-queue items, never routine chases.
+   NOT STARTED (pack batch 3).
+2. The mission: 36 consultants billing at an average margin of $15 an
+   hour by 2027-11-21 (about $1.0 million of gross profit). The two
+   headline measures on the agent control view and the trajectory report
+   are the count of consultants billing and the blended margin an hour.
+   Both read "not yet measured" until the census is loaded (pack batch
+   2). Quarter one is 2026-11-22 to 2027-02-19; the day-90 review
+   reports against the mission. The blended margin is drawn only for a
+   seat that may read margin. NOT STARTED.
+
+## Two rulings of 2026-11-21 (record 108)
+
+1. **Two homes.** The public home page is a marketing page built from
+   the prototypes in `prototypes/` (the approved page of 2026-11-18,
+   the storefront set, the two consoles, the demo, onboarding, the
+   stress test): storefront doors, then the demo, then onboarding. The
+   page of 2026-11-18 stays live until the replacement passes the
+   tester's retest. NOT STARTED, no weekend slot yet. The signed-in
+   home is the decision queue (Flow A2).
+2. **Who decides.** Build, release and architecture questions are the
+   tester's, through the pack, the contract and the flows. A gap is
+   decided by the lead and written here. The owner keeps money,
+   signing, people, outside sends and his standing gates.
+
+**Delegated decisions (the lead's, under ruling 2).**
+- 2026-11-21: a person types the real records on the screens after the
+  deploy; no agent writes production data.
+- 2026-11-21: proof on a decision is text plus record links; no upload
+  yet.
+- 2026-11-21: Flow B ships with Flow A only if green; else week 2 first.
+- 2026-11-21: tenant colors are two stored colors applied to the
+  shell's accent. NOT BUILT in week 1; week 2's list.
+- 2026-11-21: the rest of the handover's Batch 1 goes to week 3, the
+  remainder to week 4.
+- 2026-11-21: the left column stays on the decision-queue home.
+- 2026-11-21: the meter counts actions; the cap reads "Not set".
+- 2026-11-21: the public site from the prototypes is not in week 1; its
+  slot is proposed with week 2's note.
+- 2026-11-21, on the owner's word: new workers run on the session's
+  own model, the strongest one, in place of the lower tier. Builders
+  already running finish as they started. Every committed step gets a
+  read-only review by several reviewers, each finding checked twice,
+  before the release check.
+
+## The sales-ready batch (record 110): RELEASED, NOT RETESTED
+
+Deployed 2026-11-22 23:34 UTC as 894a3e90 from source 18f59d2b1 (the
+last replayed source). STOPPED for the tester's morning retest. What is
+not proven, not yet true and owed next weekend is at the foot of
+record 110. The text below is the plan as it stood before the deploy.
+
+For Monday morning, when the two operating firms' people start. Order:
+1. Staff sign-in for both tenants: one real test invitation each. A
+   PERSON's step in production. The path is being proven locally.
+2. Tapin's real records on the screens. A PERSON's step. A click path
+   is being written.
+3. The customer and client split (A1): CANCELED by the owner on
+   2026-11-22. Customer and client are the same; Kind stays one fact.
+   What had been built is removed before the deploy. NOT DEPLOYED.
+4. The public face: four new segment pages, About, legal pages as
+   final, demo data cleaned, the email law. BUILDING. The home page and
+   page analytics are already live in the code; analytics is switched on
+   by a person in the host's settings.
+This is a second Sunday deploy, on the owner's direction. It does not
+go out on a weekday. Second batch after the retest: imports (A4), then
+the stabilization batch.
+
+## Rulings of 2026-11-22, evening
+
+- **Lower models** (owner): workers on the lower tier at low effort; no
+  group review or long walk unless a trust flow changed.
+- **Tenant websites** (record 111): made from dashboard settings, one
+  engine, never a one-off build. NOT BUILT. Nothing in record 110's
+  batch built a tenant's site directly.
+
+## Latest ready source: 7d03c56e5 (release check GREEN; walks S and T passed — T walked the "Read." history line)
+
+The three leftovers fixed and walked (f91387752, 7d03c56e5): no colon
+before a blocked card's link; a read-only card reads "Read" after Done on
+its page, in the queue and in its history line; the activity log points
+to Agent control. Release check GREEN on 7d03c56e5: type check; 18,155
+unit; 4,224 database; build. This source carries records 115, 112's rest
+and 116 for a weekend release after Saturday's c8d8abaf7.
+
+## Record 116, agent outreach under a mass-mail service's policy: READY, walk passed, Source a02e489ab
+
+The owner's answer: agent outreach to a dormant firm may send after one
+yes, under that policy. Built: only the firm's own contacts at firms it
+traded with; an unsubscribe link in every letter (signed, no sign-in,
+GET changes nothing); the firm and its postal address named; bounces
+suppress; 180-day cooling-off (proposal). Blocked cards link to the fix
+and ask only for an acknowledgement. A contact opens in the record view.
+Walks Q (did not ship: no link on blocked cards) and R (ships). Release
+check GREEN on a02e489ab: type check; 18,153 unit; 4,223 database;
+build. Left: a colon before the link on blocked cards; an acknowledged
+card's status reads "Approved" (all acknowledge-only cards); the
+activity log page does not show agent acts. Final notice stays drafted;
+chase numbers stay proposals.
+
+## The rest of record 112 in chains 1, 2, 3 and 5: READY, walk passed, Source 526aba57d
+
+Built on the branch after the four gaps (commits 5161170ee to 526aba57d):
+- Chain 1: submission chase (one yes per task, one letter, one reminder,
+  3 working days apart, numbers proposed); dormant outreach is a draft
+  card only, never sent by an agent.
+- Chain 2: ask and put-forward cards from the match ranker; a yes sends
+  nothing and submits nobody.
+- Chain 3: placement-record card on the line the award wrote; HR's pack
+  card, advisory, Activate unchanged.
+- Chain 5: final notice as its own escalation task; drafted on its card,
+  never sent by an agent. Payroll hold waits on regulatory.
+- Review fix: a card whose agent task closed no longer counts as owed
+  (STILL_OWED in decision-items), and an answered chase closes first.
+Walk P said ships; its wording points fixed in 526aba57d. Release check
+GREEN on 526aba57d: type check; 18,138 unit; 4,213 database; build.
+Owner questions open: may an agent send outreach or an approved final
+notice, and who writes the final notice's text; do the submission chase
+numbers stand. Chain 6 has nothing left unbuilt.
+
+## The four agent gaps (record 115): READY, walk passed, Source f897913e5
+
+Owner's yes, 2026-11-23, then "complete the build now and not have to
+wait". Built on the branch, for a weekend release after Saturday's:
+- Gap 1: the SOW item on the contracts checklist; a bill rate reads
+  "No signed paper" until a person records one (906cae5da, 6d8059f28).
+- Gap 2: one checklist per petition type, H-1B and general, both
+  unconfirmed (d3d25fcb8).
+- Gap 3: the on-time notice check from NoticePosting.measuredFromOn, a
+  filing day a person enters (b018224d0, 4585f5866).
+- Gap 4: the money chase says once why it skipped a bill (7779243f6).
+- Review fix: openOnce matches a card by its own link only (cb0cba95e).
+- Found by the release check: By region read receipts in no order
+  (4568c2c0a).
+Release check GREEN: type check; 18,082 unit tests; 4,139 database tests
+(three parts on cb0cba95e, part 00 on 4568c2c0a); build. Walk O said
+ships; its two wording faults fixed in f897913e5 (no record code in the
+held line; "Dated on or before filing"). FINAL release check GREEN on
+f897913e5: type check; 18,084 unit; 4,139 database; build. Deploy on a
+weekend after Saturday's, with `prepare-replay.sh <last replayed>
+f897913e5`. Left: the doubled colon in the shared empty-save sentence;
+AR cannot read the ledger line (by design). Gaps 2 and 3 warn until regulatory confirms the
+rule with a source; regulatory also owes which filing a notice is
+measured against.
+
+## The weekend after (2026-12-05/06): READY, walk passed
+
+Source 0dffd42dc (on top of Saturday's c8d8abaf7; walked pieces at
+a5ba6f102 and 43c48107c, plus the older petitions route under
+governance.read, tested on the database, not walked): the confirmation
+date; the supplier's side of an offer; record links that open; the
+money chase's missing-contact card and Owner-set chase numbers. Walks L
+and M; M says ship. Before deploying: a full release check on the
+source then current. The cosmetic items (saved
+sentence, task names, H-1B wording, own-page buttons) are fixed and
+walked (walk N, 43c48107c).
+Release check GREEN on 88c15dd23 (0dffd42dc plus the access-log count in
+docs/security-posture.md, 106 to 108 of 424): type check; 18,056 unit
+tests; 4,102 database tests; build. Deploy then with
+`prepare-replay.sh <last replayed> 88c15dd23`.
+
+## DEPLOYED Wed 2026-11-25 on the owner's word ("deploy now"): 6f91fe3cd, source 98617d23d
+
+Replayed from c8d8abaf7. Carries the sub-vendor leak fix (07710b0c6) and
+everything staged: records 115, the rest of 112, 116 and 117 steps 1-2,
+the Network tabs. DB_PUSH_ON_BUILD set on by the owner before the push
+(new table OutreachLetter; new columns NoticePosting.measuredFromOn,
+CompanyContact.outreachOptOutAt, AgentTask.payload); he turns it off
+after. Health: serving 6f91fe3c, database READY. Smoke: every public
+page and door 200, two old addresses 308, inbound email door 404, a bad
+unsubscribe or interest link 404, outreach routes 401 signed out. NOT
+proven: the new table and columns (no signed-in read here); the first
+open of Outreach, Notices or a contract line's papers in the retest
+proves them. No agent switched on. Last replayed source is now
+98617d23d. STOPPED for Pax's production retest.
+
+## LIVE LEAK found 2026-11-25 (RELEASED in 6f91fe3cd): a sub-vendor's name can reach the client on a contract line
+
+Found by walk X of the papers view. In production (72a7b313, source
+c8d8abaf7) GET /api/placements/[id] sends the checklist item `note` and
+`compliance.person[].provider` to every reader, client included. Both
+come from the free-text screening provider, so a firm that records a
+check under the sub-vendor's own name shows that name to the client,
+against the rule that a sub-vendor's name is the prime's to keep. It
+predates record 117. FIXED on the branch in 07710b0c6 (with the papers view, record 117 step
+2): no hidden firm's name reaches a client in any field. Release check
+GREEN on 07710b0c6 (type check; 18,268 unit; 4,274 database, 7 skipped by
+a timing flake in check-ins-before-her-yes that passes alone; build).
+Walk Y: the name is gone from screen and JSON; arrived-not-examined,
+the I-9 edition, the refusal page and "your supplier" all pass. Kept by
+the existing rule in the route: a hidden firm's opaque id stays on the
+payload ("a client cannot turn an id into a firm"); a client may open the
+line between its supplier and a sub-vendor, labelled "arranged by your
+supplier". Both are open questions for the owner, not changed. Deploy
+timing is the owner's: the weekend rule has no hotfix exception, and he
+has overridden it once (2026-11-24).
+
+## Record 117 step 1, outreach to companies: READY, walks V and W passed, Source 8e67b3154
+
+Built on the branch (894eaabf4 to 8e67b3154), with the Network tab change
+(0616f7941): Companies > Outreach for supplier, integrator and MSP; a
+client is refused at every route. Audience from the firm's own record,
+offer (who is available: skills and availability only; a project team;
+an open job), letter checked for rate, email and phone, one yes per
+batch, one letter each with record 116, at most two follow-ups 5 working
+days apart ("Following up:"), "I'm interested" link to a lead card, a
+letter claimed before it is sent. Release check GREEN on 8e67b3154: type
+check; 18,212 unit; 4,255 database; build. Numbers stay proposals (180
+days, two follow-ups, 5 working days). Next in record 117: the papers
+view per contract line, then candidate outreach with opt-in, then the
+course module. Staged for a later release; production stays on 72a7b313
+for Pax's retest.
+
+## Launch build DEPLOYED Tue 2026-11-24 (owner: "deploy if it's green")
+
+Deploy commit 72a7b313 on etyme2040 main, replayed from 18f59d2b1 to
+source c8d8abaf7. Production etyme2040.vercel.app serves 72a7b313
+(health: database READY). The owner set DB_PUSH_ON_BUILD on before the
+push; he turns it off after. Smoke: home, /demo, /docs, /about,
+/security, /privacy, /terms, /dpa, /contact, /login, /site/tapin, every
+/for/ door, /map, /ready 200; four old addresses 308; inbound email door
+404. NOT proven: the 13 new tables (the health page counts companies
+only, and this session cannot sign in to production); the first screen
+of Agent control or Checklists in the tester's retest proves them. No
+agent is switched on: each Owner switches to Drafts only first. The
+Saturday reminder is cancelled. Last replayed source is now c8d8abaf7.
+Staged for later: 88c15dd23 line, record 115, the rest of 112, 116
+(7d03c56e5). STOPPED for Pax's production retest.
+
+## Saturday 2026-11-28 deploy: superseded by the Tuesday deploy above
+
+Source c8d8abaf7 (supersedes 4eae9cbab): adds the census card's Done and
+the Checklists and Notices tabs, walked and passing. Final release check
+on it: type check; 18,021 unit tests; 4,084 database tests; build. Deploy
+with `prepare-replay.sh 18f59d2b1 c8d8abaf7`.
+Earlier: Release check green on 11ac0ab21 (17,991 unit, 4,071
+database tests, build) plus the whole unit suite on 4eae9cbab. Walks:
+three, the last saying ships. Deploy on Saturday with
+`prepare-replay.sh 18f59d2b1 4eae9cbab`, then smoke. After it, each
+Owner switches agents to Drafts only first. Recommended On: timesheet
+chase, payroll draft, reconciliation, money-owed chase, match ranker,
+census keeper, weekly summary, compliance watch, contracts checklist.
+Off: interview chase (writes to no client until the owner rules),
+confirmation tracker (screen has no date field yet), digest scanner (not
+built). Open before or after: census card shows Approve instead of Done;
+chain 3 and 6 screens; the owner's ruling on the interview chase.
+
+## The first agents (record 114): BUILT, NOT DEPLOYED
+
+Source 5d1e783d0, release check green (no browser walk yet). Built:
+chain 7's switch, runner, cap and control view; one yes per task; the
+timesheet chase; the payroll draft; payment reconciliation. Every agent
+is Off for every firm. First possible deploy: Saturday 2026-11-28, after
+a browser walk. The last replayed source is still 18f59d2b1.
+
+## START HERE for the next session (record 113)
+
+The owner's order of 2026-11-22: a second-tier lead, third-tier
+workers. Seven workstreams, one per chain of record 112. Launch first:
+chains 4 and 5 for Tapin, on chain 7's surface. Deploy on a weekend
+only.
+
+| Chain | Live in production | By hand only | Not built |
+|---|---|---|---|
+| 1 Win work | Nothing | Job requests and submissions typed by a person | Digest scanner (waits on the mailbox ruling), census keeper, confirmation tracker |
+| 2 Fill it | Matching screens, model off | Submission and consent by a person | Match ranker as an agent, the chase on interview movement, the Offer record |
+| 3 Start them | Papers and the I-9 block on activation | A placement recorded by a person, with customer and end client | Contracts checklist, immigration checklist, the onboarding pack check |
+| 4 Run the week | Timesheets, week approval, payroll periods | A reminder sent by rule on a schedule | Chase agent, arrival closing its chase, payroll draft as an agent |
+| 5 Money loop | Bills, invoice receipts, the month from timesheet to payment | Every move and amount typed by a person | Invoice by an agent, reconciliation of payments, short-pay and drift flags, chasing money owed |
+| 6 Keep it legal | Tenure ledger and limits; the record ledger | Notices tracked nowhere | Notice posting log, the access file tracker, the watch as an agent |
+| 7 Run the firm | Decision queue, agent control view with six agents "Not enabled", the ledger | | A runner that acts as an agent, a switch per tenant, the meter against a cap, the weekly summary |
+
+First work, in order: (a) chain 7's runner, switch and meter; (b) the
+task record and its one yes on the decision queue (answered, record
+112); (c) chain 5's reconciliation and
+chain 4's payroll draft, in sequence under the lead; (d) chain 4's
+chase beside them.
+
+## The agent activity spec (record 112): NOT STARTED
+
+Owner-approved 2026-11-22. Seven areas, each activity marked agent
+alone, agent prepares and a person decides, or a person. No agent runs
+today; the ledger, the decision queue, the control view, the month from
+timesheet to payment and the mail ledger exist. Open with the owner:
+ANSWERED: an agent that sends asks once per task; one yes releases
+the whole task, and every new task or escalation asks again.
+
+## The weekend release contract (record 107)
+
+Thirteen weekend releases, 2026-11-21 to 2027-02-14. One item, one
+deploy, then stop. Done means the second firm's team runs it on Monday;
+the tester's retest on that tenant is acceptance. The calendar is in
+record 107.
+
+**Standing release rule (owner, 2026-11-21).** Deploys happen on
+Saturday and Sunday only. There is no hotfix exception, not for money
+and not for security. Monday to Friday is for running and measuring: a
+defect found then is written below as NOT RELEASED, never fixed
+quietly, and takes the coming weekend's first slot.
+
+**Weekday findings, NOT RELEASED.** None yet.
+
+**The two mission numbers, as of 2026-11-21.** Consultants billing:
+BASELINE PENDING. Blended margin an hour: BASELINE PENDING. The
+baseline is an output of the week 2 census and is never estimated. The
+target is 36 at $15 by 2027-11-21.
+
+**Week 1, Nov 21–22: RELEASED, NOT RETESTED (record 109).** Deployed
+2026-11-22 as 6490627a, from source f988c05c3 (code checked at
+428f4009f). The last replayed source is f988c05c3. STOPPED for the
+retest; no second deploy this weekend. Every line is a claim until the tester passes it by screen
+number in production.
+
+| Screen | Claim | Retest |
+|---|---|---|
+| A1 | The Owner sets the decision queue as the first screen (Settings, Company) | NOT RETESTED |
+| A2 | The queue, oldest first, with owner, age and entity; "Open a decision" | NOT RETESTED |
+| A3 | Approve, Send back, Reject; a reason to send back or reject | NOT RETESTED |
+| A4 | The decision recorded with decider, entity, role, time, reason | NOT RETESTED |
+| A5 | Agent control: six agents "Not enabled"; the firm's ledger | NOT RETESTED |
+| A6 | A record with its ledger history | NOT RETESTED |
+| B1 | A disputed month is a decision on its owner's queue | NOT RETESTED |
+| B2 | Payroll, tab "Timesheet to payment": consultants and the month's state | NOT RETESTED |
+| B3 | A consultant's month: state strip, next move, ledger | NOT RETESTED |
+| B4 | A past month loaded as closed | NOT RETESTED |
+| B5, B6 | A month's page and the payroll summary | NOT RETESTED |
+
+**For the retest, in order.**
+1. Each tenant's Owner sets "First screen after sign-in" to the
+   decision queue. No agent sets it in production.
+2. A person types the real records on the screens: the four decision
+   items, Tapin's consultants and customers, October as a closed past
+   month, December once it begins (a month that has not begun cannot be
+   started, and a month that has not ended cannot be loaded as closed).
+3. A firm with legal entities chooses the entity on every act.
+
+**NOT IN THIS RELEASE.** Tapin's colors (a test pins Etyme's action
+colors; week 2's list). Any agent. A timesheet recorded on import.
+Monthly pay in arrears. A browser test that presses Save on the new
+forms.
+
+**Week 2's first items, found by the last walk and not fixed.**
+1. "…state no amount yet, and is left out" should read "are".
+2. A contract ending in the future reads "ended on".
+3. A decided dispute not yet returned still says "is owed by".
+4. The load form's date bubble hides the route's sentence, and the
+   entity box stays red after a choice.
+
+**Conflicts where the flow won over standing text.** Seven, in record
+107. Two more from the build: the dispute's question states no amount,
+because every working seat reads a question; and "Timesheet to
+payment" is the tab's name, because "money loop" is a builder's phrase.
+
+**Which model ran which piece.** The scout, the ledger and decision
+item, Flow A's screens, the month rules, the first walk and the first
+round of fixes: the second-strongest model. The review of step 1: not
+confirmed. Flow B's screens, both later walks, the money test and the
+Flow B fixes: the strongest model, set explicitly. The coordinator: the
+strongest model.
+
+## Phase 6, the finish gate
+
+Not met. No batch has been retested.
+
+## The eight Layer 6 questions, verbatim, with the answer recommended
+
+1. Should the tagline read "Data engineering consultants, ready to
+   interview" once a data engineer is shown? — Yes.
+2. Does "train → bench → profile → interview" stay off Tapin's page?
+   (Record 69.) — Yes.
+3. Is a pod a team, each person consenting, interviewed as one? — Yes.
+4. May a pods heading say "AI data readiness"? — No.
+5. Is hradmin@etyme.com Tapin's public contact? — No; the firm, not a
+   mailbox, unless the Owner opts in.
+6. Does the network board live inside the app? — Yes.
+7. Is Ask-first every new tenant's default? — No; it is Tapin's choice.
+8. Does a firm see only requirements from firms it already trades with?
+   (The prototype says yes.) — Yes.
+
+## Questions waiting on the owner or the tester
+
+1. ANSWERED by record 107: the decision queue is the signed-in home.
+2. The Vision UI prototype file.
+3. The names of the four overclaiming screens.
+4. Work before Dec 27: two-week periods counted back, or the old
+   monthly cycle?
+5. Whether the sending domain is verified at the mail provider.
+6. The four pay defaults for monthly pay in arrears (record 95).
+7. A week at a changed base with no recorded overtime rule: hold the
+   whole week, as built, or only the premium (records 92, 94)?
+8. Whether the host's page analytics sets a cookie, for the privacy
+   sentence.
+9. DECIDED by the lead (record 108): one tenant, legal entities as a
+   layer under it, as the pack says.
+10. ANSWERED by record 107: the pack's batch 1 first. The rest of
+    the handover's Batch 1: week 3, a delegated decision (record 108).
+11. May the digest scanner read mail, and by which door (point 2)?

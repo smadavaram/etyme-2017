@@ -1,0 +1,229 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { authorizationOnRecord } from '@/lib/document-stages/paper-record'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { hasPermission, desksHolding, type Permission } from '@/lib/permissions'
+import { seatedWhoMay, notYourButton } from '@/lib/refusal-words'
+import { contractSide } from '@/lib/resolve-client-company'
+import { logAccess, recordRefusal, accessActor } from '@/lib/access-log'
+import { emit } from '@/lib/events'
+import { writeCheck, employerOfRecord } from './record'
+import { employedElsewhere } from '@/lib/document-stages/employer'
+import {
+  checkInputFrom,
+  checkToRecord,
+  mayRecordCheck,
+  recordLabel,
+  withArticle,
+  type RecordingSide,
+} from '@/lib/attestation'
+
+/**
+ * POST /api/compliance/verifications — put a check on file for a placement.
+ *
+ *   { contractId, about: 'PERSON', type: 'I9_EVERIFY', formEdition, evidence: [{ type, expiresAt }] }
+ *   { contractId, about: 'PERSON', type: 'BACKGROUND_CHECK', provider, reference, renderedOn, outcome, providerSays, consentDocumentId? }
+ *   { contractId, about: 'PERSON', type: 'PROFESSIONAL_LICENSE', issuer, licenseNumber, licenseState, expiresAt }
+ *   { contractId, about: 'FIRM',   type: 'GOOD_STANDING', issuer, validFrom, expiresAt }
+ *
+ * The door that did not exist. Activation has refused a start on a
+ * missing I-9 since September, and nothing a person at a placing firm
+ * could press ever put one on file: `Verification` was written by the
+ * seeds and by supplier onboarding and by nothing else, so a placement
+ * whose person had no seeded I-9 could never start. The simulation found
+ * it on 2026-10-20, walking a placement from award to the first day.
+ *
+ * It writes the row activation reads, and nothing else. The rule is
+ * `checkToRecord` and `mayRecordCheck` in lib/attestation: an examined
+ * document is a fact about an examination, a provider's verdict is
+ * recorded in their words with their name and reference, and nothing
+ * here is a judgment about a person.
+ *
+ * About a person: the firm that employs or places them, HR or the
+ * compliance officer. About a supplier: the firm that buys from it,
+ * procurement or the compliance officer. Every read of the person is
+ * logged, the refusals before they are sent.
+ */
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return refuse(403, 'NO_COMPANY', 'A check is put on file by a company. Sign in at the firm that places the person, or the firm that buys from the supplier.')
+  }
+
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
+  const contractId = typeof body.contractId === 'string' ? body.contractId.trim() : ''
+  if (!contractId) return refuse(422, 'VALIDATION', 'Say which placement this check is for.', 'contractId')
+  const about = body.about === 'FIRM' ? 'FIRM' : body.about === 'PERSON' ? 'PERSON' : null
+  if (!about) return refuse(422, 'VALIDATION', 'Say whether the check is about the person or about the supplier.', 'about')
+  const type = typeof body.type === 'string' ? body.type.trim().toUpperCase() : ''
+  if (!type) return refuse(422, 'VALIDATION', 'Say which check this is.', 'type')
+
+  const contract = await prisma.sellContract.findUnique({
+    where: { id: contractId },
+    select: {
+      id: true, companyId: true, clientCompanyId: true, endClientCompanyId: true, personId: true, state: true,
+      person: { select: { name: true } },
+      company: { select: { name: true } },
+      clientCompany: { select: { name: true } },
+      endClientCompany: { select: { name: true } },
+    },
+  })
+  if (!contract) return refuse(404, 'NOT_FOUND', 'That placement could not be found. Open it from its own page and record the check there.')
+
+  const raw = contractSide(caller, contract)
+  // ── Who employs the person, on the chain under this line ──
+  //
+  // The second Tapin walk, 2026-10-30: Ravi is Tapin's own W2, sold to
+  // Brightmoor and on to Northbend. The I-9 is Tapin's to complete, so a
+  // seller above Tapin is refused it in a sentence naming Tapin, and
+  // Tapin may record it from any line of Ravi's chain it is under — the
+  // check is about Ravi, read by every rung, not about the line.
+  const employer = about === 'PERSON' ? await employerOfRecord(contract.personId, contract.id) : null
+  const theEmployerHere =
+    !!employer && employer.how !== 'BOTTOM' && employer.companyId === caller.company.id && raw !== 'SUPPLIER'
+  const side: RecordingSide = theEmployerHere
+    ? 'EMPLOYER'
+    : raw === 'SUPPLIER' ? 'EMPLOYER' : raw === 'PAYER' || raw === 'END_CLIENT' ? 'BUYER' : null
+  const subjectName = about === 'PERSON' ? contract.person.name : contract.company.name
+  const buyerName = contract.endClientCompany?.name ?? contract.clientCompany.name
+
+  const may = mayRecordCheck({
+    about, side, type,
+    holds: (p) => hasPermission(caller.permissions ?? [], p as never),
+    callerFirm: caller.company.name,
+    subjectName,
+    employerName: employer && employer.how !== 'BOTTOM' ? employer.name : contract.company.name,
+    buyerName,
+    employedBy: side === 'EMPLOYER' && employedElsewhere(employer, caller.company.id) ? employer!.name : null,
+  })
+  if (!may.ok) {
+    if (about === 'PERSON') {
+      await recordRefusal([contract.personId], {
+        ...accessActor(caller),
+        action: 'COMPLIANCE_CHECK',
+        // The log is read by people: the refusal in words, never its code.
+        reason: `Refused recording ${withArticle(recordLabel(type))}: ${REFUSED_BECAUSE[may.code]}`,
+      })
+    }
+    return refuse(403, may.code, may.code === 'FORBIDDEN' ? await whoAtThisFirm(caller.company.id, caller.company.kind, about, recordLabel(type), subjectName) : may.message)
+  }
+
+  // ── The person's authorization, where one is named ──
+  //
+  // A signed paper about this person, and nothing else. A consent that
+  // is somebody else's, or not yet signed, is refused rather than read
+  // as given.
+  let consentOn: Date | null = null
+  const consentId = typeof body.consentDocumentId === 'string' ? body.consentDocumentId.trim() : ''
+  if (about === 'PERSON' && consentId) {
+    const consent = await prisma.docInstance.findUnique({
+      where: { id: consentId },
+      select: { status: true, subjectType: true, subjectId: true, signedAt: true },
+    })
+    if (!consent || consent.subjectType !== 'PERSON' || consent.subjectId !== contract.personId) {
+      return refuse(422, 'NOT_THEIR_CONSENT', `That authorization is not a paper about ${contract.person.name}.`, 'consentDocumentId')
+    }
+    if (consent.status !== 'SIGNED' || !consent.signedAt) {
+      return refuse(422, 'NOT_SIGNED', `${contract.person.name} has not signed that authorization yet, so it cannot be named as consent.`, 'consentDocumentId')
+    }
+    consentOn = consent.signedAt
+  } else if (about === 'PERSON') {
+    // None named: the one on the record, where the person signed or sent it
+    // and somebody accepted it (the release walk, R2).
+    consentOn = await authorizationOnRecord(contract.personId, type)
+  }
+
+  const now = new Date()
+  // The body read once, by the same reader every door that records a check
+  // uses, so a field on a screen and the rule's question are one name.
+  const read = checkInputFrom(body, { about, type, subjectName, recordedBy: caller.person.name, consentOn })
+  if (!read.ok) return refuse(422, 'VALIDATION', read.message, read.field)
+  const verdict = checkToRecord(read.input, now)
+  if (!verdict.ok) {
+    return refuse(422, verdict.code, verdict.message, verdict.field)
+  }
+  const row = verdict.row
+  const subject = about === 'PERSON' ? { personId: contract.personId } : { companyId: contract.companyId }
+
+  const written = await writeCheck({
+    row,
+    subject,
+    personId: contract.personId,
+    recordedById: caller.person.id,
+    recordingCompanyId: caller.company.id,
+    now,
+  })
+  const id = written.id
+  const already = written.already ? written : null
+
+  if (about === 'PERSON') {
+    logAccess({
+      subjectId: contract.personId,
+      ...accessActor(caller),
+      action: 'COMPLIANCE_CHECK',
+      reason: `Recorded ${withArticle(recordLabel(type))} for the placement at ${buyerName}`,
+    })
+  }
+  if (!already) {
+    void emit({
+      type: 'verification.recorded',
+      companyId: caller.company.id,
+      subjectType: 'Verification',
+      subjectId: id,
+      actorPersonId: caller.person.id,
+      payload: { contractId, about, type: row.type, status: row.status, expiresAt: row.expiresAt?.toISOString() ?? null },
+    })
+  }
+
+  return NextResponse.json(
+    {
+      data: {
+        id,
+        type: row.type,
+        status: row.status,
+        expiresAt: row.expiresAt?.toISOString().slice(0, 10) ?? null,
+        alreadyOnFile: !!already,
+        says: already ? `That ${recordLabel(type)} is already on file, exactly as given. Nothing new was written.` : verdict.says,
+      },
+    },
+    { status: already ? 200 : 201 }
+  )
+}
+
+/** A refusal's reason on the access log, in words. */
+const REFUSED_BECAUSE: Record<'NOT_A_PARTY' | 'NOT_YOURS_TO_RECORD' | 'FORBIDDEN', string> = {
+  NOT_A_PARTY: 'the firm is not a party to the placement',
+  NOT_YOURS_TO_RECORD: 'it is the other firm’s to record',
+  FORBIDDEN: 'the seat does not record checks',
+}
+
+/**
+ * The refusal for a seat that does not record checks, naming who at this
+ * firm does, from the roles it has seated (the last batch's press: the
+ * I-9 door named HR and a compliance officer the firm may never have
+ * seated). Who may is unchanged: the roles holding the permissions
+ * `mayRecordCheck` asks, of which `seatedWhoMay` names the ones somebody
+ * holds here, else the Owner and an Admin.
+ */
+async function whoAtThisFirm(
+  companyId: string, kind: string | null | undefined, about: 'PERSON' | 'FIRM', what: string, subjectName: string,
+): Promise<string> {
+  const seats = await prisma.context.findMany({
+    where: { companyId, revokedAt: null, suspendedAt: null, roleId: { not: null } },
+    select: { role: { select: { name: true } } },
+  })
+  const seated = Array.from(new Set(seats.map((s) => s.role?.name).filter((n): n is string => !!n)))
+  const names = seatedWhoMay(desksHolding(RECORDS_CHECKS[about], kind), seated)
+  return notYourButton(`recording the ${what} for ${subjectName}`, names)
+}
+
+/** The permissions `mayRecordCheck` asks, by what the check is about. */
+const RECORDS_CHECKS: Record<'PERSON' | 'FIRM', Permission[]> = {
+  PERSON: ['consultants.write', 'privacy.manage'],
+  FIRM: ['vendors.manage', 'privacy.manage', 'governance.write'],
+}
+
+function refuse(status: number, code: string, message: string, field?: string) {
+  return NextResponse.json({ error: { code, message, ...(field ? { field } : {}) } }, { status })
+}

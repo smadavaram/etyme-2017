@@ -25,7 +25,7 @@ Open application in browser ```http://lvh.me:3000``` and login as a company.
 
 **Test Company User:**``
 
-    User: hradmin@cloudepa.com
+    User: hradmin@tecwyn.example
     Pass: testing1234
 
 ### **Deployment Instructions** ###

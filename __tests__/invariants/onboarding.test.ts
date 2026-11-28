@@ -1,0 +1,289 @@
+/**
+ * Getting a company into Etyme.
+ *
+ * What goes wrong is not sign-in. It is that the second person from a
+ * company creates a second company, and six weeks later there are three
+ * "Northbend Athletic Inc" records with the requisitions split between them.
+ *
+ * A verified work-email domain solves that outright, and these tests are
+ * mostly about holding that one rule: the domain is the company, so
+ * everybody after the first person joins.
+ */
+
+import { describe, it, expect } from 'vitest'
+import {
+  classifyEmail, domainOf, decideEntry, slugFromDomain,
+  guessCompanyName, COMPANY_TYPES, typeByKey,
+} from '@/lib/onboarding'
+import { namedCompanies } from '@/lib/positioning'
+import { rolesFor } from '@/lib/company-defaults'
+import { getNavForKind } from '@/components/shell/sidebar'
+
+const talvern = { id: 'c1', name: 'Talvern Medical', kind: 'CLIENT', memberCount: 12 }
+
+describe('Who is signing in', () => {
+
+  it('a work address is corporate', () => {
+    expect(classifyEmail('d.whitfield@talvern.example')).toBe('CORPORATE')
+  })
+
+  it('gmail is a person, not a company', () => {
+    expect(classifyEmail('ravi.patel@gmail.com')).toBe('CONSUMER')
+  })
+
+  it('so are the other big consumer providers', () => {
+    for (const e of ['a@yahoo.com', 'b@outlook.com', 'c@icloud.com', 'd@proton.me']) {
+      expect(classifyEmail(e)).toBe('CONSUMER')
+    }
+  })
+
+  it('something that is not an address is refused', () => {
+    expect(classifyEmail('not-an-email')).toBe('INVALID')
+    expect(classifyEmail('missing@domain')).toBe('INVALID')
+    expect(classifyEmail('@nothing.com')).toBe('INVALID')
+  })
+
+  it('a mail subdomain is the same company, not a second one', () => {
+    // This used to keep contractors.northbend.example as the domain, so somebody at
+    // northbend.example matched nothing and created a second tenant for the same
+    // organization — neither able to see the other's requisitions,
+    // invoices or people. Reducing to the registrable domain is what makes
+    // join-beats-create actually hold.
+    expect(classifyEmail('j.smith@contractors.northbend.example')).toBe('CORPORATE')
+    expect(domainOf('j.smith@contractors.northbend.example')).toBe('northbend.example')
+    expect(domainOf('other@northbend.example')).toBe('northbend.example')
+  })
+
+  it('case and spacing do not change the answer', () => {
+    expect(classifyEmail('  D.Whitfield@talvern.example ')).toBe('CORPORATE')
+  })
+})
+
+describe('The domain is the company', () => {
+
+  it('the first person from a domain sets the company up', () => {
+    const d = decideEntry('d.whitfield@talvern.example', null)
+    expect(d.action).toBe('CREATE')
+    expect(d.message).toContain('Nobody from talvern.example is here yet')
+  })
+
+  it('everybody after them joins it', () => {
+    // The whole point. No search box, no invite code, no duplicate.
+    const d = decideEntry('m.okafor@talvern.example', talvern)
+    expect(d.action).toBe('JOIN')
+    expect(d.message).toContain('12 colleagues')
+  })
+
+  it('joining is never offered as a choice against creating', () => {
+    // Offering the choice is how duplicates get made: the person who is
+    // unsure picks create.
+    const d = decideEntry('m.okafor@talvern.example', talvern)
+    expect(d.action).not.toBe('CREATE')
+  })
+
+  it('the second person ever is told they are joining one colleague', () => {
+    const d = decideEntry('m.okafor@talvern.example', { ...talvern, memberCount: 1 })
+    expect(d.message).toContain('already on Etyme')
+    expect(d.message).not.toContain('colleagues')
+  })
+
+  it('a company with nobody in it yet does not say "0 colleagues"', () => {
+    // Companies exist before their first sign-in — imported from a client
+    // list, or seeded. The count is true and reads as broken.
+    const d = decideEntry('a@northbend.example', { ...talvern, name: 'Northbend Athletic Inc.', memberCount: 0 })
+    expect(d.message).toBe('Northbend Athletic Inc. is already on Etyme. Joining it.')
+    expect(d.message).not.toContain('0 colleagues')
+  })
+
+  it('a consultant on gmail signs in without a company, and is not refused', () => {
+    // Consultants are the third side of this market, not a failed signup.
+    const d = decideEntry('ravi.patel@gmail.com', null)
+    expect(d.action).toBe('CONSULTANT')
+    expect(d.message).toContain('as a consultant')
+  })
+
+  it('and is told what to do if they meant to set up a company', () => {
+    const d = decideEntry('ravi.patel@gmail.com', null)
+    expect(d.message).toContain('work email')
+  })
+
+  it('a malformed address is refused plainly', () => {
+    expect(decideEntry('nonsense', null).action).toBe('REFUSE')
+  })
+})
+
+describe('The company address', () => {
+
+  it('comes from the domain', () => {
+    expect(slugFromDomain('talvern.example', new Set())).toBe('talvern')
+  })
+
+  it('drops www', () => {
+    expect(slugFromDomain('www.northbend.example', new Set())).toBe('northbend')
+  })
+
+  it('numbers a collision rather than refusing it', () => {
+    // Two companies can genuinely own similar domains. Telling the second
+    // to think of another name is a poor first minute.
+    expect(slugFromDomain('northbend.example', new Set(['northbend']))).toBe('northbend-2')
+    expect(slugFromDomain('northbend.example', new Set(['northbend', 'northbend-2']))).toBe('northbend-3')
+  })
+
+  it('will not hand out a word the product uses', () => {
+    expect(slugFromDomain('api.com', new Set())).toBe('api-2')
+    expect(slugFromDomain('admin.io', new Set())).toBe('admin-2')
+  })
+
+  it('strips anything that would break a URL', () => {
+    expect(slugFromDomain('acme_corp!.com', new Set())).toBe('acme-corp')
+  })
+
+  it('a domain that reduces to nothing still gets an address', () => {
+    expect(slugFromDomain('---.com', new Set())).toBe('company')
+  })
+})
+
+describe('The first screen is not an empty box', () => {
+
+  it('a name is guessed from the domain', () => {
+    expect(guessCompanyName('talvern.example')).toBe('Talvern')
+  })
+
+  it('hyphens become words', () => {
+    expect(guessCompanyName('cloud-epa.com')).toBe('Cloud Epa')
+  })
+})
+
+describe('What this company does here', () => {
+
+  it('there are seven ways in, and the one-person firm is still the last', () => {
+    expect(COMPANY_TYPES).toHaveLength(7)
+    expect(COMPANY_TYPES[COMPANY_TYPES.length - 1].key).toBe('solo')
+    expect(COMPANY_TYPES.map((t) => t.key)).toEqual(['client', 'msp', 'gsi', 'prime', 'sub', 'bench', 'solo'])
+  })
+
+  // The second Tapin walk, 2026-11-01: the Suppliers door's Sub-vendor tab
+  // had no choice of its own and landed on "Bench supplier".
+  it('a sub-vendor, a firm that supplies people through a prime vendor, has a choice of its own', () => {
+    const t = typeByKey('sub')!
+    expect(t.label).toBe('Sub-vendor')
+    expect(t.blurb).toBe('You supply people through a prime vendor, and bill the prime, not the client.')
+    expect(t.personalEmail).toBe(false)
+  })
+
+  it('a sub-vendor is a supplier like any other, written as selling through other suppliers, never a kind of company of its own', () => {
+    const t = typeByKey('sub')!
+    expect(t.kind).toBe('VENDOR')
+    expect(t.kind).toBe(typeByKey('prime')!.kind)
+    expect(t.posture).toBe('BENCH')
+  })
+
+  it('the prime vendor says it sells to clients directly, and the sub-vendor never does', () => {
+    expect(typeByKey('prime')!.label).toBe('Prime vendor')
+    expect(typeByKey('prime')!.blurb).toContain('to clients directly')
+    expect(typeByKey('sub')!.blurb).not.toContain('to clients directly')
+  })
+
+  it('a client who hires contractors', () => {
+    const t = typeByKey('client')!
+    expect(t.kind).toBe('CLIENT')
+    expect(t.example).toContain('Talvern Medical')
+  })
+
+  // etyme-market, 2026-09-17. A cross-domain edit in etyme-supply's test
+  // file, on the precedent of c126c1c4 and f901e914. The assertion above
+  // pinned 'Talvern Medical' — it was holding a real trademark on the live sign-up
+  // picker in place, so the rename could not land without coming through
+  // here, and a red test cannot be left behind. The sentence below is the
+  // rule that string was standing in for, so the next example added to
+  // this list is checked rather than trusted. Nothing else in this file
+  // was touched — the domain-is-the-company rule is etyme-supply's, and
+  // the `talvern` fixture above is a fixture, which nobody reads.
+  it('offers no real company as an example, because an example beside "we hire contractors" reads as who already does', () => {
+    const everything = COMPANY_TYPES
+      .map((t) => `${t.label} ${t.blurb} ${t.example}`)
+      .join(' ')
+    expect(
+      namedCompanies(everything),
+      'A company signing up reads these examples as who already uses this. Nobody ' +
+        'at a named firm has agreed to appear here, and the pricing decision is that ' +
+        'no agent invents a claim about who uses this. Invent one, or take it from ' +
+        'the sheet in docs/demo-names.md.'
+    ).toEqual([])
+  })
+
+  it('a GSI both delivers and buys', () => {
+    const t = typeByKey('gsi')!
+    expect(t.kind).toBe('GSI')
+    expect(t.posture).toBe('PRIME')
+  })
+
+  it('an MSP runs somebody else program', () => {
+    expect(typeByKey('msp')!.kind).toBe('MSP')
+  })
+
+  it('a prime supplier holds the client agreement', () => {
+    const t = typeByKey('prime')!
+    expect(t.kind).toBe('VENDOR')
+    expect(t.posture).toBe('PRIME')
+  })
+
+  it('a bench supplier sells through other suppliers', () => {
+    const t = typeByKey('bench')!
+    expect(t.kind).toBe('VENDOR')
+    expect(t.posture).toBe('BENCH')
+  })
+
+  it('prime and bench are the same kind of company, in different postures', () => {
+    // Infosys is prime to one client and buys bench from three firms in the
+    // same week. This is a starting posture, not an identity.
+    expect(typeByKey('prime')!.kind).toBe(typeByKey('bench')!.kind)
+  })
+
+  it('every option says what it means without jargon', () => {
+    for (const t of COMPANY_TYPES) {
+      expect(t.blurb.length).toBeGreaterThan(30)
+      expect(t.example.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('somebody paid through their own company signs up as a solopreneur', () => {
+    const t = typeByKey('solo')!
+    expect(t.kind).toBe('CONSULTANT_CORP')
+    expect(t.label).toBe('Solopreneur')
+    expect(t.posture).toBeNull()
+  })
+
+  it('the one-person firm may sign up with a personal email, and no other type may', () => {
+    expect(typeByKey('solo')!.personalEmail).toBe(true)
+    for (const t of COMPANY_TYPES.filter((x) => x.key !== 'solo')) {
+      expect(t.personalEmail, `${t.label} claims a domain, so it needs a work email`).toBe(false)
+    }
+  })
+
+  it('the one-person firm says nothing about software, because a travel nurse picks it too', () => {
+    const t = typeByKey('solo')!
+    const words = `${t.label} ${t.blurb} ${t.example}`
+    expect(words).not.toMatch(/\b(software|developer|SAP|code)\b/i)
+    expect(words).not.toMatch(/\bIT\b/)
+    expect(words).toMatch(/nurse/i)
+  })
+
+  it('the one-person firm starts with an owner and a member seat, not a staffing firm’s nine desks', () => {
+    const roles = rolesFor(typeByKey('solo')!.kind as any).map((r) => r.name)
+    expect(roles[0]).toBe('Owner')
+    expect(roles).not.toContain('Recruiter')
+    expect(roles).not.toContain('Account Manager')
+  })
+
+  it('the one-person firm reads the short solo menu, with no bench and no recruiting', () => {
+    const solo = getNavForKind(typeByKey('solo')!.kind as any, false, { worker: true })
+    expect(solo.map((s) => s.label)).toEqual(['Ask Etyme', 'Your work', 'Timesheets', 'Bills', 'Contracts', 'Paperwork', 'Settings'])
+    const hrefs = solo.flatMap((s) => s.items.map((i) => i.href))
+    expect(hrefs).not.toContain('/dashboard/bench')
+  })
+
+  it('an unknown option is not silently accepted', () => {
+    expect(typeByKey('something-else')).toBeNull()
+  })
+})

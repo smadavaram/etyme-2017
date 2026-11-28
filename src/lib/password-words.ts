@@ -1,0 +1,249 @@
+/**
+ * The password door's sentences and the two path rules a page needs, with
+ * no server import, so a page drawn in the browser can read them without
+ * pulling the hashing and the token code into the bundle. It reads only
+ * plain modules (company defaults, setup's country list, the consumer
+ * domain list). `lib/password` re-exports what it needs from here.
+ */
+import { countryFromDomain } from '@/lib/company-defaults'
+import { COUNTRIES, currencyFor, countryGuessSentence } from '@/lib/setup-steps'
+import { isConsumerDomain } from '@/lib/company-domains'
+
+/**
+ * The fewest characters a password may have. Here, and not in
+ * lib/password, because a browser page shows it beside the field and
+ * lib/password loads argon2, which only a server can.
+ */
+export const MIN_PASSWORD = 12
+
+
+/**
+ * The two titles of the notice that tells a person a password was set or
+ * changed on her account (`passwordNoticeSays` in lib/identity/
+ * password-notice). Here, with no server import, so Ask Etyme's greeting
+ * knows the notice and says its whole sentence rather than the title
+ * (walk of 30f2c4d87, 2026-11-16).
+ */
+export const PASSWORD_NOTICE_TITLES = {
+  set: 'A password was set on your Etyme account',
+  changed: 'Your Etyme password was changed',
+} as const
+
+/** Whether a notice's title is one of the two above. Pure. */
+export function isPasswordNotice(title: string): boolean {
+  return title === PASSWORD_NOTICE_TITLES.set || title === PASSWORD_NOTICE_TITLES.changed
+}
+
+/** Without an email sender nobody can prove a mailbox, so these doors say so before any form. */
+export const SIGNUP_SHUT = 'Sign-up is off on this deployment until an email sender is set up.'
+/**
+ * Forgot your password, where no email can leave. It points to the one
+ * way in that needs no email: sign in with Google or Microsoft and set a
+ * password from the account menu (fault 5, 2026-11-12).
+ */
+export const RESET_SHUT = 'Etyme cannot send email here yet, so a reset link cannot reach you. If you can still sign in with Google or Microsoft, do that, then choose Set a password in the account menu.'
+
+/**
+ * A seeded demo person never gets a password (round one of the sign-up
+ * walk, item 46). Said only where the address is on the demo's own host
+ * (`demo.etyme…`), since only there is the demo page the way in.
+ */
+export const DEMO_REFUSAL =
+  'This address belongs to the Etyme demo. A demo seat opens only from the demo page, never with a password.'
+
+/**
+ * Any other address no email can reach (.example, .invalid, .local): a
+ * real firm's test person as much as a sample one. The demo sentence was
+ * said to all of them, and it is not true of a firm's own test person
+ * (reader of batch five, item 2). This is true for every such reader.
+ */
+export const NO_MAIL_REFUSAL =
+  'No email can reach this address, so no password can be set for it. Use an address that gets email.'
+
+/** Whether an address is on the Etyme demo's own host. Pure: the address alone decides. */
+export function demoHost(email: string): boolean {
+  const e = String(email ?? '').trim().toLowerCase()
+  const domain = e.slice(e.lastIndexOf('@') + 1)
+  return e.includes('@') && (domain === 'demo.etyme' || domain.startsWith('demo.etyme.'))
+}
+
+/**
+ * What the password door says to an address it never takes a password
+ * for: the demo's own guidance on the demo's host, else that no email
+ * can reach it. Called only for such an address (`demoEmail`).
+ */
+export function noPasswordSays(email: string): string {
+  return demoHost(email) ? DEMO_REFUSAL : NO_MAIL_REFUSAL
+}
+
+/** Prefix on a refusal for an address that is already confirmed, so the link page can offer Sign in. */
+export const CONFIRMED_CODE = 'CONFIRMED'
+export const ALREADY_CONFIRMED = 'Your email is already confirmed. Sign in.'
+
+/**
+ * What a newer link does to an older one, said where the older one is
+ * opened. Says nothing about email, because the staff bootstrap reissues
+ * a link by hand and nothing is emailed then.
+ */
+export const SUPERSEDED = 'A newer link replaced this one. Use the newest link you were given.'
+
+/**
+ * `?name=` on the candidate sign-up: the name the firm gave when it
+ * asked her onto its bench, handed over by the link after her yes so
+ * she does not type it twice. Only a prefill: the box stays hers to
+ * change. Anything that does not read as a name is dropped, never shown.
+ */
+export function nameFromLink(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  const name = raw.replace(/\s+/g, ' ').trim()
+  if (name.length < 2 || name.length > 120) return ''
+  if (/[<>@/\\]|https?:/i.test(name)) return ''
+  return name
+}
+
+/**
+ * The opening of the email to somebody a firm put on the record, who
+ * never set a password, when they sign up. Names the firm, because "a
+ * company" tells a person nothing about why the mail came (sign-up walk,
+ * round two, item 33).
+ */
+export function firmAddedYou(firm: string | null | undefined): string {
+  return `${firm?.trim() || 'A company'} added you to its bench. Confirm your email to sign in.`
+}
+
+/** The opening of the email to somebody already on the record who signed up a company of their own: a candidate becoming a one-person firm. */
+export function soloFromCandidate(company: string, keepsPassword: boolean): string {
+  return `Confirm your email to set up ${company} as your own company on Etyme.` +
+    (keepsPassword ? ' You sign in with the password you already use.' : '')
+}
+
+/**
+ * What a colleague reads once they are seated as Member. Word for word the
+ * in-app welcome `welcomeSaid` in lib/notify/joined sends the same person
+ * (etyme-conversation's), and a test holds the two equal, so the two are
+ * worded together, never one alone (reworded to "no role yet", 2026-11-15).
+ */
+export function memberWelcome(company: string): string {
+  return `You are in ${company} with no role yet. You can see your own work now. An Owner or Admin there gives you a role.`
+}
+
+/**
+ * What the sign-up form says when the email belongs at a company already
+ * here. `companys` is the name's possessive, made by `possessive` in
+ * lib/requisition-approval ("Walk Co's", "Kestrel Works'"), passed in so
+ * this file keeps no imports.
+ */
+export function colleagueSentence(address: string, companys: string): string {
+  return `${address} is ${companys} address. You join it with no role yet once you confirm your email. An Owner or Admin there gives you one.`
+}
+
+/**
+ * Where to go after signing in, when a page asked. Only a path on this
+ * site: never another host, so a link cannot send somebody away.
+ */
+export function safeNext(raw: unknown): string | null {
+  const v = typeof raw === 'string' ? raw.trim() : ''
+  if (!v.startsWith('/') || v.startsWith('//') || v.startsWith('/\\')) return null
+  if (/[\r\n]/.test(v)) return null
+  return v
+}
+
+/** The claim token in a `/claim/<token>` path, or null. */
+export function claimTokenIn(path: string | null | undefined): string | null {
+  const m = String(path ?? '').match(/^\/claim\/([A-Za-z0-9_-]+)\/?$/)
+  return m ? m[1] : null
+}
+
+
+/**
+ * What the password field says under it. A candidate has no company, so
+ * their hint names none (sign-up walk, round two, item 22).
+ */
+export const PASSWORD_HINT_COMPANY = 'At least 12 characters. Not your email or the company name.'
+export const PASSWORD_HINT_PERSON = 'At least 12 characters. Not your email.'
+
+/**
+ * A sentence shown under a heading that already says its first words.
+ * "Check your email" as the heading and again as the first line read as
+ * a stutter (round two, item 2), so the line drops what the heading said.
+ */
+export function underHeading(heading: string, says: string): string {
+  const lead = heading.trim().replace(/\.$/, '')
+  return says.startsWith(`${lead}. `) ? says.slice(lead.length + 2) : says
+}
+
+// ── The address, the country and the currency, guessed at sign-up ────
+//
+// The onboarding walk of 2026-10-27: the company form asked for an Etyme
+// address with an empty box and started every firm in the United States,
+// while the Microsoft and Google door guessed both. The form now guesses
+// the same way, says each is a guess, and a person changes any of them.
+
+/** Etyme addresses are at most forty characters. */
+export const ADDRESS_MAX = 40
+
+/**
+ * A company's name as an Etyme address: lower case, letters and digits
+ * joined by single hyphens, at most forty characters. Null where nothing
+ * of three characters or more is left. The one rule, read by the sign-up
+ * form and by the door that checks the address (lib/password).
+ */
+export function addressFromName(name: string | null | undefined): string | null {
+  const v = String(name ?? '')
+    .toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, ADDRESS_MAX)
+    .replace(/-+$/, '')
+  return v.length >= 3 ? v : null
+}
+
+export interface SignUpGuesses {
+  /** The address suggested from the company's name, or null. */
+  address: string | null
+  /** Two letters, always one the form offers. */
+  country: string
+  currency: string
+  /** The guess said as a guess, under the country. Null before an email is typed. */
+  says: string | null
+}
+
+/**
+ * What the company form fills in for a person, from the work email and
+ * the company's name. The country follows the web address the way the
+ * Microsoft and Google door reads it (`countryFromDomain`), the currency
+ * follows the country, and the address follows the name. A guess is only
+ * a starting point: the form stops replacing a field once the person has
+ * changed it.
+ */
+export function signUpGuesses(email: string, companyName: string): SignUpGuesses {
+  const at = email.lastIndexOf('@')
+  const raw = at > 0 ? email.slice(at + 1).trim().toLowerCase() : ''
+  const domain = raw.includes('.') && !isConsumerDomain(raw) ? raw : null
+  const guessed = countryFromDomain(domain)
+  const country = COUNTRIES.some((c) => c.code === guessed) ? guessed : 'US'
+  return {
+    address: addressFromName(companyName),
+    country,
+    currency: currencyFor(country),
+    says: raw.includes('.') ? countryGuessSentence(country, domain) : null,
+  }
+}
+
+// ── Where no email can be sent ───────────────────────────────────────
+//
+// Decided 2026-10-27 (coordinator, after the onboarding walk): a
+// deployment with no email key keeps sign-up open, and the confirmation
+// link is kept on the notice for Etyme staff to pass on
+// (`recordedBody` in lib/notify/account-mail). The page and the answer
+// say so, rather than "check your email" for an email that never left.
+
+/** Said on the sign-up page, above the form, where no email can leave this deployment. */
+export const NO_EMAIL_HERE =
+  'This deployment cannot send email yet. You can still sign up: your confirmation link is kept with Etyme staff, who pass it on to you.'
+
+/** The answer after signing up where no email could be sent. */
+export function linkWithStaff(email: string): string {
+  return `No email could be sent from here, so the link for ${email} is kept with Etyme staff. They pass it on to you; it works for 24 hours.`
+}

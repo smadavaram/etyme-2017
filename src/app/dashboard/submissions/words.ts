@@ -1,0 +1,147 @@
+import { formatDay } from '@/lib/format-date'
+import { otherFirmWord } from '@/lib/parties'
+
+/**
+ * The words the Submissions page uses for a row — never the column's code.
+ *
+ * The client tester read "NOT_SELECTED" on the row of a candidate who had
+ * just been turned down, "BENCH", "INTERNAL" and "NETWORK" under a column
+ * headed Kind, and "6d ago" in one row beside "9/19/2026" in the next.
+ * Three codes and two date styles on the page a hiring manager decides
+ * from. The codes stay the machine's; this is what a person reads.
+ *
+ * Beside the page, with no database and no clock of its own, so the
+ * tests read it directly.
+ */
+
+const STATUS: Record<string, string> = {
+  SUBMITTED: 'Submitted',
+  SHORTLISTED: 'Shortlisted',
+  INTERVIEW: 'Interviewing',
+  OFFERED: 'Offered',
+  PLACED: 'Placed',
+  REJECTED: 'Turned down',
+  WITHDRAWN: 'Withdrawn',
+  // Stood down by somebody else's award. Not a judgment of the person.
+  NOT_SELECTED: 'Not chosen',
+}
+
+/** "Not chosen", never NOT_SELECTED. */
+export function submissionStatusWord(status: string): string {
+  const key = String(status ?? '').toUpperCase()
+  return STATUS[key] ?? key.charAt(0) + key.slice(1).toLowerCase().replace(/_/g, ' ')
+}
+
+/**
+ * How the person came to this job, said from where the reader sits.
+ *
+ * The same row reads differently to the firm that sent it and the firm
+ * that received it: "our own employee" to the integrator that put
+ * Karthik forward, "the supplier's own employee" to the client. Neither
+ * names a firm below the one the client pays — the column says a person
+ * came through another firm, never which.
+ *
+ * ── Read off the chain, not off the stored kind ──────────────────────
+ *
+ * The audit of 2026-10-05 found both sides of Marisol Quintero's row
+ * reading "through a partner firm" when there was no partner: Brightmoor
+ * held her listing and sent her straight to Northbend. The stored kind
+ * said NETWORK because her listing was a marketing one rather than a
+ * retained one, and the words trusted the kind. So where the row says
+ * which hop it came up — `came` — the words follow the chain: our own
+ * employee, our own bench, or through a named supplier, and the supplier
+ * is named only to the firm that bought from it.
+ */
+export interface Came {
+  /** The row was forwarded up from a submission another firm made. */
+  chained: boolean
+  /** That firm's name — given only to the firm that bought from it. */
+  through: string | null
+}
+
+export function submissionKindWord(
+  kind: string,
+  direction: 'sent' | 'received' | null | undefined,
+  came?: Came | null
+): string {
+  const ours = direction === 'sent'
+  const k = String(kind ?? '').toUpperCase()
+  if (k === 'INTERNAL') return ours ? 'Our own employee' : 'Supplier’s own employee'
+  if (came) {
+    if (came.chained) {
+      return ours
+        ? came.through ? `Through ${came.through}` : 'Through a supplier of ours'
+        : 'Through the supplier’s own supplier'
+    }
+    return ours ? 'From our bench' : 'From the supplier’s bench'
+  }
+  switch (k) {
+    case 'BENCH':    return ours ? 'From our bench' : 'From the supplier’s bench'
+    case 'NETWORK':  return ours ? 'Through a partner firm' : 'Through another firm'
+    default:         return 'Not stated'
+  }
+}
+
+/** The column's heading — a question a recruiter would ask. */
+export const KIND_HEADING = 'How they came'
+
+/** "Sep 27, 2026" — one date style on every row, never "6d ago" beside "9/19/2026". */
+export function submittedOn(iso: string | null | undefined): string {
+  if (!iso) return 'Not recorded'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'Not recorded'
+  return formatDay(d)
+}
+
+/**
+ * The jobs a firm may put somebody forward to: somebody else's.
+ *
+ * An integrator holds two rows for one client job — the client's own,
+ * and its resold copy that its sub-vendors answer. The dialog offered
+ * both under identical words, and picking the copy was refused with
+ * "Tellisford Solutions is not among" the suppliers Tellisford chose: the
+ * firm told it is not a supplier to itself. A firm never submits to its
+ * own job request, so the copy is not offered.
+ */
+export function jobsToSubmitTo<T extends { company: { id: string } }>(jobs: T[], myCompanyId: string): T[] {
+  return jobs.filter((j) => j.company.id !== myCompanyId)
+}
+
+/**
+ * A refused award, said once.
+ *
+ * The screen printed the route's message, a dash, then every blocking
+ * check's reason, so a refusal with one reason said itself twice: "the
+ * vendor has no general liability and workers' compensation cover on file
+ * — the vendor has no general liability…" (the Tapin walk, 2026-10-29).
+ * A reason already in the message is not said again; the others follow it.
+ */
+export function refusalSays(message: string, reasons: readonly string[]): string {
+  const plain = (s: string) => s.trim().replace(/[.\s]+$/, '').toLowerCase()
+  const said = plain(message)
+  const rest = [...new Set(reasons.map((r) => r.trim()).filter(Boolean))].filter((r) => !said.includes(plain(r)))
+  const first = message.trim()
+  const head = first.charAt(0).toUpperCase() + first.slice(1)
+  return rest.length === 0 ? head : `${head} — ${rest.join(' · ')}`
+}
+
+/**
+ * What another firm is, beside its name in a picker: "Brightmoor
+ * Staffing · supplier", "Aptiva Workforce · MSP", a one-person firm.
+ *
+ * The Send on picker printed the column, lower-cased: "vendor", "client",
+ * "msp", "gsi", "consultant_corp" (the second Tapin walk, 2026-10-30). The
+ * words are `lib/parties`' own word for another firm (`otherFirmWord`),
+ * so the picker, the sidebar and every other screen that names a firm
+ * beside its name cannot drift apart. A kind nobody knows says nothing
+ * rather than its code.
+ */
+export function firmWord(kind: string | null | undefined): string {
+  return otherFirmWord(kind)
+}
+
+/** "Brightmoor Staffing · supplier", or the name alone where the kind says nothing. */
+export function firmOption(f: { name: string; kind?: string | null }): string {
+  const word = firmWord(f.kind)
+  return word ? `${f.name} · ${word}` : f.name
+}

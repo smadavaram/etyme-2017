@@ -1,0 +1,349 @@
+import { describe, it, expect } from 'vitest'
+import {
+  watchVerifications,
+  watchPurchaseOrders,
+  orderAmount,
+  watchAccess,
+  watchPackets,
+  ordered,
+  digest,
+  type Finding,
+} from '@/lib/watch'
+import { usedHereOf } from '@/lib/watch/access-use'
+
+/**
+ * Everything built so far records. A packet reopens when insurance expires
+ * — but only when somebody opens the packets page. Access expires and
+ * nobody is told. A purchase order runs out and the first anybody hears is
+ * a supplier chasing a payment that will not match.
+ *
+ * That is a filing cabinet. These tests hold the two rules that make it
+ * something else: warn before the block rather than after, and say what
+ * will happen rather than that something is wrong.
+ */
+
+const NOW = new Date('2026-08-19T00:00:00Z')
+const inDays = (n: number) => new Date(NOW.getTime() + n * 86_400_000)
+
+describe('insurance and work authorization', () => {
+  const base = {
+    id: 'v1', companyId: 'co1', personId: null,
+    status: 'CLEAR', subjectName: 'Tecwyn Inc.',
+  }
+
+  it('warns two months before insurance lapses, not on the day', () => {
+    // Telling somebody the day it lapses means a placement is already
+    // blocked and a broker needs a week.
+    const f = watchVerifications([{ ...base, type: 'INSURANCE_GL', expiresAt: inDays(50) }], NOW)
+    expect(f).toHaveLength(1)
+    expect(f[0].kind).toBe('VERIFICATION_EXPIRING')
+  })
+
+  it('says nothing about cover that runs for another eight months', () => {
+    // A watcher that speaks constantly is one nobody reads.
+    expect(watchVerifications([{ ...base, type: 'INSURANCE_GL', expiresAt: inDays(240) }], NOW)).toHaveLength(0)
+  })
+
+  it('says what will happen rather than that something is wrong', () => {
+    const f = watchVerifications([{ ...base, type: 'INSURANCE_GL', expiresAt: inDays(12) }], NOW)
+    expect(f[0].detail).toMatch(/will not be able to place anybody/i)
+    expect(f[0].detail).toContain('Tecwyn Inc.')
+  })
+
+  it('treats lapsed cover as blocking, because it already stops work', () => {
+    const f = watchVerifications([{ ...base, type: 'INSURANCE_WC', expiresAt: inDays(-3) }], NOW)
+    expect(f[0].urgency).toBe('BLOCKING')
+    expect(f[0].detail).toMatch(/already stopping work/i)
+  })
+
+  it('reopens the request rather than only announcing it', () => {
+    // The point is that the ask is already waiting when somebody looks.
+    const f = watchVerifications([{ ...base, type: 'INSURANCE_GL', expiresAt: inDays(20) }], NOW)
+    expect(f[0].action).toBe('REOPEN_PACKET')
+  })
+
+  it('only mentions a distant expiry rather than chasing it', () => {
+    const f = watchVerifications([{ ...base, type: 'INSURANCE_GL', expiresAt: inDays(55) }], NOW)
+    expect(f[0].action).toBe('NOTIFY_ONLY')
+  })
+
+  it('is gentler about a check that does not stop work', () => {
+    const blocking = watchVerifications([{ ...base, type: 'I9_EVERIFY', expiresAt: inDays(10) }], NOW)
+    const not = watchVerifications([{ ...base, type: 'BACKGROUND_CHECK', expiresAt: inDays(10) }], NOW)
+    expect(blocking[0].urgency).toBe('BLOCKING')
+    expect(not[0].urgency).not.toBe('BLOCKING')
+  })
+
+  it('ignores a check that never passed, because it is not cover we hold', () => {
+    expect(watchVerifications([{ ...base, type: 'INSURANCE_GL', status: 'FAILED', expiresAt: inDays(5) }], NOW)).toHaveLength(0)
+  })
+
+  it('ignores anything with no expiry, because it cannot lapse', () => {
+    expect(watchVerifications([{ ...base, type: 'BUSINESS_PARTNER', expiresAt: null }], NOW)).toHaveLength(0)
+  })
+
+  it('a person\u2019s lapsed work authorization is said about the person, never as a stop on every placement through a firm', () => {
+    const f = watchVerifications(
+      [{ ...base, companyId: null, personId: 'p1', subjectName: 'Tobias Lindqvist', type: 'I9_EVERIFY', expiresAt: inDays(-2) }],
+      NOW
+    )
+    expect(f[0].detail).toBe('Tobias Lindqvist cannot be on site until this is renewed. It is already stopping work.')
+    expect(f[0].detail).not.toContain('placed through')
+
+    const soon = watchVerifications(
+      [{ ...base, companyId: null, personId: 'p1', subjectName: 'Tobias Lindqvist', type: 'I9_EVERIFY', expiresAt: inDays(10) }],
+      NOW
+    )
+    expect(soon[0].detail).toContain('Tobias Lindqvist cannot be on site without a renewal')
+  })
+
+  it('names the thing in words a person would use', () => {
+    const f = watchVerifications([{ ...base, type: 'INSURANCE_WC', expiresAt: inDays(-1) }], NOW)
+    expect(f[0].headline).toContain("workers' compensation")
+    expect(f[0].headline).not.toContain('INSURANCE_WC')
+  })
+})
+
+describe('purchase orders running out', () => {
+  const base = {
+    id: 'po1', companyId: 'co1', number: 'PO-9001', supplierName: 'Tecwyn Inc.',
+    amountCents: 100_000_00, endDate: null, status: 'OPEN', liveContracts: 3,
+  }
+
+  it('speaks up at eighty-five per cent, before the invoice fails', () => {
+    // Nothing else announces this. The invoice simply fails its balance
+    // check and the supplier finds out by not being paid.
+    const f = watchPurchaseOrders([{ ...base, invoicedCents: 88_000_00 }], NOW)
+    expect(f[0].kind).toBe('PO_NEARLY_SPENT')
+  })
+
+  it('says nothing at half spent', () => {
+    expect(watchPurchaseOrders([{ ...base, invoicedCents: 50_000_00 }], NOW)).toHaveLength(0)
+  })
+
+  it('treats an exhausted order as blocking and names what happens next', () => {
+    const f = watchPurchaseOrders([{ ...base, invoicedCents: 100_000_00 }], NOW)
+    expect(f[0].urgency).toBe('BLOCKING')
+    expect(f[0].detail).toMatch(/next invoice will not match/i)
+    expect(f[0].detail).toContain('3 contract')
+  })
+
+  it('warns before the order runs out of time as well as money', () => {
+    const f = watchPurchaseOrders([{ ...base, invoicedCents: 10_000_00, endDate: inDays(5) }], NOW)
+    expect(f.some((x) => x.kind === 'PO_ENDING')).toBe(true)
+  })
+
+  it('says nothing about a nearly-spent order with nothing billing against it', () => {
+    // There is nothing to break.
+    expect(watchPurchaseOrders([{ ...base, invoicedCents: 90_000_00, liveContracts: 0 }], NOW)).toHaveLength(0)
+  })
+
+  it('ignores a closed order', () => {
+    expect(watchPurchaseOrders([{ ...base, invoicedCents: 99_000_00, status: 'CLOSED' }], NOW)).toHaveLength(0)
+  })
+
+  it('an amount in dong reads whole dong, never cents and never a dollar sign', () => {
+    // 3,000,000 VND as the watch reads it: the Decimal times a hundred.
+    expect(orderAmount(3_000_000_00, 'VND')).toBe('₫3,000,000')
+    const f = watchPurchaseOrders([{ ...base, currency: 'VND', amountCents: 3_000_000_00, invoicedCents: 3_000_000_00 }], NOW)
+    expect(f[0].detail).toContain('the whole ₫3,000,000.')
+    expect(f[0].detail).not.toMatch(/\$|₫[0-9,]+\.[0-9]/)
+  })
+
+  it('dollars keep their cents', () => {
+    expect(orderAmount(1_040_50, 'USD')).toBe('$1,040.50')
+    const f = watchPurchaseOrders([{ ...base, amountCents: 100_000_00, invoicedCents: 88_999_50 }], NOW)
+    expect(f[0].detail).toContain('$11,000.50 left')
+  })
+
+  it('an order with no currency passed reads as dollars, as the watch reads every order today', () => {
+    expect(orderAmount(1_000_00)).toBe('$1,000.00')
+  })
+
+  it('invoices in another currency are never added to the order, and the finding says they were left out', () => {
+    const f = watchPurchaseOrders([{ ...base, currency: 'USD', invoicedCents: 100_000_00, otherCurrencies: ['eur', 'EUR'] }], NOW)
+    expect(f[0].detail).toContain('Invoices in EUR are not counted against it, because they are in another currency.')
+    expect(f[0].detail.match(/EUR/g)).toHaveLength(1)
+  })
+})
+
+describe('access nobody is using', () => {
+  const base = {
+    contextId: 'c1', companyId: 'co1', personName: 'Ravi Purohit',
+    roleName: 'Recruiter', expiresAt: null, lastUsedAt: inDays(-2), grantedAt: inDays(-100),
+    usedHere: { signedIn: true, lastAt: null as Date | null },
+  }
+
+  it('warns before somebody loses access rather than after', () => {
+    const f = watchAccess([{ ...base, expiresAt: inDays(5) }], NOW)
+    expect(f[0].kind).toBe('ACCESS_EXPIRING')
+  })
+
+  it('says doing nothing is also fine, because that is what an expiry is for', () => {
+    const f = watchAccess([{ ...base, expiresAt: inDays(5) }], NOW)
+    expect(f[0].detail).toMatch(/doing nothing is also fine/i)
+  })
+
+  it('reports access granted a month ago and never once used', () => {
+    // Either they do not need it, or nobody told them it was there.
+    const f = watchAccess([{ ...base, lastUsedAt: null, grantedAt: inDays(-45), usedHere: { signedIn: false, lastAt: null } }], NOW)
+    expect(f[0].kind).toBe('ACCESS_NEVER_USED')
+    expect(f[0].headline).toBe('Ravi Purohit has never used their access')
+  })
+
+  it('the nightly watch never says somebody has never used their access when she has signed in here', () => {
+    // The seat's own use date is never written; her acts here are this firm's record that she came in.
+    const signedInHere = { ...base, lastUsedAt: null, grantedAt: inDays(-45), usedHere: { signedIn: true, lastAt: inDays(-1) } }
+    expect(watchAccess([signedInHere], NOW)).toHaveLength(0)
+    // Signed in here with no act on the log since (a seat made by her own sign-in): still never "never used".
+    expect(watchAccess([{ ...signedInHere, usedHere: { signedIn: true, lastAt: null } }], NOW)).toHaveLength(0)
+  })
+
+  it('the nightly watch says nothing about use where this firm’s own record of it was not read', () => {
+    const unread = { contextId: 'c1', companyId: 'co1', personName: 'Ravi Purohit', roleName: 'Recruiter', expiresAt: null, lastUsedAt: null, grantedAt: inDays(-45) }
+    expect(watchAccess([unread], NOW)).toHaveLength(0)
+    // An end date is still read without it.
+    expect(watchAccess([{ ...unread, expiresAt: inDays(5) }], NOW).map((x) => x.kind)).toEqual(['ACCESS_EXPIRING'])
+  })
+
+  it('access untouched here for three months is reported from her last act at this firm, though the seat’s own use date was never written', () => {
+    const f = watchAccess([{ ...base, lastUsedAt: null, usedHere: { signedIn: true, lastAt: inDays(-120) } }], NOW)
+    expect(f.map((x) => x.kind)).toEqual(['ACCESS_DORMANT'])
+    expect(f[0].headline).toBe('Ravi Purohit has not used their access in 120 days')
+    // Her latest act counts: one last week keeps the seat quiet.
+    expect(watchAccess([{ ...base, lastUsedAt: inDays(-120), usedHere: { signedIn: true, lastAt: inDays(-7) } }], NOW)).toHaveLength(0)
+  })
+
+  it('gives somebody granted access last week time to use it', () => {
+    expect(watchAccess([{ ...base, lastUsedAt: null, grantedAt: inDays(-5) }], NOW)).toHaveLength(0)
+  })
+
+  it('reports access held but untouched for three months as exposure', () => {
+    const f = watchAccess([{ ...base, lastUsedAt: inDays(-120) }], NOW)
+    expect(f[0].kind).toBe('ACCESS_DORMANT')
+    expect(f[0].detail).toMatch(/exposure rather than access/i)
+  })
+
+  it('says nothing about access somebody used yesterday', () => {
+    expect(watchAccess([base], NOW)).toHaveLength(0)
+  })
+
+  it('an Owner whose seat is past its end date is never reported as having lost access, because a date never ends an Owner’s seat', () => {
+    const owner = { ...base, contextId: 'c-owner', personName: 'Dana Reyes', roleName: 'Owner', expiresAt: inDays(-3) }
+    expect(watchAccess([owner], NOW)).toHaveLength(0)
+    expect(watchAccess([{ ...owner, expiresAt: inDays(5) }], NOW)).toHaveLength(0)
+  })
+
+  it('the last seat that may manage access is never reported as having lost access past its end date', () => {
+    const admin = { ...base, contextId: 'c-admin', personName: 'Lee Park', roleName: 'Admin', rolePermissions: ['*'], expiresAt: inDays(-3) }
+    expect(watchAccess([admin, base], NOW)).toHaveLength(0)
+  })
+
+  it('a seat past its end date while somebody else may still manage access is reported as having lost access', () => {
+    const admin = { ...base, contextId: 'c-admin', personName: 'Lee Park', roleName: 'Admin', rolePermissions: ['*'], expiresAt: inDays(-3) }
+    const owner = { ...base, contextId: 'c-owner', personName: 'Dana Reyes', roleName: 'Owner', rolePermissions: ['*'] }
+    const f = watchAccess([admin, owner, { ...base, expiresAt: inDays(-2) }], NOW)
+    expect(f.map((x) => [x.kind, x.subjectId])).toEqual([['ACCESS_EXPIRED', 'c-admin'], ['ACCESS_EXPIRED', 'c1']])
+    expect(f[0].headline).toBe('Lee Park lost access 3 days ago')
+  })
+
+  it('a kept Owner who has not used the seat in three months is still reported as exposure', () => {
+    const owner = { ...base, roleName: 'Owner', expiresAt: inDays(-3), lastUsedAt: inDays(-120) }
+    expect(watchAccess([owner], NOW).map((x) => x.kind)).toEqual(['ACCESS_DORMANT'])
+  })
+})
+
+describe('requests that went quiet', () => {
+  const base = {
+    id: 'p1', companyId: 'co1', label: 'Bringing on a supplier',
+    recipientEmail: 'office@supplier.com', expiresAt: inDays(3),
+    createdAt: inDays(-20), outstandingRequired: 2,
+  }
+
+  it('says plainly that an expired link looks like a dead page to the recipient', () => {
+    // The worst kind of invisible: to the sender an expired link and an
+    // ignored request look identical, so they conclude the supplier is
+    // unresponsive when the supplier saw a dead page.
+    const f = watchPackets([{ ...base, expiresAt: inDays(-4) }], NOW)
+    expect(f[0].kind).toBe('PACKET_LINK_DEAD')
+    expect(f[0].detail).toMatch(/dead page, not a reminder/i)
+  })
+
+  it('nudges before the link dies', () => {
+    const f = watchPackets([base], NOW)
+    expect(f[0].kind).toBe('PACKET_GOING_QUIET')
+  })
+
+  it('says nothing about a request already answered', () => {
+    expect(watchPackets([{ ...base, outstandingRequired: 0 }], NOW)).toHaveLength(0)
+  })
+
+  it('says nothing about one sent yesterday', () => {
+    expect(watchPackets([{ ...base, createdAt: inDays(-1), expiresAt: inDays(29) }], NOW)).toHaveLength(0)
+  })
+})
+
+describe('what to look at first', () => {
+  const f = (urgency: Finding['urgency'], daysUntil: number | null, kind = 'X'): Finding => ({
+    kind, urgency, companyId: 'c', subjectType: 'T', subjectId: 'i',
+    headline: `${kind} ${daysUntil}`, detail: '', action: 'NOTIFY_ONLY', daysUntil,
+  })
+
+  it('puts what is already stopping work above what might', () => {
+    const sorted = ordered([f('WORTH_KNOWING', 1), f('BLOCKING', 40), f('SOON', 2)])
+    expect(sorted.map((x) => x.urgency)).toEqual(['BLOCKING', 'SOON', 'WORTH_KNOWING'])
+  })
+
+  it('puts the soonest first within a band', () => {
+    const sorted = ordered([f('SOON', 30, 'A'), f('SOON', 2, 'B'), f('SOON', 9, 'C')])
+    expect(sorted.map((x) => x.kind)).toEqual(['B', 'C', 'A'])
+  })
+
+  it('puts something with no deadline last rather than first', () => {
+    const sorted = ordered([f('SOON', null, 'A'), f('SOON', 5, 'B')])
+    expect(sorted.map((x) => x.kind)).toEqual(['B', 'A'])
+  })
+})
+
+describe('the one line somebody is told', () => {
+  const f = (urgency: Finding['urgency'], headline: string): Finding => ({
+    kind: 'X', urgency, companyId: 'c', subjectType: 'T', subjectId: 'i',
+    headline, detail: '', action: 'NOTIFY_ONLY', daysUntil: 1,
+  })
+
+  it('says nothing at all when there is nothing', () => {
+    // A daily message saying everything is fine is how a daily message
+    // stops being read.
+    expect(digest([])).toBeNull()
+  })
+
+  it('leads with what is already stopping work', () => {
+    const d = digest([f('WORTH_KNOWING', 'minor'), f('BLOCKING', 'insurance lapsed')])
+    expect(d).toContain('insurance lapsed')
+  })
+
+  it('counts the rest rather than listing all of it', () => {
+    const d = digest([f('BLOCKING', 'first'), f('BLOCKING', 'second'), f('BLOCKING', 'third')])
+    expect(d).toContain('first')
+    expect(d).toContain('2 other')
+  })
+})
+
+describe('whether a watched seat was used, from its own firm’s record', () => {
+  const pair = (c: string, p: string) => `${c}|${p}`
+  const seat = { contextId: 'c1', companyId: 'co1', personId: 'p1', invitedAt: inDays(-60), lastUsedAt: null }
+
+  it('a seat invited here reads as used once she has an act of her own at this firm, with that act as its last use', () => {
+    const used = usedHereOf([seat], new Map([[pair('co1', 'p1'), inDays(-3)]]), pair).get('c1')
+    expect(used).toEqual({ signedIn: true, lastAt: inDays(-3) })
+  })
+
+  it('a seat invited here and used only at another firm reads as never used here', () => {
+    const used = usedHereOf([seat], new Map([[pair('co2', 'p1'), inDays(-3)]]), pair).get('c1')
+    expect(used).toEqual({ signedIn: false, lastAt: null })
+  })
+
+  it('a seat nobody invited was made by her own sign-in, so it reads as used', () => {
+    expect(usedHereOf([{ ...seat, invitedAt: null }], new Map(), pair).get('c1')).toEqual({ signedIn: true, lastAt: null })
+  })
+})

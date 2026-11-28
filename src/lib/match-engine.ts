@@ -1,0 +1,785 @@
+import { prisma } from '@/lib/db'
+import { Prisma } from '@prisma/client'
+import { sift, DEFAULT_SHORTLIST, type Candidate as Siftable } from '@/lib/bench-filter'
+import { range, rate } from '@/lib/money-display'
+import { record } from '@/lib/agent-run'
+import { poolFor } from '@/lib/match-pool'
+import { modelOnFor } from '@/lib/model-boundary'
+import { callModel, type ModelDeps } from '@/lib/model-gateway/call'
+import { candidatesFor } from '@/lib/model-gateway/register'
+
+/**
+ * Match Engine — the core differentiator.
+ *
+ * CLAUDE.md: "Match scores always carry factors, basis, confidence and unknowns.
+ *             A bare number is a bug."
+ *
+ * Takes a Requirement and finds the best-fit consultants from the pool
+ * `lib/match-pool` draws for the viewer — their own bench, their suppliers',
+ * the firms they trade with, and consented suggestions. Never the platform.
+ * Uses Claude for semantic skill matching (e.g., "React" ↔ "Next.js"),
+ * then scores on five dimensions:
+ *   1. Skill overlap (semantic, not string equality)
+ *   2. Location compatibility
+ *   3. Availability window
+ *   4. Work authorization fit
+ *   5. Rate compatibility
+ *
+ * Returns structured Match records with factors, basis, confidence, unknowns.
+ */
+
+/**
+ * Which model does the scoring.
+ *
+ * Settable, because this is the single biggest line in the cost of a
+ * submission and the right answer changes with the price list. The ledger
+ * records the model on every run, so switching it is a decision somebody
+ * can make from real numbers rather than a hunch.
+ */
+
+interface MatchFactor {
+  label: string
+  value: number // 0-100
+  weight: number // how much this factor contributed to the total
+  detail?: string
+}
+
+export interface MatchResult {
+  consultantId: string
+  personId: string
+  score: number // 0-100
+  confidence: 'HIGH' | 'MODERATE' | 'LOW'
+  factors: MatchFactor[]
+  basis: string
+  unknowns: string | null
+}
+
+export interface RequirementData {
+  id: string
+  title: string
+  skills: string[]
+  location: string | null
+  billMin: number | null
+  billMax: number | null
+  months: number | null
+  startDate: Date | null
+  companyId: string
+  /** The raising firm; its currency is the rates', since a job request carries none. */
+  company?: { kind: string; homeCurrency?: string } | null
+}
+
+export interface CandidateData {
+  consultantId: string
+  personId: string
+  personName: string
+  headline: string | null
+  skills: string[]
+  location: string | null
+  workAuth: string | null
+  rateFloor: number | null
+  availableFrom: Date | null
+  listingCompanyId: string
+  listingTier: string
+  listingRateMin: number | null
+  listingRateMax: number | null
+  /// When the person themselves last said any of this was still true.
+  confirmedAt: Date | null
+}
+
+/** One Match row as the run writes it. */
+export interface MatchRow {
+  requirementId: string
+  consultantId: string
+  score: number
+  confidence: string
+  factors: MatchFactor[]
+  basis: string
+  unknowns: string | null
+  computedAt: Date
+}
+
+/**
+ * The rows one run writes, in the order it scored them, every row's
+ * factors, basis, confidence and unknowns exactly as scored. A person
+ * scored twice in one run is written once, with the later score, the way
+ * one upsert after another left them. Pure.
+ */
+export function matchRowsFor(requirementId: string, results: readonly MatchResult[], computedAt: Date): MatchRow[] {
+  const last = new Map<string, number>()
+  results.forEach((r, i) => last.set(r.consultantId, i))
+  return results
+    .filter((r, i) => last.get(r.consultantId) === i)
+    .map((r) => ({
+      requirementId,
+      consultantId: r.consultantId,
+      score: r.score,
+      confidence: r.confidence,
+      factors: r.factors,
+      basis: r.basis,
+      unknowns: r.unknowns ?? null,
+      computedAt,
+    }))
+}
+
+/**
+ * Run the match engine for a requirement.
+ * Creates Match records in the database and returns them.
+ *
+ * @param requirementId - the requirement to match against
+ * @param options.limit - max candidates to return (default 20)
+ * @param options.forceRefresh - delete existing matches and recompute
+ */
+export async function runMatchEngine(
+  requirementId: string,
+  options: { limit?: number; forceRefresh?: boolean; viewerCompanyId?: string; personId?: string | null } = {}
+): Promise<{ matches: MatchResult[]; basis: string; scoredBy?: 'MODEL' | 'RULES' }> {
+  const limit = options.limit ?? 20
+
+  // 1. Load the requirement
+  const requirement = await prisma.requirement.findUnique({
+    where: { id: requirementId },
+    select: {
+      id: true,
+      title: true,
+      skills: true,
+      location: true,
+      billMin: true,
+      billMax: true,
+      months: true,
+      startDate: true,
+      companyId: true,
+      payerCompanyId: true,
+      endClientCompanyId: true,
+      company: { select: { kind: true, homeCurrency: true } },
+    },
+  })
+
+  if (!requirement) {
+    throw new Error(`Requirement ${requirementId} not found`)
+  }
+
+  // Whose matching this is. The firm that raised the role by default —
+  // the proactive job and the seed run it that way — or a supplier the
+  // role was sent to, drawing on its own pool (`lib/match-pool`).
+  const viewerCompanyId = options.viewerCompanyId ?? requirement.companyId
+
+  // 3. Load the candidate pool — never the whole platform.
+  //
+  //    This was once a bare `revokedAt: null` with no companyId, which
+  //    searched every bench listing on the platform and showed one company
+  //    a stranger's private bench. Then it was the requirement owner's own
+  //    bench and nothing else, which left a client — who has no bench —
+  //    with nobody to match at all.
+  //
+  //    Since 2026-09-30 it is four circles, each by a consent the person
+  //    gave: the viewer's own, the viewer's suppliers', the firms it
+  //    trades with, and — for a client on its own job request — people
+  //    who agreed to be shown in matches beyond their firm's partners.
+  //    `lib/match-pool` is the one door and says why.
+  const suggest =
+    viewerCompanyId === requirement.companyId &&
+    requirement.payerCompanyId === null &&
+    requirement.company.kind === 'CLIENT'
+  const pool = await poolFor(requirement, viewerCompanyId, { suggest })
+
+  // 2. A refresh recomputes this viewer's pool and nobody else's: a
+  //    supplier re-matching the role it was sent must not wipe the
+  //    client's own matches on it. Rows are rewritten in place rather than
+  //    deleted first, so a match keeps its id — a request a client opened
+  //    from a suggestion still names the match it came from. Whoever no
+  //    longer scores is removed after scoring (step 7).
+
+  if (pool.entries.length === 0) {
+    return {
+      matches: [],
+      basis: `Nobody available matches from your own bench, your suppliers or the firms you work with right now. ${pool.says}`,
+    }
+  }
+
+  const candidateMap = new Map<string, CandidateData>()
+  for (const e of pool.entries) {
+    candidateMap.set(e.personId, {
+      consultantId: e.consultantId,
+      personId: e.personId,
+      personName: e.name,
+      headline: e.consultant.headline,
+      skills: e.consultant.skills,
+      location: e.consultant.location,
+      workAuth: e.consultant.workAuth,
+      rateFloor: e.consultant.rateFloor,
+      availableFrom: e.consultant.availableFrom,
+      listingCompanyId: e.firmId,
+      listingTier: e.reach,
+      listingRateMin: e.rateMin,
+      listingRateMax: e.rateMax,
+      confirmedAt: e.consultant.confirmedAt,
+    })
+  }
+
+  const everyone = Array.from(candidateMap.values())
+
+  // 5. Filter with plain rules before paying a model for anything.
+  //
+  //    This sent all two hundred to the model. Any overlapping skills at
+  //    all, rate floor under the ceiling, free before the start date,
+  //    permit matches — every one of those is string and date comparison.
+  //    Free, instant, right every time, and on a forty-person bench the
+  //    difference between $53 a month and $140.
+  //
+  //    The model is kept for the one judgment that needs it: whether a
+  //    skill claim is real, and how close two differently-worded skills
+  //    actually are.
+  const sifted = sift(
+    {
+      skills: requirement.skills,
+      location: requirement.location,
+      billMin: requirement.billMin,
+      billMax: requirement.billMax,
+      startDate: requirement.startDate,
+      workAuth: null,
+      currency: requirement.company?.homeCurrency ?? 'USD',
+    },
+    everyone.map(
+      (c): Siftable => ({
+        personId: c.personId,
+        name: c.personName,
+        skills: c.skills,
+        location: c.location,
+        workAuth: c.workAuth,
+        rateFloor: c.rateFloor,
+        availableFrom: c.availableFrom,
+        confirmedAt: c.confirmedAt,
+      })
+    ),
+    { shortlist: Math.max(limit, DEFAULT_SHORTLIST) }
+  )
+
+  const byPerson = new Map(everyone.map((c) => [c.personId, c]))
+  const candidates = sifted.kept
+    .map((k) => byPerson.get(k.candidate.personId))
+    .filter((c): c is CandidateData => c !== undefined)
+
+  // The rules alone are a run worth recording. A ledger that only counts
+  // the calls that cost money makes the free half invisible, and the free
+  // half is where the margin comes from.
+  await record({
+    companyId: requirement.companyId,
+    agent: 'match.sift',
+    recordType: 'REQUIREMENT',
+    recordId: requirement.id,
+    verdict: candidates.length > 0 ? 'PASS' : 'FAIL',
+    failReason: candidates.length === 0 ? sifted.summary : null,
+    ms: 0,
+    consideredCount: sifted.considered,
+    scoredCount: candidates.length,
+  })
+
+  if (candidates.length === 0) {
+    if (options.forceRefresh) {
+      await prisma.match.deleteMany({ where: { requirementId, consultantId: { in: pool.entries.map((e) => e.consultantId) } } })
+    }
+    return { matches: [], basis: sifted.summary }
+  }
+
+  // 6. Score what survived
+  const matchResults = await scoreWithClaude(requirement, candidates, limit, sifted.considered, {
+    viewerCompanyId,
+    personId: options.personId ?? null,
+  })
+
+  // 6. Write Match records to the database, the whole run at once
+  // (`matchRowsFor`, the page-timing pass of 2026-11-02: one upsert per
+  // match was about twenty of a run's forty-nine queries). New rows are
+  // created in one statement, Prisma minting their ids as before; rows
+  // that were already here keep their id, which the twin's put-forward
+  // question rides on, and take this run's figures in one more.
+  const now = new Date()
+  const rows = matchRowsFor(requirementId, matchResults, now)
+  if (rows.length > 0) {
+    const made = await prisma.match.createMany({
+      data: rows.map((r) => ({ ...r, factors: r.factors as unknown as Prisma.InputJsonValue })),
+      skipDuplicates: true,
+    })
+    if (made.count < rows.length) {
+      await prisma.$executeRaw`
+        UPDATE "Match" AS m SET
+          "score" = v."score", "confidence" = v."confidence", "factors" = v."factors",
+          "basis" = v."basis", "unknowns" = v."unknowns", "computedAt" = v."computedAt"
+        FROM (VALUES ${Prisma.join(rows.map((r) => Prisma.sql`(${r.consultantId}, ${r.score}::int, ${r.confidence}, ${JSON.stringify(r.factors)}::jsonb, ${r.basis}, ${r.unknowns}::text, ${r.computedAt.toISOString()}::timestamp(3))`))})
+          AS v("consultantId", "score", "confidence", "factors", "basis", "unknowns", "computedAt")
+        WHERE m."requirementId" = ${requirementId} AND m."consultantId" = v."consultantId"`
+    }
+  }
+
+  // 7. On a refresh, whoever in this pool no longer scored goes.
+  if (options.forceRefresh) {
+    const scored = new Set(matchResults.map((r) => r.consultantId))
+    const gone = pool.entries.map((e) => e.consultantId).filter((id) => !scored.has(id))
+    if (gone.length > 0) {
+      await prisma.match.deleteMany({ where: { requirementId, consultantId: { in: gone } } })
+    }
+  }
+
+  // Read from the rows themselves: the rules path is the only one that
+  // writes the "Deterministic scoring" basis, in this file.
+  const scoredBy: 'MODEL' | 'RULES' = matchResults.some((r) => !r.basis.startsWith('Deterministic scoring')) ? 'MODEL' : 'RULES'
+  return {
+    matches: matchResults,
+    scoredBy,
+    // Says what the rules did as well as what the model did, so "only
+    // three matched" is answerable without reading code.
+    basis: `${pool.says} ${sifted.summary} Scored by ${scoredBy === 'MODEL' ? 'the model, masked, after the rules' : 'rules only'} against "${requirement.title}" (${requirement.skills.join(', ')}).`,
+  }
+}
+
+/** The purpose a matching prompt is logged under. */
+export const MATCH_PURPOSE = 'MATCH'
+
+/** What one model call returns, as far as matching reads it. */
+export interface ModelAnswer {
+  text: string
+  /** The model that answered, as the gateway names it. */
+  model: string
+}
+
+/** The doors scoring reaches through, handed in so a test holds each one. */
+export interface MatchModelDeps {
+  /** The company's own switch and the allowance behind it (`modelOnFor`). */
+  modelOn(companyId: string): Promise<boolean>
+  /** Whether a model is registered, admitted for tenant data and keyed (the gateway's register). */
+  keySet(): boolean
+  /**
+   * One batch through the gateway as the match.rank skill. The gateway masks,
+   * logs the prompt and writes its own ledger row with the model, usage and
+   * cost. It throws, with the gateway's sentence, where nothing answered.
+   */
+  call(args: { rules: string; candidates: string; companyId: string; personId: string; requirementId: string; names: string[] }): Promise<ModelAnswer>
+  /** Whose name the prompt log carries: the asker, else a seat at the company. Null where there is none. */
+  actorFor(companyId: string, personId?: string | null): Promise<string | null>
+  record: typeof record
+}
+
+/** Matching's doors, with the gateway's own dependencies where a test holds them. */
+export function matchDepsWith(gateway?: ModelDeps): MatchModelDeps {
+  return {
+    modelOn: modelOnFor,
+    keySet: () => candidatesFor('LOW', 'TENANT_BUSINESS', gateway?.env ?? process.env, { models: gateway?.models }).length > 0,
+    async call({ rules, candidates, companyId, personId, requirementId, names }) {
+      const got = await callModel({
+        companyId,
+        personId,
+        skillKey: 'match.rank',
+        purpose: MATCH_PURPOSE,
+        system: rules,
+        prompt: candidates,
+        vocab: { people: names },
+        record: { recordType: 'REQUIREMENT', recordId: requirementId },
+        maxTokens: 8000,
+      }, { timeoutMs: 90_000, ...gateway })
+      if (!got.ok) throw new Error(got.says)
+      return { text: got.text, model: got.model }
+    },
+    async actorFor(companyId, personId) {
+      if (personId) return personId
+      // A nightly job has no asker. The log needs a person, so the company's
+      // longest-standing open seat carries it; with none, nothing is sent.
+      const seat = await prisma.context.findFirst({
+        where: { companyId, revokedAt: null, suspendedAt: null },
+        orderBy: { id: 'asc' },
+        select: { personId: true },
+      })
+      return seat?.personId ?? null
+    },
+    record,
+  }
+}
+
+export const liveMatchDeps: MatchModelDeps = matchDepsWith()
+
+export interface MatchGate { may: boolean; says: string }
+
+/**
+ * Whether matching may send anything to the model for a run. Every company
+ * whose data is in the prompt must have its switch on and its allowance
+ * open: the one running it, and the one whose job it is. The nightly job
+ * runs across every tenant, so this is asked per run and never once for
+ * all. Off by default; with no key nothing leaves either.
+ */
+export async function matchModelGate(
+  companyIds: readonly string[],
+  deps: Pick<MatchModelDeps, 'modelOn' | 'keySet'> = liveMatchDeps,
+): Promise<MatchGate> {
+  const ids = [...new Set(companyIds)]
+  if (!deps.keySet()) return { may: false, says: 'the model is not set up on this deployment' }
+  for (const id of ids) {
+    if (!(await deps.modelOn(id))) return { may: false, says: 'the company has not turned the model on, or its allowance is used' }
+  }
+  return { may: true, says: '' }
+}
+
+/** Rates are tokens before they leave; the answer is put back on the way in. */
+function rateToken(i: number): string { return `RATE_${i + 1}` }
+
+/**
+ * Use Claude to semantically score candidates against a requirement.
+ *
+ * Instead of exact string matching ("React" !== "React.js"), Claude understands
+ * that Next.js implies React, that "full-stack" covers both frontend and backend,
+ * and that "AWS" partially satisfies "cloud infrastructure".
+ */
+export async function scoreWithClaude(
+  req: RequirementData,
+  candidates: CandidateData[],
+  limit: number,
+  considered: number,
+  opts: { viewerCompanyId?: string; personId?: string | null; deps?: MatchModelDeps } = {},
+): Promise<MatchResult[]> {
+  const deps = opts.deps ?? liveMatchDeps
+  const viewer = opts.viewerCompanyId ?? req.companyId
+
+  // The rules score unless the model is permitted for every company in the
+  // prompt. A degraded run is said so in the ledger and in the basis:
+  // recording nothing would read as a week where the model got free.
+  const gate = await matchModelGate([viewer, req.companyId], deps)
+  const actor = gate.may ? await deps.actorFor(viewer, opts.personId) : null
+  if (!gate.may || !actor) {
+    const why = !gate.may ? gate.says : 'no person at the company to carry the prompt log, so nothing was sent'
+    const started = Date.now()
+    const results = scoreDeterministic(req, candidates, limit, why)
+    await deps.record({
+      companyId: req.companyId,
+      agent: 'match.score.deterministic',
+      recordType: 'REQUIREMENT',
+      recordId: req.id,
+      verdict: 'PASS',
+      failReason: `scored with rules, not the model: ${why}`,
+      ms: Date.now() - started,
+      consideredCount: considered,
+      scoredCount: candidates.length,
+    })
+    return results
+  }
+
+  // Batch candidates into groups of 25 for the API call
+  const batchSize = 25
+  const allResults: MatchResult[] = []
+
+  for (let i = 0; i < candidates.length; i += batchSize) {
+    const batch = candidates.slice(i, i + batchSize)
+
+    // Names never leave: a candidate is its index. A rate floor is a token.
+    const floors = new Map<string, string>()
+    const candidateList = batch.map((c, idx) => {
+      let floor: string | null = null
+      if (c.rateFloor) {
+        floor = rateToken(idx)
+        floors.set(floor, rate(c.rateFloor, req.company?.homeCurrency ?? 'USD'))
+      }
+      return {
+        idx,
+        skills: c.skills,
+        location: c.location,
+        workAuth: c.workAuth,
+        rateFloor: floor,
+        availableFrom: c.availableFrom?.toISOString().slice(0, 10) ?? null,
+      }
+    })
+    const unmask = (t: string): string => t.replace(/\bRATE_\d+\b/g, (m) => floors.get(m) ?? m)
+
+    // The prompt is built in two halves on purpose.
+    //
+    // Everything above the candidates is identical for every batch of the
+    // same requirement — the role, the scoring rules, the output shape.
+    // Put stably first and marked cacheable, it is charged at a tenth on
+    // every batch after the first. Eight batches become one full price and
+    // seven cheap ones.
+    //
+    // Anything volatile below the breakpoint, or the cache never hits.
+    const rules = `You are a staffing match engine. Score each candidate against this requirement.
+
+REQUIREMENT:
+- Title: ${req.title}
+- Required Skills: ${req.skills.join(', ')}
+- Location: ${req.location ?? 'Not specified'}
+- Rate Range: ${req.billMin && req.billMax ? 'withheld (the plain rules already checked it)' : 'Not specified'}
+- Duration: ${req.months ? `${req.months} months` : 'Not specified'}
+- Start Date: ${req.startDate?.toISOString().slice(0, 10) ?? 'Not specified'}
+
+These candidates have already passed the plain rules — they have at least
+one overlapping skill, their rate floor is under the ceiling, they are free
+in time, and their work authorization fits. Do not re-check any of that.
+Judge the thing rules cannot: how close the skills really are, and whether
+the claim is credible.
+
+Candidates are identified by idx only. A rateFloor shows as a token such as
+RATE_1, or null where unknown: never guess its value.
+
+For each candidate, return a JSON array. Each element must have:
+- idx: the candidate index
+- score: 0-100 overall match score
+- confidence: "HIGH" | "MODERATE" | "LOW"
+- factors: array of { label, value (0-100), weight (0.0-1.0), detail (brief explanation) }
+  Required factor labels: "Skill Match", "Location", "Availability", "Rate Fit"
+  Optional: "Work Authorization", "Experience Level"
+- basis: one sentence describing what data drove the score
+- unknowns: what you couldn't assess (null if nothing)
+
+SCORING RULES:
+- Skill Match (weight ~0.45): Semantic matching. "React.js" = "React". "Next.js" implies React. "Full-stack" covers frontend+backend. Score partial overlaps proportionally.
+- Location (weight ~0.15): "Remote" matches anything. Same city = 100. Same state = 80. Same country = 60. Different country = 20. Both null = 50.
+- Availability (weight ~0.15): Available before start date = 100. Within 2 weeks after = 80. Within month = 50. Unknown = 40.
+- Rate Fit (weight ~0.15): The rules passed it. A token = 100. null = 50.
+- Work Auth (weight ~0.10): Match required auth if location is US. Unknown = 30.
+
+Return ONLY a JSON array, no other text.`
+    const candidatesText = `CANDIDATES:\n${JSON.stringify(candidateList, null, 2)}`
+
+    const started = Date.now()
+    let answer: ModelAnswer | null = null
+
+    try {
+      // The gateway masks, logs the prompt for the company that ran it and
+      // writes its own ledger row (skill, model, usage, cost). This row
+      // keeps the counts and carries no usage, so a call is never costed twice.
+      answer = await deps.call({
+        rules, candidates: candidatesText, companyId: viewer, personId: actor, requirementId: req.id,
+        names: batch.map((c) => c.personName),
+      })
+
+      // Written whether it passed or failed. The runs that error are the
+      // ones worth counting.
+      await deps.record({
+        companyId: req.companyId,
+        agent: 'match.score',
+        recordType: 'REQUIREMENT',
+        recordId: req.id,
+        verdict: 'PASS',
+        model: answer.model,
+        ms: Date.now() - started,
+        consideredCount: considered,
+        scoredCount: batch.length,
+      })
+
+      const text = answer.text
+
+      // Extract JSON from response (handle markdown code blocks)
+      const jsonMatch = text.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) {
+        console.error('Match engine: Could not parse Claude response, falling back to deterministic')
+        allResults.push(...scoreDeterministic(req, batch, batch.length, 'the model answered in a shape that could not be read'))
+        continue
+      }
+
+      const scored = JSON.parse(jsonMatch[0]) as Array<{
+        idx: number
+        score: number
+        confidence: string
+        factors: MatchFactor[]
+        basis: string
+        unknowns: string | null
+      }>
+
+      for (const s of scored) {
+        const candidate = batch[s.idx]
+        if (!candidate) continue
+
+        allResults.push({
+          consultantId: candidate.consultantId,
+          personId: candidate.personId,
+          score: Math.max(0, Math.min(100, Math.round(s.score))),
+          confidence: (['HIGH', 'MODERATE', 'LOW'].includes(s.confidence) ? s.confidence : 'LOW') as 'HIGH' | 'MODERATE' | 'LOW',
+          factors: (s.factors ?? []).map((f) => ({
+            label: f.label,
+            value: Math.max(0, Math.min(100, Math.round(f.value))),
+            weight: Math.max(0, Math.min(1, f.weight)),
+            detail: f.detail === undefined ? undefined : unmask(f.detail),
+          })),
+          basis: s.basis ? unmask(s.basis) : `Matched against "${req.title}"`,
+          unknowns: s.unknowns ? unmask(s.unknowns) : null,
+        })
+      }
+    } catch (err: any) {
+      // A degraded result presented as a good one is the failure worth
+      // avoiding. The fallback is labeled in the ledger, so a week where
+      // the key was wrong does not read as a week where the model got
+      // cheaper.
+      await deps.record({
+        companyId: req.companyId,
+        agent: 'match.score',
+        recordType: 'REQUIREMENT',
+        recordId: req.id,
+        verdict: 'ERROR',
+        failReason: String(err?.message ?? err).slice(0, 300),
+        ms: Date.now() - started,
+        consideredCount: considered,
+        scoredCount: batch.length,
+      })
+      console.error('Match engine: the model call failed, falling back to deterministic', err)
+      allResults.push(...scoreDeterministic(req, batch, batch.length, 'the model call failed'))
+    }
+  }
+
+  // Sort by score descending, take top N
+  allResults.sort((a, b) => b.score - a.score)
+  return allResults.slice(0, limit)
+}
+
+/**
+ * Deterministic scoring fallback — used when the gateway register holds no keyed model
+ * or when the API call fails. Still produces structured Match records
+ * with factors, basis, confidence, and unknowns.
+ */
+export function scoreDeterministic(
+  req: RequirementData,
+  candidates: CandidateData[],
+  limit: number,
+  why?: string,
+): MatchResult[] {
+  const results: MatchResult[] = []
+
+  for (const c of candidates) {
+    const factors: MatchFactor[] = []
+
+    // Skill match — case-insensitive intersection
+    const reqSkillsLower = req.skills.map((s) => s.toLowerCase().trim())
+    const candSkillsLower = c.skills.map((s) => s.toLowerCase().trim())
+
+    // Count direct matches and partial matches
+    let directMatches = 0
+    let partialMatches = 0
+    for (const rs of reqSkillsLower) {
+      if (candSkillsLower.includes(rs)) {
+        directMatches++
+      } else if (candSkillsLower.some((cs) => cs.includes(rs) || rs.includes(cs))) {
+        partialMatches++
+      }
+    }
+
+    const skillScore = req.skills.length > 0
+      ? Math.round(((directMatches + partialMatches * 0.5) / req.skills.length) * 100)
+      : 50
+
+    factors.push({
+      label: 'Skill Match',
+      value: Math.min(100, skillScore),
+      weight: 0.45,
+      detail: `${directMatches} direct, ${partialMatches} partial of ${req.skills.length} required`,
+    })
+
+    // Location match
+    let locationScore = 50
+    let locationDetail = 'Unknown'
+    if (!req.location || !c.location) {
+      locationScore = 50
+      locationDetail = 'Location not specified'
+    } else {
+      const reqLoc = req.location.toLowerCase()
+      const candLoc = c.location.toLowerCase()
+      if (candLoc === 'remote' || reqLoc === 'remote') {
+        locationScore = 90
+        locationDetail = 'Remote compatible'
+      } else if (candLoc === reqLoc) {
+        locationScore = 100
+        locationDetail = 'Exact location match'
+      } else if (candLoc.includes(reqLoc) || reqLoc.includes(candLoc)) {
+        locationScore = 75
+        locationDetail = 'Partial location match'
+      } else {
+        locationScore = 30
+        locationDetail = 'Different location'
+      }
+    }
+
+    factors.push({ label: 'Location', value: locationScore, weight: 0.15, detail: locationDetail })
+
+    // Availability
+    let availScore = 40
+    let availDetail = 'Free date not on record'
+    // Measured from the job's start, or from today where the job names
+    // none — so a free date on the row is never "unknown" in its reasons.
+    if (c.availableFrom) {
+      const from = req.startDate ?? new Date()
+      const daysUntilAvailable = (c.availableFrom.getTime() - from.getTime()) / 86400000
+      if (daysUntilAvailable <= 0) {
+        availScore = 100
+        availDetail = req.startDate ? 'Free by the day the job starts' : 'Free now'
+      } else if (daysUntilAvailable <= 14) {
+        availScore = 80
+        availDetail = req.startDate ? `Free ${Math.ceil(daysUntilAvailable)} days after the job starts` : `Free in ${Math.ceil(daysUntilAvailable)} days`
+      } else if (daysUntilAvailable <= 30) {
+        availScore = 50
+        availDetail = req.startDate ? `Free ${Math.ceil(daysUntilAvailable)} days after the job starts` : `Free in ${Math.ceil(daysUntilAvailable)} days`
+      } else {
+        availScore = 20
+        availDetail = req.startDate ? `Not free until ${Math.ceil(daysUntilAvailable)} days after the job starts` : `Not free for ${Math.ceil(daysUntilAvailable)} days`
+      }
+    }
+
+    factors.push({ label: 'Availability', value: availScore, weight: 0.15, detail: availDetail })
+
+    // Rate fit
+    let rateScore = 50
+    let rateDetail = 'Rate not specified'
+    if (c.rateFloor && req.billMax) {
+      if (c.rateFloor <= req.billMax) {
+        rateScore = 100
+        rateDetail = `Floor ${rate(c.rateFloor, req.company?.homeCurrency ?? 'USD')} within budget`
+      } else {
+        const overBy = ((c.rateFloor - req.billMax) / req.billMax) * 100
+        rateScore = Math.max(0, Math.round(100 - overBy * 2))
+        rateDetail = `Floor ${rate(c.rateFloor, req.company?.homeCurrency ?? 'USD')} exceeds max by ${overBy.toFixed(0)}%`
+      }
+    }
+
+    factors.push({ label: 'Rate Fit', value: rateScore, weight: 0.15, detail: rateDetail })
+
+    // Work authorization (only relevant for US roles)
+    let authScore = 50
+    let authDetail = 'Work authorization not checked'
+    if (req.location && req.location.toLowerCase().includes('us')) {
+      if (!c.workAuth) {
+        authScore = 30
+        authDetail = 'Work authorization unknown'
+      } else if (['US_CITIZEN', 'GC'].includes(c.workAuth)) {
+        authScore = 100
+        authDetail = `${c.workAuth} — no restrictions`
+      } else if (['H1B', 'OPT'].includes(c.workAuth)) {
+        authScore = 70
+        authDetail = `${c.workAuth} — requires sponsorship verification`
+      } else {
+        authScore = 40
+        authDetail = `${c.workAuth} — may have restrictions`
+      }
+      factors.push({ label: 'Work Authorization', value: authScore, weight: 0.10 })
+    }
+
+    // Calculate weighted total
+    const totalWeight = factors.reduce((sum, f) => sum + f.weight, 0)
+    const weightedScore = factors.reduce((sum, f) => sum + f.value * f.weight, 0) / totalWeight
+    const score = Math.round(weightedScore)
+
+    // Determine confidence
+    const unknownParts: string[] = []
+    if (!c.location) unknownParts.push('location')
+    if (!c.workAuth) unknownParts.push('work authorization')
+    if (!c.availableFrom) unknownParts.push('availability date')
+    if (!c.rateFloor) unknownParts.push('rate expectations')
+
+    let confidence: 'HIGH' | 'MODERATE' | 'LOW' = 'HIGH'
+    if (unknownParts.length >= 3) confidence = 'LOW'
+    else if (unknownParts.length >= 1) confidence = 'MODERATE'
+
+    results.push({
+      consultantId: c.consultantId,
+      personId: c.personId,
+      score,
+      confidence,
+      factors,
+      basis: `Deterministic scoring against ${req.skills.length} required skills, ${candidates.length} candidates evaluated${why ? ` (rules only: ${why})` : ''}`,
+      unknowns: unknownParts.length > 0 ? `Missing: ${unknownParts.join(', ')}` : null,
+    })
+  }
+
+  results.sort((a, b) => b.score - a.score)
+  return results.slice(0, limit)
+}

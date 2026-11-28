@@ -1,0 +1,118 @@
+import { describe, it, expect, beforeAll } from 'vitest'
+import { freshWorld, prisma, as, req, json } from './harness'
+import { POST as raiseOwnCopy } from '@/app/api/requirements/route'
+import { POST as distribute } from '@/app/api/requisitions/[id]/distribute/route'
+import { POST as submit } from '@/app/api/submissions/route'
+import { GET as decisionsGet } from '@/app/api/decisions/route'
+import { askOntoBench } from '@/lib/consultant-portfolio/bench-ask'
+import { joinLetterLead } from '@/lib/public-site/join-bench'
+
+/**
+ * The Tapin walk (2026-10-29), demand's half, on the seeded world: a
+ * prime sends a client's job down to its sub-vendor, and the sub-vendor
+ * puts a bench person forward on it.
+ *
+ * Brightmoor Staffing is the prime here and Conisby the sub-vendor it
+ * buys from (the seeded chain nordway → brightmoor → conisby).
+ */
+
+const D = '@demo.etyme.local'
+const ACCOUNT_MANAGER = `world-brightmoor-account${D}`   // Marisa Delacroix
+const RECRUITER = `world-brightmoor-recruiter${D}`       // Tobias Ferrand
+const CONISBY = `world-conisby${D}`
+const params = (id: string) => ({ params: Promise.resolve({ id }) })
+
+let northbend = ''
+let conisby = ''
+let job = ''
+
+beforeAll(async () => {
+  await freshWorld()
+  northbend = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-northbend' } })).id
+  conisby = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-conisby' } })).id
+}, 600_000)
+
+describe('a prime sends a job it was sent down to its sub-vendor', () => {
+  it('a supplier’s account manager sends a job down to its sub-vendor, and the refusal names the right role', async () => {
+    as(ACCOUNT_MANAGER)
+    const made = await json(await raiseOwnCopy(req('POST', '/api/requirements', {
+      title: 'HCM integration lead', skills: ['Workday', 'Integration'], months: 6, endClientCompanyId: northbend,
+    })))
+    expect(made.status, JSON.stringify(made.body)).toBe(201)
+    job = made.body.data.requirement.id
+
+    // A recruiter finds and submits people; sending a job down is not hers.
+    as(RECRUITER)
+    const refused = await json(await distribute(req('POST', `/api/requisitions/${job}/distribute`, {
+      vendors: [{ companyId: conisby, payMin: 9_000, payMax: 11_000 }],
+    }), params(job)))
+    expect(refused.status).toBe(403)
+    expect(refused.body.error.message).toBe(
+      'At Brightmoor Staffing, the account manager or the owner sends a job down to a sub-vendor. Ask one of them to send it out.'
+    )
+    expect(refused.body.error.message).not.toContain('program manager')
+
+    as(ACCOUNT_MANAGER)
+    const sent = await json(await distribute(req('POST', `/api/requisitions/${job}/distribute`, {
+      vendors: [{ companyId: conisby, payMin: 9_000, payMax: 11_000 }],
+    }), params(job)))
+    expect(sent.status, JSON.stringify(sent.body)).toBe(200)
+    expect(sent.body.data.summary.sent).toBe(1)
+    const inv = await prisma.requirementInvitation.findFirstOrThrow({ where: { requirementId: job, toCompanyId: conisby } })
+    // $90 to $110 an hour, kept in cents.
+    expect([inv.payMin, inv.payMax]).toEqual([9_000, 11_000])
+  })
+
+  it('a sub-vendor puts a bench person forward from the job it was sent', async () => {
+    // Somebody on Conisby's bench by their own yes, never put forward anywhere.
+    const listing = await prisma.benchListing.findFirstOrThrow({ orderBy: { id: 'asc' },
+      where: {
+        companyId: conisby, state: 'GRANTED', revokedAt: null, askFirst: false, staysUntil: null,
+        consultant: { person: { submissions: { none: {} }, contexts: { none: { companyId: conisby, type: 'EMPLOYEE' } } } },
+      },
+      select: { consultant: { select: { personId: true } } },
+    })
+    const personId = listing.consultant.personId
+
+    as(CONISBY)
+    const r = await json(await submit(req('POST', '/api/submissions', {
+      requirementId: job, personIds: [personId], rate: 10_000, fromCompanyId: conisby,
+    })))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    expect(r.body.data.results[0].status, JSON.stringify(r.body.data.results[0])).toBe('created')
+    const row = await prisma.submission.findFirstOrThrow({ where: { requirementId: job, personId } })
+    expect(row.fromCompanyId).toBe(conisby)
+    // To the prime that sent the job, never round it to the client.
+    const brightmoor = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-brightmoor' } })
+    expect(row.toCompanyId).toBe(brightmoor.id)
+    // Computed from the listing (a marketed one), never taken from the caller.
+    expect(['BENCH', 'NETWORK']).toContain(row.kind)
+  })
+})
+
+describe('what another party waits on a firm for', () => {
+  it('a link request and a join request are on the one decisions list, so Today and the mark agree', async () => {
+    // A firm Conisby does not trade with yet asks to link as its client.
+    const tapwell = await prisma.company.create({ data: { name: 'Tapwell Bench', slug: 'tapwell-bench-decisions', kind: 'VENDOR', currency: 'USD' } })
+    const asker = await prisma.person.create({ data: { name: 'Sharad Tapwell', primaryEmail: 'sharad@tapwell.invalid' } })
+    const link = await prisma.tradeLinkRequest.create({
+      data: { fromCompanyId: tapwell.id, toCompanyId: conisby, relationship: 'CLIENT', askedById: asker.id },
+    })
+    // Somebody asks from Conisby's own page to join its bench.
+    await askOntoBench({
+      firm: { id: conisby, name: 'Conisby' }, name: 'Asha Rao', email: 'asha.rao@join.invalid',
+      by: null, letterLead: joinLetterLead('Conisby'),
+    })
+
+    as(CONISBY)
+    const r = await json(await decisionsGet(req('GET', '/api/decisions')))
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const rows = r.body.data.decisions as any[]
+    const linkRow = rows.find((d) => d.type === 'LINK_REQUEST')
+    const joinRow = rows.find((d) => d.type === 'JOIN_ASK')
+    expect(linkRow?.entityId).toBe(link.id)
+    expect(linkRow.title).toMatch(/^Tapwell Bench asks to link as your /)
+    expect(joinRow?.title).toBe('Asha Rao asked to join your bench from your page')
+    expect(r.body.data.total).toBe(rows.length)
+  })
+})

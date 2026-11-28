@@ -1,0 +1,970 @@
+/**
+ * Who owns which file.
+ *
+ * ── Why this exists ──────────────────────────────────────────────────
+ *
+ * Several specialists working at once is faster than one generalist, and
+ * it is faster only while they do not touch the same files. The moment
+ * two of them edit `profitability.ts` in the same hour, somebody has to
+ * adjudicate a merge conflict — and the person this product is built for
+ * cannot read code, so that somebody does not exist.
+ *
+ * So parallelism here is bought with a boundary, not with coordination.
+ * Every file under `src/` belongs to exactly one domain. A domain agent
+ * may write inside its own boundary without asking anybody. It may not
+ * write outside it at all.
+ *
+ * ── The one thing everybody needs and nobody owns ────────────────────
+ *
+ * The schema. Every domain wants a column and they all want it in the
+ * same file, so `prisma/schema.prisma` belongs to no domain and changes
+ * to it serialize through the architect. That is the single queue in an
+ * otherwise parallel system, and it is deliberate: a schema is the one
+ * artifact where two correct changes can still produce a wrong result.
+ *
+ * ── Why it is a test and not a wiki page ─────────────────────────────
+ *
+ * A wiki page describing who owns what is a page that is wrong within a
+ * month. `__tests__/invariants/domains.test.ts` fails when a new file has
+ * no owner or two, which means the map cannot rot without somebody
+ * noticing on the same commit.
+ */
+
+export type DomainKey =
+  | 'REGULATORY'
+  | 'MONEY'
+  | 'CONVERSATION'
+  | 'DEMAND'
+  | 'SUPPLY'
+  | 'MARKET'
+  | 'PLATFORM'
+
+export interface Domain {
+  key: DomainKey
+  /** The agent that owns it. Matches a file in .claude/agents. */
+  agent: string
+  label: string
+  /** What this specialist actually knows, in a sentence. */
+  knows: string
+  /** The L2 groups from the delivery matrix this domain answers for. */
+  l2: string[]
+  /** Path fragments, matched against a repo-relative path. */
+  owns: string[]
+}
+
+export const DOMAINS: Domain[] = [
+  {
+    key: 'REGULATORY',
+    agent: 'etyme-regulatory',
+    label: 'Documents and regulation',
+    knows:
+      'What may be asked for and when, in which country. Work authorization, ' +
+      'background verification, classification, tenure and co-employment, and the ' +
+      'difference between attesting that a check happened and declaring a person fit.',
+    l2: ['L2.2.3', 'L2.7.1', 'L2.7.3', 'L2.7.4'],
+    owns: [
+      // Its station of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/regulatory',
+      // The job twin's time-limit rule and its one demo contractor (2026-10-12).
+      // The twin's door is the architect's (lib/twin); the rule is regulatory's.
+      'lib/twin/rules/tenure', 'lib/twin/seed-tenure-demo',
+      'app/dashboard/governance', 'app/dashboard/tenure', 'app/dashboard/blacklist',
+      'app/api/governance', 'app/api/tenure', 'app/api/blacklist', 'app/api/bar',
+      'app/api/roles', 'app/api/documents', 'app/api/document-shares',
+      // A document asked for, sent, uploaded or signed — and the consultant's own view of it.
+      'lib/document-request', 'app/api/me/papers', 'app/dashboard/documents',
+      // The generated world's papers: verifications in every state, visas, cover (docs/seed-scale-brief.md).
+      'lib/seed-scale/papers',
+      // A visa petition from filing to the day it runs out.
+      'lib/visa-petition',
+      // Terms, privacy and the DPA. Under regulation rather than the market,
+      // because a privacy notice that misdescribes what the system holds is a
+      // written misrepresentation rather than a positioning error.
+      'lib/legal', 'app/legal', 'app/terms', 'app/privacy', 'app/dpa',
+      // The security position: what is done and what is not yet. Read by
+      // legal-pages.test.ts against the tree, so it sits with the notice
+      // that cites it.
+      'docs/security-posture.md',
+      'app/api/shared', 'app/api/packet', 'app/packet',
+      'lib/document-stages', 'lib/contract-clearance', 'lib/packets', 'lib/packet-derivation', 'lib/attestation',
+      'lib/worker-classification', 'lib/holds', 'lib/representation',
+      'lib/work-authorisation', 'lib/visa-worksite', 'lib/sourcing-exit', 'lib/sourcing-approach', 'lib/candidate-fixture', 'lib/profile-readiness', 'lib/rate-negotiation', 'lib/bench-consent', 'lib/bench-invite', 'lib/signed-link',
+      'lib/governance', 'lib/governance-authorship', 'lib/governance-horizon', 'lib/tenure-days',
+      // A supplier's standing with a client, and what a rule makes of it.
+      'lib/supplier-tier',
+      'lib/requisition-approval', 'lib/requisition-stage',
+      'lib/document-share', 'lib/template-packs',
+      'lib/access-log', 'lib/access-grant', 'lib/walls', 'lib/account-walls',
+      // Retention, export, erasure and the breach clock. Registered when
+      // the schema landed (2026-09-19) rather than when the first file
+      // does, so that the agent writing them is not also deciding whose
+      // they are. `lib/retention` is the schedule as code — a period per
+      // category in `lib/legal`'s HELD — and it is here rather than under
+      // company settings on purpose: how long a record is kept is a legal
+      // answer, not a knob, and a client who sets it wrong deletes
+      // something that is gone.
+      'lib/retention', 'lib/data-request', 'lib/erasure', 'lib/legal-hold', 'lib/breach',
+      'app/api/data-requests', 'app/api/legal-holds', 'app/api/breaches',
+      'app/dashboard/privacy',
+      // ── The contractor census, carved four ways ────────────────────
+      //
+      // A client sends us its own contractor data and gets back one
+      // page. Four domains build parts of it, so the paths are carved by
+      // subpath rather than by feature — see `docs/census-brief.md`.
+      // Regulatory holds the part that decides what may happen to a
+      // file somebody entrusted to us: the state machine from asked to
+      // deleted, accepting the agreement by name, minting and expiring
+      // the upload link, the retention wiring, and logging every staff
+      // read. The census agreement itself is already here, inside
+      // `lib/legal`.
+      //
+      // Note that `app/api/census` itself is claimed by nobody, on
+      // purpose. A route landing directly there has no owner and fails
+      // the ownership test on its own commit, which is the moment to
+      // decide whose it is rather than the month afterwards.
+      'lib/census',
+      'app/api/census/request', 'app/api/census/agree',
+      'app/api/census/upload', 'app/api/census/review',
+      // The subject's own door to their own data. Carved out of supply's
+      // `app/api/me` and `app/dashboard/my-*` by the longest-match rule,
+      // the same way `app/api/me/papers` already is: a bench is supply's
+      // business and a data subject request is not.
+      'app/api/me/data', 'app/dashboard/my-data',
+      'lib/permissions', 'lib/seat', 'lib/persona',
+      'lib/outbound-pack',
+      'app/dashboard/packets', 'app/dashboard/compliance', 'app/dashboard/access',
+      'app/dashboard/outbound-pack', 'app/api/outbound-pack',
+      'app/api/packets', 'app/api/compliance', 'app/api/access',
+    ],
+  },
+  {
+    key: 'MONEY',
+    agent: 'etyme-money',
+    label: 'Money',
+    knows:
+      'Cycle arithmetic, the project order, the journal, pay models, burden, bench ' +
+      'reserves, two currencies, and the difference between what was earned and what ' +
+      'has actually been paid. Refuses to show a number it cannot stand behind.',
+    l2: ['L2.4.1', 'L2.4.2', 'L2.4.3', 'L2.5.1', 'L2.5.2', 'L2.5.3', 'L2.6.1', 'L2.6.2'],
+    owns: [
+      // Its stations of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/money',
+      // The job twin's invoice-receipt rule and its three demo receipts
+      // (2026-10-12). The twin's door is the architect's (lib/twin).
+      'lib/twin/rules/invoice', 'lib/twin/seed-demo',
+      'app/dashboard/rate-history', 'app/dashboard/reports',
+      'app/api/rate-history', 'app/api/holidays',
+      // The whole contracts API, activation included. Settled 2026-09-17
+      // after a test comment called `contracts/[id]/activate` etyme-demand's
+      // and a demand agent edited it on that basis. The comment was wrong:
+      // the map has never carved a file out of this directory, and
+      // activation's own effect is to write the billing and pay cycles,
+      // which are money's. A per-file exception inside a directory is
+      // exactly how two agents end up in one folder. What activation
+      // refuses on is regulatory's arithmetic and who may press it is
+      // demand's question, so both read it and neither owns it — say what
+      // you need and ask the desk named here.
+      'app/api/contracts', 'app/dashboard/contracts',
+      'lib/order', 'lib/order-postings', 'lib/gl', 'lib/contract-links', 'lib/work-chain', 'lib/work-chain-read',
+      'lib/profitability',
+      'lib/pay-model', 'lib/bench-policy', 'lib/money', 'lib/money-display',
+      // What a sold team bills and earns (record 120, pods).
+      'lib/money/pod-sale', 'lib/money/pod-margin',
+      // The generated world's rates: the pure bands and pairs the other three import, then the rows.
+      'lib/seed-scale/rates',
+      'lib/periods', 'lib/recurring', 'lib/cycle-generator', 'lib/cycle-kinds', 'lib/contract-cycles', 'lib/cycle-complete', 'lib/expense-billing', 'lib/commission', 'app/dashboard/payroll/commissions', 'lib/holidays',
+      'lib/invoice-loop', 'lib/invoice-match', 'lib/billing-cascade', 'lib/billing-plan',
+      'lib/payroll-export', 'lib/three-way-match', 'lib/purchase-order',
+      'lib/cost-allocation', 'lib/contract-rate', 'lib/rate-line', 'lib/payroll-paid', 'lib/expense-approval',
+      'lib/loose-ends', 'lib/erp-profiles', 'lib/ar-ageing', 'lib/credit',
+      'lib/ap-delay', 'app/api/ap', 'app/dashboard/ap',
+      'app/api/ar', 'app/dashboard/ar',
+      'app/dashboard/profitability', 'app/dashboard/invoices', 'app/dashboard/payroll',
+      'app/dashboard/expenses', 'app/dashboard/purchase-orders', 'app/dashboard/loose-ends',
+      'app/api/profitability', 'app/api/invoices', 'app/api/payroll', 'app/api/expenses',
+      'app/api/purchase-orders', 'app/api/loose-ends', 'app/api/cycles',
+      // The census arithmetic: the CSV template and its importer, one
+      // row per contractor into contracts and placements in the
+      // sandbox with every gap recorded, and the one page itself.
+      //
+      // `lib/census-page` owns nothing it did not write. Three of the
+      // four numbers already exist elsewhere — the on-site count and
+      // the spend in the program dashboard, tenure in
+      // `lib/tenure-days` — and it imports them so the page and the
+      // dashboard cannot disagree. Only the supplier rate spread is
+      // new, because rate variance exists today by manager and not by
+      // supplier.
+      //
+      // 'lib/census-import' and 'lib/census-page' do not fall under
+      // regulatory's 'lib/census': a needle matches a whole path
+      // segment, so `lib/census-import.ts` is its own file and not a
+      // child of `lib/census`.
+      'lib/census-import', 'lib/census-page',
+      'app/api/census/import', 'app/api/census/page',
+    ],
+  },
+  {
+    key: 'CONVERSATION',
+    agent: 'etyme-conversation',
+    label: 'Conversation',
+    knows:
+      'Every message the system sends, from first contact to last invoice. Which ' +
+      'channel a population is reachable on, when a nudge is welcome and when it is ' +
+      'noise, and how to write to somebody who did not ask to hear from you.',
+    l2: ['L2.1.3', 'L2.3.2'],
+    owns: [
+      // Its station of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/conversation',
+      // Outreach to companies (record 117): the letters, the audience, the batch, its agent and its screens.
+      'lib/outreach', 'lib/agents/outreach-batch', 'app/api/outreach', 'app/dashboard/companies/outreach',
+      // Basic outreach is core (record 135): a letter to one contact, written from the party's ledger.
+      'app/api/letters', 'components/party-letters',
+      'app/dashboard/conversations', 'app/dashboard/texts',
+      'app/api/conversations', 'app/api/texts', 'app/api/events',
+      'app/answer', 'app/claim',
+      // Every letter, the census's five included: asked, agreed, files
+      // received with the deletion date on it, page delivered, deleted —
+      // and the one to the named staff person when a census arrives or a
+      // deadline is near. They sit under `lib/notify` like every other
+      // letter rather than beside the census, because how something is
+      // said is one craft wherever it is said.
+      'lib/notify', 'lib/notification-delivery', 'lib/texts', 'lib/messages',
+      // Demand opens, supply answers: who may start a thread across a deal, who hears.
+      'lib/threads', 'lib/thread-notices',
+      'lib/reply-link', 'lib/answers',
+      'app/reply', 'app/api/reply',
+      'app/bench-invite', 'app/api/bench-invite',
+      'lib/reaching-out', 'lib/senders', 'lib/forwarding', 'lib/interviews', 'lib/interview-notices',
+      // The candidate's own answer to a round: how it is said and who hears.
+      // Longest prefix wins, so this beats supply's app/api/me.
+      'app/api/me/interviews',
+      'lib/timesheet-signatures', 'lib/page-framing', 'lib/read-response',
+      'lib/watch', 'lib/events',
+      'app/dashboard/interviews', 'app/dashboard/notifications',
+      'app/api/interviews', 'app/api/notifications', 'app/api/answer', 'app/api/claim',
+      // The twin's second door (2026-10-12): the Teams bot, its cards, the
+      // proactive digest and the conversation panel on the twin's page.
+      // The approval itself is the architect's one route (app/api/twin);
+      // how it is said, and on which channel, is conversation's.
+      'lib/teams', 'app/api/teams', 'teams', 'components/twin-conversation',
+    ],
+  },
+  {
+    key: 'DEMAND',
+    agent: 'etyme-demand',
+    label: 'Buying talent',
+    knows:
+      'Everything from a manager needing somebody to a person being chosen — across ' +
+      'a client, a GSI, a prime, a sub and a bench vendor at once. Requisitions, ' +
+      'invitations, submissions, screening, the award and the seat.',
+    l2: ['L2.1.1', 'L2.1.3', 'L2.2.1'],
+    owns: [
+      // Its stations of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/demand',
+      'app/dashboard/requisitions', 'app/dashboard/invitations', 'app/dashboard/leads',
+      'app/dashboard/decisions', 'app/dashboard/program',
+      'app/api/requisitions', 'app/api/invitations', 'app/api/leads',
+      'app/api/openings', 'app/api/decisions', 'app/api/program',
+      // The client's side of a sold team: its deliverables and its yes (record 120, pods).
+      'app/api/program/pods',
+      'app/api/checks', 'app/api/why',
+      'lib/openings', 'lib/lead-reader', 'lib/requirement-quality',
+      // The generated world's jobs, invitations, submissions and interviews.
+      'lib/seed-scale/jobs',
+      'lib/screening', 'lib/checks', 'lib/award', 'lib/first-good', 'lib/chain-top', 'lib/timesheet-flag',
+      // A job's site as demand's screens say it: the Site line, the sentence
+      // under "Send the job to", where a job is (2026-10-28, the Sites drawing).
+      'lib/job-site',
+      // What a program costs a month: the 160-hour assumption, said out
+      // loud once and imported by the dashboard, the org view and the
+      // census page rather than written out four times.
+      'lib/program-spend',
+      // The baton from the desk that wins a deal to the desk that papers
+      // it. Who hears at the award and what the queue row says; the
+      // contract state machine itself is money's.
+      'lib/papering',
+      // The term, the standing and the signature on a master agreement.
+      // Lives with app/api/program/agreements, which is the screen that
+      // reads it — commercial papering is L2.2.1 and belongs here.
+      'lib/agreement-term',
+      'lib/budget-ledger', 'lib/overtime', 'lib/time-off', 'app/api/program/budget', 'app/dashboard/program/budget',
+      'lib/invitation-visibility', 'lib/outcomes', 'lib/review',
+      'lib/resolve-client-company', 'lib/resolve-end-client',
+      'lib/timesheet-authority', 'lib/timesheet-reversal', 'lib/work-ledger',
+      'lib/auto-approval', 'lib/buyer-reputation', 'lib/one-person',
+      'lib/join-companies', 'lib/identity-resolution', 'lib/supplier-list',
+      'app/dashboard/requirements', 'app/dashboard/submissions', 'lib/interview-proposal', 'lib/requisition-change', 'app/dashboard/suppliers',
+      'app/dashboard/timesheets', 'app/dashboard/people', 'app/dashboard/identity',
+      'app/api/requirements', 'app/api/submissions', 'app/api/suppliers',
+      'app/api/timesheets', 'app/api/people', 'lib/contractor-invite', 'lib/contractor-link', 'app/api/contractor-invites', 'app/api/contractor-welcome', 'app/welcome', 'app/api/identity', 'app/api/first-good', 'app/api/favorites', 'lib/network-filters', 'lib/chart-colors', 'lib/supplier-onboarding', 'lib/supplier-recommend', 'app/api/supplier-requests', 'lib/supplier-desks', 'lib/supplier-link', 'app/api/supplier-apply', 'app/apply',
+    ],
+  },
+  {
+    key: 'SUPPLY',
+    agent: 'etyme-supply',
+    label: 'Selling talent',
+    knows:
+      'The bench as a business. What a niche specialist actually does: attract ' +
+      'people nobody else can find, keep them warm between assignments, and sell ' +
+      'them on evidence rather than a forwarded CV. Matching, burn, rolloff.',
+    l2: ['L2.1.2', 'L2.7.2'],
+    owns: [
+      // Its stations of the simulation (scripts/simulate, 2026-10-20).
+      'scripts/simulate/stages/supply',
+      'app/dashboard/alumni', 'app/dashboard/my-benches', 'app/dashboard/my-page',
+      'app/dashboard/training', 'app/api/training',
+      // Training that starts, finishes or stops.
+      'lib/training',
+      // The training micro-site (record 133): its own route tree and its own routes, under the plugin switch.
+      'app/learn', 'app/api/learn',
+      // Project teams (record 120, pods): a plugin, off by default.
+      'lib/pods', 'app/api/pods', 'app/dashboard/pods', 'app/pods',
+      'app/api/alumni', 'app/api/releasing-soon', 'app/api/benchmark',
+      'lib/match-engine', 'lib/candidate-fit', 'lib/bench-filter', 'lib/why',
+      // Who a job request is matched against and what each viewer sees
+      // (2026-09-30), and how long a person chose to stay on a bench.
+      'lib/match-pool', 'lib/bench-stay', 'lib/bench-stay-record',
+      // An integrator's own people moving between its projects: the flag,
+      // the hold, the confirmation and the move (2026-09-30), and the
+      // world's one story of it.
+      'lib/internal-moves', 'lib/seed-internal-moves',
+      // The generated world's people: profiles, benches, courses, careers.
+      'lib/seed-scale/people',
+      // Bench profit — bench to bill, per course, utilization (2026-09-30)
+      // — and the niche bench vendor that gives it numbers on the world.
+      'lib/bench-profit', 'lib/seed-bench-profit',
+      'lib/releasing-soon', 'lib/shared-consultant', 'lib/scorecard',
+      'lib/benchmark', 'lib/resumes', 'lib/cv-reader', 'lib/extract',
+      'lib/consultant-portfolio', 'lib/portfolio-data', 'lib/onboarding',
+      // A day as a worker reads it, split out of consultant-portfolio so a
+      // browser page can print one without that module's server imports.
+      'lib/plain-date',
+      'lib/supplier-risk', 'lib/concentration',
+      'app/dashboard/bench', 'app/dashboard/consultants', 'app/dashboard/rolloff',
+      'app/dashboard/scorecards', 'app/dashboard/my-standing', 'app/dashboard/my-work',
+      'app/api/bench', 'app/api/consultants', 'app/api/rolloff', 'app/api/vendors',
+      'app/api/me', 'app/api/resumes',
+    ],
+  },
+  {
+    key: 'MARKET',
+    agent: 'etyme-market',
+    label: 'The market',
+    knows:
+      'What Etyme says it is, to people who have never heard of it. The home page, ' +
+      'the generated company sites, lead capture and nurture, and the distribution ' +
+      'of requirements and bench candidates up and down a chain without breaching ' +
+      'an NDA on the way.',
+    // L2.7.5 is the Offers group: what Etyme might sell beyond the record.
+    // Positioning, the words that may never be used, and the neutrality
+    // that decides which offers are possible at all — the market's, not
+    // regulation's, even though it sits under Govern and protect.
+    l2: ['L2.1.4', 'L2.7.5'],
+    owns: [
+      'lib/positioning', 'lib/site-voice', 'lib/public-site', 'lib/distribution',
+      'app/page', 'app/site', 'app/c', 'app/api/c',
+      // The census as a door: what you get, what you send, the template
+      // to download, the agreement to read, the form, and the
+      // confirmation. The words on it are the market's by the same rule
+      // the home page is — this is the first thing a client who has
+      // never heard of Etyme reads, and the brief forbids a price, an AI
+      // claim and any invented urgency on it.
+      'app/census', 'lib/census-copy',
+      'app/dashboard/market', 'app/api/market', 'app/api/site',
+      // The public marketing site: the eight module pages, the
+      // documentation and the company pages. A route group, so the URLs
+      // read /requisitions and /docs/client while the whole site sits
+      // under one folder with one owner. The words live in
+      // lib/public-site; these are the three-line files that mount them.
+      // /docs sits inside the group rather than on a line of its own —
+      // it is marketing held to the same guard, and one line is one
+      // place to look.
+      'app/(site)',
+    ],
+  },
+  {
+    key: 'PLATFORM',
+    agent: 'etyme-architect',
+    label: 'Platform',
+    knows:
+      'The things every domain depends on and none of them may change alone: the ' +
+      'schema, the database client, authentication, company identity, the design ' +
+      'system, and the agent loop itself.',
+    l2: ['L2.1.5', 'L2.2.2', 'L2.6.3', 'L2.7.6'],
+    owns: [
+      // The simulation's harness, actors and report (CLAUDE.md, 2026-10-20).
+      // Each domain owns its stations under scripts/simulate/stages/<domain>.
+      'scripts/simulate',
+      // The job twin's door (2026-10-12): the role contract, the rule set,
+      // the ledger, the performers and the routes. The rules under
+      // lib/twin/rules are the domains whose arithmetic they are.
+      'lib/twin', 'app/api/twin',
+      // The one-off that marks every signed-up firm as on Etyme
+      // (2026-10-19); its rule is claimSignedUpFirms in lib/company-create.
+      'scripts/backfill-claimed-at.ts',
+      // The supplier's own profile (record 87, 2026-11-17): which account
+      // each customer pays, who confirms a change, the "supplier changed"
+      // message, and the hand-run carry-over of old bank checks.
+      'lib/vendor-master', 'lib/vendor-master-read', 'scripts/bank-check-carry-over.ts',
+      // Sensitive numbers (record 99): the one reader that masks, seals and
+      // opens a tax ID, and the hand-run backfill that seals old rows.
+      'lib/sensitive.ts', 'lib/sensitive-mask.ts', 'lib/sensitive-backfill.ts', 'scripts/seal-sensitive.ts',
+      // The model boundary (2026-10-13): the per-company switch and the
+      // log of what left. The masking at the edge is conversation's.
+      'lib/model-boundary',
+      // The skill layer and the model gateway (records 123, 125): the
+      // registry, the runner, the grader and the one door for model calls.
+      'lib/skills', 'lib/model-gateway',
+      // Which model each kind of call uses, the one place an id is written;
+      // Ask Etyme's allowance per person and company; and whether the key
+      // and the ids are ready, for health and /ready (2026-11-11).
+      'lib/model-ids', 'lib/model-allowance', 'lib/model-health',
+      // The Superadmin screen (founder, 2026-11-11): platform settings set
+      // by Etyme's own staff, never a company's data; first, Ask Etyme's two
+      // limits, which lib/model-allowance reads before its environment.
+      'lib/platform-settings', 'lib/ask-etyme-limits', 'app/api/superadmin', 'app/dashboard/superadmin',
+      // Forwarded business email, received securely (founder, 2026-10-22,
+      // "security beats everything"): the address, the checks, the hold,
+      // the log, the switch and the nightly deletion. The cards each kind
+      // becomes are conversation's and the owning domains'.
+      'lib/email-intake', 'app/api/email',
+      // The number on the Ask Etyme mark, where the bell was (2026-10-13).
+      'lib/owed-count',
+      // A question asked on a firm's public page, kept, listed, searched and
+      // taken (record 102, item 1, 2026-11-21): the record's library, its two
+      // routes, its list, and the hand-run backfill of questions stored as
+      // notices before the table existed. The public route that writes it is
+      // market's; the decision card is demand's and calls `pageAskDecisions`.
+      'lib/page-asks', 'app/api/page-asks', 'app/dashboard/page-asks', 'scripts/backfill-page-asks.ts',
+      // A person on their own work is their own seat, whether or not a firm
+      // seated them (simulation, 2026-10-20). Read by the one caller check.
+      'lib/own-seat',
+      // The Owner gives access by team, by role or for the whole company
+      // (founder, 2026-11-08): the grant's rules, the scope reader beside
+      // hasPermission, the plain words and the dialog's fields. Read by the
+      // one caller check; the scoped reads are each domain's.
+      'lib/permission-grants',
+      // Who owns a company (founder, 2026-11-11): the Owner rules, Pass
+      // ownership, and the two proofs that earn the Owner seat at a company
+      // formed from 2026-11-12. The gate's refusals at money's, contracts'
+      // and regulatory's routes are theirs to call.
+      'lib/owner-rules', 'lib/owner-proof', 'lib/owner-asks', 'lib/owner-gate', 'components/owner-gate-line',
+      // The one door to a seat's saved Ask Etyme conversation (founder,
+      // 2026-10-18): the caller's own thread at the caller's own company,
+      // and nobody else's. The route and the screen over it are
+      // conversation's.
+      'lib/ask-etyme-thread',
+      // The product inside the home page, read-only (founder, 2026-10-14):
+      // the shared sample seat's rules, read by the middleware and the one
+      // caller check, and the frame the home page shows. The home page that
+      // frames it is market's.
+      'lib/sample-seat', 'app/embed',
+      // Staff bootstrap of a real company on a deployment with no email key
+      // (2026-10-14, "Etyme runs on Etyme"), and the page staff follow.
+      'lib/staff-bootstrap', 'app/api/staff', 'docs/run-etyme-on-etyme.md',
+      // Its screens: the program owner's page, the role-contract and rule-set
+      // editors. The conversation panel on it is conversation's.
+      'app/dashboard/twin',
+      'app/dashboard/page', 'app/dashboard/shell', 'app/dashboard/import',
+      // What the content area shows the moment a menu link is pressed, while
+      // the next page is on its way (the dead first click, 2026-11-08).
+      'app/dashboard/loading',
+      'app/(auth)',
+      'app/api/settings', 'app/api/imports', 'app/api/integrations',
+      'app/api/onboarding', 'app/api/automation',
+      // One placement, end to end. It reads demand, supply, compliance
+      // and money in one answer, so it belongs to none of them and is
+      // owned here by the same rule the schema is.
+      'app/api/placements', 'app/dashboard/placements',
+      // The rate a placement's card shows today, and the line saying when it
+      // last changed. A sentence over money's own reader (lib/contract-rate).
+      'lib/placement-rate',
+      // Saving a small form so a refusal is shown in the route's words and
+      // the form can be saved again. Shared by every screen with one.
+      'lib/form-save',
+      // The one base address every mailed link is built from. Pure, so a
+      // screen may read it; lib/supplier-link re-exports it.
+      'lib/app-url',
+      // Somebody else in the seat: a new contract on the same terms, the old one ended.
+      'lib/replacement',
+      // The door a paying firm's choice of overtime method goes through,
+      // on the placement's pay line. The arithmetic and the reading of the
+      // stored value stay money's (lib/money/overtime-method).
+      'lib/overtime-method-choice',
+      // Its twin: how overtime is paid when fewer hours are accepted than
+      // were worked. The reader payroll calls is here; the arithmetic
+      // stays money's (lib/money/pay-hours).
+      'lib/cut-overtime-choice',
+      // The door the bench pay policy and the holiday switches go through:
+      // who may turn them, a person only on the firm's own bench, the
+      // sentence each reads. Whether a person is paid is money's
+      // (`holidayPayFor` in lib/bench-policy); the switch on Our bench is
+      // supply's screen over /api/settings/bench/people.
+      'lib/bench-holiday-switch',
+      // The company's week: which days are off, when a week's hours are due
+      // and when they are approved. The columns are the schema's; the
+      // arithmetic of a single shifted date stays in lib/cycle-shift.
+      'lib/days-off',
+      // The company's payroll rhythm: how often pay is run, when it is
+      // worked out and when it is paid. The columns are the schema's; the
+      // dates a contract's pay lines carry are money's generator, which
+      // reads them through payDatesFor. lib/pay-dates is the pure half a
+      // screen may import.
+      'lib/payroll-settings', 'lib/pay-dates',
+      // Setup asks five things, then stops (founder, 2026-10-07): one way
+      // to make a company for both doors, the steps' rules and words, and
+      // the record of who answered each and when.
+      'lib/company-create', 'lib/setup-steps', 'lib/setup-state',
+      // What kind of company this is, changed by its Owner after sign-up
+      // (the founder's Tapin, 2026-11-02): the choices and the verdict.
+      'lib/company-kind',
+      // The currency an expense is in, decided once where it is raised (2026-11-02).
+      'lib/expense-currency',
+      // The admin's setup checklist (founder, 2026-10-22; built 2026-10-28):
+      // the eleven items' rules and words, the record of each answer and
+      // where it came from, the fill sources (the work email, a paper, read
+      // by rules and by the model only where the company turned it on), and
+      // what a skipped item refuses. The refusals are read by money's and
+      // regulatory's routes; the rules are here so there is one copy.
+      'lib/setup-checklist', 'lib/setup-checklist-state', 'lib/setup-fill', 'lib/setup-fill-model',
+      'lib/setup-gates', 'lib/setup-gate-rules',
+      // The checklist's twelfth item, automatic forwarding (founder,
+      // 2026-11-11): the words, the two mail-rule recipes and what the item
+      // shows about the intake's address. The intake itself is lib/email-intake.
+      'lib/setup-forwarding',
+      // A password door, until the single sign-on keys exist (founder,
+      // 2026-10-08): the rules with no database in them, the sign-up,
+      // confirm, sign-in and reset against the database, and the one way
+      // a colleague is seated as Member, shared with the domain door.
+      'lib/password', 'lib/password-words', 'lib/password-door', 'lib/seat-member',
+      // Who may open the map: the gate the middleware asks, with no database in it.
+      'lib/map-gate',
+      // A client approving a week without signing in: the link to its
+      // approver, the evidence of an approval given by email, the
+      // no-sign-in page, and the one week read by every rung it applies
+      // to. The rules are demand's (app/api/timesheets/approval-by-email);
+      // the rows are the schema's, and these are the door to them.
+      'lib/week-approval', 'lib/seed-week-approval',
+      'app/api/week-approvals', 'app/api/approve-week', 'app/answer/week', 'app/dashboard/weeks',
+      // A demo firm whose name was retired, renamed in place on the next seeding.
+      'lib/seed-renames',
+      // Where a person agrees their own terms while a placement waits on
+      // them: the shell's "Your terms" link. The rule is demand's
+      // (lib/award/terms-on-record); this only finds the page.
+      'lib/your-terms',
+      // The generated world at the founder's scale: the types, the frame and the steps (docs/seed-scale-brief.md).
+      'lib/seed-scale',
+      // Corvane Packaging, the fourth client program: 31 plants in six regions (2026-10-27).
+      'lib/seed-corvane',
+      // The three programs' sites naming their approved suppliers (2026-10-28).
+      'lib/seed-sites',
+      // Every seeded firm's setup checklist reads what the seed holds (2026-10-28).
+      'lib/seed-setup',
+      'lib/seed-world', 'lib/seed-programmes', 'lib/seed-doors', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
+      // One way to print a calendar day on a screen: UTC, American order,
+      // the year shown. lib/when is its twin for a moment in somebody's zone.
+      'lib/format-date',
+      // Deleting the demo world so it can be seeded again from today.
+      'lib/seed-rebuild',
+      // Taking back what earlier seeds wrote outside the demo world, by
+      // marker, and nothing else.
+      'lib/seed-cleanup',
+      // Whose record a tie or a seed row sits on, in words, masked.
+      'lib/seed-owners',
+      // A visitor's demo sandbox removed after thirty days unused, warned a week before.
+      'lib/sandbox-expiry',
+      // Seeding the demo world in steps that each fit one function call.
+      'lib/seed-steps',
+      // The payroll runs a seeded employer has already made, priced only
+      // where the run's own answer is plain straight time.
+      'lib/seed-payroll-runs',
+      // The layers above and below the placement, each read off the
+      // spine the three files above wrote: the calendar the dates are
+      // shifted against, what a firm can prove, the order that
+      // authorized the spend and the books under it, and the pipeline
+      // either side of a placement.
+      'lib/seed-calendar', 'lib/seed-standing', 'lib/seed-order-to-cash', 'lib/seed-rate-change', 'lib/seed-sector-suppliers', 'lib/seed-coding', 'lib/seed-pipeline', 'lib/seed-bench-matching',
+      'lib/evals', 'middleware',
+      'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
+      // The one door for a seat that holds no desk, and the sentence it says
+      // (sign-up walk, round four): read off lib/nav-table, asked by
+      // lib/api-context on every route.
+      'lib/deskless-door', 'lib/no-desk',
+      // The page an address that does not exist opens, in the brand.
+      'app/not-found',
+      // A desk a client grants a firm that is not the client, so a
+      // program office can act in its program. Here rather than under
+      // demand because it is entitlement: it decides what every domain's
+      // read path resolves to, the way lib/api-context does, and the
+      // client role it holds is company identity. Demand's
+      // lib/resolve-client-company reads it; regulatory's access log
+      // records it; nobody but the architect changes its shape.
+      'lib/program-seat',
+      // Team structure is one tree the Owner draws, and it can come from the
+      // directory (founder, 2026-11-09): the tree's rules, its read and its
+      // writes, and the directory import (a CSV from Active Directory,
+      // Microsoft Entra ID, Google Workspace), read only. The nightly
+      // difference in the Owner's greeting is conversation's.
+      'lib/team-structure',
+      // Enterprise identity, pass 1 (founder, 2026-11-11): the sign-in
+      // policy per company, every door it answers, the session kill and the
+      // identity ledger; the settings route that reads and sets the mode.
+      'lib/identity', 'app/api/settings/sign-in',
+      // Stage B: the company's own directory as a sign-in door, the mock
+      // directory for the demo (reserved domains only), and SCIM 2.0.
+      'app/api/sso', 'app/api/mock-directory', 'app/api/scim', 'app/dashboard/settings/sign-in',
+      'scripts/identity-walk',
+      // The deploy's one database step: the schema push behind
+      // DB_PUSH_ON_BUILD, then the security log's guard (Layer 7, record 86).
+      'scripts/db-sync.mjs',
+      // A seat that reads one region of a client's program (founder,
+      // 2026-10-27, the region map): the scope, the where-fragments and the
+      // door, read by lib/api-context. The views over it are demand's.
+      'lib/region-scope',
+      // Sites (founder, 2026-10-28, "Build it, sites sounds good"): which
+      // approved suppliers fill jobs at a site and who hires there, the
+      // rules and sentences, and the reads demand's job form calls. The
+      // job form's own defaults and the distribute refusal are demand's.
+      'lib/site-rules', 'lib/sites',
+      // The country a job's or a line's work is done in, and whether it is offshore (founder, 2026-11-03).
+      'lib/work-country',
+      // A company's reporting currency and exchange rates, recorded with who
+      // and when (2026-10-27); the rollup over them is money's.
+      'lib/reporting-currency-setting',
+      // How much we do unprompted, as a ladder a buyer already knows.
+      'lib/autonomy',
+      // Which of the seller's dashboard panels a seat may read, asked the
+      // way the menu asks, so the dashboard calls no route that refuses.
+      'lib/dashboard-reads',
+      // A selling firm's Today page (founder, 2026-10-19): who may read
+      // which part, and the sentences it is drawn with; and the one route
+      // that reads it. The figures are money's and supply's.
+      'lib/today-page', 'app/api/today',
+      // Which of the three consoles a seat opens on. Read by
+      // /dashboard's own redirect, the sidebar's Dashboard link and the
+      // demo door — three doors onto one question that had three
+      // answers, one of which sent two suppliers into a buyer's program.
+      'lib/console-home',
+      // The record ledger with its three stamps, and decision items a
+      // person opens (2026-11-21 → 107). Every domain writes to the ledger
+      // through the one writer; the schema under it queues here.
+      'lib/record-ledger', 'lib/decision-items',
+      // The agent engine (record 112, chain 7): the switch, the runner with
+      // its cap, and the per-task approval record. Every agent lands on it.
+      'lib/agents',
+      // The decision queue's routes and the record view (Flow A, A2 to A6):
+      // the open list, an item and its three acts, agent control and the
+      // firm's ledger, and one record with its whole history.
+      'lib/decision-queue', 'app/api/decision-items', 'app/api/records', 'app/dashboard/records',
+      // The party's one ledger (record 134): a reader over the record, its door, and the tab that draws it.
+      'lib/party-ledger', 'app/api/party-ledger',
+      // The money loop's routes and screens (Flow B, B2 to B6): the
+      // consultants page, a placement's month, a month for everybody with
+      // its payroll summary, and the words all three share. The chain's
+      // own rules are money's (lib/money/money-chain).
+      'lib/money-loop', 'app/api/money-loop', 'app/dashboard/money-loop',
+      // The navigation table every menu, heading and landing reads. Pure,
+      // so a server route may import it; the sidebar that draws it is a
+      // client component and no route may import that.
+      'lib/nav-table',
+      // The per-tenant plugin switch (record 120): the state, who may switch,
+      // and the one refusal every plugin's routes say. Every plugin reads it.
+      'lib/plugins', 'lib/plugin-gate', 'lib/plugin-registry', 'lib/plugin-host', 'lib/plugin-usage', 'lib/plugin-site', 'lib/plugin-site-says',
+      // A tenant's template, branding and pages, and the Owner's yes tied to them (records 111, 79).
+      'lib/site-settings', 'app/api/settings/site-branding',
+      // A candidate's own yes to updates (record 117): the reader and the door she answers at.
+      'lib/updates-consent', 'app/api/updates-consent',
+      // Public-sector proposals (record 124, plugin 5): the states a proposal may
+      // move through and who may move it, and the routes behind the switch.
+      'lib/proposals', 'app/api/proposals', 'app/dashboard/proposals', 'app/proposals',
+      // Supplier diversity (record 132, plugin 5): certifications, the Owner's ownership attestation and portal registrations.
+      'lib/diversity', 'app/api/diversity',
+      // Day 61 unpaid: the one read-only rule, its switch and the writes that stay open.
+      'lib/tenant-state',
+      // One order, three names, and the rule for a counterparty that is
+      // not on the system. Both are read by money, demand and the
+      // platform's own routes at once, so they queue here with the
+      // schema they describe.
+      'lib/order-naming', 'lib/off-system',
+      // A firm putting a counterparty on the register that is not on the
+      // system. It creates Company rows, which is company identity, and
+      // company identity is the platform's whoever is doing the listing —
+      // the client's mirror of it, `app/api/suppliers`, is demand's
+      // because it is also how a role reaches a firm.
+      'app/api/clients',
+      // Whose name a client may read in a chain. The names twin of
+      // `lib/chain-top`, which is demand's: the rule is one sentence read
+      // by compliance, tenure and the bench at once, so it belongs to
+      // none of them and queues here with the schema term it reads.
+      'lib/chain-names',
+      // Asking a person for the renewal of the license they practice on.
+      // The person-side twin of the cover chase below, here for the same
+      // reason: the chase's plumbing belongs with the chase, and the
+      // standing of a single document stays with regulation.
+      'lib/credential-chase',
+      // Where a company's cover has a hole in it — the weeks between one
+      // policy ending and the next beginning. The nightly chase's own
+      // arithmetic, here because the chase is here; the standing of a
+      // single document stays with regulation.
+      'lib/cover-gap',
+      // What kind of thing a document is — purpose, validity shape, edition,
+      // and what has to stand behind it. The company's own dictionary over
+      // shipped defaults. Here rather than under regulation because
+      // compliance, money and demand all read the same answer, and because
+      // it is the schema's vocabulary made extensible.
+      'lib/document-type', 'app/api/document-types', 'app/dashboard/settings/documents',
+      // What a LINE requires on paper, and which party owes it — the
+      // header's set, the line's override, and the defaults under both.
+      // Here for the same reason `lib/document-type` is: compliance reads
+      // it to clear a start, demand reads it to onboard a supplier, money
+      // reads it before it pays, and none of them may change its shape
+      // alone. It is the schema's vocabulary again, one layer up.
+      'lib/document-requirements', 'lib/seed-document-requirements',
+      // What a desk verified on the way in, turned into the row the
+      // compliance record reads. Here rather than with the supplier walk
+      // because it is the join between two of the four document models,
+      // and because the dates it insists on are the schema's own rule
+      // about what a Verification means.
+      'lib/onboarding-evidence',
+      // Whose names a company may read in the directory, and who may put
+      // a firm on the register at all. Company identity, and the one
+      // page where a leak is a lead list.
+      'lib/directory-scope',
+      'lib/contacts', 'lib/contact-reach', 'lib/counterparty', 'lib/suppliers-of', 'lib/party-onboarding', 'lib/reconciliation',
+      'app/dashboard/onboarding', 'app/dashboard/integrations',
+      'app/api/contacts', 'app/api/counterparties', 'app/dashboard/contacts',
+      'lib/feedback', 'lib/remember',
+      'lib/demo-placement',
+      // Which way a company's cycle dates move off a weekend or a holiday.
+      // A company setting, read by money in lib/cycle-generator: the
+      // policy and the arithmetic of one date are here, generating the
+      // series is theirs.
+      'lib/cycle-shift',
+      'lib/company-defaults', 'lib/company-roles', 'lib/company-domains', 'lib/domains-owned',
+      'lib/registrable-domain', 'lib/account-lifecycle',
+      // One reader of a company's seats, and how people join a company,
+      // said from what the code does (2026-11-12).
+      'lib/company-seats', 'lib/join-words',
+      'lib/service-accounts', 'lib/import-mapper', 'lib/employee-role', 'lib/importable',
+      'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-chain', 'lib/demo-volume', 'lib/demo-seed-client',
+      'lib/demo-seed-consultant', 'lib/demo-session', 'lib/reserved-address',
+      // Which desks the demo door can open at a seeded firm, and the
+      // sentence it says when the one asked for is not held.
+      'lib/demo-desks',
+      // Whether the company somebody is signed in at is a made-up one, so
+      // the shell can say Demo in front of its name. Company identity.
+      'lib/demo-company',
+      'app/layout', 'app/login', 'app/setup',
+      // Which ways in the login page draws, and the line above them.
+      'lib/login-doors',
+      // The tab icon: the kit's mark, square. Next links both from app/.
+      'app/icon', 'app/apple-icon',
+      'app/dashboard/layout', 'app/dashboard/settings', 'app/dashboard/companies',
+      'app/dashboard/data', 'app/dashboard/automation', 'app/dashboard/checks',
+      'app/api/health', 'app/api/demo', 'app/demo', 'app/api/auth', 'app/api/companies',
+      // One firm, one tenant (2026-10-27): finding a firm already on Etyme by
+      // name or address, and an MSP asking a client for a seat.
+      'app/api/firms', 'app/api/seat-requests', 'app/api/trade-links', 'lib/trade-link',
+      // Ready for a real company: the edges, judged and shown.
+      'lib/readiness', 'lib/readiness-facts', 'app/api/ready', 'app/ready', 'components/reseed-button',
+      // The map of the memory (founder, 2026-10-08): one picture of how the
+      // system hangs together, drawn from this file and lib/matrix, plus the
+      // sentences the test files hold. It shows and never stores.
+      'app/map', 'app/api/map', 'lib/system-map', 'lib/system-map-layout', 'lib/map-disk', 'lib/delivery-matrix-html',
+      // Somebody is told when it breaks: the diary, the reporter, the boundaries.
+      'lib/alerts', 'lib/staff', 'lib/cron-auth', 'app/api/incidents', 'app/error', 'app/global-error',
+      // The fifth state. Loading, empty, error and partial each belong to
+      // the screen showing them; denied does not, because it is the same
+      // refusal on every screen and it is decided before any of them
+      // render. It reads the identity door's own verdict and turns it
+      // into a heading, a sentence and the doors that are actually open,
+      // so no page writes a second answer to "who is this".
+      'lib/denied', 'components/denied',
+      // A refusal that arrives carrying a permission key, said as the desk
+      // that does it. Read by the shared shell pieces before they print a
+      // route's message.
+      'lib/refusal-words',
+      // Which desk a due date is put in front of. Pure, and here rather
+      // than beside the cron because only a route.ts belongs under
+      // app/api — see the cron check in __tests__/invariants/alerts.
+      'lib/due-cycle-desks',
+      'app/api/cron', 'app/api/import',
+      // Generated from lib/matrix by the regeneration script; edited only by regenerating it.
+      'docs/delivery-matrix.html',
+      'components/',
+    ],
+  },
+]
+
+/**
+ * The two agents that read and never write.
+ *
+ * They own no file and no L2 group, so they are not domains — but they are
+ * two of the nine on the map, and a reader of the map should see them in
+ * the middle with the builders, saying what they know. Their definitions
+ * are `.claude/agents/etyme-scout.md` and `etyme-release.md`.
+ */
+export interface Reader {
+  agent: string
+  label: string
+  knows: string
+}
+
+export const READERS: Reader[] = [
+  {
+    agent: 'etyme-scout',
+    label: 'Scout',
+    knows:
+      'Where a thing lives, what already exists and who owns it, before anybody ' +
+      'starts building, so nothing is built twice. Reads only; writes nothing, ever.',
+  },
+  {
+    agent: 'etyme-release',
+    label: 'Release',
+    knows:
+      'Whether it ships: walks a feature end to end as a person would on the running ' +
+      'app, runs the full suite, the type check and the build, then clicks the thing.',
+  },
+]
+
+/**
+ * Files that belong to nobody, and change through the architect only.
+ *
+ * The schema is here because every domain wants a column in the same
+ * file. It is the one artifact where two individually correct changes can
+ * still produce a wrong result, so it gets the single queue.
+ */
+export const SHARED: string[] = [
+  'prisma/schema.prisma',
+  // The SQL applied after every schema push: the security log's guard
+  // (Layer 7, record 86). It guards a table the schema declares, so it
+  // queues where the schema queues.
+  'prisma/sql/',
+  'package.json',
+  'CLAUDE.md',
+  'BUILD.md',
+  'tailwind.config',
+  'next.config',
+  'src/app/globals.css',
+]
+
+/**
+ * The test folders, written by every builder. Decided 2026-10-08, after
+ * three agents in one day were warned for editing a test about their own
+ * files: a test is the sentences about some domain's files, and a builder
+ * changes the sentences about its own when it changes the files. Owning
+ * the folders by domain would mean reading every test's imports to say
+ * whose it is, and a test that walks a placement end to end is
+ * everybody's at once. So the folders are open to every domain, with one
+ * rule `says` repeats: change the sentences about your own files, and add
+ * a new file rather than edit one another domain is working in.
+ */
+export const TEST_FOLDERS: string[] = ['__tests__/', '__integration__/']
+
+/**
+ * Files every builder appends to, each under its own heading. Started
+ * 2026-10-12 with the job twin: `KNOWN-LIMITS.md` lists every shortcut
+ * and untested path, and a shortcut is known first by whoever took it.
+ * The same rule as the test folders: write your own section, never edit
+ * another domain's.
+ */
+export const OPEN_TO_BUILDERS: string[] = ['KNOWN-LIMITS.md']
+
+export function isTest(path: string): boolean {
+  const p = path.replace(/^\.?\/?/, '')
+  return TEST_FOLDERS.some((t) => p.startsWith(t))
+}
+
+export function domainOf(path: string): Domain | null {
+  const p = path.replace(/^\.?\/?/, '').replace(/^src\//, '')
+
+  // Longest match wins, so 'app/api/requirements' beats a shorter prefix
+  // that happens to share its opening.
+  let best: { d: Domain; len: number } | null = null
+  for (const d of DOMAINS) {
+    for (const own of d.owns) {
+      // Trailing slashes are how people write directories, and a needle
+      // of 'components/' must still match 'components/logo.tsx'.
+      const needle = own.replace(/^src\//, '').replace(/\/$/, '')
+      if (p === needle || p.startsWith(needle + '/') || p.startsWith(needle + '.')) {
+        if (!best || needle.length > best.len) best = { d, len: needle.length }
+      }
+    }
+  }
+  return best?.d ?? null
+}
+
+export function isShared(path: string): boolean {
+  const p = path.replace(/^\.?\/?/, '')
+  return SHARED.some((s) => p === s || p.startsWith(s))
+}
+
+export interface Verdict {
+  mayWrite: boolean
+  owner: DomainKey | null
+  says: string
+}
+
+/**
+ * Whether a given agent may write a given file.
+ *
+ * Called before an edit, not after. An agent that discovers it was out of
+ * bounds by breaking somebody else's tests has already cost more than the
+ * check would have.
+ */
+export function mayWrite(agent: string, path: string): Verdict {
+  if (isShared(path)) {
+    return agent === 'etyme-architect'
+      ? { mayWrite: true, owner: 'PLATFORM', says: `${path} is shared. You hold the queue for it.` }
+      : {
+          mayWrite: false,
+          owner: null,
+          says:
+            `${path} is shared and changes to it serialize through the architect. ` +
+            `Say what you need and why; do not edit it.`,
+        }
+  }
+
+  if (OPEN_TO_BUILDERS.includes(path.replace(/^\.?\/?/, ''))) {
+    const builder = agent === 'etyme-architect' || DOMAINS.some((d) => d.agent === agent)
+    return builder
+      ? { mayWrite: true, owner: null, says: `${path} is open to every builder. Add to your own section; never edit another domain's.` }
+      : { mayWrite: false, owner: null, says: `${path} is written by builders; ${agent} reads.` }
+  }
+
+  if (isTest(path)) {
+    const builder = agent === 'etyme-architect' || DOMAINS.some((d) => d.agent === agent)
+    return builder
+      ? {
+          mayWrite: true,
+          owner: null,
+          says:
+            `${path} is a test, and tests are written by every builder. Change the sentences ` +
+            `about your own files; where another domain is working in this file, add a new one.`,
+        }
+      : { mayWrite: false, owner: null, says: `${path} is a test. Only a builder writes tests; ${agent} reads.` }
+  }
+
+  const d = domainOf(path)
+  if (!d) {
+    return {
+      mayWrite: false,
+      owner: null,
+      says:
+        `${path} has no owner. A file nobody owns is a file two agents will edit ` +
+        `in the same hour. Add it to a domain in lib/domains.ts first.`,
+    }
+  }
+
+  if (d.agent === agent) {
+    return { mayWrite: true, owner: d.key, says: `Yours — ${d.label}.` }
+  }
+
+  return {
+    mayWrite: false,
+    owner: d.key,
+    says:
+      `${path} belongs to ${d.label} (${d.agent}). Ask them for the change rather ` +
+      `than making it — two agents in one file is a merge conflict nobody here can adjudicate.`,
+  }
+}

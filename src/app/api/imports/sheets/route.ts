@@ -1,0 +1,573 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext, realPersonId } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { hasAnyPermission, askTheDesk } from '@/lib/permissions'
+import {
+  IMPORTABLE,
+  entityByKey,
+  importableFor,
+  IMPORT_PERMISSIONS,
+  mapColumnsFor,
+  parseRows,
+  previewOf,
+  type EntitySpec,
+  type RowResult,
+} from '@/lib/importable'
+import type { reviewOf } from '@/lib/extract'
+import { readImportContent } from './read'
+import { consultantRowPlan } from './consultant-row'
+import { hasOwnAccount } from '@/lib/consultant-portfolio/firm-view'
+import { recordRefusal } from '@/lib/access-log'
+import { orderSellerCandidates, orderSellerFor } from './order-seller'
+
+/**
+ * GET  /api/imports/sheets — what this person may load
+ * POST /api/imports/sheets — preview a file, or commit it
+ *
+ * Separate from /api/imports, which is the candidate importer: that one
+ * stages rows for review and correction before anything is written, which
+ * is right for people because a wrong name matters. Reference data — cost
+ * centers, work sites, purchase orders — does not need a staging table. It
+ * needs the file checked, shown, and written.
+ *
+ * One engine, many sheets, each gated by whoever owns that data. Finance
+ * cannot load people; recruiting cannot load GL accounts. The permission
+ * decides what is offered rather than what is rejected, because being told
+ * at the end of a long upload that you were never allowed wastes an
+ * afternoon.
+ *
+ * Preview and commit are two separate calls on purpose. Loading a rate
+ * card over a live one should never be a surprise.
+ */
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'An import loads people into a company, and you are not signed in at one.' } },
+      { status: 403 }
+    )
+  }
+
+  // A seat that may load nothing is told who can, rather than opening an
+  // empty page. The menu link asks for the same list (sidebar).
+  if (!hasAnyPermission(caller.permissions, IMPORT_PERMISSIONS)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: askTheDesk({
+            doing: 'Loading data from a spreadsheet',
+            needs: IMPORT_PERMISSIONS,
+            kind: caller.company?.kind,
+            companyName: caller.company?.name,
+          }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  const mine = importableFor(caller.permissions)
+
+  return NextResponse.json({
+    data: {
+      sheets: mine.map((e) => ({
+        key: e.key,
+        label: e.label,
+        owner: e.owner,
+        blurb: e.blurb,
+        naturalKey: e.naturalKey,
+        fields: e.fields.map((f) => ({
+          key: f.key,
+          label: f.label,
+          required: f.required,
+          kind: f.kind,
+          hint: f.hint ?? null,
+        })),
+      })),
+      // Said plainly rather than showing an empty page.
+      note: mine.length < IMPORTABLE.length
+          ? `${IMPORTABLE.length - mine.length} other kind(s) of data can be loaded by somebody with different permissions.`
+          : null,
+    },
+  })
+}
+
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'An import loads people into a company, and you are not signed in at one.' } },
+      { status: 403 }
+    )
+  }
+
+  const body = await request.json().catch(() => ({}))
+  const spec = entityByKey(String(body.entity ?? ''))
+  if (!spec) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'Say what kind of data this is',
+          field: 'entity',
+          options: importableFor(caller.permissions).map((e) => ({ key: e.key, label: e.label })),
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  // Checked again on the way in. The list being filtered is a courtesy, not
+  // a control.
+  const allowed = importableFor(caller.permissions).some((e) => e.key === spec.key)
+  if (!allowed) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: `Loading ${spec.label.toLowerCase()} is ${spec.owner.toLowerCase()}'s, and needs ${spec.permission}.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // ── Read it, rather than match column headings ──────────────────────
+  //
+  // Given raw content — a pasted table, an email, the text of a document —
+  // it is read by the model only where this company turned the model on,
+  // masked before it leaves and logged with its answer (./read, under the
+  // model boundary of 2026-10-13). Otherwise the column headings read it,
+  // and the note says why, because a degraded result presented as a good
+  // one is worse than a refusal.
+  let rows: Record<string, string>[] = Array.isArray(body.rows) ? body.rows : []
+  let readBy: 'MODEL' | 'HEADERS' = 'HEADERS'
+  let readNote: string | null = null
+  let review: ReturnType<typeof reviewOf> | null = null
+
+  if (typeof body.content === 'string' && body.content.trim()) {
+    const read = await readImportContent({
+      companyId: caller.company.id,
+      personId: caller.person.id,
+      spec,
+      content: body.content,
+    })
+    if (!read.ok) {
+      return NextResponse.json(
+        { error: { code: read.code, message: read.message, unread: read.unread } },
+        { status: read.status }
+      )
+    }
+
+    rows = read.rows
+    readBy = read.readBy
+    readNote = read.note
+    review = read.review
+
+    // Anything inferred rather than read is confirmed before it is
+    // written. Writing a guess is how an import silently changes a rate.
+    if (review && body.commit && review.toConfirm > 0 && !body.confirmedGuesses) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NEEDS_CONFIRMING',
+            message: `${review.toConfirm} value(s) were inferred rather than read. Look at them, then send confirmedGuesses: true.`,
+            review,
+          },
+        },
+        { status: 409 }
+      )
+    }
+  }
+
+  if (rows.length === 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'The file has no rows in it', field: 'rows' } },
+      { status: 422 }
+    )
+  }
+  if (rows.length > 5000) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'TOO_MANY',
+          message: `${rows.length} rows is more than one load should carry. Split it — 5,000 at a time keeps the report readable and the failure recoverable.`,
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  const headers = Object.keys(rows[0])
+  const mapping = mapColumnsFor(spec, headers)
+
+  if (!mapping.ready) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'MISSING_COLUMNS',
+          message: `The file has no column for ${mapping.missingRequired.join(', ')}. Add it and load again.`,
+          mapping,
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  const parsed = parseRows(spec, mapping, rows)
+  const existingKeys = await keysAlreadyHere(spec, caller.company.id)
+  const preview = previewOf(spec, parsed, existingKeys)
+
+  // ── Preview only ────────────────────────────────────────────────────
+  if (!body.commit) {
+    return NextResponse.json({
+      data: {
+        committed: false,
+        // Which reader ran. Never silently one when it looks like the other.
+        readBy,
+        readNote,
+        review,
+        mapping,
+        preview: {
+          ...preview,
+          // The whole point of a preview is the bad rows, so they lead and
+          // the good ones are a sample.
+          problems: parsed.filter((r) => !r.ok).slice(0, 50).map((r) => ({
+            row: r.rowNumber,
+            problems: r.problems,
+          })),
+          sample: parsed.filter((r) => r.ok).slice(0, 5).map((r) => r.values),
+        },
+      },
+    })
+  }
+
+  // ── Commit ──────────────────────────────────────────────────────────
+  const good = parsed.filter((r) => r.ok)
+  const written = await writeRows(spec, caller.company.id, good, realPersonId(caller), caller.company.name, caller.isService ? undefined : caller.person.id)
+
+  await prisma.automationLog.create({
+    data: {
+      companyId: caller.company.id,
+      action: 'DATA_IMPORTED',
+      summary: `${caller.person.name} loaded ${spec.label.toLowerCase()} — ${written.created} new, ${written.updated} updated, ${parsed.length - good.length} skipped`,
+      reason: `Matched on ${spec.naturalKey}, so a repeat load changes nothing`,
+      payload: {
+        entity: spec.key,
+        rows: parsed.length,
+        created: written.created,
+        updated: written.updated,
+        skipped: parsed.length - good.length,
+        failures: written.failures,
+        kept: written.kept,
+        // Whether a model read this file or the column headings did.
+        // Recorded because it varies run to run — a week where the key
+        // was misconfigured must not later read as a week the model
+        // worked for free. `lib/autonomy` reads this marker.
+        decidedBy: readBy === 'MODEL' ? 'MODEL' : 'RULE',
+      },
+      reversible: false,
+    },
+  })
+
+  return NextResponse.json({
+    data: {
+      committed: true,
+      readBy,
+      readNote,
+      review,
+      created: written.created,
+      updated: written.updated,
+      skipped: parsed.length - good.length,
+      // Rows that passed reading and still failed writing — a supplier
+      // name that matches nothing, a duplicate inside the same file.
+      failures: written.failures,
+      // Rows about somebody whose record is theirs, each in a sentence:
+      // "Kept on your listing; <name> has their own account."
+      kept: written.kept,
+      problems: parsed.filter((r) => !r.ok).slice(0, 50).map((r) => ({
+        row: r.rowNumber,
+        problems: r.problems,
+      })),
+      message:
+        (written.failures.length > 0
+          ? `${written.created} new, ${written.updated} updated. ${written.failures.length} row(s) could not be written — see below.`
+          : `${written.created} new, ${written.updated} updated, ${parsed.length - good.length} skipped.`) +
+        written.kept.map((k) => ` Row ${k.row}: ${k.says}`).join(''),
+    },
+  })
+}
+
+/** What is already here, so the preview can separate new from changed. */
+async function keysAlreadyHere(spec: EntitySpec, companyId: string): Promise<Set<string>> {
+  const lower = (xs: string[]) => new Set(xs.map((x) => x.toLowerCase()))
+
+  switch (spec.key) {
+    case 'COST_CENTERS': {
+      const rows = await prisma.costCenter.findMany({ where: { companyId }, select: { code: true } })
+      return lower(rows.map((r) => r.code))
+    }
+    case 'LOCATIONS': {
+      const rows = await prisma.companyLocation.findMany({ where: { companyId }, select: { name: true } })
+      return lower(rows.map((r) => r.name))
+    }
+    case 'CONSULTANTS': {
+      // Only the people this firm already holds: its seats and its bench
+      // listings. Reading every address on Etyme let a preview say
+      // whether a stranger's email is somebody's here (review, 2026-11-13).
+      const rows = await prisma.person.findMany({
+        where: {
+          OR: [
+            { contexts: { some: { companyId } } },
+            { consultant: { listings: { some: { companyId } } } },
+          ],
+        },
+        select: { primaryEmail: true },
+      })
+      return lower(rows.map((r) => r.primaryEmail))
+    }
+    case 'PURCHASE_ORDERS': {
+      const rows = await prisma.workOrder.findMany({ where: { issuedById: companyId }, select: { number: true } })
+      return lower(rows.map((r) => r.number))
+    }
+    case 'HOLIDAYS': {
+      const rows = await prisma.holiday.findMany({ where: { companyId }, select: { date: true } })
+      return lower(rows.map((r) => r.date.toISOString().slice(0, 10)))
+    }
+    default:
+      return new Set()
+  }
+}
+
+interface WriteResult {
+  created: number
+  updated: number
+  failures: { row: number; reason: string }[]
+  /** Rows about somebody whose record is theirs: what was kept, said per row. */
+  kept: { row: number; says: string }[]
+}
+
+/**
+ * Writing, row by row, collecting failures.
+ *
+ * Deliberately not one transaction. A finance team loading four hundred
+ * cost centers wants the three hundred and ninety-eight good ones in and a
+ * report of the two that were not — rolling everything back over two bad
+ * rows means the file gets loaded by hand instead.
+ */
+async function writeRows(
+  spec: EntitySpec,
+  companyId: string,
+  rows: RowResult[],
+  byId: string | null,
+  firmName: string,
+  actorPersonId?: string,
+): Promise<WriteResult> {
+  let created = 0
+  let updated = 0
+  const failures: { row: number; reason: string }[] = []
+  const kept: { row: number; says: string }[] = []
+  // Who an order may go to, read once for the whole sheet (./order-seller).
+  const orderSellers = spec.key === 'PURCHASE_ORDERS' ? await orderSellerCandidates(companyId) : null
+  const buyer = spec.key === 'PURCHASE_ORDERS'
+    ? await prisma.company.findUniqueOrThrow({ where: { id: companyId }, select: { id: true, name: true, claimedAt: true } })
+    : null
+
+  for (const r of rows) {
+    try {
+      const v = r.values as any
+      switch (spec.key) {
+        case 'COST_CENTERS': {
+          const code = String(v.code).toUpperCase()
+          const existing = await prisma.costCenter.findFirst({ where: { companyId, code } })
+          if (existing) {
+            await prisma.costCenter.update({
+              where: { id: existing.id },
+              data: { name: v.name, glAccount: v.glAccount ?? existing.glAccount, ...(v.isActive !== undefined ? { isActive: v.isActive } : {}) },
+            })
+            updated++
+          } else {
+            await prisma.costCenter.create({
+              data: { companyId, code, name: v.name, glAccount: v.glAccount ?? null },
+            })
+            created++
+          }
+          break
+        }
+
+        case 'LOCATIONS': {
+          const existing = await prisma.companyLocation.findFirst({ where: { companyId, name: v.name } })
+          const data = {
+            city: v.city ?? null,
+            state: v.state ?? null,
+            // Read as its code when the sheet was parsed; a row it could not read was refused there.
+            country: v.country ?? 'US',
+            address: v.address ?? null,
+            // A ZIP is written only where the row has one, so a sheet with
+            // no ZIP column never clears one a person typed on Sites.
+            ...(v.postalCode ? { postalCode: v.postalCode } : {}),
+            // Where the site came from, said on Settings → Sites (2026-10-28).
+            source: 'IMPORT' as const,
+            recordedById: byId,
+            recordedAt: new Date(),
+          }
+          if (existing) {
+            await prisma.companyLocation.update({ where: { id: existing.id }, data })
+            updated++
+          } else {
+            await prisma.companyLocation.create({ data: { companyId, name: v.name, ...data } })
+            created++
+          }
+          break
+        }
+
+        case 'CONSULTANTS': {
+          // Somebody already here: whose record is it to change? The edit
+          // route's own rule decides (profileEditPlan), read the same way.
+          const found = await prisma.person.findUnique({
+            where: { primaryEmail: v.email },
+            select: {
+              id: true,
+              name: true,
+              passwordHash: true,
+              _count: { select: { credentials: true, contexts: { where: { type: 'CONSULTANT', companyId: null } } } },
+              consultant: {
+                select: {
+                  listings: { where: { companyId, revokedAt: null }, select: { id: true } },
+                  // Every other firm that ever listed them, taken back or
+                  // not, as `firmReadsAt` counts (fix list, layer 5, j): a
+                  // listing taken back does not make her words this firm's.
+                  _count: { select: { listings: { where: { companyId: { not: companyId } } } } },
+                },
+              },
+            },
+          })
+          if (found) {
+            const listing = found.consultant?.listings[0] ?? null
+            const plan = consultantRowPlan({
+              isSubject: found.id === byId,
+              ownAccount: hasOwnAccount({
+                passwordSet: Boolean(found.passwordHash),
+                signIns: found._count.credentials,
+                ownSeats: found._count.contexts,
+              }),
+              otherFirms: found.consultant?._count.listings ?? 0,
+              hasListing: listing != null,
+              name: found.name,
+              firm: firmName,
+              values: v,
+            })
+            if (plan.write === 'LISTING' && listing) {
+              await prisma.benchListing.update({ where: { id: listing.id }, data: plan.listing })
+              kept.push({ row: r.rowNumber, says: plan.says })
+              updated++
+              break
+            }
+            if (plan.write !== 'PROFILE') {
+              kept.push({ row: r.rowNumber, says: plan.says })
+              break
+            }
+          }
+          const person = await prisma.person.upsert({
+            where: { primaryEmail: v.email },
+            update: { name: v.name },
+            create: { primaryEmail: v.email, name: v.name },
+          })
+          const had = await prisma.consultantProfile.findUnique({ where: { personId: person.id } })
+          await prisma.consultantProfile.upsert({
+            where: { personId: person.id },
+            update: {
+              headline: v.headline ?? undefined,
+              skills: v.skills ?? undefined,
+              location: v.location ?? undefined,
+              workAuth: v.workAuth ?? undefined,
+              // Rate arrives in dollars and is held in cents, like every
+              // other rate in the system.
+              rateFloor: v.rateFloor !== undefined ? Math.round(v.rateFloor * 100) : undefined,
+            },
+            create: {
+              personId: person.id,
+              headline: v.headline ?? null,
+              skills: v.skills ?? [],
+              location: v.location ?? null,
+              workAuth: v.workAuth ?? null,
+              rateFloor: v.rateFloor !== undefined ? Math.round(v.rateFloor * 100) : null,
+            },
+          })
+          if (had) updated++
+          else created++
+          break
+        }
+
+        case 'PURCHASE_ORDERS': {
+          // Only a firm this buyer may write an order to, read the way
+          // POST /api/purchase-orders reads it; a refused row writes
+          // nothing, is logged before the summary goes out, and says why
+          // in a sentence that names nobody the buyer does not deal with.
+          const verdict = await orderSellerFor(buyer!, String(v.supplierName), orderSellers!)
+          if (!verdict.ok) {
+            await recordRefusal([{ companyId: verdict.subjectId }], {
+              actorPersonId,
+              actorCompanyId: companyId,
+              action: 'CONTRACT_VIEW',
+              reason: `Refused row ${r.rowNumber} of a purchase-order sheet: ${verdict.says}`,
+            })
+            failures.push({ row: r.rowNumber, reason: verdict.says })
+            continue
+          }
+          const supplier = verdict.seller
+          const existing = await prisma.workOrder.findFirst({
+            where: { issuedById: companyId, number: String(v.number) },
+          })
+          if (existing) {
+            await prisma.workOrder.update({
+              where: { id: existing.id },
+              data: { amount: v.amount, ...(v.endDate ? { endDate: v.endDate } : {}) },
+            })
+            updated++
+          } else {
+            await prisma.workOrder.create({
+              data: {
+                number: String(v.number),
+                issuedById: companyId,
+                issuedToId: supplier.id,
+                // An import is the importer's own record of its own paper.
+                recordedById: companyId,
+                amount: v.amount,
+                startDate: v.startDate ?? new Date(),
+                endDate: v.endDate ?? null,
+                status: 'OPEN',
+              },
+            })
+            created++
+          }
+          break
+        }
+
+        case 'HOLIDAYS': {
+          const date = v.date as Date
+          const existing = await prisma.holiday.findFirst({ where: { companyId, date } })
+          if (existing) {
+            await prisma.holiday.update({ where: { id: existing.id }, data: { name: v.name } })
+            updated++
+          } else {
+            await prisma.holiday.create({ data: { companyId, date, name: v.name } })
+            created++
+          }
+          break
+        }
+      }
+    } catch (err) {
+      failures.push({
+        row: r.rowNumber,
+        reason: err instanceof Error ? err.message.slice(0, 160) : 'Could not be written',
+      })
+    }
+  }
+
+  return { created, updated, failures, kept }
+}

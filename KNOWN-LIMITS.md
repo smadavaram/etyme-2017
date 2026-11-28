@@ -1,0 +1,1206 @@
+# Known limits
+
+Every shortcut and every untested path in the job twin, said plainly.
+Started 2026-10-12. Each domain writes its own section and never edits
+another's (`OPEN_TO_BUILDERS` in `src/lib/domains.ts`).
+
+## The twin's door — etyme-architect
+
+What is built: the role contract, the ledger, the approval route, the
+rule set, the nightly run. What is short of that:
+
+1. **The screens are built; nothing has walked them as every desk.**
+   `/dashboard/twin` (the picture, the questions waiting, the feed and
+   its CSV export), `/dashboard/twin/contract` and `/dashboard/twin/rules`
+   exist and were screenshotted as the Northbend program manager only.
+   No page test reads them; the founder's rule allows no new test file.
+2. **The Teams door is built and has never met Teams.** Conversation's
+   bot route (`POST /api/teams/messages`, ee4393f69) checks the Bot
+   Framework token, binds the account to a live seat and sends every
+   Approve or Reject to `POST /api/twin/approvals/:id`'s own door with
+   surface TEAMS. Until the founder's three bot keys are set in Vercel and
+   the app is sideloaded, every post is refused and `/ready` reads the
+   Teams bot row MISSING; the web's Waiting for you is the door meanwhile.
+3. **The event stream can carry the twin and the twin emits nothing into
+   it.** `lib/events` writes `actorTwinKind` when asked, and the access
+   log carries the twin since regulatory's 49ca56cd4. No twin act calls
+   `lib/events` yet, so a subscriber hears nothing the twin does.
+4. **Approving an `Invoice` writes no state on the invoice.** A receipt
+   keyed in as a `VendorBill` moves from RECEIVED to APPROVED, which is
+   what a payment run reads. An `Invoice` a supplier sent through Etyme
+   has no approved-for-payment state, so a yes is the ledger entry and
+   the approval row; the payment is still recorded on the AP desk, which
+   runs the three-way check again. Money to decide whether that state
+   should exist.
+5. **A mismatched receipt is told, not put up for approval.** The
+   coordinator asked for approvals on clean and mismatched receipts. A
+   mismatch fails money's three-way check, which the approval re-runs,
+   so its only possible yes is refused. The run tells the paying desk
+   instead. A clean receipt that the check would still not pay (inside
+   the tolerance, outside the exact hours) is recorded and nothing more.
+6. **A supplier is not yet told about a breach.** The act
+   (`tenure.warning.notify_supplier`, needs approval) and its performer
+   exist and are tested through the door, but the nightly run does not
+   call it: the tenure rule gives supplier names, not supplier ids.
+7. **The approval notice goes in the app.** `tellTheDesk` writes an
+   in-app notice to up to ten people at the desk. No email or Teams
+   delivery is asked for, so somebody who does not open Etyme does not
+   hear.
+8. **A program office in a seat reads nothing here.** `ledgerFeed`
+   scopes by the reader's own company. An MSP seated in a client's
+   program (`ProgramSeat`) is a stranger to that client's twin until the
+   feed resolves seats the way `lib/money/seated-books` does.
+9. **The authority is the first Program Manager found.** With two seated,
+   the twin acts on the authority of one of them, chosen by id. With
+   none, it acts on the role alone, and every notice to the program
+   owner is refused in the ledger with the reason.
+10. **A refusal carries no finding key, on purpose,** so a finding refused
+    tonight is tried again tomorrow. A refusal that recurs every night
+    writes an entry every night.
+11. **The tests are the two files the founder allowed, against an
+    in-memory record**, not Postgres: `__tests__/invariants/twin-role-contract.test.ts`
+    and `twin-ledger.test.ts`. Untested against a database: the
+    transaction rollback, the unique finding key under a race, the
+    nightly run end to end, and every route. The schema change is
+    exercised only by `__integration__/client-programme.test.ts`
+    building the template.
+12. **The approval route is not limited by a desk-less seat's door
+    either way.** A seat with no desk is refused at the shared door
+    (`lib/deskless-door`) on every `/api/twin` route, including the
+    ledger entries made on its own authority.
+13. **`partyCompanyIds` has no index.** A supplier's feed is a filter on
+    an array inside one client's rows. Fine at a demo's size; an index
+    (GIN) is the change when it is not.
+
+14. **The program owner's twin page reads the program's numbers from the
+    desk's own routes** (`/api/program`, `/api/tenure`). A seat that may
+    read the ledger and not those routes reads a dash with the reason, not
+    a zero. "Time-limit risks" is warnings plus people past the limit, as
+    `/api/tenure` counts them, not the twin's own ledger.
+15. **The feed is the last 200 entries.** The CSV export is what the page
+    holds — the ledger as the reader may read it, at most 200 rows. A
+    full audit export over a date range is a route that does not exist.
+16. **A client's other desks now read the whole program's entries,
+    without what the rules found** (view PROGRAM), where the door said
+    only entries on their own authority. CLAUDE.md says "a client its
+    program", and the AP clerk who answers the twin read nothing before.
+    A hiring manager and a viewer hold none of the three desks the route
+    asks for and are refused in a sentence.
+17. **A mismatched receipt cannot be rejected on the twin's page**,
+    because it is never put up for approval (5 above). The demo's
+    "reject the mismatch" step reads the twin's flag in the feed instead;
+    see `DEMO.md`.
+18. **Edits of the contract and the rules are read into the feed from
+    the automation log**, not written as twin ledger entries, because an
+    edit has no tier and `TwinAction.tier` is required. Only the program
+    owner's view shows them, and the export carries them.
+19. **The conversation is Ask Etyme, not a panel on this page.** The
+    twin's page carries one line to it (`/dashboard/conversations/etyme`),
+    and the sidebar draws "Ask Etyme" above the sections wherever a menu
+    has Conversations. The chat page is conversation's; until it lands,
+    the line and the menu entry open a page that does not exist. The
+    nightly digest is a plain dynamic import inside a try: a module that
+    will not load reads ABSENT, one that throws reads FAILED and is
+    reported, and a digest that went by email rather than the bot is
+    counted as a fallback, never as Teams.
+20. **`TeamsConversation` has a table and no writer of the
+    architect's.** Conversation's bot binds and reads it.
+21. **Closed 2026-10-19 by etyme-conversation (2e9d58418): the
+    supplier's Teams digest carries the drafted bill.** After its bill
+    run each supplier firm gets `tellOnTeams`, and `lib/teams/digest`
+    now reads the `bill.send` questions through `waitingQuestions`, to
+    each person whose `mayDecide` is true (holds `invoices.issue`, and
+    the owner only where nobody else sends bills, with "Only you send
+    bills here, so Ask Etyme asks you." under the title). The card is
+    customer, period, hours, amount and due line (`billSendFacts`), with
+    Send bill and Keep it as a draft answered only through
+    `decideApproval` on surface TEAMS. What is short of the plan above:
+    **no second reminder before the bill is due.** A bill question is
+    keyed `bill:<approvalId>` and nothing else, so it is sent once; the
+    invoice receipt's `:due` last call has no bill equivalent. No other
+    Teams path writes state; nothing here adds one.
+
+## Staff bootstrap — etyme-architect (2026-10-14)
+
+1. **`POST /api/staff/bootstrap-company` exists because production has no
+   email key.** Sign-up confirms an address by email and an invitation is
+   an email, so neither works there. Staff hold the one-time links and
+   must hand each to its person privately; once the key is set, seats come
+   in through Users & permissions and this route is not needed.
+2. **The domain is verified on staff's word**, not by an identity
+   provider (`CompanyDomain.verifiedVia = 'STAFF'`), and the log says so.
+3. **It is not one transaction.** People, the company and the seats are
+   written in turn. A failure part-way leaves what was made; running it
+   again finds it and adds only what is missing.
+4. **Untested against a database.** The rules are tested as a plan
+   (`planBootstrap`); the writes are exercised only by running it.
+
+## The sample seat and the home page's frame — etyme-architect (2026-10-14)
+
+1. **A refused write is answered and not written to the access log.** The
+   log's actions are a named list in `lib/access-log` (regulatory's), and
+   none of them is "a write refused to the sample". A refused write reads
+   nobody, so the read invariant holds; the trail of who tried is what is
+   missing. Asked of `etyme-regulatory`: a `SAMPLE_WRITE` action, after
+   which `sampleCaller` in `lib/api-context` records it before the 403.
+2. **A stranger's reads are logged as the program manager's.** Every read
+   the sample seat makes is filed under Lorena Kellerman as a PERSON, so
+   Northbend's access log cannot tell her from the public. A `SAMPLE`
+   actor kind beside PERSON and TWIN is the fix, also regulatory's.
+3. **The full demo door still writes to the seeded world.** `POST /api/demo
+   {"as":"world-northbend"}` seats a stranger at the real seeded desk with every
+   permission. Only the sample seat is read-only; "nothing a stranger does
+   can touch the seeded world" is true of the frame, not of that door.
+4. **A GET that writes is not caught.** The door refuses every method but
+   GET, HEAD and OPTIONS; a route that changes state on a GET would change
+   it for the sample too. The five screens' reads were checked against the seeded world; the
+   other routes were not, and the access log is written on reads by design.
+5. **The screens are the dashboard's rows, drawn again.** The dashboard
+   pages fetch in the browser after load; the frame calls the same routes
+   on the server and draws its own compact markup, so the numbers agree
+   and the layout is the frame's.
+
+## Time-limit rule — etyme-regulatory
+
+What is built: `src/lib/twin/rules/tenure.ts` reads the client's own time
+limit and break, every supplier's lines at the client, and names the
+people 90, 60 and 30 days from the limit and those past it. The warning
+days come from the company's rule set (`ruleSetFor`), and every person
+read is on the access log under the program owner and the twin's kind
+(`TWIN`, `PROGRAM_MANAGER`). What is short of that:
+
+1. **The database half is untested against Postgres.** The arithmetic is
+   tested in `__tests__/invariants/twin-tenure-rule.test.ts`, and the
+   read and its access-log rows against an in-memory record. The query
+   itself — the end-client filter, the states, a chain's rungs — and the
+   demo person landing 60 days out on a seeded world are not run against
+   a database by any test of this rule.
+2. **One time limit per client.** The rule reads the first active
+   TENURE_CAP and BREAK_IN_SERVICE rule it finds across the client's
+   policies, in no stated order. A client with a different limit per
+   business unit or per site is warned on one of them, and which one is
+   not chosen on purpose.
+3. **A line that was not running is not counted.** Only IN_PROGRESS,
+   PAUSED and ENDED lines are read. A line CANCELLED after work started
+   drops the days already worked, so the count can read low; a VERIFIED
+   line that starts next week is not read, so somebody away who is about
+   to come back past the limit is not warned until they are on site.
+4. **One person is one `Person` row.** Days are added up by person id.
+   The same human entered by two suppliers as two records is two short
+   stays, and neither is warned. Cross-supplier identity resolution is
+   not done here, and no probable match is raised for a person to
+   confirm.
+5. **Suppliers are named, not identified.** A warning carries the names
+   of the firms the client pays, never their ids, and a sub-vendor's
+   name not at all. That is why the run cannot yet tell a supplier
+   (architect's item 6): the act needs the firm's id, and the rule must
+   still never hand a sub-vendor's name to the client.
+6. **The eighteen-month default is a product default, not a law.** Where
+   a client set no time limit the rule warns against eighteen months and
+   says "default" in the citation. A client that wants no limit at all
+   has no way to say so through the rule set; only a caller passing
+   `capMonths: null` turns it off. A warning keyed to a limit day also
+   repeats its tier if the contract dates move that day.
+
+7. **Its own cost, measured (2026-10-20).** On a copy of the seeded
+   world with 300 placements added at one client (312 lines, 82
+   warnings), the rule is four queries whatever the number of people:
+   the client's two governance rules, every line in one read, the
+   disclosure terms, and one batched access-log write. 50 to 80 ms. The
+   nightly run's time is elsewhere: the ledger's `act` reads the role
+   contract and the dedup row once per act (architect), the bill run
+   reads timesheets and invoices once per week (money), and the receipt
+   rule reads about five rows per receipt (money).
+
+## Paperwork reaching the start — etyme-regulatory (2026-10-20)
+
+What is built: a recorded check reaches the start check
+(`POST /api/compliance/verifications`), and since today so does a paper
+accepted from a document request, where the firm that employs or places
+the person records the examination as it accepts it (`/api/packets/[id]/review`,
+the same `checkToRecord` and the same writer). What is short of that:
+
+1. **A supplier's own document library does not reach the start check.**
+   A paper a firm keeps about itself or its people outside a document
+   request (the outbound pack's own documents, a firm's uploaded file)
+   is read by the pack and by nothing that decides a start. Only a
+   recorded check, or an accepted packet item that became one, counts.
+2. **The identifiers do not go to the screening company.** The worker's
+   consent and the details a background check is run against are
+   collected; nothing hands them to a provider. The firm orders the
+   check outside Etyme and records the report in the provider's words.
+   The adverse-action steps after an unfavorable report are said in a
+   sentence and are not a workflow.
+3. **A paper accepted before today, with nothing examined, does not
+   count, and nothing turns it into a check.** Its file is on the item;
+   HR accepts it again with the examination given, and then it counts.
+4. **An accept by a firm with no placement for the person records
+   nothing.** The accept stands and the answer says why. A client asking
+   a worker for a paper reads it; it is never the client's examination.
+5. **No screen calls the review route yet.** Document requests lists
+   what is waiting on a person ("Waiting on you"), and nothing on it
+   accepts an item; the route takes the edition, the evidence, the board
+   and the number, and is reached by the API only. A review panel with
+   those fields is the next piece.
+
+## Invoice rule — etyme-money
+
+- **The tolerance decides what the twin raises, not what is paid.** The
+  default is 0.5% (founder, 2026-10-12), and a receipt at or under it is
+  CLEAN to the twin. It still fails the three-way check's QUANTITY, so it
+  carries `payable: false` and the AP desk records the difference with a
+  reason before it is paid. **Decided** (CLAUDE.md, "Nine decisions", item
+  3): payment stays strict; a payment tolerance is a setting a client asks
+  for, with its reason beside it.
+- **`seedTwinInvoiceDemo` finds Northbend and Pinnacle by display name**,
+  not by slug or id. A renamed demo company seeds no receipts and says
+  nothing.
+- **`pendingReceiptsFor` runs `matchInvoice` once per open receipt**,
+  capped at 500 a company, and lists ISSUED and HELD receipts beside
+  submitted ones. Fine at a demo's size; a batched match is the change
+  when it is not. An ISSUED or HELD receipt is not payable, and the
+  payment gate (below) says so.
+- **Resolved 2026-10-12:** `invoiceRulesFor` now reads `ruleSetFor`, so
+  a company's saved tolerance is the one the rule uses.
+- **An `Invoice` has no approved-for-payment status, on purpose
+  (2026-10-12).** On a supplier's `Invoice` the match is the approval:
+  `payGate` in `lib/invoice-match` is the one gate, read by the AP
+  desk's payment door and offered to the twin as `mayPayInvoiceReceipt`.
+  A twin's yes is a ledger entry over that gate's answer and moves no
+  status. **No payment run reads an `Invoice`:** `PaymentRunItem` names a
+  `VendorBill` only, so a supplier's own invoice is paid one at a time
+  through `POST /api/invoices/:id/payments`. Batching them is a schema
+  request (an optional `invoiceId` on `PaymentRunItem`), not made until a
+  client asks.
+
+### A typed-in invoice receipt (`VendorBill`) — etyme-money, 2026-10-18
+
+The intake, the exception queue, the payment and the payment run ask one
+check (`checkKeyedReceipt`, gate `keyedPayGate` / `mayPayKeyedReceipt` in
+`lib/money/keyed-receipt`). Since the second piece the same day a receipt
+may be typed in with lines (a week, an approved expense, an accepted
+milestone, matched by `threeWayMatch` like a platform invoice), a
+difference may be waived with a reason on the platform's rules
+(`/api/ap/bills/[id]/match/override`, void once the total changes), a
+payment writes a `Payment` row naming the receipt (left out of every
+receivables view), a released payment run writes one per receipt, and a
+mis-keyed receipt is cancelled through `/api/ap/bills/[id]/cancel`. What
+is still short, each refused rather than guessed:
+
+- **A receipt typed in as a total is checked on its total.** Hours and a
+  rate typed on the receipt as a whole are not stored, so at payment it is
+  held to the accepted hours at the agreed rate, with the overtime the
+  client decided (below), to the cent, and nobody may waive that. To waive an hours difference, record it with lines.
+- **Overtime on a sub-vendor's invoice is the client's decision, since
+  2026-10-19** (`lib/money/client-overtime`): which hours of a week are
+  overtime, and whether they are a premium, the usual rate or banked, is
+  the answer the client gave on its own leg when it signed; a premium hour
+  is worth the rate times the multiplier on the pair's own line — the
+  payer's buy line on a typed-in receipt, the supplier's sell line on a
+  bill sent on the platform. A cut week loses overtime first, as on any
+  bill. What is still short, each refused rather than guessed:
+  - **The pair's multiplier is held twice** — on the supplier's sell line
+    and on the payer's buy line — and nothing says they agree. A typed-in
+    receipt reads the buy line, a platform bill the sell line; where they
+    differ the same week is priced two ways depending on how it arrived.
+  - **A week only partly under this buy line** (the buy line in force for
+    some of its days) is priced at the line's rate with no overtime, so a
+    line asking for a premium on it fails the arithmetic.
+  - **A week with overtime the client decided and a rate change inside
+    it** is refused on a typed-in receipt, total or lines, rather than
+    priced on one of the two rates.
+  - **A firm in the middle still answers overtime on its own leg** when it
+    accepts the week (the approval route, etyme-demand's), and that answer
+    no longer prices anything below the top; only the client's does.
+  - **The project order's cost of a supplier** (`lib/order-postings`)
+    still prices a sub-vendor's premium the way payroll pays it, not on the
+    client's decision, so a master contract's margin can differ from what
+    the invoice receipt pays for the same week. Next in money.
+- **A rate change inside one week** cannot be stated as one line at one
+  rate; such a receipt is refused with a sentence asking for it to be
+  recorded as a total, which is priced day by day.
+- **No edit door.** A receipt's total or lines change only by cancelling
+  it and typing the corrected one in again. The waiver's "void if the
+  total changes" holds for any writer, so it is ready for one.
+- **Cancelling does not reopen the "invoice receipt to record" date** the
+  receipt closed. A receipt typed in again for the same period closes no
+  second date (it would have closed the next period's), so the date stays
+  closed through the correction, which is the right end state.
+- **An expense's own status is the employer's rung only** (coordinator's
+  decision, 2026-10-19, reversible by the founder in a sentence).
+  `Expense.invoiceId` and INVOICED/PAID say what the employer did with it;
+  every firm above bills it on its own line at what its customer accepted,
+  and reads billed and paid from its own lines. An expense accepted in one
+  currency is left off a bill in another, said, and never converted. No
+  chain four firms deep is on the seed, so an expense stopped two rungs
+  below the firm billing is tested in pure code only (`billsOnLeg`).
+- **Two receipts for one week let in before 2026-10-18** are paid once:
+  the one recorded first, or the one already part paid; the other is
+  refused at payment and left out of a run.
+
+## Teams door — etyme-conversation
+
+What is built: `POST /api/teams/messages` (the bot), the identity
+binding, the invoice approval card, the time-limit card, the nightly
+digest `tellProgramOwnerOnTeams(companyId)`, the app package and
+`docs/teams-setup.md`. What is short of that:
+
+1. **No Bot Framework SDK.** `botbuilder` was asked for and not added:
+   `package.json` is shared and changes through the architect. The bot
+   speaks the protocol directly instead — the token check (published
+   keys, issuer, audience, expiry, serviceUrl, channel endorsement) in
+   `lib/teams/auth`, and the connector's REST calls in
+   `lib/teams/connector`. Swapping the SDK in later changes those two
+   files.
+2. **Never run against a real tenant.** Every piece is tested by shape
+   or by a token signed in the test; nothing has posted to Teams, and
+   `/ready` will say so until somebody answers a card there.
+3. **Identity is the member as Teams reports it, not an SSO token
+   exchange.** The bot reads the sign-in name back from Teams with its
+   own token (`getMember`) and matches it to `Person.primaryEmail`. A
+   true single sign-on exchange needs an OAuth connection on the Azure
+   Bot and `webApplicationInfo` in the manifest; neither is set up.
+4. **The tenant is not checked against the company.** A tenant can only
+   issue sign-in names on domains it verified, so the address is the
+   check. Etyme stores no Entra tenant id per company to compare with.
+5. **Single-tenant registration.** `docs/teams-setup.md` registers the
+   bot in Etyme's own tenant. A client in another tenant needs a
+   multi-tenant registration (or the client's own), which Azure now
+   discourages for new bots. Decide before the first client installs it.
+6. **The binding is re-made on every activity**, one connector call
+   each, so a revoked seat stops at once. No cache.
+7. **Acknowledge records nothing.** It answers "Nothing on the record
+   changed" and is true. There is no twin act for an acknowledgement;
+   if the founder wants one in the ledger, it is an act in
+   `TWIN_ACTS` (architect) and one line here.
+8. **Escalate opens the person in Etyme** unless the twin has asked
+   about writing to the supplier — which the nightly run does not yet do
+   (the architect's item 6). So in the demo Escalate is a link.
+9. **The program owner is never shown an Approve button.** The approval
+   door refuses the person on whose authority the twin asked, and the
+   twin asks on the program owner's. So invoice receipts go to the
+   people holding the desk the question needs (the AP desk), and the
+   program owner's card carries the time-limit risks. One card per
+   person, not one card to the owner, on purpose.
+10. **A digest item is said twice at most** — when it appears and two
+    days before an invoice receipt is due. What was said is read off the
+    digest's own notice rows (`entityId` `twin-digest:<company>`), the
+    way `cron/watch` does. A receipt with no due date is said once.
+11. **Contractor names on a card are not on the access log.** The card
+    reads the invoice receipt's lines through money's verdict, which
+    logs nothing; the time-limit card does log its person.
+12. **No channel cards.** In a channel the bot only says to open the
+    one-to-one chat, so amounts and names never reach a room.
+13. **The card is replaced after an answer** only where Teams sends the
+    card's own id (`replyToId`); otherwise the old buttons stay and a
+    second press is refused by the door ("Somebody has already answered
+    this.").
+14. **Icons are a placeholder** of the three rising strokes, drawn for
+    the package, not the brand kit's mark.
+
+## Ask Etyme (was the twin's conversation panel) — etyme-conversation
+
+- **The thread is kept, one per seat, since 2026-10-19.** Every question
+  and its answer are saved on the seat's own thread
+  (`lib/ask-etyme-thread`, the architect's door) and drawn again after a
+  reload, a phone switch or a sign-out, oldest first, with today's
+  greeting under them as the newest message. **The greeting itself is
+  not saved**: it is "what needs you now", rebuilt from the ledger on
+  every load, and a saved one would be yesterday's queue with yesterday's
+  cards. A card's yes, no or Not now is recorded on the line that drew
+  it after the approval route answers, and the reply after a yes or a no
+  is kept only where the record already shows that decision; a card in
+  the greeting is on no saved line, so a Not now there lasts the page
+  load, and the next greeting asks again. Clear starts over from the
+  greeting; the old lines stay on the record and are no longer shown.
+  "Show earlier" fetches up to 1,000 lines once; a longer thread shows
+  its newest 1,000.
+- **A seeded demo seat keeps no conversation, and says why once at the
+  top of the thread**: every visitor who opens that desk is seated as
+  the same seeded person, so a saved thread would show one stranger
+  another's questions. The shared sample and an API key keep none
+  either. A visitor's own demo sandbox, at their own address, keeps one.
+- **Not yet in a person's data export, erasure or retention**: the
+  saved thread is regulatory's to add (`lib/access-log`,
+  `lib/erasure`, `lib/retention`), as the matrix row says.
+- **Never beyond the transaction is a word test, by rule**
+  (`app/api/conversations/twin/transaction.ts`). A free-text question
+  is on the record when it uses a word of the trade the record holds
+  (job, candidate, timesheet, bill, invoice, payroll, paperwork, the
+  time limit and about a hundred more), carries a reference (an invoice
+  number, a ledger id) or names a person or firm the reader may read.
+  A short list of general asks (a poem, the weather, a capital city,
+  code) and anything naming another company's book or a benchmark
+  ("other companies", "market rate", "competitors", a firm named
+  "… Inc" that the reader does not trade with) is refused in one
+  sentence before the model switch is read. A question about the record
+  in words the list does not hold is refused too, and the sentence says
+  what to ask; "thanks" and "hello" are refused the same way.
+- **The model's answer must cite a line it was given.** An answer with
+  no `[id]` from the ledger lines sent, other than the one sentence for
+  an act, is not shown: the person reads "I cannot answer that yet." and
+  a link to the ledger. It is logged with purpose `ASK_ETYME_REPLACED`
+  and "Not shown to the person: …" ahead of the masked text, so the
+  company's prompt log shows it. A citation proves a line was read, not
+  that every sentence came from it.
+- **The pinned row says what Ask Etyme answers, not its last reply.**
+  The last reply is saved now; drawing it on the Conversations list is
+  not built.
+- **"What did we spend by supplier this month?" counts invoice receipts
+  by the day each was billed** (`issuedAt`, else `submittedAt`), in the
+  UTC calendar month, never a draft, cancelled or void one, and only
+  those the reader's company is asked to pay. It is not hours times
+  rate. A receipt with neither date is counted in no month and the
+  answer says how many there are. Two currencies are never added.
+- **"Which weeks are unsigned?" is a client's question** — filed weeks
+  the client has not signed, inside the reader's account walls, no
+  supplier named because in a chain the week sits on a rung the client
+  may not know by name. A supplier asking is sent to Timesheets in a
+  sentence. A program office in a client's seat is not answered for the
+  client yet; it reads its own company.
+- **"Who is near the time limit?" reads the twin's own warnings in the
+  ledger**, newest per person, with days counted from today to the day
+  the warning names. A person whose contract ended after the warning
+  stays listed until the next reading supersedes it; the answer says the
+  day of the reading. Only the program owner's desks read it, as on the
+  twin's page.
+- **A name in a never-floor question** is matched against the people
+  on this company's placements inside the reader's account walls (500
+  most recent): the full name first, else a first or last name carried
+  by exactly one person; two or more and Etyme asks which ("Helena Marsh
+  or Helena Ruiz?"). A misspelling links to the list instead. A receipt
+  is matched by its number.
+- **Told, not asked** lists at most the 20 latest receipts the twin
+  flagged, read again now; one corrected, waived or paid since drops off.
+- **The greeting's recommendation is a card with links, not a button.**
+  "Ask Renata Okafor, AP Clerk, to approve …" names who holds the desk,
+  read from the seats; the prototype's "she is on today" is not on the
+  record (nobody's presence is), so it is not said. Sending her the ask
+  would be a new act kind in the role contract first (week 3).
+- **"Checked just now" is true per answer**: variance and the told line
+  run the three-way check on each receipt at the moment of the question,
+  and the time limit runs the tenure rule live. A nightly verdict the
+  live check overturned is said once, for 36 hours after the night it
+  was recorded, and not after.
+- **Variance now reads every invoice receipt billed in the quarter**,
+  not only the ones the nightly run recorded, at most 200 per question.
+  It is read at the paying company only; a supplier is refused with the
+  door.
+- **Zero retention is not set by the code.** The provider client in
+  this repository (`@anthropic-ai/sdk` 0.117.1) has no per-request
+  no-retention option or header, so none is sent. Whether the provider
+  keeps nothing depends on the organization's agreement with it, which
+  is the founder's to arrange and is not verified here.
+- **Masking knows names from the record, not from their shape**
+  (`newMasker` in `app/api/conversations/twin/mask.ts`). It masks the
+  people on the reader's company's placements and seats, the firms it
+  trades with, and its own name. A name typed into a question that is
+  on none of those leaves as typed. A first or last name alone is
+  masked only when written with its capital; a common word in a firm's
+  name ("Systems", "Staffing") is not masked on its own. Figures are
+  masked by pattern: a currency amount, a rate per hour, day, week,
+  month or year, and a percentage beside margin, markup, fee,
+  commission, discount or spread. A percentage elsewhere (the 0.5%
+  tolerance) leaves as written.
+- **The map lives for one request.** Nothing stores it; the log gets
+  the real values only so it can refuse a text that still holds one.
+- **The prompt log keeps the masked question and lines and the masked
+  answer**, not the system instruction, which is a constant in `ask.ts`.
+- **The model ids are in one file, `lib/model-ids`**, by role: the small
+  model `claude-haiku-5-5` for Ask Etyme's free text, `claude-sonnet-5-5`
+  to read papers, and `claude-opus-5-5` to check and match. A deployment
+  may override a role with one environment variable. Each is priced there
+  (founder's figures of 2026-11-13); an id with no price is costed at
+  nothing and reads "price not configured", never at a made-up figure.
+- **No document checker called a model before the routing build**, and the
+  four calls that went out ungated (the CV evidence check, the job
+  screening, the nightly proactive match and the match engine) are now
+  gated: each asks the company's model switch and allowance first. With
+  the switch off or no key, the check is recorded as unverified with the
+  reason, and matching continues on rules alone.
+- **"Not now" changes nothing and is not recorded.** The question stays
+  waiting and comes back with "What needs me today?". **Except on a
+  drafted bill (2026-10-18):** there "Not now" is a recorded no, with
+  the person's reason or, where they give none, a sentence saying so,
+  because the nightly run asks about a draft once and a no that is not
+  recorded would ask again every night. The draft stays on the Bills page.
+- **The bill card reaches Teams; the hold card is still web only
+  (2026-10-19).** The digest carries a third list, the `bill.send`
+  questions this person may answer, read off the ledger's own
+  `waitingQuestions` (`mayDecide`), so the owner of a firm where nobody
+  else sends bills gets the card with "Only you send bills here, so Ask
+  Etyme asks you." under its title, and nobody else's own-authority
+  question ever appears. Send bill and Keep it as a draft go through
+  `decideApproval` with surface TEAMS. A bill is said once, when it
+  appears, with no second call: the question carries its due day only as
+  a sentence, so there is no date to call it before. A bill on hold
+  still reaches nobody in Teams.
+- **A hold on a bill is a card for whoever sends bills
+  (`invoices.issue`), not a number on the badge.** The badge is the
+  decisions queue's count (etyme-demand); a held bill is not in it.
+- **"Ask Pinnacle for a corrected invoice" from the prototype is not
+  built.** The twin has no act that sends a supplier a message about a
+  receipt, and the approval route accepts none, so no card for it is
+  drawn. It needs an act kind in the role contract first (architect).
+
+### Every first screen names a person — etyme-conversation, 2026-10-19
+
+- **Cards that only "Open".** Every row of the decisions queue is a card
+  in the chat. Four kinds act from the card, each on the one route that
+  already performs it, the same route the decisions page and Timesheets
+  press: approve a week and accept a week (`POST /api/timesheets/:id/approve`),
+  approve an expense (`POST /api/expenses/actions`, `approve`), accept an
+  expense (`POST /api/expenses/:id/accept`, `accept`). The twin's own
+  questions (an invoice receipt, a drafted bill) keep their cards on the
+  one approval route. Every other row opens its own page, because no
+  single route performs it in one press or the act needs words a card
+  does not ask for:
+  - a **flagged week** (over the job's hours, past the last day): the
+    route asks a reason, and a week over the overtime line asks which
+    hours are overtime; the card opens the week;
+  - a **held start** (`START_HELD`) and a **supplier with no agreement**
+    (`NO_AGREEMENT`): the fix is a paper put on file, not a yes;
+  - a **job request to approve** (`REQUISITION_APPROVAL`): the approve
+    route takes a rank and a hand-back with words;
+  - a **supplier to review** (`SUPPLIER_REVIEW`): each desk verifies its
+    own checklist items first;
+  - a **submission to review**, a **roll-off**, a **contract to paper or
+    start**, an **overdue bill**, an **invoice receipt that did not match**
+    (`BILL_DISPUTED`): each is a page of its own decisions.
+  - **"Answer a bench ask"** has no row in the decisions queue at all
+    today, so nothing is drawn for it; it needs a queue row (etyme-demand)
+    before it can be a card.
+  No act kind was added to the role contract for any of these: a card's
+  act is the person's own press, never the twin's.
+- **"Not now" on a decision card is not recorded**, and a card the person
+  acted on is not kept on the saved thread (PATCH records only the twin's
+  approvals). The next greeting rebuilds from the queue, so an acted row
+  is simply gone; a saved "What needs me today?" answer from earlier may
+  still draw a card the route now refuses, in the route's own sentence.
+- **The first line is the queue's own sentence** (`data.says`, etyme-demand)
+  where the queue gives one, so the mark, the greeting and the program page
+  say one number and one sentence. Its words are demand's ("Ingrid
+  Sørensen's start"); the cards under it carry the drawing's longer words
+  ("Ingrid Sørensen cannot start on Oct 22 without an I-9"). Where the
+  queue gives no sentence, the greeting names the first three itself.
+- **An MSP seated in a client's program reads its own book in the chat.**
+  The first line says whose program it runs, the closing line and the
+  picture are the client's, but the readers behind the questions (spend,
+  weeks, the queue) are the MSP's own company's, as before. Reading the
+  seated client's book in the chat is a change to `readersFor`'s scope
+  under the seat's permissions, not done here.
+- **"Since you last looked" for a dated cycle notice names the people in
+  its own body**, never the approver, because the notice does not carry
+  one: the reader is the approver, so it reads "You have five weeks to
+  approve by Wednesday: Helena Marsh, Omar Haddad and three more." A
+  weekday is said only inside the six days ahead; further out, the date.
+- **A conversation's "since you last looked" is its unread notes.** There
+  is no per-person read mark on a thread, so a thread counts as new where
+  this person holds an unread note on it; a note is marked read once the
+  greeting names its thread, and up to three threads are named.
+- **A firm's four answers read what the record holds, and say it.**
+  Signed weeks on no bill counts any week signed at the top with no line
+  on a sent or drafted bill of that sell line, however old (Brightmoor's
+  seeded world holds 31 from March). Unpaid bills count a bill the firm
+  issued, sent, part paid or held, by its total less what was paid.
+- **Why the AP clerk's first screen waited.** The greeting read the
+  notices, the model switch, then the program dashboard, then the
+  decisions queue and the twin's readers, then the saved thread, one after
+  another. They now start together, and the paying clerk's receipts are
+  each checked at once rather than in turn. Measured against the seeded
+  world with 20 ms added to every query: 1,022 ms before, about 570 ms
+  after. What is left is the decisions queue itself (about 26 queries in
+  a row, some once per row; etyme-demand), and the mark asks the same
+  queue again on every page load and once a minute (shell).
+
+### Ask Etyme by region — etyme-conversation, 2026-10-27
+
+- **A regional manager cannot reach Ask Etyme from the menu.** The route
+  answers a region seat now, but its menu is Today and By region and it
+  lands on By region (`lib/nav-table`, architect's). Pinning Ask Etyme on
+  a region seat's menu is the architect's call. By its address,
+  `/dashboard/conversations/etyme`, the chat answers, but the list of
+  other threads beside it reads `GET /api/conversations`, which does not
+  narrow to a region and refuses the seat. Not walked in a browser.
+- **The mark reads a whole region every minute.** For a region seat, the
+  CFO and the head of operations the mark's number is By region's
+  greeting, so each poll is a full `regionsView` and logs every person it
+  reads. Correct, and heavy; a count without the person rows is demand's.
+- **"What is held and why" reuses By region's own sentences**
+  (`greeting.items`), picked by their words ("invoice receipt", "start").
+  If demand rewords them the answer changes with them, which is the point,
+  but a held item worded without either word would be left out. A
+  structured list of held items on the read would end this.
+- **The time limit for a region or the program is the nearest person per
+  plant or per region**, said so in the answer; everybody at a plant is
+  one click behind on By region. A plant seat reads all of its own.
+- **Which seats read the rollup is decided by permission, not by title:**
+  a client seat on no unit, at a client whose sites carry two or more
+  regions, holding `utilization.read` and not `payments.record`. An
+  owner or an AP clerk keeps their queue and its pay cards.
+- **A region seat's "Since you last looked" is not shown.** Its greeting
+  is By region's line alone, so no notice is marked read for it.
+
+### Before 2026-10-12, as the panel on the twin's page
+
+- **The route is `POST /api/conversations/twin`, not `/api/twin-chat`.**
+  `app/api/twin-chat` had no owner in `lib/domains`, so a file there
+  fails `domain-ownership` on its commit; `app/api/conversations` is
+  conversation's already. The pure answering (`ask.ts`) and the reads
+  (`read.ts`) sit beside the route, on the `submissions/kind.ts`
+  precedent.
+- **The variance question reads the twin's recorded receipts, then
+  re-runs the rule on each.** "This quarter" is the calendar quarter in
+  UTC, by the day each receipt was billed (`issuedAt`, else
+  `submittedAt`) — the same day the spend answer counts by, so one
+  receipt falls in one period on both. A receipt with neither date is in
+  no quarter. Clean and not-clean are today's reading, so a
+  receipt fixed since the twin recorded it reads clean. One
+  `invoiceVerdict` (a full three-way check) per receipt, capped at 200 —
+  fine at a demo's size.
+- **Hours over accepted counts accepted weeks only**, summed as
+  billed minus accepted where billed is higher. Weeks nobody accepted are
+  shown apart, never folded in, and a supplier with no accepted week
+  reads "No week accepted yet" rather than zero. Hours under accepted
+  are not shown.
+- **Suppliers are grouped by display name**, because the verdict carries
+  the name and not the id. Two suppliers with one name would share a row.
+- **"What needs me" lists only the twin's own questions** (pending
+  `TwinApproval`s this seat holds the desk for, never one asked on its
+  own authority). Exceptions the twin told a desk about are in the
+  ledger, not in this list. A supplier reading a client's twin gets
+  none: the twin asks people at its own company.
+- **"Approve 1" refers to the order of the list at the moment of
+  asking**, re-read on every message. If a colleague answers one in
+  between, the numbers move; the confirm card names the receipt, so the
+  person sees which before pressing.
+- **The model's reply is not checked for claims beyond the lines it was
+  given.** It is labeled as the model's, its cited ids are kept only if
+  they are real lines, and it cannot act. A check that each figure in
+  the reply appears on a cited line is not built.
+- **The variance table is a plain table, not `ListSurface`.** It sits in
+  a chat bubble with a handful of rows; the invariant reads pages only.
+
+## A bill reaching the firm that pays it — etyme-conversation (2026-10-19)
+
+`lib/notify/bill-letter` (the words, the link, the sentence) and
+`lib/notify/bill-delivery` (the reads and the trail); the page is
+`/answer/bill/[token]`.
+
+- **Nothing sends it yet from the Send button.** `sendBillToCustomer` is
+  built and tested; the call from the three doors that send a bill (the
+  bill's Submit, the bulk Submit, the twin's `bill.send`) is money's, after
+  `markSent`'s transaction commits. Until it lands, a sent bill still
+  reaches nobody.
+- **No resend route yet.** `resendBillToCustomer` is built and tested;
+  `POST /api/invoices/[id]/resend` is under money's path.
+- **Plain text only, no PDF.** The letter carries one link; the page is the
+  bill. A client whose AP system wants a PDF attachment cannot have one.
+- **The link is not withdrawn when the contact is.** A supplier taking a
+  person off its record at a client does not close a link already sent to
+  them; it dies 90 days after the due date like every other.
+- **The open is logged as `TIMESHEET_VIEW`.** The access log has no action
+  of its own for a bill opened by its link (regulatory's union); the reason
+  names the bill and the address.
+- **Who signed reads the top of the chain.** "Built from 2 weeks Northbend
+  Athletic signed" names the client at the top of each week's chain, read
+  through `readWeekChain`; where weeks were signed by two firms the name is
+  left out.
+- **The record of a sending is an event, not an automation-log row.**
+  `invoice.submitted` and `invoice.resent` on the bill, carrying who it
+  went to and what each delivery did. It is a person's act, so it has no
+  rung; if the ladder should carry it, it is an ATTRIBUTED line in
+  `lib/autonomy` (architect).
+
+## The public site — etyme-market (2026-10-14)
+
+1. **`/census` closed on November 13, 2026; its files are not all gone.**
+   The founder deleted the audit from every page on 2026-10-14 and kept
+   the page reachable for thirty days. Done by market (cf7ad8a3b): the
+   page answers with the ordinary not-found page, it left
+   `lib/public-site/pages`, `GET_THE_AUDIT` left `lib/public-site/funnel`,
+   and the `AUDIT` kind and its words left `POST /api/market/leads` and
+   `lib/public-site/leads`. Still standing, each its owner's: the
+   delivery matrix names `src/app/census/page.tsx`, `flow.tsx` and
+   `src/lib/census-copy.ts` (rows L3.1.4.5 and L3.1.4.6, architect), so
+   those three files stay, unread, until the rows drop them and market
+   deletes them; the `/api/census/*` routes, `lib/census`, the
+   agreement at `/legal/census-agreement` and its document (regulatory,
+   money); the letters in `lib/notify/census` (conversation); stored
+   census rows, cleared by the retention sweep (regulatory).
+2. **`/demo` no longer links the audit** (closed): its foot offers Sign
+   up and a person, and `public-funnel.test.ts` holds it. The comment
+   above `NEXT_STEP_LEAD` in `src/app/demo/seats.ts` still says "the audit
+   and a person" (platform's).
+3. **The lane drawings are no longer shown, and are not deleted.** Since
+   2026-10-15 no page draws `public/model/*.png`: the ten party pages
+   that showed them became one table ("Who does what"), and the nine
+   process pages became five step pages whose flow charts are words. The
+   images (drawn from `docs/lanes/streams.mjs`, which has no owner in
+   `lib/domains.ts`) still say "desk" and "program office" inside them,
+   and `public/model` is still named under matrix row L3.1.4.1. Nobody
+   reads them; delete them once the matrix line is dropped. One party
+   page file, `lib/public-site/docs/candidate-employee.ts`, is kept
+   unread for the same reason (the matrix names it); delete it with the
+   line.
+4. **The page-view counts still name the audit.** `audit_cta_clicked`
+   and the two `audit_form_*` events stay in `lib/public-site/market-events`
+   because rows already written carry them; nothing on the site sends
+   them any more.
+
+## The simulation harness — etyme-architect (2026-10-20)
+
+- **No clock override.** The app reads the real day everywhere, so a run
+  cannot move "today" forward. Weeks a station files are real past and
+  present weeks; a year of weeks means weeks that ended in the past.
+  `advanceDay()` is not offered because there is nothing for it to move.
+- **Workers with no door.** The demo page seats six people by name. Every
+  other worker, and every role at a seeded firm no door names, is opened
+  with the same signed session cookie the door would set (`worker/…`,
+  `staff/…` keys). The session is identical; the knock is skipped.
+- **The seed decides who is seated.** Only Brightmoor Staffing seats every
+  supplier role; most firms seat an Owner and one or two more. A station
+  that needs a role a firm does not seat acts as the Owner, and says so.
+- **One machine, one database pool.** Timings are a local `next start`
+  against local Postgres with Prisma's default pool, not the serverless
+  host. A p95 here is a ranking of routes, not a promise about production.
+- **The build is a whole `next build`**, redone whenever a file under
+  `src/` is newer than the last one (a few minutes). Since 2026-10-20 each
+  build goes into its own folder, `.next-sim/builds/<stamp>`, under a lock
+  (`.next-sim/build.lock`); `.next-sim/current` is pointed at it only once
+  it finished, and a server keeps the build it started on. A second run
+  waits for the first run's build and uses it. A build's compiler cache is
+  deleted once that build has finished, so every build compiles from
+  nothing. Folders nobody points at are deleted after six hours, so a run
+  longer than six hours whose build was replaced meanwhile can lose its
+  files. `next build` adds its folder to tsconfig.json's include list; the
+  run takes that one line out again, and leaves the file alone (and says
+  so in the build log) if anything else in it changed. `--no-build` reuses
+  the current build.
+- **The database is kept** (`etyme_sim_<stamp>`, about 25 MB) unless
+  `--drop`. Nothing sweeps old ones yet.
+- **Two routes are slow under load, and their owners know.** Measured on
+  2026-10-20 with twenty calls at once on a four-CPU machine:
+  - `GET /api/cron/twin` ran at a p95 of 6.8 seconds. Most of it was the
+    twin's own: each act read the role contract again (175 reads in one
+    night) and looked up its finding key again (225), and each invoice
+    receipt read its supplier on its own. Since 2026-10-20 a run reads the
+    contract, the keys and the suppliers once (`runMemo` in lib/twin/ledger,
+    `invoiceSupplierIds` in lib/twin/performers); not yet measured again.
+    What remains is the rules' own reads (regulatory's tenure, money's
+    invoice match). Owner: etyme-architect, with regulatory and money for
+    their rules.
+  - Ask Etyme's greeting ran over two seconds at p95 for every party
+    under twenty reads at once. The greeting reads the decisions queue,
+    which runs about twenty-six queries in a row. Owner:
+    etyme-conversation for the greeting, etyme-demand for the decisions
+    read.
+- **A run's finding keys are read once, at its start.** A second run of
+  the same company's twin that writes a key after that read is still
+  caught by the ledger's unique key: an act done alone then reads as
+  already done, and an act that asks a person fails and staff are told.
+  The window was one act long before; it is one run long now.
+
+## Forwarded business email — etyme-architect (2026-10-22)
+
+- **A mail rule that keeps the original sender in From is dropped.** The
+  intake accepts only mail whose From is a person seated at the company and
+  which passed SPF and DKIM aligned for that person's domain. A manual
+  forward, and an Outlook rule's "Forward" action, send a new message from
+  the person and pass. A Gmail filter's forwarding, a Workspace routing rule
+  and an Outlook "Redirect" keep the original sender in From and are
+  dropped with "holds no seat". Accepting them would need trusting ARC
+  headers from the forwarding server; not done, because security wins.
+- **Closed until the deployment opens it.** Until `EMAIL_INTAKE_LIVE` is
+  exactly "1", `POST /api/email/inbound` answers 404 and writes nothing, and
+  no company can turn the intake on; the nightly deletion still runs. It is
+  opened after the founder's walk has attacked it and the privacy notice
+  and DPA name forwarded email. The flood line below applies only once it
+  is open.
+- **Unsigned deliveries each write a row (once open).** Every refused request is
+  logged as the rules ask, so a flood of unsigned posts writes a flood of
+  small rows. Nothing from their bodies is kept. The hosting firewall's rate
+  limit is the answer, and it is not set up.
+- **A PDF carrying scripts is kept and marked** (`activeContent` on the
+  attachment log), because a filled-in government form carries scripts
+  too. The server never opens it; whoever serves it to a person must send
+  it as a download, never inline. The check reads the raw bytes and misses
+  scripts hidden inside compressed object streams.
+- **Sorting is by words and numbers only.** No model; the typed slot
+  (`ModelStep`, `MODEL_STEP = null`) waits for the masking at the edge.
+  Numbers are matched only when exactly one of the company's own.
+- **Nobody reads a forwarded body on a screen yet**, so the access-log
+  action for that read does not exist; regulatory adds it to
+  `lib/access-log` and the card owners log every read of a body.
+- **Resend has no read-only key.** `RESEND_RECEIVING_KEY` must be a
+  full-access key, which could also change Resend's domains; it is kept
+  apart from the sending key so the sending key stays sending-only.
+
+## Supplier onboarding's signed copy and the agreement — etyme-architect (2026-10-22)
+
+- **The agreement written at Finance's yes does not point at the signed
+  copy.** Since 6fb83af7f an MSA or NDA item is on file only with its
+  signed copy attached (`POST /api/supplier-requests/:id/file`), and the
+  file's name and address sit on the checklist item. When Finance says
+  the last yes, `PATCH /api/supplier-requests/:id` creates the
+  `MasterAgreement` with `signedAt` and nothing else. Its
+  `executedFileName` and `executedFileUrl` stay empty, so the
+  Agreements page shows a signed agreement with no document behind it.
+  The copy can still be found on the onboarding request. The fix is to
+  carry the item's file onto those two columns at the same yes. That is
+  demand's route; no schema is needed. Not built yet.
+
+## Papers and pay per country — etyme-regulatory (2026-10-27)
+
+`src/lib/document-stages/countries.ts`: one row per country on the
+region drawing, each line with its source, the day it was read and
+whether it was confirmed. A screen reads `shownAt`, which leaves out
+every unconfirmed line. What the founder should know:
+
+1. **Not confirmed, so not shown.** Each was researched on 2026-10-27
+   and could not be stood behind:
+   - `IN.rule` — the drawing's "contract labour licence for the plant"
+     is the Contract Labour Act 1970, which the OSH Code 2020 replaced on
+     21 Nov 2025. The Code gives a five-year or a work-specific license
+     (and, per the government, one PAN-India license). The Code's own
+     sections, its worker threshold and the state rules under it were not
+     read: India Code timed out or returned an error page.
+   - `IN.paper.CONTRACTOR_LICENSE` — the same reason.
+   - `IN.paper.PF_ESI_NUMBERS` — the Code on Social Security 2020 was
+     not read; when enrollment falls due is unconfirmed.
+   - `IN.pay` — the Code on Wages 2019 s.17 was not reachable. The
+     government release of 21 Nov 2025 says "salary by the 7th" under its
+     IT and ITES heading only. CLAUDE.md's 2026-09-26 research (7th, 10th
+     at 1,000 or more) was not re-read. So India shows nothing yet.
+   - `MX.paper.IMSS_NUMBER` — the Ley del Seguro Social was not read.
+     The registration is believed due within five working days of the
+     start, not before day one as the drawing says.
+   - `CO.paper.SOCIAL_SECURITY_ENROLLMENT` — Ley 100 de 1993 was not
+     read; the Colombian government sites refused the connection.
+2. **Six of the drawing's lines were corrected by the law, not dropped.**
+   Belgium has six allowed reasons, not three. Northern Ireland's
+   week-12 right is equal basic pay *and conditions*. Colombia's 6 + 6
+   months applies to a rise in work only; covering a leave runs with the
+   leave. Brazil adds a 90-day break before the same client, and a new
+   contract inside it makes the worker the client's employee. Vietnam's
+   12 months is per lease, and the translation does not say whether a
+   new lease restarts it. The US time limit is the client's own rule.
+3. **Pay defaults are checked as lawful, not as common.** Each pay line
+   is confirmed against what the law allows. That the default is also
+   what workers there are commonly paid on is the drawing's claim and is
+   not sourced.
+4. **Vietnam was read in translation.** LuatVietnam's English text of
+   the Official Gazette; the official text is Vietnamese and its effect
+   status sits behind a subscription.
+5. **Nothing reads it yet.** `timeLimitAt` exposes Brazil's, Colombia's
+   and Vietnam's limits for the time-limit rule; it is not wired, so a
+   client is still held only to its own TENURE_CAP and BREAK_IN_SERVICE.
+   No paper here is in any required set yet; making them the floor for a
+   site in that country is the next piece, after the seeded multi-site
+   client lands.
+
+## Regions, Corvane and the reporting currency — etyme-architect (2026-10-27)
+
+- **`Invoice.total` stays `Decimal(12, 2)` this wave.** Money asked to widen it
+  to `Decimal(16, 3)` so a three-decimal currency (KWD, BHD) and a large
+  no-minor-unit total (VND, COP) are held exactly. Widening a column type is
+  not an additive change, so it waits for a wave that can take a migration
+  on a quiet tree. Until then a total past 9,999,999,999.99 or with a third
+  decimal cannot be stored; no seeded bill comes near either.
+- **`Company.reportingCurrency` and `FxRate.setById` are written and not yet
+  read.** `PATCH /api/settings/reporting-currency` writes both with who and
+  when; `lib/money/reporting-currency` still reads `homeCurrency` as the
+  reporting currency and reports `setBy: null`. Money's next change reads
+  `reportingCurrency ?? homeCurrency` and the rate's `setBy`.
+- **A region seat is refused every route that has not declared it narrows
+  to a region** (`getCallerContext(request, { narrowsToRegion: true })`).
+  That is on purpose — a refusal, never a leak — and it means Ask Etyme,
+  Today and the mark refuse a regional manager until their routes narrow.
+- **Corvane has no card on `/demo`.** Its seats open through
+  `POST /api/demo {"as":"world-corvane", "desk": …, "who": …}`; the three
+  desks with no chip are named in `demo-door.test.ts`.
+
+## The onboarding walk's follow-ups — etyme-architect (2026-10-27)
+
+- **`DocumentRequirement.companyId` has no writer yet.** It is the home for
+  "Papers you require", a company's own floor every order inherits. The
+  setup step and regulatory's default sets write it; until then every set
+  still belongs to an order or a line, and no reader looks for one here.
+- **`VerificationDoc.bytes`, `contentType` and `sizeBytes` have no writer
+  yet.** They hold a paper filed by somebody with no firm. Regulatory's
+  own-papers route is the writer; until then such a file has a name and a
+  `fileUrl` and nothing behind it.
+- **`CERTIFICATION` is a type and an enum value with no packet asking for
+  it.** It is chased like a license and stops nobody; which client set
+  requires one is regulatory's rule.
+- **`ProjectRelease.sellContractId` is optional since 2026-10-27**, landed
+  after supply's dd56c9d47 made every read of a release's line null-safe.
+  A release with no line names no client and no project end; a release
+  with a line is still one per line (the unique key stays).
+- **`DEGREE` is a `VerificationType` value only**, so a person with no firm
+  keeps her degree's copy (regulatory's ask). Nothing else reads it yet.
+- **With no email sender, sign-up confirmation links sit on the notice for
+  staff.** Anybody who can read `Notification.body` for that person can
+  confirm the sign-up. Reset stays shut without a sender for that reason.
+- **`claimOrJoin` is built and not yet called by the claim route**
+  (conversation's), and `findFirm` is not yet called by the supplier
+  approval (demand's). Until both land, the walk's second Quarrybrook can
+  still be founded by an approval.
+- **A link between two firms writes register rows only.** The yes gives
+  each side its `Counterparty` row; no agreement, terms or order is
+  written. An ask answered Not now can be asked again; nothing expires an
+  ask nobody answers. The seat's Owner refusal reads the role by its name,
+  `Owner`, because the grant route does not load a role's permissions.
+- **A client a worker names before it is on Etyme is kept by name**
+  (`DoNotSubmit.companyName`, `companyId` empty). The day exactly one
+  company of that name is made, `createCompany` moves it onto the record;
+  where two of that name exist it stays by name, and nothing renames it
+  later if one of the two leaves. The fill sits in `lib/company-create`
+  beside supply's `honorNamedClients`, which states the same rule.
+- **The seat grant applies regulatory's rule by the role's name only**
+  where the grant route does not load the role's permissions (demand's
+  route). The form offers only passing roles, read with their permissions.
+
+## The supplier's own acts and a firm's address — etyme-architect (2026-10-29)
+
+1. **A yes to put somebody forward works only on the web.** The yes goes
+   through `POST /api/submissions` itself, made from the session of the
+   person saying yes, so the submission is theirs and every refusal is the
+   door's own. A Teams card carries no session, so a Teams yes is refused
+   with "Put them forward from Ask Etyme on the web" until the bot can
+   act in a person's name.
+2. **The submission and the yes are two writes.** The submission is made
+   first, through its own door and its own trail (access log, event); the
+   yes is then recorded. Where that record fails, staff are told it was
+   done and not recorded (`DONE_NOT_RECORDED`); the submission is not
+   undone. The same holds for the start-papers ask.
+3. **Nobody but the Owner submits: refused, not asked.** The owner-only
+   exception stays on `bill.send` alone; widening it is the founder's.
+4. **The supplier twin's reads are logged through one cast.** The access
+   log's twin kinds name only the program manager's twin;
+   `src/lib/twin/supplier-run.ts` writes `SUPPLIER` until regulatory adds
+   it to the union.
+5. **The start-papers ask reads the worker's party from a running buy
+   line** (`workerPartyAt`, regulatory's), so a corp-to-corp worker not
+   yet started is checked against the W2 set's confirmation.
+6. **A firm's address checks its page with one request from the edge**
+   on each visit to its root, waiting at most 1.5 seconds; a slow answer
+   shows the home page. A firm's own domain (CUSTOM) still opens
+   `/site/<host>` with no check. `*.etyme.com` must point at the
+   deployment before `tapin.etyme.com` resolves at all.
+
+### Reports: cash flow — etyme-money, 2026-11-08
+
+- **Payroll due is the Payroll page's own rows, and only those.** Cash
+  flow asks `/api/payroll` in-process and places each row not yet
+  processed at its next pay date. With no period asked, that page shows
+  each line's most recent period, so a pay day further ahead than the next
+  one is not on cash flow until the Payroll page shows it.
+- **Payroll paid is what processed runs recorded.** A run that wrote hours
+  and no rate blanks payroll paid, and the net, for its period
+  (`paidRunHours` returns no amount); it is never read as nought.
+- **A payment out on a typed-in receipt with no payment row** is read at
+  the receipt's `paidAt` for its `paidCents`; with no `paidAt` it is in no
+  period and the screen says how many.
+- **A bill is billed on the day it was sent** (`submittedAt`, else
+  `issuedAt` for a bill sent before that column was written).
+- **A client's cash flow is built and not shown**: the page says Reports is
+  not open for a client yet while its link is held back.
+
+## Identity, pass 1 — etyme-architect (2026-11-11)
+
+Stage A of the enterprise identity build: the sign-in policy, the doors
+it answers, the session kill and the ledger. Every shortcut, stub and
+untested path, plainly.
+
+**What stage A left for stage B, and where it stands now:** the directory
+door, the mock directory, SCIM, the settings screen and LinkedIn are built
+(see "Identity, pass 1, stage B" below). Still true from stage A:
+`requiredAssurance` and `dataRegion` are recorded and never enforced.
+
+**Wired in another domain's files, asked for and not done here:**
+- **Wired by etyme-regulatory, 2026-11-11.** `POST /api/access/invite`
+  asks `checkDoor` (the door `inviteRefusal` wraps) before it seats
+  anybody, so an address off a directory-only company's own domain is
+  refused in its sentence, the row written first; an allowed invitation
+  writes `INVITE_SENT` in the same transaction as the seat and marks the
+  seat `source: INVITE`. `POST /api/access/[contextId]` writes
+  `MEMBERSHIP_REVOKED` with every revoke, in the seat's transaction, and
+  calls `endSessions` when a revoke or suspend leaves the person no live
+  seat anywhere (not revoked, not paused, not expired). The identity names
+  and `DIRECTORY_READ` are in `AccessAction`. The architect's three
+  follow-ups are done (stage B): `WRITTEN_BY` names both routes, the casts
+  are gone, and the Google directory reads file under `DIRECTORY_READ`. The surface on both
+  routes is written as WEB. The invite route refuses a caller with no
+  person, so that is true there; the revoke route does not, so a revoke
+  made with an API key is recorded as WEB with no actor.
+- **The security posture's counts move** (`docs/security-posture.md`,
+  etyme-regulatory's): two new API route files, so the legal-pages test
+  reads 61 of 355 route files where the document says 61 of 353, and fails
+  until regulatory changes the second number (the logging count does not
+  move: both routes write their rows through `lib/identity`, which writes
+  through `lib/access-log`).
+- The claim route (etyme-conversation's) is enforced through
+  `claimOrJoin`, which it already calls; a refusal answers 409 with the
+  sentence, the route's existing code for a claim that is not taken.
+
+**Shortcuts in what is built:**
+- **A public address is a consumer provider's address** (the list in
+  `lib/company-domains`). A seat on another company's work address at a
+  hybrid company is not limited.
+- **The limit on a hybrid public-address seat withholds eleven
+  permissions**, including `requirements.write`, because the award route
+  asks for it; so such a seat cannot post or change a job either.
+  `timesheets.approve` and `vendors.manage` are withheld as signing and
+  bank-check acts. The founder may narrow the list in a sentence.
+- **The INVITE_ONLY refusal is written as `JOIN_REFUSED_BY_POLICY`**, and
+  "sign out everywhere" as `SESSIONS_ENDED`: two names beyond the eleven,
+  because neither is a refused SSO sign-in.
+- **A session check that cannot read the database lets the token stand**
+  for that request rather than signing the person out on a blip; the seat
+  read on the same request fails with it, so nothing is served.
+- **A session minted before this build carries no door.** At a
+  directory-only company it is refused, which is right; nowhere else does
+  the missing door matter.
+- **Directory-only refuses a join by domain even after a directory
+  sign-in**: seats there come by SCIM or just-in-time, both stage B.
+- **`LOGIN_SUCCEEDED` is not written for somebody's very first sign-in on
+  a new address**, because the person is made after it by `/start`.
+- **The demo cookie and the dev bypass carry no door and no version**, so
+  "sign out everywhere" does not end a demo visitor's cookie.
+- The policy is read per request on two identity tables (and once on the
+  person) in the session callback; there is no cache, on purpose, so a
+  change is felt on the next request.
+
+**Untested paths** (the testing budget allows three files): the email
+link (magic link) refusal is tested only through the pure function; the
+reset-confirm route, the link in a sign-up email (`verifyEmail`) and the
+onboarding route's join refusal are covered by the policy function, not by
+calling them; the `DOMAIN_VERIFIED` row is not tested; nothing is tested
+against a real database.
+
+## Identity, pass 1, stage B — etyme-architect (2026-11-11)
+
+The company's own directory as a sign-in door, the mock directory, SCIM,
+Settings → Sign-in and LinkedIn. Every shortcut, mock and untested path.
+
+**Mocked, and said so:**
+- **The mock directory is a mock.** `/api/mock-directory/[slug]/…`
+  (discovery, authorize, token, jwks, people). It asks for no password:
+  picking a name on its page is its whole idea of proof. It serves only a
+  company whose every verified domain is reserved (.example, .invalid,
+  .local), under an issuer at `mock-directory.etyme.invalid`; the settings
+  route refuses its issuer for any other company and the door refuses it
+  again at sign-in. It signs with an Ed25519 key derived from
+  `NEXTAUTH_SECRET`. Its people are the directory identities Etyme holds
+  under its issuer, so turning somebody off "at the mock" is the same act as
+  a SCIM deprovision. Etyme's door answers the mock's token and key requests
+  in process rather than over the network, so a preview behind deployment
+  protection still runs the demo; a real directory is always fetched. Its
+  POST has no CSRF token: a page elsewhere could sign a browser in as a mock
+  person, on a demo company only.
+- **Seeded only at Northbend Athletic**, under the hybrid mode, with Ines
+  Okafor (Owner) and Mateo Silva (Hiring Manager, by the group
+  nb-hiring-managers). The seed never chooses directory only, because that
+  would close the demo door on every seeded Northbend seat.
+
+**Not built:**
+- **SAML.** The settings screen stores a SAML directory (entity id,
+  certificate) and says it is not built; it cannot be turned on, and the
+  door answers `SamlNotBuilt`. No SAML response is parsed anywhere.
+- **SCIM is minimal, not a conformance suite.** Unsupported: filters other
+  than `userName eq`, `externalId eq`, `displayName eq` and `id eq`;
+  `/ServiceProviderConfig`, `/Schemas`, `/ResourceTypes`, `/Bulk`, `/Me`;
+  ETags; sorting; `attributes` and `excludedAttributes`; enterprise user
+  extensions; DELETE on a Group (405); PATCH on any User attribute but
+  `active` and `userName`. A Group nobody mapped to a role is answered and
+  not kept. A SCIM call with an unknown token names no company and is
+  answered 401 with no ledger row (there is nobody to file it under).
+- **A SCIM seat meets a directory sign-in on the issuer and the subject.**
+  SCIM's `externalId` is stored as the subject, so the directory's claim
+  named on the screen (`sub` by default) must carry the same value; for
+  Entra ID that is usually `oid`. Where they differ, the directory sign-in
+  finds no identity and either seats a second one (just-in-time on) or
+  refuses.
+- **The Owner rules' card is not built.** A directory never pauses an
+  Owner's seat: the last Owner is refused outright (409, ledgered, nothing
+  changes); any other Owner loses their directory sign-in and every
+  session and keeps the seat, and the SCIM answer (409) says another Owner
+  removes it in Etyme.
+- **`requireDirectorySuppliers` is decided and worded, not read.**
+  `supplierDirectoryCheck` in `lib/identity/supplier-directory` says the
+  sentence; the supplier approval is etyme-demand's
+  (`app/api/supplier-requests`, `lib/supplier-onboarding`) and is asked to
+  call it and keep the reason (WARN, capture a reason, proceed).
+- **`requiredAssurance` and `dataRegion`** are stored, shown and said "not
+  yet enforced" on the screen. No `acr` is checked.
+- **LinkedIn is registered only with `LINKEDIN_CLIENT_ID` and
+  `LINKEDIN_CLIENT_SECRET`,** and has never signed anybody in: no keys on
+  any deployment. It is LinkedIn's OpenID Connect sign-in through NextAuth's
+  generic OAuth provider (no new dependency), state checked, no nonce or
+  PKCE because LinkedIn's sign-in does not take them. A LinkedIn session is
+  refused at any seat whose company is not a one-person firm.
+
+**Shortcuts in what is built:**
+- **A host name in a directory's address is not resolved before it is
+  fetched.** https only, no redirects followed, five seconds, 256 KB, no
+  literal private or link-local address, no user name in the address; a
+  public name pointing at a private address is not caught.
+- **The state is single-use by its cookie,** cleared on every answer from
+  the callback, and by the directory's one-time code; there is no server
+  row for a state. The ticket after it is single-use on the record: it
+  carries the identity's last sign-in stamp and spending it moves the stamp.
+- **Ending sessions is per person, not per company:** a directory turning
+  somebody off ends their sessions at every company they hold a seat at;
+  they sign in again elsewhere.
+- **Just-in-time links an existing Etyme person by address** where the
+  address is on the company's verified domain, because Etyme's person is
+  still keyed by email; the seat is then bound to the directory identity.
+- **The client secret is locked with `ETYME_DIRECTORY_TOKEN_KEY`** (the key
+  team structure's Google directory already uses), or named in the secret
+  store as `ETYME_IDP_<NAME>`; only names of that shape are read, so a
+  stored reference can never read `NEXTAUTH_SECRET` or `DATABASE_URL`.
+- **Shared-secret id tokens (HS256) are refused,** so a directory that only
+  signs that way cannot be connected.
+- **`/api/me` reports a hybrid public-address seat's permissions without
+  the money and signing limit** (its own reader, not `getCallerContext`'s),
+  so that seat's menu may draw Bills or Payroll that the routes then refuse
+  (owner of `app/api/me`; walk check 3).
+
+**The demo checks, walked 2026-11-11 on a local copy of the seeded world**
+(`scripts/identity-walk`, `next dev` on port 3123, never production):
+1. Northbend set to directory only by Ines Okafor from her own directory
+   session (200). The route refuses it from any other session, so the Owner
+   cannot lock herself out (unit-tested, not walked). Mateo Silva signed in through the mock directory and
+   read Jobs as a Hiring Manager, and was refused Settings → Sign-in (403).
+   SCIM `active: false` for Mateo: his next request answered 401 (session
+   ended), his seat paused, and the mock refused his next sign-in. A new
+   person signed in just-in-time and was seated as Hiring Manager through
+   the group. SCIM DELETE on Ines (an Owner) answered 409 with the Owner
+   rule; a guessed SCIM token 401.
+2. For rosa.lindqvist@northbend.example under directory only: the Google
+   and LinkedIn doors refused in process with `LOGIN_REFUSED_SSO_ONLY`
+   written (no provider keys locally); the demo door into a Northbend seat
+   refused on the next route (403 DIRECTORY_ONLY, row written). The
+   password door refused first as a demo address ("A demo seat opens only
+   from the demo page"), which is its older rule for reserved addresses, so
+   no SSO-only row is written for a password on a reserved domain; the
+   password door's SSO-only refusal is covered by stage A's unit tests.
+3. A Gmail partner seated at Brightmoor under hybrid signed in with a
+   password and read timesheets; raising a bill was refused; after the
+   Owner revoked the seat (regulatory's route), the next request answered
+   401: the last seat's sessions ended.
+4. Tecwyn's seat read its own eight weeks; a Brightmoor week it is not
+   party to was absent from its list and 404 by id.
+5. Settings → Sign-in's activity read back LOGIN_SUCCEEDED,
+   USER_PROVISIONED, USER_DEPROVISIONED, LOGIN_REFUSED_SSO_ONLY,
+   SSO_CONFIGURED and AUTH_POLICY_CHANGED, each with its surface and
+   sentence.
+
+**Untested paths:** a real directory (no Entra ID, Google Workspace or
+Okta tenant was connected); the token exchange's client_secret_basic and
+client_secret_post against a real token endpoint; ES256 and RS256 keys
+fetched over the network (signatures are tested in process); the screen on
+a phone (built in one column, not walked at 390 wide); the SCIM Groups
+routes over HTTP (unit-tested helpers only).
+

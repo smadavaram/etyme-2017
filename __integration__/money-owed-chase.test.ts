@@ -1,0 +1,723 @@
+/**
+ * Chain 5 of record 112, "Money loop": chasing money owed with evidence,
+ * through the real runner, the real task record and the real mail ledger.
+ * Builds its own firm on reserved domains. The provider is a stub; the
+ * door's rules are the real ones.
+ */
+import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { prisma, resetDatabase, as, req, json } from './harness'
+import * as item from '@/app/api/decision-items/[id]/route'
+import { decideBody } from '@/lib/decision-queue'
+import { runAgent, registerAgent, unregisterAgent } from '@/lib/agents/runner'
+import * as agents from '@/app/api/decision-items/agents/route'
+import { sendMail } from '@/lib/notify/mail-door'
+import { moneyOwedChaseStep, PROPOSED_MONEY_CHASE_PLAN, MONEY_OWED_CHASE_AGENT as KEY, closeChaseOnPayment } from '@/lib/money/money-owed-chase'
+
+const tag = `mo${Date.now()}`
+const w: Record<string, any> = {}
+const p = (id: string) => ({ params: Promise.resolve({ id }) })
+const sent: { to: unknown; text: string }[] = []
+const deps = {
+  env: { NOTIFY_FROM_EMAIL: 'hello@etyme.example', RESEND_API_KEY: 'k' }, isDemo: () => false,
+  hand: async (e: any) => { sent.push({ to: e.to, text: e.text ?? e.body ?? JSON.stringify(e) }); return { provider: 'Resend' as const, messageId: 'm' } },
+}
+const day = (n: number) => new Date(Date.now() - n * 86_400_000)
+const setSwitch = (state: string) => prisma.agentSwitch.upsert({
+  where: { companyId_agentKey: { companyId: w.firm.id, agentKey: KEY } },
+  update: { state: state as any }, create: { companyId: w.firm.id, agentKey: KEY, state: state as any, changedById: w.owner.id },
+})
+const register = () => registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => sendMail(m, deps as any) }) })
+const run = () => runAgent(KEY, w.firm.id, new Date())
+const say = async (decisionId: string, verdict: 'APPROVE' | 'REJECT') => {
+  as(w.owner.primaryEmail)
+  return json(await item.POST(req('POST', `/api/decision-items/${decisionId}`, decideBody(verdict, verdict === 'REJECT' ? 'Not this one.' : '', w.entity.id)), p(decisionId)))
+}
+const tasks = () => prisma.agentTask.findMany({ where: { companyId: w.firm.id, agentKey: KEY }, orderBy: { createdAt: 'asc' } })
+const taskFor = async (billId: string) => (await tasks()).find((t) => t.recordId === billId)!
+const letters = (taskId: string) => prisma.mailSend.count({ where: { agentTaskId: taskId, outcome: 'SENT' } })
+const aged = () => prisma.mailSend.updateMany({ where: { companyId: w.firm.id, outcome: 'SENT' }, data: { createdAt: day(8) } })
+let n = 0
+async function newBill(opts: { dueInDays?: number; total?: string; status?: string } = {}) {
+  const person = await prisma.person.create({ data: { name: `Worker ${++n}`, primaryEmail: `worker${n}.${tag}@example.invalid` } })
+  const line = await prisma.sellContract.create({ data: { companyId: w.firm.id, clientCompanyId: w.client.id, personId: person.id, engagementId: w.engagement.id, billRate: 10_000, state: 'IN_PROGRESS', startDate: day(90) } })
+  const ts = await prisma.timesheet.create({ data: { sellContractId: line.id, personId: person.id, periodStart: day(50), periodEnd: day(44), days: {}, totalHours: '40.00', clientApprovedAt: day(40) } })
+  return prisma.invoice.create({
+    data: {
+      engagementId: w.engagement.id, number: `IN-${n}-${tag}`, currency: 'USD', total: opts.total ?? '1000.00', periodStart: day(50), periodEnd: day(44),
+      dueAt: day(-(opts.dueInDays ?? -22)), status: opts.status ?? 'SUBMITTED',
+      invoiceLines: { create: [{ sellContractId: line.id, personId: person.id, timesheetId: ts.id, hours: '40.00', rateCents: 2500, amountCents: 100_000 }] },
+    },
+    include: { invoiceLines: true },
+  })
+}
+const pay = (invoiceId: string, amount: string) => prisma.payment.create({ data: { invoiceId, amount, receivedByCompanyId: w.firm.id, appliedAt: new Date() } as any })
+
+beforeAll(async () => {
+  process.env.NEXTAUTH_URL ||= 'https://etyme.example'
+  process.env.NEXTAUTH_SECRET ||= 'test-secret-for-bill-links'
+  await resetDatabase()
+  w.firm = await prisma.company.create({ data: { name: `Owed Firm ${tag}`, slug: `owed-firm-${tag}`, kind: 'VENDOR' } })
+  w.client = await prisma.company.create({ data: { name: `Owed Client ${tag}`, slug: `owed-client-${tag}`, kind: 'CLIENT' } })
+  w.entity = await prisma.legalEntity.create({ data: { companyId: w.firm.id, name: 'Owed Firm LLC', country: 'US', currency: 'USD' } })
+  const role = (name: string, permissions: string[]) => prisma.role.create({ data: { companyId: w.firm.id, name, permissions } })
+  const ownerRole = await role('Owner', ['*']); const arRole = await role('Accounts Receivable', [])
+  w.owner = await prisma.person.create({ data: { name: 'Dana Owner', primaryEmail: `dana.${tag}@example.invalid` } })
+  w.ar = await prisma.person.create({ data: { name: 'Rita Receivable', primaryEmail: `rita.${tag}@example.invalid` } })
+  await prisma.context.create({ data: { personId: w.owner.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: ownerRole.id } as any })
+  await prisma.context.create({ data: { personId: w.ar.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: arRole.id } as any })
+  await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: w.client.id, name: 'Omar Payables', email: `omar.${tag}@example.invalid`, kind: 'AP' } as any })
+  const msa = await prisma.masterAgreement.create({ data: { vendorId: w.firm.id, clientId: w.client.id } as any })
+  w.engagement = await prisma.engagement.create({ data: { title: `Owed ${tag}`, msaId: msa.id }, select: { id: true } })
+})
+afterEach(() => { unregisterAgent(KEY); sent.length = 0 })
+
+describe('chasing money owed, on the database', () => {
+  it('a bill past due with money owed opens one chase task with a card, and a second run opens no second', async () => {
+    await setSwitch('ON'); register()
+    const b = await newBill()
+    await run(); await run()
+    const t = await tasks()
+    expect(t).toHaveLength(1)
+    expect([t[0].kind, t[0].recordType, t[0].recordId, t[0].state]).toEqual(['MONEY_OWED_CHASE', 'Invoice', b.id, 'PROPOSED'])
+    expect(t[0].plan).toEqual(PROPOSED_MONEY_CHASE_PLAN)
+    w.bill = b
+  })
+
+  it('the card is owed by Accounts Receivable and says the customer, the bill, the amount, the due date and that the plan is a proposal', async () => {
+    const [t] = await tasks()
+    const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: t.decisionId } })
+    expect(card.ownerPersonId).toBe(w.ar.id)
+    expect(card.question).toContain(`Owed Client ${tag} owes $1,000.00 on bill ${w.bill.number}`)
+    expect(card.question).toMatch(/22 days past it/)
+    expect(card.question).toMatch(/one letter, then up to 2 reminders, 5 working days apart, closing when the bill is paid in full/)
+    expect(card.question).toMatch(/proposals; the Owner can change them in Agent control/)
+  })
+
+  it('nothing is sent before a yes', async () => {
+    register(); await run()
+    expect(sent).toHaveLength(0)
+    expect(await prisma.mailSend.count({ where: { companyId: w.firm.id, agentKey: KEY } })).toBe(0)
+  })
+
+  it('after a yes the letter names the bill, the amount owed and the due date, and carries the bill and its signed timesheets', async () => {
+    const [t] = await tasks()
+    await say(t.decisionId, 'APPROVE'); register(); await run()
+    expect(await letters(t.id)).toBe(1)
+    const row = await prisma.mailSend.findFirstOrThrow({ where: { agentTaskId: t.id } })
+    expect(row.subject).toContain(w.bill.number); expect(row.subject).toContain('$1,000.00')
+    expect(row.toAddresses).toEqual([`omar.${tag}@example.invalid`])
+    const text = sent[0].text
+    expect(text).toMatch(/is still owed/); expect(text).toMatch(/It was due on/)
+    expect(text).toContain('/answer/bill/')
+    expect(text).toMatch(/Worker \d+, .* 40 hours, signed /)
+  })
+
+  it('a reminder waits five working days and then goes', async () => {
+    const [t] = await tasks()
+    register(); await run()
+    expect(await letters(t.id)).toBe(1)
+    await aged(); await run()
+    expect(await letters(t.id)).toBe(2)
+    expect((await prisma.mailSend.findMany({ where: { agentTaskId: t.id }, orderBy: { createdAt: 'asc' } }))[1].subject).toMatch(/^Reminder: /)
+  })
+
+  it('a part payment reduces what is owed and the chase goes on', async () => {
+    const [t] = await tasks()
+    await pay(w.bill.id, '400.00')
+    await aged(); register(); await run()
+    expect(await letters(t.id)).toBe(3)
+    expect(sent[0].text).toContain('$600.00 is still owed')
+  })
+
+  it('reminders spent end the task with no answer, and the next run proposes one final notice as its own task', async () => {
+    const [t] = await tasks()
+    register(); await aged(); await run(); await run()
+    expect(await letters(t.id)).toBe(3)
+    const done = await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })
+    expect(done.state).toBe('DONE'); expect(done.closedReason).toMatch(/No answer/)
+    await run()
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, agentKey: KEY, recordId: w.bill.id, kind: 'MONEY_OWED_CHASE' } })).toBe(1)
+    const kids = await prisma.agentTask.findMany({ where: { companyId: w.firm.id, parentTaskId: t.id } })
+    expect(kids.map((k) => [k.kind, k.state])).toEqual([['ESCALATION', 'PROPOSED']])
+  })
+
+  it('a bill paid in full closes its chase at once and no further letter goes', async () => {
+    const b = await newBill()
+    register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE'); await run()
+    expect(await letters(t.id)).toBe(1)
+    await pay(b.id, '1000.00')
+    await closeChaseOnPayment(b.id)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('CLOSED_BY_ARRIVAL')
+    await aged(); sent.length = 0; await run()
+    expect(sent).toHaveLength(0)
+  })
+
+  it('a payment found by the nightly run, with no hook, also closes the chase', async () => {
+    const b = await newBill()
+    register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE')
+    await pay(b.id, '1000.00'); await run()
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('CLOSED_BY_ARRIVAL')
+    expect(await letters(t.id)).toBe(0)
+  })
+
+  it('a bill with an open short-pay decision is not chased until that decision is recorded', async () => {
+    const b = await newBill()
+    await pay(b.id, '900.00')
+    const decision = await prisma.decisionItem.create({
+      data: { companyId: w.firm.id, question: 'Short pay', proof: 'short', ownerPersonId: w.ar.id, state: 'OPEN', proofLinks: [{ recordType: 'Invoice', recordId: b.id }], openedOn: new Date() } as any,
+    }).catch(async () => null)
+    if (!decision) throw new Error('could not open the stand-in decision; the test needs the real shape')
+    register(); await run()
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(0)
+    await prisma.decisionItem.update({ where: { id: decision.id }, data: { state: 'APPROVED', decidedAt: new Date(), decidedByPersonId: w.owner.id } })
+    await run()
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(1)
+  })
+
+  it('a bill not yet due is not chased', async () => {
+    const b = await newBill({ dueInDays: 10 })
+    register(); await run()
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(0)
+  })
+
+  it('a bill the customer holds or disputes is not chased', async () => {
+    const b = await newBill({ status: 'DISPUTED' })
+    register(); await run()
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(0)
+  })
+
+  it('on drafts only it proposes and sends nothing, even after a yes', async () => {
+    const b = await newBill()
+    await setSwitch('DRAFT_ONLY'); register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE'); await run()
+    expect(sent).toHaveLength(0)
+    await setSwitch('ON')
+  })
+
+  it('the chase never writes off, holds pay or sends a final notice, and changes no bill', async () => {
+    const before = await prisma.invoice.findMany({ where: { number: { contains: tag } }, select: { id: true, status: true, total: true, paid: true, dueAt: true } })
+    register(); await aged(); await run()
+    const after = await prisma.invoice.findMany({ where: { number: { contains: tag } }, select: { id: true, status: true, total: true, paid: true, dueAt: true } })
+    expect(after).toEqual(before)
+    for (const k of await prisma.agentTask.findMany({ where: { companyId: w.firm.id, kind: { not: 'MONEY_OWED_CHASE' } } })) expect([k.kind, (k.plan as any).sendsNothing]).toEqual(['ESCALATION', true])
+    const templates = await prisma.mailSend.findMany({ where: { companyId: w.firm.id, agentKey: KEY }, select: { template: true } })
+    expect(new Set(templates.map((x) => x.template))).toEqual(new Set(['money-owed-chase']))
+    for (const s of sent) expect(s.text.toLowerCase()).not.toMatch(/final notice|write.?off|payroll hold/)
+  })
+
+  it('a letter that could not leave counts as an attempt, and the chase is never tried more times than its plan', async () => {
+    const b = await newBill()
+    await setSwitch('ON'); register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE')
+    const failing = { ...deps, hand: async () => { throw new Error('The mailbox is full.') } }
+    unregisterAgent(KEY)
+    registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => sendMail(m, failing as any) }) })
+    for (let i = 0; i < 6; i++) { await run(); await prisma.mailSend.updateMany({ where: { agentTaskId: t.id }, data: { createdAt: day(8) } }) }
+    expect(await prisma.mailSend.count({ where: { agentTaskId: t.id } })).toBe(3)
+    expect(await letters(t.id)).toBe(0)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('DONE')
+    const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { startsWith: 'Failed delivery' } } })
+    expect(cards.length).toBeGreaterThan(0)
+  })
+
+  it('with no mail sender set up, the chase ends saying no letter could leave, never "no answer", and one card asks a person to follow up', async () => {
+    const b = await newBill()
+    await setSwitch('ON'); register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE')
+    const noSender = { ...deps, env: {} }
+    unregisterAgent(KEY)
+    registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => sendMail(m, noSender as any) }) })
+    for (let i = 0; i < 6; i++) { await run(); await prisma.mailSend.updateMany({ where: { agentTaskId: t.id }, data: { createdAt: day(8) } }) }
+    expect(await prisma.mailSend.count({ where: { agentTaskId: t.id } })).toBe(3)
+    const done = await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })
+    expect(done.state).toBe('DONE')
+    expect(done.closedReason).toMatch(/No letter could leave/)
+    expect(done.closedReason).not.toMatch(/No answer/)
+    const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { contains: `no letter about bill ${b.number} could leave` } } })
+    expect(cards).toHaveLength(1)
+  })
+})
+
+describe('a customer nobody can write to, and the numbers the Owner sets', () => {
+  async function lonelyBill() {
+    const client = await prisma.company.create({ data: { name: `Lonely Client ${++n} ${tag}`, slug: `lonely-${n}-${tag}`, kind: 'CLIENT' } })
+    const msa = await prisma.masterAgreement.create({ data: { vendorId: w.firm.id, clientId: client.id } as any })
+    const engagement = await prisma.engagement.create({ data: { title: `Lonely ${n} ${tag}`, msaId: msa.id }, select: { id: true } })
+    const person = await prisma.person.create({ data: { name: `Lonely Worker ${n}`, primaryEmail: `lonely${n}.${tag}@example.invalid` } })
+    const line = await prisma.sellContract.create({ data: { companyId: w.firm.id, clientCompanyId: client.id, personId: person.id, engagementId: engagement.id, billRate: 10_000, state: 'IN_PROGRESS', startDate: day(90) } })
+    const bill = await prisma.invoice.create({
+      data: {
+        engagementId: engagement.id, number: `LN-${n}-${tag}`, currency: 'USD', total: '500.00', periodStart: day(50), periodEnd: day(44), dueAt: day(10), status: 'SUBMITTED',
+        invoiceLines: { create: [{ sellContractId: line.id, personId: person.id, hours: '20.00', rateCents: 2500, amountCents: 50_000 }] },
+      },
+    })
+    return { client, bill }
+  }
+  const noCards = (clientName: string) => prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { startsWith: `${clientName} has no one recorded to receive bills` } } })
+  const notSent = () => prisma.recordAction.count({ where: { companyId: w.firm.id, agentKey: KEY, action: 'MONEY_CHASE_NOT_SENT' } })
+
+  it('a customer with nobody to receive bills raises one card naming the fix, and no line every night', async () => {
+    await setSwitch('ON'); register()
+    const linesBefore = await notSent()
+    const { client, bill } = await lonelyBill()
+    await run()
+    const t = await taskFor(bill.id)
+    await say(t.decisionId, 'APPROVE')
+    await run(); await run(); await run()
+    const cards = await noCards(client.name)
+    expect(cards).toHaveLength(1)
+    expect(cards[0].question).toBe(`${client.name} has no one recorded to receive bills, so bill ${bill.number} cannot be chased. Add someone to receive bills (a contact at ${client.name}) on the customer’s page?`)
+    expect(cards[0].ownerPersonId).toBe(w.ar.id)
+    expect(cards[0].proofLinks).toEqual([{ recordType: 'Company', recordId: client.id }])
+    expect((await notSent()) - linesBefore).toBe(1)
+    expect(sent).toHaveLength(0)
+  })
+
+  it('once the billing contact is added the chase goes ahead as planned, with no further card', async () => {
+    const before = await notSent()
+    const t = (await tasks()).find((x) => x.state === 'APPROVED' || x.state === 'RUNNING')!
+    const bill = await prisma.invoice.findUniqueOrThrow({ where: { id: t.recordId }, include: { engagement: { include: { msa: true } } } })
+    await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: bill.engagement.msa!.clientId, name: 'Pat Payables', email: `pat.${tag}@example.invalid`, kind: 'AP' } as any })
+    register(); await run()
+    expect(await letters(t.id)).toBe(1)
+    expect(await notSent()).toBe(before)
+  })
+
+  it('a deployment with no lasting web address raises one card, then stays quiet', async () => {
+    const was = { a: process.env.NEXTAUTH_URL, b: process.env.NEXT_PUBLIC_APP_URL, c: process.env.APP_URL }
+    try {
+      await setSwitch('ON'); register()
+      const { client, bill } = await lonelyBill()
+      await prisma.companyContact.create({ data: { companyId: w.firm.id, atCompanyId: client.id, name: 'Quinn Payables', email: `quinn.${tag}@example.invalid`, kind: 'AP' } as any })
+      await run()
+      await say((await taskFor(bill.id)).decisionId, 'APPROVE')
+      delete process.env.NEXTAUTH_URL; delete process.env.NEXT_PUBLIC_APP_URL; delete process.env.APP_URL
+      await run(); await run(); await run()
+      const cards = await prisma.decisionItem.findMany({ where: { companyId: w.firm.id, question: { startsWith: 'Bills cannot be chased' } } })
+      expect(cards).toHaveLength(1)
+      expect(cards[0].question).toMatch(/does not know its own web address/)
+    } finally {
+      if (was.a) process.env.NEXTAUTH_URL = was.a
+      if (was.b) process.env.NEXT_PUBLIC_APP_URL = was.b
+      if (was.c) process.env.APP_URL = was.c
+    }
+  })
+
+  const patch = (email: string, body: unknown) => { as(email); return agents.PATCH(req('PATCH', '/api/decision-items/agents', body)) }
+
+  it('the Owner sets a chase’s reminders and spacing, and the next card proposes them', async () => {
+    await setSwitch('ON'); register()
+    const res = await patch(w.owner.primaryEmail, { agentKey: KEY, chaseNumbers: { retries: 4, daysApart: 3 } })
+    expect(res.status).toBe(200)
+    const ledger = await prisma.recordAction.findFirst({ where: { companyId: w.firm.id, recordType: 'AgentSwitch', summary: { contains: 'up to 4 reminders, 3 working days apart' } } })
+    expect(ledger).not.toBeNull()
+    const { bill } = await lonelyBill()
+    await run()
+    const t = await taskFor(bill.id)
+    expect(t.plan).toMatchObject({ retries: 4, daysApart: 3 })
+    const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: t.decisionId } })
+    expect(card.question).toMatch(/one letter, then up to 4 reminders, 3 working days apart/)
+    expect(card.question).toMatch(/numbers the Owner set in Agent control/)
+  })
+
+  it('a task already approved keeps the plan it was approved with', async () => {
+    register()
+    await patch(w.owner.primaryEmail, { agentKey: KEY, chaseNumbers: { retries: 2, daysApart: 5 } })
+    const { bill } = await lonelyBill()
+    await run()
+    const t = await taskFor(bill.id)
+    await say(t.decisionId, 'APPROVE')
+    await patch(w.owner.primaryEmail, { agentKey: KEY, chaseNumbers: { retries: 5, daysApart: 1 } })
+    await run()
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).plan).toMatchObject({ retries: 2, daysApart: 5 })
+  })
+
+  it('an Admin cannot change them', async () => {
+    const adminRole = await prisma.role.create({ data: { companyId: w.firm.id, name: 'Admin', permissions: ['settings.manage', 'people.manage'] } })
+    const admin = await prisma.person.create({ data: { name: 'Ada Admin', primaryEmail: `ada.${tag}@example.invalid` } })
+    await prisma.context.create({ data: { personId: admin.id, companyId: w.firm.id, type: 'EMPLOYEE', roleId: adminRole.id } as any })
+    const res = await patch(admin.primaryEmail, { agentKey: KEY, chaseNumbers: { retries: 1, daysApart: 1 } })
+    expect(res.status).toBe(403)
+    expect(JSON.stringify(await json(res))).toMatch(/Only the firm’s Owner/)
+  })
+
+  it('numbers outside the allowed range are refused in a sentence', async () => {
+    for (const [chaseNumbers, says] of [
+      [{ retries: 6, daysApart: 5 }, /Letters after the first is a whole number from 0 to 5/],
+      [{ retries: 2, daysApart: 0 }, /Working days apart is a whole number from 1 to 15/],
+      [{ retries: 2, daysApart: 16 }, /Working days apart is a whole number from 1 to 15/],
+      [{ retries: 1.5, daysApart: 5 }, /Letters after the first/],
+    ] as const) {
+      const res = await patch(w.owner.primaryEmail, { agentKey: KEY, chaseNumbers })
+      expect(res.status).toBe(422)
+      expect(JSON.stringify(await json(res))).toMatch(says)
+    }
+  })
+})
+
+describe('saying why a bill was not chased', () => {
+  const lines = (action: string, recordId?: string) => prisma.recordAction.findMany({ where: { companyId: w.firm.id, agentKey: KEY, action, ...(recordId ? { recordId } : {}) }, orderBy: { createdAt: 'asc' } })
+  const question = (b: { id: string; invoiceLines: { id: string }[] }) => prisma.decisionItem.create({
+    data: { companyId: w.firm.id, question: 'Short pay', proof: 'short', ownerPersonId: w.ar.id, state: 'OPEN', proofLinks: [{ recordType: 'Invoice', recordId: b.id }], openedOn: new Date() } as any,
+  })
+  const record = (id: string) => prisma.decisionItem.update({ where: { id }, data: { state: 'APPROVED', decidedAt: new Date(), decidedByPersonId: w.owner.id } })
+  const cards = () => prisma.decisionItem.count({ where: { companyId: w.firm.id } })
+
+  it('a bill held by an open payment question writes one ledger line saying why it was not chased, and a second run writes none', async () => {
+    await setSwitch('ON'); register()
+    const b = await newBill(); const q = await question(b)
+    await run(); await run()
+    const l = await lines('MONEY_CHASE_HELD', b.id)
+    expect(l).toHaveLength(1)
+    w.held = { b, q }
+  })
+
+  it('the held line names the bill, the customer and the open payment question, and says the chase is proposed once that question is recorded', async () => {
+    const { b, q } = w.held
+    const [l] = await lines('MONEY_CHASE_HELD', b.id)
+    expect(l.summary).toBe(`Bill ${b.number} to ${w.client.name} was not chased, and nothing was sent: a payment question about it is still open. Once that question is recorded, the next run proposes the chase.`)
+  })
+
+  it('a bill held by an open payment question opens no card of its own, so the person who owes that question sees it once', async () => {
+    const { b } = w.held
+    expect(await prisma.decisionItem.count({ where: { companyId: w.firm.id, proofLinks: { array_contains: [{ recordType: 'Invoice', recordId: b.id }] } } })).toBe(1)
+  })
+
+  it('once the open payment question is recorded the next run proposes the chase as before, with no further line', async () => {
+    const { b, q } = w.held
+    await record(q.id); register(); await run()
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(1)
+    expect(await lines('MONEY_CHASE_HELD', b.id)).toHaveLength(1)
+  })
+
+  it('a bill held again by a new payment question after the first was recorded says so once more', async () => {
+    const b = await newBill(); const q1 = await question(b)
+    register(); await run()
+    await record(q1.id)
+    const q2 = await question(b)
+    await run(); await run()
+    const l = await lines('MONEY_CHASE_HELD', b.id)
+    expect(l).toHaveLength(2)
+    expect(l.every((x: any) => !x.summary.includes(q1.id) && !x.summary.includes(q2.id))).toBe(true)
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(0)
+    await record(q2.id)
+  })
+
+  it('an approved chase paused by a new payment question writes one line on its task and sends nothing', async () => {
+    const b = await newBill()
+    register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE')
+    const q = await question(b)
+    sent.length = 0
+    await run(); await run(); await run()
+    const l = await lines('MONEY_CHASE_HELD', t.id)
+    expect(l).toHaveLength(1)
+    expect(l[0].summary).toMatch(/are paused, and nothing was sent/)
+    expect(l[0].summary).toMatch(/are paused/)
+    expect(sent).toHaveLength(0)
+    expect(await prisma.mailSend.count({ where: { agentTaskId: t.id } })).toBe(0)
+    await record(q.id)
+  })
+
+  it('on drafts only the skip is still said once and nothing is sent', async () => {
+    const b = await newBill(); await question(b)
+    await setSwitch('DRAFT_ONLY'); register()
+    await run(); await run()
+    expect(await lines('MONEY_CHASE_HELD', b.id)).toHaveLength(1)
+    expect(sent).toHaveLength(0)
+    await setSwitch('ON')
+  })
+
+  it('saying a chase was skipped never changes the bill, sends no letter and opens no task or card', async () => {
+    const b = await newBill(); await question(b)
+    const before = { inv: await prisma.invoice.findUniqueOrThrow({ where: { id: b.id } }), cards: await cards() }
+    register(); await run()
+    expect(await prisma.invoice.findUniqueOrThrow({ where: { id: b.id } })).toEqual(before.inv)
+    expect(await prisma.agentTask.count({ where: { companyId: w.firm.id, recordId: b.id } })).toBe(0)
+    expect(await cards()).toBe(before.cards)
+    expect(sent.filter((m) => m.text.includes(b.number))).toHaveLength(0)
+  })
+
+  it('at the day\'s cap the skip line is written on the next run rather than lost', async () => {
+    const b = await newBill(); await question(b)
+    await prisma.agentSwitch.update({ where: { companyId_agentKey: { companyId: w.firm.id, agentKey: KEY } }, data: { dailyCap: 0 } })
+    register(); await run()
+    expect(await lines('MONEY_CHASE_HELD', b.id)).toHaveLength(0)
+    await prisma.agentSwitch.update({ where: { companyId_agentKey: { companyId: w.firm.id, agentKey: KEY } }, data: { dailyCap: null } })
+    await run()
+    expect(await lines('MONEY_CHASE_HELD', b.id)).toHaveLength(1)
+  })
+})
+
+describe('a firm with nobody to hand a chase to', () => {
+  const ghost: Record<string, any> = {}
+  const gRun = () => runAgent(KEY, ghost.firm.id, new Date())
+  const gLines = () => prisma.recordAction.findMany({ where: { companyId: ghost.firm.id, agentKey: KEY, action: 'MONEY_CHASE_NO_OWNER' }, orderBy: { createdAt: 'asc' } })
+  const gBill = async (num: string) => {
+    const person = await prisma.person.create({ data: { name: `Ghost Worker ${num}`, primaryEmail: `gw${num}.${tag}@example.invalid` } })
+    const line = await prisma.sellContract.create({ data: { companyId: ghost.firm.id, clientCompanyId: ghost.client.id, personId: person.id, engagementId: ghost.engagement.id, billRate: 10_000, state: 'IN_PROGRESS', startDate: day(90) } })
+    return prisma.invoice.create({ data: { engagementId: ghost.engagement.id, number: `GH-${num}-${tag}`, currency: 'USD', total: '300.00', periodStart: day(50), periodEnd: day(44), dueAt: day(10), status: 'SUBMITTED',
+      invoiceLines: { create: [{ sellContractId: line.id, personId: person.id, hours: '10.00', rateCents: 2500, amountCents: 30_000 }] } } })
+  }
+  const seat = async (roleName: string, email: string) => {
+    const role = await prisma.role.create({ data: { companyId: ghost.firm.id, name: roleName, permissions: roleName === 'Owner' ? ['*'] : [] } })
+    const person = await prisma.person.create({ data: { name: `${roleName} Person`, primaryEmail: email } })
+    const ctxRow = await prisma.context.create({ data: { personId: person.id, companyId: ghost.firm.id, type: 'EMPLOYEE', roleId: role.id } as any })
+    return { person, ctxRow }
+  }
+  beforeAll(async () => {
+    ghost.firm = await prisma.company.create({ data: { name: `Ghost Firm ${tag}`, slug: `ghost-firm-${tag}`, kind: 'VENDOR' } })
+    ghost.client = await prisma.company.create({ data: { name: `Ghost Client ${tag}`, slug: `ghost-client-${tag}`, kind: 'CLIENT' } })
+    const msa = await prisma.masterAgreement.create({ data: { vendorId: ghost.firm.id, clientId: ghost.client.id } as any })
+    ghost.engagement = await prisma.engagement.create({ data: { title: `Ghost ${tag}`, msaId: msa.id }, select: { id: true } })
+    ghost.admin = (await seat('Admin', `ghostadmin.${tag}@example.invalid`)).person
+    await prisma.agentSwitch.create({ data: { companyId: ghost.firm.id, agentKey: KEY, state: 'ON', changedById: ghost.admin.id } })
+    await gBill('1'); await gBill('2')
+  })
+  const registerG = () => registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => sendMail(m, deps as any) }) })
+
+  it('a firm with no Accounts Receivable, Finance or Owner seat writes one line saying how many late bills were not chased and why, and none the next night', async () => {
+    registerG(); await gRun(); await gRun()
+    const l = await gLines()
+    expect(l).toHaveLength(1)
+    expect([l[0].recordType, l[0].recordId]).toEqual(['Company', ghost.firm.id])
+    expect(l[0].summary).toMatch(/^2 bills past due were not chased, such as bill GH-\d-/)
+    expect(l[0].summary).toMatch(/no Accounts Receivable, Finance or Owner seat is working\. Fill one and the next run proposes them\.$/)
+    expect(await prisma.agentTask.count({ where: { companyId: ghost.firm.id } })).toBe(0)
+    expect(await prisma.decisionItem.count({ where: { companyId: ghost.firm.id } })).toBe(0)
+  })
+
+  it('once a receivables seat is filled the next run proposes the chases it skipped', async () => {
+    ghost.ar = await seat('Accounts Receivable', `ghostar.${tag}@example.invalid`)
+    registerG(); await gRun()
+    expect(await prisma.agentTask.count({ where: { companyId: ghost.firm.id, agentKey: KEY } })).toBe(2)
+    expect(await gLines()).toHaveLength(1)
+  })
+
+  it('a firm that loses its last receivables and Owner seat after chases were proposed is told once again', async () => {
+    await prisma.context.delete({ where: { id: ghost.ar.ctxRow.id } }).catch(async () => prisma.context.update({ where: { id: ghost.ar.ctxRow.id }, data: { status: 'ENDED' } as any }))
+    await gBill('3')
+    registerG(); await gRun(); await gRun()
+    const l = await gLines()
+    expect(l).toHaveLength(2)
+    expect(l[1].summary).toMatch(/^1 bill past due was not chased, such as bill GH-3-/)
+  })
+})
+
+describe('a final notice after a chase ends with the bill still owed', () => {
+  const kids = (chaseId: string) => prisma.agentTask.findMany({ where: { parentTaskId: chaseId } })
+  const FN = 'money-owed-final-notice'
+  /** Walk one bill's chase to its end ("No answer"), stopping the moment it is DONE. Returns the chase task. */
+  async function endedChase(b: { id: string }) {
+    await setSwitch('ON'); register(); await run()
+    const t = await taskFor(b.id)
+    await say(t.decisionId, 'APPROVE')
+    for (let i = 0; i < 12; i++) {
+      await run()
+      if ((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state === 'DONE') break
+      await aged()
+    }
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('DONE')
+    return t
+  }
+  const finalFor = async (chaseId: string) => (await kids(chaseId))[0]
+  const mailFN = () => prisma.mailSend.count({ where: { companyId: w.firm.id, template: FN, outcome: 'SENT' } })
+
+  it('a final notice is proposed as its own task with its own yes card, and the finished chase is never reopened', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    expect(await kids(t.id)).toHaveLength(0) // the run that closed the chase proposes nothing
+    await run()
+    const [k] = await kids(t.id)
+    expect([k.kind, k.state, k.recordType, k.recordId, k.agentKey]).toEqual(['ESCALATION', 'PROPOSED', 'Invoice', b.id, KEY])
+    expect(k.decisionId).not.toBe(t.decisionId)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('DONE')
+    const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: k.decisionId } })
+    expect(card.ownerPersonId).toBe(w.ar.id)
+    w.fn = { b, t, k, card }
+  })
+
+  it('the final notice card names the customer, the bill, the amount owed, the days past due and the letters already sent', async () => {
+    const { b, card } = w.fn
+    expect(card.question).toMatch(new RegExp(`^Final notice for bill ${b.number}: ${w.client.name} still owes \\$1,000\\.00 on bill ${b.number}`))
+    expect(card.question).toMatch(/22 days past it/)
+    expect(card.question).toMatch(/\d letters? (was|were) sent, on /)
+    expect(card.question).toContain('A person sends this; Etyme sent nothing.')
+  })
+
+  it('the final notice draft is addressed to the same billing contact and carries the signed weeks, with no fee, deadline, threat or word about pay', async () => {
+    const { card } = w.fn
+    expect(card.proof).toContain(`omar.${tag}@example.invalid`)
+    expect(card.proof).toMatch(/Worker \d+, .* 40 hours, signed /)
+    const all = `${card.question}\n${card.proof}`.toLowerCase()
+    for (const x of ['fee', 'interest', 'deadline', 'within', 'legal', 'collections', 'payroll', 'wage', 'salary', 'threat']) expect(all).not.toContain(x)
+  })
+
+  it('a bill is never given a second final notice, whatever became of the first', async () => {
+    const { t, k } = w.fn
+    register(); await run(); await run()
+    expect(await kids(t.id)).toHaveLength(1)
+    await say(k.decisionId, 'REJECT')
+    await run(); await run()
+    expect((await kids(t.id)).map((x) => x.state)).toEqual(['REFUSED'])
+  })
+
+  it('nothing is sent for a final notice until a person says yes to its card, and a yes sends nothing either: the task ends handed to a person', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    const mailsBefore = await prisma.mailSend.count({ where: { companyId: w.firm.id } })
+    sent.length = 0
+    await run()
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })).state).toBe('PROPOSED')
+    await say(k.decisionId, 'APPROVE'); await run(); await run()
+    const done = await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })
+    expect(done.state).toBe('DONE'); expect(done.closedReason).toMatch(/person/i); expect(done.closedReason).toMatch(/Etyme sent nothing/)
+    expect(done.sentCount).toBe(0)
+    expect(sent).toHaveLength(0)
+    expect(await prisma.mailSend.count({ where: { companyId: w.firm.id } })).toBe(mailsBefore)
+    expect(await mailFN()).toBe(0)
+  })
+
+  it('the mail door refuses a final notice whatever the task, in ON mode too, and the step never calls it with that template', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    await say(k.decisionId, 'APPROVE')
+    const calls: string[] = []
+    unregisterAgent(KEY)
+    registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => { calls.push(m.about?.template ?? ''); return sendMail(m, deps as any) } }) })
+    await run(); await run()
+    expect(calls).not.toContain(FN)
+    const res = await sendMail({ to: `omar.${tag}@example.invalid`, subject: 'x', text: 'x', about: { companyId: w.firm.id, agentKey: KEY, agentTaskId: k.id, agentAttempt: 1, recordType: 'Invoice', recordId: b.id, template: FN, chase: true } }, deps as any)
+    expect(res.outcome).not.toBe('SENT')
+    expect(await mailFN()).toBe(0)
+  })
+
+  it('a chase that ended because no letter could leave proposes no final notice', async () => {
+    const b = await newBill()
+    await setSwitch('ON'); register(); await run()
+    const t = await taskFor(b.id); await say(t.decisionId, 'APPROVE')
+    const noSender = { ...deps, env: {} }
+    unregisterAgent(KEY)
+    registerAgent(KEY, { ruleVersion: 't', step: (ctx) => moneyOwedChaseStep(ctx, { send: (m) => sendMail(m, noSender as any) }) })
+    for (let i = 0; i < 8; i++) { await run(); await prisma.mailSend.updateMany({ where: { agentTaskId: t.id }, data: { createdAt: day(8) } }) }
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: t.id } })).state).toBe('DONE')
+    expect(await kids(t.id)).toHaveLength(0)
+  })
+
+  it('a chase closed because the bill was paid proposes no final notice', async () => {
+    const b = await newBill(); register(); await run()
+    const t = await taskFor(b.id); await say(t.decisionId, 'APPROVE'); await run()
+    await pay(b.id, '1000.00'); await closeChaseOnPayment(b.id); await run(); await run()
+    expect(await kids(t.id)).toHaveLength(0)
+  })
+
+  it('a bill the customer holds or disputes is never given a final notice', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    await prisma.invoice.update({ where: { id: b.id }, data: { status: 'DISPUTED' } })
+    await run(); await run()
+    expect(await kids(t.id)).toHaveLength(0)
+  })
+
+  it('a final notice is not proposed while a payment question about the bill is still open', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    const q = await prisma.decisionItem.create({ data: { companyId: w.firm.id, question: 'Short pay', proof: 'short', ownerPersonId: w.ar.id, state: 'OPEN', proofLinks: [{ recordType: 'Invoice', recordId: b.id }], openedOn: new Date() } as any })
+    await run(); await run()
+    expect(await kids(t.id)).toHaveLength(0)
+    await prisma.decisionItem.update({ where: { id: q.id }, data: { state: 'APPROVED', decidedAt: new Date(), decidedByPersonId: w.owner.id } })
+    await run()
+    expect(await kids(t.id)).toHaveLength(1)
+  })
+
+  it('a final notice with nobody recorded to receive bills is not proposed', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    const saved = await prisma.companyContact.findMany({ where: { companyId: w.firm.id, atCompanyId: w.client.id } })
+    await prisma.companyContact.deleteMany({ where: { companyId: w.firm.id, atCompanyId: w.client.id } })
+    try { await run(); await run(); expect(await kids(t.id)).toHaveLength(0) }
+    finally { for (const c of saved) await prisma.companyContact.create({ data: c as any }) }
+    await run()
+    expect(await kids(t.id)).toHaveLength(1)
+  })
+
+  it('a chase that finished before this change is offered a final notice on a card, and nothing is sent', async () => {
+    const b = await newBill(); register(); await run()
+    const t = await taskFor(b.id); await say(t.decisionId, 'APPROVE'); await run()
+    await prisma.agentTask.update({ where: { id: t.id }, data: { state: 'DONE', closedReason: 'No answer: every attempt in the plan was made and the bill is still owed. Any further step is a person’s to take.' } })
+    sent.length = 0; await run()
+    expect((await kids(t.id)).map((x) => x.state)).toEqual(['PROPOSED'])
+    expect(sent).toHaveLength(0)
+  })
+
+  it('on drafts only a final notice is proposed and nothing is sent, even after a yes', async () => {
+    const b = await newBill(); const t = await endedChase(b)
+    await setSwitch('DRAFT_ONLY'); sent.length = 0
+    await run()
+    const k = await finalFor(t.id)
+    expect(k.state).toBe('PROPOSED')
+    await say(k.decisionId, 'APPROVE'); await run()
+    expect(sent).toHaveLength(0); expect(await mailFN()).toBe(0)
+    await setSwitch('ON')
+  })
+
+  it('a final notice already proposed is closed when the bill is paid in full', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    await pay(b.id, '1000.00'); await closeChaseOnPayment(b.id)
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })).state).toBe('CLOSED_BY_ARRIVAL')
+  })
+
+  it('a final notice that was approved is closed as paid, not as handed over, when the bill is paid before the next run', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    await say(k.decisionId, 'APPROVE')
+    await pay(b.id, '1000.00')
+    await run()
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })).state).toBe('CLOSED_BY_ARRIVAL')
+  })
+
+  it('a final notice for a bill that is cancelled is stopped', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    await say(k.decisionId, 'APPROVE')
+    await prisma.invoice.update({ where: { id: b.id }, data: { status: 'CANCELLED' } })
+    await run()
+    expect((await prisma.agentTask.findUniqueOrThrow({ where: { id: k.id } })).state).toBe('STOPPED')
+  })
+
+  it('the final notice leaves the bill and its payments exactly as they were', async () => {
+    const b = await newBill(); await pay(b.id, '100.00'); const t = await endedChase(b)
+    const read = async () => ({ inv: await prisma.invoice.findUniqueOrThrow({ where: { id: b.id } }), pays: await prisma.payment.findMany({ where: { invoiceId: b.id }, orderBy: { id: 'asc' } }) })
+    const before = await read()
+    await run(); const k = await finalFor(t.id); await say(k.decisionId, 'APPROVE'); await run()
+    expect(await read()).toEqual(before)
+  })
+
+  it('the final notice card reads as a final notice on the control view, with the chase it grows out of', async () => {
+    const { openTasks } = await import('@/lib/agents/tasks')
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const row = (await openTasks(w.firm.id)).find((r) => r.escalationOf === t.id)!
+    expect(row.question).toMatch(/^Final notice for bill /)
+    expect(row.state).toBe('PROPOSED')
+  })
+
+  it('the final notice card carries its draft from the moment it opens, and its task reads as a final notice by name', async () => {
+    const { findOnBook } = await import('@/app/api/records/lookup')
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id)
+    const card = await prisma.decisionItem.findUniqueOrThrow({ where: { id: k.decisionId } })
+    expect(card.proof).toMatch(/Draft, to .*\nSubject: /)
+    expect((await findOnBook(w.firm.id, 'AgentTask' as any, k.id))?.name).toMatch(new RegExp(`Final notice for bill ${b.number}`))
+  })
+
+  it('the chase walk never takes a final notice as a chase of its own', async () => {
+    const b = await newBill(); const t = await endedChase(b); await run()
+    const k = await finalFor(t.id); await say(k.decisionId, 'APPROVE'); await run()
+    expect(await prisma.mailSend.count({ where: { agentTaskId: k.id } })).toBe(0)
+  })
+})

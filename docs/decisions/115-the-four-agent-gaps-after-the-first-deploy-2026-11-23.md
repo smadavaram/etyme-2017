@@ -1,0 +1,75 @@
+# 115 — The four agent gaps, built after the first deploy (2026-11-23)
+
+## The owner's words
+
+"OWNER DECISION — BUILD THE FOUR GAPS. Sharath answered yes: build the
+four gaps next, after Saturday's deploy — (1) the statement-of-work
+item, (2) one checklist per petition type, (3) the on-time notice
+check, (4) saying why a chase was skipped. Sequencing unchanged: the
+Saturday Nov 28 deploy of c8d8abaf7 stays first ... the four gaps build
+after that deploy, for the following release."
+
+## What each gap is (from the chain report of 2026-11-23)
+
+1. **Statement-of-work item.** The contracts checklist compares bill
+   rate, MSA terms and the order window, and has no SOW item. Its rate
+   is compared with the line's own current rate, not a signed paper.
+2. **One checklist per petition type.** The immigration checklist is a
+   fixed four-line list for every petition.
+3. **On-time notice check.** The notice log flags when the ten business
+   days end; nothing checks the notice went up on time.
+4. **Why a chase was skipped.** The money-owed chase skips a bill held
+   by an open reconciliation question, or with no receivables owner,
+   without saying so.
+
+## Order
+
+Saturday 2026-11-28 deploys c8d8abaf7 first. The four gaps are built
+after it, for the following release. Gaps 2 and 3 have a legal
+consequence: the petition-type lists and the on-time rule are
+regulatory's, warn until regulatory confirms them with a source, and
+never block. No agent signs, moves money, decides a person or publishes
+compliance copy. Defaults elsewhere held.
+
+## What was built
+
+**Gap 1, the statement-of-work item (2026-11-24).** The contracts checklist
+lists a "Statement of work" item on a placement whose engagement (its own,
+else its order's) has a written statement of work: signed reads met, a
+written one with no signature date reads as drift and opens one card to the
+Contract Manager, else the Owner. It warns only. A new bill rate item no
+longer starts "agreed" with the line's own rate: it has no agreed value and
+reads open ("no signed paper recorded"), opens no card, and becomes met or
+drift only after a person records the signed paper
+(`POST /api/compliance/checklist-items/:id`). The lead's rulings: rate items
+the agent had already listed are left as they are, so they still hold the
+line's old rate as agreed and read met without a paper until a person
+records one; there is no SOW rate field; two lines under one unsigned SOW
+open one card each. Known edge: recording a signed paper on the statement
+of work item itself would agree it to "Not signed"; the route was not
+touched and a person should sign the SOW on the engagement instead.
+
+**Gap 2, one checklist per petition type (2026-11-24).** Two lists, in
+`lib/agents/checklist-rules` (`petitionListFor`), in the shape of
+`lib/document-stages/countries`: H-1B (the kinds SPECIALTY_OCCUPATION,
+H1B and h-1b) keeps today's four lines, and every other kind reads the
+general list, the same without the labor condition application. Neither is
+confirmed (`confirmed: false`, with `unconfirmedBecause`), so each warns
+and none blocks; an unknown kind is never refused. The ledger lines say the
+list is a proposal. The petitions route returns `listConfirmed` and no
+screen prints a new sentence. `Petition.kind` stays free text. An older
+petition is topped up only: no line is deleted or relabeled. Regulatory adds
+L-1, O-1, E-3 and TN lists when it confirms each with a source.
+
+**Gap 3, the on-time notice check (2026-11-24).** A notice carries
+`measuredFromOn`, the filing day it is measured against, entered by a
+person on the form or later by PATCH, optional. No link to a petition was
+added: which filing a notice is measured against is regulatory's to say, so
+the date is the person's. With it, the compliance watch judges the notice
+(`noticeTiming`): dated after that day is late, more than 30 days before it
+is early (30 is a proposal), otherwise on time; with no date there is no
+verdict. Late and early open one card to HR or the compliance officer
+(its own link `<id>:timing`, apart from the period-ended card) that says
+the rule is a proposal and the agent posted, removed and changed nothing.
+Closed notices are judged too. A late notice is still saved and can still
+come down. On time shows as a muted chip, never green. Nothing blocks.

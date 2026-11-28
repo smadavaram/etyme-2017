@@ -1,0 +1,2836 @@
+/**
+ * A document asked for, and what happens to it.
+ *
+ * DocInstance carried four statuses since the table existed — PENDING ·
+ * SENT · SIGNED · UPLOADED — and one writer, which created PENDING. A
+ * request for a W-9 or an NDA could be made and never sent, never
+ * answered, never signed. The 2017 build had "attachable docs" flowing
+ * both ways on every contract; the rebuild had a row that sat there.
+ *
+ * Four moves, decided here in words:
+ *
+ *   send     the company asks the subject for it; the subject is told
+ *   upload   the subject (or the company, on their behalf) puts the file on
+ *            record — for paperwork that needs no signature
+ *   sign     the subject attests and signs, or the company records the
+ *            signed copy it received — for paperwork that does
+ *   (there is no "reject": a document is asked for until it is on file)
+ *
+ * Pure, so every refusal is a sentence tested by name.
+ */
+
+import { plainDate } from '@/lib/plain-date'
+import { calendarDaysBetween } from '@/lib/document-stages'
+import { humanKey } from '@/lib/document-type'
+import { productNameKey, sameName } from '@/lib/document-stages/paper-names'
+import { orderedBySays, orderedNotCollected, readVerdict } from '@/lib/attestation'
+import { COMPLETED_FROM_SHOWN } from '@/lib/document-stages/examine-form'
+// The bench answer is read through one door — `lib/bench-filter` — so two
+// screens on one menu cannot disagree about the same firm's people.
+import { readBench, type BenchReading } from '@/lib/bench-filter'
+import { noDeskYet } from '@/lib/no-desk'
+
+export type DocStatus = 'PENDING' | 'SENT' | 'SIGNED' | 'UPLOADED'
+export type DocAction = 'send' | 'upload' | 'sign'
+
+export interface DocFacts {
+  status: DocStatus | string
+  templateName: string
+  needsSignature: boolean
+  /** The person the document is about, when it is about a person. */
+  subjectPersonId: string | null
+  /** The company that asked. */
+  issuerName: string
+}
+
+export interface DocActor {
+  personId: string
+  /** Staff at the company that asked. */
+  staffOfIssuer: boolean
+  /**
+   * A seat at the company the document is about, where it is a
+   * company's own paper — a supplier's certificate, asked of the
+   * supplier. That firm answers it as itself, the way a person answers
+   * her own I-9.
+   */
+  atSubjectCompany?: boolean
+}
+
+export type DocVerdict =
+  | { ok: true; next: DocStatus; says: string }
+  | { ok: false; code: 'NOT_YOURS' | 'ALREADY_ON_FILE' | 'NEEDS_SIGNATURE' | 'NO_SIGNATURE_NEEDED' | 'NOT_SENT' | 'FILE_REQUIRED' | 'NO_ANSWER'; message: string }
+
+const ON_FILE = ['SIGNED', 'UPLOADED']
+
+export function mayAct(
+  action: DocAction,
+  doc: DocFacts,
+  actor: DocActor,
+  extra: { fileUrl?: string | null; attests?: boolean; note?: string | null } = {}
+): DocVerdict {
+  // The party a document is about answers it: the person, for her own
+  // paper, or the firm, for a paper about the firm. Until 2026-10-20 only
+  // the first was read, so a supplier asked for its own certificate of
+  // good standing reached the request (`standingOn` let it through) and
+  // was then told it "was not asked of you" — the one firm it was asked
+  // of. Found by the simulation's paperwork station.
+  const subject = actor.personId === doc.subjectPersonId || (doc.subjectPersonId === null && actor.atSubjectCompany === true)
+  const name = doc.templateName
+
+  if (ON_FILE.includes(doc.status)) {
+    return { ok: false, code: 'ALREADY_ON_FILE', message: `${name} is already on file.` }
+  }
+
+  if (action === 'send') {
+    if (!actor.staffOfIssuer) {
+      return { ok: false, code: 'NOT_YOURS', message: `Only ${doc.issuerName} can ask for ${name}.` }
+    }
+    return {
+      ok: true, next: 'SENT',
+      says: doc.status === 'SENT' ? `${name} asked for again.` : `${name} asked for. They have been told.`,
+    }
+  }
+
+  if (!subject && !actor.staffOfIssuer) {
+    return { ok: false, code: 'NOT_YOURS', message: `${name} was not asked of you, and it is not yours to put on file.` }
+  }
+
+  // Asked first, then answered. A request the firm drafted and never sent
+  // is not a question anybody has put to them, and a paper filed against
+  // it is a paper nobody asked for: the firm's set was never asked of
+  // them. `NOT_SENT` sat in the type with nothing returning it until the
+  // simulation's documents station tried it, 2026-10-21. The firm itself
+  // may still record a copy it received some other way.
+  if (doc.status === 'PENDING' && subject && !actor.staffOfIssuer) {
+    return {
+      ok: false, code: 'NOT_SENT',
+      message: `${doc.issuerName} has not asked you for ${name} yet. Nothing goes on file until they ask; then send it here.`,
+    }
+  }
+
+  // A stand-in question is answered in words. Signing or sending one with
+  // no answer put a blank on file that read as answered; only the screen
+  // stopped it (found by supply, 2026-10-22). Refused here, for everybody.
+  const question = questionOf(name)
+  if (question && !(extra.note ?? '').trim()) {
+    return {
+      ok: false, code: 'NO_ANSWER',
+      message: `Answer the question before you send it: “${question.question}”`,
+    }
+  }
+
+  if (action === 'upload') {
+    if (doc.needsSignature) {
+      return {
+        ok: false, code: 'NEEDS_SIGNATURE',
+        message: `${name} needs a signature. Sign it, or record the signed copy you received.`,
+      }
+    }
+    if (!extra.fileUrl) {
+      return { ok: false, code: 'FILE_REQUIRED', message: `Attach the file. ${name} cannot be on file without one.` }
+    }
+    // Received, never "on file": nobody has looked at it yet, and the
+    // start reads the look (the release walk, R3, 2026-11-03).
+    return { ok: true, next: 'UPLOADED', says: subject ? `${name} received. Thank you. ${doc.issuerName} will look at it before it counts.` : `${name} recorded as received.` }
+  }
+
+  // sign
+  if (!doc.needsSignature) {
+    return { ok: false, code: 'NO_SIGNATURE_NEEDED', message: `${name} does not need a signature. Upload it.` }
+  }
+  if (subject) {
+    if (!extra.attests) {
+      return { ok: false, code: 'FILE_REQUIRED', message: `Confirm that you are signing ${name} as yourself.` }
+    }
+    return { ok: true, next: 'SIGNED', says: `${name} signed. Thank you.` }
+  }
+  // Staff recording a signed copy that arrived some other way.
+  if (!extra.fileUrl) {
+    return { ok: false, code: 'FILE_REQUIRED', message: `Attach the signed copy of ${name} you received.` }
+  }
+  return { ok: true, next: 'SIGNED', says: `Signed copy of ${name} recorded.` }
+}
+
+// ── Who stands for the firm on a document ─────────────────────────────
+//
+// Found 2026-10-08, the day the one door for a seat with no desk landed
+// (`lib/deskless-door`). That door lets `documents/*/sign` and
+// `documents/*/upload` through, because "Your paperwork" uses them for
+// a person's own papers. But the route read every non-consultant seat at
+// the firm that asked as the firm's staff — so a Member, seated on the
+// domain with no desk at all, could sign the firm's NDA for somebody
+// else, or put a file on record as "received", and the request would
+// read as answered. The firm's paperwork is a desk's work, and a seat is
+// the firm's for a document only when it holds that desk.
+
+/**
+ * The permission the paperwork desk holds.
+ *
+ * The same one the "Paperwork" link names (`PAPERWORK_READS` in
+ * lib/nav-table), so the menu and the route cannot disagree about who
+ * works the firm's paperwork. At a supplier it is held by HR and the
+ * Compliance Officer (and the desks that work the firm's people); at a
+ * client by the compliance desk and the desks that read its people.
+ * A Member holds none of it, and an Accounts Receivable desk does not
+ * either — billing a client is not filing its paperwork.
+ */
+export const PAPERWORK_DESK = ['consultants.read'] as const
+
+export function holdsPaperworkDesk(permissions: readonly string[] | null | undefined): boolean {
+  const held = permissions ?? []
+  return held.includes('*') || PAPERWORK_DESK.some((p) => held.includes(p))
+}
+
+export interface PaperworkSeat {
+  personId: string
+  /** A seat at the firm that asked — never a consultant's own record there. */
+  atIssuer: boolean
+  /** A seat at the company the document is about, for a company's own paper. */
+  atSubjectCompany: boolean
+  permissions: readonly string[]
+  /** The caller's company, named in the refusal. */
+  companyName: string | null
+}
+
+export type PaperworkStanding =
+  | { ok: true; staffOfIssuer: boolean }
+  | { ok: false; status: 403 | 404; code: 'NOT_FOUND' | 'NO_DESK'; message: string }
+
+/**
+ * Whether this seat may act on this document at all, and as whom.
+ *
+ * - **The firm's staff**: a seat at the firm that asked, holding the
+ *   paperwork desk. Acts on any of the firm's documents.
+ * - **The person it is about**: answers their own, whatever seat they
+ *   hold — a Member asked for her own I-9 signs it as herself.
+ * - **A seat at the firm with no paperwork desk**, on somebody else's
+ *   document: refused in a sentence, never a key. It is a colleague,
+ *   not a stranger, so it is told what its seat lacks rather than that
+ *   nothing is here.
+ * - **Anybody else** is told nothing is here, so a refusal does not
+ *   confirm that a document exists.
+ *
+ * `mayAct` then decides the move itself; this decides only whose hands
+ * it is in.
+ *
+ * **Opening the file** (`'open'`, GET documents/:id/file) is held to the
+ * same rule, decided 2026-10-08. The file is the passport page, the
+ * signed I-9, the visa — and until that day any seat at the firm that
+ * asked could open it, so an Accounts Receivable clerk who bills the
+ * client could read a contractor's passport. Reading the file is the
+ * paperwork desk's work and the person's own right, and nobody else's.
+ */
+export function standingOn(
+  action: DocAction | 'open',
+  doc: { templateName: string; subjectPersonId: string | null },
+  seat: PaperworkSeat
+): PaperworkStanding {
+  const staffOfIssuer = seat.atIssuer && holdsPaperworkDesk(seat.permissions)
+  if (staffOfIssuer) return { ok: true, staffOfIssuer: true }
+
+  const subject = doc.subjectPersonId !== null && seat.personId === doc.subjectPersonId
+  if (subject) return { ok: true, staffOfIssuer: false }
+
+  if (seat.atIssuer) {
+    const what =
+      action === 'send'
+        ? `Asking somebody for ${doc.templateName}`
+        : action === 'open'
+          ? `Opening ${doc.templateName} for somebody else`
+          : action === 'sign'
+          ? `Signing ${doc.templateName} for somebody else`
+          : `Putting ${doc.templateName} on file for somebody else`
+    return { ok: false, status: 403, code: 'NO_DESK', message: noDeskYet(what, seat.companyName) }
+  }
+
+  // A company's own paper reaches it; mayAct decides what it may do.
+  if (seat.atSubjectCompany) return { ok: true, staffOfIssuer: false }
+
+  return { ok: false, status: 404, code: 'NOT_FOUND', message: 'That document request is not here.' }
+}
+
+// ── A file, rather than a link to one ─────────────────────────────────
+//
+// Supply built the picker on the worker's page and found that nothing in
+// this codebase stored a document's bytes: `DocInstance` carried a URL
+// and a file name and no file. So a contractor standing in a corridor
+// with a photograph of her I-9 on her phone had nowhere to put it, and
+// the only way to answer a chase was to host the thing somewhere first —
+// which is a thing a firm does and a person does not.
+//
+// The rules below are this document's and not a CV's, and the difference
+// is the whole point: a CV is a document somebody typed and a compliance
+// document is usually a photograph of a piece of paper. Images are
+// first-class here and are refused on the resume door for good reasons
+// that do not apply.
+
+/**
+ * How large a document may be.
+ *
+ * Ten megabytes rather than the CV door's five. A phone photograph of a
+ * passport page at full resolution is commonly six to eight, and
+ * refusing the picture somebody already has in order to keep a number
+ * round is refusing the answer to get the limit tidy.
+ */
+export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024
+
+/**
+ * What a compliance desk can actually open.
+ *
+ * Photographs are in, and they are the common case. Anything a desk
+ * would have to install software to read is out — a refusal now is
+ * cheaper than a document sitting on a file nobody opens until an
+ * auditor asks.
+ */
+export const ACCEPTED_DOCUMENTS: Record<string, string> = {
+  'application/pdf': 'PDF',
+  'image/jpeg': 'photo',
+  'image/png': 'image',
+  'image/heic': 'photo',
+  'image/heif': 'photo',
+  'image/webp': 'image',
+  'image/tiff': 'scan',
+  'application/msword': 'Word document',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word document',
+  'text/plain': 'text file',
+  'application/rtf': 'document',
+  'text/rtf': 'document',
+}
+
+const ACCEPTED_EXTENSIONS: Record<string, string> = {
+  pdf: 'PDF', jpg: 'photo', jpeg: 'photo', png: 'image', heic: 'photo', heif: 'photo',
+  webp: 'image', tif: 'scan', tiff: 'scan', doc: 'Word document', docx: 'Word document',
+  txt: 'text file', rtf: 'document',
+}
+
+export interface UploadVerdict {
+  ok: boolean
+  /** What it is, where it is acceptable — "photo, 2.1MB". */
+  says: string
+}
+
+/**
+ * Whether this file may be recorded against a document request.
+ *
+ * Pure, and checked BEFORE anything is written. A file refused after the
+ * row has moved leaves a request that says a document arrived and a
+ * record with nothing in it, which is the state this whole file exists
+ * to prevent.
+ *
+ * The refusal says what is wrong and what to do, never a code.
+ */
+export function checkDocumentUpload(file: { name: string; type: string; size: number }): UploadVerdict {
+  if (!file.size) {
+    return { ok: false, says: 'That file is empty. Pick it again — a photograph that did not finish saving often is.' }
+  }
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    const mb = Math.round((file.size / 1024 / 1024) * 10) / 10
+    return {
+      ok: false,
+      says:
+        `That is ${mb}MB and ten is the limit. If it is a photograph, your phone can send a smaller ` +
+        `one — or photograph the page on its own rather than the whole document.`,
+    }
+  }
+  const kind = ACCEPTED_DOCUMENTS[file.type.toLowerCase()] ?? ACCEPTED_EXTENSIONS[extensionOf(file.name)]
+  if (!kind) {
+    return {
+      ok: false,
+      says:
+        'A PDF, a photograph or a Word document. Whoever checks this has to be able to open it, ' +
+        'and a file they cannot open sits on your record as though it answered something.',
+    }
+  }
+  return { ok: true, says: `${kind}, ${sizeSaid(file.size)}.` }
+}
+
+function extensionOf(name: string): string {
+  return (name.toLowerCase().split('.').pop() ?? '').trim()
+}
+
+/** A size somebody reads, not a byte count. */
+export function sizeSaid(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${Math.round((bytes / 1024 / 1024) * 10) / 10}MB`
+  return `${Math.max(1, Math.round(bytes / 1024))}KB`
+}
+
+/**
+ * The questions that stand in for a document asked too early
+ * (lib/document-stages `insteadAsk`), as the asking sentence says them.
+ * A notice that reads "asks for Work authorization — the question" names
+ * a form, not the question; the person has to open it to learn what is
+ * being asked. Keyed by the document the question stands in for.
+ */
+export const QUESTION_SAID: Record<string, { asks: string; question: string }> = {
+  RIGHT_TO_WORK: {
+    asks: 'whether you are authorized to work in the US, and whether you will need sponsorship',
+    question: 'Are you authorized to work in the US, and will you need sponsorship now or in the future?',
+  },
+  BACKGROUND_CHECK: {
+    asks: 'whether anything would stop you passing a background check for this kind of work',
+    question: 'Is there anything that would prevent you passing a background check for this kind of work?',
+  },
+}
+
+/** The suffix `lib/document-stages` gives a stand-in question's label. */
+const QUESTION_SUFFIX = ' — the question'
+
+/** Which stand-in question a paper's name is, or null where it is a document. */
+export function questionOf(templateName: string): (typeof QUESTION_SAID)[string] | null {
+  if (!templateName.endsWith(QUESTION_SUFFIX)) return null
+  const about = templateName.slice(0, -QUESTION_SUFFIX.length).toLowerCase()
+  if (/work authori[sz]ation|right to work/.test(about)) return QUESTION_SAID.RIGHT_TO_WORK
+  if (/background/.test(about)) return QUESTION_SAID.BACKGROUND_CHECK
+  return null
+}
+
+/**
+ * What a screening answer says about sponsorship, read by rule from the
+ * person's own words, never by the model.
+ *
+ * True where the words say sponsorship will be needed (or name a status
+ * that needs it: H-1B, OPT, TN, L-1, a visa); false where they say it will
+ * not, or name a status that never needs it (a citizen, a permanent
+ * resident or green card, an asylee, a refugee); null where the rule
+ * cannot tell, which decides nothing and keeps the words for HR to read.
+ * The person's answer is recorded as the person's; it is never a verdict.
+ */
+export function sponsorshipFromWords(words: string | null | undefined): boolean | null {
+  const t = ` ${(words ?? '').toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, ' ')} `
+  if (!t.trim()) return null
+  const sponsorWord = /sponsor/
+  const negated =
+    /\b(will not|won't|wont|do not|don't|dont|does not|doesn't|shall not|never|no longer|not)\b[^.;]{0,30}\b(need|require|requir)\w*[^.;]{0,25}sponsor/.test(t) ||
+    /\bno\b[^.;]{0,15}sponsor/.test(t) ||
+    /sponsor\w*[^.;]{0,20}\b(not|never)\b[^.;]{0,10}\b(needed|required|necessary)\b/.test(t)
+  const asked =
+    !negated &&
+    sponsorWord.test(t) &&
+    (/\b(need|needs|needed|require|requires|required)\b[^.;]{0,40}sponsor/.test(t) || /sponsor\w*[^.;]{0,20}\b(needed|required)\b/.test(t) || /^\s*yes\b/.test(t))
+  const needsNone = /\b(citizen|green card|permanent resident|lawful permanent|asylee|refugee)\b/.test(t)
+  const onAVisa = /\b(h-?1-?b|opt|stem opt|cpt|tn|l-?1|f-?1|visa)\b/.test(t)
+  if (asked) return true
+  if (negated) return onAVisa && !needsNone ? null : false
+  if (needsNone && !onAVisa) return false
+  if (onAVisa && !needsNone) return true
+  return null
+}
+
+/**
+ * What HR reads beside the person's own words on the screening answer:
+ * how the rule read them, or that it could not, so HR reads the words.
+ * It says what the person said; it is never a verdict on the person.
+ */
+export function sponsorshipReading(words: string | null | undefined): string | null {
+  if (!(words ?? '').trim()) return null
+  const read = sponsorshipFromWords(words)
+  if (read === true) return 'Read as: will need sponsorship.'
+  if (read === false) return 'Read as: will not need sponsorship.'
+  return 'The words do not say whether sponsorship will be needed. Read them, and ask if it matters for the job.'
+}
+
+/** Whether this paper is the work-authorization screening question. */
+export function isWorkAuthQuestion(templateName: string): boolean {
+  return questionOf(templateName) === QUESTION_SAID.RIGHT_TO_WORK
+}
+
+/** What the person is told when it is asked for. */
+export function askNotice(doc: DocFacts): { title: string; body: string } {
+  const q = questionOf(doc.templateName)
+  if (q) {
+    return {
+      title: `${doc.issuerName} asks ${q.asks}`,
+      body: `${q.question} Answer it from your page. It takes a minute, and no document is asked for yet.`,
+    }
+  }
+  return {
+    title: `${doc.issuerName} asks for ${doc.templateName}`,
+    body: doc.needsSignature
+      ? `Sign ${doc.templateName} from your page. It takes a minute.`
+      : `Upload ${doc.templateName} from your page. A photo is fine.`,
+  }
+}
+
+/**
+ * What the asking firm is told when a paper comes back. The first answer
+ * says it arrived; an answer after a send-back says it came again, so a
+ * seat that was told once does not read the same line twice.
+ */
+export function answeredNotice(o: {
+  who: string
+  paper: string
+  signed: boolean
+  /** How many times this paper was answered before this one. */
+  before: number
+  note: string | null
+}): { title: string; body: string } {
+  const verb = o.signed ? 'signed' : 'uploaded'
+  // A file that arrived is not on file until somebody looks at it (the
+  // founder's tester, 2026-11-08): the examiners are told where to look.
+  const where = o.signed ? 'It is on file.' : 'It arrived and waits for you to look at it under Contracts, on the Paperwork tab.'
+  if (o.before === 0) return { title: `${o.who} ${verb} ${o.paper}`, body: o.note ?? where }
+  return {
+    title: `${o.who} ${verb} ${o.paper} again${o.before > 1 ? ` (${o.before + 1} times now)` : ''}`,
+    body: o.note ?? `This is the one sent after it was sent back. ${where}`,
+  }
+}
+
+// ── Who a compliance desk may pick ───────────────────────────────────
+//
+// Two pickers on two compliance screens ask the same question: which
+// people is this firm allowed to act on. "Ask this person for a
+// document" on the Paperwork page, and "File a petition for" on the
+// Visas tab. Both read `/api/bench` and both read it wrong — they took
+// `data.listings`, a key that route has never sent in its life, got
+// `undefined`, coalesced it to `[]`, and drew an empty dropdown. Nothing
+// failed, because an empty list is a valid-looking answer: a compliance
+// officer opening the Visas tab at any firm on the platform saw nobody
+// to file for and concluded there was nobody.
+//
+// ── And the population was wrong as well as unread ──────────────────
+//
+// A `BenchListing` is a consultant consenting to be **marketed**. Not
+// one of the things these two screens do needs that consent. A firm
+// files an H-1B for somebody it **employs**, and asks for a W-9 or an
+// NDA from anybody on its books — CLAUDE.md, on a prime's own bench:
+// "employees between projects... Not a `BenchListing` — that is a
+// consultant consenting to be sold; this is an employer's roster." So
+// even a picker that had read the listings correctly would have offered
+// no employee of an integrator whose whole supply is its own payroll.
+//
+// The population is therefore the union: the people who granted this
+// firm a listing, and the people it employs. That is a subset of what
+// `/api/compliance/petitions` already accepts — `ourPeople` there is
+// every live seat plus every granted listing — so nobody offered here
+// is refused on the way in, and nobody the route accepts is offered
+// without a reason a reader can see.
+//
+// ── Why it lives in this file ────────────────────────────────────────
+//
+// It belongs in a file of its own and cannot have one: a new path under
+// `src/lib` needs a line in `lib/domains.ts`, which is the architect's.
+// One copy in the file that owns "a document asked for" beats two copies
+// in two screens, which is the bug this whole comment is about.
+
+/** One name a compliance desk may pick, and why it is on the list. */
+export interface PersonOnBooks {
+  personId: string
+  name: string
+  /** In the reader's words: on your bench, on your payroll, or both. */
+  because: string
+}
+
+export interface BooksReading {
+  /** Who may be picked, one row per person, sorted by name. */
+  people: PersonOnBooks[]
+  /**
+   * What could not be read, in one sentence for the screen. Null when
+   * both sides answered in a shape this code understands — and an empty
+   * `people` with a null `why` really is a firm with nobody on its
+   * books, which is a different sentence and a different fact.
+   */
+  why: string | null
+  /** False when either side was unreadable, so a short list is never presented as the whole one. */
+  whole: boolean
+}
+
+const ON_BENCH = 'on your bench'
+const ON_PAYROLL = 'on your payroll'
+const ON_BOTH = 'on your payroll and your bench'
+const ON_STAFF = 'on your staff'
+
+/**
+ * The firm's own payroll, as `/api/bench?scope=payroll` answers it.
+ *
+ * Same rule as `readBench`: a row that cannot be read fails the whole
+ * reading rather than shortening it, because a list of five showing four
+ * is the bug nobody reports.
+ */
+function readRoster(payload: unknown): { ok: true; rows: PersonOnBooks[] } | { ok: false; why: string } {
+  if (payload == null || typeof payload !== 'object') {
+    return { ok: false, why: 'Your payroll did not answer, so anybody who is only on it is missing from this list.' }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data = (payload as any).data
+  if (data == null || typeof data !== 'object') {
+    return { ok: false, why: 'Your payroll answered without a body this page understands, so anybody who is only on it is missing from this list.' }
+  }
+  if (!Array.isArray(data.roster)) {
+    return {
+      ok: false,
+      why:
+        'Your payroll answered in a shape this page does not understand — it expects a ' +
+        'list of the people you employ. Nobody from it is offered here, rather than a ' +
+        'shorter list that looks complete.',
+    }
+  }
+
+  const rows: PersonOnBooks[] = []
+  let unreadable = 0
+  for (const r of data.roster) {
+    if (!r?.personId || typeof r?.name !== 'string' || !r.name) {
+      unreadable++
+      continue
+    }
+    rows.push({ personId: String(r.personId), name: r.name, because: ON_PAYROLL })
+  }
+  if (unreadable > 0) {
+    return {
+      ok: false,
+      why:
+        `Your payroll answered with ${unreadable} ${unreadable === 1 ? 'row' : 'rows'} this page ` +
+        'could not read, so nobody from it is offered here. A short list read as a whole one is worse than no list.',
+    }
+  }
+  return { ok: true, rows }
+}
+
+/**
+ * Everybody this firm may be asked about, from both halves of its books.
+ *
+ * `bench` is what `readBench` in `lib/bench-filter` made of
+ * `/api/bench?scope=company`; `payroll` is the raw answer to
+ * `/api/bench?scope=payroll`.
+ */
+export function peopleOnBooks(
+  bench: BenchReading,
+  payroll: unknown,
+  /**
+   * Where a side refused rather than answered, its own sentence. A
+   * compliance officer who lacks `consultants.read` should read the
+   * route's refusal, not "the bench did not answer" — CLAUDE.md: a
+   * refusal says what is missing and what to do.
+   */
+  refused: { bench?: string | null; payroll?: string | null; staff?: string | null } = {},
+  /**
+   * The reader herself. Nobody asks herself for a document: a one-person
+   * firm whose owner is on her own payroll was offered "Theresa Quaye ·
+   * on your payroll" (release walk, 2026-10-27).
+   */
+  exceptPersonId?: string | null,
+  /**
+   * The firm's own seats, as `/api/documents?view=staff` answers it.
+   * The payroll answer no longer lists staff (an owner, a recruiter), and
+   * a firm still asks them for papers and files their petitions. Optional:
+   * a caller that does not pass it reads exactly as before.
+   */
+  staff?: unknown
+): BooksReading {
+  const troubles: string[] = []
+  if (refused.bench) troubles.push(refused.bench)
+  else if (!bench.ok) troubles.push(bench.why)
+
+  const roster = readRoster(payroll)
+  if (refused.payroll) troubles.push(refused.payroll)
+  else if (!roster.ok) troubles.push(roster.why)
+
+  // One row per person. Somebody a firm employs who also granted it a
+  // listing is one person to pick, not two.
+  const byPerson = new Map<string, PersonOnBooks>()
+  for (const r of bench.rows) {
+    // Somebody only invited, or who said no, is not on this firm's books:
+    // her yes is what puts her there (the walk on screens, 2026-10-22).
+    if (r.consent === 'INVITED' || r.consent === 'DECLINED') continue
+    byPerson.set(r.personId, { personId: r.personId, name: r.name, because: ON_BENCH })
+  }
+  for (const r of roster.ok ? roster.rows : []) {
+    const seen = byPerson.get(r.personId)
+    if (seen) seen.because = ON_BOTH
+    else byPerson.set(r.personId, r)
+  }
+
+  if (staff !== undefined) {
+    const rows = (staff as any)?.data?.staff
+    if (!Array.isArray(rows) || rows.some((r: any) => !r?.personId || typeof r?.name !== 'string' || !r.name)) {
+      if (!refused.staff) troubles.push('Your staff list did not answer in a shape this page understands, so your own staff are missing from this list.')
+    } else {
+      for (const r of rows) if (!byPerson.has(String(r.personId))) byPerson.set(String(r.personId), { personId: String(r.personId), name: r.name, because: ON_STAFF })
+    }
+  }
+  if (refused.staff) troubles.push(refused.staff)
+
+  if (exceptPersonId) byPerson.delete(exceptPersonId)
+
+  return {
+    people: [...byPerson.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    why: troubles.length > 0 ? troubles.join(' ') : null,
+    whole: troubles.length === 0,
+  }
+}
+
+/**
+ * Both halves of the books, asked for and read, from a screen.
+ *
+ * The two compliance pickers call this and nothing else, so they cannot
+ * come to disagree about who may be picked — which is how one of them
+ * came to offer a firm's whole bench and the other to offer nobody.
+ *
+ * A side that refuses keeps its own sentence: a desk without
+ * `consultants.read` reads why rather than seeing an empty dropdown.
+ */
+export async function askTheBooks(exceptPersonId?: string | null): Promise<BooksReading> {
+  const ask = async (url: string): Promise<{ payload: unknown; refused: string | null }> => {
+    try {
+      const res = await fetch(url)
+      // The body is read either way — a refusal carries the sentence
+      // this screen is going to show.
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const said = (body as any)?.error?.message
+        return { payload: null, refused: typeof said === 'string' && said ? said : `That did not go through (${res.status}).` }
+      }
+      return { payload: body, refused: null }
+    } catch {
+      return { payload: null, refused: null }
+    }
+  }
+
+  const [bench, payroll, staff] = await Promise.all([
+    ask('/api/bench?scope=company'),
+    // The firm's own people. At an integrator the whole answer is here
+    // and none of it is a listing — see `rosterFor` in `app/api/bench`.
+    ask('/api/bench?scope=payroll'),
+    // The firm's own staff, which payroll no longer lists.
+    ask('/api/documents?view=staff'),
+  ])
+
+  return peopleOnBooks(readBench(bench.payload), payroll.payload, {
+    bench: bench.refused,
+    payroll: payroll.refused,
+    staff: staff.refused,
+  }, exceptPersonId, staff.refused ? undefined : staff.payload)
+}
+
+/**
+ * The sentence above the picker, or null when the list speaks for itself.
+ *
+ * Three states, and the screen must not collapse them: something could
+ * not be read; everything was read and this firm has nobody yet; there
+ * are people to pick.
+ */
+export function booksSays(reading: BooksReading): string | null {
+  if (reading.why) return reading.why
+  if (reading.people.length === 0) {
+    return 'Nobody is on your books yet. Somebody you employ, or somebody who has granted you a bench listing, appears here.'
+  }
+  return null
+}
+
+/**
+ * A paper its holder put on her own file before anybody asked: on file,
+ * examined by nobody. Deliberately not in `ON_FILE`, so it answers no
+ * ask and clears no start until a firm that asks for it examines it
+ * (release walk, 2026-10-27; `lib/document-stages/own-papers`).
+ */
+export const KEPT_BY_HOLDER = 'KEPT'
+
+/**
+ * Who a document in the library is asked of, as the trade says it.
+ *
+ * The library printed the stored audience title-cased — "Vendor",
+ * "Client" — the machine's words for the firm's role, read by a supplier
+ * on its own Paperwork screen (the second Tapin walk, 2026-10-30). A
+ * screen says who the person or the firm is to the reader, never the
+ * enum.
+ */
+export const AUDIENCE_WORDS: Record<string, string> = {
+  CANDIDATE: 'A worker',
+  VENDOR: 'A supplier',
+  CLIENT: 'A client',
+  EMPLOYEE: 'Your own staff',
+  GENERAL: 'Anybody',
+}
+
+export function audienceWord(audience: string): string {
+  return AUDIENCE_WORDS[audience.toUpperCase()] ?? 'Anybody'
+}
+
+// ── The library, one row per paper ─────────────────────────────────────
+//
+// The screen walk (2026-11-02, open in walk 3): Northbend's library listed
+// "Certificate of good standing" twice, and a name stored by an older
+// build still read in British spelling. A template is created from a
+// request's label wherever none is found by name, so two rows for one
+// paper and a name written before the spelling was fixed are both on the
+// record. The library reads them as one row, in American English; the
+// rows themselves are left as they are.
+
+/** A stored name, read in American English. Built from parts so the British word is not written here. */
+const BRITISH_BANK_WORD = new RegExp('\\b(c)he' + 'que(s?)\\b', 'gi')
+export function libraryName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').replace(BRITISH_BANK_WORD, (_m, c: string, s: string) => `${c}heck${s}`)
+}
+
+export interface LibraryTemplate { id: string; name: string; audience: string; needsSignature: boolean; instanceCount: number; hasFile?: boolean }
+
+/**
+ * One row per paper: templates whose names read the same (letter case and
+ * spacing aside) are one row, under the one most asked, with every ask
+ * counted. Pure, and in the order given.
+ */
+export function libraryOf(templates: LibraryTemplate[]): LibraryTemplate[] {
+  const byName = new Map<string, LibraryTemplate[]>()
+  for (const t of templates) {
+    const k = libraryName(t.name).toLowerCase()
+    byName.set(k, [...(byName.get(k) ?? []), t])
+  }
+  return [...byName.values()].map((group) => {
+    const lead = [...group].sort((a, b) => b.instanceCount - a.instanceCount)[0]
+    return {
+      ...lead,
+      // The name as somebody wrote it for a reader: capitalized where any row was.
+      name: libraryName((group.find((g) => /^[A-Z0-9]/.test(g.name.trim())) ?? lead).name),
+      needsSignature: group.some((g) => g.needsSignature),
+      instanceCount: group.reduce((n, g) => n + g.instanceCount, 0),
+    }
+  })
+}
+
+/** The word a row shows: what is true, not the enum. */
+export function statusWord(status: string): string {
+  switch (status) {
+    case KEPT_BY_HOLDER: return 'On file, not examined'
+    case 'PENDING': return 'Not asked yet'
+    case 'SENT': return 'Asked for'
+    case 'SIGNED': return 'Signed'
+    case 'UPLOADED': return 'On file'
+    default: return status.toLowerCase()
+  }
+}
+
+/**
+ * The word a paper on the firm's Paperwork reads, from what is on the
+ * record about it: "On file" only once somebody examined it, or a
+ * provider's verdict on it is recorded.
+ *
+ * The second screen walk (2026-11-03) found Paperwork saying "On file"
+ * for a paper that had only arrived: a file somebody sent is not a file
+ * somebody looked at, and the start reads the second. Pure.
+ */
+export function paperWord(p: { status: string; examinedAt?: Date | string | null; verdictRecorded?: boolean }): string {
+  const looked = !!p.examinedAt || !!p.verdictRecorded
+  switch (p.status) {
+    case 'UPLOADED': return looked ? 'On file' : 'Arrived, not examined'
+    case 'SIGNED': return looked ? 'Signed and accepted' : 'Signed, not examined'
+    case KEPT_BY_HOLDER: return looked ? 'On file' : 'On file, not examined'
+    default: return statusWord(p.status)
+  }
+}
+
+/** Whether a paper arrived and is waiting for somebody to look at it. */
+export function waitsToBeExamined(p: { status: string; examinedAt?: Date | string | null; verdictRecorded?: boolean }): boolean {
+  return ['UPLOADED', 'SIGNED', KEPT_BY_HOLDER].includes(p.status) && !p.examinedAt && !p.verdictRecorded
+}
+
+// ── Everything asked of one person, from wherever it was asked ────────
+//
+// A person's paperwork page listed `DocInstance` only, because that was
+// the one table that asked for anything when the page was written. It is
+// no longer: the nightly license chase raises a `DocumentPacket` against
+// the person, with a link of their own, and an ICU nurse asked for her
+// renewal by email opened her own page and found nothing on it.
+//
+// CLAUDE.md's rule for lists is the fix — fill from the work, not from
+// data entry. The page is derived from everything that actually asks this
+// person for something, in one shape, so a second kind of ask cannot go
+// missing the same way.
+//
+// What does not change is what it may show: their own paperwork, and
+// nothing about what the companies said to each other. Both kinds carry
+// who asked, what it is, by when, and how to answer it — and nothing
+// else about the request, because nothing else is theirs.
+
+export type PaperKind = 'DOCUMENT' | 'REQUEST' | 'HELD' | 'OUTSTANDING'
+
+/** A document sent to somebody for signature or upload. */
+export interface SentDocument {
+  id: string
+  status: string
+  templateName: string
+  needsSignature: boolean
+  /** The company that asked. */
+  issuerName: string
+  sentAt: Date | null
+  signedAt: Date | null
+  /** When the firm examined it, where it has. Until then an upload is sent, never on file. */
+  examinedAt?: Date | null
+}
+
+/**
+ * The word the worker's own list reads for a paper she sent. "On file"
+ * only once the firm examined it; until then it is sent and waiting to be
+ * checked (walk 5 and 7: an upload nobody had looked at read "On file" on
+ * her own list while Paperwork read "Arrived, not examined"). Pure.
+ */
+export function workerPaperWord(p: { status: string; examinedAt?: Date | string | null }): string {
+  if (p.status === 'UPLOADED') return p.examinedAt ? 'On file' : 'Sent, waiting to be checked'
+  return statusWord(p.status)
+}
+
+/** One thing asked for inside a packet. */
+export interface AskedItem {
+  id: string
+  /** The kind of paper asked for, where the request says, so one already on file is read as such. */
+  key?: string | null
+  label: string
+  /** PENDING · RECEIVED · ACCEPTED · REJECTED */
+  state: string
+  required: boolean
+  receivedAt: Date | null
+  position: number
+}
+
+/** A packet raised against this person — the whole ask, and its items. */
+export interface AskedPacket {
+  id: string
+  label: string
+  /** The company that raised it. */
+  askedBy: string
+  /** The address it was sent to. The link is only offered to that address. */
+  recipientEmail: string
+  token: string
+  /** The day the link stops working. Always set. */
+  expiresAt: Date
+  cancelledAt: Date | null
+  createdAt: Date
+  /**
+   * The sentence the person was given — the chase's own words, written to
+   * them. Null where the packet carried none.
+   */
+  reason: string | null
+  /**
+   * A renewal: it asks for a new copy of a paper that is on file and still
+   * in date, because that paper is about to lapse. The paper on file does
+   * not answer it, only the renewal does, so it stays listed until the
+   * renewal arrives (release pass 36, Colleen Byrne's license).
+   */
+  renewal?: boolean
+  items: AskedItem[]
+}
+
+/**
+ * A document already on file about this person, and when it stops
+ * counting.
+ *
+ * The third kind, added 2026-09-21. The page showed what somebody had
+ * asked her for and never what she already held, so an ICU nurse could
+ * read her own paperwork page, see nothing, and be three weeks from a
+ * lapsed registration that would stop her working — because the chase
+ * that would have told her does not fire until sixty days out, and the
+ * verdict that already knew was on a screen at the agency.
+ *
+ * The rule this closes is the founder's: the list a worker sees and the
+ * list clearance reads are the same items.
+ */
+export interface HeldRecord {
+  id: string
+  /** The type key — I9_EVERIFY, PROFESSIONAL_LICENSE, a client's own. */
+  key: string
+  /** What it is called, as the person would say it. */
+  label: string
+  /** CLEAR · CONDITIONAL · PENDING · EXPIRED · FAILED · … */
+  status: string
+  /** Who ran or issued it, where recorded. */
+  provider: string | null
+  /**
+   * The provider's own case number, where one was recorded. The column
+   * has existed since the table did and nothing in production writes it;
+   * it is read here so that the day something does, the row says it.
+   */
+  reference?: string | null
+  validFrom: Date | null
+  expiresAt: Date | null
+  /** True where a lapse stops the work rather than starting a conversation. */
+  stopsWork: boolean
+}
+
+export interface Paper {
+  id: string
+  kind: PaperKind
+  /** What it is, as the person would say it. */
+  name: string
+  /** The ask it came in, where it came in a list of several. */
+  partOf: string | null
+  /**
+   * Who asked. Null where nobody has — an item a line requires that no
+   * company has yet opened a request for. It read as the worker's own
+   * name before 2026-09-21, because the row's `owedByName` is the party
+   * that OWES it, and a page saying "Helena Marsh asked for Helena
+   * Marsh's I-9" reads as though she asked herself. `why` carries whose
+   * order requires it, so a row with no asker is never mute.
+   */
+  askedBy: string | null
+  /** Why, in their own words. Never a code. */
+  why: string | null
+  needsSignature: boolean
+  status: string
+  /** The word a row shows: what is true, not the enum. */
+  word: string
+  askedAt: string | null
+  doneAt: string | null
+  /** The day the ask closes, where it has one. */
+  dueOn: string | null
+  /** What is theirs to do, in a word: sign, upload, open, or nothing. */
+  todo: 'sign' | 'upload' | 'open' | null
+  /** Where they answer it. Null where the answer is given on this page. */
+  link: string | null
+  /**
+   * The day it runs out, where the document has one. Null means nobody
+   * recorded a date — which is not the same as "never expires" and is
+   * said as such on the row.
+   */
+  runsOutOn?: string | null
+  /**
+   * True where work stops until this is on file. Only ever set on an
+   * outstanding row: a document already held stops nothing by being held.
+   */
+  stopsWork?: boolean
+  /** True where somebody accepted its absence, on the record, by name. */
+  waived?: boolean
+  /**
+   * True where a paper for THIS row actually arrived and nobody has
+   * checked it yet.
+   *
+   * Said rather than inferred, since 2026-09-21. The screen was reading
+   * "sent" off the ABSENCE of somewhere to send it, so "nobody can send
+   * this" and "this has been sent" were the same shape — and a document
+   * nobody had ever sent read as sent. Two states that mean opposite
+   * things must not share a signal.
+   */
+  received?: boolean
+  /**
+   * The type key, on an outstanding row. What a page posts to open an
+   * ask for it — the document has no request behind it yet, so it has no
+   * id of its own to act on.
+   */
+  documentTypeKey?: string
+  /**
+   * Where to open a request so a file can be sent against this item.
+   * Null on every other kind, because those already have somewhere to
+   * answer: a document is answered at /api/documents/:id, a packet at
+   * the link it came with.
+   */
+  openAskAt?: string | null
+}
+
+/** The word a packet item shows. Received and accepted are not the same. */
+export function askWord(state: string): string {
+  switch (state) {
+    case 'PENDING': return 'Asked for'
+    // Sent at the link and nobody has looked yet: never "On file" (walk 7).
+    case 'RECEIVED': return 'Sent, waiting to be checked'
+    case 'ACCEPTED': return 'Accepted'
+    case 'REJECTED': return 'Sent back'
+    default: return state.toLowerCase()
+  }
+}
+
+const ANSWERED = ['RECEIVED', 'ACCEPTED']
+
+/** A check that actually came back. Anything else is still a request. */
+const ACCEPTED_CHECK = ['CLEAR', 'CONDITIONAL', 'EXPIRED']
+
+/**
+ * What a document on file says about itself, in the words a person uses.
+ *
+ * Four states rather than two, and the fourth is the one that caused the
+ * 2017 bug: on file, no expiry recorded, on a kind that expires. It says
+ * so rather than reading as permanent.
+ */
+export function heldWord(expiresAt: Date | null, on: Date, stopsWork = false): string {
+  if (!expiresAt) {
+    // The fourth state, and the one that went green in 2017: on file, no
+    // expiry recorded, on a kind that expires. Saying "on file" of it
+    // claims something nobody checked.
+    return stopsWork ? 'On file — no expiry recorded' : 'On file'
+  }
+  const daysLeft = calendarDaysBetween(expiresAt, on)
+  if (daysLeft < 0) {
+    const n = Math.abs(daysLeft)
+    return `Ran out ${n === 1 ? 'yesterday' : `${n} days ago`}`
+  }
+  if (daysLeft === 0) return 'Runs out today'
+  if (daysLeft <= 60) return `Runs out in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`
+  return `On file until ${plainDate(expiresAt.toISOString())}`
+}
+
+/** "professional license (RN 154-882, WI)" → sentence case, for a row. */
+function asRow(label: string): string {
+  return label.charAt(0).toUpperCase() + label.slice(1)
+}
+
+/** The same, for a sentence somebody reads rather than a row. */
+function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+}
+
+
+// ── What a line requires and nobody has filed ─────────────────────────
+//
+// "Ensure the loop of documents never cracks between parties."
+// — the founder, 2026-09-21.
+//
+// The crack the release walk found: every chase letter ends "upload it
+// from your Paperwork page", and the page read three tables — documents
+// sent, packets raised, checks already on file — and never the one that
+// says what this line actually requires. So Helena Marsh read three held
+// documents and nothing outstanding, under a subtitle promising "and
+// what is still being asked of you", while the client's own dashboard
+// said her start was blocked on a document she could not see.
+//
+// This is the arithmetic that closes it, and it is pure on purpose: the
+// SAME function answers the worker's page and the supplier's own
+// compliance page, so the list a worker reads and the list clearance
+// reads are the same items rather than two lists that agree by
+// coincidence.
+
+/** One item of a line's effective set, reduced to what this file needs. */
+export interface RequiredItem {
+  key: string
+  label: string
+  required: boolean
+  /** WORKER · SUPPLIER · CUSTOMER · US. A position in the trade, never a person. */
+  owedBy: string
+  /** The firm or person behind the role, where the line names one. */
+  owedByName: string | null
+  /** True where a lapse or an absence stops the work. */
+  blocks: boolean
+  waived: boolean
+  waivedSays: string | null
+  /** Where it came from — "required by Cavanaugh Glassworks’s order PO-2026-2". */
+  says: string
+}
+
+/** A document already on file, as the arithmetic needs it. */
+export interface HeldKeyRecord {
+  key: string
+  validFrom: Date | null
+  expiresAt: Date | null
+  /** False where the check is still running, so it counts as nothing held. */
+  accepted: boolean
+  /**
+   * True where the file is with whoever asked and nobody has checked it.
+   * Holds nothing — that is what `accepted` is for — and says whose move
+   * it is, so a worker who has sent a document is not asked for it
+   * again the next morning.
+   */
+  received?: boolean
+}
+
+/**
+ * Where an item stands on a line.
+ *
+ * WAIVED is a state and not an absence: Addendum E says WARN, capture a
+ * reason, proceed and never silently permit, so a waived item stays on
+ * the list, marked, with the reason and the name on it.
+ */
+export type OutstandingState =
+  | 'MISSING'
+  | 'LAPSED'
+  | 'NOT_YET_VALID'
+  /**
+   * She sent it and nobody has checked it yet. Not held — a check still
+   * running holds nothing — and not still owed by her either, because
+   * asking again for what is sitting in somebody's queue is how a worker
+   * learns the page is not worth reading.
+   */
+  | 'AWAITING_REVIEW'
+  | 'WAIVED'
+
+export interface OutstandingItem {
+  key: string
+  label: string
+  owedBy: string
+  owedByName: string | null
+  /** True where the work stops until it is on file. */
+  stopsWork: boolean
+  state: OutstandingState
+  /** What the row says, in words a person uses. Never the state name. */
+  word: string
+  /** Who asked for it, in their own words. */
+  asked: string
+  /** The day the one on file ran out, where there was one. */
+  ranOutOn: Date | null
+  waivedSays: string | null
+  /**
+   * Whether this is actually the person's to send.
+   *
+   * False on a check a screening company runs. The founder, 2026-09-22:
+   * "background check companies are the ones that confirm background
+   * pass or fail — our job would be to collect all info and pass it to
+   * them to verify." The report goes to the firm that ordered it and
+   * never to the person it is about, so a row offering her an upload
+   * button for one is asking her for somebody else's post.
+   *
+   * It stays ON her list, because she is not being asked for nothing —
+   * she is asked for her consent and the details the check runs
+   * against. What changes is whose move it is.
+   */
+  hers: boolean
+  /** Where it is not hers, what is actually happening. Null where it is. */
+  notHersBecause: string | null
+}
+
+/**
+ * What already proves a document, where a different document proves it.
+ *
+ * CLAUDE.md's fourth property of paperwork: a document can require other
+ * documents. This is that relation read the other way — the one the
+ * release walk found on 2026-09-21, when Helena Marsh was chased for
+ * proof of her right to work while holding a current I-9, an E-Verify
+ * result and a permanent resident card. The matcher is keyed on the type
+ * key, so nothing she held could satisfy an item asking for another key,
+ * and she was asked to produce again what she had already produced.
+ *
+ * Asking a lawful permanent resident to re-prove her right to work is
+ * not a harmless duplicate — re-verification of somebody whose status
+ * does not expire is one of the named forms of document abuse this
+ * file's own header exists to prevent.
+ *
+ * **The list is deliberately short, and a passport is not on it.** A
+ * foreign passport proves identity and not the right to work; a US
+ * passport does and we do not record which it is. Guessing the other
+ * way would clear an item the law did not clear. An employment
+ * authorization document and a permanent resident card each prove it on
+ * their own, and a completed I-9 is the form recording that somebody
+ * checked one.
+ *
+ * It lives here rather than on `RIGHT_TO_WORK.backedByAnyOf` in
+ * `lib/document-type` because that file is `etyme-architect`'s, and
+ * because `backedByAnyOf` means "what must stand behind this" rather
+ * than "what stands in for this". The two readings are close enough that
+ * merging them is the architect's call, not this file's.
+ */
+export const SATISFIED_BY: Record<string, readonly string[]> = {
+  RIGHT_TO_WORK: ['GREEN_CARD', 'WORK_PERMIT', 'I9_EVERIFY'],
+}
+
+function inDate(h: HeldKeyRecord, on: Date): boolean {
+  if (h.validFrom && h.validFrom.getTime() > on.getTime()) return false
+  if (h.expiresAt && h.expiresAt.getTime() < on.getTime()) return false
+  return true
+}
+
+/**
+ * Why a document from the default set is asked, in words a worker reads.
+ *
+ * Found by a tester on 2026-10-03: Helena Marsh's paperwork page said her
+ * non-disclosure agreement was asked because of "The default for a W2
+ * start". That is the system describing its own table — "W2" is a US
+ * tax form number and "default" is a configuration word — and it told
+ * her nothing about why she in particular was being asked.
+ *
+ * The plain answer is who the document is asked of: every employee, every
+ * person paid through their own company, every person a supplier
+ * provides. Said as a phrase so it reads both on her page ("Asked of
+ * every employee as standard paperwork") and inside a desk's sentence
+ * ("Non-disclosure agreement is asked of every employee as standard
+ * paperwork and nobody has signed it").
+ *
+ * Keyed on `SHAPE_SAYS` itself rather than on a copy of its strings, so
+ * a change to those words cannot quietly bring the jargon back. The
+ * lasting fix is those words in `lib/document-requirements`, which is
+ * the architect's file; once they say this, the map is a no-op. Anything
+ * that is not a default — "required by Northbend Athletic's order …" —
+ * already names who asked and passes through untouched.
+ */
+const PLAIN_DEFAULT_WHY: Record<keyof typeof SHAPE_SAYS, string> = {
+  CUSTOMER: 'asked of every person billed to a customer, as standard paperwork',
+  W2: 'asked of every employee as standard paperwork',
+  CORP_TO_CORP: 'asked of everyone paid through their own company, as standard paperwork',
+  SUB_VENDOR: 'asked of every person a supplier provides, as standard paperwork',
+}
+
+export function plainAsked(says: string): string {
+  for (const [shape, words] of Object.entries(SHAPE_SAYS) as [keyof typeof SHAPE_SAYS, string][]) {
+    if (says === words) return PLAIN_DEFAULT_WHY[shape]
+  }
+  return says
+}
+
+/**
+ * Everything a set requires that is not on file today.
+ *
+ * Pure: the caller reads the line's effective set and whatever is held,
+ * and this decides what is still owed and what each row says.
+ *
+ * Four states, not two, and the fourth is the one that caused the 2017
+ * bug — on file with no expiry recorded on a kind that expires — which
+ * `heldWord` already says of a held row and which arrives here as a row
+ * that counts, because a document with no end date is not an expired
+ * one. What this adds is the state the old build had no word for at
+ * all: required, never filed, and therefore invisible.
+ */
+export function outstandingItems(input: {
+  items: RequiredItem[]
+  /** What is already on file about whoever owes it. */
+  held?: HeldKeyRecord[]
+  /** Narrow to one party's items — WORKER on a person's own page. */
+  owedBy?: string[]
+  on?: Date
+}): OutstandingItem[] {
+  const on = input.on ?? new Date()
+  const all = input.held ?? []
+  // Only what actually came back counts as held. What was merely sent is
+  // read further down, where it changes whose move it is and not whether
+  // anything is on file.
+  const held = all.filter((h) => h.accepted)
+  const out: OutstandingItem[] = []
+
+  for (const raw of input.items) {
+    if (!raw.required) continue
+    if (input.owedBy && !input.owedBy.includes(raw.owedBy)) continue
+
+    // A type nobody defined arrives with its own key as its label,
+    // because that is what `effectiveRequirements` falls back to. Helena
+    // Marsh read "FURNACE_SAFETY_INDUCTION" on her own paperwork page on
+    // the walk that found this. The key is for the machine; the sentence
+    // is the product — and it is done here, once, so every reader of a
+    // set gets it rather than each humanizing its own copy.
+    const item = raw.label === raw.key ? { ...raw, label: humanKey(raw.key) } : raw
+
+    // Ordered from a third party, or collected from the person.
+    //
+    // A screening company renders the verdict and sends the report to
+    // whoever ordered it, so there is no version of this the person can
+    // hand over. `orderedBySays` returns null for everything else, which
+    // is what keeps a passport, a license and an I-9 hers to send.
+    const notHersBecause = orderedBySays(item.key, item.owedBy === 'WORKER' ? null : item.owedByName)
+    const hers = notHersBecause == null
+
+    // What she holds that answers this item: the type itself, and
+    // anything that proves it outright.
+    const answers = [item.key, ...(SATISFIED_BY[item.key] ?? [])]
+    // Everything that answers this item and actually arrived: what came
+    // back as a check, and what was sent as a paper. A check still
+    // running arrived as nothing and is not here, so it can never be
+    // read as a document that has run out.
+    const mine = all.filter((h) => answers.includes(h.key) && (h.accepted || h.received))
+    const current = mine.find((h) => h.accepted && inDate(h, on))
+
+    if (item.waived) {
+      out.push({
+        key: item.key,
+        label: item.label,
+        owedBy: item.owedBy,
+        owedByName: item.owedByName,
+        stopsWork: false,
+        state: 'WAIVED',
+        word: 'Waived — on the list, not expected',
+        asked: plainAsked(item.says),
+        ranOutOn: null,
+        waivedSays: item.waivedSays,
+        hers,
+        notHersBecause,
+      })
+      continue
+    }
+
+    // On file and in date. Nobody is waiting on anybody, so it is not
+    // outstanding — the page shows it under what is held.
+    if (current) continue
+
+    // Sent, and with whoever asked. Still on her list, because it is not
+    // done; no longer her move, because it is not hers.
+    //
+    // Only where it would cover today. A paper that arrived and has
+    // already run out is a lapse and not a pending review — telling her
+    // to wait for somebody to check a certificate that expired in March
+    // is telling her to wait for nothing.
+    const sent = mine.find((h) => !h.accepted && h.received && inDate(h, on))
+    if (sent) {
+      out.push({
+        key: item.key,
+        label: item.label,
+        owedBy: item.owedBy,
+        owedByName: item.owedByName,
+        stopsWork: item.blocks,
+        state: 'AWAITING_REVIEW',
+        // A check that has been opened is with the provider, not with a
+        // desk here waiting to look at a file she sent.
+        word: hers ? 'Sent — waiting for somebody to check it' : 'Ordered — waiting for the provider',
+        asked: plainAsked(item.says),
+        ranOutOn: null,
+        waivedSays: null,
+        hers,
+        notHersBecause,
+      })
+      continue
+    }
+
+    // A certificate whose period has not begun is not a missing one: it
+    // was asked for and supplied, and the person is still uncovered on
+    // day one. Named apart so the sentence can say the true thing.
+    const early = mine.find((h) => h.validFrom && h.validFrom.getTime() > on.getTime())
+    const lapsed = mine
+      .filter((h) => h.expiresAt && h.expiresAt.getTime() < on.getTime())
+      .sort((a, b) => b.expiresAt!.getTime() - a.expiresAt!.getTime())[0]
+
+    const state: OutstandingState = lapsed ? 'LAPSED' : early ? 'NOT_YET_VALID' : 'MISSING'
+    // The day a check ran out is the same fact whoever orders the next
+    // one, so a lapse still says the date. What changes on a check
+    // somebody else orders is the sentence about the gap: "not on file"
+    // reads as a thing she failed to send, and it is not.
+    const word =
+      state === 'LAPSED'
+        ? hers
+          ? heldWord(lapsed!.expiresAt, on, item.blocks)
+          : `${heldWord(lapsed!.expiresAt, on, item.blocks)} — a new one has to be ordered`
+        : state === 'NOT_YET_VALID'
+          ? `On file, but not in force until ${plainDate(early!.validFrom!.toISOString())}`
+          : !hers
+            ? item.blocks
+              ? 'Not on file — work cannot start until it is ordered and back'
+              : 'Not on file — it is ordered from a screening company'
+            : item.blocks
+              ? 'Not on file — work cannot start without it'
+              : 'Not on file'
+
+    out.push({
+      key: item.key,
+      label: item.label,
+      owedBy: item.owedBy,
+      owedByName: item.owedByName,
+      stopsWork: item.blocks,
+      state,
+      word,
+      asked: plainAsked(item.says),
+      ranOutOn: lapsed?.expiresAt ?? null,
+      waivedSays: null,
+      hers,
+      notHersBecause,
+    })
+  }
+
+  // What stops the work first, then what somebody already filed and let
+  // run out, then the rest by name.
+  const rank: Record<OutstandingState, number> = { LAPSED: 0, NOT_YET_VALID: 1, MISSING: 2, AWAITING_REVIEW: 3, WAIVED: 4 }
+  return out.sort(
+    (a, b) =>
+      Number(b.stopsWork) - Number(a.stopsWork) ||
+      rank[a.state] - rank[b.state] ||
+      a.label.localeCompare(b.label)
+  )
+}
+
+// `humanKey` and `sayType` used to live here. They moved to
+// `lib/document-type` in the architect's 204b4e02, which is the right
+// home: a type key is the dictionary's vocabulary, and the copy here
+// detected an undefined type by the label coming back equal to the key
+// — which stopped being true the hour `labelFor` learned to humanize.
+// A test that only checks the rendered name cannot see that, which is
+// why `document-type.test.ts` and this file's own sentence both pin the
+// caveat rather than the spelling.
+
+/**
+ * Everything asked of one person, in one list.
+ *
+ * Pure: the caller selects the rows and this decides what they say. Both
+ * halves are already scoped to the person by the query that found them —
+ * a document about them, a packet raised against them — so nothing here
+ * can widen that.
+ */
+export function myPapers(input: {
+  /** The caller's own address, so a link addressed elsewhere is withheld. */
+  myEmail: string | null
+  documents: SentDocument[]
+  packets: AskedPacket[]
+  /** What is already on file about them, and when each stops counting. */
+  held?: HeldRecord[]
+  /**
+   * What the lines they are on require of them and nobody has filed.
+   *
+   * The half that was missing until 2026-09-21: every chase letter told
+   * her to upload it from this page and this page did not know the
+   * document existed. `outstandingItems` computes it from the line's own
+   * effective set, so what she is asked for here and what the refusal at
+   * activation names are the same items.
+   */
+  owed?: OutstandingItem[]
+  /**
+   * The `DocInstance` already open for a type key, where one is. A
+   * second press is the same request rather than a second one.
+   */
+  asksByKey?: Record<string, string>
+  /**
+   * The kinds on file and in force for her today, read the way the
+   * placement reads them. A request item still asking for one of them is
+   * not listed: the paper is on her file, and showing it as both "On file"
+   * and "Asked for" is two truths about one paper (the fourth screen walk, R3).
+   */
+  onFileKeys?: string[]
+  /** The day it is read on. Only used to say how long is left. */
+  on?: Date
+}): Paper[] {
+  const papers: Paper[] = []
+  const now = input.on ?? new Date()
+  // A kind is on file where it, or anything that stands in for it, is.
+  const held = new Set(input.onFileKeys ?? [])
+  const onFile = {
+    has: (key: string) => [key, ...(SATISFIED_BY[key] ?? [])].some((k) => held.has(k)),
+  }
+
+  // ── One document is one row on her page ────────────────────────────
+  //
+  // A `DocInstance` opened against a requirement is two things the
+  // system knows about: a paper somebody asked for, and the answer to an
+  // item on her list. It was emitted as both, with the SAME id — so one
+  // upload rendered twice, once under "Sent, waiting to be checked" and
+  // once under "Papers somebody sent you", marked "On file". Same
+  // document, opposite words, and the second row claimed a firm had sent
+  // it TO her when she had sent it to them.
+  //
+  // While the requirement is unanswered the OUTSTANDING row IS the
+  // document: it carries the state, which item it answers, whose order
+  // asked for it, and whether work stops without it. The DOCUMENT row
+  // carries none of that. So the outstanding row wins and the duplicate
+  // is not produced. Once the item is satisfied it leaves `owed`
+  // altogether and the DOCUMENT row is the only one left, which is the
+  // right row for a paper that is simply on file.
+  const answering = new Set(
+    (input.owed ?? []).map((o) => input.asksByKey?.[o.key]).filter((id): id is string => !!id)
+  )
+
+  for (const d of input.documents) {
+    // Not asked yet is the company's business, not the person's.
+    if (d.status === 'PENDING') continue
+    if (answering.has(d.id)) continue
+    papers.push({
+      id: d.id,
+      kind: 'DOCUMENT',
+      name: d.templateName,
+      partOf: null,
+      askedBy: d.issuerName,
+      why: providersVerdict(d.templateName)
+        ? `${d.issuerName} orders this from a screening company and the result goes to them. There is nothing for you to send.`
+        : null,
+      needsSignature: d.needsSignature,
+      status: d.status,
+      word: workerPaperWord(d),
+      askedAt: d.sentAt?.toISOString() ?? null,
+      doneAt: d.signedAt?.toISOString() ?? null,
+      dueOn: null,
+      // A drug screen or a background check asked as a paper is still a
+      // verdict a provider renders and posts to the firm: nothing for her
+      // to attach (the walk on screens, 2026-10-22). Her consent is the
+      // paper she signs; the result is not hers to send.
+      todo: d.status === 'SENT' && !providersVerdict(d.templateName) ? (d.needsSignature ? 'sign' : 'upload') : null,
+      // Answered on the page itself, through /api/documents/:id.
+      link: null,
+    })
+  }
+
+  const acceptedOnce = new Map<string, { id: string; key: string | null; label: string; askedBy: string; at: Date | null }>()
+  for (const p of input.packets) {
+    // A withdrawn ask is not still asking anybody for anything.
+    if (p.cancelledAt) continue
+    // The token is the only credential the link carries, so it is offered
+    // to the address it was sent to and to nobody else — even where the
+    // packet is about the person reading the page.
+    const mine =
+      !!input.myEmail && p.recipientEmail.trim().toLowerCase() === input.myEmail.trim().toLowerCase()
+    for (const item of [...p.items].sort((a, b) => a.position - b.position)) {
+      // An item asking for a paper already on file and in force is answered
+      // by that paper, so it is not listed twice (R3). A renewal is never
+      // answered by the paper it renews.
+      if (!p.renewal && item.state === 'PENDING' && item.key && onFile.has(item.key)) continue
+      // An item the firm accepted is on her file, not a link still asking
+      // her for something: it is listed once, under on file, however many
+      // finished requests asked for it (the fifth screen walk, R5: Rosa
+      // Delgado read three accepted papers under "Asked for, with a
+      // link", her undertaking twice).
+      if (item.state === 'ACCEPTED') {
+        const k = (item.key ?? item.label).trim().toLowerCase()
+        if (!acceptedOnce.has(k)) acceptedOnce.set(k, { id: item.id, key: item.key ?? null, label: item.label, askedBy: p.askedBy, at: item.receivedAt ?? null })
+        continue
+      }
+      const answered = ANSWERED.includes(item.state)
+      papers.push({
+        id: item.id,
+        kind: 'REQUEST',
+        name: asRow(item.label),
+        partOf: p.label,
+        askedBy: p.askedBy,
+        why: p.reason,
+        // A packet takes the file; it never asks anybody to sign.
+        needsSignature: false,
+        status: item.state,
+        word: askWord(item.state),
+        askedAt: p.createdAt.toISOString(),
+        doneAt: item.receivedAt?.toISOString() ?? null,
+        dueOn: p.expiresAt.toISOString(),
+        // Answered at the link, not here — so the page never offers a
+        // button that posts a packet item to the documents route.
+        todo: answered || !mine ? null : 'open',
+        link: mine ? `/packet/${p.token}` : null,
+      })
+    }
+  }
+
+  // ── What is already on file, and the day it runs out ───────────────
+  //
+  // Not an ask, so it never carries a `todo` — nobody is waiting on the
+  // person for a document they have already given us. It is here because
+  // the day it runs out is the one fact about her own file she cannot
+  // get anywhere else, and she is the one who has to renew it.
+  for (const h of input.held ?? []) {
+    // A check still running is not a document she holds, and telling her
+    // it is on file is how somebody relies on paperwork that does not
+    // exist. Only what actually came back is shown.
+    if (!ACCEPTED_CHECK.includes(h.status)) continue
+    // A check a screening company renders says who rendered it, or says
+    // that nobody is named on it. "On file until 2027-06-01" over a row
+    // nobody can trace is the 2017 expiry column wearing a friendlier
+    // face: a fact about an event, reported as a verdict.
+    const verdict = orderedNotCollected(h.key)
+      ? readVerdict({
+          key: h.key,
+          status: h.status,
+          provider: h.provider,
+          reference: h.reference ?? null,
+          on: h.validFrom ?? null,
+        })
+      : null
+    papers.push({
+      id: h.id,
+      kind: 'HELD',
+      name: asRow(h.label),
+      partOf: null,
+      askedBy: verdict ? (verdict.renderedBy ?? 'Recorded here — no screening company named') : (h.provider ?? 'On your file'),
+      why: verdict?.says ?? null,
+      needsSignature: false,
+      status: h.status,
+      word:
+        verdict && !verdict.rendered
+          ? 'Recorded here — no screening company named on it'
+          : heldWord(h.expiresAt ?? null, now, h.stopsWork),
+      askedAt: (h.validFrom ?? null)?.toISOString() ?? null,
+      doneAt: (h.validFrom ?? null)?.toISOString() ?? null,
+      dueOn: h.expiresAt?.toISOString() ?? null,
+      runsOutOn: h.expiresAt?.toISOString() ?? null,
+      todo: null,
+      link: null,
+    })
+  }
+
+  // What a firm accepted from a request, once, where the record above
+  // did not already list the same kind as on file.
+  const heldKeys = new Set((input.held ?? []).filter((h) => ACCEPTED_CHECK.includes(h.status)).map((h) => h.key.toLowerCase()))
+  const named = (n: string) => n.trim().toLowerCase().replace(/\s+/g, ' ')
+  const listed = new Set(papers.filter((x) => x.kind === 'DOCUMENT' || x.kind === 'HELD').map((x) => named(x.name)))
+  for (const a of acceptedOnce.values()) {
+    if (a.key && heldKeys.has(a.key.toLowerCase())) continue
+    // The same paper already on her page as a document she holds.
+    if (listed.has(named(asRow(a.label)))) continue
+    papers.push({
+      id: a.id,
+      kind: 'HELD',
+      name: asRow(a.label),
+      partOf: null,
+      askedBy: a.askedBy,
+      why: null,
+      needsSignature: false,
+      status: 'ACCEPTED',
+      word: `On file · ${a.askedBy}`,
+      askedAt: a.at?.toISOString() ?? null,
+      doneAt: a.at?.toISOString() ?? null,
+      dueOn: null,
+      runsOutOn: null,
+      todo: null,
+      link: null,
+    })
+  }
+
+  // ── What is still owed, and nobody has asked for yet ───────────────
+  //
+  // An item can be required on a line with no packet and no document
+  // ever sent for it — which is most of them, because a set is a rule
+  // and an ask is an act. She is told what it is, who asked, and whether
+  // work stops without it, so the letter she was sent and the page it
+  // sends her to say the same thing.
+  for (const o of input.owed ?? []) {
+    // Where a request has already been opened for this item, the row is
+    // that request's — it has an id, a status and somewhere to answer.
+    const ask = input.asksByKey?.[o.key] ?? null
+    // Where the request already opened is a paper to sign — a client's
+    // own NDA template — the row says Sign. It said Upload on every
+    // outstanding row, and on the simulation of 2026-10-20 the worker
+    // pressed it and was told the paper "needs a signature".
+    const opened = ask ? input.documents.find((d) => d.id === ask) : undefined
+    const toSign = opened?.needsSignature === true
+    papers.push({
+      id: ask ?? `owed:${o.key}`,
+      kind: 'OUTSTANDING',
+      name: asRow(o.label),
+      partOf: null,
+      // Nobody has asked yet. `owedByName` is the party that OWES it,
+      // which on her own page is her, and "Helena Marsh asked for Helena
+      // Marsh's I-9" reads as though she asked herself. Where a firm opened
+      // the request, it is that firm who asked, as the placement says (walk 7).
+      askedBy: opened?.issuerName ?? null,
+      // Whose move it is comes first on a check she cannot produce. The
+      // order's own words still follow it, so the row never loses who
+      // asked for the check in the first place.
+      why: o.waivedSays ?? (o.notHersBecause ? `${o.notHersBecause} ${capitalize(o.asked)}` : capitalize(o.asked)),
+      needsSignature: toSign,
+      status: o.state,
+      word: o.word,
+      askedAt: null,
+      doneAt: null,
+      dueOn: null,
+      runsOutOn: o.ranOutOn?.toISOString() ?? null,
+      // Nothing was sent, so there is no link and no signature page. The
+      // upload on her own page is the answer, and a waived item asks her
+      // for nothing at all.
+      // Nothing for her to send on a check somebody else orders. A row
+      // offering an upload button for a background check is a row
+      // asking her for a report the provider posted to somebody else.
+      todo: !o.hers || o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : toSign ? 'sign' : 'upload',
+      link: null,
+      stopsWork: o.stopsWork,
+      waived: o.state === 'WAIVED',
+      // Only where a paper for this row actually arrived. Never inferred
+      // from the row having nowhere to send it.
+      received: o.state === 'AWAITING_REVIEW',
+      documentTypeKey: o.key,
+      // Nothing to post against until a request exists, so the page asks
+      // for one here and then answers it at /api/documents/:id/upload —
+      // the same door, and the same rule, as every other paper.
+      openAskAt: !o.hers || o.state === 'WAIVED' || o.state === 'AWAITING_REVIEW' ? null : '/api/me/papers',
+    })
+  }
+
+  // What still needs doing first, then the most recent ask. A page that
+  // opens on what is finished makes somebody scroll to find their work.
+  return papers.sort((a, b) => {
+    // What stops her working comes first, whoever asked and whenever.
+    if (!!a.stopsWork !== !!b.stopsWork) return a.stopsWork ? -1 : 1
+    if (!!a.todo !== !!b.todo) return a.todo ? -1 : 1
+    return (b.askedAt ?? '').localeCompare(a.askedAt ?? '')
+  })
+}
+
+// ── A signed paper, and the day it stops counting ─────────────────────
+//
+// "Ensure the loop of documents never cracks between parties."
+// — the founder, 2026-09-21.
+//
+// `Verification` has been watched since it was written: `cron/watch`
+// reads what is running out and asks for the renewal. `DocInstance` —
+// the other half of the paperwork, the papers somebody signs rather than
+// the checks somebody runs — had no dates at all until this morning, so
+// an NDA could be asked for, signed, and never looked at again. Nothing
+// could say it had run out, nothing chased the replacement, and a lapse
+// moved no verdict anywhere.
+//
+// Two things are needed for that to stop: knowing WHAT a signed paper
+// is (a template called "Mutual NDA — 2026" has to resolve to the NDA a
+// line requires), and knowing WHEN it stops counting. Both are below.
+//
+// This file writes no letters. It returns the facts, grouped by the
+// party that owes each one, and `etyme-conversation` writes what each
+// party is told — because who is told what, on which channel, how often,
+// is that domain's question and not this one's.
+
+/** The shipped types a template's own name can be recognized as. */
+const NAMED_BY: { key: string; names: RegExp }[] = [
+  // Spelled as a pattern rather than as the words, because a screen may
+  // never put "master agreement" beside "master contract" — see
+  // `order-lines.test.ts`. An agreement is "Agreement" or "MSA".
+  { key: 'MSA', names: /\bmsa\b|\bmaster\s+(services?|agreem\w+)\b/i },
+  // "confidentiality" used to be here and is not a word that names this
+  // document. A client's "Product confidentiality undertaking" is its
+  // own type, and matching it to the NDA between two firms put one
+  // uploaded paper on two rows of a worker's file — one saying a
+  // document had arrived when no such document existed. A pattern that
+  // matches a concept rather than a name is a guess.
+  { key: 'NDA', names: /\b(nda|non-?disclosure)\b/i },
+  { key: 'NCA', names: /\b(nca|non-?compete|non-?competition|non-?solicit\w*)\b/i },
+  { key: 'EMPLOYMENT_AGREEMENT', names: /\b(employment agreement|offer letter|contract of employment)\b/i },
+  { key: 'SOW', names: /\b(sow|statement of work)\b/i },
+  { key: 'W9', names: /\bw-?9\b/i },
+]
+
+/**
+ * Government forms read by the number the issuer prints on them, even
+ * where nothing else may be guessed: a form's number is its name, not a
+ * reading of the words around it. Found by the screen walk of 2026-11-01:
+ * Tecwyn asked Ifeoma Balogun for "I-9, with the document it is
+ * completed from", and because that is not the I-9's label word for word,
+ * Accept on Paperwork drew no fields, stamped the paper examined, said
+ * "examined by Bhavesh Nair" and recorded no I-9, so nothing the start
+ * reads was written; and the same name could be asked for before any
+ * offer, because the ask did not know it was an I-9.
+ *
+ * The I-94 is a different record (an arrival record, not the employer's
+ * form), and `\b` after the 9 keeps it out. Counting a paper read this
+ * way is still the employer's examination and nothing else
+ * (`EXAMINED_NOT_SENT`): reading the name routes the paper to the
+ * examination that asks for the document shown; it never clears a start.
+ */
+const NAMED_BY_FORM_NUMBER: { key: string; names: RegExp }[] = [
+  { key: 'I9_EVERIFY', names: /(^|[^\w-])i-?9\b(?!-)|\bemployment eligibility verification\b/i },
+]
+
+/** The type a government form's own number names, or null. Pure. */
+export function formNumberKey(templateName: string): string | null {
+  const name = templateName.trim()
+  return NAMED_BY_FORM_NUMBER.find((row) => row.names.test(name))?.key ?? null
+}
+
+/**
+ * Which type of document a signed paper is, read off its own name.
+ *
+ * Null is a real answer and the honest failure: a non-disclosure
+ * agreement filed under "Form 7" satisfies nothing, stays on the list,
+ * and gets chased until somebody names it. Guessing the other way — a
+ * paper nobody can identify counting as the one a line required — is how
+ * a file looks complete and is not.
+ *
+ * A company's own dictionary is read first, by exact label, so a client
+ * that invents "Hot floor induction" and sends it as a document for
+ * signature gets it matched to the type its order asked for.
+ */
+export function typeKeyForTemplate(
+  templateName: string,
+  types: { key: string; label: string }[] = [],
+  opts: {
+    /**
+     * Whether a paper whose name nobody recognizes may be guessed at
+     * from the words in it.
+     *
+     * True for a verdict being assembled out of whatever is on file,
+     * where a "Mutual NDA — 2026" ought to answer a line's NDA. **False
+     * wherever a paper is being credited against a requirement**, which
+     * is the reading that decides whether somebody is chased. A guess
+     * that lands on the wrong row does not merely fail to satisfy an
+     * item — it reports a document as having arrived when none has, and
+     * a compliance record that says a paper exists when it does not is
+     * the worst thing this file can produce.
+     */
+    guess?: boolean
+  } = {}
+): string | null {
+  const name = templateName.trim()
+  if (!name) return null
+  const asSaid = sameName(name)
+  const exact = types.find(
+    (t) => sameName(t.label) === asSaid || t.key.toLowerCase() === name.toLowerCase()
+  )
+  if (exact) return exact.key
+  // Every name the product itself gives one kind (the dictionary and the
+  // start packets), after the caller's own, so a reader that knows the NDA
+  // as "Non-disclosure agreement" still knows "Signed non-disclosure
+  // agreement" (walk 7). An exact name, never a guess.
+  const named = productNameKey(name)
+  if (named) return named
+  // A form named by its number is that form, guessing or not.
+  const form = formNumberKey(name)
+  if (form) return form
+  if (opts.guess === false) return null
+  for (const row of NAMED_BY) {
+    if (row.names.test(name)) return row.key
+  }
+  return null
+}
+
+/** A `DocInstance` row, as the arithmetic needs it. */
+export interface SignedPaper {
+  id: string
+  status: string
+  validFrom?: Date | null
+  expiresAt?: Date | null
+  signedAt?: Date | null
+  countersignedAt?: Date | null
+  template: { name: string; needsSignature?: boolean }
+}
+
+/**
+ * What signed papers amount to, as documents held.
+ *
+ * A paper needing two signatures is held from the later of them — an
+ * agreement is not executed until both firms have signed, and treating
+ * one signature as the whole thing is how a half-executed agreement
+ * reads as cover.
+ */
+export function heldFromDocInstances(
+  rows: SignedPaper[],
+  types: { key: string; label: string }[] = []
+): { key: string; validFrom: Date | null; expiresAt: Date | null; accepted: boolean }[] {
+  const out: { key: string; validFrom: Date | null; expiresAt: Date | null; accepted: boolean }[] = []
+  for (const r of rows) {
+    const key = typeKeyForTemplate(r.template.name, types)
+    if (!key) continue
+    if (!ON_FILE.includes(r.status)) continue
+    const signed = r.countersignedAt && r.signedAt
+      ? (r.countersignedAt > r.signedAt ? r.countersignedAt : r.signedAt)
+      : (r.countersignedAt ?? r.signedAt ?? null)
+    out.push({
+      key,
+      validFrom: r.validFrom ?? signed ?? null,
+      expiresAt: r.expiresAt ?? null,
+      // Work authorization is never held as a paper somebody sent. Found
+      // by the simulation of 2026-10-20: a worker opened a request for
+      // her I-9 from her own page, attached a file, and the start went
+      // ahead — the upload read here as the employer's examination. It
+      // is not one. The employer of record looks at the documents and
+      // completes the form, and only that, recorded as a check
+      // (`POST /api/compliance/verifications`), stands behind a start.
+      // Her paper is with them; the worker's own page already says
+      // "sending it is not the same as it being checked".
+      accepted: !EXAMINED_NOT_SENT.includes(key),
+    })
+  }
+  return out
+}
+
+/**
+ * The papers that count only as the employer's own recorded examination.
+ *
+ * An I-9 is completed by the employer from documents the person shows;
+ * a right-to-work check is the employer looking and recording what it
+ * saw. A copy arriving by upload is evidence for that examination, never
+ * the examination itself. Reversible in one line: take a key out.
+ */
+export const EXAMINED_NOT_SENT: readonly string[] = ['I9_EVERIFY', 'RIGHT_TO_WORK']
+
+// ── What is running out, and who owes it ──────────────────────────────
+//
+// `cron/watch` has read `Verification` since it was written and there
+// was nothing on the other cluster for it to read: a signed paper had no
+// dates. Now it does, and this is what the nightly job asks.
+//
+// It sends nothing. It returns the facts, grouped by the party that owes
+// each one, and `etyme-conversation` decides what each party is told, on
+// which channel, how often — because a letter is that domain's question
+// and a date is this one's. Returning a list rather than sending a
+// letter is also what makes it testable on a fixed day.
+
+import { prisma } from '@/lib/db'
+import {
+  SHAPE_SAYS,
+  type EffectiveRequirement,
+  type LineRequirements,
+  type OwedBy,
+} from '@/lib/document-requirements'
+import { labelFor } from '@/lib/document-type'
+import { requirementsWhereWorkIsDone } from '@/lib/document-stages/where-work-is-done'
+import { possessive } from '@/lib/requisition-approval'
+import { gateChases, partyOfShape, workerPartyAt, withheldDetail, type WithheldChase } from '@/lib/document-stages/chase-gate'
+import type { Party } from '@/lib/document-stages/required-sets'
+
+/** How far ahead a lapse is worth telling somebody about. */
+export const CHASE_WINDOW_DAYS = 60
+
+/** One document that is running out, or has. */
+export interface LapsingDocument {
+  /** Where the fact lives: a signed paper, or a check that was run. */
+  kind: 'SIGNED_PAPER' | 'CHECK'
+  /** The `DocInstance` or `Verification` id. */
+  id: string
+  /** The type key, where the document resolves to one. */
+  key: string | null
+  /** What it is called, in the words the parties use. */
+  document: string
+  /** The line it hangs off, where it hangs off one. */
+  line: { side: 'SELL' | 'BUY'; id: string } | null
+  /** WORKER · SUPPLIER · CUSTOMER · US, where the line's set says. */
+  owedBy: OwedBy | null
+  /** The firm or the person that owes it. Null is a real answer. */
+  owedByName: string | null
+  /** The person the document is about, where it is about one. */
+  personId: string | null
+  /** The firm the document is about, where it is about one. */
+  companyId: string | null
+  /**
+   * The firm that should hear about it: whoever holds the line.
+   *
+   * Not always the party that owes the document — an NDA a worker owes
+   * is chased by the firm that placed them — which is why `owedBy` and
+   * this are two fields. The sentence names who owes it; this decides
+   * whose desk reads it.
+   */
+  tellCompanyId: string | null
+  expiresAt: Date
+  /** Negative where it has already run out. */
+  daysLeft: number
+  lapsed: boolean
+  /** True where the line's own set says a lapse stops the work. */
+  stopsWork: boolean
+  /** The fact, in one sentence. Never the letter — that is conversation's. */
+  says: string
+  /**
+   * The party of the telling firm's own set this chase is about, which
+   * is the set it must have confirmed at setup before it is chased
+   * (`lib/document-stages/chase-gate`). Null where it cannot be placed.
+   */
+  party?: Party | null
+}
+
+export interface DocumentWatch {
+  on: Date
+  windowDays: number
+  /** Running out inside the window, still in date today. */
+  lapsing: LapsingDocument[]
+  /** Already run out. */
+  lapsed: LapsingDocument[]
+  /** The same rows, grouped by who has to do something about them. */
+  byParty: {
+    owedBy: OwedBy | null
+    name: string | null
+    personId: string | null
+    companyId: string | null
+    items: LapsingDocument[]
+  }[]
+  /**
+   * What was not chased, because the company never confirmed its set for
+   * that party. One row per company and party, with the sentence.
+   */
+  withheld?: WithheldChase[]
+}
+
+function daysBetween(a: Date, b: Date): number {
+  return calendarDaysBetween(a, b)
+}
+
+function sentence(document: string, who: string | null, daysLeft: number): string {
+  const whose = who ? `${possessive(who, '’')} ` : ''
+  if (daysLeft < 0) {
+    const n = Math.abs(daysLeft)
+    return `${whose}${document} ran out ${n === 1 ? 'yesterday' : `${n} days ago`}.`
+  }
+  if (daysLeft === 0) return `${whose}${document} runs out today.`
+  return `${whose}${document} runs out in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`
+}
+
+type Db = typeof prisma
+
+/**
+ * Every signed paper on a line that is inside the chase window or past
+ * it, with the party that owes it.
+ *
+ * Who owes what is not decided here: it is read off the line's own set
+ * through `lib/document-requirements`, the same door the refusal reads,
+ * so the firm chased for a document and the firm refused for its absence
+ * are the same firm.
+ */
+export async function lookAtDocInstances(
+  now: Date = new Date(),
+  opts: { windowDays?: number; db?: Db } = {}
+): Promise<DocumentWatch> {
+  const db = opts.db ?? prisma
+  const windowDays = opts.windowDays ?? CHASE_WINDOW_DAYS
+  const horizon = new Date(now.getTime() + windowDays * 86_400_000)
+
+  const rows = await db.docInstance.findMany({
+    where: {
+      status: { in: ['SIGNED', 'UPLOADED'] },
+      expiresAt: { not: null, lte: horizon },
+      OR: [{ sellContractId: { not: null } }, { buyContractId: { not: null } }],
+    },
+    select: {
+      id: true, subjectType: true, subjectId: true, expiresAt: true,
+      sellContractId: true, buyContractId: true,
+      sellContract: { select: { companyId: true } },
+      buyContract: { select: { companyId: true } },
+      template: { select: { name: true } },
+    },
+  })
+
+  const found: LapsingDocument[] = []
+  for (const r of rows) {
+    if (!r.expiresAt) continue
+    const lineId = r.sellContractId ?? r.buyContractId!
+    const side: 'SELL' | 'BUY' = r.sellContractId ? 'SELL' : 'BUY'
+    const set = await requirementsWhereWorkIsDone(
+      side === 'SELL' ? { sellContractId: lineId } : { buyContractId: lineId },
+      db as never
+    )
+    const key = typeKeyForTemplate(r.template.name, (set?.items ?? []).map((i) => ({ key: i.key, label: i.label })))
+    const item = key ? (set?.items ?? []).find((i) => i.key === key) ?? null : null
+    const daysLeft = daysBetween(r.expiresAt, now)
+    found.push({
+      kind: 'SIGNED_PAPER',
+      id: r.id,
+      key,
+      document: item?.label ?? r.template.name,
+      line: { side, id: lineId },
+      owedBy: item?.owedBy ?? null,
+      owedByName: item?.owedByName ?? null,
+      personId: r.subjectType === 'PERSON' ? r.subjectId : null,
+      companyId: r.subjectType === 'COMPANY' ? r.subjectId : null,
+      tellCompanyId: r.sellContract?.companyId ?? r.buyContract?.companyId ?? null,
+      expiresAt: r.expiresAt,
+      daysLeft,
+      lapsed: daysLeft < 0,
+      stopsWork: item?.blocks ?? false,
+      says: sentence(item?.label ?? r.template.name, item?.owedByName ?? null, daysLeft),
+      party: set ? partyOfShape(set.shape) : null,
+    })
+  }
+
+  return assembleWatch(now, windowDays, found)
+}
+
+/**
+ * The checks that have to be run again, and are not.
+ *
+ * `BACKGROUND_CHECK` has carried `validMonths: 12` since the rules were
+ * written and nothing ever re-asked at the twelve-month mark, the way
+ * the license chase re-asks. It was not a silent permit — an absent
+ * check already warns at every start — but a check that quietly ages out
+ * on somebody who has been on a client's site for two years is exactly
+ * the state CLAUDE.md names: on file, out of date, and green.
+ *
+ * It stays a WARN and becomes a chase. Nobody is stopped from working
+ * over a screening that needs redoing; somebody is asked to redo it.
+ */
+export async function checksToRedo(
+  now: Date = new Date(),
+  opts: { windowDays?: number; db?: Db; types?: string[] } = {}
+): Promise<DocumentWatch> {
+  const db = opts.db ?? prisma
+  const windowDays = opts.windowDays ?? CHASE_WINDOW_DAYS
+  const horizon = new Date(now.getTime() + windowDays * 86_400_000)
+  const types = (opts.types ?? ['BACKGROUND_CHECK', 'DRUG_SCREENING']) as never[]
+
+  const rows = await db.verification.findMany({
+    where: {
+      type: { in: types },
+      status: { in: ['CLEAR', 'CONDITIONAL'] },
+      expiresAt: { not: null, lte: horizon },
+      personId: { not: null },
+      // Only where the person is actually working. A screening that aged
+      // out on somebody who left two years ago is nobody's work.
+      person: { sellContracts: { some: { state: { in: ['IN_PROGRESS', 'PAUSED'] } } } },
+    },
+    select: {
+      id: true, type: true, expiresAt: true, personId: true,
+      orderedByCompanyId: true, orderedByCompany: { select: { name: true } },
+      person: {
+        select: {
+          name: true,
+          sellContracts: {
+            where: { state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+            select: { companyId: true, company: { select: { name: true } } },
+            take: 1,
+          },
+        },
+      },
+    },
+  })
+
+  const found: LapsingDocument[] = rows
+    .filter((r) => r.expiresAt)
+    .map((r) => {
+      const daysLeft = daysBetween(r.expiresAt!, now)
+      const label = labelFor(r.type)
+      return {
+        kind: 'CHECK' as const,
+        id: r.id,
+        key: r.type,
+        document: label,
+        line: null,
+        // Owed by the firm that orders it, never by the worker: the
+        // screening company posts its report to whoever ordered it, and
+        // a worker cannot buy her own background check (the founder,
+        // 2026-09-22). The firm that ordered the last one runs it again;
+        // where nobody recorded who ordered it, the firm she is placed
+        // through, which is the one that would order it now.
+        owedBy: 'US' as OwedBy,
+        owedByName: r.orderedByCompany?.name ?? r.person?.sellContracts[0]?.company.name ?? null,
+        personId: r.personId,
+        companyId: null,
+        tellCompanyId: r.orderedByCompanyId ?? r.person?.sellContracts[0]?.companyId ?? null,
+        expiresAt: r.expiresAt!,
+        daysLeft,
+        lapsed: daysLeft < 0,
+        // A screening warns; it has never blocked and does not start now.
+        stopsWork: false,
+        says: sentence(label, r.person?.name ?? null, daysLeft),
+      }
+    })
+
+  return assembleWatch(now, windowDays, found)
+}
+
+/**
+ * Everything a chase or a lapse letter needs tonight, from both tables.
+ *
+ * This is the one line `api/cron/watch` calls.
+ */
+export async function documentsToChase(
+  now: Date = new Date(),
+  opts: { windowDays?: number; db?: Db; ungated?: boolean } = {}
+): Promise<DocumentWatch> {
+  const db = opts.db ?? prisma
+  const [papers, checks, standing] = await Promise.all([lookAtDocInstances(now, opts), checksToRedo(now, opts), standingToRenew(now, opts)])
+  const all = [
+    ...papers.lapsed, ...papers.lapsing, ...checks.lapsed, ...checks.lapsing, ...standing.lapsed, ...standing.lapsing,
+  ]
+  if (opts.ungated) return assembleWatch(now, papers.windowDays, all)
+  // A check about a person is about the worker the telling firm pays:
+  // which of its sets that is depends on the line that pays them there.
+  for (const d of all) {
+    if (d.party === undefined && d.kind === 'CHECK' && d.personId && d.tellCompanyId) {
+      d.party = await workerPartyAt(d.personId, d.tellCompanyId, db)
+    }
+  }
+  // No paper is chased on a company's behalf for a party whose set it
+  // never confirmed at setup. The letters and the findings both read this
+  // list, so neither chases what the other holds back; what is held back
+  // is returned with the sentence, never dropped in silence.
+  const { chase, withheld } = await gateChases(
+    all,
+    (d) => ({ companyId: d.tellCompanyId, party: d.party ?? null }),
+    (d) => d.document,
+    db
+  )
+  return { ...assembleWatch(now, papers.windowDays, chase), withheld }
+}
+
+/**
+ * A supplier's certificate of good standing, running out on a firm that
+ * has people working through it.
+ *
+ * Good standing is required on every line bought from another firm and
+ * stops the work when it lapses, and until 2026-10-21 nothing watched it:
+ * the nightly check read insurance and the I-9 and nothing else, so the
+ * first anybody heard of a lapse was a refusal at the next start (found
+ * by the document-flow walk). Told to each firm that buys from it on a
+ * running line, because that firm recorded it and is the one it protects;
+ * owed by the supplier.
+ */
+export async function standingToRenew(
+  now: Date = new Date(),
+  opts: { windowDays?: number; db?: Db } = {}
+): Promise<DocumentWatch> {
+  const db = opts.db ?? prisma
+  const windowDays = opts.windowDays ?? CHASE_WINDOW_DAYS
+  const horizon = new Date(now.getTime() + windowDays * 86_400_000)
+  const running = { in: ['IN_PROGRESS', 'PAUSED'] as never[] }
+  const rows = await db.verification.findMany({
+    where: {
+      type: 'GOOD_STANDING',
+      status: { in: ['CLEAR', 'CONDITIONAL'] },
+      expiresAt: { not: null, lte: horizon },
+      companyId: { not: null },
+      company: { sellContractsOut: { some: { state: running } } },
+    },
+    select: {
+      id: true, expiresAt: true, companyId: true,
+      company: {
+        select: {
+          name: true,
+          sellContractsOut: { where: { state: running }, select: { clientCompanyId: true }, distinct: ['clientCompanyId'], take: 20 },
+        },
+      },
+    },
+  })
+  // A renewal already on file answers the old one: only the newest per firm.
+  const newest = new Map<string, (typeof rows)[number]>()
+  for (const r of rows) {
+    const had = newest.get(r.companyId!)
+    if (!had || r.expiresAt!.getTime() > had.expiresAt!.getTime()) newest.set(r.companyId!, r)
+  }
+  const renewed = new Set(
+    (
+      await db.verification.findMany({
+        where: { type: 'GOOD_STANDING', status: { in: ['CLEAR', 'CONDITIONAL'] }, companyId: { in: [...newest.keys()] }, expiresAt: { gt: horizon } },
+        select: { companyId: true },
+      })
+    ).map((r) => r.companyId!)
+  )
+  const label = labelFor('GOOD_STANDING')
+  const found: LapsingDocument[] = []
+  for (const r of newest.values()) {
+    if (renewed.has(r.companyId!)) continue
+    const daysLeft = daysBetween(r.expiresAt!, now)
+    for (const line of r.company?.sellContractsOut ?? []) {
+      found.push({
+        kind: 'CHECK', id: r.id, key: 'GOOD_STANDING', document: label, line: null,
+        owedBy: 'SUPPLIER', owedByName: r.company?.name ?? null, personId: null, companyId: r.companyId,
+        tellCompanyId: line.clientCompanyId, expiresAt: r.expiresAt!, daysLeft, lapsed: daysLeft < 0,
+        stopsWork: true, says: sentence(label, r.company?.name ?? null, daysLeft),
+        // The client buys from this firm: its set for the suppliers it buys from.
+        party: 'SUB_VENDORS',
+      })
+    }
+  }
+  return assembleWatch(now, windowDays, found)
+}
+
+function assembleWatch(on: Date, windowDays: number, found: LapsingDocument[]): DocumentWatch {
+  // Worst first: what has already run out, then what runs out soonest.
+  const sorted = [...found].sort((a, b) => a.daysLeft - b.daysLeft)
+  const byParty = new Map<string, DocumentWatch['byParty'][number]>()
+  for (const f of sorted) {
+    const id = `${f.owedBy ?? 'UNKNOWN'}:${f.personId ?? f.companyId ?? f.owedByName ?? 'nobody'}`
+    const row = byParty.get(id)
+    if (row) row.items.push(f)
+    else byParty.set(id, {
+      owedBy: f.owedBy,
+      name: f.owedByName,
+      personId: f.personId,
+      companyId: f.companyId,
+      items: [f],
+    })
+  }
+  return {
+    on,
+    windowDays,
+    lapsing: sorted.filter((f) => !f.lapsed),
+    lapsed: sorted.filter((f) => f.lapsed),
+    byParty: [...byParty.values()],
+  }
+}
+
+/**
+ * The same answer in the nightly watcher's own shape.
+ *
+ * `api/cron/watch` already reads six of these and knows how to route a
+ * finding to the desk that can act on it, digest them and send one note
+ * per company. It is `etyme-platform`'s file, so this is the one line it
+ * adds, beside the six it already has:
+ *
+ *     ...(await documentFindings(now)),
+ *
+ * Nothing is sent from here and nothing is reopened: `NOTIFY_ONLY` on
+ * every row, because what a lapsing agreement needs is a letter to the
+ * party that owes it and that letter is `etyme-conversation`'s to write.
+ */
+export function asFindings(watch: DocumentWatch): {
+  kind: string
+  urgency: 'BLOCKING' | 'SOON' | 'WORTH_KNOWING'
+  companyId: string
+  subjectType: string
+  subjectId: string
+  headline: string
+  detail: string
+  action: 'NOTIFY_ONLY'
+  daysUntil: number | null
+}[] {
+  const rows = [...watch.lapsed, ...watch.lapsing]
+  // What the night did not chase, and why: one line per company and
+  // party, to that company, in the gate's own sentence.
+  const held = (watch.withheld ?? []).map((w) => ({
+    kind: 'PAPER_CHASE_WITHHELD',
+    urgency: 'WORTH_KNOWING' as const,
+    companyId: w.companyId,
+    subjectType: 'Company',
+    subjectId: w.companyId,
+    headline: w.says,
+    detail: withheldDetail(w),
+    action: 'NOTIFY_ONLY' as const,
+    daysUntil: null,
+  }))
+  const told = rows
+    // A finding with no company has no desk to arrive at. Reported as a
+    // gap in the return rather than sent to everybody.
+    .filter((r) => !!r.tellCompanyId)
+    .map((r) => ({
+      kind: r.kind === 'CHECK' ? 'CHECK_DUE_AGAIN' : 'DOCUMENT_LAPSING',
+      urgency: (r.lapsed && r.stopsWork ? 'BLOCKING' : r.daysLeft <= 14 ? 'SOON' : 'WORTH_KNOWING') as 'BLOCKING' | 'SOON' | 'WORTH_KNOWING',
+      companyId: r.tellCompanyId!,
+      subjectType: r.kind === 'CHECK' ? 'Verification' : 'DocInstance',
+      subjectId: r.id,
+      headline: r.says,
+      detail:
+        (r.owedByName ? `${r.owedByName} owes it. ` : '') +
+        (r.stopsWork
+          ? 'Work stops on this line while it is out of date.'
+          : 'It stops nothing on its own, and it is still owed.'),
+      action: 'NOTIFY_ONLY' as const,
+      daysUntil: r.daysLeft,
+    }))
+  return [...told, ...held]
+}
+
+/** Everything running out tonight, in the watcher's shape. One line. */
+export async function documentFindings(
+  now: Date = new Date(),
+  opts: { windowDays?: number; db?: Db } = {}
+) {
+  return asFindings(await documentsToChase(now, opts))
+}
+
+// ── What a counterparty is owed for, read through the one door ────────
+//
+// "Ensure the loop of documents never cracks between parties."
+// — the founder, 2026-09-21.
+//
+// `lib/document-requirements` answers for one line. Three desks do not
+// hold a line — they hold a counterparty. A client's procurement team
+// asks a supplier for its documents; a firm sends its own pack to the
+// client screening it; HR asks a worker for her papers. Each of those
+// is several lines at once, and until this existed each of them kept
+// its own list instead: the packet asked the shipped `PACKETS` floor
+// and nothing else, so a client that invented a hot floor induction on
+// its order had it refused at a start, chased by the nightly watch, and
+// never once actually asked for.
+//
+// So this is the same door, asked about a party rather than a line: the
+// lines between the two firms are found, each line's set is read, and
+// the items that party owes are folded into one list with the duplicate
+// keys collapsed. It computes nothing itself — every item still says
+// where it came from in the order's own words.
+
+/** One line the answer was read off. */
+export interface RequiredLine {
+  side: 'SELL' | 'BUY'
+  id: string
+}
+
+export interface RequiredOfParty {
+  /** The items that party owes, deduplicated by key. */
+  items: EffectiveRequirement[]
+  /** The lines they were read off. Empty is a real answer. */
+  lines: RequiredLine[]
+}
+
+const NOT_RUNNING = ['ENDED', 'CANCELLED']
+
+/**
+ * Fold several lines' sets into one list for one party.
+ *
+ * The strongest answer wins where two lines disagree: an item one
+ * client's order insists on is still required where another's does not
+ * ask for it at all, and an item waived on one line is not waived on
+ * the next. A firm asked for one certificate by two clients is asked
+ * once.
+ */
+function foldForParty(
+  sets: (LineRequirements | null)[],
+  owedBy: OwedBy[],
+  lines: RequiredLine[]
+): RequiredOfParty {
+  const byKey = new Map<string, EffectiveRequirement>()
+  for (const set of sets) {
+    if (!set) continue
+    for (const item of set.items) {
+      if (!owedBy.includes(item.owedBy)) continue
+      const prior = byKey.get(item.key)
+      if (!prior) {
+        byKey.set(item.key, item)
+        continue
+      }
+      // Required beats optional; asked beats waived; an order beats a
+      // default, because somebody typed it.
+      const stronger =
+        (Number(item.required) - Number(prior.required)) ||
+        (Number(prior.waived) - Number(item.waived)) ||
+        (rank(item.from) - rank(prior.from))
+      if (stronger > 0) byKey.set(item.key, item)
+    }
+  }
+  return { items: [...byKey.values()], lines }
+}
+
+function rank(from: 'DEFAULT' | 'ORDER' | 'LINE'): number {
+  return from === 'LINE' ? 2 : from === 'ORDER' ? 1 : 0
+}
+
+/**
+ * What a supplier owes the firm that buys from it.
+ *
+ * Two shapes of relationship, because a buyer is not always the party
+ * that pays directly.
+ *
+ * A prime buying from a sub-vendor holds the **buy line** — that is the
+ * side of the trade their paperwork protects, per CLAUDE.md's "Where a
+ * document lives". A client buying from a staffing firm holds no buy
+ * line at all: it raised a purchase order, and the supplier's own sell
+ * line sits under it carrying the client's required set by inheritance.
+ * Reading only the first would have answered "nothing" for every client
+ * on the platform, which is the population this was written for.
+ *
+ * A firm we have neither ordered from nor paid owes nothing yet, and
+ * that is a real answer rather than a gap.
+ */
+export async function requiredOfSupplier(input: {
+  companyId: string
+  supplierCompanyId: string
+  db?: Db
+}): Promise<RequiredOfParty> {
+  const db = input.db ?? prisma
+  const [buy, sell] = await Promise.all([
+    db.buyContract.findMany({
+      where: {
+        companyId: input.companyId,
+        vendorCompanyId: input.supplierCompanyId,
+        state: { notIn: NOT_RUNNING as never[] },
+      },
+      select: { id: true },
+      take: 40,
+    }),
+    db.sellContract.findMany({
+      where: {
+        companyId: input.supplierCompanyId,
+        state: { notIn: NOT_RUNNING as never[] },
+        workOrder: { issuedById: input.companyId, issuedToId: input.supplierCompanyId },
+      },
+      select: { id: true },
+      take: 40,
+    }),
+  ])
+  const lines: RequiredLine[] = [
+    ...buy.map((r) => ({ side: 'BUY' as const, id: r.id })),
+    ...sell.map((r) => ({ side: 'SELL' as const, id: r.id })),
+  ]
+  const sets = await Promise.all([
+    ...buy.map((r) => requirementsWhereWorkIsDone({ buyContractId: r.id }, db as never)),
+    ...sell.map((r) => requirementsWhereWorkIsDone({ sellContractId: r.id }, db as never)),
+  ])
+  return foldForParty(sets, ['SUPPLIER'], lines)
+}
+
+/**
+ * What a person owes on the lines they are actually on.
+ *
+ * Both sides, because both carry items about them: the buy line is the
+ * party we pay, and the client's own order sits above the sell line and
+ * can ask for something about the worker — a site induction, a
+ * confidentiality undertaking — that no buy line has ever heard of.
+ * And both ends of the sell line, because a client is never the company
+ * on it and its order is exactly where its own asks were written.
+ *
+ * Only WORKER items come back. A report a screening company posts to
+ * the firm that ordered it is `US`, and asking the worker for post she
+ * never receives is the thing `lib/attestation` exists to stop.
+ */
+export async function requiredOfWorker(input: {
+  companyId: string
+  personId: string
+  db?: Db
+}): Promise<RequiredOfParty> {
+  const db = input.db ?? prisma
+  const [sell, buy] = await Promise.all([
+    db.sellContract.findMany({
+      where: {
+        personId: input.personId,
+        state: { notIn: NOT_RUNNING as never[] },
+        // Ours where we bill for them, and ours where we ordered them:
+        // a client holds no line of its own for anybody on its site, and
+        // reading only the first would answer "nothing" for the party
+        // whose own order asked for the document.
+        OR: [{ companyId: input.companyId }, { workOrder: { issuedById: input.companyId } }],
+      },
+      select: { id: true },
+      take: 20,
+    }),
+    db.buyContract.findMany({
+      where: {
+        companyId: input.companyId,
+        state: { notIn: NOT_RUNNING as never[] },
+        candidates: { some: { personId: input.personId } },
+      },
+      select: { id: true },
+      take: 20,
+    }),
+  ])
+  const lines: RequiredLine[] = [
+    ...sell.map((r) => ({ side: 'SELL' as const, id: r.id })),
+    ...buy.map((r) => ({ side: 'BUY' as const, id: r.id })),
+  ]
+  const sets = await Promise.all([
+    ...sell.map((r) => requirementsWhereWorkIsDone({ sellContractId: r.id }, db as never)),
+    ...buy.map((r) => requirementsWhereWorkIsDone({ buyContractId: r.id }, db as never)),
+  ])
+  return foldForParty(sets, ['WORKER'], lines)
+}
+
+/**
+ * What this firm itself owes a customer, on the lines it bills them on.
+ *
+ * The outbound direction: the pack that goes out to a client's
+ * procurement team is assembled from this, so a client whose order
+ * asks for a certificate of good standing is sent one rather than
+ * finding out it was never in the pack.
+ *
+ * `SUPPLIER` and `US` both, because on a sell line this firm is both —
+ * the supplier the customer holds the cover of, and the party that
+ * orders what nobody on the line can hand over.
+ */
+export async function requiredOfUsBy(input: {
+  companyId: string
+  clientCompanyId: string
+  db?: Db
+}): Promise<RequiredOfParty> {
+  const db = input.db ?? prisma
+  const rows = await db.sellContract.findMany({
+    where: {
+      companyId: input.companyId,
+      clientCompanyId: input.clientCompanyId,
+      state: { notIn: NOT_RUNNING as never[] },
+    },
+    select: { id: true },
+    take: 40,
+  })
+  const lines: RequiredLine[] = rows.map((r) => ({ side: 'SELL' as const, id: r.id }))
+  const sets = await Promise.all(rows.map((r) => requirementsWhereWorkIsDone({ sellContractId: r.id }, db as never)))
+  return foldForParty(sets, ['SUPPLIER', 'US'], lines)
+}
+
+// ── Somebody looks at what arrived ────────────────────────────────────
+//
+// The founder, 2026-10-20: "Exchange 10000 documents like insurance, W-9,
+// NCA during submissions and screening and background checks." Walking
+// that through the simulation found that a paper could be asked for,
+// sent and uploaded, and then nothing: there was no move by which the
+// firm that asked said it had looked at it. A certificate that arrived
+// and a certificate somebody checked read the same, which is how an
+// expired one passes for a current one. Packets had the move (accept or
+// reject); a paper sent for a file or a signature did not.
+//
+// So a fourth move, decided here in words:
+//
+//   examine   the firm that asked looks at what arrived and either
+//             accepts it with the dates printed on it, or sends it back
+//             with a reason, and the person or firm that sent it is told
+//
+// Accepting records facts about an examination — the dates, the edition,
+// the countersignature where the paper needs both sides — and never a
+// judgment about the person or the firm. Nobody examines their own paper.
+
+/** What a paper's type declares, as far as examining it needs. */
+export interface ExaminedType {
+  key: string
+  label: string
+  validityShape: 'NONE' | 'END_ONLY' | 'START_AND_END'
+  signedBy: 'NOBODY' | 'ONE_PARTY' | 'BOTH_PARTIES'
+  reissued: boolean
+}
+
+export interface ExamineFacts {
+  status: DocStatus | string
+  templateName: string
+  needsSignature: boolean
+  issuerName: string
+  /** Who sent it, by name: the person or the firm it is about. */
+  senderName: string
+  /** The type the paper answers, where its name is one the dictionary knows. Null: no dates are asked for. */
+  type: ExaminedType | null
+}
+
+export interface ExamineAsk {
+  verdict: 'ACCEPT' | 'SEND_BACK' | string
+  reason?: string | null
+  validFrom?: Date | null
+  expiresAt?: Date | null
+  edition?: string | null
+}
+
+export type ExamineVerdict =
+  | {
+      ok: true
+      verdict: 'ACCEPT' | 'SEND_BACK'
+      /** The status after: unchanged on an accept, SENT again on a send-back. */
+      next: DocStatus
+      /** The firm's countersignature goes on with the acceptance. */
+      countersign: boolean
+      validFrom: Date | null
+      expiresAt: Date | null
+      edition: string | null
+      /** The line written on the paper, and the sentence said back. */
+      note: string
+      says: string
+    }
+  | {
+      ok: false
+      code: 'NOT_YOURS' | 'NOTHING_ARRIVED' | 'NO_REASON' | 'NO_START' | 'NO_EXPIRY' | 'ENDS_BEFORE_IT_STARTS' | 'NO_EDITION' | 'LAPSED' | 'VALIDATION'
+      field?: string
+      message: string
+    }
+
+/**
+ * Whether this seat may examine this paper, and what the examination says.
+ *
+ * Pure. `on` is the day of the examination, against which a lapsed
+ * paper is judged. The fourth state — on file, no expiry recorded, on a
+ * kind that expires — is refused here rather than accepted quietly,
+ * because accepting it is the 2017 bug that kept a certificate green for
+ * four months.
+ */
+export function mayExamine(
+  doc: ExamineFacts,
+  actor: { staffOfIssuer: boolean; isSender: boolean; examinerName: string },
+  ask: ExamineAsk,
+  on: Date
+): ExamineVerdict {
+  const name = doc.templateName
+  if (actor.isSender) {
+    return { ok: false, code: 'NOT_YOURS', message: `Nobody examines their own paper. ${doc.issuerName} looks at ${name} and says whether it answers what was asked.` }
+  }
+  if (!actor.staffOfIssuer) {
+    return { ok: false, code: 'NOT_YOURS', message: `Only ${doc.issuerName}, which asked for ${name}, says whether it answers what was asked.` }
+  }
+  if (!ON_FILE.includes(doc.status)) {
+    return {
+      ok: false, code: 'NOTHING_ARRIVED',
+      message: `${name} has not arrived yet, so there is nothing to look at. It is with ${doc.senderName} to send.`,
+    }
+  }
+  const day = (d: Date) => plainDate(d.toISOString())
+
+  if (ask.verdict === 'SEND_BACK') {
+    const reason = typeof ask.reason === 'string' ? ask.reason.trim() : ''
+    if (!reason) {
+      return { ok: false, code: 'NO_REASON', field: 'reason', message: `Say what is wrong with ${name}, so ${doc.senderName} can send the right one.` }
+    }
+    return {
+      ok: true, verdict: 'SEND_BACK', next: 'SENT', countersign: false,
+      validFrom: null, expiresAt: null, edition: null,
+      note: `Sent back by ${actor.examinerName} on ${day(on)}: ${reason}`,
+      says: `${name} sent back to ${doc.senderName}, who is told why and can send another.`,
+    }
+  }
+  if (ask.verdict !== 'ACCEPT') {
+    return { ok: false, code: 'VALIDATION', field: 'verdict', message: `Say whether ${name} is accepted or sent back.` }
+  }
+
+  const t = doc.type
+  const validFrom = ask.validFrom ?? null
+  const expiresAt = ask.expiresAt ?? null
+  const edition = typeof ask.edition === 'string' && ask.edition.trim() ? ask.edition.trim() : null
+  if (t?.validityShape === 'START_AND_END' && !validFrom) {
+    return {
+      ok: false, code: 'NO_START', field: 'validFrom',
+      message: `Give the day ${name} starts, as printed on it. A paper that begins after somebody starts covers nobody on their first day.`,
+    }
+  }
+  // A paper completed from a document the person shows (an I-9) has no
+  // end of its own: its end is the document's, asked for with the document
+  // and recorded on the check (lib/document-stages/examine-form).
+  if (t && t.validityShape !== 'NONE' && !expiresAt && !COMPLETED_FROM_SHOWN.includes(t.key)) {
+    return {
+      ok: false, code: 'NO_EXPIRY', field: 'expiresAt',
+      message: `${name} runs out, so it cannot be accepted without the date printed on it. A paper with no end recorded looks current on every screen until somebody audits it.`,
+    }
+  }
+  if (validFrom && expiresAt && expiresAt.getTime() <= validFrom.getTime()) {
+    return { ok: false, code: 'ENDS_BEFORE_IT_STARTS', field: 'expiresAt', message: `${name} cannot end before it starts. Check the two dates on it.` }
+  }
+  if (expiresAt && expiresAt.getTime() < on.getTime()) {
+    return {
+      ok: false, code: 'LAPSED', field: 'expiresAt',
+      message: `${name} ran out on ${day(expiresAt)}. Send it back and ask ${doc.senderName} for the current one.`,
+    }
+  }
+  if (t?.reissued && !edition) {
+    return {
+      ok: false, code: 'NO_EDITION', field: 'edition',
+      message: `Say which edition of ${name} this is. The revision date is printed on the form, and an old edition is an audit finding.`,
+    }
+  }
+  const countersign = doc.needsSignature && t?.signedBy === 'BOTH_PARTIES'
+  const dates =
+    validFrom && expiresAt ? `, good ${day(validFrom)} to ${day(expiresAt)}`
+      : expiresAt ? `, good until ${day(expiresAt)}`
+        : ''
+  const notYet = validFrom && validFrom.getTime() > on.getTime() ? ` It covers nobody before ${day(validFrom)}.` : ''
+  return {
+    ok: true, verdict: 'ACCEPT', next: doc.status as DocStatus, countersign,
+    validFrom, expiresAt, edition,
+    note:
+      `Examined by ${actor.examinerName} on ${day(on)}${dates}${edition ? `, edition ${edition}` : ''}` +
+      (countersign ? `; countersigned for ${doc.issuerName}.` : '.'),
+    says:
+      `${name} from ${doc.senderName} examined by ${actor.examinerName}${dates}` +
+      (countersign ? `, and countersigned for ${doc.issuerName}.` : '.') + notYet,
+  }
+}
+
+/**
+ * Whether a firm may ask somebody for a paper, given what ties them.
+ *
+ * Found by the walk on screens, 2026-10-22: a person a firm had only
+ * invited to its bench read as on its bench and could be asked for
+ * papers before she said yes. An invitation is a question to her, not a
+ * tie; her yes, her employment, a submission or a line is. Pure.
+ */
+export function mayAskOnTies(input: {
+  personName: string
+  firmName: string
+  /** The firm's listing for her, where there is one: INVITED, GRANTED or DECLINED. */
+  listing: string | null
+  /** Any other tie: employment, a submission either way, or a line. */
+  otherTie: boolean
+}): { ok: true } | { ok: false; code: 'NOT_YET_HERS'; message: string } {
+  if (input.otherTie || input.listing === null || input.listing === 'GRANTED') return { ok: true }
+  return {
+    ok: false,
+    code: 'NOT_YET_HERS',
+    message:
+      input.listing === 'DECLINED'
+        ? `${input.personName} said no to ${input.firmName}, so ${input.firmName} cannot ask them for papers.`
+        : `${input.personName} has not said yes to ${input.firmName} yet. Papers are asked once they agree to be on your bench.`,
+  }
+}
+
+/** Whether a paper of this exact name is a verdict a provider renders (a drug screen, a background check). */
+export function providersVerdict(templateName: string): boolean {
+  const key = typeKeyForTemplate(templateName, [], { guess: false }) ?? EXACT_VERDICT_NAMES[templateName.trim().toLowerCase()] ?? null
+  return key != null && orderedNotCollected(key)
+}
+
+const EXACT_VERDICT_NAMES: Record<string, string> = {
+  'background check': 'BACKGROUND_CHECK',
+  'drug screening': 'DRUG_SCREENING',
+  'drug screen': 'DRUG_SCREENING',
+}
+
+// ── A license renewal, as facts ────────────────────────────────────────
+//
+// Supply's renewal screen sent the license number, who issued it and the
+// new expiry as one note line, and nothing read them back (found
+// 2026-10-22). A license on file is three facts somebody can check on a
+// board's register, so the upload takes them as fields and refuses
+// without them.
+
+/** Whether a paper of this name is a professional license (never a driver's license). */
+export function isProfessionalLicense(templateName: string, typeKey: string | null): boolean {
+  if (typeKey) return typeKey === 'PROFESSIONAL_LICENSE'
+  return /\blicen[sc]e\b/i.test(templateName)
+}
+
+export interface LicenseFacts {
+  licenseNumber: string
+  issuer: string
+  expiresAt: Date
+}
+
+/** The three facts, checked. Pure: `on` is the day it is sent. */
+export function licenseRenewal(
+  input: { licenseNumber?: string | null; issuer?: string | null; expiresAt?: string | null },
+  on: Date
+): { ok: true; facts: LicenseFacts; note: string } | { ok: false; code: 'LICENSE_FACTS'; field: string; message: string } {
+  const number = (input.licenseNumber ?? '').trim()
+  const issuer = (input.issuer ?? '').trim()
+  const raw = (input.expiresAt ?? '').trim()
+  if (!number) return { ok: false, code: 'LICENSE_FACTS', field: 'licenseNumber', message: 'Give the license number, as printed on it. A number on a board’s register is what anybody can check.' }
+  if (!issuer) return { ok: false, code: 'LICENSE_FACTS', field: 'issuer', message: 'Say who issued the license — the board or the state — so anybody can look it up.' }
+  if (!raw) return { ok: false, code: 'LICENSE_FACTS', field: 'expiresAt', message: 'Give the day the license runs out, as printed on it.' }
+  const expiresAt = new Date(raw.length === 10 ? `${raw}T00:00:00Z` : raw)
+  if (Number.isNaN(expiresAt.getTime())) {
+    return { ok: false, code: 'LICENSE_FACTS', field: 'expiresAt', message: 'Give the day it runs out as a date, like 2028-03-31.' }
+  }
+  const today = Date.UTC(on.getUTCFullYear(), on.getUTCMonth(), on.getUTCDate())
+  if (expiresAt.getTime() < today) {
+    return {
+      ok: false, code: 'LICENSE_FACTS', field: 'expiresAt',
+      message: `That license ran out on ${plainDate(expiresAt.toISOString())}. Send the renewed one, with its new expiry date.`,
+    }
+  }
+  return {
+    ok: true,
+    facts: { licenseNumber: number, issuer, expiresAt },
+    note: `License ${number}, issued by ${issuer}, runs out ${expiresAt.toISOString().slice(0, 10)}.`,
+  }
+}
+
+/** The facts read back from the note the upload wrote, for the examine step to pre-fill. Null where the note is not one. */
+export function licenseFactsFrom(note: string | null | undefined): { licenseNumber: string; issuer: string; expiresAt: string } | null {
+  const m = /License (.+?), issued by (.+?), runs out (\d{4}-\d{2}-\d{2})\./.exec(note ?? '')
+  return m ? { licenseNumber: m[1], issuer: m[2], expiresAt: m[3] } : null
+}

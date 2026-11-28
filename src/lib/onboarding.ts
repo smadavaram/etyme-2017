@@ -1,0 +1,341 @@
+/**
+ * Getting a company into Etyme.
+ *
+ * etyme-market, 2026-09-17. A cross-domain edit in etyme-supply's file, on
+ * the precedent of c126c1c4 and f901e914: the comments in this file named
+ * real companies, so __tests__/invariants/demo-names.test.ts could not be
+ * pointed at it, and that guard is the only thing that stops the names
+ * coming back to the picker a fourth time. Renamed from the sheet in
+ * docs/demo-names.md; the sentences teach what they taught. Only comments
+ * changed — every rule, domain list and export is etyme-supply's and is
+ * exactly as it was.
+ *
+ * The thing that goes wrong is not sign-in. It is that the second person
+ * from a company creates a second company. Six weeks later there are three
+ * "Northbend Athletic Inc" records, the requisitions are split across them,
+ * and nobody can be told which is real without a support conversation.
+ *
+ * A verified OAuth domain solves it outright, and that is the single design
+ * decision this file exists to enforce: the domain is the company's
+ * identity, so the first person from talvern-medical.example creates
+ * Talvern Medical and everybody after them JOINS it. Nobody is asked to
+ * search for their employer or to paste an invite code, because both are
+ * ways of getting the answer wrong.
+ *
+ * The rest follows from that:
+ *
+ *   No passwords. Microsoft or Google for anyone with a work email, a
+ *   mailed link for anyone without one. A password is a thing to leak and
+ *   a thing to reset, and in 2030 it earns neither.
+ *
+ *   No "verify your email". The tenant already did. Asking again is
+ *   theatre that costs a step.
+ *
+ *   One real question: what does this company do here? It decides
+ *   navigation, permissions and what they see for the rest of the
+ *   relationship, so it is worth asking properly and worth being able to
+ *   change later.
+ */
+
+import { registrableDomain, registrableLabel } from '@/lib/registrable-domain'
+import { mayRegisterWithEmail } from '@/lib/company-defaults'
+
+export type CompanyKind = 'CLIENT' | 'VENDOR' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+
+/**
+ * How a supplier sits in the chain, at the moment they sign up.
+ *
+ * A prime holds the agreement with the client. A bench supplier sells
+ * through other suppliers. The same company is often both — Tellisford Solutions
+ * is prime to one client and buys bench from three firms in the same week —
+ * so this is a starting posture that shapes the first screens, not a
+ * permanent identity, and it can be changed without migrating anything.
+ *
+ * A sub-vendor is BENCH too: it sells through a prime, which is what the
+ * column says BENCH means (prisma/schema.prisma, `Company.supplierPosture`),
+ * and how the generated world files every sub-vendor (lib/seed-scale/frame).
+ * Prime, sub-vendor and bench are positions on a deal, not kinds of company
+ * (2026-10-20), so the picker offers each in the trade's words and writes
+ * the posture; it never invents a kind.
+ */
+export type SupplierPosture = 'PRIME' | 'BENCH' | null
+
+export interface CompanyTypeOption {
+  key: string
+  kind: CompanyKind
+  posture: SupplierPosture
+  label: string
+  /** What this means, for somebody who has never used the product. */
+  blurb: string
+  example: string
+  /**
+   * Whether this type may sign up on a personal address (gmail and the
+   * like). Read from `mayRegisterWithEmail` in lib/company-defaults, the
+   * one rule for it, so the picker and the registration cannot disagree.
+   * Only the one-person firm may: it claims no domain.
+   */
+  personalEmail: boolean
+}
+
+/**
+ * The seven ways in. Written so a person recognizes themselves in one line,
+ * because a wrong choice here is felt for months. The seventh, the
+ * sub-vendor, was added on 2026-11-01; the one-person firm stays last.
+ *
+ * The sixth, the one-person firm, was added on the sign-up walk of
+ * 2026-10-08. The kind, its roles (`rolesFor`) and its menu (SOLO_NAV)
+ * already existed; nothing on the picker led to them, so a nurse paid
+ * corp-to-corp through her own company had no way in. It works for any
+ * trade: a travel nurse, a validation engineer, a developer.
+ */
+// etyme-market, 2026-09-17. A cross-domain edit in etyme-supply's file,
+// on the precedent of c126c1c4 and f901e914: the two `example` strings
+// below named four real firms — two clients on the client door, two
+// integrators on the integrator door — on the live picker a
+// company reads while signing up. An example beside "We hire
+// contractors" reads as who already does, and nobody at those four has
+// agreed to appear here; the pricing decision is that no agent invents a
+// claim about who uses this, and a trademark in our own product is one.
+// The four are replaced from the sheet in docs/demo-names.md and from
+// the invented integrators already seeded in the world. Nothing else in
+// this file was touched — the keys, kinds, postures, labels and blurbs
+// are etyme-supply's and are exactly as they were.
+const TYPES: Omit<CompanyTypeOption, 'personalEmail'>[] = [
+  // The trade's own names, in the founder's order (2026-10-15: "In real
+  // world they are called Hiring Managers/Client, MSPs, Integrators/Project
+  // Delivery, Vendors and Bench Suppliers" — and "instead of workers it
+  // should be solopreneurs"). A name, not a sentence about the reader.
+  {
+    key: 'client',
+    kind: 'CLIENT',
+    posture: null,
+    label: 'Client (hiring managers)',
+    blurb: 'You hire contractors through suppliers.',
+    example: 'Talvern Medical, Northbend Athletic',
+  },
+  {
+    key: 'msp',
+    kind: 'MSP',
+    posture: null,
+    label: 'MSP',
+    blurb: 'You run a client’s contractor program and its suppliers.',
+    example: 'An MSP running a Fortune 500 program',
+  },
+  {
+    key: 'gsi',
+    kind: 'GSI',
+    posture: 'PRIME',
+    label: 'Integrator (project delivery)',
+    blurb: 'You deliver projects with your own people and with suppliers.',
+    example: 'Tellisford Solutions, Sundara Systems',
+  },
+  {
+    key: 'prime',
+    kind: 'VENDOR',
+    posture: 'PRIME',
+    // "Prime vendor", the Suppliers door's own tab word (2026-10-16), so it
+    // reads as one of a pair with the sub-vendor below it.
+    label: 'Prime vendor',
+    blurb: 'You supply people to clients directly, under your own agreement with each client.',
+    example: 'A staffing firm with its own MSAs',
+  },
+  // A firm that supplies people through a prime vendor (the second Tapin
+  // walk, 2026-11-01): there was no choice for it, so the Suppliers door's
+  // Sub-vendor tab landed on "Bench supplier", and the vendor's line, "to
+  // clients directly", was wrong for it. Kind VENDOR, posture BENCH: it
+  // sells through other suppliers, and its prime is the firm it bills.
+  {
+    key: 'sub',
+    kind: 'VENDOR',
+    posture: 'BENCH',
+    label: 'Sub-vendor',
+    blurb: 'You supply people through a prime vendor, and bill the prime, not the client.',
+    example: 'A staffing firm working under a prime vendor’s agreement',
+  },
+  {
+    key: 'bench',
+    kind: 'VENDOR',
+    posture: 'BENCH',
+    label: 'Bench supplier',
+    blurb: 'You keep a bench and place people through other firms.',
+    example: 'A bench sales firm',
+  },
+  {
+    key: 'solo',
+    kind: 'CONSULTANT_CORP',
+    posture: null,
+    label: 'Solopreneur',
+    blurb: 'You work through your own company.',
+    example: 'A travel nurse or an engineer paid through her own company',
+  },
+]
+
+export const COMPANY_TYPES: CompanyTypeOption[] = TYPES.map((t) => ({
+  ...t,
+  personalEmail: mayRegisterWithEmail(t.kind, true).ok,
+}))
+
+export function typeByKey(key: string): CompanyTypeOption | null {
+  return COMPANY_TYPES.find(t => t.key === key) ?? null
+}
+
+// ── Who is signing in ──────────────────────────────────────
+
+/** Email providers that belong to a person rather than a company. */
+const CONSUMER_DOMAINS = new Set([
+  'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.uk', 'ymail.com',
+  'hotmail.com', 'outlook.com', 'live.com', 'msn.com',
+  'aol.com', 'icloud.com', 'me.com', 'mac.com',
+  'proton.me', 'protonmail.com', 'pm.me',
+  'mail.com', 'gmx.com', 'zoho.com', 'yandex.com',
+  'rediffmail.com', 'qq.com', '163.com',
+])
+
+export type EmailKind = 'CORPORATE' | 'CONSUMER' | 'INVALID'
+
+export function domainOf(email: string): string | null {
+  const at = email.lastIndexOf('@')
+  if (at < 1 || at === email.length - 1) return null
+  const raw = email.slice(at + 1).trim().toLowerCase()
+  if (!raw.includes('.')) return null
+
+  // Reduced to the domain somebody actually registered, so that
+  // user@mail.acme.example and user@acme.example are the same company.
+  //
+  // Without this they were not: the first stored mail.acme.example, the second
+  // matched nothing and created a second tenant for the same organization.
+  // Neither could see the other's requisitions, invoices or people, and
+  // the join-beats-create promise was broken by a mail subdomain.
+  return registrableDomain(raw) ?? raw
+}
+
+/** The raw domain as typed, for the rare caller that wants exactly that. */
+export function rawDomainOf(email: string): string | null {
+  const at = email.lastIndexOf('@')
+  if (at < 1 || at === email.length - 1) return null
+  const d = email.slice(at + 1).trim().toLowerCase()
+  return d.includes('.') ? d : null
+}
+
+/**
+ * A consumer address is not a failure. It is a consultant, and consultants
+ * are the third side of this market — they sign in the same way and simply
+ * do not get a company.
+ */
+export function classifyEmail(email: string): EmailKind {
+  const lower = email.trim().toLowerCase()
+  const raw = rawDomainOf(lower)
+  if (!raw) return 'INVALID'
+  // Checked against both. googlemail.com reduces to itself, but a consumer
+  // provider on a multi-part suffix would otherwise slip through as
+  // corporate.
+  const reduced = domainOf(lower)
+  return CONSUMER_DOMAINS.has(raw) || (reduced !== null && CONSUMER_DOMAINS.has(reduced))
+    ? 'CONSUMER'
+    : 'CORPORATE'
+}
+
+// ── Join, or create ────────────────────────────────────────
+
+export interface ExistingCompany {
+  id: string
+  name: string
+  kind: string
+  memberCount: number
+}
+
+export type EntryDecision =
+  | { action: 'JOIN'; company: ExistingCompany; message: string }
+  | { action: 'CREATE'; domain: string; message: string }
+  | { action: 'CONSULTANT'; message: string }
+  | { action: 'REFUSE'; message: string }
+
+/**
+ * What happens when somebody signs in.
+ *
+ * Joining wins whenever a company already holds this domain. There is no
+ * "would you like to join or create?" prompt, because offering the choice
+ * is how duplicates get made — the person who is unsure picks create.
+ */
+export function decideEntry(email: string, existing: ExistingCompany | null): EntryDecision {
+  const kind = classifyEmail(email)
+
+  if (kind === 'INVALID') {
+    return { action: 'REFUSE', message: 'That does not look like an email address.' }
+  }
+
+  if (kind === 'CONSUMER') {
+    return {
+      action: 'CONSULTANT',
+      message: 'Signing you in as a consultant. Use your work email if you are setting up a company.',
+    }
+  }
+
+  const domain = domainOf(email)!
+
+  if (existing) {
+    return {
+      action: 'JOIN',
+      company: existing,
+      // A company can exist with nobody in it — imported, or seeded ahead
+      // of its first sign-in. "0 colleagues" is true and reads as broken.
+      message: existing.memberCount <= 1
+        ? `${existing.name} is already on Etyme. Joining it.`
+        : `${existing.name} is already here with ${existing.memberCount} colleagues. Joining them.`,
+    }
+  }
+
+  return {
+    action: 'CREATE',
+    domain,
+    message: `Nobody from ${domain} is here yet, so you are setting it up.`,
+  }
+}
+
+// ── The company's own address ──────────────────────────────
+
+/** Words a company cannot take as its address, because the product uses them. */
+const RESERVED = new Set([
+  'www', 'api', 'app', 'admin', 'dashboard', 'login', 'signup', 'shared',
+  'etyme', 'support', 'help', 'status', 'docs', 'mail', 'static', 'assets',
+])
+
+/**
+ * A readable address from the domain: talvern-medical.example becomes talvern.
+ *
+ * Collisions are numbered rather than refused. Two different companies can
+ * genuinely own similar domains, and telling the second one to think of
+ * another name is a poor first minute.
+ */
+export function slugFromDomain(domain: string, taken: Set<string>): string {
+  // The registrable label, not the first one. A company on
+  // mail.corp.com used to become "mail" — which is reserved, so it fell
+  // through to "mail-2.etyme.com" and nobody could tell why.
+  const base = (registrableLabel(domain) ?? domain.toLowerCase().replace(/^www\./, '').split('.')[0])
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40) || 'company'
+
+  if (!RESERVED.has(base) && !taken.has(base)) return base
+
+  for (let n = 2; n < 1000; n++) {
+    const candidate = `${base}-${n}`
+    if (!taken.has(candidate)) return candidate
+  }
+  return `${base}-${Date.now()}`
+}
+
+/**
+ * A company name guessed from the domain, so the first screen is not an
+ * empty box. Always shown for correction — a guess presented as a fact is
+ * worse than no guess.
+ */
+export function guessCompanyName(domain: string): string {
+  const base = domain.replace(/^www\./, '').split('.')[0]
+  return base
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}

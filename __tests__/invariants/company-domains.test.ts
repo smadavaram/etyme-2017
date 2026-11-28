@@ -1,0 +1,248 @@
+import { describe, it, expect } from 'vitest'
+import {
+  decideEntry,
+  canClaim,
+  describePolicy,
+  isConsumerDomain,
+  domainOfEmail,
+  type ClaimedDomain,
+} from '@/lib/company-domains'
+
+/**
+ * The old model was Company.domain — one unique string, and the company
+ * *was* that domain. Common, and wrong in ways that only show up once real
+ * companies arrive: conglomerates hold dozens, subsidiaries share a family
+ * and are deliberately separate, mergers need two tenants to become one,
+ * and a rebrand should not cost a company its identity.
+ *
+ * Patching the string made it worse. Reducing every address to its
+ * registrable domain fixed mail.corp.com creating a duplicate and
+ * immediately forced us.infosys.com and infosys.com into one tenant that
+ * neither asked for. One failure traded for another.
+ *
+ * A domain is a claim, not an identity.
+ */
+
+function claim(over: Partial<ClaimedDomain> & { domain: string }): ClaimedDomain {
+  return {
+    companyId: 'c1',
+    companyName: 'Infosys',
+    verified: true,
+    joinPolicy: 'REQUEST',
+    ...over,
+  }
+}
+
+describe('an exact claim decides', () => {
+  it('joins somebody straight in where the company said so', () => {
+    const e = decideEntry('dev@infosys.com', [claim({ domain: 'infosys.com', joinPolicy: 'AUTO' })])
+    expect(e.action).toBe('JOIN')
+  })
+
+  it('gives them a seat and asks somebody, which is the default', () => {
+    // Auto-join is a choice a company makes, not what happens by default.
+    const e = decideEntry('dev@infosys.com', [claim({ domain: 'infosys.com' })])
+    expect(e.action).toBe('REQUEST')
+  })
+
+  it('lets a company claim a domain that admits nobody', () => {
+    // A marketing domain claimed so nobody else takes it. Falling through
+    // to CREATE would hand them a second tenant.
+    const e = decideEntry('x@infosys.com', [claim({ domain: 'infosys.com', joinPolicy: 'NONE' })])
+    expect(e.action).toBe('REFUSE')
+    expect(e.message).toMatch(/ask them to invite you/i)
+  })
+
+  it('a claim nobody has proved admits nobody and founds nothing: the person is told to ask for an invitation or for the domain to be verified', () => {
+    // Was "ignores a claim nobody has proved", which then founded a second
+    // company on a domain a firm already held — the "founded again" break
+    // of the 2026-10-27 onboarding walk. Since the setup checklist
+    // (2026-10-28) the refusal names the step (`mayJoinByDomain`).
+    const e = decideEntry('dev@infosys.com', [claim({ domain: 'infosys.com', verified: false })])
+    expect(e.action).toBe('REFUSE')
+    expect(e.message).toMatch(/has not verified infosys\.com yet, so colleagues join by invitation/)
+    expect(e.message).toMatch(/Setup → Your domain/)
+  })
+})
+
+describe('a subsidiary is asked rather than guessed at', () => {
+  it('does not silently join us.infosys.com to infosys.com', () => {
+    // The bug the registrable-domain patch introduced. Infosys US and
+    // Infosys India have different legal entities, payroll and clients,
+    // and DNS cannot tell you which reading is right.
+    const e = decideEntry('ops@us.infosys.com', [claim({ domain: 'infosys.com', joinPolicy: 'AUTO' })])
+    expect(e.action).toBe('SUGGEST')
+    expect(e.action).not.toBe('JOIN')
+  })
+
+  it('asks the question in a form somebody can answer', () => {
+    const e = decideEntry('ops@us.infosys.com', [claim({ domain: 'infosys.com' })])
+    expect(e.message).toMatch(/part of them, or a separate company/i)
+  })
+
+  it('joins them properly once the subsidiary domain is claimed too', () => {
+    // The company decides, not DNS. Adding the domain is the decision.
+    const e = decideEntry('ops@us.infosys.com', [
+      claim({ domain: 'infosys.com', joinPolicy: 'AUTO' }),
+      claim({ domain: 'us.infosys.com', joinPolicy: 'AUTO' }),
+    ])
+    expect(e.action).toBe('JOIN')
+  })
+
+  it('keeps a subsidiary separate when it is a separate tenant', () => {
+    // Two claims, two companies, and nothing merges them.
+    const e = decideEntry('ops@us.infosys.com', [
+      claim({ domain: 'infosys.com', companyId: 'in', companyName: 'Infosys India' }),
+      claim({ domain: 'us.infosys.com', companyId: 'us', companyName: 'Infosys US', joinPolicy: 'AUTO' }),
+    ])
+    expect(e.action).toBe('JOIN')
+    if (e.action === 'JOIN') expect(e.companyId).toBe('us')
+  })
+})
+
+describe('a conglomerate holding many domains', () => {
+  it('treats every claimed domain as the same company', () => {
+    // The case a unique column forbids outright.
+    const unilever: ClaimedDomain[] = [
+      claim({ domain: 'unilever.com', companyId: 'u', companyName: 'Unilever', joinPolicy: 'AUTO' }),
+      claim({ domain: 'benjerry.com', companyId: 'u', companyName: 'Unilever', joinPolicy: 'AUTO' }),
+      claim({ domain: 'dove.com', companyId: 'u', companyName: 'Unilever', joinPolicy: 'AUTO' }),
+    ]
+    for (const email of ['a@unilever.com', 'b@benjerry.com', 'c@dove.com']) {
+      const e = decideEntry(email, unilever)
+      expect(e.action, email).toBe('JOIN')
+      if (e.action === 'JOIN') expect(e.companyId, email).toBe('u')
+    }
+  })
+})
+
+describe('mail subdomains, which started all this', () => {
+  it('still suggests rather than creating a duplicate', () => {
+    // The original bug: somebody on mail.corp.com created a second tenant
+    // for the same organization. Now they are asked.
+    const e = decideEntry('x@mail.corp.com', [claim({ domain: 'corp.com', companyName: 'Corp' })])
+    expect(e.action).toBe('SUGGEST')
+  })
+})
+
+describe('people who belong to nobody', () => {
+  it('makes a consumer address a consultant, not a company', () => {
+    for (const email of ['a@gmail.com', 'b@outlook.com', 'c@yahoo.co.in', 'd@proton.me']) {
+      expect(decideEntry(email, []).action, email).toBe('CONSULTANT')
+    }
+  })
+
+  it('does not call it a lesser outcome', () => {
+    const e = decideEntry('a@gmail.com', [])
+    expect(e.message).toMatch(/take it between agencies/i)
+  })
+
+  it('refuses something that is not an address', () => {
+    expect(decideEntry('nonsense', []).action).toBe('REFUSE')
+  })
+})
+
+describe('claiming a domain', () => {
+  it('takes the identity provider’s word, because it already proved it', () => {
+    const v = canClaim('corp.com', undefined, true)
+    expect(v.ok).toBe(true)
+    expect(v.needsProof).toBe(false)
+  })
+
+  it('asks for DNS proof otherwise', () => {
+    // A claim can admit people to a tenant, so it is never taken on
+    // somebody's word.
+    const v = canClaim('corp.com', undefined, false)
+    expect(v.ok).toBe(true)
+    expect(v.needsProof).toBe(true)
+    expect(v.reason).toMatch(/admits nobody/i)
+  })
+
+  it('refuses a consumer provider outright', () => {
+    // Claiming gmail.com would admit the entire internet.
+    const v = canClaim('gmail.com', undefined, true)
+    expect(v.ok).toBe(false)
+    expect(v.reason).toMatch(/belongs to everybody/i)
+  })
+
+  it('refuses a domain somebody else already holds, and names them', () => {
+    const v = canClaim('corp.com', { domain: 'corp.com', companyId: 'x', companyName: 'Corp Ltd', verified: true, joinPolicy: 'AUTO' }, true)
+    expect(v.ok).toBe(false)
+    expect(v.reason).toContain('Corp Ltd')
+    expect(v.reason).toMatch(/they can release it/i)
+  })
+})
+
+describe('what a policy means, said before it is chosen', () => {
+  it('warns about auto-join on a domain that may not be exclusively yours', () => {
+    // The mistake that quietly admits strangers: a shared host, a
+    // university, a holding company whose domain a dozen firms use.
+    const d = describePolicy('AUTO', 'university.edu')
+    expect(d.caution).toMatch(/admits strangers/i)
+  })
+
+  it('has nothing to warn about on the default', () => {
+    expect(describePolicy('REQUEST', 'corp.com').caution).toBeNull()
+  })
+})
+
+describe('reading the domain off an address', () => {
+  it('takes it exactly, without reducing it', () => {
+    // Reduction is what merged the subsidiary. The claim is exact.
+    expect(domainOfEmail('a@us.infosys.com')).toBe('us.infosys.com')
+  })
+
+  it('handles a trailing dot and capitals', () => {
+    expect(domainOfEmail('A@Corp.COM.')).toBe('corp.com')
+  })
+
+  it('knows the consumer providers', () => {
+    expect(isConsumerDomain('gmail.com')).toBe(true)
+    expect(isConsumerDomain('tecwyn.example')).toBe(false)
+  })
+})
+
+describe("Etyme's own domain is nobody's (founder, 2026-10-15 and 2026-10-16)", () => {
+  // Google Workspace runs etyme.com's mail, so a Google sign-in there
+  // proves a real mailbox. It still never founds or joins a company by
+  // the domain: Tapin's seats use etyme.com until Tapin has a domain.
+  it("a sign-in on the platform's own domain never claims it as a company's domain", async () => {
+    const { isPlatformDomain } = await import('@/lib/company-domains')
+    const e = decideEntry('newcomer@etyme.com', [])
+    expect(e.action).toBe('REFUSE')
+    expect(e).toMatchObject({ door: '/signup' })
+    if (e.action === 'REFUSE') {
+      expect(e.message).toBe("etyme.com is Etyme's own address, so it cannot stand for a company. Sign up with your email and a password and choose your company's Etyme address, or ask your company to invite you.")
+    }
+    expect(decideEntry('ops@notify.etyme.com', []).action).toBe('REFUSE')
+    expect(isPlatformDomain('etyme.com')).toBe(true)
+    expect(isPlatformDomain('Notify.Etyme.com.')).toBe(true)
+    expect(isPlatformDomain('notetyme.com')).toBe(false)
+    expect(isPlatformDomain(null)).toBe(false)
+  })
+
+  it('a claim somebody once made on etyme.com joins nobody to it', () => {
+    // A bootstrap run before this rule may have left one behind.
+    const stale = claim({ domain: 'etyme.com', companyName: 'Etyme', joinPolicy: 'AUTO' })
+    expect(decideEntry('newcomer@etyme.com', [stale]).action).toBe('REFUSE')
+    expect(decideEntry('newcomer@us.etyme.com', [stale]).action).toBe('REFUSE')
+  })
+
+  it('no company may claim etyme.com or a name under it, even with an identity provider behind it', () => {
+    expect(canClaim('etyme.com', undefined, true)).toMatchObject({ ok: false })
+    expect(canClaim('tapin.etyme.com', undefined, true).reason).toContain("Etyme's own address")
+  })
+
+  it('the one way to make a company drops etyme.com before it is stored or claimed', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../../src/lib/company-create.ts'), 'utf8')
+    // A company recorded on another firm's list keeps no domain either (2026-11-13), so the line drops both.
+    expect(src).toMatch(/const domain = (recordOnly \|\| )?isPlatformDomain\(input\.domain\) \? null : input\.domain/)
+    expect(src).toMatch(/if \(input\.claimDomain && domain( && !recordOnly)?\) \{/)
+    expect(src).not.toContain('domain: input.domain,')
+  })
+
+  it('a password sign-up on etyme.com makes its company by its Etyme address and never asks whose domain it is', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../../src/lib/password-door.ts'), 'utf8')
+    expect(src).toContain('if (isPlatformDomain(domainOfEmail(person.primaryEmail))) return makeCompany(named, pending)')
+  })
+})

@@ -1,0 +1,248 @@
+'use client'
+
+import { usePageSection } from '@/components/page-section'
+import { useEffect, useState } from 'react'
+import { readJson } from '@/lib/read-response'
+import { PageHead, Chip, FormMessage, RefusedState, LoadingState, EmptyState } from '@/components/ui'
+import { GrantSeat } from '@/components/settings/grant-seat'
+import { AskForSeat } from '@/components/settings/ask-for-seat'
+
+/**
+ * Program office — the desks this client has given to firms that are
+ * not this client.
+ *
+ * ── A decision surface, in CLAUDE.md's sense ─────────────────────────
+ *
+ * Never more than a handful of rows, each one a standing grant to read
+ * a whole contingent workforce. So: prose, the reason in the client's
+ * own words, and no density. Nobody manages forty of these.
+ *
+ * The same page serves both ends, because it is one fact seen from two
+ * sides — the client reads the firms it has seated, and a program office
+ * reads the programs it has been seated in. What the office cannot do
+ * here is grant or revoke anything: a badge is issued at the reception
+ * desk of the building you are visiting.
+ */
+
+interface Seat {
+  id: string
+  live: boolean
+  client: { id: string; name: string; slug: string }
+  office: { id: string; name: string; kind: string }
+  role: { id: string; name: string }
+  unit: { id: string; name: string } | null
+  grantedBy: { id: string; name: string } | null
+  grantedAt: string
+  reason: string
+  validTo: string | null
+  revokedAt: string | null
+  revokedBy: { id: string; name: string } | null
+  revokeReason: string | null
+  says: string
+}
+
+const on = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+
+export default function ProgramSeatsPage() {
+  const section = usePageSection('/dashboard/program/seats')
+  const [seats, setSeats] = useState<Seat[]>([])
+  const [side, setSide] = useState<'CLIENT' | 'OFFICE'>('CLIENT')
+  const [nothingYet, setNothingYet] = useState<string | null>(null)
+  const [unreadable, setUnreadable] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  // Whether the first read has come back. "Nobody outside this company
+  // sits in this program" before it has was a guess drawn as an answer:
+  // at Cavanaugh it showed while Aptiva sat there (round five, #15).
+  const [readOnce, setReadOnce] = useState(false)
+
+  const reload = async () => {
+    const res = await fetch('/api/program/seats')
+    const body = await readJson(res)
+    const data = body?.data
+    if (!data) throw new Error('The MSP list came back empty.')
+    setSeats(Array.isArray(data.seats) ? data.seats : [])
+    setSide(data.side === 'OFFICE' ? 'OFFICE' : 'CLIENT')
+    setNothingYet(typeof data.says === 'string' ? data.says : null)
+    setReadOnce(true)
+  }
+
+  // Taking a role back asks why in a box on the page, never a browser
+  // prompt (onboarding walk, 2026-10-27): the reason is kept on the seat.
+  const [taking, setTaking] = useState<string | null>(null)
+  const [why, setWhy] = useState('')
+
+  async function revoke(seat: Seat) {
+    if (!why.trim()) {
+      setError(`Say why ${seat.office.name} is losing the ${seat.role.name} role.`)
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/program/seats/${encodeURIComponent(seat.id)}`, {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reason: why.trim() }),
+      })
+      const body = await readJson(res)
+      if (!res.ok) throw new Error(body?.error?.message ?? 'That seat could not be taken back.')
+      setTaking(null)
+      setWhy('')
+      await reload()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  useEffect(() => {
+    let live = true
+    ;(async () => {
+      try {
+        await reload()
+      } catch (err: any) {
+        if (!live) return
+        setUnreadable(err?.message ?? 'The MSP list could not be read.')
+      }
+    })()
+    return () => { live = false }
+  }, [])
+
+  if (unreadable) {
+    return <RefusedState says={unreadable} />
+  }
+
+  if (!readOnce) {
+    return <LoadingState says="Loading…" />
+  }
+
+  const live = seats.filter((s) => s.live)
+  const past = seats.filter((s) => !s.live)
+
+  return (
+    <div className="animate-fade-in space-y-6">
+      <PageHead
+        eyebrow={section}
+        title="MSPs"
+        subtitle={side === 'CLIENT'
+          ? 'An MSP that runs your program places nobody, so nothing ties it to you the way a placement ties a supplier. You say so here. It holds one of your own roles, under your rules rather than its own, and every read it makes leaves a trail you can read back.'
+          : 'The programs where you have been given a role. Each one is somebody else’s workforce: you act in their role, under their rules, and they can take the role back at any time.'}
+      />
+
+      {error && <FormMessage tone="error">{error}</FormMessage>}
+
+      {nothingYet && (
+        <div className="panel p-5">
+          <p className="max-w-2xl text-[14px] leading-relaxed text-etyme-ink">{nothingYet}</p>
+        </div>
+      )}
+
+      {/* An MSP with no seat asks for one under the sentence saying so. */}
+      {side === 'OFFICE' && nothingYet && <AskForSeat />}
+
+      {/* A client grants a seat here, from its own Settings, never by the API alone. */}
+      {side === 'CLIENT' && <GrantSeat onGranted={() => { void reload() }} />}
+
+      {live.length === 0 && !nothingYet && (
+        <EmptyState
+          says={<>Nobody outside {side === 'CLIENT' ? 'this company' : 'your own firm'} sits in this program.</>}
+          detail={side === 'CLIENT'
+            ? 'That is the ordinary case: your own people run it themselves.'
+            : undefined}
+        />
+      )}
+
+      {live.map((seat) => (
+        <div key={seat.id} className="panel p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-[19px] text-etyme-ink">
+                {side === 'CLIENT' ? seat.office.name : seat.client.name}
+              </h2>
+              <p className="mt-1 text-[13px] text-etyme-muted">{seat.says}</p>
+            </div>
+            <Chip tone="verified">In the seat</Chip>
+          </div>
+
+          <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-etyme-ink">{seat.reason}</p>
+
+          <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+            <div>
+              <dt className="lbl">Role</dt>
+              <dd className="text-[14px] text-etyme-ink">{seat.role.name}</dd>
+            </div>
+            <div>
+              <dt className="lbl">Reaches</dt>
+              <dd className="text-[14px] text-etyme-ink">{seat.unit ? seat.unit.name : 'The whole program'}</dd>
+            </div>
+            <div>
+              <dt className="lbl">Granted</dt>
+              <dd className="text-[14px] tabular-nums text-etyme-ink">
+                {on(seat.grantedAt)}
+                {seat.grantedBy ? ` · ${seat.grantedBy.name}` : ''}
+                {seat.validTo ? ` · runs out ${on(seat.validTo)}` : ''}
+              </dd>
+            </div>
+          </dl>
+
+          {side === 'CLIENT' && taking !== seat.id && (
+            <button
+              onClick={() => { setTaking(seat.id); setWhy(''); setError(null) }}
+              disabled={busy}
+              className="mt-4 btn-secondary text-[13px]"
+            >
+              Take the role back
+            </button>
+          )}
+          {side === 'CLIENT' && taking === seat.id && (
+            <div className="mt-4 space-y-2">
+              <label className="block">
+                <span className="lbl">Why is {seat.office.name} losing the {seat.role.name} role?</span>
+                <textarea
+                  value={why}
+                  onChange={(e) => setWhy(e.target.value)}
+                  rows={2}
+                  className="mt-1 w-full max-w-xl rounded border border-etyme-rule px-3 py-2 text-[13px]"
+                />
+              </label>
+              <div className="flex gap-2">
+                <button onClick={() => revoke(seat)} disabled={busy || !why.trim()} className="btn-secondary text-[13px]">
+                  {busy ? 'Taking it back…' : 'Take the role back'}
+                </button>
+                <button onClick={() => { setTaking(null); setWhy('') }} disabled={busy} className="text-[13px] text-etyme-muted hover:text-etyme-ink">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {past.length > 0 && (
+        <div className="panel p-5">
+          <h2 className="font-serif text-[17px] text-etyme-ink">No longer in the program</h2>
+          <p className="mt-1 text-[13px] text-etyme-muted">
+            Kept rather than deleted: who was in the program, from when to when, and why they came out,
+            is the answer somebody may have to give later.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {past.map((seat) => (
+              <li key={seat.id} className="text-[13px] text-etyme-ink">
+                <span className="font-medium">
+                  {side === 'CLIENT' ? seat.office.name : seat.client.name}
+                </span>
+                {' — '}
+                {seat.role.name}
+                {', '}
+                {on(seat.grantedAt)} to {on(seat.revokedAt ?? seat.validTo)}. {seat.says}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}

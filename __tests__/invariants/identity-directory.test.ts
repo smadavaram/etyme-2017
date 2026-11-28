@@ -1,0 +1,271 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const db = vi.hoisted(() => ({
+  externalIdentity: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+  context: { findMany: vi.fn(), updateMany: vi.fn() },
+  person: { update: vi.fn(), findUnique: vi.fn() },
+  company: { findUniqueOrThrow: vi.fn(async () => ({ name: 'Northbend Athletic' })), findUnique: vi.fn() },
+  companySignInPolicy: { findUnique: vi.fn(async () => ({ mode: 'SSO_ONLY', scim: true })), findMany: vi.fn(async () => []) },
+  identityProvider: { findMany: vi.fn(async () => [{ issuer: 'https://mock-directory.etyme.invalid/world-northbend' }]), findFirst: vi.fn() },
+  scimToken: { findUnique: vi.fn(), update: vi.fn(async () => ({})) },
+  accessLog: { createMany: vi.fn(async (_a: any) => ({ count: 1 })) },
+  incident: { create: vi.fn() },
+  $transaction: vi.fn(),
+}))
+vi.mock('@/lib/db', () => ({ prisma: db }))
+import { generateKeyPairSync, sign as cryptoSign } from 'node:crypto'
+import { verifyIdToken, safeOutboundUrl, openBlob, sealBlob, discoveryProblem, type Jwks } from '@/lib/identity/oidc'
+import {
+  issueMockCode, redeemMockCode, mockJwks, mockClientId, mockClientSecret, mockIssuerFor, mockMayServe, isMockIssuer,
+} from '@/lib/identity/mock-directory'
+import { pkce } from '@/lib/identity/oidc'
+import { providerSecret, safeNext, SECRET_REF_SHAPE } from '@/lib/identity/directory'
+import { linkedInSeatRefusal, directoryOnlyLockout } from '@/lib/identity/policy'
+
+/**
+ * The company's own directory as a door (founder, 2026-11-11, stage B).
+ *
+ * Nobody is seated on a token that does not prove itself: its signature by
+ * a key the directory publishes, its issuer, its audience, its dates and
+ * the nonce this browser was sent with. The mock directory signs the way a
+ * real one does and serves only demo companies on reserved domains.
+ */
+
+const SECRET = 'a-deployment-secret-for-the-tests-0123456789'
+const ISS = 'https://login.example-directory.example/tenant-1/v2.0'
+const AUD = 'etyme-client-1'
+const NOW = Date.UTC(2026, 10, 11, 12, 0, 0)
+
+const rsa = generateKeyPairSync('rsa', { modulusLength: 2048 })
+const other = generateKeyPairSync('rsa', { modulusLength: 2048 })
+const jwk = { ...(rsa.publicKey.export({ format: 'jwk' }) as any), kid: 'k1', alg: 'RS256', use: 'sig' }
+const JWKS: Jwks = { keys: [jwk] }
+
+function token(claims: Record<string, unknown>, opts: { alg?: string; key?: any; kid?: string } = {}) {
+  const head = Buffer.from(JSON.stringify({ alg: opts.alg ?? 'RS256', kid: opts.kid ?? 'k1', typ: 'JWT' })).toString('base64url')
+  const body = Buffer.from(JSON.stringify(claims)).toString('base64url')
+  const sig = opts.alg === 'none' ? Buffer.alloc(0) : cryptoSign('sha256', Buffer.from(`${head}.${body}`), opts.key ?? rsa.privateKey)
+  return `${head}.${body}.${sig.toString('base64url')}`
+}
+
+const now = Math.floor(NOW / 1000)
+const good = { iss: ISS, aud: AUD, sub: 'subject-42', email: 'ana@corvane.example', nonce: 'n-1', iat: now, exp: now + 300 }
+const check = (t: string, nonce = 'n-1') => verifyIdToken({ token: t, jwks: JWKS, issuer: ISS, audience: AUD, nonce, now: NOW })
+
+describe('a sign-in token from a company directory is verified before anybody is seated', () => {
+  it('a token signed by the directory’s published key, for Etyme, in date, with this browser’s nonce, is accepted', () => {
+    const v = check(token(good))
+    expect(v.ok).toBe(true)
+    if (v.ok) expect(v.claims.sub).toBe('subject-42')
+  })
+
+  it('a token signed by any other key is refused, whatever it says', () => {
+    const v = check(token(good, { key: other.privateKey }))
+    expect(v).toMatchObject({ ok: false, code: 'SIGNATURE' })
+  })
+
+  it('a token with no signature ("none") is refused', () => {
+    expect(check(token(good, { alg: 'none' }))).toMatchObject({ ok: false, code: 'ALG' })
+  })
+
+  it('a token signed with a shared secret is refused, because a secret proves only that somebody held it', () => {
+    expect(check(token(good, { alg: 'HS256' }))).toMatchObject({ ok: false, code: 'ALG' })
+  })
+
+  it('a token from another issuer is refused', () => {
+    expect(check(token({ ...good, iss: 'https://attacker.example/' }))).toMatchObject({ ok: false, code: 'ISSUER' })
+  })
+
+  it('a token issued for another application is refused', () => {
+    expect(check(token({ ...good, aud: 'someone-else' }))).toMatchObject({ ok: false, code: 'AUDIENCE' })
+    expect(check(token({ ...good, aud: [AUD, 'someone-else'], azp: 'someone-else' }))).toMatchObject({ ok: false, code: 'AUDIENCE' })
+  })
+
+  it('a token that has run out is refused, and one with no expiry is refused', () => {
+    expect(check(token({ ...good, exp: now - 120 }))).toMatchObject({ ok: false, code: 'EXPIRED' })
+    const { exp: _exp, ...noExp } = good
+    void _exp
+    expect(check(token(noExp))).toMatchObject({ ok: false, code: 'EXPIRY' })
+  })
+
+  it('a token made for another sign-in (a different nonce) is refused', () => {
+    expect(check(token(good), 'n-2')).toMatchObject({ ok: false, code: 'NONCE' })
+  })
+
+  it('a token naming a key the directory does not publish is refused', () => {
+    expect(check(token(good, { kid: 'k-unknown' }))).toMatchObject({ ok: false, code: 'KEY' })
+  })
+
+  it('no refusal sentence repeats the token', () => {
+    const t = token({ ...good, aud: 'x' })
+    const v = check(t)
+    expect(v.ok).toBe(false)
+    if (!v.ok) expect(v.says).not.toContain(t.split('.')[1])
+  })
+})
+
+describe('the state, the nonce and the ticket are sealed and single-purpose', () => {
+  it('a sealed blob opens only under its own label and only while in date', () => {
+    const b = sealBlob({ a: 1 }, 'sso-state', 60, SECRET, NOW)
+    expect(openBlob(b, 'sso-state', SECRET, NOW)?.a).toBe(1)
+    expect(openBlob(b, 'sso-ticket', SECRET, NOW)).toBeNull()
+    expect(openBlob(b, 'sso-state', SECRET + 'x', NOW)).toBeNull()
+    expect(openBlob(b, 'sso-state', SECRET, NOW + 61_000)).toBeNull()
+    expect(openBlob(b.slice(0, -2) + 'AA', 'sso-state', SECRET, NOW)).toBeNull()
+  })
+
+  it('after sign-in the browser is only ever sent to a path inside this app', () => {
+    expect(safeNext('/dashboard')).toBe('/dashboard')
+    expect(safeNext('https://evil.example/')).toBe('/setup')
+    expect(safeNext('//evil.example')).toBe('/setup')
+    expect(safeNext('/\\evil.example')).toBe('/setup')
+  })
+
+  it('Etyme fetches a directory only over https, never a private address, never with a password in the address', () => {
+    const prod = { NODE_ENV: 'production' }
+    expect(safeOutboundUrl('https://login.example.com/x', prod)).not.toBeNull()
+    expect(safeOutboundUrl('http://login.example.com/x', prod)).toBeNull()
+    expect(safeOutboundUrl('https://169.254.169.254/latest', prod)).toBeNull()
+    expect(safeOutboundUrl('https://10.0.0.5/', prod)).toBeNull()
+    expect(safeOutboundUrl('https://user:pw@login.example.com/', prod)).toBeNull()
+    expect(safeOutboundUrl('http://localhost:3000/', prod)).toBeNull()
+  })
+
+  it('a discovery document that names another issuer is refused', () => {
+    expect(discoveryProblem({ issuer: 'https://other.example', authorization_endpoint: 'https://a.example/a', token_endpoint: 'https://a.example/t', jwks_uri: 'https://a.example/k' }, ISS)).toMatch(/not https:\/\/login/)
+  })
+
+  it('a stored secret reference reads only the directory’s own names in the secret store, never the deployment’s keys', () => {
+    const env = { NEXTAUTH_SECRET: SECRET, ETYME_IDP_CORVANE: 'the-client-secret' }
+    expect(providerSecret({ issuer: ISS, secretRef: 'ETYME_IDP_CORVANE', secretSealed: null }, env)).toBe('the-client-secret')
+    expect(providerSecret({ issuer: ISS, secretRef: 'NEXTAUTH_SECRET', secretSealed: null }, env)).toBeNull()
+    expect(SECRET_REF_SHAPE.test('DATABASE_URL')).toBe(false)
+  })
+})
+
+describe('the mock directory is a mock, for demo companies only', () => {
+  it('it serves a company only where every verified domain is a reserved name, and never one with a real domain', () => {
+    expect(mockMayServe(['northbend.example'])).toBe(true)
+    expect(mockMayServe(['northbend.example', 'northbend.com'])).toBe(false)
+    expect(mockMayServe(['acme.com'])).toBe(false)
+    expect(mockMayServe([])).toBe(false)
+    expect(isMockIssuer(mockIssuerFor('world-northbend'))).toBe(true)
+    expect(isMockIssuer(ISS)).toBe(false)
+  })
+
+  it('its token is signed the way a real directory signs, and checks against its published key', () => {
+    const { verifier, challenge } = pkce()
+    const redirectUri = 'http://localhost:3000/api/sso/callback'
+    const code = issueMockCode({ slug: 'world-northbend', person: { subject: 'nb-1', email: 'priya@northbend.example', name: 'Priya', groups: [] }, nonce: 'n-9', clientId: mockClientId('world-northbend'), redirectUri, codeChallenge: challenge }, SECRET, NOW)
+    const r = redeemMockCode({ slug: 'world-northbend', code, clientId: mockClientId('world-northbend'), clientSecret: mockClientSecret('world-northbend', SECRET), redirectUri, codeVerifier: verifier }, SECRET, NOW)
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const v = verifyIdToken({ token: r.idToken, jwks: mockJwks(SECRET), issuer: mockIssuerFor('world-northbend'), audience: mockClientId('world-northbend'), nonce: 'n-9', now: NOW })
+    expect(v.ok).toBe(true)
+  })
+
+  it('its code is refused with the wrong PKCE verifier, the wrong client secret or another redirect address', () => {
+    const { challenge } = pkce()
+    const redirectUri = 'http://localhost:3000/api/sso/callback'
+    const args = { slug: 'world-northbend', person: { subject: 'nb-1', email: 'p@northbend.example', name: 'P', groups: [] }, nonce: 'n', clientId: mockClientId('world-northbend'), redirectUri, codeChallenge: challenge }
+    const code = issueMockCode(args, SECRET, NOW)
+    const base = { slug: 'world-northbend', code, clientId: mockClientId('world-northbend'), clientSecret: mockClientSecret('world-northbend', SECRET), redirectUri, codeVerifier: pkce().verifier }
+    expect(redeemMockCode(base, SECRET, NOW)).toMatchObject({ ok: false, error: 'invalid_grant' })
+    expect(redeemMockCode({ ...base, clientSecret: 'guess' }, SECRET, NOW)).toMatchObject({ ok: false, error: 'invalid_client' })
+    expect(redeemMockCode({ ...base, redirectUri: 'https://evil.example/cb' }, SECRET, NOW)).toMatchObject({ ok: false, error: 'invalid_grant' })
+    expect(redeemMockCode({ ...base, slug: 'world-other' }, SECRET, NOW)).toMatchObject({ ok: false })
+  })
+})
+
+describe('who may come in through which door, beyond the directory', () => {
+  it('a LinkedIn session is refused a seat at any company, a one-person firm’s included, and allowed a candidate’s own', () => {
+    // Narrowed by the founder on 2026-11-12: "For LinkedIn, mention for candidate only".
+    expect(linkedInSeatRefusal('LINKEDIN', { name: 'Northbend Athletic', kind: 'CLIENT' })).toMatch(/^LinkedIn is for candidates only\. Sign in to Northbend Athletic with Continue with Google/)
+    expect(linkedInSeatRefusal('LINKEDIN', { name: 'Colleen Byrne LLC', kind: 'CONSULTANT_CORP' })).toMatch(/^LinkedIn is for candidates only/)
+    expect(linkedInSeatRefusal('LINKEDIN', null)).toBeNull()
+    expect(linkedInSeatRefusal('GOOGLE_SOCIAL', { name: 'Northbend Athletic', kind: 'CLIENT' })).toBeNull()
+  })
+
+  it('directory only is chosen only from a session the company’s own directory signed in, so the Owner cannot lock themselves out', () => {
+    const base = { to: 'SSO_ONLY' as const, issuers: [ISS], companyName: 'Northbend Athletic' }
+    expect(directoryOnlyLockout({ ...base, door: 'PASSWORD', issuer: null })).toMatch(/through your company's directory once/)
+    expect(directoryOnlyLockout({ ...base, door: 'DIRECTORY', issuer: 'https://other.example' })).not.toBeNull()
+    expect(directoryOnlyLockout({ ...base, door: 'DIRECTORY', issuer: ISS })).toBeNull()
+    expect(directoryOnlyLockout({ ...base, to: 'HYBRID', door: 'PASSWORD', issuer: null })).toBeNull()
+  })
+})
+
+describe('removing somebody in the directory removes them here, at once', () => {
+  const EI = { id: 'ei-mateo', personId: 'p-mateo', companyId: 'nb', email: 'mateo.silva@northbend.example', disabledAt: null, company: { name: 'Northbend Athletic' } }
+  const rows = () => db.accessLog.createMany.mock.calls.flatMap((c: any[]) => c[0].data)
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    db.externalIdentity.findUnique.mockResolvedValue(EI)
+    db.$transaction.mockImplementation(async (fn: any) => fn(db))
+    db.accessLog.createMany.mockResolvedValue({ count: 1 })
+    db.companySignInPolicy.findUnique.mockResolvedValue({ mode: 'SSO_ONLY', scim: true })
+    db.identityProvider.findMany.mockResolvedValue([{ issuer: 'https://mock-directory.etyme.invalid/world-northbend' }])
+    db.company.findUniqueOrThrow.mockResolvedValue({ name: 'Northbend Athletic' })
+  })
+
+  it('a person the directory turns off has their seat paused, every live session ended, and USER_DEPROVISIONED written, in one transaction', async () => {
+    db.context.findMany
+      .mockResolvedValueOnce([{ id: 'ctx-mateo', suspendedAt: null, role: { name: 'Hiring Manager' } }])
+      .mockResolvedValueOnce([{ id: 'ctx-ines', personId: 'p-ines' }])
+    const { deprovision } = await import('@/lib/identity/provision')
+    const r = await deprovision({ externalIdentityId: 'ei-mateo', surface: 'SCIM' })
+    expect(r.ok).toBe(true)
+    expect(db.$transaction).toHaveBeenCalledTimes(1)
+    expect(db.externalIdentity.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'ei-mateo' }, data: { disabledAt: expect.any(Date) } }))
+    expect(db.context.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['ctx-mateo'] } }, data: expect.objectContaining({ suspendedAt: expect.any(Date) }) }))
+    expect(db.person.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'p-mateo' }, data: expect.objectContaining({ sessionVersion: { increment: 1 } }) }))
+    const row = rows().find((x: any) => x.action === 'USER_DEPROVISIONED')
+    expect(row).toMatchObject({ subjectId: 'p-mateo', allowed: true })
+    expect(row.reason).toMatch(/^policy SSO_ONLY · surface SCIM · .*paused and every live session ended/)
+  })
+
+  it('the directory can never remove the last Owner: nothing changes, and the refusal is in the ledger', async () => {
+    db.context.findMany
+      .mockResolvedValueOnce([{ id: 'ctx-ines', suspendedAt: null, role: { name: 'Owner' } }])
+      .mockResolvedValueOnce([{ id: 'ctx-ines', personId: 'p-mateo' }])
+    const { deprovision } = await import('@/lib/identity/provision')
+    const r = await deprovision({ externalIdentityId: 'ei-mateo', surface: 'SCIM' })
+    expect(r).toMatchObject({ ok: false, status: 409 })
+    if (!r.ok) expect(r.says).toMatch(/last Owner/)
+    expect(db.$transaction).not.toHaveBeenCalled()
+    expect(db.person.update).not.toHaveBeenCalled()
+    expect(rows().find((x: any) => x.action === 'USER_DEPROVISIONED')).toMatchObject({ allowed: false })
+  })
+
+  it('another Owner turned off in the directory loses their directory sign-in and every session, and keeps the seat for another Owner to remove', async () => {
+    db.context.findMany
+      .mockResolvedValueOnce([{ id: 'ctx-ines', suspendedAt: null, role: { name: 'Owner' } }])
+      .mockResolvedValueOnce([{ id: 'ctx-ines', personId: 'p-mateo' }, { id: 'ctx-other', personId: 'p-other' }])
+    const { deprovision } = await import('@/lib/identity/provision')
+    const r = await deprovision({ externalIdentityId: 'ei-mateo', surface: 'SCIM' })
+    expect(r).toMatchObject({ ok: false, status: 409 })
+    expect(db.person.update).toHaveBeenCalled()
+    expect(db.context.updateMany).not.toHaveBeenCalled()
+  })
+
+  it('a SCIM call with a token nobody issued, or one revoked, is refused and reaches no company', async () => {
+    const { scimCaller, hashToken } = await import('@/lib/identity/scim')
+    db.scimToken.findUnique.mockResolvedValueOnce(null)
+    expect((await scimCaller('Bearer etyme_scim_guess')).ok).toBe(false)
+    db.scimToken.findUnique.mockResolvedValueOnce({ id: 't', tokenHash: hashToken('etyme_scim_old'), revokedAt: new Date(), companyId: 'nb', company: { name: 'Northbend Athletic' } })
+    expect((await scimCaller('Bearer etyme_scim_old')).ok).toBe(false)
+    expect((await scimCaller(null)).ok).toBe(false)
+    expect(db.identityProvider.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('a SCIM call for a company that turned SCIM off is refused, written to the ledger first', async () => {
+    const { scimCaller, hashToken } = await import('@/lib/identity/scim')
+    db.scimToken.findUnique.mockResolvedValueOnce({ id: 't', tokenHash: hashToken('etyme_scim_live'), revokedAt: null, companyId: 'nb', company: { name: 'Northbend Athletic' } })
+    db.companySignInPolicy.findUnique.mockResolvedValue({ mode: 'HYBRID', scim: false })
+    db.identityProvider.findFirst.mockResolvedValueOnce({ id: 'idp', issuer: 'x' })
+    const r = await scimCaller('Bearer etyme_scim_live')
+    expect(r.ok).toBe(false)
+    expect(rows().find((x: any) => x.action === 'USER_PROVISIONED')).toMatchObject({ allowed: false })
+  })
+})

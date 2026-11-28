@@ -1,0 +1,426 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { seatUnits } from '@/lib/account-walls'
+import { seatTrail } from '@/lib/program-seat'
+import { seatMayRead, seatScope } from '@/lib/walls'
+import { logBulkAccess, recordRefusal } from '@/lib/access-log'
+import { isDeskless } from '@/lib/nav-table'
+import { askTheDesk } from '@/lib/permissions'
+import { ledgerRank } from '@/app/dashboard/tenure/words'
+import { ruleSetFor } from '@/lib/twin/rule-set'
+import { daysOnSite, monthsOf, againstLimit, bookedLimitDay, contractsPastLimit, daysServed, daysBooked, standingAgainstLimit, ledgerStatus, linesCounted } from '@/lib/tenure-days'
+// etyme-architect, 2026-09-17. A cross-domain edit in etyme-regulatory's
+// file, on the precedent of c126c1c4 and f901e914: a sub-vendor's name is
+// the prime's to keep unless the client's agreement with the prime says
+// otherwise, and one rule landing in three routes at once is a rule, not
+// three changes. Nothing else in this file was touched — every day on
+// site is still counted the same way, from the same rungs.
+import { mayNameSubVendors, namesForClient, firmsOnARow, type SeenName } from '@/lib/chain-names'
+
+/**
+ * GET /api/tenure
+ *
+ * Cross-vendor tenure tracking — Addendum E's core differentiator.
+ *
+ * "Tenure accrues to the person at the client, aggregated across all
+ * vendors and all assignments. Twelve months via one vendor plus twelve
+ * via another is twenty-four months of exposure. Per-assignment tenure
+ * tracking is wrong and is the industry's blind spot."
+ *
+ * Returns each person's cumulative tenure at a given client, status
+ * against the tenure cap, and break-in-service eligibility.
+ */
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const url = request.nextUrl
+
+  // Entitlement-checked: the caller is either this client, a program
+  // office in a seat the client granted, or a vendor with a real
+  // placement there. An unverified ?clientCompanyId= is a 403.
+  const { client: clientCompany, seat, error: clientError } = await resolveClientCompany(
+    caller,
+    url.searchParams.get('clientCompanyId')
+  )
+  if (clientError) return clientError
+
+  // ── A seat with no desk reads no tenure ─────────────────────────────
+  //
+  // Sign-up walk, round three. A colleague who joins on the domain sits
+  // as Member, and Member holds no permission at all: the menu shows a
+  // desk-less seat its own pages and what is addressed to it, and none
+  // of the firm's — Tenure among them (`isDeskless` in lib/nav-table, the
+  // same rule the sidebar draws by). The route asked nothing, so the
+  // ledger the menu withheld opened by URL. It now refuses the same seat
+  // the menu does, and no other: every desk the Tenure link is shown to
+  // still reads it, which is why the gate is the menu's rule and not a
+  // permission the AP clerk who sees the link does not hold.
+  //
+  // A seated office is judged by the seat's role below, never by its own.
+  // The refusal is a refused read of every person the page would have
+  // shown, so it writes an AccessLog row per person, `allowed: false`,
+  // before the 403 goes out. Only ids are read to name them.
+  if (!seat && isDeskless(caller.permissions)) {
+    const says = askTheDesk({
+      doing: 'Reading the tenure ledger',
+      needs: 'assignments.read',
+      kind: caller.company?.kind ?? null,
+      companyName: caller.company?.name ?? null,
+    })
+    const would = await prisma.sellContract.findMany({
+      where: {
+        ...endClientFilter(clientCompany.id),
+        state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+      },
+      select: { personId: true },
+    })
+    await recordRefusal(would.map((c) => c.personId), {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: 'TENURE_VIEW',
+      allowed: false,
+      reason: `Tenure view at ${clientCompany.name} refused: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'FORBIDDEN', message: says } }, { status: 403 })
+  }
+
+  // ── What a seated office may read here ──────────────────────────────
+  //
+  // Tenure is the client's own exposure and the desk that answers for it
+  // is the compliance officer's — but a program manager answers for it
+  // too, and both hold `assignments.read` at a CLIENT
+  // (`lib/company-defaults`). So the gate is the permission rather than
+  // the role name: a client that seats an office at a desk holding it
+  // has decided the office may read who is on its sites and for how
+  // long, and a client that seats it at its AP clerk's desk has not.
+  //
+  // Asked against the SEAT'S role, never the office's own. An MSP
+  // coordinator whose own firm never granted its coordinators
+  // `assignments.read` is the client's program manager inside this seat.
+  if (seat) {
+    const verdict = seatMayRead(seat, 'assignments.read', 'the tenure ledger')
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: verdict.says } },
+        { status: 403 }
+      )
+    }
+  }
+
+  // A seat narrowed to one business unit reaches that unit and
+  // everything under it, and no further. Null for an unnarrowed seat and
+  // for every unseated reader, which is every reader there was before.
+  const units = await seatUnits(seat ?? null)
+
+  const now = new Date()
+
+  // All sell contracts at this end client (active + ended + paused, not draft/cancelled)
+  // Uses endClientFilter: matches endClientCompanyId OR clientCompanyId when no
+  // separate end client is set (direct placement — paying customer IS the end client)
+  const contracts = await prisma.sellContract.findMany({
+    where: {
+      ...endClientFilter(clientCompany.id),
+      ...seatScope(units),
+      state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+    },
+    // Only what the ledger counts and the page draws (the page-timing
+    // pass, 2026-11-02: 314 KB an answer for 360 people at Corvane, and
+    // 40 at once took 6 s at the 95th percentile). The paying customer,
+    // the end client and the site were sent on every contract and drawn
+    // nowhere; the name rule reads the client's id off the row itself.
+    select: {
+      id: true,
+      personId: true,
+      companyId: true,
+      clientCompanyId: true,
+      state: true,
+      startDate: true,
+      endDate: true,
+      person: { select: { name: true } },
+      company: { select: { id: true, name: true } }, // the vendor
+    },
+    orderBy: { startDate: 'asc' },
+  })
+
+  // ── Whose name this reader may read ─────────────────────────────────
+  //
+  // Tenure is aggregated across every vendor, which is the point of it —
+  // and in a chain the vendor list named the prime's sub-vendor, a firm
+  // the client has no contract with. The days stay; the name is the
+  // prime's to keep unless the client's agreement with the prime says
+  // otherwise. A supplier reading this page reads its own chain unmasked.
+  const viewerIsClient = caller.company?.id === clientCompany.id
+  const disclosureTerms = viewerIsClient
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: clientCompany.id },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
+  const seenNames = viewerIsClient
+    ? namesForClient(
+        contracts.map(c => ({
+          id: c.id,
+          personId: c.personId,
+          companyId: c.companyId,
+          companyName: c.company.name,
+          clientCompanyId: c.clientCompanyId,
+        })),
+        clientCompany.id,
+        (primeCompanyId: string) =>
+          mayNameSubVendors(disclosureTerms, clientCompany.id, primeCompanyId)
+      )
+    : new Map<string, SeenName>()
+
+  // ── The line a client may be told of (record 119) ───────────────────
+  //
+  // A line between the client's supplier and a firm below it is a deal
+  // between two other firms, and its id is a way to it. A client reads
+  // each such rung under the id of the line it pays for the same person,
+  // walked up the chain; where no such line is on file the id is null
+  // rather than the hidden line's own. Every other reader keeps its ids.
+  const byFirm = new Map(contracts.map((c) => [`${c.personId}|${c.companyId}`, c]))
+  const lineIdFor = (c: (typeof contracts)[number]): string | null => {
+    if (!viewerIsClient) return c.id
+    const seen = new Set<string>()
+    let cur: (typeof contracts)[number] | undefined = c
+    while (cur && cur.clientCompanyId !== clientCompany.id) {
+      if (seen.has(cur.id)) return null
+      seen.add(cur.id)
+      cur = byFirm.get(`${cur.personId}|${cur.clientCompanyId}`)
+    }
+    return cur ? cur.id : null
+  }
+  const lineIdOf = new Map(contracts.map((c) => [c.id, lineIdFor(c)]))
+
+  /** What this reader may call a firm on a row. */
+  const shown = (companyId: string, trueName: string): SeenName =>
+    seenNames.get(companyId) ?? {
+      companyId,
+      name: trueName,
+      masked: false,
+      through: null,
+      phrase: trueName,
+      says: trueName,
+    }
+
+  // Load governance rules for tenure cap and break-in-service
+  // The client's two rules, read in one query: the first active rule of
+  // each kind, as the two reads before it took them.
+  const rules = await prisma.governanceRule.findMany({
+    where: {
+      policy: { companyId: clientCompany.id, isActive: true },
+      ruleType: { in: ['TENURE_CAP', 'BREAK_IN_SERVICE'] },
+      isActive: true,
+    },
+    orderBy: { id: 'asc' },
+  })
+  const tenureRule = rules.find((r) => r.ruleType === 'TENURE_CAP') ?? null
+  const breakRule = rules.find((r) => r.ruleType === 'BREAK_IN_SERVICE') ?? null
+
+  const capMonths = tenureRule ? (tenureRule.parameters as any).maxMonths : null
+  const breakDays = breakRule ? (breakRule.parameters as any).breakDays : null
+  // Near the limit is the company's widest warning (its rule set, 90 days by
+  // default): the window Ask Etyme and the nightly warnings read, so the
+  // page names the same people (2026-11-09).
+  const warnWithinDays = Math.max(0, ...(await ruleSetFor(clientCompany.id)).tenureWarnAtDays) || null
+
+  // Group contracts by person
+  const personMap = new Map<string, {
+    name: string
+    vendors: Map<string, string> // id → name
+    contracts: typeof contracts
+    totalDays: number
+    hasActive: boolean
+    lastEndDate: Date | null
+  }>()
+
+  for (const c of contracts) {
+    const existing = personMap.get(c.personId)
+    const isActive = c.state === 'IN_PROGRESS' || c.state === 'PAUSED'
+
+    if (existing) {
+      existing.vendors.set(c.company.id, c.company.name)
+      existing.contracts.push(c)
+      if (isActive) existing.hasActive = true
+      if (c.endDate && (!existing.lastEndDate || c.endDate > existing.lastEndDate)) {
+        existing.lastEndDate = c.endDate
+      }
+    } else {
+      const vendorMap = new Map<string, string>()
+      vendorMap.set(c.company.id, c.company.name)
+      personMap.set(c.personId, {
+        name: c.person.name,
+        vendors: vendorMap,
+        contracts: [c],
+        totalDays: 0,
+        hasActive: isActive,
+        lastEndDate: c.endDate ?? null,
+      })
+    }
+  }
+
+  // Days on site, overlaps counted once. A prime's contract and its
+  // sub's contract are the same person on the same days; summed per row
+  // they doubled, and a person supplied through a chain hit an
+  // eighteen-month cap at nine.
+  for (const data of personMap.values()) data.totalDays = daysOnSite(data.contracts, now)
+
+  // Classify each person's tenure status — from the one standing the
+  // award, the activation and the extension read too
+  // (`standingAgainstLimit`), so this page and those doors cannot
+  // disagree. A served break resets the count against the limit; the
+  // days on site, every one, stay on the row as the record.
+  const people = Array.from(personMap.entries()).map(([personId, data]) => {
+    const cumulativeMonths = monthsOf(data.totalDays)
+    const standing = standingAgainstLimit(
+      data.contracts.map((c) => ({ startDate: c.startDate, endDate: c.endDate, live: c.state !== 'ENDED' })),
+      { capMonths, breakDays, warnWithinDays },
+      now
+    )
+    const status = ledgerStatus(standing)
+    const eligibleDate: string | null = standing.eligibleOn ? standing.eligibleOn.toISOString().slice(0, 10) : null
+
+    // ── The day the limit is reached, and the paper booked past it ──
+    //
+    // Lucía Fernández read "Approaching" with no date while a contract
+    // already signed ran seven months past her limit (tester,
+    // 2026-10-03). The days served stay what the percentage and the
+    // block count; this asks the separate question of where the booked
+    // contracts carry her. An ended contract counts only to the day it
+    // ended or today, whichever is first, because a termination that
+    // left the booked end in the future did not keep anybody on site.
+    // Only the lines the limit still counts: a stint before a served
+    // break has been reset away and does not bring the limit forward.
+    const booked = linesCounted(data.contracts, standing).map((c) => ({
+      startDate: c.startDate,
+      endDate: c.state === 'ENDED'
+        ? new Date(Math.min((c.endDate ?? now).getTime(), now.getTime()))
+        : c.endDate,
+    }))
+    // The same day the doors that write a line refuse past
+    // (`endsPastLimit` in lib/governance), so the page and the refusal
+    // name one date.
+    const reachedOn = capMonths ? bookedLimitDay(booked, { capMonths, breakDays }, now) : null
+    const runsPast = contractsPastLimit(
+      linesCounted(data.contracts, standing).map((c) => ({
+        id: c.id,
+        firm: shown(c.companyId, c.company.name).name,
+        endDate: c.endDate,
+        live: c.state === 'IN_PROGRESS' || c.state === 'PAUSED',
+      })),
+      reachedOn
+    )
+
+    return {
+      personId,
+      name: data.name,
+      limitReachedOn: reachedOn ? reachedOn.toISOString() : null,
+      // A chain's rungs share one end date and, masked, one name: one line.
+      runsPast: runsPast.filter((r, i, all) =>
+        all.findIndex((o) => o.firm === r.firm && o.endDate?.getTime() === r.endDate?.getTime()) === i
+      ).map((r) => ({
+        contractId: lineIdOf.get(r.contractId) ?? null,
+        firm: r.firm,
+        endDate: r.endDate ? r.endDate.toISOString() : null,
+        daysPast: r.daysPast,
+      })),
+      // ── The firms on this person's row ──
+      //
+      // Folded, not listed. A person bought through a chain has a row
+      // per rung, and a withheld sub-vendor's name IS the name of the
+      // prime it comes through — so the cell read "Computer Systems Inc,
+      // Supplied through Computer Systems Inc", which looks like one
+      // firm entered twice and is actually two rungs of one chain.
+      //
+      // `firmsOnARow` names the firm the client pays once and says how
+      // many firms sit below it. Nothing newly hidden and nothing newly
+      // disclosed: the count is the client's own exposure, the name
+      // below is the prime's to keep.
+      firms: firmsOnARow(Array.from(data.vendors.entries()).map(([id, name]) => shown(id, name))),
+      cumulativeMonths,
+      cumulativeDays: data.totalDays,
+      // The days the limit counts: every day, or those since the last
+      // break served. Equal to cumulativeDays until a break resets it.
+      countedDays: standing.countedDays,
+      // Against the limit, uncapped: 740 days against 548 is 135% and
+      // "over the limit by 6 months", never a bar that stops at 100%.
+      // Counted in the days the block counts.
+      againstLimit: capMonths ? againstLimit(standing.countedDays, capMonths) : null,
+      contractCount: data.contracts.length,
+      status,
+      // Days counted at or over the limit, the test the block fires on.
+      pastLimit: standing.pastLimit,
+      eligibleDate,
+      hasActive: data.hasActive,
+      onSite: standing.onSiteNow,
+      // What the page draws for each contract and nothing else. Who a
+      // sub-vendor's line reaches the client through is said once, on the
+      // row's firms above, folded by firmsOnARow, never per contract.
+      contracts: data.contracts.map(c => ({
+        id: lineIdOf.get(c.id) ?? null,
+        vendorName: shown(c.companyId, c.company.name).name,
+        startDate: c.startDate.toISOString(),
+        endDate: c.endDate?.toISOString() ?? null,
+        state: c.state,
+        // Served, the way the block counts them — never to the booked
+        // end, which read 365 days on a contract a month old.
+        daysWorked: daysServed(c, now),
+        daysBooked: daysBooked(c),
+      })),
+    }
+  })
+
+  // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
+  //
+  // A read made from a seat is filed under its own action and carries
+  // the seat in its reason, so the question a client asks afterwards —
+  // who looked at my workforce, and on whose authority — is one query
+  // rather than a grep. `Tenure view at Cavanaugh Glassworks` named
+  // neither the office nor the desk it sat at.
+  const personIds = people.map((p) => p.personId)
+  if (personIds.length > 0) {
+    logBulkAccess(personIds, {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: seat ? 'PROGRAM_READ' : 'TENURE_VIEW',
+      reason: seat
+        ? seatTrail(seat, 'Tenure ledger read')
+        : `Tenure view at ${clientCompany.name}`,
+    })
+  }
+
+  // Sort: everybody past the time limit first, in break or not, then
+  // approaching, in break, OK and eligible (`ledgerRank`, which the
+  // page's Status column reads too).
+  people.sort((a, b) => ledgerRank(a) - ledgerRank(b))
+
+  const summary = {
+    totalTracked: people.length,
+    ok: people.filter(p => p.status === 'OK').length,
+    warning: people.filter(p => p.status === 'WARNING').length,
+    breakRequired: people.filter(p => p.status === 'BREAK_REQUIRED').length,
+    // Everybody past the limit, on site, in break or away: the figure
+    // "Over the limit" draws, so a row that reads "Past the time limit ·
+    // in break" is counted there too.
+    pastLimit: people.filter(p => p.pastLimit).length,
+    inBreak: people.filter(p => p.status === 'IN_BREAK').length,
+    eligible: people.filter(p => p.status === 'ELIGIBLE').length,
+    // People with a live contract booked past the day they reach the limit.
+    runsPast: people.filter(p => p.runsPast.length > 0).length,
+  }
+
+  return NextResponse.json({
+    data: {
+      client: { id: clientCompany.id, name: clientCompany.name },
+      tenureCapMonths: capMonths,
+      breakDays,
+      people,
+      summary,
+    },
+  })
+}

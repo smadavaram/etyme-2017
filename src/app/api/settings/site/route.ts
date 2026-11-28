@@ -1,0 +1,327 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext, realPersonId } from '@/lib/api-context'
+import { staffOnly } from '@/lib/seat'
+import { prisma } from '@/lib/db'
+import { hasPermission, askTheDesk } from '@/lib/permissions'
+import {
+  writeFromRules, checkEdit,
+  DEFAULT_HEADINGS, type SiteFacts,
+} from '@/lib/site-voice'
+import { callerRoleName } from '@/lib/training/caller'
+import { coursesShown } from '@/lib/training/courses-shown'
+import { pluginsOfferedTo, notOfferedSays } from '@/lib/plugins'
+import { pluginGate } from '@/lib/plugin-gate'
+import { modelWritesFor, writePage } from './write'
+
+/**
+ * GET   /api/settings/site — what their page says, and how it got written
+ * POST  /api/settings/site — write it again
+ * PATCH /api/settings/site — change a line by hand
+ *
+ * Base44 and its kind generate a website you then own and maintain. That is
+ * good and it has one failure this product cannot afford: the moment it is
+ * generated it starts going out of date, because nothing on it is connected
+ * to anything.
+ *
+ * So only the words are generated here. The numbers on the page — open
+ * positions, who is coming free, what insurance is in date — are read live
+ * from the same rows the dashboard reads, and cannot go stale because
+ * nothing copied them.
+ *
+ * Regenerating is offered rather than automatic. A company that has written
+ * their own line should never lose it because their headcount changed.
+ */
+
+async function factsFor(companyId: string): Promise<SiteFacts> {
+  const now = new Date()
+
+  const [company, placements, activeNow, contracts, profiles, positions, courses, rollingOff] =
+    await Promise.all([
+      prisma.company.findUniqueOrThrow({
+        where: { id: companyId },
+        select: {
+          name: true, kind: true, supplierPosture: true, pluginsOn: true, coursesHiddenOnStorefront: true,
+          locations: { where: { isRemote: false }, select: { city: true, state: true, country: true } },
+        },
+      }),
+      prisma.sellContract.count({ where: { companyId } }),
+      prisma.sellContract.count({ where: { companyId, state: 'IN_PROGRESS' } }),
+      prisma.sellContract.findMany({
+        where: { companyId },
+        select: { endClientCompanyId: true, clientCompanyId: true },
+      }),
+      prisma.consultantProfile.findMany({
+        where: { listings: { some: { companyId, revokedAt: null } } },
+        select: { skills: true },
+      }),
+      prisma.requirement.count({ where: { companyId, openToNetwork: true, status: 'OPEN' } }),
+      prisma.course.count({ where: { companyId, isPublic: true } }),
+      prisma.sellContract.count({
+        where: {
+          companyId,
+          state: { in: ['IN_PROGRESS', 'PAUSED'] },
+          endDate: { not: null, gte: now, lte: new Date(now.getTime() + 90 * 86_400_000) },
+        },
+      }),
+    ])
+
+  const shown = coursesShown(company)
+  const counts = new Map<string, number>()
+  for (const p of profiles) for (const s of p.skills) counts.set(s, (counts.get(s) ?? 0) + 1)
+
+  return {
+    name: company.name,
+    kind: company.kind,
+    posture: company.supplierPosture,
+    skills: [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([s]) => s),
+    locations: [...new Set(
+      company.locations.map((l) => [l.city, l.state ?? l.country].filter(Boolean).join(', ')).filter(Boolean)
+    )],
+    placements,
+    activeNow,
+    clients: new Set(contracts.map((c) => c.endClientCompanyId ?? c.clientCompanyId)).size,
+    openPositions: positions,
+    comingFree: rollingOff,
+    // Counted only where the one reader says this firm's courses are shown.
+    trainingCourses: shown ? courses : 0,
+    coursesShown: shown,
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const notStaff = staffOnly(caller, 'The public site editor')
+  if (notStaff) return notStaff
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'A site belongs to a company, and you are not signed in at one.' } },
+      { status: 403 }
+    )
+  }
+  // The editor is open only where the site renders (record 123, ruling b).
+  const off = await pluginGate(caller, 'WEBSITE')
+  if (off) return off
+
+  const company = await prisma.company.findUniqueOrThrow({
+    where: { id: caller.company.id },
+    select: {
+      slug: true, siteTagline: true, siteIntro: true, siteHeadings: true,
+      siteWrittenBy: true, siteWrittenAt: true, pluginsOn: true, coursesHiddenOnStorefront: true, kind: true,
+    },
+  })
+  // A company that only buys is offered no courses: the fields are absent.
+  const offered = pluginsOfferedTo(company.kind).some((p) => p.key === 'TRAIN_TO_BENCH')
+  const isOwner = (await callerRoleName(caller)) === 'Owner'
+
+  const facts = await factsFor(caller.company.id)
+  // What it would say if written now, so somebody can compare before
+  // replacing what is there.
+  const wouldSay = writeFromRules(facts)
+  // The model writes the page only where this company turned it on (./write).
+  const may = await modelWritesFor(caller.company.id)
+
+  return NextResponse.json({
+    data: {
+      url: `https://${company.slug}.etyme.com`,
+      tagline: company.siteTagline ?? wouldSay.tagline,
+      intro: company.siteIntro ?? wouldSay.intro,
+      headings: { ...DEFAULT_HEADINGS, ...((company.siteHeadings as Record<string, string>) ?? {}) },
+      writtenBy: company.siteTagline === null ? 'NOT_YET' : company.siteWrittenBy ?? 'PERSON',
+      writtenAt: company.siteWrittenAt?.toISOString().slice(0, 10) ?? null,
+      // The facts it would be written from, shown so the words are never a
+      // black box — somebody disagreeing with a sentence can see what it
+      // was drawn from.
+      basedOn: facts,
+      preview: { tagline: wouldSay.tagline, intro: wouldSay.intro },
+      canWrite: hasPermission(caller.permissions, 'settings.manage'),
+      // "Hide courses on our public page" (record 120, answer 3): the Owner's
+      // alone to change; an Admin reads it.
+      coursesOffered: offered,
+      ...(offered ? {
+        coursesHidden: company.coursesHiddenOnStorefront,
+        coursesShown: coursesShown(company),
+        canHideCourses: isOwner,
+      } : {}),
+      // Said plainly rather than silently producing a lesser result: the
+      // model writes only where this company turned it on and a writer is
+      // set up, and the sentence says which of the two is missing.
+      modelAvailable: may.yes,
+      note: may.yes ? 'Written for you from your own numbers.' : may.says,
+    },
+  })
+}
+
+/**
+ * POST — write it again.
+ *
+ * Offered rather than automatic, because a company that wrote their own
+ * line should never lose it to a headcount change.
+ */
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company || !hasPermission(caller.permissions, 'settings.manage')) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Writing your public page', needs: 'settings.manage', kind: caller.company?.kind, companyName: caller.company?.name }) } },
+      { status: 403 }
+    )
+  }
+  const off = await pluginGate(caller, 'WEBSITE')
+  if (off) return off
+
+  const body = await request.json().catch(() => ({}))
+  const existing = await prisma.company.findUniqueOrThrow({
+    where: { id: caller.company.id },
+    select: { siteTagline: true, siteWrittenBy: true },
+  })
+
+  // Replacing something a person wrote is worth asking about once.
+  if (existing.siteWrittenBy === 'PERSON' && existing.siteTagline && body.replaceMine !== true) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'WOULD_REPLACE_YOURS',
+          message: 'You wrote this yourself. Writing it again would replace your words — send replaceMine: true if that is what you want.',
+          yours: existing.siteTagline,
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  const facts = await factsFor(caller.company.id)
+  // By the model only where this company turned it on, every prompt and
+  // answer logged; otherwise by rule, and the note says why (./write).
+  const voice = await writePage({ companyId: caller.company.id, personId: caller.person.id, facts })
+
+  await prisma.company.update({
+    where: { id: caller.company.id },
+    data: {
+      siteTagline: voice.tagline,
+      siteIntro: voice.intro,
+      siteHeadings: voice.headings as any,
+      siteWrittenBy: voice.writtenBy,
+      siteWrittenAt: new Date(),
+    },
+  })
+
+  await prisma.automationLog.create({
+    data: {
+      companyId: caller.company.id,
+      action: 'SITE_WRITTEN',
+      summary: `${caller.person.name} had the public page written again`,
+      reason: voice.writtenBy === 'MODEL'
+        ? 'Written from the company’s own numbers by the model, which the company turned on; the prompt and answer are in its prompt log'
+        : voice.note,
+      payload: { writtenBy: voice.writtenBy, modelAsked: voice.asked, basedOn: facts as any },
+      reversible: true,
+    },
+  })
+
+  return NextResponse.json({
+    data: {
+      tagline: voice.tagline,
+      intro: voice.intro,
+      headings: voice.headings,
+      writtenBy: voice.writtenBy,
+      note: voice.note,
+      message: 'Your page is written. Every number on it stays live — only the words are stored.',
+    },
+  })
+}
+
+/** PATCH — change a line by hand. It is their page. */
+export async function PATCH(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company || !hasPermission(caller.permissions, 'settings.manage')) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: askTheDesk({ doing: 'Editing your public page', needs: 'settings.manage', kind: caller.company?.kind, companyName: caller.company?.name }) } },
+      { status: 403 }
+    )
+  }
+  const off = await pluginGate(caller, 'WEBSITE')
+  if (off) return off
+
+  const body = await request.json().catch(() => ({}))
+  const data: Record<string, unknown> = {}
+
+  // The Owner's switch, and nobody else's: not an Admin, not the twin.
+  if ('coursesHiddenOnStorefront' in body) {
+    if (!pluginsOfferedTo(caller.company.kind).some((p) => p.key === 'TRAIN_TO_BENCH')) {
+      return NextResponse.json({ error: { code: 'NOT_OFFERED', message: notOfferedSays() } }, { status: 403 })
+    }
+    const isOwner = !(caller as { twin?: boolean }).twin && (await callerRoleName(caller)) === 'Owner'
+    if (!isOwner) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: `Only an Owner of ${caller.company.name} hides or shows courses on its public page. An Admin may read the setting.` } },
+        { status: 403 }
+      )
+    }
+    if (typeof body.coursesHiddenOnStorefront !== 'boolean') {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say whether courses are hidden or shown.' } }, { status: 422 })
+    }
+    const done = await prisma.company.update({
+      where: { id: caller.company.id },
+      data: { coursesHiddenOnStorefront: body.coursesHiddenOnStorefront },
+      select: { coursesHiddenOnStorefront: true, pluginsOn: true },
+    })
+    return NextResponse.json({
+      data: {
+        coursesHidden: done.coursesHiddenOnStorefront,
+        coursesShown: coursesShown(done),
+        message: done.coursesHiddenOnStorefront ? 'Courses are hidden on your public page.' : 'Courses may be listed on your public page while Train to bench is on.',
+      },
+    })
+  }
+
+  for (const field of ['tagline', 'intro'] as const) {
+    if (typeof body[field] !== 'string') continue
+    const verdict = checkEdit(field, body[field])
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: verdict.reason, field } },
+        { status: 422 }
+      )
+    }
+    data[field === 'tagline' ? 'siteTagline' : 'siteIntro'] = body[field].trim()
+  }
+
+  if (body.headings && typeof body.headings === 'object') {
+    const clean: Record<string, string> = {}
+    for (const k of Object.keys(DEFAULT_HEADINGS)) {
+      const v = body.headings[k]
+      if (typeof v === 'string' && v.trim() && v.trim().length <= 60) clean[k] = v.trim()
+    }
+    if (Object.keys(clean).length > 0) data.siteHeadings = clean as any
+  }
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Nothing to change' } },
+      { status: 422 }
+    )
+  }
+
+  // Marked as theirs, so writing it again asks before replacing it.
+  data.siteWrittenBy = 'PERSON'
+  data.siteWrittenAt = new Date()
+
+  const updated = await prisma.company.update({
+    where: { id: caller.company.id },
+    data,
+    select: { siteTagline: true, siteIntro: true, siteHeadings: true, slug: true },
+  })
+
+  return NextResponse.json({
+    data: {
+      tagline: updated.siteTagline,
+      intro: updated.siteIntro,
+      headings: updated.siteHeadings,
+      url: `https://${updated.slug}.etyme.com`,
+      message: 'Saved. These are your words now — writing the page again will ask before replacing them.',
+    },
+  })
+}

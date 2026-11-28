@@ -1,0 +1,304 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { isTier, tierWord } from '@/lib/supplier-tier'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { staffOnly } from '@/lib/seat'
+import { recordRefusal } from '@/lib/access-log'
+import { register, mayRemove, riskJudgement, RELATIONSHIPS } from '@/lib/counterparty'
+import { readAccountManager, nameAccountManager } from './account-manager'
+import { readVendorNumber, nameVendorNumber } from './vendor-number'
+import { workTogether } from '@/lib/company-create'
+
+/**
+ * GET  /api/counterparties — the register: who we work with, and as what
+ * POST /api/counterparties — put a firm on it
+ *
+ * The register derives what agreements already prove and adds what they
+ * cannot hold — the prospect being courted, the prime with no paper yet.
+ * Deriving instead of duplicating means the two can never disagree.
+ */
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const notStaff = staffOnly(caller, 'Counterparties')
+  if (notStaff) return notStaff
+
+  // One client's account manager, for the Companies drawer (2026-11-08).
+  const accountManagerFor = request.nextUrl.searchParams.get('accountManagerFor')
+  if (accountManagerFor !== null) return readAccountManager(caller, accountManagerFor)
+  const vendorNumberFor = request.nextUrl.searchParams.get('vendorNumberFor')
+  if (vendorNumberFor !== null) return readVendorNumber(caller, vendorNumberFor)
+
+  const companyId = caller.company!.id
+
+  const [stored, msas] = await Promise.all([
+    prisma.counterparty.findMany({
+      where: { companyId },
+      include: { otherCompany: { select: { id: true, name: true } } },
+    }),
+    prisma.masterAgreement.findMany({
+      where: { OR: [{ vendorId: companyId }, { clientId: companyId }] },
+      include: {
+        vendor: { select: { id: true, name: true } },
+        client: { select: { id: true, name: true } },
+      },
+    }),
+  ])
+
+  const rows = register(
+    companyId,
+    stored.map((c) => ({
+      otherCompanyId: c.otherCompanyId,
+      otherCompanyName: c.otherCompany.name,
+      relationship: c.relationship,
+      status: c.status,
+    })),
+    msas.map((m) => ({
+      vendorId: m.vendorId,
+      clientId: m.clientId,
+      otherName: m.vendorId === companyId ? m.client.name : m.vendor.name,
+    }))
+  )
+
+  // How many people we know at each of them. A counterparty with no
+  // contact is a firm you cannot actually call.
+  const contactCounts = await prisma.companyContact.groupBy({
+    by: ['atCompanyId'],
+    // A colleague at the firm's own firm is never somebody to call there.
+    where: { companyId, atCompanyId: { not: companyId } },
+    _count: true,
+  })
+  const counts = new Map(contactCounts.map((c) => [c.atCompanyId, c._count]))
+
+  // The companies this firm recorded and has not classified: no register
+  // row, so no row above, and still somewhere a contact can work
+  // (Contacts' Works for, founder 2026-11-12). Only this firm's own records.
+  const onRegister = new Set(rows.map((r) => r.otherCompanyId))
+  const known = (await prisma.company.findMany({
+    // Whatever Kind it has been given since: a Kind is not a position.
+    where: { listedById: companyId, claimedAt: null },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  }))
+    .filter((c) => !onRegister.has(c.id))
+    .map((c) => ({ id: c.id, name: c.name, notClassified: true, contacts: counts.get(c.id) ?? 0 }))
+
+  return NextResponse.json({
+    data: {
+      rows: rows.map((r) => ({ ...r, contacts: counts.get(r.otherCompanyId) ?? 0 })),
+      known,
+      relationships: Object.entries(RELATIONSHIPS).map(([key, v]) => ({ key, ...v })),
+    },
+  })
+}
+
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const notStaff = staffOnly(caller, 'Counterparties')
+  if (notStaff) return notStaff
+
+  const companyId = caller.company!.id
+  const body = await request.json().catch(() => ({}))
+
+  const relationship = String(body?.relationship ?? '')
+  if (!(relationship in RELATIONSHIPS)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message: `Say what they are to you: ${Object.keys(RELATIONSHIPS).join(', ')}.`,
+          field: 'relationship',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  const otherCompanyId = String(body?.otherCompanyId ?? '')
+  if (!otherCompanyId) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Say which company.', field: 'otherCompanyId' } },
+      { status: 422 }
+    )
+  }
+  if (otherCompanyId === companyId) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'A firm cannot be its own counterparty.' } },
+      { status: 422 }
+    )
+  }
+
+  // Another firm's record of a company nobody has claimed is that firm's,
+  // not ours to give a position to: a register row is what lets a contract
+  // name a firm (founder, 2026-11-12). Refused in a sentence, logged first.
+  //
+  // Any company nobody has claimed and the caller did not record itself,
+  // whoever recorded it (nobody included), unless the two already work
+  // together: the same set Extend refuses (`mayExtend`), so the two doors
+  // agree (review, 2026-11-13).
+  const other = await prisma.company.findUnique({ where: { id: otherCompanyId }, select: { name: true, claimedAt: true, listedById: true } })
+  if (!other || (other.claimedAt == null && other.listedById !== companyId && !(await workTogether(companyId, otherCompanyId)))) {
+    const says = 'That company is not on your Companies list. Add it there first.'
+    await recordRefusal([{ companyId: otherCompanyId }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused a register row for ${other?.name ?? otherCompanyId}, another firm's record: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'NOT_YOURS', message: says, field: 'otherCompanyId' } }, { status: 403 })
+  }
+  // A firm on Etyme is put on one's register only where the two already
+  // work together, the same rule Extend keeps (`mayExtend`): otherwise one
+  // firm could tie itself to a stranger by writing its own row (review,
+  // 2026-11-13). The sentence names nobody; the ask to link is the door.
+  if (other.claimedAt != null && !(await workTogether(companyId, otherCompanyId))) {
+    const says = 'That company is on Etyme and does not work with you yet. Ask them to link from Add company: nothing is on either list until they say yes.'
+    await recordRefusal([{ companyId: otherCompanyId }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused a register row for ${other.name}, a firm on Etyme that does not work with the caller: ${says}`,
+    })
+    return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, field: 'otherCompanyId' } }, { status: 409 })
+  }
+
+  const row = await prisma.counterparty.upsert({
+    where: {
+      companyId_otherCompanyId_relationship: { companyId, otherCompanyId, relationship },
+    },
+    update: { status: body?.status === 'PROSPECT' ? 'PROSPECT' : 'ACTIVE' },
+    create: {
+      companyId,
+      otherCompanyId,
+      relationship,
+      status: body?.status === 'PROSPECT' ? 'PROSPECT' : 'ACTIVE',
+      notes: body?.notes ? String(body.notes).trim() : null,
+      createdById: caller.person.id,
+    },
+    include: { otherCompany: { select: { id: true, name: true } } },
+  })
+
+  return NextResponse.json({ data: { row } }, { status: 201 })
+}
+
+export async function DELETE(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const notStaff = staffOnly(caller, 'Counterparties')
+  if (notStaff) return notStaff
+
+  const companyId = caller.company!.id
+  const url = new URL(request.url)
+  const otherCompanyId = url.searchParams.get('otherCompanyId') ?? ''
+  const relationship = url.searchParams.get('relationship') ?? ''
+
+  // Not while money or people are live between you — removing the row
+  // would only hide the contracts from the one screen that lists who you
+  // deal with.
+  const [liveContracts, unpaid] = await Promise.all([
+    prisma.sellContract.count({
+      where: {
+        state: { in: ['IN_PROGRESS', 'PAUSED'] },
+        OR: [
+          { companyId, clientCompanyId: otherCompanyId },
+          { companyId: otherCompanyId, clientCompanyId: companyId },
+        ],
+      },
+    }),
+    prisma.invoice.count({
+      where: {
+        status: { notIn: ['PAID', 'CANCELLED'] },
+        engagement: {
+          msa: {
+            OR: [
+              { vendorId: companyId, clientId: otherCompanyId },
+              { vendorId: otherCompanyId, clientId: companyId },
+            ],
+          },
+        },
+      },
+    }),
+  ])
+
+  const verdict = mayRemove(liveContracts, unpaid)
+  if (!verdict.may) {
+    return NextResponse.json(
+      { error: { code: 'STILL_LIVE', message: verdict.says } },
+      { status: 409 }
+    )
+  }
+
+  await prisma.counterparty.deleteMany({ where: { companyId, otherCompanyId, relationship } })
+  return NextResponse.json({ data: { says: verdict.says } })
+}
+
+/**
+ * PATCH /api/counterparties — set the risk judgment on a register row.
+ *
+ * The supplier-risk watchlist read these columns before anything could
+ * write them, and said so. This is the writer.
+ */
+export async function PATCH(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const notStaff = staffOnly(caller, 'Counterparties')
+  if (notStaff) return notStaff
+
+  const body = await request.json().catch(() => ({}))
+  // The account manager on a client (2026-11-08): a write of its own.
+  if (body?.accountManagerFor !== undefined) return nameAccountManager(caller, body)
+  if (body?.vendorNumberFor !== undefined) return nameVendorNumber(caller, body)
+
+  const companyId = caller.company!.id
+  const otherCompanyId = String(body?.otherCompanyId ?? '')
+  const relationship = String(body?.relationship ?? '')
+
+  // The standing alone, or the risk judgment alone, or both. A tier is
+  // a word from a short list; anything else is refused by name.
+  const tierAsked = body?.tier !== undefined
+  const tier = tierAsked ? String(body.tier ?? '').toUpperCase() : null
+  if (tierAsked && tier !== '' && !isTier(tier)) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: `A supplier is on probation, approved or preferred — not "${body.tier}".` } },
+      { status: 422 }
+    )
+  }
+  if (tierAsked && body?.riskLevel === undefined) {
+    const updated = await prisma.counterparty.updateMany({
+      where: { companyId, otherCompanyId, relationship },
+      data: { tier: tier === '' ? null : tier },
+    })
+    if (updated.count === 0) {
+      return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No register row for that pair and relationship.' } }, { status: 404 })
+    }
+    return NextResponse.json({ data: { says: tier ? `Standing set to ${tierWord(tier, false).toLowerCase()}.` : 'Standing cleared.' } })
+  }
+
+  const level = String(body?.riskLevel ?? '')
+  const reviewBy = body?.riskReviewBy ? new Date(String(body.riskReviewBy)) : null
+
+  const verdict = riskJudgement(level, reviewBy && !isNaN(reviewBy.getTime()) ? reviewBy : null, new Date())
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: verdict.says } },
+      { status: 422 }
+    )
+  }
+
+  const updated = await prisma.counterparty.updateMany({
+    where: { companyId, otherCompanyId, relationship },
+    data: { riskLevel: level, riskReviewBy: reviewBy, ...(tierAsked ? { tier: tier === '' ? null : tier } : {}) },
+  })
+  if (updated.count === 0) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No register row for that pair and relationship.' } },
+      { status: 404 }
+    )
+  }
+  return NextResponse.json({ data: { says: verdict.says } })
+}

@@ -1,0 +1,390 @@
+import { describe, it, expect, beforeAll } from 'vitest'
+import { as, req, json, prisma, freshWorld } from './harness'
+
+import { POST as activate, GET as preflight } from '@/app/api/contracts/[id]/activate/route'
+import { viewBefore } from '@/app/dashboard/contracts/activate-view'
+
+/**
+ * A contract cannot go live on missing paperwork.
+ *
+ * Activation used to check governance — the client's policy — and
+ * nothing about the supplier's own house. A person with no I-9 on file
+ * could be activated, and the first anybody heard of it was an audit.
+ *
+ * The gate runs before governance, because paperwork is ours and policy
+ * is theirs, and it follows the same contract: BLOCK where legally
+ * grounded, WARN with a reason recorded everywhere else. Never silently.
+ */
+/**
+ * The person's own terms on record: a W2 pay line the firm's desk wrote at
+ * a stated rate. Activation asks the terms gate first (`termsGate`,
+ * 2026-10-06), and a sell line with no pay line under it is a placement
+ * whose terms nobody stated — so without this, what answered below would
+ * be the terms and never the paperwork under test.
+ */
+async function payLineFor(sell: { id: string; companyId: string; personId: string; billCurrency: string; startDate: Date; endDate: Date | null }) {
+  const pay = await prisma.buyContract.create({
+    data: {
+      companyId: sell.companyId, contractType: 'W2', payCurrency: sell.billCurrency, state: 'DRAFT',
+      startDate: sell.startDate, endDate: sell.endDate,
+      candidates: { create: { personId: sell.personId, payRate: 6_000, payCurrency: sell.billCurrency, startDate: sell.startDate, endDate: sell.endDate } },
+    },
+  })
+  await prisma.contractLink.create({
+    data: { sellContractId: sell.id, buyContractId: pay.id, effectiveFrom: sell.startDate, effectiveTo: sell.endDate },
+  })
+}
+
+describe('activating a contract on paperwork', () => {
+  let seat: string
+  let seatPersonId: string
+  let contractId: string
+  let personId: string
+  let i9Id: string
+
+  const ask = async () =>
+    json(await preflight(req('GET', `/api/contracts/${contractId}/activate`), { params: Promise.resolve({ id: contractId }) }))
+  const post = async (body: Record<string, unknown>) =>
+    json(await activate(req('POST', `/api/contracts/${contractId}/activate`, body), { params: Promise.resolve({ id: contractId }) }))
+
+  beforeAll(async () => {
+    await freshWorld()
+
+    seat = 'world-tecwyn@demo.etyme.local'
+    seatPersonId = (await prisma.person.findFirstOrThrow({ where: { primaryEmail: seat } })).id
+
+    // A brand-new person with nothing on file, on a fresh draft contract
+    // shaped like Tecwyn's seeded one — same MSA, engagement and
+    // requirement, so nothing but the paperwork is missing.
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
+    const template = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: co.id } })
+    const person = await prisma.person.create({
+      data: { name: 'Nobody Onfile', primaryEmail: 'nobody.onfile@seed.etyme.invalid' },
+    })
+    personId = person.id
+    const draft = await prisma.sellContract.create({
+      data: {
+        companyId: template.companyId,
+        clientCompanyId: template.clientCompanyId,
+        endClientCompanyId: template.endClientCompanyId,
+        personId: person.id,
+        requirementId: template.requirementId,
+        engagementId: template.engagementId,
+        msaId: template.msaId,
+        billRate: template.billRate,
+        billCurrency: template.billCurrency,
+        paymentTerms: template.paymentTerms,
+        state: 'DRAFT',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 180 * 86_400_000),
+      },
+    })
+    contractId = draft.id
+    await payLineFor(draft)
+  }, 180_000)
+
+  it('with no I-9 on file, activation is refused — nobody may start without authorization', async () => {
+    as(seat)
+    const r = await post({ action: 'activate' })
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('DOCUMENTS_BLOCK')
+    expect(r.body.error.message).toMatch(/cannot start without/)
+    expect(r.body.error.blocking.map((b: { key: string }) => b.key)).toContain('I9_EVERIFY')
+    const still = await prisma.sellContract.findUniqueOrThrow({ where: { id: contractId } })
+    expect(still.state).toBe('DRAFT')
+  })
+
+  it('the panel asks the start before it draws: the employer that may start reads a block and no reason box', async () => {
+    as(seat)
+    const r = await ask()
+    expect(r.status).toBe(200)
+    expect(r.body.data.may).toBe(true)
+    expect(r.body.data.papers.outcome).toBe('BLOCK')
+    const view = viewBefore(r.body.data)
+    expect(view.button).toBe('Activate')
+    expect(view.box).toBeNull()
+    expect(view.says).toMatch(/cannot start without/)
+  })
+
+  it('a missing I-9 links the Owner who may record it to Record the I-9 on Compliance, opened for that person', async () => {
+    as(seat)
+    const r = await ask()
+    expect(r.body.data.papers.door).toEqual({
+      says: 'Record the I-9 on Compliance',
+      href: `/dashboard/compliance?record=I9&person=${encodeURIComponent(personId)}`,
+    })
+    expect(r.body.data.papers.whoRecords).toBeNull()
+    expect(viewBefore(r.body.data).door?.href).toBe(`/dashboard/compliance?record=I9&person=${encodeURIComponent(personId)}`)
+  })
+
+  it('a firm not party to the placement is refused the panel in the start’s own words, and the refusal is logged', async () => {
+    as('world-brightmoor@demo.etyme.local')
+    const r = await ask()
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('NOT_A_PARTY')
+    const row = await prisma.accessLog.findFirst({ where: { subjectId: personId, allowed: false, action: 'COMPLIANCE_CHECK' } })
+    expect(row).not.toBeNull()
+  })
+
+  it('with an I-9 but no background check, it warns and asks for a reason', async () => {
+    i9Id = (await prisma.verification.create({
+      data: {
+        personId,
+        type: 'I9_EVERIFY',
+        status: 'CLEAR',
+        provider: 'E-Verify',
+        issuedAt: new Date(),
+        uploadedById: seatPersonId,
+        verifiedById: seatPersonId,
+        verifiedAt: new Date(),
+      },
+    })).id
+    as(seat)
+    const r = await post({ action: 'activate' })
+    expect(r.status).toBe(422)
+    expect(r.body.error.code).toBe('DOCUMENTS_WARN')
+    expect(r.body.error.overridable).toBe(true)
+    expect(r.body.error.chasing.map((c: { key: string }) => c.key)).toContain('BACKGROUND_CHECK')
+    // Nothing is recorded behind this I-9 yet, and the start says so.
+    expect(r.body.error.message).toMatch(/on file with nothing behind it/)
+    const still = await prisma.sellContract.findUniqueOrThrow({ where: { id: contractId } })
+    expect(still.state).toBe('DRAFT')
+  })
+
+  it('with an I-9 and no background check the panel draws Activate with a reason and its box', async () => {
+    as(seat)
+    const r = await ask()
+    expect(r.body.data.papers.outcome).toBe('WARN')
+    const view = viewBefore(r.body.data)
+    expect(view.button).toBe('Activate with a reason')
+    expect(view.box).toEqual({ answering: ['DOCUMENTS_WARN'] })
+  })
+
+  it('an I-9 completed from a passport recorded behind it reads as backed at the start, the way the placement page reads it', async () => {
+    // Found by the simulation, 2026-10-20: the start read neither the
+    // form's edition nor the documents behind it, so every I-9 read "on
+    // file with nothing behind it" at the start however it was papered.
+    const passport = await prisma.verification.create({
+      data: {
+        personId, type: 'PASSPORT', status: 'CLEAR', provider: 'US Department of State',
+        issuedAt: new Date(Date.now() - 400 * 86_400_000), expiresAt: new Date(Date.now() + 2_000 * 86_400_000),
+        uploadedById: seatPersonId, verifiedById: seatPersonId, verifiedAt: new Date(),
+      },
+    })
+    await prisma.documentBacking.create({ data: { formId: i9Id, evidenceId: passport.id, satisfiedKey: 'PASSPORT' } })
+    as(seat)
+    const r = await post({ action: 'activate' })
+    expect(r.status).toBe(422)
+    expect(r.body.error.code).toBe('DOCUMENTS_WARN')
+    expect(r.body.error.message).not.toMatch(/nothing behind it/)
+    // The background check still warns: only the I-9 changed.
+    expect(r.body.error.chasing.map((c: { key: string }) => c.key)).toContain('BACKGROUND_CHECK')
+  })
+
+  it('a hiring manager’s No on who started is asked a reason at the start, never a block, and a later Yes clears it', async () => {
+    await prisma.sellContract.update({ where: { id: contractId }, data: { startIdentityConfirmed: false, startIdentityConfirmedById: seatPersonId, startIdentityConfirmedAt: new Date() } })
+    as(seat)
+    const asked = await post({ action: 'activate', overrideReason: 'Background check follows Monday.', answering: ['DOCUMENTS_WARN'] })
+    expect(asked.status).toBe(422)
+    expect(asked.body.error.code).toBe('START_IDENTITY_WARN')
+    expect(asked.body.error.message).toMatch(/is not the Nobody Onfile who was interviewed\. Check with the supplier first, or give a reason to start anyway\./)
+    expect((await prisma.sellContract.findUniqueOrThrow({ where: { id: contractId } })).state).toBe('DRAFT')
+    // The same hiring manager says Yes: the question is gone and only the paperwork is asked.
+    await prisma.sellContract.update({ where: { id: contractId }, data: { startIdentityConfirmed: true } })
+    as(seat)
+    const again = await post({ action: 'activate' })
+    expect(again.body.error.code).toBe('DOCUMENTS_WARN')
+    expect(again.body.error.warnings.map((w: { code: string }) => w.code)).toEqual(['DOCUMENTS_WARN'])
+  })
+
+  it('with a reason recorded, it proceeds — and the reason travels with the record', async () => {
+    as(seat)
+    const r = await post({ action: 'activate', overrideReason: 'Client waived the background check in writing.' })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const live = await prisma.sellContract.findUniqueOrThrow({ where: { id: contractId } })
+    expect(live.state).toBe('IN_PROGRESS')
+
+    // This contract's own log line, found by its payload rather than "the
+    // latest", so a parallel activation elsewhere cannot make this pass.
+    const log = await prisma.automationLog.findFirst({
+      where: { action: 'CONTRACT_ACTIVATED', payload: { path: ['contractId'], equals: contractId } },
+    })
+    expect(log).not.toBeNull()
+    expect((log!.payload as { documentsOverride?: string }).documentsOverride).toMatch(/waived/)
+  })
+
+  it('the worker is told the placement started, at which client, through which firm, and who started it', async () => {
+    const sell = await prisma.sellContract.findUniqueOrThrow({
+      where: { id: contractId },
+      select: { company: { select: { name: true } }, clientCompany: { select: { name: true } }, endClientCompany: { select: { name: true } } },
+    })
+    const client = sell.endClientCompany?.name ?? sell.clientCompany.name
+    let told = null
+    for (let i = 0; i < 20 && !told; i++) {
+      told = await prisma.notification.findFirst({ where: { personId, type: 'CONTRACT', entityId: contractId } })
+      if (!told) await new Promise((r) => setTimeout(r, 100))
+    }
+    expect(told, 'the worker was told').not.toBeNull()
+    expect(told!.title).toBe(`Your placement at ${client} has started — work may begin`)
+    expect(told!.body).toContain(`at ${client}`)
+    if (sell.company.name !== client) expect(told!.body).toContain(`through ${sell.company.name}`)
+    expect(told!.body).toMatch(/started the placement\.$/)
+  })
+
+  it('a supplier whose insurance has lapsed cannot activate, however complete the person is', async () => {
+    // A second draft, for a person who is fully on file, under a
+    // supplier whose general liability certificate ran out last week.
+    const co = await prisma.company.findFirstOrThrow({ where: { slug: 'world-tecwyn' } })
+    const template = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: { companyId: co.id, state: 'IN_PROGRESS' } })
+    const person = await prisma.person.create({
+      data: { name: 'Fully Onfile', primaryEmail: 'fully.onfile@seed.etyme.invalid' },
+    })
+    for (const type of ['I9_EVERIFY', 'BACKGROUND_CHECK'] as const) {
+      await prisma.verification.create({
+        data: {
+          personId: person.id, type, status: 'CLEAR', provider: 'Sterling',
+          issuedAt: new Date(), expiresAt: type === 'BACKGROUND_CHECK' ? new Date(Date.now() + 300 * 86_400_000) : null,
+          uploadedById: seatPersonId, verifiedById: seatPersonId, verifiedAt: new Date(),
+        },
+      })
+    }
+    // Lapse the supplier's GL.
+    await prisma.verification.updateMany({
+      where: { companyId: co.id, type: 'INSURANCE_GL' },
+      data: { expiresAt: new Date(Date.now() - 7 * 86_400_000) },
+    })
+    const draft = await prisma.sellContract.create({
+      data: {
+        companyId: template.companyId, clientCompanyId: template.clientCompanyId,
+        endClientCompanyId: template.endClientCompanyId, personId: person.id,
+        requirementId: template.requirementId, engagementId: template.engagementId, msaId: template.msaId,
+        billRate: template.billRate, billCurrency: template.billCurrency, paymentTerms: template.paymentTerms,
+        state: 'DRAFT', startDate: new Date(), endDate: new Date(Date.now() + 180 * 86_400_000),
+      },
+    })
+    await payLineFor(draft)
+    as(seat)
+    const r = await json(
+      await activate(req('POST', `/api/contracts/${draft.id}/activate`, { action: 'activate', overrideReason: 'trying anyway' }),
+        { params: Promise.resolve({ id: draft.id }) })
+    )
+    // A reason does not unlock a BLOCK. That is the difference between the two.
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('DOCUMENTS_BLOCK')
+    expect(r.body.error.cover).toBe('BLOCK')
+  })
+
+  it('a start refuses on an item the client\'s order asked for, and says whose order asked', async () => {
+    // The gate ran off one fixed list — the shipped packet, the person's
+    // file, the supplier's insurance — and read nothing the line itself
+    // required. So a client could write a site induction, a drug screen
+    // or a security clearance onto its own order, in its own words, and
+    // nothing at activation would ever look. A requirement a client typed
+    // and nobody enforces is worse than one it was never offered.
+    //
+    // Cavanaugh Glassworks buys Wrenfield Technical's contractor on a
+    // purchase order with no agreement behind it, which is the line in
+    // the seeded world that carries an order at all.
+    const cavanaugh = await prisma.company.findFirstOrThrow({ where: { slug: 'world-cavanaugh' } })
+    const wrenfield = await prisma.company.findFirstOrThrow({ where: { slug: 'world-wrenfield' } })
+    // The line first, then the order it sits on — the order the LINE
+    // carries is the one the clearance will read, and a firm can be on
+    // more than one.
+    const onOrder = await prisma.sellContract.findFirstOrThrow({
+      where: { companyId: wrenfield.id, workOrderId: { not: null } },
+    })
+    const order = await prisma.workOrder.findUniqueOrThrow({
+      where: { id: onOrder.workOrderId! },
+      select: { id: true, number: true, issuedBy: { select: { name: true } } },
+    })
+    expect(order.issuedBy.name).toBe('Cavanaugh Glassworks')
+
+    // The client's own word for it, in the client's own dictionary.
+    await prisma.documentType.upsert({
+      where: { companyId_key: { companyId: cavanaugh.id, key: 'SITE_SAFETY_INDUCTION' } },
+      create: {
+        companyId: cavanaugh.id,
+        key: 'SITE_SAFETY_INDUCTION',
+        label: 'Site safety induction',
+        hint: 'The hour every contractor sits through before going on the floor.',
+        purpose: 'COMPLIANCE',
+        validityShape: 'END_ONLY',
+        suppliedBy: 'CANDIDATE',
+        blocks: true,
+      },
+      update: { blocks: true },
+    })
+    await prisma.documentRequirement.create({
+      data: {
+        workOrderId: order.id,
+        documentTypeKey: 'SITE_SAFETY_INDUCTION',
+        required: true,
+        owedBy: 'WORKER',
+        blocks: true,
+        note: 'Nobody on the floor without it.',
+      },
+    })
+
+    // Somebody whose federal paperwork is complete, so the induction is
+    // the only thing missing and the refusal can only be about it.
+    const wrenfieldSeat = await prisma.person.findFirstOrThrow({
+      where: { primaryEmail: 'world-wrenfield@demo.etyme.local' },
+    })
+    const person = await prisma.person.create({
+      data: { name: 'Marguerite Ashby', primaryEmail: 'marguerite.ashby@seed.etyme.invalid' },
+    })
+    for (const type of ['I9_EVERIFY', 'BACKGROUND_CHECK'] as const) {
+      await prisma.verification.create({
+        data: {
+          personId: person.id, type, status: 'CLEAR', provider: 'Sterling',
+          issuedAt: new Date(),
+          expiresAt: type === 'BACKGROUND_CHECK' ? new Date(Date.now() + 300 * 86_400_000) : null,
+          uploadedById: wrenfieldSeat.id, verifiedById: wrenfieldSeat.id, verifiedAt: new Date(),
+        },
+      })
+    }
+
+    const draft = await prisma.sellContract.create({
+      data: {
+        companyId: onOrder.companyId,
+        clientCompanyId: onOrder.clientCompanyId,
+        endClientCompanyId: onOrder.endClientCompanyId,
+        personId: person.id,
+        requirementId: onOrder.requirementId,
+        engagementId: onOrder.engagementId,
+        msaId: onOrder.msaId,
+        workOrderId: order.id,
+        billRate: onOrder.billRate,
+        billCurrency: onOrder.billCurrency,
+        paymentTerms: onOrder.paymentTerms,
+        state: 'DRAFT',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 180 * 86_400_000),
+      },
+    })
+    await payLineFor(draft)
+
+    as('world-wrenfield@demo.etyme.local')
+    const r = await json(
+      await activate(
+        req('POST', `/api/contracts/${draft.id}/activate`, { action: 'activate' }),
+        { params: Promise.resolve({ id: draft.id }) }
+      )
+    )
+
+    expect(r.status, JSON.stringify(r.body)).toBe(403)
+    expect(r.body.error.code).toBe('DOCUMENTS_BLOCK')
+
+    const blocked = r.body.error.blocking.find((b: { key: string }) => b.key === 'SITE_SAFETY_INDUCTION')
+    expect(blocked, `blocked on ${r.body.error.blocking.map((b: any) => b.key).join(', ')}`).toBeTruthy()
+
+    // Whose order asked — by the buyer's name and the order's number, so
+    // the supplier reading the refusal knows who to go back to.
+    expect(blocked.asked).toContain('Cavanaugh Glassworks')
+    expect(blocked.asked).toContain(order.number)
+    expect(blocked.label).toBe('Site safety induction')
+
+    const still = await prisma.sellContract.findUniqueOrThrow({ where: { id: draft.id } })
+    expect(still.state).toBe('DRAFT')
+  })
+})

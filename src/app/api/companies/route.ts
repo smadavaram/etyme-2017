@@ -1,0 +1,814 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
+import { getSessionEmail, getCallerContext } from '@/lib/api-context'
+import { isConsultantSeat } from '@/lib/seat'
+import { isExcludedDomain } from '@/lib/auth'
+import { prisma } from '@/lib/db'
+import { directoryScope, directoryCopy, type Reader } from '@/lib/directory-scope'
+import { companiesOnList } from './dealings'
+import { ownDomainsFor, keepNote } from './twins'
+import { lookBeforeRecording, writeRecord, refusedFound, uniqueSlug, slugify, RESERVED_SLUGS, EITHER_SIDE, reservedNameSays, SLUG_RACE_SAYS, ownCompanySays, onYourListAlreadySays } from './record'
+import { mayRegisterWithEmail } from '@/lib/company-defaults'
+import { createCompany, workTogetherAmong } from '@/lib/company-create'
+import { LINK_RELATIONSHIPS, wordFor } from '@/lib/trade-link'
+import type { Relationship } from '@/lib/counterparty'
+import { mayAddCompany, sameNameRefused, sameDomainRefused, namesakeSays, consumerDomainSays, identityDomain, readTypedDomain, NEVER_EMAILS, mayExtend, maySetRecordedKind, isMine, notLinkedYet, notedDomain } from '@/lib/counterparty'
+import { recordRefusal } from '@/lib/access-log'
+import { onEtymeAskToLinkSays } from '@/lib/supplier-list'
+import { positionsFor } from './positions'
+import { speaksForItself } from '@/lib/public-site/speaks'
+import { roleCanDo } from '@/lib/company-roles'
+
+
+
+/**
+ * POST /api/companies
+ *
+ * Creates a new company. Mirrors BUILD.md §3 — Onboarding and §4.A.
+ *
+ * Flow:
+ *   1. Slug from domain, collision-numbered, reserved list checked
+ *   2. Creates the company through lib/company-create — the pack, roles
+ *      for its kind, head office and holidays first sign-in gives — and
+ *      the owner's seat where the caller is founding their own firm
+ *   3. Sets siteLiveAt = now, for a firm of its own (a counterparty has no page until somebody there joins)
+ *   4. Fires AI site generation (background job)
+ *   5. networkVerifiedAt stays null until manual verification
+ *
+ * The 90-second promise: satisfied at siteLiveAt.
+ * Everything after is enrichment and skippable.
+ */
+
+// The reserved names, the address a name makes and its collision number
+// live in ./record, which Add contact runs too (fix list A2).
+
+export async function POST(request: NextRequest) {
+  const email = await getSessionEmail()
+
+  if (!email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+      { status: 401 }
+    )
+  }
+
+  const body = await request.json()
+  const { name, kind = 'VENDOR' } = body
+
+  // Who is asking, first: somebody seated at a company who writes a firm
+  // down is not registering a company, so their own address claims
+  // nothing and is never checked (founder's Gmail partners at Tapin,
+  // 2026-11-13). The address rule is for somebody with no seat founding
+  // their own firm.
+  const { caller: seatedCaller } = await getCallerContext(request)
+  const seated = Boolean(seatedCaller?.company)
+
+  // Personal email cannot claim a company domain — but a consultant's
+  // own corporation claims no domain at all, and a one-person shop on
+  // gmail is how a one-person shop actually runs. The rule lives in
+  // mayRegisterWithEmail so the reasoning is tested, not folklore.
+  const personalEmail = isExcludedDomain(email)
+  const registration = seated ? { ok: true, says: '' } : mayRegisterWithEmail(kind, personalEmail)
+  if (!registration.ok) {
+    return NextResponse.json(
+      { error: { code: 'PERSONAL_EMAIL', message: registration.says } },
+      { status: 422 }
+    )
+  }
+
+  if (!name || typeof name !== 'string' || name.trim().length < 2) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Company name is required (min 2 characters)', field: 'name' } },
+      { status: 422 }
+    )
+  }
+
+  // UNCLASSIFIED is "Company — not classified yet" (founder, 2026-11-12):
+  // only somebody seated records one, and it asks for no relationship.
+  const validKinds = ['VENDOR', 'CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP', 'UNCLASSIFIED']
+  if (!validKinds.includes(kind)) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Choose what kind of company it is, or "Company — not classified yet".', field: 'kind' } },
+      { status: 422 }
+    )
+  }
+  const recording = kind === 'UNCLASSIFIED'
+
+  // ── Founding a firm, or writing down one you trade with ──────────
+  //
+  // One button, two acts, and they were the same act until the walk of
+  // 2026-09-21 found an integrator's W2 create a company from inside
+  // his employer's app and be silently re-seated into it as Owner. The
+  // rule is `mayAddCompany` in lib/counterparty; this route enforces it.
+  const adding = mayAddCompany({
+    seatedAt: seatedCaller?.company
+      ? { id: seatedCaller.company.id, name: seatedCaller.company.name }
+      : null,
+    permissions: seatedCaller?.permissions ?? [],
+    relationship: body?.relationship ?? null,
+    kind,
+  })
+  if (!adding.ok) {
+    if (seatedCaller?.company) await refusedAdd(seatedCaller, `adding ${String(name ?? 'a company')} to the Companies list`)
+    return NextResponse.json(
+      { error: { code: 'NOT_YOURS_TO_ADD', message: adding.says } },
+      { status: 403 }
+    )
+  }
+
+  // The domain box, read once (2026-11-15). An email address gives its
+  // domain and the reply says so; anything else that does not read as a
+  // domain is refused in a sentence, never dropped silently. Every line
+  // below reads the domain this leaves in `body.domain`.
+  let domainSays: string | null = null
+  if (!adding.ownsIt && seatedCaller?.company) {
+    const box = readTypedDomain(body?.domain)
+    if (!box.ok) {
+      return NextResponse.json({ error: { code: 'VALIDATION', field: 'domain', message: box.says } }, { status: 422 })
+    }
+    body.domain = box.domain ?? undefined
+    domainSays = box.says
+  }
+
+  // ── A firm already on Etyme is found, never written down again ─────
+  //
+  // The onboarding walk of 2026-10-27: a sub-vendor added its prime, which
+  // had signed up the same morning, and this route made a third
+  // Quarrybrook Staffing on the sub's register. Recording a counterparty
+  // asks first whether the firm is here — by its domain, its Etyme
+  // address, or its exact name on a firm run from that domain
+  // (`findFirm`). Where it is, no copy is made. Where the two already work
+  // together, the register row points at the real firm; where they do
+  // not, the caller is told who they are and to ask them, because a row on
+  // one's own register is what lets a contract name a client
+  // (`mayNameCounterparty`), and that is not one side's to give itself.
+  // Said with the reply where another company on the list shares the name.
+  let namesake: string | null = null
+  if (!adding.ownsIt && seatedCaller?.company) {
+    const mine = seatedCaller.company
+    // A company not classified yet is stored with no relationship: never
+    // defaulted to a supplier.
+    const as = recording ? '' : String(body?.relationship ?? 'SUPPLIER')
+    // What they are to the caller, in the Companies list's own words. A
+    // company not classified yet is asked about as either one, the two
+    // choices the Ask them to link box offers (press of 2026-11-15: it
+    // said "partner" here and "supplier" in the box).
+    const asWord = (LINK_RELATIONSHIPS as string[]).includes(as) ? wordFor(as as Relationship, mine.kind) : EITHER_SIDE
+
+    // One company once on the caller's own list, known by its domain
+    // (founder, 2026-11-15: "The email is the identifier"). The same
+    // organization's domain is the same company whatever the names; two
+    // domains are two companies under one name; with no domain on either
+    // side the name decides, compared without case, spaces or punctuation
+    // (2026-11-12). The one already there is linked rather than a second
+    // record made. Only the caller's own records are read. Then Etyme
+    // itself, by `findFirm`. One look, shared with Add contact
+    // (`lookBeforeRecording`, fix list A2), so the two doors never differ.
+    const look = await lookBeforeRecording(seatedCaller, {
+      name: String(name ?? ''),
+      domain: body?.domain ?? null,
+      address: body?.address ? String(body.address) : null,
+    })
+    if (look.found === 'TWIN') {
+      const twin = look.twin
+      const byDomain = look.by === 'DOMAIN'
+      await refusedFound(seatedCaller, twin.id, `${twin.name} is on the caller's own Companies list already${byDomain ? ` on ${twin.domain}` : ''}`)
+      return NextResponse.json(
+        {
+          error: {
+            code: byDomain ? 'SAME_DOMAIN_ON_YOUR_LIST' : 'SAME_NAME_ON_YOUR_LIST',
+            field: byDomain ? 'domain' : 'name',
+            message: byDomain ? sameDomainRefused(twin) : sameNameRefused(twin),
+            companyId: twin.id,
+            company: twin.name,
+          },
+        },
+        { status: 409 }
+      )
+    }
+    if (look.found === 'OWN_FIRM') {
+      return NextResponse.json(
+        { error: { code: 'OWN_COMPANY', message: ownCompanySays(look.firm.name, as) } },
+        { status: 422 }
+      )
+    }
+    if (look.found === 'ON_ETYME' && recording) {
+      const firm = look.firm
+      // Already on Etyme: today's reply, and nothing written. Nothing is
+      // sent unless the person presses "Ask them to link".
+      if (!look.together) {
+        const says = onEtymeAskToLinkSays(EITHER_SIDE)
+        await refusedFound(seatedCaller, firm.id, says)
+        return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: null } }, { status: 409 })
+      }
+      return NextResponse.json({
+        data: {
+          company: { id: firm.id, name: firm.name, slug: firm.slug, kind: firm.kind },
+          linked: true,
+          says: onYourListAlreadySays(firm.name),
+          message: `${firm.name} is on your Companies list.`,
+        },
+      })
+    }
+    if (look.found === 'ON_ETYME') {
+      const firm = look.firm
+      if (!look.together) {
+        const says = onEtymeAskToLinkSays(asWord)
+        await refusedFound(seatedCaller, firm.id, says)
+        return NextResponse.json({ error: { code: 'ALREADY_ON_ETYME', message: says, relationship: as } }, { status: 409 })
+      }
+      await prisma.counterparty.upsert({
+        where: { companyId_otherCompanyId_relationship: { companyId: mine.id, otherCompanyId: firm.id, relationship: as } },
+        update: {},
+        create: { companyId: mine.id, otherCompanyId: firm.id, relationship: as, status: 'ACTIVE', createdById: seatedCaller.person.id },
+      })
+      return NextResponse.json({
+        data: {
+          company: { id: firm.id, name: firm.name, slug: firm.slug, kind: firm.kind },
+          linked: true,
+          says: `${firm.name} is on Etyme and already works with you, so your register points at their own record. No copy was made.`,
+          message: `${firm.name} is on your Companies list.`,
+        },
+      })
+    }
+    // A name and nothing else, and a firm on Etyme holds that name: say so
+    // rather than guess either way. A domain or an address tells them apart.
+    if (look.found === 'SAME_NAME_ON_ETYME') {
+      // The name the person typed, and nothing more: no address, no id
+      // of a firm the caller does not work with (review, 2026-11-13).
+      const says =
+        `A company called ${look.namesake.name} is on Etyme already. If that is them, ask them for their web domain, ` +
+        `or the address their Etyme page opens at, and type it in the Domain box or the Etyme address box. Then you can ask them to link, as your ${asWord}. ` +
+        `If it is a different company, type its web domain in the Domain box so the two are told apart.`
+      await refusedFound(seatedCaller, look.namesake.id, says)
+      return NextResponse.json({ error: { code: 'SAME_NAME', field: 'domain', message: says } }, { status: 409 })
+    }
+    namesake = look.namesake ? namesakeSays(look.namesake) : null
+  }
+
+  if (recording && seatedCaller?.company) return recordCompany(seatedCaller, String(name), body, adding.says, [namesake, domainSays].filter(Boolean).join(' ') || null)
+
+  const baseSlug = slugify(name)
+
+  if (RESERVED_SLUGS.has(baseSlug)) {
+    return NextResponse.json(
+      { error: { code: 'SLUG_RESERVED', message: reservedNameSays(name), field: 'name' } },
+      { status: 422 }
+    )
+  }
+
+  // Domain from the authenticated user's email — unless it is a personal
+  // one, which proves nothing about any company and must not be recorded
+  // as if it did. And only where the caller is founding their own firm:
+  // a counterparty written down from inside a seat is not on the caller's
+  // domain, and recording it there as verified would hand the caller's
+  // colleagues to somebody else's company the next time they signed in.
+  const domain = personalEmail || !adding.ownsIt ? null : email.split('@')[1]?.toLowerCase() ?? null
+
+  try {
+    const slug = await uniqueSlug(baseSlug)
+
+    const result = await prisma.$transaction(async (tx) => {
+      // The person first, because the company's owner seat and its domain
+      // claim name them.
+      let person = await tx.person.findUnique({ where: { primaryEmail: email } })
+      if (!person) {
+        person = await tx.person.create({ data: { name: email.split('@')[0], primaryEmail: email } })
+      }
+
+      // 1–2. The company and everything it needs to start, made the one
+      // way. Seated as Owner only where this is somebody registering a
+      // firm of their own: recording a counterparty seats nobody, because
+      // contexts are read most-recently-granted first and granting `*` on
+      // a client of ours moved the creator's whole identity off their
+      // employer.
+      const made = await createCompany(
+        {
+          name,
+          kind: kind as 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP',
+          slug,
+          domain,
+          country: body?.country ?? null,
+          currency: body?.currency ?? null,
+          byPersonId: person.id,
+          seatAsOwner: adding.ownsIt,
+          // Somebody founding their own firm is its Admin until they prove
+          // the domain and themselves (lib/owner-proof, 2026-11-12).
+          ownerProofRequired: adding.ownsIt,
+          claimDomain: adding.ownsIt,
+          startsSetup: adding.ownsIt,
+          // A counterparty is on the caller's register, a shell nobody has
+          // claimed: listed by the caller's firm, no public page, and in
+          // the caller's own world if the caller is a demo firm.
+          listedById: adding.ownsIt ? null : seatedCaller?.company?.id ?? null,
+          isDemo: !adding.ownsIt && seatedCaller?.company?.isDemo === true,
+        },
+        tx
+      )
+      // What was typed for a company written down from inside a seat is
+      // kept, whatever Kind was chosen: the domain as the recorder's note,
+      // never the claim column, and the entity type. Only on the caller's
+      // own new record (`keepNote` checks), never on a firm found on Etyme.
+      const kept = !adding.ownsIt && seatedCaller?.company
+        ? await keepNote(tx, { me: seatedCaller.company.id, companyId: made.company.id, domain: body?.domain, entityType: body?.entityType })
+        : null
+      const company = await tx.company.findUniqueOrThrow({ where: { id: made.company.id } })
+      const roles = made.roles
+      const context = made.ownerContextId
+        ? await tx.context.findUniqueOrThrow({ where: { id: made.ownerContextId } })
+        : null
+
+      // 5. The owner of a consultant corporation IS its consultant.
+      //
+      // Without this they would register and face an empty bench with an
+      // Add consultant form asking about themselves in the third person.
+      // The listing is granted at creation — the grant rule protects a
+      // consultant from a company marketing them without consent, and
+      // consenting to your own one-person company is what registering it
+      // means.
+      // The owner of a consultant corporation IS its consultant — but
+      // only where they registered it themselves. A recruiter writing
+      // down a contractor's own limited company is not consenting to be
+      // marketed on anybody's bench.
+      if (kind === 'CONSULTANT_CORP' && adding.ownsIt) {
+        const profile = await tx.consultantProfile.upsert({
+          where: { personId: person.id },
+          update: { ownCompanyId: company.id },
+          create: {
+            personId: person.id,
+            ownCompanyId: company.id,
+          },
+        })
+        await tx.benchListing.create({
+          data: {
+            consultantId: profile.id,
+            companyId: company.id,
+            tier: 'RETAINED',
+          },
+        })
+      }
+
+      // AutomationLog — what was created, honestly counted. A company
+      // written down from inside a seat is the adding firm's act, so its
+      // row is on the adding firm's own log, where its Activity log and
+      // the company's History read it (fix list of 2026-11-14, E3: it
+      // landed on the new company's log, which nobody reads).
+      const recorder = !adding.ownsIt && seatedCaller?.company ? seatedCaller.company : null
+      await tx.automationLog.create({
+        data: {
+          companyId: recorder ? recorder.id : company.id,
+          action: 'COMPANY_CREATED',
+          summary: recorder
+            ? `${seatedCaller!.person.name} recorded ${company.name} on ${recorder.name}'s Companies list`
+            : `Company "${company.name}" created at ${slug}.etyme.com with ${roles.length} role${roles.length === 1 ? '' : 's'}`,
+          reason: adding.ownsIt
+            ? 'User registered a new company of their own and was seated as its owner'
+            : `Recorded on ${seatedCaller?.company?.name ?? 'the caller'}'s Companies list; nobody was seated there and nothing was sent.`,
+          payload: {
+            personId: person.id,
+            email,
+            roleCount: roles.length,
+            kind: company.kind,
+            ...(recorder ? { otherCompanyId: company.id, byName: seatedCaller!.person.name, position: null } : {}),
+          },
+          // No control deletes a company.
+          reversible: false,
+        },
+      })
+
+      // ── The register, where the caller said what this firm is to them ──
+      //
+      // The dashboard's Add company modal reuses this route, and until now
+      // it created a standalone company with no relationship to anybody —
+      // a logo in a list. Where the caller is signed in with a company and
+      // said what the new firm is to them (CLIENT, SUPPLIER, PRIME, MSP),
+      // the register row is written here, in the same transaction as the
+      // company, so a company added with a relationship can never be left
+      // holding no position (review, 2026-11-13). Required, not optional,
+      // where the caller is seated: `mayAddCompany` refused above without
+      // it, because a company on the register with no relationship on it
+      // is a name nothing can point at.
+      const relationship = String(body?.relationship ?? '')
+      const ownCompanyId = seatedCaller?.company?.id
+      if (['CLIENT', 'SUPPLIER', 'PRIME', 'MSP'].includes(relationship) && ownCompanyId && ownCompanyId !== company.id) {
+        await tx.counterparty.upsert({
+          where: { companyId_otherCompanyId_relationship: { companyId: ownCompanyId, otherCompanyId: company.id, relationship } },
+          update: {},
+          create: {
+            companyId: ownCompanyId,
+            otherCompanyId: company.id,
+            relationship,
+            status: body?.prospect === true ? 'PROSPECT' : 'ACTIVE',
+            createdById: seatedCaller!.person.id,
+          },
+        })
+      }
+
+      return { company, roles, person, context, seatedAs: made.seatedAs, kept }
+    }, { timeout: 20_000 })
+    const typedDomain = typeof body?.domain === 'string' ? body.domain.trim() : ''
+    const after = [
+      namesake,
+      domainSays,
+      !adding.ownsIt && typedDomain && !identityDomain(typedDomain) && notedDomain(typedDomain) ? consumerDomainSays(notedDomain(typedDomain)!) : null,
+    ].filter(Boolean).join(' ')
+
+    return NextResponse.json({
+      data: {
+        company: {
+          id: result.company.id,
+          name: result.company.name,
+          slug: result.company.slug,
+          kind: result.company.kind,
+          domain: result.company.domain,
+          notedDomain: result.kept?.domain ?? null,
+          entityType: result.company.entityType,
+          siteLiveAt: result.company.siteLiveAt?.toISOString() ?? null,
+          networkVerifiedAt: null,
+        },
+        roles: result.roles.map((r) => ({
+          id: r.id,
+          name: r.name,
+          // Counted against the catalog, so '*' reads as everything and
+          // never as one permission (Settings → Roles, 2026-11-12).
+          permissionCount: roleCanDo(r).count,
+          permissions: roleCanDo(r).words,
+        })),
+        context: result.context
+          ? { id: result.context.id, type: result.context.type, role: result.seatedAs ?? 'Owner' }
+          : null,
+        // What just happened, in the words the rule used, so the screen
+        // does not have to guess whether the creator is now its owner.
+        says: after ? `${adding.says} ${after}` : adding.says,
+        message: adding.ownsIt
+          ? `${result.company.name} created at ${result.company.slug}.etyme.com`
+          : `${result.company.name} is on your Companies list.${after ? ` ${after}` : ''}`,
+      },
+    })
+  } catch (err: any) {
+    // Handle unique constraint violations (slug race, domain collision)
+    if (err?.code === 'P2002') {
+      const target = err?.meta?.target
+      if (target?.includes('slug')) {
+        return NextResponse.json(
+          { error: { code: 'SLUG_TAKEN', message: 'This company name is already taken. Please choose another.', field: 'name' } },
+          { status: 409 }
+        )
+      }
+      if (target?.includes('domain')) {
+        return NextResponse.json(
+          { error: { code: 'DOMAIN_TAKEN', message: 'A company with this domain already exists.', field: 'domain' } },
+          { status: 409 }
+        )
+      }
+    }
+    reportError('Company creation failed:', err)
+    return NextResponse.json(
+      { error: { code: 'INTERNAL', message: 'Company creation failed. Please try again.' } },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * GET /api/companies
+ *
+ * Without ?slug= → list all companies (admin / operate view).
+ * With ?slug=    → check slug availability (onboarding).
+ */
+/** What a candidate with no company reads at the Companies list. */
+const NOT_AT_A_COMPANY =
+  'This is a company’s list of the firms it trades with, and you are not signed in at a company.'
+
+export async function GET(request: NextRequest) {
+  const slug = request.nextUrl.searchParams.get('slug')
+
+  // ── Slug availability check ─────────────────────────
+  if (slug) {
+    const normalized = slugify(slug)
+    const reserved = RESERVED_SLUGS.has(normalized)
+
+    if (reserved) {
+      return NextResponse.json({
+        data: { slug: normalized, available: false, reason: 'This name is reserved' },
+      })
+    }
+
+    const existing = await prisma.company.findUnique({
+      where: { slug: normalized },
+      select: { id: true },
+    })
+
+    return NextResponse.json({
+      data: {
+        slug: normalized,
+        available: !existing,
+        reason: existing ? 'This name is already taken' : null,
+      },
+    })
+  }
+
+  // ── List companies ──────────────────────────────────
+  //
+  // The register of who this caller trades with — never the platform.
+  //
+  // This handed every authenticated caller the whole directory: every
+  // company, its slug, its domain. The walk of 2026-09-21 read all
+  // twenty-seven to Northbend Athletic's program manager, to Tecwyn's
+  // owner two rungs down somebody else's chain, and to a one-person
+  // nursing corporation. The rule and the reasoning are in
+  // `lib/directory-scope`; what is gathered here is the evidence for it.
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  // A candidate signed in at no company has no register to read (sign-up
+  // walk, round six, problem 10). An empty 200 drew "Create your first
+  // company" to a consultant inside her own account; she is told what
+  // the list is and why it is not hers instead.
+  if (!caller.staff && !caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: NOT_AT_A_COMPANY } },
+      { status: 403 }
+    )
+  }
+
+  const reader = readerFor(caller)
+  const verdict = directoryScope(reader)
+
+  // The companies this firm recorded and has not classified are on its
+  // Companies list (?records=1, the Companies page and Contacts) and in
+  // nobody's picker by default: they hold no position, so a screen that
+  // lists companies to pick from never meets one (founder, 2026-11-12).
+  const withRecords = request.nextUrl.searchParams.get('records') === '1'
+  // One reader for this list and for Contacts' Works for (`companiesOnList`):
+  // every company this firm recorded and nobody has claimed is on it,
+  // whatever Kind it has been given since, because a Kind is no position.
+  const sides = verdict.reach === 'ALL' ? null : await companiesOnList(caller, verdict.includesOwn, withRecords)
+  const ids = sides ? sides.ids : null
+  const visible = ids ? { id: { in: [...ids] } } : undefined
+
+  const companies = await prisma.company.findMany({
+    // Demo and real are separate universes.
+    //
+    // A visitor looking around must not see a customer's name in the
+    // directory, and a customer must not see a stranger's sandbox. The
+    // partition is on the flag rather than on a guess about the name,
+    // because "looks like demo data" is exactly the judgment nobody
+    // should be making about somebody's real book.
+    where: visible,
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      kind: true,
+      entityType: true,
+      domain: true,
+      domainVerified: true,
+      website: true,
+      currency: true,
+      siteLiveAt: true,
+      networkVerifiedAt: true,
+      createdAt: true,
+      claimedAt: true,
+      listedById: true,
+      _count: { select: { contexts: { where: { roleId: { not: null } } } } },
+    },
+  })
+  // Where each sits with the reader, read off the reader's own register.
+  const at = caller.company ? await positionsFor(caller.company.id, companies) : new Map()
+  // A firm on Etyme the reader reached only by its own writing (a row on
+  // its own register, a job it sent) is one it does not work with (record
+  // 61). The list names it and says nothing else about it: no address,
+  // domain, Kind or date of the firm's own, and its one act is "Ask them
+  // to link".
+  const notLinked = new Set(
+    companies
+      .filter((c) => notLinkedYet({ ownSideOnly: sides?.ownSideOnly.has(c.id) ?? false, onEtyme: c.claimedAt != null || c._count.contexts > 0, mine: caller.company ? isMine(c, caller.company.id) : false }))
+      .map((c) => c.id),
+  )
+  // The domain each of the reader's own records is known by: what it typed,
+  // or the domain on the invitation it pasted, read now (nothing backfilled).
+  const noted = caller.company ? await ownDomainsFor(caller.company.id, companies) : new Map()
+  // What the reader may press on each row, asked of the same rules the
+  // routes ask, so the page never draws a button its route refuses.
+  const may = caller.company ? await rowActs(caller, companies.filter((c) => !notLinked.has(c.id)), at) : new Map<string, RowActs>()
+
+  return NextResponse.json({
+    data: {
+      // What this list is, for the reader in front of it. The page was
+      // headed "Manage vendor, client, MSP, and GSI companies on the
+      // platform" for everybody, which is a platform administrator's
+      // sentence shown to a nurse's own corporation.
+      scope: {
+        says: verdict.says,
+        ...directoryCopy(caller.company?.kind as any ?? null),
+      },
+      companies: companies.map((c) => notLinked.has(c.id) ? {
+        id: c.id,
+        name: c.name,
+        slug: '',
+        kind: null,
+        entityType: null,
+        domain: null,
+        domainVerified: false,
+        notedDomain: null,
+        notedFrom: null,
+        currency: null,
+        siteLiveAt: null,
+        networkVerifiedAt: null,
+        createdAt: null,
+        onEtyme: true,
+        hasPage: false,
+        positions: at.get(c.id)?.positions ?? [],
+        notClassified: false,
+        mine: false,
+        notLinked: true,
+        // The relationship to ask as: the reader's own register row, else a supplier (a job it sent).
+        askAs: (at.get(c.id)?.positions ?? []).includes('CUSTOMER') ? 'CLIENT' : 'SUPPLIER',
+        customerAgreement: null,
+        may: NOTHING_TO_PRESS,
+      } : ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        kind: c.kind,
+        entityType: c.entityType,
+        domain: c.domain,
+        domainVerified: c.domainVerified,
+        // The domain the reader typed for its own record of a company
+        // nobody has claimed: a note, never a claim, and never read off
+        // a company that is somebody else's.
+        notedDomain: !c.domain ? noted.get(c.id)?.domain ?? null : null,
+        // Where the note came from: typed on Add a company, or the domain on
+        // an invitation the reader sent. Either way, typed by the reader.
+        notedFrom: !c.domain ? noted.get(c.id)?.from ?? null : null,
+        currency: c.currency,
+        siteLiveAt: c.siteLiveAt?.toISOString() ?? null,
+        networkVerifiedAt: c.networkVerifiedAt?.toISOString() ?? null,
+        createdAt: c.createdAt.toISOString(),
+        // Whether the firm is here at all, and whether its Etyme address
+        // opens a page. A client somebody else wrote down and nobody has
+        // claimed has neither, so the list never prints an address for it
+        // that leads nowhere (lib/public-site/speaks, the page's own rule).
+        onEtyme: c.claimedAt != null || c._count.contexts > 0,
+        hasPage: speaksForItself({ siteLiveAt: c.siteLiveAt, claimedAt: c.claimedAt, seats: c._count.contexts }),
+        // Two facts, never one: the Kind above, and where it sits with the
+        // reader here (CUSTOMER · SUPPLIER · PRIME · MSP), from the register.
+        positions: at.get(c.id)?.positions ?? [],
+        notClassified: at.get(c.id)?.notClassified ?? false,
+        mine: at.get(c.id)?.mine ?? false,
+        customerAgreement: at.get(c.id)?.customerAgreement ?? null,
+        notLinked: false,
+        askAs: null,
+        may: may.get(c.id) ?? NOTHING_TO_PRESS,
+      })),
+    },
+  })
+}
+
+/** What a reader may press on one row of the Companies list. */
+interface RowActs {
+  /** Extend to Supplier: the route would take it and the company is not one yet. */
+  extendToSupplier: boolean
+  /** Extend to Customer: the same, for Customer. */
+  extendToCustomer: boolean
+  /** Set the Kind of a company the reader recorded and nobody claimed. */
+  setKind: boolean
+}
+const NOTHING_TO_PRESS: RowActs = { extendToSupplier: false, extendToCustomer: false, setKind: false }
+
+/**
+ * The buttons each row may draw, read through `mayExtend` and
+ * `maySetRecordedKind`, the rules the extend and kind routes ask. Whether
+ * two firms work together is read only for a row that holds no position
+ * with the reader and is not the reader's own record, because a position
+ * already is working together.
+ */
+async function rowActs(
+  caller: import('@/lib/api-context').CallerContext,
+  companies: readonly { id: string; name: string; slug: string; kind: string; claimedAt: Date | null; listedById: string | null; _count: { contexts: number } }[],
+  at: Map<string, { positions: import('@/lib/counterparty').Position[]; mine: boolean }>,
+): Promise<Map<string, RowActs>> {
+  const me = caller.company!
+  const out = new Map<string, RowActs>()
+  // Whether the reader works with each row that holds no position and is
+  // not its own record, read once for all of them (`workTogetherAmong`,
+  // the reader `workTogether` asks for one): five queries whatever the
+  // count, never five per row.
+  const unread = companies.filter((c) => c.id !== me.id && !((at.get(c.id)?.positions.length ?? 0) > 0 || at.get(c.id)?.mine)).map((c) => c.id)
+  const together = await workTogetherAmong(me.id, unread)
+  for (const c of companies) {
+    if (c.id === me.id) { out.set(c.id, NOTHING_TO_PRESS); continue }
+    const read = at.get(c.id) ?? { positions: [], mine: false }
+    const worksTogether = read.positions.length > 0 || read.mine ? true : together.has(c.id)
+    const ask = (as: 'SUPPLIER' | 'CUSTOMER') => {
+      const v = mayExtend({
+        as,
+        me: { id: me.id, name: me.name },
+        permissions: caller.permissions,
+        other: { id: c.id, name: c.name, claimedAt: c.claimedAt, listedById: c.listedById, slug: c.slug },
+        worksTogether,
+        positions: read.positions,
+      })
+      return v.ok && !v.already
+    }
+    const kindVerdict = maySetRecordedKind({
+      to: c.kind === 'VENDOR' ? 'CLIENT' : 'VENDOR',
+      me: { id: me.id, name: me.name },
+      permissions: caller.permissions,
+      other: { id: c.id, name: c.name, kind: c.kind, claimedAt: c.claimedAt, listedById: c.listedById, seats: c._count.contexts },
+    })
+    out.set(c.id, { extendToSupplier: ask('SUPPLIER'), extendToCustomer: ask('CUSTOMER'), setKind: kindVerdict.ok })
+  }
+  return out
+}
+
+/** Which kind of reader is asking, in `lib/directory-scope`'s words. */
+function readerFor(caller: import('@/lib/api-context').CallerContext): Reader {
+  // Staff reach is for a staff caller with no seat. A staff address that
+  // also holds a seat reads that seat's own book, like anybody else seated
+  // there: on 2026-11-14 a seated staff address was handed every company
+  // on the deployment, and the drawer then refused the rows the list drew.
+  if (caller.staff && !caller.company) return { as: 'STAFF' }
+  if (isConsultantSeat(caller)) return { as: 'CONSULTANT' }
+  if (!caller.company) return { as: 'NOBODY' }
+  return {
+    as: 'COMPANY',
+    kind: caller.company.kind as any,
+    isDemo: Boolean(caller.company.isDemo),
+  }
+}
+
+/**
+ * Record a company not classified yet on the caller's own list: a Company
+ * of kind UNCLASSIFIED, listed by the caller, with no register row, no
+ * agreement, no roles, no seat, no domain claim and nothing on a page.
+ * Nothing is emailed and no notice is written (founder, 2026-11-12).
+ *
+ * A typed domain was used above to look the firm up on Etyme. It is kept
+ * on the record as the recorder's own note of it (`website`, the column
+ * for what somebody typed), because the founder's brief counts the domain
+ * as part of a record's identity: name, domain, contacts. It is never
+ * written to `domain`: that column is the claim a company's own people
+ * join by, and a note one firm typed about another must never be one.
+ */
+async function recordCompany(
+  caller: import('@/lib/api-context').CallerContext,
+  name: string,
+  body: any,
+  says: string,
+  namesake: string | null = null,
+): Promise<NextResponse> {
+  const baseSlug = slugify(name)
+  if (RESERVED_SLUGS.has(baseSlug)) {
+    return NextResponse.json(
+      { error: { code: 'SLUG_RESERVED', message: reservedNameSays(name), field: 'name' } },
+      { status: 422 }
+    )
+  }
+  const typed = typeof body?.domain === 'string' ? body.domain.trim() : ''
+  const personal = typed && !identityDomain(typed) && notedDomain(typed) ? consumerDomainSays(notedDomain(typed)!) : null
+  try {
+    const slug = await uniqueSlug(baseSlug || 'company')
+    // The one write Add contact runs too (`writeRecord`, fix list A2).
+    const made = await prisma.$transaction(
+      (tx) => writeRecord(tx, caller, { name, slug, domain: body?.domain, entityType: body?.entityType, country: body?.country ?? null, currency: body?.currency ?? null }),
+      { timeout: 20_000 }
+    )
+    const noted = made.noted
+    return NextResponse.json(
+      {
+        data: {
+          company: { id: made.company.id, name: made.company.name, slug: made.company.slug, kind: made.company.kind, domain: null, notedDomain: noted, siteLiveAt: null, networkVerifiedAt: null },
+          positions: [],
+          notClassified: true,
+          mine: true,
+          roles: [],
+          context: null,
+          says,
+          message: [`${made.company.name} is on your Companies list, not classified yet. ${NEVER_EMAILS}`, namesake, personal].filter(Boolean).join(' '),
+        },
+      },
+      { status: 201 }
+    )
+  } catch (err: any) {
+    if (err?.code === 'P2002') {
+      return NextResponse.json(
+        { error: { code: 'SLUG_TAKEN', message: SLUG_RACE_SAYS, field: 'name' } },
+        { status: 409 }
+      )
+    }
+    reportError('Recording a company failed:', err)
+    return NextResponse.json({ error: { code: 'INTERNAL', message: 'The company was not recorded. Please try again.' } }, { status: 500 })
+  }
+}
+
+async function refusedAdd(caller: import('@/lib/api-context').CallerContext, doing: string): Promise<void> {
+  await recordRefusal([{ companyId: caller.company!.id }], {
+    actorPersonId: caller.isService ? undefined : caller.person.id,
+    actorCompanyId: caller.company!.id,
+    action: 'CONTRACT_VIEW',
+    reason: `Refused: ${doing}, which is for whoever manages who the firm trades with.`,
+  })
+}

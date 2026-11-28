@@ -1,0 +1,183 @@
+/**
+ * Every transaction, end to end, as each party (CLAUDE.md, 2026-10-20).
+ *
+ *   npm run simulate -- --placements 200 --weeks 12
+ *   npm run simulate -- --people 2000 --jobs 1000 --chain-hires 20 --weeks 4
+ *
+ * 1. Copies today's seeded world template to `etyme_sim_<stamp>`
+ *    (building the template first if today's is not built yet).
+ * 2. Builds the app into `.next-sim` if anything changed since the last
+ *    build, and starts it on a free port against that copy.
+ * 3. Opens seats through the demo door as each stage asks for them, and
+ *    runs the stations in the order of the trade.
+ * 4. Stops the app, writes `reports/simulation-<stamp>.md` and the JSON
+ *    ledger beside it, and keeps the database unless `--drop`.
+ *
+ * See args.ts for every flag and stage.ts for how a station is written.
+ */
+import { randomBytes } from 'node:crypto'
+import { join } from 'node:path'
+import { PrismaClient } from '@prisma/client'
+import { Cast, readCatalog, type Wire } from './actors'
+import { parseArgs } from './args'
+import { Ledger, faultsOf, isError, isRefusal } from './ledger'
+import { completeTransactions } from './complete'
+import { lessonsOf } from './lessons'
+import { writeReport, type StageRun } from './report'
+import { build, freePort, serverEnv, start, type Running } from './server'
+import { emptyWorld, expectRefusalOn, parallel, type Ctx } from './stage'
+import { readTallies } from './tallies'
+import { STAGES } from './stages'
+import { dropWorld, prepareWorld } from './world-db'
+
+const ROOT = join(__dirname, '..', '..')
+const REPORTS = join(ROOT, 'reports')
+
+function stampNow(d = new Date()): string {
+  return d.toISOString().replace(/[-:T]/g, '').slice(0, 14)
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2))
+  const startedAt = new Date()
+  const stamp = stampNow(startedAt)
+  const say = (line: string) => console.log(`[simulate] ${line}`)
+
+  // The same secret the integration suite signs sessions with; the
+  // server and the actors must agree on it (lib/demo-session).
+  const nextAuthSecret = 'integration-test-secret'
+  process.env.NEXTAUTH_SECRET = nextAuthSecret
+  const cronSecret = randomBytes(18).toString('hex')
+
+  const db = await prepareWorld(stamp, say, args.template, { scale: args.scale, people: args.people })
+  say(`world copied to ${db.name} from ${db.template}`)
+
+  let server: Running | null = null
+  const reader = new PrismaClient({ datasources: { db: { url: db.readerUrl } } })
+  const ledger = new Ledger()
+  const stages: StageRun[] = []
+  const world = emptyWorld()
+  let buildNote = 'the existing build was reused'
+  let cast: Cast | null = null
+  let catalog = { seats: [], unreachable: [] } as Awaited<ReturnType<typeof readCatalog>>
+  let base = ''
+  let failure: unknown = null
+  let complete: Awaited<ReturnType<typeof completeTransactions>> | null = null
+
+  const stopAll = async () => {
+    if (server) await server.stop()
+    server = null
+  }
+  process.once('SIGINT', () => { void stopAll().then(() => process.exit(130)) })
+
+  try {
+    const port = await freePort()
+    const env = serverEnv({ databaseUrl: db.url, nextAuthSecret, cronSecret, port })
+    if (args.build !== 'never') {
+      // Into a folder of its own, under a lock, and pointed at only once it
+      // finished (server.ts): a failed build or another run's build never
+      // takes away the one a server is using.
+      const why = await build(env, join(REPORTS, `simulation-${stamp}.build.log`), { force: args.build === 'always', say })
+      if (why) buildNote = `built for this run because ${why}`
+    }
+    say(`starting the app on port ${port}`)
+    server = await start(env, port, join(REPORTS, `simulation-${stamp}.server.log`))
+    base = server.base
+    say(`app ready at ${base}`)
+
+    catalog = await readCatalog(reader)
+    const placeSeats = (seats: typeof catalog.seats) => {
+      for (const s of seats) {
+        if (!s.company) continue
+        const c = (world.companies[s.company.slug] ??= { ...s.company, seats: [] })
+        if (!c.seats.includes(s.key)) c.seats.push(s.key)
+      }
+    }
+    placeSeats(catalog.seats)
+    say(`${catalog.seats.length} seats in the world, at ${Object.keys(world.companies).length} firms`)
+
+    const wire: Wire = { base, ledger, secret: nextAuthSecret, cronSecret, timeoutMs: args.timeoutMs }
+    cast = new Cast(catalog, wire, reader)
+    const options = { placements: args.placements, weeks: args.weeks, concurrency: args.concurrency, only: args.only, chainHires: args.chainHires }
+    const flags = { chainHires: args.chainHires }
+
+    for (const stage of STAGES) {
+      if (args.only.length && !args.only.includes(stage.name)) continue
+      ledger.stage = stage.name
+      const ctx: Ctx = {
+        cast, world, ledger, options, flags, read: reader, base,
+        parallel: (items, fn, n) => parallel(items, fn, n ?? args.concurrency),
+        expectRefusal: (seat, call, phrase) => expectRefusalOn(ledger, seat, call, phrase),
+        log: (line) => say(`${stage.name}: ${line}`),
+      }
+      const t0 = Date.now()
+      const run: StageRun = { name: stage.name, domain: stage.domain, built: stage.built, ms: 0 }
+      try {
+        run.result = (await stage.run(ctx)) ?? undefined
+      } catch (e: any) {
+        run.error = String(e?.message ?? e)
+        say(`${stage.name}: the stage stopped — ${run.error}`)
+      }
+      run.ms = Date.now() - t0
+      stages.push(run)
+      // A station that seated somebody (a delivery manager, a new worker on
+      // a bench) leaves a seat the next station can sit in.
+      try {
+        const added = await cast.refresh()
+        if (added.length) {
+          placeSeats(added)
+          say(`${stage.name}: ${added.length} new seat${added.length === 1 ? '' : 's'} in the world`)
+        }
+      } catch (e: any) {
+        say(`${stage.name}: the seats could not be read again — ${String(e?.message ?? e)}`)
+      }
+      if (stage.built) {
+        const sc = ledger.ofStage(stage.name)
+        say(
+          `${stage.name}: ${run.result?.says ?? `closed ${run.result?.closed ?? 0}`} ` +
+            `(${sc.length} calls, ${sc.filter((c) => isRefusal(c.status)).length} refused, ${sc.filter((c) => isError(c.status)).length} server errors, ${(run.ms / 1000).toFixed(1)}s)`
+        )
+      }
+    }
+    ledger.stage = 'harness'
+    // The headline: complete transactions, read-only, once every station ran.
+    complete = await completeTransactions(reader, startedAt)
+    say('unread' in complete
+      ? `complete transactions could not be read: ${complete.unread}`
+      : `${complete.complete} complete transaction${complete.complete === 1 ? '' : 's'} of ${complete.placements} placements this run worked on (target ${complete.target.toLocaleString('en-US')})`)
+  } catch (e) {
+    failure = e
+  } finally {
+    await stopAll()
+    await reader.$disconnect().catch(() => {})
+  }
+
+  const finishedAt = new Date()
+  // By worker class and by rungs walked (2026-11-08): counted by
+  // regulatory's and demand's stations, read once here.
+  const tallies = readTallies(world)
+  const files = writeReport(
+    {
+      stamp, startedAt, finishedAt, options: { placements: args.placements, weeks: args.weeks, concurrency: args.concurrency, only: args.only, chainHires: args.chainHires },
+      database: { name: db.name, template: db.template, kept: !args.drop }, base, build: buildNote,
+      stages, world, ledger, catalog, opened: cast?.opened ?? 0, complete, tallies,
+    },
+    REPORTS
+  )
+  if (args.drop) dropWorld(db.name)
+
+  const faults = faultsOf(ledger.calls)
+  say(`${ledger.calls.length} calls, ${lessonsOf(ledger.calls).length} distinct refusal sentences, ${faults.length} faults`)
+  say(`report: ${files.md}`)
+  say(`ledger: ${files.json}`)
+  if (!args.drop) say(`database kept: ${db.name}`)
+  if (failure) {
+    console.error(`[simulate] the run could not finish: ${String((failure as any)?.message ?? failure)}`)
+    process.exit(1)
+  }
+}
+
+main().catch((e) => {
+  console.error(`[simulate] ${String(e?.message ?? e)}`)
+  process.exit(1)
+})

@@ -1,0 +1,154 @@
+import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { joinSentence, type JoinFacts } from '@/lib/join-words'
+
+/**
+ * How people join a company, said in one sentence read from what the doors
+ * do (founder, 2026-11-12). Users & permissions, Settings and setup each
+ * said it a different way, and for Tapin (no domain of its own, people on
+ * Gmail and on Etyme's own domain) none of them was true.
+ */
+
+const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
+const facts = (o: Partial<JoinFacts> = {}): JoinFacts => ({
+  companyName: 'Brightmoor Staffing', kind: 'VENDOR', slug: 'brightmoor', mode: 'OPEN',
+  domains: [], ...o,
+})
+
+describe('how people join this company is said from what the code does', () => {
+  it('a company with no verified domain is told people join by invitation only, because typing its Etyme address seats nobody', () => {
+    expect(joinSentence(facts())).toBe(
+      'People join Brightmoor Staffing by invitation only. An Owner or Admin invites each person from Users & permissions.'
+    )
+    expect(joinSentence(facts())).not.toContain('etyme.com')
+    // The door says the same: a colleague is found by a verified domain only.
+    const door = read('src/lib/password-door.ts')
+    const fn = door.slice(door.indexOf('export async function colleagueCompany'), door.indexOf('export function addressTakenSays'))
+    expect(fn).toContain('isPlatformDomain(domain)')
+    expect(fn).toContain('decideEntry(email, await claims())')
+    expect(door).not.toContain('ownerDomains(')
+  })
+
+  it('a company whose people are on Etyme’s own domain is told people join by invitation only', () => {
+    expect(joinSentence(facts({ companyName: 'Tapin', slug: 'tapin' }))).toBe(
+      'People join Tapin by invitation only. An Owner or Admin invites each person from Users & permissions.'
+    )
+  })
+
+  it('a company with a verified domain that lets people in at once is told they join at once with no role yet, and an Owner or Admin gives them one', () => {
+    const s = joinSentence(facts({ domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'AUTO' }] }))!
+    expect(s).toContain('Anybody who signs in with an address on brightmoor.example joins at once with no role yet, and an Owner or Admin gives them one.')
+    expect(s).not.toContain('signs up with brightmoor.etyme.com')
+  })
+
+  it('a company with a verified domain that asks first is told people ask to join and wait, never that they join automatically', () => {
+    const s = joinSentence(facts({ domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'REQUEST' }] }))!
+    expect(s).toContain('asks to join, and an Owner or Admin gives them a role')
+    expect(s).not.toMatch(/automatically|at once/)
+  })
+
+  it('a domain claimed and not yet verified, or verified and closed, lets nobody in by it', () => {
+    const s = joinSentence(facts({
+      domains: [{ domain: 'a.example', verified: false, joinPolicy: 'AUTO' }, { domain: 'b.example', verified: true, joinPolicy: 'NONE' }],
+    }))!
+    expect(s).toContain('by invitation only')
+    expect(s).not.toContain('a.example')
+  })
+
+  it('a company that lets people in by invitation only is told so, whatever its domains', () => {
+    const s = joinSentence(facts({ mode: 'INVITE_ONLY', domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'AUTO' }] }))!
+    expect(s).toBe('People join Brightmoor Staffing by invitation only. An Owner or Admin invites each person from Users & permissions.')
+  })
+
+  it('a directory-only company is told people join through its directory, and never about passwords or emailed links', () => {
+    const s = joinSentence(facts({ mode: 'SSO_ONLY', domains: [{ domain: 'brightmoor.example', verified: true, joinPolicy: 'AUTO' }] }))!
+    expect(s).toBe("People join Brightmoor Staffing through your company's directory. Add a person there, and they sign in through it.")
+    expect(s).not.toMatch(/password|link|email|etyme\.com|invit/i)
+  })
+
+  it('a one-person firm is told nothing about colleagues joining', () => {
+    expect(joinSentence(facts({ kind: 'CONSULTANT_CORP' }))).toBeNull()
+  })
+
+  it('Settings, its Sign-in page and the setup items for the team and the domain read the one sentence', () => {
+    expect(read('src/app/api/settings/route.ts')).toContain('joinSentenceFor(companyId)')
+    // The Sign-in page reads the facts once, for the heading's sentence and
+    // the default it says under "How your people sign in" (2026-11-15).
+    expect(read('src/app/api/settings/sign-in/overview/route.ts')).toContain('joins: joinFacts ? joinSentence(joinFacts) : null')
+    const setup = read('src/app/api/settings/setup/read.ts')
+    expect(setup).toContain('joinSentenceFor(companyId)')
+    expect(setup).toContain("if (k === 'TEAM')")
+    expect(setup).toContain("if (k === 'DOMAIN')")
+    // The copy that promised a join by the Etyme address to everybody is gone.
+    expect(read('src/app/dashboard/settings/page.tsx')).not.toContain('or by signing up with that address')
+  })
+
+  it('Settings, Sign-in draws one sentence about joining under its heading, and the invitation-only choice says what it does rather than who joins', async () => {
+    const page = read('src/app/dashboard/settings/sign-in/page.tsx')
+    expect(page).toContain('subtitle={o.joins ?? o.says}')
+    expect(page).not.toContain("o.effective !== 'OPEN' && o.joins")
+    const { modeOptionSays } = await import('@/lib/identity/screen-words')
+    expect(modeOptionSays('INVITE_ONLY')).toBe('An Owner or Admin invites each person, who signs in with Google, Microsoft or an email and password.')
+    expect(modeOptionSays('INVITE_ONLY')).not.toMatch(/joins/)
+  })
+
+  it('the Roles subtitle names no role, so a bench vendor is never told it gets a Hiring Manager', () => {
+    const page = read('src/app/dashboard/settings/page.tsx')
+    const roles = page.slice(page.indexOf('function RolesTab'), page.indexOf('// ── Locations'))
+    expect(roles).not.toMatch(/Hiring Manager|Recruiter/)
+  })
+})
+
+describe('the sign-up start page says how people join from the same sentence (2026-11-12)', () => {
+  const page = readFileSync(join(process.cwd(), 'src/app/(auth)/setup/page.tsx'), 'utf8')
+  const state = readFileSync(join(process.cwd(), 'src/lib/setup-state.ts'), 'utf8')
+
+  it('once the company exists, the start page prints the join sentence the doors are read for, never a line of its own', () => {
+    expect(state).toContain('joinSentenceFor(companyId).catch(() => null)')
+    expect(page).toContain('{setup.company.joinSays && ` ${setup.company.joinSays}`}')
+    expect(page).not.toContain('Colleagues join by invitation, or by signing up with the same Etyme address')
+  })
+
+  it('before the company exists, the page promises nobody joins by their web address, and names the invitation step', () => {
+    expect(page).not.toContain('Anyone else from your web address who signs in will join you as Member.')
+    expect(page).toContain("const BEFORE_THE_COMPANY_JOIN_LINE = 'Colleagues come in by your invitation, on the Your team step. Settings then says any other way people can join.'")
+  })
+
+  it('the start page, a browser page, never imports the database reader behind the sentence', () => {
+    expect(page).not.toMatch(/from '@\/lib\/join-words'/)
+  })
+})
+
+describe('a colleague who joins with only the Member role is told she has no role yet, the words every screen uses for her', () => {
+  const doors = [
+    'src/lib/password-words.ts',
+    'src/lib/join-words.ts',
+    'src/lib/company-domains.ts',
+    'src/app/(auth)/setup/page.tsx',
+    'src/app/api/onboarding/route.ts',
+    'src/lib/password-door.ts',
+    'src/lib/identity/provision.ts',
+  ]
+  // The strings a person reads, with code comments taken out.
+  const said = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+
+  it('no sentence a joining colleague reads says she joins, or is in a company, as Member', () => {
+    for (const p of doors) {
+      const s = said(p)
+      expect(s, p).not.toMatch(/\b(join|joins|are in|seat)\b[^.`'"\n]{0,40} as (Member|\$\{MEMBER_ROLE\})/)
+      expect(s, p).not.toContain('Your owner')
+      expect(s, p).not.toContain('An owner there')
+    }
+  })
+
+  it('a colleague on a domain that admits people at once, or asks first, is told an Owner or Admin gives the role', async () => {
+    const { describePolicy } = await import('@/lib/company-domains')
+    expect(describePolicy('AUTO', 'brightmoor.example').detail).toBe('Anybody signing in on brightmoor.example joins with no role yet, seeing only their own work, and an Owner or Admin here gives them a role.')
+    expect(describePolicy('REQUEST', 'brightmoor.example').detail).toBe('Anybody signing in on brightmoor.example gets a seat with no role yet, and an Owner or Admin here is asked to give them a role.')
+  })
+
+  it('the start page tells a colleague joining a company already here that she joins with no role yet and who gives her one', () => {
+    expect(read('src/app/(auth)/setup/page.tsx')).toContain('You join with no role yet. You can see your own work at once. An Owner or Admin there gives you a role.')
+  })
+})

@@ -1,0 +1,93 @@
+import { prisma } from '@/lib/db'
+import { decimalsFor } from '@/lib/money'
+import { DRAWS_NOTHING } from '@/lib/money/bill-state'
+
+/**
+ * What has already been drawn on a purchase order, by both of the ways a
+ * supplier's invoice reaches the record.
+ *
+ * A supplier on the platform sends its bill here as an `Invoice`; the
+ * payer keys in what an off-platform supplier sent as a `VendorBill`.
+ * Both draw on the same order, and each check counted only its own kind:
+ * the typed-in intake counted typed-in receipts, the platform check
+ * counted platform invoices. So an order could be filled once by each
+ * and paid twice past its ceiling. One door now, read by both checks.
+ *
+ * Only documents in the order's own currency are added. Anything drawn
+ * in another currency is returned by number rather than added, because
+ * rupees and dollars are never added; the caller refuses the ceiling
+ * check rather than guess at an exchange rate.
+ *
+ * Counted: platform invoices sent (`drawsOnOrder` in
+ * lib/money/bill-state: not a draft, not raised and still unsent, not
+ * cancelled or void), and typed-in receipts not cancelled. A disputed
+ * receipt counts: it is a claim on the order until somebody cancels it.
+ * A bill raised on the Bills page and never sent drew $4,000 on
+ * Brightmoor's order in the second Tapin walk; it draws nothing now.
+ */
+export async function drawnOnOrder(
+  order: { id: string; currency: string },
+  except: { invoiceId?: string | null; vendorBillId?: string | null; only?: 'RECEIPTS' } = {},
+): Promise<{ cents: number; foreign: string[] }> {
+  const ccy = order.currency.toUpperCase()
+  const [invoices, receipts] = await Promise.all([
+    except.only === 'RECEIPTS'
+      ? Promise.resolve([] as { number: string; total: unknown; currency: string }[])
+      : prisma.invoice.findMany({
+          where: {
+            workOrderId: order.id,
+            status: { notIn: [...DRAWS_NOTHING] },
+            ...(except.invoiceId ? { id: { not: except.invoiceId } } : {}),
+          },
+          select: { number: true, total: true, currency: true },
+        }),
+    prisma.vendorBill.findMany({
+      where: {
+        workOrderId: order.id,
+        status: { not: 'CANCELLED' },
+        ...(except.vendorBillId ? { id: { not: except.vendorBillId } } : {}),
+      },
+      select: { number: true, totalCents: true, currency: true },
+    }),
+  ])
+  let cents = 0
+  const foreign: string[] = []
+  for (const i of invoices) {
+    if (i.currency.toUpperCase() !== ccy) foreign.push(i.number)
+    else cents += Math.round(parseFloat(String(i.total)) * 10 ** decimalsFor(ccy))
+  }
+  for (const r of receipts) {
+    if (r.currency.toUpperCase() !== ccy) foreign.push(r.number)
+    else cents += r.totalCents
+  }
+  return { cents, foreign }
+}
+
+/**
+ * What typed-in invoice receipts have drawn on each of several orders, in
+ * one read: the same answer `drawnOnOrder(order, { only: 'RECEIPTS' })`
+ * gives for each, by order id. The three-way check on a payer's open
+ * receipts read it once per order, the one statement in the check that
+ * grew with the receipts (18 of 42 statements for twenty receipts on the
+ * scale world, 2026-11-02). Only receipts in the order's own currency are
+ * added; any other currency is named in `foreign`, never converted.
+ */
+export async function receiptsDrawnOnOrders(
+  orders: readonly { id: string; currency: string }[],
+): Promise<Map<string, { cents: number; foreign: string[] }>> {
+  const out = new Map<string, { cents: number; foreign: string[] }>()
+  for (const o of orders) out.set(o.id, { cents: 0, foreign: [] })
+  if (orders.length === 0) return out
+  const ccyOf = new Map(orders.map((o) => [o.id, o.currency.toUpperCase()]))
+  const receipts = await prisma.vendorBill.findMany({
+    where: { workOrderId: { in: [...ccyOf.keys()] }, status: { not: 'CANCELLED' } },
+    select: { workOrderId: true, number: true, totalCents: true, currency: true },
+  })
+  for (const r of receipts) {
+    const at = r.workOrderId ? out.get(r.workOrderId) : undefined
+    if (!at) continue
+    if (r.currency.toUpperCase() !== ccyOf.get(r.workOrderId!)) at.foreign.push(r.number)
+    else at.cents += r.totalCents
+  }
+  return out
+}

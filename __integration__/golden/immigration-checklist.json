@@ -1,0 +1,51 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "ChecklistItem",
+      "owedSeat": "Owner"
+    },
+    {
+      "kind": "ChecklistItem",
+      "owedSeat": "HR"
+    },
+    {
+      "kind": "ChecklistItem",
+      "owedSeat": "Owner"
+    }
+  ],
+  "mail": [],
+  "recordActions": [
+    {
+      "action": "PETITION_CHECKLIST_LISTED",
+      "order": 1,
+      "recordType": "Petition",
+      "summary": "Listed 3 papers from the H-1B list for Priya Nair’s Specialty occupation petition, each its own line. A person records each as on hand. The list is a proposal; regulatory has not confirmed it."
+    },
+    {
+      "action": "SIGNATURE_CARD_OPENED",
+      "order": 2,
+      "recordType": "ChecklistItem",
+      "summary": "Asked the signatory whether the labor condition application for Priya Nair’s petition is signed. The agent signs nothing."
+    },
+    {
+      "action": "SIGNATURE_CARD_OPENED",
+      "order": 3,
+      "recordType": "ChecklistItem",
+      "summary": "Asked the signatory whether the petition form for Priya Nair’s petition is signed. The agent signs nothing."
+    },
+    {
+      "action": "SIGNATURE_CARD_OPENED",
+      "order": 4,
+      "recordType": "ChecklistItem",
+      "summary": "Asked the signatory whether the representation form for Priya Nair’s petition is signed. The agent signs nothing."
+    },
+    {
+      "action": "PETITION_PAPERS_COMPLETE",
+      "order": 5,
+      "recordType": "Petition",
+      "summary": "Every paper on the proposed list for Priya Nair’s petition is recorded as on hand (petition ration). Filing is counsel’s; Etyme files nothing."
+    }
+  ],
+  "tasks": []
+}

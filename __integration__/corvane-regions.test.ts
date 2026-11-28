@@ -1,0 +1,281 @@
+import { describe, it, expect, beforeAll } from 'vitest'
+import type { NextRequest } from 'next/server'
+import { freshWorld, prisma, as, req } from './harness'
+import { GET as program } from '@/app/api/program/route'
+import { GET as timesheets } from '@/app/api/timesheets/route'
+import { GET as me } from '@/app/api/me/route'
+import { POST as demo } from '@/app/api/demo/route'
+import {
+  seedCorvane, corvaneSteps, corvaneSeatEmail, CORVANE_PLANTS, CORVANE_REGIONS, CORVANE_PEOPLE, CORVANE_COUNTRIES, CORVANE_TIME_LIMIT_MONTHS,
+  billRateMinor, CORVANE_RECEIPTS, corvaneHeldFacts,
+} from '@/lib/seed-corvane'
+import { matchInvoices, payGate } from '@/lib/invoice-match'
+import { pendingReceiptsFor } from '@/lib/twin/rules/invoice'
+import { limitReachedOn } from '@/lib/tenure-days'
+import { regionScopeFor, regionContracts, regionRequirements } from '@/lib/region-scope'
+import { ASK_ETYME_HREF } from '@/lib/nav-table'
+
+/**
+ * Corvane Packaging on the seeded world (founder, 2026-10-27, the region
+ * map): every plant's figures as rows, a regional manager who reads one
+ * region and is refused the rest, and a second seeding that writes
+ * nothing.
+ */
+
+const DOMAIN = 'demo.etyme.local'
+let corvaneId = ''
+
+beforeAll(async () => {
+  await freshWorld()
+  corvaneId = (await prisma.company.findUniqueOrThrow({ where: { slug: 'world-corvane' } })).id
+}, 600_000)
+
+const atSite = (key: string) => ({ workLocationId: `cv_site_${key}` })
+
+describe('Corvane Packaging, as the drawing has it', () => {
+  it('has 31 sites, each with its country, time zone and region', async () => {
+    const sites = await prisma.companyLocation.findMany({ where: { companyId: corvaneId } })
+    expect(sites).toHaveLength(31)
+    for (const s of sites) {
+      expect(s.timeZone, s.name).toBeTruthy()
+      expect(s.region, s.name).toBeTruthy()
+    }
+    expect(sites.find((s) => s.name === 'Belfast')).toMatchObject({ country: 'GB', region: 'Northern Ireland', timeZone: 'Europe/London' })
+    expect(sites.find((s) => s.name === 'Pune, Maharashtra')).toMatchObject({ country: 'IN', region: 'India', timeZone: 'Asia/Kolkata' })
+  })
+
+  it('each plant has the drawing’s contractors on site, open jobs, and weeks filed and not signed', async () => {
+    for (const p of CORVANE_PLANTS) {
+      const onSite = await prisma.sellContract.count({ where: { clientCompanyId: corvaneId, state: 'IN_PROGRESS', ...atSite(p.key) } })
+      const open = await prisma.requirement.count({ where: { companyId: corvaneId, status: 'OPEN', orgUnitId: `cv_unit_site_${p.key}` } })
+      const toSign = await prisma.timesheet.count({ where: { status: 'SUBMITTED', clientApprovedAt: null, sellContract: { clientCompanyId: corvaneId, ...atSite(p.key) } } })
+      expect({ onSite, open, toSign }, p.plant).toEqual({ onSite: p.contractors, open: p.openJobs, toSign: p.weeksToSign })
+    }
+  })
+
+  it('bills in the site’s own currency, never converted', async () => {
+    const vn = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: atSite('binh-duong') })
+    // The dong has no minor unit, so its rate is stored as whole dong.
+    expect({ rate: vn.billRate, currency: vn.billCurrency }).toEqual({ rate: billRateMinor('VN'), currency: 'VND' })
+    expect(vn.billRate).toBe(CORVANE_COUNTRIES.VN.rate)
+    const be = await prisma.sellContract.findFirstOrThrow({ orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], where: atSite('ghent') })
+    expect({ rate: be.billRate, currency: be.billCurrency }).toEqual({ rate: CORVANE_COUNTRIES.BE.rate * 100, currency: 'EUR' })
+  })
+
+  it('Aoife Kelly’s time at Belfast is two lines through two suppliers with no day between them, and the time limit read across both falls where one unbroken stretch would', async () => {
+    const lines = await prisma.sellContract.findMany({
+      where: { ...atSite('belfast'), person: { name: 'Aoife Kelly' } },
+      orderBy: { startDate: 'asc' },
+      select: { startDate: true, endDate: true, state: true, company: { select: { name: true } } },
+    })
+    expect(lines.map((l) => [l.company.name, l.state])).toEqual([['Lagan Recruitment', 'ENDED'], ['Mourne Industrial Staff', 'IN_PROGRESS']])
+    expect(lines[1].startDate.getTime() - lines[0].endDate!.getTime()).toBe(86_400_000)
+    const across = limitReachedOn(lines, CORVANE_TIME_LIMIT_MONTHS)!
+    expect(across.getTime()).toBe(limitReachedOn([{ startDate: lines[0].startDate, endDate: null }], CORVANE_TIME_LIMIT_MONTHS)!.getTime())
+    // Read one supplier at a time, the limit is months away: only the count across both is the truth.
+    const currentAlone = limitReachedOn([lines[1]], CORVANE_TIME_LIMIT_MONTHS)
+    expect(currentAlone === null || currentAlone.getTime() - across.getTime() > 150 * 86_400_000).toBe(true)
+  })
+
+  it('Dayton’s held receipt carries one supplier’s weeks, three of them over the 40 signed hours as the plan says, and one start has no I-9', async () => {
+    const plan = CORVANE_RECEIPTS.find((r) => r.held && r.plant === 'dayton')!
+    const lines = await prisma.invoiceLine.findMany({
+      where: { invoiceId: 'cv_inv_dayton_0_w2' },
+      include: { timesheet: { include: { assertions: { where: { role: 'CLIENT_APPROVAL', state: 'LIVE' } } } } },
+    })
+    expect(lines).toHaveLength(plan.lines.length)
+    const over = lines.filter((l) => Number(l.hours) > Number(l.timesheet!.assertions[0].hours))
+    expect(over).toHaveLength(plan.lines.filter((l) => l.billed > l.accepted).length)
+    expect(lines.reduce((n, l) => n + Number(l.hours), 0)).toBe(plan.billed)
+    expect(lines.reduce((n, l) => n + Number(l.timesheet!.assertions[0].hours), 0)).toBe(plan.accepted)
+    const hold = await prisma.sellContract.findMany({ where: { ...atSite('dayton'), state: 'DRAFT' }, select: { personId: true } })
+    expect(hold).toHaveLength(1)
+    expect(await prisma.verification.count({ where: { personId: hold[0].personId, type: 'I9_EVERIFY' } })).toBe(0)
+  })
+
+  it('every held receipt is held by the three-way check for its hours and for nothing else, and every clean one passes it', async () => {
+    const invoices = await prisma.invoice.findMany({
+      where: { payerId: corvaneId, status: 'SUBMITTED' }, select: { id: true, number: true, status: true, shipToId: true },
+    })
+    expect(invoices).toHaveLength(CORVANE_RECEIPTS.length)
+    const matches = await matchInvoices(invoices.map((i) => i.id))
+    const held = invoices.filter((i) => !payGate(i, matches.get(i.id)!).ok)
+    expect(held.map((i) => i.shipToId).sort()).toEqual(CORVANE_RECEIPTS.filter((r) => r.held).map((r) => `cv_site_${r.plant}`).sort())
+    for (const i of held) {
+      const failed = matches.get(i.id)!.checks.filter((c) => c.outcome !== 'PASS').map((c) => c.code)
+      expect(failed, i.number).toEqual(['QUANTITY'])
+    }
+    for (const i of invoices.filter((x) => !held.includes(x))) expect(matches.get(i.id)!.cleanMatch, i.number).toBe(true)
+  })
+
+  it('the daily run reads every held receipt as a mismatch on the hours that nobody may pay, and every clean one as clean', async () => {
+    const verdicts = await pendingReceiptsFor(corvaneId)
+    const sites = new Map((await prisma.invoice.findMany({ where: { payerId: corvaneId }, select: { id: true, shipToId: true } })).map((i) => [i.id, i.shipToId]))
+    expect(verdicts).toHaveLength(CORVANE_RECEIPTS.length)
+    const mismatched = verdicts.filter((v) => v.verdict === 'MISMATCH')
+    expect(mismatched.map((v) => sites.get(v.invoiceId)).sort()).toEqual(CORVANE_RECEIPTS.filter((r) => r.held).map((r) => `cv_site_${r.plant}`).sort())
+    for (const v of mismatched) {
+      expect(v.failing, v.number ?? v.invoiceId).toEqual(['QUANTITY'])
+      expect(v.payable, v.number ?? v.invoiceId).toBe(false)
+    }
+    for (const v of verdicts.filter((x) => !mismatched.includes(x))) expect(v.verdict, v.number ?? v.invoiceId).toBe('CLEAN')
+  })
+
+  it('what the held receipts bill past the signed hours, line by line on the record, is what the plan says, currency by currency', async () => {
+    const lines = await prisma.invoiceLine.findMany({
+      where: { invoice: { payerId: corvaneId, status: 'SUBMITTED' } },
+      select: { hours: true, rateCents: true, invoice: { select: { currency: true } }, timesheet: { select: { assertions: { where: { role: 'CLIENT_APPROVAL', state: 'LIVE' }, select: { hours: true } } } } },
+    })
+    const over = new Map<string, number>()
+    for (const l of lines) {
+      const past = Number(l.hours) - Number(l.timesheet!.assertions[0].hours)
+      if (past > 0) over.set(l.invoice.currency, (over.get(l.invoice.currency) ?? 0) + Math.round(past * l.rateCents))
+    }
+    expect(Object.fromEntries(over)).toEqual(Object.fromEntries(corvaneHeldFacts().byCurrency.map((c) => [c.currency, c.minor])))
+  })
+
+  it('every signed week behind a receipt is on the books, each line in its own firm’s home currency', async () => {
+    const firms = await prisma.company.findMany({
+      where: { OR: [{ slug: 'world-corvane' }, { slug: { startsWith: 'world-cv-' } }] }, select: { id: true, homeCurrency: true },
+    })
+    const home = new Map(firms.map((f) => [f.id, f.homeCurrency]))
+    const postings = await prisma.orderPosting.findMany({ where: { companyId: { in: [...home.keys()] } }, select: { id: true, companyId: true, currency: true } })
+    expect(postings.length).toBeGreaterThan(0)
+    for (const p of postings) expect(p.currency, `posting ${p.id}`).toBe(home.get(p.companyId))
+    const entries = await prisma.journalEntry.findMany({
+      where: { sourceId: { in: postings.map((p) => p.id) } }, select: { companyId: true, lines: { select: { currency: true } } },
+    })
+    expect(entries.length).toBe(postings.length)
+    for (const e of entries) for (const l of e.lines) expect(l.currency).toBe(home.get(e.companyId))
+  })
+
+  it('no Corvane worker’s pay reads overdue on the day the world is born, and a line running past next month has its next pay day', async () => {
+    const born = await prisma.company.findUniqueOrThrow({ where: { slug: 'world-corvane' }, select: { createdAt: true } })
+    const lines = await prisma.buyContract.findMany({
+      where: { id: { startsWith: 'cv_buy_' }, state: 'IN_PROGRESS' },
+      select: { id: true, endDate: true, buyCycles: { where: { kind: 'SALARY_PAY' }, select: { dueOn: true, completedAt: true } } },
+    })
+    expect(lines.length).toBeGreaterThan(300)
+    for (const l of lines) {
+      expect(l.buyCycles.filter((c) => c.dueOn < born.createdAt && !c.completedAt), l.id).toEqual([])
+      if (l.endDate && l.endDate.getTime() > born.createdAt.getTime() + 45 * 86_400_000) {
+        expect(l.buyCycles.some((c) => c.dueOn >= born.createdAt), l.id).toBe(true)
+      }
+    }
+  })
+
+  it('every US contractor on site has an I-9 backed by a named passport, and no paper is seeded abroad', async () => {
+    const us = await prisma.sellContract.findMany({ where: { clientCompanyId: corvaneId, state: 'IN_PROGRESS', workLocation: { country: 'US' } }, select: { personId: true } })
+    const i9s = await prisma.verification.findMany({ where: { personId: { in: us.map((c) => c.personId) }, type: 'I9_EVERIFY' }, select: { id: true } })
+    expect(i9s).toHaveLength(us.length)
+    expect(await prisma.documentBacking.count({ where: { formId: { in: i9s.map((v) => v.id) } } })).toBe(us.length)
+    const abroad = await prisma.sellContract.findMany({ where: { clientCompanyId: corvaneId, workLocation: { country: { not: 'US' } } }, select: { personId: true } })
+    expect(await prisma.verification.count({ where: { personId: { in: abroad.map((c) => c.personId) } } })).toBe(0)
+  })
+})
+
+describe('a regional manager reads one region', () => {
+  it('each regional manager sits on their region, and its scope holds exactly that region’s contractors and jobs', async () => {
+    for (const r of CORVANE_REGIONS) {
+      const seat = await prisma.context.findFirstOrThrow({
+        where: { companyId: corvaneId, person: { primaryEmail: corvaneSeatEmail(`region-${r.key}`, DOMAIN) } },
+        include: { orgUnit: true, person: true },
+      })
+      expect(seat.person.name).toBe(r.lead)
+      expect(seat.orgUnit).toMatchObject({ kind: 'REGION', name: r.label })
+      const scope = (await regionScopeFor(corvaneId, seat.orgUnitId))!
+      const plants = CORVANE_PLANTS.filter((p) => p.region === r.key)
+      expect(await prisma.sellContract.count({ where: { ...regionContracts(scope), state: 'IN_PROGRESS' } }), r.label)
+        .toBe(plants.reduce((n, p) => n + p.contractors, 0))
+      expect(await prisma.requirement.count({ where: { ...regionRequirements(scope), status: 'OPEN' } }), r.label)
+        .toBe(plants.reduce((n, p) => n + p.openJobs, 0))
+    }
+  })
+
+  it('a regional manager is refused a page that reads every region, in a sentence naming the region, with the refused read logged first', async () => {
+    as(corvaneSeatEmail('region-latam', DOMAIN))
+    const before = await prisma.accessLog.count({ where: { allowed: false, reason: { contains: 'reads Latin America only' } } })
+    // The program page narrows to a region since 2026-10-27 (demand's By
+    // region); the timesheets list still reads every region.
+    const res = await timesheets(req('GET', '/api/timesheets') as NextRequest)
+    const body = await res.json()
+    expect(res.status).toBe(403)
+    expect(body.error.code).toBe('OUT_OF_REGION')
+    expect(body.error.message).toContain('your seat reads Latin America only')
+    expect(await prisma.accessLog.count({ where: { allowed: false, reason: { contains: 'reads Latin America only' } } })).toBeGreaterThan(before)
+  })
+
+  it('a regional manager still reads who they are', async () => {
+    as(corvaneSeatEmail('region-latam', DOMAIN))
+    const res = await me(req('GET', '/api/me') as NextRequest)
+    expect(res.status).toBe(200)
+  })
+
+  it('the head of operations is not a region seat, and reads the whole program', async () => {
+    as(corvaneSeatEmail('operations', DOMAIN))
+    const res = await program(req('GET', '/api/program') as NextRequest)
+    expect(res.status).toBe(200)
+  })
+})
+
+describe('every Corvane seat opens through the demo door', () => {
+  const sit = async (body: Record<string, string>) => {
+    const res = await demo(req('POST', '/api/demo', { as: 'world-corvane', ...body }) as NextRequest)
+    return { status: res.status, body: await res.json() }
+  }
+
+  it('the owner, the head of operations, the CFO, the AP clerk and the compliance officer each open', async () => {
+    const owner = await sit({})
+    expect(owner.status, owner.body.error?.message).toBe(200)
+    for (const d of CORVANE_PEOPLE.filter((p) => p.desk !== 'owner')) {
+      const r = await sit({ desk: d.desk })
+      expect(r.status, `${d.desk}: ${r.body.error?.message}`).toBe(200)
+    }
+  })
+
+  it('a hiring manager opens by name, one per plant', async () => {
+    const r = await sit({ desk: 'hiring', who: 'Marcus Hollins' })
+    expect(r.status, r.body.error?.message).toBe(200)
+    const other = await sit({ desk: 'hiring', who: 'Nguyễn Thị Lan' })
+    expect(other.status, other.body.error?.message).toBe(200)
+  })
+
+  it('a regional manager opens by name and lands in Ask Etyme, which reads their region', async () => {
+    const r = await sit({ desk: 'region', who: 'Valeria Montes' })
+    expect(r.status, r.body.error?.message).toBe(200)
+    expect(r.body.data.landing).toBe(ASK_ETYME_HREF)
+  })
+})
+
+describe('seeding Corvane again', () => {
+  it('writes nothing the second time', async () => {
+    const count = async () => Promise.all([
+      prisma.person.count(), prisma.context.count(), prisma.sellContract.count(), prisma.buyContract.count(),
+      prisma.requirement.count(), prisma.timesheet.count(), prisma.workAssertion.count(), prisma.invoice.count(),
+      prisma.workOrder.count(), prisma.verification.count(), prisma.orgUnit.count(), prisma.companyLocation.count(),
+      prisma.company.count(), prisma.role.count(), prisma.governanceRule.count(),
+    ])
+    const receipts = async () => (await prisma.invoice.findMany({
+      where: { payerId: corvaneId }, orderBy: { id: 'asc' },
+      select: { id: true, number: true, total: true, invoiceLines: { orderBy: { id: 'asc' }, select: { id: true, hours: true, amountCents: true } } },
+    })).map((i) => JSON.stringify(i))
+    const before = [await count(), await prisma.invoiceLine.count(), await receipts()]
+    for (const step of corvaneSteps()) await seedCorvane({ domain: DOMAIN, prefix: 'world-' }, step)
+    expect([await count(), await prisma.invoiceLine.count(), await receipts()]).toEqual(before)
+  })
+
+  it('a world seeded with the one 41.5-hour Dayton receipt is brought to the plan once, while nobody has paid it', async () => {
+    const plan = CORVANE_RECEIPTS.find((r) => r.held && r.plant === 'dayton')!
+    const was = await prisma.invoice.findUniqueOrThrow({ where: { id: 'cv_inv_dayton_0_w2' }, select: { number: true, total: true } })
+    await prisma.invoiceLine.update({ where: { id: 'cv_line_dayton_0_w2' }, data: { hours: 41.5, amountCents: Math.round(41.5 * billRateMinor('US')) } })
+    await prisma.invoice.update({ where: { id: 'cv_inv_dayton_0_w2' }, data: { total: 4980 } })
+    await seedCorvane({ domain: DOMAIN, prefix: 'world-' }, 'corvane:plants:us')
+    const now = await prisma.invoice.findUniqueOrThrow({
+      where: { id: 'cv_inv_dayton_0_w2' }, select: { number: true, total: true, invoiceLines: { select: { hours: true, amountCents: true } } },
+    })
+    expect(now.number).toBe(was.number)
+    expect(Number(now.total)).toBe(Number(was.total))
+    expect(now.invoiceLines.reduce((n, l) => n + Number(l.hours), 0)).toBe(plan.billed)
+    expect(now.invoiceLines.reduce((n, l) => n + l.amountCents, 0)).toBe(Math.round(Number(now.total) * 100))
+  })
+})

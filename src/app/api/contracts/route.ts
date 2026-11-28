@@ -1,0 +1,1397 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { lineDates } from '@/lib/money/line-dates'
+import { isTeamLine, printsRate, visibleToReader } from '@/lib/money/team-lines'
+import { notAtACompany } from '@/app/api/people/not-at-a-company'
+import type { Prisma } from '@prisma/client'
+import { rate } from '@/lib/money-display'
+import { reportError } from '@/lib/alerts'
+import { getCallerContext, refusalFor } from '@/lib/api-context'
+import { hasPermission, desksHolding } from '@/lib/permissions'
+import { ownLinesOnly, READS_THE_FIRMS_LINES } from '@/lib/money/own-lines'
+import { listScope } from '@/lib/money/own-scope'
+import { refusalSentence, seatedWhoMay, notYourButton } from '@/lib/refusal-words'
+import { seatedRoles } from './[id]/activate/gate'
+import { isConsultantSeat } from '@/lib/seat'
+import { prisma } from '@/lib/db'
+import { loadContractHolidays } from '@/lib/holidays'
+import { writeCyclesFor, chosenPayroll } from '@/lib/contract-cycles'
+import { firstDayNeededSays, firstDayNotSetSays, firstDayRefusalSays, firstDayStep, FIRST_DAY_HREF } from '@/lib/money/pay-periods'
+import { mayOpen } from '@/lib/nav-table'
+import { rhythmFrom } from '@/lib/pay-dates'
+import { paidByPayroll } from '@/lib/money/paid-through'
+import { payerScope, sellContractScope, buyContractScope } from '@/lib/resolve-client-company'
+import { booksFor, noteMoneyRead } from '@/lib/money/seated-books'
+import { accountFilterFor } from '@/lib/account-walls'
+import { andAll } from '@/lib/walls'
+import { canAttachPoToBuyContract } from '@/lib/purchase-order'
+import { ORDER_HEADER_SELECT, AGREEMENT_TERMS_SELECT, termsFor, differencesFrom, differenceRefusal, reasonFrom } from '@/lib/money/order-terms'
+import { mayNameCounterparty, isShell } from '@/lib/off-system'
+import { workTogether } from '@/lib/company-create'
+import { clientBuysFrom, mayBuyFromFirm, sellLineTie, buyLineTie } from '@/lib/money/line-ties'
+import { recordRefusal } from '@/lib/access-log'
+import { standingWith, lacksPosition } from '@/app/api/companies/positions'
+import { chooseHeader } from '@/lib/award'
+import { mayPinToOrder, mayPinBuyLine } from '@/lib/money/order-first-line'
+import { HEADER_SELECT, lineTermsFrom } from '../submissions/order-header'
+import {
+  payFiguresFor, payTrail, PAY_WITHHELD_SAYS, mayReadBillRate, billTrail, BILL_WITHHELD_SAYS,
+} from '@/lib/money/pay-visibility'
+import { writePayTrail, writeBillTrail } from '@/lib/money/pay-trail'
+import { recordedLine } from '@/lib/money/recorded-line'
+import { mayRecordFor, recordingFloor, type PersonTies } from '@/lib/money/recorded-person'
+import { endsPastLimit } from '@/lib/governance'
+import { mayNameSubVendors } from '@/lib/chain-names'
+
+/**
+ * POST /api/contracts
+ *
+ * Creates a SellContract (and optionally a linked BuyContract) with
+ * generated cycles from the company's template pack.
+ *
+ * The old "assignment" was a single record. Now sell and buy are separate:
+ *   SellContract — what the vendor bills the client
+ *   BuyContract  — what the vendor pays for talent
+ *   ContractLink — joins them for profitability tracking
+ */
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const body = await request.json()
+  const {
+    // Sell side
+    personId,
+    companyId,
+    clientCompanyId,
+    endClientCompanyId,  // optional — the end client if different from paying customer
+    workLocationId,      // optional — where the consultant physically works
+    engagementId,
+    msaId,
+    billRate,
+    billCurrency,
+    startDate,
+    endDate,
+    // Buy side (optional — creates linked BuyContract)
+    payRate,
+    payCurrency,
+    // How this firm engages the person — W2, IND_1099, OWN_COMPANY or
+    // OTHER_EMPLOYER — and whom it buys them from, if anybody. The same
+    // two questions the placement's terms page asks, under the same
+    // rules (`lib/money/recorded-line`). `contractType` and
+    // `vendorCompanyId` are the older names and are read through the
+    // same rule.
+    engagementType,
+    boughtFromId,
+    contractType,
+    vendorCompanyId,
+    entityId,
+    // The PO this company raises to the sub-vendor supplying the person.
+    // Null on roughly half of all buy contracts, and it must stay null on
+    // every one of them that employs somebody directly.
+    buyPurchaseOrderId,
+  } = body
+
+  // Validation — sell contract required fields
+  if (!personId) return errResponse('personId is required', 'personId')
+  if (!companyId) return errResponse('companyId is required', 'companyId')
+  if (!clientCompanyId) return errResponse('clientCompanyId is required', 'clientCompanyId')
+
+  // ── Whose contract this is ─────────────────────────────────────────
+  //
+  // The company, the client, the bill rate and the pay rate all arrived
+  // in the request body and none of them was checked against the caller.
+  // The route asked only whether somebody was signed in, so any account
+  // — a consultant, a visitor on a demo — could write a live sell
+  // contract, a buy contract and a master agreement between two firms it
+  // had nothing to do with, at rates of its own choosing, and the cycles
+  // behind them.
+  //
+  // A sell contract is raised by the company that bills it. That company
+  // is the caller's, or this is not the caller's contract to write.
+  if (caller.company?.id !== companyId) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: `A contract is raised by the company that bills it. ${caller.company?.name ?? 'Your company'} cannot write one for another firm.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  if (!hasPermission(caller.permissions, 'assignments.write')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: refusalFor(caller, { doing: 'Writing a contract', needs: 'assignments.write' }),
+        },
+      },
+      { status: 403 }
+    )
+  }
+  if (typeof billRate !== 'number' || billRate <= 0) return errResponse('Give the bill rate, the amount an hour this placement bills. A rate of nothing is not a price.', 'billRate')
+  if (!startDate) return errResponse('Give the day this person starts.', 'startDate')
+
+  // ── The pay line, under the award's rules ──────────────────────────
+  //
+  // This door used to take a pay rate and nothing else: a contract type
+  // that defaulted to W2, no "bought from", and a rate of nothing that
+  // quietly wrote no line. The award was closed on 2026-10-06 against
+  // writing an employment nobody agreed, and a second door that still
+  // wrote one would have reopened it. So the pay line is decided by the
+  // same rule the terms page uses: no $0 line, corp-to-corp only to the
+  // person's own company or to a named supplier, and "employed by
+  // another firm" refused with the road that works.
+  const person = await prisma.person.findUnique({
+    where: { id: String(personId) },
+    select: { name: true, consultant: { select: { ownCompany: { select: { id: true, name: true } } } } },
+  })
+  if (!person) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Nobody on the record has that id. Pick the person from your consultants.', field: 'personId' } },
+      { status: 404 }
+    )
+  }
+
+  // ── Somebody this firm already knows ───────────────────────────────
+  //
+  // A placement recorded for a person who is nobody to the firm — no
+  // seat, no listing on its bench, no line of its own, never put forward
+  // by it or to it — writes tenure, paperwork and pay onto somebody who
+  // never agreed to be its. Refused in a sentence naming the two ways in
+  // (`lib/money/recorded-person`).
+  const ties = await tiesOf(String(companyId), String(personId))
+  const known = mayRecordFor(ties, person.name)
+  if (!known.ok) {
+    return NextResponse.json(
+      { error: { code: known.code, message: known.says, field: known.field } },
+      { status: 422 }
+    )
+  }
+
+  const supplierId = boughtFromId ?? vendorCompanyId ?? null
+  const supplier = supplierId
+    ? await prisma.company.findUnique({ where: { id: String(supplierId) }, select: { id: true, name: true, kind: true, claimedAt: true, listedById: true } })
+    : null
+  if (supplierId && !supplier) {
+    return errResponse('No firm of that id to buy from. Pick the supplier from your register, or "nobody" where you pay them yourself.', 'boughtFromId')
+  }
+  if (supplier && supplier.id === companyId) {
+    return errResponse(`${caller.company?.name ?? 'Your company'} cannot buy from itself. Choose "nobody" where you pay them yourself.`, 'boughtFromId')
+  }
+  // A supplier recorded on the Companies list and holding no Supplier
+  // position is bought from only once it is extended to Supplier (founder,
+  // 2026-11-12). Decided from the register, never from the Kind: a record
+  // given a Kind and no position is still not a supplier (review,
+  // 2026-11-13). Every other supplier is read as before.
+  const supplierHeld = supplier ? await standingWith(String(companyId), supplier) : null
+  if (supplier && lacksPosition(supplierHeld, supplier.kind, ['SUPPLIER', 'PRIME'])) {
+    const buying = mayNameCounterparty({
+      callerCompanyId: String(companyId),
+      other: supplier,
+      relationshipExists: (supplierHeld?.positions.length ?? 0) > 0,
+      as: 'supplier',
+      held: supplierHeld,
+    })
+    if (!buying.ok) {
+      await recordRefusal([{ companyId: supplier.id }], {
+        actorPersonId: caller.isService ? undefined : caller.person.id,
+        actorCompanyId: String(companyId),
+        action: 'CONTRACT_VIEW',
+        reason: `Refused naming ${supplier.name} as the supplier on a buy line: ${buying.says}`,
+      })
+      return NextResponse.json(
+        { error: { code: 'NOT_YOURS', message: buying.says, field: 'boughtFromId' } },
+        { status: 403 }
+      )
+    }
+  }
+  // A firm on Etyme named as the supplier of a buy line is named only
+  // where the two already work together (`workTogether`, never a register
+  // row this firm wrote itself) or a buy line between them is already on
+  // file (review, 2026-11-13). Otherwise it reads as an id that is not
+  // there, the same as an unknown firm. A record of this firm's own that is
+  // not on Etyme yet was decided above, and the person's own company is
+  // their own pay route, not a supplier.
+  if (
+    supplier &&
+    !isShell(supplier) &&
+    !lacksPosition(supplierHeld, supplier.kind, ['SUPPLIER', 'PRIME']) &&
+    supplier.id !== person.consultant?.ownCompany?.id
+  ) {
+    const tie = buyLineTie({ allowed: await mayBuyFromFirm(String(companyId), supplier.id) })
+    if (!tie.ok) {
+      await recordRefusal([{ companyId: supplier.id }], {
+        actorPersonId: caller.isService ? undefined : caller.person.id,
+        actorCompanyId: String(companyId),
+        action: 'CONTRACT_VIEW',
+        reason: `Refused naming ${supplier.name} as the supplier on a buy line: the two do not work together on Etyme`,
+      })
+      return NextResponse.json(
+        { error: { code: 'NOT_YOURS', message: tie.says, field: 'boughtFromId' } },
+        { status: 403 }
+      )
+    }
+  }
+  const line = recordedLine({
+    engagementType,
+    contractType,
+    boughtFrom: supplier,
+    payRateCents: payRate,
+    personName: person.name,
+    firmName: caller.company?.name ?? 'Your company',
+    ownCompany: person.consultant?.ownCompany ?? null,
+    currency: payCurrency ?? billCurrency ?? null,
+  })
+  if (!line.ok) {
+    return NextResponse.json(
+      { error: { code: line.code, message: line.says, field: line.field } },
+      { status: 422 }
+    )
+  }
+  const pay = line.write
+
+  // ── A purchase order is not raised to your own employee ────────────
+  //
+  // CLAUDE.md calls this the clearest proof that an order and a contract
+  // are different objects, and until now nothing refused it. A W2 buy
+  // contract carrying a purchase order puts wages into a commitment
+  // ledger, makes the three-way match run against somebody who will never
+  // send an invoice, and leaves a worker looking like a supplier in every
+  // report downstream — which is the shape of a misclassification
+  // finding, not a tidy-up.
+  //
+  // Checked before anything is written rather than after, because the
+  // half-created pair is worse than the refusal.
+  if (buyPurchaseOrderId) {
+    if (!pay) {
+      return errResponse(
+        'A purchase order belongs to a buy contract, and no buy contract is being created here',
+        'buyPurchaseOrderId'
+      )
+    }
+    const po = canAttachPoToBuyContract({
+      vendorCompanyId: pay.vendorCompanyId,
+      contractType: pay.contractType,
+    })
+    if (!po.allowed) {
+      return errResponse(po.reason, 'buyPurchaseOrderId')
+    }
+    // And it is this firm's own open order to the firm the line pays:
+    // nothing checked that before, so a buy line could hang off another
+    // firm's purchase order (lib/money/order-first-line).
+    const named = await prisma.workOrder.findUnique({
+      where: { id: String(buyPurchaseOrderId) },
+      select: { id: true, number: true, issuedById: true, issuedToId: true, status: true, issuedTo: { select: { name: true } } },
+    })
+    const onIt = mayPinBuyLine(named, {
+      buyerId: String(companyId),
+      buyerName: caller.company?.name ?? 'Your company',
+      supplierId: pay.vendorCompanyId ?? '',
+      supplierName: supplier?.name ?? 'the supplier',
+      issuedToName: named?.issuedTo.name ?? null,
+    })
+    if (!onIt.ok) return errResponse(onIt.says, 'buyPurchaseOrderId')
+  }
+
+  // ── A line created under a document is created on its terms ────────
+  //
+  // The six duplicated fields are read from the header
+  // (`lib/money/order-terms`), and the columns on the line stay for now
+  // — so a line written here has to agree with its own document from the
+  // first second, or the row on the screen and the row in the database
+  // say different things until somebody reads the header.
+  //
+  // Only the rhythm. The dates stay this person's: an order is not a
+  // person, and one header covering five people starts before four of
+  // them do.
+  const buyHeader = buyPurchaseOrderId
+    ? await prisma.workOrder.findUnique({
+        where: { id: String(buyPurchaseOrderId) },
+        select: ORDER_HEADER_SELECT,
+      })
+    : null
+  const buyRhythm = termsFor('BUY', { workOrder: buyHeader })
+
+  // The two days, refused with the days in the sentence (`lineDates`):
+  // The old refusal was the rule in the code's own field names.
+  const dates = lineDates(startDate, endDate)
+  if (!dates.ok) return errResponse(dates.says, dates.field)
+  const { start, end } = dates
+
+  // Verify company exists and get template pack
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    // The three shift columns come back with the pack because the cycle
+    // dates below are this firm's own operating dates and it says which
+    // way they move off a weekend or a holiday.
+    select: {
+      id: true, name: true, templatePack: true,
+      cycleShiftHours: true, cycleShiftPay: true, cycleShiftBill: true, daysOff: true,
+      // The company's own payroll choice: a W-2 line's pay days count from
+      // its first pay period (lib/money/pay-periods, `firstDayNeededSays`).
+      payPeriod: true, payCalcOffsetDays: true, payDayOffsetDays: true, payDaysOfMonth: true,
+      payCalcDaysBefore: true, payFirstPeriodStart: true, paySettingsSetAt: true,
+    },
+  })
+
+  if (!company) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Company not found' } },
+      { status: 404 }
+    )
+  }
+
+  // A W-2 line on a company that pays every week or every other week is
+  // given that company's pay days, counted from its first pay period. With
+  // no first day there are none to give, so the line is refused with the
+  // Owner's step rather than written with dates nobody chose.
+  const paidThroughPayroll = Boolean(pay) && paidByPayroll({ contractType: pay!.contractType, vendorCompanyId: pay!.vendorCompanyId })
+  const firstDayNeeded = firstDayNeededSays({
+    payroll: paidThroughPayroll,
+    chosen: chosenPayroll(company),
+  })
+  // The way to the box goes with the refusal (Area E, 2026-11-14): a link
+  // for a seat that may open Settings, the role to ask for any other.
+  const firstDay = firstDayStep(mayOpen(FIRST_DAY_HREF, caller.permissions))
+  if (firstDayNeeded) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: firstDayRefusalSays(firstDay), field: 'startDate', link: firstDay.link } },
+      { status: 422 }
+    )
+  }
+  // A company that never saved its payroll choice is refused nothing; it
+  // is told, after the line is written, what will not show yet.
+  const firstDayNotSet = firstDayNotSetSays({
+    payroll: paidThroughPayroll,
+    chosen: chosenPayroll(company),
+    reads: rhythmFrom(company),
+    personName: person.name,
+  })
+
+  // ── The client on the other side of it ─────────────────────────────
+  //
+  // This is the route a staffing firm uses to put its existing book in,
+  // and until now it could not: `clientCompanyId` had to name a company
+  // that already existed, and every client it already works with is one
+  // that has never heard of us. So a firm that arrives before its clients
+  // had no way to record a single placement it was already running.
+  //
+  // Two things are checked here and neither was before. The client must
+  // exist — a foreign-key error is not a sentence anybody can act on —
+  // and naming it must be the caller's to do. A firm not on Etyme is a
+  // shell and anybody may record their own dealings with it. A firm that
+  // *is* here is a tenant with its own desks, and asserting it is your
+  // client without anybody there involved is the thing CLAUDE.md refuses
+  // under the MSP seat.
+  //
+  // `endClientCompanyId` is deliberately not checked the same way yet: it
+  // is the top of a chain the caller often does not trade with directly,
+  // and the rule for it is a different one. Said out loud rather than
+  // left looking finished.
+  const clientCompany = await prisma.company.findUnique({
+    where: { id: clientCompanyId },
+    select: { id: true, name: true, kind: true, claimedAt: true, listedById: true },
+  })
+
+  if (!clientCompany) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_FOUND',
+          message:
+            'We could not find that client. Add them from Companies first; they do not need to be on Etyme.',
+          field: 'clientCompanyId',
+        },
+      },
+      { status: 404 }
+    )
+  }
+
+  // Whether the two firms already work together, asked of every client,
+  // shell or tenant. A shell another firm put on its register is that
+  // firm's record, not ours, and passes only where something real lies
+  // between us — an agreement, an order, a contract, our own register, or
+  // a job they sent us. Answering "yes" for every shell would let any
+  // firm write its contracts onto another firm's client.
+  // A client on Etyme is read from its own side (review, 2026-11-13): the
+  // two work together by the shared reader, which never counts a register
+  // row this firm wrote itself, and something the client wrote or answered
+  // says it buys from this firm (`clientBuysFrom`). A sell line puts the
+  // seller on the client's supplier list, so it is never written from the
+  // seller's side alone. A record not on Etyme is read as before.
+  if (!isShell(clientCompany) && clientCompany.id !== companyId) {
+    const together = await workTogether(companyId, clientCompany.id)
+    const tie = sellLineTie({
+      clientName: clientCompany.name,
+      together,
+      buys: together && (await clientBuysFrom(companyId, clientCompany.id)),
+    })
+    if (!tie.ok) {
+      await recordRefusal([{ companyId: clientCompany.id }], {
+        actorPersonId: caller.isService ? undefined : caller.person.id,
+        actorCompanyId: companyId,
+        action: 'CONTRACT_VIEW',
+        reason: `Refused naming ${clientCompany.name} as the client on a line: ${tie.says}`,
+      })
+      return NextResponse.json(
+        { error: { code: 'NOT_YOURS', message: tie.says, field: 'clientCompanyId' } },
+        { status: 403 }
+      )
+    }
+  }
+
+  const relationshipExists = !isShell(clientCompany) || Boolean(
+    (await prisma.masterAgreement.findFirst({
+      where: { vendorId: companyId, clientId: clientCompanyId },
+      select: { id: true },
+    })) ??
+      (await prisma.counterparty.findFirst({
+        where: {
+          OR: [
+            { companyId, otherCompanyId: clientCompanyId },
+            { companyId: clientCompanyId, otherCompanyId: companyId },
+          ],
+        },
+        select: { id: true },
+      })) ??
+      (await prisma.workOrder.findFirst({
+        where: {
+          OR: [
+            { issuedById: clientCompanyId, issuedToId: companyId },
+            { issuedById: companyId, issuedToId: clientCompanyId },
+          ],
+        },
+        select: { id: true },
+      })) ??
+      (await prisma.sellContract.findFirst({
+        where: { companyId, clientCompanyId },
+        select: { id: true },
+      })) ??
+      (await prisma.requirementInvitation.findFirst({
+        where: { toCompanyId: companyId, requirement: { companyId: clientCompanyId } },
+        select: { id: true },
+      }))
+  )
+
+  const naming = mayNameCounterparty({
+    callerCompanyId: companyId,
+    other: clientCompany,
+    relationshipExists,
+    as: 'client',
+    // A client recorded on the Companies list is a client only by the
+    // caller's own Customer row (founder, 2026-11-12), read from the
+    // register whatever Kind the record was given since.
+    held: await standingWith(companyId, clientCompany),
+  })
+  if (!naming.ok) {
+    await recordRefusal([{ companyId: clientCompany.id }], {
+      actorPersonId: caller.isService ? undefined : caller.person.id,
+      actorCompanyId: companyId,
+      action: 'CONTRACT_VIEW',
+      reason: `Refused naming ${clientCompany.name} as the client on a line: ${naming.says}`,
+    })
+    return NextResponse.json(
+      { error: { code: 'NOT_YOURS', message: naming.says, field: 'clientCompanyId' } },
+      { status: 403 }
+    )
+  }
+
+  // ── A line written onto the order it was asked for ──────────────────
+  //
+  // The orders screen offers an order's first line straight after its
+  // header (release walk, 2026-10-27: "It has no lines"), and that line
+  // goes on that order, not on whichever one `chooseHeader` would find.
+  // It goes only on an open order this firm received from the client it
+  // bills (`mayPinToOrder` in lib/money/order-first-line).
+  let pinned: (Prisma.WorkOrderGetPayload<{ select: typeof HEADER_SELECT }>) | null = null
+  if (body.workOrderId) {
+    const order = await prisma.workOrder.findUnique({
+      where: { id: String(body.workOrderId) },
+      select: { ...HEADER_SELECT, issuedBy: { select: { name: true } } },
+    })
+    const pin = mayPinToOrder(
+      order ? { ...order, issuedByName: order.issuedBy.name } : null,
+      { sellerId: companyId, sellerName: company.name, buyerId: clientCompany.id, buyerName: clientCompany.name }
+    )
+    if (!pin.ok) {
+      return NextResponse.json(
+        { error: { code: 'NOT_THIS_ORDER', message: pin.says, field: pin.field } },
+        { status: 422 }
+      )
+    }
+    if (order) {
+      const { issuedBy: _issuer, ...header } = order
+      pinned = header
+    }
+  }
+
+  // A line booked past the end client's time limit is refused (founder's
+  // decision, 2026-10-06). An open-ended line at a client with a limit is
+  // refused too. Where the client only warns, a reason is asked for.
+  const past = await endsPastLimit({
+    personId: String(personId),
+    clientId: String(endClientCompanyId ?? clientCompanyId),
+    startDate: start,
+    endDate: end,
+  })
+  if (past?.outcome === 'BLOCK') {
+    return NextResponse.json({ error: { code: 'TIME_LIMIT', message: past.says } }, { status: 422 })
+  }
+  const limitReason = typeof body.limitReason === 'string' ? body.limitReason.trim() : ''
+  if (past?.outcome === 'WARN' && !limitReason) {
+    return NextResponse.json(
+      { error: { code: 'TIME_LIMIT_REASON', message: `${past.says} Give a reason to go ahead.`, field: 'limitReason' } },
+      { status: 422 }
+    )
+  }
+
+  // ── The agreements set the terms. Founder, 2026-10-18 ─────────────
+  //
+  // The sell line bills on the agreement with the client; the buy line
+  // pays on the agreement with the sub-vendor, or — for the firm's own
+  // W2 or 1099 worker — on the worker's own contract, which is this line.
+  // A currency stated here that differs from the agreement needs its
+  // reason, recorded on the line with who gave it and when; without one
+  // it is refused in a sentence. One the caller did not state is the
+  // agreement's.
+  const sellAgreement = await prisma.masterAgreement.findFirst({
+    where: msaId ? { id: String(msaId) } : { vendorId: companyId, clientId: clientCompanyId, endedAt: null },
+    select: AGREEMENT_TERMS_SELECT,
+    orderBy: { createdAt: 'desc' },
+  })
+  const buyAgreement = pay?.vendorCompanyId
+    ? await prisma.masterAgreement.findFirst({
+        where: { vendorId: pay.vendorCompanyId, clientId: companyId, endedAt: null },
+        select: AGREEMENT_TERMS_SELECT,
+        orderBy: { createdAt: 'desc' },
+      })
+    : null
+  const termsReason = reasonFrom(body.termsDifferReason)
+  const sellDiffers = differencesFrom(sellAgreement, { currency: billCurrency ?? null })
+  const buyDiffers = differencesFrom(buyAgreement, { currency: payCurrency ?? null })
+  if ((sellDiffers.length > 0 || buyDiffers.length > 0) && !termsReason) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'TERMS_DIFFER',
+          message: sellDiffers.length > 0
+            ? differenceRefusal('placement', sellDiffers, sellAgreement?.client?.name ?? null)
+            : differenceRefusal('placement', buyDiffers, buyAgreement?.vendor?.name ?? null),
+          field: 'termsDifferReason',
+        },
+      },
+      { status: 422 }
+    )
+  }
+  const sellCurrency = billCurrency ?? sellAgreement?.currency ?? 'USD'
+  const buyCurrency = payCurrency ?? buyAgreement?.currency ?? 'USD'
+  const reasonOn = (differs: unknown[]) =>
+    differs.length > 0 && termsReason
+      ? { termsDifferReason: termsReason, termsDifferById: caller.person.id, termsDifferAt: new Date() }
+      : {}
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // ── The paper behind the contract ─────────────────────────────
+      //
+      // Found by the first end-to-end run against a real database: a
+      // contract recorded directly — the "manage my existing work" path
+      // every solo tester starts on — got no engagement, and an invoice
+      // hangs off the engagement. So the contract could be worked and
+      // approved and never billed. The award path already finds or
+      // creates the paper; a recorded contract deserves the same.
+      //
+      // ── What it no longer creates ────────────────────────────────
+      //
+      // An agreement. This used to invent one — `masterAgreement.create`
+      // with nothing signed — so that the engagement had a parent, which
+      // satisfied the founder's *"we don't need a master contract"* by
+      // writing a contract nobody signed. That is worse than a null: a
+      // DRAFT agreement between two firms is a fact about a negotiation,
+      // and one appearing because somebody recorded a placement is a
+      // fact about nothing. An existing agreement is used where there is
+      // one; where there is not, the line has no agreement and says so.
+      const msa =
+        (msaId
+          ? await tx.masterAgreement.findUnique({
+              where: { id: msaId },
+              select: { id: true, paymentTerms: true },
+            })
+          : null) ??
+        (await tx.masterAgreement.findFirst({
+          where: { vendorId: companyId, clientId: clientCompanyId },
+          select: { id: true, paymentTerms: true },
+        }))
+
+      // The engagement: the named one, then this agreement's, then the
+      // one these two firms are already trading under, and only then a
+      // new one. Found through the contracts where there is no agreement
+      // to look under, because an engagement with no agreement has no
+      // other parent.
+      const engagement =
+        (engagementId
+          ? await tx.engagement.findUnique({ where: { id: engagementId }, select: { id: true } })
+          : null) ??
+        (msa
+          ? await tx.engagement.findFirst({ where: { msaId: msa.id }, select: { id: true } })
+          : null) ??
+        (
+          await tx.sellContract.findFirst({
+            where: { companyId, clientCompanyId, engagementId: { not: null } },
+            orderBy: { createdAt: 'asc' },
+            select: { engagement: { select: { id: true } } },
+          })
+        )?.engagement ??
+        (await tx.engagement.create({
+          data: {
+            msaId: msa?.id ?? null,
+            title: `${company.name} — ${clientCompany.name}`,
+            invoiceCycle: 'MONTHLY',
+          },
+          select: { id: true },
+        }))
+
+      // ── The document this line goes on ────────────────────────────
+      //
+      // A purchase order is a header and its lines, so a line goes on
+      // the document that is already open between these two firms —
+      // found by the same rule the award uses (`chooseHeader`), so a
+      // recorded placement and an awarded one land on one document per
+      // buyer-and-seller pair rather than two.
+      //
+      // ── Why this finds and never creates ─────────────────────────
+      //
+      // The award creates a header because an award IS the moment the
+      // commitment is made, with both firms here. Recording a placement
+      // you are already running is not that moment: the client's paper
+      // exists in somebody's drawer and we cannot quote its number, and
+      // a derived reference on a document nobody signed is a number an
+      // AP clerk will be asked for and cannot find.
+      //
+      // The platform already refuses the same thing one route over: a
+      // supplier may not raise an order in the name of a client that is
+      // here and could have raised it (`POST /api/purchase-orders`).
+      // Creating one here would have been that refusal's own shape,
+      // written by a different door.
+      //
+      // So a line with no document says what will attach and where
+      // (`describeLine` in `lib/order-naming`), and recording the
+      // client's purchase order attaches every running line with none —
+      // which is the walk a staffing firm with an existing book actually
+      // takes.
+      const openOrders = await tx.workOrder.findMany({
+        where: { issuedById: clientCompanyId, issuedToId: companyId },
+        select: HEADER_SELECT,
+      })
+      const choice = chooseHeader(openOrders, {
+        issuedById: clientCompanyId,
+        issuedToId: companyId,
+        start,
+        end,
+      })
+      const found = pinned ?? (choice.id ? openOrders.find((o) => o.id === choice.id) ?? null : null)
+      const header = found
+        ? { ...found, raised: false, says: pinned ? `On ${pinned.number}, the order you named.` : choice.says }
+        : null
+
+      // Joining a document somebody else agreed is not license to
+      // rewrite its terms onto the line: the line keeps what the
+      // cascade gave it, and every money reader prefers the header
+      // anyway (`lib/money/order-terms`).
+      const fromHeader = lineTermsFrom(header, msa?.paymentTerms ?? 30)
+      // The agreement first: where it says a term, the line's copy is the
+      // agreement's, so the line and the answer every reader gets agree.
+      const agreed = termsFor('SELL', { workOrder: header ?? null }, sellAgreement)
+      const sellRhythm = { ...fromHeader }
+      if (agreed.source.frequency === 'AGREEMENT') sellRhythm.billFrequency = agreed.frequency
+      if (agreed.source.anchor === 'AGREEMENT') sellRhythm.billAnchor = agreed.anchor
+      if (agreed.source.straddle === 'AGREEMENT') sellRhythm.billStraddle = agreed.straddle
+      if (agreed.source.paymentTermsDays === 'AGREEMENT' && agreed.paymentTermsDays !== null) sellRhythm.paymentTerms = agreed.paymentTermsDays
+
+      // Create the sell contract — the first line on that document.
+      const sellContract = await tx.sellContract.create({
+        data: {
+          companyId,
+          clientCompanyId,
+          endClientCompanyId: endClientCompanyId ?? null,
+          workLocationId: workLocationId ?? null,
+          personId,
+          engagementId: engagement.id,
+          msaId: msa?.id ?? null,
+          workOrderId: header?.id ?? null,
+          billRate,
+          billCurrency: sellCurrency,
+          ...reasonOn(sellDiffers),
+          // Written from the document where this call raised it, so the
+          // row and the paper cannot disagree on the day they are made.
+          billFrequency: sellRhythm.billFrequency,
+          billAnchor: sellRhythm.billAnchor,
+          billStraddle: sellRhythm.billStraddle,
+          paymentTerms: sellRhythm.paymentTerms,
+          state: 'DRAFT',
+          startDate: start,
+          endDate: end,
+        },
+      })
+
+      // Optionally create a linked buy contract
+      let buyContract = null
+      let contractLink = null
+
+      if (pay) {
+        // The agreement, with this person as its first candidate line.
+        // More candidates can be added to the same agreement later.
+        buyContract = await tx.buyContract.create({
+          data: {
+            companyId,
+            vendorCompanyId: pay.vendorCompanyId,
+            entityId: entityId ?? null,
+            payCurrency: buyCurrency,
+            ...reasonOn(buyDiffers),
+            contractType: pay.contractType,
+            workOrderId: buyPurchaseOrderId ?? null,
+            // Written from the document where there is one, so the copy
+            // on the line cannot disagree with the paper it is on.
+            payFrequency: buyRhythm.frequency,
+            payAnchor: buyRhythm.anchor,
+            payStraddle: buyRhythm.straddle,
+            state: 'DRAFT',
+            startDate: start,
+            endDate: end,
+            candidates: {
+              create: {
+                personId,
+                payRate: pay.payRateCents,
+                payCurrency: buyCurrency,
+                startDate: start,
+                endDate: end,
+              },
+            },
+          },
+        })
+
+        // Link them for profitability tracking
+        contractLink = await tx.contractLink.create({
+          data: {
+            sellContractId: sellContract.id,
+            buyContractId: buyContract.id,
+            effectiveFrom: start,
+            effectiveTo: end,
+          },
+        })
+      }
+
+      // ── Its due dates, by the one door every placement uses ─────────
+      //
+      // This wrote its own cycles from the template pack alone, so a W-2
+      // line on a company that chose to pay every other week from a first
+      // day its Owner set got the pack's pay days, not the company's: its
+      // worker's page and the forecast disagreed with Payroll (walk,
+      // 2026-11-14). It writes through `writeCyclesFor` now, as the award
+      // and the terms do, so on a company that chose its payroll the buy
+      // line's pay days are that company's own, counted from its first
+      // pay period. A company with no calendar still gets none, and
+      // Settings says so with the step (`noCalendarSays`). No end date,
+      // no cycles, which is the rule there too.
+      let sellCyclesCreated = 0
+      let buyCyclesCreated = 0
+      if (company.templatePack && end) {
+        const holidays = await loadContractHolidays(
+          company.id, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear()
+        )
+        const written = await writeCyclesFor(tx, {
+          sell: { id: sellContract.id, startDate: start, endDate: end },
+          buy: buyContract
+            ? { id: buyContract.id, contractType: buyContract.contractType, vendorCompanyId: buyContract.vendorCompanyId }
+            : null,
+          packId: company.templatePack,
+          holidays,
+          // A recorded placement is often work already under way: no
+          // reminder for a day already gone.
+          noneDueBefore: recordingFloor(new Date()),
+        })
+        sellCyclesCreated = written.sell
+        buyCyclesCreated = written.buy
+      }
+
+      // If endDate is within 8 weeks, create RolloffEvent
+      let rolloff = null
+      if (end) {
+        const eightWeeksOut = new Date(Date.now() + 8 * 7 * 24 * 60 * 60 * 1000)
+        if (end <= eightWeeksOut && end > new Date()) {
+          rolloff = await tx.rolloffEvent.create({
+            data: {
+              sellContractId: sellContract.id,
+              endDate: end,
+              notified: {},
+              checklist: {
+                knowledgeTransfer: false,
+                finalTimesheet: false,
+                accessRevocation: false,
+                assets: false,
+              },
+            },
+          })
+        }
+      }
+
+      // AutomationLog
+      await tx.automationLog.create({
+        data: {
+          companyId,
+          action: 'CONTRACT_CREATED',
+          summary: `A line for person ${personId} at ${rate(billRate, billCurrency ?? 'USD')}${header ? ` on ${header.number}` : ', not yet on an order'}. ${buyContract ? `The buy line that funds it pays ${rate(pay!.payRateCents, payCurrency ?? billCurrency ?? 'USD')}.` : 'No buy line beside it.'} ${sellCyclesCreated} cycles generated, and ${buyCyclesCreated} pay and supplier dates on the buy line.`,
+          reason: past ? `Contract created via API. ${past.says} Reason given: ${limitReason}` : 'Contract created via API',
+          payload: {
+            workOrderId: header?.id ?? null,
+            sellContractId: sellContract.id,
+            buyContractId: buyContract?.id ?? null,
+            contractLinkId: contractLink?.id ?? null,
+            personId,
+            billRate,
+            payRate: pay?.payRateCents ?? null,
+            contractType: pay?.contractType ?? null,
+            vendorCompanyId: pay?.vendorCompanyId ?? null,
+            // What the line says about how the person is engaged, in the
+            // rule's own sentence — kept so an audit reads the same words.
+            terms: line.says,
+            sellCyclesCreated,
+            hasRolloff: !!rolloff,
+          },
+          reversible: false,
+        },
+      })
+
+      return { sellContract, buyContract, contractLink, sellCyclesCreated, rolloff, header }
+    })
+
+    return NextResponse.json({
+      data: {
+        // The document the line went on, so the caller is told what was
+        // created rather than discovering an order it did not ask for.
+        document: result.header
+          ? {
+              id: result.header.id,
+              number: result.header.number,
+              sellerNumber: result.header.sellerNumber,
+              says: result.header.says,
+            }
+          : null,
+        sellContract: {
+          id: result.sellContract.id,
+          personId: result.sellContract.personId,
+          state: result.sellContract.state,
+          billRate: result.sellContract.billRate,
+          startDate: result.sellContract.startDate.toISOString(),
+          endDate: result.sellContract.endDate?.toISOString() ?? null,
+        },
+        buyContract: result.buyContract ? {
+          id: result.buyContract.id,
+          payRate: pay?.payRateCents ?? null,
+          contractType: result.buyContract.contractType,
+          state: result.buyContract.state,
+        } : null,
+        contractLink: result.contractLink ? { id: result.contractLink.id } : null,
+        sellCyclesCreated: result.sellCyclesCreated,
+        rolloff: result.rolloff ? { id: result.rolloff.id, endDate: result.rolloff.endDate.toISOString() } : null,
+        // How the person is engaged and paid, or that nobody has said yet
+        // — in which case the placement cannot start until somebody does.
+        terms: { says: line.says, payLine: Boolean(pay) },
+        // Where the company's pay days wait on a Sunday nobody set: the
+        // sentence, and the link or who to ask (`firstDayStep`).
+        firstDay: firstDayNotSet
+          ? { says: firstDay.ask ? `${firstDayNotSet} ${firstDay.ask}` : firstDayNotSet, link: firstDay.link }
+          : null,
+        message: result.header
+          ? (pinned
+              ? `Recorded as a line on ${result.header.number}, from ${clientCompany.name}.`
+              : `Recorded on ${result.header.number}, the order already open with ${clientCompany.name}.`) +
+            (result.rolloff ? ' Its rolloff is recorded.' : '')
+          : `Recorded. No order between you and ${clientCompany.name} yet — record the purchase ` +
+            `order they gave you and this line attaches to it.` +
+            (result.rolloff ? ' Its rolloff is recorded.' : ''),
+      },
+    }, { status: 201 })
+  } catch (err: any) {
+    reportError('Contract creation failed:', err)
+    return NextResponse.json(
+      { error: { code: 'INTERNAL', message: 'Contract creation failed' } },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * GET /api/contracts?side=sell|buy
+ *
+ * Lists sell contracts (default) or buy contracts.
+ */
+/**
+ * The five ways a firm may already know a person, read for
+ * `mayRecordFor`. Each is a count bounded at one: only whether, never how
+ * many.
+ */
+async function tiesOf(companyId: string, personId: string): Promise<PersonTies> {
+  const [seat, listing, sold, paid, putForward, profile] = await Promise.all([
+    prisma.context.count({
+      where: { personId, companyId, type: { in: ['EMPLOYEE', 'CONSULTANT'] }, revokedAt: null },
+      take: 1,
+    }),
+    prisma.benchListing.count({
+      where: { companyId, consultant: { personId }, revokedAt: null, state: { not: 'DECLINED' } },
+      take: 1,
+    }),
+    prisma.sellContract.count({ where: { companyId, personId }, take: 1 }),
+    prisma.buyContractCandidate.count({ where: { personId, buyContract: { companyId } }, take: 1 }),
+    prisma.submission.count({
+      where: { personId, OR: [{ fromCompanyId: companyId }, { toCompanyId: companyId }] },
+      take: 1,
+    }),
+    prisma.consultantProfile.findUnique({ where: { personId }, select: { ownCompanyId: true } }),
+  ])
+  return {
+    seat: seat > 0,
+    listing: listing > 0,
+    contract: sold + paid > 0,
+    putForward: putForward > 0,
+    ownCompany: profile?.ownCompanyId === companyId,
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  // Asked once, read on both sides. A consultant sits on a contract
+  // rather than holding one, and neither the markup above them nor the
+  // pay of anybody beside them is theirs to read.
+  const isConsultant = isConsultantSeat(caller)
+
+  // Whose lines these are. A program office in a client's seat reads the
+  // client's placements at the rung the client pays — never the rung
+  // below, where a sub-vendor's rate is the prime's margin and nobody
+  // else's business (`lib/chain-top`, `lib/money/seated-books`).
+  // Unseated, this is `payerScope` and `buyContractScope` exactly as
+  // before.
+  const whose = caller.company ? await booksFor(caller, request) : null
+  if (whose?.error) return whose.error
+  const reading = whose?.books ?? null
+
+  const url = request.nextUrl
+  const side = url.searchParams.get('side') ?? 'sell'
+  const companyId = url.searchParams.get('companyId')
+  const state = url.searchParams.get('state')
+  const filterPersonId = url.searchParams.get('personId')
+  const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
+  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
+
+  // ── A seat with no contracts desk reads its own lines ─────────────
+  //
+  // The Contracts menu entry names no permission: the list scopes itself,
+  // and a seat that administers none of the firm's contracts — a Member
+  // nobody has given a desk yet, a delivery engineer — reads only the
+  // lines that name its holder (lib/money/own-lines), on both sides,
+  // below. Asking by URL for somebody else's lines used to answer an
+  // empty list, which reads as "they have no contracts". It is refused in
+  // a sentence instead, naming the desks that do read them.
+  const ownOnly = !reading?.seated && ownLinesOnly(caller.permissions)
+  if (ownOnly && filterPersonId && filterPersonId !== caller.person.id) {
+    const desks = refusalSentence(
+      `Needs ${READS_THE_FIRMS_LINES.join(', ')}.`,
+      { kind: caller.company?.kind ?? null, company: caller.company?.name ?? null, what: 'Reading somebody else’s contract lines' }
+    )
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: `You read the contract lines that name you. ${desks}`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // Where this seat is not offered "Record a placement", the page says
+  // who records one here, naming only roles the firm has seated, else the
+  // Owner or an Admin (Tapin walk, 2026-11-14). Who may is not changed.
+  const recordSays =
+    !isConsultant && !reading?.seated && caller.company && !hasPermission(caller.permissions, 'assignments.write')
+      ? notYourButton(
+          'recording a placement',
+          seatedWhoMay(desksHolding('assignments.write', caller.company.kind), (await seatedRoles(caller.company.id)) ?? [])
+        )
+      : null
+
+  if (side === 'buy') {
+    // Scoped to the caller's company — a missing ?companyId= used to mean
+    // "every buy contract in the database".
+    const scope = reading?.buyContractWhere ?? buyContractScope(caller)
+    if (!scope) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: notAtACompany('The list of buy contracts') } },
+        { status: 403 }
+      )
+    }
+
+    const where: any = { ...scope }
+    if (state) where.state = state.toUpperCase()
+    // A person is on a buy contract through a candidate line
+    if (filterPersonId) where.candidates = { some: { personId: filterPersonId } }
+    // A seat that administers none of this reads only the lines that pay
+    // its holder (lib/money/own-lines).
+    if (ownOnly) {
+      where.AND = [...(where.AND ?? []), { candidates: { some: { personId: caller.person.id } } }]
+    }
+
+    const [contracts, total] = await Promise.all([
+      prisma.buyContract.findMany({
+        where,
+        include: {
+          candidates: {
+            include: { person: { select: { id: true, name: true } } },
+            orderBy: { startDate: 'asc' },
+          },
+          vendorCompany: { select: { id: true, name: true } },
+          // The document this line is on. A buy line to our own W2 has
+          // none and never will — nobody raises a purchase order to an
+          // employee — which the screen says rather than leaving blank.
+          workOrder: {
+            select: {
+              id: true, number: true, sellerNumber: true, status: true,
+              issuedById: true, issuedToId: true, billToId: true, payerId: true,
+            },
+          },
+          // The master contract this line is tagged to, if the company
+          // tagged it. Optional on purpose.
+          projectOrder: { select: { id: true, code: true, name: true, status: true } },
+          // The sell line it funds — the other half of the pair.
+          sellLinks: {
+            select: {
+              sellContract: {
+                select: { id: true, clientCompany: { select: { name: true } } },
+              },
+            },
+            take: 1,
+          },
+          _count: { select: { buyCycles: true } },
+        },
+        orderBy: { startDate: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.buyContract.count({ where }),
+    ])
+
+    // ── What each person is paid, to whom ────────────────────────────
+    //
+    // Every pay rate on every line went to any staff seat at the firm, so
+    // a delivery engineer read what the firm pays each colleague. A pay
+    // figure is the payroll desks' — `consultants.cost` — or the person's
+    // own (lib/money/pay-visibility). The lines stay listed with the pay
+    // withheld: who is on a line, through which firm and from when is
+    // what the contract, HR and delivery desks open this tab for.
+    const viewer = { permissions: caller.permissions, personId: caller.person.id }
+    const lines = contracts.map((c) => {
+      // A consultant is named ON a buy contract; they are not party to
+      // it. `buyContractScope` narrows them to the agreements that name
+      // them, and then every candidate line on those agreements was
+      // mapped out in full — so on a shared contract a consultant read
+      // what the agency pays each of their colleagues, and a rate range
+      // computed across all of them. Their own line, and no other.
+      const visible = isConsultant
+        ? c.candidates.filter((cd) => cd.person.id === caller.person.id)
+        : c.candidates
+      return { c, visible, pay: payFiguresFor(viewer, visible.map((cd) => ({ ...cd, personId: cd.person.id }))) }
+    })
+
+    const trail = payTrail(viewer, lines.flatMap((l) => l.visible.map((cd) => ({ personId: cd.person.id, payRate: cd.payRate }))))
+    await writePayTrail(caller, trail)
+
+    return NextResponse.json({
+      data: {
+        contracts: lines.map(({ c, visible, pay }) => {
+          const single = visible.length === 1 ? visible[0] : null
+          return {
+            id: c.id,
+            side: 'buy' as const,
+            // The firm paying on this line — the buyer whose paper rules
+            // the line's document set holds.
+            companyId: c.companyId,
+            // A one-person agreement keeps the familiar shape; a shared one
+            // reports headcount and a rate range instead of pretending to a
+            // single person or a single rate.
+            person: single?.person ?? null,
+            headcount: visible.length,
+            candidates: pay.candidates.map((cd) => ({
+              id: cd.id,
+              person: cd.person,
+              payRate: cd.payRate,
+              payWithheld: cd.payWithheld,
+              payCurrency: cd.payCurrency,
+              startDate: cd.startDate.toISOString(),
+              endDate: cd.endDate?.toISOString() ?? null,
+              state: cd.state,
+            })),
+            vendorCompany: c.vendorCompany,
+            // The document, the pair and the tag — raw, because the
+            // words for them belong to `lib/order-naming` and the screen
+            // reads them from there with the viewer's own side in hand.
+            workOrder: c.workOrder,
+            masterContract: c.projectOrder,
+            pairedWith: c.sellLinks[0]?.sellContract
+              ? {
+                  id: c.sellLinks[0].sellContract.id,
+                  counterpartName: c.sellLinks[0].sellContract.clientCompany.name,
+                }
+              : null,
+            // The supplier's own line this one pays: where the paying
+            // firm's cost coding sits, drawn only where its route allows.
+            codingContractId: c.supplierSellContractId ?? null,
+            state: c.state,
+            contractType: c.contractType,
+            payRate: pay.payRate,
+            payRateMin: pay.payRateMin,
+            payRateMax: pay.payRateMax,
+            payWithheld: pay.withheld,
+            payCurrency: c.payCurrency,
+            startDate: c.startDate.toISOString(),
+            endDate: c.endDate?.toISOString() ?? null,
+            cycles: c._count.buyCycles,
+          }
+        }),
+        // Said once, where any figure on the page was withheld, so a blank
+        // pay column reads as a rule rather than a missing number.
+        payWithheldSays: lines.some((l) => l.pay.withheld) ? PAY_WITHHELD_SAYS : null,
+        recordSays,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        // Whose lines these are: 'own' where the seat reads only the
+        // lines that name it, so the page never draws a narrowed list as
+        // the firm's empty book (sign-up walk, round five, problem 9).
+        scope: listScope(ownOnly),
+      },
+    })
+  }
+
+  // Default: sell contracts — scoped to whichever side of the placement
+  // the caller sits on. A client sees contracts at their sites; a vendor
+  // sees the ones they sell.
+  const scope = reading?.sellContractWhere ?? payerScope(caller)
+  if (!scope) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: notAtACompany('The list of contracts') } },
+      { status: 403 }
+    )
+  }
+
+  // Inside a firm that separates its accounts, somebody attached to one
+  // sees that account and anything under it. Attached to none means the
+  // whole firm, which is how a CFO keeps working after the wall goes up.
+  // Which side of the contract this caller owns. A buyer's structure is
+  // their departments; a supplier's is their accounts, and they are
+  // different companies' org charts.
+  // Inside a seat the units are the client's and are already in the
+  // scope above, resolved against the CLIENT's org chart. Running the
+  // caller's own wall over them would read one firm's unit id against
+  // another firm's tree, which matches nothing and reads as an empty
+  // program.
+  const wall = reading?.seated
+    ? { where: {}, units: null, note: null }
+    : await accountFilterFor(
+        caller,
+        caller.company?.kind === 'CLIENT' ? 'orgUnitId' : 'deliveryUnitId'
+      )
+
+  if (reading) noteMoneyRead(reading, 'Placements read')
+
+  // AND, never a spread. Both fragments express themselves as OR, and
+  // spreading one over the other keeps only the second — which is how a
+  // walled manager briefly saw every contract on the platform.
+  // A member's line of outcome work is read only by the firm that sells it (record 120).
+  const readerCompanyId = reading?.companyId ?? caller.company?.id ?? null
+  const where: any = andAll(!isConsultant && readerCompanyId ? visibleToReader(scope as any, readerCompanyId) as any : scope, wall.where)
+  if (state) where.state = state.toUpperCase()
+  if (filterPersonId) where.personId = filterPersonId
+  // A delivery engineer reads the lines that name him, never his
+  // colleagues' (lib/money/own-lines).
+  if (ownOnly) {
+    where.AND = [...(where.AND ?? []), { personId: caller.person.id }]
+  }
+
+  const [contracts, total] = await Promise.all([
+    prisma.sellContract.findMany({
+      where,
+      include: {
+        person: { select: { id: true, name: true } },
+        clientCompany: { select: { id: true, name: true } },
+        endClientCompany: { select: { id: true, name: true } },
+        workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
+        engagement: { select: { id: true, title: true } },
+        // The document this line is on, and the two ends of it, so the
+        // screen can say "purchase order" to the client that raised it
+        // and "sales order" to the supplier billing against it.
+        workOrder: {
+          select: {
+            id: true, number: true, sellerNumber: true, status: true, amount: true, currency: true,
+            issuedById: true, issuedToId: true, billToId: true, payerId: true,
+            _count: { select: { sellContracts: true } },
+          },
+        },
+        projectOrder: { select: { id: true, code: true, name: true, status: true, podProject: { select: { onSite: true } } } },
+        // The buy line that funds it: who we pay, or nobody where we
+        // employ the person and payroll pays them.
+        buyLinks: {
+          select: {
+            buyContract: {
+              select: { id: true, contractType: true, vendorCompany: { select: { name: true } } },
+            },
+          },
+          take: 1,
+        },
+        _count: { select: { timesheets: true, sellCycles: true } },
+        rolloff: { select: { id: true, endDate: true, outcome: true } },
+      },
+      orderBy: { startDate: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.sellContract.count({ where }),
+  ])
+
+  // ── What each line bills at, to whom ─────────────────────────────
+  //
+  // Every bill rate went to every staff seat that was not a consultant's.
+  // The price and billing desks read it on the firm's own lines, the
+  // client reads its own price, and a prime reads its sub-vendor's rate
+  // only where it may read cost (lib/money/pay-visibility). The line
+  // stays; the figure is null, and the trail records both.
+  const billViewer = {
+    permissions: reading?.caller.permissions ?? caller.permissions,
+    companyId: reading?.companyId ?? caller.company?.id ?? null,
+    companyKind: reading?.companyKind ?? caller.company?.kind ?? null,
+    personId: caller.person.id,
+  }
+  const seesBill = (c: { companyId: string; clientCompanyId: string }) =>
+    !isConsultant && mayReadBillRate(billViewer, { sellerId: c.companyId, clientId: c.clientCompanyId })
+  if (!isConsultant) {
+    await writeBillTrail(
+      caller,
+      billTrail(billViewer, contracts.map((c) => ({ sellerId: c.companyId, clientId: c.clientCompanyId, personId: c.personId })))
+    )
+  }
+  const billWithheld = !isConsultant && contracts.some((c) => !seesBill(c))
+
+  // A client never reaches below its supplier (record 119). Where the
+  // reader is the client paying this line and the seller is not the
+  // client itself, the buy line beside it is a deal between two other
+  // firms: no id, and a name only where the client's agreement with the
+  // seller requires disclosure. Read once per request.
+  const clientReads = billViewer.companyId
+    ? contracts.some((c) => c.clientCompanyId === billViewer.companyId && c.companyId !== billViewer.companyId)
+    : false
+  const disclosureTerms = clientReads && billViewer.companyId
+    ? await prisma.masterAgreement.findMany({
+        where: { clientId: billViewer.companyId },
+        select: { clientId: true, vendorId: true, disclosesSubVendors: true, status: true },
+      })
+    : []
+
+  return NextResponse.json({
+    data: {
+      contracts: contracts.map((c) => ({
+        id: c.id,
+        side: 'sell' as const,
+        // Whose contract this actually is — needed client-side to decide
+        // whether the viewer may assign its approver at all.
+        companyId: c.companyId,
+        personId: c.personId,
+        person: c.person,
+        clientCompany: c.clientCompany,
+        endClientCompany: c.endClientCompany,
+        workLocation: c.workLocation,
+        engagement: c.engagement ?? null,
+        workOrder: c.workOrder
+          ? {
+              id: c.workOrder.id,
+              number: c.workOrder.number,
+              sellerNumber: c.workOrder.sellerNumber,
+              status: c.workOrder.status,
+              issuedById: c.workOrder.issuedById,
+              issuedToId: c.workOrder.issuedToId,
+              billToId: c.workOrder.billToId,
+              payerId: c.workOrder.payerId,
+              // A ceiling is money, and a consultant sitting on the line
+              // is not a party to the order above it.
+              amount: isConsultant ? null : Number(c.workOrder.amount),
+              currency: c.workOrder.currency,
+              /** How many people are on this document, this one included. */
+              lines: c.workOrder._count.sellContracts,
+            }
+          : null,
+        masterContract: c.projectOrder ? { id: c.projectOrder.id, code: c.projectOrder.code, name: c.projectOrder.name, status: c.projectOrder.status } : null,
+        // True where the client reads its own line: the screen says nothing
+        // of a pair, never "no line on the other side", which would be false.
+        pairedWithHidden: !!billViewer.companyId && billViewer.companyId === c.clientCompanyId && c.clientCompanyId !== c.companyId,
+        pairedWith: (() => {
+          const buy = c.buyLinks[0]?.buyContract
+          if (!buy) return null
+          const belowClient =
+            !!billViewer.companyId &&
+            billViewer.companyId === c.clientCompanyId &&
+            c.clientCompanyId !== c.companyId
+          if (belowClient) {
+            if (!mayNameSubVendors(disclosureTerms, c.clientCompanyId, c.companyId)) return null
+            return { id: null, counterpartName: buy.vendorCompany?.name ?? null, contractType: buy.contractType }
+          }
+          return {
+            id: buy.id,
+            // Null where we employ the person: payroll pays that line,
+            // and there is no firm below us to name.
+            counterpartName: buy.vendorCompany?.name ?? null,
+            // How the buy line engages the person, so a 1099 or her own
+            // company's line never reads "paired with payroll".
+            contractType: buy.contractType,
+          }
+        })(),
+        state: c.state,
+        // What the client is charged is the supplier's margin seen from the
+        // other end, and a consultant reading it can subtract their own pay
+        // rate from it. `payerScope` answers a consultant seat with their
+        // own contracts — the right rows — and the rows carried the bill
+        // rate anyway. Whose rate a caller may read is the same question
+        // `/api/placements/[id]` already asks before it renders one.
+        billRate: seesBill(c) && printsRate(c, billViewer.companyId) ? c.billRate : null,
+        billCurrency: isConsultant ? null : c.billCurrency,
+        billWithheld: !isConsultant && !seesBill(c),
+        billedByDeliverable: isTeamLine(c),
+        startDate: c.startDate.toISOString(),
+        endDate: c.endDate?.toISOString() ?? null,
+        timesheets: c._count.timesheets,
+        cycles: c._count.sellCycles,
+        rolloff: c.rolloff ? { id: c.rolloff.id, endDate: c.rolloff.endDate.toISOString(), outcome: c.rolloff.outcome } : null,
+      })),
+      billWithheldSays: billWithheld ? BILL_WITHHELD_SAYS : null,
+      recordSays,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      // 'own' where this seat reads only the lines naming it — the page
+      // says so rather than "No contracts yet" (round five, problem 9).
+      scope: listScope(ownOnly),
+      reading: reading
+        ? { company: reading.companyName, inASeat: reading.seated, says: reading.says }
+        : null,
+      // Said plainly when somebody is seeing less than the whole firm. A
+      // total that silently excludes half the company is worse than a
+      // smaller one somebody understands.
+      scopedTo: wall.note,
+    },
+  })
+}
+
+function errResponse(message: string, field: string) {
+  return NextResponse.json(
+    { error: { code: 'VALIDATION', message, field } },
+    { status: 422 }
+  )
+}

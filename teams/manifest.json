@@ -1,0 +1,43 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "{{MICROSOFT_APP_ID}}",
+  "developer": {
+    "name": "Etyme",
+    "websiteUrl": "https://{{ETYME_HOST}}",
+    "privacyUrl": "https://{{ETYME_HOST}}/privacy",
+    "termsOfUseUrl": "https://{{ETYME_HOST}}/terms"
+  },
+  "name": {
+    "short": "Etyme",
+    "full": "Etyme: contingent workforce approvals"
+  },
+  "description": {
+    "short": "Approve invoice receipts and see time-limit risks from Etyme.",
+    "full": "Etyme writes to you in Teams when an invoice receipt needs your approval or a contractor is near the client's time limit. Each card shows the amount, the supplier, the contractor, the period and the rule. Approve, reject with a reason, or ask why. Every answer is recorded in Etyme under your name. Settings, investigation and reports stay in Etyme."
+  },
+  "icons": {
+    "outline": "outline.png",
+    "color": "color.png"
+  },
+  "accentColor": "#5228FF",
+  "bots": [
+    {
+      "botId": "{{MICROSOFT_APP_ID}}",
+      "scopes": ["personal", "team"],
+      "isNotificationOnly": false,
+      "supportsFiles": false,
+      "commandLists": [
+        {
+          "scopes": ["personal"],
+          "commands": [
+            { "title": "What needs me", "description": "Show the invoice receipts and time-limit risks waiting on you now." }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": ["{{ETYME_HOST}}"]
+}

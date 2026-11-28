@@ -1,0 +1,498 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+import { REGION_UNIT_KIND } from '@/lib/region-scope'
+import { emit } from '@/lib/events'
+import { getSessionIdentity, getCallerContext } from '@/lib/api-context'
+import { checkDoor } from '@/lib/identity/read'
+import {
+  typeByKey, slugFromDomain, guessCompanyName, COMPANY_TYPES,
+} from '@/lib/onboarding'
+import {
+  decideEntry, domainOfEmail, type ClaimedDomain,
+} from '@/lib/company-domains'
+import { MEMBER_ROLE } from '@/lib/company-defaults'
+import { seatAsMember } from '@/lib/seat-member'
+import { createCompany } from '@/lib/company-create'
+import { rememberReferral } from '@/lib/money/affiliate-activation'
+import { signUpPersonName } from './person-name'
+import { blankNameSays } from '@/app/(auth)/setup/missing'
+import { recordAnswers } from '@/lib/setup-checklist-state'
+import { signUpAnswers } from '@/lib/setup-fill'
+import { packSentence, countryGuessSentence, currencyFor, COUNTRIES, CURRENCIES, joinedSentence } from '@/lib/setup-steps'
+import { countryFromDomain, packFor } from '@/lib/company-defaults'
+import { hasPermission } from '@/lib/permissions'
+import { setupStateFor, beginClaimedSetup } from '@/lib/setup-state'
+
+/**
+ * GET  /api/onboarding — what happens when this person signs in
+ * POST /api/onboarding — do it
+ *
+ * The rule this exists to hold: the verified work-email domain IS the
+ * company. The first person from talvern-medical.example sets Talvern Medical up and
+ * everybody after them joins it, with no search box and no invite code —
+ * both are ways of getting the answer wrong, and the duplicate company is
+ * the failure that costs support conversations for months.
+ */
+
+/**
+ * Every domain any company has claimed.
+ *
+ * Loaded whole because the decision needs to consider near matches as well
+ * as exact ones, and there are far fewer claimed domains than companies.
+ */
+/**
+ * A LinkedIn session is a candidate's, whatever the address (founder,
+ * 2026-11-12: "For LinkedIn, mention for candidate only"): it never founds
+ * a company, joins one by domain or becomes a one-person firm. A person
+ * who already holds a seat was refused at the sign-in callback.
+ */
+type EntryOf = ReturnType<typeof decideEntry>
+function forDoor(decision: EntryOf, door: string | null): EntryOf {
+  if (door !== 'LINKEDIN' || decision.action === 'REFUSE') return decision
+  return { action: 'CONSULTANT', message: 'LinkedIn is for candidates, so you are set up as a candidate.' } as EntryOf
+}
+
+async function allClaims(): Promise<ClaimedDomain[]> {
+  const rows = await prisma.companyDomain.findMany({
+    select: {
+      domain: true, companyId: true, verifiedAt: true, joinPolicy: true,
+      company: { select: { name: true } },
+    },
+  })
+  return rows.map((r) => ({
+    domain: r.domain,
+    companyId: r.companyId,
+    companyName: r.company.name,
+    verified: r.verifiedAt !== null,
+    joinPolicy: r.joinPolicy as ClaimedDomain['joinPolicy'],
+  }))
+}
+
+export async function GET(request: NextRequest) {
+  const identity = await getSessionIdentity()
+  const email = identity?.email ?? null
+  if (!email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Sign in first' } },
+      { status: 401 }
+    )
+  }
+
+  // Already placed? Then there is nothing to onboard.
+  const person = await prisma.person.findUnique({
+    where: { primaryEmail: email },
+    include: {
+      contexts: {
+        where: { revokedAt: null },
+        include: {
+          company: { select: { id: true, name: true, slug: true, kind: true, homePage: true, pluginsOn: true } },
+          // A seat on a REGION unit lands on its region (lib/region-scope).
+          orgUnit: { select: { name: true, kind: true } },
+        },
+      },
+    },
+  })
+
+  if (person && person.contexts.some(c => c.companyId)) {
+    // A seat of their own before a bench that lists them: a candidate who
+    // became a one-person firm is at her firm, not at the bench (item 21).
+    // The seat this session opens (the account menu's pinned seat, else the
+    // caller check's default), so the home setting, kind and role read off
+    // the firm she is opening. Only where the caller check names none does
+    // the first firm seat stand in.
+    const { caller } = await getCallerContext(request, { narrowsToRegion: true })
+    const c = (caller ? person.contexts.find(x => x.id === caller.context.id && x.companyId) : undefined)
+      ?? person.contexts.find(x => x.companyId && x.type !== 'CONSULTANT') ?? person.contexts.find(x => x.companyId)!
+    // The seat they hold, so /setup can open their own desk rather than an
+    // empty dashboard, and whether the company's setup is theirs to finish.
+    const role = c.roleId
+      ? await prisma.role.findUnique({ where: { id: c.roleId }, select: { name: true, permissions: true } })
+      : null
+    const permissions = role?.permissions ?? []
+    // A supplier that just took its record from an invitation opens on
+    // "How you work", with its client named (round two, item 29).
+    if (hasPermission(permissions, 'settings.manage')) await beginClaimedSetup(c.companyId!, person.id)
+    const setup = await setupStateFor(c.companyId!, {
+      mayRun: hasPermission(permissions, 'settings.manage'),
+      followedLinkBack: request.nextUrl.searchParams.get('finish') === '1',
+    })
+    return NextResponse.json({
+      data: {
+        action: 'ALREADY_IN',
+        company: c.company,
+        message: `You are already in ${c.company?.name}.`,
+        seat: {
+          type: c.type, role: role?.name ?? null, permissions,
+          region: c.orgUnit?.kind === REGION_UNIT_KIND ? c.orgUnit.name : null,
+        },
+        setup,
+      },
+    })
+  }
+
+  // A consultant holds a seat with no company. Asking them again would
+  // offer "Continue" and write a second consultant seat — or, for a
+  // candidate on a work address, offer to found a company. Their own page
+  // is the desk (found 2026-10-08, building the password door).
+  const own = person?.contexts.find((c) => c.type === 'CONSULTANT' && !c.companyId)
+  if (own) {
+    return NextResponse.json({
+      data: {
+        action: 'ALREADY_IN',
+        company: null,
+        message: 'You are already in, on your own page.',
+        seat: { type: 'CONSULTANT', role: null, permissions: [] },
+        setup: null,
+      },
+    })
+  }
+
+  const decision = forDoor(decideEntry(email, await allClaims()), identity?.door ?? null)
+
+  return NextResponse.json({
+    data: {
+      email,
+      ...decision,
+      // Only asked when a company is actually being created — including
+      // after somebody answers a SUGGEST by saying they are separate.
+      // On a personal address only the types that may register on one, so
+      // the page can offer the one-person firm beside the consultant seat.
+      companyTypes: decision.action === 'CREATE' || decision.action === 'SUGGEST' ? COMPANY_TYPES
+        : decision.action === 'CONSULTANT' ? (identity?.door === 'LINKEDIN' ? undefined : COMPANY_TYPES.filter((t) => t.personalEmail))
+          : undefined,
+      suggestedName:
+        decision.action === 'CREATE' ? guessCompanyName(decision.domain)
+          : decision.action === 'SUGGEST' ? guessCompanyName(decision.domain)
+            : undefined,
+      // Step 2's guesses, each said as a guess. The page recomputes the
+      // pack line as the answers change, from the same functions.
+      ...(decision.action === 'CREATE' || decision.action === 'SUGGEST'
+        ? (() => {
+            const country = countryFromDomain(decision.domain)
+            return {
+              suggestedCountry: country,
+              suggestedCurrency: currencyFor(country),
+              countrySays: countryGuessSentence(country, decision.domain),
+              packSays: packSentence(packFor('VENDOR', country)),
+              countries: COUNTRIES,
+              currencies: CURRENCIES,
+            }
+          })()
+        : {}),
+    },
+  })
+}
+
+export async function POST(request: NextRequest) {
+  const identity = await getSessionIdentity()
+  const email = identity?.email ?? null
+  if (!email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Sign in first' } },
+      { status: 401 }
+    )
+  }
+
+  const body = await request.json().catch(() => ({}))
+  const domain = domainOfEmail(email)
+  const decision = forDoor(decideEntry(email, await allClaims()), identity?.door ?? null)
+
+  if (decision.action === 'REFUSE') {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: decision.message } },
+      { status: 422 }
+    )
+  }
+
+  // Joining by domain asks the company's sign-in policy first (founder,
+  // 2026-11-11): an invite-only company admits nobody this way, and a
+  // directory-only company admits only through its directory. The row is
+  // written before the refusal goes out (lib/identity).
+  const joining = decision.action === 'JOIN' || decision.action === 'REQUEST' || (decision.action === 'SUGGEST' && body.joinExisting === true)
+  if (joining) {
+    const v = await checkDoor({ door: 'DOMAIN_JOIN', email, targetCompanyId: decision.companyId, surface: 'WEB' })
+    if (!v.allowed) {
+      return NextResponse.json({ error: { code: 'BY_INVITATION', message: v.says } }, { status: 403 })
+    }
+  }
+
+  // The type is read before the personal-address path is taken: a person
+  // on gmail who says "I work through my own company" founds a one-person
+  // firm, not a consultant seat (round one of the sign-up walk, item 45).
+  // Only a type that may register on a personal address does this.
+  const chosen = typeByKey(String(body.type ?? ''))
+  const ownFirm = decision.action === 'CONSULTANT' && chosen?.personalEmail === true && identity?.door !== 'LINKEDIN'
+
+  // The person exists either way — they signed in. The form's name box
+  // is the company's name, so it never names the person: a name that is
+  // the company's, or a role word, gives way to the address's first part.
+  // A one-person firm is the person and the firm, so her firm's name may
+  // be her own and is kept.
+  const companyNamed = ownFirm ? null : String(body.name ?? '').trim() || ('companyName' in decision ? decision.companyName : '') || null
+  const person = await prisma.person.upsert({
+    where: { primaryEmail: email },
+    update: {},
+    create: { primaryEmail: email, name: signUpPersonName(body.name, email, companyNamed) },
+  })
+
+  // ── A consultant. No company, and that is not a lesser outcome. ──
+  if (decision.action === 'CONSULTANT' && !ownFirm) {
+    await prisma.context.create({
+      data: { personId: person.id, type: 'CONSULTANT' },
+    })
+
+    // The profile is created empty rather than waiting for the first edit.
+    // Without a row there is nothing for the consultant portal to open, and
+    // "add your skills next" leads to a screen that cannot save.
+    await prisma.consultantProfile.upsert({
+      where: { personId: person.id },
+      update: {},
+      create: { personId: person.id, skills: [], visibility: 'INTERNAL' },
+    })
+
+    return NextResponse.json({
+      data: {
+        action: 'CONSULTANT',
+        message: 'You are set up. Add your skills and availability next.',
+      },
+    })
+  }
+
+  // ── Joining a company that is already here. ──
+  // ── A near match. Answered, never assumed. ──────────────────────────
+  //
+  // Somebody on us.infosys.com may be part of Infosys or a separate entity
+  // that shares the name, and DNS cannot tell you which. So the question
+  // is put to them, and their answer arrives here as joinExisting.
+  if (decision.action === 'SUGGEST') {
+    if (body.joinExisting === true) {
+      // They said they are part of it. Their domain is claimed for that
+      // company so nobody has to answer this again.
+      await prisma.companyDomain.create({
+        data: {
+          companyId: decision.companyId,
+          domain: decision.domain,
+          verifiedAt: new Date(),
+          verifiedVia: 'OAUTH_TENANT',
+          joinPolicy: 'REQUEST',
+        },
+      })
+
+      const already = await prisma.context.findFirst({
+        where: { personId: person.id, companyId: decision.companyId, revokedAt: null },
+      })
+      if (!already) await seatAsMember(person.id, decision.companyId)
+
+      await prisma.automationLog.create({
+        data: {
+          companyId: decision.companyId,
+          action: 'DOMAIN_CLAIMED',
+          summary: `${decision.domain} was claimed for ${decision.companyName} by ${person.name}`,
+          reason: 'They signed in on a subdomain and confirmed they are part of the company',
+          payload: { domain: decision.domain, personId: person.id },
+          reversible: true,
+        },
+      })
+
+      return NextResponse.json({
+        data: {
+          action: 'JOIN',
+          companyId: decision.companyId,
+          companyName: decision.companyName,
+          message: `You are in ${decision.companyName} with no role yet, and ${decision.domain} is now theirs so nobody else has to answer that.`,
+          role: MEMBER_ROLE,
+        },
+      })
+    }
+
+    if (body.joinExisting !== false) {
+      // Unanswered. Returning the question rather than picking for them.
+      return NextResponse.json(
+        {
+          error: {
+            code: 'ANSWER_NEEDED',
+            message: decision.message,
+            field: 'joinExisting',
+            suggested: { companyId: decision.companyId, companyName: decision.companyName },
+          },
+        },
+        { status: 409 }
+      )
+    }
+    // Said no. Falls through to creating their own company below.
+  }
+
+  if (decision.action === 'JOIN' || decision.action === 'REQUEST') {
+    const already = await prisma.context.findFirst({
+      where: { personId: person.id, companyId: decision.companyId, revokedAt: null },
+    })
+    if (already) {
+      return NextResponse.json({
+        data: { action: 'JOIN', companyId: decision.companyId, message: `You are already in ${decision.companyName}.` },
+      })
+    }
+
+    // Joining grants the Member role and nothing more: their own work,
+    // never the firm's. Somebody at the company gives them a desk.
+    await seatAsMember(person.id, decision.companyId)
+
+    await prisma.automationLog.create({
+      data: {
+        companyId: decision.companyId,
+        action: 'COLLEAGUE_JOINED',
+        summary: `${person.name} joined from ${domain} with no role yet`,
+        reason: 'Verified work email on a domain this company already owns',
+        payload: { personId: person.id, email, role: MEMBER_ROLE },
+        reversible: true,
+      },
+    })
+
+    void emit({
+      type: 'company.member_joined',
+      companyId: decision.companyId,
+      subjectType: 'Person',
+      subjectId: person.id,
+      actorPersonId: person.id,
+      payload: { email, domain, companyName: decision.companyName, hasRole: true, role: MEMBER_ROLE },
+    })
+
+    return NextResponse.json({
+      data: {
+        action: 'JOIN',
+        companyId: decision.companyId,
+        companyName: decision.companyName,
+        message: `You are in ${decision.companyName} with no role yet. You can see your own work now. An Owner or Admin there gives you a role.`,
+        role: MEMBER_ROLE,
+      },
+    })
+  }
+
+  // ── Setting the company up. ──
+  const type = chosen
+  if (!type) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'Say what this company does here',
+          field: 'type',
+          options: COMPANY_TYPES.map(t => ({ key: t.key, label: t.label })),
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  // A name sent blank is refused in the screen's sentence; only a name
+  // not sent at all is guessed from the domain (`start/missing`).
+  const blank = blankNameSays(body, ownFirm)
+  if (blank) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: blank, field: 'name' } }, { status: 422 })
+  }
+
+  // Both CREATE and a SUGGEST answered "we are separate" land here.
+  // A one-person firm on a personal address claims no domain: gmail.com is
+  // nobody's tenant. Its address is read off its name instead.
+  const newCompanyDomain: string | null = ownFirm
+    ? null
+    : decision.action === 'CREATE' || decision.action === 'SUGGEST' ? decision.domain : domain!
+
+  const takenSlugs = new Set(
+    (await prisma.company.findMany({ select: { slug: true } })).map(c => c.slug)
+  )
+  const name = String(body.name ?? '').trim()
+    || (newCompanyDomain ? guessCompanyName(newCompanyDomain) : person.name)
+  const nameLabel = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'company'
+  const slug = slugFromDomain(newCompanyDomain ?? `${nameLabel}.com`, takenSlugs)
+
+  // One way to make a company (lib/company-create): the same pack, roles,
+  // head office and holidays as "Add company". Country and currency are
+  // step 2's answers; left out, they are guessed from the domain.
+  const made = await createCompany({
+    name,
+    kind: type.kind as any,
+    slug,
+    domain: newCompanyDomain,
+    country: body.country ?? null,
+    currency: body.currency ?? null,
+    posture: type.posture,
+    byPersonId: person.id,
+    seatAsOwner: true,
+    // The first person is an Admin; Owner is earned by proof (2026-11-12).
+    ownerProofRequired: true,
+    claimDomain: newCompanyDomain !== null,
+    startsSetup: true,
+  })
+  const company = made.company
+  // The code on the link she arrived by is kept now, because her 60 days
+  // may start weeks later (lib/money/affiliate-activation). An unknown or
+  // late code writes nothing and never blocks the sign-up.
+  if (typeof body.referralCode === 'string') await rememberReferral(company.id, body.referralCode).catch(() => null)
+  const from = 'domain' in decision ? decision.domain : null
+  // Where each answer came from: a guess from the work email's domain says
+  // so on the setup checklist, and only what was typed reads "Typed by".
+  await recordAnswers(company.id, person.id, signUpAnswers({
+    email, name, country: made.country, currency: made.currency, address: slug,
+    nameFromDomain: !String(body.name ?? '').trim() && !!newCompanyDomain,
+    addressFromDomain: !!newCompanyDomain,
+  }))
+
+  await prisma.automationLog.create({
+    data: {
+      companyId: company.id,
+      action: 'COMPANY_CREATED',
+      summary: joinedSentence(name, type.kind, type.posture),
+      reason: ownFirm
+        ? 'First sign-in on a personal address, as a one-person company; no domain claimed'
+        : `First sign-in from ${from}`,
+      payload: { companyId: company.id, kind: type.kind, posture: type.posture, slug },
+      reversible: false,
+    },
+  })
+
+  void emit({
+    type: 'company.created',
+    companyId: company.id,
+    subjectType: 'Company',
+    subjectId: company.id,
+    actorPersonId: person.id,
+    payload: {
+      name: company.name,
+      slug: company.slug,
+      kind: company.kind,
+      posture: company.supplierPosture,
+      domain: newCompanyDomain,
+    },
+  })
+
+  return NextResponse.json(
+    {
+      data: {
+        action: 'CREATE',
+        companyId: company.id,
+        companyName: company.name,
+        slug: company.slug,
+        kind: company.kind,
+        posture: company.supplierPosture,
+        // Said out loud, because a default nobody knows about is a
+        // surprise later rather than a head start now.
+        setUpForYou: {
+          templatePack: made.templatePack,
+          roles: made.roles.map((r) => r.name),
+          country: made.country,
+          currency: made.currency,
+          holidaysSeeded: made.holidaysSeeded > 0,
+          // What their page says on day one, so they can see it rather
+          // than discover it.
+          siteTagline: made.siteTagline,
+        },
+        packSays: packSentence(made.templatePack, company.kind),
+        // Everything after this is enrichment and skippable (BUILD.md §4A).
+        message: ownFirm
+          ? `${company.name} is live at ${company.slug}.etyme.com.`
+          : `${company.name} is live at ${company.slug}.etyme.com. Anyone else from ${from} who signs in will join you.`,
+      },
+    },
+    { status: 201 }
+  )
+}

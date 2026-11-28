@@ -1,0 +1,258 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+import { notify } from '@/lib/notify'
+import { formatDay } from '@/lib/format-date'
+import {
+  OWNER_ROLE, ADMIN_ROLE, liveOwners, mayAskAboutOwner, mayAskToPass, decidersFor, expiresFrom, lapsed,
+  passCardSays, ownerCardSays, onlyAnOwner, movesAloneAfterPass, askSaysTo, type AskerAfter,
+} from '@/lib/owner-rules'
+import { asksAddressedTo } from '@/lib/owner-asks'
+import { ensureDefaultRoles } from '@/lib/company-roles'
+import { ADMIN_PERMISSIONS, isNarrowedAdmin } from '@/lib/company-defaults'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
+import { ownersDoor, refused } from './seats'
+import { passedToSeatBy, landMoveAfterPass } from './act'
+import { mailLeaves } from '@/lib/notify/mail-leaves'
+import { recordRefusal } from '@/lib/access-log'
+
+/**
+ * GET  /api/settings/owners — the Owners, the seats that could take over,
+ *      and every ask waiting for a yes
+ * POST /api/settings/owners — { action: 'pass', contextId, after, reason }
+ *                             { action: 'remove', contextId, reason }
+ *                             { action: 'demote', contextId, toRoleId, reason }
+ *                             { action: 'narrow-admin', reason }
+ *
+ * Who owns the company (founder, 2026-11-11). Any number of Owners. Only
+ * an Owner passes ownership, removes or moves an Owner, and never the last
+ * one. Each of those is an ask that waits for a second person's yes: the
+ * person taking over for a pass, another Owner for a removal or a move.
+ * The yes is POST /api/settings/owners/:id. An Admin reads this screen and
+ * acts on none of it.
+ */
+
+export async function GET(request: NextRequest) {
+  const door = await ownersDoor(request)
+  if (door.error) return door.error
+  const { company, seats, me, personId } = door.ok
+  if (me.roleName !== OWNER_ROLE && me.roleName !== ADMIN_ROLE) {
+    // A person an open ask is addressed to reads that ask and nothing else
+    // about who owns the company (screen walk on df3074094).
+    const addressed = await asksAddressedTo(personId, company.id)
+    if (addressed.length === 0) {
+      return refused(`Who owns ${company.name} is read by its Owners and Admins.`, 403, 'FORBIDDEN')
+    }
+    return NextResponse.json({ data: { company: company.name, addressedOnly: true, asks: addressed } })
+  }
+  // Every kind of company has an Admin (2026-11-12): a company formed
+  // before that gets it here, the way Users & permissions adds a role.
+  await ensureDefaultRoles(company.id, company.kind)
+  const now = new Date()
+  const [asks, roles, adminRole] = await Promise.all([
+    prisma.ownershipRequest.findMany({
+      where: { companyId: company.id, state: 'PENDING' },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, kind: true, askerAfter: true, reason: true, expiresAt: true, createdAt: true, askedById: true,
+        askedBy: { select: { name: true } },
+        subjectContextId: true,
+        toRole: { select: { name: true } },
+      },
+    }),
+    prisma.role.findMany({ where: { companyId: company.id, NOT: { name: OWNER_ROLE } }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+    prisma.role.findFirst({ where: { companyId: company.id, name: ADMIN_ROLE }, select: { permissions: true } }),
+  ])
+  const iAmOwner = me.roleName === OWNER_ROLE && me.live
+  // Who passed ownership to the reader: that Owner is moved to Admin alone,
+  // so the move form says so rather than asking for a yes (Owner walk).
+  const passedBy = iAmOwner ? await passedToSeatBy(company.id, me.contextId) : []
+  const bySeat = new Map(seats.map((s) => [s.contextId, s]))
+  return NextResponse.json({
+    data: {
+      company: company.name,
+      owners: liveOwners(seats).map((s) => ({
+        contextId: s.contextId, name: s.name, email: s.email ?? null, you: s.personId === personId,
+        aloneToAdmin: iAmOwner && movesAloneAfterPass({ actor: me, subject: s, toRoleName: ADMIN_ROLE, passedToActorBy: passedBy, seats }),
+      })),
+      // Each with the address it signs in with: the name alone could not
+      // tell two records of one person apart (fix list, 2026-11-15).
+      // Only somebody who has signed in here (2026-11-16): a person invited
+      // and never signed in is Invited on Users & permissions, not a
+      // member, and the ask below refuses them. Named apart, so the Owner
+      // reads why they are not offered.
+      others: seats.filter((s) => s.roleName !== OWNER_ROLE && s.live && s.signedIn !== false).map((s) => ({ contextId: s.contextId, name: s.name, email: s.email ?? null, role: s.roleName })),
+      invitedNotSignedIn: seats.filter((s) => s.roleName !== OWNER_ROLE && s.live && s.signedIn === false).map((s) => ({ contextId: s.contextId, name: s.name, email: s.email ?? null })),
+      roles,
+      iAmOwner,
+      // The one press that narrows an Admin role trading companies kept
+      // (coordinator's call, 2026-11-12): offered to an Owner only where
+      // the Admin role still holds money or contract acts.
+      narrowAdminOffered: iAmOwner && !!adminRole && !isNarrowedAdmin(adminRole.permissions),
+      // The page promises email only where it can leave (walk, 2026-11-14).
+      emailLeaves: mailLeaves(),
+      asks: asks
+        .filter((a) => !lapsed(a.expiresAt, now))
+        .map((a) => {
+          const subject = bySeat.get(a.subjectContextId)
+          const subjectName = subject?.name ?? 'a former seat'
+          const deciders = subject ? decidersFor({ kind: a.kind, askedByPersonId: a.askedById, subject, seats }) : []
+          const mayDecide = deciders.some((d) => d.personId === personId) && a.askedById !== personId
+          const reader = a.askedById === personId ? 'ASKER' : mayDecide ? 'ADDRESSEE' : 'OTHER'
+          return {
+            id: a.id,
+            kind: a.kind,
+            subject: subjectName,
+            askedBy: a.askedBy.name,
+            reason: a.reason,
+            waitsUntil: formatDay(a.expiresAt),
+            mayDecide,
+            mayCancel: a.askedById === personId,
+            // Said to this reader: the asker reads "You asked …", the person
+            // who may say yes reads the card, anybody else reads who waits.
+            says: askSaysTo(reader, {
+              kind: a.kind, askerName: a.askedBy.name, subjectName, companyName: company.name,
+              after: (a.askerAfter ?? 'OWNER') as AskerAfter, toRoleName: a.toRole?.name ?? null, reason: a.reason,
+              deciderNames: deciders.map((d) => d.name), youAreSubject: subject?.personId === personId,
+            }),
+          }
+        }),
+    },
+  })
+}
+
+export async function POST(request: NextRequest) {
+  const door = await ownersDoor(request)
+  if (door.error) return door.error
+  const { caller, company, seats, me, personId } = door.ok
+  const body = await request.json().catch(() => ({}))
+  const action = String(body.action ?? '')
+  const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 500) : ''
+
+  if (!['pass', 'remove', 'demote', 'narrow-admin'].includes(action)) {
+    return refused("action is 'pass', 'remove', 'demote' or 'narrow-admin'.")
+  }
+  if (me.roleName !== OWNER_ROLE || !me.live) {
+    const doing = action === 'pass' ? 'passes ownership' : action === 'remove' ? 'removes an Owner' : action === 'demote' ? 'changes an Owner’s role' : 'narrows the Admin role'
+    return refused(onlyAnOwner(doing), 403, 'FORBIDDEN')
+  }
+  if (!reason) return refused('Say why, in a sentence. It is kept beside the change with your name.')
+
+  // ── Narrow the Admin role to people and settings ──
+  if (action === 'narrow-admin') {
+    const admin = await prisma.role.findFirst({ where: { companyId: company.id, name: ADMIN_ROLE }, select: { id: true, permissions: true } })
+    if (!admin) return refused(`${company.name} has no Admin role to narrow.`, 404)
+    if (isNarrowedAdmin(admin.permissions)) return refused('The Admin role already holds people and settings only.')
+    await prisma.$transaction(async (tx) => {
+      await tx.role.update({ where: { id: admin.id }, data: { permissions: [...ADMIN_PERMISSIONS] } })
+      await tx.automationLog.create({
+        data: {
+          companyId: company.id,
+          action: 'ADMIN_NARROWED',
+          summary: `${caller!.person.name} narrowed the Admin role at ${company.name} to people, roles, settings and integrations`,
+          reason,
+          payload: { roleId: admin.id, was: admin.permissions, now: [...ADMIN_PERMISSIONS], byPersonId: personId },
+          reversible: true,
+        },
+      })
+    })
+    return NextResponse.json({ data: { message: 'Admins now hold people, roles, settings and integrations. Give money or contract work through Finance, AP & Payroll or Contract Manager.' } })
+  }
+
+  const contextId = String(body.contextId ?? '')
+  const subject = seats.find((s) => s.contextId === contextId)
+  if (!subject) return refused(`Nobody at ${company.name} with that seat.`, 404)
+
+  const open = await prisma.ownershipRequest.findFirst({ where: { companyId: company.id, subjectContextId: subject.contextId, state: 'PENDING', expiresAt: { gt: new Date() } }, select: { id: true } })
+  if (open) return refused(`An ask about ${subject.name} is already waiting for a yes. Cancel it first, or wait for the answer.`, 409)
+
+  let kind: 'PASS' | 'REMOVE' | 'DEMOTE'
+  let after: AskerAfter | null = null
+  let toRoleId: string | null = null
+  let toRoleName: string | null = null
+
+  if (action === 'pass') {
+    const gate = await needsVerifiedOwnerAt(company.id, 'PASS_OWNERSHIP')
+    if (!gate.ok) return NextResponse.json(gateRefusal(gate), { status: 403 })
+    after = String(body.after ?? '') as AskerAfter
+    const v = mayAskToPass({ actor: me, subject, after })
+    if (!v.ok) {
+      // About a person's seat, so written, and waited for, before it is sent.
+      await recordRefusal([subject.personId], {
+        actorPersonId: personId, actorCompanyId: company.id, action: 'DESK_CHANGE',
+        reason: `Refused asking ${subject.name} to take over ownership of ${company.name}: ${v.says}`,
+      })
+      return refused(v.says)
+    }
+    kind = 'PASS'
+  } else {
+    kind = action === 'remove' ? 'REMOVE' : 'DEMOTE'
+    if (kind === 'DEMOTE') {
+      const role = await prisma.role.findFirst({ where: { id: String(body.toRoleId ?? ''), companyId: company.id }, select: { id: true, name: true } })
+      toRoleId = role?.id ?? null
+      toRoleName = role?.name ?? null
+    }
+    // After a pass, the new Owner moves the previous one to Admin alone
+    // (founder, 2026-11-12): the previous Owner agreed to the pass.
+    if (kind === 'DEMOTE') {
+      const passedBy = await passedToSeatBy(company.id, me.contextId)
+      if (movesAloneAfterPass({ actor: me, subject, toRoleName, passedToActorBy: passedBy, seats })) {
+        const says = await landMoveAfterPass({
+          company: { id: company.id, name: company.name },
+          actor: { personId, name: caller!.person.name },
+          subject: { personId: subject.personId, name: subject.name, contextId: subject.contextId },
+          reason,
+        })
+        return NextResponse.json({ data: { message: says } })
+      }
+    }
+    const v = mayAskAboutOwner({ kind, actor: me, subject, seats, toRoleName })
+    if (!v.ok) return refused(v.says)
+  }
+
+  const ask = await prisma.ownershipRequest.create({
+    data: {
+      companyId: company.id, kind, askedById: personId, subjectContextId: subject.contextId,
+      askerAfter: after, toRoleId, reason, expiresAt: expiresFrom(),
+    },
+    select: { id: true },
+  })
+  await prisma.automationLog.create({
+    data: {
+      companyId: company.id,
+      action: 'OWNERSHIP_ASKED',
+      summary: kind === 'PASS'
+        ? `${caller!.person.name} asked ${subject.name} to take over ${company.name}’s ownership`
+        : `${caller!.person.name} asked to ${kind === 'REMOVE' ? 'remove' : `move to ${toRoleName}`} ${subject.name} as an Owner of ${company.name}`,
+      reason,
+      payload: { requestId: ask.id, kind, subject: subject.personId, after, toRoleId },
+      reversible: true,
+    },
+  })
+
+  // The card, in Ask Etyme and by email, to whoever may say yes. Drawing
+  // the card is conversation's; the notice carries its words and its id.
+  const deciders = decidersFor({ kind, askedByPersonId: personId, subject, seats })
+  for (const d of deciders) {
+    void notify({
+      personId: d.personId,
+      companyId: company.id,
+      type: 'SYSTEM',
+      title: kind === 'PASS' ? `${caller!.person.name} wants to pass ${company.name}’s ownership to you` : `An Owner change at ${company.name} needs your yes`,
+      body: kind === 'PASS'
+        ? passCardSays({ askerName: caller!.person.name, companyName: company.name, after: after! })
+        : ownerCardSays({ kind, askerName: caller!.person.name, subjectName: subject.name, companyName: company.name, toRoleName, reason, youAreSubject: d.personId === subject.personId }),
+      entityId: ask.id,
+      channel: 'EMAIL',
+      data: { ownershipRequestId: ask.id, href: '/dashboard/settings/owners' },
+    })
+  }
+
+  return NextResponse.json({
+    data: {
+      id: ask.id,
+      message: kind === 'PASS'
+        ? `Asked. ${subject.name} answers on a card; you are told here. If nobody answers in 7 days it lapses and nothing changes.`
+        : `Asked. ${deciders.map((d) => d.name).join(' or ')} answers on a card. Nothing changes until then, and you can cancel.`,
+    },
+  }, { status: 201 })
+}

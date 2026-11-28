@@ -1,0 +1,511 @@
+import { describe, it, expect } from 'vitest'
+import { reversibleHere, undoneHere } from '@/lib/autonomy'
+
+/**
+ * Automation log module invariant tests.
+ *
+ * CLAUDE.md: "Every module ships with tests named as English sentences."
+ * CLAUDE.md: "Anything the system does unprompted writes an AutomationLog
+ *  row with a plain-English reason and an honest reversible flag."
+ *
+ * BUILD.md §3 — The machine:
+ *   "GET /api/automation — what ran, with reasons"
+ *   "POST /api/automation/:id/reverse — only where reversible is true"
+ *
+ * Tests the logic layer without rendering:
+ * - Action type classification
+ * - Category grouping
+ * - Reversibility rules
+ * - Reversal state transitions
+ * - Log entry validation
+ * - Time-based filtering
+ * - Action counting
+ * - Payload inspection
+ */
+
+// ── Action types ───────────────────────────────────
+
+describe('Action type classification', () => {
+  const KNOWN_ACTIONS = [
+    'ROLLOFF_CLAIMED',
+    'ROLLOFF_SCAN',
+    'BENCH_LISTING_CREATED',
+    'BENCH_LISTING_GRANTED',
+    'BENCH_LISTING_REVOKED',
+    'CONTRACT_CREATED',
+    'IMPORT_COMMITTED',
+    'CONSULTANT_CREATED',
+    'REQUISITION_DISTRIBUTED',
+    'INVOICE_GENERATED',
+    'PAYMENT_RECORDED',
+    'TIMESHEET_APPROVED',
+    'EXPENSE_APPROVED',
+    'EXPENSE_REJECTED',
+    'PAYROLL_RUN',
+    'BLACKLIST_ADD',
+    'BLACKLIST_LIFT',
+    'TEMPLATE_PACK_APPLIED',
+    'COMPANY_CREATED',
+    'REVERSAL',
+  ]
+
+  function isKnownAction(action: string): boolean {
+    return KNOWN_ACTIONS.includes(action)
+  }
+
+  const PLAIN_WORD: Record<string, string> = { REQUISITION: 'Job request', INVOICE: 'Bill' }
+  function actionLabel(action: string): string {
+    return action
+      .split('_')
+      .map((w) => PLAIN_WORD[w] ?? w.charAt(0) + w.slice(1).toLowerCase())
+      .join(' ')
+  }
+
+  it('ROLLOFF_CLAIMED is a known action type', () => {
+    expect(isKnownAction('ROLLOFF_CLAIMED')).toBe(true)
+  })
+
+  it('INVOICE_GENERATED is a known action type', () => {
+    expect(isKnownAction('INVOICE_GENERATED')).toBe(true)
+  })
+
+  it('REVERSAL is a known action type', () => {
+    expect(isKnownAction('REVERSAL')).toBe(true)
+  })
+
+  it('UNKNOWN_ACTION is not a known action type', () => {
+    expect(isKnownAction('UNKNOWN_ACTION')).toBe(false)
+  })
+
+  it('action labels are human-readable, and say bill and job request where the machine says invoice and requisition', () => {
+    expect(actionLabel('ROLLOFF_CLAIMED')).toBe('Rolloff Claimed')
+    expect(actionLabel('INVOICE_GENERATED')).toBe('Bill Generated')
+    expect(actionLabel('REQUISITION_DISTRIBUTED')).toBe('Job request Distributed')
+    expect(actionLabel('BENCH_LISTING_CREATED')).toBe('Bench Listing Created')
+  })
+})
+
+// ── Category grouping ──────────────────────────────
+
+describe('Action category grouping', () => {
+  function actionCategory(action: string): string {
+    if (action.startsWith('ROLLOFF')) return 'Rolloff'
+    if (action.startsWith('BENCH')) return 'Bench'
+    if (action.startsWith('CONTRACT')) return 'Contracts'
+    if (action.startsWith('CONSULTANT')) return 'People'
+    if (action.startsWith('REQUIREMENT') || action.startsWith('REQUISITION')) return 'Job requests'
+    if (action.startsWith('INVOICE') || action.startsWith('PAYMENT')) return 'Billing'
+    if (action.startsWith('TIMESHEET')) return 'Timesheets'
+    if (action.startsWith('EXPENSE')) return 'Expenses'
+    if (action.startsWith('PAYROLL')) return 'Payroll'
+    if (action.startsWith('BLACKLIST')) return 'Compliance'
+    if (action.startsWith('IMPORT')) return 'Import'
+    if (action.startsWith('TEMPLATE') || action.startsWith('COMPANY')) return 'Setup'
+    if (action === 'REVERSAL') return 'Reversal'
+    return 'Other'
+  }
+
+  it('rolloff actions belong to the Rolloff category', () => {
+    expect(actionCategory('ROLLOFF_CLAIMED')).toBe('Rolloff')
+    expect(actionCategory('ROLLOFF_SCAN')).toBe('Rolloff')
+  })
+
+  it('bench actions belong to the Bench category', () => {
+    expect(actionCategory('BENCH_LISTING_CREATED')).toBe('Bench')
+    expect(actionCategory('BENCH_LISTING_REVOKED')).toBe('Bench')
+  })
+
+  it('bill and payment actions belong to Billing', () => {
+    expect(actionCategory('INVOICE_GENERATED')).toBe('Billing')
+    expect(actionCategory('PAYMENT_RECORDED')).toBe('Billing')
+  })
+
+  it('blacklist actions belong to Compliance', () => {
+    expect(actionCategory('BLACKLIST_ADD')).toBe('Compliance')
+    expect(actionCategory('BLACKLIST_LIFT')).toBe('Compliance')
+  })
+
+  it('template pack and company creation belong to Setup', () => {
+    expect(actionCategory('TEMPLATE_PACK_APPLIED')).toBe('Setup')
+    expect(actionCategory('COMPANY_CREATED')).toBe('Setup')
+  })
+
+  it('REVERSAL has its own category', () => {
+    expect(actionCategory('REVERSAL')).toBe('Reversal')
+  })
+
+  it('unknown actions fall to Other', () => {
+    expect(actionCategory('SOME_FUTURE_ACTION')).toBe('Other')
+  })
+})
+
+// ── Reversibility rules ────────────────────────────
+
+describe('Reversibility rules', () => {
+  type LogEntry = {
+    action: string
+    reversible: boolean
+    reversedAt: string | null
+  }
+
+  // The log's own reader decides, not the stored flag (UNDONE_BY_THE_LOG, 2026-11-15).
+  function canReverse(entry: LogEntry): boolean {
+    return reversibleHere(entry) && entry.reversedAt === null
+  }
+
+  function isReversed(entry: LogEntry): boolean {
+    return entry.reversedAt !== null
+  }
+
+  it('an entry written reversible is offered Reverse only where the log really undoes its act', () => {
+    expect(canReverse({ action: 'ROLLOFF_CLAIMED', reversible: true, reversedAt: null })).toBe(false)
+    expect(canReverse({ action: 'REQUISITION_DISTRIBUTED', reversible: true, reversedAt: null })).toBe(false)
+  })
+
+  it('a non-reversible entry cannot be reversed', () => {
+    expect(canReverse({ action: 'INVOICE_GENERATED', reversible: false, reversedAt: null })).toBe(false)
+  })
+
+  it('an already-reversed entry cannot be reversed again', () => {
+    expect(canReverse({ action: 'ROLLOFF_CLAIMED', reversible: true, reversedAt: '2026-01-01' })).toBe(false)
+  })
+
+  it('a REVERSAL is never itself reversible', () => {
+    // Reversals of reversals are not permitted
+    expect(canReverse({ action: 'REVERSAL', reversible: false, reversedAt: null })).toBe(false)
+  })
+
+  it('isReversed correctly identifies reversed entries', () => {
+    expect(isReversed({ action: 'X', reversible: true, reversedAt: '2026-01-01' })).toBe(true)
+    expect(isReversed({ action: 'X', reversible: true, reversedAt: null })).toBe(false)
+  })
+})
+
+// ── Log entry validation ───────────────────────────
+
+describe('Log entry validation', () => {
+  type LogEntry = {
+    action: string
+    summary: string
+    reason: string
+    payload: Record<string, any>
+    reversible: boolean
+  }
+
+  function isValid(entry: LogEntry): { valid: boolean; errors: string[] } {
+    const errors: string[] = []
+    if (!entry.action || entry.action.length === 0) errors.push('action is required')
+    if (!entry.summary || entry.summary.length === 0) errors.push('summary is required')
+    if (!entry.reason || entry.reason.length === 0) errors.push('reason is required')
+    if (entry.payload === null || entry.payload === undefined) errors.push('payload is required')
+    return { valid: errors.length === 0, errors }
+  }
+
+  it('a complete entry is valid', () => {
+    const result = isValid({
+      action: 'ROLLOFF_CLAIMED',
+      summary: 'John claimed rolloff for contract X',
+      reason: 'Manual claim via rolloff console',
+      payload: { rolloffId: 'abc' },
+      reversible: true,
+    })
+    expect(result.valid).toBe(true)
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('an entry without a summary is invalid', () => {
+    const result = isValid({
+      action: 'ROLLOFF_CLAIMED',
+      summary: '',
+      reason: 'Manual claim',
+      payload: {},
+      reversible: true,
+    })
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain('summary is required')
+  })
+
+  it('an entry without a reason is invalid', () => {
+    const result = isValid({
+      action: 'ROLLOFF_CLAIMED',
+      summary: 'Some action',
+      reason: '',
+      payload: {},
+      reversible: true,
+    })
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain('reason is required')
+  })
+
+  it('an empty payload is valid — payload can be {}', () => {
+    const result = isValid({
+      action: 'COMPANY_CREATED',
+      summary: 'Created company',
+      reason: 'Onboarding',
+      payload: {},
+      reversible: false,
+    })
+    expect(result.valid).toBe(true)
+  })
+})
+
+// ── Action counting ────────────────────────────────
+
+describe('Action counting', () => {
+  type LogEntry = { action: string }
+
+  function countByAction(entries: LogEntry[]): Record<string, number> {
+    const counts: Record<string, number> = {}
+    for (const e of entries) {
+      counts[e.action] = (counts[e.action] ?? 0) + 1
+    }
+    return counts
+  }
+
+  function countByCategory(entries: LogEntry[]): Record<string, number> {
+    function actionCategory(action: string): string {
+      if (action.startsWith('ROLLOFF')) return 'Rolloff'
+      if (action.startsWith('BENCH')) return 'Bench'
+      if (action.startsWith('INVOICE') || action.startsWith('PAYMENT')) return 'Billing'
+      if (action.startsWith('TIMESHEET')) return 'Timesheets'
+      if (action.startsWith('BLACKLIST')) return 'Compliance'
+      return 'Other'
+    }
+
+    const counts: Record<string, number> = {}
+    for (const e of entries) {
+      const cat = actionCategory(e.action)
+      counts[cat] = (counts[cat] ?? 0) + 1
+    }
+    return counts
+  }
+
+  const entries: LogEntry[] = [
+    { action: 'ROLLOFF_CLAIMED' },
+    { action: 'ROLLOFF_CLAIMED' },
+    { action: 'INVOICE_GENERATED' },
+    { action: 'TIMESHEET_APPROVED' },
+    { action: 'TIMESHEET_APPROVED' },
+    { action: 'TIMESHEET_APPROVED' },
+    { action: 'BLACKLIST_ADD' },
+  ]
+
+  it('counts rolloff claims correctly', () => {
+    expect(countByAction(entries).ROLLOFF_CLAIMED).toBe(2)
+  })
+
+  it('counts timesheet approvals correctly', () => {
+    expect(countByAction(entries).TIMESHEET_APPROVED).toBe(3)
+  })
+
+  it('missing actions have no count', () => {
+    expect(countByAction(entries).PAYROLL_RUN).toBeUndefined()
+  })
+
+  it('groups actions into categories correctly', () => {
+    const cats = countByCategory(entries)
+    expect(cats.Rolloff).toBe(2)
+    expect(cats.Timesheets).toBe(3)
+    expect(cats.Billing).toBe(1)
+    expect(cats.Compliance).toBe(1)
+  })
+})
+
+// ── Reversal state transitions ─────────────────────
+
+describe('Reversal state transitions', () => {
+  type LogEntry = {
+    id: string
+    action: string
+    summary: string
+    reversible: boolean
+    reversedAt: string | null
+  }
+
+  // `undoes` is the log's reader; the marking cases below pass an act whose
+  // real undo the route would perform, since no act is in the reader yet.
+  function applyReversal(entry: LogEntry, undoes: (action: string) => boolean = undoneHere): { entry: LogEntry; reversalLog: LogEntry } {
+    if (!undoes(entry.action)) throw new Error('NOT_UNDONE_HERE')
+    if (!entry.reversible) throw new Error('NOT_REVERSIBLE')
+    if (entry.reversedAt) throw new Error('ALREADY_REVERSED')
+
+    const now = new Date().toISOString()
+    return {
+      entry: { ...entry, reversedAt: now },
+      reversalLog: {
+        id: `reversal-${entry.id}`,
+        action: 'REVERSAL',
+        summary: `Reversed: ${entry.summary}`,
+        reversible: false,
+        reversedAt: null,
+      },
+    }
+  }
+
+  it('reversing an entry whose act the log really undoes marks it with reversedAt', () => {
+    const result = applyReversal({
+      id: '1',
+      action: 'ROLLOFF_CLAIMED',
+      summary: 'John claimed rolloff',
+      reversible: true,
+      reversedAt: null,
+    }, () => true)
+    expect(result.entry.reversedAt).not.toBeNull()
+  })
+
+  it('reversing creates a non-reversible REVERSAL log entry', () => {
+    const result = applyReversal({
+      id: '1',
+      action: 'ROLLOFF_CLAIMED',
+      summary: 'John claimed rolloff',
+      reversible: true,
+      reversedAt: null,
+    }, () => true)
+    expect(result.reversalLog.action).toBe('REVERSAL')
+    expect(result.reversalLog.reversible).toBe(false)
+    expect(result.reversalLog.summary).toBe('Reversed: John claimed rolloff')
+  })
+
+  it('reversing an entry written reversible whose act the log does not undo marks nothing', () => {
+    expect(() =>
+      applyReversal({
+        id: '1',
+        action: 'REQUISITION_DISTRIBUTED',
+        summary: 'HCM integration lead sent to 1 supplier',
+        reversible: true,
+        reversedAt: null,
+      })
+    ).toThrow('NOT_UNDONE_HERE')
+  })
+
+  it('reversing a non-reversible entry throws NOT_REVERSIBLE', () => {
+    expect(() =>
+      applyReversal({
+        id: '1',
+        action: 'INVOICE_GENERATED',
+        summary: 'Generated invoice',
+        reversible: false,
+        reversedAt: null,
+      }, () => true)
+    ).toThrow('NOT_REVERSIBLE')
+  })
+
+  it('reversing an already-reversed entry throws ALREADY_REVERSED', () => {
+    expect(() =>
+      applyReversal({
+        id: '1',
+        action: 'ROLLOFF_CLAIMED',
+        summary: 'John claimed rolloff',
+        reversible: true,
+        reversedAt: '2026-01-01',
+      }, () => true)
+    ).toThrow('ALREADY_REVERSED')
+  })
+})
+
+// ── Time-based filtering ───────────────────────────
+
+describe('Time-based filtering', () => {
+  type LogEntry = { at: string }
+
+  function entriesBefore(entries: LogEntry[], before: string): LogEntry[] {
+    const cutoff = new Date(before).getTime()
+    return entries.filter((e) => new Date(e.at).getTime() < cutoff)
+  }
+
+  function entriesAfter(entries: LogEntry[], after: string): LogEntry[] {
+    const cutoff = new Date(after).getTime()
+    return entries.filter((e) => new Date(e.at).getTime() > cutoff)
+  }
+
+  const entries: LogEntry[] = [
+    { at: '2026-01-01T10:00:00Z' },
+    { at: '2026-01-05T10:00:00Z' },
+    { at: '2026-01-10T10:00:00Z' },
+    { at: '2026-01-15T10:00:00Z' },
+  ]
+
+  it('entriesBefore filters correctly', () => {
+    expect(entriesBefore(entries, '2026-01-08T00:00:00Z')).toHaveLength(2)
+  })
+
+  it('entriesAfter filters correctly', () => {
+    expect(entriesAfter(entries, '2026-01-08T00:00:00Z')).toHaveLength(2)
+  })
+
+  it('a cutoff at the exact timestamp excludes the entry', () => {
+    expect(entriesBefore(entries, '2026-01-05T10:00:00Z')).toHaveLength(1)
+  })
+
+  it('an empty list stays empty', () => {
+    expect(entriesBefore([], '2026-01-01')).toEqual([])
+  })
+})
+
+// ── Payload inspection ─────────────────────────────
+
+describe('Payload inspection', () => {
+  function payloadKeys(payload: Record<string, any>): string[] {
+    return Object.keys(payload).sort()
+  }
+
+  function hasField(payload: Record<string, any>, field: string): boolean {
+    return field in payload
+  }
+
+  it('a rolloff claim payload contains rolloffId and claimedBy', () => {
+    const payload = { rolloffId: 'abc', claimedBy: 'person-1' }
+    expect(payloadKeys(payload)).toEqual(['claimedBy', 'rolloffId'])
+  })
+
+  it('a reversal payload contains reversedEntryId and originalAction', () => {
+    const payload = { reversedEntryId: 'abc', originalAction: 'ROLLOFF_CLAIMED' }
+    expect(hasField(payload, 'reversedEntryId')).toBe(true)
+    expect(hasField(payload, 'originalAction')).toBe(true)
+  })
+
+  it('an empty payload has no keys', () => {
+    expect(payloadKeys({})).toEqual([])
+  })
+})
+
+// The founder's first-day list, fault 19 (2026-11-13): the tab read
+// Automation over a log. The page is headed with what it is.
+import { readFileSync as readPage } from 'fs'
+import { ACTIVITY_LOG_TITLE, ACTIVITY_LOG_SUBTITLE, UNPROMPTED_PANEL_HEADING } from '@/app/dashboard/automation/words'
+
+describe('the activity log says what it is', () => {
+  const page = readPage('src/app/dashboard/automation/page.tsx', 'utf8')
+    .split('\n').filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l)).join('\n')
+
+  it('the activity log page is headed with what Etyme did and who asked, never "the system"', () => {
+    expect(ACTIVITY_LOG_TITLE).toBe('What Etyme did, and who asked')
+    expect(page).toContain('title={ACTIVITY_LOG_TITLE}')
+    expect(page).not.toMatch(/the system/i)
+  })
+
+  it('the line under the heading tells the activity log apart from the record of who read what', () => {
+    expect(ACTIVITY_LOG_SUBTITLE).toMatch(/access log/)
+  })
+
+  it('the panel of what Etyme does unprompted is headed What Etyme does without being asked', () => {
+    expect(UNPROMPTED_PANEL_HEADING).toBe('What Etyme does without being asked')
+    expect(page).toContain('{UNPROMPTED_PANEL_HEADING}')
+    expect(page).not.toMatch(/How far from a person/)
+  })
+
+  it('no loading, empty or refused line on the page says Automation', () => {
+    expect(page).not.toMatch(/automation log|automation entries/i)
+  })
+})
+
+describe('the activity log points to where the agents’ acts are listed', () => {
+  it('the log says the agents’ acts are on Agent control and links there, so an empty log never reads as nothing having happened', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { AGENTS_ELSEWHERE } = await import('@/app/dashboard/automation/words')
+    const page = readFileSync('src/app/dashboard/automation/page.tsx', 'utf8')
+    expect(AGENTS_ELSEWHERE).toMatch(/Agent control/)
+    expect(page).toContain("'/dashboard/decisions/agents'")
+    expect(page).not.toContain('Etyme has not done anything on its own yet.')
+  })
+})

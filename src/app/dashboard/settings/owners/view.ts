@@ -1,0 +1,79 @@
+import { roleWords } from '@/lib/access-grant'
+
+/**
+ * What Settings → Owners shows after a press, kept out of the page so it
+ * can be read as sentences (walk on the Owner rules, 2026-11-12).
+ */
+
+/** The addressed-only view, as much of it as this needs. */
+type AnyView = { company: string; addressedOnly?: boolean; asks: unknown[] } | null
+
+/**
+ * After a person answers an ownership ask, the next read can be refused:
+ * they were reading the page only because the ask was addressed to them,
+ * and it no longer waits. That refusal never replaces the page. The view
+ * becomes the addressed-only view with nothing waiting, so the route's own
+ * answer sentence stays on the screen.
+ */
+export function viewAfterRefusedRead<V extends AnyView>(prev: V): V | { company: string; addressedOnly: true; asks: [] } | null {
+  if (!prev) return null
+  return { company: prev.company, addressedOnly: true, asks: [] }
+}
+
+/**
+ * The move form's line and button, by whether the move needs a second
+ * Owner's yes. The new Owner moving the Owner who passed it to them to
+ * Admin does it alone (movesAloneAfterPass in lib/owner-rules), so nothing
+ * is asked and the form does not say it is.
+ */
+export function moveFormSays(input: { alone: boolean; subjectName: string | null; companyName: string; emailLeaves: boolean }): { line: string; button: string; pending: string } {
+  if (input.alone && input.subjectName) {
+    return {
+      line: `${input.subjectName} passed ${input.companyName}’s ownership to you, so you move them to Admin yourself. Nobody else is asked, and ${input.subjectName} is told ${input.emailLeaves ? 'by email' : 'in Ask Etyme'}.`,
+      button: 'Move them to Admin',
+      pending: 'Moving…',
+    }
+  }
+  return {
+    line: 'This needs the yes of an Owner who did not ask. Nothing changes until they answer, and you can withdraw it. The last Owner is never removed.',
+    button: 'Ask for their yes',
+    pending: 'Asking…',
+  }
+}
+
+/**
+ * How the person asked to take over hears of it. Email is promised only
+ * where it can leave this deployment (`mailLeaves`, read by the route that
+ * feeds the page, because a browser page never reads the environment);
+ * otherwise Ask Etyme alone (walk, 2026-11-14).
+ */
+export function passFormSays(emailLeaves: boolean): string {
+  return `They say yes on a card in Ask Etyme${emailLeaves ? ' and by email' : ''}. Nothing changes until then. Both changes then happen together.`
+}
+
+/**
+ * One person in a picker on Settings → Owners: the name, the address they
+ * sign in with, and then the role ("No role yet" for the Member role or
+ * none, `roleWords`) or "(you)". The address is what tells
+ * two records of one person apart, and a person from a firm whose record
+ * carries the firm's name (fix list, 2026-11-15).
+ */
+export function personOption(p: { name: string; email?: string | null; role?: string | null; you?: boolean }): string {
+  // The Member role, or none, reads "No role yet", as on Users & permissions.
+  const parts = [p.name, ...(p.email && p.email !== p.name ? [p.email] : []), ...(p.role !== undefined ? [roleWords(p.role)] : [])]
+  return `${parts.join(' · ')}${p.you ? ' (you)' : ''}`
+}
+
+/**
+ * Under the Owners picker, for the people it leaves out because they were
+ * invited and have not signed in here yet (2026-11-16): Users &
+ * permissions calls them Invited, not members, and the ask refuses them.
+ * Null where nobody is left out. Pure.
+ */
+export function notListedYetSays(people: readonly { name: string; email?: string | null }[]): string | null {
+  if (people.length === 0) return null
+  const names = people.map((p) => personOption({ name: p.name, email: p.email }))
+  const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  return `Not listed: ${list}, invited and not signed in here yet. They can be asked once they sign in.`
+}
+

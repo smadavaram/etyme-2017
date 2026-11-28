@@ -1,0 +1,238 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { readJson } from '@/lib/read-response'
+import { formatDay } from '@/lib/format-date'
+import { FormMessage } from '@/components/ui/form'
+import { Panel, Lbl } from './panel-bits'
+import { giveAccessBody, fieldsDrawn, type GiveAccessValues } from '@/lib/permission-grants/form'
+import { focusFromQuery } from '@/app/dashboard/access/focus'
+import { roleWords } from '@/lib/access-grant'
+
+/**
+ * "Give access", on Users & permissions (founder, 2026-11-08: "Owner
+ * should control who should see what … by team hierarchy or individual
+ * role or company as well").
+ *
+ * The form of `POST /api/settings/grants` and nothing more: what they may
+ * do, in plain words; who (a role, or one person here); how far (only the
+ * scopes the route offers for that permission); why. Below it, every grant
+ * with Revoke. The route decides and its sentence is shown as it is.
+ *
+ * Placed by the page's owner (regulatory) on `/dashboard/access`.
+ */
+
+interface Option { key: string; label: string; personOnly: boolean; scopes: string[] }
+interface Grant { id: string; says: string; reason: string; grantedBy: string; grantedAt: string; revokedBy: string | null; revokedAt: string | null }
+interface Data {
+  canGive: boolean
+  /** The catalog, the same list and number Settings → Roles counts against. */
+  permissions: Option[]
+  catalogCount?: number
+  /** The Owner's own right to let somebody give access to others: not one of the catalog's. */
+  ownerRight?: Option | null
+  scopes: { key: string; label: string }[]
+  roles: { id: string; name: string }[]
+  people: { contextId: string; name: string; roleName: string | null; state?: 'INVITED' | 'WAITING_FOR_ROLE' | 'WITH_ACCESS' | 'PAUSED' }[]
+  units: { id: string; name: string }[]
+  grants: Grant[]
+}
+
+const EMPTY: GiveAccessValues = { permission: '', who: '', scope: 'COMPANY', orgUnitId: '', reason: '' }
+const input = 'w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-etyme-raised'
+
+/**
+ * The reach a permission opens with when the page was opened for one team
+ * (?unit=, from "Give access to this team…" on Team structure): that team,
+ * where the permission can reach a team; else the whole company.
+ */
+export function reachWithTeam(scopes: readonly string[], unitId: string | null): { scope: string; orgUnitId: string } {
+  return unitId && scopes.includes('UNIT') ? { scope: 'UNIT', orgUnitId: unitId } : { scope: 'COMPANY', orgUnitId: '' }
+}
+
+export function GiveAccess() {
+  const [data, setData] = useState<Data | null>(null)
+  const [v, setV] = useState<GiveAccessValues>(EMPTY)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
+  const [refused, setRefused] = useState(false)
+  // "Give access to this team…" on Settings → Team structure opens this page
+  // with ?unit=<box> (2026-11-09): the team is chosen as the reach, and kept
+  // as the reach whichever permission is picked, where that permission can
+  // reach a team at all.
+  const [presetUnit, setPresetUnit] = useState<string | null>(null)
+
+  async function load() {
+    // A seat that may not read who holds what is shown nothing: the page
+    // around it already says what that seat can do, and a red box over a
+    // read it never asked for reads as something broken.
+    try {
+      const res = await fetch('/api/settings/grants')
+      if (!res.ok) { setData(null); setRefused(true); return }
+      setData((await res.json()).data)
+    } catch {
+      setRefused(true)
+    }
+  }
+  useEffect(() => { void load() }, [])
+  useEffect(() => {
+    // The page's own reader of the address, so a value that is not a plain
+    // id is ignored here exactly as it is for the scroll and the mark.
+    const { unit } = focusFromQuery(typeof window !== 'undefined' ? window.location.search : '')
+    if (unit) setPresetUnit(unit)
+  }, [])
+  useEffect(() => {
+    if (!presetUnit || !data) return
+    if (!data.units.some((u) => u.id === presetUnit)) { setPresetUnit(null); return }
+    setV((x) => ({ ...x, scope: 'UNIT', orgUnitId: presetUnit }))
+    document.getElementById('give-access')?.scrollIntoView({ block: 'start' })
+  }, [presetUnit, data])
+
+  const options = data ? [...data.permissions, ...(data.ownerRight ? [data.ownerRight] : [])] : []
+  const chosen = options.find((p) => p.key === v.permission) ?? null
+  const scopes = (data?.scopes ?? []).filter((s) => !chosen || chosen.scopes.includes(s.key))
+  const set = (patch: Partial<GiveAccessValues>) => { setV((x) => ({ ...x, ...patch })); setDone(null) }
+
+  async function give(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true); setError(null); setDone(null)
+    try {
+      const j = await readJson(await fetch('/api/settings/grants', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(giveAccessBody(v)),
+      }))
+      setDone(j.data.says)
+      setV(EMPTY)
+      await load()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function revoke(id: string) {
+    setBusy(true); setError(null); setDone(null)
+    try {
+      const j = await readJson(await fetch(`/api/settings/grants?id=${encodeURIComponent(id)}`, { method: 'DELETE' }))
+      setDone(j.data.says)
+      await load()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (refused || !data) return null
+  const live = data.grants.filter((g) => !g.revokedAt)
+  const past = data.grants.filter((g) => g.revokedAt)
+  const drawn = fieldsDrawn(v.scope)
+
+  return (
+    <div id="give-access">
+    <Panel title="Give access" subtitle="Let a role, or one person, do one more thing than their role allows. Every grant keeps who gave it, when and why.">
+      {data.canGive && (
+        <form onSubmit={give} className="space-y-3 max-w-xl mb-6">
+          <div>
+            <Lbl>What they may do</Lbl>
+            <select value={v.permission} onChange={(e) => {
+              const p = options.find((x) => x.key === e.target.value)
+              set({ permission: e.target.value, ...reachWithTeam(p?.scopes ?? [], presetUnit) })
+            }} className={input}>
+              <option value="">Choose one</option>
+              <optgroup label={`What any role can do (${data.catalogCount ?? data.permissions.length})`}>
+                {data.permissions.map((p) => <option key={p.key} value={p.key}>{p.label[0].toUpperCase() + p.label.slice(1)}</option>)}
+              </optgroup>
+              {data.ownerRight && (
+                <optgroup label="Only an Owner gives this">
+                  <option value={data.ownerRight.key}>{data.ownerRight.label[0].toUpperCase() + data.ownerRight.label.slice(1)}</option>
+                </optgroup>
+              )}
+            </select>
+          </div>
+          <div>
+            <Lbl>Who</Lbl>
+            <select value={v.who} onChange={(e) => set({ who: e.target.value })} className={input}>
+              <option value="">Choose a role or a person</option>
+              {!chosen?.personOnly && (
+                <optgroup label="A role: everybody in it">
+                  {data.roles.map((r) => <option key={r.id} value={`role:${r.id}`}>{r.name}</option>)}
+                </optgroup>
+              )}
+              <optgroup label="One person">
+                {data.people.map((p) => (
+                  <option key={p.contextId} value={`person:${p.contextId}`}>{whoOptionLabel(p)}</option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+          <div>
+            <Lbl>How far</Lbl>
+            <select value={v.scope} onChange={(e) => set({ scope: e.target.value, orgUnitId: '' })} className={input}>
+              {scopes.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+          </div>
+          {drawn.includes('orgUnitId') && (
+            <div>
+              <Lbl>The team</Lbl>
+              <select value={v.orgUnitId} onChange={(e) => set({ orgUnitId: e.target.value })} className={input}>
+                <option value="">Choose a team</option>
+                {data.units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div>
+            <Lbl>Why</Lbl>
+            <input value={v.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="She runs the Dayton account and reviews its margin monthly" className={input} />
+          </div>
+          {error && <FormMessage tone="error">{error}</FormMessage>}
+          {done && <FormMessage tone="ok">{done}</FormMessage>}
+          <button type="submit" disabled={busy} className="btn-primary disabled:opacity-50">{busy ? 'Saving…' : 'Give access'}</button>
+        </form>
+      )}
+      {live.length === 0 ? (
+        <p className="text-[14px] text-etyme-muted">Nobody holds anything beyond their role.</p>
+      ) : (
+        <ul className="divide-y divide-etyme-rule">
+          {live.map((g) => (
+            <li key={g.id} className="py-3 flex flex-wrap items-start justify-between gap-3">
+              <div className="text-[14px] text-etyme-ink">
+                <p>{g.says}</p>
+                <p className="text-[13px] text-etyme-muted">Given by {g.grantedBy}, {formatDay(g.grantedAt)}. Why: {g.reason}</p>
+              </div>
+              {data.canGive && (
+                <button type="button" className="btn-secondary text-[13px]" disabled={busy} onClick={() => revoke(g.id)}>Revoke</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {past.length > 0 && (
+        <details className="mt-4 text-[13px] text-etyme-muted">
+          <summary>Taken away ({past.length})</summary>
+          <ul className="mt-2 space-y-1">
+            {past.map((g) => <li key={g.id}>{g.says} Taken away by {g.revokedBy ?? 'somebody no longer here'}, {formatDay(g.revokedAt!)}.</li>)}
+          </ul>
+        </details>
+      )}
+    </Panel>
+    </div>
+  )
+}
+
+/**
+ * One person in the WHO picker: the name, the role, and the state beside
+ * them, so an invited or paused person is never read as somebody who has
+ * access today. A person holding the Member role, or no role, reads
+ * "No role yet", the words Users & permissions and the menu's foot say of
+ * the same person (`roleWords`; batch four walk, 2026-11-15, where one
+ * person read "· Member" here and "No role yet" everywhere else).
+ */
+export function whoOptionLabel(p: { name: string; roleName: string | null; state?: string }): string {
+  const state =
+    p.state === 'INVITED' ? ' · invited'
+      : p.state === 'PAUSED' ? ' · paused'
+        : ''
+  return `${p.name} · ${roleWords(p.roleName)}${state}`
+}

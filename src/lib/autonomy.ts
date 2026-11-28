@@ -1,0 +1,1933 @@
+/**
+ * How much we do unprompted, said in the words a buyer is already being
+ * taught.
+ *
+ * ── Why this exists ──────────────────────────────────────────────────
+ *
+ * Every enterprise buyer evaluating an agentic product right now is asking
+ * where it sits on an autonomy ladder: Observe, Recommend, Draft, Execute
+ * (low risk), Execute (with approval), Fully autonomous (within policy). We
+ * already had the behavior and no word for it, so a procurement officer
+ * asking "what autonomy level is your auto-approval?" got a paragraph
+ * instead of a level and a log.
+ *
+ * This file is not a capability. Nothing here decides anything. It is a
+ * name for what `AutomationLog` already records, and the only new thing
+ * it adds is the obligation to keep the naming complete.
+ *
+ * ── Three axes, not one ──────────────────────────────────────────────
+ *
+ * `AutomationLog` is doing three jobs, and folding them together would
+ * produce a table that looks rigorous and means nothing:
+ *
+ *   UNPROMPTED   The system did this and nobody asked. Only these have a
+ *                rung on the ladder.
+ *   ENFORCEMENT  The system decided what a person was allowed to do —
+ *                refused, warned, or let through. Governance, not
+ *                autonomy: a BLOCK on a tenure limit is aimed at
+ *                somebody who asked for something.
+ *   ATTRIBUTED   A person did this and the row is the record that they
+ *                did. Far more of these than of either other kind, and
+ *                that is the finding: most of what is in the automation
+ *                log is an audit trail of human acts, not automation.
+ *                Giving those a rung would inflate every claim we make.
+ *
+ * How many of each there are is counted below in `TALLY`, never written
+ * into this prose. The prose said thirteen, three and eighty-two, and
+ * also eighty-four in one heading and fourteen jobs where there were
+ * fifteen — three numbers disagreeing with each other and all of them
+ * wrong, because a count in a sentence is stale the first time somebody
+ * adds a row and does not reread the paragraph above it.
+ *
+ * ── Derived, not stored ──────────────────────────────────────────────
+ *
+ * A rung is a property of the KIND of action, so storing it per row lets
+ * two rows of the same action disagree, and there is no reading of that
+ * disagreement that is true.
+ *
+ * The counter-argument is the one made for `appliedBps` — that a later
+ * reader should see the value that applied at the time. It fails here.
+ * `appliedBps` is a term a counterparty agreed to on a day; an autonomy
+ * level is our own description of our own behavior. If we relabel one, we
+ * described it wrong before, and we want every historical row to read the
+ * corrected level. Derive gives that for free. Store would need a
+ * migration and would leave the old rows lying.
+ *
+ * The honest exception proves the rule: whether a MODEL or a RULE did the
+ * work genuinely varies run to run, because the match engine falls back
+ * to arithmetic when there is no API key. So that is read from the row,
+ * never derived. What we assert about the action is derived; what
+ * actually happened on the day is read.
+ *
+ * ── Honesty about rules ──────────────────────────────────────────────
+ *
+ * Most of what we do unprompted is a date comparison. `cron/end-contracts`
+ * is fully autonomous and is also `endDate < today`. Both are true and the
+ * surface says both, because a ladder that made that row look like machine
+ * judgment would not survive one technical buyer.
+ *
+ * Owned by etyme-architect (`lib/autonomy` in `lib/domains.ts`).
+ * Held true by `__tests__/invariants/autonomy.test.ts`, which fails when
+ * an action or a scheduled job is written without a place here.
+ */
+
+// ── The ladder ───────────────────────────────────────
+
+export type Rung = 'L0' | 'L1' | 'L2' | 'L3' | 'L4' | 'L5'
+
+export const RUNGS: Rung[] = ['L0', 'L1', 'L2', 'L3', 'L4', 'L5']
+
+export interface Level {
+  rung: Rung
+  /** The name the buyer has already been taught. Do not improve on it. */
+  name: string
+  /** What it means, to somebody who has never read a ladder. */
+  says: string
+}
+
+export const LADDER: Record<Rung, Level> = {
+  L0: {
+    rung: 'L0',
+    name: 'Observe',
+    says: 'It looked, and it told somebody. It changed nothing.',
+  },
+  L1: {
+    rung: 'L1',
+    name: 'Recommend',
+    says: 'It suggested something and waited. Nothing happened until a person acted.',
+  },
+  L2: {
+    rung: 'L2',
+    name: 'Draft',
+    says: 'It prepared the work and put it in front of somebody to finish.',
+  },
+  L3: {
+    rung: 'L3',
+    name: 'Execute (low risk)',
+    says: 'It did it on its own. No money moved, and it can be put back.',
+  },
+  L4: {
+    rung: 'L4',
+    name: 'Execute (with approval)',
+    says: 'It did it on its own because this company had already agreed, in a setting, that it should.',
+  },
+  L5: {
+    rung: 'L5',
+    name: 'Fully autonomous (within policy)',
+    says: 'It did it on its own, with a real consequence, because a written rule said the day had come.',
+  },
+}
+
+// ── What kind of row this is ─────────────────────────
+
+export type ActKind = 'UNPROMPTED' | 'ENFORCEMENT' | 'ATTRIBUTED'
+
+/** The three ways a governance decision can land. Never silently permit. */
+export type Outcome = 'BLOCK' | 'WARN' | 'PERMIT'
+
+/**
+ * What decided it.
+ *
+ *   RULE      Deterministic. A date, a threshold, a count.
+ *   RECORDED  Could have been either, and the row says which — or admits
+ *             it does not know. Never guessed.
+ */
+export type Basis = 'RULE' | 'RECORDED'
+
+export type Act =
+  | { kind: 'UNPROMPTED'; rung: Rung; basis: Basis; says: string }
+  | { kind: 'ENFORCEMENT'; outcome: Outcome; basis: Basis; says: string }
+  | { kind: 'ATTRIBUTED'; basis: Basis }
+
+// ── The things we do that nobody asked for ─────────────
+
+const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
+  DUE_CYCLES_SCAN: {
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'Every night it reads which cycles fall due inside a week and tells whoever owns them. It moves nothing.',
+  },
+  VISA_WATCH: {
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'Every night it counts the days to a petition’s milestones and tells somebody at ninety, sixty and thirty. It files nothing.',
+  },
+  TIMESHEET_HELD_FOR_PERSON: {
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'It could have approved this week on its own and chose not to, and said why. Holding it back is the whole act.',
+  },
+  CERTIFICATION_LAPSED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'Every night it marks a held certification lapsed the day after its expiry date, so it is never claimed past it. The Owner records it as held again with a new certificate.',
+  },
+  PROACTIVE_MATCH: {
+    rung: 'L1',
+    basis: 'RECORDED',
+    says: 'It scored people against an open job nobody had matched yet. Scores only — nobody is submitted until a recruiter does it.',
+  },
+  LEARNING_PATH_PROPOSED: {
+    rung: 'L1',
+    basis: 'RULE',
+    says: 'A learning path was drafted for a worker, from her record or from the goal she stated. It is not live until its mentor says yes.',
+  },
+  ROLLOFF_SCAN: {
+    rung: 'L2',
+    basis: 'RULE',
+    says: 'A contract ending inside eight weeks gets a rolloff opened for it, ready for somebody to work. That person decides what happens to the worker.',
+  },
+  EMAIL_INTAKE_SORTED: {
+    rung: 'L2',
+    basis: 'RULE',
+    says:
+      'An email a person seated at the company forwarded to its own address passed the checks, and was sorted by rules into a draft for a person to say yes or no to. Nothing in it became a record, and nothing it said was done.',
+  },
+  EMAIL_INTAKE_BODY_DELETED: {
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A forwarded email\u2019s text, and any file not filed as evidence, was deleted because its card was decided or nobody decided it in thirty days. The row saying it came in stays. It cannot be put back.',
+  },
+  DEMO_SANDBOX_EXPIRY_WARNED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'A visitor\u2019s demo sandbox has not been used for twenty-three days, so whoever left an address in it was told the day it goes and that opening it keeps it. It deletes nothing.',
+  },
+  COURSE_DOOR_CONFIRMATION: {
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Somebody ticked the yes at the free course door, so the one confirmation email was sent to that address, with the link that ends it. One per address, ever, and a sent email cannot be put back.',
+  },
+  COURSE_DOOR_CONFIRMATION_FAILED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'The one confirmation email for the free course door did not leave, so Etyme\u2019s staff were told. It is not tried again, so a failing sender cannot send twice.',
+  },
+  DEMO_SANDBOX_REMOVED: {
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'A visitor\u2019s demo sandbox nobody used for thirty days was deleted, with every company in it. Only a visitor\u2019s own sandbox is ever touched, never the demo world or a real company, and it cannot be put back.',
+  },
+  CENSUS_CLOCK_WARNED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A census is close to the day its data is deleted, or close to the five working days the client was promised a page in, so the named person at Etyme was told. Once a day, not once a run. It deletes nothing, sends the client nothing, and writes no page.',
+  },
+  DOCUMENT_LAPSE_TOLD: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A document a line depends on ran out, or is about to, and every party the lapse actually costs was told — the firm that owes it, the firm that is exposed by it, and nobody else. It changed nothing and stopped nothing; it is the letter that goes before the block.',
+  },
+  CENSUS_DELETED: {
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A client sent us their contractor data, we sent back the page, the days the agreement named passed and no program started — so it was deleted, with nobody asked, on the day they were told in writing it would be. The files are gone; what is left is the row saying how many there were and when they went. Nothing puts this back.',
+  },
+  CENSUS_DELETION_CANCELLED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'A census became a program, so the deletion due on it was called off and the reason recorded. It keeps data rather than destroying it, and the date can be put back on with one change — which is why it is not beside the deletion at the top of the ladder even though it is the same clock.',
+  },
+  REQUISITION_ROUTED: {
+    rung: 'L2',
+    basis: 'RULE',
+    says: 'It worked out who has to sign this job request and put it in front of each of them. Every decision is still a person’s.',
+  },
+  BENCH_STAY_ENDED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'A person chose how long to stay on a bench, and that time ran out, so the listing ended by itself: they are out of every match and nobody can put them forward through it. Submissions already made stand. Renewing in one tap brings it back.',
+  },
+  BENCH_STAY_REMINDED: {
+    rung: 'L1',
+    basis: 'RULE',
+    says: 'A person was told their chosen stay on a bench ends soon, with a link that renews it in one tap. It tells them and changes nothing.',
+  },
+  INVITATIONS_EXPIRED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'An invitation nobody answered by the date on it is marked expired. The job can be sent out again.',
+  },
+  OPENINGS_COLD: {
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'A seat nobody has advertised in six weeks is marked cold, so it stops reading as live work. Advertising it again warms it.',
+  },
+  PACKET_REOPENED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'A document that has run out — or that leaves weeks uncovered between one policy ending and the next ' +
+      'beginning — is asked for again, from the company that owes it. Asking is all it does.',
+  },
+  CREDENTIAL_ASK_WITHDRAWN: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'A request to a worker for a license renewal, raised by a firm that is not the one that asks this person ' +
+      'for paperwork, is withdrawn, so she is asked once and by the right firm. It can be put back.',
+  },
+  WEBHOOK_DISABLED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'A webhook whose receiver stopped answering is switched off after repeated failures. Switching it back on is one click.',
+  },
+  SETUP_STARTED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'A supplier claimed the record a client had already written for it, so when its owner first opened setup the first step, the company, was marked done from that record and the steps opened at how the firm works. No money moved and nothing about the company was changed. The mark can be put back: the owner can return to that step and answer it again. What is not undone is the fact that setup began — that stays recorded, with the time.',
+  },
+  OWN_SEAT_OPENED: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'Somebody signed in whom no firm had seated, so they were given a seat of their own: it opens their own work and nothing else, at no company and with no permission. No money moved, and the seat can be taken back.',
+  },
+  TIMESHEET_ACCEPTED_ON_SIGNATURE_ABOVE: {
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'The worker is her own one-person firm, and nobody accepts their own week, so the signature of the firm above her was recorded as her firm\u2019s acceptance instead of asking her. Nobody was asked or told. It can be withdrawn on the ledger with the signature it rests on.',
+  },
+  TIMESHEET_AUTO_APPROVED: {
+    rung: 'L4',
+    basis: 'RULE',
+    says: 'This week was approved because nobody answered it in time and this client had already agreed, in writing, that silence counts as approval.',
+  },
+  REQUISITION_AUTO_CLEARED: {
+    rung: 'L4',
+    basis: 'RULE',
+    says: 'This job request published itself because it sat inside the plan already approved — every approver cleared by rule and by name, nobody signing their own.',
+  },
+  AGREEMENT_TERM_WATCH: {
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Every night it reads the end date on every agreement, marks the ones running out, rolls forward the ones whose own paper says they renew themselves, and tells the contract manager at ninety, sixty and thirty days. Rolling a term forward changes what a firm is trading under, and it happens because a written agreement said the day had come.',
+  },
+  CONTRACTS_ENDED: {
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'A contract whose last day has passed is ended, both sides, with nobody asked. It is a date comparison, and it is what break-in-service and tenure are counted from.',
+  },
+  ERASURE_COMPLETE: {
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'Somebody asked to be forgotten and the last thing standing in the way came free, so it finished on its own: the identity is a tombstone on a domain nothing can be sent to, and the work they did is still on the record under nobody’s name. Nothing puts this back.',
+  },
+  RETENTION_HELD: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'Records were due for deletion and were left alone, because a legal hold names the person or the company they belong to. Not deleting is the whole act, and the reason the hold gave is recorded with it.',
+  },
+  RETENTION_DELETE: {
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A record whose retention period has run out is deleted, with nobody asked, because a written schedule said the day had come. It cannot be put back. It is a date comparison, and the consequence is permanent — which is why it is at the top of the ladder and not beside ending a contract.',
+  },
+  DATA_REQUEST_CLOCK_WARNED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A request for somebody’s data falls due inside a day and nobody has answered it, so staff were told. It answers nothing itself.',
+  },
+  BREACH_CLOCK_WARNED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A deadline for telling an authority, a customer or the people whose data it was falls inside a day, so staff were told. Once a day, not once a run, and it sends no notice itself — a notice about a breach is written by a person.',
+  },
+  BREACH_CLOCK_MISSED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A deadline passed with no notice recorded against it. It is said out loud, every night, until somebody records the notice or closes the breach — a missed clock that stops being mentioned is a missed clock nobody fixes.',
+  },
+
+  // ── The program manager's twin, 2026-10-12 ───────────────────────────
+  //
+  // A twin is a headless agent working in a human role under a role
+  // contract (src/lib/twin). Its own ledger (`TwinAction`) holds the
+  // detail — which act, on whose authority, under which rule. These rows
+  // are the same acts on the ladder, so a buyer asking "how autonomous is
+  // your agent" reads the same levels as for everything else.
+  TWIN_NOTED: {
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'The program manager\u2019s twin read the record and wrote what it found into its own ledger — a time-limit warning, once per tier. It told nobody and changed nothing.',
+  },
+  TWIN_TOLD: {
+    rung: 'L0',
+    basis: 'RECORDED',
+    says:
+      'The program manager\u2019s twin told a person at its own company something the record shows — a check that did not match, a reminder, a time-limit warning. It changed nothing on the record, and a message once sent cannot be unsent.',
+  },
+  TWIN_DREW_UP: {
+    rung: 'L2',
+    basis: 'RECORDED',
+    says:
+      'The program manager\u2019s twin wrote up a summary and left it in its ledger for a person to read. Nothing on the record moved; the draft is all it did.',
+  },
+  TWIN_APPROVAL_REQUESTED: {
+    rung: 'L1',
+    basis: 'RULE',
+    says:
+      'The program manager\u2019s twin would have done something its role contract keeps for a person, so it asked the person who decides and waited. Nothing happens unless that person says yes.',
+  },
+}
+
+// ── The things that are governance, not autonomy ─────────
+
+const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string }> = {
+  // A payment the rules refused (lib/money/payment-refused), written by
+  // every door that pays, before the refusal is said.
+  PAYMENT_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'A person tried to pay an invoice receipt or release a payment run and was refused in a sentence: the three-way check did not pass, the supplier\u2019s bank details were not checked, or the company was still waiting for a verified Owner. Nothing was paid, and the refusal is kept like any other.',
+  },
+  EMAIL_INTAKE_DROPPED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'A message sent to a company\u2019s forwarding address was dropped and never shown: the intake was off, the sender was not proven or not seated there, or a file was not what it claimed. A refusal, not something the system chose to do.',
+  },
+  AWARD_BLOCKED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'Somebody tried to place a person and was refused, for a reason with a law behind it. This is a refusal aimed at a person who asked — it is not something the system did on its own.',
+  },
+  SUBMISSION_OFF_BAND: {
+    outcome: 'WARN',
+    basis: 'RULE',
+    says: 'Somebody submitted outside the rate band, was warned, gave a reason and went ahead. Warned and recorded, never silently permitted.',
+  },
+  // Demand's two warnings at submission, 2026-10-06
+  // (app/api/submissions/time-limit.ts, work-authorization.ts). Past the
+  // limit or inside its break is a BLOCK and needs no row here.
+  SUBMISSION_TIME_LIMIT_WARNED: {
+    outcome: 'WARN',
+    basis: 'RULE',
+    says: 'Somebody put a person forward for a job that would run past the client\u2019s time limit for them. The submission went through with a reason captured, because the job can end early or the limit can be met by a break; the day it would cross is on the row.',
+  },
+  SUBMISSION_WORK_AUTH_WARNED: {
+    outcome: 'WARN',
+    basis: 'RULE',
+    says: 'Somebody put a person forward whose work authorization is not on file or runs out during the job. The submission went through with the warning recorded; nobody starts without it, which is where the block is.',
+  },
+  SUBMISSION_LICENSE_WARNED: {
+    outcome: 'WARN',
+    basis: 'RULE',
+    says: 'Somebody put a person forward for a job that needs a license, and no current license is on file for them. The submission went through with the reason they gave recorded beside the warning.',
+  },
+  HOLIDAY_ADD_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'Somebody tried to put a day off on a calendar that is not theirs to change, and was refused. A day on a calendar moves the pay days behind it, so this is a refusal with money on the other side of it — and it is aimed at a person who asked, which is why it has no level.',
+  },
+  HOLIDAY_REMOVE_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'Somebody tried to take a day off a calendar that is not theirs to change, and was refused. Removing a day moves a pay day back onto a weekend as surely as adding one moves it off, so the refusal is recorded rather than only said.',
+  },
+  // A seat that may not change payroll asked to move the first pay
+  // period's first day (lib/payroll-settings `recordFirstDayRefused`,
+  // 2026-11-14). The row says the day as it stands and the day asked for.
+  PAY_FIRST_DAY_CHANGE_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says: 'Somebody who may not change payroll tried to move the first day of the first pay period, and was refused. Every pay day after it is counted from that day, so the refusal is recorded rather than only said.',
+  },
+  COLLEAGUE_JOINED: {
+    outcome: 'PERMIT',
+    basis: 'RULE',
+    says: 'Somebody was let into this company without an admin approving them, because their work email is on a domain this company had already claimed. A permit is a governance decision and is logged like a refusal.',
+  },
+  DATA_REQUEST_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says:
+      'Somebody asked for a person’s data or for them to be forgotten and was refused — they are not the person, or not the company that holds the record. A refusal aimed at somebody who asked carries no autonomy level, and it is logged as carefully as a grant.',
+  },
+  GOOD_STANDING_LAPSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says:
+      'A supplier’s certificate of good standing has expired, so the state that registered it no longer says it may trade — nobody starts through it and no new line is raised against it until it is renewed. The same shape as lapsed cover, and for the same reason: it is the firm’s standing to contract at all, not a preference a client is expressing.',
+  },
+  NDA_UNSIGNED_WARNED: {
+    outcome: 'WARN',
+    basis: 'RULE',
+    says:
+      'A non-disclosure agreement this line requires is still unsigned, and the start proceeds with the reason captured and whoever owes the signature told. It warns rather than blocks because a signature page is contractual rather than legally grounded, and a system that stops work over one gets worked around by email.',
+  },
+  // The twin asked to do something its role contract never allows, or
+  // something it may not do because it asked for it itself. Refused in a
+  // sentence and kept, like any other refusal.
+  TWIN_REFUSED: {
+    outcome: 'BLOCK',
+    basis: 'RULE',
+    says:
+      'The program manager\u2019s twin tried something its role contract never allows — releasing pay, signing an agreement, deciding a placement, reading another company\u2019s data, or approving what it asked for itself — and was refused in a sentence. The refusal is aimed at the twin, and it is kept like any other.',
+  },
+}
+
+// ── The things a person did ─────────────────────────
+//
+// The row already carries a plain-English summary and reason written by
+// the code that made it, so there is nothing to add here but the fact
+// that a person is behind it — and, where it matters, what did the work.
+//
+// ── Weight is not autonomy, and neither is money ─────
+//
+// Writing a client's debt off and advising a client to stop work are two
+// of the heaviest things this product does to a counterparty, and both
+// are here with no rung, because a person on a credit desk pressed the
+// button. The argument for promoting them is that they feel too
+// consequential to sit beside a change of address. The argument against
+// is that a rung answers "who started this", and answering a different
+// question with it would make the ladder mean two things at once. How
+// heavy an act is is already carried by `reversible` and by the row's
+// own summary. If we ever need to rank acts by consequence that is a
+// fourth axis with a name of its own, not a rung.
+
+const ATTRIBUTED: Record<string, { basis: Basis }> = {}
+const RULE_ATTRIBUTED = [
+  'ACCESS_GRANTED', 'ACCESS_REINSTATED', 'ACCESS_REVOKED',
+  'ACCESS_SUSPENDED', 'ADDRESS_CHANGED', 'AGREEMENT_AMENDED',
+  'AGREEMENT_ENDED', 'AGREEMENT_SIGNED', 'ALUMNI_ASK_BACK',
+  'API_KEY_ISSUED', 'API_KEY_REVOKED', 'APPROVAL_RULE_CREATED',
+  'APPROVAL_RULE_DEACTIVATED', 'BENCH_CONSENT_DECLINED', 'BENCH_CONSENT_GIVEN',
+  'BENCH_LISTING_GRANTED', 'BENCH_LISTING_REQUESTED', 'BENCH_LISTING_REVOKED',
+  'BENCH_STAY_CHANGED', 'BENCH_STAY_RENEWED', 'SUPPLIER_ASKED_FROM_MATCH',
+  'BENCH_PAY_POLICY_CHANGED', 'BENCH_HOLIDAY_PAY_SWITCHED',
+  'BLACKLIST_ADD', 'BLACKLIST_LIFT', 'BREACH_CLOSED',
+  'BREACH_NOTICE_SENT', 'BREACH_OPENED', 'CANDIDATE_AWARDED',
+  'CLIENT_LISTED', 'CLIENT_CONTACT_RECORDED', 'CLIENT_CONTACT_REMOVED', 'COLLECTIONS_FACTORED', 'COLLECTIONS_OWNER_ASSIGNED',
+  'COLLECTIONS_PROMISE_MADE', 'COLLECTIONS_STOP_WORK_ADVISED', 'COLLECTIONS_WRITTEN_OFF',
+  'COMMISSION_RUN', 'COMPANY_CREATED', 'COMPANY_SETTINGS_CHANGED',
+  'CONSULTANT_CREATED', 'CONTRACT_ACTIVATED', 'CONTRACT_CANCELLED',
+  'CONTRACT_COMPLETED', 'CONTRACT_CREATED', 'CONTRACT_EXTENDED',
+  'CONTRACT_PAUSED', 'CONTRACT_RESUMED', 'CONTRACT_VERIFICATION_REQUESTED',
+  'CREDIT_LIMIT_CHANGED', 'CREDIT_LIMIT_SET', 'CUSTOM_DOMAIN_ADDED',
+  'CUSTOM_DOMAIN_REMOVED', 'DATA_ERASURE_REQUESTED', 'DATA_EXPORT_REQUESTED',
+  'DATA_REQUEST_ANSWERED', 'DOCUMENTS_SHARED',
+  'DOCUMENT_SHARE_REVOKED', 'DOMAIN_CLAIMED',
+  'DUNNING_SENT', 'EXPENSE_APPROVED', 'EXPENSE_REJECTED',
+  'EXPENSE_SUBMITTED', 'HOLIDAYS_ADDED', 'HOLIDAY_REMOVED',
+  'IMPORT_COMMITTED', 'INTERVIEW_ACCEPTED', 'INTERVIEW_DECLINED',
+  'INVITATION_ACCEPTED', 'INVITATION_COPIED', 'INVITATION_DECLINED', 'INVITATION_SENT_AGAIN', 'INVITATION_WITHDRAWN',
+  'INVOICE_GENERATED', 'INVOICE_HELD', 'INVOICE_HOLD_LIFTED', 'INVOICE_MATCH_OVERRIDDEN', 'INVOICE_MATCH_OVERRIDE_WITHDRAWN',
+  'INVOICE_SUBMITTED', 'LEADS_READ', 'LEAD_KEPT_APART_BY_PERSON',
+  'LEAD_MERGED_BY_PERSON', 'LEGAL_HOLD_LIFTED', 'LEGAL_HOLD_PLACED',
+  'OPENING_WRITTEN_UP', 'ORDER_LOCKED', 'ORDER_SETTLED',
+  'ORDER_UNLOCKED', 'OUTBOUND_PACK_SENT', 'OVERTIME_METHOD_CHOSEN', 'CUT_OVERTIME_CHOSEN', 'OWN_DOCUMENT_RECORDED',
+  'PACKET_REQUESTED', 'PAYMENT_RECORDED', 'PAYROLL_OFF_CYCLE',
+  'PAYROLL_RUN', 'PERSON_INVITED', 'PERSON_RENAMED', 'PLACEMENT_CONVERTED',
+  'PLACEMENT_REPLACED', 'PURCHASE_ORDER_CHANGED', 'PURCHASE_ORDER_RAISED',
+  'RATE_AMENDMENT_APPROVED', 'RATE_AMENDMENT_REJECTED', 'REMIT_TO_ADDED',
+  'REMIT_TO_CHANGED', 'REQUIREMENT_STATUS_CHANGED', 'REQUISITION_APPROVED',
+  'REQUISITION_CANCELLED', 'REQUISITION_CHANGED', 'REQUISITION_CHANGES_REQUESTED',
+  'REQUISITION_DISTRIBUTED', 'REQUISITION_REJECTED', 'RESERVE_FORFEIT',
+  'RESERVE_PAY_OUT', 'REVERSAL', 'ROLE_PERMISSIONS_CHANGED',
+  'ROLLOFF_CLAIMED', 'ROLLOFF_INITIATED', 'ROLLOFF_RESOLVED',
+  'SUBMISSION_STATUS_CHANGED', 'SUPPLIER_APPROVED', 'SUPPLIER_DECLINED',
+  'SUPPLIER_ITEM_MARKED', 'SUPPLIER_RECORDS_JOINED', 'TEMPLATE_PACK_APPLIED', 'TIMESHEET_APPROVED',
+  // A person took a claim link while already running the firm on that
+  // domain; the rule folds the client's record into her firm rather than
+  // seating her on a second one (claimOrJoin, 2026-10-27). She started it,
+  // so it has no rung; the row says why and that it cannot be undone.
+  'FIRM_JOINED',
+  // Staff ran the carry-over of old bank checks by hand (record 87,
+  // 2026-11-17, scripts/bank-check-carry-over.ts): a check the record
+  // already placed with one payer is written as that payer's own. A
+  // person's act, never scheduled; the row says which record named it.
+  'BANK_CHECK_CARRIED_OVER',
+  // The Owner changed what kind of company this is (a client, a supplier,
+  // a one-person firm) from settings (2026-11-02). Her own act; the row
+  // says from what to what, and she can change it back.
+  'COMPANY_TYPE_CHANGED',
+  // The Owner, or somebody the Owner gave the right to by name, gave a
+  // permission to a role or a person, or took one away, on Users &
+  // permissions (2026-11-08). A person's own act, recorded like a role edit.
+  'PERMISSION_GRANTED', 'PERMISSION_REVOKED',
+  // Who owns the company (founder, 2026-11-11): an Owner asked to pass
+  // ownership or to remove or move an Owner; a second person said yes or
+  // no, or the asker withdrew; ownership passed with both changes in one
+  // step; an Owner removed or moved on another Owner's yes; the Owner
+  // narrowed the Admin role to people and settings; somebody holding both
+  // proofs became the Owner; a Superadmin recorded a provider's identity
+  // check. Every one a person's own act; none has a rung.
+  'OWNERSHIP_ASKED', 'OWNERSHIP_DECLINED', 'OWNERSHIP_WITHDRAWN', 'OWNERSHIP_PASSED',
+  'OWNER_REMOVED', 'OWNER_MOVED', 'ADMIN_NARROWED', 'OWNER_VERIFIED', 'OWNER_PROOF_RECORDED',
+  'TIMESHEET_REJECTED', 'WEBHOOK_ADDED', 'WORK_ORDER_RECORDED',
+  // A person said what a company on their own list is to them (founder,
+  // 2026-11-12): extended it to Supplier or Customer, took one of those
+  // off, or said what kind of company a firm they recorded is. Their own
+  // act; the row says the position or the kind. A position is undone on
+  // Companies, never from the log (UNDONE_ON_COMPANIES, 2026-11-15).
+  'COMPANY_EXTENDED', 'COMPANY_POSITION_REMOVED', 'COMPANY_KIND_SET',
+  // A person corrected the name, the typed domain or the entity type of a
+  // company they recorded and nobody has claimed (2026-11-15). Their own
+  // act; the row says what changed from what to what, and it can be
+  // changed back the same way.
+  'COMPANY_RECORD_EDITED',
+  // A person added somebody to their own firm's Contacts by hand, at a
+  // company on its list or at the firm itself (2026-11-15). Their own act;
+  // nothing is sent and no login is made. No remove exists, so the row
+  // says it cannot be undone.
+  'CONTACT_RECORDED',
+  // The Owner or an Admin moved the first day of the first pay period
+  // (2026-11-14). Their own act; the row says the old day and the new
+  // day, and setting the old day again puts the periods back.
+  'PAY_FIRST_DAY_CHANGED',
+  // A payroll seat moved a pay window an extension made before 2026-11-16 left at the
+  // first end, and her row on the pay line, to the placement's end (lib/money/window-repair).
+  // Their own act; the row says from and to, and nothing undoes it.
+  'PAY_WINDOW_REPAIRED',
+  'VENDOR_NUMBER_CHANGED',
+  'CONTRACT_CODING_CHANGED',
+  'PUBLIC_PAGE_PEOPLE_CHANGED',
+  // A person added somebody as the firm's own W-2 employee from Add
+  // consultant (2026-11). Their own act: the employment is the consent, so
+  // no bench listing is made, and the row says who added whom.
+  'EMPLOYEE_ADDED',
+]
+for (const a of RULE_ATTRIBUTED) ATTRIBUTED[a] = { basis: 'RULE' }
+
+// A person pressed the button, but a model may have done the work — and
+// which one it was changes run to run, so the row has to say.
+// The four census acts that are somebody's own, and not ours. A client
+// asks, their legal accepts by name, they upload, and a named person at
+// Etyme sends the page: none of that is automation and all of it has to
+// be on the record, because the whole design is a promise in writing
+// about what happens to a file somebody sent us. `RECORDED` rather than
+// `RULE` because what the row says is read back off what actually
+// happened — which edition was accepted, how many files arrived, how
+// many gaps were named — rather than derived from a rule this file
+// holds.
+// A client approving a week outside Etyme (lib/week-approval). Somebody
+// asked for each: the worker or a supplier's desk sent the link, the
+// client's approver pressed Approve or Send back on it, or evidence of an
+// approval given by email was attached naming who gave it. `RECORDED`,
+// because the row says what the approver did, read back off the link or
+// the evidence, rather than anything this system decided.
+ATTRIBUTED.WEEK_APPROVAL_LINK_SENT = { basis: 'RECORDED' }
+// With no email set up, the link went back to the person who asked for it
+// (api/week-approvals/hand-back): the row records what that person asked.
+ATTRIBUTED.WEEK_APPROVAL_LINK_HANDED_BACK = { basis: 'RECORDED' }
+ATTRIBUTED.TIMESHEET_APPROVED_BY_EMAIL = { basis: 'RECORDED' }
+ATTRIBUTED.TIMESHEET_SENT_BACK_BY_EMAIL = { basis: 'RECORDED' }
+// Staff ran a one-off by hand with the CRON_SECRET
+// (POST /api/staff/backfill-claimed-at): a person pressed it, and the rule
+// in claimSignedUpFirms decided which firms it marked.
+ATTRIBUTED.SIGNED_UP_FIRMS_CLAIMED = { basis: 'RULE' }
+ATTRIBUTED.CENSUS_REQUESTED = { basis: 'RECORDED' }
+ATTRIBUTED.CENSUS_AGREED = { basis: 'RECORDED' }
+ATTRIBUTED.CENSUS_FILES_RECEIVED = { basis: 'RECORDED' }
+ATTRIBUTED.CENSUS_DELIVERED = { basis: 'RECORDED' }
+
+// A client changing what its own order asks for on paper, and a named
+// person waiving one item with a reason. `RECORDED` because the row says
+// which document, whose order, and the reason in the person's own words,
+// read back off what they did rather than off a rule here. Work
+// authorization cannot be waived and a waiver against it is refused
+// rather than recorded, so no row of that kind exists.
+ATTRIBUTED.DOCUMENT_REQUIREMENT_SET = { basis: 'RECORDED' }
+ATTRIBUTED.DOCUMENT_REQUIREMENT_WAIVED = { basis: 'RECORDED' }
+
+// The twin's three person rows, 2026-10-12 (src/lib/twin). A person
+// answered what the twin asked — yes, and the act was done on that yes,
+// or no — or a person rewrote what the twin may do. Each is a person's
+// own act; the twin's part is its own row above.
+ATTRIBUTED.TWIN_ACT_APPROVED = { basis: 'RULE' }
+ATTRIBUTED.TWIN_ACT_REJECTED = { basis: 'RULE' }
+ATTRIBUTED.TWIN_ROLE_CONTRACT_SET = { basis: 'RULE' }
+// A question from the twin closed unanswered because a person dealt with
+// the record another way first — sent the draft bill from the Bills page,
+// or withdrew it (lib/twin/ledger `closeOvertaken`, 2026-10-18). Written
+// in the same transaction as that person's act and attributed to them;
+// the twin decided nothing. Not reversible: what it asked about is done.
+ATTRIBUTED.TWIN_QUESTION_OVERTAKEN = { basis: 'RULE' }
+// A sold team made into a project (record 120, pods): written by `sellPod`
+// in the same transaction as the named acceptor's yes, attributed to her.
+// Not reversible: the order and its deliverables now exist.
+ATTRIBUTED.POD_SOLD = { basis: 'RULE' }
+// The training door (record 133). An Owner turned the learner's place in
+// the cohort on or off, and a learner pressed share on her own badge.
+// Both are a person's own click, recorded; nothing here is the system's.
+// The free course door (docs/course-door-lead-contract.md). A visitor ticked
+// the yes and sent the form, and later opened the link that ends it: each a
+// visitor's own act, recorded. The confirmation email between them is the
+// system's own and is above.
+ATTRIBUTED.COURSE_DOOR_LEAD = { basis: 'RECORDED' }
+ATTRIBUTED.COURSE_DOOR_UNSUBSCRIBED = { basis: 'RECORDED' }
+ATTRIBUTED.LEARN_RANKING_SWITCHED = { basis: 'RECORDED' }
+ATTRIBUTED.BADGE_SHARED = { basis: 'RECORDED' }
+ATTRIBUTED.TWIN_RULE_SET_SET = { basis: 'RULE' }
+// A settings desk turned Ask Etyme's model on or off for its company
+// (src/lib/model-boundary, 2026-10-13), with the reason in its own words.
+// A person's act, reversible by the same switch; nothing turns it alone.
+ATTRIBUTED.ASK_ETYME_MODEL_SET = { basis: 'RULE' }
+// An Owner or Admin turned forwarded email on or off, or replaced its
+// address (src/lib/email-intake/settings, 2026-10-22). A person's act.
+ATTRIBUTED.EMAIL_INTAKE_SET = { basis: 'RULE' }
+// Staff made a real company, seated its first people and issued each a
+// one-time sign-in link, on a deployment with no email key
+// (src/lib/staff-bootstrap, 2026-10-14). `RECORDED`: the row says what
+// staff did, one row per thing made, never a password or the link.
+ATTRIBUTED.STAFF_BOOTSTRAP = { basis: 'RECORDED' }
+
+ATTRIBUTED.MATCH_RUN = { basis: 'RECORDED' }
+ATTRIBUTED.SITE_WRITTEN = { basis: 'RECORDED' }
+ATTRIBUTED.DATA_IMPORTED = { basis: 'RECORDED' }
+
+// An integrator's own people moving between its projects (2026-09-30,
+// lib/internal-moves). Each is a named manager's act — flagging who comes
+// off a project, taking the flag back, confirming the day, holding
+// somebody, letting a hold go, placing them on a line or putting them
+// forward — and HR and the person are told of each. `RECORDED` because the
+// row says who, which person, which day and which position, read back off
+// what the manager did. A hold that ran out is ended as part of the next
+// person's act on it and named in that act's payload, not a row of its own.
+ATTRIBUTED.PROJECT_RELEASE_FLAGGED = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_RELEASE_WITHDRAWN = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_RELEASE_CONFIRMED = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_HOLD_TAKEN = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_HOLD_RELEASED = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_MOVE_PLACED = { basis: 'RECORDED' }
+ATTRIBUTED.PROJECT_MOVE_SUBMITTED = { basis: 'RECORDED' }
+// A firm sending a bench invitation again to somebody who has not
+// answered, and asking somebody whose chosen stay ran out to renew it.
+// A person pressed each button; the person asked still decides.
+ATTRIBUTED.BENCH_INVITATION_RESENT = { basis: 'RECORDED' }
+// A firm's own employee finishing a course is told she is on its bench: the finish is a person's act, the row records that she was told (record 120).
+ATTRIBUTED.BENCH_ASK_EMPLOYEE_TOLD = { basis: 'RECORDED' }
+ATTRIBUTED.BENCH_STAY_RENEW_ASKED = { basis: 'RECORDED' }
+// The training micro-site (record 133). Each is a person's act and the row records it: a firm adopting or copying a course, a learner asking to join, a worker finishing a track, a mentor adjusting or approving a path. Not reversible.
+ATTRIBUTED.COURSE_ADOPTED = { basis: 'RECORDED' }
+ATTRIBUTED.COURSE_MADE_FROM_SOURCE = { basis: 'RECORDED' }
+ATTRIBUTED.LEARNER_ASKED_TO_JOIN = { basis: 'RECORDED' }
+ATTRIBUTED.LEARNING_COMPLETED = { basis: 'RECORDED' }
+ATTRIBUTED.CREDENTIAL_SHARED = { basis: 'RECORDED' }
+ATTRIBUTED.LEARNING_PATH_ADJUSTED = { basis: 'RECORDED' }
+ATTRIBUTED.LEARNING_PATH_APPROVED = { basis: 'RECORDED' }
+
+// A person withdrew a draft bill nobody had sent — usually the supplier's
+// twin's draft — with a reason (lib/money/bill-withdraw, 2026-10-18). A
+// person's own act, not an undo of somebody else's: the draft and its
+// lines are deleted and its weeks billable again. Not reversible: the
+// withdrawn draft does not come back; a new draft, with a new number, is
+// written by the Bills page or the twin's next run.
+ATTRIBUTED.INVOICE_DRAFT_WITHDRAWN = { basis: 'RULE' }
+// Somebody cancelled an invoice receipt their firm had typed in from a
+// supplier's invoice — keyed twice, keyed against the wrong order, or
+// withdrawn by the supplier — with a reason (api/ap/bills/[id]/cancel,
+// 2026-10-18). Only a receipt with nothing paid on it and in no payment run
+// waiting to be released may be cancelled; it stays on the record as
+// cancelled, holding no week and drawing nothing on its order. A person's
+// own act. Not reversible: the receipt is never revived; a corrected one is
+// typed in again.
+ATTRIBUTED.INVOICE_RECEIPT_CANCELLED = { basis: 'RULE' }
+
+// Somebody holding the deployment secret asked for the demo world to be
+// deleted and seeded again, and typed the phrase. A person's act, not
+// ours; `RULE` because what went is decided by lib/seed-rebuild's scope
+// and nothing else. Never reversible: the rows are gone.
+ATTRIBUTED.DEMO_WORLD_REBUILT = { basis: 'RULE' }
+// One step of seeding the demo world finished (lib/seed-steps). Asked
+// for by somebody holding the deployment secret or a member of staff;
+// the row is the marker the next call reads to start after it. Not
+// reversible: the rows the step wrote stay.
+ATTRIBUTED.DEMO_SEED_STEP = { basis: 'RULE' }
+// A demo firm whose name was retired, renamed in place by the seeding
+// that somebody holding the deployment secret asked for
+// (lib/seed-renames). `RULE` because what moves is decided by the
+// rename map and the demo world's scope and nothing else. Not
+// reversible: the old name is a real company's and is not put back.
+ATTRIBUTED.DEMO_FIRM_RENAMED = { basis: 'RULE' }
+// Rows earlier seeds wrote outside the demo world, deleted on the
+// request of somebody holding the deployment secret who typed the phrase
+// (lib/seed-cleanup). `RULE` because what went is decided by the markers
+// and the demo world's scope and nothing else. Never reversible.
+ATTRIBUTED.SEED_ROWS_CLEANED = { basis: 'RULE' }
+// References from records outside the demo world to demo people,
+// companies and rows, moved to a stand-in or emptied so the world can be
+// rebuilt, on the request of somebody holding the deployment secret who
+// typed the phrase (lib/seed-rebuild, releaseTies). `RULE` because which
+// references move is decided by the tie plan and nothing else. Deletes no
+// row; not reversible, because nothing puts them back — the payload holds
+// every previous value.
+ATTRIBUTED.DEMO_TIES_RELEASED = { basis: 'RULE' }
+
+// ── Named before anything writes them ────────────────
+//
+// The ladder's own test holds two promises, and they pull in opposite
+// directions the moment a schema lands ahead of the behavior built on
+// it. "Every automated action has a level" means a new writer with no
+// rung fails the build. "The ladder claims nothing the code does not
+// actually write" means a rung with no writer fails it too — an
+// inventory listing acts nobody performs overstates what we do, which is
+// the more dangerous of the two lies because a buyer reads it.
+//
+// So an action that is designed but not yet written sits here instead of
+// in the inventory above. It is NOT merged into `ACTIONS`, does not
+// appear in `ALL_ACTIONS`, and is not counted in `TALLY`, so nothing
+// this file claims about the product changes by naming one. What it
+// gives is the rung, the basis and the sentence, decided once by whoever
+// designed the record, so that the agent who writes the code is not
+// inventing a level on a Friday afternoon.
+//
+// The day something under `src/` writes one of these names, the entry
+// moves into `UNPROMPTED`, `ENFORCEMENT` or `ATTRIBUTED` above — in the
+// same commit, because `autonomy.test.ts` fails otherwise. That is
+// deliberate: it costs one line and it is the only thing that stops this
+// list becoming a graveyard of good intentions.
+//
+// Retention, export, erasure and the breach clock are here because the
+// schema for them landed on 2026-09-19 and the behavior is
+// etyme-regulatory's next piece of work. Every deletion and every
+// anonymization below is `reversible: false` on the row that records it,
+// honestly, because nothing puts a deleted record back.
+//
+// **The seven census rows have all left this list, and what held them
+// up is worth keeping.** They were named here on 2026-09-20 and were
+// stuck rather than unbuilt: `AutomationLog.companyId` was a required
+// foreign key and a census has no company — a client asks for one
+// before they are a customer, and the sandbox its rows are imported
+// into is destroyed by the deletion itself, so a row written there
+// would have cascaded away at the moment somebody audits it.
+// `CENSUS_DELETION_CANCELLED` went first, being the one act whose
+// company both exists and survives. `companyId String?` landed the same
+// day and freed the other six, which are now written against no company
+// at all — an act of the platform, before or outside any tenant.
+//
+// That is the shape this list is for. A record designed while the
+// schema under it says no is named, with its rung and its sentence
+// decided by whoever designed it, and moves the day the code can write
+// it. It is not a graveyard: six entries were in it for one day.
+
+export type PlannedAct =
+  | { kind: 'UNPROMPTED'; rung: Rung; basis: Basis; says: string; willBeWrittenBy: string }
+  | { kind: 'ENFORCEMENT'; outcome: Outcome; basis: Basis; says: string; willBeWrittenBy: string }
+  | { kind: 'ATTRIBUTED'; basis: Basis; says: string; willBeWrittenBy: string }
+
+export const PLANNED: Record<string, PlannedAct> = {
+  // ── What the nightly sweep does with nobody watching ───────────────
+
+  RETENTION_DUE_SCAN: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'Every night it reads which records have passed the end of their retention period and tells whoever owns them. It deletes nothing and is the rung every other retention row is measured against.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+  RETENTION_ANONYMIZE: {
+    kind: 'UNPROMPTED',
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'A record that has to survive for the money or for the client — a bill line, a signed week, a day on site — kept its amounts and forgot whose they were, because the period for holding the name ran out. The arithmetic still foots and the person is gone from it, and it cannot be put back.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+
+  // ── The loop of documents, 2026-09-21 ──────────────────────────────
+  //
+  // "Ensure the loop of documents never cracks between parties." The
+  // table a line's required set lives on landed today; what reads it —
+  // the chase, the refusal and the letters — is regulatory's and
+  // conversation's next piece of work. The rungs and the sentences are
+  // decided here, with the record, so neither agent invents a level on a
+  // Friday afternoon.
+  //
+  // Three of the four have already left for the ladder above, which is
+  // what this list is for.
+
+  // ── The setup checklist, 2026-10-28 ─────────────────────────────────
+  //
+  // A letter held back because the company never confirmed what it
+  // requires of that party. Decided here with its rung; regulatory writes
+  // it to the automation log from the nightly chase, and it moves onto
+  // the ladder in that commit. L0: it looked, told the company why, and
+  // changed nothing; confirming the set lets the next night ask.
+  PAPER_CHASE_WITHHELD: {
+    kind: 'UNPROMPTED',
+    rung: 'L0',
+    basis: 'RULE',
+    says:
+      'A paper that has run out, or soon will, was not asked for tonight, because the company has not yet said what it requires of that party under Setup → Papers you require. The company was told why. A paper that has run out still stops a start; only the letter waits, and confirming the set brings it back.',
+    willBeWrittenBy: 'etyme-regulatory',
+  },
+
+  SUBMISSION_COVER_WARNED: {
+    kind: 'ENFORCEMENT',
+    outcome: 'WARN',
+    basis: 'RULE',
+    says:
+      'Somebody put a person forward through a firm whose client requires a certificate it has never filed. The submission went through, the reason was captured and whoever is hiring was told — a document nobody ever filed is a chase, not a fact, and refusing every placement recorded before a client wrote its rules down is the workaround this warns instead of causing.',
+    willBeWrittenBy: 'etyme-demand',
+  },
+
+}
+
+export const ALL_PLANNED: string[] = Object.keys(PLANNED).sort()
+
+// ── What a twin may be asked to do ───────────────────
+//
+// The twin's action vocabulary (2026-10-12). A role contract
+// (`RoleContract`) puts each of these names in one of three tiers —
+// acts alone, needs approval, never — and `tierOf` in
+// src/lib/twin/role-contract.ts reads it. What is here is a property of
+// the act itself, the same on every contract: whether it moves money,
+// whether it leaves the company, whether it can be put back, and which
+// desk decides it when a person has to.
+//
+// `floor` acts never leave the never tier, whatever a contract says.
+// They are the ones CLAUDE.md and the law keep with a person: pay,
+// signatures, who is placed and who is let go, another company's data,
+// and deciding what the twin itself asked for. A company may tighten
+// anything; it may not loosen these.
+//
+// These are not automation-log names. What the twin did lands in the
+// automation log under the TWIN_ names above, by outcome; the act's own
+// name — dotted and lower case, so the two are never confused — is in
+// the twin's ledger.
+
+/**
+ * Which twin. The program manager's twin works a client's program; the
+ * supplier's twin (2026-10-18) works a supplier firm's own money — a
+ * staffing vendor, an integrator or a one-person corporation — acting
+ * for Accounts Receivable and AP & Payroll. The schema's `TwinKind`.
+ */
+export type TwinKindName = 'PROGRAM_MANAGER' | 'SUPPLIER'
+export const TWIN_KINDS: readonly TwinKindName[] = ['PROGRAM_MANAGER', 'SUPPLIER']
+
+export interface TwinAct {
+  /**
+   * The twins this act belongs to. Absent means every twin. An act that
+   * is not a twin's own is never-tier on that twin's contract, whatever
+   * the contract says: a client's twin has no bill to draft, and a
+   * supplier's twin watches no client's time limit.
+   */
+  kinds?: readonly TwinKindName[]
+  /** What it is, for the person reading a role contract. */
+  says: string
+  /** Moves money, or decides whether money moves. Never acts alone. */
+  money: boolean
+  /** Speaks to somebody outside the twin's own company. Never acts alone. */
+  external: boolean
+  /** Can the record be put back afterwards. Irreversible never acts alone. */
+  reversible: boolean
+  /** Decides something somebody asked for — the segregation rule applies. */
+  decides: boolean
+  /** Prepares something a person may later decide. */
+  drafts: boolean
+  /**
+   * The acts whose questions this one replaces (2026-10-27). The twin's own
+   * earlier questions of these acts on a record are not drafts of it: a
+   * receipt the twin once asked a person to approve may still be put to a
+   * person to pay.
+   */
+  replaces?: readonly string[]
+  /** Never leaves the never tier. */
+  floor: boolean
+  /** The permission of the desk that answers when the act needs approval. */
+  approverNeeds?: string
+  /** Where it acts alone: which automation-log rung it is recorded at. */
+  alone?: 'NOTED' | 'TOLD' | 'DREW_UP'
+  /**
+   * Where a person does it by hand, as one sentence. Said when the act
+   * needs a yes and nobody but the twin's own authority may give one, so
+   * the twin refuses in a sentence rather than asking a dead question.
+   */
+  byHand?: string
+  /**
+   * Set where one named person, and nobody else, answers the question,
+   * yes or no (record 120, pods): the key in the question's payload that
+   * holds that person's id. Such a question is shown to that person only,
+   * and the desk's permission is not what lets anybody answer it.
+   */
+  namedPerson?: string
+}
+
+export const TWIN_ACTS: Record<string, TwinAct> = {
+  // ── Alone, by default ──
+  'tenure.warning.record': {
+    kinds: ['PROGRAM_MANAGER'],
+    says: 'Write a time-limit warning into the twin\u2019s ledger. It tells nobody and changes nothing about the person.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'governance.read', alone: 'NOTED',
+  },
+  'tenure.warning.notify_program_owner': {
+    kinds: ['PROGRAM_MANAGER'],
+    says: 'Tell the program owner, inside the client, that somebody is nearing or past the time limit. It does not clear or silence the warning.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'governance.read', alone: 'TOLD',
+  },
+  'invoice_receipt.record': {
+    says: 'Write the twin\u2019s verdict on an invoice receipt — clean, a mismatch, or held — into its ledger. It tells nobody and changes nothing.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'payments.record', alone: 'NOTED',
+  },
+  'invoice_receipt.flag_mismatch': {
+    says: 'Tell the person who pays that an invoice receipt and the accepted hours or the contract rate do not agree.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'payments.record', alone: 'TOLD',
+  },
+  'reminder.send': {
+    says: 'Remind a person at this company that something is waiting on them.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'governance.read', alone: 'TOLD',
+  },
+  'summary.draft': {
+    says: 'Write up a summary for a person to read. It changes nothing on the record.',
+    money: false, external: false, reversible: false, decides: false, drafts: true, floor: false,
+    approverNeeds: 'governance.read', alone: 'DREW_UP',
+  },
+  // ── Asked for, by default ──
+  'invoice_receipt.approve': {
+    says: 'Approve a supplier\u2019s invoice receipt that cleared the three-way check, so it can be paid.',
+    money: true, external: false, reversible: false, decides: true, drafts: false, floor: false,
+    approverNeeds: 'payments.record',
+  },
+  // A supplier's invoice that passed the three-way check, paid on a
+  // person's yes (2026-10-26). `approve` above records a yes and pays
+  // nothing on an `Invoice`; this one records the payment, through the
+  // payment route's own gate (`mayPayInvoiceReceipt`) and money's one
+  // payment write (`recordInvoicePayment` in lib/money/invoice-payment).
+  // The yes carries the bank reference, so you can reconcile this payment later.
+  'invoice_receipt.pay': {
+    says: 'Pay an invoice receipt that passed the three-way check.',
+    money: true, external: false, reversible: false, decides: true, drafts: false, floor: false,
+    approverNeeds: 'payments.record',
+    byHand: 'Pay it from the invoice receipt\u2019s page.',
+    replaces: ['invoice_receipt.approve'],
+  },
+  'tenure.warning.notify_supplier': {
+    kinds: ['PROGRAM_MANAGER'],
+    says: 'Write to the supplier whose person is nearing or past the client\u2019s time limit.',
+    money: false, external: true, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'vendors.manage',
+  },
+  // ── The supplier's bill (2026-10-18) ──
+  //
+  // The supplier's twin drafts the bill on the agreement's billing date
+  // for Accounts Receivable to send. Drafting is alone: a DRAFT bill
+  // stays inside the firm, moves no money and is put back by deleting
+  // the draft. Sending is asked: it leaves the firm and asks to be paid.
+  // The twin never approves its own draft — `approval.decide` is on the
+  // floor, and the ledger refuses OWN_DRAFT. Performers are money's
+  // (lib/money/supplier-bills), wired into PERFORMERS. The twin acts on
+  // the owner's authority (lib/twin/run), so the people who send bills
+  // may say yes to `bill.send`.
+  'bill.draft': {
+    kinds: ['SUPPLIER'],
+    says: 'Draft a bill to the customer from weeks the customer signed, on the agreement\u2019s billing date. It stays a draft inside the firm until Accounts Receivable sends it.',
+    money: false, external: false, reversible: true, decides: false, drafts: true, floor: false,
+    approverNeeds: 'invoices.issue', alone: 'DREW_UP',
+  },
+  'bill.send': {
+    kinds: ['SUPPLIER'],
+    says: 'Send a drafted bill to the customer.',
+    // Not `decides`: sending answers nobody's request, so the
+    // segregation check that refuses a decision on the twin's own draft
+    // does not apply — a person's yes is what sends it, and the twin can
+    // never give that yes (`approval.decide` is on the floor).
+    money: true, external: true, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'invoices.issue',
+    byHand: 'Send it from the Bills page.',
+  },
+  // ── The Owner gives access (founder, 2026-11-08) ──
+  //
+  // Every twin's: both kinds of company have an Owner who gives access.
+  // The twin drafts the grant from the Owner's words; the Owner's yes on
+  // the card is the grant, written by the one route Users & permissions
+  // calls (POST /api/settings/grants), under its own rules. No `alone`, so
+  // `checkContract` refuses a contract that moves it to acting alone and
+  // `tierOf` reads a stale row that does as needing a yes. Reversible,
+  // because Revoke takes a grant back in one press.
+  'access.grant': {
+    says: 'Give a role or a person access, for the company, a team or their own work, on the Owner\u2019s yes.',
+    money: false, external: false, reversible: true, decides: true, drafts: false, floor: false,
+    approverNeeds: 'team.manage',
+    byHand: 'Give it from Users & permissions, under Give access.',
+  },
+  // ── The supplier's own acts (founder, 2026-10-29, "Tapin gets agents") ──
+  //
+  // Three acts turned toward a firm that sells people, each placed here,
+  // with its tier, before any card is drawn (the 2026-10-12 rule). The
+  // twin acts on the Owner's authority (`supplierAuthorityAt` in
+  // lib/twin/run), so the people who submit, ask for papers and work the
+  // bench are free to answer. Performers in lib/twin/supplier-performers;
+  // the nightly finders in lib/twin/supplier-run.
+  //
+  // Putting somebody forward leaves the firm: the client reads the name
+  // and the rate. So it is asked, and the yes is said by a seat holding
+  // `submissions.create`, never by the Owner the twin acts for. The yes
+  // goes through the submission door itself (POST /api/submissions, as
+  // the person who said yes), so the person's consent on a live bench
+  // listing, or the firm's employment of them, is checked where it is
+  // always checked. Nobody but the Owner holding the permission is a
+  // refusal in a sentence, not the owner-only exception: that exception
+  // is the founder's, for a bill, and is not widened here.
+  'bench.put_forward': {
+    kinds: ['SUPPLIER'],
+    says: 'Put a person on the firm\u2019s own bench forward to a job the firm was sent, at the rate the person saying yes enters.',
+    money: false, external: true, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'submissions.create',
+    byHand: 'Put them forward from the job\u2019s page.',
+  },
+  // Asking a person on the firm's own line for the papers their start
+  // needs, from the line's required set (regulatory's clearance ask,
+  // `askForClearance`). Alone: the ask is to the firm's own worker about
+  // the firm's own line, it asks once, and it never asks for what is held.
+  // Refused in a sentence where the firm never confirmed the set for that
+  // kind of worker (`mayChasePaper` in lib/setup-gates).
+  'papers.ask_for_start': {
+    kinds: ['SUPPLIER'],
+    says: 'Ask a person on one of the firm\u2019s own lines for the papers their start still needs, once, from the line\u2019s required set.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'consultants.write', alone: 'TOLD',
+  },
+  // Who comes off a project in the next 30 days and who has been on the
+  // bench past 14, told to the people who put people forward. A summary
+  // inside the firm; nothing leaves it.
+  'bench.coming_free': {
+    kinds: ['SUPPLIER'],
+    says: 'Tell the recruiters who comes off a project in the next 30 days and who has waited on the bench for more than 14. It changes nothing and tells nobody outside the firm.',
+    money: false, external: false, reversible: false, decides: false, drafts: true, floor: false,
+    approverNeeds: 'submissions.create', alone: 'TOLD',
+  },
+  // ── A sold team, accepted by the one person the client names (record 120) ──
+  //
+  // The supplier proposes a team as a project and names who at the client
+  // accepts its deliverables; that person's yes makes the project through
+  // `sellPod`. The card lives at the client and is read by that one person.
+  // Raised by `raisePodSaleCard` (lib/twin/pod-sale-card), never by a rule.
+  'pod.sale.accept': {
+    kinds: ['PROGRAM_MANAGER'],
+    says: 'Accept a project from a supplier, with its deliverables and price, and take on deciding each deliverable.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: false,
+    namedPerson: 'acceptorPersonId',
+  },
+  // ── Never ──
+  'payroll.release': {
+    says: 'Release a payroll run.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'agreement.sign': {
+    says: 'Sign an agreement, an order or a contract on the company\u2019s behalf.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'placement.award': {
+    says: 'Choose who is placed on a job.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'submission.reject': {
+    says: 'Turn a candidate down.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'placement.end': {
+    says: 'End somebody\u2019s placement.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'placement.extend': {
+    says: 'Extend somebody\u2019s placement past its end date.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'alumni.ask_back': {
+    says: 'Ask somebody back after they left.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'other_company.read': {
+    says: 'Read another company\u2019s data.',
+    money: false, external: true, reversible: false, decides: false, drafts: false, floor: true,
+  },
+  // Public-sector proposals (record 124): the agent drafts and chases; these
+  // three are never its. A person approves and sends, and signs.
+  // The proposals agent's own acts (record 124). It drafts words from the firm's
+  // record, asks a person for a yes, and reminds a colleague inside a task a
+  // person released. Nothing here speaks outside the firm.
+  'proposal.draft': {
+    kinds: ['SUPPLIER'],
+    says: 'Draft a public-sector proposal from the firm\u2019s own record and flag every requirement it does not answer. It states no rate and names nobody.',
+    money: false, external: false, reversible: true, decides: false, drafts: true, floor: false,
+    approverNeeds: 'submissions.create', alone: 'DREW_UP',
+  },
+  'proposal.ask': {
+    kinds: ['SUPPLIER'],
+    says: 'Put a finished proposal draft to a person for a yes. Nothing goes to the agency.',
+    money: false, external: false, reversible: true, decides: false, drafts: true, floor: false,
+    approverNeeds: 'submissions.create', alone: 'DREW_UP',
+  },
+  'proposal.chase': {
+    kinds: ['SUPPLIER'],
+    says: 'Remind a colleague that a piece of a proposal is waiting on them, once a person has said yes to the task.',
+    money: false, external: false, reversible: false, decides: false, drafts: false, floor: false,
+    approverNeeds: 'submissions.create',
+  },
+  // Supplier diversity (record 132): the agent drafts a portal's answers from the
+  // record. A person submits on the portal. Claiming a certification, attesting
+  // ownership and submitting are never the agent's.
+  'registration.draft': {
+    kinds: ['SUPPLIER'],
+    says: 'Draft the answers to a supplier-diversity portal\u2019s questions from the firm\u2019s own record. It claims no certification that is not held and no ownership fact the Owner has not attested.',
+    money: false, external: false, reversible: true, decides: false, drafts: true, floor: false,
+    approverNeeds: 'submissions.create', alone: 'DREW_UP',
+  },
+  'registration.submit': {
+    kinds: ['SUPPLIER'],
+    says: 'Submit a registration on a buyer\u2019s supplier-diversity portal.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'certification.claim': {
+    kinds: ['SUPPLIER'],
+    says: 'Record a certification as held, or say the firm holds one, on the Owner\u2019s behalf.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'ownership.attest': {
+    kinds: ['SUPPLIER'],
+    says: 'Attest that the firm is minority-owned, woman-owned or veteran-owned.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'proposal.submit': {
+    kinds: ['SUPPLIER'],
+    says: 'Send a public-sector proposal to the agency.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'proposal.sign': {
+    kinds: ['SUPPLIER'],
+    says: 'Sign a public-sector proposal or its certifications for the firm.',
+    money: true, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'proposal.publish_compliance_copy': {
+    kinds: ['SUPPLIER'],
+    says: 'Publish compliance wording in a public-sector proposal as the firm\u2019s own statement.',
+    money: false, external: true, reversible: false, decides: true, drafts: false, floor: true,
+  },
+  'approval.decide': {
+    says: 'Answer a question the twin itself put to a person.',
+    money: false, external: false, reversible: false, decides: true, drafts: false, floor: true,
+  },
+}
+
+export const ALL_TWIN_ACTS: string[] = Object.keys(TWIN_ACTS).sort()
+
+export function isTwinAct(name: string): boolean {
+  return Object.prototype.hasOwnProperty.call(TWIN_ACTS, name)
+}
+
+/** Whether an act belongs to a twin. Acts naming no kinds belong to every twin. */
+export function isActOf(kind: TwinKindName, name: string): boolean {
+  if (!isTwinAct(name)) return false
+  const k = TWIN_ACTS[name].kinds
+  return !k || k.includes(kind)
+}
+
+/** The acts one twin's contract has to place, sorted. */
+export function twinActsFor(kind: TwinKindName): string[] {
+  return ALL_TWIN_ACTS.filter((a) => isActOf(kind, a))
+}
+
+// ── The whole inventory ──────────────────────────────
+
+export const ACTIONS: Record<string, Act> = {}
+for (const [action, a] of Object.entries(UNPROMPTED)) {
+  ACTIONS[action] = { kind: 'UNPROMPTED', ...a }
+}
+for (const [action, a] of Object.entries(ENFORCEMENT)) {
+  ACTIONS[action] = { kind: 'ENFORCEMENT', ...a }
+}
+for (const [action, a] of Object.entries(ATTRIBUTED)) {
+  ACTIONS[action] = { kind: 'ATTRIBUTED', ...a }
+}
+
+export const ALL_ACTIONS: string[] = Object.keys(ACTIONS).sort()
+
+/**
+ * How many of each kind there are, counted rather than claimed.
+ *
+ * This exists because the paragraph at the top of this file used to say
+ * thirteen, three and eighty-two, a heading below it said eighty-four,
+ * and the jobs heading said fourteen where there were fifteen. Every one
+ * of those was written truthfully on the day it was written and none of
+ * them was reread when the next row was added. A number in prose is
+ * wrong within a month; a number computed from the thing it describes is
+ * never wrong.
+ */
+export const TALLY: Record<ActKind, number> = {
+  UNPROMPTED: 0,
+  ENFORCEMENT: 0,
+  ATTRIBUTED: 0,
+}
+for (const action of ALL_ACTIONS) TALLY[ACTIONS[action].kind]++
+
+// ── The jobs that run whether or not anybody is looking ───
+
+export interface Job {
+  job: string
+  rung: Rung
+  basis: Basis
+  says: string
+  /** The actions it writes, if any. A job can act and log nothing. */
+  writes: string[]
+}
+
+export const JOBS: Record<string, Job> = {
+  daily: {
+    job: 'daily',
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'It runs the other jobs, one after another, and decides nothing itself. Read the level of each job it runs, not this one.',
+    writes: [],
+  },
+  'due-cycles': {
+    job: 'due-cycles',
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'Reads which cycles fall due inside a week and tells somebody. Changes nothing.',
+    writes: ['DUE_CYCLES_SCAN'],
+  },
+  twin: {
+    job: 'twin',
+    rung: 'L1',
+    basis: 'RULE',
+    says: 'The program manager\u2019s twin reads every client program for people near the time limit and invoice receipts waiting, writes what it found into its ledger, tells the program owner and the AP clerk, and asks a person before anything is approved. Ask Etyme, for a firm that sells people, drafts the bills its agreements say are due, asks for the papers a start still needs, tells the recruiters who is coming free, and asks a person before it puts anybody forward. Everything either does goes through its role contract, and it writes its own rows from there rather than from this job.',
+    writes: [],
+  },
+  'visa-watch': {
+    job: 'visa-watch',
+    rung: 'L0',
+    basis: 'RULE',
+    says: 'Counts days to a petition’s milestones and tells somebody. Files nothing.',
+    writes: ['VISA_WATCH'],
+  },
+  'loose-ends': {
+    job: 'loose-ends',
+    rung: 'L1',
+    basis: 'RULE',
+    says: 'Finds the placements missing their buy side and tells whoever should close them. It closes nothing.',
+    writes: [],
+  },
+  'proactive-match': {
+    job: 'proactive-match',
+    rung: 'L1',
+    basis: 'RECORDED',
+    says: 'Scores people against open jobs nobody has matched. Suggestions only; nobody is submitted.',
+    writes: ['PROACTIVE_MATCH'],
+  },
+  'rolloff-scan': {
+    job: 'rolloff-scan',
+    rung: 'L2',
+    basis: 'RULE',
+    says: 'Opens a rolloff for every contract ending inside eight weeks, ready for somebody to work.',
+    writes: ['ROLLOFF_SCAN'],
+  },
+  'outreach-detect': {
+    job: 'outreach-detect',
+    rung: 'L1',
+    basis: 'RULE',
+    says: 'For a firm with Outreach on, notes what the record says is worth a letter and drafts it. The draft joins a pack a person already approved, or waits as one card. It sends nothing.',
+    writes: [],
+  },
+  'cold-openings': {
+    job: 'cold-openings',
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'Marks a seat cold when nobody has advertised it in six weeks.',
+    writes: ['OPENINGS_COLD'],
+  },
+  'bench-stays': {
+    job: 'bench-stays',
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'Ends the bench stays whose chosen time has run out, and reminds each person before theirs does. A date comparison against a choice the person made; renewing brings it back.',
+    writes: ['BENCH_STAY_ENDED', 'BENCH_STAY_REMINDED'],
+  },
+  'expire-invitations': {
+    job: 'expire-invitations',
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'Expires invitations nobody answered by the date on them.',
+    writes: ['INVITATIONS_EXPIRED'],
+  },
+  'deliver-webhooks': {
+    job: 'deliver-webhooks',
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'Sends what is queued, retries what failed, and switches off a receiver that has stopped answering.',
+    writes: ['WEBHOOK_DISABLED'],
+  },
+  'freshness-ping': {
+    job: 'freshness-ping',
+    rung: 'L3',
+    basis: 'RULE',
+    says: 'Every fortnight it emails everybody on a bench to ask whether anything has changed. It edits nobody’s record.',
+    writes: [],
+  },
+  watch: {
+    job: 'watch',
+    rung: 'L3',
+    basis: 'RULE',
+    says:
+      'Asks again for documents that have run out, and for cover for the weeks between one policy ending ' +
+      'and the next beginning, from the company that owes them.',
+    writes: ['PACKET_REOPENED'],
+  },
+  'auto-approve': {
+    job: 'auto-approve',
+    rung: 'L4',
+    basis: 'RULE',
+    says: 'Approves the weeks nobody answered, but only where the client agreed in a setting that silence counts. Anything it is unsure of it holds for a person instead.',
+    writes: ['TIMESHEET_AUTO_APPROVED', 'TIMESHEET_HELD_FOR_PERSON'],
+  },
+  'agreement-terms': {
+    job: 'agreement-terms',
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Marks an agreement as running out or run out, and rolls an auto-renewing one on for another term. A date comparison against a document both sides signed.',
+    writes: ['AGREEMENT_TERM_WATCH'],
+  },
+  'end-contracts': {
+    job: 'end-contracts',
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Ends contracts whose last day has passed, both sides, with nobody asked. A date comparison with a legal consequence.',
+    writes: ['CONTRACTS_ENDED'],
+  },
+  retention: {
+    job: 'retention',
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'Every night it answers the clocks on data requests, finishes the erasures whose cooling period has passed with nothing in the way, deletes the evidence whose statutory period has run, and says out loud when a deadline for telling somebody about a breach is close or has been missed. A date comparison with a legal consequence, and the deletions cannot be put back.',
+    // Empty on purpose, and not an oversight. The route calls
+    // `runRetentionSweep` and names nothing itself; every row it writes
+    // — RETENTION_DELETE, RETENTION_HELD, DATA_REQUEST_CLOCK_WARNED,
+    // BREACH_CLOCK_WARNED, BREACH_CLOCK_MISSED, ERASURE_COMPLETE — is
+    // named in lib/data-request and lib/erasure, where each already sits
+    // on the ladder.
+    // The check reads a job's own route file, so claiming them here
+    // would be claiming names this file cannot see written.
+    writes: [],
+  },
+  'email-intake': {
+    job: 'email-intake',
+    rung: 'L5',
+    basis: 'RULE',
+    says:
+      'Deletes the text of a forwarded email once its card is decided, and after thirty days if nobody decides it, with any file not filed as evidence. A date comparison, and the deletion cannot be put back.',
+    // Empty on purpose, as for retention: the route names nothing, and
+    // EMAIL_INTAKE_BODY_DELETED is written in lib/email-intake/retention.
+    writes: [],
+  },
+  'reap-demos': {
+    job: 'reap-demos',
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Removes a visitor\u2019s demo sandbox nobody has used for thirty days, and tells a visitor who left an address a week before. It cannot be undone, and it refuses anything that is not a visitor\u2019s own sandbox.',
+    writes: ['DEMO_SANDBOX_EXPIRY_WARNED', 'DEMO_SANDBOX_REMOVED'],
+  },
+  agents: {
+    job: 'agents',
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Runs each agent a firm\u2019s Owner switched on, inside its daily cap. Every act is a row on the record ledger under the agent\u2019s name; an agent never sends without a task a person approved.',
+    // Empty on purpose: the acts go to the record ledger (lib/agents/runner), not the automation log.
+    writes: [],
+  },
+}
+
+export const ALL_JOBS: string[] = Object.keys(JOBS).sort()
+
+// ── Reading a row ────────────────────────────────────
+
+export function actOf(action: string): Act | null {
+  return ACTIONS[action] ?? null
+}
+
+/**
+ * The rung, or null.
+ *
+ * Null is the right answer for a refusal and for a person's own act. A
+ * level describes what the system did on its own; giving one to an
+ * `AWARD_BLOCKED` row would be claiming autonomy for saying no to
+ * somebody.
+ */
+export function rungOf(action: string): Rung | null {
+  const act = ACTIONS[action]
+  return act && act.kind === 'UNPROMPTED' ? act.rung : null
+}
+
+export function kindOf(action: string): ActKind | null {
+  return ACTIONS[action]?.kind ?? null
+}
+
+/** What a rung means, in a sentence. Never show the code alone. */
+export function levelSays(rung: Rung): string {
+  return LADDER[rung].says
+}
+
+export function levelName(rung: Rung): string {
+  return LADDER[rung].name
+}
+
+export type Decided =
+  | { by: 'RULE'; says: string }
+  | { by: 'MODEL'; says: string }
+  | { by: 'UNRECORDED'; says: string }
+
+/**
+ * What actually decided this row — a rule or a model.
+ *
+ * Derived where the answer cannot vary. Read from the row where it can,
+ * because the match engine and the site writer both fall back to
+ * arithmetic when there is no API key, and a week where the key was
+ * misconfigured must not read as a week the model got free.
+ *
+ * Where the action could have been either and the row does not say, this
+ * returns UNRECORDED rather than a guess. A plausible wrong answer here
+ * is worse than a blank: it is a claim about how much of the product is
+ * AI, made to somebody evaluating exactly that.
+ */
+export function decidedBy(action: string, payload?: unknown): Decided {
+  const act = ACTIONS[action]
+  if (!act) {
+    return { by: 'UNRECORDED', says: 'This action has no place in the ladder yet.' }
+  }
+  if (act.basis === 'RULE') {
+    return { by: 'RULE', says: 'A rule decided this — a date, a threshold or a count. No model was involved.' }
+  }
+
+  const p = (payload ?? {}) as Record<string, unknown>
+  const marker = p.writtenBy ?? p.decidedBy
+  if (marker === 'MODEL') {
+    return { by: 'MODEL', says: 'A model did this work, and the row says so.' }
+  }
+  if (marker === 'RULE') {
+    return { by: 'RULE', says: 'A model could have done this, and did not — it fell back to arithmetic, and the row says so.' }
+  }
+  return {
+    by: 'UNRECORDED',
+    says: 'A model may have done this work and the row does not say which. We will not guess.',
+  }
+}
+
+/**
+ * Acts on a company's position that are undone on Companies, never from
+ * the activity log (the press walk l2b, 2026-11-15). The log's Reverse
+ * crossed the row out and the company stayed a supplier: an undo that
+ * undoes nothing. These rows are written `reversible: false`, old rows
+ * written `true` are read as false here, and the reverse route refuses
+ * them with the sentence below, which says where the undo is.
+ */
+export const UNDONE_ON_COMPANIES: Readonly<Record<string, string>> = Object.freeze({
+  COMPANY_EXTENDED: 'Undo this from the company’s History on Companies, not from this log.',
+  COMPANY_POSITION_REMOVED: 'To put this back, extend the company again on Companies.',
+})
+
+/**
+ * Acts on a job undone on Jobs, never from the activity log (the press
+ * walk l2b, 2026-11-15). Reverse on "sent to 1 supplier" crossed the row
+ * out and the supplier still held the job.
+ */
+export const UNDONE_ON_JOBS: Readonly<Record<string, string>> = Object.freeze({
+  REQUISITION_DISTRIBUTED: 'Suppliers are stood down on Jobs, by cancelling the job, not from this log.',
+})
+
+/**
+ * The one reader of what the activity log's own Reverse really undoes
+ * (2026-11-15). The reverse route changes no record: it marks the row and
+ * writes a REVERSAL row. So no act is in here yet, and an act is offered
+ * Reverse on the log only once its real undo is written into that route
+ * and the act is named here. Whatever a row's stored flag says.
+ */
+export const UNDONE_BY_THE_LOG: ReadonlySet<string> = new Set<string>([])
+
+/** What the log says, and the reverse route refuses in, for an act it cannot undo and nobody named a place for. */
+export const LOG_CANNOT_UNDO = 'The activity log only records this. It cannot undo it.'
+
+/**
+ * Whether the log's own Reverse undoes anything at all. The "can be undone"
+ * tile and the "Reversible only" filter are drawn only while it does: with
+ * no act in the reader they could only ever read 0 and show nothing, a
+ * dead end (2026-11-15).
+ */
+export function logUndoesAnything(): boolean {
+  return UNDONE_BY_THE_LOG.size > 0
+}
+
+/**
+ * A row the log's old Reverse button wrote, read in a person's words. It
+ * was written "Reversed: <what>" with the reason "<name> reversed
+ * automation action REQUISITION_DISTRIBUTED": a machine name, and a claim
+ * the press never made good, because the route changed no record. Read at
+ * the screen, so a row already written loses nothing and needs no script:
+ * the press is said as recorded and as having changed nothing, which is
+ * what happened. An act the log really undoes reads as undone.
+ */
+export function reversalRowReads(row: { summary: string; reason: string; payload?: unknown }): { summary: string; reason: string } {
+  const p = (row.payload ?? {}) as { originalAction?: unknown }
+  const what = row.summary.replace(/^Reversed:\s*/, '').trim()
+  const who = row.reason.match(/^(.*?) reversed automation action\b/)?.[1]?.trim() || 'Somebody'
+  if (typeof p.originalAction === 'string' && undoneHere(p.originalAction)) {
+    return { summary: `Undone: ${what}`, reason: `${who} undid this from the activity log.` }
+  }
+  return {
+    summary: `Reverse pressed on: ${what}`,
+    reason: `${who} pressed Reverse here. The press was recorded and changed nothing.`,
+  }
+}
+
+/** Whether the log's own Reverse really undoes this act. */
+export function undoneHere(action: string): boolean {
+  return UNDONE_BY_THE_LOG.has(action)
+}
+
+/** Where this act is undone instead of here, as a sentence; null where no place is named. */
+export function undoneElsewhere(action: string): string | null {
+  return UNDONE_ON_COMPANIES[action] ?? UNDONE_ON_JOBS[action] ?? null
+}
+
+/** Whether the log may offer Reverse on this row: the stored flag, and only for an act the log really undoes. */
+export function reversibleHere(row: { action: string; reversible: boolean }): boolean {
+  return row.reversible && undoneHere(row.action)
+}
+
+/** The sentence the reverse route refuses in, for an act the log does not undo; null where it does. */
+export function notUndoneHereSays(action: string): string | null {
+  if (undoneHere(action)) return null
+  return undoneElsewhere(action) ?? LOG_CANNOT_UNDO
+}
+
+/** Can this still be put back? The row already knows; this says it in words. */
+export function undoSays(reversible: boolean, reversedAt: Date | string | null): string {
+  if (reversedAt) return 'Already undone.'
+  if (reversible) return 'This can still be undone.'
+  return 'This cannot be undone.'
+}
+
+export interface Read {
+  action: string
+  kind: ActKind | null
+  rung: Rung | null
+  levelName: string | null
+  levelSays: string | null
+  outcome: Outcome | null
+  actSays: string | null
+  decided: Decided
+  undo: string
+}
+
+/** Everything the surface needs about one row, with no codes in it. */
+export function readRow(row: {
+  action: string
+  payload?: unknown
+  reversible: boolean
+  reversedAt?: Date | string | null
+}): Read {
+  const act = ACTIONS[row.action]
+  const rung = rungOf(row.action)
+  return {
+    action: row.action,
+    kind: act?.kind ?? null,
+    rung,
+    levelName: rung ? LADDER[rung].name : null,
+    levelSays: rung ? LADDER[rung].says : null,
+    outcome: act && act.kind === 'ENFORCEMENT' ? act.outcome : null,
+    actSays: act && act.kind !== 'ATTRIBUTED' ? act.says : null,
+    decided: decidedBy(row.action, row.payload),
+    // A row written reversible whose act the log does not undo says so,
+    // never "This can still be undone" (UNDONE_BY_THE_LOG, 2026-11-15).
+    undo: undoneElsewhere(row.action)
+      ?? (row.reversible && !row.reversedAt && !undoneHere(row.action)
+        ? LOG_CANNOT_UNDO
+        : undoSays(row.reversible, row.reversedAt ?? null)),
+  }
+}
+
+/** What we say when somebody asks how autonomous this product is. */
+export const KIND_SAYS: Record<ActKind, string> = {
+  UNPROMPTED: 'The system did this, and nobody asked it to.',
+  ENFORCEMENT:
+    'Somebody asked to do something and the system decided whether they could. This is governance, not autonomy — it has no level.',
+  ATTRIBUTED: 'A person did this. The row is the record that they did, not something the system decided.',
+}
+
+// ── Reading the code for the names it can write ──────
+//
+// The ladder is only true if it knows what the code actually writes, and
+// the only way to know that without running every route is to read the
+// source for the names in it. That reader lives here, beside the ladder,
+// rather than inside the test that uses it, for two reasons: two copies
+// of it had already drifted apart by the time this was written, and a
+// domain agent who cannot edit this file still has to be able to reason
+// about what the check will see.
+//
+// ── The two traps it used to have, and why they mattered ─────────────
+//
+// It read the `action:` value to the first comma or the end of the line,
+// so a ternary broken over four lines showed one name and hid the rest.
+// `api/requisitions/[id]/approve` writes three names across four lines
+// and the inventory knew about one of them; the other two — a
+// requisition rejected and a requisition sent back — were written to
+// production for as long as that route existed and no reader could find
+// them. It also took every SCREAMING_SNAKE literal after the first `?`,
+// conditions included, so `step === 'FACTORED' ? …` put FACTORED into
+// the inventory as an act nobody ever performs. Between them the two
+// traps pushed every author toward a single unreadable line and a
+// hoisted boolean per branch, which is a scanner deciding how code is
+// written.
+//
+// So this one takes the balanced `action:` value however many lines it
+// spans, and reads names from BRANCH positions only — the outcomes a
+// ternary can evaluate to, never the tests it makes on the way.
+//
+// ── What it deliberately cannot see ──────────────────────────────────
+//
+// A name assembled at runtime, and a name looked up in a table. Both are
+// invisible here and both should be: `unnamed` reports them rather than
+// passing over them, because the old behavior — no literal read as no
+// log at all — is how four money routes and one access route logged
+// under names the ladder had never heard of. A lookup table would be
+// legible to a person and invisible to this, which is the one shape that
+// is worse than an ugly ternary.
+//
+// There is no regular-expression literal inside any `automationLog.create`
+// call and this reader does not try to recognize one; a `/` here is
+// division. If that ever stops being true the depth count goes wrong
+// loudly rather than quietly, because the call will not close.
+
+/** Advance past a comment, string or template starting at `i`. */
+function skipInert(src: string, i: number): number {
+  const c = src[i]
+  const d = src[i + 1]
+
+  if (c === '/' && d === '/') {
+    const nl = src.indexOf('\n', i)
+    return nl === -1 ? src.length : nl
+  }
+  if (c === '/' && d === '*') {
+    const end = src.indexOf('*/', i + 2)
+    return end === -1 ? src.length : end + 2
+  }
+  if (c === '"' || c === "'") {
+    let j = i + 1
+    while (j < src.length) {
+      if (src[j] === '\\') { j += 2; continue }
+      if (src[j] === c) return j + 1
+      j++
+    }
+    return src.length
+  }
+  if (c === '`') {
+    let j = i + 1
+    while (j < src.length) {
+      if (src[j] === '\\') { j += 2; continue }
+      if (src[j] === '`') return j + 1
+      // An interpolation can hold anything, including another template.
+      if (src[j] === '$' && src[j + 1] === '{') {
+        let depth = 1
+        j += 2
+        while (j < src.length && depth > 0) {
+          const k = skipInert(src, j)
+          if (k !== j) { j = k; continue }
+          if (src[j] === '{') depth++
+          else if (src[j] === '}') depth--
+          j++
+        }
+        continue
+      }
+      j++
+    }
+    return src.length
+  }
+  return i
+}
+
+const OPENS = '([{'
+const CLOSES = ')]}'
+
+/** Every `automationLog.create(...)` call in a file, as balanced source text. */
+export function automationCalls(source: string): string[] {
+  const out: string[] = []
+  const re = /\bautomationLog\.create\s*\(/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(source))) {
+    let i = m.index + m[0].length
+    let depth = 1
+    while (i < source.length && depth > 0) {
+      const k = skipInert(source, i)
+      if (k !== i) { i = k; continue }
+      const c = source[i]
+      if (OPENS.includes(c)) depth++
+      else if (CLOSES.includes(c)) depth--
+      i++
+    }
+    out.push(source.slice(m.index, i))
+  }
+  return out
+}
+
+/**
+ * The `action:` values in one call, each as balanced source text.
+ *
+ * Balanced to the comma that ends the property, so a value spanning four
+ * lines is one value and not its first line.
+ */
+export function actionExpressions(call: string): string[] {
+  const out: string[] = []
+  const word = /[A-Za-z0-9_$]/
+  let i = 0
+  while (i < call.length) {
+    const k = skipInert(call, i)
+    if (k !== i) { i = k; continue }
+    if (word.test(call[i])) {
+      let j = i
+      while (j < call.length && word.test(call[j])) j++
+      if (call.slice(i, j) === 'action') {
+        let c = j
+        while (c < call.length && /\s/.test(call[c])) c++
+        // `action:` is the key. A bare `action` in a payload is shorthand
+        // for a value and names nothing.
+        if (call[c] === ':') {
+          let v = c + 1
+          const start = v
+          let depth = 0
+          while (v < call.length) {
+            const kk = skipInert(call, v)
+            if (kk !== v) { v = kk; continue }
+            const ch = call[v]
+            if (OPENS.includes(ch)) depth++
+            else if (CLOSES.includes(ch)) { if (depth === 0) break; depth-- }
+            else if (ch === ',' && depth === 0) break
+            v++
+          }
+          out.push(call.slice(start, v).trim())
+          i = v
+          continue
+        }
+      }
+      i = j
+      continue
+    }
+    i++
+  }
+  return out
+}
+
+/** Whether the whole of `t` is one pair of brackets. */
+function wrapped(t: string): boolean {
+  if (!t.startsWith('(') || !t.endsWith(')')) return false
+  let depth = 0
+  let i = 0
+  while (i < t.length) {
+    const k = skipInert(t, i)
+    if (k !== i) { i = k; continue }
+    if (OPENS.includes(t[i])) depth++
+    else if (CLOSES.includes(t[i])) {
+      depth--
+      if (depth === 0) return i === t.length - 1
+    }
+    i++
+  }
+  return false
+}
+
+/**
+ * The outcomes an expression can evaluate to.
+ *
+ * A ternary chain `a ? X : b ? Y : Z` has three outcomes and two tests,
+ * and only the outcomes are names. The rule is one line: a segment
+ * followed by `?` is a test; every other segment is an outcome. `??` and
+ * `?.` are operators, not ternaries, and are stepped over.
+ */
+export function branchesOf(expr: string): string[] {
+  const t = expr.trim()
+  if (t === '') return []
+  if (wrapped(t)) return branchesOf(t.slice(1, -1))
+
+  const marks: { at: number; ch: '?' | ':' }[] = []
+  let depth = 0
+  let i = 0
+  while (i < t.length) {
+    const k = skipInert(t, i)
+    if (k !== i) { i = k; continue }
+    const c = t[i]
+    if (OPENS.includes(c)) depth++
+    else if (CLOSES.includes(c)) depth--
+    else if (depth === 0 && c === '?') {
+      if (t[i + 1] === '?' || t[i + 1] === '.') { i += 2; continue }
+      marks.push({ at: i, ch: '?' })
+    } else if (depth === 0 && c === ':') {
+      marks.push({ at: i, ch: ':' })
+    }
+    i++
+  }
+  if (marks.length === 0) return [t]
+
+  const segs: string[] = []
+  let from = 0
+  for (const mk of marks) {
+    segs.push(t.slice(from, mk.at))
+    from = mk.at + 1
+  }
+  segs.push(t.slice(from))
+
+  const out: string[] = []
+  for (let s = 0; s < segs.length; s++) {
+    if (marks[s]?.ch === '?') continue // a test, not an outcome
+    out.push(...branchesOf(segs[s]))
+  }
+  return out
+}
+
+/** A name stated whole: a quoted SCREAMING_SNAKE string and nothing else. */
+const WHOLE_NAME = /^(['"`])([A-Z][A-Z0-9_]{2,})\1$/
+
+export interface NamesRead {
+  /** Every outcome, as source text. */
+  branches: string[]
+  /** The names those outcomes state, sorted and deduplicated. */
+  names: string[]
+  /** Outcomes that are not a name stated whole — assembled, or looked up. */
+  unnamed: string[]
+}
+
+/** Read one `action:` expression. */
+export function namesIn(expr: string): NamesRead {
+  const branches = branchesOf(expr)
+  const names: string[] = []
+  const unnamed: string[] = []
+  for (const b of branches) {
+    const m = b.match(WHOLE_NAME)
+    if (m) names.push(m[2])
+    else unnamed.push(b)
+  }
+  return { branches, names: [...new Set(names)].sort(), unnamed }
+}
+
+/** Read a whole file: every name every `automationLog.create` in it can write. */
+export function actionsNamedIn(source: string): NamesRead {
+  const branches: string[] = []
+  const names: string[] = []
+  const unnamed: string[] = []
+  for (const call of automationCalls(source)) {
+    for (const expr of actionExpressions(call)) {
+      const read = namesIn(expr)
+      branches.push(...read.branches)
+      names.push(...read.names)
+      unnamed.push(...read.unnamed)
+    }
+  }
+  return { branches, names: [...new Set(names)].sort(), unnamed }
+}

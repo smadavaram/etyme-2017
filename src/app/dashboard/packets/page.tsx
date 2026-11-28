@@ -1,0 +1,512 @@
+'use client'
+
+import Link from 'next/link'
+import { readJson } from '@/lib/read-response'
+import type { ExamineNeeds } from '@/lib/document-stages/examine-form'
+import { plainDate } from '@/lib/plain-date'
+import { itemStateSays } from '@/lib/document-stages/packet-resend'
+import { emptyRequestsSays, sendRequestMissing } from './words'
+import { ExaminePaper, type ExamineRow } from '../documents/examine'
+import { usePageSection } from '@/components/page-section'
+import { EmptyState, Field, Input, LoadingState, PageHead, Panel, RefusedState, Select, Stat, SubmitButton } from '@/components/ui'
+
+import { useEffect, useState, useCallback } from 'react'
+
+/**
+ * What you have asked partners for, and what came back.
+ *
+ * The inside view of the same thing a supplier sees at /packet/:token.
+ * Ordered by what needs a person: documents waiting to be looked at first,
+ * then requests still open, then links that quietly expired — which look
+ * identical to being ignored and are the reason people say the system does
+ * not work.
+ */
+
+interface Packet {
+  id: string
+  label: string
+  purpose: string
+  direction: string
+  subject: string
+  recipientEmail: string
+  askedBy: string
+  askedAt: string
+  progress: { total: number; received: number; complete: boolean; examined?: boolean; summary: string }
+  completedAt: string | null
+  reopenedReason: string | null
+  expiresInDays: number
+  linkExpired: boolean
+  awaitingReview: number
+  /** What arrived and nobody has looked at yet. */
+  arrived?: Arrived[]
+  /** The request's own link, for a seat that sends it on; null for any other. */
+  link?: string | null
+  /** Every item and where it stands. */
+  items?: { itemId: string; label: string; required: boolean; state: string; fileName: string | null; elsewhere?: string | null }[]
+}
+
+interface Arrived {
+  itemId: string
+  key: string
+  label: string
+  fileName: string | null
+  /** The paper the answer is kept as; null where no file came with it. */
+  paperId: string | null
+  aboutAFirm: boolean
+  examineNeeds: Partial<ExamineNeeds>
+}
+
+interface Available {
+  key: string
+  label: string
+  purpose: string
+  subject: string
+  itemCount: number
+}
+
+export default function PacketsPage() {
+  // The section on the reader's own menu; nothing while it is not known.
+  const section = usePageSection('/dashboard/packets')
+  const [packets, setPackets] = useState<Packet[] | null>(null)
+  const [available, setAvailable] = useState<Available[]>([])
+  const [counts, setCounts] = useState({ open: 0, awaitingReview: 0, stale: 0, outside: 0 })
+  // Papers this firm's orders ask for that arrived at its supplier: said, never examined here.
+  const [atSuppliers, setAtSuppliers] = useState<{ personId: string; says: string }[]>([])
+  const [canAsk, setCanAsk] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+  const [link, setLink] = useState<string | null>(null)
+  // What was actually asked for, and which rule wanted each one. A
+  // client's own order can add a document the shipped list has never
+  // heard of, and "Asking for 6 documents" does not say which six.
+  const [asked, setAsked] = useState<{ label: string; required: boolean; becauseOf: string | null }[]>([])
+  const [asking, setAsking] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const [packetKey, setPacketKey] = useState('')
+  const [email, setEmail] = useState('')
+  const [companies, setCompanies] = useState<{ id: string; name: string; kind: string }[]>([])
+  const [subjectCompanyId, setSubjectCompanyId] = useState('')
+  const [subjectPersonId, setSubjectPersonId] = useState('')
+  const [people, setPeople] = useState<{ id: string; name: string; email: string | null; onLine?: boolean }[]>([])
+  const [notOffered, setNotOffered] = useState<{ label: string; why: string }[]>([])
+  // Looking at what arrived: the same look, and the same route, as Paperwork
+  // (the Tapin walk, 2026-10-29: this page had no way to open anything).
+  const [examining, setExamining] = useState<ExamineRow | null>(null)
+  // An answer with no file, being sent back: the reason is typed here.
+  const [sendingBack, setSendingBack] = useState<{ p: Packet; a: Arrived } | null>(null)
+  const [backReason, setBackReason] = useState('')
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/packets')
+      const body = await readJson(res)
+      setPackets(body.data.packets)
+      setAvailable(body.data.available)
+      setCounts({
+        open: body.data.open,
+        awaitingReview: body.data.awaitingReview,
+        stale: body.data.stale,
+        outside: body.data.waitingOutsideRequests ?? 0,
+      })
+      setCanAsk(body.data.canAsk)
+      setAtSuppliers(body.data.atSuppliers ?? [])
+      setPeople(body.data.people ?? [])
+      setNotOffered(body.data.notOffered ?? [])
+    } catch (e: any) {
+      setError(e.message)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  // Send a request again from its row (2026-11-03: a stuck request could
+  // only be chased by asking again from scratch).
+  const resend = useCallback(async (p: Packet) => {
+    setError(null); setFlash(null); setLink(null); setAsked([])
+    try {
+      const res = await fetch(`/api/packets/${p.id}/resend`, { method: 'POST' })
+      const body = await readJson(res)
+      setFlash(body.data.message)
+      if (body.data.link) setLink(body.data.link)
+      load()
+    } catch (e: any) { setError(e.message) }
+  }, [load])
+
+  // Opened from another page to ask for one thing — the compliance page's
+  // held start, a supplier's lapsing cover — the form opens filled in.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('ask') !== '1') return
+    setAsking(true)
+    if (q.get('packetKey')) setPacketKey(q.get('packetKey')!)
+    if (q.get('subjectCompanyId')) setSubjectCompanyId(q.get('subjectCompanyId')!)
+    if (q.get('subjectPersonId')) setSubjectPersonId(q.get('subjectPersonId')!)
+  }, [])
+
+  useEffect(() => {
+    if (!asking) return
+    fetch('/api/companies')
+      .then((r) => r.json())
+      .then((b) => setCompanies(b.data?.companies ?? []))
+      .catch(() => setCompanies([]))
+  }, [asking])
+
+  const spec = available.find((a) => a.key === packetKey)
+  // A start's papers are asked of somebody on an open line; the submission
+  // set of anybody this firm may put forward (the walk on screens, 2026-10-22).
+  const askable = spec?.purpose === 'SUBMISSION' ? people : people.filter((p) => p.onLine !== false)
+
+  const sendMissing = sendRequestMissing({
+    packetKey, email, subject: spec?.subject === 'PERSON' || spec?.subject === 'COMPANY' ? spec.subject : null,
+    subjectPersonId, subjectCompanyId,
+  })
+
+  async function ask() {
+    setBusy(true); setError(null); setFlash(null); setLink(null); setAsked([])
+    try {
+      const res = await fetch('/api/packets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          packetKey,
+          recipientEmail: email,
+          ...(spec?.subject === 'COMPANY' ? { subjectCompanyId } : {}),
+          ...(spec?.subject === 'PERSON' ? { subjectPersonId } : {}),
+        }),
+      })
+      const body = await readJson(res)
+      setFlash(body.data.message)
+      setAsked(body.data.asking ?? [])
+      if (body.data.link) setLink(body.data.link)
+      if (body.data.created) {
+        setPacketKey(''); setEmail(''); setSubjectCompanyId(''); setSubjectPersonId(''); setAsking(false)
+      }
+      load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Until the list is read there is nothing to count and nothing to ask
+  // from: the route's sentence alone if it would not answer, and the
+  // loading line while it has not yet.
+  if (!packets) return error ? <RefusedState says={error} /> : <LoadingState says="Opening document requests…" />
+
+  const review = packets.filter((p) => p.awaitingReview > 0)
+  const open = packets.filter((p) => p.awaitingReview === 0 && !p.completedAt && !p.linkExpired)
+  const stale = packets.filter((p) => p.awaitingReview === 0 && !p.completedAt && p.linkExpired)
+  const done = packets.filter((p) => p.completedAt)
+
+  return (
+    <>
+      <PageHead
+        eyebrow={section}
+        title="Document requests"
+        subtitle="Ask a supplier or a person for documents with one link. They need no account. We never ask again for something already on file that has not run out."
+        actions={canAsk && (
+          <button onClick={() => setAsking(!asking)} className="btn-secondary text-[13px]">
+            {asking ? 'Cancel' : 'Request documents'}
+          </button>
+        )}
+      />
+
+      {flash && (
+        <div className="mb-5 rounded-md border border-etyme-verified/30 bg-etyme-verified/5 p-3">
+          <p className="text-[13px] text-etyme-verified">{flash}</p>
+          {link && (
+            <p className="text-[12px] text-etyme-muted mt-1.5">
+              Link to send them: <span className="font-mono text-etyme-ink">{link}</span>
+            </p>
+          )}
+          {asked.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {asked.map((a) => (
+                <li key={a.label} className="text-[12px] text-etyme-muted">
+                  <span className="text-etyme-ink">{a.label}</span>
+                  {a.required ? '' : ' (optional)'}
+                  {/* Whose rule wanted it, in that rule's own words.
+                      "The system requires it" is the answer that makes
+                      somebody phone you. */}
+                  {a.becauseOf ? ` — ${a.becauseOf}` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {error && (
+        <div className="mb-5 rounded-md border border-etyme-attention/30 bg-etyme-attention/5 p-3">
+          <p className="text-[13px] text-etyme-attention">{error}</p>
+        </div>
+      )}
+
+      {asking && (
+        <Panel title="Request documents" className="mb-5">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="What you need">
+              <Select value={packetKey} onChange={(e) => setPacketKey(e.target.value)}>
+                <option value="">Choose…</option>
+                {available.map((a) => (
+                  <option key={a.key} value={a.key}>{a.label} ({a.itemCount})</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Send to">
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email"
+                placeholder="office@supplier.example" />
+            </Field>
+            {spec?.subject === 'PERSON' && (
+              <Field label="About which person" className="sm:col-span-2"
+                help={askable.length === 0
+                  ? spec?.purpose === 'SUBMISSION'
+                    ? 'Nobody is on your bench or your payroll yet, so there is nobody to put forward.'
+                    : 'Nobody is on an open contract with your firm yet, so there is nobody to ask about.'
+                  : undefined}>
+                <Select value={subjectPersonId}
+                  onChange={(e) => {
+                    setSubjectPersonId(e.target.value)
+                    const who = askable.find((p) => p.id === e.target.value)
+                    if (who?.email && !email.trim()) setEmail(who.email)
+                  }}>
+                  <option value="">Choose…</option>
+                  {askable.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </Select>
+              </Field>
+            )}
+            {spec?.subject === 'COMPANY' && (
+              <Field label="About which company" className="sm:col-span-2">
+                <Select value={subjectCompanyId} onChange={(e) => setSubjectCompanyId(e.target.value)}>
+                  <option value="">Choose…</option>
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+              </Field>
+            )}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <SubmitButton type="button" onClick={ask} pending={busy} pendingLabel="Sending…"
+              disabled={!!sendMissing}>
+              Send the request
+            </SubmitButton>
+            {/* A disabled button always says what is missing (release walk three, D3). */}
+            {sendMissing && <span className="text-[12px] text-etyme-muted">{sendMissing}</span>}
+          </div>
+          {notOffered.length > 0 && (
+            <div className="mt-4 text-[12px] text-etyme-muted">
+              <p>Not sent from here: {notOffered.map((n) => n.label).join(', ')}.</p>
+              <p className="mt-0.5">{notOffered[0].why}</p>
+            </div>
+          )}
+        </Panel>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+        <Stat label="Waiting on you" value={counts.awaitingReview} tone={counts.awaitingReview > 0 ? 'attention' : 'default'} sub="documents to look at" />
+        <Stat label="Still open" value={counts.open} sub="waiting on them" />
+        <Stat label="Link expired" value={counts.stale} tone={counts.stale > 0 ? 'attention' : 'default'} sub="they cannot reply" />
+      </div>
+      {counts.outside > 0 && (
+        <p className="-mt-6 mb-8 text-[13px] text-etyme-muted">
+          {counts.outside === 1 ? 'One of them was sent without a request.' : `${counts.outside} of them were sent without a request.`}{' '}
+          <Link href="/dashboard/documents" className="text-etyme-action hover:underline">Open them on Paperwork</Link>
+        </p>
+      )}
+
+      {atSuppliers.length > 0 && (
+        <section className="mb-8">
+          <h2 className="font-serif text-lg text-etyme-ink mb-1">At your suppliers <span className="text-xs text-etyme-faint tabular-nums font-sans">{atSuppliers.length}</span></h2>
+          <p className="text-[13px] text-etyme-muted mb-2">Papers your orders ask for that arrived at the supplier. The supplier examines them; each reads on the placement once it is on file.</p>
+          <ul className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+            {atSuppliers.map((r, n) => <li key={`${r.personId}-${n}`} className="px-4 py-2 text-[13px] text-etyme-ink">{r.says}</li>)}
+          </ul>
+        </section>
+      )}
+
+      {/* ── Never a dead end ──
+          This read "A packet is how you get a W-9…" with no button under
+          it, so a compliance officer could not ask for anything from the
+          page named for asking. It now says what to do, and offers it
+          where this desk may. */}
+      {packets.length === 0 && (
+        <EmptyState
+          says={emptyRequestsSays(canAsk)}
+          action={canAsk && !asking ? { label: 'Request documents', onClick: () => setAsking(true) } : undefined}
+        />
+      )}
+
+      <Group title="Waiting on you" rows={review} note="Something arrived and nobody has looked at it. Open each one, then accept it or send it back."
+        onLook={(p, a) => setExamining({
+          id: a.paperId!, template: { name: a.label }, subject: p.subject,
+          subjectType: 'PACKET_ITEM', aboutAFirm: a.aboutAFirm, fileName: a.fileName, examineNeeds: a.examineNeeds,
+        })}
+        onAnswer={async (p, a, accept) => {
+          setError(null); setFlash(null)
+          // Sending back asks for the reason in a field on the page, never
+          // a browser prompt (the 2026-11-02 rule): the person reads it.
+          if (!accept) { setSendingBack({ p, a }); setBackReason(''); return }
+          const note = ''
+          try {
+            const res = await fetch(`/api/packets/${p.id}/review`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ itemId: a.itemId, action: accept ? 'accept' : 'reject', note }),
+            })
+            const body = await readJson(res)
+            setFlash(body.data.message)
+            load()
+          } catch (e: any) { setError(e.message) }
+        }}
+        onResend={resend} />
+      {sendingBack && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-etyme-ink/30 p-4 md:p-8" onClick={() => setSendingBack(null)} role="dialog" aria-modal="true" aria-label={`Send back ${sendingBack.a.label}`}>
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={async (e) => {
+              e.preventDefault()
+              const { p, a } = sendingBack
+              const note = backReason.trim()
+              if (!note) return
+              setError(null); setFlash(null)
+              try {
+                const res = await fetch(`/api/packets/${p.id}/review`, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ itemId: a.itemId, action: 'reject', note }),
+                })
+                const body = await readJson(res)
+                setFlash(body.data.message)
+                setSendingBack(null)
+                load()
+              } catch (err: any) { setError(err.message) }
+            }}
+            className="w-full max-w-lg bg-etyme-surface border border-etyme-rule rounded-lg p-5 space-y-4"
+          >
+            <h2 className="font-serif text-lg text-etyme-ink">Send back {sendingBack.a.label}</h2>
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Why it goes back. {sendingBack.p.subject} reads this.</span>
+              <textarea value={backReason} onChange={(e) => setBackReason(e.target.value)} required rows={3}
+                className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+            </label>
+            {!backReason.trim() && <p className="text-xs text-etyme-muted">Say why it goes back.</p>}
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setSendingBack(null)} className="text-sm text-etyme-muted">Cancel</button>
+              <button type="submit" disabled={!backReason.trim()} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">Send it back</button>
+            </div>
+          </form>
+        </div>
+      )}
+      {examining && (
+        <ExaminePaper
+          row={examining}
+          onClose={() => setExamining(null)}
+          onDone={(says) => { setExamining(null); setFlash(says); load() }}
+        />
+      )}
+      <Group title="Waiting on them" rows={open} onResend={resend} />
+      <Group title="Link expired" rows={stale} note="They cannot reply to these. Send it again to open the link for thirty more days." onResend={resend} />
+      <Group title="Done" rows={done} />
+    </>
+  )
+}
+
+function Group({ title, rows, note, onLook, onAnswer, onResend }: {
+  title: string
+  rows: Packet[]
+  note?: string
+  onLook?: (p: Packet, a: Arrived) => void
+  onAnswer?: (p: Packet, a: Arrived, accept: boolean) => void
+  onResend?: (p: Packet) => void
+}) {
+  const [opened, setOpened] = useState<string | null>(null)
+  if (rows.length === 0) return null
+  return (
+    <section className="mb-7">
+      <h2 className="font-serif text-[19px] text-etyme-ink tracking-[-0.02em]">
+        {title}
+        <span className="ml-2 text-[12px] text-etyme-muted font-sans tabular-nums">{rows.length}</span>
+      </h2>
+      {note && <p className="text-[12px] text-etyme-muted mt-0.5 mb-3">{note}</p>}
+      <div className="space-y-2 mt-3">
+        {rows.map((p) => (
+          <div key={p.id} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4">
+            <button
+              type="button"
+              onClick={() => setOpened(opened === p.id ? null : p.id)}
+              aria-expanded={opened === p.id}
+              className="w-full text-left flex items-baseline justify-between gap-4"
+            >
+              <div className="min-w-0">
+                <p className="text-[14px] text-etyme-ink">
+                  {p.label}
+                  <span className="ml-2 text-[13px] text-etyme-muted">{p.subject}</span>
+                </p>
+                <p className="text-[12px] text-etyme-faint mt-0.5">
+                  {p.recipientEmail} · asked by {p.askedBy} on {plainDate(p.askedAt)}
+                </p>
+              </div>
+              <span className="text-[12px] tabular-nums text-etyme-muted shrink-0">
+                {p.progress.received}/{p.progress.total}
+              </span>
+            </button>
+            <p className={`text-[12px] mt-2 ${p.linkExpired && !p.completedAt ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+              {/* Finished only once every item is examined or on file; a
+                  request whose I-9 nobody has looked at is received and
+                  waiting on HR (the fifth screen walk, R6). */}
+              {p.completedAt && p.progress.examined !== false
+                ? `Finished ${plainDate(p.completedAt)}`
+                : p.completedAt
+                ? p.progress.summary
+                : p.linkExpired
+                  ? `Their link expired ${Math.abs(p.expiresInDays)} days ago, so they cannot reply.`
+                  : p.progress.summary}
+            </p>
+            {/* The request opened: every item and where it stands, its
+                link, and Send again where something is still owed. */}
+            {opened === p.id && (
+              <div className="mt-3 border-t border-etyme-rule pt-2 space-y-2">
+                <ul className="space-y-1">
+                  {(p.items ?? []).map((i) => (
+                    <li key={i.itemId} className="flex flex-wrap justify-between gap-3 text-[13px]">
+                      <span className="text-etyme-ink">{i.label}{i.fileName ? <span className="text-etyme-faint"> · {i.fileName}</span> : null}</span>
+                      <span className="text-etyme-muted">{i.elsewhere ?? itemStateSays(i.state, i.required)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {p.link && (
+                  <p className="text-[12px] text-etyme-muted">
+                    Their link: <span className="font-mono text-etyme-ink break-all">{p.link}</span>
+                  </p>
+                )}
+                {onResend && !p.completedAt && (p.items ?? []).some((i) => i.state === 'PENDING' || i.state === 'REJECTED') && (
+                  <button type="button" onClick={() => onResend(p)} className="text-[12px] text-etyme-action hover:underline">Send again</button>
+                )}
+              </div>
+            )}
+            {onLook && (p.arrived ?? []).length > 0 && (
+              <ul className="mt-3 divide-y divide-etyme-rule border-t border-etyme-rule">
+                {(p.arrived ?? []).map((a) => (
+                  <li key={a.itemId} className="pt-2 pb-1 flex flex-wrap items-center gap-3">
+                    <span className="flex-1 min-w-[200px] text-[13px] text-etyme-ink">
+                      {a.label}{a.fileName ? <span className="text-etyme-faint"> · {a.fileName}</span> : null}
+                    </span>
+                    {a.paperId ? (
+                      <>
+                        <a href={`/api/documents/${a.paperId}/file`} target="_blank" rel="noreferrer" className="text-[12px] text-etyme-action hover:underline">Open</a>
+                        <button onClick={() => onLook(p, a)} className="text-[12px] text-etyme-action hover:underline">Accept or send back</button>
+                      </>
+                    ) : onAnswer && (
+                      <>
+                        <button onClick={() => onAnswer(p, a, true)} className="text-[12px] text-etyme-action hover:underline">Accept</button>
+                        <button onClick={() => onAnswer(p, a, false)} className="text-[12px] text-etyme-action hover:underline">Send back</button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}

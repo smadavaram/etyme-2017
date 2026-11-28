@@ -1,0 +1,23 @@
+/* The learning micro-site. Cause and effect only: 150–300ms ease-out, all off under reduced motion, nothing moves the layout. */
+.learn-root { --learn-ink: #1F1E1D; --learn-muted: #6B6862; --learn-rule: #E3DFD5; background: #F0EEE6; color: var(--learn-ink); min-height: 100vh; }
+.learn-card { display: block; background: #FBFAF7; border: 1px solid var(--learn-rule); border-radius: 14px; padding: 28px 24px; min-height: 120px; text-decoration: none; color: inherit; transition: border-color 180ms ease-out, background-color 180ms ease-out; }
+.learn-card:hover, .learn-card:focus-visible { border-color: var(--learn-accent, #5228FF); background: #FFFFFF; }
+.learn-example { background: #E7E4DA; border-radius: 10px; padding: 14px 16px; }
+.learn-mono { font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace; font-size: 14px; white-space: pre-wrap; }
+.learn-try { background: #E6F2E6; border: 1px solid #B7D4B7; border-radius: 10px; padding: 16px; }
+.learn-try textarea { width: 100%; min-height: 96px; border: 1px solid #B7D4B7; border-radius: 8px; padding: 10px; background: #fff; font: inherit; }
+.learn-run { background: #4F6F52; color: #fff; border-radius: 8px; padding: 8px 18px; font-weight: 600; transition: background-color 150ms ease-out; }
+.learn-run:hover { background: #3F5D42; }
+.learn-out { min-height: 72px; transition: opacity 200ms ease-out; }
+.learn-ok { color: #2F5D33; background: #E6F2E6; border-radius: 8px; padding: 8px 10px; }
+.learn-no { color: #8A2A2A; background: #F7E4E4; border-radius: 8px; padding: 8px 10px; }
+.learn-choice { display: block; width: 100%; text-align: left; border: 1px solid var(--learn-rule); border-radius: 8px; padding: 10px 12px; background: #FBFAF7; margin-top: 8px; transition: border-color 150ms ease-out, background-color 150ms ease-out; }
+.learn-choice:hover { border-color: var(--learn-accent, #5228FF); }
+.learn-bar { height: 6px; background: #E7E4DA; border-radius: 3px; overflow: hidden; }
+.learn-bar > span { display: block; height: 100%; background: var(--learn-accent, #5228FF); transition: width 250ms ease-out; }
+.learn-fade { animation: learn-in 200ms ease-out; }
+@keyframes learn-in { from { opacity: 0; } to { opacity: 1; } }
+.learn-video { border: 1px dashed var(--learn-rule); border-radius: 10px; padding: 18px; color: var(--learn-muted); min-height: 72px; }
+@media (prefers-reduced-motion: reduce) {
+  .learn-root *, .learn-root *::before, .learn-root *::after { animation: none !important; transition: none !important; }
+}

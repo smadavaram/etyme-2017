@@ -1,0 +1,42 @@
+; etyme.com: the mail records that were NOT carried over when the
+; nameservers moved to Vercel (found 2026-11-12: MX none, TXT none).
+; Every value below is from the live zone exported on 2026-11-09.
+;
+; Type each record into Vercel → Domains → etyme.com → DNS Records.
+; "@" means leave the Name box empty. Typing them is the safe way: it only
+; adds. Do not delete the three records Resend added on 2026-11-11
+; (send, rsend, resend._domainkey).
+
+$ORIGIN etyme.com.
+$TTL 3600
+
+; ── 1. Receiving: Google Workspace mail for @etyme.com ─────────────────
+; The first line alone brings mail back. The other four are Google's
+; backups; add all five.
+@                     IN  MX  1   aspmx.l.google.com.
+@                     IN  MX  5   alt1.aspmx.l.google.com.
+@                     IN  MX  5   alt2.aspmx.l.google.com.
+@                     IN  MX  10  alt3.aspmx.l.google.com.
+@                     IN  MX  10  alt4.aspmx.l.google.com.
+
+; ── 2. Sending: SPF, so mail from @etyme.com is not refused or junked ──
+; One SPF record only. Two make SPF fail for every message.
+@                     IN  TXT  "v=spf1 include:_spf.google.com ~all"
+
+; ── 3. Later the same day: Google's proof that the domain is yours ─────
+@                     IN  TXT  "google-site-verification=BBDibdPX9tTYPhaDsrVgPeKBEqMiCXs8rZjrf4WbfYk"
+@                     IN  TXT  "google-site-verification=cxCyQld11ghvCXM09SlUlmD1aVXzandjIVzX9EPXQlc"
+@                     IN  TXT  "google-site-verification=hxgsHBmOvl9N-eZ2B67Y-NIuWG2-L0t0SZeDnTrb4z8"
+
+; ── 4. Later: reports only, nothing is rejected ────────────────────────
+_dmarc                IN  TXT  "v=DMARC1; p=none; rua=mailto:support@etyme.com"
+
+; ── 5. Optional: Google Workspace short addresses the old zone had ─────
+calendar              IN  CNAME  ghs.google.com.
+docs                  IN  CNAME  ghs.google.com.
+sites                 IN  CNAME  ghs.google.com.
+start                 IN  CNAME  ghs.google.com.
+mail                  IN  CNAME  ghs.googlehosted.com.
+imap                  IN  CNAME  imap.googlemail.com.
+pop                   IN  CNAME  pop.googlemail.com.
+smtp                  IN  CNAME  smtp.googlemail.com.

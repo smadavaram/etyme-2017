@@ -1,0 +1,56 @@
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  // Where the build goes. `.next` unless a script asks for its own folder:
+  // the simulation (scripts/simulate) builds into `.next-sim` so a
+  // production build and somebody's `next dev` never write one folder at
+  // once (2026-10-20).
+  distDir: process.env.NEXT_DIST_DIR || '.next',
+  experimental: {
+    typedRoutes: true,
+    // argon2 is a native module (the password door's hash). Bundling it
+    // breaks its binary lookup, so the server loads it from node_modules.
+    serverComponentsExternalPackages: ['argon2'],
+    // And the binary itself: node-gyp-build finds it at run time by path,
+    // which the file tracer cannot follow, so on the serverless host the
+    // function shipped argon2's JavaScript without its .node file and every
+    // password sign-up failed with "no native build" (found 2026-10-13,
+    // first candidate sign-up on production). Name the prebuilds so they
+    // are packed with every function that may hash or check a password.
+    outputFileTracingIncludes: {
+      '/**/*': ['./node_modules/argon2/prebuilds/linux-x64/**'],
+    },
+  },
+  // SCIM 2.0 at the address a company's directory expects (2026-11-11):
+  // /scim/v2 is served by the routes under /api/scim/v2.
+  async rewrites() {
+    return [{ source: '/scim/v2/:path*', destination: '/api/scim/v2/:path*' }]
+  },
+  // Old Rails directories — exclude from Next.js compilation
+  webpack: (config) => {
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [
+        '**/app/assets/**',
+        '**/app/channels/**',
+        '**/app/controllers/**',
+        '**/app/helpers/**',
+        '**/app/jobs/**',
+        '**/app/mailers/**',
+        '**/app/models/**',
+        '**/app/services/**',
+        '**/app/uploaders/**',
+        '**/app/views/**',
+        '**/app/workers/**',
+        '**/config/**',
+        '**/db/**',
+        '**/lib/**',
+        '**/vendor/**',
+        '**/node_modules/**',
+      ],
+    }
+    return config
+  },
+}
+
+export default nextConfig

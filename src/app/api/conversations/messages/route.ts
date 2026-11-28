@@ -1,0 +1,262 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { isConsultantSeat } from '@/lib/seat'
+import { prisma } from '@/lib/db'
+import { canRead, isOnThread, readsOnlyOwnThreads, holdsNoThreadDesk, writesFor, type Participant } from '@/lib/threads'
+import { seatFor } from '@/lib/program-seat'
+import { noDeskYet } from '@/lib/no-desk'
+import { tellThread } from '@/lib/thread-notices'
+import { regionScopeFor } from '@/lib/region-scope'
+import { threadsInRegion } from '../region-threads'
+import { programSideFor, noteSeatThreadRead } from '../program-side'
+
+/**
+ * Who may read a thread: both companies on it, and nobody else. A
+ * consultant on a bench sees only the threads they are in, and so does a
+ * colleague seated with no desk yet — refused in a sentence, because the
+ * thread is their own company's.
+ *
+ * Returns the row, or a refusal. To a stranger the refusal is a 404 rather than a 403:
+ * a thread that is not yours is not yours to know exists.
+ *
+ * A regional manager (a seat on a REGION unit, lib/region-scope) opens a
+ * thread of her own company only where she is on it and it sits inside
+ * her region (../region-threads, the same check her thread list makes).
+ * Anything else is refused in a sentence before a message is read.
+ */
+async function open(request: NextRequest, conversationId: string) {
+  const { caller, error } = await getCallerContext(request, { narrowsToRegion: true })
+  if (error) return { ok: false as const, error }
+
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: {
+      company: { select: { id: true, name: true } },
+      withCompany: { select: { id: true, name: true } },
+    },
+  })
+
+  const participants: Participant[] = Array.isArray(conversation?.participants)
+    ? (conversation!.participants as unknown as Participant[])
+    : []
+  const inIt = isOnThread(participants, caller.person.id)
+  const notHere = {
+    ok: false as const,
+    error: NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'That conversation is not here.' } },
+      { status: 404 }
+    ),
+  }
+
+  if (!conversation) return notHere
+  if (!canRead(conversation, caller.company?.id)) {
+    // A firm seated in the client's program, whose seat writes for it,
+    // reads and writes the client's threads with its suppliers as the
+    // program does (./program-side); the read is logged as the seat's.
+    // Never the client's own notes, and never for a consultant's seat.
+    if (!conversation.withCompanyId || caller.region || isConsultantSeat(caller)) return notHere
+    const program = await programSideFor(caller, conversation.companyId)
+    if (!program?.writes) return notHere
+    void noteSeatThreadRead(caller, [program.seat], [conversation]).catch(() => undefined)
+    return { ok: true as const, caller, conversation, participants, asProgram: { officeName: caller.company!.name } }
+  }
+
+  if (caller.region) {
+    const label = caller.region.label
+    const refuse = (message: string) => ({
+      ok: false as const,
+      error: NextResponse.json({ error: { code: 'OUT_OF_REGION', message } }, { status: 403 }),
+    })
+    if (!inIt) {
+      return refuse(`You are not on that conversation, and your seat reads only your own conversations in ${label}.`)
+    }
+    const me = caller.company?.id ?? null
+    const scope = (me ? await regionScopeFor(me, caller.region.unitId) : null)
+      ?? { unitId: caller.region.unitId, label, unitIds: [], siteIds: [] }
+    const [kept] = await threadsInRegion([conversation], scope)
+    if (!kept) {
+      return refuse(`That conversation is about a site outside ${label}, and your seat reads ${label} only. Open By region on Today for ${label}.`)
+    }
+    return { ok: true as const, caller, conversation, participants }
+  }
+
+  if (inIt) return { ok: true as const, caller, conversation, participants }
+  if (isConsultantSeat(caller)) return notHere
+
+  // A colleague seated with no desk yet reads the threads that name them
+  // and no other. The thread is their own company's, so they are told
+  // why in the door's own words rather than that it does not exist.
+  const ownOnly = holdsNoThreadDesk(caller.permissions) && readsOnlyOwnThreads({
+    consultant: false,
+    permissions: caller.permissions,
+    holdsProgramSeat: Boolean(await seatFor(caller, null)),
+  })
+  if (ownOnly) {
+    return {
+      ok: false as const,
+      error: NextResponse.json(
+        { error: { code: 'NO_DESK', message: noDeskYet('That conversation', caller.company?.name) } },
+        { status: 403 }
+      ),
+    }
+  }
+  return { ok: true as const, caller, conversation, participants }
+}
+
+/**
+ * GET /api/conversations/messages?conversationId=xxx
+ *
+ * Returns messages for a conversation. Paginated, newest first.
+ *
+ * LEGACY_RULES.md §7.2: Message types:
+ *   TEXT · SYSTEM · RATE_CONFIRMATION · INTERVIEW · DOCUMENT_REQUEST
+ */
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const url = request.nextUrl
+  const conversationId = url.searchParams.get('conversationId')
+  const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') ?? '50', 10)))
+  const before = url.searchParams.get('before') // cursor: createdAt ISO string
+
+  if (!conversationId) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'conversationId is required' } },
+      { status: 422 }
+    )
+  }
+
+  const opened = await open(request, conversationId)
+  if (!opened.ok) return opened.error
+  const { conversation, participants } = opened
+
+  const where: any = { conversationId, deletedAt: null }
+  if (before) where.createdAt = { lt: new Date(before) }
+
+  const messages = await prisma.message.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  })
+
+  // Resolve author names from conversation participants and Person table
+  const participantMap = new Map<string, string>()
+  const participantFirm = new Map<string, Participant>()
+  for (const p of participants) {
+    if (p.personId && p.name) participantMap.set(p.personId, p.name)
+    participantFirm.set(p.personId, p)
+  }
+
+  // Look up any authors not in the participant list
+  const unknownAuthorIds = messages
+    .map((m) => m.authorId)
+    .filter((id) => id !== 'SYSTEM' && !participantMap.has(id))
+
+  if (unknownAuthorIds.length > 0) {
+    const persons = await prisma.person.findMany({
+      where: { id: { in: [...new Set(unknownAuthorIds)] } },
+      select: { id: true, name: true },
+    })
+    for (const p of persons) participantMap.set(p.id, p.name)
+  }
+
+  // Which firm each author writes for, so a thread across a deal can say
+  // "Dana at Northbend" and "Ravi at Pinnacle" without the reader guessing, and
+  // "Aptiva Workforce, for Cavanaugh Glassworks" under a seat.
+  const firmName = (p: Participant | undefined) =>
+    writesFor(p, { company: conversation.company, withCompany: conversation.withCompany })
+
+  return NextResponse.json({
+    data: {
+      thread: {
+        id: conversation.id,
+        title: conversation.title,
+        topic: conversation.topic,
+        topicId: conversation.topicId,
+        company: conversation.company,
+        withCompany: conversation.withCompany,
+      },
+      messages: messages.reverse().map((m) => ({
+        id: m.id,
+        authorId: m.authorId,
+        authorName: m.authorId === 'SYSTEM' ? 'System' : (participantMap.get(m.authorId) ?? null),
+        authorCompany: m.authorId === 'SYSTEM' ? null : firmName(participantFirm.get(m.authorId)),
+        body: m.body,
+        type: m.type,
+        metadata: m.metadata,
+        editedAt: m.editedAt?.toISOString() ?? null,
+        createdAt: m.createdAt.toISOString(),
+      })),
+      hasMore: messages.length === limit,
+    },
+  })
+}
+
+/**
+ * POST /api/conversations/messages
+ *
+ * Write on a thread. Either company on it may; the writer joins the
+ * thread by writing, and everybody else on it — or, for a first note
+ * across, the other firm's staff — is told (lib/threads, `whoHears`).
+ */
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const body = await request.json().catch(() => ({}))
+  const { conversationId, body: messageBody, type = 'TEXT', metadata } = body
+
+  if (!conversationId || typeof messageBody !== 'string' || !messageBody.trim()) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'conversationId and body are required' } },
+      { status: 422 }
+    )
+  }
+
+  const opened = await open(request, conversationId)
+  if (!opened.ok) return opened.error
+  const { caller, conversation } = opened
+
+  const [message] = await prisma.$transaction([
+    prisma.message.create({
+      data: {
+        conversationId,
+        authorId: caller.person.id,
+        body: messageBody.trim(),
+        type: String(type).toUpperCase(),
+        metadata: metadata ?? null,
+      },
+    }),
+    prisma.conversation.update({
+      where: { id: conversationId },
+      data: { updatedAt: new Date() },
+    }),
+  ])
+
+  if (caller.company) {
+    // Under a seat that writes for the client's program, the author writes
+    // for the client's side and says whose firm they are at.
+    const asOffice = 'asProgram' in opened && opened.asProgram ? opened.asProgram.officeName : null
+    void tellThread({
+      conversationId: conversation.id,
+      author: {
+        personId: caller.person.id,
+        name: caller.person.name,
+        companyId: asOffice ? conversation.companyId : caller.company.id,
+        companyName: asOffice ? `${asOffice}, for ${conversation.company.name}` : caller.company.name,
+        asOffice,
+      },
+      body: message.body,
+    })
+  }
+
+  return NextResponse.json(
+    {
+      data: {
+        message: {
+          id: message.id,
+          authorId: message.authorId,
+          body: message.body,
+          type: message.type,
+          createdAt: message.createdAt.toISOString(),
+        },
+      },
+    },
+    { status: 201 }
+  )
+}

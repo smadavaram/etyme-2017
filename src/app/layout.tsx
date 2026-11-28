@@ -1,0 +1,73 @@
+import type { Metadata } from 'next'
+import { Gelasio, Inter, IBM_Plex_Mono } from 'next/font/google'
+import './globals.css'
+
+/**
+ * Three families, from the brand kit adopted 2026-09-26.
+ *
+ * The mono was JetBrains Mono, which was never the documented standard:
+ * tailwind.config.ts already named IBM Plex Mono as the fallback and
+ * CLAUDE.md's typography section has said IBM Plex Mono since it was
+ * written. The product had drifted from its own spec and the kit agrees
+ * with the spec, so this is a correction rather than a change of mind.
+ *
+ * Gelasio is new, and it is the serif's last resort rather than its first
+ * choice: the stack is Iowan Old Style → Palatino → Georgia → Gelasio.
+ * Gelasio is metric-compatible with Georgia, so it is what a machine with
+ * none of the first three gets — a Linux or Android reader — without the
+ * line lengths moving. The variable names stay --font-inter and --font-mono
+ * so the 834 `font-mono` and `font-sans` call sites do not move.
+ */
+
+const gelasio = Gelasio({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  display: 'swap',
+  variable: '--font-gelasio',
+})
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
+
+const mono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  display: 'swap',
+  variable: '--font-mono',
+})
+
+export const metadata: Metadata = {
+  title: {
+    default: 'Etyme',
+    template: '%s | Etyme',
+  },
+  // What every page but the home page says it is — the search result, the
+  // link preview, the tab. It said "the system of record for contingent
+  // hiring … verified" until 2026-09-27, which read as a hiring tool and
+  // claimed a verification nothing backs. It is now the category sentence
+  // the founder decided that day (CLAUDE.md, "Show the product"), word for
+  // word, and `site-description.test.ts` holds it there.
+  //
+  // No openGraph or twitter block on purpose: one set here would be
+  // inherited as the og:title of every page that sets only a title, so a
+  // link preview would read "Etyme" over a page about invoices. Previews
+  // fall back to this description, which is the part that was wrong.
+  description:
+    'Enterprise contingent workforce management. One record for every contractor and every supplier, from job request to paid bill.',
+  metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" className={`${gelasio.variable} ${inter.variable} ${mono.variable}`}>
+      <body>{children}</body>
+    </html>
+  )
+}

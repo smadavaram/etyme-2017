@@ -1,0 +1,203 @@
+/**
+ * Why the submit door said no, in a sentence a recruiter can act on.
+ *
+ * The door answered `Requirement is DRAFT, not OPEN` — two machine
+ * states in one line, and the second half of it a lie of omission: a
+ * requisition sitting at DRAFT with its approval chain running is not a
+ * draft anybody forgot to publish, it is a role three desks are still
+ * reading. A supplier told "DRAFT" chases the client to publish
+ * something the client cannot publish yet.
+ *
+ * CLAUDE.md: "A refusal says what is missing and what to do — never
+ * `DOCUMENTS_BLOCK`. The code is for the machine; the sentence is the
+ * product." So the code stays, and it gets narrower rather than wider:
+ * NOT_OPEN said nothing about which of five situations the caller was
+ * in, and the reasons are the one asset nobody can buy — a year of
+ * NOT_PUBLISHED is a different fact about a client from a year of
+ * ALREADY_FILLED.
+ *
+ * Beside the route rather than in src/lib because a new lib file needs
+ * an owner adding in src/lib/domains.ts, which is the architect's call.
+ * No database and no clock in here, so the tests run it directly.
+ */
+
+export interface DoorRefusal {
+  /** The reason code. Machine-readable, countable, never free text. */
+  code:
+    | 'NOT_PUBLISHED'
+    | 'AWAITING_APPROVAL'
+    | 'CHANGES_WANTED'
+    | 'ALREADY_FILLED'
+    | 'WITHDRAWN'
+    | 'CLOSED'
+  /** What a person reads. */
+  message: string
+}
+
+export interface DoorRow {
+  title: string
+  /** DRAFT · OPEN · FILLED · CLOSED · CANCELLED */
+  status: string
+  /** DRAFT · PENDING_APPROVAL · CHANGES_REQUESTED · APPROVED · AUTO_APPROVED · REJECTED */
+  approvalState?: string | null
+  /** Whose role it is, for the sentence. */
+  buyerName?: string | null
+  /** Present where the client said why it called the role off. */
+  cancelReason?: string | null
+}
+
+/**
+ * Why a role that is not open is not open — or null when it is.
+ *
+ * The approval state is read before the lifecycle status on a role that
+ * has not been published, because it is the more useful of the two: the
+ * status only says "not yet", and the approval state says who has it and
+ * therefore how long "not yet" is likely to last.
+ *
+ * A published role that went back through approval keeps its own
+ * sentence at the door (the PAUSED case in the route), because that one
+ * is about a role the supplier is already working and has already been
+ * told about.
+ */
+export function whyNotOpen(r: DoorRow): DoorRefusal | null {
+  const status = String(r.status ?? '').toUpperCase()
+  const approval = String(r.approvalState ?? '').toUpperCase()
+  const buyer = r.buyerName?.trim() || 'the client'
+
+  if (status === 'OPEN') return null
+
+  if (status === 'FILLED') {
+    return {
+      code: 'ALREADY_FILLED',
+      message:
+        `${r.title} has been filled. Nothing more can be put forward for it — ` +
+        'anybody you submitted has been told where they stand.',
+    }
+  }
+
+  if (status === 'CANCELLED') {
+    return {
+      code: 'WITHDRAWN',
+      message:
+        `${buyer} withdrew ${r.title}` +
+        (r.cancelReason ? `: ${r.cancelReason}.` : '.') +
+        ' Nothing more can be put forward for it.',
+    }
+  }
+
+  if (status === 'CLOSED') {
+    // Two ways a role reaches CLOSED, and they are different news: an
+    // approver refused it, or it was settled and taken off the list.
+    if (approval === 'REJECTED') {
+      return {
+        code: 'CLOSED',
+        message:
+          `${r.title} was turned down inside ${buyer} and never opened. ` +
+          'If it comes back it will reach you as a new job.',
+      }
+    }
+    return {
+      code: 'CLOSED',
+      message:
+        `${r.title} is closed. It is no longer being worked, so nothing more ` +
+        'can be put forward for it.',
+    }
+  }
+
+  // Everything left is a role that has not reached the market yet.
+  if (approval === 'PENDING_APPROVAL') {
+    return {
+      code: 'AWAITING_APPROVAL',
+      message:
+        `${r.title} has not been published yet — it is still going through ` +
+        `approval at ${buyer}. You will be told when it opens.`,
+    }
+  }
+
+  if (approval === 'CHANGES_REQUESTED') {
+    return {
+      code: 'CHANGES_WANTED',
+      message:
+        `${r.title} has not been published yet — an approver at ${buyer} sent it ` +
+        'back for changes. You will be told when it opens.',
+    }
+  }
+
+  return {
+    code: 'NOT_PUBLISHED',
+    message:
+      `${r.title} has not been published yet. ${buyer} has not released it to ` +
+      'any supplier, so there is nothing to answer.',
+  }
+}
+
+// ── Who came, from whom, for which job ──────────────────────────────────
+//
+// The receiving firm was told "New submission for “Cybersecurity
+// analyst”" over "A candidate was submitted to your requirement" — no
+// name, no supplier — and the simulation of 2026-10-20 counted 1,340 of
+// them, identical, to 500 people. A list of those is a list of one line.
+// The title is now the sentence a hiring manager says: who, from which
+// supplier, for which job.
+
+/** "Ana Ruiz", "Ana Ruiz and Omar Haddad", "Ana Ruiz and 3 others". */
+function whoCame(people: readonly string[]): string {
+  const names = people.filter((p) => typeof p === 'string' && p.trim()).map((p) => p.trim())
+  if (names.length === 0) return 'Somebody'
+  if (names.length === 1) return names[0]
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names[0]} and ${names.length - 1} others`
+}
+
+/** Every name, the way a person lists them: "A, B and C". */
+function listed(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+/**
+ * What the firm a candidate was put forward to reads. The supplier named
+ * is the firm that submitted to it — the rung it buys from — never a
+ * firm further down, whose name is that firm's to keep.
+ */
+export function putForwardNotice(i: {
+  supplierName: string
+  people: readonly string[]
+  roleTitle: string
+}): { title: string; body: string } {
+  const names = i.people.filter((p) => typeof p === 'string' && p.trim()).map((p) => p.trim())
+  const title = `${i.supplierName} put ${whoCame(names)} forward for ${i.roleTitle}`
+  const shown = names.length > 6 ? [...names.slice(0, 6), `${names.length - 6} more`] : names
+  const body =
+    names.length <= 1
+      ? `${i.supplierName} put ${whoCame(names)} forward for the ${i.roleTitle} job. Read the submission and decide whether to interview.`
+      : `${i.supplierName} put ${names.length} candidates forward for the ${i.roleTitle} job: ${listed(shown)}. Read each submission and decide whom to interview.`
+  return { title, body }
+}
+
+/** An offer that is out or accepted makes the row read Offered, until the person is placed or turned down. Pure. */
+export const OFFER_OUT_STATES = ['PROPOSED', 'ACCEPTED'] as const
+export function listedStatus(status: string, offerStates: readonly string[]): string {
+  const live = offerStates.some((o) => (OFFER_OUT_STATES as readonly string[]).includes(o))
+  return live && ['SUBMITTED', 'SHORTLISTED', 'INTERVIEW'].includes(status) ? 'OFFERED' : status
+}
+
+/**
+ * The live offer a row carries, and only to the two firms on that rung of the
+ * deal: the buyer who made it and the supplier whose person received it. Any
+ * other reader (a seat with only its own work, a firm beside the deal) gets
+ * nothing, so the rate never leaves the rung. A draft is the buyer's alone
+ * and is never carried. Pure.
+ */
+export function offerForRow(
+  offers: { state: string; rate: { toString(): string }; currency: string; startDate: Date | null }[],
+  reader: { companyId: string | null; ownOnly: boolean; maySubmit?: boolean },
+  submission: { fromCompanyId: string; toCompanyId: string },
+): { state: string; rate: number; currency: string; startDate: string | null; side: 'BUYER' | 'SUPPLIER'; mayAnswer: boolean } | null {
+  if (reader.ownOnly || !reader.companyId) return null
+  const side = reader.companyId === submission.toCompanyId ? 'BUYER' : reader.companyId === submission.fromCompanyId ? 'SUPPLIER' : null
+  if (!side) return null
+  const o = offers.find((x) => (OFFER_OUT_STATES as readonly string[]).includes(x.state))
+  if (!o) return null
+  return { state: o.state, rate: Number(o.rate.toString()), currency: o.currency, startDate: o.startDate ? o.startDate.toISOString().slice(0, 10) : null, side, mayAnswer: side === 'SUPPLIER' && o.state === 'PROPOSED' && reader.maySubmit === true }
+}

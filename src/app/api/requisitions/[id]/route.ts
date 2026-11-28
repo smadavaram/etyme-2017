@@ -1,0 +1,1221 @@
+import { clientLineWhere } from '@/lib/money/team-lines'
+import { reachFor, jobInReach, outsideReachSays } from '../grant-reach'
+import { jobCurrency, jobCurrencyOf, companyLimitConverter } from '../job-currency'
+import { NextRequest, NextResponse } from 'next/server'
+import { siteSuppliers } from '@/lib/sites'
+import { writtenOn } from '../edit-write'
+import { placeOf, sendToSays, readTickEdit, ticksToEdit, goesOnceApprovedSays } from '@/lib/job-site'
+import { offeredFor } from '../offered'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { waitingOnSays } from '../words'
+import { assessFit } from '@/lib/candidate-fit'
+import { awardDoor } from '@/lib/award'
+import { hasPermission } from '@/lib/permissions'
+import { diff, mayChange, said, noticeForSuppliers } from '@/lib/requisition-change'
+import { readWorkEdit, workFactsOf, sponsorshipValue } from '../work-facts'
+import { readQualification } from '../qualification'
+import { mayEdit, stageOf } from '@/lib/requisition-stage'
+import {
+  evaluateRequisition,
+  annualValue,
+  type RequisitionFacts,
+  type ApprovalRuleFacts,
+  type RuleKind,
+  type Seat,
+} from '@/lib/requisition-approval'
+import { ancestry } from '@/lib/org-tree'
+import { ownPriceMedian } from '@/lib/chain-top'
+import { lineTheReaderPays } from './placed-line'
+import { notifyBulk, type NotifyParams } from '@/lib/notify'
+import { actingDesk } from '@/lib/program-seat'
+
+/**
+ * GET /api/requisitions/:id
+ *
+ * One requisition, with everything needed to work it: where the approval
+ * got to, which vendors were asked and what they said, and who has been
+ * put forward.
+ *
+ * This is the client's side of the glass, so the bands ARE shown — the
+ * client set them. The invariant that survives is the other direction: a
+ * vendor reading its own invitation still sees only its own
+ * (src/lib/invitation-visibility.ts).
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const { id } = await params
+
+  const req = await prisma.requirement.findUnique({
+    where: { id },
+    include: {
+      raisedBy: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true } },
+      orgUnit: { select: { id: true, name: true } },
+      costCenter: { select: { id: true, code: true, name: true } },
+      company: { select: { id: true, name: true, currency: true } },
+      site: { select: { id: true, name: true, city: true } },
+      sendToSetBy: { select: { name: true } },
+      approvals: {
+        include: { approver: { select: { id: true, name: true } } },
+        orderBy: { rank: 'asc' },
+      },
+      invitations: {
+        include: { toCompany: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  })
+
+  if (!req) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Job request not found' } },
+      { status: 404 }
+    )
+  }
+
+  // Only the raising company may open the working view of its own demand.
+  if (caller.company?.id !== req.companyId) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'This job request belongs to another company.' } },
+      { status: 403 }
+    )
+  }
+
+  const submissions = await prisma.submission.findMany({
+    where: { requirementId: id },
+    include: {
+      person: {
+        select: {
+          id: true, name: true,
+          consultant: {
+            select: {
+              headline: true, skills: true, location: true,
+              availableFrom: true, workAuth: true,
+            },
+          },
+        },
+      },
+      fromCompany: { select: { id: true, name: true } },
+      toCompany: { select: { id: true, name: true } },
+    },
+    orderBy: { submittedAt: 'asc' },
+  })
+
+  // The line the award wrote, per person, and whether this reader may
+  // place each candidate — asked of the same function the award route
+  // refuses on, so "Place" is never offered where the click would fail.
+  const lines = await prisma.sellContract.findMany({
+    where: { requirementId: id },
+    select: { id: true, personId: true, companyId: true, clientCompanyId: true, billRate: true, createdAt: true },
+  })
+  // In a chain every rung writes a line carrying this job, so a line per
+  // person is the one the reader pays and never a rung below it
+  // (`./placed-line`, round six problem 2). Its rate is what the award
+  // agreed, which is not what the supplier asked: the tester placed
+  // Daniel Okafor at $132 and the page went on saying $131. Its day is
+  // when the award wrote it: "Filled by Daniel Okafor at $132/hr on Oct
+  // 26, 2026", rather than a filled job that never says when.
+  const placedLineOf = (s: { personId: string; fromCompanyId: string; toCompanyId: string }) =>
+    lineTheReaderPays(lines, s, caller.company?.id)
+  const mayHire = hasPermission(caller.permissions, 'requirements.write')
+
+  const now = new Date()
+  /** How many a firm has put forward on this job. */
+  const putForward = (companyId: string) => submissions.filter(sub => sub.fromCompanyId === companyId).length
+
+  // ── What the approval checked the job against ───────────────────────
+  //
+  // "Cleared automatically · Within plan" told an approver nothing they
+  // could stand behind. The checks carry the facts — "4 of 6 approved
+  // heads", "$96,000 left in APPS 4100", "$115/hr is in line with the
+  // $112/hr you already pay" — and they were written to the automation
+  // log when the job was raised, then never read. Read them back, as
+  // recorded at the decision. Where the money moved since, or the row
+  // was written without the checks (an import, the seed), they are run
+  // again on today's plan and the page says that is what they are.
+  const decidedOn = await prisma.automationLog.findFirst({
+    where: {
+      companyId: req.companyId,
+      action: { in: ['REQUISITION_AUTO_CLEARED', 'REQUISITION_ROUTED', 'REQUISITION_CHANGED'] },
+      payload: { path: ['requirementId'], equals: id },
+    },
+    orderBy: { at: 'desc' },
+    select: { action: true, at: true, payload: true },
+  })
+  const recorded = decidedOn && decidedOn.action !== 'REQUISITION_CHANGED'
+    ? ((decidedOn.payload as any)?.checks as any[] | undefined) ?? null
+    : null
+  const checked = recorded
+    ? { basis: 'RECORDED' as const, at: decidedOn!.at.toISOString(), checks: recorded }
+    : {
+        basis: 'NOW' as const,
+        at: now.toISOString(),
+        checks: (await checksFor(req.companyId, {
+          skills: req.skills,
+          headcount: req.headcount,
+          billMax: req.billMax,
+          months: req.months,
+          budgetCents: req.budgetCents,
+          hoursPerWeek: req.hoursPerWeek,
+          costCenterId: req.costCenterId,
+          orgUnitId: req.orgUnitId,
+          raisedById: req.raisedById,
+          ownerId: req.ownerId,
+        })).decision.checks,
+      }
+
+  // Who a job at this site goes to by default, and the sentence. Null
+  // on a job with no site, which goes where it always went.
+  const here = req.site ? await siteSuppliers(req.site.id) : null
+  // Only on a site of the company sending it: a prime's copy of a client's
+  // job carries the client's site, whose list is not the prime's suppliers.
+  const sendTo = req.site && here && here.site.companyId === req.companyId
+    ? {
+        ids: here.ids,
+        everyApproved: here.everyApproved,
+        says: sendToSays({
+          site: req.site,
+          atSite: here.approved.filter((f) => here.ids.includes(f.id)).map((f) => f.name),
+          others: here.everyApproved ? [] : here.approved.filter((f) => !here.ids.includes(f.id)).map((f) => f.name),
+          everyApproved: here.everyApproved,
+        }),
+      }
+    : null
+
+  // Before it is out: who it goes to once approved, by name (the founder's
+  // tester, 2026-11-08: the ticks were hidden until approval and read as
+  // lost). The job's own ticks, read against the firms its site still
+  // sends to, else every one the site sends to.
+  const stage = stageOf(req)
+  const beforeOut = stage === 'DRAFT' || stage === 'AWAITING' || stage === 'CHANGES'
+  const goesTo = beforeOut
+    ? await (async () => {
+        const at = await offeredFor({ companyId: req.companyId, locationId: req.site?.id ?? null })
+        const ids = ticksToEdit(at.offered.map((f) => f.id), req.sendToSupplierIds)
+        const name = new Map(at.offered.map((f) => [f.id, f.name]))
+        const picked = req.sendToSupplierIds.length > 0
+        const names = ids.map((i) => name.get(i) ?? 'A supplier')
+        return {
+          ids, names,
+          // Every firm the edit form may leave ticked, in the order offered.
+          offered: at.offered.map((f) => ({ id: f.id, name: f.name })),
+          site: at.site,
+          says: goesOnceApprovedSays({ names, everyApproved: at.everyApproved && !picked, site: at.site }),
+        }
+      })()
+    : null
+
+  return NextResponse.json({
+    data: {
+      // What each desk checked the job against, with the facts in the
+      // sentence, and whether that is the record of the decision or a
+      // re-run on today's plan.
+      checked,
+      // Who it goes to once approved, before it is out; null after.
+      goesTo,
+      requisition: {
+        id: req.id,
+        title: req.title,
+        skills: req.skills,
+        location: placeOf(req),
+        // The job's site, and who a job there goes to by default: the
+        // release panel ticks these and offers no other (founder,
+        // 2026-10-28, the Sites drawing).
+        site: req.site,
+        siteSuppliers: sendTo,
+        // The hiring manager's ticks, with who and when; empty means the
+        // site's default. The release panel ticks these first.
+        ticked: req.sendToSupplierIds.length > 0
+          ? { ids: req.sendToSupplierIds, by: req.sendToSetBy?.name ?? null, at: req.sendToSetAt?.toISOString() ?? null }
+          : null,
+        headcount: req.headcount,
+        billMin: req.billMin,
+        billMax: req.billMax,
+        months: req.months,
+        neededBy: req.neededBy?.toISOString() ?? null,
+        // The job itself, before anybody approves it: when it starts, how
+        // many hours a week, and the budget stated for it.
+        startDate: req.startDate?.toISOString() ?? null,
+        hoursPerWeek: req.hoursPerWeek,
+        budgetCents: req.budgetCents,
+        description: req.description,
+        justification: req.justification,
+        // Where the work is done, the restriction's three columns, and the
+        // qualification it asks for, as the job holds them: the page shows
+        // the qualification, and its Edit form opens on all of them rather
+        // than on defaults it would then write back (walk 8).
+        workMode: req.workMode,
+        workAuthRequired: req.workAuthRequired,
+        workAuthBasis: req.workAuthBasis,
+        workAuthCite: req.workAuthCite,
+        requiredQualification: req.requiredQualification,
+        // The job's own money, so the page prints its band and budget in it.
+        currency: jobCurrencyOf(req.company),
+        status: req.status,
+        archivedAt: req.archivedAt?.toISOString() ?? null,
+        approvalState: req.approvalState,
+        raisedBy: req.raisedBy,
+        owner: req.owner,
+        clearedSupplierIds: req.clearedSupplierIds,
+        interviewers: req.interviewers,
+        orgUnit: req.orgUnit,
+        costCenter: req.costCenter,
+        createdAt: req.createdAt.toISOString(),
+      },
+      // Who it waits on, said once here so the list and this page cannot
+      // name two different people (`./words` — waitingOnSays).
+      waitingOn: waitingOnSays(req.approvals),
+      approvals: req.approvals.map(a => ({
+        stage: a.stage,
+        id: a.id,
+        approver: a.approver,
+        rank: a.rank,
+        outcome: a.outcome,
+        reason: a.reason,
+        decidedAt: a.decidedAt?.toISOString() ?? null,
+      })),
+      invitations: req.invitations.map(i => ({
+        id: i.id,
+        vendor: i.toCompany,
+        // The client's own numbers, shown back to the client that set them.
+        band: { payMin: i.payMin, payMax: i.payMax },
+        status: i.expiresAt < now && i.status === 'SENT' ? 'EXPIRED' : i.status,
+        expiresAt: i.expiresAt.toISOString(),
+        message: i.message,
+        // How many this vendor actually put forward — the number that
+        // separates a vendor working it from one that merely accepted.
+        submittedCount: submissions.filter(s => s.fromCompanyId === i.toCompanyId).length,
+      })),
+      candidates: submissions.map(s => ({
+        id: s.id,
+        // Deterministic, instant, and honest about what it cannot judge —
+        // the client is choosing between these people today, not deciding
+        // whether to go looking (src/lib/candidate-fit.ts).
+        fit: assessFit({
+          required: {
+            skills: req.skills,
+            location: placeOf(req),
+            ceilingCents: req.billMax,
+            neededBy: req.neededBy,
+          },
+          candidate: {
+            skills: s.person.consultant?.skills ?? [],
+            headline: s.person.consultant?.headline ?? null,
+            location: s.person.consultant?.location ?? null,
+            availableFrom: s.person.consultant?.availableFrom ?? null,
+          },
+          submittedRateCents: s.rate,
+        }),
+        person: {
+          id: s.person.id,
+          name: s.person.name,
+          headline: s.person.consultant?.headline ?? null,
+          skills: s.person.consultant?.skills ?? [],
+        },
+        vendor: s.fromCompany,
+        // Beside the supplier, where the person would work.
+        site: req.site?.name ?? null,
+        rate: s.rate,
+        // The rate on the line the award wrote, once placed; null before.
+        placedRate: placedLineOf(s)?.billRate ?? null,
+        placedOn: placedLineOf(s)?.createdAt.toISOString() ?? null,
+        kind: s.kind,
+        status: s.status,
+        submittedAt: s.submittedAt.toISOString(),
+        contractId: placedLineOf(s)?.id ?? null,
+        award: (() => {
+          const door = awardDoor({
+            callerCompanyId: caller.company?.id ?? null,
+            callerCompanyName: caller.company?.name ?? null,
+            mayHire,
+            requirementCompanyId: req.companyId,
+            fromCompanyId: s.fromCompanyId,
+            fromCompanyName: s.fromCompany.name,
+            toCompanyId: s.toCompanyId,
+            toCompanyName: s.toCompany.name,
+            personName: s.person.name,
+            status: s.status,
+            contractId: placedLineOf(s)?.id ?? null,
+          })
+          return { open: door.open, says: door.says }
+        })(),
+      })),
+      summary: {
+        invited: req.invitations.length,
+        // Working it: said yes, or put somebody forward — a submission is
+        // an answer, whatever the invitation's own column says. Three
+        // suppliers that had each put a person forward read "Gone quiet 3".
+        accepted: req.invitations.filter(i => i.status === 'ACCEPTED' || (i.status === 'SENT' && putForward(i.toCompanyId) > 0)).length,
+        declined: req.invitations.filter(i => i.status === 'DECLINED').length,
+        // Asked, said nothing and sent nobody, deadline still running. The
+        // quiet ones are the reason a requisition dies without anybody
+        // noticing.
+        silent: req.invitations.filter(i => i.status === 'SENT' && i.expiresAt >= now && putForward(i.toCompanyId) === 0).length,
+        candidates: submissions.length,
+        // Positions still to fill after anyone already placed.
+        remaining: Math.max(0, req.headcount - submissions.filter(s => s.status === 'PLACED').length),
+      },
+    },
+  })
+}
+
+/**
+ * PATCH /api/requisitions/:id
+ *
+ * Edit a requisition, call it off, or put it away.
+ *
+ *   { title?, skills?, ... }        edit, while it is still yours to edit
+ *   { action: 'cancel', reason }    the need went away
+ *   { action: 'archive' }           settled; take it off the working list
+ *   { action: 'unarchive' }         put it back
+ *
+ * ── Changing one that is already out ─────────────────────────────────
+ *
+ * This used to refuse anything that was not a draft or handed back:
+ * "changing the rate underneath people already sourcing it is a
+ * different requisition". Right instinct, wrong size — it forced a
+ * cancel-and-re-raise to add a missing skill, which lost the thread and
+ * every submission on it.
+ *
+ * The founder's rule, in src/lib/requisition-change.ts:
+ *
+ *   WORDS   title, description, skills, location, needed by,
+ *           justification, the panel — saved, and every supplier who
+ *           received it is told what changed
+ *   MONEY   rate band, months, headcount, budget, hours a week — the
+ *           checks run again on the same facts the raise route builds,
+ *           the chain is replaced, and the suppliers are told to hold
+ *
+ * A published requisition whose money moved keeps its OPEN status and
+ * waits on its approval state, so it stays where the suppliers can see
+ * it and reads "Awaiting approval" rather than vanishing into drafts.
+ * Nothing changes on one that is filled, cancelled or put away.
+ *
+ * ── Cancel is not archive ────────────────────────────────────────────
+ *
+ * Cancelling says the need went away: suppliers who sourced against it
+ * are stood down, and it takes a reason, because a requisition withdrawn
+ * silently costs every one of them real work they are never told about.
+ * Archiving only takes a settled requisition off the working list and
+ * changes nothing about what happened to it.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  // The desk this write is made from (`actingDesk`): under a seat, the
+  // client's book and the seat's role, never the office's own; else the
+  // caller's own. Book and permissions from one answer, never apart.
+  const desk = await actingDesk(caller)
+  const deskPermissions = desk?.permissions ?? caller.permissions
+
+  const { id } = await params
+  const body = await request.json().catch(() => ({}))
+  const action = typeof body?.action === 'string' ? body.action : 'edit'
+
+  const requisition = await prisma.requirement.findUnique({
+    where: { id },
+    // Everything the change rule reads, and everything running the
+    // checks again needs. One read: an edit that has to compare before
+    // with after cannot do it from four columns.
+    select: {
+      id: true, companyId: true, title: true, status: true, approvalState: true,
+      archivedAt: true, raisedById: true, ownerId: true,
+      description: true, skills: true, location: true, neededBy: true,
+      justification: true, interviewers: true,
+      billMin: true, billMax: true, months: true, headcount: true,
+      budgetCents: true, hoursPerWeek: true,
+      costCenterId: true, orgUnitId: true,
+      // Where the work is done and whether sponsorship is offered, which
+      // the edit form asks as the raise form does.
+      workMode: true, workAuthRequired: true, workAuthBasis: true, workAuthCite: true,
+      // The qualification the job asks for, a word change like the rest.
+      requiredQualification: true,
+      // Who it goes to: the site, and the hiring manager's ticks, which the
+      // edit form draws as the raise form does (the founder's tester,
+      // 2026-11-08).
+      locationId: true, sendToSupplierIds: true,
+    },
+  })
+
+  if (!requisition) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No job request by that id.' } },
+      { status: 404 }
+    )
+  }
+
+  // The company that raised it. A 404 rather than a 403 — confirming
+  // another client's requisition exists is itself a leak.
+  if (desk?.companyId !== requisition.companyId) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No job request by that id.' } },
+      { status: 404 }
+    )
+  }
+
+  // Editors: the manager it is for, whoever raised it, and the program
+  // office. Not the approvers — they ask for changes and the editor
+  // changes it; otherwise somebody approves their own rewrite. And not
+  // every hiring manager: another team's requirement is not yours to
+  // change. Said as who, not as a permission.
+  // The program office is whoever writes the rules — not whoever may
+  // release to suppliers, which Procurement also does and Procurement is
+  // an approver here.
+  const office = hasPermission(deskPermissions, 'governance.write')
+  const editor =
+    caller.person.id === requisition.ownerId || caller.person.id === requisition.raisedById || office
+  // An Owner's grant of job requests for one team (or one's own) opens
+  // changing a job inside it, and never another team's.
+  const writeReach = !desk?.seat && !hasPermission(deskPermissions, 'requirements.write')
+    ? await reachFor(caller, 'requirements.write')
+    : null
+  const grantedWrite = writeReach != null && (writeReach.scope === 'UNIT' || writeReach.scope === 'PERSON')
+  if (grantedWrite && !jobInReach(writeReach!, requisition, caller.person.id)) {
+    return NextResponse.json(
+      { error: { code: 'OUTSIDE_YOUR_REACH', message: outsideReachSays('jobs', writeReach!, writeReach!.teamNames, desk?.companyName ?? caller.company?.name ?? 'your firm') } },
+      { status: 403 }
+    )
+  }
+  if ((!hasPermission(deskPermissions, 'requirements.write') && !grantedWrite) || !editor) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            `Only the manager this is for, whoever raised it, or the program manager at ${desk!.companyName} can change it. ` +
+            'An approver asks for changes instead.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // ── Put away, or take back out ──
+  if (action === 'archive' || action === 'unarchive') {
+    const archiving = action === 'archive'
+    if (archiving && requisition.status === 'OPEN') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'STILL_OPEN',
+            message:
+              'This is still open to suppliers. Cancel it or let it fill before putting it away.',
+          },
+        },
+        { status: 409 }
+      )
+    }
+    const updated = await prisma.requirement.update({
+      where: { id },
+      data: { archivedAt: archiving ? new Date() : null },
+      select: { id: true, archivedAt: true },
+    })
+    return NextResponse.json({
+      data: {
+        id: updated.id,
+        archivedAt: updated.archivedAt?.toISOString() ?? null,
+        message: archiving ? 'Put away' : 'Back on the list',
+      },
+    })
+  }
+
+  // ── Called off ──
+  if (action === 'cancel') {
+    const reason = String(body?.reason ?? '').trim()
+    if (!reason) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION',
+            message: 'Say why. Suppliers sourcing against this are owed a reason.',
+            field: 'reason',
+          },
+        },
+        { status: 422 }
+      )
+    }
+    // A role that is already finished. CLOSED belongs in this list for
+    // the same reason the other two do — the seat is settled, the
+    // suppliers were stood down when it closed, and a cancellation now
+    // would write a withdrawal reason onto a role nobody is working and
+    // tell every supplier it had been pulled. It was missing, so the
+    // door accepted it.
+    if (requisition.status === 'FILLED' || requisition.status === 'CANCELLED' || requisition.status === 'CLOSED') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'INVALID_STATE',
+            message: `This is ${requisition.status.toLowerCase()} — cancelling it now changes nothing.`,
+          },
+        },
+        { status: 409 }
+      )
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.requirement.update({
+        where: { id },
+        data: { status: 'CANCELLED', cancelReason: reason },
+        select: { id: true, status: true, cancelReason: true },
+      })
+      // Suppliers stood down rather than left working it. Leaving an
+      // invitation open costs them sourcing effort on a role that no
+      // longer exists, and they remember.
+      const stood = await tx.requirementInvitation.updateMany({
+        where: { requirementId: id, status: { in: ['SENT', 'ACCEPTED'] } },
+        data: { status: 'CLOSED' },
+      })
+      // Approvals still owed a decision are closed with it, so nobody is
+      // asked to approve something that no longer exists.
+      await tx.requirementApproval.updateMany({
+        where: { requirementId: id, outcome: 'PENDING' },
+        data: { outcome: 'REJECTED', reason: `Job request cancelled: ${reason}`, decidedAt: new Date() },
+      })
+      return { updated, standDown: stood.count }
+    })
+
+    await prisma.automationLog.create({
+      data: {
+        companyId: requisition.companyId,
+        action: 'REQUISITION_CANCELLED',
+        summary: `${requisition.title} — cancelled by ${caller.person.name}`,
+        reason,
+        payload: { requirementId: id, suppliersStoodDown: result.standDown },
+        // Raising it again is a new requisition, not an undo of this one.
+        reversible: false,
+      },
+    })
+
+    return NextResponse.json({
+      data: {
+        id,
+        status: result.updated.status,
+        reason: result.updated.cancelReason,
+        suppliersStoodDown: result.standDown,
+        message:
+          result.standDown > 0
+            ? `Cancelled. ${result.standDown} supplier(s) stood down.`
+            : 'Cancelled.',
+      },
+    })
+  }
+
+  // ── Changing one that is already out ────────────────────────────────
+  //
+  // The rule is src/lib/requisition-change.ts, and it is pure: words
+  // change freely and every supplier who received it is told what
+  // changed; money goes back through the checks and the suppliers are
+  // told to hold. Everything below is the writing down and the telling.
+
+  // Where the work is done and whether sponsorship is offered: read by
+  // the raise's own reader, compared as the form opens on them (a job
+  // that never said reads as on site), and refused in the field's own
+  // sentence before anything is compared.
+  const workEdit = readWorkEdit(requisition, body)
+  if (!workEdit.ok) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: workEdit.says, field: workEdit.field } },
+      { status: 422 }
+    )
+  }
+  // The qualification the job asks for: read by the raise's own reader,
+  // refused in its sentence, and changed like any other word.
+  let qualificationAfter: { requiredQualification: string | null } | null = null
+  if ('requiredQualification' in body) {
+    const q = readQualification(body.requiredQualification)
+    if (!q.ok) {
+      return NextResponse.json({ error: { code: 'VALIDATION', message: q.says, field: q.field } }, { status: 422 })
+    }
+    qualificationAfter = { requiredQualification: q.value }
+  }
+  const workNow = workFactsOf(requisition)
+  const before = { ...asItStands(requisition), workMode: workNow.workMode, sponsorship: sponsorshipValue(workNow) }
+  const after: Record<string, unknown> = { ...proposed(body), ...workEdit.after, ...(qualificationAfter ?? {}) }
+  const changes = diff(before, after)
+
+  // Whose need it is. Not one of the rule's fields, because a supplier
+  // was never told the manager's name and a new one changes nothing they
+  // are working on — but it is a change, and "nothing changed" is the
+  // wrong answer to it.
+  const askedOwner = typeof body.ownerId === 'string' && body.ownerId.trim() ? body.ownerId.trim() : null
+  const ownerMoves = askedOwner !== null && askedOwner !== requisition.ownerId
+
+  // Who it goes to, narrow only (founder, 2026-10-28): the ticks are read
+  // against the firms the site sends to, refused in a sentence where one
+  // is not among them, where none is left, or where the job is already
+  // out; a list unchanged is not a change.
+  let ticks: { ids: string[]; names: string[]; site: { name: string; city: string | null } | null } | null = null
+  if (Array.isArray(body.sendTo)) {
+    const at = await offeredFor(requisition)
+    const t = readTickEdit({
+      asked: body.sendTo, offered: at.offered, kept: requisition.sendToSupplierIds,
+      out: stageOf(requisition) === 'OPEN', site: at.site,
+    })
+    if (!t.ok) {
+      return NextResponse.json({ error: { code: 'NOT_SENT_THERE', message: t.says, field: t.field } }, { status: 422 })
+    }
+    if (t.changed) {
+      const name = new Map(at.offered.map((f) => [f.id, f.name]))
+      ticks = { ids: t.ids, names: t.ids.map((i) => name.get(i) ?? 'A supplier'), site: at.site }
+    }
+  }
+
+  const verdict = mayChange(requisition, changes)
+  const ownerOnly = changes.length === 0 && (ownerMoves || ticks !== null) && mayEdit(requisition)
+
+  if (!verdict.allowed && !ownerOnly) {
+    return NextResponse.json(
+      { error: { code: 'NOT_CHANGEABLE', message: verdict.reason } },
+      { status: 409 }
+    )
+  }
+
+  // Out to suppliers. Read from the stage rather than from the two
+  // columns, so this page and the rule cannot come to disagree about
+  // what "published" means.
+  const out = stageOf(requisition) === 'OPEN'
+
+  // The budget that pays for it decides who approves it, and moving it
+  // under suppliers who are already sourcing is a different requisition.
+  if (out && 'costCenterId' in body && (body.costCenterId || null) !== requisition.costCenterId) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'BUDGET_FIXED',
+          message:
+            'Which budget pays for this cannot move once suppliers have it. Cancel this one and raise it against the right budget.',
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  // Only the manager it is for, whoever raised it, or somebody who
+  // releases roles may hand it to a new owner.
+  let newOwner: { id: string; name: string } | null = null
+  if (ownerMoves) {
+    if (!mayReassignOwner(requisition, caller.person.id, office)) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_YOURS_TO_HAND_ON',
+            message:
+              'Only the manager it is for, whoever raised it, or somebody who releases jobs can hand this to somebody else.',
+          },
+        },
+        { status: 403 }
+      )
+    }
+    newOwner = await prisma.person.findFirst({
+      where: { id: askedOwner!, contexts: { some: { companyId: requisition.companyId, revokedAt: null } } },
+      select: { id: true, name: true },
+    })
+    if (!newOwner) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_A_SEAT_HERE',
+            message: 'That person does not hold a seat here, so the job cannot be theirs.',
+          },
+        },
+        { status: 422 }
+      )
+    }
+  }
+
+  // What actually gets written. `neededBy` is compared as a day and
+  // stored as a date; everything else is written as the rule read it.
+  // Only what changed (walk 8: an untouched place and way of working were
+  // rewritten on every save). Sponsorship is compared as one value and
+  // written as the three columns the vendor's check reads
+  // (lib/work-authorisation), and only where it changed.
+  const data: Record<string, unknown> = writtenOn(after, changes, workEdit.columns)
+  if ('neededBy' in data) data.neededBy = after.neededBy ? new Date(`${String(after.neededBy)}T00:00:00.000Z`) : null
+  if (!out && 'costCenterId' in body) data.costCenterId = body.costCenterId || null
+  if (ownerMoves) data.ownerId = newOwner!.id
+  if (ticks) Object.assign(data, { sendToSupplierIds: ticks.ids, sendToSetById: caller.person.id, sendToSetAt: new Date() })
+
+  // ── The money moved, so the checks run again ───────────────────────
+  //
+  // On the same facts the raise route builds, because a decision made on
+  // a different set of facts is a different decision. An APPROVED row
+  // from before is not an approval of a different number, so the chain
+  // is replaced rather than added to.
+  const rechecked = verdict.reapprove
+    ? await checksFor(requisition.companyId, {
+        skills: (data.skills as string[]) ?? requisition.skills,
+        headcount: (data.headcount as number) ?? requisition.headcount,
+        billMax: (data.billMax as number | null) ?? requisition.billMax,
+        months: (data.months as number | null) ?? requisition.months,
+        budgetCents: (data.budgetCents as number | null) ?? requisition.budgetCents,
+        hoursPerWeek: (data.hoursPerWeek as number | null) ?? requisition.hoursPerWeek,
+        costCenterId: requisition.costCenterId,
+        orgUnitId: requisition.orgUnitId,
+        raisedById: requisition.raisedById,
+        ownerId: (data.ownerId as string | null) ?? requisition.ownerId,
+      })
+    : null
+
+  // Blocked is not a change that waits — it is a change that does not
+  // happen, so nothing is written and the row stands as it was.
+  if (rechecked && rechecked.decision.state === 'BLOCKED') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'BLOCKED',
+          message: `That change cannot be made: ${rechecked.decision.summary}`,
+          checks: rechecked.decision.checks,
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  const decision = rechecked?.decision ?? null
+  // Suppliers hold while a desk has it, and only while a desk has it.
+  const paused = decision ? pausedByChecks(decision.state) : false
+
+  const saved = await prisma.$transaction(async (tx) => {
+    const updated = await tx.requirement.update({
+      where: { id },
+      data: {
+        ...data,
+        // The status is deliberately untouched. A published requisition
+        // whose money moved stays where the suppliers can see it and
+        // reads "Awaiting approval" off the approval state — sending it
+        // back to DRAFT would make it vanish from under them.
+        ...(decision ? { approvalState: decision.state } : {}),
+      },
+      select: { id: true, title: true, status: true, approvalState: true },
+    })
+
+    if (decision) {
+      await tx.requirementApproval.deleteMany({ where: { requirementId: id } })
+      const now = new Date()
+      await tx.requirementApproval.createMany({
+        data: decision.steps.map(st => ({
+          requirementId: id,
+          approverId: st.approverId,
+          rank: st.rank,
+          stage: st.stage,
+          outcome: st.outcome,
+          reason: st.reason,
+          decidedAt: st.outcome === 'AUTO_CLEARED' ? now : null,
+        })),
+      })
+    }
+
+    await tx.automationLog.create({
+      data: {
+        companyId: requisition.companyId,
+        action: 'REQUISITION_CHANGED',
+        summary: changes.length > 0
+          ? said(changes)
+          : ownerMoves
+            ? `Changed who it is for — ${newOwner?.name ?? 'nobody'}`
+            : `Changed who it goes to — ${ticks?.names.join(', ') ?? 'nobody'}`,
+        reason: changes.length > 0 ? verdict.reason : 'Changed before it went out.',
+        payload: {
+          requirementId: id,
+          changes: changes as any,
+          ownerId: ownerMoves ? newOwner!.id : undefined,
+          sendTo: ticks ? ticks.ids : undefined,
+          reapproved: Boolean(decision),
+          // The figure the checks were re-run on, and whether it was
+          // stated or estimated — a routing decision nobody can reproduce
+          // is not a decision anybody can audit.
+          annualValueCents: rechecked?.value.cents ?? null,
+          valueBasis: rechecked?.value.basis ?? null,
+          paused,
+          toldSuppliers: verdict.tellSuppliers,
+        },
+        // Every one of these can be changed back the same way.
+        reversible: true,
+      },
+    })
+
+    return updated
+  })
+
+  // ── Telling the suppliers ──────────────────────────────────────────
+  //
+  // Everyone who received it, at the firms that received it. A change
+  // nobody is told about is how a supplier submits against a rate that
+  // moved a week ago.
+  let told = 0
+  if (verdict.tellSuppliers) {
+    const invitations = await prisma.requirementInvitation.findMany({
+      where: { requirementId: id },
+      select: { toCompanyId: true },
+    })
+    const firms = [...new Set(invitations.map(i => i.toCompanyId))]
+    if (firms.length > 0) {
+      const seats = await prisma.context.findMany({
+        where: { companyId: { in: firms }, revokedAt: null, type: { in: ['EMPLOYEE', 'PARTNER'] } },
+        select: { personId: true, companyId: true },
+      })
+      const notice = noticeForSuppliers({
+        who: caller.person.name,
+        title: saved.title,
+        changes,
+        paused,
+      })
+      const seen = new Set<string>()
+      const rows: NotifyParams[] = []
+      for (const seat of seats) {
+        const key = `${seat.personId}:${seat.companyId}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        rows.push({
+          personId: seat.personId,
+          companyId: seat.companyId ?? undefined,
+          // In-app, and the bell files it where the whole sentence can be
+          // read. Nothing here is a thread, so it is not a conversation.
+          type: 'SYSTEM',
+          title: notice.title,
+          body: notice.body,
+          entityId: id,
+          data: { requirementId: id, paused, changes: changes as any },
+        })
+      }
+      told = rows.length
+      void notifyBulk(rows)
+    }
+  }
+
+  // And the desks now holding it, the same way the raise route tells them.
+  if (decision && decision.route.length > 0) {
+    void notifyBulk(
+      decision.route.map(r => ({
+        personId: r.approverId,
+        companyId: requisition.companyId,
+        type: 'SYSTEM' as const,
+        title: `Changed and back with you: ${saved.title}`,
+        body: decision.summary,
+        entityId: id,
+        data: { requirementId: id, checks: decision.checks as any },
+      }))
+    )
+  }
+
+  const handedOn = ownerMoves ? ` Now ${newOwner!.name}'s to fill.` : ''
+  const goesTo = ticks ? ` ${goesOnceApprovedSays({ names: ticks.names, everyApproved: false, site: ticks.site })}` : ''
+
+  return NextResponse.json({
+    data: {
+      id: saved.id,
+      changed: changes.map(c => c.field),
+      status: saved.status,
+      approvalState: saved.approvalState,
+      reapproved: Boolean(decision),
+      paused,
+      suppliersTold: told,
+      checks: decision?.checks ?? null,
+      // The sentence the rule wrote, which is what the form shows back.
+      message: (changes.length > 0 ? verdict.reason : ownerMoves ? 'Changed who it is for.' : 'Changed who it goes to.') + handedOn + goesTo,
+    },
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// THE PURE PARTS OF AN EDIT
+//
+// No database and no clock, so
+// __tests__/invariants/requisition-change-screens.test.ts can lift them
+// out of this file and run them. A route may export nothing but its HTTP
+// handlers, which is why they are read rather than imported.
+// ─────────────────────────────────────────────────────────────────────
+
+/** A string field, trimmed, where empty means "no answer" and not "". */
+function words(v: unknown): string | null {
+  const s = typeof v === 'string' ? v.trim() : ''
+  return s.length > 0 ? s : null
+}
+
+/** A figure, where a missing one is null and never zero. */
+function figure(v: unknown): number | null {
+  return v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v)
+}
+
+/**
+ * The requisition as it stands, in the shape the change rule compares.
+ *
+ * `neededBy` is a day, not an instant: a date read back from Postgres
+ * and the same date typed into a form are the same answer, and comparing
+ * them as timestamps would report a change nobody made.
+ */
+function asItStands(r: Record<string, any>): Record<string, unknown> {
+  return {
+    title: r.title ?? null,
+    description: r.description ?? null,
+    skills: r.skills ?? [],
+    location: r.location ?? null,
+    neededBy: r.neededBy ? new Date(r.neededBy).toISOString().slice(0, 10) : null,
+    justification: r.justification ?? null,
+    interviewers: r.interviewers ?? [],
+    billMin: r.billMin ?? null,
+    billMax: r.billMax ?? null,
+    months: r.months ?? null,
+    headcount: r.headcount ?? null,
+    budgetCents: r.budgetCents ?? null,
+    hoursPerWeek: r.hoursPerWeek ?? null,
+    requiredQualification: r.requiredQualification ?? null,
+  }
+}
+
+/**
+ * What the caller is asking for, from what they actually sent.
+ *
+ * Only fields that are present are read, because a field left off a
+ * PATCH is not a field set to null — and the rule only compares what it
+ * is given. The panel is names, de-duplicated and in the order typed.
+ */
+function proposed(body: Record<string, any>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  if (typeof body.title === 'string' && body.title.trim().length >= 3) out.title = body.title.trim()
+  if (Array.isArray(body.skills)) out.skills = body.skills.map((s: unknown) => String(s).trim()).filter(Boolean)
+  if ('description' in body) out.description = words(body.description)
+  if ('location' in body) out.location = words(body.location)
+  if ('justification' in body) out.justification = words(body.justification)
+  if ('neededBy' in body) out.neededBy = body.neededBy ? String(body.neededBy).slice(0, 10) : null
+  if (Array.isArray(body.interviewers)) {
+    out.interviewers = [
+      ...new Set(body.interviewers.map((n: unknown) => String(n).trim()).filter(Boolean)),
+    ]
+  }
+  if (Number.isInteger(body.headcount) && body.headcount > 0) out.headcount = body.headcount
+  if ('billMin' in body) out.billMin = figure(body.billMin)
+  if ('billMax' in body) out.billMax = figure(body.billMax)
+  if ('months' in body) out.months = figure(body.months)
+  if ('hoursPerWeek' in body) out.hoursPerWeek = figure(body.hoursPerWeek)
+  // The raise form calls it budget and the column is budgetCents. Both
+  // are accepted, and the column's own name wins where both are sent.
+  if ('budget' in body) out.budgetCents = figure(body.budget)
+  if ('budgetCents' in body) out.budgetCents = figure(body.budgetCents)
+  return out
+}
+
+/**
+ * Who may hand a requisition to a different manager.
+ *
+ * The manager it is for, whoever raised it, and whoever releases roles
+ * for this client. Not anybody with requirements.write — that is most of
+ * a program office, and an owner is who signs the hours.
+ */
+function mayReassignOwner(
+  r: { ownerId?: string | null; raisedById?: string | null },
+  mePersonId: string,
+  distributes: boolean
+): boolean {
+  return r.ownerId === mePersonId || r.raisedById === mePersonId || distributes
+}
+
+/** Whether a supplier should hold, after the checks ran again. */
+function pausedByChecks(state: string): boolean {
+  return state === 'PENDING_APPROVAL'
+}
+
+/**
+ * The checks, run again on the numbers as they now are.
+ *
+ * The same facts the raise route builds — annual value, what the cost
+ * center already carries, the rules by ancestry with their kind and
+ * specificity, the lead, the escalation, the owner and the raiser. It is
+ * written twice rather than imported because a route file may export
+ * nothing but its handlers, and lifting it into src/lib is a new file
+ * and so the architect's call. The test compares the two fact objects
+ * key for key, so the copy cannot quietly drift from the original.
+ */
+async function checksFor(
+  companyId: string,
+  r: {
+    skills: string[]
+    headcount: number
+    billMax: number | null
+    months: number | null
+    budgetCents: number | null
+    hoursPerWeek: number | null
+    costCenterId: string | null
+    orgUnitId: string | null
+    raisedById: string | null
+    ownerId: string | null
+  }
+) {
+  const costCenter = r.costCenterId
+    ? await prisma.costCenter.findFirst({
+        where: { id: r.costCenterId, companyId },
+        include: {
+          headcountPlans: { orderBy: { period: 'desc' }, take: 1 },
+          owner: { select: { id: true, name: true } },
+          orgUnit: { select: { id: true, name: true } },
+        },
+      })
+    : null
+
+  let committedHeads = 0
+  let committedSpendCents = 0
+  if (costCenter) {
+    const allocations = await prisma.contractCostAllocation.findMany({
+      where: {
+        costCenterId: costCenter.id,
+        sellContract: { state: { in: ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'] } },
+      },
+      select: { shareBps: true, sellContract: { select: { billRate: true } } },
+    })
+    committedHeads = allocations.length
+    committedSpendCents = allocations.reduce(
+      (sum, a) => sum + Math.round((a.sellContract.billRate * 160 * 12 * a.shareBps) / 10_000),
+      0
+    )
+  }
+
+  const skillMedianCents = await medianRateForSkills(companyId, r.skills)
+
+  // The client's own money, as the raise reads it (`jobCurrency`).
+  const currency = await jobCurrency(companyId)
+  const value = annualValue({
+    budgetCents: r.budgetCents,
+    billMaxCents: r.billMax,
+    headcount: r.headcount,
+    months: r.months,
+    hoursPerWeek: r.hoursPerWeek,
+    currency,
+  })
+
+  // The limits and the budget are in the client's own currency, and a
+  // value in another is put beside them only at the company's own rate
+  // (regulatory's rule); with no own rate a person decides. Today the job's
+  // currency is the client's, so nothing is converted.
+  const limitCurrency = currency
+  const convert = await companyLimitConverter(companyId)
+
+  const facts: RequisitionFacts = {
+    currency,
+    limitCurrency,
+    convert,
+    annualValueCents: value.cents,
+    valueBasis: value.basis,
+    valueSays: value.says,
+    headcount: r.headcount,
+    billMaxCents: r.billMax,
+    skillMedianCents,
+    months: r.months,
+    costCenter: costCenter
+      ? {
+          id: costCenter.id,
+          code: costCenter.code,
+          approvedHeads: costCenter.headcountPlans[0]?.approvedHeads ?? null,
+          committedHeads,
+          annualBudgetCents: costCenter.headcountPlans[0]
+            ? Math.round(Number(costCenter.headcountPlans[0].annualBudget) * 100)
+            : null,
+          committedSpendCents,
+        }
+      : null,
+  }
+
+  const team = r.orgUnitId ?? costCenter?.orgUnitId ?? null
+  const orgUnits = await prisma.orgUnit.findMany({
+    where: { companyId },
+    select: { id: true, parentId: true, name: true },
+  })
+  const responsible = ancestry(orgUnits, team)
+
+  const ruleRows = await prisma.approvalRule.findMany({
+    where: {
+      companyId,
+      isActive: true,
+      OR: [
+        { orgUnitId: null },
+        ...(responsible.length > 0 ? [{ orgUnitId: { in: responsible } }] : []),
+      ],
+    },
+    include: { approver: { select: { id: true, name: true } } },
+    orderBy: { rank: 'asc' },
+  })
+
+  const rules: ApprovalRuleFacts[] = ruleRows.map(rule => ({
+    id: rule.id,
+    name: rule.name,
+    approverId: rule.approverId,
+    approverName: rule.approver.name,
+    thresholdCents: rule.thresholdAmount ? Math.round(Number(rule.thresholdAmount) * 100) : null,
+    rank: rule.rank,
+    kind: rule.kind as RuleKind,
+    specificity: rule.orgUnitId ? responsible.length - responsible.indexOf(rule.orgUnitId) : 0,
+  }))
+
+  const raiser = r.raisedById ?? ''
+  const owner = r.ownerId ?? raiser
+  const lead: Seat | null = costCenter?.owner
+    ? { personId: costCenter.owner.id, name: costCenter.owner.name }
+    : null
+
+  let escalation: Seat | null = null
+  const above = responsible.slice(1)
+  if (above.length > 0) {
+    const owned = await prisma.costCenter.findMany({
+      where: { companyId, orgUnitId: { in: above }, ownerId: { not: null }, isActive: true },
+      select: { orgUnitId: true, owner: { select: { id: true, name: true } } },
+    })
+    for (const unitId of above) {
+      const cc = owned.find(
+        c => c.orgUnitId === unitId && c.owner && ![raiser, owner, lead?.personId].includes(c.owner.id)
+      )
+      if (cc?.owner) {
+        escalation = { personId: cc.owner.id, name: cc.owner.name }
+        break
+      }
+    }
+  }
+
+  facts.raisedById = raiser
+  facts.ownerId = owner
+  facts.lead = lead
+  facts.escalation = escalation
+  facts.unitName = orgUnits.find(u => u.id === team)?.name ?? costCenter?.orgUnit?.name ?? null
+
+  return { decision: evaluateRequisition(facts, rules), value }
+}
+
+/**
+ * The median hourly rate this client already pays for any of these
+ * skills. The same figure the raise route compares against, for the same
+ * reason: what they actually pay beats an abstract band.
+ *
+ * Its own prices — the contracts it is billed on — and not every rung
+ * standing at its sites. Both readings asked the wrong question in the
+ * same way, because they were two copies of one function; the
+ * arithmetic is `ownPriceMedian` in lib/chain-top now, written once.
+ */
+async function medianRateForSkills(clientId: string, skills: string[]): Promise<number | null> {
+  if (skills.length === 0) return null
+
+  const contracts = await prisma.sellContract.findMany({
+    where: clientLineWhere({ clientCompanyId: clientId, state: { in: ['IN_PROGRESS', 'VERIFIED'] } }),
+    select: {
+      clientCompanyId: true,
+      billRate: true,
+      person: { select: { consultant: { select: { skills: true } } } },
+    },
+  })
+
+  return ownPriceMedian(
+    contracts.map(c => ({
+      clientCompanyId: c.clientCompanyId,
+      billRate: c.billRate,
+      skills: c.person.consultant?.skills ?? [],
+    })),
+    clientId,
+    skills
+  )
+}

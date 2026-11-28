@@ -1,0 +1,378 @@
+import { fileHash } from '@/lib/document-stages/degree'
+import { plainDate } from '@/lib/plain-date'
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+import { credentialChaseNow } from '@/lib/contract-clearance'
+import { CREDENTIAL_PACKET_KEY } from '@/lib/credential-chase'
+import { emit } from '@/lib/events'
+import { notify } from '@/lib/notify'
+import { progressOf } from '@/lib/packets'
+import { startSentenceNow, RUNNING_STATES } from '@/lib/document-stages/start-day'
+import { checkDocumentUpload, MAX_DOCUMENT_BYTES, sizeSaid } from '@/lib/document-request'
+
+/**
+ * GET  /api/packet/:token — what the recipient is being asked for
+ * POST /api/packet/:token — they send something back
+ *
+ * Singular, and separate from /api/packets, because these are two
+ * different surfaces: one is a company's list of requests, the other is a
+ * stranger's view of one. Next.js also refuses to have :token and :id at
+ * the same level, which is the router agreeing.
+ *
+ * No authentication. The token is the credential, exactly as it is for
+ * sharing files with a lawyer. A supplier's office manager will not create
+ * a login to upload a W-9, and a system that requires one does not get the
+ * W-9 — it gets an email with an attachment and a person retyping things.
+ *
+ * Everything about this route assumes the caller is a stranger. It says
+ * nothing about the company beyond its name, never lists other packets,
+ * and refuses the moment the link is out of date.
+ */
+
+/**
+ * A start sentence stored the day the request was raised, said as of
+ * today (the fifth screen walk: "due to start on 2026-08-09" in
+ * November). The person's own line that starts on that day says whether
+ * she started.
+ */
+async function startSaidToday(reason: string | null, personId: string | null): Promise<string | null> {
+  if (!reason || !personId || !/due to start/.test(reason)) return reason
+  const lines = await prisma.sellContract.findMany({
+    where: { personId },
+    select: { startDate: true, state: true },
+    take: 40,
+  })
+  return startSentenceNow(reason, new Date(), (day) =>
+    lines.some((l) => l.startDate && l.startDate.toISOString().slice(0, 10) === day.toISOString().slice(0, 10) && RUNNING_STATES.includes(l.state)))
+}
+
+async function loadByToken(token: string) {
+  return prisma.documentPacket.findUnique({
+    where: { token },
+    select: {
+      id: true, label: true, purpose: true, direction: true,
+      expiresAt: true, completedAt: true, cancelledAt: true, reopenedReason: true,
+      recipientName: true, packetKey: true, subjectPersonId: true,
+      company: { select: { name: true } },
+      subjectCompany: { select: { name: true } },
+      subjectPerson: { select: { name: true } },
+      items: {
+        // Stable order. Without it the list rearranges every time somebody
+        // uploads, which reads as the page losing their work.
+        orderBy: { position: 'asc' },
+        select: {
+          id: true, key: true, label: true, hint: true, required: true,
+          state: true, fileName: true, fileUrl: true, receivedAt: true, reviewNote: true,
+        },
+      },
+    },
+  })
+}
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params
+  const packet = await loadByToken(token)
+
+  // The same answer for a wrong token and a revoked one. Telling a stranger
+  // which of the two it was is telling them whether to keep guessing.
+  if (!packet || packet.cancelledAt) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'This link is not valid. Ask whoever sent it for a new one.' } },
+      { status: 404 }
+    )
+  }
+
+  if (packet.expiresAt.getTime() < Date.now()) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'EXPIRED',
+          message: `This link expired on ${plainDate(packet.expiresAt.toISOString())}. Ask ${packet.company.name} for a new one — nothing you sent before is lost.`,
+        },
+      },
+      { status: 410 }
+    )
+  }
+
+  const progress = progressOf(
+    packet.items.map((i) => ({
+      label: i.label,
+      required: i.required,
+      received: i.state === 'RECEIVED' || i.state === 'ACCEPTED',
+      examined: i.state === 'ACCEPTED',
+    }))
+  )
+
+  // COLLECT — they send us things. SEND — we are giving them ours, and
+  // the page is a list of downloads rather than a list of upload buttons.
+  const outbound = packet.direction === 'SEND'
+
+  return NextResponse.json({
+    data: {
+      direction: packet.direction,
+      label: packet.label,
+      from: packet.company.name,
+      about: packet.subjectCompany?.name ?? packet.subjectPerson?.name ?? null,
+      greeting: packet.recipientName ? `Hello ${packet.recipientName}` : null,
+      // A renewal request says its count of days as of today, never the
+      // count stored the day it was raised.
+      reopenedReason:
+        packet.packetKey === CREDENTIAL_PACKET_KEY && packet.subjectPersonId
+          ? (credentialChaseNow(
+              await prisma.verification.findMany({
+                where: { personId: packet.subjectPersonId },
+                select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true, provider: true, result: true },
+              }),
+              new Date(),
+              packet.company.name,
+            ) ?? packet.reopenedReason)
+          : await startSaidToday(packet.reopenedReason, packet.subjectPersonId),
+      expiresAt: packet.expiresAt.toISOString().slice(0, 10),
+      complete: Boolean(packet.completedAt),
+      progress,
+      items: packet.items.map((i) => ({
+        id: i.id,
+        label: i.label,
+        hint: i.hint,
+        required: i.required,
+        state: i.state,
+        fileName: i.fileName,
+        receivedAt: i.receivedAt?.toISOString().slice(0, 10) ?? null,
+        // The file itself is handed back only on a pack we are sending.
+        // On a collection, handing an uploader's file back through the
+        // link would let anybody holding the token read what somebody
+        // else sent.
+        fileUrl: outbound ? i.fileUrl : null,
+        // Only a rejection reason is shown back. Internal review notes on
+        // an accepted document are not the sender's business.
+        note: i.state === 'REJECTED' ? i.reviewNote : null,
+      })),
+    },
+  })
+}
+
+/**
+ * POST — the recipient sends something.
+ *
+ * Records the file against one item and moves it to RECEIVED, not
+ * ACCEPTED. A file arriving is not the same as somebody having looked at
+ * it, and collapsing the two is how an expired certificate passes for a
+ * current one.
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  const { token } = await params
+  const packet = await loadByToken(token)
+
+  if (!packet || packet.cancelledAt) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'This link is not valid. Ask whoever sent it for a new one.' } },
+      { status: 404 }
+    )
+  }
+  if (packet.expiresAt.getTime() < Date.now()) {
+    return NextResponse.json(
+      { error: { code: 'EXPIRED', message: 'This link has expired. Ask for a new one — nothing you sent before is lost.' } },
+      { status: 410 }
+    )
+  }
+
+  // A pack we are sending is a set of downloads. Letting the recipient
+  // write into it would let anybody holding the link overwrite our own
+  // certificate of insurance with their own file.
+  if (packet.direction === 'SEND') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'READ_ONLY',
+          message:
+            'These are documents being sent to you, not asked of you. If you need something else from us, reply to whoever sent the link.',
+        },
+      },
+      { status: 405 }
+    )
+  }
+
+  // ── A file, kept as the file ──
+  //
+  // Until 2026-10-21 the page sent `pending://<name>` and this stored it:
+  // a worker who answered her start papers through the link had sent a
+  // file name and nothing else, and the packet read RECEIVED. Found by the
+  // document-flow walk. Now the page sends the file itself, and it is
+  // kept the way every other paper's bytes are kept (`DocFile`), on a
+  // paper of the asking firm's that the item points at, so the firm's
+  // paperwork team opens it through the one file door and nobody else
+  // can. A link from a firm's own document system is still an answer; a
+  // name with nothing behind it is not.
+  const kind = request.headers.get('content-type') ?? ''
+  let itemId = ''
+  let fileUrl = ''
+  let fileName = ''
+  let file: { name: string; type: string; bytes: Buffer } | null = null
+  if (kind.toLowerCase().includes('multipart/form-data')) {
+    const form = await request.formData().catch(() => null)
+    const picked = form?.get('file')
+    itemId = String(form?.get('itemId') ?? '')
+    if (!(picked instanceof File)) {
+      return NextResponse.json({ error: { code: 'FILE_REQUIRED', message: 'That did not arrive. Pick the file again and send it.' } }, { status: 422 })
+    }
+    const verdict = checkDocumentUpload({ name: picked.name, type: picked.type, size: picked.size })
+    if (!verdict.ok) return NextResponse.json({ error: { code: 'FILE_REFUSED', message: verdict.says } }, { status: 422 })
+    const bytes = Buffer.from(await picked.arrayBuffer())
+    if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
+      return NextResponse.json(
+        { error: { code: 'FILE_REFUSED', message: `That arrived as ${sizeSaid(bytes.byteLength)} and ten megabytes is the limit. Send a smaller photograph.` } },
+        { status: 413 }
+      )
+    }
+    file = { name: picked.name.slice(0, 200), type: picked.type || 'application/octet-stream', bytes }
+    fileName = file.name
+  } else {
+    const body = await request.json().catch(() => ({}))
+    itemId = String(body.itemId ?? '')
+    fileUrl = String(body.fileUrl ?? '').trim()
+    fileName = String(body.fileName ?? '').trim()
+  }
+
+  const item = packet.items.find((i) => i.id === itemId)
+  if (!item) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'That is not one of the things being asked for here.' } },
+      { status: 404 }
+    )
+  }
+  if (!file && (!fileUrl || !fileName || !/^https?:\/\//i.test(fileUrl))) {
+    return NextResponse.json(
+      { error: { code: 'FILE_REQUIRED', message: 'Attach the file itself. A file name with nothing behind it is not a document anybody can check.', field: 'file' } },
+      { status: 422 }
+    )
+  }
+  if (file) fileUrl = await keepTheFile(packet.id, item.id, item.label, file)
+
+  await prisma.packetItem.update({
+    where: { id: itemId },
+    data: {
+      fileUrl,
+      fileName,
+      state: 'RECEIVED',
+      receivedAt: new Date(),
+      // A resend clears the previous rejection, so the note does not sit
+      // over a document that has since been replaced.
+      reviewNote: null,
+      reviewedById: null,
+      reviewedAt: null,
+    },
+  })
+
+  // Recount from the database rather than from what was loaded, since two
+  // people may be uploading at once.
+  const fresh = await prisma.packetItem.findMany({
+    where: { packetId: packet.id },
+    orderBy: { position: 'asc' },
+    select: { label: true, required: true, state: true },
+  })
+  const progress = progressOf(
+    fresh.map((i) => ({
+      label: i.label,
+      required: i.required,
+      received: i.state === 'RECEIVED' || i.state === 'ACCEPTED',
+      examined: i.state === 'ACCEPTED',
+    }))
+  )
+
+  if (progress.complete && !packet.completedAt) {
+    await prisma.documentPacket.update({
+      where: { id: packet.id },
+      data: { completedAt: new Date() },
+    })
+  }
+
+  const full = await prisma.documentPacket.findUnique({
+    where: { id: packet.id },
+    select: { companyId: true, createdById: true, label: true, recipientEmail: true },
+  })
+
+  void emit({
+    type: progress.complete ? 'packet.completed' : 'packet.item_received',
+    companyId: full?.companyId ?? null,
+    subjectType: 'DocumentPacket',
+    subjectId: packet.id,
+    // Nobody signed in. An outside upload is not a person in this system.
+    actorKind: 'SERVICE',
+    payload: {
+      itemKey: item.key,
+      itemLabel: item.label,
+      fileName,
+      received: progress.received,
+      total: progress.total,
+      complete: progress.complete,
+    },
+  })
+
+  // Whoever asked gets told, because the whole point is not having to chase.
+  if (full?.createdById) {
+    void notify({
+      personId: full.createdById,
+      companyId: full.companyId,
+      type: 'SYSTEM',
+      title: progress.complete
+        ? `${full.recipientEmail} finished "${full.label}"`
+        : `${item.label} arrived from ${full.recipientEmail}`,
+      body: progress.summary,
+      entityId: packet.id,
+    })
+  }
+
+  return NextResponse.json({
+    data: {
+      itemId,
+      state: 'RECEIVED',
+      progress,
+      message: progress.complete
+        ? 'That is everything. Thank you — nothing more is needed from you.'
+        : `Got it. ${progress.summary}`,
+    },
+  })
+}
+
+/**
+ * The bytes, kept on a paper of the asking firm's that the item points at.
+ *
+ * A packet item has a link and no bytes of its own, and `DocFile` hangs
+ * off a paper. So the answer becomes a paper of the firm that asked,
+ * about this item (`subjectType` PACKET_ITEM), on file, with the file on
+ * it: the firm's paperwork team opens it through `/api/documents/:id/file`
+ * like every other paper, and the person or firm the packet is about is
+ * never shown somebody else's. One paper per item; a second answer
+ * replaces the bytes, as a sent-back item is answered again.
+ */
+async function keepTheFile(packetId: string, itemId: string, label: string, file: { name: string; type: string; bytes: Buffer }): Promise<string> {
+  const owner = await prisma.documentPacket.findUnique({ where: { id: packetId }, select: { companyId: true } })
+  const companyId = owner!.companyId
+  const name = label.slice(0, 200)
+  const template =
+    (await prisma.docTemplate.findFirst({ where: { companyId, name }, select: { id: true } })) ??
+    (await prisma.docTemplate.create({ data: { companyId, name, audience: 'GENERAL', needsSignature: false }, select: { id: true } }))
+  const now = new Date()
+  const id = await prisma.$transaction(async (tx) => {
+    const paper =
+      (await tx.docInstance.findFirst({ where: { subjectType: 'PACKET_ITEM', subjectId: itemId }, select: { id: true } })) ??
+      (await tx.docInstance.create({
+        data: { templateId: template.id, subjectType: 'PACKET_ITEM', subjectId: itemId, status: 'UPLOADED', sentAt: now },
+        select: { id: true },
+      }))
+    await tx.docInstance.update({ where: { id: paper.id }, data: { status: 'UPLOADED', signedAt: now, fileName: file.name, signedFileUrl: 'file://on-record' } })
+    await tx.docFile.upsert({
+      where: { docInstanceId: paper.id },
+      create: { docInstanceId: paper.id, fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes, fileHash: fileHash(file.bytes) },
+      update: { fileName: file.name, contentType: file.type, sizeBytes: file.bytes.byteLength, bytes: file.bytes, fileHash: fileHash(file.bytes), uploadedAt: now },
+    })
+    return paper.id
+  })
+  return `/api/documents/${id}/file`
+}

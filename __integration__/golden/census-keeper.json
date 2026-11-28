@@ -1,0 +1,137 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "Company",
+      "owedSeat": "Account Manager"
+    },
+    {
+      "kind": "DORMANT_OUTREACH_CUSTOMER",
+      "owedSeat": "Account Manager"
+    },
+    {
+      "kind": "DORMANT_OUTREACH_SUPPLIER",
+      "owedSeat": "Account Manager"
+    },
+    {
+      "kind": "Company",
+      "owedSeat": "Account Manager"
+    }
+  ],
+  "mail": [
+    {
+      "template": "dormant-outreach",
+      "to": "quinn.quiet@example.invalid"
+    },
+    {
+      "template": "dormant-outreach",
+      "to": "sam.supplier@example.invalid"
+    }
+  ],
+  "recordActions": [
+    {
+      "action": "CENSUS_WEEKLY",
+      "order": 1,
+      "recordType": "Company",
+      "summary": "Census, week of 2026-11-22: 4 customers (2 active, 2 dormant), 2 suppliers (1 active, 1 dormant). Dormant means nothing in 90 days, a proposal. Dormant now: Golden Nobody Customer, Golden Quiet Customer, Golden Quiet Supplier. 3 changes since last week."
+    },
+    {
+      "action": "DORMANT_OUTREACH_NOT_DRAFTED",
+      "order": 2,
+      "recordType": "Company",
+      "summary": "No check-in letter was drafted for Golden Nobody Customer: No one with an email is recorded at Golden Nobody Customer. Add a contact there in Contacts, then send the check-in yourself. /dashboard/contacts"
+    },
+    {
+      "action": "TASK_PROPOSED",
+      "order": 3,
+      "recordType": "AgentTask",
+      "summary": "Census keeper proposed a task and asked for a yes: Check in with customer Golden Quiet Customer: nothing since Aug 20, 2026. Etyme drafted a check-in letter and sends it only if you say yes."
+    },
+    {
+      "action": "DORMANT_OUTREACH_PROPOSED",
+      "order": 4,
+      "recordType": "AgentTask",
+      "summary": "Drafted a check-in letter for Golden Quiet Customer as a customer. Nothing is sent until a person says yes."
+    },
+    {
+      "action": "TASK_PROPOSED",
+      "order": 5,
+      "recordType": "AgentTask",
+      "summary": "Census keeper proposed a task and asked for a yes: Check in with supplier Golden Quiet Supplier: nothing since Aug 20, 2026. Etyme drafted a check-in letter and sends it only if you say yes."
+    },
+    {
+      "action": "DORMANT_OUTREACH_PROPOSED",
+      "order": 6,
+      "recordType": "AgentTask",
+      "summary": "Drafted a check-in letter for Golden Quiet Supplier as a supplier. Nothing is sent until a person says yes."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 7,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "DORMANT_OUTREACH_NOT_SENT",
+      "order": 8,
+      "recordType": "AgentTask",
+      "summary": "The check-in letter to Quinn Quiet at Golden Quiet Customer was not sent: No email sender is set up on this deployment, so nothing was sent."
+    },
+    {
+      "action": "TASK_DONE",
+      "order": 9,
+      "recordType": "AgentTask",
+      "summary": "No letter could leave: No email sender is set up on this deployment, so nothing was sent. Nothing was sent. A person follows up."
+    },
+    {
+      "action": "TASK_RELEASED",
+      "order": 10,
+      "recordType": "AgentTask",
+      "summary": "A person said yes: the whole task, its retries and its closing, is released."
+    },
+    {
+      "action": "DORMANT_OUTREACH_NOT_SENT",
+      "order": 11,
+      "recordType": "AgentTask",
+      "summary": "The check-in letter to Sam Supplier at Golden Quiet Supplier was not sent: No email sender is set up on this deployment, so nothing was sent."
+    },
+    {
+      "action": "TASK_DONE",
+      "order": 12,
+      "recordType": "AgentTask",
+      "summary": "No letter could leave: No email sender is set up on this deployment, so nothing was sent. Nothing was sent. A person follows up."
+    }
+  ],
+  "tasks": [
+    {
+      "kind": "DORMANT_OUTREACH_CUSTOMER",
+      "plan": {
+        "closesWhen": "the letter has gone",
+        "daysApart": 1,
+        "messages": [
+          {
+            "label": "Check-in letter",
+            "template": "dormant-outreach"
+          }
+        ],
+        "retries": 0
+      },
+      "status": "DONE"
+    },
+    {
+      "kind": "DORMANT_OUTREACH_SUPPLIER",
+      "plan": {
+        "closesWhen": "the letter has gone",
+        "daysApart": 1,
+        "messages": [
+          {
+            "label": "Check-in letter",
+            "template": "dormant-outreach"
+          }
+        ],
+        "retries": 0
+      },
+      "status": "DONE"
+    }
+  ]
+}

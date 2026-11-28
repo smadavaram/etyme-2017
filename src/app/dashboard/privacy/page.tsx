@@ -1,0 +1,402 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { statusMeans } from '@/lib/read-response'
+import { privacyView, type Read } from './says'
+import { usePageSection } from '@/components/page-section'
+import { ListSurface, type Column } from '@/components/list-surface'
+import { LoadingState, PageHead, RefusedState } from '@/components/ui'
+
+/**
+ * One read, one envelope.
+ *
+ * These three routes answer `{ data: ... }` and refuse with
+ * `{ error: <sentence> }`, the way every route in this domain does.
+ * `readJson` was used here and it throws a *generic* message on a
+ * refusal — `body.error.message` on a body whose error is a sentence —
+ * so the words the route chose never reached the screen, and the page
+ * fell back to a refusal it had written itself. Both halves of that are
+ * what this replaces.
+ */
+async function read(url: string): Promise<{ data: any | null; error: string | null }> {
+  try {
+    const res = await fetch(url)
+    const body = await res.json().catch(() => null)
+    if (!res.ok) {
+      const said = typeof body?.error === 'string' ? body.error : body?.error?.message
+      return { data: null, error: said ?? statusMeans(res.status) }
+    }
+    return { data: body?.data ?? null, error: null }
+  } catch {
+    return { data: null, error: 'We could not reach the server just now. Nothing has changed — try again in a moment.' }
+  }
+}
+
+/**
+ * Privacy — the compliance desk's own page: requests soonest due first,
+ * the holds this company has placed, and any incident its records were
+ * in.
+ *
+ * The queue is ordered by the day it is due and nothing else. A queue
+ * ordered any other way is a queue that misses the one that mattered,
+ * and this one has statutory deadlines on it.
+ *
+ * Every list is a ListSurface, so each is a table at two hundred rows
+ * and a feed at eight, and the reader chooses.
+ */
+
+interface Request_ {
+  id: string
+  reference: string
+  kind: 'EXPORT' | 'ERASURE'
+  status: string
+  subject: string
+  subjectPersonId: string | null
+  receivedAt: string
+  dueAt: string
+  dueBasis: string
+  runsOn: string | null
+  keptBecause: string[]
+  refusedBecause: string | null
+  completedAt: string | null
+}
+
+interface Hold {
+  id: string
+  subject: string
+  subjectPersonId: string | null
+  reason: string
+  matter: string | null
+  placedAt: string
+  placedBy: string
+  reviewBy: string | null
+  liftedAt: string | null
+  liftedReason: string | null
+}
+
+interface Desk { says: string; missing: string | null }
+interface Clock { who: string; reading: string; says: string; hours: number | null }
+interface Breach_ {
+  id: string
+  reference: string
+  summary: string
+  discoveredAt: string
+  personalData: boolean
+  closedAt: string | null
+  openedBy: string | null
+  says: string
+  nobodyHasDecided: boolean
+  clocks: Clock[]
+  companies: { id: string; name: string; notifyBy: string | null; notifiedAt: string | null }[]
+}
+
+function day(iso: string | null): string {
+  if (!iso) return 'Nobody has decided'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function daysLeft(iso: string, now: number): number {
+  return Math.round((new Date(iso).getTime() - now) / 86_400_000)
+}
+
+/** Three words, not five states. */
+function word(r: Request_): string {
+  if (r.status === 'REFUSED') return 'Closed'
+  if (r.status === 'DONE') return 'Answered'
+  if (r.status === 'READY') return 'Ready'
+  if (r.status === 'HELD') return 'On a hold'
+  return 'Open'
+}
+
+export default function PrivacyPage() {
+  // The section on the reader's own menu; nothing while it is not known.
+  const section = usePageSection('/dashboard/privacy')
+  // Each list keeps what came back or the route's sentence, never both,
+  // so a refused read can never be drawn as an empty one.
+  const [requestsRead, setRequestsRead] = useState<Read<Request_[]>>({ data: null, error: null })
+  const [desk, setDesk] = useState<Desk | null>(null)
+  const [holdsRead, setHoldsRead] = useState<Read<Hold[]>>({ data: null, error: null })
+  const [overdue, setOverdue] = useState<string[]>([])
+  const [breachesRead, setBreachesRead] = useState<Read<Breach_[]>>({ data: null, error: null })
+  const [loading, setLoading] = useState(true)
+  // Whether the first read has come back. A reload after "Produce it" or
+  // "Lift it" keeps the lists it already has rather than blanking the page.
+  const [everRead, setEverRead] = useState(false)
+  // What an answer or a lift said when it did not go through. Not the
+  // page's refusal: that is decided from the reads, in ./says.
+  const [error, setError] = useState<string | null>(null)
+  const [said, setSaid] = useState<string | null>(null)
+  const now = useMemo(() => Date.now(), [])
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [d, h, b] = await Promise.all([
+        read('/api/data-requests'),
+        read('/api/legal-holds'),
+        read('/api/breaches'),
+      ])
+      setRequestsRead({ data: d.error ? null : d.data?.requests ?? [], error: d.error })
+      setDesk(d.data?.desk ?? null)
+      setHoldsRead({ data: h.error ? null : h.data?.holds ?? [], error: h.error })
+      setOverdue(h.data?.overdueForReview ?? [])
+      // A company that was in no incident reads its incidents as an empty
+      // list; the route answers that desk. A refusal here is a real one
+      // and is drawn as its sentence, never as "Incidents 0".
+      setBreachesRead({ data: b.error ? null : b.data?.breaches ?? [], error: b.error })
+    } finally {
+      setLoading(false)
+      setEverRead(true)
+    }
+  }, [])
+
+  useEffect(() => { void load() }, [load])
+
+  async function answer(id: string, kind: 'EXPORT' | 'ERASURE') {
+    const res = await fetch('/api/data-requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer: kind === 'EXPORT' ? 'EXPORT' : 'ERASE', requestId: id }),
+    })
+    const body = await res.json().catch(() => null)
+    if (!res.ok) { setError(body?.error ?? body?.says ?? 'That did not go through.'); return }
+    setSaid(body?.says ?? 'Answered.')
+    await load()
+  }
+
+  async function lift(id: string) {
+    const because = window.prompt('Why is this hold being lifted? A hold lifted with no reason is one nobody can explain afterwards.')
+    if (!because) return
+    const res = await fetch('/api/legal-holds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lift: id, because }),
+    })
+    const body = await res.json().catch(() => null)
+    if (!res.ok) { setError(body?.error ?? 'That did not go through.'); return }
+    setSaid(body?.says ?? 'Lifted.')
+    await load()
+  }
+
+  const open = (requestsRead.data ?? []).filter((r) => r.status !== 'DONE' && r.status !== 'REFUSED')
+  const urgent = open.filter((r) => daysLeft(r.dueAt, now) <= 1)
+
+  const view = privacyView({
+    loading: loading && !everRead,
+    requests: requestsRead,
+    holds: holdsRead,
+    incidents: breachesRead,
+    open: open.length,
+    urgent: urgent.length,
+  })
+
+  const requestColumns: Column<Request_>[] = [
+    { key: 'subject', label: 'Who' },
+    {
+      key: 'kind', label: 'Asked for',
+      render: (r) => (r.kind === 'EXPORT' ? 'A copy of everything held' : 'To be forgotten'),
+    },
+    {
+      key: 'dueAt', label: 'Due', align: 'right',
+      sortValue: (r) => new Date(r.dueAt).getTime(),
+      render: (r) => <span className="tabular-nums">{day(r.dueAt)}</span>,
+    },
+    { key: 'status', label: 'Where it is', render: (r) => word(r) },
+    {
+      key: 'do', label: '', sortable: false,
+      render: (r) =>
+        r.status === 'DONE' || r.status === 'REFUSED' ? null : (
+          <button onClick={() => void answer(r.id, r.kind)} className="text-xs text-etyme-action hover:underline">
+            {r.kind === 'EXPORT' ? 'Produce it' : 'Run it'}
+          </button>
+        ),
+    },
+  ]
+
+  const holdColumns: Column<Hold>[] = [
+    { key: 'subject', label: 'Who is held' },
+    { key: 'reason', label: 'Why', render: (h) => <span className="text-etyme-muted">{h.reason}</span> },
+    {
+      key: 'reviewBy', label: 'Look again by', align: 'right',
+      render: (h) => (
+        <span className={`tabular-nums ${overdue.includes(h.id) ? 'text-etyme-attention' : ''}`}>
+          {h.reviewBy ? day(h.reviewBy) : 'No date set'}
+        </span>
+      ),
+    },
+    {
+      key: 'liftedAt', label: 'Standing',
+      render: (h) => (h.liftedAt ? `Lifted ${day(h.liftedAt)}` : 'Live'),
+    },
+    {
+      key: 'do', label: '', sortable: false,
+      render: (h) =>
+        h.liftedAt ? null : (
+          <button onClick={() => void lift(h.id)} className="text-xs text-etyme-action hover:underline">Lift it</button>
+        ),
+    },
+  ]
+
+  const breachColumns: Column<Breach_>[] = [
+    { key: 'reference', label: 'Incident' },
+    { key: 'summary', label: 'What happened', render: (b) => <span className="text-etyme-muted">{b.summary}</span> },
+    {
+      key: 'discoveredAt', label: 'Found', align: 'right',
+      render: (b) => <span className="tabular-nums">{day(b.discoveredAt)}</span>,
+    },
+    { key: 'says', label: 'Where it stands', render: (b) => b.says },
+  ]
+
+  // Loading draws the heading and nothing it would have to take back: no
+  // headline about the queue, no count, no empty list.
+  if (view.show === 'loading') return (
+    <div className="max-w-6xl">
+      <PageHead eyebrow={section} title="Data requests" />
+      <LoadingState says="Opening data requests…" />
+    </div>
+  )
+
+  // A refused desk is the route's sentence alone. No heading over it, no
+  // headline saying nothing is waiting, no "Requests 0" or "Holds 0", and
+  // no button offering to try again — a refusal is not a fault.
+  if (view.show === 'refused') return <RefusedState says={view.says} />
+
+  return (
+    <div className="max-w-6xl">
+      {/* Whose desk this is, said the way this kind of firm would say it.
+          The page used to describe a client program to a staffing
+          supplier and to an MSP alike; the sentence now comes from the
+          route, which knows the company kind, the same way
+          `lib/order-naming` decides what each end of an order is
+          called. */}
+      <PageHead
+        eyebrow={section}
+        title={view.headline ?? 'Data requests'}
+        subtitle={<>
+          {desk?.says ??
+            'Requests for somebody’s data, the records this company has asked to keep, and any incident its records were in.'}{' '}
+          Soonest due first.
+        </>}
+      />
+
+      {desk?.missing && (
+        <p className="mt-3 px-4 py-3 rounded-lg bg-etyme-canvas border border-etyme-rule text-sm text-etyme-muted max-w-2xl">
+          {desk.missing}
+        </p>
+      )}
+
+      {said && (
+        <div className="mt-4 px-4 py-3 rounded-lg bg-etyme-verified/10 text-sm text-etyme-verified flex justify-between gap-4">
+          <span>{said}</span>
+          <button onClick={() => setSaid(null)} className="text-etyme-verified/70 shrink-0">Close</button>
+        </div>
+      )}
+      {error && (
+        <div className="mt-4 px-4 py-3 rounded-lg bg-etyme-attention/10 text-sm text-etyme-attention flex justify-between gap-4">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-etyme-attention/70 shrink-0">Close</button>
+        </div>
+      )}
+
+      <section className="mt-8">
+        <h2 className="font-serif text-lg text-etyme-ink mb-1">
+          Requests{view.requests.show === 'list' && (
+            <> <span className="text-xs text-etyme-faint tabular-nums font-sans">{view.requests.rows.length}</span></>
+          )}
+        </h2>
+        {open.length > 0 && (
+          <p className="text-sm text-etyme-muted mb-3">{open[0].dueBasis}</p>
+        )}
+        {view.requests.show === 'refused' ? (
+          <RefusedState says={view.requests.says} />
+        ) : (
+        <ListSurface
+          columns={requestColumns}
+          data={view.requests.rows}
+          rowKey={(r) => r.id}
+          loading={false}
+          feedOmit={['do']}
+          searchFilter={(r, q) => r.subject.toLowerCase().includes(q) || r.reference.toLowerCase().includes(q)}
+          searchPlaceholder="Search by person or reference&hellip;"
+          emptyMessage="Nobody has asked this company for their data."
+          emptyDetail="A request that arrives by email is logged here, and the clock counts from the day it arrived rather than the day you type it in."
+          exportName="etyme-data-requests"
+        />
+        )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-serif text-lg text-etyme-ink mb-1">
+          Holds{view.holds.show === 'list' && (
+            <> <span className="text-xs text-etyme-faint tabular-nums font-sans">{view.holds.rows.length}</span></>
+          )}
+        </h2>
+        <p className="text-sm text-etyme-muted mb-3 max-w-2xl">
+          A hold suspends the erasure of whoever it names everywhere, not only here. Only this
+          company can lift one it placed, and a hold with no review date is a retention schedule
+          set by forgetting.
+        </p>
+        {view.holds.show === 'refused' ? (
+          <RefusedState says={view.holds.says} />
+        ) : (
+        <ListSurface
+          columns={holdColumns}
+          data={view.holds.rows}
+          rowKey={(h) => h.id}
+          loading={false}
+          feedOmit={['do']}
+          searchFilter={(h, q) => h.subject.toLowerCase().includes(q) || h.reason.toLowerCase().includes(q)}
+          searchPlaceholder="Search by person or reason&hellip;"
+          emptyMessage="This company holds nobody's records back."
+          emptyDetail="A hold is placed when a matter needs records that would otherwise be deleted, and it carries a reason that can be shown to the person."
+          exportName="etyme-legal-holds"
+        />
+        )}
+      </section>
+
+      <section className="mt-10">
+        <h2 className="font-serif text-lg text-etyme-ink mb-1">
+          Incidents{view.incidents.show === 'list' && (
+            <> <span className="text-xs text-etyme-faint tabular-nums font-sans">{view.incidents.rows.length}</span></>
+          )}
+        </h2>
+        <p className="text-sm text-etyme-muted mb-3 max-w-2xl">
+          Where personal data went somewhere it should not have. A clock with no date on it means
+          nobody has decided whether a notice is owed, which is not the same as nothing being owed.
+        </p>
+        {view.incidents.show === 'refused' ? (
+          <RefusedState says={view.incidents.says} />
+        ) : (
+        <ListSurface
+          columns={breachColumns}
+          data={view.incidents.rows}
+          rowKey={(b) => b.id}
+          loading={false}
+          defaultView="feed"
+          card={(b) => (
+            <div>
+              <div className="flex justify-between gap-4 flex-wrap">
+                <h3 className="text-sm text-etyme-ink font-medium">{b.reference}</h3>
+                <span className="text-xs text-etyme-faint tabular-nums">Found {day(b.discoveredAt)}</span>
+              </div>
+              <p className="text-sm text-etyme-muted mt-1">{b.summary}</p>
+              <p className={`text-sm mt-2 ${b.nobodyHasDecided ? 'text-etyme-attention' : 'text-etyme-ink'}`}>{b.says}</p>
+              <ul className="mt-2 space-y-1">
+                {b.clocks.map((c, i) => (
+                  <li key={i} className="text-xs text-etyme-muted">{c.says}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          searchFilter={(b, q) => b.summary.toLowerCase().includes(q) || b.reference.toLowerCase().includes(q)}
+          searchPlaceholder="Search incidents&hellip;"
+          emptyMessage="Nothing has gone anywhere it should not have."
+          emptyDetail="Anything that reached your company's records would be here, and you would have been written to as well."
+          exportName="etyme-incidents"
+        />
+        )}
+      </section>
+    </div>
+  )
+}

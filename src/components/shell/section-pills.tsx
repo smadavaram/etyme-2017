@@ -1,0 +1,186 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useSession } from '@/components/session-provider'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { consoleHome } from '@/lib/console-home'
+import { getNavForKind, activeHref, tabsFor, ASK_ETYME_HREF, type NavItem, type TabGroup } from '@/lib/nav-table'
+
+/**
+ * The tab row: the pages of the noun being read, at every width.
+ *
+ * Nine links, and a process step is a tab (founder, 2026-10-19). The
+ * menu prints one link per noun — Jobs, Candidates, Timesheets, Bills —
+ * and every page that was a neighbor in the menu is a tab here instead:
+ * on Candidates, Candidates and Interviews; on Bills, Bills, AR, AP,
+ * Payroll and Commissions. The noun's own page first, the page being
+ * read marked by a fill and aria-current. Read off the same table the
+ * sidebar draws (`lib/nav-table`, `tabsFor`) through the same identity
+ * (`sidebarPropsFrom`), filtered by the same permissions, so it never
+ * offers a tab whose route would refuse the reader, nor one the menu
+ * does not hold.
+ *
+ * Drawn at the top of the page, in its flow, never fixed over it: it
+ * scrolls away with the page and covers no row, no button and no last
+ * line. Pages themselves do not change.
+ *
+ * Nothing is drawn while the session loads, on a noun with one page, or
+ * on Ask Etyme: the chat is the first screen and draws its own column of
+ * threads.
+ *
+ * Network holds two lists (founder, 2026-11-04, "bring all master data
+ * under network hierarchy"), so its row is drawn grouped: each group's
+ * name, then its pages, the groups split by a rule — "Candidates: Bench
+ * · Bench pay · … | Companies: Suppliers · Contacts". The group's name is
+ * itself the link to its register where the reader may open it, so Bench
+ * or Contacts is one click from the Network link, and so is the register.
+ *
+ * The worker's "You" is a list in the menu, not a noun with tabs, so on
+ * a phone — where the menu is behind ☰ — her other pages sit here as
+ * pills, as before; from md up the menu beside the page already lists
+ * them.
+ */
+export function pillsShownOn(pathname: string | null): boolean {
+  return !(pathname === ASK_ETYME_HREF || pathname?.startsWith(ASK_ETYME_HREF + '/'))
+}
+
+/** On a phone, the other pages of a list section ("You"), where the page being read is one of them. */
+export function pillsFor(items: readonly NavItem[], current: string | null): NavItem[] {
+  const here = items.find((i) => i.href === current)
+  if (!here) return []
+  return items.length >= 2 ? [...items] : []
+}
+
+export function SectionPills() {
+  const session = useSession()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const id = sidebarPropsFrom(session)
+  if (id.pending || !pillsShownOn(pathname)) return null
+
+  const sections = getNavForKind(id.companyKind, id.isConsultant, {
+    worker: id.worker, permissions: id.permissions, seatedAtClient: id.seatedAtClient, termsHref: id.termsHref,
+    region: id.region, hat: id.hat, earnsCommission: id.earnsCommission, plugins: id.plugins,
+  })
+  const home = consoleHome({
+    kind: id.companyKind ?? null,
+    isConsultant: id.isConsultant,
+    seated: Boolean(id.seatedAtClient),
+    worker: id.worker,
+    permissions: id.permissions,
+    homePage: id.homePage,
+  }).href
+  const current = activeHref(sections, pathname, searchParams, home)
+
+  const noun = tabsFor(sections, current)
+  if (noun?.groups) return <GroupedTabRow label={noun.label} groups={groupsShown(noun.label, noun.groups, current)} current={current} />
+  if (noun) return <TabRow label={noun.label} tabs={noun.tabs} current={current} everyWidth />
+
+  const list = sections.find((s) => !s.tabbed && s.items.some((i) => i.href === current))
+  const pills = list ? pillsFor(list.items, current) : []
+  if (pills.length === 0) return null
+  return <TabRow label={list!.label} tabs={pills} current={current} />
+}
+
+function TabRow({ label, tabs, current, everyWidth = false }: {
+  label: string; tabs: readonly NavItem[]; current: string | null; everyWidth?: boolean
+}) {
+  return (
+    <nav
+      aria-label={`${label} pages`}
+      className={`${everyWidth ? '' : 'md:hidden '}-mx-4 sm:-mx-6 md:mx-0 mb-5 flex gap-1.5 overflow-x-auto px-4 sm:px-6 md:px-0 pb-1
+                 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+    >
+      {tabs.map((p) => {
+        const on = p.href === current
+        return (
+          <Link
+            key={p.href}
+            href={p.href as any}
+            aria-current={on ? 'page' : undefined}
+            className={`shrink-0 rounded-pill border px-3.5 py-1.5 text-[13px] transition-colors ${
+              on
+                ? 'border-etyme-ink bg-etyme-ink font-medium text-etyme-canvas'
+                : 'border-etyme-rule bg-etyme-surface text-etyme-muted hover:text-etyme-ink'
+            }`}
+          >
+            {p.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
+/**
+ * A group's name and its pages. Where the group's first page is the one
+ * named after the group (its register), the name is that page's link and
+ * the rest follow; otherwise the name is a plain label over its pages.
+ */
+/**
+ * Network shows only the group of the page being read (owner, 2026-11-25):
+ * on Candidates its own tabs, on Companies Suppliers, Customers and
+ * Contacts. Each group is reached from its own link on the menu. Every
+ * other grouped row (Settings) keeps all its groups.
+ */
+export function groupsShown(label: string, groups: readonly TabGroup[], current: string | null): readonly TabGroup[] {
+  if (label !== 'Network') return groups
+  const mine = groups.filter((g) => g.tabs.some((t) => t.href === current))
+  return mine.length ? mine : groups
+}
+
+export function groupRow(group: TabGroup): { head: NavItem | null; name: string; pages: NavItem[] } {
+  const [first, ...rest] = group.tabs
+  return first && first.label === group.name
+    ? { head: first, name: group.name, pages: rest }
+    : { head: null, name: group.name, pages: [...group.tabs] }
+}
+
+/**
+ * The grouped row wraps, never scrolls: thirteen Settings tabs are wider
+ * than any window, and a hidden scrollbar left Records unreachable at
+ * 1400 wide and the open page's own tab off a phone (walk, 2026-11-14).
+ * A group that does not fit moves to the next line; on a phone each group
+ * takes its own line.
+ */
+export const GROUPED_ROW_CLASS = 'mb-5 flex flex-wrap items-center gap-x-1.5 gap-y-2 pb-1'
+export const GROUP_CLASS = 'flex w-full min-w-0 flex-wrap items-center gap-1.5 sm:w-auto'
+
+function GroupedTabRow({ label, groups, current }: { label: string; groups: readonly TabGroup[]; current: string | null }) {
+  return (
+    <nav aria-label={`${label} pages`} className={GROUPED_ROW_CLASS}>
+      {groups.map((g, at) => {
+        const row = groupRow(g)
+        return (
+          <div key={g.name || at} role="group" aria-label={g.name} className={GROUP_CLASS}>
+            {at > 0 && <span aria-hidden="true" className="mx-1.5 hidden h-5 w-px shrink-0 bg-etyme-rule sm:block" />}
+            {row.head ? (
+              <Pill item={row.head} on={row.head.href === current} strong />
+            ) : (
+              <span className="shrink-0 text-[11px] uppercase tracking-wider text-etyme-faint">{row.name}</span>
+            )}
+            {row.pages.length > 0 && <span aria-hidden="true" className="text-etyme-faint text-[13px]">:</span>}
+            {row.pages.map((p) => <Pill key={p.href} item={p} on={p.href === current} />)}
+          </div>
+        )
+      })}
+    </nav>
+  )
+}
+
+function Pill({ item, on, strong = false }: { item: NavItem; on: boolean; strong?: boolean }) {
+  return (
+    <Link
+      href={item.href as any}
+      aria-current={on ? 'page' : undefined}
+      className={`shrink-0 rounded-pill border px-3.5 py-1.5 text-[13px] transition-colors ${
+        on
+          ? 'border-etyme-ink bg-etyme-ink font-medium text-etyme-canvas'
+          : `border-etyme-rule bg-etyme-surface hover:text-etyme-ink ${strong ? 'font-medium text-etyme-ink' : 'text-etyme-muted'}`
+      }`}
+    >
+      {item.label}
+    </Link>
+  )
+}

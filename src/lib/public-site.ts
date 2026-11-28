@@ -1,0 +1,639 @@
+import { coursesShown } from '@/lib/training/courses-shown'
+import { learnOpen } from '@/lib/training/learn-gate'
+import { readDoorLearn } from '@/lib/public-site/door-proof-read'
+import type { DoorLearn } from '@/lib/public-site/door-proof'
+import { prisma } from '@/lib/db'
+import { clientLineWhere, isHiddenTeamLine } from '@/lib/money/team-lines'
+import { siteRendersFor } from '@/lib/plugins'
+import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
+import { releasing, summarize, type RollingOff } from '@/lib/releasing-soon'
+import { writeFromRules, DEFAULT_HEADINGS, saysItTrains, type SiteVoice } from '@/lib/site-voice'
+import { speaksForItself } from '@/lib/public-site/speaks'
+import { offersJoinBench } from '@/lib/public-site/join-bench'
+import {
+  mayShowPublicly, benchFreeNow, freeSummary, firmContact, offersAsk, type FirmContact,
+  STARTED_STATES, trackRecord,
+} from '@/lib/public-site/firm-page'
+
+/**
+ * What the world sees at tecwyn.etyme.com.
+ *
+ * The first version of this was one page of facts for nobody in
+ * particular. It was honest and inert: you read it and then you were done.
+ *
+ * There is no single audience. A buyer and a supplier want opposite pages,
+ * and the same rule already applies to the dashboard — CLAUDE.md says the
+ * eyebrow, nav and framing adapt to the viewer's company type while the
+ * underlying data is shared. The public page follows it.
+ *
+ *   A client or delivery partner is talking to SUPPLIERS. Their page is
+ *   "here is what we have open, and here is what we are like to work
+ *   with" — including how fast they decide and whether they pay, which no
+ *   VMS publishes because every VMS is bought by the buyer.
+ *
+ *   A staffing firm is talking to three people at once: CANDIDATES who
+ *   might join their bench, CLIENTS who might hire from it, and PEER
+ *   FIRMS who might borrow from it. So their page leads with who is
+ *   coming free, which is the most valuable thing a staffing firm knows
+ *   and the thing it currently tells nobody.
+ *
+ * Public means public. No rates anywhere — what a supplier may charge
+ * lives on the invitation precisely so no recipient reads another's band,
+ * and a public page is the most public recipient there is. No client
+ * names, because a client list is theirs to publish. No consultant
+ * identities without their agreement.
+ */
+
+import { lookFor, type SiteLook } from './public-site/site-look'
+
+export type Audience = 'SUPPLIERS' | 'TALENT_AND_BUYERS'
+
+export interface OpenPosition {
+  id: string
+  title: string
+  skills: string[]
+  location: string | null
+  heads: number
+  postedAt: string
+  /** How long it has been open, which says more than a date. */
+  openFor: string
+}
+
+export interface ComingFree {
+  headline: string | null
+  skills: string[]
+  location: string | null
+  freeOn: string
+  daysUntilFree: number
+  /** No name. A public page is not a place to put somebody's identity. */
+  provenAt: string | null
+}
+
+export interface PublicSite {
+  name: string
+  slug: string
+  does: string
+  kind: string
+  audience: Audience
+  locations: string[]
+  track: { placements: number; activeNow: number; clients: number; isNew: boolean }
+  skills: { skill: string; count: number }[]
+  credentials: { what: string; until: string | null }[]
+  verifiedDomain: string | null
+  inNetwork: boolean
+  liveSince: string
+
+  /** The words on the page. Generated once, editable, never the facts. */
+  tagline: string
+  intro: string
+  headings: Record<string, string>
+  writtenBy: 'MODEL' | 'RULES' | 'PERSON'
+
+  /** Buyer page: what a supplier can actually pick up. */
+  openPositions: OpenPosition[]
+  /** Buyer page: what they are like to work with. */
+  reputation: BuyerReputation | null
+
+  /** Supplier page: who is about to come free. */
+  comingFree: ComingFree[]
+  comingFreeSummary: string | null
+  /** "Join the bench": a staffing or bench firm's page only, never a client's. */
+  joinBench: boolean
+  /** The ask box for a client, landing in the firm's own Ask Etyme. */
+  askBox: boolean
+  /** The firm's contact as it set it at setup; null where it set none. */
+  contact: FirmContact | null
+  /**
+   * Public courses, listed only where `coursesShown` says so: Train to bench
+   * on and the firm has not hidden them (record 120). Empty otherwise.
+   */
+  courses: { title: string; hours: number | null }[]
+  /** True where the firm's Train to bench plugin is on, read by `learnOpen`: the page then draws its door into /learn/<slug>. */
+  learnOpen: boolean
+  /** Featured courses, proof counts and the applicant's offer (record 133). Present only where `learnOpen` is true. */
+  doorLearn?: DoorLearn
+  /** The tenant's stored template, branding and pages (record 111). The layout always applies; the look only while the Owner's yes covers it. */
+  look: SiteLook
+}
+
+const READABLE: Record<string, string> = {
+  INSURANCE_GL: 'General liability insurance',
+  INSURANCE_WC: "Workers' compensation",
+  INSURANCE_EO: 'Errors and omissions cover',
+  INSURANCE_CYBER: 'Cyber liability cover',
+  BUSINESS_PARTNER: 'Business registration',
+}
+
+/**
+ * One entry per kind of cover, keeping whichever runs longest.
+ *
+ * A renewal leaves the old certificate on file, so a company that has
+ * renewed twice would otherwise show three lines of general liability
+ * insurance with three different dates.
+ */
+function longestPerType(
+  rows: { type: string; expiresAt: Date | null }[]
+): { what: string; until: string | null }[] {
+  const best = new Map<string, Date | null>()
+
+  for (const v of rows) {
+    if (!READABLE[v.type]) continue
+    if (!best.has(v.type)) {
+      best.set(v.type, v.expiresAt)
+      continue
+    }
+    const current = best.get(v.type)!
+    if (current === null) continue
+    if (v.expiresAt === null || v.expiresAt > current) best.set(v.type, v.expiresAt)
+  }
+
+  return [...best.entries()].map(([type, until]) => ({
+    what: READABLE[type],
+    until: until?.toISOString().slice(0, 10) ?? null,
+  }))
+}
+
+/** What they do, in a phrase somebody would use rather than an enum. */
+export function whatTheyDo(kind: string, posture: string | null): string {
+  if (kind === 'CLIENT') return 'hires contract staff'
+  if (kind === 'MSP') return 'runs contingent workforce programs'
+  if (kind === 'GSI') return 'delivers projects and supplies people'
+  // A one-person firm is the worker's own company, paid for the worker's
+  // own contract work. It supplies nobody. No pronoun: the record stores none.
+  if (kind === 'CONSULTANT_CORP') return 'is an independent contractor’s own company, paid for contract work'
+  return posture === 'BENCH'
+    ? 'supplies consultants through other staffing firms'
+    : 'supplies consultants to clients'
+}
+
+/**
+ * The page's title and the line a search result or a link preview shows.
+ *
+ * Read from the record, and never empty: a firm with nobody coming free
+ * and nothing open still reads as the firm, "<name> <does>.", because
+ * that sentence needs nothing but the company itself.
+ */
+export function titleOf(site: Pick<PublicSite, 'name' | 'does'>): string {
+  return `${site.name} — ${site.does}`
+}
+
+export function describeSite(
+  site: Pick<PublicSite, 'name' | 'does' | 'audience' | 'openPositions' | 'comingFree' | 'comingFreeSummary'> & {
+    reputation?: { worthIt?: string | null } | null
+  }
+): string {
+  const firm = `${site.name} ${site.does}.`
+  if (site.audience === 'SUPPLIERS' && site.openPositions.length > 0) {
+    const n = site.openPositions.length
+    const worth = site.reputation?.worthIt?.trim()
+    return `${firm} ${n} contract position${n === 1 ? '' : 's'} open to suppliers.${worth ? ` ${worth}` : ''}`
+  }
+  if (site.audience === 'TALENT_AND_BUYERS' && site.comingFree.length > 0 && site.comingFreeSummary?.trim()) {
+    return `${firm} ${site.comingFreeSummary.trim()}`
+  }
+  return firm
+}
+
+/**
+ * Who this company's public page is talking to.
+ *
+ * A GSI is genuinely both — Infosys buys bench from three firms and sells
+ * delivery to Northbend in the same week — and it gets the supplier-facing page
+ * because that is the side with something to offer a stranger. Their own
+ * bench belongs on an internal marketplace, not on the open internet.
+ */
+export function audienceFor(kind: string): Audience {
+  return kind === 'CLIENT' || kind === 'MSP' || kind === 'GSI' ? 'SUPPLIERS' : 'TALENT_AND_BUYERS'
+}
+
+/**
+ * The words for this page.
+ *
+ * Whatever is stored wins, because somebody may have edited it and their
+ * page is theirs. Where nothing is stored — a company that signed up
+ * before this existed, or one whose generation failed — the rules write
+ * something from the same facts rather than leaving a blank.
+ */
+/**
+ * The headings a visitor can read: only the keys the page knows, and never
+ * a line that says the firm trains people (record 69). A stored row that
+ * once held `training` is dropped here, not served. Pure.
+ */
+export function publicHeadings(stored: unknown): Record<string, string> {
+  const out: Record<string, string> = { ...DEFAULT_HEADINGS }
+  if (!stored || typeof stored !== 'object') return out
+  const s = stored as Record<string, unknown>
+  for (const k of Object.keys(DEFAULT_HEADINGS)) {
+    const v = s[k]
+    if (typeof v === 'string' && v.trim() && !saysItTrains(v)) out[k] = v
+  }
+  return out
+}
+
+function voiceFor(
+  company: { siteTagline: string | null; siteIntro: string | null; siteHeadings: unknown; siteWrittenBy: string | null },
+  facts: Parameters<typeof writeFromRules>[0]
+): Pick<PublicSite, 'tagline' | 'intro' | 'headings' | 'writtenBy'> {
+  const fallback = writeFromRules(facts)
+
+  // A blank stored line is nothing stored: the page never opens on an
+  // empty sentence because somebody cleared a field.
+  // A stored line that says the firm trains people is not printed either:
+  // an older page was written with "courses open to consultants on their
+  // bench" (record 69).
+  const said = (v: string | null) => (v && v.trim().length > 0 && !saysItTrains(v) ? v : null)
+  return {
+    tagline: said(company.siteTagline) ?? fallback.tagline,
+    intro: said(company.siteIntro) ?? fallback.intro,
+    headings: publicHeadings(company.siteHeadings),
+    writtenBy:
+      said(company.siteTagline) === null
+        ? 'RULES'
+        : (company.siteWrittenBy as 'MODEL' | 'RULES' | 'PERSON' | null) ?? 'PERSON',
+  }
+}
+
+/** "3 weeks" reads better than a date somebody has to subtract from today. */
+function howLong(since: Date, now: Date): string {
+  const days = Math.floor((now.getTime() - since.getTime()) / 86_400_000)
+  if (days <= 0) return 'today'
+  if (days === 1) return 'yesterday'
+  if (days < 14) return `${days} days`
+  if (days < 60) return `${Math.round(days / 7)} weeks`
+  return `${Math.round(days / 30)} months`
+}
+
+export { siteRendersFor }
+
+export async function publicSite(slug: string): Promise<PublicSite | null> {
+  const now = new Date()
+
+  const company = await prisma.company.findFirst({
+    where: {
+      OR: [
+        { slug },
+        // An old address still resolves, so a link saved before a rebrand
+        // keeps working here as well as in the app.
+        { subdomainAliases: { some: { subdomain: slug } } },
+        { customDomains: { some: { domain: slug, state: 'VERIFIED' } } },
+      ],
+    },
+    select: {
+      id: true, name: true, slug: true, kind: true, supplierPosture: true,
+      pluginsOn: true, coursesHiddenOnStorefront: true, featuredCourseIds: true,
+      siteLiveAt: true, networkVerifiedAt: true, domain: true, domainVerified: true,
+      claimedAt: true, _count: { select: { contexts: { where: { roleId: { not: null } } } } },
+      siteTagline: true, siteIntro: true, siteHeadings: true, siteWrittenBy: true,
+      // The contact the firm set at setup. Never a CompanyInCharge email:
+      // that is a person's own address.
+      phone: true, accountsEmail: true,
+      // The Owner's choice, same column `showsPeople` reads (decisions/92).
+      showPeopleOnPage: true,
+      siteTemplate: true, siteLogoRef: true, sitePrimaryColor: true, siteSecondaryColor: true,
+      siteFontPairing: true, sitePages: true, siteBrandingApprovedAt: true, siteBrandingApprovedHash: true,
+      peopleInCharge: { select: { duty: true, name: true, personId: true } },
+      locations: {
+        where: { isRemote: false },
+        orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+        select: { city: true, state: true, country: true },
+      },
+    },
+  })
+
+  if (!company?.siteLiveAt) return null
+  // A dark site is the same nothing as a firm that does not exist
+  // (`DARK_SITE_SAYS`, record 123). Its words stay stored; only the read stops.
+  if (!(await siteRendersFor(company))) return null
+  // A firm somebody else wrote down has no page: nobody there agreed to one.
+  if (!speaksForItself({ siteLiveAt: company.siteLiveAt, claimedAt: company.claimedAt, seats: company._count.contexts })) {
+    return null
+  }
+
+  const audience = audienceFor(company.kind)
+
+  const showPeople = company.showPeopleOnPage === true
+  // Nobody is looked up, let alone printed, unless the Owner opted in.
+  const seatedIds = !showPeople ? [] : company.peopleInCharge.map((r) => r.personId).filter((x): x is string => !!x)
+  const seated = seatedIds.length
+    ? await prisma.person.findMany({ where: { id: { in: seatedIds } }, select: { id: true, name: true } })
+    : []
+  const contact = firmContact({
+    phone: company.phone,
+    accountsEmail: company.accountsEmail,
+    showPeople,
+    inCharge: company.peopleInCharge.map((r) => ({
+      duty: r.duty,
+      name: r.name,
+      seatedName: seated.find((p) => p.id === r.personId)?.name ?? null,
+    })),
+  })
+
+  const [sellLines, profiles, verifications, courseRows] = await Promise.all([
+    // Only lines where work started: a draft is no placement (walk tpf).
+    prisma.sellContract.findMany({
+      where: { companyId: company.id, state: { in: [...STARTED_STATES] } },
+      select: { state: true, endClientCompanyId: true, clientCompanyId: true },
+    }),
+    // Only people who said yes, and yes to being shown beyond this firm:
+    // an INVITED listing is somebody asked, not somebody who agreed.
+    prisma.consultantProfile.findMany({
+      where: { listings: { some: { companyId: company.id, state: 'GRANTED', revokedAt: null, showInMatches: true } } },
+      select: {
+        skills: true,
+        listings: {
+          where: { companyId: company.id },
+          select: { state: true, revokedAt: true, staysUntil: true, showInMatches: true, showBeforeFree: true },
+        },
+      },
+    }),
+    prisma.verification.findMany({
+      where: {
+        companyId: company.id,
+        status: { in: ['CLEAR', 'CONDITIONAL'] },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { type: true, expiresAt: true },
+    }),
+    // Read only where the one reader says this firm's courses are shown.
+    coursesShown(company)
+      ? prisma.course.findMany({
+          where: { companyId: company.id, isPublic: true },
+          orderBy: { title: 'asc' },
+          take: 20,
+          select: { title: true, duration: true },
+        })
+      : Promise.resolve([] as { title: string; duration: number | null }[]),
+  ])
+
+  // Proof and featured courses are read only where the plugin is on; a dark plugin reads nothing.
+  // A failed proof read leaves the page standing with no proof section; it never breaks the storefront.
+  const doorLearn = learnOpen(company)
+    ? await readDoorLearn(company).catch((e) => {
+        console.error('storefront: the door proof read failed; the page renders without a proof section', e)
+        return undefined
+      })
+    : undefined
+
+  const base = {
+    name: company.name,
+    slug: company.slug,
+    does: whatTheyDo(company.kind, company.supplierPosture),
+    kind: company.kind,
+    audience,
+    locations: [...new Set(
+      company.locations.map((l) => [l.city, l.state ?? l.country].filter(Boolean).join(', ')).filter(Boolean)
+    )].slice(0, 6),
+    track: trackRecord(sellLines),
+    skills: (() => {
+      const counts = new Map<string, number>()
+      // The same yes the "coming free" list reads, so a stay that ran out
+      // takes her skills off the page too. A count names nobody.
+      const shown = profiles.filter((p) => p.listings.some((l) => mayShowPublicly(l, now, false)))
+      for (const p of shown) for (const s of p.skills) counts.set(s, (counts.get(s) ?? 0) + 1)
+      return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12)
+        .map(([skill, count]) => ({ skill, count }))
+    })(),
+    credentials: longestPerType(verifications),
+    verifiedDomain: company.domainVerified ? company.domain : null,
+    inNetwork: company.networkVerifiedAt !== null,
+    liveSince: company.siteLiveAt.toISOString().slice(0, 10),
+    joinBench: offersJoinBench(company.kind),
+    askBox: offersAsk(company.kind),
+    contact,
+    courses: courseRows.map((c) => ({ title: c.title, hours: c.duration ?? null })),
+    learnOpen: learnOpen(company),
+    doorLearn,
+    look: lookFor(company),
+  }
+
+  // ── Talking to suppliers ────────────────────────────────────────────
+  if (audience === 'SUPPLIERS') {
+    const [positions, submissions, invoices, supplierIds, tenures] = await Promise.all([
+      // Only what they chose to open. A client's hiring plan is
+      // commercially sensitive and publishing it is a decision.
+      prisma.requirement.findMany({
+        where: { companyId: company.id, openToNetwork: true, status: 'OPEN' },
+        orderBy: { createdAt: 'desc' },
+        take: 25,
+        select: { id: true, title: true, skills: true, location: true, headcount: true, createdAt: true },
+      }),
+      prisma.submission.findMany({
+        where: { toCompanyId: company.id },
+        select: { submittedAt: true, decidedAt: true },
+      }),
+      prisma.invoice.findMany({
+        where: { engagement: { msa: { clientId: company.id } } },
+        select: {
+          dueAt: true, total: true, status: true,
+          payments: { select: { receivedAt: true } },
+        },
+      }),
+      prisma.sellContract.findMany({
+        where: clientLineWhere({ clientCompanyId: company.id, state: 'IN_PROGRESS' }),
+        select: { companyId: true },
+      }),
+      prisma.sellContract.findMany({
+        where: clientLineWhere({ clientCompanyId: company.id, endDate: { not: null } }),
+        select: { startDate: true, endDate: true },
+      }),
+    ])
+
+    const months = tenures
+      .map((t) => Math.round((t.endDate!.getTime() - t.startDate.getTime()) / (30 * 86_400_000)))
+      .filter((m) => m > 0)
+      .sort((a, b) => a - b)
+
+    return {
+      ...base,
+      // Computed here rather than earlier, so a company with no stored
+      // voice gets a fallback written from its real numbers rather than
+      // from zeroes.
+      ...voiceFor(company, {
+        name: base.name, kind: base.kind, posture: company.supplierPosture,
+        skills: base.skills.map((s) => s.skill),
+        locations: base.locations,
+        placements: base.track.placements,
+        activeNow: base.track.activeNow,
+        clients: base.track.clients,
+        openPositions: positions.length,
+        comingFree: 0,
+        trainingCourses: 0,
+      }),
+      openPositions: positions.map((p) => ({
+        id: p.id,
+        title: p.title,
+        skills: p.skills,
+        location: p.location,
+        heads: p.headcount,
+        postedAt: p.createdAt.toISOString().slice(0, 10),
+        openFor: howLong(p.createdAt, now),
+      })),
+      reputation: reputationOf(
+        {
+          submissions: submissions.map((s) => ({
+            submittedAt: s.submittedAt,
+            // A real column, stamped when the decision landed. Inferring
+            // it from a row's last write would report every decision as
+            // instant, which is the opposite of the truth for the buyers
+            // this measure exists to describe.
+            decidedAt: s.decidedAt,
+          })),
+          invoices: invoices.map((i) => ({
+            dueAt: i.dueAt,
+            // The last payment that settled it. An invoice marked paid with
+            // no payment row cannot say when, so it is left unsettled
+            // rather than dated to now and counted as punctual.
+            paidAt: i.status === 'PAID'
+              ? (i.payments.map((p) => p.receivedAt).sort((a, b) => b.getTime() - a.getTime())[0] ?? null)
+              : null,
+            amountCents: Math.round(Number(i.total) * 100),
+          })),
+          supplierCount: new Set(supplierIds.map((s) => s.companyId)).size,
+          openPositions: positions.length,
+          medianTenureMonths: months.length > 0 ? months[Math.floor(months.length / 2)] : null,
+        },
+        now
+      ),
+      comingFree: [],
+      comingFreeSummary: null,
+    }
+  }
+
+  // ── Talking to candidates, clients and peer firms ───────────────────
+  // A firm's courses are never read here: its public page never says it
+  // trains people, because a client can open it (record 69).
+  const [rollingOff, benchListings] = await Promise.all([
+    prisma.sellContract.findMany({
+      where: {
+        companyId: company.id,
+        state: { in: ['IN_PROGRESS', 'PAUSED'] },
+        endDate: { not: null, gte: now, lte: new Date(now.getTime() + 90 * 86_400_000) },
+      },
+      select: {
+        id: true, endDate: true, companyId: true,
+        projectOrder: { select: { podProject: { select: { onSite: true } } } },
+        company: { select: { id: true, name: true } },
+        clientCompany: { select: { name: true, kind: true } },
+        endClientCompany: { select: { name: true, kind: true } },
+        person: {
+          select: {
+            id: true, name: true,
+            consultant: {
+              select: {
+                headline: true, skills: true, location: true, rateFloor: true,
+                listings: {
+                  where: { revokedAt: null },
+                  select: {
+                    companyId: true, state: true, revokedAt: true, staysUntil: true,
+                    showInMatches: true, showBeforeFree: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        rolloff: { select: { outcome: true, claimedById: true } },
+      },
+    }),
+    // People on this firm's bench who said yes to being shown beyond it.
+    // Free now unless a running contract says otherwise, checked below.
+    prisma.benchListing.findMany({
+      where: { companyId: company.id, state: 'GRANTED', revokedAt: null, showInMatches: true },
+      orderBy: { grantedAt: 'desc' },
+      take: 40,
+      select: {
+        state: true, revokedAt: true, staysUntil: true, showInMatches: true, showBeforeFree: true,
+        consultant: { select: { personId: true, headline: true, skills: true, location: true } },
+      },
+    }),
+  ])
+  const benchPeople = benchListings.map((l) => l.consultant.personId)
+  const working = new Set(
+    benchPeople.length
+      ? (await prisma.sellContract.findMany({
+          where: { personId: { in: benchPeople }, state: { in: ['IN_PROGRESS', 'PAUSED'] } },
+          select: { personId: true },
+        })).map((c) => c.personId)
+      : []
+  )
+
+  const rows: RollingOff[] = []
+  for (const c of rollingOff) {
+    if (!c.endDate || !c.person.consultant) continue
+    // Outcome work: the member is the firm's own work, never named or rated here.
+    if (isHiddenTeamLine(c)) continue
+    const listing = c.person.consultant.listings.find((l) => l.companyId === c.companyId)
+    // A contract end date is not agreement to be advertised, least of all
+    // on the open internet: the person's own yes, and their yes to being
+    // shown beyond this firm (an INVITED listing is nobody's yes yet).
+    if (!listing || !mayShowPublicly(listing, now, true)) continue
+
+    rows.push({
+      contractId: c.id,
+      personId: c.person.id,
+      personName: c.person.name,
+      vendorCompanyId: c.company.id,
+      vendorName: c.company.name,
+      endClientName: c.endClientCompany?.name ?? c.clientCompany?.name ?? null,
+      endDate: c.endDate,
+      consented: true,
+      headline: c.person.consultant.headline,
+      skills: c.person.consultant.skills,
+      location: c.person.consultant.location,
+      rateFloorCents: c.person.consultant.rateFloor,
+      extensionLikely: c.rolloff?.outcome === 'REDEPLOYED' || Boolean(c.rolloff?.claimedById),
+    })
+  }
+
+  const free = releasing(rows, now)
+  const freeNow = benchFreeNow(
+    benchListings.map((l) => ({
+      personId: l.consultant.personId,
+      headline: l.consultant.headline,
+      skills: l.consultant.skills,
+      location: l.consultant.location,
+      listing: l,
+      working: working.has(l.consultant.personId),
+    })),
+    now,
+    new Set(free.map((r) => r.personId))
+  )
+  const comingFree: ComingFree[] = [
+    ...freeNow,
+    ...free.map((r) => ({
+      headline: r.headline,
+      skills: r.skills,
+      location: r.location,
+      freeOn: r.freeOn,
+      daysUntilFree: r.daysUntilFree,
+      // Not the client's name — they agreed to nothing — and not a
+      // fragment of it either. What is worth saying publicly is simply
+      // that they are working rather than benched, which is the signal a
+      // buyer actually reads.
+      provenAt: r.proven ? 'Currently on assignment' : null,
+    })),
+  ]
+  const mayExtend = summarize(free).uncertain
+  const comingFreeSummary = comingFree.length > 0
+    ? `${freeSummary(comingFree)}${mayExtend > 0 ? ` ${mayExtend} may extend instead.` : ''}`
+    : null
+
+  return {
+    ...base,
+    ...voiceFor(company, {
+      name: base.name, kind: base.kind, posture: company.supplierPosture,
+      skills: base.skills.map((s) => s.skill),
+      locations: base.locations,
+      placements: base.track.placements,
+      activeNow: base.track.activeNow,
+      clients: base.track.clients,
+      openPositions: 0,
+      comingFree: comingFree.length,
+      trainingCourses: 0,
+    }),
+    openPositions: [],
+    reputation: null,
+    comingFree,
+    comingFreeSummary,
+  }
+}

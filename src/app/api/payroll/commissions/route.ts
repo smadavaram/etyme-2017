@@ -1,0 +1,446 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { amount, totals } from '@/lib/money-display'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { hasPermission } from '@/lib/permissions'
+import { needsVerifiedOwnerAt, gateRefusal } from '@/lib/owner-proof'
+import { logPaymentRefused } from '@/lib/money/payment-refused'
+import { payWaitsAt } from '@/lib/money/pay-waits'
+import { writeRateTrail } from '@/lib/money/pay-trail'
+import { staffOnly } from '@/lib/seat'
+import { commissionFor, marginForCommission, lineMargin, alreadyPaidIn } from '@/lib/commission'
+import { reportingRatesFor } from '@/lib/money/reporting-currency'
+import { orderFor, postCommission, NoRate } from '@/lib/order-postings'
+import { commissionAccruals, monthPeriod, postingKey, type CommissionPeriod, type RowAccrual } from '@/lib/money/commission-accrual'
+import { KIND_WORD, KINDS, termsSay } from '@/lib/money/commission-rows'
+import { earningsByPersonMonth, personMonths } from '@/lib/money/commission-earnings'
+import { checkDefaults, stampDefaults, storedFrom, mayEditDefaults, defaultSays } from '@/lib/money/commission-defaults'
+
+async function roleName(roleId: string | null): Promise<string | null> {
+  if (!roleId) return null
+  return (await prisma.role.findUnique({ where: { id: roleId }, select: { name: true } }))?.name ?? null
+}
+
+/**
+ * The firm's default commission rates, as the page reads them
+ * (lib/money/commission-defaults): what the award writes on a new line.
+ * Read by the Owner, a Contract Manager and whoever reads payroll; null
+ * for anybody else, who is told nothing about them.
+ */
+function defaultsAnswer(company: { currency: string; commissionDefaults: unknown }, mayEdit: boolean) {
+  const stored = storedFrom(company.commissionDefaults)
+  return { currency: company.currency, mayEdit, set: stored, lines: KINDS.map((k) => defaultSays(k, stored[k])) }
+}
+
+/** The period a read asks for (`from`, `to` as days), else this calendar month. */
+function periodFrom(params: URLSearchParams, now: Date): CommissionPeriod {
+  const from = params.get('from') ? new Date(params.get('from')!) : null
+  const to = params.get('to') ? new Date(params.get('to')!) : null
+  if (from && to && !Number.isNaN(from.getTime()) && !Number.isNaN(to.getTime()) && to >= from) return { from, to }
+  return monthPeriod(now)
+}
+
+/** One commission row's answer for the page: who, on what, the terms, what it earned. */
+function rowAnswer(a: RowAccrual) {
+  return {
+    id: a.id, kind: a.kind, kindSays: KIND_WORD[a.kind],
+    earnedBy: a.earnedBy, person: a.person, client: a.client,
+    termsSay: termsSay(a.terms, a.accrual.currency ?? undefined),
+    amountCents: a.postedCents ?? a.accrual.amountCents, currency: a.accrual.currency,
+    state: a.state, says: a.accrual.says, capped: a.accrual.capped,
+  }
+}
+
+/**
+ * GET — what has been earned, and on what.
+ *
+ * The run posted commissions from the day it was built and nothing
+ * read them back, so the only way to see a recruiter's earnings was a
+ * database query. Postings are the record, so they are what this reads:
+ * one row per person per period, with the contract each came from.
+ */
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const notStaff = staffOnly(caller, 'Commissions')
+  if (notStaff) return notStaff
+  const companyId = caller.company!.id
+
+  // ── Whose earnings this reader may see ─────────────────────────────
+  //
+  // A commission is what a person is paid, and this list went to any seat
+  // holding `invoices.read` — the account manager and the AR desk read
+  // what every recruiter earned. Everybody's is the payroll desk's
+  // (`payroll.read`); an agent reads their own row and nobody else's;
+  // anybody else is refused in a sentence. Every row withheld or shown
+  // is on the access trail (lib/money/pay-trail).
+  const everybody = hasPermission(caller.permissions, 'payroll.read')
+
+  const all = await prisma.orderPosting.findMany({
+    where: { companyId, kind: 'COMMISSION' },
+    orderBy: { postedAt: 'desc' },
+    take: 500,
+    select: {
+      id: true, amountCents: true, currency: true, postedAt: true, says: true,
+      person: { select: { id: true, name: true } },
+      projectOrder: { select: { code: true, name: true } },
+    },
+  })
+  const ownAgreement = everybody
+    ? false
+    : Boolean(await prisma.buyContract.findFirst({
+        where: { companyId, commissionType: { not: null }, candidates: { some: { personId: caller.person.id } } },
+        select: { id: true },
+      }))
+  const isOwn = (p: (typeof all)[number]) => p.person?.id === caller.person.id
+  const postings = everybody ? all : all.filter(isOwn)
+  const others = [...new Set(all.filter((p) => !isOwn(p) && p.person).map((p) => p.person!.id))]
+  await writeRateTrail(caller, everybody ? { refused: [], read: others } : { refused: others, read: [] }, {
+    action: 'PAYROLL_VIEW',
+    refused: 'Commission earnings withheld: this seat does not hold payroll.read, the permission payroll holds.',
+    read: 'Commission earnings read by a role holding payroll.read.',
+  })
+
+  // ── The commission rows on the lines (2026-11-08) ───────────────────
+  //
+  // Beside the older agreements above, which keep paying as they do: each
+  // row on a sell or buy line, with what it earned in the period. The
+  // firm's for whoever reads payroll; the reader's own for anybody else.
+  const period = periodFrom(new URL(request.url).searchParams, new Date())
+  const allRows = await commissionAccruals(companyId, period)
+  const rowsShown = everybody ? allRows : allRows.filter((a) => a.earnedBy.id === caller.person.id)
+  const rowOthers = [...new Set(allRows.filter((a) => a.earnedBy.id !== caller.person.id).map((a) => a.earnedBy.id))]
+  if (rowOthers.length) {
+    await writeRateTrail(caller, everybody ? { refused: [], read: rowOthers } : { refused: rowOthers, read: [] }, {
+      action: 'PAYROLL_VIEW',
+      refused: 'Commission rows withheld: this seat does not hold payroll.read, the permission payroll holds.',
+      read: 'Commission rows read by a role holding payroll.read.',
+    })
+  }
+
+  // The firm's default rates: the Owner or a Contract Manager sets them,
+  // and payroll reads them beside what was earned.
+  const role = await roleName(caller.context.roleId)
+  const setsDefaults = mayEditDefaults(role, caller.company!.name) === null
+  const firm = setsDefaults || everybody
+    ? await prisma.company.findUnique({ where: { id: companyId }, select: { currency: true, commissionDefaults: true } })
+    : null
+  const defaults = firm ? defaultsAnswer(firm, setsDefaults) : null
+
+  if (!hasPermission(caller.permissions, 'payroll.read') && !setsDefaults && !ownAgreement && postings.length === 0 && rowsShown.length === 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            `What each person earns in commission is shown only to the people who run payroll at ${caller.company!.name} — AP & Payroll, Finance, the owner and the admin. ` +
+            'Somebody on a commission agreement sees their own here.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // Grouped by the person who earned it, the period it landed in and the
+  // currency, because "what did Ruth earn in September" is the only
+  // question anybody opens this for, and rupees and dollars are never
+  // added (lib/money/commission-earnings).
+  const earnings = earningsByPersonMonth(postings)
+  const periods = personMonths(earnings)
+  const earned = totals(earnings.map((e) => ({ minor: e.amountCents, currency: e.currency })))
+
+  const agents = !everybody ? 0 : await prisma.buyContract.count({
+    where: { companyId, commissionType: { not: null }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
+  })
+
+  // A run pays people: where the company still waits for a verified Owner
+  // the POST below refuses it, so Run is not offered and the gate's own
+  // sentence is said in its place, to the seat that would have pressed it.
+  const runs = hasPermission(caller.permissions, 'payroll.run')
+  const payWaits = runs ? await payWaitsAt(companyId, 'PAY_PEOPLE') : null
+
+  return NextResponse.json({
+    data: {
+      earnings, agents,
+      /** The commission rows on lines, for the period, beside the older agreements' postings. */
+      rows: rowsShown.map(rowAnswer),
+      period: { from: period.from.toISOString().slice(0, 10), to: period.to.toISOString().slice(0, 10) },
+      /** True where only the reader's own earnings are here. */
+      onlyYours: !everybody,
+      mayRun: runs && !payWaits,
+      payWaits,
+      /** The firm's default commission rates; null where this seat does not read them. */
+      defaults,
+      summary: !everybody
+        ? earnings.length === 0
+          ? 'You are on a commission agreement, and nothing has been posted to you yet.'
+          : `${earned} earned by you across ${periods} ${periods === 1 ? 'period' : 'periods'}. Only your own is shown here.`
+        : agents === 0 && rowsShown.length === 0
+        ? 'Nobody is on a commission here yet. A commission set on a sell or buy line, by the Owner or a Contract Manager, is what puts them on one.'
+        : agents === 0
+        ? `${rowsShown.length} commission${rowsShown.length === 1 ? '' : 's'} on lines this period, worked out below. None is posted until the period is run.`
+        : earnings.length === 0
+          ? `${agents} ${agents === 1 ? 'person is' : 'people are'} on a commission agreement, and nothing has been run yet.`
+          : `${earned} earned across ${periods} ${periods === 1 ? 'person-period' : 'person-periods'}.`,
+    },
+  })
+}
+
+/**
+ * POST /api/payroll/commissions   { periodStart, periodEnd }
+ *
+ * The commission run. For every commission-type buy contract at this
+ * company, what the agent earned in the period from the sell contracts
+ * linked to it — hours approved, margin on those hours, placements that
+ * started — posted as COMMISSION against each project order, held under
+ * the cap, and written down. Run it again for the same period and it
+ * posts nothing twice.
+ */
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const notStaff = staffOnly(caller, 'The commission run')
+  if (notStaff) return notStaff
+  // A commission run pays people, so it is the payroll desk's alone.
+  // The permission to issue a bill let the Accounts Receivable desk run it, and AR
+  // bills the client and never runs payroll (CLAUDE.md, the supplier's
+  // own roles): one desk that both bills and pays is no segregation.
+  if (!hasPermission(caller.permissions, 'payroll.run')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            `A commission run pays people, so it is run by whoever runs payroll at ${caller.company!.name} — AP & Payroll, Finance or the owner. ` +
+            'Ask them to run the period.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+  const companyId = caller.company!.id
+  // A commission run pays people, so it waits for a verified Owner like
+  // every other act that pays (founder, 2026-11-11; Layer 7 money review,
+  // 2026-11-16), in the gate's own sentence, logged before it is said.
+  const owner = await needsVerifiedOwnerAt(companyId, 'PAY_PEOPLE')
+  if (!owner.ok) {
+    await logPaymentRefused({ companyId, byPersonId: caller.person.id, door: 'COMMISSION_RUN', why: 'OWNER_NOT_VERIFIED', says: owner.says })
+    return NextResponse.json(gateRefusal(owner), { status: 403 })
+  }
+  const body = await request.json().catch(() => ({}))
+  const periodStart = body.periodStart ? new Date(body.periodStart) : null
+  const periodEnd = body.periodEnd ? new Date(body.periodEnd) : null
+  if (!periodStart || !periodEnd || Number.isNaN(periodStart.getTime()) || Number.isNaN(periodEnd.getTime()) || periodEnd < periodStart) {
+    return NextResponse.json({ error: { code: 'VALIDATION', message: 'Say which period: a start and an end.' } }, { status: 422 })
+  }
+  const periodKey = periodEnd.toISOString().slice(0, 10)
+
+  const agents = await prisma.buyContract.findMany({
+    where: { companyId, commissionType: { not: null }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
+    include: {
+      candidates: { where: { state: 'ACTIVE' }, select: { personId: true, person: { select: { name: true } } }, take: 1 },
+      sellLinks: {
+        include: {
+          sellContract: {
+            select: {
+              id: true, billRate: true, billCurrency: true, startDate: true,
+              timesheets: {
+                where: { status: 'APPROVED', periodEnd: { gte: periodStart }, periodStart: { lte: periodEnd } },
+                select: { totalHours: true, acceptedHours: true },
+              },
+              // What the delivering side is paid, for the margin.
+              buyLinks: {
+                include: { buyContract: { select: { commissionType: true, payCurrency: true, candidates: { where: { state: 'ACTIVE' }, select: { payRate: true }, take: 1 } } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  const posted: { agent: string; buyContractId: string; amountCents: number; currency: string; says: string }[] = []
+  const skipped: { buyContractId: string; why: string }[] = []
+
+  // The company's own rates, read once and only where a margin crosses two currencies.
+  let ownRates: Awaited<ReturnType<typeof reportingRatesFor>> | null = null
+  for (const bc of agents) {
+    const agent = bc.candidates[0] ?? null
+    // Past postings with the currency each was paid in, so the cap is
+    // checked in one currency and never across two as raw numbers.
+    const alreadyRows = await prisma.orderPosting.findMany({
+      where: { buyContractId: bc.id, kind: 'COMMISSION', reversalOfId: null },
+      select: { amountCents: true, txCurrency: true, txAmountCents: true },
+    })
+    const lineSays: string[] = []
+    let lineRefused: string | null = null
+    let hours = 0
+    // Per currency: a sell line in rupees and one in dollars are never added (marginForCommission).
+    const margins: { currency: string; minor: number }[] = []
+    let placementsStarted = 0
+    const orders: { sellContractId: string; orderId: string; currency: string }[] = []
+    for (const link of bc.sellLinks) {
+      const sc = link.sellContract
+      const h = sc.timesheets.reduce((s, t) => s + Number(t.acceptedHours ?? t.totalHours), 0)
+      const payLeg = sc.buyLinks.find((l) => !l.buyContract.commissionType)?.buyContract
+      const payRate = payLeg?.candidates[0]?.payRate ?? 0
+      hours += h
+      // Bill less pay on this line, with the pay converted once at the
+      // company's own rate where it is in another currency (lineMargin).
+      if (bc.commissionType === 'MARGIN_SHARE') {
+        const lm = lineMargin(
+          { hours: h, billRateCents: sc.billRate, billCurrency: sc.billCurrency, payRateCents: payRate, payCurrency: payLeg?.payCurrency ?? null },
+          ownRates ?? (ownRates = await reportingRatesFor(companyId, periodEnd)), periodEnd,
+        )
+        if (!lm.ok) lineRefused = lm.says
+        else {
+          margins.push({ currency: lm.currency, minor: lm.minor })
+          if (lm.converted) lineSays.push(lm.converted)
+        }
+      }
+      if (sc.startDate >= periodStart && sc.startDate <= periodEnd) placementsStarted++
+      const orderId = await orderFor(sc.id)
+      if (orderId) orders.push({ sellContractId: sc.id, orderId, currency: sc.billCurrency })
+    }
+    // A margin share reads the margin in one currency, converted once at
+    // the company's own rate where the lines bill in two; the other kinds
+    // are a fixed figure in the agreement's own currency.
+    let marginCents = 0
+    let currency = bc.payCurrency
+    let converted: string | null = null
+    if (lineRefused) { skipped.push({ buyContractId: bc.id, why: `${agent?.person.name ?? 'Commission'}: ${lineRefused}` }); continue }
+    if (bc.commissionType === 'MARGIN_SHARE') {
+      const m = marginForCommission(margins, ownRates ?? (ownRates = await reportingRatesFor(companyId, periodEnd)), periodEnd)
+      if (!m.ok) { skipped.push({ buyContractId: bc.id, why: `${agent?.person.name ?? 'Commission'}: ${m.says}` }); continue }
+      marginCents = m.marginCents
+      currency = m.currency
+      converted = [...lineSays, m.converted].filter(Boolean).join(' ') || null
+    }
+    const already = alreadyPaidIn(currency, alreadyRows, ownRates ?? (ownRates = await reportingRatesFor(companyId, periodEnd)), periodEnd)
+    if (!already.ok) { skipped.push({ buyContractId: bc.id, why: `${agent?.person.name ?? 'Commission'}: ${already.says}` }); continue }
+    if (already.converted) converted = [converted, already.converted].filter(Boolean).join(' ')
+    const computed = commissionFor({
+      type: bc.commissionType!, rate: bc.commissionRate ?? 0, capCents: bc.commissionCap,
+      alreadyCents: already.cents, hours, marginCents, placementsStarted,
+      currency,
+    })
+    const result = converted ? { ...computed, says: `${computed.says} ${converted}` } : computed
+    if (result.amountCents === 0 || orders.length === 0) {
+      skipped.push({ buyContractId: bc.id, why: orders.length === 0 ? 'No project order behind the linked contracts.' : result.says })
+      continue
+    }
+    // Spread across the orders the linked contracts bill to, evenly.
+    const share = Math.floor(result.amountCents / orders.length)
+    let remainder = result.amountCents - share * orders.length
+    for (const o of orders) {
+      const cents = share + (remainder > 0 ? 1 : 0)
+      if (remainder > 0) remainder--
+      try {
+        await postCommission({
+          projectOrderId: o.orderId, companyId, personId: agent?.personId ?? null, buyContractId: bc.id, sellContractId: o.sellContractId,
+          amountCents: cents, postedAt: periodEnd, sourceId: `commission:${bc.id}:${periodKey}:${o.sellContractId}`,
+          says: `${agent?.person.name ?? 'Commission'} — ${result.says}`, txCurrency: currency, createdById: caller.person.id,
+        })
+      } catch (e) {
+        if (e instanceof NoRate) { skipped.push({ buyContractId: bc.id, why: e.message }); continue }
+        throw e
+      }
+    }
+    posted.push({ agent: agent?.person.name ?? 'Commission', buyContractId: bc.id, amountCents: result.amountCents, currency, says: result.says })
+  }
+
+  // ── The commission rows on lines (2026-11-08) ───────────────────────
+  //
+  // Each row's accrual for the period, posted once (keyed by row and
+  // period) against the order its placement bills to, under its cap. A row
+  // whose figure is blank posts nothing and says why; nothing is posted on
+  // an award, only on accepted weeks or on cash received.
+  const accruals = await commissionAccruals(companyId, { from: periodStart, to: periodEnd })
+  for (const a of accruals) {
+    if (a.state === 'POSTED') { skipped.push({ buyContractId: a.lineId, why: `${a.earnedBy.name}: already posted for the period to ${periodKey}.` }); continue }
+    const cents = a.accrual.amountCents
+    if (cents == null || cents <= 0 || !a.accrual.currency) { skipped.push({ buyContractId: a.lineId, why: `${a.earnedBy.name}: ${a.accrual.says}` }); continue }
+    const sellId = a.sellContractIds[0] ?? null
+    if (!sellId || a.sellContractIds.length > 1) {
+      skipped.push({ buyContractId: a.lineId, why: `${a.earnedBy.name}: the commission is not on exactly one placement, so there is no one order to post it to.` })
+      continue
+    }
+    const orderId = await orderFor(sellId)
+    if (!orderId) { skipped.push({ buyContractId: a.lineId, why: 'No project order behind the placement.' }); continue }
+    try {
+      await postCommission({
+        projectOrderId: orderId, companyId, personId: a.earnedBy.id,
+        buyContractId: a.terms.buyContractId, sellContractId: sellId,
+        amountCents: cents, postedAt: periodEnd, sourceId: postingKey(a.id, { from: periodStart, to: periodEnd }),
+        says: `${a.earnedBy.name}, ${KIND_WORD[a.kind].toLowerCase()} — ${a.accrual.says}`, txCurrency: a.accrual.currency, createdById: caller.person.id,
+      })
+    } catch (e) {
+      if (e instanceof NoRate) { skipped.push({ buyContractId: a.lineId, why: e.message }); continue }
+      throw e
+    }
+    posted.push({ agent: a.earnedBy.name, buyContractId: a.lineId, amountCents: cents, currency: a.accrual.currency, says: a.accrual.says })
+  }
+
+  await prisma.automationLog.create({
+    data: {
+      companyId,
+      action: 'COMMISSION_RUN',
+      summary: posted.length
+        ? `Commissions for the period to ${periodKey}: ${posted.map((p) => `${p.agent} ${amount(p.amountCents, p.currency)}`).join('; ')}.`
+        : `Commissions for the period to ${periodKey}: nothing earned.`,
+      reason: `Run by ${caller.person.name} for ${periodStart.toISOString().slice(0, 10)} to ${periodKey}.`,
+      payload: { periodStart: periodStart.toISOString(), periodEnd: periodEnd.toISOString(), posted, skipped },
+      reversible: true,
+    },
+  })
+
+  return NextResponse.json({
+    data: {
+      posted, skipped,
+      says: posted.length
+        ? `${posted.length} commission${posted.length === 1 ? '' : 's'} posted for the period to ${periodKey}.`
+        : 'Nothing earned this period.',
+    },
+  })
+}
+
+/**
+ * PATCH /api/payroll/commissions   { defaults: { SALES?, RECRUITING? } }
+ *
+ * Say the firm's default commission rates, which the award writes on a new
+ * sell line (sales) and buy line (recruiting). A kind sent as null has no
+ * default. The Owner or a Contract Manager only; every bad value refused
+ * in a sentence naming the kind and the field; who set each and when kept
+ * beside it. A commission already on a line is never changed by this.
+ */
+export async function PATCH(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const notStaff = staffOnly(caller, 'Commission defaults')
+  if (notStaff) return notStaff
+  if (!caller.company) {
+    return NextResponse.json({ error: { code: 'NO_COMPANY', message: 'Default commission rates belong to a firm, and you are not signed in at one.' } }, { status: 403 })
+  }
+  const refused = mayEditDefaults(await roleName(caller.context.roleId), caller.company.name)
+  if (refused) return NextResponse.json({ error: { code: 'FORBIDDEN', message: refused } }, { status: 403 })
+
+  const company = await prisma.company.findUnique({ where: { id: caller.company.id }, select: { currency: true, commissionDefaults: true } })
+  if (!company) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That firm is not on the record.' } }, { status: 404 })
+  const body = await request.json().catch(() => null)
+  const checked = checkDefaults(body?.defaults ?? {}, company.currency)
+  if (!checked.ok) {
+    return NextResponse.json({ error: { code: 'VALIDATION', field: checked.field, message: checked.says } }, { status: 422 })
+  }
+  const next = stampDefaults(company.commissionDefaults, checked.defaults, { personId: caller.person.id, name: caller.person.name }, new Date())
+  const saved = await prisma.company.update({
+    where: { id: caller.company.id },
+    data: { commissionDefaults: next as object },
+    select: { currency: true, commissionDefaults: true },
+  })
+  return NextResponse.json({
+    data: {
+      defaults: defaultsAnswer(saved, true),
+      says: 'Saved. Every award from now on writes these defaults. A commission already on a line is not changed.',
+    },
+  })
+}

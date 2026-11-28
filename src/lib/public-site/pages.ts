@@ -1,0 +1,176 @@
+/**
+ * Every page somebody can read without signing in, in one list.
+ *
+ * ── Why a list ───────────────────────────────────────────────────────
+ *
+ * `lib/positioning` is the guard on public words, and until 2026-09-26
+ * it read the pages somebody remembered to hand it: the home page, the
+ * census, two dashboard pages. A page it does not read is a page it
+ * cannot catch, and the marketing site was about to grow by two dozen
+ * pages at once. So the guard now reads this list, and
+ * `__tests__/invariants/public-pages.test.ts` walks `src/app` for every
+ * page outside the dashboard and fails on one that is in neither this
+ * list nor the short list of pages that are not marketing at all. A new
+ * public page cannot be added outside the guard; it can only be added
+ * to it.
+ *
+ * ── The route is recorded separately from the words ──────────────────
+ *
+ * The words of the module pages, the documentation and the company pages
+ * live in `lib/public-site`. The route files that mount them are three
+ * lines each under `src/app/(site)`, the market's since `afa187c7`. Each
+ * entry names the file it is mounted by, and the test fails on an entry
+ * whose file does not exist, so a page cannot be registered and
+ * unreachable.
+ */
+
+import { STEP_PAGES } from './docs/process'
+import { TOPICS, topicRoute } from './docs/topics'
+import { PARTY_PAGES, SEGMENT_PAGES } from './parties'
+import { FOLDED } from './folded'
+
+export type PageKind =
+  /** The front door. */
+  | 'HOME'
+  /** A door that asks for something: the demo. */
+  | 'DOOR'
+  /** One of the four steps of the product, a page each. */
+  | 'MODULE'
+  /** The documentation: how Etyme works, one page a step. */
+  | 'DOCS'
+  /** About, contact, the security position. */
+  | 'COMPANY'
+  /**
+   * A door for one party who is not the client: suppliers and bench
+   * firms, program offices, integrators, contractors (2026-10-13). Reached
+   * by link or advertising, never from the home page's menu.
+   */
+  | 'PARTY'
+  /** Terms, privacy, the DPA — regulatory's words, read by the guard for price and AI only. */
+  | 'LEGAL'
+
+export interface PublicPage {
+  route: string
+  title: string
+  kind: PageKind
+  /** The file Next mounts at `route`. */
+  routeFile: string
+}
+
+/**
+ * The four product pages, one per step, in the order of the four steps
+ * (`./steps`). Since 2026-10-15 there are four, not eight: governance,
+ * contracts, compliance and the chain folded into the step each belonged
+ * to, and their addresses redirect there (`./folded`).
+ */
+export const MODULE_ROUTES = ['/requisitions', '/submissions', '/timesheets', '/invoices'] as const
+
+/**
+ * The pages mounted at /docs/[slug] since 2026-10-15: the five step
+ * pages, the one table of who does what, and the two references. The ten
+ * party pages that were here redirect to the table
+ * (`./docs/redirects`), and the nine process pages under /docs/process
+ * to the step that took each.
+ */
+export const DOCS_SLUGS = [
+  ...STEP_PAGES.map((p) => p.slug),
+  'who-does-what', 'time-and-money', 'integrations',
+] as const
+
+/** Your records and recruiting, each mounted by one of two route files. */
+export function nestedDocPages(): PublicPage[] {
+  return TOPICS.map((t) => ({ route: topicRoute(t), title: t.title, kind: 'DOCS' as const, routeFile: `${SITE_GROUP}/docs/${t.group}/[slug]/page.tsx` }))
+}
+
+export type DocsSlug = (typeof DOCS_SLUGS)[number]
+
+/**
+ * Where the new pages are mounted. A route group, so the URLs read
+ * `/requisitions` and `/docs/job` and the whole marketing site sits
+ * under one folder a single ownership line can give to the market.
+ */
+export const SITE_GROUP = 'src/app/(site)'
+
+export const PUBLIC_PAGES: PublicPage[] = [
+  { route: '/', title: 'Home', kind: 'HOME', routeFile: 'src/app/page.tsx' },
+  { route: '/demo', title: 'Open the example program', kind: 'DOOR', routeFile: 'src/app/demo/page.tsx' },
+
+  ...MODULE_ROUTES.map((route) => ({
+    route,
+    title: route.slice(1),
+    kind: 'MODULE' as const,
+    routeFile: `${SITE_GROUP}${route}/page.tsx`,
+  })),
+
+  { route: '/docs', title: 'Documentation', kind: 'DOCS', routeFile: `${SITE_GROUP}/docs/page.tsx` },
+  ...DOCS_SLUGS.map((slug) => ({
+    route: `/docs/${slug}`,
+    title: slug,
+    kind: 'DOCS' as const,
+    routeFile: `${SITE_GROUP}/docs/[slug]/page.tsx`,
+  })),
+  ...nestedDocPages(),
+
+  { route: '/security', title: 'Security position', kind: 'COMPANY', routeFile: `${SITE_GROUP}/security/page.tsx` },
+  { route: '/about', title: 'About Etyme', kind: 'COMPANY', routeFile: `${SITE_GROUP}/about/page.tsx` },
+  { route: '/pricing', title: 'Price', kind: 'COMPANY', routeFile: `${SITE_GROUP}/pricing/page.tsx` },
+  { route: '/contact', title: 'Contact', kind: 'COMPANY', routeFile: `${SITE_GROUP}/contact/page.tsx` },
+
+  ...PARTY_PAGES.map((p) => ({
+    route: p.route,
+    title: p.eyebrow,
+    kind: 'PARTY' as const,
+    routeFile: `${SITE_GROUP}${p.route}/page.tsx`,
+  })),
+
+  // The four segment pages of 2026-11-22: one tab of a door, at a plain address.
+  ...SEGMENT_PAGES.map((s) => ({
+    route: s.route,
+    title: s.eyebrow,
+    kind: 'PARTY' as const,
+    routeFile: `${SITE_GROUP}${s.route}/page.tsx`,
+  })),
+
+  { route: '/terms', title: 'Terms of service', kind: 'LEGAL', routeFile: 'src/app/terms/page.tsx' },
+  { route: '/privacy', title: 'Privacy policy', kind: 'LEGAL', routeFile: 'src/app/privacy/page.tsx' },
+  { route: '/dpa', title: 'Data processing addendum', kind: 'LEGAL', routeFile: 'src/app/dpa/page.tsx' },
+]
+
+/**
+ * Pages under `src/app` that are reachable without signing in and are
+ * not marketing, each with the reason. The test fails on a page that is
+ * in neither list, so this is where somebody has to write down why a
+ * public page is exempt from the guard.
+ */
+export const NOT_MARKETING: { prefix: string; why: string }[] = [
+  { prefix: 'src/app/dashboard', why: 'Behind sign-in, and held to the dashboard’s own rules.' },
+  { prefix: 'src/app/(auth)', why: 'The sign-in screens themselves; they name the sign-in providers, which is what a sign-in button is for.' },
+  { prefix: 'src/app/welcome/', why: 'A private welcome link for somebody invited to a seat.' },
+  { prefix: 'src/app/ready', why: 'The deployment’s own readiness board, for staff.' },
+  { prefix: 'src/app/site/', why: 'A company’s own generated site, held to lib/site-voice rather than to Etyme’s positioning.' },
+  { prefix: 'src/app/c/', why: 'A consultant’s own page, in their words.' },
+  { prefix: 'src/app/apply/', why: 'A supplier’s private onboarding link.' },
+  { prefix: 'src/app/packet/', why: 'A private document request link.' },
+  { prefix: 'src/app/answer/', why: 'A private reply link.' },
+  { prefix: 'src/app/reply/', why: 'A private reply link.' },
+  { prefix: 'src/app/claim/', why: 'A private claim link.' },
+  { prefix: 'src/app/bench-invite/', why: 'A private bench invitation link.' },
+  { prefix: 'src/app/map', why: 'The founder’s map of how the system is built, closed to everybody but the Owner or Admin of a real company (lib/map-gate); it describes the code, not the product to a buyer.' },
+  { prefix: 'src/app/embed/', why: 'The sample program’s screens, drawn inside the home page’s frame: product screens over the seeded demo world, read-only, held to the dashboard’s words. The home page labels them as a sample above the frame.' },
+  ...Object.keys(FOLDED).map((route) => ({
+    prefix: `src/app/(site)${route}/`,
+    why: 'An old product page, folded into its step on 2026-10-15: it answers with a permanent redirect to that step (lib/public-site/folded), and draws nothing.',
+  })),
+  { prefix: 'src/app/(site)/docs/process', why: 'Old documentation addresses only: each answers with a permanent redirect to the page that replaced it (lib/public-site/docs/redirects), and draws nothing.' },
+  { prefix: 'src/app/learn/', why: 'A firm’s own learning site, reached from that firm’s public page where its Train to bench plugin is on; it is the firm’s course in the firm’s name, held to the learning site’s own tests rather than to Etyme’s positioning.' },
+  { prefix: 'src/app/(site)/ai-from-zero/', why: 'The free training door’s earlier address: no words of its own, only a redirect to /learnai.' },
+  { prefix: 'src/app/(site)/learnai/', why: 'The free training door, Etyme’s own (owner’s ruling relayed by Pax, 2026-11-28): its headline is the owner’s, "AI from Zero in 3 Hours", about a course and not about the product, so the positioning guard’s never-lead-with-AI rule, which protects the product pages, does not apply. It has its own test (course-door-page) for price, Tapin and the ten tiles.' },
+  { prefix: 'src/app/pods/', why: 'A firm’s own Project teams site, signed-in seats only, reached by the door on its menu where the plugin is on; not a marketing page.' },
+  { prefix: 'src/app/proposals/', why: 'A firm’s own Proposals site, signed-in seats only, reached by the door on its menu where the plugin is on; not a marketing page.' },
+  { prefix: 'src/app/legal/', why: 'Regulatory’s agreements; read for price and AI with the other legal pages.' },
+]
+
+/** The page a route is registered under, or null. */
+export function pageAt(route: string): PublicPage | null {
+  return PUBLIC_PAGES.find((p) => p.route === route) ?? null
+}

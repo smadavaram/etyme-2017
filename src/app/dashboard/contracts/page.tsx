@@ -1,0 +1,1950 @@
+'use client'
+
+import { useEffect, useState, useCallback, useRef } from 'react'
+import Link from 'next/link'
+import { refusalOf, refusedRead } from '@/lib/money/refused-read'
+import { contractsEmpty } from '@/lib/money/contracts-empty'
+import { scopeOf, ownContractsSay, type ListScope } from '@/lib/money/own-scope'
+import { compact, rate as rateText } from '@/lib/money-display'
+import { activeRateTotals } from '@/lib/money/rate-totals'
+import { readEveryContractPage, fetchPage } from '@/lib/money/contract-pages'
+import { sideFromQuery, sideHref, answerFits, rowsOfSide } from '@/lib/money/contract-side'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { ListSurface, type Column } from '@/components/list-surface'
+import { EmptyState, ErrorState, FilterChips, LoadingState, PageHead, RefusedState, Stat } from '@/components/ui'
+import { useSession } from '@/components/session-provider'
+import { ExtendDialog } from './extend-dialog'
+import { PaperSet } from '../purchase-orders/paper-set'
+import { pageFraming } from '@/lib/page-framing'
+import { sidebarPropsFrom } from '@/components/shell/sidebar-props'
+import { hasPermission } from '@/lib/permissions'
+import {
+  describeLine, pairLine, paidBy, masterContractLine, orderNoun, sideOf,
+  MASTER_CONTRACT_WORD,
+  type OrderParties,
+} from '@/lib/order-naming'
+import { orderReferenceLabel } from '@/lib/money/order-reference'
+import { clientOptions, NO_CLIENTS_SAYS, NO_CLIENTS_HREF } from '@/lib/money/client-options'
+import { ENGAGEMENT_TYPES, ENGAGEMENT_WORDS } from '@/lib/award/hire-terms'
+import { callerCompanyIdFromMe } from '@/lib/money/caller-company'
+import { agreedTermsFrom, withAgreed, stillAgreed, type AgreedTerms } from '@/lib/money/agreed-terms'
+import { reasonAsked } from '@/lib/award/reason-asked'
+import { activateBody } from './activate-body'
+import { ActivatePanel } from './activate-panel'
+import { CommissionPanel } from './commission-panel'
+import { AllocationsPanel } from './allocations-panel'
+import { SignInLink } from '@/app/dashboard/conversations/sign-in-link'
+
+/**
+ * The documents, and their lines.
+ *
+ * ── What this screen used to say, and why it was wrong ───────────────
+ *
+ * It listed sell contracts and buy contracts as rows, offered "Create
+ * contract" as a thing to make on its own, and never mentioned the order
+ * either one is a line of. A reader concluded the contract is the
+ * document and the order is something else — which is exactly the
+ * confusion CLAUDE.md's header-and-lines correction exists to end:
+ *
+ *   > A screen that offers "New sell contract" as a thing to create
+ *   > standalone has reintroduced the second document.
+ *
+ * So: a row here is **a line on a document**. It carries the document's
+ * own name in the reader's words — a client reads its purchase order, a
+ * supplier reads the same row as its sales order — the person and the
+ * site, the pair on the other side of the trade, and the master contract
+ * the company tagged it to, or the offer to tag it.
+ *
+ * "Sell contract" and "buy contract" stay: they are the founder's words
+ * and the trade's, and they say which direction the money runs. What
+ * they may never be is a document of their own beside the order.
+ *
+ * CLAUDE.md design system:
+ *   Working surfaces: "Tables, search, filters, bulk, density"
+ *   "Tabular figures, tight rows"
+ */
+
+// ── Types ──────────────────────────────────────────────────
+
+/** The header a line sits on, as much of it as a screen needs. */
+interface Document extends OrderParties {
+  id: string
+  number: string
+  sellerNumber: string | null
+  status: string
+  /** The ceiling, in whole currency. Null where the reader may not see it. */
+  amount?: number | null
+  currency?: string
+  /** How many people are on this document. */
+  lines?: number
+}
+
+interface Contract {
+  id: string
+  side: 'sell' | 'buy'
+  /** The employer on a sell contract — whose company this actually is. */
+  companyId: string
+  personId: string
+  personName: string
+  counterpartyName: string | null
+  endClientName: string | null  // where the consultant actually works
+  viaName: string | null        // paying customer when different from end client
+  workLocationLabel: string | null
+  /** Null where there is no single rate, or where the pay is not this reader's to see. */
+  rate: number | null
+  /**
+   * True where this rate is not this reader's to see — on a buy line what
+   * the person is paid, on a sell line what the client is billed.
+   */
+  rateWithheld: boolean
+  currency: string
+  state: string
+  startDate: string
+  endDate: string | null
+  daysUntilEnd: number | null
+  /** The document this line is on. Null where no paper has arrived. */
+  document: Document | null
+  /** The line on the other side of the trade that pairs with this one. */
+  pairedWith: { id: string | null; counterpartName: string | null } | null
+  /** The reader is the client: a firm below its supplier is not its to read. */
+  pairedWithHidden?: boolean
+  /** On a buy line: the supplier's sell line it pays, where this firm's cost coding sits. */
+  codingContractId: string | null
+  /**
+   * How the buy line engages the person: this line's own type on a buy
+   * line, the paired buy line's on a sell line. A 1099 or her own
+   * company's line is paid on her invoice, never by payroll.
+   */
+  buyContractType: string | null
+  /** The roll-up the company tagged it to. Null is a complete line. */
+  masterContract: { id: string; code: string; name: string; status: string } | null
+  /** The buyer on this line — the client on a sell line, this firm on a buy line. Whose paper rules they are. */
+  lineBuyerId: string | null
+}
+
+/** One master contract, for the picker. */
+interface MasterContract {
+  id: string
+  code: string
+  name: string
+  open: boolean
+}
+
+// ── Helpers ────────────────────────────────────────────────
+
+type ViewTab = 'sell' | 'buy'
+type StateFilter = 'all' | 'active' | 'draft' | 'ended' | 'bench'
+
+function stateLabel(state: string): string {
+  const labels: Record<string, string> = {
+    DRAFT: 'Draft',
+    PENDING_VERIFICATION: 'Pending',
+    VERIFIED: 'Verified',
+    IN_PROGRESS: 'Active',
+    BENCH_PAID: 'Bench (Paid)',
+    INTERNAL: 'Internal',
+    TRAINING: 'Training',
+    PAUSED: 'Paused',
+    ENDED: 'Ended',
+    CANCELLED: 'Cancelled',
+  }
+  return labels[state] ?? state
+}
+
+function stateChipClass(state: string): string {
+  switch (state) {
+    case 'IN_PROGRESS':
+    case 'VERIFIED':
+      return 'chip--verified'
+    case 'PENDING_VERIFICATION':
+    case 'DRAFT':
+      return 'chip--action'
+    case 'BENCH_PAID':
+    case 'TRAINING':
+      return 'chip--attention'
+    case 'INTERNAL':
+      return 'chip--action'
+    case 'PAUSED':
+    case 'ENDED':
+    case 'CANCELLED':
+    default:
+      return 'chip--passive'
+  }
+}
+
+const ACTIVE_STATES = ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION']
+const DRAFT_STATES = ['DRAFT']
+const ENDED_STATES = ['ENDED', 'CANCELLED', 'PAUSED']
+const BENCH_STATES = ['BENCH_PAID', 'INTERNAL', 'TRAINING']
+
+function matchesFilter(state: string, filter: StateFilter): boolean {
+  if (filter === 'all') return true
+  if (filter === 'active') return ACTIVE_STATES.includes(state)
+  if (filter === 'draft') return DRAFT_STATES.includes(state)
+  if (filter === 'ended') return ENDED_STATES.includes(state)
+  if (filter === 'bench') return BENCH_STATES.includes(state)
+  return true
+}
+
+/**
+ * The line, described on the document it is on.
+ *
+ * One function, so the card, the table and the drawer cannot disagree
+ * about what the paper is called — and so a client reading its own
+ * purchase order and the supplier reading the same row as its sales
+ * order both see their own word for it.
+ */
+function lineOf(row: Contract, viewerId: string | null) {
+  return describeLine({
+    order: row.document,
+    companyId: viewerId,
+    line: {
+      side: row.side === 'sell' ? 'SELL' : 'BUY',
+      personName: row.personName,
+      siteName: row.workLocationLabel ?? row.endClientName,
+      // On a buy line, the firm we pay. Null where we employ them, and
+      // then payroll pays the line and no order is raised at all.
+      paidToName: row.side === 'buy' ? row.counterpartyName : null,
+      contractType: row.side === 'buy' ? row.buyContractType : null,
+    },
+  })
+}
+
+/**
+ * "PO-2026-4471" · "PO 4471" · "Not yet on an order".
+ *
+ * The reader's own word goes in front of the number only where the
+ * number does not already carry it. This printed "PO PO-2026-K6KU1"
+ * and "SO SO-F8L1U" until 2026-09-21.
+ */
+function DocumentChip({ row, viewerId }: { row: Contract; viewerId: string | null }) {
+  if (!row.document) {
+    return (
+      <span className="text-[12px] text-etyme-faint">
+        {row.side === 'buy' && paidBy({ side: 'BUY', personName: row.personName, paidToName: row.counterpartyName, contractType: row.buyContractType }) === 'PAYROLL'
+          ? 'No order — payroll'
+          : 'Not yet on an order'}
+      </span>
+    )
+  }
+  const noun = orderNoun(sideOf(row.document, viewerId))
+  const ref = viewerId === row.document.issuedToId && row.document.sellerNumber
+    ? row.document.sellerNumber
+    : row.document.number
+  const label = orderReferenceLabel(ref, noun.short)
+  if (!label) {
+    return <span className="text-[12px] text-etyme-faint">Not yet on an order</span>
+  }
+  return (
+    <span className="font-mono text-[12px] text-etyme-ink">
+      {label.prefix && <span className="text-etyme-faint mr-1.5">{label.prefix}</span>}
+      {label.reference}
+    </span>
+  )
+}
+
+/** A line, as a card in the feed: the document first, then the person. */
+function LineCard({ row, viewerId }: { row: Contract; viewerId: string | null }) {
+  const line = lineOf(row, viewerId)
+  const pair = pairLine({
+    side: row.side === 'sell' ? 'SELL' : 'BUY',
+    counterpartName: row.pairedWith?.counterpartName ?? null,
+    paidToName: row.side === 'buy' ? row.counterpartyName : null,
+    contractType: row.buyContractType,
+  })
+  return (
+    <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4">
+      <p className="text-[11px] uppercase tracking-[0.12em] text-etyme-faint font-medium">
+        {line.heading}
+      </p>
+      <div className="flex items-baseline justify-between gap-4 mt-1">
+        <span className="text-[15px] text-etyme-ink font-medium">{line.name}</span>
+        <span className="text-[13px] tabular-nums text-etyme-ink shrink-0">
+          {row.rateWithheld ? (
+            <span className="text-etyme-faint">{row.side === 'buy' ? 'Pay not shown' : 'Rate not shown'}</span>
+          ) : (
+            <>{compact(row.rate)}<span className="text-etyme-faint">/hr</span></>
+          )}
+        </span>
+      </div>
+      <p className="text-[12px] text-etyme-muted mt-1">{line.does}</p>
+      <p className="text-[12px] text-etyme-muted">
+        {row.pairedWith ? pair : row.pairedWithHidden ? '' : 'No line on the other side of this one yet.'}
+      </p>
+      <p className="text-[12px] text-etyme-faint mt-1">
+        {masterContractLine(row.masterContract)}
+      </p>
+      <div className="flex items-center gap-2 mt-2">
+        <span className={`chip ${stateChipClass(row.state)}`}>{stateLabel(row.state)}</span>
+        <span className="text-[11px] tabular-nums text-etyme-faint">
+          {new Date(row.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+          {' – '}
+          {row.endDate
+            ? new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+            : 'open-ended'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ── Recording a placement ─────────────────────────────────
+
+interface ClientCompanyOption {
+  id: string
+  name: string
+}
+
+interface ConsultantOption {
+  personId: string
+  name: string
+  /** What she agreed to when she said yes to this firm's bench, if anything. */
+  agreed: AgreedTerms | null
+}
+
+/** The currencies the form's pay box takes. */
+const PAY_BOX_CURRENCIES = ['USD', 'CAD', 'GBP', 'EUR'] as const
+
+/** The way to a box a sentence waits on, as the route gave it; null where the seat may not open it. */
+type StepLink = { href: string; label: string } | null
+
+function RecordPlacementModal({ onClose, onCreated }: { onClose: () => void; onCreated: (says: string, after: { says: string; link: StepLink } | null) => void }) {
+  const [form, setForm] = useState({
+    personId: '',
+    clientCompanyId: '',
+    endClientCompanyId: '',
+    workLocationId: '',
+    billRate: '',
+    payRate: '',
+    // How this firm engages the person, and whom it buys them from. The
+    // same two questions the placement's terms page asks, refused by the
+    // route under the same rule (`lib/money/recorded-line`).
+    engagementType: '',
+    boughtFromId: '',
+    billCurrency: 'USD',
+    payCurrency: 'USD',
+    startDate: '',
+    endDate: '',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [errorLink, setErrorLink] = useState<StepLink>(null)
+  const [companyId, setCompanyId] = useState<string | null>(null)
+  const [consultants, setConsultants] = useState<ConsultantOption[]>([])
+  const [clientCompanies, setClientCompanies] = useState<ClientCompanyOption[]>([])
+  const [suppliers, setSuppliers] = useState<ClientCompanyOption[]>([])
+  const [loadingOptions, setLoadingOptions] = useState(true)
+
+  // Fetch company context, consultants, and client companies on mount
+  useEffect(() => {
+    async function loadOptions() {
+      setLoadingOptions(true)
+      try {
+        const [meRes, consultantsRes, contractsRes, registerRes, clientsRes] = await Promise.all([
+          fetch('/api/me'),
+          fetch('/api/consultants?limit=100'),
+          readEveryContractPage('sell', fetchPage),
+          fetch('/api/counterparties'),
+          fetch('/api/clients'),
+        ])
+
+        // Whom this firm buys from: the suppliers on its own register.
+        if (registerRes.ok) {
+          const body = await registerRes.json()
+          const seen = new Map<string, string>()
+          for (const r of body.data?.rows ?? []) {
+            if (r.relationship === 'SUPPLIER' && r.otherCompanyId) seen.set(r.otherCompanyId, r.otherCompanyName)
+          }
+          setSuppliers(Array.from(seen.entries()).map(([id, name]) => ({ id, name })))
+        }
+
+        // The caller's company, read where every other page reads it:
+        // the seat in use, else the first seat. `/api/me` has never
+        // returned a bare companyId, so the old read was null for every
+        // firm and the form refused to record anything (Tapin walk,
+        // 2026-10-29). `callerCompanyIdFromMe` says which field.
+        let homeCurrency: string | null = null
+        if (meRes.ok) {
+          const meBody = await meRes.json()
+          setCompanyId(callerCompanyIdFromMe(meBody))
+          homeCurrency = meBody?.data?.activeContext?.company?.homeCurrency ?? meBody?.data?.contexts?.[0]?.company?.homeCurrency ?? null
+        }
+
+        // Get consultants for dropdown, each with the pay terms she agreed
+        // to on this firm's bench, which start the form (Tapin walk).
+        if (consultantsRes.ok) {
+          const body = await consultantsRes.json()
+          const mapped = (body.data?.consultants ?? []).map((c: any) => {
+            const name = c.person?.name ?? c.name ?? 'Unknown'
+            return {
+              personId: c.personId,
+              name,
+              agreed: agreedTermsFrom(c.listings, name, homeCurrency, PAY_BOX_CURRENCIES),
+            }
+          })
+          setConsultants(mapped)
+        }
+
+        // Whom this firm bills: the clients on its register first — the
+        // ones it added from Companies, here or not — then any named on its
+        // own sell contracts. Its first contract has no sell contracts to
+        // read, so the register is the whole list (`lib/money/client-options`).
+        const register = clientsRes.ok ? (await clientsRes.json()).data?.clients ?? [] : []
+        const contracts = contractsRes.ok ? contractsRes.body?.data?.contracts ?? [] : []
+        setClientCompanies(clientOptions(register, contracts))
+      } catch {
+        // Options loading is best-effort
+      } finally {
+        setLoadingOptions(false)
+      }
+    }
+    loadOptions()
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    setErrorLink(null)
+
+    if (!companyId) {
+      setError('Could not determine your company. Please reload and try again.')
+      setSubmitting(false)
+      return
+    }
+
+    const billRateNum = parseFloat(form.billRate)
+    if (isNaN(billRateNum) || billRateNum <= 0) {
+      setError('Bill rate must be a positive number.')
+      setSubmitting(false)
+      return
+    }
+
+    const payload: Record<string, unknown> = {
+      personId: form.personId,
+      companyId,
+      clientCompanyId: form.clientCompanyId,
+      billRate: Math.round(billRateNum * 100), // convert $/hr to cents/hr
+      billCurrency: form.billCurrency,
+      startDate: form.startDate,
+    }
+
+    if (form.endClientCompanyId) {
+      payload.endClientCompanyId = form.endClientCompanyId
+    }
+    if (form.workLocationId) {
+      payload.workLocationId = form.workLocationId
+    }
+    if (form.endDate) {
+      payload.endDate = form.endDate
+    }
+
+    // The rate goes as typed, and the route says what is wrong with it
+    // in the same sentence the terms page uses — never a $0 line.
+    if (form.engagementType) payload.engagementType = form.engagementType
+    if (form.boughtFromId) payload.boughtFromId = form.boughtFromId
+    if (form.payRate) {
+      const payRateNum = parseFloat(form.payRate)
+      payload.payRate = Number.isFinite(payRateNum) ? Math.round(payRateNum * 100) : 0
+      payload.payCurrency = form.payCurrency
+    }
+
+    try {
+      const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      // Parsed on both paths now: the reply names the document this
+      // line went on — raised, or found already open between the two
+      // firms — and a person who is not told either way has to go
+      // looking for a purchase order they did not know existed.
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) {
+        setError(body.error?.message ?? 'That placement could not be recorded')
+        setErrorLink(body.error?.link ?? null)
+        return
+      }
+
+      onCreated(body.data?.message ?? 'Recorded.', body.data?.firstDay ?? null)
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const inputClass = `w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                      focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action`
+  const selectClass = `w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                       focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action`
+  const labelClass = 'block text-xs font-semibold text-etyme-muted mb-1'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card w-full max-w-2xl mx-4 animate-slide-up max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-lg font-semibold">Record a placement</h2>
+            <p className="text-[12px] text-etyme-muted mt-0.5">
+              For work you are already running. The line goes on the order already open with
+              this client; where there is none yet, record the purchase order they gave you and
+              it attaches here.
+            </p>
+          </div>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && <div className="mb-4"><ErrorState says={error} /></div>}
+        {/* The act that unblocks the refusal, in a new tab so this form is
+            not lost (Area E, 2026-11-14). Drawn only where the route said
+            the seat may open it; otherwise the sentence names who to ask. */}
+        {error && errorLink && (
+          <p className="-mt-2 mb-4 text-sm">
+            <a href={errorLink.href} target="_blank" rel="noopener noreferrer" className="text-etyme-action hover:underline">
+              {errorLink.label}
+            </a>
+            <span className="text-etyme-muted"> opens in a new tab. Come back here and record it again.</span>
+          </p>
+        )}
+
+        {loadingOptions ? (
+          <LoadingState compact says="Loading options…" />
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Consultant */}
+            <div>
+              <label className={labelClass}>Consultant *</label>
+              <select
+                required
+                value={form.personId}
+                onChange={(e) => setForm(withAgreed(
+                  form,
+                  e.target.value,
+                  consultants.find((c) => c.personId === form.personId)?.agreed ?? null,
+                  consultants.find((c) => c.personId === e.target.value)?.agreed ?? null,
+                ))}
+                className={selectClass}
+              >
+                <option value="">Select consultant…</option>
+                {consultants.map((c) => (
+                  <option key={c.personId} value={c.personId}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Client (bill to) and End client */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Client (bill to) *</label>
+                <select
+                  required
+                  value={form.clientCompanyId}
+                  onChange={(e) => setForm({ ...form, clientCompanyId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Select client…</option>
+                  {clientCompanies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                {!loadingOptions && clientCompanies.length === 0 && (
+                  <p className="text-xs text-etyme-muted mt-1">
+                    <Link href={NO_CLIENTS_HREF} className="text-etyme-action hover:underline">{NO_CLIENTS_SAYS}</Link>
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className={labelClass}>End client (where consultant works)</label>
+                <select
+                  value={form.endClientCompanyId}
+                  onChange={(e) => setForm({ ...form, endClientCompanyId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Same as billing client</option>
+                  {clientCompanies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-etyme-faint mt-1">Leave empty if same as billing client</p>
+              </div>
+            </div>
+
+            {/* Bill rate and currency */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className={labelClass}>Bill rate ($/hr) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0.01"
+                  step="0.01"
+                  value={form.billRate}
+                  onChange={(e) => setForm({ ...form, billRate: e.target.value })}
+                  className={inputClass}
+                  placeholder="125.00"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Currency</label>
+                <select
+                  value={form.billCurrency}
+                  onChange={(e) => setForm({ ...form, billCurrency: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="USD">USD</option>
+                  <option value="CAD">CAD</option>
+                  <option value="GBP">GBP</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Bought from, and how they are engaged */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Bought from</label>
+                <select
+                  value={form.boughtFromId}
+                  onChange={(e) => setForm({ ...form, boughtFromId: e.target.value, engagementType: e.target.value ? '' : form.engagementType })}
+                  className={selectClass}
+                >
+                  <option value="">Nobody — we pay them</option>
+                  {suppliers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-etyme-faint mt-1">
+                  The supplier on your register you buy them from, if any
+                </p>
+              </div>
+              {form.boughtFromId ? (
+                <div>
+                  <label className={labelClass}>How they are engaged</label>
+                  <p className="text-sm text-etyme-muted py-2">
+                    Between them and {suppliers.find((c) => c.id === form.boughtFromId)?.name ?? 'the supplier'}. You pay the supplier.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className={labelClass}>How they are engaged</label>
+                  <select
+                    value={form.engagementType}
+                    onChange={(e) => setForm({ ...form, engagementType: e.target.value })}
+                    className={selectClass}
+                  >
+                    <option value="">Not said yet</option>
+                    {ENGAGEMENT_TYPES.map((t) => (
+                      <option key={t} value={t}>{ENGAGEMENT_WORDS[t]}</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-etyme-faint mt-1">
+                    Left unsaid, there is no pay line and the placement cannot start until there is
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Pay rate and currency */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className={labelClass}>
+                  {form.boughtFromId ? 'What you pay the supplier ($/hr)' : 'Pay rate ($/hr)'}
+                </label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={form.payRate}
+                  onChange={(e) => setForm({ ...form, payRate: e.target.value })}
+                  className={inputClass}
+                  placeholder="95.00"
+                />
+                <p className="text-[10px] text-etyme-faint mt-1">
+                  Writes the buy line beside it. An empty rate is a missing rate, not a free placement
+                </p>
+              </div>
+              <div>
+                <label className={labelClass}>Pay currency</label>
+                <select
+                  value={form.payCurrency}
+                  onChange={(e) => setForm({ ...form, payCurrency: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="USD">USD</option>
+                  <option value="CAD">CAD</option>
+                  <option value="GBP">GBP</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Where "engaged as" and the pay rate came from, while they
+                still hold what her bench terms filled (Tapin walk). */}
+            {(() => {
+              const agreed = consultants.find((c) => c.personId === form.personId)?.agreed ?? null
+              return agreed && !form.boughtFromId && stillAgreed(form, agreed)
+                ? <p className="text-[12px] text-etyme-muted -mt-2">{agreed.says}</p>
+                : null
+            })()}
+
+            {/* Dates */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Start date *</label>
+                <input
+                  type="date"
+                  required
+                  value={form.startDate}
+                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>End date</label>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                  className={inputClass}
+                />
+                <p className="text-[10px] text-etyme-faint mt-1">Leave empty for open-ended</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={onClose} className="btn-secondary">
+                Cancel
+              </button>
+              <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+                {submitting ? 'Recording…' : 'Record it'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Contract Detail Drawer ────────────────────────────────
+
+function ContractDetailDrawer({
+  contract,
+  tab,
+  viewerId,
+  mayTag,
+  onClose,
+  onToast,
+  onRefresh,
+  onKeep,
+}: {
+  contract: Contract
+  tab: ViewTab
+  /** Which end of the document the reader stands at. */
+  viewerId: string | null
+  /** Whether this seat may move a line onto a master contract. */
+  mayTag: boolean
+  onClose: () => void
+  onToast: (message: string, type: 'success' | 'error') => void
+  onRefresh: () => void
+  /** A sentence with a link in it, kept on the page until closed. */
+  onKeep: (says: string, link: { href: string; label: string }) => void
+}) {
+  const [masters, setMasters] = useState<MasterContract[] | null>(null)
+  const [tagging, setTagging] = useState(false)
+  const [showExtendConfirm, setShowExtendConfirm] = useState(false)
+  // Whether the extend route will take this reader's press, asked before
+  // Extend is drawn: the route's own sentence stands where it will not.
+  const [extend, setExtend] = useState<{ may: boolean; says: string | null; mayEnd?: boolean; endSays?: string | null } | null>(null)
+  const [showRolloffConfirm, setShowRolloffConfirm] = useState(false)
+  const [initiatingRolloff, setInitiatingRolloff] = useState(false)
+  const [activating, setActivating] = useState(false)
+  // A start's warnings, as the route asked them: the paperwork's, the
+  // client's rule's, or both in one sentence; and which were shown, sent
+  // back with the reason so it answers exactly those.
+  const [governanceWarn, setGovernanceWarn] = useState<{ message: string; evaluations: any[]; answering: string[] } | null>(null)
+  const [overrideReason, setOverrideReason] = useState('')
+
+  // Only for a seat the route would let through. A picker somebody
+  // cannot use is a picker that lies.
+  useEffect(() => {
+    if (!mayTag) return
+    let live = true
+    fetch('/api/profitability/master-contracts')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => { if (live) setMasters(b?.data?.masterContracts ?? []) })
+      .catch(() => { if (live) setMasters([]) })
+    return () => { live = false }
+  }, [mayTag])
+
+  async function moveToMaster(masterContractId: string | null) {
+    setTagging(true)
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}/master-contract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ masterContractId }),
+      })
+      const body = await res.json().catch(() => ({}) as any)
+      if (!res.ok) {
+        onToast(body.error?.message ?? 'That line could not be moved.', 'error')
+        return
+      }
+      onToast(body.data?.message ?? 'Moved.', 'success')
+      onRefresh()
+      onClose()
+    } catch {
+      onToast('Network error. Please try again.', 'error')
+    } finally {
+      setTagging(false)
+    }
+  }
+
+  useEffect(() => {
+    if (contract.state !== 'IN_PROGRESS') return
+    let live = true
+    fetch(`/api/contracts/${contract.id}/extend`)
+      .then((r) => r.json().catch(() => ({})))
+      .then((b) => { if (live) setExtend(b?.data ?? { may: false, says: b?.error?.message ?? null }) })
+      .catch(() => { if (live) setExtend({ may: false, says: null }) })
+    return () => { live = false }
+  }, [contract.id, contract.state])
+
+  const line = lineOf(contract, viewerId)
+
+  const isActive = contract.state === 'IN_PROGRESS'
+  const isDraft = contract.state === 'DRAFT'
+  const isPending = contract.state === 'PENDING_VERIFICATION'
+  const isPaused = contract.state === 'PAUSED'
+  const canActivate = isDraft || isPending
+  const canCancel = isDraft || isPending
+  const canPause = isActive
+  const canResume = isPaused
+  // Drawn only where the end press will take it: the extend route's answer
+  // is read off the same gate the press asks.
+  const canComplete = isActive && extend?.mayEnd === true
+  const isRolloff = contract.daysUntilEnd != null && contract.daysUntilEnd >= 0 && contract.daysUntilEnd <= 28
+  const drawerRateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
+  const drawerCounterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
+
+  // Three-party: the line names an end client other than the company
+  // billed. `viaName` is that billed company, set only where they differ.
+  const hasThreeParty = Boolean(contract.endClientName && contract.viaName)
+
+  const dateOpts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+
+  async function handleRolloff() {
+    setInitiatingRolloff(true)
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}/rolloff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        onToast(body.error?.message ?? 'Failed to initiate rolloff', 'error')
+        return
+      }
+
+      onToast('Rolloff initiated', 'success')
+      setShowRolloffConfirm(false)
+      onRefresh()
+      onClose()
+    } catch {
+      onToast('Network error. Please try again.', 'error')
+    } finally {
+      setInitiatingRolloff(false)
+    }
+  }
+
+  async function handleActivation(action: string, label: string, overrideReasonText?: string, answering?: string[]) {
+    setActivating(true)
+    try {
+      // What the dialog posts, built where a test can fill it in and run the start's rule on it.
+      const payload = activateBody({ action, reason: overrideReasonText, answering })
+
+      const res = await fetch(`/api/contracts/${contract.id}/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+
+        // A warning the route asks a reason for — the paperwork's, the
+        // client's rule's, or both — is a box, never a toast (the second
+        // Tapin walk: "Activate asks for a reason and draws no box"). Which
+        // refusals are questions is demand's one reader (`reasonAsked`).
+        // Activate reads its reason from overrideReason only; a question
+        // answered in another field is not this button's to send.
+        const q = reasonAsked(body.error)
+        if (q && q.field === 'overrideReason') {
+          const shown: string[] = Array.isArray(body.error?.warnings)
+            ? body.error.warnings.map((w: { code?: unknown }) => String(w.code))
+            : typeof body.error?.code === 'string' ? [body.error.code] : []
+          setGovernanceWarn({ message: q.says, evaluations: body.error.evaluations ?? [], answering: shown })
+          return
+        }
+
+        // Governance block — show but don't allow override
+        if (body.error?.code === 'GOVERNANCE_BLOCK') {
+          onToast(`⛔ ${body.error.message}`, 'error')
+          return
+        }
+
+        onToast(body.error?.message ?? `Failed to ${label.toLowerCase()} contract`, 'error')
+        return
+      }
+
+      setGovernanceWarn(null)
+      setOverrideReason('')
+      // Ended early, the route says the last day it recorded ("Contract
+      // completed. Last day on site: Nov 16, 2026."), so the person who
+      // pressed it reads the day tenure and Bench now count from.
+      const done = action === 'complete' ? await res.json().catch(() => null) : null
+      onToast(typeof done?.data?.message === 'string' ? done.data.message : `Contract ${label.toLowerCase()}d`, 'success')
+      onRefresh()
+      onClose()
+    } catch {
+      onToast('Network error. Please try again.', 'error')
+    } finally {
+      setActivating(false)
+    }
+  }
+
+  async function handleGovernanceOverride() {
+    if (!overrideReason.trim() || !governanceWarn) return
+    const answering = governanceWarn.answering
+    setGovernanceWarn(null)
+    await handleActivation('activate', 'Activate', overrideReason, answering)
+    setOverrideReason('')
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onClose}>
+      <div
+        className="w-full max-w-md bg-white h-full shadow-xl overflow-y-auto animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-etyme-rule flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">{contract.personName}</h2>
+              <span className={`chip ${stateChipClass(contract.state)}`}>
+                {stateLabel(contract.state)}
+              </span>
+            </div>
+            <p className="text-[11px] text-etyme-faint font-mono mt-1">{contract.id.slice(0, 12)}…</p>
+            {/* The placed person's one-time sign-in link, for a seat that manages the team, where they have no account. */}
+            {contract.personId && <SignInLink personId={contract.personId} className="mt-2" />}
+          </div>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Rolloff warning */}
+          {isRolloff && isActive && (
+            <div className="px-4 py-3 rounded-lg bg-etyme-attention-wash border border-etyme-attention-line">
+              <div className="flex items-center gap-2">
+                <span className="evidence-dot evidence-dot--pending" />
+                <span className="text-sm font-semibold text-etyme-ink">
+                  {contract.daysUntilEnd === 0
+                    ? 'Contract ends today'
+                    : `Contract ends in ${contract.daysUntilEnd} day${contract.daysUntilEnd !== 1 ? 's' : ''}`}
+                </span>
+              </div>
+              <p className="text-xs text-etyme-ink mt-1 ml-4">
+                Extend or initiate rolloff before the end date.
+              </p>
+            </div>
+          )}
+
+          {/* Key details */}
+          <div>
+            <p className="eyebrow mb-2">Key details</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="stat-label">{drawerCounterpartyLabel}</p>
+                <p className="text-sm font-medium text-etyme-ink mt-0.5">
+                  {contract.counterpartyName ?? '—'}
+                </p>
+              </div>
+              <div>
+                <p className="stat-label">{drawerRateLabel}</p>
+                <p className="text-sm font-medium tabular-nums text-etyme-ink mt-0.5">
+                  {contract.rateWithheld ? (
+                    <span className="text-etyme-faint">
+                      {contract.side === 'buy' ? 'Shown only to the people who run payroll' : 'Shown only to the people who price and bill it'}
+                    </span>
+                  ) : (
+                    <>
+                      {compact(contract.rate)}/hr
+                      <span className="text-etyme-faint text-[11px] ml-1">{contract.currency}</span>
+                    </>
+                  )}
+                </p>
+              </div>
+              <div>
+                <p className="stat-label">Start date</p>
+                <p className="text-sm tabular-nums mt-0.5">
+                  {new Date(contract.startDate).toLocaleDateString('en-US', dateOpts)}
+                </p>
+              </div>
+              <div>
+                <p className="stat-label">End date</p>
+                <p className={`text-sm tabular-nums mt-0.5 ${isRolloff ? 'text-etyme-attention font-medium' : ''}`}>
+                  {contract.endDate
+                    ? new Date(contract.endDate).toLocaleDateString('en-US', dateOpts)
+                    : 'Open-ended'}
+                </p>
+              </div>
+              <div>
+                <p className="stat-label">State</p>
+                <span className={`chip ${stateChipClass(contract.state)}`}>
+                  {stateLabel(contract.state)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* The document this line is on, and the roll-up it belongs to */}
+          <div>
+            <p className="eyebrow mb-2">The document</p>
+            <div className="bg-etyme-canvas rounded-lg px-4 py-3 space-y-2">
+              <p className="text-sm font-medium text-etyme-ink">{line.heading}</p>
+              <p className="text-[12px] text-etyme-muted">{line.does}</p>
+              {contract.document?.amount != null && (
+                <p className="text-[12px] text-etyme-muted tabular-nums">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: contract.document.currency ?? 'USD',
+                    maximumFractionDigits: 0,
+                  }).format(contract.document.amount)}{' '}
+                  authorized in total
+                  {contract.document.lines && contract.document.lines > 1
+                    ? ` · ${contract.document.lines} lines on it`
+                    : ''}
+                </p>
+              )}
+              {contract.pairedWith || !contract.pairedWithHidden ? (
+              <p className="text-[12px] text-etyme-muted">
+                {contract.pairedWith
+                  ? pairLine({
+                      side: contract.side === 'sell' ? 'SELL' : 'BUY',
+                      counterpartName: contract.pairedWith.counterpartName,
+                      paidToName: contract.side === 'buy' ? contract.counterpartyName : null,
+                      contractType: contract.buyContractType,
+                    })
+                  : 'No line on the other side of this one yet, so this placement has no margin of its own.'}
+              </p>
+              ) : null}
+            </div>
+          </div>
+
+          {/* What this line and its order ask for on paper. Read-only here;
+              the change is offered only to a desk that may make it. */}
+          <div>
+            <p className="eyebrow mb-2">Papers</p>
+            <PaperSet
+              key={`line-${contract.id}`}
+              target={contract.side === 'sell' ? { sellContractId: contract.id } : { buyContractId: contract.id }}
+              buyerCompanyId={contract.lineBuyerId}
+              title="Papers this line asks for"
+              startOpen
+            />
+            {contract.document && (
+              <PaperSet
+                key={`order-${contract.document.id}`}
+                target={{ workOrderId: contract.document.id }}
+                buyerCompanyId={contract.document.issuedById}
+                title={`Papers the ${orderNoun(sideOf(contract.document, viewerId)).noun} asks for`}
+              />
+            )}
+          </div>
+
+          {/* The master contract — the company's own tag, never the system's */}
+          <div>
+            <p className="eyebrow mb-2">{MASTER_CONTRACT_WORD.Noun}</p>
+            <p className="text-[13px] text-etyme-muted">
+              {masterContractLine(contract.masterContract)}
+            </p>
+            {mayTag && (
+              <div className="mt-2">
+                <select
+                  disabled={tagging || masters == null}
+                  value={contract.masterContract?.id ?? ''}
+                  onChange={(e) => moveToMaster(e.target.value || null)}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
+                >
+                  <option value="">Not on one</option>
+                  {(masters ?? [])
+                    .filter((m) => m.open || m.id === contract.masterContract?.id)
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>{m.code} — {m.name}</option>
+                    ))}
+                </select>
+                <p className="text-[11px] text-etyme-faint mt-1">
+                  {masters != null && masters.length === 0
+                    ? 'You have not opened one yet. Open one on Profitability and it appears here.'
+                    : 'What it has already posted stays where it posted. Nothing is restated.'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Three-party display */}
+          {hasThreeParty && (
+            <div>
+              <p className="eyebrow mb-2">Engagement structure</p>
+              <div className="bg-etyme-canvas rounded-lg px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-etyme-muted">End client</span>
+                  <span className="text-sm font-medium text-etyme-ink">{contract.endClientName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-etyme-muted">Bills via</span>
+                  <span className="text-sm text-etyme-muted">{contract.viaName}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Work location */}
+          {contract.workLocationLabel && (
+            <div>
+              <p className="eyebrow mb-1">Work location</p>
+              <p className="text-sm">{contract.workLocationLabel}</p>
+            </div>
+          )}
+
+          {/* Lifecycle actions — DRAFT or PENDING contracts */}
+          {(canActivate || canCancel) && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-3">Contract lifecycle</p>
+                <div className="flex gap-3">
+                  {canCancel && (
+                    <button
+                      onClick={() => handleActivation('cancel', 'Cancel')}
+                      disabled={activating}
+                      className="btn-secondary flex-1 disabled:opacity-50 text-etyme-danger border-etyme-danger-line hover:bg-etyme-danger-wash"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                {/* Activate is drawn by the start's own route, for the seat it
+                    will take, with the reason box only where a reason clears it.
+                    After a start the drawer stays open on the route's own
+                    sentence while the list refreshes behind it. */}
+                {canActivate && tab === 'sell' && (
+                  <ActivatePanel contractId={contract.id} onDone={(says) => { onToast(says, 'success'); onRefresh() }} />
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Quick actions — active contracts */}
+          {isActive && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-3">Quick actions</p>
+                <div className="flex gap-3 flex-wrap">
+                  {/* Drawn only where the extend route takes this reader's press. */}
+                  {extend?.may && (
+                    <button
+                      onClick={() => setShowExtendConfirm(true)}
+                      className="btn-primary flex-1"
+                    >
+                      Extend
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowRolloffConfirm(true)}
+                    className="btn-secondary flex-1"
+                  >
+                    Initiate rolloff
+                  </button>
+                </div>
+                {extend && !extend.may && extend.says && (
+                  <p className="mt-2 text-[13px] text-etyme-muted">{extend.says}</p>
+                )}
+                {isActive && extend?.mayEnd === false && extend.endSays && (
+                  <p className="mt-2 text-[13px] text-etyme-muted">{extend.endSays}</p>
+                )}
+                <div className="flex gap-3 mt-2">
+                  {canPause && (
+                    <button
+                      onClick={() => handleActivation('pause', 'Pause')}
+                      disabled={activating}
+                      className="btn-secondary flex-1 disabled:opacity-50"
+                    >
+                      {activating ? 'Updating…' : '⏸ Pause'}
+                    </button>
+                  )}
+                  {canComplete && (
+                    <button
+                      onClick={() => handleActivation('complete', 'Complete')}
+                      disabled={activating}
+                      className="btn-secondary flex-1 disabled:opacity-50"
+                    >
+                      {activating ? 'Updating…' : '✓ Complete'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Resume — paused contracts */}
+          {canResume && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-3">Contract lifecycle</p>
+                <button
+                  onClick={() => handleActivation('resume', 'Resume')}
+                  disabled={activating}
+                  className="btn-primary w-full disabled:opacity-50"
+                >
+                  {activating ? 'Resuming…' : '▶ Resume contract'}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* The commissions on this line, for the firm that holds it: drawn
+              only where the line's own route answers this seat. */}
+          {(tab === 'sell' || tab === 'buy') && <CommissionPanel contractId={contract.id} />}
+          {/* The client's own cost coding: drawn only where the route saves it. */}
+          {tab === 'sell' && <AllocationsPanel contractId={contract.id} />}
+          {tab === 'buy' && contract.codingContractId && <AllocationsPanel contractId={contract.codingContractId} />}
+        </div>
+      </div>
+
+      {/* Extend: any new last day, a reason, and the route's own sentences */}
+      {showExtendConfirm && (
+        <ExtendDialog
+          contractId={contract.id}
+          personName={contract.personName}
+          endDate={contract.endDate}
+          onClose={() => setShowExtendConfirm(false)}
+          onDone={(says, door) => {
+            // A sentence that sends the reader somewhere is kept on the page
+            // with its link; a toast fades in four seconds.
+            if (door) onKeep(says, door)
+            else onToast(says, 'success')
+            setShowExtendConfirm(false)
+            onRefresh()
+            onClose()
+          }}
+        />
+      )}
+
+      {/* Rolloff confirmation dialog */}
+      {showRolloffConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
+          onClick={() => setShowRolloffConfirm(false)}
+        >
+          <div className="card w-full max-w-sm mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold mb-2">Initiate rolloff</h3>
+            <p className="text-sm text-etyme-muted mb-4">
+              Start the rolloff process for <strong>{contract.personName}</strong>?
+              This will notify stakeholders and begin the offboarding checklist.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowRolloffConfirm(false)} className="btn-secondary">
+                Cancel
+              </button>
+              <button onClick={handleRolloff} disabled={initiatingRolloff} className="btn-primary disabled:opacity-50">
+                {initiatingRolloff ? 'Initiating…' : 'Confirm rolloff'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* A start's warnings, the paperwork's and the client's rule's, and the box for the reason */}
+      {governanceWarn && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
+          onClick={() => { setGovernanceWarn(null); setOverrideReason('') }}
+        >
+          <div className="card w-full max-w-md mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-base font-semibold">
+                {governanceWarn.answering.length > 1 ? 'Two warnings before this start' : 'A warning before this start'}
+              </h3>
+            </div>
+            <div className="px-4 py-3 rounded-lg bg-etyme-attention-wash border border-etyme-attention-line mb-4">
+              <p className="text-sm text-etyme-ink">{governanceWarn.message}</p>
+              {governanceWarn.evaluations.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {governanceWarn.evaluations
+                    .filter((e: any) => e.outcome === 'WARN')
+                    .map((e: any, i: number) => (
+                      <li key={i} className="text-[12px] text-etyme-ink">
+                        • {e.reason}
+                      </li>
+                    ))
+                  }
+                </ul>
+              )}
+            </div>
+            <p className="text-sm text-etyme-muted mb-3">
+              Give a reason to go ahead. It is recorded with the start, beside each warning above.
+            </p>
+            <textarea
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              placeholder="Why it should go ahead (required)…"
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg mb-4
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                         resize-none"
+            />
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setGovernanceWarn(null); setOverrideReason('') }} className="btn-secondary">
+                Cancel
+              </button>
+              <button
+                onClick={handleGovernanceOverride}
+                disabled={!overrideReason.trim() || activating}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-attention text-white
+                           hover:bg-etyme-attention/90 transition-colors disabled:opacity-50"
+              >
+                {activating ? 'Activating…' : 'Activate with this reason'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Page ───────────────────────────────────────────────────
+
+export default function ContractsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  // The side lives in the address and nowhere else. Sell contracts and
+  // Buy contracts are two tabs of this one page, so following one tab's
+  // link from the other keeps the page mounted: a side seeded into state
+  // once kept the side it was born with, and the Buy contracts tab drew
+  // Sell's heading and rows (release walk, 2026-10-27).
+  const tab: ViewTab = sideFromQuery(searchParams.get('side'))
+  const setTab = useCallback(
+    (next: ViewTab) => router.replace(sideHref(next) as any, { scroll: false }),
+    [router]
+  )
+  // The side on screen right now, read by an answer that comes back late.
+  const sideOnScreen = useRef<ViewTab>(tab)
+  sideOnScreen.current = tab
+
+  const session = useSession()
+  const { company, permissions, loading: sessionLoading } = session
+  const isClient = company?.kind === 'CLIENT'
+  /** Which end of every document on this page the reader stands at. */
+  const viewerId = company?.id ?? null
+  // The same permission `/api/contracts/[id]/master-contract` asks for,
+  // asked the same way — a raw includes cannot see an owner's ["*"], and
+  // a control the route would refuse is a control that lies.
+  const mayTagLines = hasPermission(permissions, 'assignments.write')
+  // Recording a placement is POST /api/contracts, which asks for the same
+  // permission. A seat without it — a worker on their own firm's menu —
+  // is not offered a button the route would refuse.
+  const mayRecord = hasPermission(permissions, 'assignments.write')
+
+  const [contracts, setContracts] = useState<Contract[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  /** What the route said when it refused the read; null where it did not. */
+  const [refusedSaid, setRefusedSaid] = useState<string | null>(null)
+  // True once the first read has answered — figures, refusal or error.
+  // Until then every tile would be a confident zero over a book nobody
+  // has read yet (sign-up walk, round seven, #2), so the page draws
+  // "Loading…" and nothing else.
+  const [readOnce, setReadOnce] = useState(false)
+  // Whose book these lines are, as the route that returned them said it.
+  //
+  // `/api/contracts` has answered with this block since the money
+  // routes learned about seats, and this page threw it away — so a
+  // program office at Cavanaugh Glassworks' desk read Cavanaugh's seven
+  // buy-side lines under Aptiva Workforce's own heading, "Sell · What
+  // you bill clients", at a firm that bills nobody.
+  const [reading, setReading] = useState<
+    { company: string | null; inASeat: boolean; says: string | null } | null
+  >(null)
+  // Said once over the list where a pay figure was withheld from this
+  // reader, so a blank column reads as a rule rather than a gap.
+  const [payWithheldSays, setPayWithheldSays] = useState<string | null>(null)
+  // The route's sentence for a seat that is not offered Record a placement.
+  const [recordSays, setRecordSays] = useState<string | null>(null)
+  // Whose lines the route answered with. 'own' where it narrowed this
+  // seat to the lines that name its holder: the page says so, and never
+  // reads the narrowed list as the firm's empty book (round five, #9).
+  const [scope, setScope] = useState<ListScope>('firm')
+  // No framing until the company is known. Guessing a supplier here
+  // told a client "Sell Contracts - What you bill clients" while the
+  // page loaded; a blank for a moment is the honest form.
+  const framing = company
+    ? pageFraming(company.kind, tab === 'sell' ? 'contracts.sell' : 'contracts.buy', reading, sidebarPropsFrom(session))
+    : null
+  const [stateFilter, setStateFilter] = useState<StateFilter>('all')
+  const [showCreate, setShowCreate] = useState(false)
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  /** What the route said after a payroll line was recorded at a company whose pay days wait on a Sunday nobody set. */
+  const [recordedAfter, setRecordedAfter] = useState<{ says: string; link: StepLink } | null>(null)
+
+  // Open the create modal when navigated with ?new=1
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      if (mayRecord) setShowCreate(true)
+      router.replace(sideHref(tab) as any, { scroll: false })
+    }
+  }, [searchParams, router, mayRecord, tab])
+
+  // A link from a held invoice line opens the contract whose coding holds it.
+  const openId = searchParams.get('open')
+  useEffect(() => {
+    if (!openId) return
+    const found = contracts.find((c) => c.id === openId || c.codingContractId === openId)
+    if (found) setSelectedContract(found)
+  }, [openId, contracts])
+
+  // The open panel reads the list's own row, so what a press changed (a
+  // contract activated, paused, ended) shows in the panel as it does in
+  // the list, without closing it (walk, 2026-11-22: the panel went on
+  // reading Draft beside "Contract activated").
+  const openContract = selectedContract
+    ? contracts.find((c) => c.id === selectedContract.id && c.side === selectedContract.side) ?? selectedContract
+    : null
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast])
+
+  const fetchContracts = useCallback(async () => {
+    const asked = tab
+    // A slow answer for the side the reader has left is never drawn.
+    const stale = () => !answerFits(asked, sideOnScreen.current)
+    setLoading(true)
+    setError(null)
+    try {
+      // Every page of the route, never its first page as the whole list:
+      // the counts, the rate total and "1–20 of N" stand on every line
+      // (lib/money/contract-pages, the fourth screen walk's M5).
+      const res = await readEveryContractPage(asked, fetchPage)
+      if (stale()) return
+      if (!res.ok) {
+        const body = res.body ?? {}
+        // A refusal is not an empty book: the page draws the sentence
+        // and no figure (sign-up walk, round four, #5).
+        const refused = refusalOf(res.status, body)
+        if (refused !== null) {
+          setRefusedSaid(refused)
+          setScope('firm')
+          setContracts([])
+          return
+        }
+        throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      }
+
+      const body = res.body
+      setRefusedSaid(null)
+      setScope(scopeOf(body))
+      const rawContracts = body.data?.contracts ?? []
+      setReading(body.data?.reading ?? null)
+      setPayWithheldSays(body.data?.payWithheldSays ?? body.data?.billWithheldSays ?? null)
+      setRecordSays(typeof body.data?.recordSays === 'string' ? body.data.recordSays : null)
+
+      setContracts(rowsOfSide(rawContracts.map((c: any) => {
+        // Resolve the display name: end client if set, otherwise paying customer
+        const endClientName = tab === 'sell'
+          ? (c.endClientCompany?.name ?? c.clientCompany?.name ?? null)
+          : null
+        // "via" label: show paying customer when it differs from end client
+        const viaName = tab === 'sell' && c.endClientCompany && c.clientCompany
+          && c.endClientCompany.id !== c.clientCompany.id
+          ? c.clientCompany.name
+          : null
+        // Work location label
+        const loc = c.workLocation
+        const workLocationLabel = loc
+          ? (loc.isRemote ? 'Remote' : [loc.name, loc.city, loc.state].filter(Boolean).join(', '))
+          : null
+
+        return {
+          id: c.id,
+          side: c.side ?? tab,
+          companyId: c.companyId,
+          personId: c.personId ?? c.person?.id,
+          personName: c.person?.name ?? 'Unknown',
+          document: c.workOrder ?? null,
+          pairedWith: c.pairedWith ?? null,
+          pairedWithHidden: c.pairedWithHidden === true,
+          codingContractId: c.codingContractId ?? null,
+          buyContractType: (tab === 'buy' ? c.contractType : c.pairedWith?.contractType) ?? null,
+          masterContract: c.masterContract ?? null,
+          lineBuyerId: tab === 'sell' ? (c.clientCompany?.id ?? null) : (c.companyId ?? null),
+          counterpartyName: tab === 'sell'
+            ? (endClientName ?? c.clientCompany?.name ?? null)
+            : c.vendorCompany?.name ?? null,
+          endClientName,
+          viaName,
+          workLocationLabel,
+          rate: tab === 'sell' ? c.billRate : c.payRate,
+          rateWithheld: tab === 'buy' ? c.payWithheld === true : c.billWithheld === true,
+          currency: tab === 'sell' ? (c.billCurrency ?? 'USD') : (c.payCurrency ?? 'USD'),
+          state: c.state,
+          startDate: c.startDate,
+          endDate: c.endDate ?? null,
+          daysUntilEnd: c.endDate
+            ? Math.ceil((new Date(c.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+            : null,
+        }
+      }), asked))
+    } catch (err: any) {
+      if (stale()) return
+      setError(err.message)
+      setContracts([])
+    } finally {
+      if (!stale()) {
+        setLoading(false)
+        setReadOnce(true)
+      }
+    }
+  }, [tab])
+
+  useEffect(() => {
+    fetchContracts()
+  }, [fetchContracts])
+
+  // Reset state filter when switching sell/buy
+  useEffect(() => {
+    setStateFilter('all')
+  }, [tab])
+
+  const filtered = contracts.filter(c => matchesFilter(c.state, stateFilter))
+
+  // Stats
+  const activeCount = contracts.filter(c => ACTIVE_STATES.includes(c.state)).length
+  const draftCount = contracts.filter(c => DRAFT_STATES.includes(c.state)).length
+  const endedCount = contracts.filter(c => ENDED_STATES.includes(c.state)).length
+  const benchCount = contracts.filter(c => BENCH_STATES.includes(c.state)).length
+
+  const rolloffWarnings = contracts.filter(
+    c => c.daysUntilEnd != null && c.daysUntilEnd >= 0 && c.daysUntilEnd <= 28 && c.state === 'IN_PROGRESS'
+  )
+
+  // One total per currency: rupees and dollars are never added, and a
+  // total over part of the book is not the book's (lib/money/rate-totals).
+  const activeTotals = activeRateTotals(
+    contracts
+      .filter(c => ['IN_PROGRESS', 'VERIFIED'].includes(c.state))
+      .map(c => ({ rate: c.rate, currency: c.currency, withheld: c.rateWithheld }))
+  )
+
+  const rateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
+  const counterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
+
+  // ── Column definitions ──
+  const columns: Column<Contract>[] = [
+    {
+      key: 'document',
+      // A client reads its own paper as a purchase order and a supplier
+      // reads the same row as its sales order, so the column is named
+      // for the thing rather than for one end of it.
+      label: 'Document',
+      render: (row) => <DocumentChip row={row} viewerId={viewerId} />,
+      sortValue: (row) => row.document?.number ?? '',
+      hideOnMobile: true,
+    },
+    {
+      key: 'personName',
+      label: 'Consultant',
+      // The way into the placement — one person, top to bottom.
+      //
+      // A row that cannot be opened is why a demo of this looked like a
+      // database with a menu: you could show somebody sets of records
+      // and could not follow one person through their working life.
+      //
+      // Only on the sell side, because a placement is a sell contract
+      // and a buy contract id would open nothing. The row click still
+      // opens the drawer, so nothing that worked before stops working.
+      render: (row) =>
+        row.side === 'sell' ? (
+          <Link
+            href={`/dashboard/placements/${row.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-medium text-etyme-action hover:underline"
+          >
+            {row.personName}
+          </Link>
+        ) : (
+          <span className="font-medium text-etyme-ink">{row.personName}</span>
+        ),
+      sortValue: (row) => row.personName,
+    },
+    {
+      key: 'counterpartyName',
+      label: counterpartyLabel,
+      render: (row) => (
+        <div>
+          <span className="text-etyme-muted">{row.counterpartyName ?? '—'}</span>
+          {row.viaName && (
+            <div className="text-[10px] text-etyme-faint">via {row.viaName}</div>
+          )}
+          {row.workLocationLabel && (
+            <div className="text-[10px] text-etyme-faint">{row.workLocationLabel}</div>
+          )}
+        </div>
+      ),
+      sortValue: (row) => row.counterpartyName ?? '',
+    },
+    {
+      key: 'rate',
+      label: rateLabel,
+      align: 'right',
+      render: (row) =>
+        row.rateWithheld ? (
+          <span className="text-etyme-faint text-[12px]" title={payWithheldSays ?? undefined}>Not shown</span>
+        ) : (
+          <span className="tabular-nums text-etyme-ink">
+            {compact(row.rate)}<span className="text-etyme-faint">/hr</span>
+          </span>
+        ),
+      sortValue: (row) => row.rate ?? -1,
+    },
+    {
+      key: 'startDate',
+      label: 'Start',
+      render: (row) => (
+        <span className="tabular-nums text-etyme-muted text-[12px]">
+          {new Date(row.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+        </span>
+      ),
+      sortValue: (row) => new Date(row.startDate).getTime(),
+      hideOnMobile: true,
+    },
+    {
+      key: 'endDate',
+      label: 'End',
+      render: (row) => {
+        const isRolloff = row.daysUntilEnd != null && row.daysUntilEnd >= 0 && row.daysUntilEnd <= 28
+        if (!row.endDate) {
+          return <span className="text-etyme-faint text-[12px]">Open-ended</span>
+        }
+        return (
+          <div>
+            <span className={`tabular-nums text-[12px] ${isRolloff ? 'text-etyme-attention font-medium' : 'text-etyme-muted'}`}>
+              {new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+            </span>
+            {isRolloff && (
+              <div className="text-[10px] text-etyme-attention">
+                {row.daysUntilEnd === 0 ? 'Today' : `${row.daysUntilEnd}d left`}
+              </div>
+            )}
+          </div>
+        )
+      },
+      sortValue: (row) => row.endDate ? new Date(row.endDate).getTime() : Infinity,
+      hideOnMobile: true,
+    },
+    {
+      key: 'masterContract',
+      label: MASTER_CONTRACT_WORD.Noun,
+      render: (row) =>
+        row.masterContract ? (
+          <span className="font-mono text-[12px] text-etyme-ink">{row.masterContract.code}</span>
+        ) : (
+          <span className="text-[12px] text-etyme-faint">Not tagged</span>
+        ),
+      sortValue: (row) => row.masterContract?.code ?? '',
+      hideOnMobile: true,
+    },
+    {
+      key: 'state',
+      label: 'Status',
+      render: (row) => (
+        <span className={`chip ${stateChipClass(row.state)}`}>
+          {stateLabel(row.state)}
+        </span>
+      ),
+      sortValue: (row) => {
+        const order: Record<string, number> = {
+          IN_PROGRESS: 0, VERIFIED: 1, PENDING_VERIFICATION: 2,
+          DRAFT: 3, BENCH_PAID: 4, INTERNAL: 5, TRAINING: 6,
+          PAUSED: 7, ENDED: 8, CANCELLED: 9,
+        }
+        return order[row.state] ?? 10
+      },
+    },
+  ]
+
+  // Build filter tabs
+  const SELL_FILTERS: { key: StateFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: contracts.length },
+    { key: 'active', label: 'Active', count: activeCount },
+    { key: 'draft', label: 'Draft', count: draftCount },
+    { key: 'ended', label: 'Ended', count: endedCount },
+  ]
+
+  const BUY_FILTERS: { key: StateFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: contracts.length },
+    { key: 'active', label: 'Active', count: activeCount },
+    { key: 'bench', label: 'Bench & Internal', count: benchCount },
+    { key: 'draft', label: 'Draft', count: draftCount },
+    { key: 'ended', label: 'Ended', count: endedCount },
+  ]
+
+  const filters = tab === 'sell' ? SELL_FILTERS : BUY_FILTERS
+
+  // Money pages wait (sign-up walk, round three, #17): until the session
+  // says whose company this is, no direction word, no tab, no figure.
+  if (!company) {
+    return sessionLoading ? <LoadingState /> : <RefusedState says="These are a company’s books, and you are not signed in at a company." />
+  }
+  // And until the first read has answered, no tile either: "$0 we owe"
+  // for three seconds before $17,400 is a number nobody can stand behind.
+  if (!readOnce) {
+    return <LoadingState />
+  }
+  // Refused: the sentence and nothing else — no tile, no zero, no table.
+  const refused = refusedRead(refusedSaid, { what: 'Contracts', kind: company.kind, company: company.name })
+  // Empty, in the reader's own position: a client bills nobody (round four, #6).
+  const empty = contractsEmpty({ kind: company.kind, readingAClientsBook: !!reading?.inASeat, tab, stateFilter, mayRecord, scope })
+  // Narrowed to the reader's own lines, and none name them: the sentence,
+  // and no tile, zero or table that would read as the firm's book.
+  const ownEmpty = scope === 'own' && !loading && !error && contracts.length === 0
+  if (refused) {
+    return <RefusedState says={refused} />
+  }
+  return (
+    <>
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[60] px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${
+          toast.type === 'success'
+            ? 'bg-etyme-verified-wash border border-etyme-verified-line text-etyme-verified'
+            : 'bg-etyme-danger-wash border border-etyme-danger-line text-etyme-danger'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
+      {/* Head */}
+      {/* Nothing until the session says whose page this is: a client
+          read a supplier's heading for a second before it loaded. */}
+      {framing && (
+        <PageHead
+          eyebrow={framing.eyebrow}
+          title={framing.title}
+          /* "Everyone working at your sites" is the firm's book; a
+             narrowed reader is told whose lines these are instead. */
+          subtitle={scope === 'own' ? 'Contract lines that name you.' : framing.subtitle}
+          actions={<>
+            {/* A client does not raise contracts here — the award writes
+               both sides — and neither does a program office reading a
+               client's book. The framing says so now, and the word on the
+               button is the reader's own. */}
+            {framing?.create && mayRecord && (
+              <button onClick={() => setShowCreate(true)} className="btn-primary">
+                + {framing.create}
+              </button>
+            )}
+            {/* No button for this seat: the absence has words, naming
+                only roles the firm has seated (Tapin walk, 2026-11-14). */}
+            {framing?.create && !mayRecord && recordSays && (
+              <p className="text-[12px] text-etyme-muted max-w-xs">{recordSays}</p>
+            )}
+          </>}
+        />
+      )}
+
+      {/* Kept on the page, not in a toast that fades: the line was
+          recorded, and its pay days will not show until the first Sunday
+          is set (Area E, 2026-11-14). Nothing was refused for it. */}
+      {recordedAfter && (
+        <div className="mb-6 rounded-lg border border-etyme-rule bg-etyme-surface px-4 py-3 text-sm flex items-start justify-between gap-4">
+          <p>
+            {recordedAfter.says}
+            {recordedAfter.link && (
+              <>
+                {' '}
+                <a href={recordedAfter.link.href} className="text-etyme-action hover:underline">{recordedAfter.link.label}</a>
+              </>
+            )}
+          </p>
+          <button onClick={() => setRecordedAfter(null)} className="text-etyme-muted hover:text-etyme-ink text-[12px]">Close</button>
+        </div>
+      )}
+
+      {/* Sell / Buy tabs — a client has no buy side, and nobody reads
+          either word until the page knows whose it is. Drawn as the same
+          row of pressed chips every list uses, so the side reads as a
+          filter on one list of lines, not as two documents. */}
+      <div className={`mb-6 ${!company || isClient ? 'hidden' : ''}`}>
+        <FilterChips<ViewTab>
+          label="Which side of the trade"
+          options={[{ key: 'sell', label: 'Sell' }, { key: 'buy', label: 'Buy' }]}
+          value={tab}
+          onChange={setTab}
+        />
+      </div>
+
+      {ownEmpty ? null : (<>
+      {/* Stats row */}
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Stat label="Active" value={activeCount} sub="contracts" />
+        <Stat
+          label="Rolloffs"
+          value={rolloffWarnings.length}
+          tone={rolloffWarnings.length > 0 ? 'attention' : 'default'}
+          sub="within 28 days"
+        />
+        {tab === 'sell' && (
+          activeTotals.refusedBecause ? (
+            <Stat label="Active bill rates" value={null} sub={activeTotals.refusedBecause} />
+          ) : activeTotals.byCurrency.length === 0 ? (
+            <Stat label="Active bill rates" value={null} sub="Nothing is running" />
+          ) : (
+            /* One line per currency: two currencies are never added. */
+            <Stat
+              label="Active bill rates"
+              tone="verified"
+              value={activeTotals.byCurrency.map((t) => (
+                <span key={t.currency} className="block">{rateText(t.cents, t.currency)}</span>
+              ))}
+              sub={`added per hour${activeTotals.byCurrency.length > 1 ? ', one total per currency' : ''}`}
+            />
+          )
+        )}
+      </div>
+
+      {payWithheldSays && (
+        <p className="mb-4 text-[12px] text-etyme-muted">{payWithheldSays}</p>
+      )}
+
+      {/* Rolloff warnings banner */}
+      {rolloffWarnings.length > 0 && (
+        <div className="mb-6 px-4 py-3 rounded-lg bg-etyme-attention-wash border border-etyme-attention-line">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="evidence-dot evidence-dot--pending" />
+            <span className="text-sm font-semibold text-etyme-ink">
+              {rolloffWarnings.length} contract{rolloffWarnings.length !== 1 ? 's' : ''} ending within 28 days
+            </span>
+          </div>
+          <div className="ml-4 space-y-1">
+            {rolloffWarnings.map((c) => (
+              <p key={c.id} className="text-xs text-etyme-ink">
+                <strong>{c.personName}</strong>
+                {c.counterpartyName && ` at ${c.counterpartyName}`}
+                {' — '}
+                {c.daysUntilEnd === 0
+                  ? 'ends today'
+                  : `${c.daysUntilEnd} day${c.daysUntilEnd !== 1 ? 's' : ''} remaining`}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* DataTable with state filter tabs */}
+      <ListSurface
+        columns={columns}
+        data={filtered}
+        rowKey={(row) => row.id}
+        loading={loading}
+        error={error}
+        searchPlaceholder={`Search by consultant, order number${tab === 'sell' ? ', client' : ', vendor'}…`}
+        searchFilter={(row, q) =>
+          row.personName.toLowerCase().includes(q) ||
+          (row.counterpartyName?.toLowerCase().includes(q) ?? false) ||
+          (row.document?.number.toLowerCase().includes(q) ?? false) ||
+          (row.document?.sellerNumber?.toLowerCase().includes(q) ?? false) ||
+          (row.masterContract?.code.toLowerCase().includes(q) ?? false) ||
+          stateLabel(row.state).toLowerCase().includes(q)
+        }
+        emptyMessage={empty.message}
+        emptyDetail={empty.detail}
+        exportName={`${tab}-contract-lines`}
+        card={(row) => <LineCard row={row} viewerId={viewerId} />}
+        onRowClick={(row) => setSelectedContract(row)}
+        filters={
+          <FilterChips<StateFilter>
+            label="Contract lines by state"
+            options={filters}
+            value={stateFilter}
+            onChange={setStateFilter}
+          />
+        }
+        rowClassName={(row) =>
+          row.daysUntilEnd != null && row.daysUntilEnd >= 0 && row.daysUntilEnd <= 28
+            ? '!bg-etyme-attention-wash/40'
+            : ''
+        }
+      />
+      </>)}
+
+      {scope === 'own' && !loading && !error && (ownEmpty
+        ? <EmptyState says={ownContractsSay(contracts.length)} />
+        : (
+          <p role="status" className="mt-4 text-[13px] text-etyme-muted">
+            {ownContractsSay(contracts.length)}
+          </p>
+        ))}
+
+      {/* Contract detail drawer */}
+      {openContract && (
+        <ContractDetailDrawer
+          contract={openContract}
+          tab={tab}
+          viewerId={viewerId}
+          mayTag={mayTagLines}
+          onClose={() => setSelectedContract(null)}
+          onToast={(message, type) => setToast({ type, message })}
+          onRefresh={fetchContracts}
+          onKeep={(says, link) => setRecordedAfter({ says, link })}
+        />
+      )}
+
+      {/* Create contract modal */}
+      {showCreate && (
+        <RecordPlacementModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(says, after) => {
+            setToast({ type: 'success', message: says })
+            setRecordedAfter(after)
+            fetchContracts()
+          }}
+        />
+      )}
+
+    </>
+  )
+}

@@ -1,0 +1,437 @@
+/**
+ * Terms the database has to be able to hold.
+ *
+ * Four pieces of work were blocked on columns that did not exist, and
+ * each of them is a fact somebody agreed to in writing: what an overtime
+ * hour is worth to the worker, when the clock on an invoice starts, what
+ * a supplier takes off for early settlement, and whether an employer has
+ * claimed an exemption. None of these is arithmetic — the arithmetic is
+ * elsewhere and belongs to other people. These sentences say only that
+ * there is somewhere honest to put the answer.
+ *
+ * Checked against the schema rather than against memory, the same way
+ * `schema-hygiene` is, because a column is the one thing a passing unit
+ * test can be built on top of and still be missing.
+ */
+
+import { describe, it, expect } from 'vitest'
+import { readFileSync, globSync } from 'node:fs'
+import { join } from 'node:path'
+import { Prisma } from '@prisma/client'
+
+const schema = readFileSync(join(process.cwd(), 'prisma/schema.prisma'), 'utf8')
+
+type Field = { name: string; type: string; isRequired: boolean; isList: boolean; default?: unknown }
+
+function model(name: string) {
+  const m = Prisma.dmmf.datamodel.models.find((x) => x.name === name)
+  expect(m, `model ${name} should exist`).toBeTruthy()
+  return m!
+}
+
+function field(modelName: string, fieldName: string): Field {
+  const f = model(modelName).fields.find((x) => x.name === fieldName)
+  expect(f, `${modelName}.${fieldName} should exist`).toBeTruthy()
+  return f as unknown as Field
+}
+
+function uniques(modelName: string): string[][] {
+  return model(modelName).uniqueFields.map((u) => [...u])
+}
+
+describe('Exempt or nonexempt is the employer’s position, and Etyme only holds it', () => {
+  it('an exempt assertion belongs to one employment relationship, so the same person can differ at two employers', () => {
+    // Keyed on the contract AND the person. A key on the person alone
+    // would force one of two honest answers to be wrong: the same
+    // consultant can be exempt at one employer and not at another,
+    // because the duties, the supervision and the salary basis are all
+    // different. `ClassificationCall` is keyed on (company, person) and
+    // this is deliberately not that row.
+    expect(uniques('ExemptAssertion')).toContainEqual(['buyContractId', 'personId'])
+
+    // And two people on one buy contract can differ from each other, so
+    // the contract alone is not unique either.
+    expect(uniques('ExemptAssertion')).not.toContainEqual(['buyContractId'])
+    expect(field('ExemptAssertion', 'buyContractId').type).toBe('String')
+    expect(field('ExemptAssertion', 'personId').type).toBe('String')
+  })
+
+  it('only the employer on the buy leg may assert exempt status', () => {
+    // The employer bears the burden of proving an exemption, so the
+    // employer is the only party with anywhere to record one. There is
+    // no client column here and no Etyme column here, because a Wage and
+    // Hour investigator does not bill the client and does not bill us.
+    const companyFks = model('ExemptAssertion')
+      .fields.filter((f) => f.type === 'Company' || /companyId$/i.test(f.name))
+      .map((f) => f.name)
+    expect(companyFks.sort()).toEqual(['assertedByCompany', 'assertedByCompanyId'])
+    expect(field('ExemptAssertion', 'assertedByCompanyId').isRequired).toBe(true)
+  })
+
+  it('records what the screen said at the time, so a position can be re-derived rather than trusted', () => {
+    // The asymmetry, kept as data: the screen can rule an exemption OUT
+    // on a pay rate that cannot reach the floor, and can never rule one
+    // IN, because the duties test is not in this data. So the outcome it
+    // wrote down has two values and neither of them is "exempt".
+    expect(field('ExemptAssertion', 'screenOutcome').isRequired).toBe(true)
+    expect(field('ExemptAssertion', 'screenRulesOut').isList).toBe(true)
+    expect(field('ExemptAssertion', 'screenSays').isRequired).toBe(true)
+
+    const body = schema.match(/model ExemptAssertion \{([\s\S]*?)^\}/m)![1]
+    expect(body).toMatch(/CANNOT_BE_EXEMPT/)
+    expect(body).toMatch(/ETYME_CANNOT_SAY/)
+
+    // A position with no review date rots: a promotion changes the
+    // duties and nothing sweeps a date that is not there.
+    expect(field('ExemptAssertion', 'reviewBy').isRequired).toBe(false)
+  })
+})
+
+describe('What an overtime hour is worth to the worker', () => {
+  it('a buy contract can carry overtime terms its client never sees', () => {
+    // Statute sets a floor, not a ceiling. Where an employer agreed more
+    // than the floor with the worker — double time past sixty — Etyme
+    // held it nowhere, so payroll had nothing to value a premium week
+    // from except the client's billing terms, which are not a wage.
+    const after = field('BuyContract', 'overtimeAfterHours')
+    expect(after.type).toBe('Int')
+    expect(after.isRequired).toBe(false) // null is straight time
+
+    const mult = field('BuyContract', 'overtimeMultiplierBps')
+    expect(mult.type).toBe('Int')
+    expect(mult.default).toBe(15000) // time and a half
+
+    // The sell leg keeps its own, and they are different facts: a client
+    // on straight time and a worker on time-and-a-half is ordinary.
+    expect(field('SellContract', 'overtimeAfterHours').type).toBe('Int')
+    expect(field('SellContract', 'overtimeMultiplierBps').default).toBe(15000)
+  })
+
+  it('only one place holds the pay-side premium, so two records cannot disagree about it', () => {
+    // `RateHistory.overtimeRate` is written and read by nothing, and is a
+    // third copy of a fact that now lives on the contract. It is either
+    // gone or marked dead; what it may never be is quietly present.
+    const stillThere = model('RateHistory').fields.some((f) => f.name === 'overtimeRate')
+    if (stillThere) {
+      const body = schema.match(/model RateHistory \{([\s\S]*?)^\}/m)![1]
+      expect(body, 'RateHistory.overtimeRate must say it is dead').toMatch(/DEAD/)
+    }
+  })
+})
+
+describe('When the clock on an invoice starts', () => {
+  it('payment terms say what they run from, and an invoice records when the client received it', () => {
+    // NET 30 runs from receipt of the invoice, not from the end of the
+    // work period. A period ending the 31st and invoiced on the 6th is
+    // due six days later than the arithmetic used to claim, and chasing
+    // a client who is not late is the visible half of that error.
+    for (const m of ['MasterAgreement', 'SellContract', 'BuyContract']) {
+      const f = field(m, 'paymentTermsFrom')
+      expect(f.type, m).toBe('String')
+      expect(f.isRequired, m).toBe(true)
+    }
+
+    const body = schema.match(/model MasterAgreement \{([\s\S]*?)^\}/m)![1]
+    for (const anchor of ['RECEIPT_DATE', 'INVOICE_DATE', 'PERIOD_END', 'APPROVAL_DATE']) {
+      expect(body, anchor).toMatch(new RegExp(anchor))
+    }
+
+    // Issued is the day we billed. Received is the day the contractual
+    // clock starts, and the gap between them was invisible.
+    const received = field('Invoice', 'receivedAt')
+    expect(received.type).toBe('DateTime')
+    expect(received.isRequired).toBe(false)
+    expect(field('Invoice', 'issuedAt').name).toBe('issuedAt')
+  })
+
+  it('an existing contract keeps counting from the period end, so no invoice already raised moves', () => {
+    // The default is what the arithmetic already does. Adding the column
+    // must change no date and no value on anything already billed; a new
+    // contract chooses.
+    for (const m of ['MasterAgreement', 'SellContract', 'BuyContract']) {
+      expect(field(m, 'paymentTermsFrom').default, m).toBe('PERIOD_END')
+    }
+
+    // Null receipt is honest: nobody has confirmed it, which is not the
+    // same as it arriving today.
+    expect(field('Invoice', 'receivedAt').default).toBeUndefined()
+  })
+})
+
+describe('Paying early for a discount', () => {
+  it('a discount tier says how many days and how much, and several can sit on one agreement', () => {
+    // "3% at zero days, 2% at ten, otherwise net thirty" is three
+    // answers, and a pair of columns holds one of them — the rest gets
+    // typed into a notes field where no arithmetic can reach it.
+    expect(field('EarlyPaymentDiscount', 'withinDays').type).toBe('Int')
+    expect(field('EarlyPaymentDiscount', 'withinDays').isRequired).toBe(true)
+    expect(field('EarlyPaymentDiscount', 'discountBps').type).toBe('Int')
+    expect(field('EarlyPaymentDiscount', 'discountBps').isRequired).toBe(true)
+
+    // One rung per number of days on any one document, and several days
+    // on the same one. Zero days is a real rung — settlement on the day
+    // carries the best rate because it is the hardest to hit.
+    expect(uniques('EarlyPaymentDiscount')).toContainEqual(['msaId', 'withinDays'])
+    expect(uniques('EarlyPaymentDiscount')).not.toContainEqual(['msaId'])
+
+    expect(model('MasterAgreement').fields.some((f) => f.name === 'earlyPaymentDiscounts')).toBe(true)
+  })
+
+  it('a rung hangs on the agreement or on the order that overrides it, never on two at once', () => {
+    // Exactly one of the three is set. There are no migration files, so
+    // there is no CHECK constraint to say it — the writer enforces it and
+    // a reader that finds none or two refuses rather than guesses. Same
+    // shape and same reasoning as InvoiceLine, which is an hours line, an
+    // expense line or a milestone line and never two.
+    for (const owner of ['msaId', 'workOrderId', 'workOrderId']) {
+      expect(field('EarlyPaymentDiscount', owner).isRequired, owner).toBe(false)
+      expect(uniques('EarlyPaymentDiscount')).toContainEqual([owner, 'withinDays'])
+    }
+  })
+})
+
+describe('The contractor census — somewhere honest to put a client’s own rows', () => {
+
+  it('a census is asked for by somebody who has no account, so nothing about them is a foreign key', () => {
+    // Nobody at the client has signed in when this row is written. The
+    // company name does not match a Company, and the address is not a
+    // Person — treating either as though it were would invent a tenant
+    // out of a string typed on a public page.
+    for (const f of ['companyName', 'contactName', 'workEmail', 'desk']) {
+      expect(field('CensusRequest', f).type, f).toBe('String')
+      expect(field('CensusRequest', f).isRequired, f).toBe(true)
+    }
+    // The only relations it has are to things we made ourselves: the
+    // files that arrived, the reads of them, and the sandbox their rows
+    // were loaded into. Nothing about the person who asked.
+    const fks = model('CensusRequest').fields.filter((f) => f.kind === 'object').map((f) => f.name)
+    expect(fks.sort()).toEqual(['files', 'reads', 'sandboxCompany'])
+  })
+
+  it('a read of a census file is recorded where it will outlive the file', () => {
+    // The files are deleted outright on the day we promised, so the
+    // trail cannot hang off them: on the 21st we still have to say who
+    // opened what on the 20th. `fileId` and `fileName` are therefore
+    // plain columns with no foreign key behind them.
+    const shape = model('CensusRead').fields
+    for (const f of ['fileId', 'fileName']) {
+      expect(shape.find((x) => x.name === f)?.kind, f).toBe('scalar')
+    }
+    expect(shape.map((f) => f.name)).not.toContain('file')
+    // And the reader is an address, for the same reason the assigned
+    // staff person is: staff hold no seat anywhere.
+    expect(field('CensusRead', 'readerEmail').type).toBe('String')
+    expect(field('CensusRead', 'readerEmail').isRequired).toBe(true)
+    // A refusal is recorded the same way a read is.
+    expect(field('CensusRead', 'allowed').type).toBe('Boolean')
+    expect(field('CensusRead', 'reason').isRequired).toBe(true)
+  })
+
+  it('an act of the platform has no tenant to be done in, and the column says so', () => {
+    // A census happens before a client is a tenant, and the sandbox its
+    // rows sit in is destroyed by the very deletion somebody audits. A
+    // required companyId meant six of the census's seven automation
+    // actions could never be written at all.
+    expect(field('AutomationLog', 'companyId').isRequired).toBe(false)
+    // Everything else about the row stays required: an act with no
+    // reason and no honest reversible flag is the thing this table
+    // exists to prevent.
+    for (const f of ['action', 'summary', 'reason', 'payload', 'reversible']) {
+      expect(field('AutomationLog', f).isRequired, f).toBe(true)
+    }
+  })
+
+  it('the named person at Etyme is an address, because staff hold no seat', () => {
+    // Staff are identified by ETYME_STAFF_EMAILS throughout, and a staff
+    // member may belong to no company at all. A Person foreign key here
+    // would quietly require one.
+    expect(field('CensusRequest', 'assignedStaffEmail').type).toBe('String')
+    expect(field('CensusRequest', 'assignedStaffEmail').isRequired).toBe(false)
+  })
+
+  it('nothing can be uploaded before somebody has accepted the agreement by name', () => {
+    // The token is the only way in and it is null until the agreement is
+    // accepted, so "nothing moves until somebody has accepted" is a
+    // property of the data rather than a check in a route.
+    expect(field('CensusRequest', 'agreementAcceptedBy').isRequired).toBe(false)
+    expect(field('CensusRequest', 'agreementAcceptedAt').isRequired).toBe(false)
+    expect(field('CensusRequest', 'uploadToken').isRequired).toBe(false)
+    expect(schema.match(/model CensusRequest \{([\s\S]*?)^\}/m)![1]).toMatch(/uploadToken\s+String\?\s+@unique/)
+  })
+
+  it('the upload link expires, the way a document packet does and unlike a supplier’s', () => {
+    // The supplier-apply token never expires. A census upload has to be
+    // revocable the hour legal changes its mind, which a stateless signed
+    // link cannot be.
+    expect(field('CensusRequest', 'uploadExpires').type).toBe('DateTime')
+  })
+
+  it('which edition of the agreement was accepted is on the row, not just that one was', () => {
+    expect(field('CensusRequest', 'agreementVersion').type).toBe('String')
+  })
+
+  it('the deletion date has exactly one place to be read from, so three readers cannot disagree', () => {
+    // The confirmation email, the page and the nightly sweep all quote
+    // the same column.
+    expect(field('CensusRequest', 'deleteBy').type).toBe('DateTime')
+    expect(field('CensusRequest', 'deletedAt').type).toBe('DateTime')
+    expect(field('CensusRequest', 'deletionCancelledBecause').type).toBe('String')
+  })
+
+  it('the nightly sweep can find what is due without reading every census ever run', () => {
+    const body = schema.match(/model CensusRequest \{([\s\S]*?)^\}/m)![1]
+    expect(body).toMatch(/@@index\(\[status,\s*deleteBy\]\)/)
+  })
+
+  it('what was deleted can still be described after the files are gone', () => {
+    // On the 21st we still have to be able to say what went on the 20th,
+    // and a count of zero rows cannot say it.
+    expect(field('CensusRequest', 'receivedFileCount').isRequired).toBe(true)
+    expect(field('CensusRequest', 'receivedBytes').isRequired).toBe(true)
+  })
+
+  it('a census file holds its bytes, so deleting the row deletes the data', () => {
+    expect(field('CensusFile', 'bytes').type).toBe('Bytes')
+    expect(field('CensusFile', 'bytes').isRequired).toBe(true)
+    const body = schema.match(/model CensusFile \{([\s\S]*?)^\}/m)![1]
+    expect(body).toMatch(/onDelete:\s*Cascade/)
+  })
+
+  it('a census sandbox is never mistaken for a demo, and never shared between two clients', () => {
+    // A demo is synthetic and demoExpiresAt deletes nothing. A sandbox
+    // holds a real client's rows under a date we promised in writing.
+    expect(field('Company', 'isCensusSandbox').type).toBe('Boolean')
+    expect(field('Company', 'isCensusSandbox').default).toBe(false)
+    expect(schema.match(/model CensusRequest \{([\s\S]*?)^\}/m)![1]).toMatch(/sandboxCompanyId\s+String\?\s+@unique/)
+  })
+})
+
+describe('Billing and paying follow the agreement between each pair (founder, 2026-10-18)', () => {
+  const RHYTHM = ['billFrequency', 'billAnchor', 'billStraddle'] as const
+
+  it('an agreement that said nothing about how often to bill reads as silent, not as monthly', () => {
+    // A default of MONTHLY could not tell "monthly was agreed" from
+    // "nobody asked", and a value that cannot say it did not say must not
+    // beat one somebody typed. So each is optional and has no default.
+    for (const name of RHYTHM) {
+      const f = field('MasterAgreement', name)
+      expect(f.type).toBe('String')
+      expect(f.isRequired, `MasterAgreement.${name} must be able to be silent`).toBe(false)
+      expect(f.default, `MasterAgreement.${name} must not default`).toBeUndefined()
+    }
+  })
+
+  it('what an agreement said about billing is kept with every amendment, so the rhythm on a past day can be read back', () => {
+    for (const name of RHYTHM) {
+      expect(field('MasterAgreementVersion', name).isRequired).toBe(false)
+    }
+  })
+
+  it('the agreement speaks the same words for its rhythm as the lines do, so nothing translates between them', () => {
+    // The order header speaks CONTRACT_START and TO_LATER where the lines
+    // speak CONTRACT and END, and lib/money/order-terms has to translate.
+    // The agreement is written in the lines' words from the start.
+    const body = schema.match(/model MasterAgreement \{([\s\S]*?)^\}/m)![1]
+    expect(body).toMatch(/WEEKLY · BIWEEKLY · SEMIMONTHLY · MONTHLY/)
+    expect(body).toMatch(/CALENDAR · CONTRACT\b/)
+    expect(body).toMatch(/SPLIT · START · END/)
+    expect(body).not.toMatch(/CONTRACT_START|TO_LATER|TO_EARLIER/)
+  })
+
+  it('an order can say what its net days run from, and an order that said nothing leaves it to the agreement', () => {
+    const f = field('WorkOrder', 'paymentTermsFrom')
+    expect(f.type).toBe('String')
+    expect(f.isRequired).toBe(false)
+    expect(f.default).toBeUndefined()
+  })
+
+  it('an order or a line that differs from its agreement keeps the reason, who gave it and when', () => {
+    for (const m of ['WorkOrder', 'SellContract', 'BuyContract']) {
+      expect(field(m, 'termsDifferReason').type).toBe('String')
+      expect(field(m, 'termsDifferById').type).toBe('String')
+      expect(field(m, 'termsDifferBy').type).toBe('Person')
+      expect(field(m, 'termsDifferAt').type).toBe('DateTime')
+      // Optional: a line that matches its agreement has nothing to explain.
+      for (const n of ['termsDifferReason', 'termsDifferById', 'termsDifferAt']) {
+        expect(field(m, n).isRequired, `${m}.${n}`).toBe(false)
+      }
+      const body = schema.match(new RegExp(`model ${m} \\{([\\s\\S]*?)^\\}`, 'm'))![1]
+      expect(body, `${m} indexes who gave the reason`).toMatch(/@@index\(\[termsDifferById\]\)/)
+    }
+  })
+
+  it('a supplier firm has a twin of its own beside the program manager’s', () => {
+    const kinds = Prisma.dmmf.datamodel.enums.find((e) => e.name === 'TwinKind')!.values.map((v) => v.name)
+    expect(kinds).toEqual(['PROGRAM_MANAGER', 'SUPPLIER'])
+  })
+})
+
+describe('One Ask Etyme conversation per seat, saved (founder, 2026-10-18)', () => {
+  it('a seat keeps several titled Ask Etyme conversations (2026-11-08): nothing on the thread is unique to the seat, its conversations are read newest first by the person and the company, and each carries the title its first question gave it', () => {
+    expect(uniques('AskEtymeThread')).not.toContainEqual(['personId', 'companyId'])
+    expect(uniques('AskEtymeThread')).not.toContainEqual(['personId'])
+    expect(uniques('AskEtymeThread')).not.toContainEqual(['personOnlyId'])
+    const body = schema.match(/model AskEtymeThread \{([\s\S]*?)^\}/m)![1]
+    expect(body).toMatch(/@@index\(\[personId, companyId, lastTurnAt\]\)/)
+    expect(body).toMatch(/@@index\(\[personOnlyId\]\)/)
+    expect(field('AskEtymeThread', 'title')).toMatchObject({ type: 'String', isRequired: false })
+    expect(field('AskEtymeThread', 'person').type).toBe('Person')
+    expect(field('AskEtymeThread', 'company').type).toBe('Company')
+  })
+
+  it('Clear starts over by stamping when, so the lines before it stay on the record rather than being deleted', () => {
+    const f = field('AskEtymeThread', 'clearedAt')
+    expect(f.type).toBe('DateTime')
+    expect(f.isRequired).toBe(false)
+  })
+
+  it('a line keeps who said it, the words as shown, the answer with its cards, what became of each card, and the question it answered', () => {
+    const speakers = Prisma.dmmf.datamodel.enums.find((e) => e.name === 'AskEtymeSpeaker')!.values.map((v) => v.name)
+    expect(speakers).toEqual(['PERSON', 'ETYME'])
+    expect(field('AskEtymeTurn', 'speaker').type).toBe('AskEtymeSpeaker')
+    expect(field('AskEtymeTurn', 'text')).toMatchObject({ type: 'String', isRequired: true })
+    expect(field('AskEtymeTurn', 'answer')).toMatchObject({ type: 'Json', isRequired: false })
+    expect(field('AskEtymeTurn', 'cardApprovalIds')).toMatchObject({ type: 'String', isList: true })
+    expect(field('AskEtymeTurn', 'cards')).toMatchObject({ type: 'Json', isRequired: false })
+    expect(field('AskEtymeTurn', 'approval')).toMatchObject({ type: 'TwinApproval', isRequired: false })
+    const body = schema.match(/model AskEtymeTurn \{([\s\S]*?)^\}/m)![1]
+    expect(body, 'the lines are read by thread, in the order they were said').toMatch(/@@index\(\[threadId, createdAt\]\)/)
+  })
+
+  it('the saved conversation is additive, so production can take it on a push: nothing new on an existing table is required', () => {
+    // Person, Company and TwinApproval gain only lists of the new rows.
+    for (const [m, f] of [['Person', 'askEtymeThreads'], ['Company', 'askEtymeThreads'], ['TwinApproval', 'askEtymeTurns']] as const) {
+      expect(field(m, f).isList, `${m}.${f}`).toBe(true)
+    }
+  })
+
+  it('the thread is read and written through one door that names no other person’s thread and calls nothing outside the record', () => {
+    const door = readFileSync(join(process.cwd(), 'src/lib/ask-etyme-thread.ts'), 'utf8')
+    // Every query keys on the caller's own seat: its person at its company,
+    // or the person alone where there is no company (2026-10-19).
+    expect(door).toMatch(/seatThreads\(seat\.person\.id, companyId\)/)
+    expect(door).toContain('companyId ? { personId, companyId } : { personId, companyId: null, personOnlyId: personId }')
+    // and the row-makers are only ever handed the seat itself, or the seat's own person.
+    expect(door).not.toMatch(/threadRowFor\((?!seat[,:])/)
+    expect(door).not.toMatch(/makeThread\((?!seat\.person\.id|personId: string)/)
+    // A conversation named by id is read only inside the seat's own.
+    expect(door).toContain('where: { AND: [mine, { id: threadId }] }')
+    // A refused read goes through the awaited refusal, never fire-and-forget.
+    expect(door).toContain('await recordRefusal(')
+    expect(door).not.toMatch(/\blogAccess\(/)
+    // Nothing leaves from here: no model client, no network.
+    expect(door).not.toMatch(/\bfetch\(|anthropic|@\/lib\/model-boundary'/i)
+    // And nothing else in the product reads or writes the two tables,
+    // except the person's own data rights (regulatory, 2026-10-19): their
+    // export reads their thread and erasure deletes it, keyed on the person
+    // whose data it is. That list grows only by a decision.
+    const DATA_RIGHTS = [join('lib', 'data-request.ts'), join('lib', 'erasure.ts')]
+    const elsewhere = (globSync('src/**/*.{ts,tsx}', { cwd: process.cwd() }) as string[])
+      .filter((f) => !f.endsWith(join('lib', 'ask-etyme-thread.ts')))
+      .filter((f) => !DATA_RIGHTS.some((d) => f.endsWith(d)))
+      .filter((f) => /prisma\.askEtyme(Thread|Turn)\b|tx\.askEtyme(Thread|Turn)\b/.test(readFileSync(join(process.cwd(), f), 'utf8')))
+    expect(elsewhere, 'a file other than lib/ask-etyme-thread touches the saved conversation').toEqual([])
+    // Not passing on nothing: the door itself is what the pattern finds.
+    expect(door).toMatch(/prisma\.askEtymeTurn\b/)
+  })
+})

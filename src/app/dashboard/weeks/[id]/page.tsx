@@ -1,0 +1,346 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
+import { readJson } from '@/lib/read-response'
+import { useSession } from '@/components/session-provider'
+import { DetailHead } from '@/components/ui/detail-head'
+import { LoadingState, RefusedState } from '@/components/ui/states'
+import { isDeskless } from '@/lib/nav-table'
+import { BillThisWeek } from '@/app/dashboard/invoices/bill-this-week'
+import { firstTab, waitingWords, linkLine } from './first-tab'
+
+/**
+ * One week, and how the client approved it.
+ *
+ * The founder, 2026-09-30 (CLAUDE.md, "A client may approve by email, and
+ * the proof travels down the chain"). Two ways a client approves a week
+ * without signing in, and this is where both start and where both are read:
+ *
+ *   - **Approve by email** sends the client's approver a one-time link with
+ *     Approve and Send back;
+ *   - **Attach evidence** records an approval the client already gave by
+ *     email — the email itself, a PDF, or an export from its own system —
+ *     always naming the person who gave it.
+ *
+ * Only the worker on their own week, or the timesheet desk at a supplier
+ * on the chain, sees the form; it picks the contracts the approval applies
+ * to, all of them unless fewer are ticked. Every firm the approval applies
+ * to reads it here with only its own contracts named, opens the evidence,
+ * and each open is logged. No rate is shown, to anybody.
+ */
+
+interface Contract { id: string; label: string; mine?: boolean }
+interface Approval {
+  id: string
+  how: 'LINK' | 'EVIDENCE'
+  state: string
+  words: string | null
+  approverName: string
+  approverEmail: string
+  sentBy: string
+  sentAt: string
+  sendBack: string | null
+  evidence: { kind: string; fileName: string; sizeBytes: number; href: string } | null
+  /** The client's reason and overtime answer, on an approval attached while it was not on Etyme. */
+  clientSays: string | null
+  contracts: Contract[]
+}
+/** What attaching asks for besides the approval, on a long week at a client not on Etyme (`offEtymeAsks`). */
+interface Asks {
+  says: string
+  reasonLabel: string
+  overtime: { hours: number; afterHours: number; asks: string; choices: { value: string; label: string }[] } | null
+}
+interface Signature { role: string; firm: string; signedBy: string | null; on: string; auto: boolean; reason: string | null; says: string }
+interface Seen {
+  week: { id: string; personName: string; period: string; totalHours: number; status: string; clientName: string; clientApproved: boolean; clientOffPlatform: boolean; afterClient?: string }
+  /** Whether an email can leave this deployment (lib/notify/mail-leaves). */
+  emailLeaves: boolean
+  signatures: Signature[]
+  approvals: Approval[]
+  act:
+    | { ok: true; as: string; contracts: Contract[]; refused: string | null; linkRefused: string | null; asks: Asks | null; contacts?: { name: string; email: string }[] }
+    | { ok: false; says: string }
+}
+
+const STATE_WORDS: Record<string, { label: string; chip: string }> = {
+  APPROVED: { label: 'Approved', chip: 'chip chip--verified' },
+  SENT_BACK: { label: 'Sent back', chip: 'chip chip--attention' },
+  CLOSED: { label: 'Link closed', chip: 'chip chip--passive' },
+}
+
+function size(bytes: number): string {
+  return bytes >= 1024 * 1024 ? `${Math.round((bytes / 1024 / 1024) * 10) / 10}MB` : `${Math.max(1, Math.round(bytes / 1024))}KB`
+}
+
+export default function WeekPage() {
+  const { id } = useParams<{ id: string }>()
+  const [seen, setSeen] = useState<Seen | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  // The tab the address names, else the one the client's standing says (./first-tab).
+  const asked = useSearchParams()?.get('mode') ?? null
+  const [chosenMode, setMode] = useState<'LINK' | 'EVIDENCE' | null>(null)
+  // A long week at a client not on Etyme is approved only by attaching its approval.
+  const asks = seen?.act.ok ? seen.act.asks : null
+  const mode = chosenMode ?? firstTab(asked, seen?.week.clientOffPlatform ?? false)
+  const [form, setForm] = useState({ approverName: '', approverEmail: '', kind: 'EMAIL', approvedOn: '', pastedText: '', clientReason: '', overtime: '' })
+  const [file, setFile] = useState<File | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [said, setSaid] = useState<string | null>(null)
+  const [refusal, setRefusal] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  // Bumped after an approval is recorded, so the bill line reads the week again without a reload.
+  const [billRead, setBillRead] = useState(0)
+  // Headed by the section the week's list sits under on the reader's own
+  // menu, never by the client's name (sign-up walk, round six, problem
+  // 6): a worker with no desk opens a week from Your work, everybody
+  // else from Timesheets.
+  const session = useSession()
+  const parent = isDeskless(session.permissions) && session.isWorker
+    ? { href: '/dashboard/my-work', label: 'Your work' }
+    : { href: '/dashboard/timesheets', label: 'Timesheets' }
+
+  const load = useCallback(async () => {
+    try {
+      const body = await readJson(await fetch(`/api/week-approvals?timesheetId=${encodeURIComponent(id)}`))
+      setSeen(body.data)
+      if (body.data.act.ok) setPicked(new Set(body.data.act.contracts.map((c: Contract) => c.id)))
+      // Such a week goes only by its attached approval, whatever the address asked for.
+      if (body.data.act.ok && body.data.act.asks) setMode('EVIDENCE')
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }, [id])
+  useEffect(() => { load() }, [load])
+
+  async function send() {
+    if (!seen || !seen.act.ok) return
+    setBusy(true)
+    setRefusal(null)
+    setSaid(null)
+    const all = seen.act.contracts.length === picked.size
+    try {
+      let res: Response
+      if (mode === 'LINK') {
+        res = await fetch('/api/week-approvals', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            timesheetId: id, how: 'LINK', approverName: form.approverName, approverEmail: form.approverEmail,
+            contracts: all ? null : [...picked],
+          }),
+        })
+      } else {
+        const fd = new FormData()
+        fd.set('timesheetId', id)
+        fd.set('how', 'EVIDENCE')
+        fd.set('approverName', form.approverName)
+        fd.set('approverEmail', form.approverEmail)
+        fd.set('kind', form.kind)
+        if (form.approvedOn) fd.set('approvedOn', form.approvedOn)
+        if (file) fd.set('file', file)
+        if (form.pastedText.trim()) fd.set('pastedText', form.pastedText)
+        if (asks) fd.set('clientReason', form.clientReason)
+        if (asks?.overtime && form.overtime) fd.set('overtime', form.overtime)
+        if (!all) for (const c of picked) fd.append('contracts', c)
+        res = await fetch('/api/week-approvals', { method: 'POST', body: fd })
+      }
+      const body = await readJson(res)
+      setSaid(body.data.says)
+      await load()
+      setBillRead((n) => n + 1)
+    } catch (err: any) {
+      setRefusal(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // A refusal is the page: its sentence alone (round six, problem 12).
+  if (error) return <RefusedState says={error} />
+  if (!seen) return <LoadingState says="Opening the week…" />
+
+  const w = seen.week
+  return (
+    <div className="mx-auto max-w-[760px] space-y-5">
+      <DetailHead
+        from={parent.href}
+        back={parent}
+        title={<>{w.personName}, {w.period}</>}
+        subtitle={
+          <>
+            <span className="tabular-nums">{w.totalHours}</span> hours at {w.clientName} ·{' '}
+            {w.status === 'APPROVED' ? 'approved by every firm' : w.clientApproved ? (w.afterClient ?? `approved by ${w.clientName}`) : w.status === 'SUBMITTED' ? `waiting on ${w.clientName}` : 'not sent in yet'}
+          </>
+        }
+      />
+
+      {/* Who signed, top first, and why a flagged week was signed anyway —
+          the reason only to the signing firm and the firm below it. */}
+      <section className="panel space-y-3">
+        <p className="stat-label">Signed</p>
+        {seen.signatures.length === 0 && <p className="text-[13px] text-etyme-muted">Nobody has signed this week yet.</p>}
+        <ul className="divide-y divide-etyme-rule">
+          {seen.signatures.map((g, i) => (
+            <li key={`${g.role}-${i}`} className="py-2.5 text-[13px]">
+              <span className={g.auto ? 'text-etyme-muted' : 'text-etyme-ink'}>{g.says}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="panel space-y-3">
+        <p className="stat-label">Approved outside Etyme</p>
+        {seen.approvals.length === 0 && <p className="text-[13px] text-etyme-muted">Nothing yet. A client’s approval by email, or the evidence of one, shows here.</p>}
+        <ul className="divide-y divide-etyme-rule">
+          {seen.approvals.map((a) => (
+            <li key={a.id} className="space-y-1 py-3 text-[13px]">
+              <div className="flex flex-wrap items-center gap-2">
+                {(() => {
+                  const st = a.state === 'WAITING' ? waitingWords(seen.emailLeaves) : STATE_WORDS[a.state]
+                  return <span className={st?.chip ?? 'chip chip--passive'}>{st?.label ?? a.state}</span>
+                })()}
+                <span className="font-semibold">{a.words ?? `${a.how === 'LINK' ? 'Link to' : 'Evidence from'} ${a.approverName}`}</span>
+              </div>
+              <p className="text-etyme-muted">
+                {a.approverName} · {a.approverEmail} · {a.how === 'EVIDENCE'
+                  ? `attached by ${a.sentBy} on ${a.sentAt}`
+                  : linkLine(seen.emailLeaves || a.state === 'APPROVED' || a.state === 'SENT_BACK', a.sentBy, a.sentAt)}
+              </p>
+              {a.clientSays && <p className="text-etyme-ink">{a.clientSays}</p>}
+              {a.sendBack && <p className="text-etyme-attention">Sent back: {a.sendBack}</p>}
+              {a.evidence && (
+                <p>
+                  <a className="text-etyme-action underline" href={a.evidence.href}>
+                    Open the evidence
+                  </a>{' '}
+                  <span className="text-etyme-faint">— {a.evidence.kind}, {a.evidence.fileName}, {size(a.evidence.sizeBytes)}</span>
+                </p>
+              )}
+              <p className="text-[12px] text-etyme-faint">Applies to: {a.contracts.map((c) => c.label).join(' · ')}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* The money part: the bill this reader's firm raises on the week,
+          from money's one component. It draws nothing where the reader's
+          firm bills nothing on this week. */}
+      <BillThisWeek key={billRead} timesheetId={id} />
+
+      {seen.act.ok && (
+        <section className="panel space-y-3">
+          <p className="stat-label">Get {w.clientName}’s approval without signing in</p>
+          {seen.act.refused ? (
+            <p className="text-[13px] text-etyme-muted">{seen.act.refused}</p>
+          ) : (
+            <>
+              {asks ? (
+                <p className="text-[13px] text-etyme-attention">{asks.says}</p>
+              ) : (
+              <div className="flex gap-2">
+                <button className={mode === 'LINK' ? 'filter-tab filter-tab--active' : 'filter-tab filter-tab--inactive'} onClick={() => setMode('LINK')}>
+                  Approve by email
+                </button>
+                <button className={mode === 'EVIDENCE' ? 'filter-tab filter-tab--active' : 'filter-tab filter-tab--inactive'} onClick={() => setMode('EVIDENCE')}>
+                  Attach evidence
+                </button>
+              </div>
+              )}
+              <p className="text-[13px] text-etyme-muted">
+                {mode === 'LINK' && !seen.emailLeaves
+                  ? 'Email is not set up here, so no link can be sent yet. Attach the approval instead.'
+                  : mode === 'LINK'
+                  ? `The approver gets a link with Approve and Send back. No account needed. It works once and runs out in seven days.`
+                  : `The approval ${w.clientName} already gave: the email, a PDF, or an export from its own system. Name the person who gave it.`}
+              </p>
+              {/* The people recorded under Contacts at the client fill both boxes; typing stays open. */}
+              {(seen.act.contacts?.length ?? 0) > 0 && (
+                <label className="block space-y-1 text-[13px]">
+                  <span className="lbl">Recorded at {w.clientName}</span>
+                  <select
+                    aria-label={`Pick the approver from your contacts at ${w.clientName}`}
+                    value={seen.act.contacts!.some((c) => c.email === form.approverEmail && c.name === form.approverName) ? form.approverEmail : ''}
+                    onChange={(e) => {
+                      const c = seen.act.ok ? seen.act.contacts?.find((x) => x.email === e.target.value) : null
+                      if (c) setForm({ ...form, approverName: c.name, approverEmail: c.email })
+                    }}
+                    className="w-full rounded border border-etyme-rule px-3 py-2 text-[13px]"
+                  >
+                    <option value="">Pick from your contacts, or type below</option>
+                    {seen.act.contacts!.map((c) => <option key={c.email} value={c.email}>{c.name} · {c.email}</option>)}
+                  </select>
+                </label>
+              )}
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <input value={form.approverName} onChange={(e) => setForm({ ...form, approverName: e.target.value })} placeholder={`Approver at ${w.clientName}`} className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+                <input value={form.approverEmail} onChange={(e) => setForm({ ...form, approverEmail: e.target.value })} placeholder="Their email address" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+              </div>
+              {mode === 'EVIDENCE' && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} className="rounded border border-etyme-rule px-3 py-2 text-[13px]">
+                      <option value="EMAIL">The approval email</option>
+                      <option value="PDF">A PDF</option>
+                      <option value="EXPORT">An export from their own system</option>
+                    </select>
+                    <label className="flex items-center gap-2 text-[13px]">
+                      Approved on
+                      <input type="date" value={form.approvedOn} onChange={(e) => setForm({ ...form, approvedOn: e.target.value })} className="rounded border border-etyme-rule px-2 py-1 text-[13px]" />
+                    </label>
+                  </div>
+                  <input type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="text-[13px]" />
+                  <textarea value={form.pastedText} onChange={(e) => setForm({ ...form, pastedText: e.target.value })} rows={3} placeholder="Or paste the approval email here" className="w-full rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+                  {asks && (
+                    <label className="block space-y-1 text-[13px]">
+                      <span className="lbl">{asks.reasonLabel}</span>
+                      <textarea name="clientReason" value={form.clientReason} onChange={(e) => setForm({ ...form, clientReason: e.target.value })} rows={2} className="w-full rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+                    </label>
+                  )}
+                  {asks?.overtime && (
+                    <fieldset className="space-y-1 text-[13px]">
+                      <legend className="lbl">{asks.overtime.asks}</legend>
+                      {asks.overtime.choices.map((o) => (
+                        <label key={o.value} className="flex items-center gap-2">
+                          <input type="radio" name="overtime" value={o.value} checked={form.overtime === o.value} onChange={() => setForm({ ...form, overtime: o.value })} />
+                          {o.label}
+                        </label>
+                      ))}
+                    </fieldset>
+                  )}
+                </div>
+              )}
+              <div className="space-y-1">
+                <p className="lbl">Applies to</p>
+                {seen.act.contracts.map((c, i) => (
+                  <label key={c.id} className="flex items-center gap-2 text-[13px]">
+                    <input
+                      type="checkbox"
+                      checked={picked.has(c.id)}
+                      // The client's own contract is where its signature is
+                      // given, so it is always included.
+                      disabled={i === 0}
+                      onChange={(e) => {
+                        const next = new Set(picked)
+                        if (e.target.checked) next.add(c.id)
+                        else next.delete(c.id)
+                        setPicked(next)
+                      }}
+                    />
+                    {c.label}
+                  </label>
+                ))}
+              </div>
+              <button className="btn-primary" disabled={busy} onClick={send}>
+                {mode === 'LINK' ? 'Send the link' : 'Attach and record the approval'}
+              </button>
+              {said && <p className="text-[13px] text-etyme-verified">{said}</p>}
+              {refusal && <p className="text-[13px] text-etyme-attention">{refusal}</p>}
+            </>
+          )}
+        </section>
+      )}
+    </div>
+  )
+}

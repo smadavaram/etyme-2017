@@ -1,0 +1,29 @@
+{
+  "automation": [],
+  "cards": [
+    {
+      "kind": "PayrollDraft",
+      "owedSeat": "AP & Payroll"
+    },
+    {
+      "kind": "PayrollDraft",
+      "owedSeat": "AP & Payroll"
+    }
+  ],
+  "mail": [],
+  "recordActions": [
+    {
+      "action": "PAYROLL_DRAFTED",
+      "order": 1,
+      "recordType": "PayrollDraft",
+      "summary": "Drafted payroll for October 2026: 2 lines. Not run: running it is a person’s."
+    },
+    {
+      "action": "PAYROLL_DRAFTED",
+      "order": 2,
+      "recordType": "PayrollDraft",
+      "summary": "Drafted payroll for October 2026: 2 lines. Not run: running it is a person’s."
+    }
+  ],
+  "tasks": []
+}

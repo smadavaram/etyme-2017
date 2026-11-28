@@ -1,0 +1,710 @@
+import { reportError } from '@/lib/alerts'
+import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
+
+/** Where a row may be written: the client, or a transaction the caller holds. */
+type AccessLogWriter = Pick<Prisma.TransactionClient, 'accessLog'>
+
+/**
+ * CLAUDE.md invariant: "Every read of another person's data writes an
+ * AccessLog row, including refusals."
+ *
+ * This helper makes it easy to log access from any API route.
+ * Call `logAccess`/`logBulkAccess` after successful reads. A refusal is
+ * written with `recordRefusal`, awaited before the 403 goes out, so a
+ * serverless host cannot drop it.
+ */
+
+export type AccessAction =
+  | 'PROFILE_VIEW'        // viewed a consultant's full profile
+  | 'TALENT_VIEW_ANON'    // viewed anonymised talent in a list
+  | 'SUBMIT'              // submitted a person to a requirement
+  | 'MARKETING_REQUEST'   // shared a person's bench listing
+  | 'TENURE_VIEW'         // viewed a person's tenure data
+  | 'COMPLIANCE_CHECK'    // ran compliance checks on a person
+  | 'CONTRACT_VIEW'       // viewed a person's contract details
+  | 'TIMESHEET_VIEW'      // viewed a person's timesheet
+  | 'PAYROLL_VIEW'        // viewed a person's payroll data
+  | 'MATCH_VIEW'          // viewed match scores for a person
+  | 'RELEASING_SOON_VIEW' // saw somebody listed as coming free before they are
+  | 'CLASSIFICATION_CALL' // took a position on whether somebody is employed
+  | 'DNR_VIEW'            // read the do-not-return list, which names people and why
+  // ── A file a client entrusted to us before they were a customer ────
+  //
+  // A contractor census is the one read in this product where the
+  // subject never agreed to anything with us and has no account: a
+  // client sends their own file, and the people in it are their
+  // contractors. The census agreement promises in writing that one named
+  // person at Etyme opens it and that every open is recorded, so the
+  // read needs a name of its own rather than being filed under
+  // CONTRACT_VIEW, which is a customer reading their own book.
+  | 'CENSUS_READ'         // opened a client's census file, or the contractors read out of it
+  // ── The subject's own record, read for their own sake ──────────────
+  //
+  // Both of these are reads of somebody's whole file, and both are the
+  // ones a regulator asks about first. An export is every category the
+  // privacy notice names, in one document; an erasure reads the lot in
+  // order to decide what goes. A person reading their own file is still
+  // logged here, unlike the rest of `/api/me`, because this read is the
+  // one that produces a file somebody else could later be handed.
+  | 'DATA_EXPORT'         // produced or downloaded an export of everything held
+  | 'ERASURE'             // read the whole footprint in order to erase it
+  // ── A read made from a desk the client granted somebody else ───────
+  //
+  // A program office that is not the client acts in a seat the client
+  // grants it (`lib/program-seat`, 2026-09-20). Every read under that
+  // seat was filed as CONTRACT_VIEW, which is a customer reading its own
+  // book, and the one question a client asks afterwards — "who looked at
+  // my workforce, and on whose authority" — could then only be answered
+  // by grepping the reason column for a seat id.
+  //
+  // So the read has a name of its own. The reason beside it is
+  // `seatTrail`, which names the office, the client's own role the seat
+  // holds, the client that granted it and the seat id, in one sentence a
+  // client can read back. The action is what makes the whole class of
+  // them findable in a query: every read a firm made inside somebody
+  // else's program, and nothing else.
+  | 'PROGRAM_READ'        // read a client's program from a seat that client granted
+  | 'DELIVERABLE_DECIDE_REFUSED' // a deliverable decision (accept, reject) was refused
+  // ── A person's own papers, opened or sent outside the company ──────
+  //
+  // These four were written by hand in their routes, outside this file,
+  // until 2026-10-08 — one of them ending in `.catch(() => {})`, so a
+  // failed write vanished. They are named here so every access-log row
+  // in the product goes through one door, and the check that a refusal
+  // is awaited can see all of them.
+  | 'DOCUMENT_FILE_READ'          // opened the file behind a document somebody asked for
+  | 'DOCUMENTS_SHARED_EXTERNALLY' // sent a person's documents to somebody outside the company
+  | 'SHARED_DOCUMENTS_OPENED'     // the outside recipient opened that share
+  | 'SHARED_DOCUMENTS_WITHDRAWN'  // the share was withdrawn
+  // ── Three more that were written by hand until 2026-10-08 ──────────
+  //
+  // The first two are etyme-supply's routes, the third etyme-demand's.
+  // Reviewed by regulatory the same day and kept: each names one read a
+  // client could ask about by itself. CONTEXT_SWITCH is the person's own
+  // session rather than a read of somebody else; it is kept because which
+  // seat a later read was made from is the first thing an audit of that
+  // read needs.
+  | 'RESUME_READ'         // opened the file behind somebody's CV, or was refused it
+  | 'CONTEXT_SWITCH'      // a person moved their own session to another seat they hold
+  | 'WEEK_APPROVAL_WORDS_VIEW'    // read who approved a week by email, on the timesheet list
+  // ── A week approved at the top without the client signing in ───────
+  //
+  // `lib/week-approval` (etyme-architect): the client's approver approves
+  // by a one-time link, or a desk attaches the client's approval as
+  // evidence, and every rung it applies to may read who approved and on
+  // what. These are the names that file has always written; they are
+  // here so its one seam can go through recordRefusal and recordAccess.
+  // Integration tests and the client's own trail read them, so they do
+  // not move.
+  | 'APPROVAL_LINK_SEND'        // sent the client's approver a link, or was refused
+  | 'APPROVAL_EVIDENCE_ATTACH'  // attached the client's approval as evidence, or was refused
+  | 'WEEK_APPROVAL_VIEW'        // read who approved a week, or was refused
+  | 'APPROVAL_LINK_VIEW'        // the client's approver opened the link, or found it closed
+  | 'WEEK_SIGNATURE_VIEW'       // read, or was refused, a signature on the week
+  | 'APPROVAL_EVIDENCE_VIEW'    // read, or was refused, the evidence behind an approval
+  // ── A bill opened by the link it was emailed with ──────────────────
+  //
+  // `lib/notify/bill-delivery` (etyme-conversation, 2026-10-19): a
+  // supplier's bill reaches the firm that pays it as a letter and a
+  // read-only signed link. The reader is the payer's recorded contact at
+  // the address the bill went to, and holds no seat. Each open, and each
+  // refusal of a link that ran out or a bill that was cancelled, was filed
+  // as TIMESHEET_VIEW with the bill and the address in the reason, so
+  // "who opened our bills from outside Etyme" could only be answered by
+  // reading reasons. It is a read of the hours and the rate of the people
+  // on the bill, by somebody with no seat, and it gets a name of its own.
+  | 'BILL_LINK_VIEW'            // a bill opened by its signed link, the reader being the payer's recorded contact, no seat; or the link refused
+  // ── The shared sample seat the home page frames ────────────────────
+  //
+  // `lib/sample-seat` (etyme-architect, 2026-10-14): anybody, with no
+  // account, reads Northbend's program screens through a seat of its own,
+  // held by a seeded person named 'Shared sample' who holds the Program
+  // Manager role at a Context of their own. It borrows nobody's seat: the
+  // seeded program manager is a different person and never appears on
+  // these rows. Every write is refused at the caller check. The refusal
+  // is a row of its own so "what did strangers try to change through the
+  // sample" is one query. Its subject is the 'Shared sample' person,
+  // because the row needs a person and that is the seat the write was
+  // tried in; its actor is SAMPLE. It holds the method and the route and
+  // nothing about the visitor: no address, no browser.
+  | 'SAMPLE_WRITE'              // the shared sample tried to change something, and was refused
+  // ── One person's own Ask Etyme conversation ────────────────────────
+  //
+  // `lib/ask-etyme-thread` (etyme-architect, 2026-10-19): each seat keeps
+  // one saved conversation, read by nobody but the person it belongs to
+  // (founder, 2026-10-18). The door reads and writes only the caller's
+  // own thread at the caller's own company, so the one row this name is
+  // filed under is a refusal: somebody asked for another person's thread,
+  // or tried to mark a card on a line of it, and was told no. Named on its
+  // own rather than filed under PROFILE_VIEW or CONTRACT_VIEW, because
+  // "who tried to read somebody's conversation with Ask Etyme" is a
+  // question a person asks about themselves, and it should be one query.
+  | 'ASK_ETYME_THREAD_VIEW'     // asked for, or tried to write on, another person's Ask Etyme conversation, and was refused
+  // ── The body of an email somebody forwarded to the company ─────────
+  //
+  // `lib/email-intake` (etyme-architect, 2026-10-22): a company's own
+  // people forward chosen business email to its one address, and each
+  // email becomes a card in Ask Etyme. The draft a card is drawn from
+  // carries no body on purpose; a card that shows the body reads it from
+  // the row, and that read is somebody's mail, often naming other people
+  // and other firms. So every showing of a body is a row of its own,
+  // written before the text is handed over (`recordForwardedEmailRead`),
+  // and a refusal is written before the refusal goes out. Its subject is
+  // the person who forwarded it, the one person the row can always name.
+  | 'FORWARDED_EMAIL_READ'      // read the body of an email forwarded to the company, or was refused it
+  // ── An address looked up from a public page ──────────────────────
+  //
+  // `lib/consultant-portfolio/bench-ask` (etyme-supply, 2026-10-29): a
+  // visitor types an email address into "Join the bench" on a firm's
+  // public page, and the ask finds the person on Etyme by that address,
+  // which reads her record. It was filed under MARKETING_REQUEST with the
+  // reason saying what happened, but nobody shared a listing: a stranger
+  // with no seat caused a lookup and learned nothing. So it has a name of
+  // its own, and "whose record was found from a public page" is one query.
+  // The row is refusal-shaped: `allowed: false`, no actor person and no
+  // actor company (the visitor is not the firm), written with
+  // `recordRefusal` before the reply goes out. A recruiter's own lookup
+  // from "Add consultant" is a seat reading at its firm, and stays
+  // MARKETING_REQUEST.
+  | 'PUBLIC_PAGE_ADDRESS_LOOKUP' // a visitor's address on a public page found somebody's record; the visitor was told nothing
+  | 'SUPERADMIN_SETTINGS_OPEN' // a Superadmin opened or changed the platform's Ask Etyme limits; no company data is read
+  | 'SUPERADMIN_EMAIL_FAILURES_READ' // a Superadmin read the newest email sends that did not go, across companies: when, the kind, the company, the provider's answer and a masked recipient
+  | 'OWNER_PROOF_RECORD' // a Superadmin recorded an identity-verification provider's result for a named person at a named company, verbatim; Etyme renders no verdict
+  // ── Who signs in, and how: the identity events ────────────────────
+  //
+  // `lib/identity/ledger` (etyme-architect, 2026-11-11): the founder's
+  // list, "SSO configured, domain verified, user provisioned, user
+  // deprovisioned, group mapped to a role, login succeeded, login refused
+  // because SSO only, invite sent, invite accepted, membership revoked,
+  // auth policy changed", each a name of its own on this log rather than
+  // a third ledger, plus three the build needed. The reason column of each
+  // carries `policy <MODE> · surface <SURFACE> · <sentence>`, so a query
+  // reads the policy and the surface back. Refusals are written with
+  // `recordRefusal` before the refusal is sent.
+  | 'SSO_CONFIGURED'            // a company's directory sign-in was set up or changed
+  | 'DOMAIN_VERIFIED'           // a company proved it controls a domain
+  | 'USER_PROVISIONED'          // the company's directory made or restored a person's seat
+  | 'USER_DEPROVISIONED'        // the company's directory removed or disabled a person's seat
+  | 'GROUP_ROLE_MAPPED'         // a directory group was mapped to an Etyme role
+  | 'LOGIN_SUCCEEDED'           // a person signed in, and through which door
+  | 'LOGIN_REFUSED_SSO_ONLY'    // a door was refused because the company signs in through its directory only
+  | 'JOIN_REFUSED_BY_POLICY'    // a join was refused because the company admits people by invitation only
+  | 'PLUGIN_OFF_REFUSED'         // a request for a plugin's route was refused because the plugin is off for the firm (record 120)
+  | 'DIVERSITY_REFUSED'          // a certification or an ownership attestation was refused: not the Owner, an agent, or no verified Owner (record 132)
+  | 'TENANT_READ_ONLY_REFUSED'   // a request to start new work was refused because the 60 days ended and nothing is paid
+  | 'SUPERADMIN_PLUGIN_REFUSED'  // a staff plugin switch was refused (record 120)
+  | 'INVITE_SENT'               // an Owner or Admin invited a person to a seat
+  | 'INVITE_ACCEPTED'           // an invited person opened the seat for the first time
+  | 'MEMBERSHIP_REVOKED'        // a person's seat at a company was ended
+  | 'INVITATION_WITHDRAW'       // somebody asked to withdraw a person's invitation; written only when refused
+  | 'AUTH_POLICY_CHANGED'       // a company's Owner changed how its people sign in
+  | 'SESSIONS_ENDED'            // every live session a person held was ended
+  | 'PASSWORD_SET'              // a signed-in person set or changed their own password from the account menu; never the password
+  | 'INVITATION_SEND_AGAIN'     // somebody asked to send a person's invitation again; written only when refused
+  | 'ACCESS_SUSPEND'            // somebody asked to pause a person's seat; written only when refused
+  | 'ACCESS_REINSTATE'          // somebody asked to put a paused seat back; written only when refused
+  | 'ACCESS_REVOKE'             // somebody asked to end a person's seat; written only when refused
+  | 'PERSON_RENAME'             // somebody asked to rename the person on a seat; written only when refused
+  | 'DESK_CHANGE'               // somebody asked to give or change a person's role; written only when refused
+  | 'DIRECTORY_READ'            // the company's Google Workspace directory was read, read only, to propose team structure
+  // ── A firm's sign-in link, pressed ────────────────────────────────
+  //
+  // `lib/notify/sign-in-link-door` (etyme-conversation, 2026-11-16): a
+  // firm hands a person a link that lets her into Etyme for the first
+  // time. Whoever holds the link presses Continue; the door reads every
+  // trace of her record (`hasEverCameIn`) and sends her to sign in as
+  // usual, or, only on a record nobody has ever used, to choose a first
+  // password. Each press, and each refusal (the link ran out, was
+  // replaced, or was used already), is a row with her as the subject and
+  // no actor, since whoever holds the link pressed it. They were filed as
+  // PROFILE_VIEW with the story in the reason, so "who pressed a sign-in
+  // link for her, and was it refused" could only be answered by reading
+  // reasons. No row holds the link or its token.
+  | 'SIGN_IN_LINK_USE'          // somebody pressed Continue on a firm's sign-in link for this person, or was refused: run out, replaced, used already
+
+/**
+ * Whose data was read (2026-11-01). A person, by id — every caller before
+ * this day, and still almost all of them — or a firm, where what was read
+ * is the firm's own: a supplier's insurance, its W-9, its good standing.
+ *
+ * The simulation found the gap: the document file route filed a firm's id
+ * as a person's, the foreign key refused it, and 98 reads and a refusal of
+ * company papers were never in the trail. The row now names the firm as
+ * the firm (`AccessLog.subjectCompanyId`).
+ */
+export type AccessSubject = string | { personId: string } | { companyId: string }
+
+/**
+ * The subject columns of one row: exactly one of the person and the firm.
+ * Prisma cannot put that rule on the table, so the one writer keeps it.
+ * Throws on a subject naming both, neither, or an empty id. Pure.
+ */
+export function subjectColumns(subject: AccessSubject): { subjectId: string | null; subjectCompanyId: string | null } {
+  const o: { personId?: unknown; companyId?: unknown } = typeof subject === 'string' ? { personId: subject } : subject
+  const person = typeof o.personId === 'string' && o.personId.trim() ? o.personId : null
+  const firm = typeof o.companyId === 'string' && o.companyId.trim() ? o.companyId : null
+  if (!person === !firm) {
+    throw new Error(
+      person
+        ? 'An access-log row names one subject: the person or the firm, not both.'
+        : 'An access-log row names whose data was read: a person or a firm. This one named neither.'
+    )
+  }
+  return { subjectId: person, subjectCompanyId: firm }
+}
+
+/** One key per subject, so the same person or firm is written once per call. */
+function subjectKey(subject: AccessSubject): string {
+  const c = subjectColumns(subject)
+  return c.subjectId ? `person:${c.subjectId}` : `firm:${c.subjectCompanyId}`
+}
+
+/** "3 people", "1 firm", "2 people and 1 firm": who a failed write was about, in words. Pure. */
+export function whomSaid(subjects: readonly AccessSubject[]): string {
+  let people = 0
+  let firms = 0
+  for (const s of subjects) {
+    if (typeof s !== 'string' && 'companyId' in s) firms++
+    else people++
+  }
+  const p = people ? `${people} ${people === 1 ? 'person' : 'people'}` : ''
+  const f = firms ? `${firms} ${firms === 1 ? 'firm' : 'firms'}` : ''
+  return p && f ? `${p} and ${f}` : p || f || 'nobody'
+}
+
+interface LogAccessBase {
+  /** The person whose data was accessed. A firm's own data is written through `recordAccess` and `recordRefusal`, which take an `AccessSubject`. */
+  subjectId: string
+  /**
+   * The person doing the accessing (if known). Where a twin made the
+   * read, this is the person whose authority it acted on — the program
+   * owner — and `actorKind` says it was the twin, not them.
+   */
+  actorPersonId?: string
+  /** The company context of the accessor */
+  actorCompanyId?: string
+  /** What kind of access */
+  action: AccessAction
+  /** Was the access permitted? */
+  allowed?: boolean
+  /** Why it was refused, or context for the access */
+  reason?: string
+}
+
+/**
+ * The twins that may read: the program manager's, and the supplier
+ * firm's (`lib/twin/supplier-run`, 2026-10-29), which reads as the
+ * supplier's twin under the role it acts for. The column is a string, so
+ * the next is a line here; every kind is still refused by `actorColumns`
+ * where a TWIN row names none.
+ */
+export type TwinKind = 'PROGRAM_MANAGER' | 'SUPPLIER'
+
+/** Who made a read, as the `actorKind` column holds it. A string column: a new kind is a line here. */
+export type ActorKind = 'PERSON' | 'TWIN' | 'SAMPLE'
+
+/**
+ * Who made the read. PERSON, the default, is somebody at a desk. TWIN is
+ * the job twin acting on `actorPersonId`'s authority, and then the row
+ * must say which twin — so the trail reads "the program manager twin, for
+ * Dana Whitfield", never as though Dana had looked herself.
+ *
+ * SAMPLE is the shared sample seat the home page frames (`lib/sample-seat`):
+ * a stranger with no account, reading through the sample's own seat — the
+ * seeded 'Shared sample' person holding the Program Manager role at a
+ * Context of its own, never the seeded program manager's seat. The row
+ * must name the seat (`actorSampleSeat`, the Context id), and it carries
+ * no actor person: unlike a twin, the sample acts on nobody's authority,
+ * and no real person's access review may read strangers as them. The seat
+ * is written into the reason, because the table has no column for it (no
+ * schema change).
+ */
+type ActorFields =
+  | { actorKind?: 'PERSON'; actorTwinKind?: never; actorSampleSeat?: never }
+  | { actorKind: 'TWIN'; actorTwinKind: TwinKind; actorSampleSeat?: never }
+  | { actorKind: 'SAMPLE'; actorSampleSeat: string; actorTwinKind?: never }
+
+type LogAccessParams = LogAccessBase & ActorFields
+
+/** `Omit` that keeps the PERSON/TWIN/SAMPLE pairing instead of flattening it. */
+type Without<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
+
+/**
+ * The two actor columns, as written. A TWIN row with no twin named is
+ * refused here rather than written as a read nobody can attribute, and so
+ * is a SAMPLE row that names no seat; a PERSON row never carries either.
+ */
+export function actorColumns(p: { actorKind?: ActorKind; actorTwinKind?: TwinKind; actorSampleSeat?: string }): {
+  actorKind: ActorKind
+  actorTwinKind: TwinKind | null
+} {
+  if (p.actorKind === 'TWIN') {
+    if (!p.actorTwinKind) throw new Error('A read made by a twin must name which twin made it.')
+    return { actorKind: 'TWIN', actorTwinKind: p.actorTwinKind }
+  }
+  if (p.actorKind === 'SAMPLE') {
+    if (!p.actorSampleSeat?.trim()) throw new Error('A read made through the shared sample must name the seat it was made through.')
+    return { actorKind: 'SAMPLE', actorTwinKind: null }
+  }
+  return { actorKind: 'PERSON', actorTwinKind: null }
+}
+
+/**
+ * Everything on a row except the subject, the action and `allowed`: the
+ * actor columns, and the person and reason as they may be written for
+ * that actor. A SAMPLE row drops the person whatever the caller passed —
+ * the actor is the sample, never a person — and its reason begins with
+ * the seat, so the row can be read back whole.
+ */
+function actorRow(p: LogAccessBase & { actorKind?: ActorKind; actorTwinKind?: TwinKind; actorSampleSeat?: string }): {
+  actorPersonId: string | null
+  actorCompanyId: string | null
+  actorKind: ActorKind
+  actorTwinKind: TwinKind | null
+  reason: string | null
+} {
+  const actor = actorColumns(p)
+  if (actor.actorKind === 'SAMPLE') {
+    const seat = `Through the shared sample, seat ${p.actorSampleSeat!.trim()}.`
+    return {
+      actorPersonId: null,
+      actorCompanyId: p.actorCompanyId ?? null,
+      ...actor,
+      reason: p.reason ? `${seat} ${p.reason}` : seat,
+    }
+  }
+  return {
+    actorPersonId: p.actorPersonId ?? null,
+    actorCompanyId: p.actorCompanyId ?? null,
+    ...actor,
+    reason: p.reason ?? null,
+  }
+}
+
+/**
+ * The actor fields for a caller, the way every route should fill them.
+ *
+ * A route that writes `actorPersonId: caller.person.id` files a read made
+ * through the shared sample seat as the seeded program manager whose seat
+ * it borrows — measured 2026-10-14: one look at the home page's frame
+ * wrote sixteen CONTRACT_VIEW rows under her name. The caller check knows
+ * the caller is the sample (`readOnly`, set only by the sample door in
+ * `lib/api-context`), and the log cannot learn it any other way: a scope
+ * entered inside the caller check ends when the check returns. So the
+ * route hands the caller over, and this decides.
+ *
+ * Structural rather than `CallerContext`, so the log does not import the
+ * caller check that imports it.
+ */
+export function accessActor(caller: {
+  person: { id: string }
+  company: { id: string } | null
+  context?: { id: string } | null
+  readOnly?: boolean
+}): { actorPersonId?: string; actorCompanyId?: string } & ActorFields {
+  const actorCompanyId = caller.company?.id
+  if (caller.readOnly) {
+    // A read-only caller with no seat to name is refused by the log, as it should be.
+    return { actorKind: 'SAMPLE', actorSampleSeat: caller.context?.id ?? '', actorCompanyId }
+  }
+  return { actorPersonId: caller.person.id, actorCompanyId }
+}
+
+/**
+ * Write an access log entry. Fire-and-forget — never blocks the response.
+ *
+ * A failure is reported, not swallowed. The trail is the evidence that
+ * the company wall held, so a run of writes failing silently means the
+ * evidence is missing exactly when somebody comes asking for it — and a
+ * console line on a serverless host is nobody's alarm. `reportError`
+ * writes an Incident and mails staff (CLAUDE.md, lib/alerts).
+ *
+ * Still not awaited: the invariant is that the read is recorded, not
+ * that the reader waits for it.
+ */
+export function logAccess(params: LogAccessParams): void {
+  const { subjectId, action, allowed = true } = params
+  const row = actorRow(params)
+
+  // Fire-and-forget — don't await, don't block the response
+  prisma.accessLog
+    .create({
+      data: {
+        subjectId,
+        ...row,
+        action,
+        allowed,
+      },
+      // The id only: nothing reads the row back, and a database a column
+      // behind the client still takes the write.
+      select: { id: true },
+    })
+    .catch((err) => {
+      void reportError(
+        'access-log',
+        new Error(
+          `Could not record a ${action} of ${subjectId}. The read happened and is not in the trail. ` +
+            `Cause: ${err instanceof Error ? err.message : String(err)}`
+        ),
+        { personId: row.actorPersonId, companyId: row.actorCompanyId }
+      )
+    })
+}
+
+/**
+ * Log access for multiple subjects in a single call (e.g., listing bench/talent).
+ * Creates one row per subject. Fire-and-forget.
+ */
+export function logBulkAccess(
+  subjectIds: string[],
+  params: Without<LogAccessParams, 'subjectId'>
+): void {
+  if (subjectIds.length === 0) return
+  const row = actorRow({ ...params, subjectId: '' })
+
+  const data = subjectIds.map((subjectId) => ({
+    subjectId,
+    ...row,
+    action: params.action,
+    allowed: params.allowed ?? true,
+  }))
+
+  prisma.accessLog
+    .createMany({ data })
+    .catch((err) => {
+      void reportError(
+        'access-log',
+        new Error(
+          `Could not record a ${params.action} of ${subjectIds.length} people. The reads happened and are not in the trail. ` +
+            `Cause: ${err instanceof Error ? err.message : String(err)}`
+        ),
+        { personId: row.actorPersonId, companyId: row.actorCompanyId }
+      )
+    })
+}
+
+/**
+ * The same rows, written before the response goes out.
+ *
+ * `logAccess` and `logBulkAccess` are fire-and-forget because the
+ * invariant is that the read is recorded, not that the reader waits for
+ * it, and a bench list of two hundred people should not pay for its own
+ * audit trail.
+ *
+ * A census file is the one read where that trade is the wrong way
+ * round. The client was promised in writing — in the census agreement
+ * they accepted by name — that every open of their file is recorded, and
+ * they are not a customer, have no account, and cannot come and look. On
+ * a serverless host a fire-and-forget write can lose the race with the
+ * function freezing after the response. Once a staff member has opened
+ * one file, waiting for one row is a cost nobody can measure.
+ *
+ * A failure here throws rather than reporting quietly, so the caller can
+ * decide: a route that cannot record a read of somebody's file should
+ * not hand over the file.
+ *
+ * `db` is a transaction the caller already holds, where the row must
+ * commit or roll back with the change it records — a person shown to a
+ * partner firm is never shown without the row, and the row never names a
+ * share that rolled back. Omitted, the row is written on its own.
+ */
+export async function recordAccess(
+  subjects: readonly AccessSubject[],
+  params: Without<LogAccessParams, 'subjectId'>,
+  db: AccessLogWriter = prisma
+): Promise<number> {
+  if (subjects.length === 0) return 0
+  const row = actorRow({ ...params, subjectId: '' })
+  // A subject naming both or neither throws here, before anything is
+  // written, so the caller does not hand over what it could not record.
+  const written = await db.accessLog.createMany({
+    data: subjects.map((subject) => ({
+      ...subjectColumns(subject),
+      ...row,
+      action: params.action,
+      allowed: params.allowed ?? true,
+    })),
+  })
+  return written.count
+}
+
+/**
+ * A refused read, written before the refusal goes out.
+ *
+ * CLAUDE.md: "Every read of another person's data writes an AccessLog
+ * row, including refusals." `logAccess` and `logBulkAccess` do not wait
+ * for their write, and on a serverless host the function can be frozen
+ * the moment the response is sent — so a 403 sent ahead of its row can
+ * leave no row at all. A refused read is the one row an auditor asks for
+ * first ("who tried to look, and was stopped"), and it is one write on a
+ * path that has already decided to say no, so waiting for it costs the
+ * refused caller a few milliseconds and nothing else.
+ *
+ * Successful bulk reads stay fire-and-forget on purpose: a list of two
+ * hundred people should not pay for its own trail on every page load, and
+ * `recordAccess` exists for the reads where that trade is wrong.
+ *
+ * Unlike `recordAccess` this never throws. A refusal that could not be
+ * recorded is still a refusal: turning it into a 500 tells the caller
+ * nothing true, and the alternative — letting the read through because
+ * the log failed — is the one outcome the log exists to prevent. The
+ * failure is reported instead, awaited too, so the incident outlives the
+ * response the same way the row was meant to.
+ *
+ * Next 14 has no `after()`, and `waitUntil` would add a platform
+ * dependency for one row; awaiting is the smallest thing that is true
+ * on every host.
+ */
+export async function recordRefusal(
+  subjectIds: readonly AccessSubject[],
+  // `allowed: false` may be written at the call site so the route reads
+  // as what it is; nothing else is accepted, because this is refusals only.
+  params: Without<LogAccessParams, 'subjectId' | 'allowed'> & { allowed?: false }
+): Promise<number> {
+  if (subjectIds.length === 0) return 0
+  let subjects: AccessSubject[] = [...subjectIds]
+  try {
+    // Inside the try: a refusal is a refusal even when its actor or a
+    // subject is malformed. The same person or firm is written once.
+    const seen = new Set<string>()
+    subjects = subjectIds.filter((s) => {
+      const k = subjectKey(s)
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+    const row = actorRow({ ...params, subjectId: '' })
+    // A refusal about a firm that does not exist is still a refusal: the
+    // foreign key would reject the row and the refusal would be lost, so
+    // such a row names no subject and keeps the attempted id in its reason.
+    const firmIds = subjects.map((s) => subjectColumns(s).subjectCompanyId).filter((id): id is string => !!id)
+    let missing = new Set<string>()
+    if (firmIds.length > 0) {
+      try {
+        const found = await prisma.company.findMany({ where: { id: { in: firmIds } }, select: { id: true } })
+        const have = new Set(found.map((c) => c.id))
+        missing = new Set(firmIds.filter((id) => !have.has(id)))
+      } catch {
+        // The lookup failing must not lose the refusal: write as named.
+      }
+    }
+    const written = await prisma.accessLog.createMany({
+      data: subjects.map((subject) => {
+        const cols = subjectColumns(subject)
+        const gone = cols.subjectCompanyId && missing.has(cols.subjectCompanyId) ? cols.subjectCompanyId : null
+        if (gone) {
+          const note = `(company ${gone} does not exist)`
+          return {
+            subjectId: null,
+            subjectCompanyId: null,
+            ...row,
+            reason: row.reason ? `${row.reason} ${note}` : note,
+            action: params.action,
+            allowed: false,
+          }
+        }
+        return { ...cols, ...row, action: params.action, allowed: false }
+      }),
+    })
+    return written.count
+  } catch (err) {
+    await reportError(
+      'access-log',
+      new Error(
+        `Could not record a refused ${params.action} of ${whomSaid(subjects)}. ` +
+          `The refusal was sent and is not in the trail. ` +
+          `Cause: ${err instanceof Error ? err.message : String(err)}`
+      ),
+      { personId: params.actorKind === 'SAMPLE' ? null : params.actorPersonId ?? null, companyId: params.actorCompanyId ?? null }
+    ).catch(() => undefined)
+    return 0
+  }
+}
+
+/**
+ * A person reading the body of an email forwarded to their company, or
+ * being refused it. Written before the text is handed over: a row that
+ * cannot be written throws, and the caller does not show the body. A
+ * refusal never throws (`recordRefusal`). The reason names the email, so
+ * "who read what came in" is one query by the email's id.
+ */
+export async function recordForwardedEmailRead(
+  read: {
+    inboundEmailId: string
+    /** The person who forwarded it: the subject of the row. */
+    forwarderPersonId: string
+    /** Where it was shown, in words: "the invoice receipt card", "Ask Etyme". */
+    shownOn?: string
+    /** Set where the read was refused, with the sentence the caller was told. */
+    refused?: string
+  },
+  actor: { actorPersonId?: string; actorCompanyId?: string } & ActorFields,
+  db: AccessLogWriter = prisma
+): Promise<void> {
+  const reason = forwardedEmailReadReason(read)
+  if (read.refused) {
+    await recordRefusal([read.forwarderPersonId], { ...actor, action: 'FORWARDED_EMAIL_READ', reason })
+    return
+  }
+  await recordAccess([read.forwarderPersonId], { ...actor, action: 'FORWARDED_EMAIL_READ', reason }, db)
+}
+
+/** The reason on a forwarded-email read, in words, naming the email. Pure. */
+export function forwardedEmailReadReason(read: { inboundEmailId: string; shownOn?: string; refused?: string }): string {
+  if (read.refused) return `Refused the body of forwarded email ${read.inboundEmailId}: ${read.refused}`
+  return `Read the body of forwarded email ${read.inboundEmailId}${read.shownOn ? ` on ${read.shownOn}` : ''}`
+}
+
+// ── Whether she came in here ─────────────────────────────────────────
+
+/**
+ * Identity rows that name her as the actor at a firm and say she did NOT
+ * come in: a sign-in or a join the firm's policy refused. Never read as
+ * a sign-in here.
+ */
+export const NOT_A_SIGN_IN: readonly AccessAction[] = ['LOGIN_REFUSED_SSO_ONLY', 'JOIN_REFUSED_BY_POLICY']
+
+/**
+ * Where to look for whether a person came in at a firm: a row this firm's
+ * access log keeps with her, in person, as the actor at this firm. Her
+ * first opening of the seat an invitation here made writes one
+ * (INVITE_ACCEPTED, `markSeatOpened` through the caller check), choosing a seat here writes one
+ * (CONTEXT_SWITCH), and so does every read she makes on a seat here. A
+ * row a twin wrote on a seat's authority is not her coming in, and
+ * neither is a refused sign-in (`NOT_A_SIGN_IN`). Pure, so the shape is a
+ * sentence in a test.
+ */
+export function signedInHereWhere(companyId: string, personId: string) {
+  return {
+    actorPersonId: personId,
+    actorCompanyId: companyId,
+    actorKind: 'PERSON',
+    action: { notIn: [...NOT_A_SIGN_IN] as string[] },
+  }
+}
+
+/**
+ * Which of these people came in at this firm (2026-11-16): this firm's own
+ * record, never her account anywhere else. Users & permissions, the invite
+ * answer, Withdraw and End read it through `seatHasSignedIn` in
+ * lib/access-grant, so a seat invited at an address that already signs in
+ * at another firm reads "Invited" until she signs in here.
+ *
+ * The same fact the sign-in line on a person's row reads (`signsInHere`
+ * in lib/notify/sign-in-link-door). One row is enough, so each person is
+ * one indexed read that stops at the first row; only invited seats need
+ * asking, which on any firm is a handful.
+ */
+export async function signedInHere(
+  companyId: string,
+  personIds: readonly string[],
+  db: Pick<typeof prisma, 'accessLog'> = prisma,
+): Promise<Set<string>> {
+  const ids = [...new Set(personIds)].filter(Boolean)
+  const found = await Promise.all(ids.map(async (personId) => {
+    const row = await db.accessLog.findFirst({ where: signedInHereWhere(companyId, personId), select: { id: true } })
+    return row ? personId : null
+  }))
+  return new Set(found.filter((id): id is string => id !== null))
+}
