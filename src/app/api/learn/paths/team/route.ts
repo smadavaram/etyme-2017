@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { staffOnly } from '@/lib/seat'
-import { pluginGate } from '@/lib/plugin-gate'
+import { pluginGate, pluginGateAlso } from '@/lib/plugin-gate'
 import { proposeTeamPaths } from '@/lib/training/paths/team-db'
 
 /**
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
   const notStaff = staffOnly(caller, 'Training')
   if (notStaff) return notStaff
-  const off = (await pluginGate(caller, 'TRAIN_TO_BENCH')) ?? (await pluginGate(caller, 'PODS'))
+  const off = (await pluginGate(caller, 'TRAIN_TO_BENCH')) ?? (await pluginGateAlso(caller, ['PODS']))
   if (off) return off
   if (!hasPermission(caller.permissions, 'consultants.write')) {
     return NextResponse.json({ error: { code: 'FORBIDDEN', message: `Proposing a path is for whoever develops the bench at ${caller.company!.name}.` } }, { status: 403 })

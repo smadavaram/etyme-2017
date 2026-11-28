@@ -46,3 +46,18 @@ export async function pluginGate(caller: GateCaller, key: PluginKey): Promise<Ne
     : null
   return NextResponse.json({ error: { code: 'PLUGIN_OFF', message: says, ...(role?.name === 'Owner' ? { href: '/dashboard/settings' } : {}) } }, { status: 403 })
 }
+
+/**
+ * A route that needs a second plugin on besides the one whose prefix it
+ * sits under (team paths live under Train to bench and also need Project
+ * teams). The registry declares the route once, for its own plugin, and
+ * calls `pluginGate` for that one; this asks the others and returns the
+ * first refusal.
+ */
+export async function pluginGateAlso(caller: GateCaller, keys: PluginKey[]): Promise<NextResponse | null> {
+  for (const key of keys) {
+    const off = await pluginGate(caller, key)
+    if (off) return off
+  }
+  return null
+}

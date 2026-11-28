@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
  */
 
 type Row = Record<string, any>
-const h = vi.hoisted(() => ({ company: null as Row | null, courses: [] as Row[], courseReads: 0 }))
+const h = vi.hoisted(() => ({ company: null as Row | null, courses: [] as Row[], courseReads: 0, proofFails: false }))
 
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -22,6 +22,8 @@ vi.mock('@/lib/db', () => ({
     invoice: { findMany: async () => [] },
     benchListing: { findMany: async () => [] },
     context: { findMany: async () => [] },
+    enrollment: { groupBy: async () => { if (h.proofFails) throw new Error('table missing'); return [] } },
+    learnBadge: { count: async () => 0 },
   },
 }))
 
@@ -46,6 +48,7 @@ beforeEach(() => {
   h.company = firm()
   h.courses = [{ title: 'Spark for data engineers', duration: 12 }]
   h.courseReads = 0
+  h.proofFails = false
 })
 
 describe('the one reader of whether a firm’s courses are shown', () => {
@@ -81,6 +84,17 @@ describe('a storefront and the courses a firm runs', () => {
     h.company = firm({ pluginsOn: ['WEBSITE', 'TRAIN_TO_BENCH'] })
     const site = (await publicSite('northwind'))!
     expect(site.courses).toEqual([{ title: 'Spark for data engineers', hours: 12 }])
+  })
+
+  it('a failed proof read leaves the storefront standing with no proof section', async () => {
+    h.company = firm({ pluginsOn: ['WEBSITE', 'TRAIN_TO_BENCH'] })
+    h.proofFails = true
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const site = (await publicSite('northwind'))!
+    expect(site.name).toBe('Northwind Staffing')
+    expect(site.doorLearn).toBeUndefined()
+    expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
   })
 })
 

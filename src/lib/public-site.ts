@@ -366,7 +366,13 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
   ])
 
   // Proof and featured courses are read only where the plugin is on; a dark plugin reads nothing.
-  const doorLearn = learnOpen(company) ? await readDoorLearn(company) : undefined
+  // A failed proof read leaves the page standing with no proof section; it never breaks the storefront.
+  const doorLearn = learnOpen(company)
+    ? await readDoorLearn(company).catch((e) => {
+        console.error('storefront: the door proof read failed; the page renders without a proof section', e)
+        return undefined
+      })
+    : undefined
 
   const base = {
     name: company.name,

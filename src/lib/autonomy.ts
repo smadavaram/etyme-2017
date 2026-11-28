@@ -651,6 +651,11 @@ ATTRIBUTED.TWIN_QUESTION_OVERTAKEN = { basis: 'RULE' }
 // in the same transaction as the named acceptor's yes, attributed to her.
 // Not reversible: the order and its deliverables now exist.
 ATTRIBUTED.POD_SOLD = { basis: 'RULE' }
+// The training door (record 133). An Owner turned the learner's place in
+// the cohort on or off, and a learner pressed share on her own badge.
+// Both are a person's own click, recorded; nothing here is the system's.
+ATTRIBUTED.LEARN_RANKING_SWITCHED = { basis: 'RECORDED' }
+ATTRIBUTED.BADGE_SHARED = { basis: 'RECORDED' }
 ATTRIBUTED.TWIN_RULE_SET_SET = { basis: 'RULE' }
 // A settings desk turned Ask Etyme's model on or off for its company
 // (src/lib/model-boundary, 2026-10-13), with the reason in its own words.

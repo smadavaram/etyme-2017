@@ -61,6 +61,10 @@ import { standsAsAcceptanceSays } from '@/app/api/timesheets/chain-turn'
  * route runs. It crosses no edge with the outside world.
  */
 const RUNTIME: Record<string, string> = {
+  courseAdoption: 'Written when another firm chooses to adopt a course its creator offers; a seeded row would claim a firm took a course it never chose.',
+  learningPath: 'Written when a mentor proposes a path (or a team path is proposed from a project team) and the mentor says yes; a seeded row would claim somebody agreed to teach.',
+  lessonVideo: 'Written when a creator attaches a video to a lesson; a seeded row would claim a video nobody uploaded.',
+  learnCredential: 'Written when a learner finishes a course and her firm records the credential; a seeded row would claim a certification nobody earned.',
   skillTarget: 'Written when the Owner sets a target for a skill or an agent; a seeded row would claim a number the Owner never chose.',
   submissionConfirmation: 'Written when a person or the confirmation tracker records that the other side confirmed a submission; a seeded row would claim a confirmation nobody gave.',
   offer: 'Written when a person drafts, proposes or answers an offer on a submission; a seeded row would claim an offer nobody made.',
