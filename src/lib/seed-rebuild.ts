@@ -90,6 +90,8 @@ export const CONFIRM_PHRASE = 'delete the demo world'
 export const DELETE_ORDER = [
   // An agent's task names the decision that asks for its yes, so it goes
   // before it; the switch names the firm and the Owner who set it.
+  // Advanced outreach detection (record 135): a push names its firing and pack, a pack its task, a visit its letter; all before them.
+  'OutreachPush', 'OutreachVisit', 'OutreachPack', 'OutreachTripwireFiring', 'OutreachSegment',
   'OutreachLetter', 'AgentTask', 'AgentSwitch',
   // A plugin switch (record 120) names the firm; the person who set it is by id alone.
   'PluginSwitch',
@@ -291,6 +293,26 @@ export const LOOSE: Record<string, { as: LooseRole; to?: string[] }> = {
   'SiteCompliancePass.recordedById': { as: 'LINK', to: ['Person'] },
   'SiteCompliancePass.documentId': { as: 'LINK', to: ['DocInstance'] },
   'Company.siteBrandingApprovedById': { as: 'LINK', to: ['Person'] },
+  // Advanced outreach detection (record 135).
+  'OutreachSegment.companyId': { as: 'OWNED', to: ['Company'] },
+  'OutreachSegment.createdById': { as: 'LINK', to: ['Person'] },
+  'OutreachTripwireFiring.companyId': { as: 'OWNED', to: ['Company'] },
+  'OutreachTripwireFiring.sourceId': { as: 'RECORD' },
+  'OutreachTripwireFiring.segmentId': { as: 'LINK', to: ['OutreachSegment'] },
+  'OutreachPack.companyId': { as: 'OWNED', to: ['Company'] },
+  'OutreachPack.segmentId': { as: 'LINK', to: ['OutreachSegment'] },
+  'OutreachPack.agentTaskId': { as: 'LINK', to: ['AgentTask'] },
+  'OutreachPack.approvedById': { as: 'LINK', to: ['Person'] },
+  'OutreachPack.createdById': { as: 'LINK', to: ['Person'] },
+  'OutreachPush.companyId': { as: 'OWNED', to: ['Company'] },
+  'OutreachPush.firingId': { as: 'OWNED', to: ['OutreachTripwireFiring'] },
+  'OutreachPush.packId': { as: 'LINK', to: ['OutreachPack'] },
+  'OutreachPush.segmentId': { as: 'LINK', to: ['OutreachSegment'] },
+  'OutreachPush.decisionId': { as: 'LINK', to: ['DecisionItem'] },
+  'OutreachVisit.companyId': { as: 'OWNED', to: ['Company'] },
+  'OutreachVisit.letterId': { as: 'LINK', to: ['OutreachLetter'] },
+  'OutreachVisit.personId': { as: 'LINK', to: ['Person'] },
+  'OutreachVisit.contactId': { as: 'LINK', to: ['CompanyContact'] },
   'OutreachLetter.companyId': { as: 'OWNED', to: ['Company'] },
   'OutreachLetter.contactId': { as: 'LINK', to: ['CompanyContact'] },
   'OutreachLetter.atCompanyId': { as: 'LINK', to: ['Company'] },

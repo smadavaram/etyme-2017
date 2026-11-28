@@ -1021,29 +1021,36 @@ model Company {
   homePage                   HomePage?
   /// Edition (records 126, 127). USER is a free user inside another firm's record; STARTER and ENTERPRISE pay after the 60-day trial.
   /// Which one a tenant is follows the own-business count, read by lib/tenant-state; nothing here is a charge.
-  edition                    Edition                 @default(USER)
+  edition                    Edition                  @default(USER)
   /// The day the tenant was activated. The 60 days start here; day 61 is activatedAt + 60 days. Null: not activated, no clock.
   activatedAt                DateTime?
   /// Paid through this instant. Past it, on day 61 or later, the tenant is read-only. Recorded by the Owner or Superadmin; Etyme never moves money.
   paidThrough                DateTime?
   /// A year paid ahead: about 15% off usage only (record 127).
-  annualPrepaid              Boolean                 @default(false)
+  annualPrepaid              Boolean                  @default(false)
   /// The internal proving tenants (record 126) are never locked by the day-61 rule. Set by a Superadmin only, ledgered by the writer.
-  billingExempt              Boolean                 @default(false)
+  billingExempt              Boolean                  @default(false)
   /// Plugins switched on for this firm (record 120): TRAIN_TO_BENCH, PODS, WEBSITE, OUTREACH.
   /// The fifth key, PUBLIC_SECTOR (record 124), is the switch only.
   /// Empty is off. The ledger is PluginSwitch.
-  pluginsOn                  String[]                @default([])
+  pluginsOn                  String[]                 @default([])
   pluginSwitches             PluginSwitch[]
+  /// Days a job request may stay unfilled before the outreach tripwire fires (record 135). A company setting with a default.
+  unfilledJobDays            Int                      @default(14)
+  outreachSegments           OutreachSegment[]
+  outreachTripwireFirings    OutreachTripwireFiring[]
+  outreachPacks              OutreachPack[]
+  outreachPushes             OutreachPush[]
+  outreachVisits             OutreachVisit[]
   /// Website and content (records 121, 123): the Owner's dated yes to the branding, and who gave it. Null is not approved.
   siteBrandingApprovedAt     DateTime?
   siteBrandingApprovedById   String?
-  siteBrandingApprovedBy     Person?                 @relation("siteBrandingApprover", fields: [siteBrandingApprovedById], references: [id], onDelete: SetNull)
+  siteBrandingApprovedBy     Person?                  @relation("siteBrandingApprover", fields: [siteBrandingApprovedById], references: [id], onDelete: SetNull)
   /// Whether this firm's business requires a compliance pass before its site goes public. A per-firm setting, off until the Owner says so.
-  siteCompliancePassRequired Boolean                 @default(false)
+  siteCompliancePassRequired Boolean                  @default(false)
   siteCompliancePasses       SiteCompliancePass[]
   /// The tenant's site settings (records 111, 79). The template is a layout, never a look; branding is the next four fields.
-  siteTemplate               SiteTemplate            @default(ASK_FIRST)
+  siteTemplate               SiteTemplate             @default(ASK_FIRST)
   /// A reference to the logo: an https address or a stored file's id, as the Owner gave it. Null is the neutral default.
   siteLogoRef                String?
   /// Branding colors as #RRGGBB. Null is the neutral default.
@@ -1062,7 +1069,7 @@ model Company {
   skillTargets               SkillTarget[]
   /// Hides this firm's courses on its storefront whatever its plugin says
   /// (record 120, answer 3). A per-tenant setting; Tapin's is true.
-  coursesHiddenOnStorefront  Boolean                 @default(false)
+  coursesHiddenOnStorefront  Boolean                  @default(false)
   cohorts                    Cohort[]
   enrollmentsHere            Enrollment[]
   courseAdoptions            CourseAdoption[]
@@ -1071,32 +1078,32 @@ model Company {
   learnCredentials           LearnCredential[]
   learnBadges                LearnBadge[]
   /// Door and progress (record 133, 2026-11-28). The course ids the Owner features on the tenant's door, in order. Empty draws none.
-  featuredCourseIds          String[]                @default([])
+  featuredCourseIds          String[]                 @default([])
   /// Whether a learner reads her own place in her cohort. The Owner's setting, off by default; cohort only, never public.
-  learnRankingOn             Boolean                 @default(false)
+  learnRankingOn             Boolean                  @default(false)
   pods                       Pod[]
   docTemplates               DocTemplate[]
-  msasAsVendor               MasterAgreement[]       @relation("vendor")
-  msasAsClient               MasterAgreement[]       @relation("client")
+  msasAsVendor               MasterAgreement[]        @relation("vendor")
+  msasAsClient               MasterAgreement[]        @relation("client")
   requirements               Requirement[]
-  invitationsOut             RequirementInvitation[] @relation("from")
-  invitationsIn              RequirementInvitation[] @relation("to")
+  invitationsOut             RequirementInvitation[]  @relation("from")
+  invitationsIn              RequirementInvitation[]  @relation("to")
   benchListings              BenchListing[]
   benchWants                 BenchWant[]
   benchHolidaySwitches       BenchHolidaySwitch[]
-  submissionsOut             Submission[]            @relation("from")
-  submissionsIn              Submission[]            @relation("to")
+  submissionsOut             Submission[]             @relation("from")
+  submissionsIn              Submission[]             @relation("to")
   automationLog              AutomationLog[]
-  accessLogs                 AccessLog[]             @relation("accessActorCompany")
+  accessLogs                 AccessLog[]              @relation("accessActorCompany")
   /// Reads of this firm's own data (its papers), each logged with the firm as its subject.
-  accessedBy                 AccessLog[]             @relation("accessSubjectCompany")
-  programSeatsGranted        ProgramSeat[]           @relation("seatClient")
-  programSeatsHeld           ProgramSeat[]           @relation("seatOffice")
-  seatAsksMade               ProgramSeatRequest[]    @relation("seatAskOffice")
-  tradeAsksMade              TradeLinkRequest[]      @relation("tradeAskFrom")
-  tradeAsksReceived          TradeLinkRequest[]      @relation("tradeAskTo")
-  paperSet                   DocumentRequirement[]   @relation("companyPaperSet")
-  seatAsksReceived           ProgramSeatRequest[]    @relation("seatAskClient")
+  accessedBy                 AccessLog[]              @relation("accessSubjectCompany")
+  programSeatsGranted        ProgramSeat[]            @relation("seatClient")
+  programSeatsHeld           ProgramSeat[]            @relation("seatOffice")
+  seatAsksMade               ProgramSeatRequest[]     @relation("seatAskOffice")
+  tradeAsksMade              TradeLinkRequest[]       @relation("tradeAskFrom")
+  tradeAsksReceived          TradeLinkRequest[]       @relation("tradeAskTo")
+  paperSet                   DocumentRequirement[]    @relation("companyPaperSet")
+  seatAsksReceived           ProgramSeatRequest[]     @relation("seatAskClient")
   /// The setup checklist (2026-10-28): each item's outcome, where each
   /// answer came from, the legal and billing addresses, the people in charge.
   setupItems                 SetupItem[]
@@ -1113,23 +1120,23 @@ model Company {
   /// Forwarded business email: the switch and its address, and every message in (2026-10-22).
   emailIntake                EmailIntake?
   inboundEmails              InboundEmail[]
-  counterparties             Counterparty[]          @relation("counterpartyOwner")
-  counterpartyOf             Counterparty[]          @relation("counterpartyOther")
+  counterparties             Counterparty[]           @relation("counterpartyOwner")
+  counterpartyOf             Counterparty[]           @relation("counterpartyOther")
   /// The client sites this firm is named at as a supplier (SiteSupplier).
-  namedAtSites               SiteSupplier[]          @relation("siteSupplierFirm")
-  contacts                   CompanyContact[]        @relation("contactOwner")
-  contactsAt                 CompanyContact[]        @relation("contactAt")
+  namedAtSites               SiteSupplier[]           @relation("siteSupplierFirm")
+  contacts                   CompanyContact[]         @relation("contactOwner")
+  contactsAt                 CompanyContact[]         @relation("contactAt")
   // Contract relations — each company manages their own buy and sell contracts
-  sellContractsOut           SellContract[]          @relation("sellVendor") // we sell talent
-  sellContractsIn            SellContract[]          @relation("sellClient") // talent sold to us
-  buyContractsOut            BuyContract[]           @relation("buyer") // we buy talent
-  buyContractsIn             BuyContract[]           @relation("buyVendor") // talent bought from us
+  sellContractsOut           SellContract[]           @relation("sellVendor") // we sell talent
+  sellContractsIn            SellContract[]           @relation("sellClient") // talent sold to us
+  buyContractsOut            BuyContract[]            @relation("buyer") // we buy talent
+  buyContractsIn             BuyContract[]            @relation("buyVendor") // talent bought from us
   // Compliance & governance
   verifications              Verification[]
   /// Checks this firm ordered from a screening company about somebody
   /// else's person. Not the same set as `verifications`, which is what
   /// was checked ABOUT this firm.
-  verificationsOrdered       Verification[]          @relation("verificationOrderedBy")
+  verificationsOrdered       Verification[]           @relation("verificationOrderedBy")
   governancePolicies         GovernancePolicy[]
   // Training
   courses                    Course[]
@@ -1140,7 +1147,7 @@ model Company {
   // Conversations
   conversations              Conversation[]
   // Threads another company opened with this one (a client to its supplier).
-  threadsWithMe              Conversation[]          @relation("ConversationWith")
+  threadsWithMe              Conversation[]           @relation("ConversationWith")
   // Blacklist
   blacklists                 Blacklist[]
   // The people and firms this company would take again
@@ -1156,29 +1163,29 @@ model Company {
   // Holidays
   holidays                   Holiday[]
   // End-client contracts (where consultants actually work, when ≠ billing client)
-  endClientContracts         SellContract[]          @relation("sellEndClient")
-  endClientRequirements      Requirement[]           @relation("requirementEndClient")
-  payerRequirements          Requirement[]           @relation("requirementPayer")
-  openings                   Opening[]               @relation("openingOwner")
-  openingsAsClient           Opening[]               @relation("openingClient")
-  leads                      Lead[]                  @relation("leadOwner")
-  leadsPosted                Lead[]                  @relation("leadPoster")
-  resumesUploaded            Resume[]                @relation("resumeUploader")
-  representationsHeld        Representation[]        @relation("representingVendor")
-  representationsAt          Representation[]        @relation("representedAtClient")
-  doNotSubmitTo              DoNotSubmit[]           @relation("doNotSubmitCompany")
+  endClientContracts         SellContract[]           @relation("sellEndClient")
+  endClientRequirements      Requirement[]            @relation("requirementEndClient")
+  payerRequirements          Requirement[]            @relation("requirementPayer")
+  openings                   Opening[]                @relation("openingOwner")
+  openingsAsClient           Opening[]                @relation("openingClient")
+  leads                      Lead[]                   @relation("leadOwner")
+  leadsPosted                Lead[]                   @relation("leadPoster")
+  resumesUploaded            Resume[]                 @relation("resumeUploader")
+  representationsHeld        Representation[]         @relation("representingVendor")
+  representationsAt          Representation[]         @relation("representedAtClient")
+  doNotSubmitTo              DoNotSubmit[]            @relation("doNotSubmitCompany")
   // Finance dimensions — owned per company, never shared across parties
   costCenters                CostCenter[]
-  ordersIssued               WorkOrder[]             @relation("orderIssuer")
-  ordersReceived             WorkOrder[]             @relation("orderRecipient")
-  ordersRecorded             WorkOrder[]             @relation("orderRecorder")
+  ordersIssued               WorkOrder[]              @relation("orderIssuer")
+  ordersReceived             WorkOrder[]              @relation("orderRecipient")
+  ordersRecorded             WorkOrder[]              @relation("orderRecorder")
   remitTos                   RemitTo[]
-  consultantsBehind          ConsultantProfile[]     @relation("consultantCorp")
+  consultantsBehind          ConsultantProfile[]      @relation("consultantCorp")
   documentShares             DocumentShare[]
   approvalRules              ApprovalRule[]
   events                     Event[]
   packets                    DocumentPacket[]
-  packetsAbout               DocumentPacket[]        @relation("packetSubjectCompany")
+  packetsAbout               DocumentPacket[]         @relation("packetSubjectCompany")
   serviceAccounts            ServiceAccount[]
   webhooks                   WebhookSubscription[]
   subdomainAliases           SubdomainAlias[]
@@ -12306,4 +12313,130 @@ model LearnBadge {
   @@index([companyId])
   @@index([personId])
   @@index([courseId])
+}
+
+// ── Advanced outreach: detection (record 135, 2026-11-28) ──────────
+// Detection only. Campaigns beyond the pack, the outcome series, the
+// affiliate engine and the publish layer wait for the design document.
+// Nothing here sends: a push leaves only inside a pack one person approved.
+
+/// A saved query over the one record, never a copied list. `definition`
+/// holds the axes: role (CANDIDATE, CLIENT, PARTNER), industry, skills,
+/// location, stage, ledger activity and consent. Who is in it is read at
+/// the moment of use, under her yes (record 117) or the firm's trade and
+/// opt-out rules (record 116).
+model OutreachSegment {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  definition  Json
+  createdById String
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([companyId, archivedAt])
+  @@index([createdById])
+}
+
+/// One tripwire firing, with its plain reason. Fires once per source per day.
+/// kind: POD_CAPACITY_OPENED, ENGAGEMENT_ENDING, COHORT_COMPLETED, JOB_UNFILLED,
+/// BENCH_SKILL_MATCHES_DEMAND, REPEAT_VISITS, COMPLETION_SHARED, CLIENT_CONTRACT_ENDING.
+/// state: DETECTED (no push yet), PUSHED (a push was assembled), WAITING (a card waits).
+model OutreachTripwireFiring {
+  id         String         @id @default(cuid())
+  companyId  String
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind       String
+  sourceType String
+  sourceId   String
+  /// The calendar day it fired, as text (YYYY-MM-DD), so the unique key holds once a day.
+  day        String
+  reason     String
+  segmentId  String?
+  state      String         @default("DETECTED")
+  firedAt    DateTime       @default(now())
+  pushes     OutreachPush[]
+
+  @@unique([companyId, kind, sourceType, sourceId, day])
+  @@index([companyId, state, firedAt])
+  @@index([segmentId])
+}
+
+/// A campaign pack: a declared segment and content kinds, approved as one by
+/// one person's yes (record 112). It releases this pack only. `agentTaskId` is
+/// the task that carries the yes; a pack with no approval sends nothing.
+/// state: DRAFT, PROPOSED, APPROVED, CLOSED.
+model OutreachPack {
+  id           String         @id @default(cuid())
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  segmentId    String
+  /// COURSE, POD_OFFER, OUTCOME_PROOF.
+  contentKinds String[]
+  state        String         @default("DRAFT")
+  agentTaskId  String?        @unique
+  approvedById String?
+  approvedAt   DateTime?
+  createdById  String
+  createdAt    DateTime       @default(now())
+  pushes       OutreachPush[]
+
+  @@index([companyId, state])
+  @@index([segmentId])
+  @@index([approvedById])
+  @@index([createdById])
+}
+
+/// A detected push: a firing plus a matched segment and content, drafted by
+/// rules first. It joins a pack only when its segment and kind both match an
+/// approved pack; otherwise it waits as a card (`decisionId`). `drafter` says
+/// RULES or the model tier that wrote it.
+/// state: DRAFTED, QUEUED (inside an approved pack), WAITING (a card), SENT, DROPPED.
+model OutreachPush {
+  id          String                 @id @default(cuid())
+  companyId   String
+  company     Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  firingId    String
+  firing      OutreachTripwireFiring @relation(fields: [firingId], references: [id], onDelete: Cascade)
+  packId      String?
+  pack        OutreachPack?          @relation(fields: [packId], references: [id])
+  segmentId   String
+  contentKind String
+  contentRef  String
+  subject     String
+  body        String
+  drafter     String                 @default("RULES")
+  state       String                 @default("DRAFTED")
+  decisionId  String?
+  createdAt   DateTime               @default(now())
+
+  @@unique([firingId, contentKind, contentRef])
+  @@index([companyId, state])
+  @@index([packId])
+  @@index([segmentId])
+  @@index([decisionId])
+}
+
+/// A signed-in person, or a known contact, arriving through a tracked link in
+/// a letter. Never an anonymous visitor, and never marketing analytics. It
+/// exists only so the repeat-visits tripwire has something honest to count.
+/// Exactly one of personId and contactId is set.
+model OutreachVisit {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  letterId  String
+  personId  String?
+  contactId String?
+  /// COURSE or POD.
+  pageKind  String
+  pageRef   String
+  at        DateTime @default(now())
+
+  @@index([companyId, pageKind, pageRef, at])
+  @@index([letterId])
+  @@index([personId])
+  @@index([contactId])
 }
