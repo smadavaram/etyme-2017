@@ -15,22 +15,24 @@
  */
 
 /**
- * Where the door lives. /start is already the signed-in setup page
- * (`src/app/(auth)/start`), so this door sits at its own address until
- * the architect settles which of the two keeps /start.
+ * Where the door is served today. The owner's address for it is /start
+ * (signed-out visitors); /start is still the signed-in setup page, which
+ * belongs to the architect and has to move to /setup first. Until then the
+ * door answers here, and the swap is one folder move (see the report).
  */
 export const COURSE_DOOR_PATH = '/ai-from-zero'
 
-/** The existing leads route, called as docs/course-door-lead-contract.md says. */
-export const COURSE_DOOR_ENDPOINT = '/api/market/leads'
+/** The door's own lead route, called as docs/course-door-lead-contract.md says. */
+export const COURSE_DOOR_ENDPOINT = '/api/market/course-door'
+
+/** Where the Learn section's button goes on the door: down to "What are you?". */
+export const WHAT_ARE_YOU_HREF = '#what-are-you'
+
+/** Where the same section's button goes on the home page: the door, with no form. */
+export const DOOR_HREF = '/start'
 
 export const DOOR_WORDS = {
-  eyebrow: 'Free training',
-  headline: 'AI from Zero in 3 Hours',
-  free: 'Free',
-  promise: 'Free for everyone. You start from zero.',
   paused: 'The course is not open yet. We have not set a date for it.',
-  gridHeading: 'What you will learn',
   askHeading: 'What are you?',
   askHint: 'Pick the closest one. It decides where you start.',
   emailLabel: 'Your email',
@@ -58,27 +60,31 @@ export const DOOR_ANSWERS: { label: DoorLabel; line: string; track: string }[] =
 
 export const IT_TRACK_NAME = 'IT — Upgrade'
 
-export type TileIcon =
-  | 'llm' | 'agents' | 'mcp' | 'rag' | 'training' | 'compute' | 'cloud' | 'cost' | 'performance' | 'deploy'
-
-export interface TopicTile {
-  key: TileIcon
-  name: string
-  /** One plain line saying what the topic is. */
-  gloss: string
-  /** Set only where the owner's ruling gave the tile a sub-line. */
-  sub?: string
+/**
+ * What the form sends, and nothing else: the fields the route reads
+ * (docs/course-door-lead-contract.md). The track is never sent; the route
+ * decides it from the answer. A child's name, age or school has no field.
+ */
+export interface CourseDoorBody {
+  leadType: DoorLabel
+  email: string
+  consent: boolean
+  worksInIT: boolean
+  guardianEmail: boolean
+  company_website: string
+  filledInMs: number
 }
 
-export const TILES: TopicTile[] = [
-  { key: 'llm', name: 'LLMs', gloss: 'How a language model works' },
-  { key: 'agents', name: 'Agents', gloss: 'Software that takes steps for you' },
-  { key: 'mcp', name: 'MCP', gloss: 'How a model reaches your tools' },
-  { key: 'rag', name: 'RAG + Data', gloss: 'Answers drawn from your own documents' },
-  { key: 'training', name: 'Training', gloss: 'How a model learns' },
-  { key: 'compute', name: 'Compute', gloss: 'The hardware a model runs on' },
-  { key: 'cloud', name: 'Cloud', gloss: 'Where models are hosted' },
-  { key: 'cost', name: 'Cost', gloss: 'What running a model costs' },
-  { key: 'performance', name: 'Performance', gloss: 'Speed and quality, and how to tell' },
-  { key: 'deploy', name: 'Deploy', gloss: 'Putting it to work', sub: 'Docker · Kubernetes' },
-]
+export function courseDoorBody(a: {
+  who: DoorLabel; email: string; yes: boolean; inIT: boolean; trap: string; filledInMs: number
+}): CourseDoorBody {
+  return {
+    leadType: a.who,
+    email: a.email,
+    consent: a.yes,
+    worksInIT: a.who === 'Worker' && a.inIT,
+    guardianEmail: a.who === 'Kid',
+    company_website: a.trap,
+    filledInMs: a.filledInMs,
+  }
+}

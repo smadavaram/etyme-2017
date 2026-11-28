@@ -1,4 +1,4 @@
-import type { TileIcon } from '@/lib/public-site/course-door-page'
+import type { TileIcon } from './learn-tiles'
 
 /** Simple original line icons, one per topic tile. Decorative: the tile's name is the label. */
 const PATHS: Record<TileIcon, React.ReactNode> = {

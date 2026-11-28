@@ -6,7 +6,8 @@ import { describe, it, expect } from 'vitest'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import {
-  TILES, DOOR_ANSWERS, DOOR_WORDS, CONSENT_LINE, GUARDIAN_LINE, IT_TRACK_NAME, COURSE_DOOR_PATH,
+  DOOR_ANSWERS, DOOR_WORDS, CONSENT_LINE, GUARDIAN_LINE, IT_TRACK_NAME, COURSE_DOOR_PATH, COURSE_DOOR_ENDPOINT,
+  WHAT_ARE_YOU_HREF, DOOR_HREF, courseDoorBody,
 } from '@/lib/public-site/course-door-page'
 import { TRACK_FOR, IT_TRACK, CONSENT_WORDS, GUARDIAN_WORDS, LEAD_TYPES } from '@/lib/public-site/course-door'
 import { PUBLIC_PAGES, NOT_MARKETING } from '@/lib/public-site/pages'
@@ -14,32 +15,7 @@ import { PUBLIC_PAGES, NOT_MARKETING } from '@/lib/public-site/pages'
 const ROOT = process.cwd()
 const DIR = 'src/app/(site)/ai-from-zero'
 const read = (f: string) => readFileSync(join(ROOT, f), 'utf8')
-const doorFiles = ['page.tsx', 'door-form.tsx', 'icons.tsx', 'door.module.css'].map((f) => `${DIR}/${f}`)
-
-describe('the free training door: the tiles', () => {
-  it('the grid has ten tiles, in the order the owner named them', () => {
-    expect(TILES.map((t) => t.name)).toEqual([
-      'LLMs', 'Agents', 'MCP', 'RAG + Data', 'Training', 'Compute', 'Cloud', 'Cost', 'Performance', 'Deploy',
-    ])
-  })
-
-  it('only the Deploy tile has a sub-line, and it reads "Docker · Kubernetes"', () => {
-    expect(TILES.filter((t) => t.sub).map((t) => [t.name, t.sub])).toEqual([['Deploy', 'Docker · Kubernetes']])
-  })
-
-  it('Docker and Kubernetes are named nowhere else on the door', () => {
-    for (const f of doorFiles) expect(read(f), f).not.toMatch(/Docker|Kubernetes/)
-    expect(DOOR_WORDS.gridHeading + TILES.map((t) => t.name + t.gloss).join(' ')).not.toMatch(/Docker|Kubernetes/)
-  })
-
-  it('every tile has its own icon, drawn in the icons file', () => {
-    const icons = read(`${DIR}/icons.tsx`)
-    for (const t of TILES) expect(icons, t.key).toContain(`${t.key}:`)
-    expect(new Set(TILES.map((t) => t.key)).size).toBe(TILES.length)
-  })
-
-  it.todo('every tile names at least one lesson from the architect’s content map, and no tile is invented (waits: the map could not be read from Drive)')
-})
+const doorFiles = ['page.tsx', 'door-form.tsx', 'door.module.css'].map((f) => `${DIR}/${f}`)
 
 describe('the free training door: what are you', () => {
   it('the four answers are Worker, Recruiter, Fresher and Kid, as the lead route takes them', () => {
@@ -61,36 +37,34 @@ describe('the free training door: what are you', () => {
     const form = read(`${DIR}/door-form.tsx`)
     expect(DOOR_WORDS.itSwitch).toBe('I work in IT')
     expect(form).toMatch(/who === 'Worker' && \(/)
-    expect(form).toContain("worksInIT: who === 'Worker' && inIT")
+    expect(read('src/lib/public-site/course-door-page.ts')).toContain("worksInIT: a.who === 'Worker' && a.inIT")
   })
 
   it('a Kid is asked for a parent or guardian’s address and nothing about the child', () => {
     const form = read(`${DIR}/door-form.tsx`)
-    expect(form).toContain('guardianEmail: who === \'Kid\'')
+    expect(courseDoorBody({ who: 'Kid', email: 'p@home.example', yes: true, inIT: false, trap: '', filledInMs: 4000 }).guardianEmail).toBe(true)
     expect(form).toContain('GUARDIAN_LINE')
     expect(form).not.toMatch(/name="(name|age|school|dob)"/i)
   })
 })
 
 describe('the free training door: lead capture and the paused course', () => {
-  it('the form sends the tick only as the visitor left it, to the existing leads route', () => {
+  it('the form sends to the course door route and no other', () => {
     const form = read(`${DIR}/door-form.tsx`)
-    expect(form).toContain('consent: yes')
+    expect(COURSE_DOOR_ENDPOINT).toBe('/api/market/course-door')
     expect(form).toContain('COURSE_DOOR_ENDPOINT')
-    expect(read('src/lib/public-site/course-door-page.ts')).toContain("'/api/market/leads'")
+    expect(form).not.toContain('/api/market/leads')
   })
 
   it('the page says plainly the course is not open and no date is set', () => {
     expect(DOOR_WORDS.paused).toBe('The course is not open yet. We have not set a date for it.')
-    expect(DOOR_WORDS.free).toBe('Free')
+    expect(read(`${DIR}/page.tsx`)).toContain('DOOR_WORDS.paused')
   })
 
-  it('after capture the page says an email comes only where email can leave, and links to no course', () => {
+  it('after capture the page shows only the sentence the route returned, and links to no course', () => {
     const form = read(`${DIR}/door-form.tsx`)
-    expect(form).toContain('mailCanLeave')
-    expect(form).toContain('No email can be sent from here yet')
+    expect(form).toContain('data?.says')
     expect(form).not.toMatch(/href=|router\.push|\/learn/)
-    expect(read(`${DIR}/page.tsx`)).toContain('mailLeaves()')
   })
 
   it('the form, a browser file, imports no server-only file', () => {
@@ -101,9 +75,15 @@ describe('the free training door: lead capture and the paused course', () => {
   })
 
   it('a script’s hidden box and the time on screen travel with the entry', () => {
-    const form = read(`${DIR}/door-form.tsx`)
-    expect(form).toContain('company_website')
-    expect(form).toContain('filledInMs')
+    const body = courseDoorBody({ who: 'Fresher', email: 'a@work.example', yes: true, inIT: false, trap: '', filledInMs: 4000 })
+    expect(Object.keys(body).sort()).toEqual(
+      ['company_website', 'consent', 'email', 'filledInMs', 'guardianEmail', 'leadType', 'worksInIT'])
+  })
+
+  it('the page body keeps the tick exactly as the visitor left it', () => {
+    expect(courseDoorBody({ who: 'Worker', email: 'a@work.example', yes: false, inIT: true, trap: '', filledInMs: 4000 }).consent).toBe(false)
+    expect(courseDoorBody({ who: 'Worker', email: 'a@work.example', yes: true, inIT: true, trap: '', filledInMs: 4000 }).worksInIT).toBe(true)
+    expect(courseDoorBody({ who: 'Recruiter', email: 'a@work.example', yes: true, inIT: true, trap: '', filledInMs: 4000 }).worksInIT).toBe(false)
   })
 })
 
@@ -114,8 +94,15 @@ describe('the free training door: the page itself', () => {
     expect(existsSync(join(ROOT, DIR, 'page.tsx'))).toBe(true)
   })
 
-  it('the door does not take /start, which is still the signed-in setup page', () => {
-    expect(COURSE_DOOR_PATH).not.toBe('/start')
+  it('the Learn section on the door continues into What are you, and the home page’s button goes to the door with no form', () => {
+    expect(WHAT_ARE_YOU_HREF).toBe('#what-are-you')
+    expect(DOOR_HREF).toBe('/start')
+    expect(read(`${DIR}/page.tsx`)).toContain('WHAT_ARE_YOU_HREF')
+    expect(read(`${DIR}/page.tsx`)).toContain('id="what-are-you"')
+  })
+
+  it('until the setup page moves off /start the door is served at its own address, and /start stays the setup page', () => {
+    expect(COURSE_DOOR_PATH).toBe('/ai-from-zero')
     expect(existsSync(join(ROOT, 'src/app/(auth)/start/page.tsx'))).toBe(true)
     expect(PUBLIC_PAGES.some((x) => x.route === '/start')).toBe(false)
   })
@@ -124,12 +111,15 @@ describe('the free training door: the page itself', () => {
     for (const f of doorFiles.slice(0, 2)) expect(read(f), f).not.toMatch(/Tapin|\$\s?\d|per month/i)
   })
 
-  it('the look is light and warm with Sora and Manrope, and motion stops for a visitor who asks', () => {
+  it('the look is Etyme’s own brand kit: cream canvas, serif, Inter, violet, 12px corners, no navy, teal, Sora or Manrope', () => {
     const css = read(`${DIR}/door.module.css`)
-    expect(css).toContain('Sora')
-    expect(css).toContain('Manrope')
+    expect(css).toMatch(/--canvas: #F0EEE6/)
+    expect(css).toMatch(/--violet: #5228FF/)
+    expect(css).toContain('border-radius: 12px')
+    expect(css).toContain('var(--font-inter)')
+    for (const f of [...doorFiles, 'src/lib/public-site/learn-section.module.css']) {
+      expect(read(f), f).not.toMatch(/Sora|Manrope|teal|#14213d|fonts\.googleapis/i)
+    }
     expect(css).toContain('prefers-reduced-motion: reduce')
-    expect(css).toMatch(/--warm: #fbf7ef/)
-    expect(css).not.toMatch(/background:\s*#0|#000\b/)
   })
 })

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import {
-  COURSE_DOOR_ENDPOINT, DOOR_ANSWERS, DOOR_WORDS, CONSENT_LINE, GUARDIAN_LINE, IT_TRACK_NAME,
+  COURSE_DOOR_ENDPOINT, DOOR_ANSWERS, DOOR_WORDS, CONSENT_LINE, GUARDIAN_LINE, IT_TRACK_NAME, courseDoorBody,
   type DoorLabel,
 } from '@/lib/public-site/course-door-page'
 import s from './door.module.css'
@@ -10,17 +10,17 @@ import s from './door.module.css'
 /**
  * "What are you?", then an address, then one plain sentence. One action
  * a screen: the four answers, then the email, then the thanks. Calls the
- * leads route as docs/course-door-lead-contract.md says; the route, not
+ * course door's own route as docs/course-door-lead-contract.md says; the route, not
  * this form, decides the track.
  */
-export function DoorForm({ mailCanLeave }: { mailCanLeave: boolean }) {
+export function DoorForm() {
   const [who, setWho] = useState<DoorLabel | null>(null)
   const [inIT, setInIT] = useState(false)
   const [email, setEmail] = useState('')
   const [yes, setYes] = useState(false)
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<string | null>(null)
-  const [done, setDone] = useState(false)
+  const [done, setDone] = useState<string | null>(null)
   const shown = useRef(Date.now())
   const trap = useRef<HTMLInputElement>(null)
 
@@ -36,19 +36,12 @@ export function DoorForm({ mailCanLeave }: { mailCanLeave: boolean }) {
       const r = await fetch(COURSE_DOOR_ENDPOINT, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          source: 'COURSE_DOOR',
-          leadType: who,
-          email,
-          consent: yes,
-          guardianEmail: who === 'Kid',
-          worksInIT: who === 'Worker' && inIT,
-          company_website: trap.current?.value ?? '',
-          filledInMs: Date.now() - shown.current,
-        }),
+        body: JSON.stringify(courseDoorBody({
+          who, email, yes, inIT, trap: trap.current?.value ?? '', filledInMs: Date.now() - shown.current,
+        })),
       })
-      if (r.ok) { setDone(true); return }
-      const j = (await r.json().catch(() => null)) as { error?: { message?: string } } | null
+      const j = (await r.json().catch(() => null)) as { data?: { says?: string }; error?: { message?: string } } | null
+      if (r.ok) { setDone(j?.data?.says ?? DOOR_WORDS.doneOpens); return }
       setSaid(j?.error?.message ?? 'That did not go through. Nothing was saved. Try again in a minute.')
     } catch {
       setSaid('That did not go through. Nothing was saved. Try again in a minute.')
@@ -57,16 +50,12 @@ export function DoorForm({ mailCanLeave }: { mailCanLeave: boolean }) {
     }
   }
 
-  if (done) {
+  if (done !== null) {
     return (
       <div className={s.panel} role="status">
         <h3 className={s.h3}>{DOOR_WORDS.doneHeading}</h3>
+        <p className={s.p}>{done}</p>
         <p className={s.p}>{DOOR_WORDS.doneOpens}</p>
-        <p className={s.p}>
-          {mailCanLeave
-            ? 'We will email you when it opens. There is no link to the course yet, because it is not open.'
-            : 'No email can be sent from here yet, so nothing will arrive until it can. There is no link to the course yet, because it is not open.'}
-        </p>
       </div>
     )
   }
