@@ -4,6 +4,7 @@ vi.mock('next-auth/next', () => ({ getServerSession: async () => null }))
 import { as, req, json, prisma, freshWorld } from './harness'
 import { POST as progressPost, GET as progressGet } from '@/app/api/learn/[tenant]/progress/route'
 import { POST as credentialPost } from '@/app/api/learn/[tenant]/credential/route'
+import { POST as sharePost } from '@/app/api/learn/[tenant]/credential/share/route'
 import { POST as pathPost, GET as queueGet } from '@/app/api/learn/paths/route'
 import { PATCH as pathPatch } from '@/app/api/learn/paths/[id]/route'
 import { PUT as videoPut, DELETE as videoDelete } from '@/app/api/learn/videos/route'
@@ -246,10 +247,66 @@ describe('Phase 1 of the training plugin, door to record', () => {
     expect((await route(credentialPost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', action: 'revoke' })).status).toBe(401)
   })
 
-  it('she takes it down and the old address is dead, and showing it again issues a new id', async () => {
+  it('the credential page read holds her skills and only the fields the page prints', async () => {
+    const read = await readCredential(s.maker.slug, s.code)
+    expect(read.ok).toBe(true)
+    if (read.ok) {
+      expect(read.view.skills).toEqual([...trackOf('it-upgrade')!.goodAt])
+      expect(read.view.skills.length).toBeGreaterThanOrEqual(3)
+      expect(Object.keys(read.view).sort()).toEqual(['certId', 'code', 'completedAt', 'courseTitle', 'issuer', 'learnerName', 'skills', 'trackTitle'])
+    }
+  })
+
+  it('she presses share a post and gets the LinkedIn address for her own page, and the press is ledgered', async () => {
+    as(WORKER)
+    const before = await prisma.automationLog.count({ where: { action: 'CREDENTIAL_SHARED' } })
+    const r = await route(sharePost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', kind: 'post' })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const u = new URL(r.body.data.url)
+    expect(u.origin + u.pathname).toBe('https://www.linkedin.com/sharing/share-offsite/')
+    expect(u.searchParams.get('url')).toContain(`/learn/${s.maker.slug}/credential/${s.code}`)
+    const rows = await prisma.automationLog.findMany({ where: { action: 'CREDENTIAL_SHARED' } })
+    expect(rows.length).toBe(before + 1)
+    expect(rows[rows.length - 1]).toMatchObject({ companyId: s.maker.id, reversible: false, payload: expect.objectContaining({ kind: 'post', personId: s.worker }) })
+  })
+
+  it('she presses add to profile and the address carries the course, the firm, the date and the page, and the press is ledgered with its kind', async () => {
+    as(WORKER)
+    const r = await route(sharePost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', kind: 'profile' })
+    expect(r.status, JSON.stringify(r.body)).toBe(200)
+    const u = new URL(r.body.data.url)
+    expect(u.pathname).toBe('/profile/add')
+    expect(u.searchParams.get('certUrl')).toContain(`/learn/${s.maker.slug}/credential/${s.code}`)
+    expect(u.searchParams.get('organizationName')).toBeTruthy()
+    expect(u.searchParams.get('issueYear')).toMatch(/^20\d\d$/)
+    expect(await prisma.automationLog.count({ where: { action: 'CREDENTIAL_SHARED', payload: { path: ['kind'], equals: 'profile' } } })).toBe(1)
+  })
+
+  it('a share by anyone but the learner is refused, logged first, and writes no share row', async () => {
+    const shares = await prisma.automationLog.count({ where: { action: 'CREDENTIAL_SHARED' } })
+    const refused = () => prisma.accessLog.count({ where: { allowed: false, subjectCompanyId: s.maker.id, reason: { contains: 'LinkedIn share' } } })
+    const was = await refused()
+    as(MENTOR)
+    const r = await route(sharePost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', kind: 'post' })
+    expect(r.status).toBe(404)
+    expect(await refused()).toBe(was + 1)
+    expect(await prisma.automationLog.count({ where: { action: 'CREDENTIAL_SHARED' } })).toBe(shares)
+    delete process.env.DEV_BYPASS_AUTH
+    expect((await route(sharePost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', kind: 'post' })).status).toBe(401)
+  })
+
+  it('a share that names neither post nor profile is refused', async () => {
+    as(WORKER)
+    expect((await route(sharePost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', kind: 'auto' })).status).toBe(422)
+  })
+
+  it('she takes it down and the old address is dead, a share after that is refused, and showing it again issues a new id', async () => {
     as(WORKER)
     expect((await route(credentialPost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', action: 'revoke' })).status).toBe(200)
     expect(await readCredential(s.maker.slug, s.code)).toEqual({ ok: false, reason: 'REVOKED' })
+    const shares = await prisma.automationLog.count({ where: { action: 'CREDENTIAL_SHARED' } })
+    expect((await route(sharePost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', kind: 'post' })).status).toBe(409)
+    expect(await prisma.automationLog.count({ where: { action: 'CREDENTIAL_SHARED' } })).toBe(shares)
     expect((await route(credentialPost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', action: 'revoke' })).status).toBe(409)
     const again = await route(credentialPost, 'POST', '/x', { tenant: s.maker.slug }, { track: 'it-upgrade', action: 'show' })
     expect(again.status).toBe(201)

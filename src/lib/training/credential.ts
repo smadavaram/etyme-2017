@@ -73,3 +73,27 @@ export function addToProfileUrl(o: { courseName: string; issuer: string; issuedA
   })
   return `https://www.linkedin.com/profile/add?${q.toString()}`
 }
+
+/** The two shares a learner may press. Each is her own click; nothing posts for her. */
+export const SHARE_KINDS = ['post', 'profile'] as const
+export type ShareKind = (typeof SHARE_KINDS)[number]
+
+/**
+ * The firm's public "What are you?" entry. The credential page and the
+ * shared post both lead back to it, so a person who sees the credential can
+ * start the course.
+ */
+export const entryPath = (tenantSlug: string): string => `/learn/${tenantSlug}`
+
+/**
+ * A "share a post" link: the network's documented share address, carrying
+ * the one parameter it documents, the page to share. The credential page
+ * is that page; its own address is the public one, and it links back to
+ * the entry. Nothing is called and nothing is read back.
+ */
+export const SHARE_POST_PARAMS = ['url'] as const
+
+export function sharePostUrl(credentialUrl: string): string {
+  const q = new URLSearchParams({ url: credentialUrl })
+  return `https://www.linkedin.com/sharing/share-offsite/?${q.toString()}`
+}

@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { isCalendarDate, cleanDues, dueLine, dayWords } from '@/lib/training/due'
 import { cleanVideo, cleanLink, readVideo, framesOf, nextFrame, playsInPage, clock, FRAME_FADE_MS, FRAME_HOLD_MS, LESSON_STEPS } from '@/lib/training/video'
-import { mayShowCredential, addToProfileUrl, newVerificationCode, ADD_TO_PROFILE_PARAMS, credentialPath, credentialCourseTitle } from '@/lib/training/credential'
+import { mayShowCredential, addToProfileUrl, newVerificationCode, ADD_TO_PROFILE_PARAMS, credentialPath, credentialCourseTitle, sharePostUrl, SHARE_POST_PARAMS, entryPath } from '@/lib/training/credential'
 
 const root = process.cwd()
 const walk = (dir: string, out: string[] = []): string[] => {
@@ -165,6 +165,42 @@ describe('the public credential page', () => {
     expect(url.searchParams.get('issueYear')).toBe('2026')
     expect(url.searchParams.get('issueMonth')).toBe('12')
     expect(url.searchParams.get('certId')).toBe('abc')
+  })
+  it('the share-a-post link is a plain LinkedIn address carrying the credential page and nothing else', () => {
+    const url = new URL(sharePostUrl('https://x.example/learn/a/credential/abc'))
+    expect(url.origin).toBe('https://www.linkedin.com')
+    expect([...url.searchParams.keys()]).toEqual([...SHARE_POST_PARAMS])
+    expect(url.searchParams.get('url')).toBe('https://x.example/learn/a/credential/abc')
+  })
+  it('the add-to-profile link carries the course name, the issuing firm, the issue date and the page address, and no other field', () => {
+    const url = new URL(addToProfileUrl({ courseName: 'Working in the AI era', issuer: 'A Firm', issuedAt: new Date('2026-12-14T10:00:00Z'), certUrl: 'https://x.example/learn/a/credential/abc', certId: 'abc' }))
+    expect(url.searchParams.get('name')).toBe('Working in the AI era')
+    expect(url.searchParams.get('organizationName')).toBe('A Firm')
+    expect(url.searchParams.get('certUrl')).toBe('https://x.example/learn/a/credential/abc')
+    expect([...url.searchParams.keys()].sort()).toEqual([...ADD_TO_PROFILE_PARAMS].sort())
+  })
+  it('the firm’s public What are you entry is its learning address', () => {
+    expect(entryPath('tapin')).toBe('/learn/tapin')
+  })
+  it('the credential page shows the skills and links back to the What are you entry, and carries no share link of its own', () => {
+    const page = src(join(root, 'src/app/learn/[tenant]/credential/[id]/page.tsx'))
+    expect(page).toContain('v.skills.map')
+    expect(page).toContain('entryPath(r.tenantSlug)')
+    expect(page).not.toMatch(/linkedin|addToProfileUrl|sharePostUrl/i)
+  })
+  it('the credential page prints only the name, the course, the issuer, the date and the skills: no id, email, rate or progress', () => {
+    const page = src(join(root, 'src/app/learn/[tenant]/credential/[id]/page.tsx'))
+    for (const field of ['v.learnerName', 'v.courseTitle', 'v.issuer', 'v.completedAt', 'v.skills']) expect(page).toContain(field)
+    for (const field of ['v.certId', 'v.code', 'email', 'progress', 'personId']) expect(page, field).not.toContain(field)
+  })
+  it('the share door reads no other network: it only builds the two links', () => {
+    expect(src(join(root, 'src/app/api/learn/[tenant]/credential/share/route.ts'))).not.toMatch(/\bfetch\(|axios/)
+  })
+  it('the share buttons are pressed by the learner and nothing posts by itself', () => {
+    const panel = src(join(root, 'src/app/learn/_components/credential-panel.tsx'))
+    expect(panel).toContain("onClick={() => share('post')}")
+    expect(panel).toContain("onClick={() => share('profile')}")
+    expect((panel.match(/share\('/g) ?? []).length).toBe(2)
   })
   it('the public page address names the firm and the id', () => {
     expect(credentialPath('tapin', 'abc')).toBe('/learn/tapin/credential/abc')

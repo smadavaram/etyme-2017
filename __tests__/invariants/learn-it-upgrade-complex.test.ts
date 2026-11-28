@@ -191,6 +191,9 @@ describe('IT — Upgrade, the Complex level: what it says about Etyme is what Et
     expect(everything).toContain(planWords(PROPOSED_CHASE_PLAN))
     expect(PROPOSED_CHASE_PLAN.retries).toBe(2)
   })
+  it('the lesson says the reminder numbers are defaults, not settled: the plan it quotes opens with "By default"', () => {
+    expect(everything).toMatch(/By default, a plan reads:\s*If you say yes, the agent sends/)
+  })
   it('the cap and the off switch say what the lessons quote', async () => {
     const { capReachedSays, offSays, mayChangeSwitch } = await import('@/lib/agents/switch')
     expect(everything).toContain(capReachedSays('timesheet-chase', 10))

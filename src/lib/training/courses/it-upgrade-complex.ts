@@ -119,6 +119,7 @@ export const IT_UPGRADE_COMPLEX: Level = {
           example: {
             mono: true,
             text:
+              'By default, a plan reads:\n' +
               'If you say yes, the agent sends “Timesheet reminder”.\n' +
               'Each may be sent again up to 2 times, 2 working days apart.\n' +
               'It closes the task when the week is filed.\n' +

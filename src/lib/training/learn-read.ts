@@ -37,7 +37,9 @@ export async function videoFor(tenantId: string, trackKey: string, lessonKey: st
 /** The typed course content was written by Tapin, and its title says so; another firm's page must not. */
 const COURSE_CONTENT_AUTHOR = 'Tapin'
 
-export interface CredentialView { courseTitle: string; trackTitle: string | null; issuer: string; learnerName: string; completedAt: Date; code: string; certId: string }
+export interface CredentialView { courseTitle: string; trackTitle: string | null; issuer: string; learnerName: string; completedAt: Date; code: string; certId: string
+  /** The track's "What you are now good at" lines, the only other thing the page shows. */
+  skills: string[] }
 
 /**
  * The public credential page's one reader. It checks the code against the
@@ -58,6 +60,7 @@ export async function readCredential(slug: string, code: string): Promise<{ ok: 
   const source = course.sourceCompanyId ? await prisma.company.findUnique({ where: { id: course.sourceCompanyId }, select: { name: true } }) : null
   return {
     ok: true, tenantSlug: c.slug,
-    view: { courseTitle: credentialCourseTitle(course.title, [course.company.name, source?.name, COURSE_CONTENT_AUTHOR], c.name), trackTitle: (course.trackKey && trackOf(course.trackKey)?.title) || null, issuer: c.name, learnerName: row.enrollment.person.name, completedAt: row.enrollment.completedAt ?? row.shownAt!, code: row.verificationCode, certId: row.verificationCode },
+    view: { courseTitle: credentialCourseTitle(course.title, [course.company.name, source?.name, COURSE_CONTENT_AUTHOR], c.name), trackTitle: (course.trackKey && trackOf(course.trackKey)?.title) || null, issuer: c.name, learnerName: row.enrollment.person.name, completedAt: row.enrollment.completedAt ?? row.shownAt!, code: row.verificationCode, certId: row.verificationCode,
+      skills: [...((course.trackKey && trackOf(course.trackKey)?.goodAt) || [])] },
   }
 }
