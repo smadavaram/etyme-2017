@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { appUrl } from '@/lib/app-url'
 import { sessionMicroSites } from '@/lib/plugin-registry'
+import { pluginSiteOfHost, pluginSitePath, subdomainsShareSession } from '@/lib/plugin-host'
 import { MAP_COOKIE, keyOpens } from '@/lib/map-gate'
 import {
   EMBED_FRAME_HEADERS, SAMPLE_COOKIE, SAMPLE_COOKIE_VALUE, SAMPLE_COOKIE_PATHS, SAMPLE_COOKIE_SECONDS,
@@ -48,6 +49,10 @@ const PLATFORM_SUBDOMAINS = new Set([
   // Where a supplier answers a role without an account. Every
   // invitation email points at this address.
   'answer',
+  // A plugin's own subdomain (record 137): learn.<slug>.etyme.com, and
+  // learn.etyme.com for Etyme's own training site. Read from the plugin
+  // registry by lib/plugin-host; a test keeps these in step with it.
+  'learn', 'pods', 'proposals',
 ])
 
 /**
@@ -124,10 +129,11 @@ function isAppPath(path: string): boolean {
 }
 
 /**
- * A plugin's signed-in micro-site (record 134). The session cookie is
- * host-only and is never widened to a parent domain, so a firm's own
- * address, or a custom domain, sends the micro-site to the platform's host
- * rather than asking for a second sign-in.
+ * A plugin's signed-in micro-site (record 134). The session cookie lives
+ * on the app's own host, widened to the platform host's parent only where
+ * the app lives under it (record 137, lib/plugin-host); a custom domain
+ * never shares it. So a firm's own address, or a custom domain, sends the
+ * micro-site to the app's host rather than asking for a second sign-in.
  */
 function isMicroSitePath(path: string): boolean {
   return sessionMicroSites().some((p) => path === p || path.startsWith(`${p}/`))
@@ -157,6 +163,35 @@ async function firmHasPage(request: NextRequest, slug: string): Promise<boolean>
 export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === '/map') return mapGate(request)
   const host = (request.headers.get('host') ?? '').toLowerCase().split(':')[0]
+
+  // A plugin's subdomain (record 137) is served from the micro-site path it
+  // already has, keeping the address bar; that path's own gates decide what
+  // renders, so a plugin that is off still reads as not found. API calls and
+  // the app's own pages are not rewritten. Where the session cookie cannot
+  // reach the subdomain (the app is not on the platform host, as on
+  // production today), the visitor is sent to the same path on the app's
+  // own address instead, so nobody signs in twice.
+  const plugin = pluginSiteOfHost(host, PLATFORM_HOST)
+  const onPath = request.nextUrl.pathname
+  if (plugin && plugin.tenant.kind !== 'CUSTOM' && !onPath.startsWith('/api/') && !onPath.startsWith('/_next/') &&
+      !(plugin.tenant.kind === 'SUBDOMAIN' && PLATFORM_SUBDOMAINS.has(plugin.tenant.slug))) {
+    if (isAppPath(onPath) && !isMicroSitePath(onPath)) {
+      return NextResponse.redirect(new URL(`${onPath}${request.nextUrl.search}`, appUrl()))
+    }
+    const target = pluginSitePath(plugin, onPath)
+    if (target) {
+      if (!subdomainsShareSession(appUrl(), PLATFORM_HOST)) {
+        return NextResponse.redirect(new URL(`${target}${request.nextUrl.search}`, appUrl()))
+      }
+      const pluginHeaders = new Headers(request.headers)
+      pluginHeaders.set('x-etyme-host-kind', 'PLATFORM')
+      pluginHeaders.set('x-etyme-host-value', '')
+      pluginHeaders.set('x-etyme-plugin-site', plugin.key)
+      const url = request.nextUrl.clone()
+      url.pathname = target
+      return NextResponse.rewrite(url, { request: { headers: pluginHeaders } })
+    }
+  }
 
   let kind: 'SUBDOMAIN' | 'CUSTOM' | 'PLATFORM' = 'PLATFORM'
   let value = ''

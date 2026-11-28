@@ -7,6 +7,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import type { Door } from '@/lib/identity/policy'
 import { emailLinkDoorOn } from '@/lib/readiness'
 import { OAUTH_HTTP_TIMEOUT_MS } from '@/lib/identity/oidc'
+import { sessionCookieDomain } from '@/lib/plugin-host'
 
 export { OAUTH_HTTP_TIMEOUT_MS }
 
@@ -344,6 +345,21 @@ export async function signInFailureOncePerHour(place: string, now: number = Date
   }
 }
 
+function sessionCookieOption(): Pick<NextAuthOptions, 'cookies'> {
+  const app = process.env.NEXTAUTH_URL ?? ''
+  const domain = sessionCookieDomain(app, process.env.NEXT_PUBLIC_PLATFORM_HOST ?? 'etyme.com')
+  if (!domain) return {}
+  const secure = app.startsWith('https://')
+  return {
+    cookies: {
+      sessionToken: {
+        name: `${secure ? '__Secure-' : ''}next-auth.session-token`,
+        options: { httpOnly: true, sameSite: 'lax', path: '/', secure, domain },
+      },
+    },
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: configuredProviders(),
 
@@ -373,6 +389,13 @@ export const authOptions: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+
+  // One session across a plugin's subdomain (record 137): the cookie's
+  // domain is the platform host's parent only where the app lives on it or
+  // under it. Elsewhere (etyme2040.vercel.app, localhost, which is
+  // production today) nothing is set and the cookie stays host-only as it
+  // always was. The name is next-auth's own, so every reader keeps working.
+  ...sessionCookieOption(),
 
   pages: {
     signIn: '/login',

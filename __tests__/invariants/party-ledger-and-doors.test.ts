@@ -104,9 +104,12 @@ describe('one sign-on covers the core and every plugin site', () => {
     expect(offenders.map((f) => relative(ROOT, f))).toEqual([])
   })
 
-  it('the session cookie is never widened to a parent domain', () => {
+  // Record 137 widened it under the platform host only, through one reader (lib/plugin-host).
+  it('the session cookie is widened to a parent domain only by the one reader, and only under the platform host', () => {
     const auth = read(join(ROOT, 'src/lib/auth.ts')).split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
-    expect(auth).not.toMatch(/\bcookies\s*:/)
+    expect(auth.match(/\bcookies\s*:/g) ?? []).toHaveLength(1)
+    expect(auth).toMatch(/const domain = sessionCookieDomain\(/)
+    expect(auth).toMatch(/if \(!domain\) return \{\}/)
     expect(auth).not.toMatch(/^\s*domain\s*:/m)
     expect(auth).not.toMatch(/useSecureCookies\s*:\s*false/)
   })

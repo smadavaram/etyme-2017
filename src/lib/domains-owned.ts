@@ -39,6 +39,8 @@ export const RESERVED_SUBDOMAINS = new Set([
   // Where a supplier answers a role without an account. Every
   // invitation email points at this address.
   'answer',
+  // A plugin's own subdomain (record 137): learn.<slug>.etyme.com.
+  'learn', 'pods', 'proposals',
   // Infrastructure that must not be shadowed
   'mail', 'smtp', 'imap', 'pop', 'mx', 'ns', 'ns1', 'ns2', 'dns',
   'autodiscover', 'autoconfig', '_acme-challenge', '_dmarc', 'dkim',
